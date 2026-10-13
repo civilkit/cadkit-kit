@@ -603,6 +603,26 @@ describe('controller sketch session', { skip: !(process.env.CK_WASM && existsSyn
     expect(r2.view).toBeDefined();
   }, 60000);
 
+  it('drags that arrive while a preview runs do not queue behind it: only the latest runs next', async () => {
+    const { controller, draftOf } = await openBolt({ underDefined: true });
+    await controller.beginSketch('F3');
+    const session = (controller as unknown as { session: Session }).session;
+    const real = session.preview.bind(session);
+    let calls = 0;
+    // a slow kernel (as in the browser), so drags overlap a running preview
+    session.preview = (async (ops: Parameters<Session['preview']>[0], o?: Parameters<Session['preview']>[1]) => { calls++; await new Promise((r) => setTimeout(r, 150)); return real(ops, o); }) as Session['preview'];
+
+    const runs: Array<ReturnType<typeof controller.updateSketch>> = [];
+    for (let i = 0; i < 8; i++) {
+      runs.push(controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1] + i * 0.01), 0));
+      await new Promise((r) => setTimeout(r, 12));
+    }
+    const results = await Promise.all(runs);
+    expect(calls).toBeLessThanOrEqual(2);                 // the first, then only the newest
+    expect(results[results.length - 1].ok).toBe(true);
+    expect(results[results.length - 1].view).toBeDefined();
+  }, 60000);
+
   it('beginSketch on a non-sketch feature returns null', async () => {
     const { controller } = await openBolt();
     expect(await controller.beginSketch('F4')).toBeNull();

@@ -20,19 +20,6 @@ export interface SketchPreview {
   status?: SketchSolverStatus;
 }
 
-/** INTERIM: the kernel only re-solves a sketch when a constraint `expr` changed
- *  value, so every temporary drag fix carries `expr:'0'` to force the re-solve.
- *  Goes away once `opts.solveSketches` lands: the preview then passes
- *  solveSketches:true instead and this function is deleted. Nothing else
- *  should know about it. */
-function forceSolve(draft: SketchDraft): SketchDraft {
-  if (!draft.temp.length) return draft;
-  return {
-    ...draft,
-    temp: draft.temp.map((c) => (c.expr === undefined ? { ...c, expr: '0' } : c)),
-  };
-}
-
 export interface ViewSink {
   setBody(b: unknown | null): void;
   setHighlight(n: string[]): void;
@@ -201,6 +188,9 @@ export class Controller {
   private sketchTimer: ReturnType<typeof setTimeout> | null = null;
   private sketchWake: (() => void) | null = null;
   private sketchSeq = 0;
+  /** The preview now running in the kernel worker. The worker runs every request it is sent, so a newer
+   *  drag must wait for this one instead of queueing behind it: only the latest waiting drag ever runs. */
+  private sketchInflight: Promise<unknown> | null = null;
 
   /** Open a sketch feature for editing: solve it as of its place in the tree (the
    *  features after it are cut off with `upTo`) and hand the viewport the solved
@@ -242,7 +232,14 @@ export class Controller {
     this.sketchTimer = null;
     const open = this.sketchOpen;
     if (!open) return { ok: false, hint: 'no sketch open' };
-    const res = await this.previewSketch(draft, open.upTo);
+    while (this.sketchInflight) {
+      await this.sketchInflight.catch(() => {});
+      if (seq !== this.sketchSeq) return { ok: true, stale: true };
+    }
+    const running = this.previewSketch(draft, open.upTo);
+    this.sketchInflight = running;
+    let res: Awaited<typeof running>;
+    try { res = await running; } finally { if (this.sketchInflight === running) this.sketchInflight = null; }
     if (seq !== this.sketchSeq) return { ok: true, stale: true };
     // A drag the solver could not absorb comes back as a successful regen that
     // echoes the sketch unsolved (status.solved false): refuse it, keep the
@@ -297,8 +294,8 @@ export class Controller {
   private async previewSketch(draft: SketchDraft, upTo: number): Promise<{ ok: boolean; view?: SketchEditView; hint?: string; status?: SketchSolverStatus }> {
     const s = this.session;
     if (!s) return { ok: false, hint: 'no document loaded' };
-    const feature = toFeature(forceSolve(draft), { includeTemp: true });
-    const r = await s.preview([{ op: 'replace', id: draft.id, feature }], { upTo, sketchStatus: true });
+    const feature = toFeature(draft, { includeTemp: true });
+    const r = await s.preview([{ op: 'replace', id: draft.id, feature }], { upTo, solveSketches: true });
     if (r.ok && r.body) {
       const entry = r.body.sketches.find((x) => x.id === draft.id);
       if (entry) return { ok: true, view: { featureId: draft.id, frame: entry.frame, sketch: entry.sketch, status: entry.status }, status: entry.status };
