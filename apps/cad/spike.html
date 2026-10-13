@@ -1,0 +1,20 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>CAD kit spike (throwaway)</title>
+<style>
+:root{--vp-bottom:#e9edf2}
+body{margin:0;font:13px system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr auto;height:100vh}
+header{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#0a1017;color:#e9ecf1;flex-wrap:wrap}
+header select,header button{font:inherit}
+#vp{position:relative;min-height:0}
+footer{padding:4px 10px;background:#f6f7f9;border-top:1px solid #d5d9e0;display:flex;gap:16px}
+</style></head>
+<body>
+<header><b>Spike (throwaway)</b>
+<select id="sel"></select>
+<span>pick:</span><label><input type="radio" name="m" value="face" checked>face</label><label><input type="radio" name="m" value="edge">edge</label>
+<button data-v="iso">iso</button><button data-v="front">front</button><button data-v="top">top</button><button data-v="right">right</button><button id="fit">fit</button>
+</header>
+<div id="vp"></div>
+<footer><span id="st">loading kernel...</span><span id="hover"></span></footer>
+<script type="module" src="/src/spike.ts"></script>
+</body></html>
