@@ -1,4 +1,4 @@
-import { faceOfVertexIndex } from './meshgeom';
+import { faceOfVertexIndex, type Grouped } from './meshgeom';
 
 export interface PickResult {
   face: string | null;
@@ -12,7 +12,7 @@ export function pickFace(g: Grouped, hit: { faceIndex: number } | null): string 
 
 export function nearestEdge(edges: Array<{ pts: number[][] }>, point: number[], tol: number): number | null {
   let bestIdx: number | null = null;
-  let bestDist = tol + 1;
+  let bestDist = tol * tol;
   for (let i = 0; i < edges.length; i++) {
     const e = edges[i];
     for (let j = 0; j + 1 < e.pts.length; j++) {
@@ -27,7 +27,7 @@ export function nearestEdge(edges: Array<{ pts: number[][] }>, point: number[], 
         const dy0 = point[1] - a[1];
         const dz0 = point[2] - a[2];
         const d = dx0 * dx0 + dy0 * dy0 + dz0 * dz0;
-        if (d < bestDist) {
+        if (d <= bestDist) {
           bestDist = d;
           bestIdx = i;
         }
@@ -48,6 +48,5 @@ export function nearestEdge(edges: Array<{ pts: number[][] }>, point: number[], 
       }
     }
   }
-  if (bestDist > tol * tol) bestIdx = null;
   return bestIdx;
 }

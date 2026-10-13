@@ -1,145 +1,265 @@
+// Three.js scene for one body: shaded mesh, feature edges, face highlight, picking, standard views.
+// Draws on demand (a dirty flag), uses the kernel normals as given, and keeps all geometry in plain
+// typed arrays (nothing here is reactive).
 import * as THREE from 'three';
-import { groupByFace, edgeSegments, pickFace, BodyMesh, Grouped } from './meshgeom';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
+import { pickFace, nearestEdge } from './pick';
 
-export interface ViewportOptions { onPick(names: string[], additive: boolean, mode: 'face' | 'edge'): void; onHover(name: string | null): void; }
+export interface ViewBody {
+  mesh: BodyMesh;
+  edges: Array<{ key?: string; pts: number[][] }>;
+  box: { min: number[]; max: number[] };
+}
+
+export type PickMode = 'face' | 'edge';
+
+export interface ViewportOptions {
+  onPick(names: string[], additive: boolean, mode: PickMode): void;
+  onHover(name: string | null): void;
+}
+
+type StdView = 'iso' | 'front' | 'top' | 'right';
+
+const VIEW_DIRS: Record<StdView, [number, number, number]> = {
+  iso: [1, 0.8, 1],
+  front: [0, 0, 1],
+  top: [0, 1, 0.0001],
+  right: [1, 0, 0],
+};
 
 export class Viewport {
-  private renderer!: THREE.WebGLRenderer;
-  private camera!: THREE.PerspectiveCamera;
-  private scene!: THREE.Scene;
-  private controls!: THREE.OrbitControls;
-  private host!: HTMLElement;
-  private animId!: number;
-  private dirty = false;
+  private readonly renderer: THREE.WebGLRenderer;
+  private readonly camera: THREE.PerspectiveCamera;
+  private readonly scene = new THREE.Scene();
+  private readonly controls: OrbitControls;
+  private readonly raycaster = new THREE.Raycaster();
+  private readonly dom: HTMLCanvasElement;
 
-  constructor(host: HTMLElement, opts: ViewportOptions) {
-    this.host = host;
-    this.initThree();
-    self.addEventListener('pointerup', (ev: PointerEvent) => this.handlePointerUp(ev), { passive: false });
-    self.addEventListener('pointermove', (ev: PointerEvent) => this.handlePointerMove(ev), { passive: false });
-  }
+  private mesh: THREE.Mesh | null = null;
+  private edgeLines: THREE.LineSegments | null = null;
+  private highlight: THREE.Mesh | null = null;
+  private grouped: Grouped | null = null;
+  private edges: Array<{ key?: string; pts: number[][] }> = [];
+  private box: { min: number[]; max: number[] } | null = null;
 
-  private initThree(): void {
-    this.scene = new THREE.Scene();
+  private mode: PickMode = 'face';
+  private dirty = true;
+  private raf = 0;
+  private disposed = false;
+  private down: { x: number; y: number } | null = null;
+  private hoverPending: { x: number; y: number } | null = null;
+  private lastHover: string | null = null;
 
+  constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setSize(this.host.clientWidth, this.host.clientHeight);
-    this.host.appendChild(this.renderer.domElement);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.dom = this.renderer.domElement;
+    host.appendChild(this.dom);
 
-    this.camera = new THREE.PerspectiveCamera(60, this.host.clientWidth / Math.max(1, this.host.clientHeight), 0.1, 1000);
-    this.camera.position.z = 10;
+    this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000);
+    this.camera.position.set(60, 50, 60);
 
-    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
+    this.controls = new OrbitControls(this.camera, this.dom);
+    this.controls.addEventListener('change', () => { this.dirty = true; });
 
-    const hem = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
-    dir.position.set(5, 5, 5);
-    this.scene.add(hem, dir);
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.9));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    sun.position.set(1, 2, 1.5);
+    this.scene.add(sun);
+    const bg = getComputedStyle(host).getPropertyValue('--vp-bottom').trim();
+    this.scene.background = new THREE.Color(bg || '#e6eaf0');
 
-    this.scene.background = new THREE.Color('rgb(184, 196, 214)');
-
-    window.addEventListener('resize', () => this.onResize(), false);
+    this.dom.addEventListener('pointerdown', this.onDown);
+    this.dom.addEventListener('pointerup', this.onUp);
+    this.dom.addEventListener('pointermove', this.onMove);
+    this.resize();
+    this.loop();
   }
 
-  private onResize(): void {
-    const w = this.host.clientWidth;
-    const h = this.host.clientHeight;
-    this.camera.aspect = w / Math.max(1, h);
-    this.camera.updateProjectionMatrix();
-    this.renderer.setSize(w, h);
-    this.dirty = true;
-  }
+  setPickMode(mode: PickMode): void { this.mode = mode; }
 
-  setBody(body: { mesh: BodyMesh; edges: Array<{ pts: number[] }> } | null): void {
-    this.scene.traverse((obj) => {
-      if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
-        this.scene.remove(obj);
-      }
-    });
-
-    if (!body) {
-      this.dirty = true;
-      this.render();
-      return;
-    }
-
+  /** Show a body, or clear the scene when body is null (empty or failed document). */
+  setBody(body: ViewBody | null): void {
+    this.clearBody();
+    if (!body || body.mesh.triFace.length === 0) { this.dirty = true; return; }
     const g = groupByFace(body.mesh);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0xb8c4d6, metalness: 0.1, roughness: 0.6, side: THREE.DoubleSide });
-    const highlightMat = new THREE.MeshStandardMaterial({ color: 0xffa500, metalness: 0.5, roughness: 0.2, emissive: 0xffa500, emissiveIntensity: 0.3, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
-    geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
+    this.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color: 0xb8c4d6, metalness: 0.1, roughness: 0.6, side: THREE.DoubleSide,
+    }));
+    this.scene.add(this.mesh);
 
-    const baseMesh = new THREE.Mesh(geo, baseMat);
-    this.scene.add(baseMesh);
-
-    const edgeData = edgeSegments(body.edges);
-    const edgeGeo = new THREE.BufferGeometry();
-    edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgeData, 3));
-    const edgeMesh = new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: 0x202020 }));
-    this.scene.add(edgeMesh);
-
-    this.controls.target.set(0, 0, 0);
-    this.dirty = true;
-    this.render();
+    const seg = edgeSegments(body.edges);
+    if (seg.length) {
+      const eg = new THREE.BufferGeometry();
+      eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
+      this.edgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129 }));
+      this.scene.add(this.edgeLines);
+    }
+    this.grouped = g;
+    this.edges = body.edges;
+    this.box = body.box;
+    this.fit();
   }
 
   setHighlight(names: string[]): void {
-    this.scene.traverse((obj) => {
-      if (obj.userData?.isHighlight) {
-        this.scene.remove(obj);
-      }
-    });
-
-    if (names.length > 0) {
-      const hl = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ emissive: 0xffa500, emissiveIntensity: 0.3 }));
-      hl.userData.isHighlight = true;
-      this.scene.add(hl);
+    if (this.highlight) {
+      this.scene.remove(this.highlight);
+      this.highlight.geometry.dispose();
+      (this.highlight.material as THREE.Material).dispose();
+      this.highlight = null;
     }
-
+    if (this.grouped && names.length) {
+      const want = new Set(names);
+      const pos: number[] = [];
+      const nor: number[] = [];
+      for (const r of this.grouped.ranges) {
+        if (!want.has(r.name)) continue;
+        pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+        nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+      }
+      if (pos.length) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        this.highlight = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+          color: 0x0b74dc, emissive: 0x0b74dc, emissiveIntensity: 0.35,
+          polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
+        }));
+        this.scene.add(this.highlight);
+      }
+    }
     this.dirty = true;
-    this.render();
   }
 
-  setView(v: 'iso' | 'front' | 'top' | 'right'): void {
-    switch (v) {
-      case 'iso': this.camera.position.set(5, 5, 5); break;
-      case 'front': this.camera.position.set(0, 0, 10); break;
-      case 'top': this.camera.position.set(0, 10, 0); break;
-      case 'right': this.camera.position.set(10, 0, 0); break;
-    }
-    this.controls.target.set(0, 0, 0);
+  setView(v: StdView): void {
+    const c = this.center();
+    const d = VIEW_DIRS[v];
+    const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
+    const dir = new THREE.Vector3(...d).normalize().multiplyScalar(dist);
+    this.controls.target.copy(c);
+    this.camera.position.copy(c).add(dir);
+    this.camera.up.set(0, 1, 0);
+    this.camera.lookAt(c);
+    this.controls.update();
     this.dirty = true;
-    this.render();
   }
 
   fit(): void {
-    this.controls.reset();
+    const c = this.center();
+    const r = this.radius();
+    const dist = (r * 1.2) / Math.sin((this.camera.fov * Math.PI) / 360);
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-9) dir.set(1, 0.8, 1);
+    dir.normalize().multiplyScalar(dist);
+    this.controls.target.copy(c);
+    this.camera.position.copy(c).add(dir);
+    this.camera.near = Math.max(r / 1000, 0.01);
+    this.camera.far = r * 100;
+    this.camera.updateProjectionMatrix();
+    this.controls.update();
     this.dirty = true;
-    this.render();
   }
 
   resize(): void {
-    this.onResize();
+    const w = Math.max(1, this.host.clientWidth);
+    const h = Math.max(1, this.host.clientHeight);
+    this.renderer.setSize(w, h, false);
+    this.dom.style.width = '100%';
+    this.dom.style.height = '100%';
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.dirty = true;
   }
 
   dispose(): void {
-    window.removeEventListener('resize', () => this.onResize(), false);
-    self.removeEventListener('pointerup', (ev: PointerEvent) => this.handlePointerUp(ev), { passive: false });
-    self.removeEventListener('pointermove', (ev: PointerEvent) => this.handlePointerMove(ev), { passive: false });
+    this.disposed = true;
+    cancelAnimationFrame(this.raf);
+    this.dom.removeEventListener('pointerdown', this.onDown);
+    this.dom.removeEventListener('pointerup', this.onUp);
+    this.dom.removeEventListener('pointermove', this.onMove);
+    this.controls.dispose();
+    this.clearBody();
     this.renderer.dispose();
-    this.renderer.domElement.remove();
-    if (this.animId) cancelAnimationFrame(this.animId);
+    this.dom.remove();
   }
 
-  render = (): void => {
-    if (this.dirty) {
-      this.controls.update();
-      this.renderer.render(this.scene, this.camera);
-      this.dirty = false;
+  // ---- internals ----
+
+  private center(): THREE.Vector3 {
+    if (!this.box) return new THREE.Vector3();
+    const { min, max } = this.box;
+    return new THREE.Vector3((min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2);
+  }
+
+  private radius(): number {
+    if (!this.box) return 50;
+    const { min, max } = this.box;
+    return Math.max(Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2, 1e-3);
+  }
+
+  private clearBody(): void {
+    for (const o of [this.mesh, this.edgeLines, this.highlight]) {
+      if (!o) continue;
+      this.scene.remove(o);
+      o.geometry.dispose();
+      (o.material as THREE.Material).dispose();
     }
-    this.animId = requestAnimationFrame(this.render);
+    this.mesh = this.edgeLines = this.highlight = null;
+    this.grouped = null;
+    this.edges = [];
+    this.box = null;
+  }
+
+  private ndc(x: number, y: number): THREE.Vector2 {
+    const r = this.dom.getBoundingClientRect();
+    return new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -(((y - r.top) / r.height) * 2 - 1));
+  }
+
+  private hit(x: number, y: number): THREE.Intersection | null {
+    if (!this.mesh) return null;
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
+  }
+
+  private nameAt(h: THREE.Intersection | null): string | null {
+    if (!h || !this.grouped) return null;
+    if (this.mode === 'edge') {
+      const i = nearestEdge(this.edges, [h.point.x, h.point.y, h.point.z], this.radius() * 0.03);
+      return i === null ? null : this.edges[i].key ?? `edge#${i}`;
+    }
+    return pickFace(this.grouped, h.faceIndex == null ? null : { faceIndex: h.faceIndex });
+  }
+
+  private onDown = (e: PointerEvent): void => { this.down = { x: e.clientX, y: e.clientY }; };
+
+  private onUp = (e: PointerEvent): void => {
+    const d = this.down;
+    this.down = null;
+    if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
+    const name = this.nameAt(this.hit(e.clientX, e.clientY));
+    this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
+  };
+
+  private onMove = (e: PointerEvent): void => {
+    this.hoverPending = { x: e.clientX, y: e.clientY };
+  };
+
+  private loop = (): void => {
+    if (this.disposed) return;
+    this.raf = requestAnimationFrame(this.loop);
+    if (this.hoverPending && !this.down) {
+      const p = this.hoverPending;
+      this.hoverPending = null;
+      const name = this.nameAt(this.hit(p.x, p.y));
+      if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); }
+    }
+    if (this.dirty) {
+      this.dirty = false;
+      this.renderer.render(this.scene, this.camera);
+    }
   };
 }
