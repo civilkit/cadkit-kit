@@ -18,4 +18,12 @@ describe('store', () => {
     expect(s.selection.value).toEqual(['F2.C0']);
     expect(s.notices.value.at(-1)?.text).toMatch(/F2\.C1/);
   });
+  it('toggles display layers without touching the others', () => {
+    const s = createStore();
+    expect(s.display.value.edges).toBe(true);
+    s.setDisplay('edges', false);
+    expect(s.display.value.edges).toBe(false);
+    expect(s.display.value.sketches).toBe(true);
+    expect(createStore({ planes: false }).display.value.planes).toBe(false);
+  });
 });

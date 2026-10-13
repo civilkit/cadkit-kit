@@ -1,0 +1,50 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+#app { display: grid; height: 100vh; grid-template-rows: auto 1fr auto; grid-template-columns: 260px 1fr 280px;
+  grid-template-areas: "ribbon ribbon ribbon" "tree vp insp" "status status status"; }
+.ribbon-wrap { grid-area: ribbon; background: var(--panel); border-bottom: 1px solid var(--line); }
+.tree-wrap { grid-area: tree; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.insp-wrap { grid-area: insp; background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 8px; }
+#vp { grid-area: vp; position: relative; min-width: 0; min-height: 0; background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
+#vp canvas { display: block; }
+.status-wrap { grid-area: status; background: var(--panel-2); border-top: 1px solid var(--line); padding: 4px 10px; display: flex; gap: 16px; }
+.empty { color: var(--text-2); padding: 12px; }
+/* ribbon (data-driven) */
+.ribbon { display: flex; flex-direction: column; }
+.rb-tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: var(--title); }
+.rb-tab { border: 0; background: none; color: var(--title-text); padding: 6px 12px; cursor: pointer; font: inherit; border-radius: 4px 4px 0 0; opacity: .75; }
+.rb-tab.on { background: var(--panel); color: var(--text); opacity: 1; }
+.rb-groups { display: flex; gap: 12px; padding: 6px 8px; flex-wrap: wrap; }
+.rb-group { display: flex; gap: 4px; padding-right: 12px; border-right: 1px solid var(--line-soft); }
+.rb-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; padding: 6px 10px; cursor: pointer; font: inherit; color: inherit; }
+.rb-btn:hover:not(:disabled) { border-color: var(--accent); }
+.rb-btn:disabled { opacity: .4; cursor: default; }
+.rb-btn.on { background: var(--accent-soft); border-color: var(--accent); }
+/* tree, inspector, status */
+.tree .row { display: flex; gap: 6px; align-items: center; padding: 4px 10px; cursor: pointer; border-bottom: 1px solid var(--line-soft); }
+.tree .row:hover { background: var(--panel-2); }
+.tree .row.sel { background: var(--accent-soft); }
+.tree .row.err { color: var(--err); }
+.insp .fld { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
+.insp input, .insp select { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; min-width: 0; }
+.status { display: flex; gap: 16px; align-items: center; }
+.st-busy { color: var(--warn); font-weight: 600; }
+.st-hover { color: var(--text-2); }
+.st-notice.error { color: var(--err); }
+.st-notice.warn { color: var(--warn); }
+.row-id { font-weight: 600; min-width: 28px; }
+.row-type { color: var(--text-2); }
+.row-hint { color: var(--err); font-size: 11px; }
+.row-sup, .row-del { margin-left: auto; border: 0; background: none; cursor: pointer; color: var(--text-2); }
+.dlg-back { position: fixed; inset: 0; background: #0a101788; display: grid; place-items: center; z-index: 50; }
+.dlg { background: var(--panel); width: min(640px, 94vw); height: min(560px, 86vh); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; }
+.dlg-head { display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.dlg-head input { flex: 1; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; }
+.dlg-list { overflow: auto; padding: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; align-content: start; }
+.dlg-item { text-align: left; border: 1px solid var(--line-soft); background: var(--panel-2); border-radius: 6px; padding: 6px; cursor: pointer; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 4px; }
+.dlg-item img { width: 100%; height: 96px; object-fit: contain; background: #e9edf3; border-radius: 4px; }
+@media (max-width: 760px) {
+  #app { grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr 34vh auto; grid-template-areas: "ribbon ribbon" "vp vp" "tree insp" "status status"; }
+  .tree-wrap { border-right: 0; border-top: 1px solid var(--line); }
+  .insp-wrap { border-top: 1px solid var(--line); }
+}

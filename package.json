@@ -7,8 +7,8 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "vite apps/cad",
-    "build": "vite build apps/cad",
+    "dev": "vite apps/cad --config vite.config.ts",
+    "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

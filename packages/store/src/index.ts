@@ -2,9 +2,12 @@ import { signal, type Signal } from '@preact/signals-core';
 
 export type SelectionMode = 'face' | 'edge' | 'vertex';
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; }
+export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden';
+export type Display = Record<DisplayLayer, boolean>;
+export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false };
 export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; }
 
-export function createStore() {
+export function createStore(initialDisplay: Partial<Display> = {}) {
   let noticeSeq = 1;
   const selection = signal<string[]>([]);
   const mode = signal<SelectionMode>('face');
@@ -13,12 +16,14 @@ export function createStore() {
   const busy = signal(false);
   const notices = signal<Notice[]>([]);
   const featureStatus = signal<FeatureStatus[]>([]);
+  const display = signal<Display>({ ...DEFAULT_DISPLAY, ...initialDisplay });
 
   const notify = (text: string, level: Notice['level'] = 'info') => {
     notices.value = [...notices.value, { id: noticeSeq++, text, level }].slice(-20);
   };
   return {
-    selection, mode, hover, tool, busy, notices, featureStatus, notify,
+    selection, mode, hover, tool, busy, notices, featureStatus, display, notify,
+    setDisplay(layer: DisplayLayer, on: boolean) { display.value = { ...display.value, [layer]: on }; },
     select(names: string[], additive = false) {
       selection.value = additive ? [...new Set([...selection.value, ...names])] : [...names];
     },

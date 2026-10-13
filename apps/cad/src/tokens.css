@@ -1,0 +1,12 @@
+/* Design tokens: colours, type and spacing for the CAD app. A dark theme is a change of these values. */
+:root {
+  --accent: #0b74dc; --accent-soft: #e2f0fe;
+  --bg: #eef0f3; --panel: #ffffff; --panel-2: #f6f7f9;
+  --line: #d5d9e0; --line-soft: #e6e9ee;
+  --text: #1c2129; --text-2: #5b6573;
+  --title: #0a1017; --title-text: #e9ecf1;
+  --ok: #2da44e; --warn: #b58100; --err: #d1242f;
+  --vp-top: #cfd8e4; --vp-bottom: #e9edf2;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 13px; color: var(--text);
+}

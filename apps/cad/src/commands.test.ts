@@ -1,0 +1,28 @@
+import { describe, it, expect, vi } from 'vitest';
+import { buildCommands, type Actions } from './commands';
+
+const actions = (over: Partial<Actions> = {}): Actions => ({
+  open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), hasDocument: () => false,
+  setView: vi.fn(), fit: vi.fn(), setMode: vi.fn(), mode: () => 'face', toggleLayer: vi.fn(), layer: () => true, ...over,
+});
+
+describe('ribbon commands', () => {
+  it('has unique ids and the expected tabs', () => {
+    const cmds = buildCommands(actions());
+    expect(new Set(cmds.map((c) => c.id)).size).toBe(cmds.length);
+    expect([...new Set(cmds.map((c) => c.tab))]).toEqual(['Home', 'View', 'Select']);
+  });
+  it('disables save and undo without a document, enables them with one', () => {
+    const off = buildCommands(actions()).filter((c) => c.id === 'save' || c.id === 'undo');
+    expect(off.every((c) => c.enabled?.() === false)).toBe(true);
+    const on = buildCommands(actions({ hasDocument: () => true })).filter((c) => c.id === 'save' || c.id === 'undo');
+    expect(on.every((c) => c.enabled?.() === true)).toBe(true);
+  });
+  it('layer commands toggle their layer and show a tick when on', () => {
+    const a = actions();
+    const edges = buildCommands(a).find((c) => c.id === 'layer-edges')!;
+    expect(edges.label.startsWith('✓')).toBe(true);
+    edges.run();
+    expect(a.toggleLayer).toHaveBeenCalledWith('edges');
+  });
+});

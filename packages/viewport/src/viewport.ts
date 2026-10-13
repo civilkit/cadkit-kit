@@ -79,6 +79,15 @@ export class Viewport {
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
 
+  private layers: Record<string, boolean> = {};
+  /** Show or hide a display layer. Only 'edges' is drawn by this viewport so far; the other layers are remembered
+   *  and applied once sketch, curve and plane geometry is added. */
+  setLayerVisible(layer: string, on: boolean): void {
+    this.layers[layer] = on;
+    if (layer === 'edges' && this.edgeLines) this.edgeLines.visible = on;
+    this.dirty = true;
+  }
+
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   setBody(body: ViewBody | null): void {
     this.clearBody();
@@ -97,6 +106,7 @@ export class Viewport {
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
       this.edgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129 }));
+      this.edgeLines.visible = this.layers.edges !== false;
       this.scene.add(this.edgeLines);
     }
     this.grouped = g;
