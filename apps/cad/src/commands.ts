@@ -8,6 +8,7 @@ export interface Actions {
   save(): void;
   samples(): void;
   undo(): void;
+  redo(): void;
   hasDocument(): boolean;
   setView(v: 'iso' | 'front' | 'top' | 'right'): void;
   fit(): void;
@@ -28,6 +29,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'save', label: 'Save', tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
     { id: 'samples', label: 'Samples', tab: 'Home', group: 'File', run: a.samples },
     { id: 'undo', label: 'Undo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
+    { id: 'redo', label: 'Redo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
     { id: 'view-iso', label: 'Iso', tab: 'View', group: 'Views', run: () => a.setView('iso') },
     { id: 'view-front', label: 'Front', tab: 'View', group: 'Views', run: () => a.setView('front') },
     { id: 'view-top', label: 'Top', tab: 'View', group: 'Views', run: () => a.setView('top') },

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildCommands, type Actions } from './commands';
 
 const actions = (over: Partial<Actions> = {}): Actions => ({
-  open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), hasDocument: () => false,
+  open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), redo: vi.fn(), hasDocument: () => false,
   setView: vi.fn(), fit: vi.fn(), setMode: vi.fn(), mode: () => 'face', toggleLayer: vi.fn(), layer: () => true, ...over,
 });
 
@@ -13,9 +13,9 @@ describe('ribbon commands', () => {
     expect([...new Set(cmds.map((c) => c.tab))]).toEqual(['Home', 'View', 'Select']);
   });
   it('disables save and undo without a document, enables them with one', () => {
-    const off = buildCommands(actions()).filter((c) => c.id === 'save' || c.id === 'undo');
+    const off = buildCommands(actions()).filter((c) => ['save', 'undo', 'redo'].includes(c.id));
     expect(off.every((c) => c.enabled?.() === false)).toBe(true);
-    const on = buildCommands(actions({ hasDocument: () => true })).filter((c) => c.id === 'save' || c.id === 'undo');
+    const on = buildCommands(actions({ hasDocument: () => true })).filter((c) => ['save', 'undo', 'redo'].includes(c.id));
     expect(on.every((c) => c.enabled?.() === true)).toBe(true);
   });
   it('layer commands toggle their layer and show a tick when on', () => {

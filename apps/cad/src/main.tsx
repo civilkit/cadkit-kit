@@ -22,19 +22,18 @@ const store = createStore(loadDisplay());
 
 // One kernel worker for the app; cancel() restarts it.
 let kernelP: Promise<BrowserKernel> = createBrowserKernel(platform.wasmUrl());
-let lastSession: Session | null = null;
 const controller = new Controller({
   store,
   view: { setBody: (b) => viewport?.setBody(b as never), setHighlight: (n) => viewport?.setHighlight(n) },
   kernel: {
     async open(doc: PartDoc) {
-      lastSession = new Session(doc, await kernelP, 'user');
-      return lastSession;
+      return new Session(doc, await kernelP, 'user');
     },
     cancel() { void kernelP.then((k) => k.close()); kernelP = createBrowserKernel(platform.wasmUrl()); },
   },
 });
 let viewport: Viewport | null = null;
+if (import.meta.env.DEV) Object.assign(window, { __cad: { controller, store } });   // for debugging in the browser console
 
 function App() {
   const host = useRef<HTMLDivElement>(null);
@@ -70,10 +69,11 @@ function App() {
 
   const commands = buildCommands({
     open: async () => { const f = await platform.openFile(); if (f) await load(f.text); },
-    save: async () => { if (lastSession) await platform.saveFile(`${lastSession.document.name || 'part'}.ckpart`, JSON.stringify(lastSession.document, null, 1)); },
+    save: async () => { const d = controller.document(); if (d) await platform.saveFile(`${d.name || 'part'}.ckpart`, JSON.stringify(d, null, 1)); },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
-    hasDocument: () => lastSession !== null,
+    redo: async () => { await controller.redo(); redraw((n) => n + 1); },
+    hasDocument: () => controller.document() !== null,
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => { store.mode.value = m; viewport?.setPickMode(m === 'edge' ? 'edge' : 'face'); },
@@ -82,7 +82,7 @@ function App() {
     layer: (l) => store.display.value[l],
   });
 
-  const doc = lastSession?.document ?? null;
+  const doc = controller.document();
   const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, suppressed: (f as { suppressed?: boolean }).suppressed })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
