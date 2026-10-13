@@ -61,7 +61,10 @@ controller.edit = async (ops, reason) => {
   }
   return r;
 };
-if (import.meta.env.DEV) Object.assign(window, { __cad: { controller, store } });   // for the browser console
+if (import.meta.env.DEV) {
+  Object.assign(window, { __cad: { controller, store } }); // for the browser console
+  Object.defineProperty(window.__cad, 'viewport', { get: () => viewport }); // created later by an effect
+}
 
 const I = (d: string) => `<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const RAIL_ICONS: Record<string, string> = {
