@@ -1,4 +1,4 @@
-import { type Session, type EditOp, type EditResult } from '@ck/session';
+import { type Session, type EditOp, type EditResult, type PreviewResult } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import type { Store } from '@kit/store';
 
@@ -20,6 +20,9 @@ export class Controller {
   private lastGood: PartDoc | null = null;
   private pendingCancel: (() => void) | null = null;
   private redoStack: EditOp[][] = [];
+  private previewTimer: ReturnType<typeof setTimeout> | null = null;
+  private previewSeq = 0;
+  private previewWake: (() => void) | null = null;
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
@@ -78,6 +81,60 @@ export class Controller {
     } finally {
       this.store.busy.value = false;
     }
+  }
+
+  /** Speculative edit: shows the candidate body, leaves document and history untouched.
+   *  Debounced ~150 ms; a newer preview supersedes an older one (stale:true, body dropped). */
+  async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string }> {
+    const seq = ++this.previewSeq;
+    if (this.previewTimer) clearTimeout(this.previewTimer);
+    this.previewWake?.();
+    await new Promise<void>((resolve) => {
+      this.previewWake = resolve;
+      this.previewTimer = setTimeout(() => { this.previewTimer = null; resolve(); }, delayMs);
+    });
+    this.previewWake = null;
+    if (seq !== this.previewSeq) {
+      return { ok: true, errors: [], hints: [], body: null, stale: true };
+    }
+    this.previewTimer = null;
+    const s = this.session;
+    if (!s) return { ok: false, errors: [], hints: [], body: null, schemaError: 'no document loaded' };
+    const r = await s.preview(ops);
+    if (seq !== this.previewSeq) {
+      return { ok: true, errors: [], hints: [], body: null, stale: true };
+    }
+    if (r.stale) return r;
+    if (r.ok && r.body) {
+      this.view.setBody(r.body);
+      return r;
+    }
+    const hint =
+      r.hints?.map((h) => h.hint).join('; ') ||
+      r.schemaError ||
+      'preview failed';
+    return { ...r, hint };
+  }
+
+  /** Drop a pending/committed preview: restore the last good body, no edit record. */
+  async cancelPreview(): Promise<void> {
+    this.previewSeq++;
+    if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
+    this.previewWake?.();
+    this.previewWake = null;
+    const s = this.session;
+    if (!s) return;
+    const body = await s.bodyForView().catch(() => null);
+    this.view.setBody(body);
+  }
+
+  /** Commit the editor draft as exactly one edit record (one batch). */
+  async commit(ops: EditOp[], reason?: string): Promise<EditResult> {
+    this.previewSeq++;
+    if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
+    this.previewWake?.();
+    this.previewWake = null;
+    return this.edit(ops, reason);
   }
 
   async undo(): Promise<void> {

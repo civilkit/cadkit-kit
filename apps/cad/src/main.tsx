@@ -8,7 +8,7 @@ import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@ki
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
+  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -84,10 +84,15 @@ const timed = async <T,>(f: () => Promise<T>): Promise<T> => {
 function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [pickingPath, setPickingPath] = useState<string | null>(null);
+  const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
+  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const [previewHint, setPreviewHint] = useState<string | null>(null);
   const [samples, setSamples] = useState<SampleEntry[] | null>(null);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -106,6 +111,12 @@ function App() {
     return () => { ro.disconnect(); vp.dispose(); viewport = null; };
   }, []);
   useEffect(() => { viewport?.setHighlight(store.selection.value); }, [store.selection.value]);
+  // A selection made while a reference field is in the picking state lands in that field's draft.
+  useEffect(() => {
+    if (!pickingPath) return;
+    const id = store.selection.value[0];
+    if (id) { setPicked({ path: pickingPath, value: id }); setPickingPath(null); }
+  }, [store.selection.value, pickingPath]);
   useEffect(() => {
     const d = store.display.value;
     for (const k of Object.keys(d)) viewport?.setLayerVisible(k, d[k as DisplayLayer]);
@@ -182,9 +193,41 @@ function App() {
   const failures = store.featureStatus.value.filter((s) => !s.ok);
   const facts = store.facts.value;
 
+  const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
+  const opsFromDraft = (next: Record<string, unknown>): EditOp[] => {
+    if (!editingFeature) return [];
+    return Object.entries(next)
+      .filter(([path, value]) => editingFeature[path] !== value)
+      .map(([path, value]) => ({ op: 'set' as const, id: editingId!, path, value }));
+  };
+  const onDraft = (next: Record<string, unknown>) => {
+    setDraft(next);
+    const ops = opsFromDraft(next);
+    if (!ops.length) return;
+    void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null)));
+  };
+  const onConfirm = async (next: Record<string, unknown>) => {
+    const ops = opsFromDraft(next);
+    if (ops.length) await timed(() => controller.commit(ops));
+    setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    redraw((n) => n + 1);
+  };
+  const onCancel = async () => {
+    await controller.cancelPreview();
+    setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    redraw((n) => n + 1);
+  };
+
+  const startEditing = (id: string) => {
+    setSelectedId(id);
+    setEditingId(id);
+    setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    setLeftTab('Editor');
+  };
   const tree = (
     <FeatureTree rows={rows} status={store.featureStatus.value} selectedId={selectedId}
       onSelect={setSelectedId}
+      onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])}
       onRemove={(id) => edit([{ op: 'remove', id }])}
       onToggleSuppress={(id) => { const f = doc!.features.find((x) => x.id === id) as { suppressed?: boolean } | undefined; edit([{ op: 'set', id, path: 'suppressed', value: !f?.suppressed }]); }} />
@@ -202,15 +245,29 @@ function App() {
       {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
     </div>
   );
-  const leftBody = !rows.length ? <div class="empty">{t('app.left.empty')}</div> : tree;
+  const editor = (
+    <FeatureEditor
+      feature={editingFeature}
+      onDraft={onDraft}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+      onPickRequest={(path) => { setPickingPath(path); store.select([]); }}
+      pickingPath={pickingPath}
+      picked={picked}
+      hint={previewHint}
+    />
+  );
+  const leftBody = !rows.length ? <div class="empty">{t('app.left.empty')}</div>
+    : editingId ? editor : tree;
   const left = ws.leftPanel === 'hidden' ? null : (
     <div class={'tree-wrap ' + ws.leftPanel}>
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Assets'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
+            {(['Outliner', 'Features', 'Editor', 'Assets'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
           </div>
-          {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody : (
+          {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
+            : leftTab === 'Editor' ? editor : (
             <div class="empty">{t('app.assets.text')} <button class="rb-btn" onClick={async () => setSamples(await platform.listSamples())}>{t('app.assets.browse')}</button></div>
           )}
         </>

@@ -25,7 +25,7 @@ describe('i18n catalogues', () => {
   });
   it('dynamic key families used by the UI are complete', () => {
     const need = [
-      ...['Outliner', 'Features', 'Assets'].map((x) => `app.leftTab.${x}`),
+      ...['Outliner', 'Features', 'Assets', 'Editor'].map((x) => `app.leftTab.${x}`),
       ...['All', 'You', 'Agent', 'Failed'].map((x) => `ui.history.filter.${x}`),
       ...['edges', 'sketches', 'curves', 'planes', 'axes', 'relations'].map((x) => `layer.${x}`),
       ...['off', 'compact', 'full'].map((x) => `settings.ribbon.${x}`),

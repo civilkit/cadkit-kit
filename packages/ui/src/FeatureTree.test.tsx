@@ -59,4 +59,38 @@ describe('FeatureTree', () => {
     fireEvent.drop(container.querySelectorAll('.row')[1]);
     expect(moves).toEqual([['F1', 1]]);
   });
+
+  it('fires onEdit on double click and on the edit button', () => {
+    const edits: string[] = [];
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }]}
+        status={[]}
+        selectedId={null}
+        onSelect={() => {}}
+        onMove={() => {}}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+        onEdit={(id) => edits.push(id)}
+      />,
+    );
+    fireEvent.dblClick(container.querySelectorAll('.row')[1]);
+    fireEvent.click(container.querySelectorAll('.row')[0].querySelector('.row-edit')!);
+    expect(edits).toEqual(['F2', 'F1']);
+  });
+
+  it('renders no edit control when onEdit is absent', () => {
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }]}
+        status={[]}
+        selectedId={null}
+        onSelect={() => {}}
+        onMove={() => {}}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+      />,
+    );
+    expect(container.querySelector('.row-edit')).toBeNull();
+  });
 });

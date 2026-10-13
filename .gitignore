@@ -1,2 +1,3 @@
 node_modules
-distapps/cad/public/kernel/
+dist
+apps/cad/public/kernel/
