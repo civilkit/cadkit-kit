@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildCommands, type Actions } from './commands';
 
 const actions = (over: Partial<Actions> = {}): Actions => ({
-  open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), redo: vi.fn(), palette: vi.fn(), toggleDrawer: vi.fn(), settings: vi.fn(), hasDocument: () => false, newPart: vi.fn(), newSketch: vi.fn(),
+  open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), redo: vi.fn(), palette: vi.fn(), toggleDrawer: vi.fn(), settings: vi.fn(), hasDocument: () => false, newPart: vi.fn(), addExtrude: vi.fn(), newSketch: vi.fn(),
   setView: vi.fn(), fit: vi.fn(), setMode: vi.fn(), mode: () => 'face', toggleLayer: vi.fn(), layer: () => true, ...over,
 });
 

@@ -194,6 +194,7 @@ function App() {
     hasDocument: () => controller.document() !== null,
     newPart: async () => { await load(JSON.stringify(emptyPart('Part'))); },
     newSketch: (plane) => startNewSketch(plane),
+    addExtrude: (op) => void addExtrude(op),
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m === 'edge' ? 'edge' : 'face'),
@@ -352,6 +353,19 @@ function App() {
       viewport?.orientToSketch();
       selectTool('line');
     })();
+  };
+  // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
+  const addExtrude = async (op: 'add' | 'cut') => {
+    const d = controller.document();
+    if (!d) return;
+    const selected = d.features.find((f) => f.id === selectedId && f.type === 'sketch');
+    const sketch = selected ?? [...d.features].reverse().find((f) => f.type === 'sketch');
+    if (!sketch) { store.notify(t('app.noSketch'), 'error'); return; }
+    const before = d.features.length;
+    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: sketch.id, end: 'blind', depth: 10 } }]);
+    const now = controller.document();
+    const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
+    if (added) startEditing(added.id);
   };
   const fieldEvent = (id: string, value: number | null, commit: boolean) => runTool({ type: 'field', id, value, commit });
   const confirmSketch = async () => {

@@ -181,5 +181,5 @@ export const en: Catalog = {
   'app.sketch.hint.dimension': 'Pick what to dimension', 'app.sketch.hint.dimension.exists': 'That dimension already exists', 'app.sketch.hint.dimension.value.invalid': 'Type a valid value',
   'app.sketch.hint.status.fullyDefined': 'Fully defined', 'app.sketch.hint.status.overConstrained': 'Over-constrained', 'app.sketch.hint.status.redundant': 'Redundant constraint', 'app.sketch.hint.status.unsolved': 'The sketch did not solve',
   'app.sketch.newFront': 'New sketch on the front plane', 'app.sketch.newTop': 'New sketch on the top plane', 'app.sketch.newRight': 'New sketch on the right plane',
-  'cmd.sketch-new-front': 'New sketch: front plane', 'cmd.sketch-new-top': 'New sketch: top plane', 'cmd.sketch-new-right': 'New sketch: right plane', 'cmd.new-part': 'New part',
+  'cmd.sketch-new-front': 'New sketch: front plane', 'cmd.sketch-new-top': 'New sketch: top plane', 'cmd.sketch-new-right': 'New sketch: right plane', 'cmd.new-part': 'New part', 'cmd.add-extrude': 'Extrude', 'cmd.add-cut': 'Extruded cut', 'app.noSketch': 'Draw a sketch first',
 };
