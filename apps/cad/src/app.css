@@ -57,7 +57,10 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .tree .row.err { color: var(--err); }
 .row-id { font-weight: 600; min-width: 28px; }
 .row-type { color: var(--text-2); }
-.row-hint { color: var(--err); font-size: 11px; }
+.row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree .row { flex-wrap: wrap; }
+/* the failure message sits on its own line under the row, full width, instead of squeezing beside the name */
+.row-hint { color: var(--err); font-size: 11px; order: 99; flex: 1 0 100%; padding: 0 0 2px 34px; line-height: 1.35; }
 .row-sup, .row-del { margin-left: auto; border: 0; background: none; cursor: pointer; color: var(--text-2); }
 .insp .fld { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; margin-bottom: 6px; }
 .insp input, .insp select { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; min-width: 0; }
