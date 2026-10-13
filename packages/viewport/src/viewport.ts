@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
+import { ViewCube } from './viewcube';
 import { planeToWorld, rayPlane, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -118,6 +119,7 @@ export class Viewport {
   private sketchPreviewShapes: SketchPreviewShape[] = [];
   private sketchGridGroup: THREE.Group | null = null;
   private sketchRefreshPending = false;
+  private viewCube: ViewCube | null = null;
   private meshFade: number | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
@@ -139,6 +141,11 @@ export class Viewport {
     const bg = getComputedStyle(host).getPropertyValue('--vp-bottom').trim();
     this.scene.background = new THREE.Color(bg || '#e6eaf0');
 
+    this.viewCube = new ViewCube(host, {
+      snapTo: (dir) => this.setViewDir(dir),
+      orbit: (dx, dy) => this.orbitBy(dx, dy),
+      onChange: () => { this.dirty = true; },
+    });
     this.dom.addEventListener('pointerdown', this.onDown);
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
@@ -151,6 +158,7 @@ export class Viewport {
   refreshTheme(): void {
     const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim();
     if (bg) { this.scene.background = new THREE.Color(bg); this.dirty = true; }
+    this.viewCube?.refreshTheme();
   }
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
@@ -561,6 +569,35 @@ export class Viewport {
     this.dirty = true;
   }
 
+  /** Look at the target from this direction (an axis or a diagonal), keeping the distance. The up vector is Y, with a
+   *  tiny tilt for the straight-down and straight-up views so the camera never flips. */
+  setViewDir(dir: [number, number, number]): void {
+    const d = new THREE.Vector3(dir[0], dir[1], dir[2]);
+    if (d.lengthSq() === 0) return;
+    if (d.x === 0 && d.z === 0) d.z = 0.0001;
+    d.normalize();
+    const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
+    this.camera.up.set(0, 1, 0);
+    this.camera.position.copy(this.controls.target).add(d.multiplyScalar(dist));
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    if (this.sketchEdit) this.rebuildSketchGrid();
+    this.dirty = true;
+  }
+
+  /** Orbit about the target by a drag of dx, dy pixels (about world Y and the camera's own right axis). */
+  orbitBy(dx: number, dy: number): void {
+    const off = this.camera.position.clone().sub(this.controls.target);
+    const sph = new THREE.Spherical().setFromVector3(off);
+    sph.theta -= dx * 0.012;
+    sph.phi = Math.max(0.001, Math.min(Math.PI - 0.001, sph.phi - dy * 0.012));
+    off.setFromSpherical(sph);
+    this.camera.position.copy(this.controls.target).add(off);
+    this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    this.dirty = true;
+  }
+
   setView(v: StdView): void {
     const c = this.center();
     const d = VIEW_DIRS[v];
@@ -606,6 +643,8 @@ export class Viewport {
     cancelAnimationFrame(this.raf);
     this.dom.removeEventListener('pointerdown', this.onDown);
     this.dom.removeEventListener('pointerleave', this.onLeave);
+    this.viewCube?.dispose();
+    this.viewCube = null;
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
@@ -749,6 +788,7 @@ export class Viewport {
     if (this.dirty) {
       this.dirty = false;
       this.renderer.render(this.scene, this.camera);
+      this.viewCube?.render(this.camera, this.controls.target);
     }
   };
 }
