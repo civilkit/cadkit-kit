@@ -53,13 +53,20 @@ export interface SketchPointerEvent {
   y: number;
   /** Snap radius in plane units (about 10 px at the current zoom). */
   tol: number;
+  /** Grid spacing in plane units at the current zoom (a round number that keeps cells a comfortable size). */
+  grid: number;
   mods: { shift: boolean; ctrl: boolean; alt: boolean };
 }
 
 /** What a sketch tool wants drawn while it works (plane coordinates). */
 export type SketchPreviewShape =
   | { kind: 'line'; a: { x: number; y: number }; b: { x: number; y: number } }
-  | { kind: 'circle'; c: { x: number; y: number }; r: number };
+  | { kind: 'circle'; c: { x: number; y: number }; r: number }
+  /** A dotted guide, for example from the point a shape is aligned with to the pointer. */
+  | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number } }
+  /** A snap marker, sized in screen pixels: a square on a point, a triangle on a midpoint, a diamond on an
+   *  alignment, a ring on the chain end that flips to an arc when the pointer rests on it. */
+  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' };
 
 type StdView = 'iso' | 'front' | 'top' | 'right';
 
@@ -103,6 +110,9 @@ export class Viewport {
   private sketchDrag: string | null = null;
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
+  private sketchPreviewShapes: SketchPreviewShape[] = [];
+  private sketchGridGroup: THREE.Group | null = null;
+  private sketchRefreshPending = false;
   private meshFade: number | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
@@ -115,7 +125,7 @@ export class Viewport {
     this.camera.position.set(60, 50, 60);
 
     this.controls = new OrbitControls(this.camera, this.dom);
-    this.controls.addEventListener('change', () => { this.dirty = true; });
+    this.controls.addEventListener('change', () => { this.dirty = true; this.scheduleSketchRefresh(); });
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.9));
     const sun = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -144,7 +154,7 @@ export class Viewport {
    *  turn off body picking. null clears the overlay and restores everything. */
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
-    if (!v) this.setSketchTool(false);
+    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; }
     this.sketchEdit = v;
     this.sketchDrag = null;
     if (!v) {
@@ -187,6 +197,7 @@ export class Viewport {
     }
     this.scene.add(group);
     this.sketchOverlay = group;
+    this.rebuildSketchGrid();
     this.dirty = true;
   }
 
@@ -202,44 +213,155 @@ export class Viewport {
     if (!on) this.setSketchPreview([]);
   }
 
-  /** Draw what the active tool is about to make (dashed amber, on top of everything). */
+  /** Draw what the active tool is about to make: amber lines, dotted guides and snap markers, on top of everything. */
   setSketchPreview(shapes: SketchPreviewShape[]): void {
-    if (this.sketchPreviewGroup) {
-      this.scene.remove(this.sketchPreviewGroup);
-      this.sketchPreviewGroup.traverse((o) => {
-        if (o instanceof THREE.LineSegments) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
-      });
-      this.sketchPreviewGroup = null;
-    }
+    this.sketchPreviewShapes = shapes;
+    this.rebuildSketchPreview();
+  }
+
+  private disposeGroup(g: THREE.Group | null): void {
+    if (!g) return;
+    this.scene.remove(g);
+    g.traverse((o) => {
+      if (o instanceof THREE.LineSegments || o instanceof THREE.Line) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
+    });
+  }
+
+  private rebuildSketchPreview(): void {
+    this.disposeGroup(this.sketchPreviewGroup);
+    this.sketchPreviewGroup = null;
     const v = this.sketchEdit;
+    const shapes = this.sketchPreviewShapes;
     if (!v || !shapes.length) { this.dirty = true; return; }
     const frame = v.frame as never;
-    const verts: number[] = [];
-    const add = (p: { x: number; y: number }, q: { x: number; y: number }) => {
-      verts.push(...planeToWorld(frame, p.x, p.y), ...planeToWorld(frame, q.x, q.y));
-    };
+    const upp = this.sketchUnitsPerPixel();
+    const solid: number[] = [];
+    const dotted: number[] = [];
+    const seg = (out: number[], p: { x: number; y: number }, q: { x: number; y: number }) => { out.push(...planeToWorld(frame, p.x, p.y), ...planeToWorld(frame, q.x, q.y)); };
+    const loop = (out: number[], pts: Array<{ x: number; y: number }>) => { for (let i = 0; i < pts.length; i++) seg(out, pts[i], pts[(i + 1) % pts.length]); };
     for (const sh of shapes) {
-      if (sh.kind === 'line') add(sh.a, sh.b);
-      else {
+      if (sh.kind === 'line') seg(solid, sh.a, sh.b);
+      else if (sh.kind === 'guide') seg(dotted, sh.a, sh.b);
+      else if (sh.kind === 'circle') {
         const n = 64;
         for (let i = 0; i < n; i++) {
           const a0 = (i / n) * Math.PI * 2;
           const a1 = ((i + 1) / n) * Math.PI * 2;
-          add({ x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+          seg(solid, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+        }
+      } else {
+        const { x, y } = sh.at;
+        const k = upp * (sh.style === 'anchor' ? 11 : 7);
+        if (sh.style === 'point') loop(solid, [{ x: x - k, y: y - k }, { x: x + k, y: y - k }, { x: x + k, y: y + k }, { x: x - k, y: y + k }]);
+        else if (sh.style === 'midpoint') loop(solid, [{ x, y: y + k }, { x: x + k, y: y - k * 0.8 }, { x: x - k, y: y - k * 0.8 }]);
+        else if (sh.style === 'align') loop(solid, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]);
+        else {
+          const n = 24;
+          const ring = Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) }));
+          loop(solid, ring);
         }
       }
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
-    const mat = new THREE.LineBasicMaterial({ color: 0xe0a030, depthTest: false, transparent: true });
-    const lines = new THREE.LineSegments(geo, mat);
-    lines.renderOrder = 20;
     const group = new THREE.Group();
     group.userData.pickable = false;
-    group.add(lines);
+    if (solid.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(solid), 3));
+      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xe0a030, depthTest: false, transparent: true }));
+      lines.renderOrder = 20;
+      group.add(lines);
+    }
+    if (dotted.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dotted), 3));
+      const mat = new THREE.LineDashedMaterial({ color: 0xe0a030, dashSize: upp * 4, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.85 });
+      const lines = new THREE.LineSegments(geo, mat);
+      lines.computeLineDistances();
+      lines.renderOrder = 19;
+      group.add(lines);
+    }
     this.scene.add(group);
     this.sketchPreviewGroup = group;
     this.dirty = true;
+  }
+
+  /** Grid step in plane units for the current zoom: 1, 2 or 5 times a power of ten, giving cells of about 20 to 50 px. */
+  private gridStep(): number {
+    const raw = this.sketchUnitsPerPixel() * 20;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    for (const m of [1, 2, 5, 10]) if (m * mag >= raw) return m * mag;
+    return 10 * mag;
+  }
+
+  /** The grid on the sketch plane (finer lines, stronger every fifth), the u and v axes through the origin and an
+   *  origin marker. Rebuilt when the camera moves, because the step follows the zoom. */
+  private rebuildSketchGrid(): void {
+    this.disposeGroup(this.sketchGridGroup);
+    this.sketchGridGroup = null;
+    const v = this.sketchEdit;
+    if (!v) { this.dirty = true; return; }
+    const frame = v.frame as never;
+    const r = this.dom.getBoundingClientRect();
+    const corners = [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]].map(([x, y]) => this.planeAt(x, y));
+    if (corners.some((c) => c === null)) { this.dirty = true; return; }
+    const us = corners.map((c) => c![0]);
+    const vs = corners.map((c) => c![1]);
+    const step = this.gridStep();
+    const pad = step * 2;
+    const u0 = Math.floor((Math.min(...us) - pad) / step);
+    const u1 = Math.ceil((Math.max(...us) + pad) / step);
+    const v0 = Math.floor((Math.min(...vs) - pad) / step);
+    const v1 = Math.ceil((Math.max(...vs) + pad) / step);
+    if ((u1 - u0) * 1 > 400 || (v1 - v0) > 400) { this.dirty = true; return; }
+    const css = getComputedStyle(this.host);
+    const colour = (name: string, fallback: string) => new THREE.Color(css.getPropertyValue(name).trim() || fallback);
+    const minor: number[] = [];
+    const major: number[] = [];
+    const add = (out: number[], a: [number, number], b: [number, number]) => { out.push(...planeToWorld(frame, a[0], a[1]), ...planeToWorld(frame, b[0], b[1])); };
+    const uMin = u0 * step, uMax = u1 * step, vMin = v0 * step, vMax = v1 * step;
+    for (let i = u0; i <= u1; i++) if (i !== 0) add(i % 5 === 0 ? major : minor, [i * step, vMin], [i * step, vMax]);
+    for (let j = v0; j <= v1; j++) if (j !== 0) add(j % 5 === 0 ? major : minor, [uMin, j * step], [uMax, j * step]);
+    const group = new THREE.Group();
+    group.userData.pickable = false;
+    const layer = (verts: number[], color: THREE.Color, opacity: number, order: number) => {
+      if (!verts.length) return;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+      const l = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity }));
+      l.renderOrder = order;
+      group.add(l);
+    };
+    layer(minor, colour('--line-soft', '#cdd3da'), 0.9, 1);
+    layer(major, colour('--line', '#aab2bd'), 1, 2);
+    const axisU: number[] = [];
+    const axisV: number[] = [];
+    if (uMin <= 0 && uMax >= 0) add(axisV, [0, vMin], [0, vMax]);
+    if (vMin <= 0 && vMax >= 0) add(axisU, [uMin, 0], [uMax, 0]);
+    layer(axisU, new THREE.Color(0xd05a4a), 1, 3);
+    layer(axisV, new THREE.Color(0x4aa86a), 1, 3);
+    // origin marker: a small ring where the axes cross
+    const k = this.sketchUnitsPerPixel() * 6;
+    const ring: number[] = [];
+    for (let i = 0; i < 24; i++) {
+      const a0 = (i / 24) * Math.PI * 2, a1 = ((i + 1) / 24) * Math.PI * 2;
+      add(ring, [k * Math.cos(a0), k * Math.sin(a0)], [k * Math.cos(a1), k * Math.sin(a1)]);
+    }
+    layer(ring, colour('--text-2', '#7a8591'), 1, 4);
+    this.scene.add(group);
+    this.sketchGridGroup = group;
+    this.dirty = true;
+  }
+
+  /** Camera moved: rebuild what depends on the zoom (grid step, marker sizes), at most once per frame. */
+  private scheduleSketchRefresh(): void {
+    if (!this.sketchEdit || this.sketchRefreshPending) return;
+    this.sketchRefreshPending = true;
+    requestAnimationFrame(() => {
+      this.sketchRefreshPending = false;
+      if (!this.sketchEdit) return;
+      this.rebuildSketchGrid();
+      this.rebuildSketchPreview();
+    });
   }
 
   /** Plane units per screen pixel at the sketch, for snap tolerances. */
@@ -258,12 +380,13 @@ export class Viewport {
     this.opts.onSketchPointer?.({
       type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
       tol: this.sketchUnitsPerPixel() * 10,
+      grid: this.gridStep(),
       mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
     });
   }
 
   private onLeave = (): void => {
-    if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, mods: { shift: false, ctrl: false, alt: false } });
+    if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
   };
 
   /** Point the camera normal to the sketch plane, looking at its centre. */
@@ -287,6 +410,7 @@ export class Viewport {
     this.camera.position.copy(c).add(z.multiplyScalar(dist));
     this.camera.lookAt(c);
     this.controls.update();
+    this.rebuildSketchGrid();
     this.dirty = true;
   }
 

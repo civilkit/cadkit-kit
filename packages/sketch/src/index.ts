@@ -125,3 +125,4 @@ export function removeConstraint(draft: SketchDraft, id: string): SketchDraft {
 export * from './tools/index';
 export * from './snap';
 export * from './registry';
+export * from './snap-constraints';

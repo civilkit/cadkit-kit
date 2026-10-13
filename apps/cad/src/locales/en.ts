@@ -144,6 +144,7 @@ export const en: Catalog = {
   // sketch tools: names, groups, on-view fields and hints
   'app.sketch.select': 'Select',
   'app.sketch.tools': 'Sketch tools',
+  'app.sketch.snap.point': 'point', 'app.sketch.snap.midpoint': 'midpoint', 'app.sketch.snap.align': 'aligned', 'app.sketch.snap.grid': 'grid',
   'app.sketch.newName': 'New sketch',
   'app.sketch.group.draw': 'Draw', 'app.sketch.group.dimension': 'Dimension', 'app.sketch.group.constrain': 'Constrain', 'app.sketch.group.edit': 'Edit',
   'app.sketch.tool.line': 'Line', 'app.sketch.tool.rectangle': 'Rectangle', 'app.sketch.tool.center-rectangle': 'Centre rectangle',

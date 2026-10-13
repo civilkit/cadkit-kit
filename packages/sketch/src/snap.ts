@@ -14,6 +14,8 @@ export interface SnapOptions {
   skip?: ReadonlySet<string>;
   midpoints?: boolean;
   align?: boolean;
+  /** Grid spacing in plane units; the pointer lands on the nearest grid point when nothing else snaps. */
+  grid?: number;
 }
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -45,13 +47,20 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
   }
 
   if (opts.align !== false) {
-    let x: Pt | undefined;
-    let y: Pt | undefined;
+    let x: { id: string; x: number } | undefined;
+    let y: { id: string; y: number } | undefined;
     for (const p of pts) {
-      if (!x && Math.abs(p.x - at.x) <= tol) x = { x: p.x, y: p.y };
-      if (!y && Math.abs(p.y - at.y) <= tol) y = { x: p.x, y: p.y };
+      if (!x && Math.abs(p.x - at.x) <= tol) x = { id: p.id, x: p.x };
+      if (!y && Math.abs(p.y - at.y) <= tol) y = { id: p.id, y: p.y };
     }
-    if (x || y) return { kind: 'align', at: { x: x ? x.x : at.x, y: y ? y.y : at.y } };
+    if (x || y) return { kind: 'align', at: { x: x ? x.x : at.x, y: y ? y.y : at.y }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
+  }
+
+  if (opts.grid && opts.grid > 0) {
+    const g = opts.grid;
+    const gx = Math.round(at.x / g) * g;
+    const gy = Math.round(at.y / g) * g;
+    if (Math.abs(gx - at.x) <= tol && Math.abs(gy - at.y) <= tol) return { kind: 'grid', at: { x: gx, y: gy } };
   }
   return undefined;
 }

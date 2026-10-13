@@ -7,7 +7,8 @@ import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
-import { DEFAULT_SETTINGS, movePoint, snapAt, toolById, type FieldSpec, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { applySnapConstraints, DEFAULT_SETTINGS, movePoint, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
   type HistoryFilter,
@@ -115,7 +116,8 @@ function App() {
   // Sketch tools: the active tool, its state and its last output live in refs because the viewport and the
   // key handler are created once; the React state below only drives what is drawn.
   const [sketchToolId, setSketchToolId] = useState<string | null>(null);
-  const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[] } | null>(null);
+  const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[]; snapLabel?: string } | null>(null);
+  const dwellRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
   const sketchToolRef = useRef<string | null>(null);
   const toolStateRef = useRef<unknown>(null);
   const lastOutRef = useRef<ToolOutput<unknown> | null>(null);
@@ -290,6 +292,8 @@ function App() {
   };
   const selectTool = (id: string | null) => {
     const entry = id ? toolById(id) : undefined;
+    if (dwellRef.current.timer) { clearTimeout(dwellRef.current.timer); dwellRef.current.timer = null; }
+    dwellRef.current.fired = false;
     sketchToolRef.current = entry ? entry.id : null;
     toolStateRef.current = entry ? entry.tool.start() : null;
     lastOutRef.current = null;
@@ -298,15 +302,33 @@ function App() {
     viewport?.setSketchTool(!!entry);
     if (!entry) viewport?.setSketchPreview([]);
   };
+  /** What the pointer is snapped to, drawn as markers and dotted guides, plus the ring on the chain end. */
+  const snapVisuals = (draft: import('@kit/sketch').SketchDraft, snap: SnapHit | undefined, out: ToolOutput<unknown>): SketchPreviewShape[] => {
+    const shapes: SketchPreviewShape[] = [];
+    if (snap?.kind === 'point') shapes.push({ kind: 'marker', at: snap.at, style: 'point' });
+    else if (snap?.kind === 'midpoint') shapes.push({ kind: 'marker', at: snap.at, style: 'midpoint' });
+    else if (snap?.kind === 'align') {
+      shapes.push({ kind: 'marker', at: snap.at, style: 'align' });
+      for (const id of [snap.alignTo?.x, snap.alignTo?.y]) {
+        const src = id ? draft.points.find((p) => p.id === id) : undefined;
+        if (src) { shapes.push({ kind: 'marker', at: { x: src.x, y: src.y }, style: 'align' }); shapes.push({ kind: 'guide', a: { x: src.x, y: src.y }, b: snap.at }); }
+      }
+    }
+    if (out.anchor) shapes.push({ kind: 'marker', at: out.anchor, style: 'anchor' });
+    return shapes;
+  };
   const runTool = (ev: ToolEvent) => {
     const entry = sketchToolRef.current ? toolById(sketchToolRef.current) : undefined;
     const draft = controller.sketchDraft();
     if (!entry || !draft) return;
+    const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
     const out = entry.tool.step(toolStateRef.current, ev, draft, DEFAULT_SETTINGS);
+    // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
+    if (ev.type === 'click' && out.draft !== draft && DEFAULT_SETTINGS.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
     toolStateRef.current = out.state;
     lastOutRef.current = out;
-    viewport?.setSketchPreview(out.preview as never);
-    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending });
+    viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
+    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + snap.kind) : undefined });
     if (out.hint) setSketchHint(t(out.hint));
     if (out.draft !== draft) {
       void controller.applySketchDraft(out.draft).then((r) => {
@@ -321,8 +343,23 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    const snap = snapAt(draft, at, { tolerance: ev.tol });
+    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, grid: ev.grid });
     runTool({ type: ev.type, at, snap, mods: ev.mods });
+    // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
+    const anchor = lastOutRef.current?.anchor;
+    const d = dwellRef.current;
+    if (DEFAULT_SETTINGS.arcSwitch === 'hover' && anchor && ev.type === 'move') {
+      const near = Math.hypot(anchor.x - at.x, anchor.y - at.y) < ev.tol;
+      if (near && !d.timer && !d.fired) {
+        d.timer = setTimeout(() => {
+          d.timer = null; d.fired = true;
+          runTool({ type: 'key', key: lastOutRef.current?.mode === 'arc' ? 'l' : 'm' });
+        }, 300);
+      } else if (!near) {
+        if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+        if (Math.hypot(anchor.x - at.x, anchor.y - at.y) > ev.tol * 2) d.fired = false;
+      }
+    }
   };
   // Keys while a sketch tool is active. A tool that is mid-shape (a rubber band or fields showing) gets Escape,
   // Enter and its own keys; an idle tool lets Escape leave the tool, Enter confirm the sketch and letters pick tools.
@@ -486,7 +523,7 @@ function App() {
         {sketchBanner}
         {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
-        {sketching && toolOut?.pending?.length ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{toolOut.pending.join(' ')}</div> : null}
+        {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />

@@ -4,12 +4,18 @@
  * the length); an uncommitted value only previews. Horizontal and vertical are inferred within 2 degrees.
  * Clicking the chain's first point closes the profile and ends the chain. Escape clears locks, then ends the chain.
  *
- * Not here yet (later slices): tangent arc switching, an `angle` constraint from a typed angle (the kernel's
- * `angle` reference convention needs a probe first, so a typed angle pins the geometry only).
+ * Tangent arc mode: `m` toggles it (the app also flips it when the pointer rests on the chain's end), `a` enters it,
+ * `l` and Escape leave it. In arc mode the tool is the tangent arc tool continuing from the chain's end, so each
+ * click places a tangent arc and the chain goes on from the arc's end; the mode stays until changed. The output's
+ * `anchor` is the chain end the app watches for that resting pointer, and `mode` names the current mode.
+ *
+ * Not here yet: an `angle` constraint from a typed angle (a typed angle pins the geometry only).
  */
 import type { SketchDraft } from '../index';
 import { addConstraintOf, addLine, addPoint, pointOf } from './builders';
+import { ownersAt } from './builders-arcs';
 import { segmentEnd, type EndResult } from './geometry';
+import { tangentArcTool, type TangentArcState } from './tangentArc';
 import type { FieldSpec, Pt, Tool, ToolOutput, ToolSettings } from './types';
 
 export interface LineState {
@@ -20,10 +26,18 @@ export interface LineState {
   cursor?: Pt;
   snapPoint?: { id: string; at: Pt };
   mods: { shift: boolean; ctrl: boolean; alt: boolean };
+  /** Present in tangent arc mode: the arc tool's state, continuing from `last`. */
+  arc?: TangentArcState;
 }
 
 const NO_MODS = { shift: false, ctrl: false, alt: false };
 const merged = (s: LineState) => ({ ...s.live, ...s.locked });
+
+/** The chain end the pointer may rest on to flip to an arc: only once the chain has a segment to be tangent to. */
+function anchorOf(state: LineState, draft: SketchDraft): Pt | undefined {
+  if (!state.last) return undefined;
+  return ownersAt(draft, state.last).length === 1 ? pointOf(draft, state.last) : undefined;
+}
 
 function view(state: LineState, draft: SketchDraft, settings: ToolSettings, hint?: string): ToolOutput<LineState> {
   if (!state.last || !state.cursor) return { state, draft, preview: [], fields: [], hint };
@@ -33,7 +47,43 @@ function view(state: LineState, draft: SketchDraft, settings: ToolSettings, hint
     { id: 'len', label: 'app.sketch.field.length', value: r.len, locked: state.locked.len !== undefined, unit: 'length' },
     { id: 'ang', label: 'app.sketch.field.angle', value: r.ang, locked: state.locked.ang !== undefined, unit: 'angle' },
   ];
-  return { state, draft, preview: [{ kind: 'line', a, b: r.end }], fields, hint, ...(r.infer ? { pending: [r.infer] } : {}) };
+  const anchor = anchorOf(state, draft);
+  return { state, draft, preview: [{ kind: 'line', a, b: r.end }], fields, hint, mode: 'line', ...(anchor ? { anchor } : {}), ...(r.infer ? { pending: [r.infer] } : {}) };
+}
+
+/** Wrap the arc tool's output as the line tool's: when an arc was placed the chain continues from its end. */
+function arcView(state: LineState, out: ToolOutput<TangentArcState>, before: SketchDraft): ToolOutput<LineState> {
+  let next: LineState = { ...state, arc: out.state, ...(out.state.cursor ? { cursor: out.state.cursor } : {}) };
+  if (out.draft !== before) {
+    const end = out.state.from?.pointId;
+    if (end) {
+      const closes = end === state.first && out.draft.entities.length > 1;
+      next = closes
+        ? { locked: {}, live: {}, mods: state.mods, ...(next.cursor ? { cursor: next.cursor } : {}) }
+        : { ...next, last: end, locked: {}, live: {} };
+    }
+  }
+  const anchor = next.arc && next.last ? pointOf(out.draft, next.last) : undefined;
+  return { ...out, state: next, mode: next.arc ? 'arc' : 'line', ...(anchor ? { anchor } : {}) };
+}
+
+function enterArc(state: LineState, draft: SketchDraft, settings: ToolSettings): ToolOutput<LineState> {
+  if (!state.last || ownersAt(draft, state.last).length !== 1) return view(state, draft, settings, 'app.sketch.hint.tangentStart');
+  const at = pointOf(draft, state.last);
+  const started = tangentArcTool.step(tangentArcTool.start(), { type: 'click', at, snap: { kind: 'point', at, pointId: state.last }, mods: state.mods }, draft, settings);
+  if (!started.state.from) return view(state, draft, settings, started.hint ?? 'app.sketch.hint.tangentStart');
+  const arc: TangentArcState = { ...started.state, ...(state.cursor ? { cursor: state.cursor } : {}) };
+  const shown = tangentArcTool.step(arc, { type: 'move', at: state.cursor ?? at, mods: state.mods }, draft, settings);
+  return arcView({ ...state, locked: {}, live: {} }, shown, draft);
+}
+
+function stepArc(state: LineState, ev: Parameters<Tool<LineState>['step']>[1], draft: SketchDraft, settings: ToolSettings): ToolOutput<LineState> {
+  if (ev.type === 'key') {
+    if (ev.key === 'l' || ev.key === 'm' || ev.key === 'Escape') return view({ ...state, arc: undefined }, draft, settings);
+    return arcView(state, tangentArcTool.step(state.arc!, ev, draft, settings), draft);
+  }
+  const withMods = ev.type === 'move' || ev.type === 'click' ? { ...state, mods: ev.mods } : state;
+  return arcView(withMods, tangentArcTool.step(state.arc!, ev, draft, settings), draft);
 }
 
 function commitSegment(state: LineState, draft: SketchDraft, settings: ToolSettings): ToolOutput<LineState> {
@@ -62,6 +112,8 @@ export const lineTool: Tool<LineState> = {
   id: 'line',
   start: () => ({ locked: {}, live: {}, mods: NO_MODS }),
   step(state, ev, draft, settings) {
+    if (state.arc) return stepArc(state, ev, draft, settings);
+    if (ev.type === 'key' && (ev.key === 'm' || ev.key === 'a') && state.last) return enterArc(state, draft, settings);
     switch (ev.type) {
       case 'move': {
         const next = { ...state, cursor: ev.snap?.at ?? ev.at, mods: ev.mods, snapPoint: ev.snap?.pointId ? { id: ev.snap.pointId, at: ev.snap.at } : undefined };

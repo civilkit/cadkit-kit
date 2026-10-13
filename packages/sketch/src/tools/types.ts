@@ -11,7 +11,14 @@ export interface Modifiers { shift: boolean; ctrl: boolean; alt: boolean }
 
 export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align';
 /** What the snap engine found under the pointer. `pointId` is set when the hit is an existing sketch point. */
-export interface SnapHit { kind: SnapKind; at: Pt; pointId?: string; entityId?: string }
+export interface SnapHit {
+  kind: SnapKind;
+  at: Pt;
+  pointId?: string;
+  entityId?: string;
+  /** For `align`: the point whose x (vertical alignment) and/or y (horizontal alignment) the pointer matches. */
+  alignTo?: { x?: string; y?: string };
+}
 
 /** User settings that change how tools behave (see the sketch editor spec, input techniques). */
 export interface ToolSettings {
@@ -50,6 +57,10 @@ export interface ToolOutput<S> {
   hint?: string;
   /** Constraints the tool inferred for the pending segment, shown as glyphs before the click. */
   pending?: string[];
+  /** The point the chain continues from: resting the pointer on it flips the line tool to a tangent arc. */
+  anchor?: Pt;
+  /** The mode of a tool that has more than one (the line tool: `line` or `arc`). */
+  mode?: string;
 }
 
 export interface Tool<S> {
