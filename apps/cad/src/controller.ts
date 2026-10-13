@@ -184,7 +184,7 @@ export class Controller {
 
   // ---- sketch session (S1): open a sketch, drag with the solver, confirm/cancel ----
 
-  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null } | null = null;
+  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null; isNew: boolean; undo: SketchDraft[] } | null = null;
   private sketchTimer: ReturnType<typeof setTimeout> | null = null;
   private sketchWake: (() => void) | null = null;
   private sketchSeq = 0;
@@ -205,13 +205,53 @@ export class Controller {
     const feature = features[index] as unknown as Record<string, unknown>;
     if (feature.type !== 'sketch') return null;
     const draft = fromFeature(feature);
-    this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null };
+    this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null, isNew: false, undo: [] };
     this.sketchSeq++;
-    const res = await this.previewSketch(draft, index + 1);
-    if (!res.ok || !res.view) return null;
+    const res = await this.previewSketch(draft, index + 1, false);
+    if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
     this.sketchOpen.baselineDof = res.status?.dof ?? null;
     this.view.setSketchEdit(res.view);
     return res.view;
+  }
+
+  /** Start a new, empty sketch on a standard plane at the end of the tree. Nothing is written until
+   *  commitSketch: cancelling leaves the document exactly as it was. */
+  async beginNewSketch(planeId: 'front' | 'top' | 'right' = 'front'): Promise<SketchEditView | null> {
+    const s = this.session;
+    if (!s) return null;
+    const id = `F${s.document.seq}`;
+    const draft = fromFeature({
+      type: 'sketch', id, name: 'Sketch', plane: { kind: 'std', id: planeId },
+      points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
+    });
+    const upTo = s.document.features.length + 1;
+    this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [] };
+    this.sketchSeq++;
+    const res = await this.previewSketch(draft, upTo, true);
+    if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
+    this.sketchOpen.baselineDof = res.status?.dof ?? null;
+    this.view.setSketchEdit(res.view);
+    return res.view;
+  }
+
+  /** A sketch tool produced a new draft: it becomes the draft at once (so the next tool step builds on it),
+   *  the previous one goes on the sketch's own undo stack, and the kernel solves and previews it. */
+  async applySketchDraft(draft: SketchDraft): Promise<SketchPreview> {
+    const open = this.sketchOpen;
+    if (!open) return { ok: false, hint: 'no sketch open' };
+    open.undo.push(open.draft);
+    open.draft = draft;
+    return this.updateSketch(draft, 0);
+  }
+
+  /** Undo the last tool edit in the open sketch. False when there is nothing to undo. */
+  async undoSketch(): Promise<boolean> {
+    const open = this.sketchOpen;
+    const prev = open?.undo.pop();
+    if (!open || !prev) return false;
+    open.draft = prev;
+    await this.updateSketch(prev, 0);
+    return true;
   }
 
   /** Drag a point: preview the pinned draft on the sketch's own partial regen.
@@ -236,7 +276,7 @@ export class Controller {
       await this.sketchInflight.catch(() => {});
       if (seq !== this.sketchSeq) return { ok: true, stale: true };
     }
-    const running = this.previewSketch(draft, open.upTo);
+    const running = this.previewSketch(draft, open.upTo, open.isNew);
     this.sketchInflight = running;
     let res: Awaited<typeof running>;
     try { res = await running; } finally { if (this.sketchInflight === running) this.sketchInflight = null; }
@@ -267,7 +307,7 @@ export class Controller {
     this.closeSketchPreview();
     this.view.setSketchEdit(null);
     const feature = toFeature(open.draft);
-    return this.edit([{ op: 'replace', id: open.featureId, feature }], 'sketch');
+    return this.edit([open.isNew ? { op: 'add', feature } : { op: 'replace', id: open.featureId, feature }], open.isNew ? 'new sketch' : 'sketch');
   }
 
   /** The draft being edited in the open sketch session (null when none). The
@@ -291,13 +331,15 @@ export class Controller {
   }
 
   /** Speculative regen of the sketch on its partial upTo tag; no document write. */
-  private async previewSketch(draft: SketchDraft, upTo: number): Promise<{ ok: boolean; view?: SketchEditView; hint?: string; status?: SketchSolverStatus }> {
+  private async previewSketch(draft: SketchDraft, upTo: number, isNew = false): Promise<{ ok: boolean; view?: SketchEditView; hint?: string; status?: SketchSolverStatus }> {
     const s = this.session;
     if (!s) return { ok: false, hint: 'no document loaded' };
     const feature = toFeature(draft, { includeTemp: true });
-    const r = await s.preview([{ op: 'replace', id: draft.id, feature }], { upTo, solveSketches: true });
-    if (r.ok && r.body) {
-      const entry = r.body.sketches.find((x) => x.id === draft.id);
+    const r = await s.preview([isNew ? { op: 'add', feature } : { op: 'replace', id: draft.id, feature }], { upTo, solveSketches: true });
+    // a prefix with no solid yet (a first sketch) has no body but still carries its sketches
+    const sketches = r.body?.sketches ?? r.sketches;
+    if (r.ok && sketches) {
+      const entry = sketches.find((x) => x.id === draft.id);
       if (entry) return { ok: true, view: { featureId: draft.id, frame: entry.frame, sketch: entry.sketch, status: entry.status }, status: entry.status };
       return { ok: false, hint: 'sketch missing from the regen reply' };
     }

@@ -120,3 +120,8 @@ export function removeConstraint(draft: SketchDraft, id: string): SketchDraft {
     temp: draft.temp.filter((c) => c.id !== id),
   };
 }
+
+// The sketch tools and the snapping they use.
+export * from './tools/index';
+export * from './snap';
+export * from './registry';

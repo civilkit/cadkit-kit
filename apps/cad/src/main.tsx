@@ -2,12 +2,12 @@ import { render } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { createBrowserKernel, type BrowserKernel } from '@ck/kernel-client/browser';
 import { Session, type EditOp } from '@ck/session';
-import type { PartDoc } from '@ck/part-model';
+import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
-import { movePoint } from '@kit/sketch';
+import { DEFAULT_SETTINGS, movePoint, snapAt, toolById, type FieldSpec, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
   type HistoryFilter,
@@ -18,6 +18,8 @@ import { buildCommands } from './commands';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DisplayMenu } from './DisplayMenu';
+import { SketchToolStrip } from './SketchToolStrip';
+import { SketchFields } from './SketchFields';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
@@ -29,6 +31,8 @@ const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
+import { sketchTools } from '@kit/sketch';
+const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
 applyTheme(savedTheme);
@@ -108,6 +112,17 @@ function App() {
   const sketchMoveRef = useRef<((pointId: string, u: number, v: number) => void) | null>(null);
   const sketchConfirmRef = useRef<(() => void) | null>(null);
   const sketchCancelRef = useRef<(() => void) | null>(null);
+  // Sketch tools: the active tool, its state and its last output live in refs because the viewport and the
+  // key handler are created once; the React state below only drives what is drawn.
+  const [sketchToolId, setSketchToolId] = useState<string | null>(null);
+  const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[] } | null>(null);
+  const sketchToolRef = useRef<string | null>(null);
+  const toolStateRef = useRef<unknown>(null);
+  const lastOutRef = useRef<ToolOutput<unknown> | null>(null);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+  const sketchPointerRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
+  const sketchKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
+  const sketchUndoRef = useRef<(() => void) | null>(null);
   const [samples, setSamples] = useState<SampleEntry[] | null>(null);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -120,6 +135,7 @@ function App() {
       onPick: (names, additive) => store.select(names, additive),
       onHover: (n) => { store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
+      onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
     });
     viewport = vp;
     const ro = new ResizeObserver(() => vp.resize());
@@ -176,6 +192,8 @@ function App() {
     toggleDrawer,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
+    newPart: async () => { await load(JSON.stringify(emptyPart('Part'))); },
+    newSketch: (plane) => startNewSketch(plane),
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m === 'edge' ? 'edge' : 'face'),
@@ -188,7 +206,9 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (sketchKeyRef.current?.(e)) return;
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
       else if (e.key === '\\') { e.preventDefault(); toggleDrawer(); }
       else if (e.key === '1') setMode('face');
@@ -267,14 +287,83 @@ function App() {
       setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
     });
   };
+  const selectTool = (id: string | null) => {
+    const entry = id ? toolById(id) : undefined;
+    sketchToolRef.current = entry ? entry.id : null;
+    toolStateRef.current = entry ? entry.tool.start() : null;
+    lastOutRef.current = null;
+    setSketchToolId(entry ? entry.id : null);
+    setToolOut(null);
+    viewport?.setSketchTool(!!entry);
+    if (!entry) viewport?.setSketchPreview([]);
+  };
+  const runTool = (ev: ToolEvent) => {
+    const entry = sketchToolRef.current ? toolById(sketchToolRef.current) : undefined;
+    const draft = controller.sketchDraft();
+    if (!entry || !draft) return;
+    const out = entry.tool.step(toolStateRef.current, ev, draft, DEFAULT_SETTINGS);
+    toolStateRef.current = out.state;
+    lastOutRef.current = out;
+    viewport?.setSketchPreview(out.preview as never);
+    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending });
+    if (out.hint) setSketchHint(t(out.hint));
+    if (out.draft !== draft) {
+      void controller.applySketchDraft(out.draft).then((r) => {
+        setSketchHint(r.ok || r.stale ? (out.hint ? t(out.hint) : null) : (r.hint ? t(r.hint) : null));
+      });
+    }
+  };
+  sketchPointerRef.current = (ev) => {
+    if (!sketchToolRef.current) return;
+    if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); return; }
+    lastPosRef.current = { x: ev.x, y: ev.y };
+    const draft = controller.sketchDraft();
+    if (!draft) return;
+    const at = { x: ev.u, y: ev.v };
+    const snap = snapAt(draft, at, { tolerance: ev.tol });
+    runTool({ type: ev.type, at, snap, mods: ev.mods });
+  };
+  // Keys while a sketch tool is active. A tool that is mid-shape (a rubber band or fields showing) gets Escape,
+  // Enter and its own keys; an idle tool lets Escape leave the tool, Enter confirm the sketch and letters pick tools.
+  sketchKeyRef.current = (e) => {
+    if (!sketching) return false;
+    const busy = !!lastOutRef.current && (lastOutRef.current.preview.length > 0 || lastOutRef.current.fields.length > 0);
+    if (sketchToolRef.current && busy) {
+      if (/^[0-9.\-]$/.test(e.key)) {
+        const first = document.querySelector<HTMLInputElement>('.sketch-fields input');
+        if (first) { first.focus(); first.select(); return false; }   // the key then types into the field
+      }
+      e.preventDefault();
+      runTool({ type: 'key', key: e.key });
+      return true;
+    }
+    if (e.key === 'Escape' && sketchToolRef.current) { e.preventDefault(); selectTool(null); return true; }
+    const hit = SKETCH_TOOL_KEYS.get(e.key.toLowerCase());
+    if (hit && e.key.length === 1) { e.preventDefault(); selectTool(hit); return true; }
+    return false;
+  };
+  sketchUndoRef.current = () => { void controller.undoSketch(); };
+  const startNewSketch = (plane: 'front' | 'top' | 'right') => {
+    void (async () => {
+      setSketchHint(null);
+      const view = await controller.beginNewSketch(plane);
+      if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
+      setSketching({ id: view.featureId, name: t('app.sketch.newName') });
+      viewport?.orientToSketch();
+      selectTool('line');
+    })();
+  };
+  const fieldEvent = (id: string, value: number | null, commit: boolean) => runTool({ type: 'field', id, value, commit });
   const confirmSketch = async () => {
     if (!sketching) return;
+    selectTool(null);
     await timed(() => controller.commitSketch());
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
   };
   const cancelSketch = async () => {
     if (!sketching) return;
+    selectTool(null);
     await controller.cancelSketch();
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
@@ -381,6 +470,9 @@ function App() {
         ) : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
         {sketchBanner}
+        {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} /> : null}
+        {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
+        {sketching && toolOut?.pending?.length ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{toolOut.pending.join(' ')}</div> : null}
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />

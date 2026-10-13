@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
-import { rayPlane, sketchEditPolylines, sketchPointWorld } from './sketchedit';
+import { planeToWorld, rayPlane, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -39,7 +39,27 @@ export interface ViewportOptions {
   onHover(name: string | null): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
   onSketchMove?(pointId: string, u: number, v: number): void;
+  /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
+  onSketchPointer?(ev: SketchPointerEvent): void;
 }
+
+export interface SketchPointerEvent {
+  type: 'move' | 'click' | 'leave';
+  /** Plane coordinates of the pointer. */
+  u: number;
+  v: number;
+  /** Pointer position in pixels relative to the viewport element. */
+  x: number;
+  y: number;
+  /** Snap radius in plane units (about 10 px at the current zoom). */
+  tol: number;
+  mods: { shift: boolean; ctrl: boolean; alt: boolean };
+}
+
+/** What a sketch tool wants drawn while it works (plane coordinates). */
+export type SketchPreviewShape =
+  | { kind: 'line'; a: { x: number; y: number }; b: { x: number; y: number } }
+  | { kind: 'circle'; c: { x: number; y: number }; r: number };
 
 type StdView = 'iso' | 'front' | 'top' | 'right';
 
@@ -81,6 +101,8 @@ export class Viewport {
   private sketchEdit: SketchEditShape | null = null;
   private sketchOverlay: THREE.Group | null = null;
   private sketchDrag: string | null = null;
+  private sketchTool = false;
+  private sketchPreviewGroup: THREE.Group | null = null;
   private meshFade: number | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
@@ -105,6 +127,7 @@ export class Viewport {
     this.dom.addEventListener('pointerdown', this.onDown);
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
+    this.dom.addEventListener('pointerleave', this.onLeave);
     this.resize();
     this.loop();
   }
@@ -121,6 +144,7 @@ export class Viewport {
    *  turn off body picking. null clears the overlay and restores everything. */
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
+    if (!v) this.setSketchTool(false);
     this.sketchEdit = v;
     this.sketchDrag = null;
     if (!v) {
@@ -165,6 +189,82 @@ export class Viewport {
     this.sketchOverlay = group;
     this.dirty = true;
   }
+
+  /** A sketch tool is active: the pointer drives the tool instead of dragging points, and the left button
+   *  no longer orbits (right button rotates, middle pans, the wheel zooms). */
+  setSketchTool(on: boolean): void {
+    this.sketchTool = on;
+    this.sketchDrag = null;
+    this.dom.style.cursor = on ? 'crosshair' : '';
+    this.controls.mouseButtons = on
+      ? { LEFT: -1 as never, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
+      : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    if (!on) this.setSketchPreview([]);
+  }
+
+  /** Draw what the active tool is about to make (dashed amber, on top of everything). */
+  setSketchPreview(shapes: SketchPreviewShape[]): void {
+    if (this.sketchPreviewGroup) {
+      this.scene.remove(this.sketchPreviewGroup);
+      this.sketchPreviewGroup.traverse((o) => {
+        if (o instanceof THREE.LineSegments) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
+      });
+      this.sketchPreviewGroup = null;
+    }
+    const v = this.sketchEdit;
+    if (!v || !shapes.length) { this.dirty = true; return; }
+    const frame = v.frame as never;
+    const verts: number[] = [];
+    const add = (p: { x: number; y: number }, q: { x: number; y: number }) => {
+      verts.push(...planeToWorld(frame, p.x, p.y), ...planeToWorld(frame, q.x, q.y));
+    };
+    for (const sh of shapes) {
+      if (sh.kind === 'line') add(sh.a, sh.b);
+      else {
+        const n = 64;
+        for (let i = 0; i < n; i++) {
+          const a0 = (i / n) * Math.PI * 2;
+          const a1 = ((i + 1) / n) * Math.PI * 2;
+          add({ x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    const mat = new THREE.LineBasicMaterial({ color: 0xe0a030, depthTest: false, transparent: true });
+    const lines = new THREE.LineSegments(geo, mat);
+    lines.renderOrder = 20;
+    const group = new THREE.Group();
+    group.userData.pickable = false;
+    group.add(lines);
+    this.scene.add(group);
+    this.sketchPreviewGroup = group;
+    this.dirty = true;
+  }
+
+  /** Plane units per screen pixel at the sketch, for snap tolerances. */
+  private sketchUnitsPerPixel(): number {
+    const r = this.dom.getBoundingClientRect();
+    const a = this.planeAt(r.left + r.width / 2, r.top + r.height / 2);
+    const b = this.planeAt(r.left + r.width / 2 + 1, r.top + r.height / 2);
+    if (!a || !b) return 0.1;
+    return Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.1;
+  }
+
+  private emitSketchPointer(type: 'move' | 'click', e: PointerEvent): void {
+    const uv = this.planeAt(e.clientX, e.clientY);
+    if (!uv) return;
+    const r = this.dom.getBoundingClientRect();
+    this.opts.onSketchPointer?.({
+      type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
+      tol: this.sketchUnitsPerPixel() * 10,
+      mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
+    });
+  }
+
+  private onLeave = (): void => {
+    if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, mods: { shift: false, ctrl: false, alt: false } });
+  };
 
   /** Point the camera normal to the sketch plane, looking at its centre. */
   orientToSketch(): void {
@@ -376,6 +476,7 @@ export class Viewport {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.dom.removeEventListener('pointerdown', this.onDown);
+    this.dom.removeEventListener('pointerleave', this.onLeave);
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
@@ -464,6 +565,7 @@ export class Viewport {
 
   private onDown = (e: PointerEvent): void => {
     this.down = { x: e.clientX, y: e.clientY };
+    if (this.sketchEdit && this.sketchTool) return; // a tool is active: clicks go to the tool on release
     if (this.sketchEdit) {
       const id = this.sketchPick(e.clientX, e.clientY);
       if (id) {
@@ -477,6 +579,10 @@ export class Viewport {
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.sketchEdit && this.sketchTool) {
+      if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e);
+      return;
+    }
     if (this.sketchEdit) {
       if (this.sketchDrag) {
         this.sketchDrag = null;
@@ -491,6 +597,7 @@ export class Viewport {
   };
 
   private onMove = (e: PointerEvent): void => {
+    if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
     if (this.sketchDrag) {
       const uv = this.planeAt(e.clientX, e.clientY);
       if (uv) this.opts.onSketchMove?.(this.sketchDrag, uv[0], uv[1]);
