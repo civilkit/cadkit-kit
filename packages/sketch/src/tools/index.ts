@@ -17,3 +17,6 @@ export { filletTool } from './fillet';
 export { chamferTool } from './chamfer';
 export { trimTool } from './trim';
 export { mirrorTool } from './mirror';
+export { splineTool, type SplineState } from './spline';
+export { cvsplineTool, type CvSplineState } from './cvspline';
+export { bridgeTool, type BridgeState } from './bridge';
