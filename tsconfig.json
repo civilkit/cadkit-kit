@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@kit/*": ["./packages/*/src/index.ts"],
+      "@ck/session": ["/path/to/work/rebuild/packages/session/src/session.ts"],
+      "@ck/part-model": ["/path/to/work/rebuild/packages/part-model/src/index.ts"],
+      "@ck/kernel-client/browser": ["/path/to/work/rebuild/packages/kernel-client/src/browser.ts"],
+      "@ck/kernel-client/node": ["/path/to/work/rebuild/packages/kernel-client/src/worker.ts"]
+    }
+  },
+  "include": ["packages/*/src", "apps/*/src"]
+}
