@@ -5,11 +5,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
+import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
+
+export interface ViewFrame {
+  o: number[];
+  x: number[];
+  y: number[];
+  z: number[];
+}
 
 export interface ViewBody {
   mesh: BodyMesh;
   edges: Array<{ key?: string; pts: number[][] }>;
   box: { min: number[]; max: number[] };
+  sketches?: Array<{ id: string; frame: ViewFrame; sketch: unknown }>;
+  curves?: Array<{ id: string; pts: number[][] }>;
+  planes?: Array<{ id: string; frame: ViewFrame }>;
+  markers?: unknown[];
 }
 
 export type PickMode = 'face' | 'edge';
@@ -39,6 +51,10 @@ export class Viewport {
   private mesh: THREE.Mesh | null = null;
   private edgeLines: THREE.LineSegments | null = null;
   private highlight: THREE.Mesh | null = null;
+  private sketchLines: THREE.LineSegments | null = null;
+  private curveLines: THREE.LineSegments | null = null;
+  private planeLines: THREE.LineSegments | null = null;
+  private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
   private edges: Array<{ key?: string; pts: number[][] }> = [];
   private box: { min: number[]; max: number[] } | null = null;
@@ -80,18 +96,82 @@ export class Viewport {
   setPickMode(mode: PickMode): void { this.mode = mode; }
 
   private layers: Record<string, boolean> = {};
-  /** Show or hide a display layer. Only 'edges' is drawn by this viewport so far; the other layers are remembered
-   *  and applied once sketch, curve and plane geometry is added. */
+  /** Show or hide a display layer (sketches, curves, planes, axes, edges). */
   setLayerVisible(layer: string, on: boolean): void {
     this.layers[layer] = on;
     if (layer === 'edges' && this.edgeLines) this.edgeLines.visible = on;
+    if (layer === 'sketches' && this.sketchLines) this.sketchLines.visible = on;
+    if (layer === 'curves' && this.curveLines) this.curveLines.visible = on;
+    if (layer === 'planes' && this.planeLines) this.planeLines.visible = on;
+    if (layer === 'axes' && this.axisLines) this.axisLines.visible = on;
     this.dirty = true;
+  }
+
+  private layerOn(layer: string): boolean { return this.layers[layer] !== false; }
+
+  /** Flatten polylines to a segment soup (pairs of xyz) for one LineSegments. */
+  private segmentsOf(polys: Polyline[]): Float32Array {
+    let n = 0;
+    for (const p of polys) n += Math.max(0, p.length - 1) * 2 * 3;
+    const out = new Float32Array(n);
+    let i = 0;
+    for (const p of polys) {
+      for (let k = 0; k + 1 < p.length; k++) {
+        out[i++] = p[k][0]; out[i++] = p[k][1]; out[i++] = p[k][2];
+        out[i++] = p[k + 1][0]; out[i++] = p[k + 1][1]; out[i++] = p[k + 1][2];
+      }
+    }
+    return out;
+  }
+
+  private addLayerLines(polys: Polyline[], color: number, visible: boolean): THREE.LineSegments | null {
+    const seg = this.segmentsOf(polys);
+    if (!seg.length) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
+    const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }));
+    lines.visible = visible;
+    lines.userData.pickable = false;
+    this.scene.add(lines);
+    return lines;
+  }
+
+  private clearLayers(): void {
+    for (const o of [this.sketchLines, this.curveLines, this.planeLines, this.axisLines]) {
+      if (!o) continue;
+      this.scene.remove(o);
+      o.geometry.dispose();
+      (o.material as THREE.Material).dispose();
+    }
+    this.sketchLines = this.curveLines = this.planeLines = this.axisLines = null;
   }
 
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   setBody(body: ViewBody | null): void {
     this.clearBody();
-    if (!body || body.mesh.triFace.length === 0) { this.dirty = true; return; }
+    if (!body) { this.dirty = true; return; }
+
+    // Display layers first: they draw even when the mesh is empty (sketch-only docs).
+    const diag = body.box
+      ? Math.hypot(body.box.max[0] - body.box.min[0], body.box.max[1] - body.box.min[1], body.box.max[2] - body.box.min[2])
+      : 0;
+    const scale = diag > 0 ? diag * 0.25 : 25;
+    if (body.sketches?.length) {
+      const polys = sketchPolylines(body.sketches as never).flatMap((s) => s.polylines);
+      this.sketchLines = this.addLayerLines(polys, 0x5578a0, this.layerOn('sketches'));
+    }
+    if (body.curves?.length) {
+      const polys = curvePolylines(body.curves as never).flatMap((c) => c.polylines);
+      this.curveLines = this.addLayerLines(polys, 0x4a8a80, this.layerOn('curves'));
+    }
+    if (body.planes?.length) {
+      const quads = planeOutlines(body.planes as never, scale).map((q) => q.quad);
+      this.planeLines = this.addLayerLines(quads, 0x8b95a5, this.layerOn('planes'));
+      const axes = axisLines(body.planes as never, scale * 0.4);
+      this.axisLines = this.addLayerLines(axes, 0x6a7382, this.layerOn('axes'));
+    }
+
+    if (body.mesh.triFace.length === 0) { this.dirty = true; return; }
     const g = groupByFace(body.mesh);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -106,7 +186,7 @@ export class Viewport {
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
       this.edgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129 }));
-      this.edgeLines.visible = this.layers.edges !== false;
+      this.edgeLines.visible = this.layerOn('edges');
       this.scene.add(this.edgeLines);
     }
     this.grouped = g;
@@ -212,6 +292,7 @@ export class Viewport {
   }
 
   private clearBody(): void {
+    this.clearLayers();
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
