@@ -12,6 +12,7 @@ export function FeatureTree(p: {
   onMove(id: string, to: number): void;
   onRemove(id: string): void;
   onToggleSuppress(id: string): void;
+  onEdit?(id: string): void;
 }): JSX.Element {
   let dragId: string | null = null;
   return (
@@ -30,6 +31,7 @@ export function FeatureTree(p: {
             }
             draggable
             onClick={() => p.onSelect(r.id)}
+            onDblClick={() => p.onEdit?.(r.id)}
             onDragStart={() => { dragId = r.id; }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => {
@@ -41,6 +43,15 @@ export function FeatureTree(p: {
             <span class="row-type">{t('feature.' + r.type, undefined, r.type)}</span>
             {r.name ? <span class="row-name">{r.name}</span> : null}
             {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
+            {p.onEdit ? (
+              <button
+                class="row-edit"
+                title={t('ui.tree.edit', undefined, 'Edit')}
+                onClick={(e) => { e.stopPropagation(); p.onEdit!(r.id); }}
+              >
+                ✎
+              </button>
+            ) : null}
             <button
               class="row-sup"
               title={r.suppressed ? t('ui.tree.unsuppress') : t('ui.tree.suppress')}
