@@ -45,6 +45,8 @@ export const en: Catalog = {
   'cmd.sel-face': 'Face', 'cmd.sel-edge': 'Edge',
   'layer.edges': 'Edges', 'layer.sketches': 'Sketches', 'layer.curves': 'Curves', 'layer.planes': 'Planes', 'layer.axes': 'Axes', 'layer.relations': 'Relations',
 
+  'display.label': 'Display',
+  'display.title': 'Show or hide parts of the scene',
   'samples.label': 'Samples',
   'samples.filter': 'Filter samples',
 

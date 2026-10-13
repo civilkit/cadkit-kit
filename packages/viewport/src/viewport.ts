@@ -158,17 +158,17 @@ export class Viewport {
     const scale = diag > 0 ? diag * 0.25 : 25;
     if (body.sketches?.length) {
       const polys = sketchPolylines(body.sketches as never).flatMap((s) => s.polylines);
-      this.sketchLines = this.addLayerLines(polys, 0x5578a0, this.layerOn('sketches'));
+      this.sketchLines = this.addLayerLines(polys, 0xc4781a, this.layerOn('sketches'));
     }
     if (body.curves?.length) {
       const polys = curvePolylines(body.curves as never).flatMap((c) => c.polylines);
-      this.curveLines = this.addLayerLines(polys, 0x4a8a80, this.layerOn('curves'));
+      this.curveLines = this.addLayerLines(polys, 0x1f8f86, this.layerOn('curves'));
     }
     if (body.planes?.length) {
       const quads = planeOutlines(body.planes as never, scale).map((q) => q.quad);
-      this.planeLines = this.addLayerLines(quads, 0x8b95a5, this.layerOn('planes'));
+      this.planeLines = this.addLayerLines(quads, 0x6f7f99, this.layerOn('planes'));
       const axes = axisLines(body.planes as never, scale * 0.4);
-      this.axisLines = this.addLayerLines(axes, 0x6a7382, this.layerOn('axes'));
+      this.axisLines = this.addLayerLines(axes, 0x2d3a4a, this.layerOn('axes'));
     }
 
     if (body.mesh.triFace.length === 0) { this.dirty = true; return; }

@@ -16,6 +16,7 @@ import { Controller } from './controller';
 import { buildCommands } from './commands';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
+import { DisplayMenu } from './DisplayMenu';
 import { SettingsDialog } from './SettingsDialog';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
@@ -257,6 +258,7 @@ function App() {
             ))}
           </div>
         ) : null}
+        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />
