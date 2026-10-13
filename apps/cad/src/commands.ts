@@ -10,6 +10,9 @@ export interface Actions {
   undo(): void;
   redo(): void;
   hasDocument(): boolean;
+  palette(): void;
+  toggleDrawer(): void;
+  settings(): void;
   setView(v: 'iso' | 'front' | 'top' | 'right'): void;
   fit(): void;
   setMode(m: SelectionMode): void;
@@ -28,15 +31,18 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'open', label: 'Open', tab: 'Home', group: 'File', run: a.open },
     { id: 'save', label: 'Save', tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
     { id: 'samples', label: 'Samples', tab: 'Home', group: 'File', run: a.samples },
+    { id: 'palette', label: 'Command search', tab: 'Home', group: 'Workspace', keys: 'F', run: a.palette },
+    { id: 'drawer', label: 'Toggle drawer', tab: 'Home', group: 'Workspace', keys: '\\', run: a.toggleDrawer },
+    { id: 'settings', label: 'Workspace settings', tab: 'Home', group: 'Workspace', run: a.settings },
     { id: 'undo', label: 'Undo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
     { id: 'redo', label: 'Redo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
     { id: 'view-iso', label: 'Iso', tab: 'View', group: 'Views', run: () => a.setView('iso') },
     { id: 'view-front', label: 'Front', tab: 'View', group: 'Views', run: () => a.setView('front') },
     { id: 'view-top', label: 'Top', tab: 'View', group: 'Views', run: () => a.setView('top') },
     { id: 'view-right', label: 'Right', tab: 'View', group: 'Views', run: () => a.setView('right') },
-    { id: 'fit', label: 'Fit', tab: 'View', group: 'Views', run: a.fit },
-    { id: 'sel-face', label: 'Face', tab: 'Select', group: 'Pick', run: () => a.setMode('face') },
-    { id: 'sel-edge', label: 'Edge', tab: 'Select', group: 'Pick', run: () => a.setMode('edge') },
+    { id: 'fit', label: 'Fit', tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
+    { id: 'sel-face', label: 'Face', tab: 'Select', group: 'Pick', keys: '1', run: () => a.setMode('face') },
+    { id: 'sel-edge', label: 'Edge', tab: 'Select', group: 'Pick', keys: '2', run: () => a.setMode('edge') },
   ];
   for (const [layer, label] of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${label}`, tab: 'View', group: 'Show', run: () => a.toggleLayer(layer) });

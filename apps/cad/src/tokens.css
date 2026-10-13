@@ -7,6 +7,7 @@
   --title: #0a1017; --title-text: #e9ecf1;
   --ok: #2da44e; --warn: #b58100; --err: #d1242f;
   --vp-top: #cfd8e4; --vp-bottom: #e9edf2;
+  --chip: #dbe3e6; --glass-rgb: 255, 255, 255; --alpha: .62; --blur: 14px;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px; color: var(--text);
 }

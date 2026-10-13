@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 
-export interface Command { id: string; label: string; tab: string; group: string; icon?: string; enabled?(): boolean; run(): void }
+export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; enabled?(): boolean; run(): void }
 
 export function Ribbon(p: { commands: Command[]; activeTab: string; onTab(t: string): void }): JSX.Element {
   const tabs = [...new Set(p.commands.map((c) => c.tab))];
