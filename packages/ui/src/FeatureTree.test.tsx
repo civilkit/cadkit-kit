@@ -1,0 +1,62 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/preact';
+import { FeatureTree } from './FeatureTree';
+
+afterEach(cleanup);
+
+describe('FeatureTree', () => {
+  it('renders one row per feature and shows the hint for a failed one', () => {
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }, { id: 'F4', type: 'cut' }]}
+        status={[{ id: 'F4', ok: false, code: 'cutNoEffect', hint: 'F4 cuts nothing' }]}
+        selectedId={null}
+        onSelect={() => {}}
+        onMove={() => {}}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+      />,
+    );
+    const rows = container.querySelectorAll('.row');
+    expect(rows.length).toBe(3);
+    expect(rows[2].className).toContain('err');
+    expect(container.textContent).toContain('F4 cuts nothing');
+  });
+
+  it('calls onSelect with the row id on click', () => {
+    const picked: string[] = [];
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }]}
+        status={[]}
+        selectedId={null}
+        onSelect={(id) => picked.push(id)}
+        onMove={() => {}}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+      />,
+    );
+    fireEvent.click(container.querySelectorAll('.row')[1]);
+    expect(picked).toEqual(['F2']);
+  });
+
+  it('marks the selected row and drags to reorder', () => {
+    const moves: Array<[string, number]> = [];
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }]}
+        status={[]}
+        selectedId="F2"
+        onSelect={() => {}}
+        onMove={(id, to) => moves.push([id, to])}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll('.row')[1].className).toContain('sel');
+    const [first] = [container.querySelectorAll('.row')[0]];
+    fireEvent.dragStart(first);
+    fireEvent.drop(container.querySelectorAll('.row')[1]);
+    expect(moves).toEqual([['F1', 1]]);
+  });
+});
