@@ -7,7 +7,7 @@ import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
-import { applySnapConstraints, DEFAULT_SETTINGS, movePoint, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { applySnapConstraints, DEFAULT_SETTINGS, deleteEntity, entityDims, entityShape, movePoint, pickEntity, setEntityDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
@@ -33,6 +33,7 @@ const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools } from '@kit/sketch';
+const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
@@ -85,6 +86,9 @@ const RAIL_ICONS: Record<string, string> = {
   'view-iso': I('<path d="M8 1.8 13.5 5v6L8 14.2 2.5 11V5zM2.5 5 8 8.2 13.5 5M8 8.2v6"/>'),
   'view-front': I('<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M3 8h10" opacity=".4"/>'),
   'view-top': I('<path d="M2.5 11.5 5 4.5h8.5l-2.5 7z"/>'),
+  'view-back': I('<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M3 8h10" opacity=".4"/>'),
+  'view-left': I('<path d="M13 3H7L3 5.5V13h10z"/>'),
+  'view-bottom': I('<path d="M2.5 4.5 5 11.5h8.5l-2.5-7z"/>'),
   'view-right': I('<path d="M3 3h6l4 2.5v7.5H3z"/>'),
   fit: I('<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>'),
 };
@@ -119,6 +123,10 @@ function App() {
   const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[]; snapLabel?: string } | null>(null);
   const dwellRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
   const sketchToolRef = useRef<string | null>(null);
+  // Select mode: the picked entity and the size field shown beside it.
+  const [entityOut, setEntityOut] = useState<{ fields: FieldSpec[]; x: number; y: number } | null>(null);
+  const selEntityRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  const sketchSelectRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const toolStateRef = useRef<unknown>(null);
   const lastOutRef = useRef<ToolOutput<unknown> | null>(null);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -138,6 +146,7 @@ function App() {
       onHover: (n) => { store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
       onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
+      onSketchSelect: (ev) => sketchSelectRef.current?.(ev),
     });
     viewport = vp;
     const ro = new ResizeObserver(() => vp.resize());
@@ -214,8 +223,9 @@ function App() {
       if (sketchKeyRef.current?.(e)) return;
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
       else if (e.key === '\\') { e.preventDefault(); toggleDrawer(); }
-      else if (e.key === '1') setMode('face');
-      else if (e.key === '2') setMode('edge');
+      else if (VIEW_KEYS[e.key]) { e.preventDefault(); viewport?.setView(VIEW_KEYS[e.key]); }
+      else if (e.key === 'q' || e.key === 'Q') setMode('face');
+      else if (e.key === 'e' || e.key === 'E') setMode('edge');
       else if (e.key === 'z' || e.key === 'Z') viewport?.fit();
       else if (e.key === 'Enter' && sketchConfirmRef.current) { e.preventDefault(); void sketchConfirmRef.current(); }
       else if (e.key === 'Escape') {
@@ -292,6 +302,7 @@ function App() {
   };
   const selectTool = (id: string | null) => {
     const entry = id ? toolById(id) : undefined;
+    if (id) { selEntityRef.current = null; setEntityOut(null); }
     if (dwellRef.current.timer) { clearTimeout(dwellRef.current.timer); dwellRef.current.timer = null; }
     dwellRef.current.fired = false;
     sketchToolRef.current = entry ? entry.id : null;
@@ -336,6 +347,39 @@ function App() {
       });
     }
   };
+  /** Pick (or clear) the entity under a click in Select mode: highlight it and offer its size as an editable field. */
+  const selectEntity = (id: string | null, x: number, y: number) => {
+    const draft = controller.sketchDraft();
+    if (!id || !draft) {
+      selEntityRef.current = null;
+      setEntityOut(null);
+      viewport?.setSketchPreview([]);
+      return;
+    }
+    selEntityRef.current = { id, x, y };
+    viewport?.setSketchPreview(entityShape(draft, id));
+    setEntityOut({ fields: entityDims(draft, id), x, y });
+  };
+  sketchSelectRef.current = (ev) => {
+    if (sketchToolRef.current) return;
+    const draft = controller.sketchDraft();
+    if (!draft) return;
+    selectEntity(pickEntity(draft, { x: ev.u, y: ev.v }, ev.tol), ev.x, ev.y);
+  };
+  const applyEntityEdit = (next: import('@kit/sketch').SketchDraft | null) => {
+    const sel = selEntityRef.current;
+    if (!next || !sel) return;
+    void controller.applySketchDraft(next).then((r) => {
+      setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
+      selectEntity(sel.id, sel.x, sel.y);   // show the solved size
+    });
+  };
+  const entityFieldEvent = (id: string, value: number | null, commit: boolean) => {
+    const sel = selEntityRef.current;
+    const draft = controller.sketchDraft();
+    if (!commit || value === null || !sel || !draft) return;
+    applyEntityEdit(setEntityDim(draft, sel.id, id === 'len' ? 'len' : 'radius', value));
+  };
   sketchPointerRef.current = (ev) => {
     if (!sketchToolRef.current) return;
     if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); return; }
@@ -365,11 +409,21 @@ function App() {
   // Enter and its own keys; an idle tool lets Escape leave the tool, Enter confirm the sketch and letters pick tools.
   sketchKeyRef.current = (e) => {
     if (!sketching) return false;
+    const sel = selEntityRef.current;
+    if (sel && !sketchToolRef.current) {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const draft = controller.sketchDraft();
+        e.preventDefault();
+        if (draft) void controller.applySketchDraft(deleteEntity(draft, sel.id)).then(() => selectEntity(null, 0, 0));
+        return true;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); selectEntity(null, 0, 0); return true; }
+    }
     const busy = !!lastOutRef.current && (lastOutRef.current.preview.length > 0 || lastOutRef.current.fields.length > 0);
     if (sketchToolRef.current && busy) {
       if (/^[0-9.\-]$/.test(e.key)) {
         const first = document.querySelector<HTMLInputElement>('.sketch-fields input');
-        if (first) { first.focus(); first.select(); return false; }   // the key then types into the field
+        if (first) { first.focus(); first.select(); return true; }    // the key then types into the field, not the view keys
       }
       e.preventDefault();
       runTool({ type: 'key', key: e.key });
@@ -408,6 +462,7 @@ function App() {
   const confirmSketch = async () => {
     if (!sketching) return;
     selectTool(null);
+    selectEntity(null, 0, 0);
     await timed(() => controller.commitSketch());
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
@@ -415,6 +470,7 @@ function App() {
   const cancelSketch = async () => {
     if (!sketching) return;
     selectTool(null);
+    selectEntity(null, 0, 0);
     await controller.cancelSketch();
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
@@ -514,7 +570,7 @@ function App() {
         ) : null}
         {ws.selectionBar ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
-            {([['face', 'cmd.sel-face', '1'], ['edge', 'cmd.sel-edge', '2']] as const).map(([m, l, k]) => (
+            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E']] as const).map(([m, l, k]) => (
               <button key={m} aria-pressed={store.mode.value === m} onClick={() => setMode(m)}><kbd>{k}</kbd>{t(l)}</button>
             ))}
           </div>
@@ -522,6 +578,7 @@ function App() {
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
         {sketchBanner}
         {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} /> : null}
+        {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">

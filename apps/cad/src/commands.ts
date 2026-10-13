@@ -17,7 +17,7 @@ export interface Actions {
   palette(): void;
   toggleDrawer(): void;
   settings(): void;
-  setView(v: 'iso' | 'front' | 'top' | 'right'): void;
+  setView(v: 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom'): void;
   fit(): void;
   setMode(m: SelectionMode): void;
   mode(): SelectionMode;
@@ -43,13 +43,17 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sketch-new-right', label: t('cmd.sketch-new-right'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('right') },
     { id: 'undo', label: t('cmd.undo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
     { id: 'redo', label: t('cmd.redo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
-    { id: 'view-iso', label: t('cmd.view-iso'), tab: 'View', group: 'Views', run: () => a.setView('iso') },
-    { id: 'view-front', label: t('cmd.view-front'), tab: 'View', group: 'Views', run: () => a.setView('front') },
-    { id: 'view-top', label: t('cmd.view-top'), tab: 'View', group: 'Views', run: () => a.setView('top') },
-    { id: 'view-right', label: t('cmd.view-right'), tab: 'View', group: 'Views', run: () => a.setView('right') },
+    // number keys are the standard views, in the order Onshape uses
+    { id: 'view-top', label: t('cmd.view-top'), tab: 'View', group: 'Views', keys: '1', run: () => a.setView('top') },
+    { id: 'view-front', label: t('cmd.view-front'), tab: 'View', group: 'Views', keys: '2', run: () => a.setView('front') },
+    { id: 'view-right', label: t('cmd.view-right'), tab: 'View', group: 'Views', keys: '3', run: () => a.setView('right') },
+    { id: 'view-back', label: t('cmd.view-back'), tab: 'View', group: 'Views', keys: '4', run: () => a.setView('back') },
+    { id: 'view-left', label: t('cmd.view-left'), tab: 'View', group: 'Views', keys: '5', run: () => a.setView('left') },
+    { id: 'view-bottom', label: t('cmd.view-bottom'), tab: 'View', group: 'Views', keys: '6', run: () => a.setView('bottom') },
+    { id: 'view-iso', label: t('cmd.view-iso'), tab: 'View', group: 'Views', keys: '7', run: () => a.setView('iso') },
     { id: 'fit', label: t('cmd.fit'), tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
-    { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: '1', run: () => a.setMode('face') },
-    { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: '2', run: () => a.setMode('edge') },
+    { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: 'Q', run: () => a.setMode('face') },
+    { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', run: () => a.setMode('edge') },
   ];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', run: () => a.toggleLayer(layer) });

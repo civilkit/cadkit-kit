@@ -41,6 +41,8 @@ export interface ViewportOptions {
   onSketchMove?(pointId: string, u: number, v: number): void;
   /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
   onSketchPointer?(ev: SketchPointerEvent): void;
+  /** Select mode (no tool): a click that did not hit a point or start a drag, in plane coordinates. */
+  onSketchSelect?(ev: SketchPointerEvent): void;
 }
 
 export interface SketchPointerEvent {
@@ -68,13 +70,16 @@ export type SketchPreviewShape =
    *  alignment, a ring on the chain end that flips to an arc when the pointer rests on it. */
   | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' };
 
-type StdView = 'iso' | 'front' | 'top' | 'right';
+export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom';
 
 const VIEW_DIRS: Record<StdView, [number, number, number]> = {
   iso: [1, 0.8, 1],
   front: [0, 0, 1],
   top: [0, 1, 0.0001],
   right: [1, 0, 0],
+  back: [0, 0, -1],
+  left: [-1, 0, 0],
+  bottom: [0, -1, 0.0001],
 };
 
 export class Viewport {
@@ -373,11 +378,11 @@ export class Viewport {
     return Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.1;
   }
 
-  private emitSketchPointer(type: 'move' | 'click', e: PointerEvent): void {
+  private emitSketchPointer(type: 'move' | 'click', e: PointerEvent, cb = this.opts.onSketchPointer): void {
     const uv = this.planeAt(e.clientX, e.clientY);
     if (!uv) return;
     const r = this.dom.getBoundingClientRect();
-    this.opts.onSketchPointer?.({
+    cb?.({
       type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
       tol: this.sketchUnitsPerPixel() * 10,
       grid: this.gridStep(),
@@ -708,6 +713,8 @@ export class Viewport {
       return;
     }
     if (this.sketchEdit) {
+      const wasDrag = !!this.sketchDrag;
+      if (!wasDrag && d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e, this.opts.onSketchSelect);
       if (this.sketchDrag) {
         this.sketchDrag = null;
         this.controls.enabled = true;

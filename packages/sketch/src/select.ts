@@ -1,0 +1,122 @@
+/**
+ * Selecting and editing what is already in a sketch (the Select mode, no tool active).
+ *   pickEntity     the line, circle or arc nearest the pointer, within a tolerance
+ *   entityShape    its geometry as preview shapes (to highlight it)
+ *   entityDims     the editable size of the picked entity: a line's length, a circle's or arc's radius
+ *   setEntityDim   make that size a driving dimension (adds a `distance` / `radius` constraint, replacing an
+ *                  existing one of the same kind on the same entity); the kernel then moves the sketch
+ *   deleteEntity   remove the entity, the constraints that referred to it and any point nothing else uses
+ */
+import type { DraftEntity, SketchDraft } from './index';
+import { addConstraintOf } from './tools/builders';
+import { arcPolyline } from './tools/builders-arcs';
+import type { FieldSpec, Pt, PreviewShape } from './tools/types';
+
+const pointMap = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
+const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
+
+function segDist(p: Pt, a: Pt, b: Pt): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  if (l2 < 1e-18) return dist(p, a);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
+  return dist(p, { x: a.x + t * dx, y: a.y + t * dy });
+}
+
+const TAU = Math.PI * 2;
+const ccwFrom = (a0: number, a: number) => ((a - a0) % TAU + TAU) % TAU;
+
+export function pickEntity(draft: SketchDraft, at: Pt, tolerance: number): string | null {
+  const pts = pointMap(draft);
+  let best: { id: string; d: number } | null = null;
+  const consider = (id: string, d: number) => { if (d <= tolerance && (!best || d < best.d)) best = { id, d }; };
+  for (const e of draft.entities) {
+    if (e.type === 'line') {
+      const a = pts.get(String(e.p1)), b = pts.get(String(e.p2));
+      if (a && b) consider(e.id, segDist(at, a, b));
+    } else if (e.type === 'circle') {
+      const c = pts.get(String(e.c));
+      if (c) consider(e.id, Math.abs(dist(at, c) - Number(e.r)));
+    } else if (e.type === 'arc') {
+      const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1)), p2 = pts.get(String(e.p2));
+      if (!c || !p1 || !p2) continue;
+      const r = dist(c, p1);
+      const a0 = Math.atan2(p1.y - c.y, p1.x - c.x);
+      const sweep = ccwFrom(a0, Math.atan2(p2.y - c.y, p2.x - c.x)) || TAU;
+      const along = ccwFrom(a0, Math.atan2(at.y - c.y, at.x - c.x));
+      if (along <= sweep) consider(e.id, Math.abs(dist(at, c) - r));
+      else consider(e.id, Math.min(dist(at, p1), dist(at, p2)));
+    }
+  }
+  return best ? (best as { id: string }).id : null;
+}
+
+export function entityShape(draft: SketchDraft, id: string): PreviewShape[] {
+  const pts = pointMap(draft);
+  const e = draft.entities.find((x) => x.id === id);
+  if (!e) return [];
+  if (e.type === 'line') {
+    const a = pts.get(String(e.p1)), b = pts.get(String(e.p2));
+    return a && b ? [{ kind: 'line', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y } }] : [];
+  }
+  if (e.type === 'circle') {
+    const c = pts.get(String(e.c));
+    return c ? [{ kind: 'circle', c: { x: c.x, y: c.y }, r: Number(e.r) }] : [];
+  }
+  if (e.type === 'arc') {
+    const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1)), p2 = pts.get(String(e.p2));
+    if (!c || !p1 || !p2) return [];
+    const a0 = Math.atan2(p1.y - c.y, p1.x - c.x);
+    const sweep = ccwFrom(a0, Math.atan2(p2.y - c.y, p2.x - c.x)) || TAU;
+    return arcPolyline({ x: c.x, y: c.y }, dist(c, p1), a0, sweep);
+  }
+  return [];
+}
+
+/** The size the user can edit for this entity, as an on-view field, or none for shapes without one. */
+export function entityDims(draft: SketchDraft, id: string): FieldSpec[] {
+  const pts = pointMap(draft);
+  const e = draft.entities.find((x) => x.id === id);
+  if (!e) return [];
+  const has = (type: string) => draft.constraints.some((c) => c.type === type && c.refs?.length === (type === 'distance' ? 2 : 1) && sameRefs(c.refs, refsFor(e)));
+  if (e.type === 'line') {
+    const a = pts.get(String(e.p1)), b = pts.get(String(e.p2));
+    return a && b ? [{ id: 'len', label: 'app.sketch.field.length', value: dist(a, b), locked: has('distance'), unit: 'length' }] : [];
+  }
+  if (e.type === 'circle') return [{ id: 'radius', label: 'app.sketch.field.radius', value: Number(e.r), locked: has('radius'), unit: 'length' }];
+  if (e.type === 'arc') {
+    const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1));
+    return c && p1 ? [{ id: 'radius', label: 'app.sketch.field.radius', value: dist(c, p1), locked: has('radius'), unit: 'length' }] : [];
+  }
+  return [];
+}
+
+function refsFor(e: DraftEntity): string[] {
+  return e.type === 'line' ? [String(e.p1), String(e.p2)] : [e.id];
+}
+const sameRefs = (a: string[] | undefined, b: string[]) => !!a && a.length === b.length && a.every((r, i) => r === b[i]);
+
+/** Make the entity's size a driving dimension with this value. Null when the entity has no editable size or the value is not usable. */
+export function setEntityDim(draft: SketchDraft, id: string, field: 'len' | 'radius', value: number): SketchDraft | null {
+  const e = draft.entities.find((x) => x.id === id);
+  if (!e || !Number.isFinite(value) || value <= 0) return null;
+  let type: 'distance' | 'radius';
+  if (field === 'len' && e.type === 'line') type = 'distance';
+  else if (field === 'radius' && (e.type === 'circle' || e.type === 'arc')) type = 'radius';
+  else return null;
+  const refs = refsFor(e);
+  const kept: SketchDraft = { ...draft, constraints: draft.constraints.filter((c) => !(c.type === type && sameRefs(c.refs, refs))) };
+  return addConstraintOf(kept, type, refs, value);
+}
+
+/** Remove an entity with the constraints that mention it, and any point no remaining entity or constraint uses. */
+export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
+  const entities = draft.entities.filter((e) => e.id !== id);
+  const constraints = draft.constraints.filter((c) => !(c.refs ?? []).includes(id));
+  const used = new Set<string>();
+  for (const e of entities) for (const k of ['p1', 'p2', 'c', 'p']) if (typeof e[k] === 'string') used.add(e[k] as string);
+  for (const e of entities) if (Array.isArray(e.pts)) for (const p of e.pts as string[]) used.add(p);
+  for (const c of constraints) for (const r of c.refs ?? []) used.add(r);
+  const points = draft.points.filter((p) => p.fixed || used.has(p.id));
+  return { ...draft, entities, constraints, points };
+}
