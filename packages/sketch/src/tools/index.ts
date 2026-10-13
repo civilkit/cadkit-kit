@@ -13,3 +13,7 @@ export { circleTool, type CircleState } from './circle';
 export { centreArcTool, type CentreArcState } from './centreArc';
 export { threePointArcTool, type ThreePointArcState } from './threePointArc';
 export { tangentArcTool, type TangentArcState } from './tangentArc';
+export { filletTool } from './fillet';
+export { chamferTool } from './chamfer';
+export { trimTool } from './trim';
+export { mirrorTool } from './mirror';
