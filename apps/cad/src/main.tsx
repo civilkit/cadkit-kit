@@ -5,7 +5,7 @@ import { Session, type EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { createStore, type DisplayLayer } from '@kit/store';
 import { Viewport } from '@kit/viewport';
-import { FeatureTree, Inspector, Ribbon, StatusBar } from '@kit/ui';
+import { BusyOverlay, FeatureTree, Inspector, Ribbon, StatusBar, Toast } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
 import { Controller } from './controller';
 import { buildCommands } from './commands';
@@ -62,7 +62,11 @@ function App() {
   }, [store.display.value]);
 
   const load = async (text: string) => {
-    try { await controller.load(JSON.parse(text) as PartDoc); setSelectedId(null); store.select([]); redraw((n) => n + 1); }
+    try {
+      const doc = JSON.parse(text) as PartDoc;
+      await controller.load(doc); setSelectedId(null); store.select([]); redraw((n) => n + 1);
+      store.notify(`Opened \u201c${doc.name || 'part'}\u201d`);
+    }
     catch (e) { store.notify(`Could not open the part: ${(e as Error).message}`, 'error'); }
   };
   const edit = async (ops: EditOp[]) => { await controller.edit(ops); redraw((n) => n + 1); };
@@ -105,6 +109,10 @@ function App() {
           clearTimeout(pending);
           pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
         }} />
+      </div>
+      <div id="vp-layer">
+        <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
+        <Toast notices={store.notices.value} />
       </div>
       <div class="status-wrap"><StatusBar notices={store.notices.value} hover={store.hover.value} busy={store.busy.value} /></div>
       {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)}

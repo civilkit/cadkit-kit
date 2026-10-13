@@ -48,3 +48,17 @@ html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
   .tree-wrap { border-right: 0; border-top: 1px solid var(--line); }
   .insp-wrap { border-top: 1px solid var(--line); }
 }
+
+/* busy panel and toast, floating over the viewport */
+#vp-layer { grid-area: vp; position: relative; pointer-events: none; z-index: 5; }
+.busy-overlay { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 8px 10px 8px 14px; box-shadow: 0 4px 18px #0003; pointer-events: auto; }
+.busy-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.busy-cancel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 14px; padding: 4px 12px; cursor: pointer; font: inherit; color: inherit; }
+.busy-cancel:hover { border-color: var(--accent); }
+.toast { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;
+  background: #1c2129; color: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 18px #0004; max-width: 80%; }
+.toast-icon { color: var(--ok); font-weight: 700; }
+.toast.warn .toast-icon { color: #f0b429; }
+.toast.error .toast-icon { color: #ff6b6b; }
