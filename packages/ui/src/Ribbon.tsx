@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { t } from './i18n';
 
 export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; enabled?(): boolean; run(): void }
 
@@ -9,9 +10,9 @@ export function Ribbon(p: { commands: Command[]; activeTab: string; onTab(t: str
   return (
     <div class="ribbon">
       <div class="rb-tabs">
-        {tabs.map((t) => (
-          <button key={t} class={'rb-tab' + (t === p.activeTab ? ' on' : '')} onClick={() => p.onTab(t)}>
-            {t}
+        {tabs.map((tab) => (
+          <button key={tab} class={'rb-tab' + (tab === p.activeTab ? ' on' : '')} onClick={() => p.onTab(tab)}>
+            {t('tab.' + tab, undefined, tab)}
           </button>
         ))}
       </div>

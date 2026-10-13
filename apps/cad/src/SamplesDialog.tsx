@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { t } from './i18n';
 
 export interface SampleEntry { id: string; title: string; url: string }
 
@@ -19,10 +20,10 @@ export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; on
   }, [q, p.samples]);
   return (
     <div class="dlg-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
-      <div class="dlg" role="dialog" aria-label="Samples">
+      <div class="dlg" role="dialog" aria-label={t('samples.label')}>
         <div class="dlg-head">
-          <input autofocus placeholder="Filter samples" value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
-          <button class="rb-btn" onClick={p.onClose}>Close</button>
+          <input autofocus placeholder={t('samples.filter')} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
+          <button class="rb-btn" onClick={p.onClose}>{t('ui.close')}</button>
         </div>
         <div class="dlg-list">
           {shown.map((s) => (

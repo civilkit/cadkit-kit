@@ -1,13 +1,17 @@
 import type { EditOp, EditRecord } from '@ck/session';
 import type { HistoryEntry } from '@kit/ui';
+import { t } from './i18n';
 
 export function describeOp(op: EditOp): string {
   switch (op.op) {
-    case 'add': return `Add ${String(op.feature.type ?? 'feature')}${op.feature.id ? ' ' + String(op.feature.id) : ''}`;
-    case 'set': return `Set ${op.id}.${op.path} = ${typeof op.value === 'object' ? JSON.stringify(op.value) : String(op.value)}`;
-    case 'remove': return `Remove ${op.id}${op.cascade ? ' (with dependents)' : ''}`;
-    case 'move': return `Move ${op.id} to position ${op.to}`;
-    case 'replace': return `Replace ${op.id}`;
+    case 'add': {
+      const type = String(op.feature.type ?? t('history.op.feature'));
+      return op.feature.id ? t('history.op.add', { type, id: String(op.feature.id) }) : t('history.op.addAnon', { type });
+    }
+    case 'set': return t('history.op.set', { id: op.id, path: op.path, value: typeof op.value === 'object' ? JSON.stringify(op.value) : String(op.value) });
+    case 'remove': return t(op.cascade ? 'history.op.removeCascade' : 'history.op.remove', { id: op.id });
+    case 'move': return t('history.op.move', { id: op.id, to: op.to });
+    case 'replace': return t('history.op.replace', { id: op.id });
   }
 }
 
@@ -20,18 +24,18 @@ export interface Rejection { at: number; time: number; reason: string; ops: Edit
 export function toEntries(records: EditRecord[], rejections: Rejection[] = []): HistoryEntry[] {
   const out: HistoryEntry[] = [];
   const fail = (r: Rejection, i: number): HistoryEntry => ({
-    id: `rej-${i}-${r.time}`, author: 'you', time: hhmm(r.time), title: `Rejected: ${r.hint}`, failed: true,
-    reason: r.reason || undefined, chips: ['document unchanged'], ops: r.ops.map(describeOp).join('; '),
+    id: `rej-${i}-${r.time}`, author: 'you', time: hhmm(r.time), title: t('history.rejected', { hint: r.hint }), failed: true,
+    reason: r.reason || undefined, chips: [t('history.unchanged')], ops: r.ops.map(describeOp).join('; '),
   });
   const pending = [...rejections].map((r, i) => ({ r, i }));
   const flush = (n: number) => { for (const x of pending.filter((p) => p.r.at === n)) out.push(fail(x.r, x.i)); };
   flush(0);
   records.forEach((rec, idx) => {
-    const first = rec.ops[0] ? describeOp(rec.ops[0]) : 'Empty edit';
+    const first = rec.ops[0] ? describeOp(rec.ops[0]) : t('history.empty');
     out.push({
       id: rec.id, author: rec.author === 'agent' ? 'agent' : 'you', time: hhmm(rec.time),
-      title: rec.ops.length > 1 ? `${first} (+${rec.ops.length - 1} more)` : first,
-      reason: rec.reason, chips: [`${rec.ops.length} op${rec.ops.length === 1 ? '' : 's'}`], ops: rec.ops.map(describeOp).join('; '),
+      title: rec.ops.length > 1 ? t('history.more', { first, count: rec.ops.length - 1 }) : first,
+      reason: rec.reason, chips: [t('history.opCount', { count: rec.ops.length })], ops: rec.ops.map(describeOp).join('; '),
     });
     flush(idx + 1);
   });

@@ -1,0 +1,31 @@
+import type { Catalog } from '@kit/i18n';
+
+/** English text of the shared UI components (source of truth and fallback). Other languages add their own catalogue. */
+export const en: Catalog = {
+  'ui.cancel': 'Cancel',
+  'ui.close': 'Close',
+  'ui.busy.rebuilding': 'Rebuilding model... {seconds} s',
+  'ui.palette.label': 'Commands',
+  'ui.palette.search': 'Search commands',
+  'ui.palette.heading': 'Commands',
+  'ui.palette.none': 'No command matches "{query}"',
+  'ui.drawer.label': 'Drawer',
+  'ui.drawer.close': 'Close drawer',
+  'ui.drawer.closeButton': 'Close \\',
+  'ui.tree.suppress': 'Suppress',
+  'ui.tree.unsuppress': 'Unsuppress',
+  'ui.tree.remove': 'Remove',
+  'ui.history.filter.All': 'All',
+  'ui.history.filter.You': 'You',
+  'ui.history.filter.Agent': 'Agent',
+  'ui.history.filter.Failed': 'Failed',
+  'ui.history.here': 'model is here',
+  'ui.history.ops': 'ops',
+  'ui.history.empty': 'No edits yet.',
+  'ui.history.revert': 'Revert to step {n}',
+  'ui.history.you': 'you',
+  'ui.history.agent': 'agent',
+  'ui.status.busy': 'Busy',
+  'ui.status.ready': 'Ready',
+  'ui.status.drawer': 'Drawer \\',
+};

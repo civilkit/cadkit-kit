@@ -12,6 +12,7 @@ export default defineConfig(({ command }) => ({
       ...(command === 'build' ? [{ find: /^.*kernel-client\/src\/worker\.(js|ts)$/, replacement: here('./apps/cad/src/stubs/node-worker.ts') }] : []),
       ...Object.entries({
       '@kit/store': here('./packages/store/src/index.ts'),
+      '@kit/i18n': here('./packages/i18n/src/index.ts'),
       '@kit/viewport': here('./packages/viewport/src/index.ts'),
       '@kit/platform': here('./packages/platform/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),

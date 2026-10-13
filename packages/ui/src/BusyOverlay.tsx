@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import { t } from './i18n';
 
 /** "Rebuilding model... 1.8 s [Cancel]" panel for slow work. Hidden for quick work (shown only after `delayMs`). */
 export function BusyOverlay(p: { busy: boolean; onCancel(): void; delayMs?: number }): JSX.Element | null {
@@ -19,8 +20,8 @@ export function BusyOverlay(p: { busy: boolean; onCancel(): void; delayMs?: numb
   return (
     <div class="busy-overlay" role="status">
       <span class="busy-spin" aria-hidden="true" />
-      <span>Rebuilding model... {(elapsed / 1000).toFixed(1)} s</span>
-      <button class="busy-cancel" onClick={p.onCancel}>Cancel</button>
+      <span>{t('ui.busy.rebuilding', { seconds: (elapsed / 1000).toFixed(1) })}</span>
+      <button class="busy-cancel" onClick={p.onCancel}>{t('ui.cancel')}</button>
     </div>
   );
 }

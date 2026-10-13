@@ -1,5 +1,6 @@
 import type { JSX } from 'preact';
 import type { FeatureStatus } from '@kit/store';
+import { t } from './i18n';
 
 export interface FeatureRow { id: string; type: string; name?: string; suppressed?: boolean }
 
@@ -37,19 +38,19 @@ export function FeatureTree(p: {
             }}
           >
             <span class="row-id">{r.id}</span>
-            <span class="row-type">{r.type}</span>
+            <span class="row-type">{t('feature.' + r.type, undefined, r.type)}</span>
             {r.name ? <span class="row-name">{r.name}</span> : null}
             {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
             <button
               class="row-sup"
-              title={r.suppressed ? 'Unsuppress' : 'Suppress'}
+              title={r.suppressed ? t('ui.tree.unsuppress') : t('ui.tree.suppress')}
               onClick={(e) => { e.stopPropagation(); p.onToggleSuppress(r.id); }}
             >
               {r.suppressed ? '○' : '●'}
             </button>
             <button
               class="row-del"
-              title="Remove"
+              title={t('ui.tree.remove')}
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}
             >
               ✕

@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Command } from './Ribbon';
+import { t } from './i18n';
 
 /** Search popup over the single command registry. Enter runs the highlighted command, Esc closes. */
 export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onClose(): void; onRun?(c: Command): void }): JSX.Element {
@@ -10,7 +11,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   useEffect(() => input.current?.focus(), []);
   const rows = useMemo(() => {
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return p.commands.filter((c) => terms.every((t) => `${c.label} ${c.group} ${c.tab}`.toLowerCase().includes(t)));
+    return p.commands.filter((c) => terms.every((term) => `${c.label} ${c.group} ${c.tab}`.toLowerCase().includes(term)));
   }, [q, p.commands]);
   const pinned = q ? [] : p.commands.filter((c) => p.pinned?.includes(c.id));
   const run = (c: Command | undefined) => {
@@ -21,11 +22,11 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   };
   return (
     <div class="pal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
-      <div class="pal" role="dialog" aria-label="Commands">
+      <div class="pal" role="dialog" aria-label={t('ui.palette.label')}>
         <input
           ref={input}
-          placeholder="Search commands"
-          aria-label="Search commands"
+          placeholder={t('ui.palette.search')}
+          aria-label={t('ui.palette.search')}
           value={q}
           onInput={(e) => { setQ((e.currentTarget as HTMLInputElement).value); setHi(0); }}
           onKeyDown={(e) => {
@@ -40,7 +41,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
             {pinned.map((c) => <button key={c.id} title={c.label} onClick={() => run(c)}>{c.icon ?? c.label}</button>)}
           </div>
         ) : null}
-        <div class="plbl">Commands</div>
+        <div class="plbl">{t('ui.palette.heading')}</div>
         <div class="plist" role="listbox">
           {rows.map((c, i) => (
             <div
@@ -53,10 +54,10 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
             >
               <span>{c.label}</span>
               {c.keys ? <kbd>{c.keys}</kbd> : null}
-              <span class="grp-tag">{c.group}</span>
+              <span class="grp-tag">{t('group.' + c.group, undefined, c.group)}</span>
             </div>
           ))}
-          {rows.length === 0 ? <div class="empty">No command matches "{q}"</div> : null}
+          {rows.length === 0 ? <div class="empty">{t('ui.palette.none', { query: q })}</div> : null}
         </div>
       </div>
     </div>

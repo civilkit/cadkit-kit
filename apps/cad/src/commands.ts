@@ -1,6 +1,7 @@
 // The ribbon command table. A command is data (tab, group, label, enabled rule, handler); adding one adds a
 // button without touching layout code. Handlers come in through `Actions` so this file has no DOM or kernel code.
 import type { Command } from '@kit/ui';
+import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 
 export interface Actions {
@@ -21,31 +22,28 @@ export interface Actions {
   layer(l: DisplayLayer): boolean;
 }
 
-const LAYERS: Array<[DisplayLayer, string]> = [
-  ['edges', 'Edges'], ['sketches', 'Sketches'], ['curves', 'Curves'], ['planes', 'Planes'],
-  ['axes', 'Axes'], ['relations', 'Relations'],
-];
+const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'relations'];
 
 export function buildCommands(a: Actions): Command[] {
   const cmds: Command[] = [
-    { id: 'open', label: 'Open', tab: 'Home', group: 'File', run: a.open },
-    { id: 'save', label: 'Save', tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
-    { id: 'samples', label: 'Samples', tab: 'Home', group: 'File', run: a.samples },
-    { id: 'palette', label: 'Command search', tab: 'Home', group: 'Workspace', keys: 'F', run: a.palette },
-    { id: 'drawer', label: 'Toggle drawer', tab: 'Home', group: 'Workspace', keys: '\\', run: a.toggleDrawer },
-    { id: 'settings', label: 'Workspace settings', tab: 'Home', group: 'Workspace', run: a.settings },
-    { id: 'undo', label: 'Undo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
-    { id: 'redo', label: 'Redo', tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
-    { id: 'view-iso', label: 'Iso', tab: 'View', group: 'Views', run: () => a.setView('iso') },
-    { id: 'view-front', label: 'Front', tab: 'View', group: 'Views', run: () => a.setView('front') },
-    { id: 'view-top', label: 'Top', tab: 'View', group: 'Views', run: () => a.setView('top') },
-    { id: 'view-right', label: 'Right', tab: 'View', group: 'Views', run: () => a.setView('right') },
-    { id: 'fit', label: 'Fit', tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
-    { id: 'sel-face', label: 'Face', tab: 'Select', group: 'Pick', keys: '1', run: () => a.setMode('face') },
-    { id: 'sel-edge', label: 'Edge', tab: 'Select', group: 'Pick', keys: '2', run: () => a.setMode('edge') },
+    { id: 'open', label: t('cmd.open'), tab: 'Home', group: 'File', run: a.open },
+    { id: 'save', label: t('cmd.save'), tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
+    { id: 'samples', label: t('cmd.samples'), tab: 'Home', group: 'File', run: a.samples },
+    { id: 'palette', label: t('cmd.palette'), tab: 'Home', group: 'Workspace', keys: 'F', run: a.palette },
+    { id: 'drawer', label: t('cmd.drawer'), tab: 'Home', group: 'Workspace', keys: '\\', run: a.toggleDrawer },
+    { id: 'settings', label: t('cmd.settings'), tab: 'Home', group: 'Workspace', run: a.settings },
+    { id: 'undo', label: t('cmd.undo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.undo },
+    { id: 'redo', label: t('cmd.redo'), tab: 'Home', group: 'Edit', enabled: a.hasDocument, run: a.redo },
+    { id: 'view-iso', label: t('cmd.view-iso'), tab: 'View', group: 'Views', run: () => a.setView('iso') },
+    { id: 'view-front', label: t('cmd.view-front'), tab: 'View', group: 'Views', run: () => a.setView('front') },
+    { id: 'view-top', label: t('cmd.view-top'), tab: 'View', group: 'Views', run: () => a.setView('top') },
+    { id: 'view-right', label: t('cmd.view-right'), tab: 'View', group: 'Views', run: () => a.setView('right') },
+    { id: 'fit', label: t('cmd.fit'), tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
+    { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: '1', run: () => a.setMode('face') },
+    { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: '2', run: () => a.setMode('edge') },
   ];
-  for (const [layer, label] of LAYERS) {
-    cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${label}`, tab: 'View', group: 'Show', run: () => a.toggleLayer(layer) });
+  for (const layer of LAYERS) {
+    cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', run: () => a.toggleLayer(layer) });
   }
   return cmds;
 }

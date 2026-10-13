@@ -23,7 +23,15 @@ describe('SettingsDialog', () => {
   it('the opacity slider reports a 0..1 value', () => {
     const onChange = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={onChange} onPreset={() => {}} onClose={() => {}} />);
-    fireEvent.input(screen.getByLabelText('Opacity'), { target: { value: '40' } });
+    fireEvent.input(screen.getByLabelText('Floating panel opacity'), { target: { value: '40' } });
     expect(onChange).toHaveBeenCalledWith({ opacity: 0.4 });
+  });
+  it('shows a language picker only when there is more than one language, and reports the choice', () => {
+    const onLocale = vi.fn();
+    const { rerender } = render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} locale="en" locales={['en']} onLocale={onLocale} />);
+    expect(screen.queryByLabelText('Language')).toBeNull();
+    rerender(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} locale="en" locales={['en', 'de']} onLocale={onLocale} />);
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
+    expect(onLocale).toHaveBeenCalledWith('de');
   });
 });
