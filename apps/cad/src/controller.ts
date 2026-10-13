@@ -19,6 +19,7 @@ export class Controller {
   private session: Session | null = null;
   private lastGood: PartDoc | null = null;
   private pendingCancel: (() => void) | null = null;
+  private redoStack: EditOp[][] = [];
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
@@ -65,6 +66,7 @@ export class Controller {
         this.store.notify(text, 'error');
         return result;
       }
+      this.redoStack = [];
       await this.refresh();
       for (const w of result.refWarnings ?? []) {
         this.store.notify(
@@ -83,11 +85,29 @@ export class Controller {
     if (!s) return;
     this.store.busy.value = true;
     try {
-      await s.undo();
+      const { records } = await s.undo();
+      // Session has no forward stack: replay these ops to redo.
+      for (const rec of records) this.redoStack.push(rec.ops);
       await this.refresh();
     } finally {
       this.store.busy.value = false;
     }
+  }
+
+  async redo(): Promise<void> {
+    const ops = this.redoStack.pop();
+    if (!ops || !this.session) return;
+    // edit() clears the redo stack on success; keep the remaining entries.
+    const rest = this.redoStack;
+    try {
+      await this.edit(ops, 'redo');
+    } finally {
+      this.redoStack = rest;
+    }
+  }
+
+  document(): PartDoc | null {
+    return this.session?.document ?? null;
   }
 
   features(): Array<{ id: string; type: string; name?: string }> {

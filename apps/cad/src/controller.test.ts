@@ -160,6 +160,42 @@ describe('controller with the real kernel', { skip: !process.env.CK_WASM }, () =
     expect(store.selection.value).toEqual([]);
     expect(store.notices.value.some((n) => /Selection lost/.test(n.text))).toBe(true);
   });
+
+  it('undo then redo restores the edit', async () => {
+    const store = createStore();
+    const { view } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+
+    await controller.load(plateDoc());
+    const depthOf = () =>
+      (controller.document()!.features.find((x) => x.id === 'F2') as { depth: number }).depth;
+
+    expect(depthOf()).toBe(5);
+    await controller.edit([{ op: 'set', id: 'F2', path: 'depth', value: 12 }]);
+    expect(depthOf()).toBe(12);
+
+    await controller.undo();
+    expect(depthOf()).toBe(5);
+    expect(store.busy.value).toBe(false);
+
+    await controller.redo();
+    expect(depthOf()).toBe(12);
+    expect(store.busy.value).toBe(false);
+  });
+
+  it('document() exposes the current part; null before load', async () => {
+    const store = createStore();
+    const { view } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+
+    expect(controller.document()).toBeNull();
+    await controller.load(plateDoc());
+    expect(controller.document()!.features.length).toBe(2);
+  });
 });
 
 describe('controller cancel', () => {
