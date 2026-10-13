@@ -18,6 +18,7 @@ import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DisplayMenu } from './DisplayMenu';
 import { SettingsDialog } from './SettingsDialog';
+import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
 import './tokens.css';
@@ -28,6 +29,8 @@ const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 const savedLocale = read('cad.locale');
+const savedTheme = asTheme(read('cad.theme'));
+applyTheme(savedTheme);
 if (typeof savedLocale === 'string') setLocale(savedLocale);
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
 
@@ -86,6 +89,7 @@ const timed = async <T,>(f: () => Promise<T>): Promise<T> => {
 function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
+  const [theme, setTheme] = useState<Theme>(savedTheme);
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -350,7 +354,8 @@ function App() {
         onPick={async (s) => { setSamples(null); const r = await fetch(s.url); await load(await r.text()); }} /> : null}
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
-        onLocale={(c) => { setLocale(c); write('cad.locale', c); }} /> : null}
+        onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
+        theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>
   );
 }

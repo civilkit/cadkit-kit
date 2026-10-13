@@ -1,5 +1,6 @@
 import type { Workspace, WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
+import { THEMES, type Theme } from './theme';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
 const languageName = (code: string, pseudo: string) => {
@@ -10,6 +11,7 @@ const languageName = (code: string, pseudo: string) => {
 export function SettingsDialog(p: {
   workspace: Workspace; onChange(patch: Partial<Workspace>): void; onPreset(name: WorkspacePreset): void; onClose(): void;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
+  theme?: Theme; onTheme?(theme: Theme): void;
 }) {
   const w = p.workspace;
   const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen') => (
@@ -51,6 +53,13 @@ export function SettingsDialog(p: {
             <label class="set-row"><span>{t('settings.language')}</span>
               <select aria-label={t('settings.language')} value={p.locale} onChange={(e) => p.onLocale!((e.currentTarget as HTMLSelectElement).value)}>
                 {p.locales.map((c) => <option key={c} value={c}>{languageName(c, p.pseudo ?? '')}</option>)}
+              </select>
+            </label>
+          ) : null}
+          {p.onTheme ? (
+            <label class="set-row"><span>{t('settings.theme')}</span>
+              <select aria-label={t('settings.theme')} value={p.theme ?? 'auto'} onChange={(e) => p.onTheme!((e.currentTarget as HTMLSelectElement).value as Theme)}>
+                {THEMES.map((v) => <option key={v} value={v}>{t('settings.theme.' + v)}</option>)}
               </select>
             </label>
           ) : null}

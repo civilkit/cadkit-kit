@@ -93,6 +93,12 @@ export class Viewport {
     this.loop();
   }
 
+  /** Re-read the page's background colour (after a theme change). */
+  refreshTheme(): void {
+    const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim();
+    if (bg) { this.scene.background = new THREE.Color(bg); this.dirty = true; }
+  }
+
   setPickMode(mode: PickMode): void { this.mode = mode; }
 
   private layers: Record<string, boolean> = {};

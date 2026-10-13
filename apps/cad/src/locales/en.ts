@@ -70,6 +70,8 @@ export const en: Catalog = {
   'settings.opacity': 'Floating panel opacity',
   'settings.blur': 'Backdrop blur',
   'settings.language': 'Language',
+  'settings.theme': 'Theme',
+  'settings.theme.auto': 'Match system', 'settings.theme.light': 'Light', 'settings.theme.dark': 'Dark',
 
   // feature type names shown in the tree (type id -> display name; unknown types show their id)
   'feature.sketch': 'Sketch',
