@@ -1,8 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { Controller, type ViewSink, type KernelFactory } from './controller';
+import { existsSync, readFileSync } from 'node:fs';
+import { Controller, type ViewSink, type KernelFactory, type SketchEditView } from './controller';
 import { createStore } from '@kit/store';
 import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
+import { fromFeature, movePoint, type SketchDraft } from '@kit/sketch';
 
 function plateDoc(): PartDoc {
   return {
@@ -61,11 +63,13 @@ function farCutOps(): EditOp[] {
 function fakeView() {
   const bodies: unknown[] = [];
   const highlights: string[][] = [];
+  const sketchEdits: Array<SketchEditView | null> = [];
   const view: ViewSink = {
     setBody(b) { bodies.push(b); },
     setHighlight(n) { highlights.push(n); },
+    setSketchEdit(v) { sketchEdits.push(v); },
   };
-  return { view, bodies, highlights };
+  return { view, bodies, highlights, sketchEdits };
 }
 
 /** Real wasm through the Node worker; every opened session is closed afterwards. */
@@ -248,6 +252,7 @@ describe('controller preview/commit', () => {
     const view: ViewSink = {
       setBody(b) { bodies.push(b); },
       setHighlight() {},
+      setSketchEdit() {},
     };
     let opened = 0;
     let lastDoc: PartDoc | null = null;
@@ -421,4 +426,185 @@ describe('controller preview and commit', { skip: !process.env.CK_WASM }, () => 
     expect(s.history().length).toBe(histBefore);
     expect(JSON.stringify(controller.document())).toBe(docBefore);
   }, 15000);
+});
+
+// ---- sketch session (S1): open, drag with the solver, confirm/cancel ----
+
+const BOLT = '/path/to/work/rebuild/tools/cases/flangeBolt.ckpart';
+const boltDoc = (): PartDoc => JSON.parse(readFileSync(BOLT, 'utf8')) as PartDoc;
+const R = 7.505553499465135; // head construction-circle radius in the fixture
+
+/** Tangential: a spot on the head circle near p1 (which sits at 90°): 85°. */
+const ON_CIRCLE: [number, number] = [R * Math.cos((85 * Math.PI) / 180), R * Math.sin((85 * Math.PI) / 180)];
+/** Radial: straight out from p1 along the circle's radius. */
+const RADIAL: [number, number] = [0, R + 2];
+
+describe('controller sketch session', { skip: !(process.env.CK_WASM && existsSync(BOLT)) }, () => {
+  const factories: Array<{ closeAll(): Promise<void> }> = [];
+  afterEach(async () => {
+    await Promise.all(factories.splice(0).map((f) => f.closeAll()));
+  });
+
+  async function openBolt(opts?: { underDefined?: boolean }) {
+    const store = createStore();
+    const { view, bodies, sketchEdits } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+    const doc = boltDoc();
+    if (opts?.underDefined) {
+      // Drop F3's only dimensional constraint (pldist): geometric ones stay.
+      const f3 = doc.features.find((x) => x.id === 'F3') as { constraints: Array<{ type: string }> };
+      f3.constraints = f3.constraints.filter((c) => c.type !== 'pldist');
+    }
+    await controller.load(doc);
+    const draftOf = (): SketchDraft => {
+      const feature = controller.document()!.features.find((x) => x.id === 'F3')!;
+      return fromFeature(feature as unknown as Record<string, unknown>);
+    };
+    const history = () => (controller as unknown as { session: Session }).session.history();
+    return { controller, bodies, sketchEdits, draftOf, history };
+  }
+
+  it('beginSketch returns the solved sketch, frame and status; upTo cuts off later sketches', async () => {
+    const { controller, history } = await openBolt();
+    const histBefore = history().length;
+    const docBefore = JSON.stringify(controller.document());
+
+    const view = await controller.beginSketch('F3');
+
+    expect(view).not.toBeNull();
+    expect(view!.featureId).toBe('F3');
+    expect(view!.frame.z).toEqual([0, 0, 1]); // front plane
+    expect(view!.sketch.points).toHaveLength(7);
+    const p1 = view!.sketch.points.find((p) => p.id === 'p1')!;
+    expect(p1.y).toBeCloseTo(R, 3);
+    // The bolt head is fully defined: dof 0, no conflicts.
+    expect(view!.status?.state).toBe('full');
+    expect(view!.status?.dof).toBe(0);
+    expect(view!.status?.conflicts).toEqual([]);
+    // Document and history untouched by opening.
+    expect(JSON.stringify(controller.document())).toBe(docBefore);
+    expect(history().length).toBe(histBefore);
+
+    // upTo stops the regen at F3: the thread sketches further down are absent.
+    const s = (controller as unknown as { session: Session }).session;
+    const r = await s.preview([], { upTo: 3 });
+    const ids = (r.body?.sketches ?? []).map((x) => x.id);
+    expect(ids).toContain('F3');
+    expect(ids).not.toContain('F12');
+  }, 60000);
+
+  it('a fully defined sketch refuses a drag: app.sketch.fullyDefined, last good view kept', async () => {
+    const { controller, draftOf, sketchEdits } = await openBolt();
+    const good = await controller.beginSketch('F3');
+    const editsBefore = sketchEdits.length;
+
+    const r = await controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1]), 20);
+
+    expect(r.ok).toBe(false);
+    expect(r.hint).toBe('app.sketch.fullyDefined');
+    expect(r.status?.solved).toBe(false);
+    expect(r.view).toBeUndefined();
+    // The view keeps the last good solved sketch (no null push, no new view).
+    expect(sketchEdits.length).toBe(editsBefore);
+    expect(sketchEdits.at(-1)).toEqual(good);
+  }, 60000);
+
+  it('an under-defined sketch reports state under; a radial drag moves the rest of the sketch', async () => {
+    const { controller, draftOf, history } = await openBolt({ underDefined: true });
+    const view = await controller.beginSketch('F3');
+    expect(view!.status?.state).toBe('under');
+    expect(view!.status?.dof).toBe(1);
+    const histBefore = history().length;
+    const docBefore = JSON.stringify(controller.document());
+
+    const r = await controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1]), 20);
+
+    expect(r.ok).toBe(true);
+    expect(r.stale).toBeFalsy();
+    const solved = r.view!.sketch;
+    const p1 = solved.points.find((p) => p.id === 'p1')!;
+    expect(p1.y).toBeCloseTo(RADIAL[1], 6);
+    // The solver re-solved the constrained sketch around the pinned point.
+    const p2 = solved.points.find((p) => p.id === 'p2')!;
+    const moved = Math.hypot(p2.x - -6.5, p2.y - 3.75277674973257);
+    expect(moved).toBeGreaterThan(0.05);
+    // Still nothing committed.
+    expect(JSON.stringify(controller.document())).toBe(docBefore);
+    expect(history().length).toBe(histBefore);
+  }, 60000);
+
+  it('an under-defined sketch refuses a tangential drag: the verticals pin the orientation', async () => {
+    const { controller, draftOf, sketchEdits } = await openBolt({ underDefined: true });
+    const good = await controller.beginSketch('F3');
+    const editsBefore = sketchEdits.length;
+
+    const r = await controller.updateSketch(movePoint(draftOf(), 'p1', ON_CIRCLE[0], ON_CIRCLE[1]), 20);
+
+    expect(r.ok).toBe(false);
+    expect(r.hint).toBe('app.sketch.conflict');
+    expect(r.status?.solved).toBe(false);
+    expect(r.view).toBeUndefined();
+    expect(sketchEdits.length).toBe(editsBefore);
+    expect(sketchEdits.at(-1)).toEqual(good);
+  }, 60000);
+
+  it('commitSketch writes one replace edit with the solved coordinates, no draft fix', async () => {
+    const { controller, draftOf, history } = await openBolt({ underDefined: true });
+    await controller.beginSketch('F3');
+    const histBefore = history().length;
+    await controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1]), 20);
+
+    const r = await controller.commitSketch();
+
+    expect(r?.ok).toBe(true);
+    expect(history().length).toBe(histBefore + 1);
+    const record = history().at(-1)!;
+    expect(record.ops).toHaveLength(1);
+    expect(record.ops[0]).toMatchObject({ op: 'replace', id: 'F3' });
+    const committed = (record.ops[0] as unknown as {
+      feature: { points: Array<{ id: string; x: number; y: number }>; constraints: Array<{ id: string; expr?: string }> };
+    }).feature;
+    const p1 = committed.points.find((p) => p.id === 'p1')!;
+    expect(p1.y).toBeCloseTo(RADIAL[1], 6);
+    // The fold brought the solver's rest-of-sketch result into the commit.
+    const p2 = committed.points.find((p) => p.id === 'p2')!;
+    expect(Math.hypot(p2.x - -6.5, p2.y - 3.75277674973257)).toBeGreaterThan(0.05);
+    // No draft fix, and no interim forceSolve expr anywhere.
+    expect(committed.constraints.some((c) => c.id.startsWith('draft-fix-'))).toBe(false);
+    expect(committed.constraints.some((c) => c.expr !== undefined)).toBe(false);
+  }, 60000);
+
+  it('cancelSketch leaves the document and history unchanged', async () => {
+    const { controller, draftOf, history, sketchEdits } = await openBolt({ underDefined: true });
+    await controller.beginSketch('F3');
+    const histBefore = history().length;
+    const docBefore = JSON.stringify(controller.document());
+    await controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1]), 20);
+
+    await controller.cancelSketch();
+
+    expect(history().length).toBe(histBefore);
+    expect(JSON.stringify(controller.document())).toBe(docBefore);
+    expect(sketchEdits.at(-1)).toBeNull(); // the overlay was cleared
+  }, 60000);
+
+  it('a newer updateSketch supersedes an older one', async () => {
+    const { controller, draftOf } = await openBolt({ underDefined: true });
+    await controller.beginSketch('F3');
+
+    const p1 = controller.updateSketch(movePoint(draftOf(), 'p1', 0, R + 1), 40);
+    const p2 = controller.updateSketch(movePoint(draftOf(), 'p1', RADIAL[0], RADIAL[1]), 40);
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    expect(r1.stale).toBe(true);
+    expect(r2.ok).toBe(true);
+    expect(r2.view).toBeDefined();
+  }, 60000);
+
+  it('beginSketch on a non-sketch feature returns null', async () => {
+    const { controller } = await openBolt();
+    expect(await controller.beginSketch('F4')).toBeNull();
+  }, 60000);
 });

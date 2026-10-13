@@ -1,10 +1,42 @@
-import { type Session, type EditOp, type EditResult, type PreviewResult } from '@ck/session';
-import type { PartDoc } from '@ck/part-model';
+import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
+import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
 import type { Store } from '@kit/store';
+import { foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
+
+/** The solved sketch a viewport draws while a sketch feature is open for editing. */
+export interface SketchEditView {
+  featureId: string;
+  frame: ViewFrame;
+  sketch: SketchFeature;
+  status?: SketchSolverStatus;
+}
+
+/** Result of a speculative sketch drag: `stale` when a newer drag superseded it. */
+export interface SketchPreview {
+  ok: boolean;
+  stale?: boolean;
+  view?: SketchEditView;
+  hint?: string;
+  status?: SketchSolverStatus;
+}
+
+/** INTERIM: the kernel only re-solves a sketch when a constraint `expr` changed
+ *  value, so every temporary drag fix carries `expr:'0'` to force the re-solve.
+ *  Goes away once `opts.solveSketches` lands: the preview then passes
+ *  solveSketches:true instead and this function is deleted. Nothing else
+ *  should know about it. */
+function forceSolve(draft: SketchDraft): SketchDraft {
+  if (!draft.temp.length) return draft;
+  return {
+    ...draft,
+    temp: draft.temp.map((c) => (c.expr === undefined ? { ...c, expr: '0' } : c)),
+  };
+}
 
 export interface ViewSink {
   setBody(b: unknown | null): void;
   setHighlight(n: string[]): void;
+  setSketchEdit(v: SketchEditView | null): void;
 }
 
 export interface KernelFactory {
@@ -161,6 +193,119 @@ export class Controller {
     } finally {
       this.redoStack = rest;
     }
+  }
+
+  // ---- sketch session (S1): open a sketch, drag with the solver, confirm/cancel ----
+
+  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null } | null = null;
+  private sketchTimer: ReturnType<typeof setTimeout> | null = null;
+  private sketchWake: (() => void) | null = null;
+  private sketchSeq = 0;
+
+  /** Open a sketch feature for editing: solve it as of its place in the tree (the
+   *  features after it are cut off with `upTo`) and hand the viewport the solved
+   *  sketch and its plane frame. Returns null when the feature is missing or not a
+   *  sketch. The document, the edit stack and the displayed body are untouched. */
+  async beginSketch(featureId: string): Promise<SketchEditView | null> {
+    const s = this.session;
+    if (!s) return null;
+    const features = s.document.features;
+    const index = features.findIndex((f) => f.id === featureId);
+    if (index < 0) return null;
+    const feature = features[index] as unknown as Record<string, unknown>;
+    if (feature.type !== 'sketch') return null;
+    const draft = fromFeature(feature);
+    this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null };
+    this.sketchSeq++;
+    const res = await this.previewSketch(draft, index + 1);
+    if (!res.ok || !res.view) return null;
+    this.sketchOpen.baselineDof = res.status?.dof ?? null;
+    this.view.setSketchEdit(res.view);
+    return res.view;
+  }
+
+  /** Drag a point: preview the pinned draft on the sketch's own partial regen.
+   *  Debounced ~100 ms; a newer drag supersedes an older one (stale:true, no view).
+   *  On failure the previous good sketch stays on screen and `hint` says why. */
+  async updateSketch(draft: SketchDraft, delayMs = 100): Promise<SketchPreview> {
+    const seq = ++this.sketchSeq;
+    if (this.sketchTimer) clearTimeout(this.sketchTimer);
+    this.sketchWake?.();
+    let wake: () => void = () => {};
+    await new Promise<void>((resolve) => {
+      wake = resolve;
+      this.sketchWake = resolve;
+      this.sketchTimer = setTimeout(() => { this.sketchTimer = null; resolve(); }, delayMs);
+    });
+    if (this.sketchWake === wake) this.sketchWake = null;
+    if (seq !== this.sketchSeq) return { ok: true, stale: true };
+    this.sketchTimer = null;
+    const open = this.sketchOpen;
+    if (!open) return { ok: false, hint: 'no sketch open' };
+    const res = await this.previewSketch(draft, open.upTo);
+    if (seq !== this.sketchSeq) return { ok: true, stale: true };
+    // A drag the solver could not absorb comes back as a successful regen that
+    // echoes the sketch unsolved (status.solved false): refuse it, keep the
+    // last good solved sketch on screen (the point snaps back).
+    if (draft.temp.length && res.status && res.status.solved === false) {
+      const hint = open.baselineDof === 0 ? 'app.sketch.fullyDefined' : 'app.sketch.conflict';
+      return { ok: false, hint, status: res.status };
+    }
+    if (res.ok && res.view) {
+      // Fold the solver's result into the draft: regen only re-solves on expr
+      // changes, so the committed sketch must carry the solved coordinates.
+      open.draft = foldSolution(draft, res.view.sketch);
+      this.view.setSketchEdit(res.view);
+      return { ok: true, view: res.view, status: res.status };
+    }
+    return { ok: false, hint: res.hint, status: res.status };
+  }
+
+  /** Commit the open sketch as exactly one replace edit (the temporary drag fix is
+   *  dropped) and close the sketch overlay. Null when no sketch is open. */
+  async commitSketch(): Promise<EditResult | null> {
+    const open = this.sketchOpen;
+    if (!open) return null;
+    this.sketchOpen = null;
+    this.closeSketchPreview();
+    this.view.setSketchEdit(null);
+    const feature = toFeature(open.draft);
+    return this.edit([{ op: 'replace', id: open.featureId, feature }], 'sketch');
+  }
+
+  /** The draft being edited in the open sketch session (null when none). The
+   *  shell drags on top of this so folds from earlier drags are kept. */
+  sketchDraft(): SketchDraft | null {
+    return this.sketchOpen?.draft ?? null;
+  }
+
+  /** Close the sketch overlay without writing anything. */
+  async cancelSketch(): Promise<void> {
+    this.sketchOpen = null;
+    this.closeSketchPreview();
+    this.view.setSketchEdit(null);
+  }
+
+  private closeSketchPreview(): void {
+    this.sketchSeq++;
+    if (this.sketchTimer) { clearTimeout(this.sketchTimer); this.sketchTimer = null; }
+    this.sketchWake?.();
+    this.sketchWake = null;
+  }
+
+  /** Speculative regen of the sketch on its partial upTo tag; no document write. */
+  private async previewSketch(draft: SketchDraft, upTo: number): Promise<{ ok: boolean; view?: SketchEditView; hint?: string; status?: SketchSolverStatus }> {
+    const s = this.session;
+    if (!s) return { ok: false, hint: 'no document loaded' };
+    const feature = toFeature(forceSolve(draft), { includeTemp: true });
+    const r = await s.preview([{ op: 'replace', id: draft.id, feature }], { upTo, sketchStatus: true });
+    if (r.ok && r.body) {
+      const entry = r.body.sketches.find((x) => x.id === draft.id);
+      if (entry) return { ok: true, view: { featureId: draft.id, frame: entry.frame, sketch: entry.sketch, status: entry.status }, status: entry.status };
+      return { ok: false, hint: 'sketch missing from the regen reply' };
+    }
+    const hint = r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'sketch did not solve';
+    return { ok: false, hint };
   }
 
   document(): PartDoc | null {

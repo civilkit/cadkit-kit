@@ -7,6 +7,7 @@ import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
+import { movePoint } from '@kit/sketch';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
   type HistoryFilter,
@@ -44,6 +45,7 @@ const controller = new Controller({
       store.facts.value = { ...store.facts.value, faces: body?.mesh?.faceIds.length ?? 0, triangles: body?.mesh?.triFace.length ?? 0 };
     },
     setHighlight: (n) => viewport?.setHighlight(n),
+    setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
   },
   kernel: {
     async open(doc: PartDoc) { session = new Session(doc, await kernelP, 'user'); return session; },
@@ -95,6 +97,13 @@ function App() {
   const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [previewHint, setPreviewHint] = useState<string | null>(null);
+  const [sketching, setSketching] = useState<{ id: string; name: string } | null>(null);
+  const [sketchHint, setSketchHint] = useState<string | null>(null);
+  // The viewport is constructed once, so its sketch callbacks read these refs
+  // instead of closing over state from the render they were created in.
+  const sketchMoveRef = useRef<((pointId: string, u: number, v: number) => void) | null>(null);
+  const sketchConfirmRef = useRef<(() => void) | null>(null);
+  const sketchCancelRef = useRef<(() => void) | null>(null);
   const [samples, setSamples] = useState<SampleEntry[] | null>(null);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
@@ -106,6 +115,7 @@ function App() {
     const vp = new Viewport(host.current!, {
       onPick: (names, additive) => store.select(names, additive),
       onHover: (n) => { store.hover.value = n; },
+      onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
     });
     viewport = vp;
     const ro = new ResizeObserver(() => vp.resize());
@@ -180,7 +190,11 @@ function App() {
       else if (e.key === '1') setMode('face');
       else if (e.key === '2') setMode('edge');
       else if (e.key === 'z' || e.key === 'Z') viewport?.fit();
-      else if (e.key === 'Escape') { setPalette(false); setSettings(false); setSamples(null); }
+      else if (e.key === 'Enter' && sketchConfirmRef.current) { e.preventDefault(); void sketchConfirmRef.current(); }
+      else if (e.key === 'Escape') {
+        if (sketchCancelRef.current) { e.preventDefault(); void sketchCancelRef.current(); return; }
+        setPalette(false); setSettings(false); setSamples(null);
+      }
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
@@ -222,10 +236,56 @@ function App() {
 
   const startEditing = (id: string) => {
     setSelectedId(id);
+    const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;
+    if (f?.type === 'sketch') {
+      setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+      setSketchHint(null);
+      void (async () => {
+        const view = await controller.beginSketch(id);
+        if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
+        setSketching({ id, name: f.name ?? id });
+        viewport?.orientToSketch();
+      })();
+      return;
+    }
     setEditingId(id);
     setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     setLeftTab('Editor');
   };
+
+  // Sketch session handlers. The viewport was built once, so it calls through
+  // these refs; the actual work reads the controller's current draft (which
+  // carries the solver's folds from earlier drags).
+  sketchMoveRef.current = (pointId, u, v) => {
+    const d = controller.sketchDraft();
+    if (!d) return;
+    void controller.updateSketch(movePoint(d, pointId, u, v)).then((r) => {
+      setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
+    });
+  };
+  const confirmSketch = async () => {
+    if (!sketching) return;
+    await timed(() => controller.commitSketch());
+    setSketching(null); setSketchHint(null);
+    redraw((n) => n + 1);
+  };
+  const cancelSketch = async () => {
+    if (!sketching) return;
+    await controller.cancelSketch();
+    setSketching(null); setSketchHint(null);
+    redraw((n) => n + 1);
+  };
+  sketchConfirmRef.current = confirmSketch;
+  sketchCancelRef.current = cancelSketch;
+  const sketchBanner = sketching ? (
+    <div class="sketch-banner" role="toolbar" aria-label={t('app.sketch.editing', { name: sketching.name })}>
+      <span class="sketch-name">{t('app.sketch.editing', { name: sketching.name })}</span>
+      {sketchHint ? <span class="sketch-hint" role="status">{sketchHint}</span> : null}
+      <button class="rb-btn" onClick={() => viewport?.orientToSketch()}>{t('app.sketch.lookNormal')}</button>
+      <button class="rb-btn ok" onClick={() => void confirmSketch()} title={t('app.sketch.confirm')}>✓</button>
+      <button class="rb-btn no" onClick={() => void cancelSketch()} title={t('app.sketch.cancel')}>✗</button>
+    </div>
+  ) : null;
   const tree = (
     <FeatureTree rows={rows} status={store.featureStatus.value} selectedId={selectedId}
       onSelect={setSelectedId}
@@ -316,6 +376,7 @@ function App() {
           </div>
         ) : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
+        {sketchBanner}
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />

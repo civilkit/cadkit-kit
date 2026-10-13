@@ -6,6 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
+import { rayPlane, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -26,9 +27,18 @@ export interface ViewBody {
 
 export type PickMode = 'face' | 'edge';
 
+/** What the sketch-edit overlay draws: the solved sketch and its plane frame. */
+export interface SketchEditShape {
+  featureId: string;
+  frame: ViewFrame;
+  sketch: { points: Array<{ id: string; x: number; y: number }>; entities: Array<{ id: string; type: string; [key: string]: unknown }> };
+}
+
 export interface ViewportOptions {
   onPick(names: string[], additive: boolean, mode: PickMode): void;
   onHover(name: string | null): void;
+  /** A sketch point is being dragged: plane coordinates of the pointer. */
+  onSketchMove?(pointId: string, u: number, v: number): void;
 }
 
 type StdView = 'iso' | 'front' | 'top' | 'right';
@@ -67,6 +77,12 @@ export class Viewport {
   private hoverPending: { x: number; y: number } | null = null;
   private lastHover: string | null = null;
 
+  // Sketch-edit mode: overlay of the solved sketch, faded body, point dragging.
+  private sketchEdit: SketchEditShape | null = null;
+  private sketchOverlay: THREE.Group | null = null;
+  private sketchDrag: string | null = null;
+  private meshFade: number | null = null;
+
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -94,6 +110,91 @@ export class Viewport {
   }
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
+
+  /** Sketch-edit overlay: draw the solved sketch on its plane, fade the body and
+   *  turn off body picking. null clears the overlay and restores everything. */
+  setSketchEdit(v: SketchEditShape | null): void {
+    this.clearSketchOverlay();
+    this.sketchEdit = v;
+    this.sketchDrag = null;
+    if (!v) {
+      if (this.mesh && this.meshFade !== null) {
+        const m = this.mesh.material as THREE.MeshStandardMaterial;
+        m.opacity = this.meshFade;
+        m.transparent = this.meshFade < 1;
+        this.meshFade = null;
+      }
+      this.dirty = true;
+      return;
+    }
+    // Fade the body so the sketch reads on top of it.
+    if (this.mesh) {
+      const m = this.mesh.material as THREE.MeshStandardMaterial;
+      this.meshFade = m.opacity;
+      m.transparent = true;
+      m.opacity = 0.25;
+    }
+    if (this.sketchLines) this.sketchLines.visible = false; // no double-draw of the same sketch
+    const group = new THREE.Group();
+    group.userData.pickable = false;
+    // Solved entities as bright lines.
+    const polys = sketchEditPolylines(v.sketch, v.frame as never);
+    const seg = this.segmentsOf(polys);
+    if (seg.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
+      group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x0b74dc })));
+    }
+    // Points as a marker cloud.
+    const world = sketchPointWorld(v.sketch.points, v.frame as never);
+    if (world.length) {
+      const pos = new Float32Array(world.length * 3);
+      world.forEach((p, i) => { pos[i * 3] = p.xyz[0]; pos[i * 3 + 1] = p.xyz[1]; pos[i * 3 + 2] = p.xyz[2]; });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const dots = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x0b74dc, size: 7, sizeAttenuation: false }));
+      group.add(dots);
+    }
+    this.scene.add(group);
+    this.sketchOverlay = group;
+    this.dirty = true;
+  }
+
+  /** Point the camera normal to the sketch plane, looking at its centre. */
+  orientToSketch(): void {
+    const v = this.sketchEdit;
+    if (!v) return;
+    const pts = v.sketch.points;
+    const c = new THREE.Vector3();
+    if (pts.length) {
+      const world = sketchPointWorld(pts, v.frame as never);
+      for (const p of world) c.add(new THREE.Vector3(...p.xyz));
+      c.divideScalar(world.length);
+    } else {
+      c.set(v.frame.o[0], v.frame.o[1], v.frame.o[2]);
+    }
+    const z = new THREE.Vector3(v.frame.z[0], v.frame.z[1], v.frame.z[2]).normalize();
+    const y = new THREE.Vector3(v.frame.y[0], v.frame.y[1], v.frame.y[2]).normalize();
+    const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
+    this.controls.target.copy(c);
+    this.camera.up.copy(y);
+    this.camera.position.copy(c).add(z.multiplyScalar(dist));
+    this.camera.lookAt(c);
+    this.controls.update();
+    this.dirty = true;
+  }
+
+  private clearSketchOverlay(): void {
+    if (!this.sketchOverlay) return;
+    this.scene.remove(this.sketchOverlay);
+    this.sketchOverlay.traverse((o) => {
+      if (o instanceof THREE.Points || o instanceof THREE.LineSegments) {
+        o.geometry.dispose();
+        (o.material as THREE.Material).dispose();
+      }
+    });
+    this.sketchOverlay = null;
+  }
 
   private layers: Record<string, boolean> = {};
   /** Show or hide a display layer (sketches, curves, planes, axes, edges). */
@@ -272,6 +373,7 @@ export class Viewport {
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
+    this.clearSketchOverlay();
     this.clearBody();
     this.renderer.dispose();
     this.dom.remove();
@@ -325,24 +427,76 @@ export class Viewport {
     return pickFace(this.grouped, h.faceIndex == null ? null : { faceIndex: h.faceIndex });
   }
 
-  private onDown = (e: PointerEvent): void => { this.down = { x: e.clientX, y: e.clientY }; };
+  /** Nearest sketch point within ~12 px of the cursor, else null. */
+  private sketchPick(x: number, y: number): string | null {
+    const v = this.sketchEdit;
+    if (!v) return null;
+    const r = this.dom.getBoundingClientRect();
+    const world = sketchPointWorld(v.sketch.points, v.frame as never);
+    const p3 = new THREE.Vector3();
+    let best: string | null = null;
+    let bestD = 12;
+    for (const p of world) {
+      p3.set(p.xyz[0], p.xyz[1], p.xyz[2]).project(this.camera);
+      const px = r.left + ((p3.x + 1) / 2) * r.width;
+      const py = r.top + ((1 - p3.y) / 2) * r.height;
+      const d = Math.hypot(px - x, py - y);
+      if (d <= bestD) { bestD = d; best = p.id; }
+    }
+    return best;
+  }
+
+  /** Pointer projected onto the sketch plane: [u, v], or null off-plane. */
+  private planeAt(x: number, y: number): [number, number] | null {
+    const v = this.sketchEdit;
+    if (!v) return null;
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    const o = this.raycaster.ray.origin;
+    const d = this.raycaster.ray.direction;
+    return rayPlane([o.x, o.y, o.z], [d.x, d.y, d.z], v.frame as never);
+  }
+
+  private onDown = (e: PointerEvent): void => {
+    this.down = { x: e.clientX, y: e.clientY };
+    if (this.sketchEdit) {
+      const id = this.sketchPick(e.clientX, e.clientY);
+      if (id) {
+        this.sketchDrag = id;
+        this.controls.enabled = false; // orbit off while dragging a point
+        this.dom.setPointerCapture(e.pointerId);
+      }
+    }
+  };
 
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.sketchEdit) {
+      if (this.sketchDrag) {
+        this.sketchDrag = null;
+        this.controls.enabled = true;
+        this.dom.releasePointerCapture(e.pointerId);
+      }
+      return; // body picking stays off in sketch mode
+    }
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const name = this.nameAt(this.hit(e.clientX, e.clientY));
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
 
   private onMove = (e: PointerEvent): void => {
+    if (this.sketchDrag) {
+      const uv = this.planeAt(e.clientX, e.clientY);
+      if (uv) this.opts.onSketchMove?.(this.sketchDrag, uv[0], uv[1]);
+      return;
+    }
     this.hoverPending = { x: e.clientX, y: e.clientY };
   };
 
   private loop = (): void => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
-    if (this.hoverPending && !this.down) {
+    if (this.hoverPending && !this.down && !this.sketchEdit) {
       const p = this.hoverPending;
       this.hoverPending = null;
       const name = this.nameAt(this.hit(p.x, p.y));

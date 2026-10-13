@@ -3,6 +3,13 @@ import type { Catalog } from '@kit/i18n';
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
   'app.noPart': 'No part open',
+  'app.sketch.editing': 'Editing {name}',
+  'app.sketch.confirm': 'Confirm sketch',
+  'app.sketch.cancel': 'Cancel sketch',
+  'app.sketch.lookNormal': 'Look normal',
+  'app.sketch.failed': 'Could not open the sketch for editing',
+  'app.sketch.fullyDefined': 'Sketch is fully defined: remove a constraint to move this point',
+  'app.sketch.conflict': 'This move conflicts with the constraints',
   'app.settings': 'Settings',
   'app.settings.title': 'Workspace settings',
   'app.search': 'Search commands',
