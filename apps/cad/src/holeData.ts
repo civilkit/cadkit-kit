@@ -19,7 +19,7 @@ export const CSK_ANGLE = 90;
  * fields (so the wire is ready) and says so. holeData.kernel.test.ts fails when the kernel starts using them: then set
  * this to true.
  */
-export const KERNEL_CUTS_CUSTOM_DIMS = false;
+export const KERNEL_CUTS_CUSTOM_DIMS = true;
 
 /**
  * ISO metric rows, mirrored from the `ISO` table in rebuild/crates/ck-model/src/features/hole.rs (holeData.test.ts

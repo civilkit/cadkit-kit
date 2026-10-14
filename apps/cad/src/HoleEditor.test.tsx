@@ -75,7 +75,7 @@ describe('HoleEditor', () => {
     expect(m.num('cboreDepth').value).toBe('6.4');
     expect(m.q('cskDiameter')).toBeNull();
     expect([...m.sel('fit').options].map((o) => o.value)).toEqual(['close', 'normal', 'loose']);   // tap is a plain hole fit
-    expect(m.q('dims') ?? m.container.querySelector('[data-note="dims"]')).not.toBeNull();
+    expect(m.container.querySelector('[data-note="dims"]')).toBeNull();   // the kernel honours the sizes now: no warning note
     fireEvent.change(m.sel('kind'), { target: { value: 'csink' } });
     expect(m.num('cskDiameter').value).toBe('12.4');
     expect(m.num('cskAngle').value).toBe('90');

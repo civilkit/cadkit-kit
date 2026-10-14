@@ -28,7 +28,7 @@ compares the removed volume with the diameter the editor shows.
 
 * A counterbore is cut with the table's counterbore diameter and depth for the size; `cboreDiameter` / `cboreDepth` are parsed but
   not used.
-* `csink` is cut as a plain hole; no cone, `cskDiameter` / `cskAngle` are parsed but not used.
+* The kernel now honours `cboreDiameter` / `cboreDepth` for `cbore`, and cuts the cone for `csink` when `cskDiameter` is given (the editor always writes it; `cskAngle` is the included angle, default 90). A bare `csink` without `cskDiameter` stays a plain hole, and the kernel also knows `kind: "countersink"` (always a cone, table head diameter by default). Impossible values come back as `holeCboreInvalid` / `holeCskDiameter` with a hint.
 
 The editor writes the fields anyway and says so under the type. When the kernel starts using them, set
 `KERNEL_CUTS_CUSTOM_DIMS` to true in `holeData.ts` (a kernel test fails to remind you) and the note disappears.
