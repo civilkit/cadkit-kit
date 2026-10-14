@@ -553,3 +553,15 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .cat-ghost svg { width: 28px; height: 28px; }
 .cat-ghost-t { display: flex; flex-direction: column; line-height: 1.2; }
 .cat-ghost-t span { color: var(--text-2); font-size: 11px; }
+
+/* the move / rotate ball: status line, dialogs */
+.tb-status { bottom: 44px; }
+.tb-status.warn { color: var(--warn, #c25b00); }
+.tb-dlg { width: min(380px, 94vw); height: auto; }
+.tb-field { display: inline-flex; align-items: center; gap: 6px; }
+.tb-field input { width: 110px; font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; text-align: right; }
+.tb-field input[aria-invalid="true"] { border-color: var(--bad, #d33); }
+.tb-unit { color: var(--text-2); min-width: 20px; }
+.tb-note { font-size: 12px; color: var(--text-2); }
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+.tool-rail button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }

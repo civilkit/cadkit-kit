@@ -14,3 +14,6 @@ export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, fo
 export type { HandleSpec, HandleKind, HandleDragSink, Vec3 } from './handles';
 export { mergeBodies, mergedBox, vertexTints, surfaceOwners, SURFACE_TINT } from './surfaces';
 export type { ViewSurface, MergedBody, SurfaceEdge } from './surfaces';
+export * from './triball';
+export { TriBallLayer } from './triballLayer';
+export type { TriGesture, TriValue, TriView, TriSink } from './triballLayer';

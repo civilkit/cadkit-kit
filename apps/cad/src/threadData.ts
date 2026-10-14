@@ -52,7 +52,7 @@ function solve3(m: number[][], b: number[]): number[] | null {
  * Fit a circle to a closed polyline; null when it is not one (a line, an open arc, something not round or not flat).
  * The kernel's polylines are denser where the curve bends, so the centre is a least-squares fit, not the vertex average.
  */
-function circleOf(pts: number[][]): Circle | null {
+export function circleOf(pts: number[][]): Circle | null {
   if (pts.length < 8) return null;
   const first = pts[0], last = pts[pts.length - 1];
   const ring = pts.slice(0, len(sub(first, last)) < 1e-6 * Math.max(1, len(first)) + 1e-9 ? -1 : undefined);

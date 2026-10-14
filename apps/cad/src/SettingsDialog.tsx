@@ -3,12 +3,13 @@ import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
 import { SketchPrefsSection } from './SketchPrefsSection';
 import type { SketchPrefs } from './sketchPrefs';
+import type { TriPrefs } from './triball/triballPrefs';
 import { THEMES, type Theme } from './theme';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
-type Tab = 'general' | 'layout' | 'sketching';
+type Tab = 'general' | 'layout' | 'sketching' | 'positioning';
 const TAB_KEY = 'cad.settingsTab';
-const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' ? v : 'layout'; } catch { return 'layout'; } };
+const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' || v === 'positioning' ? v : 'layout'; } catch { return 'layout'; } };
 const saveTab = (tab: Tab) => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* private window */ } };
 
 const languageName = (code: string, pseudo: string) => {
@@ -21,6 +22,7 @@ export function SettingsDialog(p: {
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
+  triPrefs?: TriPrefs; onTriPrefs?(patch: Partial<TriPrefs>): void;
 }) {
   const w = p.workspace;
   // a tab appears only when it has something to show; the last one used is remembered
@@ -28,6 +30,7 @@ export function SettingsDialog(p: {
     ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme ? (['general'] as Tab[]) : []),
     'layout',
     ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
+    ...(p.triPrefs && p.onTriPrefs ? (['positioning'] as Tab[]) : []),
   ];
   const [saved] = useState(loadTab);
   const [chosen, setChosen] = useState<Tab>(saved);
@@ -112,6 +115,16 @@ export function SettingsDialog(p: {
           {tab === 'sketching' ? (<>
           {p.sketchPrefs && p.onSketchPrefs ? <SketchPrefsSection prefs={p.sketchPrefs} onChange={p.onSketchPrefs} /> : null}
           </>) : null}
+          {tab === 'positioning' && p.triPrefs && p.onTriPrefs ? (
+          <div class="set-section" role="group" aria-label={t('settings.triball.title')}>
+            <b class="set-head">{t('settings.triball.title')}</b>
+            <label class="set-row"><span>{t('settings.triball.distance')}</span>
+              <input type="number" min="0.001" step="any" aria-label={t('settings.triball.distance')} value={p.triPrefs.distance} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0) p.onTriPrefs!({ distance: n }); }} /></label>
+            <label class="set-row"><span>{t('settings.triball.angle')}</span>
+              <input type="number" min="0.001" max="180" step="any" aria-label={t('settings.triball.angle')} value={p.triPrefs.angle} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0 && n <= 180) p.onTriPrefs!({ angle: n }); }} /></label>
+            <div class="tb-note">{t('settings.triball.note')}</div>
+          </div>
+          ) : null}
         </div>
       </div>
     </div>

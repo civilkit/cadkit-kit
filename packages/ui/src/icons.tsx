@@ -34,6 +34,7 @@ const plane = (d: string) => C(d);
 
 const ICONS: Record<string, string> = {
   // ---- sketch: select and draw
+  triball: O(12, 12, 8.5) + P('M12 12l-4.2 3.4M12 12l4.4 2.2M12 12V7') + AP(12, 12, 2) + D(7.8, 15.4, 1.5) + D(16.4, 14.2, 1.5) + D(12, 7, 1.5),
   select: P('M6 3.5l12 7-5.2 1.6L10.4 17.5z') + P('M13 13l4.5 5'),
   line: P('M5 19 19 5') + D(5, 19) + D(19, 5),
   rectangle: P('M4 6h16v12H4z') + D(4, 6) + D(20, 18),
