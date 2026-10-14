@@ -5,6 +5,11 @@
   "file": "mounting-plate.ckpart"
  },
  {
+  "id": "parametric-bracket",
+  "title": "Parametric bracket (4 variables, 3 configurations)",
+  "file": "parametric-bracket.ckpart"
+ },
+ {
   "id": "threaded-bolt",
   "title": "Threaded bolt and tapped block (M10 shaft thread, M8 tapped hole)",
   "file": "threaded-bolt.ckpart"
