@@ -12,6 +12,9 @@ export interface Actions {
   redo(): void;
   hasDocument(): boolean;
   newPart(): void;
+  /** Start a sketch on the one face that is selected. */
+  sketchOnFace(): void;
+  hasFaceSelection(): boolean;
   addExtrude(op: 'add' | 'cut'): void;
   newSketch(plane: 'front' | 'top' | 'right'): void;
   palette(): void;
@@ -38,6 +41,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'new-part', label: t('cmd.new-part'), tab: 'Home', group: 'File', run: a.newPart },
     { id: 'add-extrude', label: t('cmd.add-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add') },
     { id: 'add-cut', label: t('cmd.add-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut') },
+    { id: 'sketch-on-face', label: t('cmd.sketch-on-face'), tab: 'Home', group: 'Sketch', enabled: a.hasFaceSelection, run: a.sketchOnFace },
     { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('front') },
     { id: 'sketch-new-top', label: t('cmd.sketch-new-top'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('top') },
     { id: 'sketch-new-right', label: t('cmd.sketch-new-right'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('right') },

@@ -440,6 +440,16 @@ export class Viewport {
     }
     const z = new THREE.Vector3(v.frame.z[0], v.frame.z[1], v.frame.z[2]).normalize();
     const y = new THREE.Vector3(v.frame.y[0], v.frame.y[1], v.frame.y[2]).normalize();
+    // an empty sketch (just the origin) on a part: look at the part's middle, projected onto the sketch plane
+    if (pts.length <= 1 && this.mesh) {
+      const g = this.mesh.geometry;
+      g.computeBoundingBox();
+      if (g.boundingBox) {
+        const bc = g.boundingBox.getCenter(new THREE.Vector3());
+        const o = new THREE.Vector3(v.frame.o[0], v.frame.o[1], v.frame.o[2]);
+        c.copy(bc).sub(z.clone().multiplyScalar(bc.clone().sub(o).dot(z)));
+      }
+    }
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
     this.controls.target.copy(c);
     this.camera.up.copy(y);

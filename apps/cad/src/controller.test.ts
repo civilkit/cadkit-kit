@@ -628,3 +628,25 @@ describe('controller sketch session', { skip: !(process.env.CK_WASM && existsSyn
     expect(await controller.beginSketch('F4')).toBeNull();
   }, 60000);
 });
+
+describe('sketch on a face', { skip: !process.env.CK_WASM }, () => {
+  const factories: Array<{ closeAll(): Promise<void> }> = [];
+  afterEach(async () => { await Promise.all(factories.splice(0).map((f) => f.closeAll())); });
+
+  it('opens a new sketch on a picked face (its frame is the face), and commit writes a face plane', async () => {
+    const store = createStore();
+    const { view } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+    await controller.load(plateDoc());                       // a 10 x 10 plate, 5 thick, on the front plane
+    const open = await controller.beginNewSketch({ kind: 'face', id: 'F2.C1' });   // the top cap, at z = 5
+    expect(open).not.toBeNull();
+    expect(open!.frame.o[2]).toBeCloseTo(5, 6);
+    expect(open!.frame.z).toEqual([0, 0, 1]);                // the face's outward normal
+    const res = await controller.commitSketch();
+    expect(res?.ok).toBe(true);
+    const added = controller.document()!.features.find((x) => x.type === 'sketch' && x.id !== 'F1') as unknown as { plane: unknown };
+    expect(added.plane).toEqual({ kind: 'face', id: 'F2.C1' });
+  }, 60000);
+});

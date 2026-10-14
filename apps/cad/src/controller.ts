@@ -217,12 +217,12 @@ export class Controller {
 
   /** Start a new, empty sketch on a standard plane at the end of the tree. Nothing is written until
    *  commitSketch: cancelling leaves the document exactly as it was. */
-  async beginNewSketch(planeId: 'front' | 'top' | 'right' = 'front'): Promise<SketchEditView | null> {
+  async beginNewSketch(plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string } = 'front'): Promise<SketchEditView | null> {
     const s = this.session;
     if (!s) return null;
     const id = `F${s.document.seq}`;
     const draft = fromFeature({
-      type: 'sketch', id, name: 'Sketch', plane: { kind: 'std', id: planeId },
+      type: 'sketch', id, name: 'Sketch', plane: typeof plane === 'string' ? { kind: 'std', id: plane } : plane,
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
     const upTo = s.document.features.length + 1;

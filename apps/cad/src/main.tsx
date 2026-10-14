@@ -219,6 +219,8 @@ function App() {
     hasDocument: () => controller.document() !== null,
     newPart: async () => { await load(JSON.stringify(emptyPart('Part'))); },
     newSketch: (plane) => startNewSketch(plane),
+    sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
+    hasFaceSelection: () => selectedFace() !== null,
     addExtrude: (op) => void addExtrude(op),
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
@@ -545,11 +547,17 @@ function App() {
     return false;
   };
   sketchUndoRef.current = () => { void controller.undoSketch(); };
-  const startNewSketch = (plane: 'front' | 'top' | 'right') => {
+  /** The one selected face, if exactly one face is selected. */
+  const selectedFace = (): string | null => {
+    const sel = store.selection.value;
+    return store.mode.value === 'face' && sel.length === 1 ? sel[0] : null;
+  };
+  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }) => {
     void (async () => {
       setSketchHint(null);
       const view = await controller.beginNewSketch(plane);
       if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
+      store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName') });
       viewport?.orientToSketch();
       selectTool('line');
@@ -694,6 +702,7 @@ function App() {
             ))}
           </div>
         ) : null}
+        {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
         {sketchBanner}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
