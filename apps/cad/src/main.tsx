@@ -254,6 +254,7 @@ function App() {
       const doc = JSON.parse(text) as PartDoc;
       await timed(() => controller.load(doc));
       markClean();
+      setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t('app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
