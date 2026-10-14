@@ -107,6 +107,16 @@ export function sectionsOf(feature: FeatureLike | null): Section[] {
   return out;
 }
 
+/** What a per-feature options form (apps/cad FeatureOptions.tsx) is given: the feature with the draft applied, a patch function (null removes a field) and the pick state. */
+export interface OptionsArgs {
+  eff: Record<string, unknown>;
+  change(patch: Record<string, unknown>): void;
+  pickingPath?: string | null;
+  onPickRequest?(path: string): void;
+}
+/** The form to draw and the generic fields it replaces (hidden from the generic sections). */
+export interface OptionsResult { hide: Set<string>; node: JSX.Element }
+
 export function FeatureEditor(p: {
   feature: FeatureLike | null;
   onDraft(next: Record<string, unknown>): void;
@@ -121,6 +131,8 @@ export function FeatureEditor(p: {
   shapes?: Array<{ id: string; label: string }>;
   /** The pointer is over a shape's row (or left it: null), so the app can light it up in the view. */
   onShapeHover?(id: string | null): void;
+  /** Optional form for the feature's options (end conditions, chamfer type...); its fields replace the generic ones. */
+  options?(a: OptionsArgs): OptionsResult | null;
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -145,11 +157,20 @@ export function FeatureEditor(p: {
     if (!next.size) return;
     apply('regions', next.size === shapes.length ? null : shapes.filter((s) => next.has(s.id)).map((s) => s.id));
   };
-  const sections = sectionsOf(feature);
+  const eff: Record<string, unknown> = { ...feature, ...draft };
+  for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
+  const opts = p.options?.({ eff, change: (patch) => apply2(patch), pickingPath: p.pickingPath, onPickRequest: p.onPickRequest }) ?? null;
+  const sections = sectionsOf(feature).map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !opts?.hide.has(f.path)) })).filter((sec) => sec.fields.length > 0);
   const title = t('feature.' + feature.type, undefined, feature.type ?? '') + (feature.name ? ` — ${feature.name}` : '');
 
   const apply = (path: string, value: unknown): void => {
     const next = { ...draft, [path]: value };
+    setDraft(next);
+    p.onDraft(next);
+  };
+
+  const apply2 = (patch: Record<string, unknown>): void => {
+    const next = { ...draft, ...patch };
     setDraft(next);
     p.onDraft(next);
   };
@@ -267,6 +288,7 @@ export function FeatureEditor(p: {
           )}
         </div>
       ))}
+      {opts ? opts.node : null}
       {shapes.length > 1 ? (
         <div class="fedit-sec">
           <div class="fedit-sec-head"><span class="fedit-sec-title">{t('ui.editor.section.shapes', undefined, 'Shapes')}</span></div>

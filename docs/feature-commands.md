@@ -46,12 +46,38 @@ it fills the field from the current viewport selection at once (edge mode gives 
 names) and keeps following the selection until "Done". Reference fields for a single value (`sketch`, `axis`, `path`,
 `neutral`) keep their previous single Pick behaviour. `pickValue` in `featureCommands.ts` does the conversion.
 
+## Editor options
+
+Extrude / cut, revolve, chamfer, fillet and shell have option forms (`apps/cad/src/FeatureOptions.tsx`, rules in
+`optionRules.ts`) that plug into the generic Editor through its `options` prop: they replace the plain fields they own
+and the Editor keeps the sketch, axis, edges and faces pickers and the shape list. Every control writes a patch; a null
+value removes the field from the feature. Only fields the kernel reads are offered.
+
+| Feature | Controls (wire fields) |
+|---|---|
+| extrude, cut | End condition `end`: blind, mid, through, throughBoth, upToNext; `depth` (blind, mid); `flip`; draft angle `draft` and `draftOut` (not for mid or throughBoth, the kernel refuses a drafted mid-plane extrude) |
+| revolve | `end` blind or mid (symmetric); `angle` (total for mid); `flip`; `axis` (the generic pick; the kernel takes a line of the sketch by id) |
+| chamfer | `chamferType`: `equal` (`distance`), `distances` (`distance`, `distance2`), `angle` (`distance`, `angle`) |
+| fillet | constant `radius` or `filletType: "variable"` with `radii: [start, end]`; `profile` circular, conic (`rho`), chord, curvature (`shape`, G2) |
+| shell | `thickness`, `outward` |
+
+Not offered because the kernel does not read them (checked against `ck-model` and by `optionRules.kernel.test.ts`):
+
+- `upToFace`, `offsetFromFace`, `upToPoint`: parsed, but regeneration answers "TODO(rebuild): extrude up to a reference
+  needs ck-ops", and no field names the face or point. The forms already have the face pick (`endFace`, `endOffset`,
+  `endPoint` are the planned wire names; the Pick button goes through `pickingPath` / `picked` like the other single
+  references); flip `KERNEL_END_REFERENCES` in `optionRules.ts` when the kernel cuts them.
+- Second direction (`depth2`, `end2`, `flip2`), thin feature (thickness, wall side), merge result: ignored.
+- Chamfer `angleDistance` / `distanceDistance` (the `chamferType` enum names) answer `unsupported`; the kernel's working
+  names are `distances` and `angle`. `vertex` needs a corner pick and a `distance3`; `fullRound` fillet needs three faces.
+- Shell: one thickness for all walls (no per-face thickness), no `inside` flag.
+- Revolve: no second angle; the axis cannot be an edge.
+
 ## Not supported / limits
 
 - Revolve needs a construction line; with none, the hint "Draw a construction line for the axis" is shown and nothing is
   created. The axis is the first construction line only.
-- Chamfer creates only the equal-distance type (angle/distance and distance/distance can be set only by editing the
-  JSON; the Editor shows `distance` and `angle`).
+- Chamfer is created as equal distance; the Editor's chamfer type dropdown changes it (see Editor options).
 - Circular pattern turns about a world axis through the origin, not through the body centre or the seed's own axis; the
   Editor cannot yet edit the `dir`/`axis` objects (they are not primitive fields). Move the part or edit the JSON for a
   different axis. A seed that falls outside the body after rotation produces no change but no error.

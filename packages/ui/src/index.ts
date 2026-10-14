@@ -1,5 +1,5 @@
 export { FeatureTree, type FeatureRow, type RefRow } from './FeatureTree';
-export { FeatureEditor, sectionsOf, type Section } from './FeatureEditor';
+export { FeatureEditor, sectionsOf, type Section, type OptionsArgs, type OptionsResult } from './FeatureEditor';
 export { Inspector, fieldsOf, type Field } from './Inspector';
 export { Ribbon, type Command } from './Ribbon';
 export { StatusBar, type StatusItem } from './StatusBar';

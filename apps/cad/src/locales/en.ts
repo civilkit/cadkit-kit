@@ -280,5 +280,17 @@ export const en: Catalog = {
   'hole.fit.tap': 'Tap drill', 'hole.fit.close': 'Close', 'hole.fit.normal': 'Normal', 'hole.fit.loose': 'Loose',
   'hole.end': 'End condition', 'hole.end.blind': 'Blind', 'hole.end.through': 'Through', 'hole.end.upToNext': 'Up to next', 'hole.depth': 'Depth',
   'hole.tip': 'Drill point tip ({angle}°)', 'hole.flip': 'Flip direction',
+  // Feature option forms (FeatureOptions.tsx)
+  'opt.section.end': 'End condition', 'opt.section.options': 'Options', 'opt.section.chamfer': 'Chamfer', 'opt.section.fillet': 'Fillet', 'opt.section.shell': 'Shell',
+  'opt.end': 'End condition', 'opt.end.blind': 'Blind', 'opt.end.mid': 'Mid plane', 'opt.end.through': 'Through all', 'opt.end.throughBoth': 'Through all, both ways', 'opt.end.upToNext': 'Up to next',
+  'opt.end.upToFace': 'Up to face', 'opt.end.offsetFromFace': 'Offset from face', 'opt.end.upToPoint': 'Up to point',
+  'opt.depth': 'Depth', 'opt.depth.total': 'Total depth', 'opt.angle': 'Angle', 'opt.angle.total': 'Total angle', 'opt.endFace': 'End face', 'opt.endOffset': 'Offset from face', 'opt.endPoint': 'End point',
+  'opt.flip': 'Flip direction', 'opt.draft': 'Draft angle', 'opt.draftOut': 'Draft outward',
+  'opt.chamfer.type': 'Chamfer type', 'opt.chamfer.type.equal': 'Equal distance', 'opt.chamfer.type.distances': 'Two distances', 'opt.chamfer.type.angle': 'Distance and angle',
+  'opt.chamfer.distance': 'Distance', 'opt.chamfer.distance1': 'Distance 1', 'opt.chamfer.distance2': 'Distance 2', 'opt.chamfer.angle': 'Angle',
+  'opt.fillet.variable': 'Variable radius', 'opt.fillet.radius': 'Radius', 'opt.fillet.chord': 'Chord width', 'opt.fillet.radius0': 'Start radius', 'opt.fillet.radius1': 'End radius', 'opt.fillet.chord0': 'Start chord width', 'opt.fillet.chord1': 'End chord width',
+  'opt.fillet.profile': 'Profile', 'opt.fillet.profile.circular': 'Circular', 'opt.fillet.profile.conic': 'Conic', 'opt.fillet.profile.chord': 'Chordal', 'opt.fillet.profile.curvature': 'Curvature continuous (G2)',
+  'opt.fillet.rho': 'Conic ratio (0 to 1)', 'opt.fillet.shape': 'Shape (0.1 to 1)',
+  'opt.shell.thickness': 'Wall thickness', 'opt.shell.outward': 'Grow outward',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
 };
