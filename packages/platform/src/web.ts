@@ -1,5 +1,8 @@
 import type { Platform } from './index';
 
+const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json' };
+const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
+
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
   const base = opts.base ?? '/';
   return {
@@ -17,8 +20,8 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
         input.click();
       });
     },
-    saveFile(name: string, text: string): Promise<void> {
-      const blob = new Blob([text], { type: 'application/json' });
+    saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void> {
+      const blob = new Blob([data as BlobPart], { type: mime ?? mimeFor(name) });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -3,7 +3,8 @@
 // (Tauri, Capacitor) will add their own behind this interface.
 export interface Platform {
   openFile(): Promise<{ name: string; text: string } | null>;
-  saveFile(name: string, text: string): Promise<void>;
+  /** Download a file. Text goes out as UTF-8; bytes as they are. `mime` defaults from the file extension. */
+  saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void>;
   listSamples(): Promise<Array<{ id: string; title: string; url: string }>>;
   wasmUrl(): string;
 }
