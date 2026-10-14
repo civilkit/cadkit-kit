@@ -49,7 +49,7 @@ describe('applySnapConstraints: the richer snaps', () => {
   it('on-curve puts the new point on the line or circle', () => {
     const b = circ();
     const line = applySnapConstraints(b, addPoint(b, { x: 3, y: 0 }).draft, { kind: 'oncurve', at: { x: 3, y: 0 }, entityId: 'e1' });
-    expect(line.constraints.map((c) => [c.type, c.refs])).toEqual([['pointOnLine', ['p4', 'e1']]]);
+    expect(line.constraints.map((c) => [c.type, c.refs])).toEqual([['pointOnLine', ['p3', 'e1']]]);
     const round = applySnapConstraints(b, addPoint(b, { x: 33, y: 34 }).draft, { kind: 'oncurve', at: { x: 33, y: 34 }, entityId: 'e2' });
     expect(round.constraints.map((c) => c.type)).toEqual(['pointOnCircle']);
   });
@@ -61,7 +61,7 @@ describe('applySnapConstraints: the richer snaps', () => {
   it('quadrant puts the point on the circle and level with / above its centre', () => {
     const b = circ();
     const right = applySnapConstraints(b, addPoint(b, { x: 35, y: 30 }).draft, { kind: 'quadrant', at: { x: 35, y: 30 }, entityId: 'e2' });
-    expect(right.constraints.map((c) => [c.type, c.refs])).toEqual([['pointOnCircle', ['p4', 'e2']], ['horizontal', ['p4', 'c']]]);
+    expect(right.constraints.map((c) => [c.type, c.refs])).toEqual([['pointOnCircle', ['p3', 'e2']], ['horizontal', ['p3', 'c']]]);
     const top = applySnapConstraints(b, addPoint(b, { x: 30, y: 35 }).draft, { kind: 'quadrant', at: { x: 30, y: 35 }, entityId: 'e2' });
     expect(top.constraints.map((c) => c.type)).toEqual(['pointOnCircle', 'vertical']);
   });
