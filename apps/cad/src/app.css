@@ -366,3 +366,5 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .discard-body { padding: 14px 16px; }
 .discard-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 16px 14px; }
 .doc-dirty { color: var(--accent); }
+.hole-dia { font-variant-numeric: tabular-nums; padding: 5px 0; }
+.hole-thread-slot { display: flex; flex-direction: column; gap: 8px; }

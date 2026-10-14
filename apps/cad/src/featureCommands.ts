@@ -5,6 +5,7 @@ import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { t } from './i18n';
+import { newHole, type HolePrefs } from './holeData';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
@@ -118,10 +119,9 @@ export function shellOps(c: Ctx): EditOp[] | null {
   if (!faces.length) return null;
   return [{ op: 'add', feature: { type: 'shell', faces, thickness: niceSize(c.box) } }];
 }
-/** A hole from a sketch of points. `flip` comes from the sketch's plane against the body (see Controller.extrudeFlip). */
-export function holeOps(sketchId: string, flip: boolean, box: Box | null): EditOp[] {
-  const diameter = niceSize(box, 0.1);
-  return [{ op: 'add', feature: { type: 'hole', sketch: sketchId, kind: 'simple', diameter, end: 'through', ...(flip ? { flip: true } : {}) } }];
+/** A hole from a sketch of points. `flip` comes from the sketch's plane against the body (see Controller.extrudeFlip). The type, size and fit are the last ones used (default: simple M6 normal, through). */
+export function holeOps(sketchId: string, flip: boolean, prefs?: HolePrefs): EditOp[] {
+  return [{ op: 'add', feature: newHole(sketchId, flip, prefs) }];
 }
 export function revolveOps(sketch: Feat): EditOp[] | null {
   const axis = axisLine(sketch);
@@ -171,7 +171,7 @@ export function featureCommands(a: FeatureActions): Command[] {
       const face = ctx.mode === 'face' ? faceNames(ctx.selection) : [];
       if (face.length === 1) { a.holeOnFace(face[0]); return; }
       const sk = pointSketch(ctx);
-      if (sk) a.create(holeOps(sk.id, a.holeFlip(sk.id), ctx.box));
+      if (sk) a.create(holeOps(sk.id, a.holeFlip(sk.id)));
     }),
     cmd('add-revolve', canRevolve, () => {
       const sk = revolveSketch(c());

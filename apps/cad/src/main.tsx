@@ -21,6 +21,7 @@ import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
+import { HoleEditor } from './HoleEditor';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
@@ -364,11 +365,11 @@ function App() {
   const opsFromDraft = (next: Record<string, unknown>): EditOp[] => {
     if (!editingFeature) return [];
     // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
-    if (next.regions === null) {
-      const { regions: _drop, ...rest } = next;
-      const feature = { ...editingFeature, ...rest } as Record<string, unknown>;
-      delete feature.regions;
-      return editingFeature.regions === undefined && Object.keys(rest).every((k) => editingFeature[k] === rest[k]) ? [] : [{ op: 'replace' as const, id: editingId!, feature }];
+    // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
+    if (Object.values(next).some((v) => v === null)) {
+      const feature = { ...editingFeature, ...next } as Record<string, unknown>;
+      for (const k of Object.keys(next)) if (next[k] === null) delete feature[k];
+      return JSON.stringify(feature) === JSON.stringify(editingFeature) ? [] : [{ op: 'replace' as const, id: editingId!, feature }];
     }
     return Object.entries(next)
       .filter(([path, value]) => editingFeature[path] !== value)
@@ -744,7 +745,7 @@ function App() {
     // a sketch you just made must not vanish because the layer was switched off earlier: turn it back on and say so
     if (!store.display.value.sketches) { store.setDisplay('sketches', true); store.notify(t('app.sketch.layerOn')); }
     const made = controller.document()?.features.find((f) => f.id === sketchId);
-    if (wasHole && made && hasPointEntities(made as never)) void createFeature(holeOps(sketchId, controller.extrudeFlip(sketchId, 'cut'), controller.bodyBox()));
+    if (wasHole && made && hasPointEntities(made as never)) void createFeature(holeOps(sketchId, controller.extrudeFlip(sketchId, 'cut')));
     else if (wasHole) store.notify(t('app.hole.hint'), 'error');
     redraw((n) => n + 1);
   };
@@ -811,7 +812,9 @@ function App() {
       {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
     </div>
   );
-  const editor = (
+  const editor = editingFeature?.type === 'hole' ? (
+    <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} />
+  ) : (
     <FeatureEditor
       feature={editingFeature}
       onDraft={onDraft}

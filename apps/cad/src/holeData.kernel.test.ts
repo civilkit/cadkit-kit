@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
-import { holeDiameter, HOLE_FITS, ISO_SIZES, ISO_TABLE, KERNEL_CUTS_CUSTOM_DIMS, newHole } from './holeData';
+import { holeDiameter, HOLE_FITS, ISO_SIZES, ISO_TABLE, KERNEL_CUTS_CUSTOM_DIMS, newHole, patchSize } from './holeData';
 
 const rect = { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' },
   points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: -20, y: -20 }, { id: 'p2', x: 20, y: -20 }, { id: 'p3', x: 20, y: 20 }, { id: 'p4', x: -20, y: 20 }],
@@ -66,5 +66,20 @@ describe('hole table against the kernel', { skip: !process.env.CK_WASM }, () => 
     const bigCsk = await removed(s, { ...newHole('F3', true), kind: 'csink', cskDiameter: 20, cskAngle: 90 }, base);
     const changed = Math.abs(bigCbore.cut - plainCbore.cut) > 1 && Math.abs(bigCsk.cut - plainCsk.cut) > 1;
     expect(changed).toBe(KERNEL_CUTS_CUSTOM_DIMS);
+  }, 100000);
+
+  it('why a draft null must remove the field: a plain diameter beats a size; the replace the editor sends does not', async () => {
+    const s = await open();
+    const base = await volumeWith(null, s);
+    const bare = { ...newHole('F3', true), id: 'H', diameter: 3.2 } as Record<string, unknown>;
+    delete bare.size; delete bare.fit;
+    await s.edit([{ op: 'add', feature: bare }]);
+    await s.edit([{ op: 'set', id: 'H', path: 'size', value: 'M3' }]);
+    expect(base - await volumeWith(null, s)).toBeCloseTo(Math.PI * 1.6 * 1.6 * T, 2);   // still the plain 3.2
+    const draft = patchSize(bare, 'M3');                                                  // { size, diameter: null, fit }
+    const feature = { ...bare, ...draft } as Record<string, unknown>;
+    for (const k of Object.keys(draft)) if (draft[k] === null) delete feature[k];
+    await s.edit([{ op: 'replace', id: 'H', feature }]);
+    expect(base - await volumeWith(null, s)).toBeCloseTo(Math.PI * 1.7 * 1.7 * T, 2);
   }, 100000);
 });

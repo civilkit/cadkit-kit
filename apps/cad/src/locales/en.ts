@@ -217,5 +217,15 @@ export const en: Catalog = {
   'app.sketch.field.x': 'x', 'app.sketch.field.y': 'y', 'app.sketch.field.value': 'value',
   'app.sketch.constraint.horizontal': 'Horizontal', 'app.sketch.constraint.vertical': 'Vertical', 'app.sketch.constraint.distance': 'Distance', 'app.sketch.constraint.hdist': 'Horizontal distance', 'app.sketch.constraint.vdist': 'Vertical distance', 'app.sketch.constraint.pldist': 'Point to line', 'app.sketch.constraint.radius': 'Radius', 'app.sketch.constraint.diameter': 'Diameter', 'app.sketch.constraint.angle': 'Angle', 'app.sketch.constraint.equal': 'Equal', 'app.sketch.constraint.coincident': 'Coincident', 'app.sketch.constraint.tangent': 'Tangent', 'app.sketch.constraint.parallel': 'Parallel', 'app.sketch.constraint.perpendicular': 'Perpendicular', 'app.sketch.constraint.concentric': 'Concentric', 'app.sketch.constraint.collinear': 'Collinear', 'app.sketch.constraint.symmetric': 'Symmetric', 'app.sketch.constraint.midpoint': 'Midpoint', 'app.sketch.constraint.fix': 'Fixed', 'app.sketch.constraint.pointOnLine': 'Point on line', 'app.sketch.constraint.pointOnCircle': 'Point on circle',
   'cmd.add-fillet': 'Fillet', 'cmd.add-chamfer': 'Chamfer', 'cmd.add-shell': 'Shell', 'cmd.add-hole': 'Hole', 'cmd.add-revolve': 'Revolve', 'cmd.add-lpattern': 'Linear pattern', 'cmd.add-cpattern': 'Circular pattern',
+  // Hole editor (HoleEditor.tsx)
+  'hole.section.type': 'Type', 'hole.section.size': 'Size', 'hole.section.end': 'End', 'hole.section.options': 'Options', 'hole.section.thread': 'Thread',
+  'hole.type': 'Hole type', 'hole.type.simple': 'Simple', 'hole.type.cbore': 'Counterbore', 'hole.type.csink': 'Countersink',
+  'hole.cboreDiameter': 'Counterbore diameter', 'hole.cboreDepth': 'Counterbore depth', 'hole.cskDiameter': 'Countersink diameter', 'hole.cskAngle': 'Countersink angle',
+  'hole.note.cbore': 'Defaults are the ISO 4762 counterbore for the size. The kernel currently cuts the standard values for the size whatever is typed here.',
+  'hole.note.csink': 'Defaults are the ISO 10642 countersink for the size. The kernel does not cut the cone yet: the hole is cut as a plain hole.',
+  'hole.size': 'Size', 'hole.size.custom': 'Custom diameter', 'hole.diameter': 'Diameter', 'hole.fit': 'Fit', 'hole.resultDiameter': 'Hole diameter', 'hole.invalidSize': 'Unknown size',
+  'hole.fit.tap': 'Tap drill', 'hole.fit.close': 'Close', 'hole.fit.normal': 'Normal', 'hole.fit.loose': 'Loose',
+  'hole.end': 'End condition', 'hole.end.blind': 'Blind', 'hole.end.through': 'Through', 'hole.end.upToNext': 'Up to next', 'hole.depth': 'Depth',
+  'hole.tip': 'Drill point tip ({angle}°)', 'hole.flip': 'Flip direction',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
 };

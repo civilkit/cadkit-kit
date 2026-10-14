@@ -4,6 +4,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { DEFAULT_SETTINGS, pointTool } from '@kit/sketch';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
+import { DEFAULT_PREFS } from './holeData';
 import { circularPatternOps, featureCommands, holeOps, linearPatternOps, patternSeed, pickValue, revolveOps, revolveSketch, type Ctx, type FeatureActions } from './featureCommands';
 
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
@@ -129,16 +130,17 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     w.select([face], 'face');
     expect(w.cmd('add-hole').enabled!()).toBe(true);
     const sk = await addPointSketch(w, { kind: 'face', id: face }, true);
-    const ops = holeOps(sk, w.controller.extrudeFlip(sk, 'cut'), w.controller.bodyBox());
+    const ops = holeOps(sk, w.controller.extrudeFlip(sk, 'cut'), DEFAULT_PREFS);
     await w.controller.edit(ops);
     const f = lastFeature(w);
-    expect(f).toMatchObject({ type: 'hole', sketch: sk, diameter: 1, end: 'through' });
+    expect(f).toMatchObject({ type: 'hole', sketch: sk, kind: 'simple', size: 'M6', fit: 'normal', end: 'through' });
     const after = await w.stats();
     expect(after.errors).toEqual([]);
-    expect(after.volume).toBeCloseTo(base.volume - Math.PI * 0.25 * 10, 2);
+    expect(after.volume).toBeCloseTo(base.volume - Math.PI * 3.3 * 3.3 * 10, 2);
   });
 
   it('hole on a front-plane sketch with the body on the normal side is flipped; the command uses the last point sketch', async () => {
+    try { localStorage.clear(); } catch { /* no storage: the defaults apply anyway */ }
     const w = await world(box());
     const base = await w.stats();
     expect(w.cmd('add-hole').enabled!()).toBe(false);   // no face, no point sketch
@@ -146,10 +148,10 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     w.store.select([]);
     expect(w.cmd('add-hole').enabled!()).toBe(true);
     await w.run('add-hole');
-    expect(lastFeature(w)).toMatchObject({ type: 'hole', sketch: sk, flip: true });
+    expect(lastFeature(w)).toMatchObject({ type: 'hole', sketch: sk, flip: true, size: 'M6', end: 'through' });
     const after = await w.stats();
     expect(after.errors).toEqual([]);
-    expect(after.volume).toBeCloseTo(base.volume - Math.PI * 0.25 * 10, 2);
+    expect(after.volume).toBeCloseTo(base.volume - Math.PI * 3.3 * 3.3 * 10, 2);
   });
 
   it('revolve: uses the first construction line as the axis; without one it only says so', async () => {
