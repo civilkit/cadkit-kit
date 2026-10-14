@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeLook, DEFAULT_LOOK, withAppearance, appearanceOf, hideSelection, NOTHING_HIDDEN, createLookStore, anyHidden, bodyLook } from './look';
+import { sanitizeLook, DEFAULT_LOOK, withAppearance, appearanceOf, effectiveAppearance, hideSelection, NOTHING_HIDDEN, createLookStore, anyHidden, bodyLook } from './look';
 import type { LookActions } from './lookCommands';
 import { buildCommands, matchShortcut, type Actions } from './commands';
 
@@ -19,6 +19,18 @@ describe('look state', () => {
     l = withAppearance(l, 'a', { color: '#b8c4d6' });
     expect(l.appearances).toEqual({});
     expect(bodyLook(DEFAULT_LOOK, 'a').style).toBe('shadedEdges');
+  });
+});
+
+describe('material colour', () => {
+  it('shows the material colour unless the user picked one in Display > Appearance, or the toggle is off', () => {
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a').color).toBe('#c8774a');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a', false).color).toBe('#b8c4d6');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', null).color).toBe('#b8c4d6');
+    const picked = withAppearance(DEFAULT_LOOK, 'a', { color: '#d0463b' });
+    expect(effectiveAppearance(picked, 'a', '#c8774a').color).toBe('#d0463b');
+    expect(effectiveAppearance(picked, 'b', '#c8774a').color).toBe('#c8774a');
+    expect(effectiveAppearance(withAppearance(DEFAULT_LOOK, 'a', { material: 'brushed' }), 'a', '#c8774a')).toMatchObject({ color: '#c8774a', material: 'brushed' });
   });
 });
 

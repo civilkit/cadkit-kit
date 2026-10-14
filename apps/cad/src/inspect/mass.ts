@@ -1,5 +1,7 @@
 // Mass properties: what the kernel returns (volume, area, centre and principal moments for unit density) turned into
 // the numbers an engineer reads. Lengths are millimetres, density is g/cm3, mass is grams.
+import { densityGcm3 } from '../materials';
+
 export interface MassRaw {
   volume?: number; area?: number; com?: number[];
   /** principal moments for unit density, mm^5 */
@@ -18,7 +20,7 @@ export const DENSITIES: Record<string, number> = {
 /** The density of a named material, or null when it is not in the table. */
 export function densityOf(material: string | undefined): number | null {
   if (!material) return null;
-  return DENSITIES[material.trim().toLowerCase()] ?? null;
+  return densityGcm3(material) ?? DENSITIES[material.trim().toLowerCase()] ?? null;   // the material catalogue (built-in and custom) first
 }
 
 export interface MassView {

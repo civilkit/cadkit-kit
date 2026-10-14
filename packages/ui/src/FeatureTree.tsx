@@ -5,7 +5,7 @@ import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 import { InlineName } from './InlineName';
 
-export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string }
+export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string }
 
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[] }
 
@@ -192,9 +192,10 @@ export function FeatureTree(p: {
       {(p.refs ?? []).map((r) => (
         <div
           key={r.id}
-          class={'row ref' + (r.choosable ? '' : ' info') + (p.selectedRef === r.id ? ' sel' : '')}
+          class={'row ref' + (r.choosable || r.editable ? '' : ' info') + (r.editable ? ' editable' : '') + (p.selectedRef === r.id ? ' sel' : '')}
           data-ref={r.id}
-          onClick={() => { if (r.choosable) p.onSelectRef?.(p.selectedRef === r.id ? null : r.id); }}
+          {...(r.editable ? { role: 'button', tabIndex: 0, onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); p.onOpenRef?.(r.id); } } } : {})}
+          onClick={() => { if (r.editable) p.onOpenRef?.(r.id); else if (r.choosable) p.onSelectRef?.(p.selectedRef === r.id ? null : r.id); }}
           onDblClick={() => { if (r.choosable) p.onOpenRef?.(r.id); }}
           onMouseEnter={() => { if (r.choosable) p.onHoverRef?.(r.id); }}
           onMouseLeave={() => p.onHoverRef?.(null)}
@@ -202,6 +203,7 @@ export function FeatureTree(p: {
           <Icon name={r.icon} size={18} class="row-icon" />
           <span class="row-name">{r.label}{r.swatch ? <span class="ref-chip" data-swatch={r.swatch} style={{ background: r.swatch }} /> : null}</span>
           {r.tag ? <span class="row-id ref-tag">{r.tag}</span> : null}
+          {r.editable ? <button type="button" class="ref-edit" aria-label={r.editLabel ?? 'Edit'} title={r.editLabel ?? 'Edit'} onClick={(e) => { e.stopPropagation(); p.onOpenRef?.(r.id); }}><Icon name="edit" size={14} /></button> : null}
         </div>
       ))}
       {top.map((r, k) => (

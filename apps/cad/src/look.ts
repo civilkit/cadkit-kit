@@ -40,6 +40,13 @@ export function sanitizeLook(raw: unknown): Look {
   };
 }
 
+/** What the viewport and the tree swatch show for a part: the colour the user picked in Display > Appearance when there is one,
+ *  otherwise the material's colour (when "Use material colour" is on), otherwise the default. */
+export function effectiveAppearance(look: Look, part: string | undefined, materialColor: string | null | undefined, useMaterialColour = true): Appearance {
+  const a = appearanceOf(look, part);
+  return useMaterialColour && materialColor && a.color === DEFAULT_APPEARANCE.color ? { ...a, color: materialColor } : a;
+}
+
 export const appearanceOf = (look: Look, part: string | undefined): Appearance => (part && look.appearances[part]) || DEFAULT_APPEARANCE;
 export const bodyLook = (look: Look, part: string | undefined): BodyLook => ({ style: look.style, ghostOpacity: look.ghostOpacity, appearance: appearanceOf(look, part) });
 

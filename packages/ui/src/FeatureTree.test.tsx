@@ -329,3 +329,23 @@ describe('FeatureTree rollback marker', () => {
     expect(container.querySelector('.rb-bar')).toBeNull();
   });
 });
+
+describe('FeatureTree: editable reference row', () => {
+  const mount = (opened: string[]) => render(
+    <FeatureTree partName="Part1" rows={[]} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}}
+      refs={[{ id: 'material', label: 'Material: steel', icon: 'ref-material', editable: true, editLabel: 'Change material' }]} onOpenRef={(id) => opened.push(id)} />,
+  );
+  it('opens on click, on the pencil, and on Enter or F2', () => {
+    const opened: string[] = [];
+    const { container } = mount(opened);
+    const row = container.querySelector('[data-ref="material"]') as HTMLElement;
+    expect(row.getAttribute('role')).toBe('button');
+    fireEvent.click(row);
+    fireEvent.click(container.querySelector('.ref-edit')!);
+    fireEvent.keyDown(row, { key: 'Enter' });
+    fireEvent.keyDown(row, { key: 'F2' });
+    fireEvent.keyDown(row, { key: 'a' });
+    expect(opened).toEqual(['material', 'material', 'material', 'material']);
+    expect(container.querySelector('.ref-edit')!.getAttribute('aria-label')).toBe('Change material');
+  });
+});

@@ -38,7 +38,9 @@ import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
-import { createLookStore, bodyLook, appearanceOf, anyHidden, LOOK_KEY } from './look';
+import { createLookStore, effectiveAppearance, anyHidden, LOOK_KEY } from './look';
+import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
+import { findMaterial, loadUseColour } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { ThreadEditor } from './ThreadEditor';
@@ -279,14 +281,19 @@ function App() {
   }, [store.display.value]);
   const lk = lookStore.look.value, hid = lookStore.hidden.value;
   const partName = controller.document()?.name || 'part';
+  // the part's colour: the one picked in Display > Appearance, else the material's (when "Use material colour" is on)
+  const [useMatColour, setUseMatColour] = useState<boolean>(() => loadUseColour());
+  const [editingMaterial, setEditingMaterial] = useState(false);
+  const matColor = findMaterial(controller.document()?.material)?.color ?? null;
+  const appearance = effectiveAppearance(lk, partName, matColor, useMatColour);
   useEffect(() => {
     const vp = viewport;
     if (!vp) return;
-    vp.setLook(bodyLook(lk, partName));
+    vp.setLook({ style: lk.style, ghostOpacity: lk.ghostOpacity, appearance });
     vp.setLighting(lk.light);
     vp.setBackground(lk.background);
     write(LOOK_KEY, lk);
-  }, [lk, partName]);
+  }, [lk, partName, appearance.color, appearance.material]);
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
   useEffect(() => {
     write('cad.workspace', ws);
@@ -317,7 +324,7 @@ function App() {
       else { markClean(); autosaver.clear(); }
       if (!o.keep) { files.opened(o.file ?? null); if (o.file) files.noteFile(o.file); }
       files.names.seen(doc.name);
-      setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
+      setEditingId(null); setEditingMaterial(false); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
@@ -327,8 +334,8 @@ function App() {
     redraw((n) => n + 1);
   };
   const gotoStep = async (count: number) => {
-    const have = session?.history().length ?? 0;
-    for (let i = have; i > count; i--) await controller.undo();
+    // a material change made on the way is undone with the steps (it is not in the session's history)
+    for (let i = 0; i < 1000 && (session?.history().length ?? 0) > count; i++) await controller.undo();
     redraw((n) => n + 1);
   };
   const setMode = (m: 'face' | 'edge' | 'vertex') => { store.mode.value = m; viewport?.setPickMode(m); };
@@ -680,7 +687,20 @@ function App() {
     setSelectedId(id); setLeftTab('Features'); redraw((n) => n + 1);
   }), []);
 
+  const openMaterial = () => {
+    if (!doc) return;
+    if (editingId) void onCancel();
+    setEditingMaterial(true);
+    if (store.workspace.value.leftTabs) setLeftTab('Editor');
+  };
+  const closeMaterial = () => { setEditingMaterial(false); setLeftTab('Features'); };
+  const applyMaterial = (c: MaterialChoice) => {
+    setUseMatColour(c.useColour);
+    if (controller.setMaterial(c.name)) store.notify(t('material.changed', { name: c.name }));
+    closeMaterial(); redraw((n) => n + 1);
+  };
   const startEditing = (id: string) => {
+    setEditingMaterial(false);
     setSelectedId(id);
     const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;
     if (f?.type === 'sketch') {
@@ -1067,14 +1087,14 @@ function App() {
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
       refs={doc ? [
-        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material', swatch: appearanceOf(lk, partName).color },
+        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material', swatch: appearance.color, editable: true, editLabel: t('material.edit') },
         { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', tag: 'XY', choosable: true },
         { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', tag: 'XZ', choosable: true },
         { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', tag: 'ZY', choosable: true },
         { id: 'origin', label: t('app.ref.origin'), icon: 'ref-origin', choosable: true },
       ] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
-      onOpenRef={(id) => { if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
+      onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
       {...ti.treeProps}
       onEdit={startEditing}
@@ -1102,7 +1122,7 @@ function App() {
     const entry = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === id);
     return { id, face, dia: cyl ? cyl.radius * 2 : null, internal: entry?.internal ?? (isHoleWall(face) ? true : cyl?.internal) };
   }) : null;
-  const editor = editingFeature?.type === 'thread' ? (
+  const featureEditor = editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
       loadStandards={() => controller.threadStandards()} loadSizes={(std) => controller.threadSizes(std)}
       group={groupFaces ?? undefined} warnings={store.featureWarnings.value}
@@ -1142,8 +1162,13 @@ function App() {
       }}
     />
   );
+  const materialEditor = editingMaterial && doc ? (
+    <MaterialEditor key="material" current={doc.material} useColour={useMatColour} onApply={applyMaterial} onCancel={closeMaterial}
+      loadVolume={async () => { const m = controller.hasSolid() ? await controller.massProps() : null; return typeof m?.volume === 'number' ? m.volume : null; }} />
+  ) : null;
+  const editor = materialEditor ?? featureEditor;
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
-    : editingId ? editor : tree;
+    : editingId || editingMaterial ? editor : tree;
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
@@ -1270,7 +1295,7 @@ function App() {
         ) : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} look={{
-          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance: appearanceOf(lk, partName),
+          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance,
           onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(partName || 'part', patch),
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />

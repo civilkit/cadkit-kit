@@ -50,6 +50,9 @@ export interface KernelFactory {
   cancel?(): void;
 }
 
+/** One undoable change of the part's material. */
+interface MaterialStep { at: number; before: string | null; after: string }
+
 export class Controller {
   private readonly store: Store;
   private readonly view: ViewSink;
@@ -57,7 +60,11 @@ export class Controller {
   private session: Session | null = null;
   private lastGood: PartDoc | null = null;
   private pendingCancel: (() => void) | null = null;
-  private redoStack: EditOp[][] = [];
+  private redoStack: Array<EditOp[] | MaterialStep> = [];
+  /** The material set in the app (the session has no document-level op for it, like the part name); applied to `document()`. */
+  private material: string | null = null;
+  /** Material changes in order, each with how many session records existed when it was made, so undo and redo keep them in line with the session's. */
+  private materialSteps: MaterialStep[] = [];
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private previewSeq = 0;
   private previewWake: (() => void) | null = null;
@@ -77,7 +84,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
-      this.rollbackAnchor = null; this.lastIds = []; this.docName = null;
+      this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = [];
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -280,6 +287,11 @@ export class Controller {
   async undo(): Promise<void> {
     const s = this.session;
     if (!s) return;
+    const last = this.materialSteps[this.materialSteps.length - 1];
+    if (last && last.at === s.history().length) {   // the newest change is a material change: it is the one step undone
+      this.materialSteps.pop(); this.material = last.before; this.redoStack.push(last);
+      return;
+    }
     this.store.busy.value = true;
     try {
       const { records } = await s.undo();
@@ -294,6 +306,7 @@ export class Controller {
   async redo(): Promise<void> {
     const ops = this.redoStack.pop();
     if (!ops || !this.session) return;
+    if (!Array.isArray(ops)) { this.materialSteps.push({ ...ops, at: this.session.history().length }); this.material = ops.after; return; }
     // edit() clears the redo stack on success; keep the remaining entries.
     const rest = this.redoStack;
     try {
@@ -491,7 +504,23 @@ export class Controller {
 
   document(): PartDoc | null {
     const d = this.session?.document ?? null;
-    return d && this.docName !== null ? { ...d, name: this.docName } : d;
+    if (!d) return d;
+    return this.docName !== null || this.material !== null ? { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}) } : d;
+  }
+
+  /** Set the part's material (its name, e.g. "Mild steel"). One undo step, in order with the session's edits; the session has no
+   *  document-level op, so the name lives here and is applied to `document()` (so Save, autosave and Inspect see it).
+   *  Returns false when the name is empty or already the material. */
+  setMaterial(name: string): boolean {
+    const s = this.session;
+    const n = name.trim();
+    if (!s || !n) return false;
+    const before = this.document()?.material ?? null;
+    if (before === n) return false;
+    this.materialSteps.push({ at: s.history().length, before: this.material, after: n });
+    this.material = n;
+    this.redoStack = [];
+    return true;
   }
 
   /** Rename the part. The session has no document-level op, so the name lives here and is applied to `document()`
