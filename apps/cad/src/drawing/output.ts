@@ -79,12 +79,12 @@ const LAYERS: Record<string, { color: number; ltype: string }> = {
   text: { color: 7, ltype: 'CONTINUOUS' }, hatch: { color: 9, ltype: 'CONTINUOUS' },
 };
 
-/** DXF (R12 ASCII) of the sheet, millimetres, y up, one layer per line style. */
+/** DXF (R2000 ASCII, LWPOLYLINE) of the sheet, millimetres, y up, one layer per line style. */
 export function toDxf(prims: Prim[], size: V2): string {
   const H = size[1];
   const o: string[] = [];
   const g = (code: number, v: string | number) => o.push(String(code), typeof v === 'number' ? String(+v.toFixed(5)) : v);
-  g(0, 'SECTION'); g(2, 'HEADER'); g(9, '$ACADVER'); g(1, 'AC1009'); g(9, '$INSUNITS'); g(70, 4); g(0, 'ENDSEC');
+  g(0, 'SECTION'); g(2, 'HEADER'); g(9, '$ACADVER'); g(1, 'AC1015'); g(9, '$INSUNITS'); g(70, 4); g(0, 'ENDSEC');
   g(0, 'SECTION'); g(2, 'TABLES');
   g(0, 'TABLE'); g(2, 'LTYPE'); g(70, 3);
   g(0, 'LTYPE'); g(2, 'CONTINUOUS'); g(70, 0); g(3, 'Solid line'); g(72, 65); g(73, 0); g(40, 0);
@@ -100,9 +100,8 @@ export function toDxf(prims: Prim[], size: V2): string {
     const layer = p.layer.toUpperCase();
     if (p.t === 'poly') {
       if (p.fill) continue;                      // arrow heads: leave out, the lines carry the dimension
-      g(0, 'POLYLINE'); g(8, layer); g(66, 1); g(70, p.closed ? 1 : 0);
-      for (let i = 0; i < p.pts.length; i += 2) { g(0, 'VERTEX'); g(8, layer); g(10, p.pts[i]); g(20, Y(p.pts[i + 1])); g(30, 0); }
-      g(0, 'SEQEND'); g(8, layer);
+      g(0, 'LWPOLYLINE'); g(8, layer); g(90, p.pts.length / 2); g(70, p.closed ? 1 : 0);
+      for (let i = 0; i < p.pts.length; i += 2) { g(10, p.pts[i]); g(20, Y(p.pts[i + 1])); }
     } else if (p.t === 'circle') {
       g(0, 'CIRCLE'); g(8, layer); g(10, p.c[0]); g(20, Y(p.c[1])); g(30, 0); g(40, p.r);
     } else if (p.t === 'arc') {

@@ -6,6 +6,7 @@ import {
 import { dimMeasure, renderSheet, toSvg, viewLabel } from './render';
 import { hitAnnotation } from './hit';
 import { toDxf, toPdf } from './output';
+import { parseDxf } from '@kit/io';
 import { distToPoly, edgeShape, findRef, pickEdge, refreshDim, dimFromPicks, autoDims } from './geom';
 import { holeCallout, holeInfos, threadLabel } from './kernel';
 import { moveView, alignedPos, sideOfPoint } from './layout';
@@ -195,7 +196,12 @@ describe('sheet output', () => {
     const xref = Number(/startxref\n(\d+)/.exec(text)![1]);
     expect(text.slice(xref, xref + 4)).toBe('xref');
     const dxf = toDxf(prims, size);
-    expect(dxf).toContain('HIDDEN'); expect(dxf).toContain('POLYLINE'); expect(dxf.trim().endsWith('EOF')).toBe(true);
+    expect(dxf).toContain('HIDDEN'); expect(dxf).toContain('LWPOLYLINE');
+    const back = parseDxf(dxf);
+    expect(back.entities.filter((e) => e.type === 'POLYLINE').length).toBeGreaterThan(10);
+    expect(new Set(back.entities.map((e) => e.layer))).toContain('HIDDEN');
+    const ys = back.entities.flatMap((e) => (e.type === 'POLYLINE' ? e.verts.map((q) => q.y) : []));
+    expect(Math.max(...ys)).toBeLessThanOrEqual(297); expect(Math.min(...ys)).toBeGreaterThanOrEqual(0); expect(dxf.trim().endsWith('EOF')).toBe(true);
   });
   it('hit testing: dimension text, a note, the title block', () => {
     const dim = prims.find((p) => p.t === 'text' && p.s === '60')!;
