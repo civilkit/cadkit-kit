@@ -19,7 +19,7 @@ export const PALETTE_SLOTS: Record<ToolGroup, string[][]> = {
     ['horizontal', 'vertical'], ['coincident', 'midpoint', 'fix'], ['equal', 'parallel', 'perpendicular', 'collinear'],
     ['tangent', 'concentric', 'symmetric'],
   ],
-  edit: [['trim', 'extend'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction']],
+  edit: [['trim', 'extend'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
 };
 
 export interface PaletteSlot { id: string; tools: ToolEntry[] }

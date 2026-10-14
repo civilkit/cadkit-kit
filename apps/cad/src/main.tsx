@@ -946,10 +946,10 @@ function App() {
   };
   /** The selected entity (Select mode) flips between normal and construction. */
   const toggleSelectedConstruction = () => {
-    const sel = selEntityRef.current;
+    const ids = selectedEntityIds();
     const draft = controller.sketchDraft();
-    if (!sel || sel.kind !== 'entity' || !draft) return;
-    void controller.applySketchDraft(setConstruction(draft, [sel.id], 'toggle')).then((r) => {
+    if (!ids.length || !draft) return;
+    void controller.applySketchDraft(setConstruction(draft, ids, ids.some((i) => !draft.entities.find((e) => e.id === i)?.construction))).then((r) => {
       setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
       viewTick((n) => n + 1);
     });
@@ -1026,7 +1026,7 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, ...(lastOutRef.current?.anchor ? { from: lastOutRef.current.anchor } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
     runTool({ type: ev.type, at, snap, mods: ev.mods });
     // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
     const anchor = lastOutRef.current?.anchor;
@@ -1233,7 +1233,7 @@ function App() {
       <span class="sketch-name">{t('app.sketch.editing', { name: sketching.name })}</span>
       {sketchHint ? <span class="sketch-hint" role="status">{sketchHint}</span> : null}
       <button class="rb-btn" aria-pressed={constructionMode} title={t('app.sketch.constructionMode.tip')} onClick={() => setConstructionMode(!constructionMode)}>{t('app.sketch.constructionMode')}</button>
-      {entityOut && selEntityRef.current?.kind === 'entity' && !sketchToolId ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={toggleSelectedConstruction}>{t('app.sketch.toggleConstruction')}</button> : null}
+      {(entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={toggleSelectedConstruction}>{t('app.sketch.toggleConstruction')}</button> : null}
       <button class="rb-btn" onClick={() => viewport?.orientToSketch()}>{t('app.sketch.lookNormal')}</button>
       <button class="rb-btn ok" onClick={() => void confirmSketch()} title={t('app.sketch.confirm')}>✓</button>
       <button class="rb-btn no" onClick={() => void cancelSketch()} title={t('app.sketch.cancel')}>✗</button>

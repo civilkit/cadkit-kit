@@ -61,6 +61,8 @@ export interface ToolOutput<S> {
   hint?: string;
   /** Constraints the tool inferred for the pending segment, shown as glyphs before the click. */
   pending?: string[];
+  /** Where the shape being drawn started from (the line tool's last point): the perpendicular and tangent snaps are measured from it. */
+  from?: Pt;
   /** The point the chain continues from: resting the pointer on it flips the line tool to a tangent arc. */
   anchor?: Pt;
   /** The mode of a tool that has more than one (the line tool: `line` or `arc`). */
