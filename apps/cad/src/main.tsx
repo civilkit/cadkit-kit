@@ -55,6 +55,7 @@ import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
+import { registerShapeSelect } from './shapeSelect';
 import './tokens.css';
 import './app.css';
 
@@ -649,12 +650,18 @@ function App() {
     controller, store, viewport: () => viewport, commands,
     create: (ops) => createFeature(ops),
     commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
-    editingId, sketching: !!sketching, enabled: ws.handles,
+    editingId, selectedId, sketching: !!sketching, enabled: ws.handles,
     thread: threadEntry && editingId ? { id: editingId, entry: threadEntry, maxLength: threadExtent?.length ?? null, ops: (length) => opsFromDraft({ ...draft, length }) } : null,
     onDraftPatch: (patch) => setHandleInject((x) => ({ seq: (x?.seq ?? 0) + 1, patch })),
     restorePreview: () => { if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops); } },
   });
   ctxMenuRef.current = handles.onContextMenu;
+  // selectShapeFeature(id) (shapeSelect.ts): the catalog drop and commands select a shape so its size box shows at once
+  useEffect(() => registerShapeSelect((id) => {
+    store.select([]); setRefSel(null);
+    setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    setSelectedId(id); setLeftTab('Features'); redraw((n) => n + 1);
+  }), []);
 
   const startEditing = (id: string) => {
     setSelectedId(id);
@@ -1200,7 +1207,7 @@ function App() {
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       <div id="vp" ref={host}>
-        {handles.menuEl}{handles.hintEl}
+        {handles.menuEl}{handles.aboutEl}{handles.hintEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
         {ws.toolRail ? (

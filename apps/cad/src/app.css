@@ -527,3 +527,11 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .thread-seg button.on { background: var(--accent); color: #fff; }
 .thread-seg button:focus-visible { outline-offset: -2px; }
 .fedit-fld input:disabled { opacity: .6; }
+/* size box: the "resize about" menu (bottom left of the canvas) and the floating number labels */
+.sizebox-about { position: absolute; left: 14px; bottom: 14px; z-index: 6; display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 8px; font-size: 12px;
+  background: rgba(var(--glass-rgb), max(var(--alpha), .9)); color: var(--text); outline: 1px solid var(--line, rgba(128,128,128,.4)); outline-offset: -1px; }
+.sizebox-about-title { opacity: .7; margin-right: 2px; }
+.sizebox-about button { font: inherit; font-size: 12px; padding: 2px 8px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: inherit; cursor: pointer; }
+.sizebox-about button:hover { border-color: var(--accent); }
+.sizebox-about button.on { background: var(--accent); color: #fff; }
+.vp-size-label:hover { border-color: #fff !important; }

@@ -33,6 +33,7 @@ export class HandleRunner {
       onCancel: () => { void this.cancel(); },
       format: s.format ? (id, q) => s.format!(id, q) : undefined,
       step: s.step ? (id) => s.step!(id) : undefined,
+      live: s.live ? (id, q, vec) => s.live!(id, q, vec) : undefined,
     };
   }
 

@@ -10,7 +10,7 @@ export type { MeasureMark } from './measureMarks';
 export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape } from './viewport';
 export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 export * from './styles';
-export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, formatQuantity, rayLineParam, rayPlanePoint, restPosition, defaultStep, ringPoints, planeCorners, perpendicular, V } from './handles';
+export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, formatQuantity, rayLineParam, rayPlanePoint, restPosition, isPlanar, defaultStep, ringPoints, planeCorners, perpendicular, V } from './handles';
 export type { HandleSpec, HandleKind, HandleDragSink, Vec3 } from './handles';
 export { mergeBodies, mergedBox, vertexTints, surfaceOwners, SURFACE_TINT } from './surfaces';
 export type { ViewSurface, MergedBody, SurfaceEdge } from './surfaces';

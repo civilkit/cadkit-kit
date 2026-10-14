@@ -7,6 +7,9 @@ Built from `packages/viewport/src/handles.ts` (maths), `handleLayer.ts` (drawing
 `apps/cad/src/handles/` (what each selection offers and the ops each drag stands for) and `apps/cad/src/useHandles.tsx`
 (wiring). The `handles` workspace setting (Settings > Layout, default on) switches them all off.
 
+**Update:** selecting a shape feature (extrude, cut, revolve, hole) now shows the size box instead of the single depth /
+diameter handle; see `docs/size-box.md`. The fillet / chamfer dot remains for edge and corner picks.
+
 ## Gestures
 
 | Select | Handle | While dragging | On release | Editor tab |

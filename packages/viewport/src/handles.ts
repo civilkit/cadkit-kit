@@ -4,7 +4,7 @@
 // turns into a live preview and, on release, one edit. Everything here is plain numbers, so it is tested without WebGL.
 
 export type Vec3 = [number, number, number];
-export type HandleKind = 'arrow' | 'dot' | 'ring' | 'plane';
+export type HandleKind = 'arrow' | 'dot' | 'ring' | 'plane' | 'cube' | 'wire' | 'label';
 
 export interface HandleSpec {
   id: string;
@@ -27,7 +27,25 @@ export interface HandleSpec {
   offsetPx?: number;
   /** Tooltip / screen reader text. */
   label?: string;
+  /** `cube` only: `line` (default) slides along `axis` like a dot; `plane` moves in the plane whose normal is `axis` (`u` is the first direction). */
+  drag?: 'line' | 'plane';
+  /** The widget's place comes from the specs the sink's `live` returns while it is dragged (the drag does not move it by itself). */
+  follow?: boolean;
+  /** `wire` only: segment end points, two per segment, in world space. */
+  lines?: Vec3[];
+  /** `label` only: the text, and the handle whose value typing into it sets. */
+  text?: string;
+  forId?: string;
+  /** Shift snaps the value to `step` (instead of slowing the drag down). */
+  shiftSnaps?: boolean;
+  /** Hovering shows the value in the readout (the sink's `format` of `base`). */
+  hoverReadout?: boolean;
 }
+
+/** A widget that is dragged in a plane (a plane square, or a cube with `drag: 'plane'`) rather than along a line. */
+export const isPlanar = (s: HandleSpec): boolean => s.kind === 'plane' || (s.kind === 'cube' && s.drag === 'plane');
+/** A widget that is dragged along a line (arrow, dot, cube). */
+const isLine = (s: HandleSpec): boolean => s.kind === 'arrow' || s.kind === 'dot' || (s.kind === 'cube' && s.drag !== 'plane');
 
 /** The viewport side of a handle drag: the app implements this (see apps/cad/src/handles). Quantities are `base + scale * delta`. */
 export interface HandleDragSink {
@@ -40,6 +58,8 @@ export interface HandleDragSink {
   format?(id: string, q: number): string;
   /** Snap step for Ctrl (default 1 mm / 15 degrees). */
   step?(id: string): number;
+  /** While a drag runs: the specs to show now (a `follow` widget, a `wire` and the labels change with the value). Null keeps what is shown. */
+  live?(id: string, q: number, vec: Vec3): HandleSpec[] | null;
 }
 
 export const V = {
@@ -104,13 +124,13 @@ export function restPosition(spec: HandleSpec, worldPerPx: number): Vec3 {
 export function beginDrag(spec: HandleSpec, ray: { o: Vec3; d: Vec3 }, worldPerPx: number): DragState | null {
   const rest = restPosition(spec, worldPerPx);
   const axis = V.norm(spec.axis);
-  if (spec.kind === 'arrow' || spec.kind === 'dot') {
+  if (isLine(spec)) {
     const t0 = rayLineParam(ray.o, ray.d, rest, axis);
     return t0 === null ? null : { spec, rest, t0, p0: null, r0: null };
   }
   const hit = rayPlanePoint(ray.o, ray.d, rest, axis);
   if (!hit) return null;
-  if (spec.kind === 'plane') return { spec, rest, t0: 0, p0: hit, r0: null };
+  if (isPlanar(spec)) return { spec, rest, t0: 0, p0: hit, r0: null };
   const r0 = V.sub(hit, rest);
   if (V.len(r0) < 1e-9) return null;
   return { spec, rest, t0: 0, p0: hit, r0 };
@@ -119,14 +139,14 @@ export function beginDrag(spec: HandleSpec, ray: { o: Vec3; d: Vec3 }, worldPerP
 /** Map the pointer ray to the drag so far. Null when the ray is parallel to the line or plane (the caller keeps the last reading). */
 export function readDrag(st: DragState, ray: { o: Vec3; d: Vec3 }): DragReading | null {
   const axis = V.norm(st.spec.axis);
-  if (st.spec.kind === 'arrow' || st.spec.kind === 'dot') {
+  if (isLine(st.spec)) {
     const t = rayLineParam(ray.o, ray.d, st.rest, axis);
     if (t === null) return null;
     return { delta: t - st.t0, vec: V.mul(axis, t - st.t0) };
   }
   const hit = rayPlanePoint(ray.o, ray.d, st.rest, axis);
   if (!hit) return null;
-  if (st.spec.kind === 'plane') {
+  if (isPlanar(st.spec)) {
     const vec = V.sub(hit, st.p0!);
     return { delta: V.len(vec), vec };
   }
@@ -183,7 +203,7 @@ function distToSegment(px: number, py: number, a: [number, number], b: [number, 
   return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
 }
 
-export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22 };
+export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22, cube: 5, wire: 0, label: 0 };
 
 /** Points (world) that outline a ring handle. */
 export function ringPoints(centre: Vec3, axis: Vec3, radius: number, n = 48): Vec3[] {
@@ -214,7 +234,7 @@ function inQuad(px: number, py: number, q: [number, number][]): boolean {
   return inside;
 }
 
-const PRIORITY: Record<HandleKind, number> = { dot: 0, arrow: 1, plane: 2, ring: 3 };
+const PRIORITY: Record<HandleKind, number> = { cube: 0, dot: 0, arrow: 1, plane: 2, ring: 3, wire: 9, label: 9 };
 
 /** The handle under the pointer (pixels), or null. A dot wins over an arrow, an arrow over a plane square, a square over a ring. */
 export function hitHandle(specs: HandleSpec[], project: Project, px: number, py: number, worldPerPx: (p: Vec3) => number, tol = 7): string | null {
@@ -224,7 +244,8 @@ export function hitHandle(specs: HandleSpec[], project: Project, px: number, py:
     const size = s.sizePx ?? DEFAULT_SIZE[s.kind];
     const axis = V.norm(s.axis);
     let d: number | null = null;
-    if (s.kind === 'dot') {
+    if (s.kind === 'wire' || s.kind === 'label') continue;
+    if (s.kind === 'dot' || s.kind === 'cube') {
       const c = project(restPosition(s, w));
       if (c) { const e = Math.hypot(px - c[0], py - c[1]) - size; d = e <= tol ? Math.max(0, e) : null; }
     } else if (s.kind === 'arrow') {

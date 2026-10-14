@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMods, beginDrag, hitHandle, NumericEntry, pixelScale, rayLineParam, rayPlanePoint, readDrag, restPosition, formatQuantity, type HandleSpec, type Vec3 } from './handles';
+import { applyMods, beginDrag, hitHandle, isPlanar, NumericEntry, pixelScale, rayLineParam, rayPlanePoint, readDrag, restPosition, formatQuantity, type HandleSpec, type Vec3 } from './handles';
 
 const ray = (o: Vec3, d: Vec3) => ({ o, d });
 
@@ -105,5 +105,29 @@ describe('hit testing', () => {
     const sq: HandleSpec = { id: 'sq', kind: 'plane', origin: [0, 0, 0], axis: [0, 0, 1], u: [1, 0, 0], sizePx: 20 };
     expect(hitHandle([sq], project, 20, 20, w)).toBe('sq');
     expect(hitHandle([sq], project, 2, 2, w)).toBeNull();
+  });
+});
+
+describe('cube handles (size box)', () => {
+  const project = (p: Vec3): [number, number] => [p[0] * 10, p[1] * 10];
+  it('a cube is hit like a dot and skips wire and label specs', () => {
+    const specs: HandleSpec[] = [
+      { id: 'w', kind: 'wire', origin: [0, 0, 0], axis: [0, 0, 1], lines: [[0, 0, 0], [5, 0, 0]] },
+      { id: 'l', kind: 'label', origin: [0, 0, 0], axis: [0, 0, 1], text: '5' },
+      { id: 'c', kind: 'cube', origin: [0, 0, 0], axis: [1, 0, 0] },
+    ];
+    expect(hitHandle(specs, project, 1, 1, () => 0.1)).toBe('c');
+    expect(hitHandle(specs, project, 300, 300, () => 0.1)).toBeNull();
+  });
+  it('a plane-drag cube reports the world move in its plane, a line cube the distance along its axis', () => {
+    const ray2 = (x: number, y: number) => ({ o: [x, y, 10] as Vec3, d: [0, 0, -1] as Vec3 });
+    const plane: HandleSpec = { id: 'a', kind: 'cube', origin: [0, 0, 0], axis: [0, 0, 1], u: [1, 0, 0], drag: 'plane' };
+    const st = beginDrag(plane, ray2(0, 0), 0.1)!;
+    expect(readDrag(st, ray2(3, 4))!.vec).toEqual([3, 4, 0]);
+    expect(isPlanar(plane)).toBe(true);
+    const line: HandleSpec = { id: 'b', kind: 'cube', origin: [0, 0, 0], axis: [1, 0, 0] };
+    expect(isPlanar(line)).toBe(false);
+    const st2 = beginDrag(line, { o: [0, 0, 10], d: [0, 0, -1] }, 0.1)!;
+    expect(readDrag(st2, { o: [7, 3, 10], d: [0, 0, -1] })!.delta).toBeCloseTo(7);
   });
 });

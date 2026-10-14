@@ -4,13 +4,19 @@
 // reaches the orbit controls or the selection code, so a handle never orbits the camera or changes the selection.
 import * as THREE from 'three';
 import {
-  applyMods, beginDrag, defaultStep, DEFAULT_SIZE, formatQuantity, hitHandle, NumericEntry, perpendicular, pixelScale, readDrag, restPosition, V,
+  applyMods, beginDrag, defaultStep, DEFAULT_SIZE, formatQuantity, hitHandle, isPlanar, NumericEntry, perpendicular, pixelScale, readDrag, restPosition, V,
   type DragState, type HandleDragSink, type HandleSpec, type Vec3,
 } from './handles';
 
-const KIND_COLOUR: Record<HandleSpec['kind'], string> = { arrow: '#2f7fd6', dot: '#f5b400', ring: '#2fa968', plane: '#9b59d0' };
+const KIND_COLOUR: Record<HandleSpec['kind'], string> = { arrow: '#2f7fd6', dot: '#f5b400', ring: '#2fa968', plane: '#9b59d0', cube: '#2f7fd6', wire: '#4da3ff', label: '#ffffff' };
 
-interface Built { spec: HandleSpec; group: THREE.Group; materials: THREE.MeshBasicMaterial[] }
+interface Built { spec: HandleSpec; group: THREE.Group; materials: THREE.Material[]; el?: HTMLDivElement; line?: THREE.LineSegments }
+
+function wireGeometry(lines: Vec3[]): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(lines.flatMap((p) => p), 3));
+  return g;
+}
 
 export class HandleLayer {
   readonly scene = new THREE.Scene();
@@ -65,6 +71,7 @@ export class HandleLayer {
       this.scene.remove(b.group);
       b.group.traverse((o) => { const m = o as THREE.Mesh; if (m.geometry) m.geometry.dispose(); });
       b.materials.forEach((m) => m.dispose());
+      b.el?.remove();
     }
     this.built = [];
     this.hideReadout();
@@ -73,12 +80,26 @@ export class HandleLayer {
   private add(spec: HandleSpec): void {
     const size = spec.sizePx ?? DEFAULT_SIZE[spec.kind];
     const col = new THREE.Color(spec.color ?? KIND_COLOUR[spec.kind]);
-    const materials: THREE.MeshBasicMaterial[] = [];
+    const materials: THREE.Material[] = [];
     const mat = (opacity = 1) => {
       const m = new THREE.MeshBasicMaterial({ color: col, depthTest: false, depthWrite: false, transparent: true, opacity, side: THREE.DoubleSide });
       materials.push(m);
       return m;
     };
+    if (spec.kind === 'label') { this.addLabel(spec); return; }
+    if (spec.kind === 'wire') {
+      const m = new THREE.LineBasicMaterial({ color: col, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95 });
+      materials.push(m);
+      const line = new THREE.LineSegments(wireGeometry(spec.lines ?? []), m);
+      line.renderOrder = 999;
+      line.frustumCulled = false;
+      const g = new THREE.Group();
+      g.matrixAutoUpdate = false;
+      g.add(line);
+      this.scene.add(g);
+      this.built.push({ spec, group: g, materials, line });
+      return;
+    }
     const group = new THREE.Group();
     group.matrixAutoUpdate = false;
     const put = (geo: THREE.BufferGeometry, m: THREE.MeshBasicMaterial, pos?: [number, number, number]) => {
@@ -96,6 +117,12 @@ export class HandleLayer {
       const cone = put(new THREE.ConeGeometry(6.5, head, 16), mat());
       cone.rotation.x = Math.PI / 2;
       cone.position.set(0, 0, size - head / 2);
+    } else if (spec.kind === 'cube') {
+      put(new THREE.BoxGeometry(size * 2, size * 2, size * 2), mat());
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 2, size * 2, size * 2)), new THREE.LineBasicMaterial({ color: 0x10202f, depthTest: false, transparent: true }));
+      materials.push(edges.material as THREE.Material);
+      edges.renderOrder = 1001;
+      group.add(edges);
     } else if (spec.kind === 'dot') {
       put(new THREE.SphereGeometry(size, 20, 14), mat());
       put(new THREE.TorusGeometry(size + 2.5, 1.2, 6, 28), mat(0.55));
@@ -146,12 +173,14 @@ export class HandleLayer {
     const m = new THREE.Matrix4();
     for (const b of this.built) {
       const s = b.spec;
+      if (s.kind === 'wire') { b.group.matrix.identity(); b.group.matrixWorldNeedsUpdate = true; continue; }
+      if (s.kind === 'label') { this.placeLabel(b); continue; }
       const w = this.worldPerPx(s.origin);
       const n = V.norm(s.axis);
       const u = s.kind === 'plane' ? V.norm(s.u ?? perpendicular(n)) : perpendicular(n);
       const v = V.cross(n, u);
       let pos = restPosition(s, w);
-      if (this.drag && this.drag.st.spec.id === s.id && (s.kind === 'arrow' || s.kind === 'dot' || s.kind === 'plane')) pos = V.add(pos, this.drag.vec);
+      if (this.drag && this.drag.st.spec.id === s.id && !s.follow && (s.kind === 'arrow' || s.kind === 'dot' || s.kind === 'plane' || s.kind === 'cube')) pos = V.add(pos, this.drag.vec);
       const hot = this.hover === s.id || this.drag?.st.spec.id === s.id;
       const k = w * (hot ? 1.18 : 1);
       m.makeBasis(new THREE.Vector3(...u), new THREE.Vector3(...v), new THREE.Vector3(...n));
@@ -160,7 +189,7 @@ export class HandleLayer {
       b.group.matrix.copy(m);
       b.group.matrixWorldNeedsUpdate = true;
       const lift = hot ? 0.45 : 0;
-      for (const mt of b.materials) mt.color.set(s.color ?? KIND_COLOUR[s.kind]).lerp(new THREE.Color('#ffffff'), lift);
+      for (const mt of b.materials) if (mt instanceof THREE.MeshBasicMaterial) mt.color.set(s.color ?? KIND_COLOUR[s.kind]).lerp(new THREE.Color('#ffffff'), lift);
       b.group.visible = !this.drag || this.drag.st.spec.id === s.id;
     }
     this.placeReadout();
@@ -196,7 +225,17 @@ export class HandleLayer {
   }
   private placeReadout(): void {
     const d = this.drag;
-    if (!d) { this.hideReadout(); return; }
+    if (!d) {
+      // hovering a widget that shows its value (the size box handles)
+      const hs = this.hover ? this.specs.find((x) => x.id === this.hover && x.hoverReadout) : undefined;
+      if (!hs) { this.hideReadout(); return; }
+      this.showReadout();
+      this.readout!.textContent = this.sink?.format?.(hs.id, hs.base ?? 0) ?? formatQuantity(hs.base ?? 0, hs.unit);
+      const hp = this.project(restPosition(hs, this.worldPerPx(hs.origin)));
+      const hr = this.host.getBoundingClientRect();
+      if (hp) { this.readout!.style.left = `${hp[0] - hr.left + 14}px`; this.readout!.style.top = `${hp[1] - hr.top - 30}px`; }
+      return;
+    }
     this.showReadout();
     const el = this.readout!;
     el.textContent = this.readoutText();
@@ -205,6 +244,81 @@ export class HandleLayer {
     const p = this.project(V.add(restPosition(sp, w), d.vec));
     const hr = this.host.getBoundingClientRect();
     if (p) { el.style.left = `${p[0] - hr.left + 16}px`; el.style.top = `${p[1] - hr.top - 30}px`; }
+  }
+
+  // ---- floating number labels (size box): click one to type an exact value ----
+
+  private addLabel(spec: HandleSpec): void {
+    const el = document.createElement('div');
+    el.className = 'vp-size-label';
+    el.dataset.for = spec.forId ?? '';
+    el.setAttribute('role', 'button');
+    el.title = spec.label ?? '';
+    el.style.cssText = `position:absolute;z-index:5;transform:translate(-50%,-50%);padding:1px 6px;border-radius:4px;font:600 11px/1.5 system-ui,sans-serif;white-space:nowrap;cursor:${spec.forId ? 'text' : 'default'};background:var(--panel,rgba(20,24,32,.88));color:var(--text,#fff);border:1px solid ${spec.color ?? '#4da3ff'};user-select:none`;
+    el.textContent = spec.text ?? '';
+    if (spec.forId) {
+      el.addEventListener('pointerdown', (e) => e.stopPropagation());
+      el.addEventListener('click', (e) => { e.stopPropagation(); this.editLabel(el, spec.id); });
+    }
+    this.host.appendChild(el);
+    this.built.push({ spec, group: new THREE.Group(), materials: [], el });
+  }
+
+  private placeLabel(b: Built): void {
+    const el = b.el;
+    if (!el) return;
+    if (el.querySelector('input')) return;     // being typed into
+    const p = this.project(b.spec.origin);
+    const hr = this.host.getBoundingClientRect();
+    el.style.display = p ? '' : 'none';
+    if (p) { el.style.left = `${p[0] - hr.left}px`; el.style.top = `${p[1] - hr.top}px`; }
+    if (el.textContent !== (b.spec.text ?? '')) el.textContent = b.spec.text ?? '';
+    el.style.visibility = this.drag && this.drag.st.spec.id !== b.spec.forId ? 'hidden' : 'visible';
+  }
+
+  private editLabel(el: HTMLDivElement, id: string): void {
+    const b = this.built.find((x) => x.spec.id === id);
+    const target = b?.spec.forId;
+    if (!b || !target || el.querySelector('input')) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = (b.spec.text ?? '').replace(/[^0-9.\-]/g, '');
+    input.style.cssText = 'width:64px;font:inherit;color:inherit;background:transparent;border:0;outline:0;text-align:center';
+    el.textContent = '';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const finish = (ok: boolean) => {
+      if (done) return;
+      done = true;
+      const v = Number(input.value.replace(',', '.'));
+      input.remove();
+      el.textContent = b.spec.text ?? '';
+      if (ok && Number.isFinite(v) && input.value.trim() !== '') {
+        this.sink?.onStart?.(target);
+        this.sink?.onDrag(target, v, [0, 0, 0]);
+        this.sink?.onCommit(target, v, [0, 0, 0]);
+      }
+      this.invalidate();
+    };
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    input.addEventListener('blur', () => finish(false));
+  }
+
+  /** Replace the specs by id with the ones the sink says are current (positions, wire, label text). */
+  private applyLive(next: HandleSpec[]): void {
+    for (const n of next) {
+      const b = this.built.find((x) => x.spec.id === n.id);
+      if (!b) continue;
+      b.spec = n;
+      const i = this.specs.findIndex((x) => x.id === n.id);
+      if (i >= 0) this.specs[i] = n;
+      if (b.line && n.lines) { b.line.geometry.dispose(); b.line.geometry = wireGeometry(n.lines); }
+    }
   }
 
   // ---- interaction ----
@@ -240,14 +354,27 @@ export class HandleLayer {
     const r = readDrag(d.st, this.rayAt(e.clientX, e.clientY));
     if (!r) return;
     const sp = d.st.spec;
-    const scale = sp.kind === 'plane' ? 1 : (sp.scale ?? 1);
-    const base = sp.kind === 'plane' ? 0 : (sp.base ?? 0);
+    const planar = isPlanar(sp);
+    const scale = planar ? 1 : (sp.scale ?? 1);
+    const base = planar ? 0 : (sp.base ?? 0);
     const step = this.sink?.step?.(sp.id) ?? defaultStep(sp.unit);
-    const m = applyMods(r.delta, base, scale, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey }, step);
+    const snapKey = sp.shiftSnaps ? e.shiftKey || e.ctrlKey || e.metaKey : e.ctrlKey || e.metaKey;
+    const m = applyMods(r.delta, base, scale, { shift: sp.shiftSnaps ? false : e.shiftKey, ctrl: snapKey }, step);
     d.delta = m.delta;
     d.q = m.q;
-    d.vec = sp.kind === 'plane' ? (e.shiftKey ? V.mul(r.vec, 0.1) : r.vec) : V.mul(V.norm(sp.axis), m.delta);
+    if (planar && sp.kind === 'cube') {
+      // a cube dragged in a plane: Shift (or Ctrl) snaps each in-plane component to the step
+      let vec = r.vec;
+      if (snapKey && step > 0) {
+        const n = V.norm(sp.axis), u = V.norm(sp.u ?? perpendicular(n)), v = V.cross(n, u);
+        vec = V.add(V.mul(u, Math.round(V.dot(vec, u) / step) * step), V.mul(v, Math.round(V.dot(vec, v) / step) * step));
+      }
+      d.vec = vec;
+      d.q = V.len(vec);
+    } else d.vec = planar ? (e.shiftKey ? V.mul(r.vec, 0.1) : r.vec) : V.mul(V.norm(sp.axis), m.delta);
     this.sink?.onDrag(sp.id, d.q, d.vec);
+    const live = this.sink?.live?.(sp.id, d.q, d.vec);
+    if (live) this.applyLive(live);
     this.invalidate();
   };
 
@@ -272,11 +399,13 @@ export class HandleLayer {
       if (v !== null) {
         const sp = d.st.spec;
         d.q = v;
-        const scale = sp.kind === 'plane' ? 1 : (sp.scale ?? 1);
-        const base = sp.kind === 'plane' ? 0 : (sp.base ?? 0);
+        const scale = isPlanar(sp) ? 1 : (sp.scale ?? 1);
+        const base = isPlanar(sp) ? 0 : (sp.base ?? 0);
         d.delta = scale === 0 ? 0 : (v - base) / scale;
-        d.vec = sp.kind === 'plane' ? V.mul(V.norm(sp.u ?? perpendicular(sp.axis)), v) : V.mul(V.norm(sp.axis), d.delta);
+        d.vec = isPlanar(sp) ? V.mul(V.norm(sp.u ?? perpendicular(sp.axis)), v) : V.mul(V.norm(sp.axis), d.delta);
         this.sink?.onDrag(sp.id, d.q, d.vec);
+        const live = this.sink?.live?.(sp.id, d.q, d.vec);
+        if (live) this.applyLive(live);
       }
       this.invalidate();
     }

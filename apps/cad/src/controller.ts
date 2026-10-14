@@ -675,7 +675,15 @@ export class Controller {
   /** The last body handed to the viewer, with its surface bodies kept apart (`lastView` has them merged in). */
   private shown: ShownBody | null = null;
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; x?: number[]; y?: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
+
+  /** The plane frame (origin and three unit axes) of a sketch of the body on screen: where the size box puts a shape's profile. */
+  sketchFrameOf(sketchId: string): { o: [number, number, number]; x: [number, number, number]; y: [number, number, number]; z: [number, number, number] } | null {
+    const f = this.lastView?.sketches.find((x) => x.id === sketchId)?.frame;
+    if (!f || !f.x || !f.y) return null;
+    const v3 = (a: number[]): [number, number, number] => [a[0], a[1], a[2]];
+    return { o: v3(f.o), x: v3(f.x), y: v3(f.y), z: v3(f.z) };
+  }
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {

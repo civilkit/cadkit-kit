@@ -6,6 +6,7 @@ import type { EditOp } from '@ck/session';
 import type { Store } from '@kit/store';
 import type { Controller } from './controller';
 import { t } from './i18n';
+import { isShapeFeature } from './handles/sizeBox';
 import { dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
 import type { TreeActions } from './treeCommands';
 
@@ -43,6 +44,8 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
     anchor.current = r.anchor;
     setMulti(r.selection);
     d.setSelectedId(r.selection.includes(id) ? id : r.selection.at(-1) ?? null);
+    // a shape row selects the SHAPE: the faces picked before no longer stand in front of its size box
+    if (r.selection.includes(id) && isShapeFeature(doc, id)) d.store.select([]);
   };
   const clearAll = (): boolean => {
     const any = d.store.selection.value.length > 0 || sel.length > 0;

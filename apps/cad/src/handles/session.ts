@@ -4,12 +4,14 @@
 import type { EditOp } from '@ck/session';
 import type { HandleSpec, Vec3 } from '@kit/viewport';
 
-export type GestureKind = 'round-new' | 'round-edit' | 'extrude-depth' | 'shell-thickness' | 'hole-diameter' | 'thread-length' | 'placement';
+export type GestureKind = 'round-new' | 'round-edit' | 'extrude-depth' | 'shell-thickness' | 'hole-diameter' | 'thread-length' | 'placement' | 'size-box';
 
 export interface HandleCommit {
   ops: EditOp[]; create: boolean;
   /** The gesture edits an open editor's draft instead of the document: the app hands this patch to the editor and makes no edit itself. */
   draft?: Record<string, unknown>;
+  /** Said to the user after the edit (e.g. sketch constraints the new size broke were removed). */
+  notice?: string;
 }
 
 export interface HandleSession {
@@ -22,6 +24,8 @@ export interface HandleSession {
   /** The one edit to make on release, or null to leave the document alone. */
   commit(handleId: string, q: number, vec: Vec3): HandleCommit | null;
   format?(handleId: string, q: number): string;
+  /** The specs to show while this drag runs (the size box and its labels follow the value). */
+  live?(handleId: string, q: number, vec: Vec3): HandleSpec[] | null;
   step?(handleId: string): number;
 }
 
