@@ -21,11 +21,10 @@ function Popover(p: { label: string; tip: string; icon?: string; children: preac
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', key); };
   }, [open]);
+  const btn = <button class="rb-btn" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen(!open)}>{p.icon ? <Icon name={p.icon} size={16} /> : null}{p.label} <span class="caret" aria-hidden="true">▾</span></button>;
   return (
     <div class="aux-pop" ref={root}>
-      <Tip label={p.tip}>
-        <button class="rb-btn" aria-haspopup="true" aria-expanded={open} onClick={() => setOpen(!open)}>{p.icon ? <Icon name={p.icon} size={16} /> : null}{p.label} <span class="caret" aria-hidden="true">▾</span></button>
-      </Tip>
+      {open ? btn : <Tip label={p.tip}>{btn}</Tip>}
       {open ? <div class="aux-menu" role="group" aria-label={p.label}>{p.children}</div> : null}
     </div>
   );

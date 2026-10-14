@@ -52,7 +52,7 @@ import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchAuxBar } from './SketchAuxBar';
-import { SketchConstraintList, statusText } from './SketchConstraintList';
+import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
