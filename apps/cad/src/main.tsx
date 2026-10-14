@@ -1153,20 +1153,28 @@ function App() {
   const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Catalog'); };
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
+  // docked: the editor opens beside the tree (two columns) instead of replacing it; floating keeps it as a tab
+  const side = ws.leftPanel === 'docked' && ws.leftTabs;
+  const split = side && !!editingId;
+  const tabIds = (side ? ['Outliner', 'Features', 'Catalog'] : ['Outliner', 'Features', 'Catalog', 'Editor']) as Array<'Outliner' | 'Features' | 'Catalog' | 'Editor'>;
+  const curTab = side && leftTab === 'Editor' ? 'Features' : leftTab;
   const left = ws.leftPanel === 'hidden' ? null : (
-    <div class={'tree-wrap ' + ws.leftPanel}>
+    <div class={'tree-wrap ' + ws.leftPanel + (split ? ' split' : '')}>
       {ws.leftTabs ? (
         <>
-          <div class="ptabs">
-            {(['Outliner', 'Features', 'Catalog', 'Editor'] as const).map((id) => {
-              const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit' }[id];
-              return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
-            })}
+          <div class="tree-col">
+            <div class="ptabs">
+              {tabIds.map((id) => {
+                const label = t('app.leftTab.' + id);
+                const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit' }[id];
+                return <button key={id} class="pt" aria-selected={curTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{curTab === id ? <span class="pt-label">{label}</span> : null}</button>;
+              })}
+            </div>
+            {curTab === 'Outliner' ? outliner : curTab === 'Features' ? (split ? (doc ? tree : leftBody) : leftBody)
+              : curTab === 'Catalog' ? catalogPanel
+              : editor}
           </div>
-          {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
-            : leftTab === 'Catalog' ? catalogPanel
-            : editor}
+          {split ? <div class="editor-col">{editor}</div> : null}
         </>
       ) : leftBody}
     </div>
@@ -1219,7 +1227,7 @@ function App() {
   }, []);
 
   return (
-    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
+    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-split={ws.leftPanel === 'docked' && ws.leftTabs && !!editingId ? 'true' : undefined} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
