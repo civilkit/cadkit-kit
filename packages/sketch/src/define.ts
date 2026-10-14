@@ -12,7 +12,7 @@
  *                   redundant or conflicting is thrown away, so the result is never over-constrained.
  *   definitionMap   per entity: `full` (nothing about it can move), `under` (it can still move or change) or `over`
  *                   (a constraint that mentions it is in conflict). Found by pinning each free point in turn and asking
- *                   whether the pin is redundant (the point was already determined).
+ *                   whether the pin adds anything: when the degrees of freedom do not drop the point was already determined.
  */
 import type { SketchSolverStatus } from '@ck/part-model';
 import type { DraftConstraint, DraftEntity, SketchDraft } from './index';
@@ -240,7 +240,10 @@ export async function definitionMap(draft: SketchDraft, status: SketchSolverStat
       if (left-- <= 0 || opts.cancelled?.()) return false;
       const id = nextId(draft, 'k');
       const s = await solve({ ...draft, constraints: [...draft.constraints, { id, type, refs: [ref], value }] });
-      return !!s && s.redundant.includes(id);
+      // A pin on a point that is only half determined (a distance fixed, its direction free) is partly redundant, so the
+      // solver flags it; what tells the cases apart is the rank it adds: none for a determined point, so the degrees of
+      // freedom do not drop.
+      return !!s && s.solved && s.dof >= status.dof;
     };
     for (const p of draft.points) {
       if (p.fixed) { known.set(p.id, true); continue; }

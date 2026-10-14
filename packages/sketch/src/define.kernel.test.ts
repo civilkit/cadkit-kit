@@ -108,6 +108,21 @@ describe('definitionMap in the real kernel', { skip: !process.env.CK_WASM }, () 
     expect(map.get('e2')).toBe('under');
   });
 
+  it('a point whose distance is fixed but whose direction is free is under defined (a half-pinned point is not defined)', async () => {
+    const d0: SketchDraft = {
+      id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+      points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: 10, y: 0 }, { id: 'b', x: 10, y: 4 }],
+      entities: [{ id: 'e1', type: 'line', p1: 'O', p2: 'a' }, { id: 'e2', type: 'line', p1: 'a', p2: 'b' }],
+      constraints: [{ id: 'k1', type: 'distance', refs: ['O', 'a'], value: 10 }, { id: 'k2', type: 'distance', refs: ['a', 'b'], value: 4 }, { id: 'k3', type: 'perpendicular', refs: ['e1', 'e2'] }],
+    };
+    const { solve } = await solver(d0);
+    const st = (await solve(d0))!;
+    expect(st.dof).toBe(1);                       // it can swing about the origin
+    const map = await definitionMap(d0, st, solve);
+    expect(map.get('e1')).toBe('under');
+    expect(map.get('e2')).toBe('under');
+  });
+
   it('over-constrained: the entity named by the conflicting constraint is over', async () => {
     const d0 = withOrigin(rectDraft(10, 5));
     const bad: SketchDraft = { ...d0, constraints: [...d0.constraints, { id: 'k5', type: 'distance', refs: ['p1', 'p2'], value: 10 }, { id: 'k6', type: 'distance', refs: ['p1', 'p2'], value: 12 }] };

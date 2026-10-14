@@ -16,8 +16,9 @@ three colours are used on the geometry (`define.ts`, `definitionMap`):
 | red | a constraint that names it is in conflict |
 
 At zero degrees of freedom every entity is dark. Otherwise each free point (and each circle radius) is **probed**: the
-sketch is solved once more with a pin (`fix` at the present position, `radius` for circles) and if the solver calls the pin
-redundant the point was already determined. This is up to 60 kernel round trips, started 350 ms after the sketch stops
+sketch is solved once more with a pin (`fix` at the present position, `radius` for circles); if the degrees of freedom do not
+drop the pin added nothing and the point was already determined (a point fixed in one direction only, such as one on a
+circle about a fixed centre, is half determined: the pin still removes a freedom, so it counts as under defined). This is up to 60 kernel round trips, started 350 ms after the sketch stops
 changing, dropped when it changes again, and it never touches the sketch itself (`Controller.probeSketch`). Display >
 "Colour by definition" turns it off.
 
@@ -118,7 +119,7 @@ definition, the constraint panel. Each is remembered. (The 3D view's Display men
   tool stays a snapshot of the model edges at the time (`project.ts`). Associative projection needs a kernel sketch entity that
   refers to a model edge and is re-evaluated at regen.
 * **3D sketch** (unchanged).
-* The definition colours use pin probes, so a point determined in x only is reported as under defined (blue): correct, but a
-  per-axis "half defined" colour is not drawn.
+* The definition colour is per entity: a point half determined counts as under defined (blue); there is no per-axis colour and no
+  separate colour for "defined but for its size".
 * Constraint glyph toggles are per kind of display (dimensions / relations / reference), not per constraint type.
 * Move / Rotate / Scale keep relations to geometry that did not move; there is no "break relations" option yet.
