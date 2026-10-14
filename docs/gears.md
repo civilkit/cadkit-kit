@@ -57,8 +57,9 @@ features of other gears or later features that reference a gear's faces keep wor
 
 ## Timings
 
-Regeneration of the gear (sketch region + extrude + the bore cut), measured in the kernel tests on a loaded machine: see the GEARTIME lines the tests print.
-Roughly one second per 10 teeth for a plain spur gear plus 1 to 2 seconds of validation; a 60 tooth gear takes about 14 s on a loaded machine, a 20 tooth gear a few seconds.
+Measured edit time (sketch regions, extrude, bore cut) in the kernel on a machine with a load average of 30 to 60 (other jobs running), so read these as upper bounds:
+8 teeth 1.3 s, 20 teeth 3.3 s, 40 teeth 12 s, helical 20 teeth 6.7 s, the 20 / 40 pair 37 s. Cost grows about linearly with the tooth count (one spline and one arc per tooth).
+The first version, with a line, arc and spline per flank piece, took 51 s for 60 teeth and produced invalid solids at some tooth counts; one spline per gap fixed both.
 The live preview debounces, so typing in a field regenerates once it settles.
 
 ## Tests
