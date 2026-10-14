@@ -8,6 +8,18 @@ export function faceOwner(name: string): string | null {
   return m ? m[1] : null;
 }
 
+/** Which tree row a face / edge name belongs to when viewing. In a part it is the feature id before the first dot; in an
+ *  assembly a name carrying `@F6.1` belongs to the component F6 (the insert feature), and a name of the root part to its feature. */
+export function viewOwner(name: string, inserts: ReadonlySet<string>): string | null {
+  if (name.includes('@')) {
+    const first = name.split('|')[0].replace(/#\d+$/, '');
+    const ids = [...first.matchAll(/@(F\d+)\.(\d+)/g)].map((m) => m[1]);
+    for (let i = ids.length - 1; i >= 0; i--) if (inserts.has(ids[i])) return ids[i];
+    return null;
+  }
+  return faceOwner(name);
+}
+
 type Feat = { id: string; [k: string]: unknown };
 
 /** String leaves of a feature that can refer to another feature (everything but its own id and display name). */

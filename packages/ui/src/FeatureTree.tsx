@@ -1,5 +1,5 @@
 import { Fragment, type JSX } from 'preact';
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { FeatureStatus } from '@kit/store';
 import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
@@ -39,6 +39,13 @@ export function FeatureTree(p: {
   onMove(id: string, to: number): void;
   onRemove(id: string): void;
   onToggleSuppress(id: string): void;
+  /** Feature ids hidden in the view only (the eye); the row is dimmed with a closed eye. Nothing is rebuilt. */
+  hiddenIds?: string[];
+  onToggleHide?(id: string): void;
+  /** The pointer is over a feature row (id) or left it (null): the app tints what that feature made. */
+  onHoverFeature?(id: string | null): void;
+  /** The feature under the pointer in the 3D view; its row gets a hover mark and is scrolled into view. */
+  hoverId?: string | null;
   onEdit?(id: string): void;
   /** Rows to mark as depending on the selection (a quiet marker at the left edge). */
   dependents?: string[];
@@ -73,6 +80,13 @@ export function FeatureTree(p: {
   const indexOf = (id: string) => p.rows.findIndex((x) => x.id === id);
   const upTo = p.rollback ?? p.rows.length;
   const dep = new Set(p.dependents ?? []);
+  const hid = new Set(p.hiddenIds ?? []);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!p.hoverId) return;
+    const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === p.hoverId);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [p.hoverId]);
   const picked = new Set([...(p.selectedIds ?? []), ...(p.selectedId ? [p.selectedId] : [])]);
   /** Marker position as a number of top-level rows above it, and the feature count that position means. */
   const slot = top.filter((r) => indexOf(r.id) < upTo).length;
@@ -98,11 +112,15 @@ export function FeatureTree(p: {
             (r.suppressed ? ' suppressed' : '') +
             (picked.has(r.id) ? ' sel' : '') +
             (dep.has(r.id) ? ' dep' : '') +
+            (hid.has(r.id) ? ' hidden' : '') +
+            (p.hoverId === r.id ? ' hov' : '') +
             (i >= upTo ? ' rolled' : '')
           }
           data-id={r.id}
           title={dep.has(r.id) ? t('ui.tree.dependsOn', undefined, 'Depends on the selected feature') : undefined}
           draggable={!renamingThis}
+          onMouseEnter={() => p.onHoverFeature?.(r.id)}
+          onMouseLeave={() => p.onHoverFeature?.(null)}
           onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
           onDblClick={() => p.onEdit?.(r.id)}
           onDragStart={() => { dragId.current = r.id; }}
@@ -138,8 +156,14 @@ export function FeatureTree(p: {
               <button class="row-rb row-act" title={t('ui.tree.rollbackHere', undefined, 'Roll back to here')} aria-label={t('ui.tree.rollbackHere', undefined, 'Roll back to here')}
                 onClick={(e) => { e.stopPropagation(); moveMarker(topOf(r.id) + 1); }}><Icon name="rollback" size={15} /></button>
             ) : null}
+            {p.onToggleHide ? (
+              <button class={'row-hide row-act' + (hid.has(r.id) ? ' on' : '')} aria-pressed={hid.has(r.id)}
+                title={hid.has(r.id) ? t('ui.tree.show', undefined, 'Show') : t('ui.tree.hide', undefined, 'Hide (view only)')}
+                aria-label={hid.has(r.id) ? t('ui.tree.show', undefined, 'Show') : t('ui.tree.hide', undefined, 'Hide (view only)')}
+                onClick={(e) => { e.stopPropagation(); p.onToggleHide!(r.id); }}><Icon name={hid.has(r.id) ? 'eye-off' : 'eye'} size={15} /></button>
+            ) : null}
             <button class="row-sup row-act" title={r.suppressed ? t('ui.tree.unsuppress') : t('ui.tree.suppress')} aria-label={r.suppressed ? t('ui.tree.unsuppress') : t('ui.tree.suppress')}
-              onClick={(e) => { e.stopPropagation(); p.onToggleSuppress(r.id); }}><Icon name={r.suppressed ? 'eye-off' : 'eye'} size={15} /></button>
+              onClick={(e) => { e.stopPropagation(); p.onToggleSuppress(r.id); }}><Icon name={p.onToggleHide ? 'pause' : r.suppressed ? 'eye-off' : 'eye'} size={15} /></button>
             <button class="row-del row-act" title={t('ui.tree.remove')} aria-label={t('ui.tree.remove')}
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}><Icon name="trash" size={15} /></button>
           </span>
@@ -178,7 +202,7 @@ export function FeatureTree(p: {
   );
 
   return (
-    <div class="tree">
+    <div class="tree" ref={root}>
       {p.partName !== undefined ? (
         <div class="tree-head">
           <Icon name="feature-part" size={18} />

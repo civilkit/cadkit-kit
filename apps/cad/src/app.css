@@ -801,3 +801,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 
 /* Narrow windows: the selection-mode bar must not run under the Display button. */
 @media (max-width: 1100px) { .selmodes kbd { display: none; } .selmodes button { padding: 5px 8px; } }
+
+/* tree: view-only hide (eye), reverse hover from the 3D view */
+.tree .row.hidden .row-name, .tree .row.hidden .row-icon, .tree .row.hidden .row-id { opacity: .4; }
+.tree .row.hidden .row-hide, .tree .row .row-hide.on { opacity: 1; color: var(--text-2); }
+.tree .row.hov { background: var(--panel-2); box-shadow: inset 2px 0 0 #f2a93b; }
+.tree .row.hov.sel { background: var(--accent-soft); }

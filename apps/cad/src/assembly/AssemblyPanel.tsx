@@ -36,6 +36,8 @@ export interface AsmHost {
   /** the faces of the body that holds this face (for the interference highlight) */
   bodyFaces(name: string): string[];
   select(names: string[]): void;
+  /** The pointer is over a component row (its id) or left it (null): the viewer tints the component. */
+  hover?(id: string | null): void;
   frame(names: string[]): void;
   edit(ops: EditOp[]): Promise<boolean>;
   preview(ops: EditOp[]): Promise<{ ok: boolean; hint?: string }>;
@@ -170,7 +172,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
         const hidden = host.hidden.includes(r.id);
         return (
           <div key={r.id}>
-            <div class={'asm-row' + (sel === r.id ? ' sel' : '') + (r.suppressed ? ' suppressed' : '') + (hidden ? ' hid' : '')} onClick={() => selectRow(r)} title={t('asm.part.select', { name: r.name })}>
+            <div class={'asm-row' + (sel === r.id ? ' sel' : '') + (r.suppressed ? ' suppressed' : '') + (hidden ? ' hid' : '')} onMouseEnter={() => host.hover?.(r.id)} onMouseLeave={() => host.hover?.(null)} onClick={() => selectRow(r)} title={t('asm.part.select', { name: r.name })}>
               <span class="row-id">{r.id}</span>
               {renaming === r.id
                 ? <InlineName value={r.name} onCommit={(n) => { setRenaming(null); void host.edit([{ op: 'set', id: r.id, path: 'name', value: n }]); }} onCancel={() => setRenaming(null)} />

@@ -50,3 +50,26 @@ export function namesBox(g: Grouped | null, edges: Array<{ key?: string; pts: nu
   edges.forEach((e, i) => { if (want.has(e.key ?? `edge#${i}`)) for (const p of e.pts) add(p[0], p[1], p[2]); });
   return min[0] === Infinity ? null : { min, max };
 }
+
+/** Feature id that owns a face or edge name: `F5.S.e1` -> `F5`, `F5.C1|F5.C2#0` -> `F5`; null for anything else. */
+export function nameOwner(name: string): string | null {
+  const m = /^(F\d+)(?:[.:|#]|$)/.exec(name);
+  return m ? m[1] : null;
+}
+
+/** The mesh and edges without the faces and edges that features in `ids` made (the viewer-only hide of a tree row;
+ *  nothing is rebuilt, the kernel body is untouched). Edges without a key and faces of other features stay. */
+export function withoutOwned<E extends { key?: string }>(mesh: BodyMesh, edges: E[], ids: ReadonlySet<string>, owner: (name: string) => string | null = nameOwner): { mesh: BodyMesh; edges: E[] } {
+  const hideFace = mesh.faceIds.map((n) => ids.has(owner(n) ?? ''));
+  const keptEdges = edges.filter((e) => !(e.key && ids.has(owner(e.key) ?? '')));
+  if (!hideFace.some(Boolean)) return { mesh, edges: keptEdges };
+  const keep: number[] = [];
+  for (let t = 0; t < mesh.triFace.length; t++) if (!hideFace[mesh.triFace[t]]) keep.push(t);
+  const positions = new Float32Array(keep.length * 9), normals = new Float32Array(keep.length * 9), triFace = new Int32Array(keep.length);
+  keep.forEach((t, k) => {
+    positions.set(mesh.positions.subarray(t * 9, t * 9 + 9), k * 9);
+    normals.set(mesh.normals.subarray(t * 9, t * 9 + 9), k * 9);
+    triFace[k] = mesh.triFace[t];
+  });
+  return { mesh: { positions, normals, triFace, faceIds: mesh.faceIds }, edges: keptEdges };
+}

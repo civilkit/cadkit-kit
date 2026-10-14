@@ -82,6 +82,7 @@ import { DrawingWorkspace } from './drawing/DrawingWorkspace';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
+import { viewOwner } from './treeActions';
 import './tokens.css';
 import './app.css';
 
@@ -304,6 +305,12 @@ function App() {
       onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
+    let ownerDoc: unknown = null, ownerInserts: ReadonlySet<string> = new Set();
+    vp.setOwnerFn((n) => {
+      const d = controller.document();
+      if (d !== ownerDoc) { ownerDoc = d; ownerInserts = d ? insertIds(d as never) : new Set(); }
+      return viewOwner(n, ownerInserts);
+    });
     try { if (localStorage.getItem('cad.ortho') === '1') vp.setOrtho(true); } catch { /* private window */ }
     const ro = new ResizeObserver(() => vp.resize());
     ro.observe(host.current!);
@@ -338,6 +345,16 @@ function App() {
     write(LOOK_KEY, lk);
   }, [lk, partName, appearance.color, appearance.material]);
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
+  // hovering a tree row tints what that feature made (soft, apart from the hover and selection colours); the reverse: the row of the face under the pointer
+  const [treeHover, setTreeHover] = useState<string | null>(null);
+  useEffect(() => { viewport?.setFeatureHover(treeHover ? [treeHover] : []); }, [treeHover]);
+  const viewOwnerOf = (n: string): string | null => { const d = controller.document(); return d ? viewOwner(n, insertIds(d as never)) : null; };
+  const faceHover = store.hover.value;
+  const hoverRowId = !treeHover && faceHover && !sketching ? viewOwnerOf(faceHover) : null;
+  const toggleHideFeature = (id: string) => {
+    const h = lookStore.hidden.value;
+    lookStore.hidden.value = { ...h, ids: h.ids.includes(id) ? h.ids.filter((x) => x !== id) : [...h.ids, id] };
+  };
   const an = analysisStore.opts.value;
   useEffect(() => { viewport?.setAnalysis(an); }, [an]);
   // hidden components and the exploded view: only the drawn body changes; the exploded arrangement is kept with the file
@@ -1359,6 +1376,7 @@ function App() {
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
       onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
+      hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
       {...ti.treeProps}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])} />
@@ -1372,6 +1390,7 @@ function App() {
   const asmDof = new Map(controller.components().map((c) => [c.id, c.dof] as const));
   const asmHost: AsmHost = {
     doc: doc as never, dof: asmDof, errors: asmErrors, report: controller.assemblyExtra().report, featureErrors: controller.assemblyExtra().errors, hidden: asmState.hidden.value, explode: asmState.explode.value, selection: store.selection.value,
+    hover: setTreeHover,
     faceNames: () => controller.bodyFaces()?.faceIds ?? [],
     bodyFaces: (n) => controller.selModel()?.bodyOfFace(n)?.faces ?? [n],
     select: (names) => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select(names); },

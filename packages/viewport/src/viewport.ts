@@ -3,7 +3,7 @@
 // typed arrays (nothing here is reactive).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { groupByFace, edgeSegments, facesGeometry, namesBox, type BodyMesh, type Grouped } from './meshgeom';
+import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
@@ -30,6 +30,10 @@ export interface ViewFrame {
   y: number[];
   z: number[];
 }
+
+/** The soft tint of a feature hovered in the history tree (fill and lines): a pale amber, quieter than the hover and selection colours. */
+const FEATURE_HOVER = 0xffd98a;
+const FEATURE_HOVER_LINE = 0xf2a93b;
 
 export interface ViewBody {
   mesh: BodyMesh;
@@ -952,11 +956,13 @@ export class Viewport {
     }
 
     // The solid (unless hidden) and the surface bodies not hidden, as one mesh: picking and highlights then treat them alike.
-    const solidShown = !this.bodyHidden && body.mesh.triFace.length > 0;
+    const solidMesh = this.hiddenIds.size ? withoutOwned(body.mesh, body.edges, this.hiddenIds, this.ownerFn) : { mesh: body.mesh, edges: body.edges };
+    const solidShown = !this.bodyHidden && solidMesh.mesh.triFace.length > 0;
     const surfaces = (body.surfaces ?? []).filter((x) => !this.hiddenIds.has(x.id) && x.mesh.triFace.length > 0);
-    const merged = mergeBodies(solidShown ? { mesh: body.mesh, edges: body.edges } : null, surfaces);
+    this.lastScale = scale;
+    const merged = mergeBodies(solidShown ? solidMesh : null, surfaces);
     if (body.mesh.triFace.length > 0 || body.surfaces?.length) this.box = mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
-    if (merged.mesh.triFace.length === 0) { this.dirty = true; return; }
+    if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds); this.dirty = true; return; }
     const g = groupByFace(merged.mesh);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -984,6 +990,7 @@ export class Viewport {
     this.edges = merged.edges;
     this.combLines = [...merged.edges.map((e) => e.pts), ...(body.sketches?.length ? sketchPolylines(shown(body.sketches) as never).flatMap((x) => x.polylines) : [])];
     this.buildIssueMeshes();
+    this.setFeatureHover(this.featureHoverIds);
     this.applyMeshLook();
     this.applySection();
     if (!this.keepView && !this.holdView && this.previewFade === null && !this.triball.active) this.fit();   // the camera stays put while the ball moves the body
@@ -1259,6 +1266,54 @@ export class Viewport {
     m.userData.pickable = false;
     this.scene.add(m);
     this.hoverObj = m;
+  }
+
+  private ownerFn: (name: string) => string | null = nameOwner;
+  /** Which feature (or component) owns a face / edge name; the default reads the id before the first dot. The app swaps it in assemblies. */
+  setOwnerFn(fn: ((name: string) => string | null) | null): void { this.ownerFn = fn ?? nameOwner; }
+  private featureHoverIds: string[] = [];
+  private featureHoverObjs: THREE.Object3D[] = [];
+  private lastScale = 25;
+  private dropFeatureHover(): void {
+    for (const o of this.featureHoverObjs) this.dropFat(o);
+    this.featureHoverObjs = [];
+  }
+  /** Soft tint on everything the features with these ids made: their faces and edges (names that start with the id), their
+   *  sketch curves, curves and plane. A different, quieter colour than a hovered or selected face. Empty list clears it. */
+  setFeatureHover(ids: string[]): void {
+    this.featureHoverIds = [...ids];
+    this.dropFeatureHover();
+    this.dirty = true;
+    if (!ids.length) return;
+    const want = new Set(ids);
+    if (this.grouped) {
+      const names = this.grouped.ranges.map((r) => r.name).filter((n) => want.has(this.ownerFn(n) ?? ''));
+      const g = names.length ? facesGeometry(this.grouped, names) : null;
+      if (g && g.positions.length) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(g.positions, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(g.normals, 3));
+        const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+          color: FEATURE_HOVER, emissive: FEATURE_HOVER, emissiveIntensity: 0.3, transparent: true, opacity: 0.5,
+          polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide, depthWrite: false,
+        }));
+        m.userData.pickable = false;
+        m.renderOrder = 3;
+        this.scene.add(m);
+        this.featureHoverObjs.push(m);
+      }
+    }
+    const polys: Polyline[] = this.edges.filter((e) => e.key && want.has(this.ownerFn(e.key) ?? '')).map((e) => e.pts as never);
+    const b = this.lastBody;
+    if (b) {
+      polys.push(...sketchPolylines((b.sketches ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never).flatMap((x) => x.polylines));
+      polys.push(...curvePolylines((b.curves ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never).flatMap((x) => x.polylines));
+      polys.push(...planeOutlines((b.planes ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never, this.lastScale).map((q) => q.quad as never));
+    }
+    if (polys.length) {
+      const l = this.addFatLines(polys, FEATURE_HOVER_LINE, this.hlWidth, true);
+      if (l) { l.renderOrder = 6; this.featureHoverObjs.push(l); }
+    }
   }
 
   private issueFaces: Record<string, 'error' | 'warn' | 'info'> = {};
@@ -1598,6 +1653,7 @@ export class Viewport {
     this.dropThreadGroup();
     this.dropFat(this.threadFocusObj); this.threadFocusObj = null;
     this.dropFat(this.hoverObj); this.hoverObj = null;
+    this.dropFeatureHover();
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     this.dropIssueMeshes(); this.dropIssueHover();
