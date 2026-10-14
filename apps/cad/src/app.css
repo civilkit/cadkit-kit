@@ -44,8 +44,8 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .sketch-banner .rb-btn.no { color: #dc2626; }
 .empty { color: var(--text-2); padding: 12px; }
 /* left panel tabs */
-.ptabs { display: flex; gap: 2px; padding: 8px; }
-.ptabs .pt { flex: 1; border: 0; border-radius: 8px; padding: 7px 4px; background: none; color: var(--text-2); cursor: pointer; font: 600 11px system-ui; text-transform: uppercase; letter-spacing: .04em; }
+.ptabs { display: flex; gap: 2px; padding: 8px; justify-content: space-between; }
+.ptabs .pt { flex: 1; border: 0; border-radius: 8px; padding: 7px 5px; min-width: 0; flex: 0 1 auto; background: none; color: var(--text-2); cursor: pointer; font: 600 10px system-ui; text-transform: uppercase; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ptabs .pt[aria-selected="true"] { background: var(--chip); color: var(--text); }
 .grp { padding: 8px 12px 2px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
 /* ribbon (data-driven) */
@@ -535,3 +535,21 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sizebox-about button:hover { border-color: var(--accent); }
 .sizebox-about button.on { background: var(--accent); color: #fff; }
 .vp-size-label:hover { border-color: #fff !important; }
+
+/* ---- Catalog panel and the ghost that follows the pointer (see docs/catalog.md) ---- */
+.catalog { padding: 0 8px 12px; display: flex; flex-direction: column; gap: 10px; }
+.catalog .cat-sub { color: var(--text-2); font: 12px/1.4 system-ui; padding: 2px 4px; }
+.cat-h { font: 600 11px system-ui; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); padding: 4px 4px 6px; }
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.cat-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--chip); color: var(--text); cursor: grab; touch-action: none; user-select: none; font: 12px system-ui; }
+.cat-item:hover { border-color: var(--accent, #5b8cff); }
+.cat-item:focus-visible { outline: 2px solid var(--accent, #5b8cff); outline-offset: 1px; }
+.cat-item.armed { border-color: var(--accent, #5b8cff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #5b8cff) 35%, transparent); }
+.cat-item.off { opacity: .45; cursor: not-allowed; }
+.cat-item:active { cursor: grabbing; }
+.cat-name { text-align: center; line-height: 1.15; }
+.cat-ghost { position: fixed; z-index: 60; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 10px; background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--accent, #5b8cff); color: var(--text); font: 12px system-ui; box-shadow: 0 6px 18px rgba(0,0,0,.28); backdrop-filter: blur(6px); }
+.cat-ghost.blocked { border-color: #d9534f; }
+.cat-ghost svg { width: 28px; height: 28px; }
+.cat-ghost-t { display: flex; flex-direction: column; line-height: 1.2; }
+.cat-ghost-t span { color: var(--text-2); font-size: 11px; }

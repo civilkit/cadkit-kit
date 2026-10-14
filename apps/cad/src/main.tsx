@@ -55,7 +55,10 @@ import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
-import { registerShapeSelect } from './shapeSelect';
+import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
+import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
+import { useCatalog } from './catalog/useCatalog';
+import { setShapeSelector } from './catalog/state';
 import './tokens.css';
 import './app.css';
 
@@ -168,7 +171,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor' | 'Catalog'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -479,6 +482,7 @@ function App() {
     notify: (text, level) => store.notify(text, level),
   };
   const commands = buildCommands({
+    catalog: () => showCatalog(),
     open: async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
     save: () => doSave(false),
     files: {
@@ -1127,14 +1131,24 @@ function App() {
   );
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingId ? editor : tree;
+  const catalog = useCatalog({
+    controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
+    placed: () => redraw((n) => n + 1),
+    hide: (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; },
+  });
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} />;
+  const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Catalog'); };
+  // after a catalog drop the new shape is the selection: its tree row and its size box
+  useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
   const left = ws.leftPanel === 'hidden' ? null : (
     <div class={'tree-wrap ' + ws.leftPanel}>
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Assets'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
+            {(['Outliner', 'Features', 'Catalog', 'Editor', 'Assets'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
           </div>
           {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
+            : leftTab === 'Catalog' ? catalogPanel
             : leftTab === 'Editor' ? editor : (
             <div class="empty">{t('app.assets.text')} <button class="rb-btn" onClick={async () => setSamples(await platform.listSamples())}>{t('app.assets.browse')}</button></div>
           )}
@@ -1313,6 +1327,7 @@ function App() {
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
         onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName })); }} /> : null}
       {dragging ? <DropOverlay /> : null}
+      <CatalogGhost />
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
         onDiscard={() => { const go = guard; setGuard(null); void go(); }}
         onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}

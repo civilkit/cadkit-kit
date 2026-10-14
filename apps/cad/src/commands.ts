@@ -37,6 +37,8 @@ export interface Actions {
   tree?: TreeActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
+  /** Show the Catalog panel (shapes to drag onto the model). */
+  catalog?(): void;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
@@ -129,6 +131,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
+  if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
