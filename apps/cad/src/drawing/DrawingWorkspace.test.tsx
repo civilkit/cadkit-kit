@@ -70,15 +70,14 @@ describe('DrawingWorkspace', () => {
 });
 
 describe('drawing strings', () => {
-  it('every key used by the drawing code exists', () => {
+  it('every literal key used by the drawing code exists, and the dynamic families are complete', () => {
     const dir = `${process.cwd()}/apps/cad/src/drawing`;
     const bad: string[] = [];
     for (const f of readdirSync(dir).filter((x) => /\.tsx?$/.test(x) && !/\.test\./.test(x))) {
       const text = readFileSync(`${dir}/${f}`, 'utf8');
-      for (const m of text.matchAll(/\bt\('([A-Za-z0-9_.-]+)'/g)) if (!(m[1] in drawingStrings) && !(m[1] in (globalThis as never))) bad.push(`${f}: ${m[1]}`);
-      for (const m of text.matchAll(/t\('(drawing\.(?:field|kind|sheet)\.)' \+/g)) void m;
+      for (const m of text.matchAll(/\bt\('([A-Za-z0-9_.-]+)'/g)) if (!(m[1] in drawingStrings) && !m[1].endsWith('.')) bad.push(`${f}: ${m[1]}`);
     }
-    expect(bad.filter((b) => !b.endsWith('.') && !/'drawing\.(field|kind)\.'/.test(b))).toEqual([]);
+    expect(bad).toEqual([]);
     for (const k of ['title', 'partNo', 'material', 'author', 'date', 'revision', 'mass', 'company']) expect(drawingStrings['drawing.field.' + k]).toBeTruthy();
     for (const k of ['std', 'proj', 'section', 'detail', 'aux']) expect(drawingStrings['drawing.kind.' + k]).toBeTruthy();
   });
