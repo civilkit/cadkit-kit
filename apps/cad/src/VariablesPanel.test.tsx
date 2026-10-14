@@ -36,7 +36,7 @@ describe('VariablesPanel', () => {
     fireEvent.input(expr, { target: { value: '60' } });
     fireEvent.blur(expr);
     await waitFor(() => expect(m.calls).toHaveLength(1));
-    expect(m.calls[0].reason).toBe('vars.step.set');
+    expect(m.calls[0].reason).toBe('Edit variables');
     expect((m.calls[0].patch.variables as Array<{ name: string; expr: string }>).map((v) => [v.name, v.expr])).toEqual([['width', '60'], ['half', 'width/2']]);
   });
 
@@ -57,7 +57,7 @@ describe('VariablesPanel', () => {
     fireEvent.input(name, { target: { value: 'h2' } });
     fireEvent.blur(name);
     await waitFor(() => expect(m.calls).toHaveLength(1));
-    expect(m.calls[0].reason).toBe('vars.step.rename');
+    expect(m.calls[0].reason).toBe('Rename variable');
     expect((m.calls[0].patch.features as Record<string, { depth: string }>).F2.depth).toBe('=h2');
   });
 

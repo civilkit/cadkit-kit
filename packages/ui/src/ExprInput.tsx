@@ -97,7 +97,7 @@ export function ExprInput(p: {
           ))}
         </ul>
       ) : null}
-      {err ? <span class="expr-hint err" role="alert">{err}</span>
+      {err && !items.length ? <span class="expr-hint err" role="alert">{err}</span>
         : parsed.kind === 'expr' && value !== null ? <span class="expr-hint">= {fmt(value)}{p.unit ? ' ' + p.unit : ''}</span> : null}
     </span>
   );

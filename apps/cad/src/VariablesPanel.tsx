@@ -69,7 +69,7 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
   const draftProblem = firstProblem(rows);
 
   const apply = async (patch: DocPatch, reason: string): Promise<boolean> => {
-    const r = await p.onApply(patch, reason);
+    const r = await p.onApply(patch, t(reason));
     if (r.ok) { setMsg(null); return true; }
     setMsg(r.errors.length ? r.errors.map((e) => `${e.feature}: ${errorText((e.code === 'badExpression' ? 'badExpression' : e.code) as ExprCode)}`).join('; ') : t('vars.rebuildFailed'));
     return false;
@@ -128,7 +128,7 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
       {rows.length === 0 ? <div class="vars-hint">{t('vars.none')}</div> : (
         <div class="vars-table" role="table" aria-label={t('vars.title')}>
           <div class="vars-row vars-cols" role="row">
-            <span>{t('vars.col.name')}</span><span>{t('vars.col.expr')}</span><span>{t('vars.col.value')}</span><span>{t('vars.col.unit')}</span><span>{t('vars.col.comment')}</span><span />
+            <span>{t('vars.col.name')}</span><span>{t('vars.col.expr')}</span><span class="r">{t('vars.col.value')}</span><span />
           </div>
           {rows.map((v, i) => {
             const err = sc.errors[v.name] ?? (draftProblem && draftProblem.at === i ? (draftProblem.code as ExprCode) : undefined);
