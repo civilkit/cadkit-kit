@@ -14,13 +14,26 @@ start. The tables and all checks live in the kernel (`threadData` request, `thre
 - The new feature is `metric`, the size nearest to the face diameter, `length: "full"`, `hand: "right"`, `modeled: false`. Nearest means
   the closest tap drill for a hole wall (`.S.h1`), the closest major diameter for a shaft, and the closer of the two when that is not
   known yet (the editor re-sorts as soon as the kernel reports `internal`). Then the Thread editor opens on it.
-- **Hole editor**: a hole with a `fit: "tap"` and an ISO size shows a Thread section with *Add thread to this hole*. It confirms the
-  hole as it is, then adds a `thread` on `<holeId>.S.h1` (the wall face, hole.rs) with the hole's `size`. A hole that already has one says so.
+- **Hole editor**: the Thread section's **Threaded** box creates the thread together with the hole (one undo step), drills the hole
+  to the tap drill and keeps both in step when the hole is edited; see `docs/hole-editor.md` (Threaded). A hole with several
+  positions gets one thread per wall (`<holeId>.S.h1~k`).
+- **Several faces at once**: Shift+T (and the Add thread button) take every selected cylindrical face, ctrl/shift-click to add faces,
+  or the **Select same size** command (Home, Features): from the selected cylinder faces it selects every cylinder of the body with
+  the same diameter (to 0.001 mm) and the same kind (hole wall or not), so all the holes of one diameter are one click. One
+  `thread` feature is created per face, in **one edit** (one undo step), all with the same settings (the size nearest to the first
+  face's diameter), then the Thread editor opens on the group.
 
 ## The Thread editor (dialog fields to wire format)
 
 Top to bottom (a column about 270 px wide):
 
+- **Group**: threads created together (or any run of neighbouring thread features with exactly the same settings, `threadGroup` in
+  `threadData.ts`; there is no stored group, the settings are the link) are edited together: opening one in the tree opens the
+  editor on the run, every change goes to each feature (one `set` / `replace` per feature in one batch), and the length handle
+  edits all of them. The face chip then reads "4 holes, Ø 5 mm" ("3 shafts", or "2 faces, Ø 4 - 6 mm" when mixed; the persistent
+  name is "first +3"), and the fit line checks every face: green "Fits: all 4 holes match M6 tap drill", or amber "2 of 4 faces do
+  not fit M10: <names>" from the kernel's `threadDiameterMismatch` of each feature, with the one-click **Use M6**. To edit one
+  thread alone, change its settings first or make it with its own Shift+T.
 - **Face** is a chip, "Shaft, Ø 10 mm" / "Hole, Ø 8.5 mm" (kind from the kernel's `internal`, or the hole-wall name before it answers;
   "Cylindrical face, Ø ..." when unknown). The persistent name (`F4.S.c1`) is muted beside it and in the tooltip.
 - **Standard** dropdown; changing it picks the nearest size of the new one.
@@ -116,6 +129,8 @@ M8 thread. Regenerates with no errors. Set the hole fit to Normal and the kernel
 - Internal / external is the kernel's reading (concave / convex); the GUI knows it only from the hole-wall name before the kernel answers.
 - Only English strings; no thread table editing; no per-face thread-length measurement beyond the kernel's `length` clamp.
 - Not done: the optional profile diagram (pitch, major, root) beside the read-out. The bracket in the view is plain lines, not a band.
+- The group is a heuristic (neighbouring features with equal settings): two unrelated threads that happen to be adjacent and equal
+  are edited together too; change one to separate them.
 - Nothing here was checked in a browser; the behavior is covered by component tests and tests against the real wasm kernel
   (`threadData.test.ts`, `ThreadEditor.test.tsx`, `threadData.kernel.test.ts`, `handles/threadHandle.test.ts`,
-  `handles/threadHandle.kernel.test.ts`). The viewport bracket (`setThreadFocus`) and the handle's pointer behavior have no WebGL test.
+  `handles/threadHandle.kernel.test.ts`, and for the hole link and several faces `holeThread.test.ts`, `holeThread.kernel.test.ts`, `HoleEditor.test.tsx`). The viewport bracket (`setThreadFocus`) and the handle's pointer behavior have no WebGL test.

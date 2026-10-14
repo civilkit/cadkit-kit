@@ -12,7 +12,7 @@ import type { FeatureWarning } from '@kit/store';
 import { t } from './i18n';
 import {
   NEAREST_MARKED, THREAD_HANDS, THREAD_STARTS, classOptions, clampLength, customLengthDefault, filterSizes, fitStatus, loadThreadPrefs, modelFallbackReason,
-  nearestSizes, patchSize, patchStandard, quickSizes, readoutRows, rememberSize, saveThreadPrefs, sizeLabel, startMatters,
+  groupChip, groupMisfits, nearestSizes, patchSize, patchStandard, quickSizes, suggestedSize, readoutRows, rememberSize, saveThreadPrefs, sizeLabel, startMatters,
   type FaceExtent, type ThreadRow, type ThreadStd,
 } from './threadData';
 
@@ -40,6 +40,10 @@ export interface ThreadEditorProps {
   entryModeled?: boolean;
   /** Milliseconds the last modeled-thread regeneration took (remembered by the controller), for the cost note. */
   modeledMs?: number | null;
+  /** Several threads edited together (one Shift+T on several faces): each one's feature id, face, diameter and kind. The draft goes to all of them. */
+  group?: Array<{ id: string; face: string; dia: number | null; internal?: boolean }>;
+  /** The regen warnings by feature id (store.featureWarnings): the group's fit line reads every face's threadDiameterMismatch. */
+  warnings?: Record<string, FeatureWarning | undefined>;
   /** A value from outside the form (the length handle on the part): applied to the draft each time `seq` changes. */
   inject?: { seq: number; patch: Wire } | null;
 }
@@ -59,7 +63,7 @@ function Section(p: { id: string; title: string; children: ComponentChildren }):
   );
 }
 
-function Select(p: { name: string; label: string; value: string; onChange(v: string): void; children: ComponentChildren }): JSX.Element {
+export function Select(p: { name: string; label: string; value: string; onChange(v: string): void; children: ComponentChildren }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
@@ -69,7 +73,7 @@ function Select(p: { name: string; label: string; value: string; onChange(v: str
 }
 
 /** A segmented control (radio group): arrow keys move the choice, Tab leaves the group. */
-function Seg<V extends string>(p: { name: string; label: string; value: V; options: Array<{ value: V; text: string; icon?: string; tip?: string }>; onChange(v: V): void }): JSX.Element {
+export function Seg<V extends string>(p: { name: string; label: string; value: V; options: Array<{ value: V; text: string; icon?: string; tip?: string }>; onChange(v: V): void }): JSX.Element {
   const move = (e: KeyboardEvent, i: number): void => {
     const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
     if (!d) return;
@@ -95,7 +99,7 @@ function Seg<V extends string>(p: { name: string; label: string; value: V; optio
 
 type Item = { head: string } | { row: ThreadRow };
 /** The size field: a combobox with a listbox. Type to filter (name or diameter), Up / Down move, Enter picks, Esc closes the list. */
-function SizePicker(p: { rows: ThreadRow[]; value: string; dia: number | null; internal?: boolean; standard: string; onPick(size: string): void }): JSX.Element {
+export function SizePicker(p: { rows: ThreadRow[]; value: string; dia: number | null; internal?: boolean; standard: string; onPick(size: string): void }): JSX.Element {
   const [q, setQ] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [act, setAct] = useState(0);
@@ -223,8 +227,14 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
   const title = t('feature.thread') + (f.name ? ` — ${String(f.name)}` : '');
   const startValue = (THREAD_STARTS as readonly string[]).includes(String(eff.start)) ? String(eff.start) : 'open';
   const showStart = startMatters(p.extent ?? null) || startValue !== 'open';
-  const faceName = String(eff.face ?? '');
-  const faceText = dia === null ? t('thread.face.plain') : t(p.internal === undefined ? 'thread.face.unknown' : p.internal ? 'thread.face.hole' : 'thread.face.shaft', { d: fmt(dia) });
+  const grp = p.group && p.group.length > 1 ? p.group : null;
+  const grpCyls = grp && grp.every((g) => g.dia !== null) ? grp.map((g) => ({ face: g.face, cyl: { radius: g.dia! / 2, axisPoint: [], axisDir: [], internal: g.internal } })) : null;
+  const misfits = grp ? groupMisfits(grp, p.warnings ?? {}) : [];
+  const faceName = grp ? grp.map((g) => g.face).join(', ') : String(eff.face ?? '');
+  const gc = grpCyls ? groupChip(grpCyls) : null;
+  const faceText = grp
+    ? (gc ? t('thread.face.many.' + gc.key, { n: gc.n, d: gc.d }) : t('thread.face.many.faces', { n: grp.length, d: '?' }))
+    : dia === null ? t('thread.face.plain') : t(p.internal === undefined ? 'thread.face.unknown' : p.internal ? 'thread.face.hole' : 'thread.face.shaft', { d: fmt(dia) });
   const last = loadThreadPrefs().lastSize?.[standard] ?? null;
   const chips = quickSizes(standard, rows, last);
   const modeled = Boolean(eff.modeled);
@@ -244,7 +254,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
         <div class="fedit-fld" data-path="face">
           <span class="fedit-fld-label">{t('thread.face')}</span>
           <span class="thread-chip" data-testid="thread-face" title={faceName}>
-            <span>{faceText}</span><span class="thread-chip-name">{faceName}</span>
+            <span>{faceText}</span><span class="thread-chip-name">{grp ? `${grp[0].face} +${grp.length - 1}` : faceName}</span>
           </span>
         </div>
         <Select name="standard" label={t('thread.standard')} value={standard} onChange={(v) => { prevMajor.current = row?.major ?? null; change({ standard: v }); }}>
@@ -256,7 +266,17 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
           </div>
         ) : null}
         <SizePicker rows={rows} value={size} dia={dia} internal={p.internal} standard={standard} onPick={pickSize} />
-        {fit ? (
+        {grp ? (
+          misfits.length === 0
+            ? (row && grp.every((g) => g.internal !== undefined && g.dia !== null)
+              ? <div class="thread-fit ok" role="status" data-testid="thread-fit">{t(grp.every((g) => g.internal) ? 'thread.fit.group.hole' : 'thread.fit.group.shaft', { n: grp.length, size: row.size })}</div> : null)
+            : (
+              <div class="thread-fit warn" role="status" data-testid="thread-fit" data-warning="threadDiameterMismatch">
+                <span>{t('thread.fit.group.bad', { k: misfits.length, n: grp.length, size, faces: misfits.join(', ') })}</span>
+                {(() => { const w = grp.map((g) => p.warnings?.[g.id]).find((x) => x && (x.all ?? [x]).some((y) => y.code === 'threadDiameterMismatch')); const s2 = w ? suggestedSize((w.all ?? [w]).find((y) => y.code === 'threadDiameterMismatch')?.params) : null; return s2 && s2 !== size ? <button type="button" data-testid="thread-use" onClick={() => pickSize(s2)}>{t('thread.use', { size: s2 })}</button> : null; })()}
+              </div>
+            )
+        ) : fit ? (
           fit.ok
             ? <div class="thread-fit ok" role="status" data-testid="thread-fit">{t(fit.kind === 'hole' ? 'thread.fit.hole' : 'thread.fit.shaft', { face: fmt(fit.face), size: fit.size })}</div>
             : (

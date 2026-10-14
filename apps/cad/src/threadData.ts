@@ -364,3 +364,84 @@ export function modelFallbackReason(requested: boolean, entryModeled: boolean | 
   const w = warning ? (warning.all ?? [warning]).find((x) => x.code === 'threadModelFallback') : undefined;
   return w ? w.hint : null;
 }
+
+// ---- several faces at once (Shift+T on a selection, "Select same size", the group chip and the per-face fit line) ----
+
+/** A selected face with the cylinder read from its edges; faces that are not cylinders are left out of `cylinders`. */
+export interface FaceCylinder { face: string; cyl: Cylinder }
+/** The cylinders among faces, in order; null when any face is not one (a thread goes on cylinder walls only). */
+export function cylindersOfFaces(faces: string[], edges: EdgeLike[]): FaceCylinder[] | null {
+  if (!faces.length) return null;
+  const out: FaceCylinder[] = [];
+  for (const face of faces) {
+    const cyl = cylinderOfFace(face, edges);
+    if (!cyl) return null;
+    out.push({ face, cyl });
+  }
+  return out;
+}
+const faceNamesIn = (edges: EdgeLike[]): string[] => [...new Set(edges.flatMap((e) => e.faces ?? []))];
+/**
+ * Every cylinder face of the body with the same radius (to 0.001 mm) and the same kind (hole wall or not) as `face`, the face
+ * itself first. The "Select same size" action: all the holes of one diameter, or all the shafts of one diameter.
+ */
+export function sameSizeFaces(face: string, edges: EdgeLike[]): string[] {
+  const ref = cylinderOfFace(face, edges);
+  if (!ref) return [];
+  const out = [face];
+  for (const n of faceNamesIn(edges)) {
+    if (n === face || n.includes('|')) continue;
+    const c = cylinderOfFace(n, edges);
+    if (c && Math.abs(c.radius - ref.radius) < 1e-3 && (c.internal === true) === (ref.internal === true)) out.push(n);
+  }
+  return out;
+}
+/** The wall faces of a hole feature (one per position: `F4.S.h1`, or `F4.S.h1~0`, `F4.S.h1~1` ... with several), from the faces the view has. */
+export function holeWallFaces(holeId: string, edges: EdgeLike[]): string[] {
+  const re = new RegExp(`^${holeId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.S\\.h1(~\\d+)?$`);
+  const found = faceNamesIn(edges).filter((n) => re.test(n));
+  return found.sort((a, b) => Number(a.split('~')[1] ?? -1) - Number(b.split('~')[1] ?? -1));
+}
+/** Whether a face name is a wall of this hole (any of its positions). */
+export const isWallOfHole = (face: unknown, holeId: string): boolean => typeof face === 'string' && face.startsWith(`${holeId}.S.h1`) && /^(~\d+)?$/.test(face.slice(holeId.length + 5));
+
+/** The chip text for several faces: '4 holes, Ø 5 mm', '3 shafts, Ø 10 mm', '2 faces, Ø 4 - 6 mm'. */
+export function groupChip(cyls: FaceCylinder[], internal?: boolean[]): { key: string; n: number; d: string } {
+  const ds = cyls.map((c) => c.cyl.radius * 2);
+  const lo = Math.min(...ds), hi = Math.max(...ds);
+  const kinds = new Set(internal ?? cyls.map((c) => c.cyl.internal));
+  const key = kinds.size === 1 && kinds.has(true) ? 'holes' : kinds.size === 1 && kinds.has(false) ? 'shafts' : 'faces';
+  const r = (v: number) => String(Math.round(v * 1000) / 1000);
+  return { key, n: cyls.length, d: hi - lo < 1e-3 ? r(lo) : `${r(lo)} - ${r(hi)}` };
+}
+
+/** The faces that do not fit the size: the kernel's threadDiameterMismatch warning per feature id wins. */
+export function groupMisfits(items: Array<{ face: string; id?: string }>, warnings: Record<string, FeatureWarning | undefined>): string[] {
+  return items.filter((x) => x.id && ((warnings[x.id]?.all ?? (warnings[x.id] ? [warnings[x.id]!] : [])).some((w) => w.code === 'threadDiameterMismatch'))).map((x) => x.face);
+}
+
+/** The settings of a thread feature that a group shares (everything but its id, name and face). */
+const settingsKey = (f: Wire): string => JSON.stringify(Object.entries(f).filter(([k]) => k !== 'id' && k !== 'name' && k !== 'face').sort(([a], [b]) => (a < b ? -1 : 1)));
+/**
+ * The threads edited together with thread `id`: the run of neighbouring thread features in the history with exactly the same
+ * settings (what one Shift+T on several faces creates). Just `[id]` when it stands alone.
+ */
+export function threadGroup(features: Wire[], id: string): string[] {
+  const i = features.findIndex((f) => f.id === id);
+  if (i < 0 || features[i].type !== 'thread') return [id];
+  const key = settingsKey(features[i]);
+  const same = (f: Wire | undefined): boolean => !!f && f.type === 'thread' && settingsKey(f) === key;
+  let a = i, b = i;
+  while (same(features[a - 1])) a--;
+  while (same(features[b + 1])) b++;
+  return features.slice(a, b + 1).map((f) => String(f.id));
+}
+
+/** One new thread per face, sharing settings: the size nearest to the first face's diameter. */
+export function threadOpsForFaces(cyls: FaceCylinder[], rows: ThreadRow[]): EditOp[] | null {
+  const first = cyls[0];
+  if (!first) return null;
+  const one = newThread(first.face, first.cyl.radius * 2, rows, first.cyl.internal);
+  if (!one) return null;
+  return cyls.map((c) => ({ op: 'add' as const, feature: { ...one, face: c.face } as never }));
+}

@@ -313,7 +313,7 @@ export const en: Catalog = {
   'opt.fillet.rho': 'Conic ratio (0 to 1)', 'opt.fillet.shape': 'Shape (0.1 to 1)',
   'opt.shell.thickness': 'Wall thickness', 'opt.shell.outward': 'Grow outward',
   // thread feature (ThreadEditor.tsx, threadData.ts)
-  'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'app.thread.noTable': 'The thread tables are not loaded yet',
+  'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',
   'thread.section.thread': 'Thread', 'thread.section.length': 'Length and hand', 'thread.section.options': 'Options',
   'thread.face': 'Face', 'thread.faceDia': 'Ø {d} mm', 'thread.internal': 'internal (hole)', 'thread.external': 'external (shaft)',
   'thread.standard': 'Standard', 'thread.std.metric': 'ISO metric coarse', 'thread.std.metric-fine': 'ISO metric fine', 'thread.std.UNC': 'UNC', 'thread.std.UNF': 'UNF',
@@ -326,6 +326,9 @@ export const en: Catalog = {
   // thread editor, second pass: face chip, fit line, size picker, length / hand / start, modeled cost
   'thread.face.shaft': 'Shaft, Ø {d} mm', 'thread.face.hole': 'Hole, Ø {d} mm', 'thread.face.unknown': 'Cylindrical face, Ø {d} mm', 'thread.face.plain': 'Cylindrical face',
   'thread.fit.shaft': 'Fits: shaft Ø {face} matches {size} major diameter', 'thread.fit.hole': 'Fits: hole Ø {face} matches {size} tap drill',
+  'thread.face.many.holes': '{n} holes, Ø {d} mm', 'thread.face.many.shafts': '{n} shafts, Ø {d} mm', 'thread.face.many.faces': '{n} faces, Ø {d} mm',
+  'thread.fit.group.hole': 'Fits: all {n} holes match {size} tap drill', 'thread.fit.group.shaft': 'Fits: all {n} faces match {size} major diameter',
+  'thread.fit.group.bad': '{k} of {n} faces do not fit {size}: {faces}',
   'thread.sizeQuick': 'Common sizes', 'thread.sizeSearch': 'Type to filter, Up / Down to move, Enter to pick', 'thread.size.none': 'No size matches', 'thread.size.coarse': 'Coarse pitch', 'thread.size.fine': 'Fine pitch',
   'thread.root': 'Root diameter (d3)', 'thread.minorD1': 'Minor diameter (D1)',
   'thread.class.note': 'Recorded with the thread; it does not change the geometry.',
@@ -335,6 +338,8 @@ export const en: Catalog = {
   'thread.modeled.cost': 'About {n} s to rebuild, many more triangles.', 'thread.modeled.costUnknown': 'Slower to rebuild, many more triangles.',
   'thread.modeled.notBuilt': 'Not built: {reason}', 'thread.modeled.notBuiltUnknown': 'Not built: the kernel kept it cosmetic',
   'thread.warning.fits': 'Size and face fit',
+  'hole.thread.on': 'Threaded (tapped hole)', 'hole.thread.needSimple': 'Only a simple hole can be threaded.', 'hole.thread.sizeFromThread': 'The size comes from the thread; the hole is drilled to its tap drill.',
+  'hole.thread.tapNote': '{size} tap drill', 'hole.thread.depthCap': 'Capped at the hole depth, {v} mm.', 'hole.thread.loading': 'Loading thread sizes...',
   'hole.thread.add': 'Add thread to this hole', 'hole.thread.note': 'A tapped hole: add a thread feature on its wall.', 'hole.thread.have': 'This hole already has a thread ({id}).',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
   // ---- feature creators (featureCreators.ts)

@@ -100,12 +100,13 @@ describe('threads with the real kernel', { skip: !process.env.CK_WASM }, () => {
     expect(canThread(ctx('F10.S.h1'))).toBe(true);
     expect(canThread(ctx('F8.C1'))).toBe(false);
     expect(canThread({ ...ctx('F4.S.c1'), mode: 'edge' })).toBe(false);
-    expect(canThread({ ...ctx('F4.S.c1'), selection: ['F4.S.c1', 'F10.S.h1'] })).toBe(false);
+    expect(canThread({ ...ctx('F4.S.c1'), selection: ['F4.S.c1', 'F10.S.h1'] })).toBe(true);   // several cylinder faces: one thread each
+    expect(canThread({ ...ctx('F4.S.c1'), selection: ['F4.S.c1', 'F8.C1'] })).toBe(false);
     expect(canThread({ ...ctx('F4.S.c1'), doc: null })).toBe(false);
 
     // the command asks its host to add a thread on the selected face; the host builds the edit from the cached table
     let selection = ['F4.S.c1'];
-    const asked: string[] = [];
+    const asked: string[][] = [];
     const actions: FeatureActions = {
       context: () => ({ ...ctx('x'), selection }), create: () => {}, holeOnFace: () => {}, holeFlip: () => false, notify: () => {},
       addThread: (f) => { asked.push(f); },
@@ -115,7 +116,7 @@ describe('threads with the real kernel', { skip: !process.env.CK_WASM }, () => {
     cmd.run();
     selection = ['F8.C1'];
     expect(cmd.enabled!()).toBe(false);
-    expect(asked).toEqual(['F4.S.c1']);
+    expect(asked).toEqual([['F4.S.c1']]);
 
     const rows = await w.controller.threadSizes('metric');
     const shaft = cylinderOfFace('F4.S.c1', w.controller.bodyEdges())!;

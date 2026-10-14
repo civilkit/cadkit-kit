@@ -7,7 +7,7 @@ import type { PartDoc } from '@ck/part-model';
 import { BODY } from '@kit/store';
 import { t } from './i18n';
 import { newHole, type HolePrefs } from './holeData';
-import { cylinderOfFace } from './threadData';
+import { cylindersOfFaces, sameSizeFaces } from './threadData';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
@@ -85,8 +85,10 @@ export function pointSketch(c: Ctx): Feat | null {
   const list = feats(c.doc).filter(hasPointEntities);
   return list.find((f) => f.id === c.selectedId) ?? list[list.length - 1] ?? null;
 }
-/** A thread goes on one cylindrical face (the wall of a hole, a shaft) of a body: judged from the circular edges the view has. */
-export const canThread = (c: Ctx): boolean => !!c.doc && hasSolid(c) && c.mode === 'face' && faceNames(c.selection).length === 1 && cylinderOfFace(faceNames(c.selection)[0], c.edges) !== null;
+/** A thread goes on each of the selected cylindrical faces (the wall of a hole, a shaft) of a body: judged from the circular edges the view has. */
+export const canThread = (c: Ctx): boolean => !!c.doc && hasSolid(c) && c.mode === 'face' && cylindersOfFaces(faceNames(c.selection), c.edges) !== null;
+/** "Select same size" needs one or more cylinder faces; it selects every cylinder of the same diameter and kind. */
+export const canSelectSame = canThread;
 export const canHole = (c: Ctx): boolean => !!c.doc && hasSolid(c) && ((c.mode === 'face' && faceNames(c.selection).length === 1) || pointSketch(c) !== null);
 
 /** The construction line of a sketch that serves as the revolve axis (the first one), or null. */
@@ -162,7 +164,9 @@ export interface FeatureActions {
   /** The flip a hole from this sketch needs so it drills into the body. */
   holeFlip(sketchId: string): boolean;
   /** Add a thread on this cylindrical face (needs the thread tables, so it is async) and open the Thread editor. */
-  addThread(face: string): void;
+  addThread(faces: string[]): void;
+  /** Replace the selection (the "Select same size" action). */
+  select?(names: string[]): void;
   notify(text: string, level?: 'error' | 'warn' | 'info'): void;
 }
 
@@ -181,7 +185,12 @@ export function featureCommands(a: FeatureActions): Command[] {
       const sk = pointSketch(ctx);
       if (sk) a.create(holeOps(sk.id, a.holeFlip(sk.id)));
     }),
-    cmd('add-thread', canThread, () => { const f = faceNames(c().selection); if (f.length === 1) a.addThread(f[0]); }),
+    cmd('add-thread', canThread, () => { const f = faceNames(c().selection); if (f.length) a.addThread(f); }),
+    cmd('select-same-size', canSelectSame, () => {
+      const ctx = c();
+      const all = faceNames(ctx.selection).flatMap((f) => sameSizeFaces(f, ctx.edges));
+      a.select?.([...new Set(all)]);
+    }),
     cmd('add-revolve', canRevolve, () => {
       const sk = revolveSketch(c());
       const ops = sk ? revolveOps(sk) : null;
