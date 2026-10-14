@@ -11,7 +11,7 @@ export type Prim =
   | { t: 'arc'; c: V2; r: number; a0: number; a1: number; w: number; layer: Layer; tag?: Tag }
   | { t: 'text'; x: number; y: number; s: string; size: number; anchor: 'start' | 'middle' | 'end'; rot: number; bold?: boolean; layer: Layer; tag?: Tag };
 
-export interface BomRow { no: number; part: string; qty: number; material: string; mass: string }
+export interface BomRow { no: number; part: string; qty: number; material: string; mass: string; /** insertPart ids of the item, to find its edges for balloons */ components?: string[] }
 export interface RenderCtx {
   doc: DrawingDoc;
   data: Record<string, ViewData | undefined>;

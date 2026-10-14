@@ -8,12 +8,13 @@ import {
   SCALES, SHEET_NAMES, STD_FRAMES, STD_NAMES, emptyDrawing, fmtLength, newId, removeView, sanitizeDrawing, sheetSize, viewScale, fromSheet,
   type DDim, type DrawingDoc, type DView, type V2, type ViewData,
 } from './model';
-import { autoDims, dimFromPicks, edgeShape, pickEdge, type HoleInfo } from './geom';
+import { autoBalloons, autoDims, dimFromPicks, edgeShape, pickEdge, type HoleInfo } from './geom';
 import { addAux, addDetail, addProjected, addSection, fetchViews, moveView, nudgeClear, sideOfPoint, standardViews, type DrawingQuery } from './layout';
 import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, type BomRow, type Prim } from './render';
 import { hitAnnotation } from './hit';
 import { holeInfos } from './kernel';
 import { printSvg, toDxf, toPdf } from './output';
+import { componentOfName, insertIds } from '../assembly/model';
 import { projectedFrame } from './model';
 
 export interface DrawingHost {
@@ -168,7 +169,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     const q = needQuery(); if (!q) return;
     setBusy(true);
     try {
-      const r = await standardViews(docRef.current, q);
+      const r = await standardViews(docRef.current, q, undefined, bom.length ? bom.length * 6 + 12 : 0);
       setData(r.data); dataRef.current = r.data;
       let next = r.doc;
       const dims: DDim[] = next.views.filter((v) => v.kind !== 'std' || v.label === 'Front').flatMap((v) => (r.data[v.id] ? autoDims(r.data[v.id]!, v, holesNow()) : []));
@@ -197,6 +198,17 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     const ids = new Set(targets.map((v) => v.id));
     const fresh = targets.flatMap((v) => (dataRef.current[v.id] ? autoDims(dataRef.current[v.id]!, v, holesNow()) : []));
     commit({ ...d, dims: [...d.dims.filter((x) => !ids.has(x.view)), ...fresh] });
+  };
+  const doAutoBalloons = () => {
+    const d = docRef.current;
+    const v = (sel?.kind === 'view' ? d.views.find((x) => x.id === sel.id) : undefined) ?? d.views.find((x) => x.label === 'Front') ?? d.views[0];
+    const g = v && dataRef.current[v.id];
+    if (!v || !g) { note('drawing.msg.noViews', 'warn'); return; }
+    const ins = insertIds({ features: host.features as never });
+    const found = autoBalloons(g, v, bom.map((b) => ({ no: b.no, components: b.components ?? [] })), (f) => componentOfName(f, ins));
+    const P = placer(d, v, g);
+    const balloons = found.map((f, i) => { const a = P(f.at[0], f.at[1]); return { id: `B${i + 1}`, view: v.id, at: f.at, pos: [a[0] + f.dir[0] * 20, a[1] - f.dir[1] * 20] as V2, n: f.no }; });
+    commit({ ...d, balloons: [...d.balloons.filter((x) => x.view !== v.id), ...balloons] });
   };
   const deleteSel = () => {
     if (!sel) return;
@@ -427,6 +439,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <button class="dwg-btn" title={t('drawing.autoDim.tip')} onClick={doAutoDim}>{t('drawing.autoDim')}</button>
         {tb('note', t('drawing.note'), t('drawing.note.tip'))}
         {tb('balloon', t('drawing.balloon'), t('drawing.balloon.tip'))}
+        {bom.length ? <button class="dwg-btn" title={t('drawing.autoBalloons.tip')} onClick={doAutoBalloons}>{t('drawing.autoBalloons')}</button> : null}
         <span class="dwg-sep" />
         <button class="dwg-btn" onClick={out('pdf')}>{t('drawing.exportPdf')}</button>
         <button class="dwg-btn" onClick={out('svg')}>{t('drawing.exportSvg')}</button>

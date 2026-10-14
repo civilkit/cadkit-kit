@@ -41,7 +41,7 @@ function mkView(doc: DrawingDoc, kind: DView['kind'], label: string, fr: { x: V3
 }
 
 /** Front, top, right (and isometric) filling the sheet at the largest standard scale that fits; replaces the views already on it. */
-export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names = ['front', 'top', 'right', 'iso']): Promise<{ doc: DrawingDoc; data: Record<string, ViewData> }> {
+export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names = ['front', 'top', 'right', 'iso'], reserve = 0): Promise<{ doc: DrawingDoc; data: Record<string, ViewData> }> {
   let d: DrawingDoc = { ...doc, views: [], dims: [], balloons: [] };
   const proj = d.sheet.projection;
   const front = mkView(d, 'std', 'Front', STD_FRAMES.front, [0, 0]);
@@ -74,7 +74,7 @@ export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names 
   d = { ...d, sheet: { ...d.sheet, scale: cross3 } };
   const [sw, sh] = sheetSize(d.sheet);
   const m = d.sheet.margin;
-  const free = { x0: m + 12, y0: m + 12, x1: sw - m - 12, y1: sh - m - 48 };
+  const free = { x0: m + 12, y0: m + 12, x1: sw - m - 12, y1: sh - m - 48 - reserve };
   const fw = fe[0] * s, fh = fe[1] * s, uh = ue[1] * s, sW = se[0] * s;
   const totW = fw + (side ? GAP + sW : 0), totH = fh + (up ? GAP + uh : 0);
   const left = free.x0 + (free.x1 - free.x0 - totW) / 2, top = free.y0 + (free.y1 - free.y0 - totH) / 2 + 4;

@@ -48,7 +48,7 @@ export function makeDrawingHost(c: Controller, io: {
       const vols = new Map<string, number | null>();
       for (const f of features) if (f.type === 'insertPart' && f.part) vols.set(JSON.stringify(f.part), (await c.partMass(f.part)).volume);
       const items = bomItems(doc as never, (p) => vols.get(JSON.stringify(p)) ?? null);
-      const rows: BomRow[] = items.map((i) => ({ no: i.no, part: i.part, qty: i.qty, material: i.material, mass: i.massTotal === null ? '' : massText(i.massTotal).replace(/ g$/, '') }));
+      const rows: BomRow[] = items.map((i) => ({ no: i.no, part: i.part, qty: i.qty, material: i.material, mass: i.massTotal === null ? '' : massText(i.massTotal).replace(/ g$/, ''), components: i.components }));
       const tot = bomTotal(items);
       void tot;
       return rows;

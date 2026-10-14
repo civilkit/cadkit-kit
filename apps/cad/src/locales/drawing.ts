@@ -23,6 +23,8 @@ export const drawingStrings: Catalog = {
   'drawing.dimension.tip': 'Click an edge (length, diameter) or two edges (distance, angle); Enter finishes, Shift on the first pick makes a radius',
   'drawing.autoDim': 'Auto dimension',
   'drawing.autoDim.tip': 'Overall size, diameters and hole / thread callouts of the selected view (all views if none)',
+  'drawing.autoBalloons': 'Auto balloons',
+  'drawing.autoBalloons.tip': 'A numbered balloon for each item of the bill of materials on the selected view (front by default)',
   'drawing.note': 'Note',
   'drawing.note.tip': 'Click for text on the sheet; Shift+click on a view for a note with a leader',
   'drawing.balloon': 'Balloon',

@@ -203,3 +203,29 @@ export function autoDims(g: ViewData, v: DView, holes: HoleInfo[] = []): DDim[] 
   }
   return out;
 }
+
+export interface BalloonItem { no: number; components: string[] }
+
+/** One balloon per BOM item on a view: attached to a visible edge of the item's component, the number set out from the view's centre so leaders do not cross the part. */
+export function autoBalloons(g: ViewData, v: DView, items: BalloonItem[], compOf: (faceName: string) => string | null): Array<{ no: number; at: V2; dir: V2 }> {
+  const out: Array<{ no: number; at: V2; dir: V2 }> = [];
+  const cx = (g.min[0] + g.max[0]) / 2, cy = (g.min[1] + g.max[1]) / 2;
+  for (const it of items) {
+    let best: { at: V2; score: number } | null = null;
+    for (const l of shownLines(g, v)) {
+      if (!l.v || l.e === undefined || l.k === 'h') continue;
+      const e = g.edges[l.e];
+      const owner = e && e.faces.map((f) => compOf(f)).find((c) => c && it.components.includes(c));
+      if (!owner) continue;
+      const mid: V2 = [l.p[Math.floor(l.p.length / 4) * 2], l.p[Math.floor(l.p.length / 4) * 2 + 1]];
+      // prefer edges near the outline of the view: the leader is short and clear of the part
+      const score = Math.hypot(mid[0] - cx, mid[1] - cy);
+      if (!best || score > best.score) best = { at: mid, score };
+    }
+    if (best) {
+      const dx = best.at[0] - cx, dy = best.at[1] - cy, L = Math.hypot(dx, dy) || 1;
+      out.push({ no: it.no, at: best.at, dir: L < 1e-9 ? [1, 1] : [dx / L, dy / L] });
+    }
+  }
+  return out;
+}
