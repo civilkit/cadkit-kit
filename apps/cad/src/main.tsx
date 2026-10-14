@@ -551,7 +551,7 @@ function App() {
     const sketch = selected ?? [...d.features].reverse().find((f) => f.type === 'sketch');
     if (!sketch) { store.notify(t('app.noSketch'), 'error'); return; }
     const before = d.features.length;
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: sketch.id, end: 'blind', depth: 10 } }]);
+    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: sketch.id, end: 'blind', depth: 10, ...(controller.extrudeFlip(sketch.id, op) ? { flip: true } : {}) } }]);
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);

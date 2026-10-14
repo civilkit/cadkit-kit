@@ -128,3 +128,4 @@ export * from './registry';
 export * from './snap-constraints';
 export * from './select';
 export * from './annotations';
+export * from './extrude';

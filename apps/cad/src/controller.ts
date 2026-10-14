@@ -1,7 +1,7 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
 import type { Store } from '@kit/store';
-import { foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
+import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
 export interface SketchEditView {
@@ -380,10 +380,21 @@ export class Controller {
     }
   }
 
+  /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }> } | null = null;
+
+  /** Whether a new extrude of this sketch should be flipped so a cut goes into the material. */
+  extrudeFlip(sketchId: string, op: 'add' | 'cut'): boolean {
+    const v = this.lastView;
+    const frame = v?.sketches.find((x) => x.id === sketchId)?.frame ?? null;
+    return defaultFlip(op, frame, v?.box ?? null);
+  }
+
   private async refresh(): Promise<void> {
     const s = this.session;
     if (!s) return;
     const body = await s.bodyForView();
+    this.lastView = body;
     this.view.setBody(body);
     this.store.dropMissing(new Set(body?.mesh.faceIds ?? []));
     const report = await s.verify();
