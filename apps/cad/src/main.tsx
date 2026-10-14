@@ -1578,7 +1578,7 @@ function App() {
             })}
           </div>
         ) : null}
-        {ws.selectionBar ? (
+        {ws.selectionBar && !sketching ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
             {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
               <Tip key={m} label={t(l)} keys={k}>
