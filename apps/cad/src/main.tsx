@@ -365,12 +365,14 @@ function App() {
     void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null)));
   };
   const onConfirm = async (next: Record<string, unknown>) => {
+    viewport?.highlightSketchEntities(null, []);
     const ops = opsFromDraft(next);
     if (ops.length) await timed(() => controller.commit(ops));
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     redraw((n) => n + 1);
   };
   const onCancel = async () => {
+    viewport?.highlightSketchEntities(null, []);
     await controller.cancelPreview();
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     redraw((n) => n + 1);
@@ -810,6 +812,12 @@ function App() {
       picked={picked}
       hint={previewHint}
       shapes={editShapes}
+      onShapeHover={(id) => {
+        const ef = editingFeature as { sketch?: string } | null;
+        const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
+        const shape = id && sk ? sketchShapes(sk as never).find((s) => s.id === id) : null;
+        viewport?.highlightSketchEntities(shape ? ef!.sketch! : null, shape?.entityIds ?? []);
+      }}
     />
   );
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>

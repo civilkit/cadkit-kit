@@ -656,6 +656,7 @@ export class Viewport {
       ? Math.hypot(body.box.max[0] - body.box.min[0], body.box.max[1] - body.box.min[1], body.box.max[2] - body.box.min[2])
       : 0;
     const scale = diag > 0 ? diag * 0.25 : 25;
+    this.sketchItems = (body.sketches as never) ?? [];
     if (body.sketches?.length) {
       const all = sketchPolylines(body.sketches as never);
       const polys = all.filter((s) => !this.consumedSketches.has(s.id)).flatMap((s) => s.polylines);
@@ -699,6 +700,22 @@ export class Viewport {
     this.fit();
   }
 
+  private sketchItems: Array<{ id: string; frame: ViewFrame; sketch: unknown }> = [];
+  private shapeHover: THREE.Object3D | null = null;
+  /** Light up some entities of a sketch of the body (the shape row the pointer is over in the editor); null clears it. */
+  highlightSketchEntities(sketchId: string | null, entityIds: string[]): void {
+    this.dropFat(this.shapeHover);
+    this.shapeHover = null;
+    this.dirty = true;
+    if (!sketchId || !entityIds.length) return;
+    const item = this.sketchItems.find((s) => s.id === sketchId);
+    if (!item) return;
+    const sk = item.sketch as { entities: Array<{ id: string }> };
+    const only = { ...item, sketch: { ...sk, entities: sk.entities.filter((e) => entityIds.includes(e.id)) } };
+    const polys = sketchPolylines([only as never]).flatMap((s) => s.polylines);
+    const l = this.addFatLines(polys, 0x0b74dc, Math.max(this.hlWidth, 3), true);
+    if (l) { l.renderOrder = 9; (l.material as LineMaterial).depthTest = false; this.shapeHover = l; }   // on top: the sketch may lie on a face turned away
+  }
   private hlWidth = 3;
   /** Thickness in pixels of the hover and selection lines of edges. */
   setHighlightWidth(w: number): void {
@@ -969,6 +986,7 @@ export class Viewport {
   private clearBody(): void {
     this.clearLayers();
     this.dropFat(this.hoverObj); this.hoverObj = null;
+    this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
