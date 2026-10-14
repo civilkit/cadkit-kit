@@ -3,6 +3,9 @@ import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model'
 import { vertexName, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
+import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
+import type { KernelMeasure } from './inspect/measure';
+import type { MassRaw } from './inspect/mass';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -511,7 +514,7 @@ export class Controller {
   }
 
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number> } } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {
@@ -523,6 +526,25 @@ export class Controller {
     const m = this.lastView?.mesh;
     return m && m.positions.length > 0 ? m : null;
   }
+
+  /** The body's triangles with the face of each, for the Inspect tools (null when there is none). */
+  bodyFaces(): { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null {
+    const m = this.lastView?.mesh;
+    return m && m.triFace && m.faceIds && m.triFace.length > 0 ? { positions: m.positions, triFace: m.triFace, faceIds: m.faceIds } : null;
+  }
+
+  // ---- Inspect tools: read-only kernel queries on the current state. They never edit the document; null on a kernel error or no document. ----
+  private async inspect<T>(go: (s: Session) => Promise<T | null>): Promise<T | null> {
+    const s = this.session;
+    if (!s) return null;
+    try { return await go(s); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+  }
+  /** Volume, area, centre of mass and principal moments (unit density) of the body. */
+  massProps(): Promise<MassRaw | null> { return this.inspect((s) => queryMass(s)); }
+  /** The kernel's measurement of one or two faces / edges. */
+  measure(refs: Array<Record<string, unknown>>): Promise<KernelMeasure | null> { return this.inspect((s) => queryMeasure(s, refs)); }
+  /** Pairs of solid bodies that share volume. */
+  interference(): Promise<Interference | null> { return this.inspect((s) => queryInterference(s)); }
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
   async exportStep(): Promise<string | null> {
