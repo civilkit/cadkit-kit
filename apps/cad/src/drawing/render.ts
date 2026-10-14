@@ -163,6 +163,12 @@ function viewPrims(ctx: RenderCtx, v: DView, g: ViewData, out: Prim[]): void {
 
 function centerMarks(ctx: RenderCtx, v: DView, g: ViewData, P: (u: number, w: number) => V2, out: Prim[], tag: Tag): void {
   const s = scaleOf(ctx.doc, v);
+  for (const [p, q] of axisLines(g, v)) {
+    const a = P(p[0], p[1]), b = P(q[0], q[1]);
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, e: V2 = [((b[0] - a[0]) / L) * 2.5, ((b[1] - a[1]) / L) * 2.5];
+    if (v.kind === 'detail' && v.circle && Math.hypot(p[0] - v.circle.c[0], p[1] - v.circle.c[1]) > v.circle.r) continue;
+    out.push({ t: 'poly', pts: [a[0] - e[0], a[1] - e[1], b[0] + e[0], b[1] + e[1]], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
+  }
   const seen = new Set<string>();
   const edges = new Set<number>();
   for (const l of shownLines(g, v)) if (l.v && l.e !== undefined && l.k === 'e') edges.add(l.e);
@@ -180,6 +186,34 @@ function centerMarks(ctx: RenderCtx, v: DView, g: ViewData, P: (u: number, w: nu
     out.push({ t: 'poly', pts: [c[0] - ext, c[1], c[0] + ext, c[1]], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
     out.push({ t: 'poly', pts: [c[0], c[1] - ext, c[0], c[1] + ext], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
   }
+}
+
+/** Axes of cylinders seen from the side: two parallel silhouette lines that overlap along their length get a centre line between them. */
+function axisLines(g: ViewData, v: DView): Array<[V2, V2]> {
+  const segs = shownLines(g, v).filter((l) => l.k === 'o' && l.v && l.p.length === 4);
+  const out: Array<[V2, V2]> = [];
+  const used = new Set<number>();
+  for (let i = 0; i < segs.length; i++) {
+    if (used.has(i)) continue;
+    const a = segs[i].p, da: V2 = [a[2] - a[0], a[3] - a[1]], la = Math.hypot(...da);
+    if (la < 1e-6) continue;
+    const u: V2 = [da[0] / la, da[1] / la], n: V2 = [-u[1], u[0]];
+    for (let j = i + 1; j < segs.length; j++) {
+      if (used.has(j)) continue;
+      const b = segs[j].p, db: V2 = [b[2] - b[0], b[3] - b[1]], lb = Math.hypot(...db);
+      if (lb < 1e-6 || Math.abs(u[0] * db[1] - u[1] * db[0]) > 1e-6 * lb) continue;
+      const off = (b[0] - a[0]) * n[0] + (b[1] - a[1]) * n[1];
+      if (Math.abs(off) < 0.5) continue;
+      const t0 = Math.max(Math.min(0, la), Math.min((b[0] - a[0]) * u[0] + (b[1] - a[1]) * u[1], (b[2] - a[0]) * u[0] + (b[3] - a[1]) * u[1]));
+      const t1 = Math.min(la, Math.max((b[0] - a[0]) * u[0] + (b[1] - a[1]) * u[1], (b[2] - a[0]) * u[0] + (b[3] - a[1]) * u[1]));
+      const lo = Math.min(0, la);
+      if (t1 - t0 < 0.7 * Math.min(la, lb) || t0 < lo - 1e-9) continue;
+      used.add(i); used.add(j);
+      out.push([[a[0] + n[0] * off / 2 + u[0] * t0, a[1] + n[1] * off / 2 + u[1] * t0], [a[0] + n[0] * off / 2 + u[0] * t1, a[1] + n[1] * off / 2 + u[1] * t1]]);
+      break;
+    }
+  }
+  return out;
 }
 
 function cutLine(ctx: RenderCtx, v: DView, out: Prim[]): void {
