@@ -28,6 +28,7 @@ import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
 import { HoleEditor } from './HoleEditor';
+import { optionsFor } from './FeatureOptions';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
@@ -904,6 +905,7 @@ function App() {
       }}
       pickingPath={pickingPath}
       picked={picked}
+      options={optionsFor}
       hint={previewHint}
       shapes={editShapes}
       onShapeHover={(id) => {
