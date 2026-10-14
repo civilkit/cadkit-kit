@@ -27,6 +27,7 @@ import { useDesignCheck } from './useDesignCheck';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
+import { createLookStore, bodyLook, appearanceOf, anyHidden, LOOK_KEY } from './look';
 import { HoleEditor } from './HoleEditor';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
@@ -72,6 +73,7 @@ const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
 applyTheme(savedTheme);
 if (typeof savedLocale === 'string') setLocale(savedLocale);
+const lookStore = createLookStore(read(LOOK_KEY));
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
 
 // One kernel worker for the app; cancel() restarts it.
@@ -197,7 +199,7 @@ function App() {
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.mode.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; rejections.value; localeSignal.value; });
+  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.mode.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -231,6 +233,17 @@ function App() {
     for (const k of Object.keys(d)) viewport?.setLayerVisible(k, d[k as DisplayLayer]);
     write('cad.display', d);
   }, [store.display.value]);
+  const lk = lookStore.look.value, hid = lookStore.hidden.value;
+  const partName = controller.document()?.name || 'part';
+  useEffect(() => {
+    const vp = viewport;
+    if (!vp) return;
+    vp.setLook(bodyLook(lk, partName));
+    vp.setLighting(lk.light);
+    vp.setBackground(lk.background);
+    write(LOOK_KEY, lk);
+  }, [lk, partName]);
+  useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
   useEffect(() => {
     write('cad.workspace', ws);
     viewport?.setHighlightWidth(ws.lineWidth);
@@ -286,6 +299,16 @@ function App() {
   };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const check = useDesignCheck(controller, store, () => viewport, () => { setDrawerTab('check'); store.setWorkspace({ drawerOpen: true }); });
+  /** What H would hide: the selected faces' body, or the selected sketch / plane / curve feature. */
+  const hideTarget = () => {
+    const f = selectedId ? controller.document()?.features.find((x) => x.id === selectedId) : undefined;
+    return { names: store.selection.value, featureId: f?.id ?? null, featureType: f?.type ?? null };
+  };
+  const hideSelected = () => {
+    const before = lookStore.hidden.value;
+    lookStore.hide(hideTarget());
+    if (lookStore.hidden.value !== before) store.notify(t('app.look.hidden'));
+  };
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
   const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
@@ -381,6 +404,13 @@ function App() {
     mode: () => store.mode.value,
     toggleLayer: (l) => store.setDisplay(l, !store.display.value[l]),
     layer: (l) => store.display.value[l],
+    look: {
+      style: () => lookStore.look.value.style, setStyle: (style) => lookStore.set({ style }),
+      light: () => lookStore.look.value.light, setLight: (light) => lookStore.set({ light }),
+      background: () => lookStore.look.value.background, setBackground: (background) => lookStore.set({ background }),
+      hideSelection: hideSelected, canHide: () => hideTarget().names.length > 0 || !!hideTarget().featureId,
+      showAll: () => lookStore.showAll(), anyHidden: () => anyHidden(lookStore.hidden.value),
+    },
   });
 
   const commandsRef = useRef(commands);
@@ -856,7 +886,7 @@ function App() {
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
       refs={doc ? [
-        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material' },
+        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material', swatch: appearanceOf(lk, partName).color },
         { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', tag: 'XY', choosable: true },
         { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', tag: 'XZ', choosable: true },
         { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', tag: 'ZY', choosable: true },
@@ -1005,7 +1035,11 @@ function App() {
           </div>
         ) : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
-        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
+        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} look={{
+          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance: appearanceOf(lk, partName),
+          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(partName || 'part', patch),
+          anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
+        }} />
         {sketchBanner}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}

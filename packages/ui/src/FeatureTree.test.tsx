@@ -160,3 +160,16 @@ describe('FeatureTree: sketches tucked under their feature', () => {
     expect(container.querySelectorAll('.row.child').length).toBe(2);
   });
 });
+
+describe('FeatureTree: material colour chip', () => {
+  it('shows a chip with the colour on the row that has a swatch, and none elsewhere', () => {
+    const { container } = render(
+      <FeatureTree partName="P" rows={[]} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}}
+        refs={[{ id: 'material', label: 'Material: steel', icon: 'ref-material', swatch: '#d0463b' }, { id: 'origin', label: 'Origin', icon: 'ref-origin' }]} />,
+    );
+    const chips = container.querySelectorAll('.ref-chip');
+    expect(chips.length).toBe(1);
+    expect(chips[0].getAttribute('data-swatch')).toBe('#d0463b');
+    expect(container.querySelector('[data-ref="material"] .ref-chip')).toBeTruthy();
+  });
+});

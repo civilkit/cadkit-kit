@@ -406,3 +406,14 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .dcheck-issue:disabled { cursor: default; }
 .dcheck-issue .rule { font-weight: 600; }
 .dcheck-issue .val { font: 500 12px ui-monospace, monospace; color: var(--text-2); white-space: nowrap; }
+
+/* display popover: style, appearance, scene */
+.display-pop { max-height: calc(100vh - 120px); overflow-y: auto; }
+.display-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); padding: 8px 8px 2px; }
+.display-field { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 3px 8px; }
+.display-field select, .display-field input[type="range"] { max-width: 140px; font: inherit; color: var(--text); background: var(--panel, transparent); border: 1px solid var(--line); border-radius: 6px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px; }
+.swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+.swatch.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.display-showall { margin: 6px 8px 0; }
+.ref-chip { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--line); margin-left: 6px; vertical-align: middle; }

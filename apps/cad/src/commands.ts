@@ -4,6 +4,7 @@ import type { Command } from '@kit/ui';
 import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
+import { lookCommands, type LookActions } from './lookCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -28,6 +29,8 @@ export interface Actions {
   io?: IoActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
+  /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
+  look?: LookActions;
   open(): void;
   save(): void;
   samples(): void;
@@ -65,15 +68,16 @@ export const SHORTCUTS: Record<string, string> = {
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
-export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): Command | undefined {
-  if (e.altKey) return undefined;
+export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean; code?: string }): Command | undefined {
   const ctrl = e.ctrlKey || e.metaKey;
-  const key = e.key.toLowerCase();
+  // with Alt the key is often another character (macOS: Alt+H is a dead key), so read the physical key
+  const code = e.code?.match(/^(?:Key|Digit)(.)$/);
+  const key = e.altKey && code ? code[1].toLowerCase() : e.key.toLowerCase();
   return cmds.find((c) => {
     if (!c.keys) return false;
     const parts = c.keys.toLowerCase().split('+');
     const k = parts[parts.length - 1];
-    return k === key && parts.includes('shift') === e.shiftKey && parts.includes('ctrl') === ctrl;
+    return k === key && parts.includes('shift') === e.shiftKey && parts.includes('ctrl') === ctrl && parts.includes('alt') === e.altKey;
   });
 }
 
@@ -113,6 +117,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
+  if (a.look) cmds.push(...lookCommands(a.look));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
