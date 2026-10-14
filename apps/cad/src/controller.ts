@@ -208,6 +208,7 @@ export class Controller {
   private async previewExtras(s: Session, ops: EditOp[], seq: number): Promise<void> {
     const feats = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops);
     const hasThread = (feats ?? []).some((f) => f.type === 'thread');
+    if (feats && !hasThread && this.committedExtras.threads.length) { this.applyExtras({ threads: [], warnings: [] }); return; }   // the candidate removes the last thread
     if (!feats || !hasThread) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
     const x = await this.regenExtras(s, { ...s.document, features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`);
     if (seq !== this.previewSeq) return;

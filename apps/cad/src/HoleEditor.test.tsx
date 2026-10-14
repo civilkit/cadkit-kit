@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/preact';
+import { render, fireEvent, cleanup, waitFor } from '@testing-library/preact';
 import { HoleEditor } from './HoleEditor';
+import type { HoleThread } from './holeThread';
+import type { ThreadRow, ThreadStd } from './threadData';
 import './i18n';
 
 afterEach(cleanup);
@@ -140,5 +142,137 @@ describe('HoleEditor', () => {
       fireEvent.change(m.sel('size'), { target: { value: 'M12' } });
       expect(m.container.querySelector('[data-testid="t"]')!.textContent).toBe('M12');
     });
+  });
+});
+
+const trow = (size: string, major: number, tapDrill: number, pitch: number, standard = 'metric'): ThreadRow => ({
+  size, standard, major, pitch, minorInternal: major - 1.0825 * pitch, minorExternal: major - 1.2269 * pitch, tapDrill, classInternal: standard === 'UNC' ? '2B' : '6H', classExternal: standard === 'UNC' ? '2A' : '6g',
+});
+const TABLE: Record<string, ThreadRow[]> = {
+  metric: [trow('M5', 5, 4.2, 0.8), trow('M6', 6, 5, 1), trow('M8', 8, 6.8, 1.25), trow('M10', 10, 8.5, 1.5)],
+  UNC: [trow('1/4-20', 6.35, 5.105, 1.27, 'UNC'), trow('5/16-18', 7.94, 6.5, 1.411, 'UNC')],
+};
+const STDS: ThreadStd[] = [{ id: 'metric', description: 'ISO metric coarse', count: 4 }, { id: 'UNC', description: 'UNC', count: 2 }];
+const API = { loadStandards: async () => STDS, loadSizes: async (s: string) => TABLE[s] ?? [] };
+
+describe('HoleEditor: Threaded', () => {
+  type Ev = { hole: Wire; thread: HoleThread | null | undefined };
+  async function mountT(feature: Wire = HOLE, extra: Partial<Parameters<typeof HoleEditor>[0]> = {}) {
+    const drafts: Ev[] = [];
+    const confirms: Ev[] = [];
+    const r = render(<HoleEditor feature={feature} onDraft={(h, t) => drafts.push({ hole: h, thread: t })} onConfirm={(h, t) => confirms.push({ hole: h, thread: t })} onCancel={() => {}} threads={API} {...extra} />);
+    const q = (path: string) => r.container.querySelector(`[data-path="${path}"]`) as HTMLElement | null;
+    const box = () => q('threaded')!.querySelector('input') as HTMLInputElement;
+    return { ...r, drafts, confirms, q, box, last: () => drafts.at(-1)!, dia: () => r.container.querySelector('[data-testid="hole-diameter"]')?.textContent };
+  }
+
+  it('has a Thread section with an unchecked Threaded box; without the thread tables there is none', async () => {
+    const m = await mountT();
+    expect([...m.container.querySelectorAll('.fedit-sec-head')].map((h) => h.textContent)).toEqual(['Type', 'Size', 'End', 'Options', 'Thread']);
+    expect(m.box().checked).toBe(false);
+    expect(m.q('standard')).toBeNull();
+    cleanup();
+    const bare = render(<HoleEditor feature={HOLE} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    expect(bare.container.querySelector('[data-section="thread"]')).toBeNull();
+  });
+
+  it('ticking Threaded drills the hole to the tap drill of its own size, starts a metric thread of that size, and shows the controls', async () => {
+    const m = await mountT({ ...HOLE, size: 'M8', fit: 'normal' });
+    expect(m.dia()).toContain('9');
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(1));
+    expect(m.last().hole).toMatchObject({ size: 'M8', fit: 'tap' });   // no `diameter` to remove on this hole
+    expect(m.last().thread).toEqual({ standard: 'metric', size: 'M8', class: '6H', length: 'full', hand: 'right', modeled: false });
+    expect(m.dia()).toContain('6.8');
+    expect(m.container.querySelector('[data-testid="hole-tap-note"]')!.textContent).toContain('M8');
+    expect(m.q('size')).not.toBeNull();   // the thread's Size field; the hole's own size and fit selects are gone
+    expect(m.q('fit')).toBeNull();
+    expect(m.container.querySelector('[data-testid="hole-thread-size"]')).not.toBeNull();
+    for (const p of ['standard', 'class', 'lengthMode', 'length', 'hand', 'modeled']) expect(m.q(p), p).not.toBeNull();
+    await waitFor(() => expect(m.container.querySelector('[data-testid="thread-readout"] [data-k="tapDrill"]')).not.toBeNull());
+    expect(m.container.querySelector('[data-testid="thread-readout"] [data-k="tapDrill"]')!.textContent).toContain('6.8');
+  });
+
+  it('size, standard, class, length, hand and model all go into the thread of the same draft; an inch size makes a plain diameter', async () => {
+    const m = await mountT({ ...HOLE, size: 'M8' });
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(1));
+    await waitFor(() => expect(m.container.querySelector('[data-testid="thread-chips"] [data-size="M10"]')).not.toBeNull());
+    fireEvent.click(m.container.querySelector('[data-testid="thread-chips"] [data-size="M10"]')!);
+    await waitFor(() => expect(m.last().thread).toMatchObject({ size: 'M10' }));
+    expect(m.last().hole).toMatchObject({ size: 'M10', fit: 'tap' });
+    expect(m.dia()).toContain('8.5');
+    fireEvent.click(m.q('hand')!.querySelector('[data-value="left"]')!);
+    expect(m.last().thread).toMatchObject({ hand: 'left' });
+    fireEvent.click(m.q('lengthMode')!.querySelector('[data-value="custom"]')!);
+    expect(typeof m.last().thread!.length).toBe('number');
+    fireEvent.change(m.q('length')!.querySelector('input')!, { target: { value: '12' } });
+    expect(m.last().thread).toMatchObject({ length: 12 });
+    fireEvent.click(m.q('modeled')!.querySelector('input')!);
+    expect(m.last().thread).toMatchObject({ modeled: true });
+    expect(m.container.querySelector('[data-testid="thread-cost"]')).not.toBeNull();
+    fireEvent.change(m.q('standard')!.querySelector('select')!, { target: { value: 'UNC' } });
+    await waitFor(() => expect(m.last().thread).toMatchObject({ standard: 'UNC', size: '5/16-18', class: '2B' }));   // nearest tap drill to the 8.5 mm hole
+    expect(m.last().hole).toMatchObject({ diameter: 6.5, size: null, fit: null });
+    expect(m.dia()).toContain('6.5');
+  });
+
+  it('a blind hole caps the custom length at its depth, also when the depth shrinks afterwards', async () => {
+    const m = await mountT({ ...HOLE, size: 'M8', end: 'blind', depth: 14 });
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(1));
+    expect(m.container.querySelector('[data-testid="hole-thread-cap"]')!.textContent).toContain('14');
+    fireEvent.click(m.q('lengthMode')!.querySelector('[data-value="custom"]')!);
+    fireEvent.change(m.q('length')!.querySelector('input')!, { target: { value: '40' } });
+    expect(m.last().thread).toMatchObject({ length: 14 });
+    fireEvent.change(m.q('depth')!.querySelector('input')!, { target: { value: '9' } });
+    expect(m.last().thread).toMatchObject({ length: 9 });
+    expect(m.last().hole).toMatchObject({ depth: 9 });
+  });
+
+  it('opens checked for a hole that already has a thread; clearing it asks for none and gives the hole its own size back', async () => {
+    const linked = [{ type: 'thread', id: 'F5', face: 'F4.S.h1', standard: 'metric', size: 'M8', class: '6H', length: 7, hand: 'left', modeled: false }];
+    const m = await mountT({ ...HOLE, size: 'M8', fit: 'tap' }, { linked });
+    expect(m.box().checked).toBe(true);
+    await waitFor(() => expect(m.container.querySelector('[data-testid="thread-readout"] dd')).not.toBeNull());
+    expect(m.q('hand')!.querySelector('[aria-checked="true"]')!.getAttribute('data-value')).toBe('left');
+    expect((m.q('length')!.querySelector('input') as HTMLInputElement).value).toBe('7');
+    fireEvent.click(m.box());
+    expect(m.last().thread).toBeNull();
+    expect(m.box().checked).toBe(false);
+    expect(m.q('fit')).not.toBeNull();   // the hole's own Size and Fit are back
+  });
+
+  it('ticking then clearing puts the hole back as it was; confirming sends the thread with the hole', async () => {
+    const m = await mountT({ ...HOLE, size: 'M6', fit: 'normal' });
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(1));
+    fireEvent.click(m.box());
+    expect(m.last().thread).toBeNull();
+    expect(m.last().hole).toMatchObject({ size: 'M6', fit: 'normal' });
+    expect(m.dia()).toContain('6.6');
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(3));
+    fireEvent.click(m.container.querySelector('.fedit-confirm')!);
+    expect(m.confirms).toHaveLength(1);
+    expect(m.confirms[0].thread).toMatchObject({ size: 'M6' });
+  });
+
+  it('a counterbore hole cannot be threaded: the box is disabled with a note; changing the type drops a thread', async () => {
+    const cb = await mountT({ ...HOLE, kind: 'cbore', cboreDiameter: 11, cboreDepth: 6.4 });
+    expect(cb.box().disabled).toBe(true);
+    expect(cb.container.querySelector('[data-testid="hole-thread-simple"]')).not.toBeNull();
+    cleanup();
+    const m = await mountT({ ...HOLE, size: 'M6', fit: 'tap' });
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.drafts.length).toBe(1));
+    fireEvent.change(m.q('kind')!.querySelector('select')!, { target: { value: 'cbore' } });
+    expect(m.last().thread).toBeNull();
+  });
+
+  it('shows the kernel\'s "not built" note for a modeled thread the kernel kept cosmetic', async () => {
+    const linked = [{ type: 'thread', id: 'F5', face: 'F4.S.h1', standard: 'metric', size: 'M8', length: 'full', hand: 'right', modeled: true }];
+    const m = await mountT({ ...HOLE, size: 'M8', fit: 'tap' }, { linked, threads: { ...API, entryModeled: false, warning: { code: 'threadModelFallback', hint: 'bore too small' } } });
+    expect(m.container.querySelector('[data-testid="thread-notbuilt"]')!.textContent).toContain('bore too small');
   });
 });

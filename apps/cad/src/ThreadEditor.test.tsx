@@ -317,3 +317,32 @@ describe('ThreadEditor: keyboard', () => {
     expect(document.activeElement).toBe(m.container.querySelector('.thread-editor'));
   });
 });
+
+describe('ThreadEditor: several faces', () => {
+  const GROUP = [
+    { id: 'F5', face: 'F4.S.h1~0', dia: 5, internal: true }, { id: 'F6', face: 'F4.S.h1~1', dia: 5, internal: true },
+    { id: 'F7', face: 'F4.S.h1~2', dia: 5, internal: true }, { id: 'F8', face: 'F4.S.h1~3', dia: 5, internal: true },
+  ];
+  it('the chip counts the faces and gives the diameter, the fit line says every face fits', async () => {
+    const m = await mount({ ...THREAD, face: 'F4.S.h1~0', size: 'M6' }, { group: GROUP, warnings: {}, internal: true, faceDiameter: 5 });
+    expect(text(m.container, 'thread-face')).toContain('4 holes, Ø 5 mm');
+    expect(text(m.container, 'thread-fit')).toBe('Fits: all 4 holes match M6 tap drill');
+  });
+  it('the fit line flags the faces the kernel says do not fit, with the size it suggests', async () => {
+    const warnings = { F6: { code: 'threadDiameterMismatch', hint: 'x', params: { nearest: ['M6'] } }, F8: { code: 'threadDiameterMismatch', hint: 'x', params: { nearest: ['M6'] } } };
+    const m = await mount({ ...THREAD, face: 'F4.S.h1~0', size: 'M10' }, { group: GROUP, warnings, internal: true, faceDiameter: 5 });
+    const fit = m.container.querySelector('[data-testid="thread-fit"]')!;
+    expect(fit.getAttribute('data-warning')).toBe('threadDiameterMismatch');
+    expect(fit.textContent).toContain('2 of 4 faces do not fit M10: F4.S.h1~1, F4.S.h1~3');
+    fireEvent.click(m.container.querySelector('[data-testid="thread-use"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ size: 'M6' });
+  });
+  it('mixed faces say "faces" and a range; a single thread keeps its single chip', async () => {
+    const mixed = [{ id: 'A', face: 'a', dia: 4, internal: true }, { id: 'B', face: 'b', dia: 6, internal: false }];
+    const m = await mount(THREAD, { group: mixed, warnings: {} });
+    expect(text(m.container, 'thread-face')).toContain('2 faces, Ø 4 - 6 mm');
+    cleanup();
+    const one = await mount(THREAD, { group: [mixed[0]], faceDiameter: 4, internal: true });
+    expect(text(one.container, 'thread-face')).toContain('Hole, Ø 4 mm');
+  });
+});

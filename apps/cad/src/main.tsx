@@ -42,7 +42,8 @@ import { createLookStore, bodyLook, appearanceOf, anyHidden, LOOK_KEY } from './
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { ThreadEditor } from './ThreadEditor';
-import { cylinderOfFace, faceExtent, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, loadThreadPrefs, threadOps } from './threadData';
+import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
+import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
@@ -451,20 +452,12 @@ function App() {
     });
   };
 
-  // A thread on a cylindrical face: metric, the size nearest to the face diameter, then the Thread editor opens on it.
-  const addThread = async (face: string) => {
-    const cyl = cylinderOfFace(face, controller.bodyEdges());
+  // A thread on each selected cylindrical face (one edit, so one undo step), the size nearest to the first face's diameter, then the Thread editor opens on them.
+  const addThread = async (faces: string[]) => {
+    const cyls = cylindersOfFaces(faces, controller.bodyEdges());
     const rows = await controller.threadSizes('metric').catch(() => []);
-    const ops = cyl && rows.length ? threadOps(face, cyl.radius * 2, rows, cyl.internal) : null;
+    const ops = cyls && rows.length ? threadOpsForFaces(cyls, rows) : null;
     if (!ops) { store.notify(t('app.thread.noTable'), 'error'); return; }
-    await createFeature(ops);
-  };
-  // The Hole editor's Thread section: confirm the hole as it is, then add a thread on its wall.
-  const addThreadToHole = async (hole: Record<string, unknown>) => {
-    const rows = await controller.threadSizes('metric').catch(() => []);
-    const ops = holeThreadOps(hole, rows);
-    if (!ops) return;
-    await onConfirm(draft);
     await createFeature(ops);
   };
   const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id) });
@@ -475,7 +468,8 @@ function App() {
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
-    addThread: (face) => void addThread(face),
+    addThread: (faces) => void addThread(faces),
+    select: (names) => store.select(names),
     notify: (text, level) => store.notify(text, level),
   };
   const commands = buildCommands({
@@ -578,28 +572,43 @@ function App() {
     }));
   })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
-  const opsFromDraft = (next: Record<string, unknown>): EditOp[] => {
-    if (!editingFeature) return [];
+  const opsOne = (f: Record<string, unknown>, id: string, next: Record<string, unknown>): EditOp[] => {
     // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
     // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
     if (Object.values(next).some((v) => v === null)) {
-      const feature = { ...editingFeature, ...next } as Record<string, unknown>;
+      const feature = { ...f, ...next } as Record<string, unknown>;
       for (const k of Object.keys(next)) if (next[k] === null) delete feature[k];
-      return JSON.stringify(feature) === JSON.stringify(editingFeature) ? [] : [{ op: 'replace' as const, id: editingId!, feature }];
+      return JSON.stringify(feature) === JSON.stringify(f) ? [] : [{ op: 'replace' as const, id, feature }];
     }
     return Object.entries(next)
-      .filter(([path, value]) => editingFeature[path] !== value)
-      .map(([path, value]) => ({ op: 'set' as const, id: editingId!, path, value }));
+      .filter(([path, value]) => f[path] !== value)
+      .map(([path, value]) => ({ op: 'set' as const, id, path, value }));
   };
-  const onDraft = (next: Record<string, unknown>) => {
+  // Threads made together (one Shift+T on several faces) are edited together: the draft goes to each of them. The group is read once per editor.
+  const groupRef = useRef<{ id: string; ids: string[] } | null>(null);
+  if (editingFeature?.type !== 'thread') groupRef.current = null;
+  else if (groupRef.current?.id !== editingId) groupRef.current = { id: editingId!, ids: threadGroup((doc?.features ?? []) as unknown as Array<Record<string, unknown>>, editingId!) };
+  const groupIds = groupRef.current?.ids ?? (editingId ? [editingId] : []);
+  // A hole's threads (one per position) follow the hole editor's draft: added, replaced or removed with the hole's own ops.
+  const holeWalls = editingFeature?.type === 'hole' && editingId ? holeWallFaces(editingId, controller.bodyEdges()) : [];
+  const holeLinked = editingFeature?.type === 'hole' && editingId ? linkedThreads((doc?.features ?? []) as unknown as Array<Record<string, unknown>>, editingId) : [];
+  const opsFromDraft = (next: Record<string, unknown>, thread?: HoleThread | null): EditOp[] => {
+    if (!editingFeature) return [];
+    const feats = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
+    const ops = editingFeature.type === 'thread' && groupIds.length > 1
+      ? groupIds.flatMap((id) => { const f = feats.find((x) => x.id === id); return f ? opsOne(f, id, next) : []; })
+      : opsOne(editingFeature, editingId!, next);
+    return thread !== undefined && editingFeature.type === 'hole' ? [...ops, ...holeThreadEditOps(editingId!, holeLinked, thread, holeWalls)] : ops;
+  };
+  const onDraft = (next: Record<string, unknown>, thread?: HoleThread | null) => {
     setDraft(next);
-    const ops = opsFromDraft(next);
+    const ops = opsFromDraft(next, thread);
     if (!ops.length) return;
     void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null)));
   };
-  const onConfirm = async (next: Record<string, unknown>) => {
+  const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
-    const ops = opsFromDraft(next);
+    const ops = opsFromDraft(next, thread);
     if (ops.length) await timed(() => controller.commit(ops));
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     if (editingId) setSelectedId(editingId);
@@ -1055,19 +1064,26 @@ function App() {
       {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
     </div>
   );
-  const holeThreads = (hole: Record<string, unknown>) => {
-    if (!holeThreadSize(hole)) return null;
-    const have = (doc?.features ?? []).find((x) => (x as { type?: string; face?: string }).type === 'thread' && (x as { face?: string }).face === holeWallFace(String(hole.id)));
-    return have
-      ? <div class="fedit-hint" data-testid="hole-has-thread">{t('hole.thread.have', { id: have.id })}</div>
-      : <div><div class="fedit-hint">{t('hole.thread.note')}</div><button type="button" data-testid="hole-add-thread" onClick={() => void addThreadToHole(hole)}>{t('hole.thread.add')}</button></div>;
-  };
+  const holeEntry = holeWalls.length ? (controller.threadsShown() as Array<{ id?: string; face?: string; modeled?: boolean }>).find((x) => x.face === holeWalls[0]) : undefined;
+  const holeWallLength = holeWalls.length ? faceExtent(holeWalls[0], controller.bodyEdges(), controller.bodyFaces())?.length ?? null : null;
+  // the faces of a group of threads: name, diameter and kind of each, for the group chip and the per-face fit line
+  const groupFaces = groupIds.length > 1 ? groupIds.map((id) => {
+    const face = String((doc?.features.find((f) => f.id === id) as unknown as { face?: string } | undefined)?.face ?? '');
+    const cyl = cylinderOfFace(face, controller.bodyEdges());
+    const entry = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === id);
+    return { id, face, dia: cyl ? cyl.radius * 2 : null, internal: entry?.internal ?? (isHoleWall(face) ? true : cyl?.internal) };
+  }) : null;
   const editor = editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
       loadStandards={() => controller.threadStandards()} loadSizes={(std) => controller.threadSizes(std)}
+      group={groupFaces ?? undefined} warnings={store.featureWarnings.value}
       faceDiameter={threadCyl ? threadCyl.radius * 2 : null} internal={threadInternal} warning={editingId ? store.featureWarnings.value[editingId] ?? null : null} />
   ) : editingFeature?.type === 'hole' ? (
-    <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} threadSection={holeThreads} />
+    <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} linked={holeLinked}
+      threads={{
+        loadStandards: () => controller.threadStandards(), loadSizes: (std) => controller.threadSizes(std), wallLength: holeWallLength,
+        entryModeled: holeEntry?.modeled, modeledMs: loadThreadPrefs().modeledMs ?? null, warning: holeEntry?.id ? store.featureWarnings.value[holeEntry.id] ?? null : null,
+      }} />
   ) : (
     <FeatureEditor
       feature={editingFeature}
