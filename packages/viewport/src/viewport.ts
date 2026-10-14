@@ -7,7 +7,7 @@ import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshge
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { ViewCube } from './viewcube';
-import { planeToWorld, rayPlane, sketchEditPolylines, sketchPointWorld } from './sketchedit';
+import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -443,7 +443,15 @@ export class Viewport {
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
     this.controls.target.copy(c);
     this.camera.up.copy(y);
-    this.camera.position.copy(c).add(z.multiplyScalar(dist));
+    // read the sketch from outside the part: the side of its plane facing away from the body
+    let centre: number[] | null = null;
+    if (this.mesh) {
+      const g = this.mesh.geometry;
+      g.computeBoundingBox();
+      if (g.boundingBox) { const bc = g.boundingBox.getCenter(new THREE.Vector3()); centre = [bc.x, bc.y, bc.z]; }
+    }
+    const side = viewSide(v.frame as never, centre);
+    this.camera.position.copy(c).add(z.multiplyScalar(dist * side));
     this.camera.lookAt(c);
     this.controls.update();
     this.rebuildSketchGrid();

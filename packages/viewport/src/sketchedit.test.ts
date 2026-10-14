@@ -96,3 +96,17 @@ describe('sketchEditPolylines / sketchPointWorld', () => {
     ]);
   });
 });
+
+import { viewSide } from './sketchedit';
+
+describe('viewSide', () => {
+  const frame = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
+  it('looks from the side facing away from the body', () => {
+    expect(viewSide(frame, [0, 0, -10])).toBe(1);    // body behind the plane: look from the front
+    expect(viewSide(frame, [0, 0, 10])).toBe(-1);    // body in front of the plane: look from behind it
+  });
+  it('uses the plane normal with no body or a plane through the body', () => {
+    expect(viewSide(frame, null)).toBe(1);
+    expect(viewSide(frame, [5, 5, 0])).toBe(1);
+  });
+});

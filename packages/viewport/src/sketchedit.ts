@@ -67,3 +67,14 @@ export function sketchPointWorld(
 ): Array<{ id: string; xyz: [number, number, number] }> {
   return points.map((p) => ({ id: p.id, xyz: planeToWorld(frame, p.x, p.y) }));
 }
+
+/**
+ * Which side of the sketch plane to look from: +1 along the plane's normal, -1 against it. A sketch is read from
+ * outside the part, so the camera goes on the side of the plane facing away from the body (looking at its face);
+ * with no body, or a plane through the middle of it, the plane's own normal side.
+ */
+export function viewSide(frame: Frame, bodyCenter: number[] | null): 1 | -1 {
+  if (!bodyCenter) return 1;
+  const d = (bodyCenter[0] - frame.o[0]) * frame.z[0] + (bodyCenter[1] - frame.o[1]) * frame.z[1] + (bodyCenter[2] - frame.o[2]) * frame.z[2];
+  return d > 1e-6 ? -1 : 1;
+}
