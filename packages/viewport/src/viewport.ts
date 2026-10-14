@@ -1625,7 +1625,7 @@ export class Viewport {
         this.sketchDrag = id;
         this.controls.enabled = false; // orbit off while dragging a point
         this.dom.setPointerCapture(e.pointerId);
-      } else if (e.button === 0) {
+      } else if (e.button === 0 && e.pointerType !== 'touch') {   // a finger keeps turning the view
         const r = this.dom.getBoundingClientRect();
         this.rubber = { cx: e.clientX, cy: e.clientY, x: e.clientX - r.left, y: e.clientY - r.top, moved: false };
         this.dom.setPointerCapture(e.pointerId);

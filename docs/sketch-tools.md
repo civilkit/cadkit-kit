@@ -77,7 +77,7 @@ scale, two copies, then Fully define on a copy).
   right to left = *crossing* (dashed green, inside or touching). Shift or Ctrl adds to the selection; Ctrl+A selects all;
   Delete removes the selection; Escape clears it. The aux bar shows "N selected".
 * In a sketch the **right** mouse button now turns the view and the middle one pans (they already did while a tool was
-  active); the left button picks and rubber-bands.
+  active); the left button picks and rubber-bands (a finger on a touch screen still turns the view, so no box there).
 * Click on a line, circle or arc with an edit or constraint tool: see "on curve" below. `boxSelect` is in `select.ts`.
 
 ## Snaps
