@@ -31,7 +31,7 @@ export function toEntries(records: EditRecord[], rejections: Rejection[] = []): 
   const flush = (n: number) => { for (const x of pending.filter((p) => p.r.at === n)) out.push(fail(x.r, x.i)); };
   flush(0);
   records.forEach((rec, idx) => {
-    const first = rec.ops[0] ? describeOp(rec.ops[0]) : t('history.empty');
+    const first = rec.ops[0] ? describeOp(rec.ops[0]) : rec.reason ? t(rec.reason, undefined, rec.reason) : t('history.empty');
     out.push({
       id: rec.id, author: rec.author === 'agent' ? 'agent' : 'you', time: hhmm(rec.time),
       title: rec.ops.length > 1 ? t('history.more', { first, count: rec.ops.length - 1 }) : first,
