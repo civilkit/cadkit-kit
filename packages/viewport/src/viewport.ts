@@ -48,6 +48,9 @@ export interface PlacementHook {
   leave?(): void;
 }
 
+/** Append a typed-array slice to a plain array without spreading it (a spread of a big face overflows the call stack). */
+function pushAll(out: number[], src: ArrayLike<number>): void { for (let i = 0; i < src.length; i++) out.push(src[i]); }
+
 export type PickMode = 'face' | 'edge' | 'vertex' | 'body';
 
 /** A thread entry of the regen result (see the kernel's `thread` feature). */
@@ -1139,15 +1142,15 @@ export class Viewport {
     const faces = new Set(this.expandNames([name]));
     for (const r of this.grouped.ranges) {
       if (!faces.has(r.name)) continue;
-      pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
-      nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+      pushAll(pos, this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+      pushAll(nor, this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
     }
     if (!pos.length) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-      color: 0x7fc1ff, emissive: 0x7fc1ff, emissiveIntensity: 0.25, transparent: true, opacity: 0.55,
+      color: force ? 0xffa21f : 0x7fc1ff, emissive: force ? 0xffa21f : 0x7fc1ff, emissiveIntensity: force ? 0.5 : 0.25, transparent: true, opacity: force ? 0.85 : 0.55,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, side: THREE.DoubleSide, depthWrite: false,
     }));
     m.userData.pickable = false;
@@ -1264,8 +1267,8 @@ export class Viewport {
       const nor: number[] = [];
       for (const r of this.grouped.ranges) {
         if (!want.has(r.name)) continue;
-        pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
-        nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+        pushAll(pos, this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+        pushAll(nor, this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
       }
       if (pos.length) {
         const geo = new THREE.BufferGeometry();

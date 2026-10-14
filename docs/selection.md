@@ -38,11 +38,11 @@ The funnel button opens Faces / Edges / Corners / Bodies / Sketches / Planes swi
 
 ## Selection list and status summary
 
-A panel at the bottom right of the view lists the selection: a count, one chip per item (Face name, Edge n, Corner x,y,z, Body n) with a remove button, Clear, and a fold arrow. Hovering a chip lights that item amber in the view even though it is selected. The status bar shows a summary: `3 faces, 12.4 cm²`, `2 edges, 14 mm`, `1 body, 24 mm²` (face and body areas from the mesh triangles, exact for planes and close for curved faces; lengths from the edge polylines). Areas switch from mm² to cm² at 100 mm²; lengths from mm to m at 1000 mm.
+A panel at the bottom right of the view lists the selection: a count, one chip per item (Face name, Edge n, Corner x,y,z, Body n) with a remove button, Clear, and a fold arrow. Hovering a chip lights that item amber in the view even though it is selected. Large selections no longer overflow the highlight builder (it used to spread whole face arrays into one call). The status bar shows a summary: `3 faces, 12.4 cm²`, `2 edges, 14 mm`, `1 body, 24 mm²` (face and body areas from the mesh triangles, exact for planes and close for curved faces; lengths from the edge polylines). Areas switch from mm² to cm² at 100 mm²; lengths from mm to m at 1000 mm.
 
 ## Kernel queries that would help
 
-None were needed. Two things a kernel answer would improve: exact face areas and edge lengths for curved geometry (the summary uses the tessellation, like Measure's local path; the `measure` request is exact), and a body id on every face in the mesh reply (bodies are recovered from face adjacency, which cannot tell two touching bodies sharing no edge from one).
+None were needed. Two things a kernel answer would improve: exact face areas and edge lengths for curved geometry (the summary uses the tessellation, like Measure's local path; the `measure` request is exact), and a body id on every face in the mesh reply (bodies are recovered from face adjacency; solids that touch only at a point or share faces without an edge record would merge).
 
 ## Tests
 

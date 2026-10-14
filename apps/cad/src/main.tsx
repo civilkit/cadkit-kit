@@ -9,7 +9,8 @@ import { BODY, createStore, MODE_FILTER, type DisplayLayer, type PickFilterKind,
 import { toBodyMode } from './select/actions';
 import { summarize } from './select/actions';
 import { summaryText } from './select/summary';
-import { SelectionList } from './select/SelectionList';
+import { SelectionList, chipsOf } from './select/SelectionList';
+import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
@@ -604,6 +605,7 @@ function App() {
     return () => removeEventListener('keydown', onKey);
   }, []);
 
+  const hoverLabel = (n: string | null) => (n && isBodyName(n) ? chipsOf([n], controller.selModel())[0].label : n);
   const selModelNow = store.selection.value.length ? controller.selModel() : null;
   const selText = selModelNow ? summaryText(summarize(selModelNow, store.selection.value)) : '';
   const doc = controller.document();
@@ -1384,7 +1386,7 @@ function App() {
           ]} />
       ) : null}
       <div class="status-wrap">
-        <StatusBar notices={store.notices.value} hover={store.hover.value} busy={store.busy.value}
+        <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },
