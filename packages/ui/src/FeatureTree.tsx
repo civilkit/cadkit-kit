@@ -4,7 +4,7 @@ import type { FeatureStatus } from '@kit/store';
 import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 
-export interface RefRow { id: string; label: string; icon: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean }
+export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean }
 
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[] }
 
@@ -124,6 +124,7 @@ export function FeatureTree(p: {
         >
           <Icon name={r.icon} size={18} class="row-icon" />
           <span class="row-name">{r.label}</span>
+          {r.tag ? <span class="row-id ref-tag">{r.tag}</span> : null}
         </div>
       ))}
       {p.rows.filter((r) => !owner.has(r.id)).map((r) => renderRow(r, 0))}

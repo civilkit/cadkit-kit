@@ -644,8 +644,21 @@ function App() {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
-      const view = await controller.beginNewSketch(plane);
-      if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
+      let view = await controller.beginNewSketch(plane);
+      // A curved face (cylinder, sphere) has no flat sketch plane: sketch on a plane touching it at the clicked point.
+      if (!view && typeof plane === 'object' && plane.kind === 'face') {
+        const at = viewport?.lastPickPoint();
+        if (at) {
+          const before = controller.document()?.features.length ?? 0;
+          await timed(() => controller.edit([{ op: 'add', feature: { type: 'plane', mode: 'tangent', face: plane.id, tangentTo: 'point', at, name: t('app.sketch.tangentPlane') } }]));
+          const made = controller.document()?.features;
+          const pl = made && made.length > before ? made[made.length - 1] : null;
+          const bad = store.featureStatus.value.find((s) => s.id === pl?.id && !s.ok);
+          if (pl && !bad) view = await controller.beginNewSketch({ kind: 'feature', id: pl.id });
+          else if (pl) await timed(() => controller.edit([{ op: 'remove', id: pl.id }]));    // not a cylinder or sphere: undo the plane
+        }
+      }
+      if (!view) { store.notify(t('app.sketch.failedCurved'), 'error'); return; }
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName') });
@@ -732,9 +745,9 @@ function App() {
     <FeatureTree rows={rows} partName={doc?.name}
       refs={doc ? [
         { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material' },
-        { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', choosable: true },
-        { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', choosable: true },
-        { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', choosable: true },
+        { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', tag: 'XY', choosable: true },
+        { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', tag: 'XZ', choosable: true },
+        { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', tag: 'ZY', choosable: true },
         { id: 'origin', label: t('app.ref.origin'), icon: 'ref-origin', choosable: true },
       ] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
@@ -814,7 +827,7 @@ function App() {
     viewport?.setRefPlanes(
       emptyPart1 ? [...planeIds] : [],
       sketching ? null : refPlane(refHover) ?? refPlane(refSel),
-      { front: t('app.ref.front'), top: t('app.ref.top'), right: t('app.ref.right') },
+      { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
   useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart('Part1')); redraw((n) => n + 1); })(); }, []);

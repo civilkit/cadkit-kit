@@ -783,6 +783,9 @@ export class Viewport {
     this.dirty = true;
   }
 
+  private lastPick: [number, number, number] | null = null;
+  /** Where the last face click landed on the body (world coordinates), for tools that need a point on a curved face. */
+  lastPickPoint(): [number, number, number] | null { return this.lastPick; }
   private readonly refPlanes = new RefPlanes();
   /** Show reference planes: `show` faintly (an empty part shows all three), `highlight` in orange with its label. */
   setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
@@ -967,6 +970,7 @@ export class Viewport {
       const plane = this.refPlanes.pick(this.raycaster);
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
+    this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
     const name = this.nameAt(hit0);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
