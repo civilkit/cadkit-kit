@@ -39,6 +39,13 @@ export interface ViewBody {
   surfaces?: ViewSurface[];
 }
 
+/** What the catalog wants from the pointer while a shape is armed (see Viewport.setPlacementHook). */
+export interface PlacementHook {
+  move(x: number, y: number, mods: { alt: boolean }): void;
+  tap(x: number, y: number, mods: { alt: boolean }): void;
+  leave?(): void;
+}
+
 export type PickMode = 'face' | 'edge' | 'vertex';
 
 /** A thread entry of the regen result (see the kernel's `thread` feature). */
@@ -488,7 +495,49 @@ export class Viewport {
     if (face) this.opts.onBodyDouble?.(face);
   };
 
+  /** Opacity of the body: faded while a sketch is open, translucent while a catalog shape is being placed. */
+  private bodyFade(): number { return this.sketchEdit ? Viewport.SKETCH_FADE : this.previewFade ?? 1; }
+  private previewFade: number | null = null;
+  /** Draw the body translucent (0..1) while a shape from the catalog is previewed on it; null puts it back. */
+  setPreviewFade(opacity: number | null): void {
+    if (this.previewFade === opacity) return;
+    this.previewFade = opacity;
+    this.applyMeshLook();
+    this.dirty = true;
+  }
+
+  private placement: PlacementHook | null = null;
+  /**
+   * Hand the pointer to the catalog: while a hook is set, moving over the canvas calls `move` and a click (no drag) calls `tap`
+   * instead of hovering and selecting. Orbiting with the buttons held still works. null gives the pointer back.
+   */
+  setPlacementHook(hook: PlacementHook | null): void {
+    this.placement = hook;
+    this.dom.style.cursor = hook ? 'copy' : '';
+    if (hook) { this.setHover(null); this.lastHover = null; }
+  }
+  /** Whether a screen position is over the canvas. */
+  containsClient(x: number, y: number): boolean {
+    const r = this.dom.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+  /** The ray through a screen position, in model coordinates. */
+  rayAt(x: number, y: number): { o: [number, number, number]; d: [number, number, number] } | null {
+    if (!this.containsClient(x, y)) return null;
+    this.camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    const { origin: o, direction: d } = this.raycaster.ray;
+    return { o: [o.x, o.y, o.z], d: [d.x, d.y, d.z] };
+  }
+  /** How many model units one screen pixel spans at a point (for snapping distances that stay the same on screen). */
+  worldPerPixel(p: number[]): number {
+    const r = this.dom.getBoundingClientRect();
+    const dist = this.camera.position.distanceTo(new THREE.Vector3(p[0], p[1], p[2]));
+    return (2 * dist * Math.tan((this.camera.fov * Math.PI) / 360)) / Math.max(1, r.height);
+  }
+
   private onLeave = (): void => {
+    this.placement?.leave?.();
     if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
   };
 
@@ -723,7 +772,7 @@ export class Viewport {
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
     this.surfaceFaces = merged.surfaceFaces;
     if (merged.surfaceFaces.size) geo.setAttribute('color', new THREE.BufferAttribute(vertexTints(g.ranges, g.positions.length / 3, merged.surfaceFaces), 3));
-    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1, this.surfaceFaces.size > 0));
+    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.bodyFade(), this.surfaceFaces.size > 0));
     this.scene.add(this.mesh);
 
     const seg = edgeSegments(merged.edges);
@@ -741,10 +790,13 @@ export class Viewport {
     this.buildIssueMeshes();
     this.applyMeshLook();
     this.applySection();
-    if (!this.keepView) this.fit();
+    if (!this.keepView && !this.holdView && this.previewFade === null) this.fit();
   }
 
   private keepView = false;
+  private holdView = false;
+  /** While true a new body does not re-fit the camera (the catalog keeps the view still while shapes are placed on a part). */
+  setHoldView(on: boolean): void { this.holdView = on; }
   /** names of the faces and edges that belong to surface bodies (tinted) */
   private surfaceFaces = new Set<string>();
 
@@ -757,7 +809,7 @@ export class Viewport {
   private applyMeshLook(): void {
     const spec = styleSpec(this.look.style);
     if (this.mesh) {
-      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1, this.surfaceFaces.size > 0);
+      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.bodyFade(), this.surfaceFaces.size > 0);
     }
     const edgesOn = (spec.edges === 'always' || (spec.edges === 'layer' && this.layerOn('edges')));
     if (this.edgeLines) {
@@ -1490,6 +1542,10 @@ export class Viewport {
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.placement && !this.sketchEdit) {
+      if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.placement.tap(e.clientX, e.clientY, { alt: e.altKey });
+      return;
+    }
     if (this.sketchEdit && this.sketchTool) {
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e);
       return;
@@ -1519,6 +1575,7 @@ export class Viewport {
   };
 
   private onMove = (e: PointerEvent): void => {
+    if (this.placement && !this.sketchEdit) { if (!this.down) this.placement.move(e.clientX, e.clientY, { alt: e.altKey }); return; }
     if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
     if (this.sketchEdit && !this.sketchDrag) this.emitSketchPointer('move', e, this.opts.onSketchHover);
     if (this.sketchDrag) {
