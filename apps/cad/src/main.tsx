@@ -16,6 +16,9 @@ import {
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
 import { Controller } from './controller';
+import { dxfToSketch } from '@kit/io';
+import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
+import type { ExportNotice } from './exportFiles';
 import { buildCommands, matchShortcut } from './commands';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
@@ -277,6 +280,32 @@ function App() {
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
+  const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
+  /** Add a DXF file's geometry to the open sketch. */
+  const importDxf = async () => {
+    if (!controller.sketchDraft()) { showNotices([{ level: 'error', key: 'io.dxf.noSketch' }]); return; }
+    const f = await platform.openFile();
+    if (!f) return;
+    const r = await importDxfIntoSketch(controller, f.text);
+    showNotices(r.notices);
+    if (r.ok) { viewTick((n) => n + 1); viewport?.fit(); }
+  };
+  /** Open a DXF file as a new sketch on the selected face or plane (front when nothing is selected). */
+  const sketchFromDxf = async () => {
+    const f = await platform.openFile();
+    if (!f) return;
+    const pre = dxfToSketch(f.text);
+    if (!pre.ok) { showNotices([importErrorNotice(pre.error)]); return; }
+    const face = selectedFace();
+    const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
+    startNewSketch(face ? { kind: 'face', id: face } : plane ?? 'front', async () => {
+      const r = await importDxfIntoSketch(controller, f.text);
+      showNotices(r.notices);
+      viewTick((n) => n + 1);
+      if (r.ok) viewport?.fit();
+    });
+  };
+
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => void createFeature(ops),
@@ -303,6 +332,7 @@ function App() {
     hasFaceSelection: () => selectedFace() !== null,
     addExtrude: (op) => void addExtrude(op),
     features: featureActions,
+    io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), isSketching: () => sketchingRef.current },
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m),
@@ -678,7 +708,7 @@ function App() {
     const sel = store.selection.value;
     return store.mode.value === 'face' && sel.length === 1 ? sel[0] : null;
   };
-  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }) => {
+  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
@@ -703,6 +733,7 @@ function App() {
       viewport?.orientToSketch();
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
+      if (after) await after();
     })();
   };
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.

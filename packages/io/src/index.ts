@@ -4,3 +4,4 @@ export * from './stl';
 export * from './obj';
 export * from './dxfWrite';
 export * from './dxfRead';
+export * from './dxfImport';
