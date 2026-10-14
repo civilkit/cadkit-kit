@@ -127,6 +127,7 @@ export function FeatureTree(p: {
             ? <InlineName class="row-name" value={r.name ?? label} onCommit={(n) => { setRenaming(null); p.onRename!(r.id, n); }} onCancel={() => setRenaming(null)} />
             : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{label}</span>}
           {r.name && !renamingThis ? <span class="row-type">{t('feature.' + r.type, undefined, r.type)}</span> : null}
+          {!failed && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code}>!</span> : null}
           <span class="row-id">{r.id}</span>
           <span class="row-actions">
             {p.onEdit ? (
@@ -142,7 +143,7 @@ export function FeatureTree(p: {
             <button class="row-del row-act" title={t('ui.tree.remove')} aria-label={t('ui.tree.remove')}
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}><Icon name="trash" size={15} /></button>
           </span>
-          {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : p.warnings?.[r.id] ? <span class="row-hint warn" data-warning={p.warnings[r.id].code}>{p.warnings[r.id].hint}</span> : null}
+          {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
         </div>
         {open ? kids.map((k) => renderRow(k, depth + 1)) : null}
       </>

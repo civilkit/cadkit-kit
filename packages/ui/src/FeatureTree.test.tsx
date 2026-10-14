@@ -38,10 +38,10 @@ describe('FeatureTree', () => {
     );
     const rows = container.querySelectorAll('.row');
     expect(rows[1].className).not.toContain('err');
-    const hint = rows[1].querySelector('.row-hint.warn')!;
-    expect(hint.textContent).toBe('hole is 6.5, M6 tap drill is 5');
+    const hint = rows[1].querySelector('.row-warn')!;
+    expect(hint.getAttribute('title')).toBe('hole is 6.5, M6 tap drill is 5');
     expect(hint.getAttribute('data-warning')).toBe('threadDiameterMismatch');
-    expect(rows[0].querySelector('.row-hint')).toBeNull();
+    expect(rows[0].querySelector('.row-warn')).toBeNull();
   });
 
   it('calls onSelect with the row id on click', () => {
