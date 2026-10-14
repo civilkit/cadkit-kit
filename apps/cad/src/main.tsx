@@ -385,12 +385,15 @@ function App() {
     const ops = opsFromDraft(next);
     if (ops.length) await timed(() => controller.commit(ops));
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    if (editingId) setSelectedId(editingId);
+    setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
     redraw((n) => n + 1);
   };
   const onCancel = async () => {
     viewport?.highlightSketchEntities(null, []);
     await controller.cancelPreview();
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    setLeftTab('Features');
     redraw((n) => n + 1);
   };
 
