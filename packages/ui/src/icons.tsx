@@ -120,6 +120,12 @@ const ICONS: Record<string, string> = {
   'add-shell': P(HEX) + C('M12 8.5l4.4 2.5v5L12 18.5 7.6 16v-5z') + A(FACE.top, 2),
   'add-hole': P('M3 9l9-5 9 5-9 5z') + P('M3 9v6l9 5 9-5V9') + AE(12, 9, 3.4, 1.9, 0) + C('M12 11v8'),
   'add-thread': P('M8 3h8v18H8z') + T('M8 7l8 2M8 11l8 2M8 15l8 2M8 19l8 2'),
+  // thread hand: a vertical axis with the flank lines rising to the right (right hand) or to the left; thread ends: arrows up / down, an open mouth
+  'helix-right': C('M12 3v18') + P('M6 8l12-3M6 13l12-3M6 18l12-3'),
+  'helix-left': C('M12 3v18') + P('M18 8 6 5M18 13 6 10M18 18 6 15'),
+  'arrow-up': P('M12 19V5M6 11l6-6 6 6'),
+  'arrow-down': P('M12 5v14M6 13l6 6 6-6'),
+  'end-open': P('M7 9v11h10V9') + C('M7 9h10') + A('M12 3v8M9 8l3 3 3-3'),
   'add-revolve': C('M12 3v18') + P('M12 6h5.5l2 3.5v5l-2 3.5H12') + A('M5 9.5c1.2-1.2 3-1.9 5-2M5 14.5c1.6 1.6 4.2 2.4 7 2.4'),
   'add-lpattern': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + T('M17 8h4v8h-4z') + A('M4 20h15M16.5 18l2.5 2-2.5 2'),
   'add-cpattern': CO(12, 12, 7.5) + O(12, 4.5, 2) + T('M20 16.5a2 2 0 11-4 0 2 2 0 014 0z') + T('M8 16.5a2 2 0 11-4 0 2 2 0 014 0z') + A('M12 12 12 6.5'),

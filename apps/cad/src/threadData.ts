@@ -4,6 +4,7 @@
 // request); the controller fetches and caches them, this file only reads the rows.
 import type { EditOp } from '@ck/session';
 import type { FeatureWarning } from '@kit/store';
+import { faceInfo, type MeshLike } from './handles/geom';
 
 type Wire = Record<string, unknown>;
 
@@ -139,7 +140,7 @@ export function defaultClass(row: ThreadRow | undefined, internal: boolean | und
 export function newThread(face: string, diameter: number, rows: ThreadRow[], internal?: boolean): Wire | null {
   const best = nearestSizes(rows, diameter, internal)[0];
   if (!best) return null;
-  return { type: 'thread', face, standard: DEFAULT_STANDARD, size: best.size, class: defaultClass(best, internal), length: 'full', hand: 'right', modeled: false };
+  return { type: 'thread', face, standard: DEFAULT_STANDARD, size: best.size, class: defaultClass(best, internal), length: 'full', hand: 'right', modeled: loadThreadPrefs().modeled === true };
 }
 export function threadOps(face: string, diameter: number, rows: ThreadRow[], internal?: boolean): EditOp[] | null {
   const f = newThread(face, diameter, rows, internal);
@@ -158,7 +159,7 @@ export function holeThreadOps(hole: Wire, rows?: ThreadRow[]): EditOp[] | null {
   const size = holeThreadSize(hole);
   if (!size || typeof hole.id !== 'string') return null;
   const row = rows?.find((r) => r.size === size);
-  return [{ op: 'add', feature: { type: 'thread', face: holeWallFace(hole.id), standard: 'metric', size, ...(row ? { class: row.classInternal } : {}), length: 'full', hand: 'right', modeled: false } as never }];
+  return [{ op: 'add', feature: { type: 'thread', face: holeWallFace(hole.id), standard: 'metric', size, ...(row ? { class: row.classInternal } : {}), length: 'full', hand: 'right', modeled: loadThreadPrefs().modeled === true } as never }];
 }
 
 // ---- draft patches (a null means "remove the field": the editor sends a replace) ----
@@ -220,4 +221,146 @@ export function applyOpsLocal(features: Wire[], ops: EditOp[]): Wire[] | null {
     else return null;
   }
   return out;
+}
+
+// ---- the Thread editor's pure rules: quick sizes, filter, readout, fit, length, ends of the face, remembered choices ----
+
+/** The short list of sizes shown as chips above the Size field, per standard (names as in the kernel's tables). */
+export const QUICK_SIZES: Record<string, string[]> = {
+  metric: ['M3', 'M4', 'M5', 'M6', 'M8', 'M10', 'M12'],
+  'metric-fine': ['M8x1', 'M10x1.25', 'M12x1.5', 'M16x1.5', 'M20x1.5'],
+  UNC: ['#6-32', '#8-32', '#10-24', '1/4-20', '5/16-18', '3/8-16', '1/2-13'],
+  UNF: ['#6-40', '#8-36', '#10-32', '1/4-28', '5/16-24', '3/8-24', '1/2-20'],
+  BSP: ['G1/8', 'G1/4', 'G3/8', 'G1/2'],
+  NPT: ['1/8 NPT', '1/4 NPT', '3/8 NPT', '1/2 NPT'],
+  Tr: ['Tr10x2', 'Tr12x3', 'Tr16x4', 'Tr20x4'],
+  Acme: ['Acme 1/4-16', 'Acme 3/8-12', 'Acme 1/2-10', 'Acme 5/8-8'],
+};
+/** Chips for a standard: the last used size first, then the short list; only sizes the table has (when it is loaded). */
+export function quickSizes(standard: string, rows: ThreadRow[], last?: string | null): string[] {
+  const base = QUICK_SIZES[standard] ?? rows.slice(0, 7).map((r) => r.size);
+  const list = last && !base.includes(last) ? [last, ...base] : last ? [last, ...base.filter((s) => s !== last)] : base;
+  return rows.length ? list.filter((s) => rows.some((r) => r.size === s)) : list;
+}
+
+/** The label of a size in the list: pitch next to it ('M10 × 1.5 coarse', 'M10 × 1.25 fine', 'UNC 1/4-20 · 1.27 mm'). */
+export function sizeLabel(row: ThreadRow): string {
+  const p = String(Math.round(row.pitch * 1000) / 1000);
+  if (row.standard === 'metric') return `${row.size} × ${p} coarse`;
+  if (row.standard === 'metric-fine') return `${row.size.replace('x', ' × ')} fine`;
+  return `${row.size} · ${p} mm`;
+}
+const norm = (s: string): string => s.toLowerCase().replace(/\s/g, '').replace(/×/g, 'x');
+/**
+ * The sizes matching what was typed ('m10', '10', '10x1.25', '1/4', '20', 'g1/2'), best first: names that start with the
+ * query, then names that contain it, then diameters that start with it ('1' also finds M10 and M12). Inside each group the
+ * sizes nearest to the face diameter come first (table order when the diameter is unknown). Empty query: all, nearest first.
+ */
+export function filterSizes(rows: ThreadRow[], query: string, diameter: number | null, internal?: boolean): ThreadRow[] {
+  const q = norm(query.trim());
+  const order = diameter === null ? rows : nearestSizes(rows, diameter, internal);
+  if (!q) return order;
+  const rank = (r: ThreadRow): number => {
+    const n = norm(r.size);
+    if (n.startsWith(q)) return 0;
+    if (n.includes(q)) return 1;
+    const digits = q.replace(/^[a-z#]+/, '');
+    return digits && norm(String(r.major)).startsWith(digits) ? 2 : 3;
+  };
+  const withRank = order.map((r, i) => ({ r, k: rank(r), i }));
+  return withRank.filter((x) => x.k < 3).sort((a, b) => a.k - b.k || a.i - b.i).map((x) => x.r);
+}
+
+export interface ReadoutRow { key: 'major' | 'root' | 'tapDrill' | 'minor' | 'pitch'; value: string }
+const f3 = (v: number): string => String(Math.round(v * 1000) / 1000);
+/** The numbers worth showing for a thread: a shaft needs the major diameter and the root (d3), a hole the tap drill and the minor (D1). */
+export function readoutRows(row: ThreadRow, internal: boolean | undefined): ReadoutRow[] {
+  const pitch: ReadoutRow = { key: 'pitch', value: `${f3(row.pitch)} mm` };
+  const tap: ReadoutRow = { key: 'tapDrill', value: `${f3(row.tapDrill)} mm${row.tapDrillName ? ` (${row.tapDrillName})` : ''}` };
+  if (internal === false) return [{ key: 'major', value: `${f3(row.major)} mm` }, { key: 'root', value: `${f3(row.minorExternal)} mm` }, pitch];
+  if (internal === true) return [tap, { key: 'minor', value: `${f3(row.minorInternal)} mm` }, pitch];
+  return [{ key: 'major', value: `${f3(row.major)} mm` }, { key: 'minor', value: `${f3(row.minorInternal)} mm` }, tap, pitch];
+}
+
+/** The classes of the standard to pick from (the table's internal and external defaults), the current one kept even when unknown. */
+export function classOptions(row: ThreadRow | undefined, current?: string, internal?: boolean): string[] {
+  const list = row ? (internal === false ? [row.classExternal, row.classInternal] : [row.classInternal, row.classExternal]) : [];
+  if (current && !list.includes(current)) list.push(current);
+  return [...new Set(list.filter(Boolean))];
+}
+
+export type Fit =
+  | { ok: true; kind: 'shaft' | 'hole'; face: number; size: string; against: number }
+  | { ok: false; hint: string; suggest: string | null };
+/** Fit of the face to the size: the kernel's warning wins (amber, with its hint and the size it suggests); else green when the diameter is known. */
+export function fitStatus(face: number | null, internal: boolean | undefined, row: ThreadRow | undefined, warning: FeatureWarning | null | undefined): Fit | null {
+  const w = warning ? (warning.all ?? [warning]).find((x) => x.code === 'threadDiameterMismatch') : undefined;
+  if (w) return { ok: false, hint: w.hint, suggest: suggestedSize(w.params) };
+  if (face === null || !row || internal === undefined) return null;
+  return { ok: true, kind: internal ? 'hole' : 'shaft', face, size: row.size, against: internal ? row.tapDrill : row.major };
+}
+
+/** A length typed or dragged, held between the shortest useful thread (one pitch) and the face (when known). */
+export function clampLength(v: number, max: number | null, pitch = 0.1): number {
+  const lo = Math.max(pitch, 0.1);
+  const hi = max !== null && max > lo ? max : Infinity;
+  return Math.min(hi, Math.max(lo, v));
+}
+/** The Full / Custom control's starting custom length: 8 pitches, held to the face. */
+export function customLengthDefault(pitch: number | undefined, max: number | null): number {
+  return clampLength(Math.round((pitch ?? 1) * 8 * 10) / 10, max, pitch ?? 0.1);
+}
+
+/** The view's description of a cylinder face wall: its length along the axis and which ends are open (the kernel's rule, thread.rs). */
+export interface FaceExtent { length: number | null; open: [boolean, boolean] | null }
+export function faceExtent(faceName: string, edges: EdgeLike[], mesh: MeshLike | null): FaceExtent | null {
+  const rings: Array<{ c: number[]; other: string[] }> = [];
+  let axis: number[] | null = null;
+  for (const e of edges) {
+    if (!e.pts || !e.faces?.includes(faceName)) continue;
+    const c = circleOf(e.pts);
+    if (!c) continue;
+    if (!axis) axis = c.n;
+    if (Math.abs(Math.abs(dot(axis, c.n)) - 1) > 1e-4) continue;
+    rings.push({ c: c.c, other: e.faces.filter((x) => x !== faceName) });
+  }
+  if (!rings.length || !axis) return null;
+  // the kernel orients the axis so its dominant world component is positive
+  const k = [0, 1, 2].reduce((m, i) => (Math.abs(axis![i]) > Math.abs(axis![m]) ? i : m), 0);
+  const up = axis[k] < 0 ? axis.map((x) => -x) : axis;
+  const s = rings.map((r) => dot(r.c, up));
+  const lo = Math.min(...s), hi = Math.max(...s);
+  const length = hi - lo > 1e-6 ? hi - lo : null;
+  if (!mesh || length === null) return { length, open: null };
+  const open: [boolean, boolean] = [true, true];
+  rings.forEach((r, i) => {
+    const end = Math.abs(s[i] - lo) < 1e-6 * Math.max(1, hi - lo) ? 0 : 1;
+    for (const g of r.other) {
+      const info = faceInfo(mesh, g);
+      if (!info?.planar) continue;
+      const np = dot(info.normal, up);
+      if ((end === 0 && np > 0.5) || (end === 1 && np < -0.5)) open[end] = false;
+    }
+  });
+  return { length, open };
+}
+/** The Start choice matters only when both ends are open or neither (the kernel then takes `top`); with one open end it is that end. Unknown: matters. */
+export const startMatters = (x: FaceExtent | null): boolean => !x?.open || x.open[0] === x.open[1];
+
+// ---- remembered choices (localStorage; every access guarded: private windows, tests, workers) ----
+
+export interface ThreadPrefs { modeled?: boolean; lastSize?: Record<string, string>; modeledMs?: number }
+const PREFS_KEY = 'ck.thread.prefs';
+export function loadThreadPrefs(): ThreadPrefs {
+  try { const raw = globalThis.localStorage?.getItem(PREFS_KEY); const v = raw ? JSON.parse(raw) : null; return v && typeof v === 'object' ? v as ThreadPrefs : {}; } catch { return {}; }
+}
+export function saveThreadPrefs(patch: Partial<ThreadPrefs>): void {
+  try { globalThis.localStorage?.setItem(PREFS_KEY, JSON.stringify({ ...loadThreadPrefs(), ...patch })); } catch { /* storage unavailable: the choice is just not remembered */ }
+}
+export const rememberSize = (standard: string, size: string): void => saveThreadPrefs({ lastSize: { ...(loadThreadPrefs().lastSize ?? {}), [standard]: size } });
+/** The kernel's reason a modeled thread was not built (the committed entry says modeled:false although it was asked for), or null. */
+export function modelFallbackReason(requested: boolean, entryModeled: boolean | undefined, warning: FeatureWarning | null | undefined): string | null {
+  if (!requested || entryModeled !== false) return null;
+  const w = warning ? (warning.all ?? [warning]).find((x) => x.code === 'threadModelFallback') : undefined;
+  return w ? w.hint : null;
 }
