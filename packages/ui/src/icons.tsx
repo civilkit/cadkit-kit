@@ -209,6 +209,12 @@ const ICONS: Record<string, string> = {
   measure: P('M4 17 17 4l3 3L7 20z') + T('M8 13l2 2M11 10l2 2M14 7l2 2') + D(4, 20),
   'mass-props': P('M5 20h14l-2.5-9h-9z') + O(12, 7.5, 2.5) + A('M12 11v4'),
   interference: O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
+  // ---- assembly
+  'insert-part': P('M4 14h10v6H4z') + P('M14 5h6v6h-6z') + T('M14 20h6v-6') + A('M9 13V8h4M11 6l2 2-2 2'),
+  mate: P('M3 9h8v8H3z') + P('M13 7h8v8h-8z') + A('M11 13h2') + C('M7 9V5M17 15v4'),
+  bom: P('M5 4h14v16H5z') + T('M5 9h14M5 14h14M10 4v16') + A('M12 11.5h4M12 17h4'),
+  explode: P('M9 9h6v6H9z') + A('M12 7V3M10.5 4.5 12 3l1.5 1.5M12 17v4M10.5 19.5 12 21l1.5-1.5M7 12H3M4.5 10.5 3 12l1.5 1.5M17 12h4M19.5 10.5 21 12l-1.5 1.5'),
+  'asm-interference': O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
   'section-view': cube('', P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')) + AD('M3 13.5 12 9l9 4.5'),
 };
 

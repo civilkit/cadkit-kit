@@ -74,6 +74,10 @@ import { useCatalog } from './catalog/useCatalog';
 import { setShapeSelector } from './catalog/state';
 import { useTriBall } from './triball/useTriBall';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
+import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
+import { createAssemblyState } from './assembly/state';
+import { displayBody } from './assembly/display';
+import { insertIds, isExploded } from './assembly/model';
 import './tokens.css';
 import './app.css';
 
@@ -122,6 +126,14 @@ const store = createStore((read('cad.display') as object | null) ?? {}, read('ca
 let kernelP: Promise<BrowserKernel> = createBrowserKernel(platform.wasmUrl());
 let session: Session | null = null;
 let viewport: Viewport | null = null;
+const asmState = createAssemblyState();
+let lastBody: unknown = null;
+/** The body as it is drawn: components hidden or moved apart in the exploded view (the kernel's body is not touched). */
+const shownBody = (b: unknown): unknown => {
+  const d = controller.document();
+  if (!b || !d) return b;
+  return displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value }) as unknown;
+};
 const controller = new Controller({
   store,
   view: {
@@ -137,7 +149,8 @@ const controller = new Controller({
         }
       }
       viewport?.setConsumedSketches([...used]);
-      viewport?.setBody(b as never);
+      lastBody = b;
+      viewport?.setBody(shownBody(b) as never);
       viewport?.setBodies(controller.selModel()?.bodies() ?? []);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
       const sheets = body?.surfaces ?? [];   // surface bodies count with the solid's faces and triangles
@@ -191,6 +204,7 @@ function App() {
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables'>('Features');
+  const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -263,7 +277,7 @@ function App() {
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
+  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -317,6 +331,14 @@ function App() {
     write(LOOK_KEY, lk);
   }, [lk, partName, appearance.color, appearance.material]);
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
+  // hidden components and the exploded view: only the drawn body changes; the exploded arrangement is kept with the file
+  const asmHidden = asmState.hidden.value, asmExplode = asmState.explode.value;
+  useEffect(() => {
+    controller.setDocExtra('explode', isExploded(asmExplode) ? asmExplode : null);
+    if (!viewport || !lastBody) return;
+    viewport.setHoldView(true);
+    try { viewport.setBody(shownBody(lastBody) as never); viewport.setHighlight([...store.selection.value]); } finally { viewport.setHoldView(false); }
+  }, [asmHidden, asmExplode]);
   useEffect(() => {
     write('cad.workspace', ws);
     viewport?.setHighlightWidth(ws.lineWidth);
@@ -341,6 +363,7 @@ function App() {
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
     try {
       const doc = JSON.parse(text) as PartDoc;
+      asmState.reset(doc);
       await timed(() => controller.load(doc));
       if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
       else { markClean(); autosaver.clear(); }
@@ -560,6 +583,10 @@ function App() {
       toggleMeasure: () => inspect.toggleMeasure(), isMeasuring: () => inspect.measuring,
       massProps: () => { openInspect(); void inspect.runMass(); }, interference: () => { openInspect(); void inspect.runInterference(); },
       toggleSection: inspect.toggleSection, isSectioned: () => inspect.sectionOn, hasSolid: () => controller.bodyBox() !== null,
+    },
+    assembly: {
+      open: (sec) => showAssembly(sec), hasDocument: () => controller.document() !== null,
+      isExploded: () => isExploded(asmState.explode.value), hasComponents: () => (controller.document()?.features ?? []).some((f) => f.type === 'insertPart'),
     },
     tree: ti.actions,
     io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), isSketching: () => sketchingRef.current, exportAs: (k) => void exportAs(k), openExportMenu: () => setExportOpen(true), canExport },
@@ -1318,17 +1345,35 @@ function App() {
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])} />
   );
+  const showAssembly = (section: AsmSection) => {
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
+    setAsmSection(section); setLeftTab('Outliner'); setTab('Assembly');
+  };
+  const asmErrors = new Map(store.featureStatus.value.filter((s) => !s.ok).map((s) => [s.id, s.code ?? 'error'] as const));
+  const asmDof = new Map(controller.components().map((c) => [c.id, c.dof] as const));
+  const asmHost: AsmHost = {
+    doc: doc as never, dof: asmDof, errors: asmErrors, hidden: asmState.hidden.value, explode: asmState.explode.value, selection: store.selection.value,
+    faceNames: () => controller.bodyFaces()?.faceIds ?? [],
+    bodyFaces: (n) => controller.selModel()?.bodyOfFace(n)?.faces ?? [n],
+    select: (names) => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select(names); },
+    frame: (names) => viewport?.frameNames(names),
+    edit: async (ops) => { const r = await timed(() => controller.edit(ops)); redraw((n) => n + 1); return r.ok; },
+    preview: async (ops) => { const r = await controller.preview(ops, 0); return { ok: r.ok, hint: r.hint }; },
+    cancelPreview: async () => { await controller.cancelPreview(); redraw((n) => n + 1); },
+    samples: () => platform.listSamples(),
+    readUrl: async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status}`); return r.text(); },
+    openFile: () => platform.openFile(),
+    saveFile: (name, data, mime) => platform.saveFile(name, data, mime),
+    partVolume: async (part) => (await controller.partMass(part)).volume,
+    notify: (text, level) => store.notify(text, level ?? 'info'),
+    toggleHidden: (id) => asmState.toggleHidden(id),
+    setExplode: (patch) => asmState.setExplode(patch),
+    interference: { data: inspect.props.interference, stale: inspect.props.interferenceStale, busy: inspect.props.interferenceBusy, run: inspect.props.onInterference },
+  };
   const outliner = (
     <div class="outliner">
-      {['insertPart', 'cpattern', 'lpattern', 'mate'].map((type) => {
-        const list = rows.filter((r) => r.type === type);
-        return list.length ? (
-          <div key={type}><div class="grp">{type === 'insertPart' ? t('app.outliner.parts') : type === 'mate' ? t('app.outliner.mates') : t('app.outliner.patterns')}</div>
-            {list.map((r) => <div key={r.id} class={'row' + (selectedId === r.id ? ' sel' : '')} onClick={() => setSelectedId(r.id)}><span class="row-id">{r.id}</span><span class="row-name">{r.name ?? r.type}</span></div>)}
-          </div>
-        ) : null;
-      })}
-      {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
+      <AssemblyPanel host={asmHost} section={asmSection} onSection={setAsmSection} />
     </div>
   );
   const holeEntry = holeWalls.length ? (controller.threadsShown() as Array<{ id?: string; face?: string; modeled?: boolean }>).find((x) => x.face === holeWalls[0]) : undefined;

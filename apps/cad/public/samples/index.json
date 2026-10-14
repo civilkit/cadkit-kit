@@ -383,5 +383,10 @@
   "id": "stepper-sample",
   "title": "stepper Stepper Motor",
   "file": "stepper-sample.ckpart"
+ },
+ {
+  "id": "assembly-block-bolt",
+  "title": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)",
+  "file": "assembly-block-bolt.ckpart"
  }
 ]

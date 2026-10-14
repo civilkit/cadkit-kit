@@ -694,3 +694,52 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sketch-cons { top: 112px; max-height: calc(100% - 250px); }
 .sketch-aux { width: max-content; }
 .sketch-aux { z-index: 7; }
+
+/* ---- assembly panel ---- */
+.asm { display: flex; flex-direction: column; min-height: 0; }
+.asm-tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.asm-tab { font: inherit; font-size: 12px; color: var(--text-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: 4px 8px; cursor: pointer; }
+.asm-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.asm-sec { padding: 6px 8px 12px; display: flex; flex-direction: column; gap: 4px; overflow: auto; }
+.asm-card { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
+.asm-card.inner { margin: 0 0 4px 22px; }
+.asm-card h4 { margin: 0; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); font-weight: 600; }
+.asm-f { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--text-2); min-width: 0; }
+.asm-f input, .asm-f select { font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; min-width: 0; }
+.asm-f input[type="range"] { padding: 0; }
+.asm-place { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.asm-chk { font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.asm-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+.asm-chosen { font-size: 12px; color: var(--text); }
+.asm-row { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 6px; border-radius: 6px; cursor: pointer; min-height: 30px; }
+.asm-row:hover { background: var(--panel-2); }
+.asm-row.sel { background: var(--accent-soft); }
+.asm-row.suppressed .row-name { opacity: .45; font-style: italic; }
+.asm-row.hid .row-name { opacity: .55; }
+.asm-row.err { color: var(--err); }
+.asm-row .row-name { display: flex; flex-direction: column; line-height: 1.25; }
+.asm-part { color: var(--text-2); font-size: 11px; white-space: normal; }
+.asm-acts { display: flex; gap: 0; flex: none; }
+.asm-acts .row-act { opacity: .75; width: 22px; height: 22px; font-size: 12px; }
+.asm-acts .row-act[aria-pressed="true"] { color: var(--accent); opacity: 1; }
+.asm-acts .row-act:hover { opacity: 1; }
+.asm-dof { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: var(--chip); color: var(--text-2); flex: none; white-space: nowrap; }
+.asm-dof.free { background: var(--accent-soft); color: var(--text); }
+.asm-dof.ok { color: var(--ok, var(--text-2)); }
+.asm-tip { font-size: 12px; padding: 5px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--text); }
+.asm-ref { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.asm-ref-l { font-size: 11px; color: var(--text-2); flex: 1 0 100%; }
+.asm-ref-v { font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 0; min-width: 0; }
+.asm-note { font-size: 11px; color: var(--text-2); line-height: 1.35; }
+.asm-note.warn { color: var(--warn, var(--text)); }
+.asm-ok { font-size: 12px; color: var(--ok, var(--text)); }
+.btn.on { border-color: var(--accent); background: var(--accent-soft); }
+.asm-pair { display: flex; justify-content: space-between; gap: 8px; font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; cursor: pointer; text-align: left; }
+.asm-pair:hover { border-color: var(--accent); }
+.asm-pair .val { color: var(--text-2); }
+.asm-bom { width: 100%; border-collapse: collapse; font-size: 12px; }
+.asm-bom th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 11px; padding: 2px 4px; }
+.asm-bom td { padding: 4px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.asm-bom-row { cursor: pointer; }
+.asm-bom-row:hover td, .asm-bom-row:focus td { background: var(--accent-soft); }
+.asm-bom tfoot td { font-weight: 600; }

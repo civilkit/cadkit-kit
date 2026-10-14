@@ -13,6 +13,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
 import { setDocFields, type DocPatch } from './docFields';
+import { watchComponents, partMassProps, type AsmComponent } from './assembly/kernel';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -77,6 +78,10 @@ export class Controller {
   private lastIds: string[] = [];
   /** A part name set in the app (the session cannot rename the document); applied to what `document()` returns. */
   private docName: string | null = null;
+  /** Viewer-state fields kept in the document file that the session has no op for (the exploded view). Applied to `document()`; not a history step. */
+  private docExtra: Record<string, unknown> = {};
+  /** The kernel's `components[]` of the last regen of the document (id, dof, place), for the assembly panel. */
+  private asmComponents: AsmComponent[] = [];
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
@@ -88,6 +93,10 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
+      this.asmComponents = [];
+      watchComponents(this.session, (c) => { this.asmComponents = c; });
+      const ex = (doc as unknown as Record<string, unknown>).explode;
+      this.docExtra = ex ? { explode: structuredClone(ex) } : {};
       this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
     } finally {
@@ -538,7 +547,22 @@ export class Controller {
   document(): PartDoc | null {
     const d = this.session?.document ?? null;
     if (!d) return d;
-    return this.docName !== null || this.material !== null ? { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}) } : d;
+    const extra = Object.keys(this.docExtra).length ? this.docExtra : null;
+    return this.docName !== null || this.material !== null || extra ? { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}), ...(extra ? structuredClone(extra) : {}) } : d;
+  }
+
+  /** Keep a viewer-state field (the exploded view) in the document; `null` removes it. Not a history step and no rebuild. */
+  setDocExtra(key: string, value: unknown | null): void {
+    if (value === null) delete this.docExtra[key]; else this.docExtra[key] = structuredClone(value);
+  }
+
+  /** Components of the assembly as the kernel reported them at the last rebuild: id, remaining degrees of freedom (0 = fixed or fully mated), placement. */
+  components(): AsmComponent[] { return this.asmComponents; }
+
+  /** Volume (mm3, unit density) and solid count of a part document, asked of the kernel under a tag of its own so the open document is untouched. */
+  async partMass(part: unknown): Promise<{ volume: number | null; error?: string }> {
+    const s = this.session;
+    return s ? partMassProps(s, part) : { volume: null, error: 'no document loaded' };
   }
 
   /** Set the part's material (its name, e.g. "Mild steel"). One undo step, in order with the session's edits; the session has no

@@ -10,6 +10,7 @@ import { fileCommands, type FileActions } from './files/fileCommands';
 import { creatorCommands } from './featureCreators';
 import { inspectCommands, type InspectActions } from './inspect/inspectCommands';
 import { treeCommands, type TreeActions } from './treeCommands';
+import { assemblyCommands, type AssemblyActions } from './assembly/assemblyCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -45,6 +46,8 @@ export interface Actions {
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
   inspect?: InspectActions;
+  /** Insert part, mate, interference, bill of materials and exploded view (see assembly/). */
+  assembly?: AssemblyActions;
   /** Body pick mode, box select, select tangent / parallel / similar / loop / connected, invert, none (see select/selectCommands.ts). */
   select?: SelectActions;
   open(): void;
@@ -143,6 +146,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
+  if (a.assembly) cmds.push(...assemblyCommands(a.assembly));
   if (a.select) cmds.push(...selectCommands(a.select));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
