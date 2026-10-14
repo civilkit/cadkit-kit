@@ -21,7 +21,7 @@ export interface SketchPreview {
 }
 
 /** One edge as the kernel reports it: `key` is the persistent name the viewport selects by. */
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[] }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][] }
 
 export interface ViewSink {
   setBody(b: unknown | null): void;
@@ -214,7 +214,7 @@ export class Controller {
     if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
     this.sketchOpen.baselineDof = res.status?.dof ?? null;
     this.sketchOpen.status = res.status ?? null;
-    this.view.setSketchEdit(res.view);
+    this.showSketch(res.view);
     return res.view;
   }
 
@@ -235,7 +235,7 @@ export class Controller {
     if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
     this.sketchOpen.baselineDof = res.status?.dof ?? null;
     this.sketchOpen.status = res.status ?? null;
-    this.view.setSketchEdit(res.view);
+    this.showSketch(res.view);
     return res.view;
   }
 
@@ -299,7 +299,7 @@ export class Controller {
       // Fold the solver's result into the draft: regen only re-solves on expr
       // changes, so the committed sketch must carry the solved coordinates.
       open.draft = foldSolution(draft, res.view.sketch);
-      this.view.setSketchEdit(res.view);
+      this.showSketch(res.view);
       return { ok: true, view: res.view, status: res.status };
     }
     return { ok: false, hint: res.hint, status: res.status };
@@ -315,6 +315,17 @@ export class Controller {
     this.view.setSketchEdit(null);
     const feature = toFeature(open.draft);
     return this.edit([open.isNew ? { op: 'add', feature } : { op: 'replace', id: open.featureId, feature }], open.isNew ? 'new sketch' : 'sketch');
+  }
+
+  private sketchFrameNow: ViewFrame | null = null;
+  private showSketch(v: SketchEditView): void {
+    this.sketchFrameNow = v.frame;
+    this.view.setSketchEdit(v);
+  }
+
+  /** The plane frame of the open sketch (null when none is open). */
+  sketchFrame(): ViewFrame | null {
+    return this.sketchOpen ? this.sketchFrameNow : null;
   }
 
   /** The solver's verdict on the open sketch (degrees of freedom, conflicts), from the last preview. */

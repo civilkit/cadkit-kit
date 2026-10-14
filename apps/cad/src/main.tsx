@@ -8,7 +8,7 @@ import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@ki
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
-import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, Inspector, Ribbon, StatusBar, Tip, Toast,
@@ -117,6 +117,9 @@ function App() {
   // Per-sketch mode: new geometry from the draw tools is made as construction (dashed, never extruded). UI state, not saved.
   const [constructionMode, setConstructionMode] = useState(false);
   const constructionModeRef = useRef(false);
+  // For the project tool: what was selected in the 3D view before the sketch opened, and the pointer's pick radius in sketch units.
+  const projectSelRef = useRef<string[]>([]);
+  const toolTolRef = useRef(0);
   constructionModeRef.current = constructionMode;
   // The viewport is constructed once, so its sketch callbacks read these refs
   // instead of closing over state from the render they were created in.
@@ -376,7 +379,10 @@ function App() {
     const draft = controller.sketchDraft();
     if (!entry || !draft) return;
     const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
-    const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current));
+    const frame = controller.sketchFrame();
+    const edges = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+    const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current };
+    const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
     if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
@@ -529,6 +535,7 @@ function App() {
     if (!sketchToolRef.current) return;
     if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); return; }
     lastPosRef.current = { x: ev.x, y: ev.y };
+    toolTolRef.current = ev.tol;
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
@@ -595,6 +602,7 @@ function App() {
       setSketchHint(null);
       const view = await controller.beginNewSketch(plane);
       if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
+      projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName') });
       viewport?.orientToSketch();
@@ -633,6 +641,7 @@ function App() {
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
     const wasHole = holeSketchRef.current; holeSketchRef.current = false;
+    projectSelRef.current = [];
     const sketchId = sketching.id;
     await timed(() => controller.commitSketch());
     setSketching(null); setSketchHint(null);
@@ -648,6 +657,7 @@ function App() {
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
     await controller.cancelSketch();
     holeSketchRef.current = false;
+    projectSelRef.current = [];
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
   };

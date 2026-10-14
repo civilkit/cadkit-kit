@@ -649,4 +649,29 @@ describe('sketch on a face', { skip: !process.env.CK_WASM }, () => {
     const added = controller.document()!.features.find((x) => x.type === 'sketch' && x.id !== 'F1') as unknown as { plane: unknown };
     expect(added.plane).toEqual({ kind: 'face', id: 'F2.C1' });
   }, 60000);
+
+  it('exposes the open sketch plane frame and the body edges as world polylines (what the Project tool reads), then projects the top face', async () => {
+    const store = createStore();
+    const { view } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+    await controller.load(plateDoc());
+    expect(controller.sketchFrame()).toBeNull();
+    await controller.beginNewSketch({ kind: 'face', id: 'F2.C1' });
+    const frame = controller.sketchFrame()!;
+    expect(frame.o[2]).toBeCloseTo(5, 6);
+    const edges = controller.bodyEdges();
+    expect(edges.length).toBe(12);
+    expect(edges.every((e) => (e.pts?.length ?? 0) >= 2 && Array.isArray(e.faces))).toBe(true);
+    const { projectTool, DEFAULT_SETTINGS } = await import('@kit/sketch');
+    const out = projectTool.step({}, { type: 'key', key: 'Enter' }, controller.sketchDraft()!, DEFAULT_SETTINGS, {
+      body: { frame, edges: edges.map((e) => ({ key: e.key, faces: e.faces, pts: e.pts! })) }, selection: ['F2.C1'],
+    });
+    await controller.applySketchDraft(out.draft);
+    expect(out.draft.entities.filter((e) => e.type === 'line')).toHaveLength(4);
+    expect(controller.sketchFrame()).not.toBeNull();
+    await controller.cancelSketch();
+    expect(controller.sketchFrame()).toBeNull();
+  }, 60000);
 });

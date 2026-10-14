@@ -40,3 +40,12 @@ Each one has its conventions in its file header; the short version:
   chain). `markNewAsConstruction(prev, next)` is the per-sketch "draw as construction" mode (the app applies it after
   draw-group tool steps while the banner toggle is on). The kernel's profile builder skips construction entities, so
   they are never extruded (kernel test); the viewport draws them dashed.
+- `project` (`project.ts`): the only tool that looks at the body. `Tool.step` takes an optional fifth argument `env`
+  (`ToolEnv`: the sketch plane frame, the body's edges as world polylines, the pick radius, and what was selected in the
+  3D view before the sketch opened); the app builds it in `runTool` from `controller.sketchFrame()` and
+  `controller.bodyEdges()` (edges carry their `pts` polyline from the regen reply; no kernel change was needed). Hover
+  previews the projection of the nearest edge, a click projects it, Enter projects the pre-selection (edge keys, and the
+  boundary edges of selected faces, including the face the sketch sits on). Result: fixed points, `construction: true`
+  and `ext: true` entities (line / arc / circle by fit, else a spline). Limits are listed in the file header: a
+  snapshot (not associative), tilted circles become splines, edges square-on to the plane are skipped, and body picking
+  stays off while sketching, so the pre-selection must be made before the sketch opens.
