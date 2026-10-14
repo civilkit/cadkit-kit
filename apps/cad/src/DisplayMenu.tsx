@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DisplayLayer, Display } from '@kit/store';
 import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type Appearance } from '@kit/viewport';
+import type { AnalysisOptions } from '@kit/viewport';
+import { AnalysisSection } from './AnalysisControls';
 import { t } from './i18n';
 
 /** The look half of the popover: display style, appearance of the part, lighting and background (see look.ts). */
@@ -16,7 +18,7 @@ export interface LookControls {
 export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
-export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; look?: LookControls }) {
+export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -38,6 +40,8 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
       {open ? (
         <div class="display-pop" role="group" aria-label={t('display.label')}>
           {p.look ? <LookSections look={p.look} /> : null}
+          {p.analysis ? <AnalysisSection opts={p.analysis.opts} onChange={p.analysis.onChange} /> : null}
+          {p.look || p.analysis ? <div class="display-head">{t('display.layers')}</div> : null}
           {DISPLAY_LAYERS.map((layer) => (
             <label key={layer} class="display-row">
               <input type="checkbox" checked={p.display[layer]} onChange={(e) => p.onToggle(layer, (e.currentTarget as HTMLInputElement).checked)} />
@@ -82,7 +86,6 @@ function LookSections({ look }: { look: LookControls }) {
       {pick(t('display.lighting'), 'dm-light', LIGHT_PRESETS, look.light, 'light.', (v) => look.onLook({ light: v }))}
       {pick(t('display.background'), 'dm-bg', BACKGROUND_MODES, look.background, 'bg.', (v) => look.onLook({ background: v }))}
       {look.anyHidden ? <button type="button" class="rb-btn display-showall" onClick={look.onShowAll}>{t('cmd.show-all')}</button> : null}
-      <div class="display-head">{t('display.layers')}</div>
     </>
   );
 }

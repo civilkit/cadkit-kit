@@ -755,3 +755,11 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .fedit-mini { width: 22px; height: 22px; padding: 0; line-height: 1; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text); cursor: pointer; }
 .fedit-mini:disabled { opacity: .35; cursor: default; }
 .fedit-hint-line { font-size: 11px; color: var(--text-2); }
+
+/* surface analysis legend over the viewport */
+.analysis-legend { position: absolute; left: 12px; bottom: 44px; z-index: 5; display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-radius: 8px; background: var(--panel); outline: 1px solid var(--line); box-shadow: 0 4px 14px #0004; font: 11px system-ui, sans-serif; color: var(--text); pointer-events: none; }
+.analysis-bar { width: 14px; height: 96px; border-radius: 3px; outline: 1px solid var(--line); }
+.analysis-ticks { position: absolute; left: 30px; top: 26px; height: 96px; display: flex; flex-direction: column; justify-content: space-between; font: 10px ui-monospace, monospace; color: var(--text-2); }
+.analysis-legend:has(.analysis-bar) { padding-right: 56px; }
+.analysis-band { display: flex; gap: 6px; align-items: center; }
+.analysis-band i { width: 12px; height: 12px; border-radius: 3px; outline: 1px solid var(--line); }

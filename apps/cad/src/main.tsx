@@ -44,6 +44,8 @@ import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
+import { createAnalysisStore } from './analysisState';
+import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { scopeOf } from './variables';
@@ -127,6 +129,7 @@ let kernelP: Promise<BrowserKernel> = createBrowserKernel(platform.wasmUrl());
 let session: Session | null = null;
 let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
+const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
 /** The body as it is drawn: components hidden or moved apart in the exploded view (the kernel's body is not touched). */
 const shownBody = (b: unknown): unknown => {
@@ -277,7 +280,7 @@ function App() {
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -291,6 +294,7 @@ function App() {
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchBox: (ev) => sketchBoxRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
+      onAnalysisLegend: (l) => { analysisStore.legend.value = l; },
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
       onBoxSelect: (names, additive) => { if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
@@ -331,6 +335,8 @@ function App() {
     write(LOOK_KEY, lk);
   }, [lk, partName, appearance.color, appearance.material]);
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
+  const an = analysisStore.opts.value;
+  useEffect(() => { viewport?.setAnalysis(an); }, [an]);
   // hidden components and the exploded view: only the drawn body changes; the exploded arrangement is kept with the file
   const asmHidden = asmState.hidden.value, asmExplode = asmState.explode.value;
   useEffect(() => {
@@ -603,6 +609,11 @@ function App() {
     mode: () => store.mode.value,
     toggleLayer: (l) => store.setDisplay(l, !store.display.value[l]),
     layer: (l) => store.display.value[l],
+    analysis: {
+      mode: () => analysisStore.opts.value.mode, toggleMode: (m) => analysisStore.toggleMode(m),
+      comb: () => analysisStore.opts.value.comb, toggleComb: () => analysisStore.toggleComb(),
+      hasBody: () => !!controller.bodyBox(),
+    },
     look: {
       style: () => lookStore.look.value.style, setStyle: (style) => lookStore.set({ style }),
       light: () => lookStore.look.value.light, setLight: (light) => lookStore.set({ light }),
@@ -1580,7 +1591,8 @@ function App() {
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)} /> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
-        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} look={{
+        <AnalysisLegend legend={analysisStore.legend.value} />
+        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance,
           onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(partName || 'part', patch),
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),

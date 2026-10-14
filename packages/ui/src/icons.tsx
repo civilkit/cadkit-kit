@@ -210,6 +210,11 @@ const ICONS: Record<string, string> = {
   'add-surface-loft': P('M4 18h7M13 8h7') + A('M4 18C6 12 11 12 13 8M11 18c2-6 7-6 9-10') + T('M7.5 15c2-1 4-3 5-5'),
   'add-fill': P('M4 6h16v12H4z') + T('M4 6l16 12M20 6 4 18') + A('M12 9.5 14.5 12 12 14.5 9.5 12z') + D(12, 12, 1.3),
   'add-extend': P('M4 17l4-9h7l-4 9z') + C('M15 8h5l-4 9h-5') + A('M14 17h6M18 15l2 2-2 2'),
+  'analysis-zebra': P('M4 6h16M4 10h16M4 14h16M4 18h16') + T('M3 4v16M21 4v16') + A('M6 20C9 8 15 8 18 4'),
+  'analysis-gaussian': O(12, 12, 8) + T('M6 9c3 2 9 2 12 0M5 14c4 3 10 3 14 0') + A('M9 7l6 10') + D(12, 12, 1.6),
+  'analysis-mean': O(12, 12, 8) + T('M4 12h16') + A('M7 8c3 3 7 3 10 0') + A('M7 16c3-3 7-3 10 0'),
+  'analysis-draft': P('M7 20V9l5-5 5 5v11z') + C('M12 4v16') + A('M7 9 4 6M17 9l3-3') + T('M3 20h18'),
+  'analysis-comb': P('M3 17C8 17 9 7 12 7s4 10 9 10') + A('M5 17l-.5 3M8 15l-1 4M10.5 11l-1.5 4M12 7V3M14 11l1.5 4M16 15l1 4M19 17l.5 3'),
   // ---- evaluate: measure, mass, interference, section
   measure: P('M4 17 17 4l3 3L7 20z') + T('M8 13l2 2M11 10l2 2M14 7l2 2') + D(4, 20),
   'mass-props': P('M5 20h14l-2.5-9h-9z') + O(12, 7.5, 2.5) + A('M12 11v4'),

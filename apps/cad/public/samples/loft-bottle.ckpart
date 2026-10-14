@@ -1,0 +1,180 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Loft bottle",
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "name": "Base circle",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "c",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "type": "circle",
+     "id": "k1",
+     "c": "c",
+     "r": 22
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "F2",
+   "name": "Shoulder plane",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 70
+  },
+  {
+   "type": "sketch",
+   "id": "F3",
+   "name": "Rounded rectangle",
+   "plane": {
+    "kind": "feature",
+    "id": "F2"
+   },
+   "points": [
+    {
+     "id": "a1",
+     "x": -11.0,
+     "y": -16.0
+    },
+    {
+     "id": "a2",
+     "x": 11.0,
+     "y": -16.0
+    },
+    {
+     "id": "b1",
+     "x": 22.0,
+     "y": -5.0
+    },
+    {
+     "id": "b2",
+     "x": 22.0,
+     "y": 5.0
+    },
+    {
+     "id": "c1",
+     "x": 11.0,
+     "y": 16.0
+    },
+    {
+     "id": "c2",
+     "x": -11.0,
+     "y": 16.0
+    },
+    {
+     "id": "d1",
+     "x": -22.0,
+     "y": 5.0
+    },
+    {
+     "id": "d2",
+     "x": -22.0,
+     "y": -5.0
+    },
+    {
+     "id": "ca",
+     "x": 11.0,
+     "y": -5.0
+    },
+    {
+     "id": "cb",
+     "x": 11.0,
+     "y": 5.0
+    },
+    {
+     "id": "cc",
+     "x": -11.0,
+     "y": 5.0
+    },
+    {
+     "id": "cd",
+     "x": -11.0,
+     "y": -5.0
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "id": "e1",
+     "p1": "a1",
+     "p2": "a2"
+    },
+    {
+     "type": "arc",
+     "id": "e2",
+     "c": "ca",
+     "p1": "a2",
+     "p2": "b1"
+    },
+    {
+     "type": "line",
+     "id": "e3",
+     "p1": "b1",
+     "p2": "b2"
+    },
+    {
+     "type": "arc",
+     "id": "e4",
+     "c": "cb",
+     "p1": "b2",
+     "p2": "c1"
+    },
+    {
+     "type": "line",
+     "id": "e5",
+     "p1": "c1",
+     "p2": "c2"
+    },
+    {
+     "type": "arc",
+     "id": "e6",
+     "c": "cc",
+     "p1": "c2",
+     "p2": "d1"
+    },
+    {
+     "type": "line",
+     "id": "e7",
+     "p1": "d1",
+     "p2": "d2"
+    },
+    {
+     "type": "arc",
+     "id": "e8",
+     "c": "cd",
+     "p1": "d2",
+     "p2": "a1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "loft",
+   "id": "F4",
+   "name": "Bottle body",
+   "op": "add",
+   "sketches": [
+    "F1",
+    "F3"
+   ]
+  }
+ ],
+ "seq": 5
+}

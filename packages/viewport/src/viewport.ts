@@ -20,6 +20,8 @@ import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, HIDDEN_EDGE_OPACITY, lightSpec, backgroundColors, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode } from './styles';
 import { mergeBodies, mergedBox, vertexTints, type ViewSurface } from './surfaces';
+import { AnalysisLayer } from './analysisLayer';
+import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend } from './analysis';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -93,6 +95,8 @@ export interface ViewportOptions {
   onSketchBox?(ev: SketchBoxEvent): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
+  /** The surface analysis on screen changed: what its colour legend shows (null when nothing is drawn). */
+  onAnalysisLegend?(legend: Legend | null): void;
 }
 
 export interface SketchBoxEvent {
@@ -156,6 +160,11 @@ export class Viewport {
   private readonly dom: HTMLCanvasElement;
 
   private mesh: THREE.Mesh | null = null;
+  private readonly analysis = new AnalysisLayer(this.scene, (l) => this.opts.onAnalysisLegend?.(l));
+  private analysisOpts: AnalysisOptions = DEFAULT_ANALYSIS;
+  /** The colour attribute of the mesh without analysis (surface tints), and the polylines a comb is drawn over. */
+  private baseTints: Float32Array | null = null;
+  private combLines: number[][][] = [];
   private edgeLines: THREE.LineSegments | null = null;
   private highlight: THREE.Mesh | null = null;
   private sketchLines: THREE.LineSegments | LineSegments2 | null = null;
@@ -909,7 +918,7 @@ export class Viewport {
   setBody(body: ViewBody | null): void {
     this.lastBody = body;
     this.clearBody();
-    if (!body) { this.buildGroundGrid(null); this.applySection(); this.dirty = true; return; }
+    if (!body) { this.buildGroundGrid(null); this.applySection(); this.analysis.clearLegend(); this.dirty = true; return; }
     this.buildGroundGrid(body.box ?? null);
     this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
@@ -953,8 +962,12 @@ export class Viewport {
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
     this.surfaceFaces = merged.surfaceFaces;
-    if (merged.surfaceFaces.size) geo.setAttribute('color', new THREE.BufferAttribute(vertexTints(g.ranges, g.positions.length / 3, merged.surfaceFaces), 3));
-    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.bodyFade(), this.surfaceFaces.size > 0));
+    this.baseTints = merged.surfaceFaces.size ? vertexTints(g.ranges, g.positions.length / 3, merged.surfaceFaces) : null;
+    if (this.baseTints) geo.setAttribute('color', new THREE.BufferAttribute(this.baseTints, 3));
+    const bodyMat = makeBodyMaterial(this.look, this.bodyFade(), this.surfaceFaces.size > 0);
+    this.analysis.install(bodyMat);
+    this.analysis.reset();
+    this.mesh = new THREE.Mesh(geo, bodyMat);
     this.scene.add(this.mesh);
 
     const seg = edgeSegments(merged.edges);
@@ -969,6 +982,7 @@ export class Viewport {
     }
     this.grouped = g;
     this.edges = merged.edges;
+    this.combLines = [...merged.edges.map((e) => e.pts), ...(body.sketches?.length ? sketchPolylines(shown(body.sketches) as never).flatMap((x) => x.polylines) : [])];
     this.buildIssueMeshes();
     this.applyMeshLook();
     this.applySection();
@@ -999,7 +1013,22 @@ export class Viewport {
       (this.edgeLines.material as THREE.LineBasicMaterial).color.set(edgeColor(this.look.style));
     }
     if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
+    this.applyAnalysis();
     this.dirty = true;
+  }
+
+  /** Surface analysis (zebra, curvature maps, draft colours, curvature comb), viewer-only like the look. */
+  setAnalysis(o: Partial<AnalysisOptions>): void {
+    this.analysisOpts = sanitizeAnalysis({ ...this.analysisOpts, ...o });
+    this.applyAnalysis();
+    this.dirty = true;
+  }
+  getAnalysis(): AnalysisOptions { return this.analysisOpts; }
+  private applyAnalysis(): void {
+    const b = this.box;
+    const size = b ? Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]) : 1;
+    const faces = ['shaded', 'translucent'].includes(styleSpec(this.look.style).faces);
+    this.analysis.apply({ mesh: this.mesh, grouped: this.grouped, faces, tints: this.baseTints, o: this.analysisOpts, lines: this.combLines, size, combVisible: true });
   }
 
   /** Light preset (studio, flat, high contrast). */
@@ -1580,6 +1609,9 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.mesh = this.edgeLines = this.highlight = null;
+    this.analysis.dispose();
+    this.combLines = [];
+    this.baseTints = null;
     this.surfaceFaces = new Set();
     this.grouped = null;
     this.edges = [];

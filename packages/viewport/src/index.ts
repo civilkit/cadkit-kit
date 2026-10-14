@@ -19,3 +19,5 @@ export { TriBallLayer } from './triballLayer';
 export type { TriGesture, TriValue, TriView, TriSink } from './triballLayer';
 export { boxPick, normRect, segmentHitsRect, triangleHitsRect } from './boxselect';
 export type { BoxInput, ScreenRect, Project } from './boxselect';
+export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, gaussianOf, meanOf, percentileAbs, diverging, curvatureColors, draftColors, draftAngle, combSegments, DRAFT_COLORS } from './analysis';
+export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';

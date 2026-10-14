@@ -388,5 +388,15 @@
   "id": "assembly-block-bolt",
   "title": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)",
   "file": "assembly-block-bolt.ckpart"
+ },
+ {
+  "id": "loft-bottle",
+  "title": "Loft bottle (a circle lofted to a rounded rectangle)",
+  "file": "loft-bottle.ckpart"
+ },
+ {
+  "id": "swept-handle",
+  "title": "Swept handle (a round section swept along a U-shaped path)",
+  "file": "swept-handle.ckpart"
  }
 ]
