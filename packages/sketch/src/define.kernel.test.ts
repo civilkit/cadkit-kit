@@ -85,6 +85,15 @@ describe('definitionMap in the real kernel', { skip: !process.env.CK_WASM }, () 
     for (const e of r.draft.entities) expect(map.get(e.id)).toBe('full');
   });
 
+  it('a fully defined circle is full too', async () => {
+    const d0: SketchDraft = { id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 5, y: 5 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 3 }], constraints: [] };
+    const { solve } = await solver(d0);
+    const r = await fullyDefine(d0, solve);
+    expect(r.fully).toBe(true);
+    expect((await definitionMap(r.draft, r.status, solve)).get('e1')).toBe('full');
+    expect((await definitionMap(d0, await solve(d0), solve)).get('e1')).toBe('under');
+  });
+
   it('partly defined: the pinned square is full, the free line is under', async () => {
     const d0: SketchDraft = {
       id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],

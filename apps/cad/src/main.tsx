@@ -8,7 +8,7 @@ import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@ki
 import { BODY, createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
-import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast,
@@ -51,6 +51,7 @@ import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
+import { SketchAuxBar } from './SketchAuxBar';
 import { SketchConstraintList, statusText } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
@@ -224,6 +225,12 @@ function App() {
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number } | null>(null);
   const [, viewTick] = useState(0);
+  // Select mode, several entities: Ctrl or Shift click toggles, a rubber band replaces (or adds with Shift/Ctrl). The transform tools act on these.
+  const multiSelRef = useRef<string[]>([]);
+  const toolEntitiesRef = useRef<string[]>([]);
+  const [boxRect, setBoxRect] = useState<{ x0: number; y0: number; x1: number; y1: number; crossing: boolean } | null>(null);
+  const [defining, setDefining] = useState(false);
+  const sketchBoxRef = useRef<((ev: import('@kit/viewport').SketchBoxEvent) => void) | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const bodyDoubleRef = useRef<((face: string) => void) | null>(null);
   const treeKeyRef = useRef<(e: KeyboardEvent, onCanvas: boolean) => boolean>(() => false);
@@ -255,6 +262,7 @@ function App() {
       onSketchSelect: (ev) => sketchSelectRef.current?.(ev),
       onSketchHover: (ev) => sketchHoverRef.current?.(ev),
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
+      onSketchBox: (ev) => sketchBoxRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
@@ -731,7 +739,9 @@ function App() {
   };
   const selectTool = (id: string | null) => {
     const entry = id ? toolById(id) : undefined;
-    if (id) { selEntityRef.current = null; setEntityOut(null); }
+    // entities picked in Select mode go to the tool (move, copy, rotate, scale, patterns) and the selection itself is let go
+    toolEntitiesRef.current = id ? selectedEntityIds() : [];
+    if (id) { selEntityRef.current = null; multiSelRef.current = []; setEntityOut(null); }
     if (dwellRef.current.timer) { clearTimeout(dwellRef.current.timer); dwellRef.current.timer = null; }
     dwellRef.current.fired = false;
     sketchToolRef.current = entry ? entry.id : null;
@@ -740,12 +750,14 @@ function App() {
     setSketchToolId(entry ? entry.id : null);
     setToolOut(null);
     viewport?.setSketchTool(!!entry);
-    if (!entry) viewport?.setSketchPreview([]);
+    if (!entry) { viewport?.setSketchPreview([]); applyHighlight(); }
+    else if (toolEntitiesRef.current.length) runTool({ type: 'move', at: { x: 0, y: 0 }, mods: { shift: false, ctrl: false, alt: false } });   // lets a tool that acts on a selection take it up at once
   };
   /** What the pointer is snapped to, drawn as markers and dotted guides, plus the ring on the chain end. */
   const snapVisuals = (draft: import('@kit/sketch').SketchDraft, snap: SnapHit | undefined, out: ToolOutput<unknown>): SketchPreviewShape[] => {
     const shapes: SketchPreviewShape[] = [];
-    if (snap?.kind === 'point') shapes.push({ kind: 'marker', at: snap.at, style: 'point' });
+    if (snap?.kind === 'point') shapes.push({ kind: 'marker', at: snap.at, style: snap.role === 'center' ? 'center' : 'point' });
+    else if (snap && ['quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve'].includes(snap.kind)) shapes.push({ kind: 'marker', at: snap.at, style: snap.kind as 'quadrant' });
     else if (snap?.kind === 'midpoint') shapes.push({ kind: 'marker', at: snap.at, style: 'midpoint' });
     else if (snap?.kind === 'align') {
       shapes.push({ kind: 'marker', at: snap.at, style: 'align' });
@@ -764,7 +776,7 @@ function App() {
     const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
     const frame = controller.sketchFrame();
     const edges = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
-    const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current };
+    const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current, entities: toolEntitiesRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
     if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
@@ -772,12 +784,15 @@ function App() {
     toolStateRef.current = out.state;
     lastOutRef.current = out;
     viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
-    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + snap.kind) : undefined });
+    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind)) : undefined });
     if (out.hint) setSketchHint(t(out.hint));
     if (out.draft !== draft) {
+      if (['move', 'copy', 'rotate', 'scale'].includes(entry.id)) toolEntitiesRef.current = [];   // done: the next run picks again
+      const before = new Set(draft.constraints.map((c) => c.id));
       void controller.applySketchDraft(out.draft).then((r) => {
         setSketchHint(r.ok || r.stale ? (out.hint ? t(out.hint) : null) : (r.hint ? t(r.hint) : null));
         viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
+        if (r.ok && !r.stale) settleDimensions(before, r.status);
       });
     }
   };
@@ -791,6 +806,7 @@ function App() {
     const entities = new Set<string>();
     const points = new Set<string>();
     if (sel?.kind === 'entity') entities.add(sel.id);
+    for (const id of multiSelRef.current) entities.add(id);
     if (sel?.kind === 'point') points.add(sel.id);
     if (h.entity) entities.add(h.entity);
     if (h.point) points.add(h.point);
@@ -827,7 +843,42 @@ function App() {
     if (!draft) return;
     setDimEdit(null);
     setHoverTip(null);
-    selectEntity(pickEntity(draft, { x: ev.u, y: ev.v }, ev.tol), ev.x, ev.y);
+    const id = pickEntity(draft, { x: ev.u, y: ev.v }, ev.tol);
+    if (ev.mods.ctrl || ev.mods.shift) {
+      // add to / take from the selection; a single entity already picked joins it
+      const cur = selectedEntityIds();
+      const next = id ? (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) : cur;
+      setMultiSelection(next);
+      return;
+    }
+    multiSelRef.current = [];
+    selectEntity(id, ev.x, ev.y);
+    viewTick((n) => n + 1);
+  };
+  /** The entities selected in Select mode: the several of a box or Ctrl click, else the one picked. */
+  function selectedEntityIds(): string[] {
+    const sel = selEntityRef.current;
+    if (multiSelRef.current.length) return [...multiSelRef.current];
+    return sel?.kind === 'entity' ? [sel.id] : [];
+  }
+  /** Replace the selection with these entities: one behaves like a click (size field), several are just highlighted. */
+  function setMultiSelection(ids: string[]) {
+    if (ids.length <= 1) { multiSelRef.current = []; selEntityRef.current = null; setEntityOut(null); if (ids[0]) selectEntity(ids[0], lastPosRef.current.x, lastPosRef.current.y); else applyHighlight(); viewTick((n) => n + 1); return; }
+    selEntityRef.current = null;
+    setEntityOut(null);
+    multiSelRef.current = ids;
+    applyHighlight();
+    viewTick((n) => n + 1);
+  }
+  sketchBoxRef.current = (ev) => {
+    if (ev.phase === 'move') { setBoxRect({ x0: ev.x0, y0: ev.y0, x1: ev.x1, y1: ev.y1, crossing: ev.crossing }); return; }
+    setBoxRect(null);
+    const draft = controller.sketchDraft();
+    if (ev.phase !== 'end' || !draft) return;
+    const hit = boxSelect(draft, { x0: ev.u0, y0: ev.v0, x1: ev.u1, y1: ev.v1 }, ev.crossing ? 'crossing' : 'window');
+    const merged = ev.mods.shift || ev.mods.ctrl ? [...new Set([...selectedEntityIds(), ...hit])] : hit;
+    setDimEdit(null); setHoverTip(null);
+    setMultiSelection(merged);
   };
   sketchHoverRef.current = (ev) => {
     if (sketchToolRef.current) return;
@@ -913,7 +964,59 @@ function App() {
     if (!draft) return;
     hoverRef.current = { ...hoverRef.current, constraint: undefined };
     setHotConstraint(null);
-    void controller.applySketchDraft(removeConstraintById(draft, id)).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); applyHighlight(); });
+    void controller.applySketchDraft(id.startsWith('r') && refDimsOf(draft).some((r) => r.id === id) ? removeRefDim(draft, id) : removeConstraintById(draft, id)).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); applyHighlight(); });
+  };
+  /** Apply a changed draft and refresh what depends on the answer. */
+  const applyDraft = (next: import('@kit/sketch').SketchDraft | null, then?: (r: Awaited<ReturnType<typeof controller.applySketchDraft>>) => void) => {
+    if (!next) return;
+    void controller.applySketchDraft(next).then((r) => {
+      setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null));
+      viewTick((n) => n + 1);
+      applyHighlight();
+      then?.(r);
+    });
+  };
+  /** A dimension the solver finds already fixed by others (or in conflict) is kept as a reference dimension instead of
+   *  over-constraining the sketch. `before` is the ids of the constraints before the step that added it. */
+  function settleDimensions(before: Set<string>, status: import('@ck/part-model').SketchSolverStatus | undefined) {
+    const draft = controller.sketchDraft();
+    if (!draft || !status) return;
+    const bad = new Set([...status.conflicts, ...status.redundant]);
+    const dims = draft.constraints.filter((c) => !before.has(c.id) && bad.has(c.id) && typeof c.value === 'number' && ['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle'].includes(c.type));
+    if (!dims.length) return;
+    let next: import('@kit/sketch').SketchDraft | null = draft;
+    for (const c of dims) next = next ? makeDriven(next, c.id) : null;
+    if (next) applyDraft(next, () => store.notify(t('app.sketch.madeReference')));
+  }
+  /** Reference <-> driving for a dimension (constraint id `k..` or reference id `r..`). */
+  const toggleDriven = (id: string, driven: boolean) => {
+    const draft = controller.sketchDraft();
+    if (!draft) return;
+    const next = driven ? makeDriving(draft, id) : makeDriven(draft, id);
+    if (!next) { setSketchHint(t('app.sketch.hint.constraint.conflict')); return; }
+    hoverRef.current = { ...hoverRef.current, constraint: undefined };
+    setHotConstraint(null);
+    applyDraft(next);
+  };
+  /** Fully define: relations as drawn, then dimensions, until nothing can move. One undo step. */
+  const fullyDefineNow = async () => {
+    const draft = controller.sketchDraft();
+    if (!draft || defining) return;
+    setDefining(true);
+    setSketchHint(t('app.sketch.defining'));
+    try {
+      const r = await fullyDefine(draft, (d) => controller.probeSketch(d));
+      const added = r.relations + r.dimensions;
+      if (added > 0) await controller.applySketchDraft(r.draft);
+      const st = controller.sketchStatus();
+      const msg = r.status?.conflicts.length ? t('app.sketch.fullyDefined.conflict')
+        : r.fully && added === 0 ? t('app.sketch.fullyDefined.already')
+        : r.fully ? t('app.sketch.fullyDefined.added', { relations: r.relations, dimensions: r.dimensions })
+        : added > 0 ? t('app.sketch.fullyDefined.partial', { relations: r.relations, dimensions: r.dimensions, dof: st?.dof ?? r.status?.dof ?? 0 })
+        : t('app.sketch.fullyDefined.nothing');
+      setSketchHint(null);
+      store.notify(msg, r.fully || added > 0 ? 'info' : 'error');
+    } finally { setDefining(false); viewTick((n) => n + 1); applyHighlight(); }
   };
   sketchPointerRef.current = (ev) => {
     if (!sketchToolRef.current) return;
@@ -923,7 +1026,7 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, ...(lastOutRef.current?.anchor ? { from: lastOutRef.current.anchor } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
     runTool({ type: ev.type, at, snap, mods: ev.mods });
     // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
     const anchor = lastOutRef.current?.anchor;
@@ -946,6 +1049,19 @@ function App() {
   sketchKeyRef.current = (e) => {
     if (!sketching) return false;
     const sel = selEntityRef.current;
+    if (!sketchToolRef.current && multiSelRef.current.length) {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const draft = controller.sketchDraft();
+        e.preventDefault();
+        if (draft) { const next = multiSelRef.current.reduce(deleteEntity, draft); multiSelRef.current = []; void controller.applySketchDraft(next).then(() => { applyHighlight(); viewTick((n) => n + 1); }); }
+        return true;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); setMultiSelection([]); return true; }
+    }
+    if (!sketchToolRef.current && (e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+      const draft = controller.sketchDraft();
+      if (draft) { e.preventDefault(); setMultiSelection(draft.entities.map((x) => x.id)); return true; }
+    }
     if (sel && !sketchToolRef.current) {
       // a digit starts typing the selected item's size: focus its field, then the key lands in it (not the view keys)
       if (/^[0-9.\-]$/.test(e.key)) {
@@ -1044,7 +1160,7 @@ function App() {
     projectSelRef.current = [];
     const sketchId = sketching.id;
     await timed(() => controller.commitSketch());
-    setSketching(null); setSketchHint(null);
+    setSketching(null); setSketchHint(null); multiSelRef.current = []; toolEntitiesRef.current = [];
     // a sketch you just made must not vanish because the layer was switched off earlier: turn it back on and say so
     if (!store.display.value.sketches) { store.setDisplay('sketches', true); store.notify(t('app.sketch.layerOn')); }
     const made = controller.document()?.features.find((f) => f.id === sketchId);
@@ -1060,7 +1176,7 @@ function App() {
     await controller.cancelSketch();
     holeSketchRef.current = false;
     projectSelRef.current = [];
-    setSketching(null); setSketchHint(null);
+    setSketching(null); setSketchHint(null); multiSelRef.current = []; toolEntitiesRef.current = [];
     redraw((n) => n + 1);
   };
   sketchingRef.current = !!sketching;
@@ -1068,14 +1184,53 @@ function App() {
   sketchCancelRef.current = cancelSketch;
   // Dimensions and constraint symbols, projected onto the screen for this frame.
   const sketchDraftNow = sketching ? controller.sketchDraft() : null;
+  // How defined each entity is: probed a moment after the sketch stops changing (blue under, dark fully, red over).
+  const stForKey = sketching ? controller.sketchStatus() : null;
+  const defKey = sketchDraftNow && stForKey
+    ? `${stForKey.dof}|${stForKey.state}|${stForKey.conflicts.join(',')}|${sketchDraftNow.constraints.map((c) => c.id + (typeof c.value === 'number' ? '=' + c.value : '')).join(',')}|${sketchDraftNow.points.map((q) => q.id + ':' + q.x.toFixed(3) + ',' + q.y.toFixed(3)).join(';')}|${sketchDraftNow.entities.length}`
+    : '';
+  useEffect(() => {
+    if (!defKey || !sketchPrefs.show.colours) { viewport?.setSketchDefinition(null); return; }
+    let stale = false;
+    const timer = setTimeout(async () => {
+      const draft = controller.sketchDraft(), st = controller.sketchStatus();
+      if (!draft || !st) return;
+      const map = await definitionMap(draft, st, (d) => controller.probeSketch(d), { cancelled: () => stale });
+      if (!stale) viewport?.setSketchDefinition(Object.fromEntries(map));
+    }, 350);
+    return () => { stale = true; clearTimeout(timer); };
+  }, [defKey, sketchPrefs.show.colours]);
+  const show = sketchPrefs.show;
   const annotItems = sketchDraftNow
-    ? annotate(sketchDraftNow).flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, x: p.x, y: p.y + (a.kind === 'dimension' ? -16 : 14) }] : []; })
+    ? [...annotate(sketchDraftNow), ...(show.reference ? refAnnotations(sketchDraftNow) : [])]
+      .filter((a) => a.driven ? show.reference : a.kind === 'dimension' ? show.dimensions : show.relations)
+      .flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, driven: !!a.driven, x: p.x, y: p.y + (a.kind === 'dimension' ? -16 : 14) }] : []; })
     : [];
-  const conRows = sketchDraftNow ? sketchDraftNow.constraints.map((c) => ({ id: c.id, type: c.type, refs: c.refs ?? [], ...(typeof c.value === 'number' ? { value: c.value } : {}) })) : [];
+  const stNow = sketching ? controller.sketchStatus() : null;
+  const blame = (id: string) => (stNow?.conflicts.includes(id) ? 'conflict' as const : stNow?.redundant.includes(id) ? 'redundant' as const : undefined);
+  const conRows = sketchDraftNow ? [
+    ...sketchDraftNow.constraints.map((c) => ({ id: c.id, type: c.type, refs: c.refs ?? [], ...(typeof c.value === 'number' ? { value: c.value } : {}), ...(blame(c.id) ? { blame: blame(c.id)! } : {}) })),
+    ...refDimsOf(sketchDraftNow).map((r) => ({ id: r.id, type: r.type, refs: r.refs, driven: true })),
+  ] : [];
+  const rowName = (id: string) => {
+    const c = sketchDraftNow?.constraints.find((x) => x.id === id);
+    return c ? `${t('app.sketch.constraint.' + c.type, undefined, c.type)}${typeof c.value === 'number' ? ' ' + Math.round(c.value * 100) / 100 : ''} (${id})` : id;
+  };
+  const auxBar = sketching ? (
+    <SketchAuxBar
+      status={stNow} busy={defining} prefs={sketchPrefs}
+      onPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
+      onFullyDefine={() => void fullyDefineNow()}
+      selected={selectedEntityIds().length > 1 ? selectedEntityIds().length : 0}
+      onClearSelection={() => setMultiSelection([])}
+      conflicts={(stNow?.conflicts ?? []).map((id) => ({ id, name: rowName(id) }))}
+      redundant={(stNow?.redundant ?? []).map((id) => ({ id, name: rowName(id) }))}
+      onHover={hoverConstraint} onDelete={deleteConstraint}
+    />
+  ) : null;
   const sketchBanner = sketching ? (
     <div class="sketch-banner" role="toolbar" aria-label={t('app.sketch.editing', { name: sketching.name })}>
       <span class="sketch-name">{t('app.sketch.editing', { name: sketching.name })}</span>
-      {controller.sketchStatus() ? <span class="sketch-status" role="status">{statusText(controller.sketchStatus())}</span> : null}
       {sketchHint ? <span class="sketch-hint" role="status">{sketchHint}</span> : null}
       <button class="rb-btn" aria-pressed={constructionMode} title={t('app.sketch.constructionMode.tip')} onClick={() => setConstructionMode(!constructionMode)}>{t('app.sketch.constructionMode')}</button>
       {entityOut && selEntityRef.current?.kind === 'entity' && !sketchToolId ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={toggleSelectedConstruction}>{t('app.sketch.toggleConstruction')}</button> : null}
@@ -1300,9 +1455,11 @@ function App() {
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
         {sketchBanner}
+        {auxBar}
+        {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
-        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}
-        {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
+        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} /> : null}
+        {sketching && sketchPrefs.show.panel ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
         {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         {emptyPart1 ? (

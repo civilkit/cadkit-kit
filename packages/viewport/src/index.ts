@@ -7,7 +7,7 @@ export { Viewport } from './viewport';
 export type { PickMode, PlacementHook } from './viewport';
 export { clipPlane, capFrame, kept, STD_SECTION_NORMAL, type SectionSpec, type StdSectionPlane } from './section';
 export type { MeasureMark } from './measureMarks';
-export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape } from './viewport';
+export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape, SketchBoxEvent } from './viewport';
 export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 export * from './styles';
 export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, formatQuantity, rayLineParam, rayPlanePoint, restPosition, isPlanar, defaultStep, ringPoints, planeCorners, perpendicular, V } from './handles';

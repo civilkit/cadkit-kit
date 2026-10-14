@@ -233,6 +233,7 @@ export async function definitionMap(draft: SketchDraft, status: SketchSolverStat
   const known = new Map<string, boolean>();   // point or circle id -> determined
   if (status.dof === 0 && status.solved) {
     for (const p of draft.points) known.set(p.id, true);
+    for (const e of draft.entities) known.set(e.id, true);
   } else {
     let left = opts.maxProbes ?? 60;
     const probe = async (type: string, ref: string, value: number | number[]) => {
