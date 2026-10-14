@@ -37,9 +37,14 @@ const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools } from '@kit/sketch';
-/** Commands on the vertical rail. Empty on purpose: undo and redo are in the top bar, views are on the cube and the View tab, and a
- *  rail of duplicates is clutter. Tools that belong at the screen edge (creation tools) are added here. */
-const RAIL_COMMANDS: string[] = [];
+/** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
+ *  View tab); a button only appears if its command exists. */
+const RAIL_GROUPS: string[][] = [
+  ['undo', 'redo'],
+  ['add-extrude', 'add-cut', 'add-revolve', 'add-hole'],
+  ['add-fillet', 'add-chamfer', 'add-shell'],
+  ['add-lpattern', 'add-cpattern'],
+];
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
@@ -705,7 +710,7 @@ function App() {
   );
 
   return (
-    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen}>
+    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail}>
       <div class="topbar">
         <b class="doc-name">{doc?.name ?? t('app.noPart')}</b>
         <button class="rb-btn" onClick={() => commands.find((c) => c.id === 'open')!.run()}>{t('cmd.open')}</button>
@@ -720,13 +725,21 @@ function App() {
       <div id="vp" ref={host}>
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
-        {ws.toolRail && RAIL_COMMANDS.length ? (
+        {ws.toolRail ? (
           <div class="tool-rail" role="toolbar" aria-label={t('app.tools')}>
-            {commands.filter((c) => RAIL_COMMANDS.includes(c.id)).map((c) => (
-              <Tip key={c.id} label={c.label} keys={c.keys} side="right">
-                <button aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={20} /></button>
-              </Tip>
-            ))}
+            {RAIL_GROUPS.map((ids, gi) => {
+              const items = ids.map((id) => commands.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c);
+              if (!items.length) return null;
+              return (
+                <div class="rail-group" key={gi}>
+                  {items.map((c) => (
+                    <Tip key={c.id} label={c.label} keys={c.keys} side="right">
+                      <button aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={18} /></button>
+                    </Tip>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         ) : null}
         {ws.selectionBar ? (
