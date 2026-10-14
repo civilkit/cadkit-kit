@@ -361,3 +361,8 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .fedit-shapes { gap: 4px; }
 .fedit-shapes-note { color: var(--text-2); font-size: 12px; padding-bottom: 4px; }
 .fedit-shape:hover { background: var(--accent-soft); border-radius: 6px; }
+
+.discard-dlg { width: min(420px, 92vw); height: auto; }
+.discard-body { padding: 14px 16px; }
+.discard-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 16px 14px; }
+.doc-dirty { color: var(--accent); }

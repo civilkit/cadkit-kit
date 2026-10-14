@@ -19,6 +19,7 @@ import { Controller } from './controller';
 import { buildCommands, matchShortcut } from './commands';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
+import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
@@ -124,6 +125,9 @@ function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const [guard, setGuard] = useState<(() => void) | null>(null);
+  const cleanSig = useRef<string | null>(null);
+  const sigCache = useRef(new WeakMap<object, string>());
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
@@ -227,10 +231,22 @@ function App() {
     requestAnimationFrame(() => viewport?.resize());
   }, [ws]);
 
+  /** Signature of a document, remembered per object so a render does not stringify a big part again. */
+  const sigOf = (d: PartDoc | null): string | null => {
+    if (!d) return null;
+    let s = sigCache.current.get(d);
+    if (s === undefined) { s = JSON.stringify(d); sigCache.current.set(d, s); }
+    return s;
+  };
+  const isDirty = (): boolean => { const d = controller.document(); return !!d && cleanSig.current !== null && sigOf(d) !== cleanSig.current; };
+  const markClean = () => { cleanSig.current = sigOf(controller.document()); };
+  /** Run `go` now, or after the user decides what to do with unsaved changes. */
+  const guarded = (go: () => void | Promise<void>) => { if (isDirty()) setGuard(() => go); else void go(); };
   const load = async (text: string) => {
     try {
       const doc = JSON.parse(text) as PartDoc;
       await timed(() => controller.load(doc));
+      markClean();
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t('app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
@@ -269,8 +285,8 @@ function App() {
     notify: (text, level) => store.notify(text, level),
   };
   const commands = buildCommands({
-    open: async () => { const f = await platform.openFile(); if (f) await load(f.text); },
-    save: async () => { const d = controller.document(); if (d) await platform.saveFile(`${d.name || 'part'}.ckpart`, JSON.stringify(d, null, 1)); },
+    open: async () => guarded(async () => { const f = await platform.openFile(); if (f) await load(f.text); }),
+    save: async () => { const d = controller.document(); if (d) { await platform.saveFile(`${d.name || 'part'}.ckpart`, JSON.stringify(d, null, 1)); markClean(); redraw((n) => n + 1); } },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
@@ -281,7 +297,7 @@ function App() {
     toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
-    newPart: async () => { await load(JSON.stringify(emptyPart('Part1'))); setRefSel(null); },
+    newPart: async () => guarded(async () => { await load(JSON.stringify(emptyPart('Part1'))); setRefSel(null); }),
     newSketch: (plane) => startNewSketch(plane),
     sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
     hasFaceSelection: () => selectedFace() !== null,
@@ -857,7 +873,12 @@ function App() {
       { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
-  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart('Part1')); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart('Part1')); markClean(); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } };
+    addEventListener('beforeunload', warn);
+    return () => removeEventListener('beforeunload', warn);
+  }, []);
 
   return (
     <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
@@ -866,7 +887,7 @@ function App() {
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
-        <b class="doc-name">{doc?.name ?? t('app.noPart')}</b>
+        <b class="doc-name">{doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
@@ -964,7 +985,10 @@ function App() {
       </div>
       {palette ? <CommandPalette commands={commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
       {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)}
-        onPick={async (s) => { setSamples(null); const r = await fetch(s.url); await load(await r.text()); }} /> : null}
+        onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text()); }); }} /> : null}
+      {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
+        onDiscard={() => { const go = guard; setGuard(null); void go(); }}
+        onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); void go(); }} /> : null}
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}

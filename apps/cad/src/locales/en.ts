@@ -166,6 +166,7 @@ export const en: Catalog = {
   'app.sketch.failedCurved': 'Could not open a sketch on that face. Flat faces, cylinders and spheres work; for other curved faces make a plane first.',
   'app.shape.circle': 'Shape {n}: circle, diameter {d}', 'app.shape.ellipse': 'Shape {n}: ellipse', 'app.shape.loop': 'Shape {n}: outline of {count} segments',
   'app.allSketchesUsed': 'Every sketch is already used by a feature. Select a sketch in the tree to use it again, or draw a new one (S).',
+  'app.discard.title': 'Unsaved changes', 'app.discard.text': 'Save changes to "{name}" before you continue?', 'app.discard.dont': "Don't save", 'app.discard.modified': 'Changed since the last save',
   'app.sketch.layerOn': 'Sketches were hidden in Display, so they are shown again.',
   'app.sketch.moreTools': 'More tools like {name}',
   'app.sketch.group.draw': 'Draw', 'app.sketch.group.dimension': 'Dimension', 'app.sketch.group.constrain': 'Constrain', 'app.sketch.group.edit': 'Edit',
