@@ -579,7 +579,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 
 /* Material editor */
 .mat-editor .mat-search { width: 100%; box-sizing: border-box; }
-.mat-list { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 6px; }
+.mat-list { max-height: clamp(120px, 24vh, 260px); overflow: auto; border: 1px solid var(--line); border-radius: 6px; margin-top: 6px; }
 .mat-cat { padding: 4px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, inherit); background: var(--panel-2); position: sticky; top: 0; }
 .mat-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; }
 .mat-item:hover { background: var(--panel-2); }
