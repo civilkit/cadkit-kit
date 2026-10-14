@@ -22,8 +22,11 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   loft: { profile: ['sections'], operation: ['op'] },
   fillet: { edges: ['edges'], operation: ['radius'] },
   chamfer: { edges: ['edges'], operation: ['distance', 'angle'] },
-  shell: { operation: ['thickness', 'inside'] },
+  shell: { faces: ['faces'], operation: ['thickness', 'outward', 'inside'] },
   draft: { operation: ['angle', 'neutral'] },
+  hole: { profile: ['sketch'], operation: ['kind', 'diameter', 'end', 'depth', 'tip', 'flip'] },
+  lpattern: { seeds: ['seeds'], operation: ['count', 'spacing', 'reverse'] },
+  cpattern: { seeds: ['seeds'], operation: ['count', 'angle', 'equal', 'reverse'] },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -41,10 +44,21 @@ const FIELD_LABELS: Record<string, string> = {
   inside: 'Flip inside',
   neutral: 'Neutral plane',
   edges: 'Edges',
+  faces: 'Faces',
+  seeds: 'Features to repeat',
   sections: 'Sections',
 };
 
 const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral']);
+/** Fields holding a list of references (edges, faces, features); filled from the viewport selection. */
+export const LIST_FIELDS = new Set(['edges', 'faces', 'seeds']);
+
+/** The text shown in a list field: edge refs by their two faces, everything else by name. */
+export function listText(path: string, value: unknown): string {
+  if (!Array.isArray(value)) return '';
+  if (path === 'edges') return value.map((e) => ((e as { faces?: string[] }).faces ?? []).join('|')).join(', ');
+  return value.join(', ');
+}
 
 function labelOf(field: Field): string {
   const key = 'ui.editor.field.' + field.path;
@@ -61,6 +75,10 @@ function kindOf(field: Field): Field['kind'] {
 export function sectionsOf(feature: FeatureLike | null): Section[] {
   if (!feature) return [];
   const all = fieldsOf(feature as Record<string, unknown>);
+  for (const path of LIST_FIELDS) {
+    const v = feature[path];
+    if (Array.isArray(v)) all.push({ path, label: path, kind: 'list', value: listText(path, v) });
+  }
   const groups = GROUPS[feature.type ?? ''] ?? {};
   const used = new Set<string>();
   const out: Section[] = [];
@@ -147,10 +165,25 @@ export function FeatureEditor(p: {
                 const value = draft[f.path] ?? f.value;
                 const picking = p.pickingPath === f.path;
                 const isRef = REFERENCE_FIELDS.has(f.path);
+                const isList = f.kind === 'list';
                 return (
                   <label class={'fedit-fld' + (picking ? ' picking' : '')} key={f.path} data-path={f.path}>
                     <span class="fedit-fld-label">{labelOf(f)}</span>
-                    {isRef ? (
+                    {isList ? (
+                      <span class="fedit-ref">
+                        <input
+                          type="text"
+                          value={listText(f.path, draft[f.path] ?? feature[f.path])}
+                          readonly={f.path === 'edges' || picking}
+                          onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value.split(',').map((x) => x.trim()).filter(Boolean))}
+                        />
+                        {p.onPickRequest ? (
+                          <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => p.onPickRequest!(f.path)}>
+                            {picking ? t('ui.editor.pickDone') : t('ui.editor.pickSelection')}
+                          </button>
+                        ) : null}
+                      </span>
+                    ) : isRef ? (
                       <span class="fedit-ref">
                         <input
                           type="text"

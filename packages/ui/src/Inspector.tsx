@@ -1,6 +1,6 @@
 import type { JSX } from 'preact';
 
-export interface Field { path: string; label: string; kind: 'number' | 'boolean' | 'text' | 'choice'; value: number | boolean | string; choices?: string[] }
+export interface Field { path: string; label: string; kind: 'number' | 'boolean' | 'text' | 'choice' | 'list'; value: number | boolean | string; choices?: string[] }
 
 const SKIP = new Set(['id', 'type', 'name', 'points', 'entities', 'constraints']);
 

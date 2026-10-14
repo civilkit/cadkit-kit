@@ -20,6 +20,9 @@ export interface SketchPreview {
   status?: SketchSolverStatus;
 }
 
+/** One edge as the kernel reports it: `key` is the persistent name the viewport selects by. */
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[] }
+
 export interface ViewSink {
   setBody(b: unknown | null): void;
   setHighlight(n: string[]): void;
@@ -381,7 +384,17 @@ export class Controller {
   }
 
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }> } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[] } | null = null;
+
+  /** The bounding box of the body on screen (null when there is none). */
+  bodyBox(): { min: number[]; max: number[] } | null {
+    return this.lastView?.box ?? null;
+  }
+
+  /** The edges of the body on screen: persistent key, the two faces they separate, and a point on each. */
+  bodyEdges(): ViewEdge[] {
+    return this.lastView?.edges ?? [];
+  }
 
   /** Whether a new extrude of this sketch should be flipped so a cut goes into the material. */
   extrudeFlip(sketchId: string, op: 'add' | 'cut'): boolean {

@@ -146,3 +146,33 @@ describe('FeatureEditor', () => {
     expect(container.querySelector('.fedit')!.className).toContain('empty');
   });
 });
+
+describe('edge and face list fields', () => {
+  const FILLET = { type: 'fillet', id: 'F3', radius: 2, edges: [{ faces: ['A', 'B'], at: [0, 0, 0] }] };
+  const EDGES = [{ faces: ['A', 'B'], at: [1, 2, 3] }, { faces: ['A', 'C'], at: [4, 5, 6] }];
+
+  it('shows the edges and faces of a feature as editable reference fields with a Use selection button', () => {
+    const { container } = render(<FeatureEditor feature={FILLET} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} />);
+    const fld = container.querySelector('[data-path="edges"]')!;
+    expect((fld.querySelector('input') as HTMLInputElement).value).toBe('A|B');
+    expect(fld.querySelector('button')!.textContent).toBe('Use selection');
+    const shell = render(<FeatureEditor feature={{ type: 'shell', id: 'F4', faces: ['F2.C1'], thickness: 1 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    expect((shell.container.querySelector('[data-path="faces"] input') as HTMLInputElement).value).toBe('F2.C1');
+  });
+
+  it('the button asks for the selection; a picked list lands in the draft and is confirmed', () => {
+    const asked: string[] = [];
+    const drafts: Array<Record<string, unknown>> = [];
+    const confirms: Array<Record<string, unknown>> = [];
+    const props = { feature: FILLET, onDraft: (d: Record<string, unknown>) => drafts.push(d), onConfirm: (d: Record<string, unknown>) => confirms.push(d), onCancel: () => {}, onPickRequest: (p: string) => asked.push(p) };
+    const { container, rerender } = render(<FeatureEditor {...props} />);
+    fireEvent.click(container.querySelector('[data-path="edges"] button')!);
+    expect(asked).toEqual(['edges']);
+    rerender(<FeatureEditor {...props} pickingPath="edges" picked={{ path: 'edges', value: EDGES }} />);
+    expect(drafts.at(-1)).toEqual({ edges: EDGES });
+    expect((container.querySelector('[data-path="edges"] input') as HTMLInputElement).value).toBe('A|B, A|C');
+    expect(container.querySelector('[data-path="edges"] button')!.textContent).toBe('Done');
+    fireEvent.click(container.querySelector('.fedit-confirm')!);
+    expect(confirms.at(-1)).toEqual({ edges: EDGES });
+  });
+});
