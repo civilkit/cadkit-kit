@@ -11,7 +11,7 @@ import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions }
 import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast,
+  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast, VarsContext,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -39,6 +39,8 @@ import { dropKind, partNameOf, type DropKind } from './files/names';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createLookStore, effectiveAppearance, anyHidden, LOOK_KEY } from './look';
+import { VariablesPanel } from './VariablesPanel';
+import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
 import { findMaterial, loadUseColour } from './materials';
 import { HoleEditor } from './HoleEditor';
@@ -178,7 +180,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -224,7 +226,7 @@ function App() {
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
   // a small tip beside the pointer in Select mode: the value of what is under it, and that it can be edited
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
-  const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number } | null>(null);
+  const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number; expr?: string } | null>(null);
   const [, viewTick] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
   const bodyDoubleRef = useRef<((face: string) => void) | null>(null);
@@ -497,6 +499,7 @@ function App() {
   };
   const commands = buildCommands({
     catalog: () => showCatalog(),
+    variables: () => showVariables(),
     open: async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
     save: () => doSave(false),
     files: {
@@ -889,14 +892,14 @@ function App() {
     const a = draft ? annotate(draft).find((x) => x.id === constraintId) : undefined;
     if (!a || a.value === undefined) return;
     const px = viewport?.sketchToScreen(a.at.x, a.at.y);
-    setDimEdit({ id: constraintId, x: px?.x ?? 200, y: px?.y ?? 200, value: a.value });
+    setDimEdit({ id: constraintId, x: px?.x ?? 200, y: px?.y ?? 200, value: a.value, ...(a.expr ? { expr: a.expr } : {}) });
     setTimeout(() => { const f = document.querySelector<HTMLInputElement>('.sketch-fields.dimedit input'); f?.focus(); f?.select(); }, 30);
   };
-  const dimEditEvent = (_id: string, value: number | null, commit: boolean) => {
+  const dimEditEvent = (_id: string, value: number | null, commit: boolean, expr?: string) => {
     const draft = controller.sketchDraft();
     const edit = dimEdit;
     if (!commit || value === null || !draft || !edit) return;
-    const next = setConstraintValue(draft, edit.id, value);
+    const next = setConstraintValue(draft, edit.id, value, expr);
     setDimEdit(null);
     if (next) void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); });
   };
@@ -1081,9 +1084,9 @@ function App() {
   // Dimensions and constraint symbols, projected onto the screen for this frame.
   const sketchDraftNow = sketching ? controller.sketchDraft() : null;
   const annotItems = sketchDraftNow
-    ? annotate(sketchDraftNow).flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, x: p.x, y: p.y + (a.kind === 'dimension' ? -16 : 14) }] : []; })
+    ? annotate(sketchDraftNow).flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, ...(a.expr ? { driven: true } : {}), x: p.x, y: p.y + (a.kind === 'dimension' ? -16 : 14) }] : []; })
     : [];
-  const conRows = sketchDraftNow ? sketchDraftNow.constraints.map((c) => ({ id: c.id, type: c.type, refs: c.refs ?? [], ...(typeof c.value === 'number' ? { value: c.value } : {}) })) : [];
+  const conRows = sketchDraftNow ? sketchDraftNow.constraints.map((c) => ({ id: c.id, type: c.type, refs: c.refs ?? [], ...(typeof c.value === 'number' ? { value: c.value } : {}), ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) })) : [];
   const sketchBanner = sketching ? (
     <div class="sketch-banner" role="toolbar" aria-label={t('app.sketch.editing', { name: sketching.name })}>
       <span class="sketch-name">{t('app.sketch.editing', { name: sketching.name })}</span>
@@ -1187,6 +1190,8 @@ function App() {
     hide: (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; },
   });
   const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} />;
+  const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
+  const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Catalog'); };
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
@@ -1195,14 +1200,15 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog'] as const).map((id) => {
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables'] as const).map((id) => {
               const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit' }[id];
+              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables' }[id];
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
           {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
             : leftTab === 'Catalog' ? catalogPanel
+            : leftTab === 'Variables' ? variablesPanel
             : editor}
         </>
       ) : leftBody}
@@ -1256,6 +1262,7 @@ function App() {
   }, []);
 
   return (
+    <VarsContext.Provider value={scopeOf(doc)}>
     <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
@@ -1315,7 +1322,7 @@ function App() {
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
-        {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
+        {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
         {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         {emptyPart1 ? (
           <div class="start-card" role="region" aria-label={t('app.start.title')}>
@@ -1390,6 +1397,7 @@ function App() {
         sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>
+    </VarsContext.Provider>
   );
 }
 

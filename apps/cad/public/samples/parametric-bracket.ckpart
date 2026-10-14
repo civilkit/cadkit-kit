@@ -1,0 +1,275 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "parametric-bracket",
+ "variables": [
+  {
+   "name": "width",
+   "expr": "60",
+   "unit": "mm",
+   "comment": "plate width"
+  },
+  {
+   "name": "depth",
+   "expr": "40",
+   "unit": "mm",
+   "comment": "plate depth"
+  },
+  {
+   "name": "thick",
+   "expr": "6",
+   "unit": "mm",
+   "comment": "plate thickness"
+  },
+  {
+   "name": "hole",
+   "expr": "8",
+   "unit": "mm",
+   "comment": "hole diameter"
+  }
+ ],
+ "configurations": [
+  {
+   "name": "Small",
+   "values": {
+    "width": "40",
+    "depth": "30",
+    "thick": "4",
+    "hole": "5"
+   }
+  },
+  {
+   "name": "Standard",
+   "values": {
+    "width": "60",
+    "depth": "40",
+    "thick": "6",
+    "hole": "8"
+   }
+  },
+  {
+   "name": "Large",
+   "values": {
+    "width": "100",
+    "depth": "60",
+    "thick": "10",
+    "hole": "12"
+   }
+  }
+ ],
+ "activeConfig": "Standard",
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "name": "Plate outline",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p2",
+     "x": 60,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 60,
+     "y": 40
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": 40
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": [
+    {
+     "id": "c1",
+     "type": "horizontal",
+     "refs": [
+      "e1"
+     ]
+    },
+    {
+     "id": "c2",
+     "type": "vertical",
+     "refs": [
+      "e2"
+     ]
+    },
+    {
+     "id": "c3",
+     "type": "horizontal",
+     "refs": [
+      "e3"
+     ]
+    },
+    {
+     "id": "c4",
+     "type": "vertical",
+     "refs": [
+      "e4"
+     ]
+    },
+    {
+     "id": "c5",
+     "type": "hdist",
+     "refs": [
+      "p1",
+      "p2"
+     ],
+     "value": 60,
+     "expr": "width"
+    },
+    {
+     "id": "c6",
+     "type": "vdist",
+     "refs": [
+      "p2",
+      "p3"
+     ],
+     "value": 40,
+     "expr": "depth"
+    }
+   ]
+  },
+  {
+   "type": "extrude",
+   "id": "F2",
+   "name": "Plate",
+   "op": "add",
+   "sketch": "F1",
+   "end": "blind",
+   "depth": "=thick"
+  },
+  {
+   "type": "sketch",
+   "id": "F3",
+   "name": "Hole centres",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "h1",
+     "x": 15.0,
+     "y": 20.0
+    },
+    {
+     "id": "h2",
+     "x": 45.0,
+     "y": 20.0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "point",
+     "p": "h1"
+    },
+    {
+     "id": "e2",
+     "type": "point",
+     "p": "h2"
+    }
+   ],
+   "constraints": [
+    {
+     "id": "c1",
+     "type": "hdist",
+     "refs": [
+      "O",
+      "h1"
+     ],
+     "value": 15.0,
+     "expr": "width/4"
+    },
+    {
+     "id": "c2",
+     "type": "vdist",
+     "refs": [
+      "O",
+      "h1"
+     ],
+     "value": 20.0,
+     "expr": "depth/2"
+    },
+    {
+     "id": "c3",
+     "type": "hdist",
+     "refs": [
+      "O",
+      "h2"
+     ],
+     "value": 45.0,
+     "expr": "width*3/4"
+    },
+    {
+     "id": "c4",
+     "type": "vdist",
+     "refs": [
+      "O",
+      "h2"
+     ],
+     "value": 20.0,
+     "expr": "depth/2"
+    }
+   ]
+  },
+  {
+   "type": "hole",
+   "id": "F4",
+   "name": "Mounting holes",
+   "sketch": "F3",
+   "kind": "simple",
+   "diameter": "=hole",
+   "end": "through",
+   "flip": true
+  }
+ ],
+ "seq": 5,
+ "rollback": null,
+ "material": "steel",
+ "counters": {}
+}

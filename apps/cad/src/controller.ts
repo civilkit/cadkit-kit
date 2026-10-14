@@ -11,6 +11,7 @@ import type { MassRaw } from './inspect/mass';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
+import { setDocFields, type DocPatch } from './docFields';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -60,7 +61,9 @@ export class Controller {
   private session: Session | null = null;
   private lastGood: PartDoc | null = null;
   private pendingCancel: (() => void) | null = null;
-  private redoStack: Array<EditOp[] | MaterialStep> = [];
+  private redoStack: Array<EditOp[] | MaterialStep | { patch: DocPatch; reason: string }> = [];
+  /** The patch of each variables / configurations step by its record id, so redo can apply it again. */
+  private docSteps = new Map<string, { patch: DocPatch; reason: string }>();
   /** The material set in the app (the session has no document-level op for it, like the part name); applied to `document()`. */
   private material: string | null = null;
   /** Material changes in order, each with how many session records existed when it was made, so undo and redo keep them in line with the session's. */
@@ -84,7 +87,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
-      this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = [];
+      this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -296,7 +299,7 @@ export class Controller {
     try {
       const { records } = await s.undo();
       // Session has no forward stack: replay these ops to redo.
-      for (const rec of records) this.redoStack.push(rec.ops);
+      for (const rec of records) this.redoStack.push(this.docSteps.get(rec.id) ?? rec.ops);
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -306,6 +309,7 @@ export class Controller {
   async redo(): Promise<void> {
     const ops = this.redoStack.pop();
     if (!ops || !this.session) return;
+    if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatch(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
     if (!Array.isArray(ops)) { this.materialSteps.push({ ...ops, at: this.session.history().length }); this.material = ops.after; return; }
     // edit() clears the redo stack on success; keep the remaining entries.
     const rest = this.redoStack;
@@ -500,6 +504,24 @@ export class Controller {
     }
     const hint = r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'sketch did not solve';
     return { ok: false, hint };
+  }
+
+  /** Change the variables, the configurations or both (with the features a rename rewrites) as one undo step. The kernel rebuilds the
+   *  candidate first; on failure nothing changes and the features that failed are returned. */
+  async applyDocPatch(patch: DocPatch, reason: string): Promise<{ ok: true } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
+    const s = this.session;
+    if (!s) return { ok: false, errors: [] };
+    this.store.busy.value = true;
+    try {
+      const r = await setDocFields(s, patch, reason);
+      if (!r.ok) { this.store.notify(r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') || 'rebuild failed', 'error'); return r; }
+      this.docSteps.set(r.record.id, { patch, reason });
+      this.redoStack = [];
+      await this.refresh();
+      return { ok: true };
+    } finally {
+      this.store.busy.value = false;
+    }
   }
 
   document(): PartDoc | null {

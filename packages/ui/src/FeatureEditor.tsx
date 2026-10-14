@@ -3,6 +3,8 @@ import type { JSX } from 'preact';
 import { t } from './i18n';
 import { fieldsOf, type Field } from './Inspector';
 import { Icon, featureIconName } from './icons';
+import { ExprInput } from './ExprInput';
+import { isExprValue } from './expr';
 
 export interface Section {
   id: string;
@@ -291,18 +293,9 @@ export function FeatureEditor(p: {
                       <select value={String(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLSelectElement).value)}>
                         {enums.map((v) => <option key={v} value={v}>{enumLabel(f.path, v)}</option>)}
                       </select>
-                    ) : kindOf(f) === 'number' ? (
+                    ) : kindOf(f) === 'number' || isExprValue(value) ? (
                       <span class="fedit-num">
-                        <input
-                          type="number"
-                          value={String(value)}
-                          onChange={(e) => {
-                            const raw = (e.currentTarget as HTMLInputElement).value;
-                            const v = Number(raw);
-                            if (raw.trim() !== '' && Number.isFinite(v)) apply(f.path, v);
-                          }}
-                        />
-                        {UNITS[f.path] ? <span class="fedit-unit">{UNITS[f.path]}</span> : null}
+                        <ExprInput value={value as number | string} label={labelOf(f)} unit={UNITS[f.path]} onValue={(v) => apply(f.path, v)} />
                       </span>
                     ) : (
                       <input

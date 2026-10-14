@@ -46,6 +46,8 @@ export interface FieldSpec {
   value: number;
   locked: boolean;
   unit: 'length' | 'angle' | 'count';
+  /** The expression (no leading =) the value is linked to, when it has one. */
+  expr?: string;
 }
 
 export interface ToolOutput<S> {

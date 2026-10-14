@@ -4,7 +4,7 @@
 // confirm, Escape / the cross cancel. A draft value of null means "remove this field" (see holeData.ts).
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { ExprInput, Icon } from '@kit/ui';
 import { t } from './i18n';
 import { HoleThreadSection, type HoleThreadApi } from './HoleThreadSection';
 import { canThreadHole, capLength, threadCfgOf, threadMaxLength, type HoleThread } from './holeThread';
@@ -59,21 +59,12 @@ function Select(p: { name: string; label: string; value: string; options: Array<
   );
 }
 
-function Num(p: { name: string; label: string; value: unknown; unit: string; onChange(v: number): void }): JSX.Element {
+function Num(p: { name: string; label: string; value: unknown; unit: string; onChange(v: number | string): void }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input
-          type="number"
-          value={String(p.value ?? '')}
-          onChange={(e) => {
-            const raw = (e.currentTarget as HTMLInputElement).value;
-            const v = Number(raw);
-            if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v);
-          }}
-        />
-        <span class="fedit-unit">{p.unit}</span>
+        <ExprInput value={typeof p.value === 'number' || typeof p.value === 'string' ? p.value : ''} unit={p.unit} label={p.label} onValue={p.onChange} />
       </span>
     </label>
   );

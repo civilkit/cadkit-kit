@@ -20,6 +20,8 @@ export interface Annotation {
   /** Where, in sketch-plane coordinates. */
   at: Pt;
   value?: number;
+  /** The expression a dimension is linked to (variables), without the leading =. */
+  expr?: string;
   /** Entity and point ids the constraint refers to. */
   refs: string[];
 }
@@ -82,7 +84,7 @@ export function annotate(draft: SketchDraft): Annotation[] {
       } else if (refs.length === 1) at = anchorOf(refs[0]);
       if (!at) continue;
       const prefix = c.type === 'radius' ? 'R' : c.type === 'diameter' ? 'Ø' : c.type === 'angle' ? '∠' : '';
-      out.push({ ...base, kind: 'dimension', text: `${prefix}${fmt(c.value)}${c.type === 'angle' ? '°' : ''}`, at, value: c.value });
+      out.push({ ...base, kind: 'dimension', text: `${prefix}${fmt(c.value)}${c.type === 'angle' ? '°' : ''}`, at, value: c.value, ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) });
       continue;
     }
     const glyph = GLYPHS[c.type];
@@ -118,9 +120,10 @@ export function removeConstraintById(draft: SketchDraft, id: string): SketchDraf
 }
 
 /** Change the value of a dimension constraint. Null when it does not exist, has no value, or the value is unusable. */
-export function setConstraintValue(draft: SketchDraft, id: string, value: number): SketchDraft | null {
+export function setConstraintValue(draft: SketchDraft, id: string, value: number, expr?: string | null): SketchDraft | null {
   const c = draft.constraints.find((x) => x.id === id);
   if (!c || typeof c.value !== 'number' || !Number.isFinite(value)) return null;
   if (c.type !== 'angle' && value <= 0) return null;
-  return { ...draft, constraints: draft.constraints.map((x) => (x.id === id ? { ...x, value } : x)) };
+  // an expression links the dimension to the variables (the kernel re-solves when they change); a plain number unlinks it
+  return { ...draft, constraints: draft.constraints.map((x) => { if (x.id !== id) return x; const { expr: _old, ...rest } = x; return expr ? { ...rest, value, expr: expr.replace(/^\s*=\s*/, '') } : { ...rest, value }; }) };
 }

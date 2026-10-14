@@ -58,7 +58,7 @@ describe('FeatureEditor', () => {
     const { container } = render(
       <FeatureEditor feature={EXTRUDE} onDraft={(v) => drafts.push(v)} onConfirm={() => {}} onCancel={() => {}} />,
     );
-    const input = container.querySelector('input[type="number"]') as HTMLInputElement;
+    const input = container.querySelector('[data-path="depth"] input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '12' } });
     expect(drafts.at(-1)).toEqual({ depth: 12 });
     expect(input.value).toBe('12'); // the component state, not the original feature
@@ -75,7 +75,7 @@ describe('FeatureEditor', () => {
         onCancel={() => { cancelled += 1; }}
       />,
     );
-    const input = container.querySelector('input[type="number"]') as HTMLInputElement;
+    const input = container.querySelector('[data-path="depth"] input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '12' } });
     fireEvent.click(container.querySelector('.fedit-confirm')!);
     expect(confirms).toEqual([{ depth: 12 }]);

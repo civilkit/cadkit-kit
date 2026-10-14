@@ -4,7 +4,7 @@
 // the shape list. Only fields the kernel really reads are offered.
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
+import { ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsFace, endNeedsPoint, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
@@ -39,21 +39,12 @@ function Select(p: { name: string; label: string; value: string; options: Array<
   );
 }
 
-function Num(p: { name: string; label: string; value: unknown; unit: string; onChange(v: number): void }): JSX.Element {
+function Num(p: { name: string; label: string; value: unknown; unit: string; plain?: boolean; onChange(v: number | string): void }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input
-          type="number"
-          value={String(p.value ?? '')}
-          onChange={(e) => {
-            const raw = (e.currentTarget as HTMLInputElement).value;
-            const v = Number(raw);
-            if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v);
-          }}
-        />
-        <span class="fedit-unit">{p.unit}</span>
+        <ExprInput value={typeof p.value === 'number' || typeof p.value === 'string' ? p.value : ''} unit={p.unit} label={p.label} plain={p.plain} onValue={p.onChange} />
       </span>
     </label>
   );
@@ -104,7 +95,7 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
       <Section id="options" title={t('opt.section.options')}>
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
         {!p.revolve && endAllowsDraft(end) ? <>
-          <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" onChange={(v) => change(patchDraft(eff, v))} />
+          <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" plain onChange={(v) => change(patchDraft(eff, Number(v)))} />
           {draftAngle > 0 ? <Check name="draftOut" label={t('opt.draftOut')} value={eff.draftOut} onChange={(v) => change({ draftOut: v ? true : null })} /> : null}
         </> : null}
       </Section>
@@ -136,8 +127,8 @@ function FilletOptions(p: { eff: Wire; change: Change }): JSX.Element {
     <Section id="fillet" title={t('opt.section.fillet')}>
       <Check name="filletType" label={t('opt.fillet.variable')} value={variable} onChange={(v) => change(patchFilletVariable(eff, v))} />
       {variable ? <>
-        <Num name="radii0" label={t(chord ? 'opt.fillet.chord0' : 'opt.fillet.radius0')} value={radii[0]} unit="mm" onChange={(v) => change(patchRadii(eff, 0, v))} />
-        <Num name="radii1" label={t(chord ? 'opt.fillet.chord1' : 'opt.fillet.radius1')} value={radii[1]} unit="mm" onChange={(v) => change(patchRadii(eff, 1, v))} />
+        <Num name="radii0" label={t(chord ? 'opt.fillet.chord0' : 'opt.fillet.radius0')} value={radii[0]} unit="mm" plain onChange={(v) => change(patchRadii(eff, 0, Number(v)))} />
+        <Num name="radii1" label={t(chord ? 'opt.fillet.chord1' : 'opt.fillet.radius1')} value={radii[1]} unit="mm" plain onChange={(v) => change(patchRadii(eff, 1, Number(v)))} />
       </> : <Num name="radius" label={t(chord ? 'opt.fillet.chord' : 'opt.fillet.radius')} value={eff.radius} unit="mm" onChange={(v) => change({ radius: v })} />}
       <Select name="profile" label={t('opt.fillet.profile')} value={profile} options={FILLET_PROFILES.map((f): [string, string] => [f, t('opt.fillet.profile.' + f)])} onChange={(v) => change(patchFilletProfile(eff, v as FilletProfile))} />
       {profile === 'conic' ? <Num name="rho" label={t('opt.fillet.rho')} value={eff.rho ?? 0.5} unit="" onChange={(v) => change({ rho: v })} /> : null}
