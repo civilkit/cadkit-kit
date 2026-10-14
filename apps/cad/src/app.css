@@ -624,3 +624,5 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sketch-cons .cdrv { border: 0; background: none; cursor: pointer; opacity: .7; font-size: 12px; }
 .sketch-cons .cdrv:hover { opacity: 1; }
 .sketch-cons { top: 112px; max-height: calc(100% - 250px); }
+.sketch-aux { width: max-content; }
+.sketch-aux { z-index: 7; }
