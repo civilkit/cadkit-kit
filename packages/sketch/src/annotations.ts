@@ -20,6 +20,8 @@ export interface Annotation {
   /** Where, in sketch-plane coordinates. */
   at: Pt;
   value?: number;
+  /** A reference (driven) dimension: shown in brackets, not editable, constrains nothing. */
+  driven?: boolean;
   /** Entity and point ids the constraint refers to. */
   refs: string[];
 }
