@@ -6,6 +6,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 export type { RefPlaneId } from './refplanes';
@@ -104,8 +107,9 @@ export class Viewport {
   private mesh: THREE.Mesh | null = null;
   private edgeLines: THREE.LineSegments | null = null;
   private highlight: THREE.Mesh | null = null;
-  private sketchLines: THREE.LineSegments | null = null;
-  private curveLines: THREE.LineSegments | null = null;
+  private sketchLines: THREE.LineSegments | LineSegments2 | null = null;
+  private curveLines: THREE.LineSegments | LineSegments2 | null = null;
+  private fatMaterials: LineMaterial[] = [];
   private planeLines: THREE.LineSegments | null = null;
   private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
@@ -587,7 +591,26 @@ export class Viewport {
     return lines;
   }
 
+  /** Lines a few pixels wide (WebGL's own lines are always one pixel), drawn in front of the coplanar surface they lie on. */
+  private addFatLines(polys: Polyline[], color: number, width: number, visible: boolean): LineSegments2 | null {
+    const seg = this.segmentsOf(polys);
+    if (!seg.length) return null;
+    const geo = new LineSegmentsGeometry();
+    geo.setPositions(seg);
+    const mat = new LineMaterial({ color, linewidth: width, worldUnits: false });
+    mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -2;
+    mat.resolution.set(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+    this.fatMaterials.push(mat);
+    const lines = new LineSegments2(geo, mat);
+    lines.visible = visible;
+    lines.userData.pickable = false;
+    lines.renderOrder = 3;
+    this.scene.add(lines);
+    return lines;
+  }
+
   private clearLayers(): void {
+    this.fatMaterials = [];
     for (const o of [this.sketchLines, this.curveLines, this.planeLines, this.axisLines]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -610,11 +633,11 @@ export class Viewport {
     const scale = diag > 0 ? diag * 0.25 : 25;
     if (body.sketches?.length) {
       const polys = sketchPolylines(body.sketches as never).flatMap((s) => s.polylines);
-      this.sketchLines = this.addLayerLines(polys, 0xc4781a, this.layerOn('sketches'));
+      this.sketchLines = this.addFatLines(polys, 0xe8730c, 2.6, this.layerOn('sketches'));
     }
     if (body.curves?.length) {
       const polys = curvePolylines(body.curves as never).flatMap((c) => c.polylines);
-      this.curveLines = this.addLayerLines(polys, 0x1f8f86, this.layerOn('curves'));
+      this.curveLines = this.addFatLines(polys, 0x1f8f86, 2.2, this.layerOn('curves'));
     }
     if (body.planes?.length) {
       const quads = planeOutlines(body.planes as never, scale).map((q) => q.quad);
@@ -630,6 +653,7 @@ export class Viewport {
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
     this.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
       color: 0xb8c4d6, metalness: 0.1, roughness: 0.6, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // faces sit a hair behind sketches and edges lying on them
     }));
     this.scene.add(this.mesh);
 
@@ -782,6 +806,7 @@ export class Viewport {
     this.dom.style.height = '100%';
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    for (const m of this.fatMaterials) m.resolution.set(w, h);
     this.dirty = true;
   }
 
