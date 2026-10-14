@@ -490,3 +490,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tree .row .row-act { opacity: 0; }
 .tree .row:hover .row-act, .tree .row.sel .row-act, .tree .row.suppressed .row-sup, .tree .row .row-act:focus-visible { opacity: 1; }
 .tree .row:not(:hover):not(.sel) .row-actions { background: transparent; }
+
+/* rows never wrap: the name gives way (ellipsis) in a narrow panel; only a row with its own error / warning line wraps that line below */
+.tree .row { flex-wrap: nowrap; }
+.tree .row:has(> .row-hint) { flex-wrap: wrap; }
+.tree .row .row-type { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree .row .row-name { flex: 1 1 0; }
