@@ -7,7 +7,7 @@ html, body, #root { margin: 0; height: 100%; background: var(--bg); overflow: hi
 #app[data-left="docked"] { --lw: 280px; }
 #app[data-right="docked"] { --rw: 280px; }
 .topbar { grid-area: top; display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--title); color: var(--title-text); }
-.topbar .doc-name { margin-right: auto; font-weight: 600; }
+.topbar .doc-name { margin-right: auto; margin-left: 6px; font-weight: 600; }
 .topbar .rb-btn { background: #ffffff14; color: var(--title-text); border-color: #ffffff2a; }
 .topbar .rb-btn:disabled { opacity: .4; }
 .search-btn { display: flex; gap: 8px; align-items: center; min-width: 220px; justify-content: space-between; background: #ffffff14; color: var(--title-text); border: 1px solid #ffffff2a; border-radius: 8px; padding: 5px 10px; cursor: pointer; font: inherit; }
