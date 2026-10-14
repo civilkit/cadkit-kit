@@ -315,3 +315,11 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 #app input, #app textarea, #app select, #app [contenteditable], #app .selectable, #app .he, #app .toast { -webkit-user-select: text; user-select: text; }
 canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .cube-tools button.on { background: var(--accent-soft); color: var(--accent); }
+
+/* palette slots: one button per family of tools; the corner arrow, a long press or a right click opens the others */
+.spal-slot { position: relative; width: 38px; height: 34px; }
+.spal-more { position: absolute; right: 1px; bottom: 1px; width: 11px; height: 11px; border: 0; padding: 0; cursor: pointer; background: none; }
+.spal-more::after { content: ''; position: absolute; right: 1px; bottom: 1px; border: 3.5px solid transparent; border-right-color: var(--text-2); border-bottom-color: var(--text-2); border-top-width: 0; border-left-width: 0; }
+.spal-more:hover::after { border-right-color: var(--accent); border-bottom-color: var(--accent); }
+.spal-flyout { position: fixed; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: var(--panel); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); outline: 1px solid var(--line); outline-offset: -1px; }
+.spal-flyout .stool { width: 38px; height: 34px; }

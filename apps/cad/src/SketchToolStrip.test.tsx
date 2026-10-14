@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
 import { sketchTools } from '@kit/sketch';
 import { ICON_NAMES } from '@kit/ui';
-import { SketchToolStrip } from './SketchToolStrip';
+import { SketchToolStrip, slotsFor, PALETTE_SLOTS } from './SketchToolStrip';
 import { buildCommands, type Actions } from './commands';
 import './i18n';
 
@@ -62,5 +62,65 @@ describe('SketchToolStrip', () => {
     expect(tip.querySelector('kbd')!.textContent).toBe('L');
     fireEvent.click(line);
     expect(onPick).toHaveBeenCalledWith('line');
+  });
+});
+
+
+describe('palette slots', () => {
+  afterEach(cleanup);
+  beforeEach(() => localStorage.clear());
+  it('every configured tool id exists or is a planned tool, and no tool is hidden', () => {
+    const tools = sketchTools();
+    for (const g of ['draw', 'dimension', 'constrain', 'edit'] as const) {
+      const slots = slotsFor(g, tools);
+      const shown = slots.flatMap((s) => s.tools.map((x) => x.id)).sort();
+      expect(shown).toEqual(tools.filter((x) => x.group === g).map((x) => x.id).sort());   // each tool exactly once
+    }
+    const known = new Set(sketchTools().map((x) => x.id));
+    const unknown = Object.values(PALETTE_SLOTS).flat(2).filter((id) => !known.has(id));
+    // ids of tools not built yet are allowed (they are skipped), but a typo in an existing one would hide it from its slot
+    for (const id of unknown) expect(id, id).toMatch(/^(extend|offset|mirror|sketch.*Pattern|project|construction)$/);
+  });
+  it('groups the arcs into one slot that shows the default and offers the others in a flyout', () => {
+    const picked: Array<string | null> = [];
+    render(<SketchToolStrip layout="palette" active={null} onPick={(id) => picked.push(id)} />);
+    fireEvent.click(screen.getByLabelText('3-point arc'));
+    expect(picked).toEqual(['arc-three-point']);
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.click(screen.getByLabelText(/More tools like 3-point arc/));
+    const menu = screen.getByRole('menu');
+    expect(menu.querySelectorAll('[role="menuitem"]').length).toBe(3);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Tangent arc' }));
+    expect(picked.at(-1)).toBe('arc-tangent');
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+  it('remembers the last tool used in a slot and shows it', () => {
+    const { unmount } = render(<SketchToolStrip layout="palette" active={null} onPick={() => {}} />);
+    fireEvent.contextMenu(screen.getByLabelText('3-point arc'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Centre arc' }));
+    unmount();
+    render(<SketchToolStrip layout="palette" active={null} onPick={() => {}} />);
+    expect(screen.queryByLabelText('3-point arc')).toBeNull();
+    expect(screen.getByLabelText('Centre arc')).toBeTruthy();
+  });
+  it('shows the active tool when a shortcut key picked one from a slot, and Escape closes the flyout', () => {
+    render(<SketchToolStrip layout="palette" active="slot" onPick={() => {}} />);
+    expect(screen.getByLabelText('Slot').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByLabelText(/More tools like Rectangle/));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+  it('a long press opens the flyout and the click that follows does not pick the tool', async () => {
+    const picked: Array<string | null> = [];
+    render(<SketchToolStrip layout="palette" active={null} onPick={(id) => picked.push(id)} />);
+    const b = screen.getByLabelText('Line');
+    fireEvent.pointerDown(b);
+    await new Promise((r) => setTimeout(r, 460));
+    fireEvent.pointerUp(b);
+    fireEvent.click(b);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    expect(picked).toEqual([]);
   });
 });
