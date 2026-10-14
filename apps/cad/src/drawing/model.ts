@@ -50,6 +50,8 @@ export interface DDim {
   refs?: Array<{ faces: string[]; at: V3 }>;
   /** callout: the hole or thread feature it speaks for */
   feature?: string;
+  /** overall width / height of the view: follows the view's bounds instead of an edge */
+  overall?: 'w' | 'h';
 }
 export interface DNote { id: string; view?: string; text: string; pos: V2; leader?: V2 }
 export interface DBalloon { id: string; view: string; at: V2; pos: V2; n: number }
@@ -83,9 +85,9 @@ export const scaleText = (r: number): string => (r >= 1 ? `${+r.toFixed(3)}:1` :
 export const viewScale = (d: DrawingDoc, v: DView): number => parseScale(v.scale, parseScale(d.sheet.scale));
 
 // ---- vectors / frames ------------------------------------------------------------------------------------------------------
-export const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+export const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1] + 0, a[2] * b[0] - a[0] * b[2] + 0, a[0] * b[1] - a[1] * b[0] + 0];
 export const dot3 = (a: V3, b: V3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-export const neg3 = (a: V3): V3 => [-a[0], -a[1], -a[2]];
+export const neg3 = (a: V3): V3 => [0 - a[0], 0 - a[1], 0 - a[2]];
 export const unit3 = (a: V3): V3 => { const n = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / n, a[1] / n, a[2] / n]; };
 export const add3 = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 export const mul3 = (a: V3, k: number): V3 => [a[0] * k, a[1] * k, a[2] * k];

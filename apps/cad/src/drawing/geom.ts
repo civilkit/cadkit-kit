@@ -163,7 +163,11 @@ export function dimFromPicks(g: ViewData, view: string, picks: number[], opts: {
 }
 
 /** Re-anchor a dimension on the regenerated view data through its references; the dimension is dropped from the sheet (null) when its edges are gone. */
-export function refreshDim(d: DDim, g: ViewData): DDim | null {
+export function refreshDim(d: DDim, g: ViewData, v?: Pick<DView, 'hidden' | 'tangent'>): DDim | null {
+  if (d.overall) {
+    const b = bounds(g, v ?? { hidden: true, tangent: false });
+    return d.overall === 'w' ? { ...d, a: [b.min[0], b.min[1]], b: [b.max[0], b.min[1]] } : { ...d, a: [b.min[0], b.min[1]], b: [b.min[0], b.max[1]] };
+  }
   if (!d.refs || !d.refs.length) return d;
   const idx = d.refs.map((r) => findRef(g, r));
   if (idx.some((i) => i === null)) return null;
@@ -181,8 +185,8 @@ export function autoDims(g: ViewData, v: DView, holes: HoleInfo[] = []): DDim[] 
   const b = bounds(g, v);
   {
     const w = b.max[0] - b.min[0], h = b.max[1] - b.min[1];
-    if (w > 1e-6) out.push(mk(v.id, { kind: 'linear', a: [b.min[0], b.min[1]], b: [b.max[0], b.min[1]], orient: 'h', offset: 14 }));
-    if (h > 1e-6) out.push(mk(v.id, { kind: 'linear', a: [b.min[0], b.min[1]], b: [b.min[0], b.max[1]], orient: 'v', offset: -14 }));
+    if (w > 1e-6) out.push(mk(v.id, { kind: 'linear', a: [b.min[0], b.min[1]], b: [b.max[0], b.min[1]], orient: 'h', offset: 14, overall: 'w' }));
+    if (h > 1e-6) out.push(mk(v.id, { kind: 'linear', a: [b.min[0], b.min[1]], b: [b.min[0], b.max[1]], orient: 'v', offset: -14, overall: 'h' }));
   }
   const circles = new Map<string, { e: number; s: Extract<EdgeShape, { kind: 'circle' }> }>();
   const edges = new Set<number>();

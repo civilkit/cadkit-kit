@@ -392,8 +392,8 @@ export function refreshDims(doc: DrawingDoc, data: Record<string, ViewData | und
   const dims = doc.dims.map((d) => {
     const v = doc.views.find((x) => x.id === d.view);
     const g = v && (v.kind === 'detail' && v.parent ? data[v.parent] : data[v.id]);
-    if (!g || !d.refs?.length) return d;
-    const nd = refreshDim(d, g);
+    if (!g || (!d.refs?.length && !d.overall)) return d;
+    const nd = refreshDim(d, g, v);
     if (!nd) { lost.push(d.id); return d; }
     return nd;
   });

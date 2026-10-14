@@ -4,9 +4,11 @@ import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { drawingQuery, holeInfos } from './kernel';
 import { emptyDrawing, sheetSize } from './model';
-import { standardViews, addSection, addDetail, addAux, addProjected } from './layout';
+import { fetchViews, standardViews, addSection, addDetail, addAux, addProjected } from './layout';
 import { autoDims } from './geom';
-import { renderSheet, toSvg, dataOf } from './render';
+import { renderSheet, toSvg, dataOf, refreshDims, dimMeasure } from './render';
+import { Controller, type KernelFactory } from '../controller';
+import { createStore } from '@kit/store';
 import { toPdf, toDxf } from './output';
 
 const sessions: Session[] = [];
@@ -69,5 +71,43 @@ describe('drawing against the kernel', () => {
     const prims = renderSheet({ doc, data, callout: (f) => holes.find((h) => h.feature === f)?.text ?? null });
     if (OUT) writeFileSync(`${OUT}/bolt.svg`, toSvg(prims, sheetSize(doc.sheet)));
     expect(dataOf({ doc, data }, doc.views[0])).toBeTruthy();
+  }, 60000);
+});
+
+describe('associativity and persistence', () => {
+  it('dimensions follow the part: a deeper plate changes the right-view dimension, the callouts stay', async () => {
+    const part = sample('mounting-plate');
+    const q1 = drawingQuery(await open(part));
+    const r = await standardViews(emptyDrawing('P'), q1);
+    const holes = holeInfos(part.features as never);
+    let doc = { ...r.doc, dims: r.doc.views.slice(0, 3).flatMap((v) => autoDims(r.data[v.id]!, v, holes)) };
+    const right = doc.views.find((v) => v.label === 'Right')!;
+    const depth = (d: typeof doc, data: typeof r.data) => { const x = refreshDims(d, data).dims.find((k) => k.view === right.id && k.overall === 'w')!; return dimMeasure(x, d); };
+    expect(depth(doc, r.data)).toBe('8');
+    const thick = JSON.parse(JSON.stringify(part)); thick.features.find((f: { id: string }) => f.id === 'F2').depth = 12;
+    const q2 = drawingQuery(await open(thick));
+    const data2 = await fetchViews(doc, q2);
+    const re = refreshDims(doc, data2);
+    expect(re.lost).toEqual([]);
+    doc = { ...doc, dims: re.dims };
+    expect(depth(doc, data2)).toBe('12');
+    expect(doc.dims.filter((d) => d.kind === 'callout').length).toBe(4 + 0 * 1);
+  }, 60000);
+
+  it('the drawing is kept in the part document and survives a reload', async () => {
+    const part = sample('mounting-plate');
+    const store = createStore();
+    const kernel: KernelFactory = { async open(d) { return open(d); } };
+    const c = new Controller({ store, view: { setBody() {}, setHighlight() {}, setSketchEdit() {} }, kernel });
+    await c.load(part);
+    const doc = { ...emptyDrawing('Plate'), notes: [{ id: 'N1', text: 'HELLO', pos: [10, 10] as [number, number] }] };
+    c.setDocExtra('drawing', doc);
+    const saved = JSON.parse(JSON.stringify(c.document()));
+    expect(saved.drawing.notes[0].text).toBe('HELLO');
+    const c2 = new Controller({ store: createStore(), view: { setBody() {}, setHighlight() {}, setSketchEdit() {} }, kernel });
+    await c2.load(saved);
+    expect((c2.document() as unknown as { drawing: { notes: Array<{ text: string }> } }).drawing.notes[0].text).toBe('HELLO');
+    // the kernel took the extra field without complaint: the body is there
+    expect(c2.hasSolid()).toBe(true);
   }, 60000);
 });
