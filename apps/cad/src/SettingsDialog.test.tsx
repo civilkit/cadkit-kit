@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
 import { WORKSPACE_PRESETS } from '@kit/store';
 import { SettingsDialog } from './SettingsDialog';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe('SettingsDialog', () => {
   it('toggling a checkbox sends only that option', () => {
@@ -31,6 +31,7 @@ describe('SettingsDialog', () => {
     const { rerender } = render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} locale="en" locales={['en']} onLocale={onLocale} />);
     expect(screen.queryByLabelText('Language')).toBeNull();
     rerender(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} locale="en" locales={['en', 'de']} onLocale={onLocale} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
     expect(onLocale).toHaveBeenCalledWith('de');
   });
@@ -49,6 +50,7 @@ describe('SettingsDialog: sketching', () => {
   it('shows the sketch input styles and reports only what changed', () => {
     const onSketchPrefs = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} sketchPrefs={prefs} onSketchPrefs={onSketchPrefs} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Sketching' }));
     fireEvent.change(screen.getByLabelText('Line to tangent arc'), { target: { value: 'keys' } });
     expect(onSketchPrefs).toHaveBeenCalledWith({ arcSwitch: 'keys' });
     fireEvent.change(screen.getByLabelText('Values beside the pointer'), { target: { value: 'both' } });
@@ -60,7 +62,7 @@ describe('SettingsDialog: sketching', () => {
   });
   it('hides the section when the caller gives no sketch settings', () => {
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} />);
-    expect(screen.queryByText('Sketching')).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Sketching' })).toBeNull();
   });
 });
 
@@ -73,5 +75,32 @@ describe('SettingsDialog: preset display', () => {
     const sel = screen.getByLabelText('Preset') as HTMLSelectElement;
     expect(sel.value).toBe('custom');
     expect(sel.selectedOptions[0].textContent).toMatch(/Custom/);
+  });
+});
+
+describe('SettingsDialog: tabs', () => {
+  const full = { locale: 'en', locales: ['en', 'de'], onLocale: () => {}, theme: 'auto' as const, onTheme: () => {}, sketchPrefs: { autoConstraints: true, arcSwitch: 'hover' as const, onViewValues: 'dimensions' as const, gridSnap: true }, onSketchPrefs: () => {} };
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  it('has General, Layout and Sketching tabs, each showing only its own settings', () => {
+    render(<SettingsDialog {...base} {...full} />);
+    expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual(['General', 'Layout', 'Sketching']);
+    expect(screen.getByLabelText('Preset')).toBeTruthy();                // Layout is the default
+    expect(screen.queryByLabelText('Language')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    expect(screen.getByLabelText('Language')).toBeTruthy();
+    expect(screen.getByLabelText('Theme')).toBeTruthy();
+    expect(screen.queryByLabelText('Preset')).toBeNull();
+  });
+  it('shows only the tabs that have something in them', () => {
+    render(<SettingsDialog {...base} />);
+    expect(screen.getAllByRole('tab').map((x) => x.textContent)).toEqual(['Layout']);
+  });
+  it('remembers the last tab, and the arrow keys move between tabs', () => {
+    const { unmount } = render(<SettingsDialog {...base} {...full} />);
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });      // Layout -> Sketching
+    expect(screen.getByRole('tab', { name: 'Sketching' }).getAttribute('aria-selected')).toBe('true');
+    unmount();
+    render(<SettingsDialog {...base} {...full} />);
+    expect(screen.getByRole('tab', { name: 'Sketching' }).getAttribute('aria-selected')).toBe('true');
   });
 });

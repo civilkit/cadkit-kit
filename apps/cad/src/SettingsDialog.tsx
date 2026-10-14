@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
 import { SketchPrefsSection } from './SketchPrefsSection';
@@ -5,6 +6,11 @@ import type { SketchPrefs } from './sketchPrefs';
 import { THEMES, type Theme } from './theme';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
+type Tab = 'general' | 'layout' | 'sketching';
+const TAB_KEY = 'cad.settingsTab';
+const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' ? v : 'layout'; } catch { return 'layout'; } };
+const saveTab = (tab: Tab) => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* private window */ } };
+
 const languageName = (code: string, pseudo: string) => {
   if (code === pseudo) return 'Pseudo-locale (testing)';
   try { return new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code; } catch { return code; }
@@ -17,6 +23,24 @@ export function SettingsDialog(p: {
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
 }) {
   const w = p.workspace;
+  // a tab appears only when it has something to show; the last one used is remembered
+  const tabs: Tab[] = [
+    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme ? (['general'] as Tab[]) : []),
+    'layout',
+    ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
+  ];
+  const [saved] = useState(loadTab);
+  const [chosen, setChosen] = useState<Tab>(saved);
+  const tab: Tab = tabs.includes(chosen) ? chosen : 'layout';
+  const choose = (id: Tab) => { setChosen(id); saveTab(id); };
+  const onTabKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const i = tabs.indexOf(tab);
+    const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+    choose(next);
+    setTimeout(() => document.getElementById('settab-' + next)?.focus(), 0);
+  };
   const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen') => (
     <label class="set-row">
       <input type="checkbox" checked={w[key]} onChange={(e) => p.onChange({ [key]: (e.currentTarget as HTMLInputElement).checked })} />
@@ -35,7 +59,15 @@ export function SettingsDialog(p: {
     <div class="dlg-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
       <div class="dlg set-dlg" role="dialog" aria-label={t('app.settings.title')}>
         <div class="dlg-head"><b>{t('settings.label')}</b><button class="rb-btn" onClick={p.onClose}>{t('ui.close')}</button></div>
-        <div class="set-body">
+        <div class="set-tabs" role="tablist" aria-label={t('settings.label')} onKeyDown={onTabKey}>
+          {tabs.map((id) => (
+            <button key={id} role="tab" id={'settab-' + id} aria-selected={tab === id} aria-controls={'setpanel-' + id} tabIndex={tab === id ? 0 : -1} class="set-tab" onClick={() => choose(id)}>
+              {t('settings.tab.' + id)}
+            </button>
+          ))}
+        </div>
+        <div class="set-body" role="tabpanel" id={'setpanel-' + tab} aria-labelledby={'settab-' + tab}>
+          {tab === 'layout' ? (<>
           <label class="set-row">
             <span>{t('settings.preset')}</span>
             <select aria-label={t('settings.preset')} value={matchPreset(w) ?? 'custom'} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v !== 'custom') p.onPreset(v as WorkspacePreset); }}>
@@ -53,6 +85,12 @@ export function SettingsDialog(p: {
           {check('toolRail')}
           {check('selectionBar')}
           {check('drawerOpen')}
+          <label class="set-row"><span>{t('settings.opacity')}</span>
+            <input type="range" min="15" max="100" value={Math.round(w.opacity * 100)} aria-label={t('settings.opacity')} onInput={(e) => p.onChange({ opacity: Number((e.currentTarget as HTMLInputElement).value) / 100 })} /></label>
+          <label class="set-row"><span>{t('settings.blur')}</span>
+            <input type="range" min="0" max="30" value={w.blur} aria-label={t('settings.blur')} onInput={(e) => p.onChange({ blur: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
+          </>) : null}
+          {tab === 'general' ? (<>
           {p.locales && p.locales.length > 1 && p.onLocale ? (
             <label class="set-row"><span>{t('settings.language')}</span>
               <select aria-label={t('settings.language')} value={p.locale} onChange={(e) => p.onLocale!((e.currentTarget as HTMLSelectElement).value)}>
@@ -67,11 +105,10 @@ export function SettingsDialog(p: {
               </select>
             </label>
           ) : null}
+          </>) : null}
+          {tab === 'sketching' ? (<>
           {p.sketchPrefs && p.onSketchPrefs ? <SketchPrefsSection prefs={p.sketchPrefs} onChange={p.onSketchPrefs} /> : null}
-          <label class="set-row"><span>{t('settings.opacity')}</span>
-            <input type="range" min="15" max="100" value={Math.round(w.opacity * 100)} aria-label={t('settings.opacity')} onInput={(e) => p.onChange({ opacity: Number((e.currentTarget as HTMLInputElement).value) / 100 })} /></label>
-          <label class="set-row"><span>{t('settings.blur')}</span>
-            <input type="range" min="0" max="30" value={w.blur} aria-label={t('settings.blur')} onInput={(e) => p.onChange({ blur: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
+          </>) : null}
         </div>
       </div>
     </div>

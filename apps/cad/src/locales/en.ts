@@ -59,6 +59,7 @@ export const en: Catalog = {
   'samples.filter': 'Filter samples',
 
   'settings.label': 'Workspace',
+  'settings.tab.general': 'General', 'settings.tab.layout': 'Layout', 'settings.tab.sketching': 'Sketching',
   'settings.preset': 'Preset',
   'settings.preset.choose': 'Choose...', 'settings.preset.custom': 'Custom (your own mix)',
   'settings.preset.plasticity': 'Plasticity-style',

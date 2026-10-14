@@ -155,6 +155,11 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .dlg-list { overflow: auto; padding: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; align-content: start; }
 .dlg-item { text-align: left; border: 1px solid var(--line-soft); background: var(--panel-2); border-radius: 6px; padding: 6px; cursor: pointer; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 4px; }
 .dlg-item img { width: 100%; height: 96px; object-fit: contain; background: #e9edf3; border-radius: 4px; }
+.set-tabs { display: flex; gap: 2px; padding: 6px 10px 0; border-bottom: 1px solid var(--line); }
+.set-tab { font: inherit; padding: 6px 12px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-2); cursor: pointer; border-radius: 6px 6px 0 0; }
+.set-tab:hover { color: var(--text); background: var(--panel-2); }
+.set-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.dlg.set-dlg .set-body { min-height: 300px; }
 .set-body { padding: 10px 14px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
 .set-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 .set-row select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
