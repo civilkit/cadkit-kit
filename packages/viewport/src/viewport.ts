@@ -64,6 +64,8 @@ export interface ViewportOptions {
   onSketchHover?(ev: SketchPointerEvent): void;
   /** Select mode: a double click on the sketch. */
   onSketchDouble?(ev: SketchPointerEvent): void;
+  /** A double click on a body face (not while a sketch is open): the name of the face under the pointer. */
+  onBodyDouble?(face: string): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
 }
@@ -460,7 +462,9 @@ export class Viewport {
   }
 
   private onDouble = (e: MouseEvent): void => {
-    if (this.sketchEdit && !this.sketchTool) this.emitSketchPointer('click', e as PointerEvent, this.opts.onSketchDouble);
+    if (this.sketchEdit) { if (!this.sketchTool) this.emitSketchPointer('click', e as PointerEvent, this.opts.onSketchDouble); return; }
+    const face = this.nameAt(this.hit(e.clientX, e.clientY));
+    if (face) this.opts.onBodyDouble?.(face);
   };
 
   private onLeave = (): void => {
@@ -1012,6 +1016,20 @@ export class Viewport {
     off.setFromSpherical(sph);
     this.camera.position.copy(this.controls.target).add(off);
     this.camera.lookAt(this.controls.target);
+    this.controls.update();
+    this.dirty = true;
+  }
+
+  /** Move the view sideways / up by a number of pixels on screen (the camera and its target move together). */
+  panBy(dx: number, dy: number): void {
+    const dist = this.camera.position.distanceTo(this.controls.target);
+    const perPx = (2 * dist * Math.tan((this.camera.fov * Math.PI) / 360)) / Math.max(1, this.dom.clientHeight || this.host.clientHeight);
+    const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrix, 1);
+    const move = right.multiplyScalar(-dx * perPx).add(up.multiplyScalar(dy * perPx));
+    this.camera.position.add(move);
+    this.controls.target.add(move);
+    this.camera.updateMatrixWorld();
     this.controls.update();
     this.dirty = true;
   }
