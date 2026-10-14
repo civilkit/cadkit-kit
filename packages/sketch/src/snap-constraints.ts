@@ -16,6 +16,9 @@ const EPS = 1e-6;
 export function applySnapConstraints(before: SketchDraft, after: SketchDraft, snap: SnapHit | undefined): SketchDraft {
   if (!snap || (snap.kind !== 'midpoint' && snap.kind !== 'align')) return after;
   const known = new Set(before.points.map((p) => p.id));
+  // the tool may already have inferred the same horizontal or vertical for this segment: never add it twice
+  const had = new Set(before.constraints.map((c) => c.id));
+  const inferred = new Set(after.constraints.filter((c) => !had.has(c.id)).map((c) => c.type));
   let d = after;
   for (const p of after.points) {
     if (known.has(p.id)) continue;
@@ -27,8 +30,8 @@ export function applySnapConstraints(before: SketchDraft, after: SketchDraft, sn
       break;
     }
     if (snap.kind === 'align' && snap.alignTo) {
-      if (snap.alignTo.x) d = addConstraintOf(d, 'vertical', [p.id, snap.alignTo.x]);
-      if (snap.alignTo.y) d = addConstraintOf(d, 'horizontal', [p.id, snap.alignTo.y]);
+      if (snap.alignTo.x && !inferred.has('vertical')) d = addConstraintOf(d, 'vertical', [p.id, snap.alignTo.x]);
+      if (snap.alignTo.y && !inferred.has('horizontal')) d = addConstraintOf(d, 'horizontal', [p.id, snap.alignTo.y]);
       break;
     }
   }

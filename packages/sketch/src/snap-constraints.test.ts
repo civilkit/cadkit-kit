@@ -33,4 +33,13 @@ describe('applySnapConstraints', () => {
     expect(applySnapConstraints(b, grid, { kind: 'grid', at: { x: 5, y: 5 } }).constraints).toEqual([]);
     expect(applySnapConstraints(b, grid, undefined)).toBe(grid);
   });
+  it('does not repeat a horizontal or vertical the tool already inferred for the same segment', () => {
+    const b = base();
+    const { draft } = addPoint(b, { x: 20, y: 0 });
+    const withInferred = { ...draft, constraints: [...draft.constraints, { id: 'k9', type: 'horizontal', refs: ['e5'] }] };
+    const out = applySnapConstraints(b, withInferred, { kind: 'align', at: { x: 20, y: 0 }, alignTo: { y: 'p1' } });
+    expect(out.constraints.filter((c) => c.type === 'horizontal')).toHaveLength(1);
+    const vert = applySnapConstraints(b, withInferred, { kind: 'align', at: { x: 20, y: 0 }, alignTo: { x: 'p2' } });
+    expect(vert.constraints.map((c) => c.type)).toEqual(['horizontal', 'vertical']);   // a different kind is still added
+  });
 });

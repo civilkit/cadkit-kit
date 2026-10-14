@@ -580,7 +580,7 @@ function App() {
   // Dimensions and constraint symbols, projected onto the screen for this frame.
   const sketchDraftNow = sketching ? controller.sketchDraft() : null;
   const annotItems = sketchDraftNow
-    ? annotate(sketchDraftNow).flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, x: p.x, y: p.y }] : []; })
+    ? annotate(sketchDraftNow).flatMap((a) => { const p = viewport?.sketchToScreen(a.at.x, a.at.y); return p ? [{ id: a.id, text: a.text, kind: a.kind, x: p.x, y: p.y + (a.kind === 'dimension' ? -16 : 14) }] : []; })
     : [];
   const conRows = sketchDraftNow ? sketchDraftNow.constraints.map((c) => ({ id: c.id, type: c.type, refs: c.refs ?? [], ...(typeof c.value === 'number' ? { value: c.value } : {}) })) : [];
   const sketchBanner = sketching ? (
