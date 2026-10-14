@@ -26,6 +26,13 @@ import { CheckPanel } from './CheckPanel';
 import { useDesignCheck } from './useDesignCheck';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
+import { FileManager } from './files/fileManager';
+import { browserKV } from './files/storage';
+import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
+import { RestoreDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
+import { dragHasFiles, planDrop } from './files/drop';
+import { dropKind, partNameOf, type DropKind } from './files/names';
+import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { HoleEditor } from './HoleEditor';
 import { SketchToolStrip } from './SketchToolStrip';
@@ -42,6 +49,9 @@ import './app.css';
 
 const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
+const files = new FileManager(platform, browserKV());
+const autosaver = createAutosaver(browserKV(), { onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools, sketchShapes, nextExtrudeTarget } from '@kit/sketch';
@@ -194,6 +204,9 @@ function App() {
   const sketchKeyRef = useRef<((e: KeyboardEvent) => boolean) | null>(null);
   const sketchUndoRef = useRef<(() => void) | null>(null);
   const [samples, setSamples] = useState<SampleEntry[] | null>(null);
+  const [restore, setRestore] = useState<Autosave | null>(startupAutosave);
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
@@ -251,14 +264,18 @@ function App() {
   const markClean = () => { cleanSig.current = sigOf(controller.document()); };
   /** Run `go` now, or after the user decides what to do with unsaved changes. */
   const guarded = (go: () => void | Promise<void>) => { if (isDirty()) setGuard(() => go); else void go(); };
-  const load = async (text: string) => {
+  /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
+  const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
     try {
       const doc = JSON.parse(text) as PartDoc;
       await timed(() => controller.load(doc));
-      markClean();
+      if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
+      else { markClean(); autosaver.clear(); }
+      if (!o.keep) { files.opened(o.file ?? null); if (o.file) files.noteFile(o.file); }
+      files.names.seen(doc.name);
       setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
-      store.notify(t('app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
+      store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
   };
   const edit = async (ops: EditOp[]) => {
@@ -301,7 +318,10 @@ function App() {
   /** Open a DXF file as a new sketch on the selected face or plane (front when nothing is selected). */
   const sketchFromDxf = async () => {
     const f = await platform.openFile();
-    if (!f) return;
+    if (f) sketchFromDxfText(f.text);
+  };
+  const sketchFromDxfText = (text: string) => {
+    const f = { text };
     const pre = dxfToSketch(f.text);
     if (!pre.ok) { showNotices([importErrorNotice(pre.error)]); return; }
     const face = selectedFace();
@@ -348,6 +368,48 @@ function App() {
     }
   };
 
+  // ---- files: save, save as, open by type, STEP, drop ----
+  const finishSave = (r: Awaited<ReturnType<FileManager['save']>>) => {
+    if (r.ok) { markClean(); autosaver.clear(); store.notify(t('files.saved', { file: r.file })); redraw((n) => n + 1); }
+    else if (!r.cancelled) store.notify(t('files.saveFailed', { message: r.message ?? '' }), 'error');
+  };
+  const doSave = async (saveAs: boolean) => {
+    const d = controller.document();
+    if (!d) return;
+    if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
+    finishSave(await files.save(d, { saveAs }));
+  };
+  /** STEP text into a new part named after the file (view only, see files/stepImport.ts). */
+  const importStepText = (text: string, file: string) => guarded(async () => {
+    await load(JSON.stringify(emptyPart(partNameOf(file))), { file: null });
+    const r = await controller.importStep(text, partNameOf(file));
+    if (r.ok) { viewport?.fit(); store.notify(t('files.step.done', { name: file, faces: r.faces })); }
+    else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
+  });
+  /** Open a file by what it is: a part, STEP, or DXF; anything else gets a notice. */
+  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind) => {
+    if (kind === 'part') guarded(async () => { await load(await read(), { file: name }); });
+    else if (kind === 'step') void read().then((text) => importStepText(text, name));
+    else if (kind === 'dxf') void read().then((text) => { if (controller.sketchDraft()) void importDxfIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromDxfText(text); });
+    else if (kind === 'stl') store.notify(t('files.drop.stl'), 'warn');
+    else store.notify(t('files.drop.unknown', { name }), 'error');
+  };
+  const dropFiles = (list: File[]) => {
+    const plan = planDrop(list.map((f) => f.name));
+    if (plan.action === 'none') return;
+    if (plan.action === 'multiple') { store.notify(t('files.drop.one'), 'warn'); return; }
+    openByKind(plan.name, () => list[0].text(), plan.kind);
+  };
+  const openRecent = (e: RecentEntry) => {
+    setSamples(null);
+    if (e.kind === 'sample') { guarded(async () => { const r = await fetch(e.url ?? ''); await load(await r.text(), { file: null }); files.noteSample(e.id, e.name, e.url ?? ''); }); return; }
+    guarded(async () => {
+      const r = await files.reopen(e);
+      if (r.ok) await load(r.text, { keep: true });
+      else store.notify(t(r.reason === 'noHandle' ? 'files.recent.noHandle' : r.reason === 'denied' ? 'files.recent.denied' : 'files.recent.gone', { name: e.name }), 'warn');
+    });
+  };
+
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => void createFeature(ops),
@@ -356,8 +418,12 @@ function App() {
     notify: (text, level) => store.notify(text, level),
   };
   const commands = buildCommands({
-    open: async () => guarded(async () => { const f = await platform.openFile(); if (f) await load(f.text); }),
-    save: async () => { const d = controller.document(); if (d) { await platform.saveFile(`${d.name || 'part'}.ckpart`, JSON.stringify(d, null, 1)); markClean(); redraw((n) => n + 1); } },
+    open: async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
+    save: () => doSave(false),
+    files: {
+      saveAs: () => void doSave(true),
+      importStep: () => void (async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : 'unknown'); })(),
+    },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
@@ -368,7 +434,7 @@ function App() {
     toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
-    newPart: async () => guarded(async () => { await load(JSON.stringify(emptyPart('Part1'))); setRefSel(null); }),
+    newPart: async () => guarded(async () => { await load(JSON.stringify(emptyPart(files.names.next()))); setRefSel(null); }),
     newSketch: (plane) => startNewSketch(plane),
     sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
     hasFaceSelection: () => selectedFace() !== null,
@@ -383,6 +449,8 @@ function App() {
     layer: (l) => store.display.value[l],
   });
 
+  const dropFilesRef = useRef(dropFiles);
+  dropFilesRef.current = dropFiles;
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
   useEffect(() => {
@@ -951,7 +1019,27 @@ function App() {
       { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
-  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart('Part1')); markClean(); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
+  // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
+  const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
+  useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload); });
+  useEffect(() => {
+    const hide = () => { if (isDirty()) autosaver.flush(autoPayload); };
+    addEventListener('pagehide', hide);
+    const vis = () => { if (document.visibilityState === 'hidden') hide(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => { removeEventListener('pagehide', hide); document.removeEventListener('visibilitychange', vis); };
+  }, []);
+  // drag and drop of files onto the window
+  useEffect(() => {
+    let depth = 0;
+    const enter = (e: DragEvent) => { if (!dragHasFiles(e.dataTransfer)) return; e.preventDefault(); depth++; setDragging(true); };
+    const over = (e: DragEvent) => { if (dragHasFiles(e.dataTransfer)) e.preventDefault(); };
+    const leave = (e: DragEvent) => { if (!dragHasFiles(e.dataTransfer)) return; depth = Math.max(0, depth - 1); if (depth === 0) setDragging(false); };
+    const drop = (e: DragEvent) => { if (!dragHasFiles(e.dataTransfer)) return; e.preventDefault(); depth = 0; setDragging(false); dropFilesRef.current(Array.from(e.dataTransfer?.files ?? [])); };
+    addEventListener('dragenter', enter); addEventListener('dragover', over); addEventListener('dragleave', leave); addEventListener('drop', drop);
+    return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
+  }, []);
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } };
     addEventListener('beforeunload', warn);
@@ -966,7 +1054,7 @@ function App() {
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
-        <b class="doc-name">{doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
+        <b class="doc-name">{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
@@ -1065,11 +1153,17 @@ function App() {
           drawerOpen={ws.drawerOpen} onToggleDrawer={toggleDrawer} />
       </div>
       {palette ? <CommandPalette commands={commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
-      {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)}
-        onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text()); }); }} /> : null}
+      {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} onPickRecent={openRecent}
+        onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
+      {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
+        onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
+        onRestore={() => { const a = restore; setRestore(null); void load(JSON.stringify(a.doc), { restored: true }); }} /> : null}
+      {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
+        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName })); }} /> : null}
+      {dragging ? <DropOverlay /> : null}
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
         onDiscard={() => { const go = guard; setGuard(null); void go(); }}
-        onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); void go(); }} /> : null}
+        onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}

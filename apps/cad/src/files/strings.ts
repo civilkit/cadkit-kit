@@ -30,7 +30,7 @@ export const filesEn = {
 registerCatalog('en', filesEn);
 
 /** "5 min ago" for a time stamp. */
-export function ago(then: number, now: number, tr: (k: string, p?: Record<string, unknown>) => string): string {
+export function ago(then: number, now: number, tr: (k: string, p?: Record<string, string | number>) => string): string {
   const s = Math.max(0, (now - then) / 1000);
   if (s < 60) return tr('files.time.now');
   if (s < 3600) return tr('files.time.min', { n: Math.floor(s / 60) });

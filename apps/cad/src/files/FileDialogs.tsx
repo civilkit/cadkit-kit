@@ -12,7 +12,7 @@ const useEscape = (f: () => void) => useEffect(() => {
 
 /** On start: a session was left that was never saved to a file. */
 export function RestoreDialog(p: { name: string; savedAt: number; now?: number; onRestore(): void; onNew(): void }) {
-  useEscape(p.onNew);
+  // no Escape here: dismissing must not throw the stored session away by accident
   return (
     <div class="dlg-back">
       <div class="dlg discard-dlg" role="alertdialog" aria-label={t('files.restore.title')}>

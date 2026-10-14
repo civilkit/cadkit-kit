@@ -1,0 +1,101 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
+import { RestoreDialog, SaveAsDialog, DropOverlay } from './FileDialogs';
+import { SamplesDialog } from '../SamplesDialog';
+import { buildCommands, matchShortcut, type Actions } from '../commands';
+import { dragHasFiles, planDrop } from './drop';
+import '../i18n';
+
+afterEach(cleanup);
+
+describe('RestoreDialog', () => {
+  it('names the part, says how long ago, and offers Restore and Start new; Escape does nothing', () => {
+    const on = { onRestore: vi.fn(), onNew: vi.fn() };
+    render(<RestoreDialog name="Bracket" savedAt={0} now={5 * 60_000} {...on} />);
+    expect(screen.getByRole('alertdialog').textContent).toContain('"Bracket"');
+    expect(screen.getByRole('alertdialog').textContent).toContain('5 min ago');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByText('Restore'));
+    fireEvent.click(screen.getByText('Start new'));
+    expect([on.onRestore.mock.calls.length, on.onNew.mock.calls.length]).toEqual([1, 1]);
+  });
+});
+
+describe('SaveAsDialog', () => {
+  it('shows the file name that will be written, adds .ckpart and submits it', () => {
+    const on = { onSave: vi.fn(), onCancel: vi.fn() };
+    render(<SaveAsDialog initial="Part1" {...on} />);
+    const input = screen.getByLabelText('File name') as HTMLInputElement;
+    expect(input.value).toBe('Part1');
+    fireEvent.input(input, { target: { value: 'Hinge' } });
+    expect(screen.getByRole('dialog').textContent).toContain('Hinge.ckpart');
+    fireEvent.submit(input.closest('form')!);
+    expect(on.onSave).toHaveBeenCalledWith('Hinge.ckpart');
+  });
+  it('cannot submit an empty name; Cancel and Escape cancel', () => {
+    const on = { onSave: vi.fn(), onCancel: vi.fn() };
+    render(<SaveAsDialog initial="Part1" {...on} />);
+    fireEvent.input(screen.getByLabelText('File name'), { target: { value: '  ' } });
+    expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.submit(screen.getByLabelText('File name').closest('form')!);
+    expect(on.onSave).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(on.onCancel).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('DropOverlay and drop planning', () => {
+  it('renders the prompt', () => {
+    render(<DropOverlay />);
+    expect(document.querySelector('.drop-overlay')!.textContent).toContain('Drop a file to open it');
+  });
+  it('plans by file count and type, and only reacts to file drags', () => {
+    expect(planDrop([])).toEqual({ action: 'none' });
+    expect(planDrop(['a.ckpart', 'b.step'])).toEqual({ action: 'multiple' });
+    expect(planDrop(['a.STP'])).toEqual({ action: 'open', kind: 'step', name: 'a.STP' });
+    expect(planDrop(['x.png'])).toMatchObject({ kind: 'unknown' });
+    expect(dragHasFiles({ types: ['Files'] })).toBe(true);
+    expect(dragHasFiles({ types: ['text/plain'] })).toBe(false);
+    expect(dragHasFiles(null)).toBe(false);
+  });
+});
+
+describe('Recent section of the Samples dialog', () => {
+  const samples = [{ id: 'bolt', title: 'Bolt', url: '/s/bolt' }];
+  it('lists recent entries with their kind and picks one; hidden while filtering', () => {
+    const onPickRecent = vi.fn();
+    const recent = [{ kind: 'file' as const, id: 'a.ckpart', name: 'a.ckpart', at: Date.now(), handle: true }, { kind: 'sample' as const, id: 'bolt', name: 'Bolt', at: Date.now() - 3 * 3600_000, url: '/s/bolt' }];
+    render(<SamplesDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={recent} onPickRecent={onPickRecent} />);
+    const block = screen.getByLabelText('Recent');
+    expect(block.textContent).toContain('a.ckpart');
+    expect(block.textContent).toContain('3 h ago');
+    fireEvent.click(screen.getByText('a.ckpart'));
+    expect(onPickRecent).toHaveBeenCalledWith(recent[0]);
+    fireEvent.input(screen.getByPlaceholderText('Filter samples'), { target: { value: 'bol' } });
+    expect(screen.queryByLabelText('Recent')).toBeNull();
+  });
+  it('has no Recent section when there is nothing recent', () => {
+    render(<SamplesDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={[]} />);
+    expect(screen.queryByLabelText('Recent')).toBeNull();
+  });
+});
+
+describe('file commands', () => {
+  const base: Actions = {
+    open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, toggleProjection() {}, sketchHere() {}, toggleLeftPanel() {}, sketchOnFace() {}, hasFaceSelection: () => false, addExtrude() {}, newSketch() {},
+    setView() {}, fit() {}, setMode() {}, mode: () => 'face', toggleLayer() {}, layer: () => false,
+  };
+  it('Ctrl+Shift+S is Save as and Ctrl+S stays Save', () => {
+    const saveAs = vi.fn(); const save = vi.fn();
+    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {} } });
+    const ev = (o: Partial<KeyboardEvent>) => ({ key: 's', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...o });
+    matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
+    matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
+    expect([saveAs.mock.calls.length, save.mock.calls.length]).toEqual([1, 1]);
+    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP');
+  });
+  it('without file actions the commands are absent', () => {
+    expect(buildCommands(base).some((c) => c.id === 'save-as')).toBe(false);
+  });
+});

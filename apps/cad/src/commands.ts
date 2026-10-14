@@ -4,6 +4,7 @@ import type { Command } from '@kit/ui';
 import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
+import { fileCommands, type FileActions } from './files/fileCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -26,6 +27,8 @@ export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', 'step', 'd
 
 export interface Actions {
   io?: IoActions;
+  /** Save as and Import STEP (see files/). */
+  files?: FileActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
   open(): void;
@@ -61,7 +64,7 @@ export const SHORTCUTS: Record<string, string> = {
   'sketch-here': 'S',
   'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H',
   'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
-  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', 'save-as': 'Ctrl+Shift+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
@@ -114,6 +117,7 @@ export function buildCommands(a: Actions): Command[] {
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
+  if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
