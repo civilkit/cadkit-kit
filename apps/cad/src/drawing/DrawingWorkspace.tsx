@@ -59,6 +59,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const [lost, setLost] = useState(0);
   const [pitches, setPitches] = useState<Record<string, number>>({});
   const [bom, setBom] = useState<BomRow[]>([]);
+  const [hover, setHover] = useState<{ view: string; e: number } | null>(null);
   const [pend, setPend] = useState<{ view: string; picks: number[]; radial: boolean } | null>(null);
   const [ghost, setGhost] = useState<{ kind: string; pts: number[]; r?: number; c?: V2 } | null>(null);
   const [cam, setCam] = useState<{ x: number; y: number; k: number }>({ x: 20, y: 20, k: 1 });
@@ -379,6 +380,13 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       setGhost({ kind: 'circle', pts: [], c: dr.c, r: Math.hypot(q[0] - dr.c[0], q[1] - dr.c[1]) });
       return;
     }
+    if (tool === 'dim' || tool === 'aux') {
+      const v = viewAt(pt);
+      const g = v && dataOf({ doc: d, data: dataRef.current }, v);
+      const h = v && g ? pickEdge(g, v, toView(v, pt), tol() / viewScale(d, v)) : null;
+      setHover((o) => (h && v ? (o && o.e === h.e && o.view === v.id ? o : { view: v.id, e: h.e }) : o ? null : o));
+      return;
+    }
     if (tool === 'section') {
       const v = viewAt(pt);
       if (!v) { setGhost(null); return; }
@@ -482,7 +490,12 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <svg class="dwg-over" style={{ width: size[0] * PX + 'px', height: size[1] * PX + 'px', transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.k})` }} viewBox={`0 0 ${size[0]} ${size[1]}`}>
           {ghost && ghost.kind === 'line' ? <polyline points={ghost.pts.join(' ')} fill="none" stroke="#0b74dc" stroke-width="0.5" stroke-dasharray="3 1.5" /> : null}
           {ghost && ghost.kind === 'circle' && ghost.c ? (() => { const v = doc.views.find((x) => x.id === (drag.current as { view?: string } | null)?.view); const g = v && dataOf({ doc, data }, v); if (!v || !g) return null; const P = placer(doc, v, g)(ghost.c![0], ghost.c![1]); return <circle cx={P[0]} cy={P[1]} r={(ghost.r ?? 0) * viewScale(doc, v)} fill="#0b74dc22" stroke="#0b74dc" stroke-width="0.4" />; })() : null}
-          {pend ? pend.picks.map((e, i) => { const v = doc.views.find((x) => x.id === pend.view); const g = v && dataOf({ doc, data }, v); if (!v || !g) return null; const P = placer(doc, v, g); const pts = g.lines.filter((l) => l.e === e).flatMap((l) => { const o: number[] = []; for (let j = 0; j < l.p.length; j += 2) { const q = P(l.p[j], l.p[j + 1]); o.push(q[0], q[1]); } return [o.join(' ')]; }); return <g key={i}>{pts.map((s, j) => <polyline key={j} points={s} fill="none" stroke="#0b74dc" stroke-width="0.9" />)}</g>; }) : null}
+          {[...(pend ? pend.picks.map((e) => ({ view: pend.view, e, w: 0.9 })) : []), ...(hover && (tool === 'dim' || tool === 'aux') ? [{ view: hover.view, e: hover.e, w: 0.6 }] : [])].map((h, i) => {
+            const v = doc.views.find((x) => x.id === h.view); const g = v && dataOf({ doc, data }, v);
+            if (!v || !g) return null;
+            const P = placer(doc, v, g);
+            return <g key={i}>{g.lines.filter((l) => l.e === h.e).map((l, j) => { const o: number[] = []; for (let q = 0; q < l.p.length; q += 2) { const z = P(l.p[q], l.p[q + 1]); o.push(z[0], z[1]); } return <polyline key={j} points={o.join(' ')} fill="none" stroke="#0b74dc" stroke-width={h.w} />; })}</g>;
+          })}
         </svg>
         {!doc.views.length && !busy ? <div class="dwg-empty">{host.hasBody ? t('drawing.empty') : t('drawing.noPart')}</div> : null}
         <div class="dwg-status">{busy ? t('drawing.status.loading') : lost ? t('drawing.status.lost', { count: lost }) : hint}</div>
