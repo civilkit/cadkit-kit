@@ -480,3 +480,13 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .rb-end { min-height: 10px; flex: 1 0 10px; }
 .toast-act { margin-left: 6px; border: 0; background: none; color: #8ab4ff; font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px; }
 .toast-act:hover { text-decoration: underline; }
+
+/* the row's action buttons sit over the right end of the row (they appear on hover or selection) instead of taking width,
+   so a narrow panel never wraps them onto a second line */
+.tree .row { position: relative; }
+.tree .row .row-actions { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); margin: 0; padding-left: 8px; background: var(--panel); border-radius: 6px; }
+.tree .row:hover .row-actions { background: var(--panel-2); }
+.tree .row.sel .row-actions { background: var(--accent-soft); }
+.tree .row .row-act { opacity: 0; }
+.tree .row:hover .row-act, .tree .row.sel .row-act, .tree .row.suppressed .row-sup, .tree .row .row-act:focus-visible { opacity: 1; }
+.tree .row:not(:hover):not(.sel) .row-actions { background: transparent; }
