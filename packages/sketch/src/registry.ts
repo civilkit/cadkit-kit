@@ -4,7 +4,7 @@ import {
   bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, circularPatternTool, constructionTool, coincidentTool, collinearTool,
   concentricTool, cvsplineTool, dimensionTool, ellipseTool, equalTool, extendTool, filletTool, fixTool, horizontalTool, lineTool, linearPatternTool,
   midpointTool, mirrorTool, offsetTool, parallelTool, perpendicularTool, pointTool, polygonTool, projectTool, rectangleTool, slotTool, splineTool,
-  symmetricTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
+  symmetricTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
 } from './tools/index';
 import type { Tool } from './tools/types';
 
@@ -40,6 +40,7 @@ const build = (): ToolEntry[] => [
   e('constrain', midpointTool), e('constrain', tangentTool), e('constrain', symmetricTool), e('constrain', fixTool),
   e('constrain', concentricTool),
   e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', extendTool, 'e'), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'), e('edit', projectTool, 'p'), e('edit', linearPatternTool), e('edit', circularPatternTool),
+  e('edit', moveTool), e('edit', copyTool), e('edit', rotateTool), e('edit', scaleTool),
 ];
 
 export const toolById = (id: string): ToolEntry | undefined => sketchTools().find((t) => t.id === id);

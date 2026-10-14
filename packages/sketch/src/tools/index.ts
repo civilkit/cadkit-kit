@@ -29,3 +29,4 @@ export { constructionTool, setConstruction, markNewAsConstruction, CONSTRUCTIBLE
 export { projectTool, projectEdges, classifyCurve, edgesFor, edgeNear, flatten, type Projected, type ProjectRes } from './project';
 export { linearPatternTool, circularPatternTool, applyLinear, applyCircular, type LinearState, type CircularState } from './pattern';
 export { fitCurve, bsplineCurve, clampDegree, minCvPoints } from './splineMath';
+export { moveTool, copyTool, rotateTool, scaleTool, makeTransformTool, applyTransform, measure, place as placeXform, xformOf, pointsOfEntities, MAX_COPIES, type TransformState, type TransformKind, type Xform, type TransformRes } from './transform';

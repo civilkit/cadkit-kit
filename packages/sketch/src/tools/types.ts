@@ -80,6 +80,8 @@ export interface ToolEnv {
   tol?: number;
   /** Edge keys and face names the user had selected in the 3D view before the sketch was opened. */
   selection?: string[];
+  /** Sketch entity ids selected in the sketch (Select mode, box or Ctrl-click) before this tool was chosen: the transform tools act on them. */
+  entities?: string[];
 }
 
 export interface Tool<S> {
