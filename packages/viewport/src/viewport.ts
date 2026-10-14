@@ -119,6 +119,8 @@ export class Viewport {
   // Sketch-edit mode: overlay of the solved sketch, faded body, point dragging.
   private sketchEdit: SketchEditShape | null = null;
   private sketchOverlay: THREE.Group | null = null;
+  /** The dashed material of the construction lines, resized with the zoom. */
+  private constructionMat: THREE.LineDashedMaterial | null = null;
   private sketchDrag: string | null = null;
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
@@ -201,12 +203,25 @@ export class Viewport {
     const group = new THREE.Group();
     group.userData.pickable = false;
     // Solved entities as bright lines.
-    const polys = sketchEditPolylines(v.sketch, v.frame as never);
+    const polys = sketchEditPolylines(v.sketch, v.frame as never, 'solid');
     const seg = this.segmentsOf(polys);
     if (seg.length) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
       group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x0b74dc })));
+    }
+    // Construction geometry: dashed and lighter (it is never extruded)
+    const cons = this.segmentsOf(sketchEditPolylines(v.sketch, v.frame as never, 'construction'));
+    this.constructionMat = null;
+    if (cons.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(cons, 3));
+      const upp = this.sketchUnitsPerPixel();
+      const mat = new THREE.LineDashedMaterial({ color: 0x0b74dc, dashSize: upp * 6, gapSize: upp * 4, transparent: true, opacity: 0.75 });
+      const lines = new THREE.LineSegments(geo, mat);
+      lines.computeLineDistances();
+      group.add(lines);
+      this.constructionMat = mat;
     }
     // Points as a marker cloud.
     const world = sketchPointWorld(v.sketch.points, v.frame as never);
@@ -384,6 +399,7 @@ export class Viewport {
       if (!this.sketchEdit) return;
       this.rebuildSketchGrid();
       this.rebuildSketchPreview();
+      if (this.constructionMat) { const upp = this.sketchUnitsPerPixel(); this.constructionMat.dashSize = upp * 6; this.constructionMat.gapSize = upp * 4; }
       this.opts.onSketchView?.();
     });
   }

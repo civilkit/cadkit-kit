@@ -1,7 +1,7 @@
 /** Every sketch tool the editor offers, in toolbar order, with its group and shortcut. The app builds its tool
  *  strip, its command palette entries and its keys from this list, so a new tool appears everywhere at once. */
 import {
-  bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, coincidentTool, collinearTool,
+  bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, constructionTool, coincidentTool, collinearTool,
   concentricTool, cvsplineTool, dimensionTool, ellipseTool, equalTool, filletTool, fixTool, horizontalTool, lineTool,
   midpointTool, mirrorTool, offsetTool, parallelTool, perpendicularTool, pointTool, polygonTool, rectangleTool, slotTool, splineTool,
   symmetricTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
@@ -39,7 +39,7 @@ const build = (): ToolEntry[] => [
   e('constrain', equalTool), e('constrain', parallelTool), e('constrain', perpendicularTool), e('constrain', collinearTool),
   e('constrain', midpointTool), e('constrain', tangentTool), e('constrain', symmetricTool), e('constrain', fixTool),
   e('constrain', concentricTool),
-  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', mirrorTool), e('edit', offsetTool, 'o'),
+  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'),
 ];
 
 export const toolById = (id: string): ToolEntry | undefined => sketchTools().find((t) => t.id === id);

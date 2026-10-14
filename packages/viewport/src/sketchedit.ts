@@ -55,9 +55,11 @@ export function nearestSketchPoint(
   return best;
 }
 
-/** Solved entities of the sketch being edited, as world-space polylines. */
-export function sketchEditPolylines(sketch: SketchEditShape, frame: Frame): Polyline[] {
-  return sketchPolylines([{ id: '', frame, sketch: sketch as never }])[0]?.polylines ?? [];
+/** Solved entities of the sketch being edited, as world-space polylines. `which` picks all of them (the default), only
+ *  the real geometry, or only the construction geometry (`construction: true`, drawn dashed and never extruded). */
+export function sketchEditPolylines(sketch: SketchEditShape, frame: Frame, which: 'all' | 'solid' | 'construction' = 'all'): Polyline[] {
+  const part = which === 'all' ? sketch : { ...sketch, entities: sketch.entities.filter((e) => (e.construction === true) === (which === 'construction')) };
+  return sketchPolylines([{ id: '', frame, sketch: part as never }])[0]?.polylines ?? [];
 }
 
 /** World positions of every point in the sketch being edited. */

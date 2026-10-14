@@ -36,3 +36,7 @@ Each one has its conventions in its file header; the short version:
   then the pointer picks the side and the distance (or type `d`). Copies are parametric: lines get `parallel` +
   `pldist` (driving, value = the distance), arcs and circles share the original's centre point and get `raddiff`.
   Corners are joined at the intersection of the offset curves (trim/extend); collapsed segments are dropped with a hint.
+- `construction` (`construction.ts`): click to flip an entity between normal and `construction: true` (Shift-click: the whole
+  chain). `markNewAsConstruction(prev, next)` is the per-sketch "draw as construction" mode (the app applies it after
+  draw-group tool steps while the banner toggle is on). The kernel's profile builder skips construction entities, so
+  they are never extruded (kernel test); the viewport draws them dashed.
