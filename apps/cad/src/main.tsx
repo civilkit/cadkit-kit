@@ -1158,7 +1158,7 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Catalog', 'Editor'] as const).map((id) => {
+            {(['Outliner', 'Features', 'Editor', 'Catalog'] as const).map((id) => {
               const label = t('app.leftTab.' + id);
               const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit' }[id];
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
