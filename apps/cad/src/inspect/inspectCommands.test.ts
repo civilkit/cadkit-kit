@@ -7,7 +7,7 @@ import type { InspectActions } from './inspectCommands';
 const inspect = (o: Partial<InspectActions> = {}): InspectActions => ({
   toggleMeasure: vi.fn(), isMeasuring: () => false, massProps: vi.fn(), interference: vi.fn(), toggleSection: vi.fn(), isSectioned: () => false, hasSolid: () => true, ...o,
 });
-const build = (i: InspectActions) => buildCommands(new Proxy({ inspect: i, layer: () => false, mode: () => 'face', hasDocument: () => true } as unknown as Actions, { get: (t, k) => (k in t ? (t as never)[k] : () => {}) }));
+const build = (i: InspectActions) => buildCommands(new Proxy({ inspect: i, analysis: null, layer: () => false, mode: () => 'face', hasDocument: () => true } as unknown as Actions, { get: (t, k) => (k in t ? (t as never)[k] : () => {}) }));
 const key = (k: string) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false });
 
 describe('Evaluate commands', () => {

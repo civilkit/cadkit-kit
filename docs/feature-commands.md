@@ -130,3 +130,9 @@ commands shows in the tree and Editor but not on screen, and its faces and edges
 | `deleteBody` on a surface body | Needs a surface to be pickable. |
 
 See also `docs/contextual-handles.md`: dragging handles on a selected edge, corner or face runs the same fillet, chamfer and depth edits directly on the canvas, and the right-click menu lists these commands.
+
+
+## Surface commands
+
+Loft, Sweep, Lofted surface, Fill surface and Extend surface, their editors, the selection rules for Trim, Knit and Thicken, and
+surface analysis are described in `docs/surfaces-tools.md`. Keys: Shift+O loft, Shift+W sweep, Shift+I fill, Shift+X extend.

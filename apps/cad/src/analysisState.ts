@@ -6,7 +6,7 @@ import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisMode, type AnalysisOpt
 export const PULL_DIRECTIONS: Array<{ id: string; v: [number, number, number] }> = [
   { id: '+x', v: [1, 0, 0] }, { id: '-x', v: [-1, 0, 0] }, { id: '+y', v: [0, 1, 0] }, { id: '-y', v: [0, -1, 0] }, { id: '+z', v: [0, 0, 1] }, { id: '-z', v: [0, 0, -1] },
 ];
-export const pullId = (v: readonly number[]): string => PULL_DIRECTIONS.find((p) => p.v[0] === v[0] && p.v[1] === v[1] && p.v[2] === v[2])?.id ?? '+z';
+export const pullId = (v: readonly number[]): string => PULL_DIRECTIONS.find((p) => p.v[0] === v[0] && p.v[1] === v[1] && p.v[2] === v[2])?.id ?? '+y';
 
 export function createAnalysisStore() {
   const opts = signal<AnalysisOptions>(DEFAULT_ANALYSIS);

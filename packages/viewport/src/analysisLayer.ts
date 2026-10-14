@@ -11,7 +11,7 @@ import {
 const MODE_ID = { off: 0, zebra: 1, gaussian: 2, mean: 2, draft: 2 } as const;
 
 export class AnalysisLayer {
-  private readonly uniforms = { uAnalysis: { value: 0 }, uDensity: { value: 12 }, uAxis: { value: new THREE.Vector3(0, 0, 1) } };
+  private readonly uniforms = { uAnalysis: { value: 0 }, uDensity: { value: 12 }, uAxis: { value: new THREE.Vector3(0, 1, 0) } };
   private comb: THREE.LineSegments | null = null;
   /** The legend of what is drawn now (null when nothing is). */
   legend: Legend | null = null;
@@ -79,7 +79,10 @@ export class AnalysisLayer {
       } else if (p.tints && p.tints.length === nv * 3) geo.setAttribute('color', new THREE.BufferAttribute(p.tints, 3));
       else if (geo.getAttribute('color')) geo.deleteAttribute('color');
       const colored = mode === 'gaussian' || mode === 'mean' || mode === 'draft';
-      if (colored && !mat.vertexColors) { mat.vertexColors = true; mat.needsUpdate = true; }
+      if (p.faces) {
+        const vc = colored || !!p.tints;   // the surface tint (or an analysis colour) is read per vertex; otherwise the plain material
+        if (mat.vertexColors !== vc) { mat.vertexColors = vc; mat.needsUpdate = true; }
+      }
       this.uniforms.uAnalysis.value = MODE_ID[mode];
       this.uniforms.uDensity.value = o.zebraDensity;
     }

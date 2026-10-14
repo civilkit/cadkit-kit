@@ -19,7 +19,7 @@ export interface AnalysisOptions {
   /** Zebra stripes per unit of reflected direction. */
   zebraDensity: number;
 }
-export const DEFAULT_ANALYSIS: AnalysisOptions = { mode: 'off', comb: false, combScale: 1, pull: [0, 0, 1], draftMin: 1, zebraDensity: 12 };
+export const DEFAULT_ANALYSIS: AnalysisOptions = { mode: 'off', comb: false, combScale: 1, pull: [0, 1, 0], draftMin: 1, zebraDensity: 12 };
 
 /** What the legend shows: the colour bar's ends and unit. `bands` lists the discrete classes for draft. */
 export interface Legend { mode: AnalysisMode; min: number; max: number; unit: string; bands?: Array<{ color: [number, number, number]; label: string }> }

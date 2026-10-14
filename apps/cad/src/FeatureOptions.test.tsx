@@ -155,8 +155,8 @@ describe('shell options', () => {
 });
 
 describe('other features', () => {
-  it('a hole or sweep keeps the plain editor', () => {
-    const m = mount({ type: 'sweep', id: 'F4', op: 'add', sketch: 'F1', path: 'F2' });
+  it('a hole or rib keeps the plain editor', () => {
+    const m = mount({ type: 'rib', id: 'F4', sketch: 'F1', thickness: 2 });
     expect(m.container.querySelector('[data-section]')).toBeNull();
   });
 });

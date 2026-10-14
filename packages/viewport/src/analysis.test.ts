@@ -100,7 +100,7 @@ describe('curvature comb', () => {
 
 describe('sanitizeAnalysis', () => {
   it('drops what is not valid', () => {
-    expect(sanitizeAnalysis({ mode: 'bogus', pull: [0, 0, 0], combScale: 'x', draftMin: 500 })).toMatchObject({ mode: 'off', pull: [0, 0, 1], combScale: 1, draftMin: 45 });
+    expect(sanitizeAnalysis({ mode: 'bogus', pull: [0, 0, 0], combScale: 'x', draftMin: 500 })).toMatchObject({ mode: 'off', pull: [0, 1, 0], combScale: 1, draftMin: 45 });
     expect(sanitizeAnalysis({ mode: 'zebra', comb: true, pull: [1, 0, 0] })).toMatchObject({ mode: 'zebra', comb: true, pull: [1, 0, 0] });
   });
 });

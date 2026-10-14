@@ -58,7 +58,7 @@ describe('fillet', () => {
 
 describe('managed fields', () => {
   it('only the forms that exist', () => {
-    expect(['extrude', 'revolve', 'chamfer', 'fillet', 'shell', 'hole', 'sweep'].filter(hasOptions)).toEqual(['extrude', 'revolve', 'chamfer', 'fillet', 'shell']);
+    expect(['extrude', 'revolve', 'chamfer', 'fillet', 'shell', 'hole', 'rib', 'sweep', 'loft'].filter(hasOptions)).toEqual(['extrude', 'revolve', 'chamfer', 'fillet', 'shell', 'sweep', 'loft']);
     expect(managedPaths('shell').has('inside')).toBe(true);   // the kernel reads only `outward`; the old `inside` field is hidden
   });
 });
