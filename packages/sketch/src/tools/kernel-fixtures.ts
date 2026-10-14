@@ -24,4 +24,14 @@ export async function solveDraft(draft: SketchDraft, depth = 5, opts: { solve?: 
   return { r, facts, status: sk?.status, pts, entities: sk?.sketch.entities ?? [] };
 }
 
+/** The solver's verdict on a sketch that has no profile to extrude (reference geometry, open curves): a sketch-only regen. */
+export async function solveSketchOnly(draft: SketchDraft) {
+  const doc = { ...emptyPart('Sketch'), features: [toFeature(draft)], seq: 2 } as unknown as PartDoc;
+  const s = await Session.open(doc);
+  sessions.push(s);
+  const r = await s.preview([], { upTo: 1, sketchStatus: true, solveSketches: true });
+  const sk = r.sketches?.[0] as unknown as { sketch: { points: Array<{ id: string; x: number; y: number }> }; status?: SketchSolverStatus } | undefined;
+  return { r, status: sk?.status, pts: Object.fromEntries((sk?.sketch.points ?? []).map((p) => [p.id, [p.x, p.y] as [number, number]])) };
+}
+
 export const boxSize = (b: { min: number[]; max: number[] }) => [b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]];

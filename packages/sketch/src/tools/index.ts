@@ -16,6 +16,7 @@ export { tangentArcTool, type TangentArcState } from './tangentArc';
 export { filletTool } from './fillet';
 export { chamferTool } from './chamfer';
 export { trimTool } from './trim';
+export { extendTool, extendAt, planExtend, type ExtendState } from './extend';
 export { mirrorTool } from './mirror';
 export { offsetTool, applyOffset, type OffsetState } from './offset';
 export { splineTool, type SplineState } from './spline';

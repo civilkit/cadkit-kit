@@ -73,6 +73,7 @@ const ICONS: Record<string, string> = {
   'pattern-circular': P('M10 3h4v4h-4z') + T('M17.5 10.5h4v4h-4z') + T('M3 14.5h4v-4H3z') + C('M12 21a7.5 7.5 0 100-10') + D(12, 13, 1.4),
   construction: P('M4 20 12 12') + C('M12 12 20 4') + D(4, 20) + D(20, 4),
   offset: T('M4 20V9a5 5 0 015-5h11') + P('M9 20v-8a3 3 0 013-3h8') + C('M4 20h5'),
+  extend: P('M19 3v18') + P('M3 12h6') + C('M9 12h10') + `<path d="m13 9 3.5 3-3.5 3" stroke-width="1.5"/>`,
   mirror: C('M12 3v18') + P('M9.5 5 4 12l5.5 7z') + C('M14.5 5 20 12l-5.5 7z'),
   // ---- files and edit
   open: P('M3 7.5A1.5 1.5 0 014.5 6H9l2 2.5h8a1.5 1.5 0 011.5 1.5V18a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18z'),

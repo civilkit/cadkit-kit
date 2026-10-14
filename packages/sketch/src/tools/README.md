@@ -55,3 +55,6 @@ Each one has its conventions in its file header; the short version:
   point against its anchor is written with `hidden: true` constraints (`annotate` skips them, the list shows them).
   Arcs are copied with `equal` radius rather than a placed centre to avoid a redundant constraint (the solver already
   ties an arc's ends to one radius). Copies follow the spacing, not later reshaping of the original.
+- `extend` (`extend.ts`): the counterpart of Trim. Click a line or arc near the end to lengthen: it runs on (a line straight,
+  an arc round its own circle) to the nearest boundary line/arc/circle. A point already at that place is reused (so
+  outlines close with a shared point); otherwise a new point is bound with `pointOnLine` / `pointOnCircle`.
