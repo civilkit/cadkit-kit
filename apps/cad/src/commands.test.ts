@@ -18,6 +18,15 @@ describe('ribbon commands', () => {
     const on = buildCommands(actions({ hasDocument: () => true })).filter((c) => ['save', 'undo', 'redo'].includes(c.id));
     expect(on.every((c) => c.enabled?.() === true)).toBe(true);
   });
+  it('Select body exists only when the app supports it, runs its action and has the B key', () => {
+    expect(buildCommands(actions()).find((c) => c.id === 'select-body')).toBeUndefined();
+    const selectBody = vi.fn();
+    const c = buildCommands(actions({ selectBody, hasDocument: () => true })).find((x) => x.id === 'select-body')!;
+    expect(c.keys).toBe('B');
+    expect(c.enabled?.()).toBe(true);
+    c.run();
+    expect(selectBody).toHaveBeenCalled();
+  });
   it('layer commands toggle their layer and show a tick when on', () => {
     const a = actions();
     const edges = buildCommands(a).find((c) => c.id === 'layer-edges')!;
@@ -41,7 +50,7 @@ import { matchShortcut, SHORTCUTS } from './commands';
 describe('shortcuts', () => {
   const ioStub = { importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true };
   const key = (k: string, mods: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
-  const cmds = buildCommands(actions({ io: ioStub }));
+  const cmds = buildCommands(actions({ io: ioStub, selectBody: vi.fn() }));
   it('every shortcut belongs to a command and no two commands share one', () => {
     const ids = new Set(cmds.map((c) => c.id));
     for (const id of Object.keys(SHORTCUTS)) expect(ids.has(id) || id.startsWith('add-'), id).toBe(true);

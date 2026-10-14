@@ -5,6 +5,8 @@ export type SelectionMode = 'face' | 'edge' | 'vertex';
 /** Name of a corner pick: its position, rounded so the same corner always gets the same name (faces and edges have kernel names). */
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
+/** Selection name of the whole body (Alt+click in the viewport, the Select body command). */
+export const BODY = '@body';
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number }
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
@@ -20,15 +22,16 @@ export interface Workspace {
   selectionBar: boolean;
   commandBar: boolean;
   drawerOpen: boolean;
+  handles: boolean;                        // direct-manipulation handles on the canvas (arrows and dots to drag)
   opacity: number;                         // 0.15..1, floating panels
   blur: number;                            // px
   lineWidth: number;                       // px, thickness of the hover and selection highlight lines (1..8)
 }
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
-  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, opacity: 0.62, blur: 14, lineWidth: 3 },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 1, blur: 0, lineWidth: 3 },
-  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 0.5, blur: 14, lineWidth: 3 },
+  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3 },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3 },
+  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3 },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
@@ -40,7 +43,7 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   pick('leftPanel', ['docked', 'floating', 'hidden'] as const);
   pick('rightPanel', ['off', 'docked', 'floating'] as const);
   pick('toolLabels', ['icons', 'icons-and-text'] as const);
-  for (const k of ['leftTabs', 'leftCollapsed', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
+  for (const k of ['leftTabs', 'leftCollapsed', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen', 'handles'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   if (typeof r.opacity === 'number' && Number.isFinite(r.opacity)) out.opacity = Math.min(1, Math.max(0.15, r.opacity));
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));
   if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));

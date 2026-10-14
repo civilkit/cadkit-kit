@@ -4,6 +4,9 @@ export { sketchPolylines, curvePolylines, planeOutlines, axisLines } from './lay
 export type { BodyMesh, FaceRange, Grouped } from './meshgeom';
 export type { Frame, Polyline, IdPolylines, IdQuad, SketchLayerItem, CurveLayerItem, PlaneLayerItem } from './layers';
 export { Viewport } from './viewport';
+export type { PickMode } from './viewport';
 export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape } from './viewport';
 export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 export * from './styles';
+export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, formatQuantity, rayLineParam, rayPlanePoint, restPosition, defaultStep, ringPoints, planeCorners, perpendicular, V } from './handles';
+export type { HandleSpec, HandleKind, HandleDragSink, Vec3 } from './handles';

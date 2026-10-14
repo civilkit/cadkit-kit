@@ -5,7 +5,7 @@ import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
-import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
+import { BODY, createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
@@ -46,6 +46,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
+import { useHandles } from './useHandles';
 import './tokens.css';
 import './app.css';
 
@@ -176,6 +177,7 @@ function App() {
   const sketchMoveRef = useRef<((pointId: string, u: number, v: number) => void) | null>(null);
   const sketchConfirmRef = useRef<(() => void) | null>(null);
   const sketchingRef = useRef(false);
+  const ctxMenuRef = useRef<((n: string | null, x: number, y: number, m: import('@kit/viewport').PickMode) => void) | null>(null);
   const sketchCancelRef = useRef<(() => void) | null>(null);
   // Sketch tools: the active tool, its state and its last output live in refs because the viewport and the
   // key handler are created once; the React state below only drives what is drawn.
@@ -226,6 +228,7 @@ function App() {
       onSketchHover: (ev) => sketchHoverRef.current?.(ev),
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
+      onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onRefPlanePick: (id) => { setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
@@ -468,6 +471,7 @@ function App() {
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m),
+    selectBody: () => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select([BODY]); },
     mode: () => store.mode.value,
     toggleLayer: (l) => store.setDisplay(l, !store.display.value[l]),
     layer: (l) => store.display.value[l],
@@ -484,6 +488,14 @@ function App() {
   dropFilesRef.current = dropFiles;
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
+  // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
+  const handles = useHandles({
+    controller, store, viewport: () => viewport, commands,
+    create: (ops) => createFeature(ops),
+    commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
+    editingId, sketching: !!sketching, enabled: ws.handles,
+  });
+  ctxMenuRef.current = handles.onContextMenu;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -847,7 +859,7 @@ function App() {
   /** The one selected face, if exactly one face is selected. */
   const selectedFace = (): string | null => {
     const sel = store.selection.value;
-    return store.mode.value === 'face' && sel.length === 1 ? sel[0] : null;
+    return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
   };
   const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
@@ -1093,6 +1105,7 @@ function App() {
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       <div id="vp" ref={host}>
+        {handles.menuEl}{handles.hintEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
         {ws.toolRail ? (

@@ -57,6 +57,8 @@ export interface Actions {
   setView(v: 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom'): void;
   fit(): void;
   setMode(m: SelectionMode): void;
+  /** Select the whole body (the target of the placement gizmo). Alt+click does the same in the viewport. */
+  selectBody?(): void;
   mode(): SelectionMode;
   toggleLayer(l: DisplayLayer): void;
   layer(l: DisplayLayer): boolean;
@@ -68,7 +70,7 @@ export const SHORTCUTS: Record<string, string> = {
   'sketch-here': 'S',
   'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H',
   'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
-  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+  'select-body': 'B', 'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
@@ -120,6 +122,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', pressed: () => a.mode() === 'edge', run: () => a.setMode('edge') },
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
+  if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));

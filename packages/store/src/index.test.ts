@@ -34,6 +34,15 @@ describe('store', () => {
     expect(s.workspace.value.ribbon).toBe('full');
     expect(s.workspace.value.rightPanel).toBe('docked');
   });
+  it('handles are on by default in every preset, can be switched off, and garbage is ignored', () => {
+    const s = createStore();
+    expect(s.workspace.value.handles).toBe(true);
+    for (const p of ['plasticity', 'classic', 'minimal'] as const) { s.applyPreset(p); expect(s.workspace.value.handles).toBe(true); }
+    s.setWorkspace({ handles: false });
+    expect(s.workspace.value.handles).toBe(false);
+    expect(createStore({}, { handles: false }).workspace.value.handles).toBe(false);
+    expect(createStore({}, { handles: 'no' }).workspace.value.handles).toBe(true);
+  });
   it('setWorkspace changes only what it is given and clamps bad values', () => {
     const s = createStore();
     s.setWorkspace({ toolRail: false, opacity: 5, blur: -3 });

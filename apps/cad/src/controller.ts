@@ -1,6 +1,6 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
-import { vertexName, type Store } from '@kit/store';
+import { vertexName, BODY, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, type StepImportResult } from './files/stepImport';
@@ -523,7 +523,7 @@ export class Controller {
   }
 
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number> } } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {
@@ -534,6 +534,12 @@ export class Controller {
   bodyMesh(): { positions: ArrayLike<number> } | null {
     const m = this.lastView?.mesh;
     return m && m.positions.length > 0 ? m : null;
+  }
+
+  /** The mesh arrays of the body on screen with normals and face ids (what the handles measure faces from), or null. */
+  bodyFaces(): { positions: ArrayLike<number>; normals: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null {
+    const m = this.lastView?.mesh;
+    return m && m.normals && m.triFace && m.faceIds && m.positions.length > 0 ? { positions: m.positions, normals: m.normals, triFace: m.triFace, faceIds: m.faceIds } : null;
   }
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
@@ -562,6 +568,7 @@ export class Controller {
     this.view.setBody(body);
     // everything that can be selected now: faces, edges and the corners at the ends of edges
     const existing = new Set<string>(body?.mesh.faceIds ?? []);
+    if (body) existing.add(BODY);
     for (const e of (body?.edges ?? []) as Array<{ key?: string; pts: number[][] }>) {
       if (e.key) existing.add(e.key);
       for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) if (p) existing.add(vertexName(p));

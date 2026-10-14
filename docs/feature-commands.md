@@ -128,3 +128,5 @@ commands shows in the tree and Editor but not on screen, and its faces and edges
 | `fill`, `extend` | Need edges of a surface body; surface bodies are not in the viewport, so no edge can be picked. Add the feature by editing the document, or after surface display lands. |
 | `plane` modes other than offset / mid | Need axis / point / curve references (objects the Editor cannot pick yet). |
 | `deleteBody` on a surface body | Needs a surface to be pickable. |
+
+See also `docs/contextual-handles.md`: dragging handles on a selected edge, corner or face runs the same fillet, chamfer and depth edits directly on the canvas, and the right-click menu lists these commands.
