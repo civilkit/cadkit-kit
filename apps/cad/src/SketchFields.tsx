@@ -5,10 +5,10 @@ const round = (v: number) => String(Math.round(v * 100) / 100);
 
 /** The typed-value fields that follow the pointer while a tool draws (length, angle, radius ...).
  *  Typing changes a live preview; Tab or Enter locks the value as a driving dimension. */
-export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; onField(id: string, value: number | null, commit: boolean): void }) {
+export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; onField(id: string, value: number | null, commit: boolean): void }) {
   if (!p.fields.length) return null;
   return (
-    <div class="sketch-fields" style={{ left: p.x + 16 + 'px', top: p.y + 16 + 'px' }} onPointerDown={(e) => e.stopPropagation()}>
+    <div class={'sketch-fields ' + (p.cls ?? '')} style={{ left: p.x + 16 + 'px', top: p.y + 16 + 'px' }} onPointerDown={(e) => e.stopPropagation()}>
       {p.fields.map((f, i) => (
         <label key={f.id} class={f.locked ? 'locked' : ''}>
           <span>{t(f.label)}</span>

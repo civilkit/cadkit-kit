@@ -120,3 +120,32 @@ export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
   const points = draft.points.filter((p) => p.fixed || used.has(p.id));
   return { ...draft, entities, constraints, points };
 }
+
+/** The origin point (fixed, at 0,0) that position dimensions are measured from, if the sketch has one. */
+const originOf = (d: SketchDraft) => d.points.find((p) => p.fixed && p.x === 0 && p.y === 0);
+
+/** A point's position as two editable fields, x and y, measured from the origin. */
+export function pointDims(draft: SketchDraft, id: string): FieldSpec[] {
+  const p = draft.points.find((q) => q.id === id);
+  if (!p || p.fixed) return [];
+  const o = originOf(draft);
+  const driven = (type: string) => !!o && draft.constraints.some((c) => c.type === type && c.refs?.[0] === o.id && c.refs?.[1] === id);
+  return [
+    { id: 'x', label: 'app.sketch.field.x', value: p.x, locked: driven('hdist'), unit: 'length' },
+    { id: 'y', label: 'app.sketch.field.y', value: p.y, locked: driven('vdist'), unit: 'length' },
+  ];
+}
+
+/** Put a point at a typed x or y and, when the sketch has an origin, keep it there with an `hdist` or `vdist`
+ *  dimension from the origin (those measure an absolute distance, so the point is moved first and the solver
+ *  keeps it on that side). Null for an unknown, fixed or unusable point or value. */
+export function setPointDim(draft: SketchDraft, id: string, axis: 'x' | 'y', value: number): SketchDraft | null {
+  const p = draft.points.find((q) => q.id === id);
+  if (!p || p.fixed || !Number.isFinite(value)) return null;
+  const moved: SketchDraft = { ...draft, points: draft.points.map((q) => (q.id === id ? { ...q, [axis]: value } : q)) };
+  const o = originOf(draft);
+  if (!o) return moved;
+  const type = axis === 'x' ? 'hdist' : 'vdist';
+  const kept: SketchDraft = { ...moved, constraints: moved.constraints.filter((c) => !(c.type === type && c.refs?.[0] === o.id && c.refs?.[1] === id)) };
+  return Math.abs(value) < 1e-9 ? kept : addConstraintOf(kept, type, [o.id, id], Math.abs(value));
+}

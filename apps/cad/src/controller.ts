@@ -184,7 +184,7 @@ export class Controller {
 
   // ---- sketch session (S1): open a sketch, drag with the solver, confirm/cancel ----
 
-  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null; isNew: boolean; undo: SketchDraft[] } | null = null;
+  private sketchOpen: { featureId: string; upTo: number; draft: SketchDraft; baselineDof: number | null; isNew: boolean; undo: SketchDraft[]; status: SketchSolverStatus | null } | null = null;
   private sketchTimer: ReturnType<typeof setTimeout> | null = null;
   private sketchWake: (() => void) | null = null;
   private sketchSeq = 0;
@@ -205,11 +205,12 @@ export class Controller {
     const feature = features[index] as unknown as Record<string, unknown>;
     if (feature.type !== 'sketch') return null;
     const draft = fromFeature(feature);
-    this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null, isNew: false, undo: [] };
+    this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null, isNew: false, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, index + 1, false);
     if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
     this.sketchOpen.baselineDof = res.status?.dof ?? null;
+    this.sketchOpen.status = res.status ?? null;
     this.view.setSketchEdit(res.view);
     return res.view;
   }
@@ -225,11 +226,12 @@ export class Controller {
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
     const upTo = s.document.features.length + 1;
-    this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [] };
+    this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, upTo, true);
     if (!res.ok || !res.view) { this.sketchOpen = null; return null; }
     this.sketchOpen.baselineDof = res.status?.dof ?? null;
+    this.sketchOpen.status = res.status ?? null;
     this.view.setSketchEdit(res.view);
     return res.view;
   }
@@ -286,9 +288,11 @@ export class Controller {
     // last good solved sketch on screen (the point snaps back).
     if (draft.temp.length && res.status && res.status.solved === false) {
       const hint = open.baselineDof === 0 ? 'app.sketch.fullyDefined' : 'app.sketch.conflict';
+      open.status = res.status ?? open.status;
       return { ok: false, hint, status: res.status };
     }
     if (res.ok && res.view) {
+      open.status = res.status ?? null;
       // Fold the solver's result into the draft: regen only re-solves on expr
       // changes, so the committed sketch must carry the solved coordinates.
       open.draft = foldSolution(draft, res.view.sketch);
@@ -308,6 +312,11 @@ export class Controller {
     this.view.setSketchEdit(null);
     const feature = toFeature(open.draft);
     return this.edit([open.isNew ? { op: 'add', feature } : { op: 'replace', id: open.featureId, feature }], open.isNew ? 'new sketch' : 'sketch');
+  }
+
+  /** The solver's verdict on the open sketch (degrees of freedom, conflicts), from the last preview. */
+  sketchStatus(): SketchSolverStatus | null {
+    return this.sketchOpen?.status ?? null;
   }
 
   /** The draft being edited in the open sketch session (null when none). The

@@ -44,6 +44,12 @@ export interface ViewportOptions {
   onSketchPointer?(ev: SketchPointerEvent): void;
   /** Select mode (no tool): a click that did not hit a point or start a drag, in plane coordinates. */
   onSketchSelect?(ev: SketchPointerEvent): void;
+  /** Select mode: the pointer moved over the sketch (for hover highlights). */
+  onSketchHover?(ev: SketchPointerEvent): void;
+  /** Select mode: a double click on the sketch. */
+  onSketchDouble?(ev: SketchPointerEvent): void;
+  /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
+  onSketchView?(): void;
 }
 
 export interface SketchPointerEvent {
@@ -150,6 +156,7 @@ export class Viewport {
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
     this.dom.addEventListener('pointerleave', this.onLeave);
+    this.dom.addEventListener('dblclick', this.onDouble);
     this.resize();
     this.loop();
   }
@@ -374,7 +381,19 @@ export class Viewport {
       if (!this.sketchEdit) return;
       this.rebuildSketchGrid();
       this.rebuildSketchPreview();
+      this.opts.onSketchView?.();
     });
+  }
+
+  /** Pixel position (relative to the viewport element) of a point on the sketch plane, or null if it is behind the camera. */
+  sketchToScreen(u: number, v: number): { x: number; y: number } | null {
+    const s = this.sketchEdit;
+    if (!s) return null;
+    const w = planeToWorld(s.frame as never, u, v);
+    const p = new THREE.Vector3(w[0], w[1], w[2]).project(this.camera);
+    if (p.z > 1) return null;
+    const r = this.dom.getBoundingClientRect();
+    return { x: (p.x * 0.5 + 0.5) * r.width, y: (-p.y * 0.5 + 0.5) * r.height };
   }
 
   /** Plane units per screen pixel at the sketch, for snap tolerances. */
@@ -397,6 +416,10 @@ export class Viewport {
       mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
     });
   }
+
+  private onDouble = (e: MouseEvent): void => {
+    if (this.sketchEdit && !this.sketchTool) this.emitSketchPointer('click', e as PointerEvent, this.opts.onSketchDouble);
+  };
 
   private onLeave = (): void => {
     if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
@@ -643,6 +666,7 @@ export class Viewport {
     cancelAnimationFrame(this.raf);
     this.dom.removeEventListener('pointerdown', this.onDown);
     this.dom.removeEventListener('pointerleave', this.onLeave);
+    this.dom.removeEventListener('dblclick', this.onDouble);
     this.viewCube?.dispose();
     this.viewCube = null;
     this.dom.removeEventListener('pointerup', this.onUp);
@@ -768,6 +792,7 @@ export class Viewport {
 
   private onMove = (e: PointerEvent): void => {
     if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
+    if (this.sketchEdit && !this.sketchDrag) this.emitSketchPointer('move', e, this.opts.onSketchHover);
     if (this.sketchDrag) {
       const uv = this.planeAt(e.clientX, e.clientY);
       if (uv) this.opts.onSketchMove?.(this.sketchDrag, uv[0], uv[1]);
