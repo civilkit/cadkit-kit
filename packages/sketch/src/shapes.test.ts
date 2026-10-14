@@ -29,3 +29,27 @@ describe('sketchShapes', () => {
     expect(regionsFor(s, new Set(['e5']))).toEqual(['e5']);
   });
 });
+
+import { nextExtrudeTarget } from './shapes';
+describe('nextExtrudeTarget', () => {
+  const sk = { id: 'F1', type: 'sketch', entities: [...rect, { id: 'e5', type: 'circle', c: 'a', r: 3 }, { id: 'e6', type: 'circle', c: 'b', r: 3 }] };
+  it('uses a sketch nobody uses, whole', () => {
+    expect(nextExtrudeTarget([sk])).toEqual({ sketchId: 'F1', regions: null });
+  });
+  it('after a feature took only some shapes, offers the shapes left over', () => {
+    const used = { id: 'F2', type: 'extrude', sketch: 'F1', regions: ['e1', 'e5'] };
+    expect(nextExtrudeTarget([sk, used])).toEqual({ sketchId: 'F1', regions: ['e6'] });
+  });
+  it('says nothing is left when a feature uses every shape, but honours an explicit selection', () => {
+    const all = { id: 'F2', type: 'extrude', sketch: 'F1' };
+    expect(nextExtrudeTarget([sk, all])).toBeNull();
+    expect(nextExtrudeTarget([sk, all], 'F1')).toEqual({ sketchId: 'F1', regions: null });
+  });
+  it('prefers the newest sketch with something left, and skips sketches that are fully used', () => {
+    const sk2 = { id: 'F3', type: 'sketch', entities: [{ id: 'k1', type: 'circle', c: 'q', r: 2 }] };
+    const all = { id: 'F2', type: 'extrude', sketch: 'F1' };
+    expect(nextExtrudeTarget([sk, all, sk2])).toEqual({ sketchId: 'F3', regions: null });
+    const all2 = { id: 'F4', type: 'extrude', sketch: 'F3' };
+    expect(nextExtrudeTarget([sk, all, sk2, all2])).toBeNull();
+  });
+});

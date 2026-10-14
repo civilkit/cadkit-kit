@@ -51,3 +51,32 @@ export function regionsFor(shapes: SketchShape[], checked: ReadonlySet<string>):
   const on = shapes.filter((s) => checked.has(s.id));
   return on.length === shapes.length ? null : on.map((s) => s.id);
 }
+
+interface FeatureRef { id: string; type: string; regions?: unknown; sketch?: unknown; [k: string]: unknown }
+
+/** What a new Extrude or Cut should be built from. A sketch the user selected wins; otherwise the newest sketch that still has
+ *  shapes nothing uses: a sketch no feature uses (all its shapes), or one whose features picked only some shapes (the rest). A
+ *  feature without `regions` uses every shape. Null when everything is already used: the caller says so instead of stacking an
+ *  identical solid on top (which fails as a boolean). */
+export function nextExtrudeTarget(features: FeatureRef[], selectedId?: string | null): { sketchId: string; regions: string[] | null } | null {
+  const sketches = features.filter((f) => f.type === 'sketch');
+  const uncovered = (sk: FeatureRef): string[] | 'all' | 'none' => {
+    const users = features.filter((f) => f.type !== 'sketch' && f.sketch === sk.id);
+    if (!users.length) return 'all';
+    const shapes = sketchShapes(sk as never);
+    if (users.some((u) => !Array.isArray(u.regions))) return 'none';   // a user takes every shape
+    const covered = new Set(users.flatMap((u) => u.regions as string[]));
+    const rest = shapes.filter((s) => !s.entityIds.some((e) => covered.has(e))).map((s) => s.id);
+    return rest.length ? rest : 'none';
+  };
+  const pick = (sk: FeatureRef, forced: boolean) => {
+    const u = uncovered(sk);
+    if (u === 'all') return { sketchId: sk.id, regions: null };
+    if (u === 'none') return forced ? { sketchId: sk.id, regions: null } : null;
+    return { sketchId: sk.id, regions: u.length === sketchShapes(sk as never).length ? null : u };
+  };
+  const chosen = sketches.find((s) => s.id === selectedId);
+  if (chosen) return pick(chosen, true);
+  for (const sk of [...sketches].reverse()) { const r = pick(sk, false); if (r) return r; }
+  return null;
+}

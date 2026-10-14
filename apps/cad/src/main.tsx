@@ -36,7 +36,7 @@ const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes } from '@kit/sketch';
+import { sketchTools, sketchShapes, nextExtrudeTarget } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 /** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
@@ -688,11 +688,10 @@ function App() {
   const addExtrude = async (op: 'add' | 'cut') => {
     const d = controller.document();
     if (!d) return;
-    const selected = d.features.find((f) => f.id === selectedId && f.type === 'sketch');
-    const sketch = selected ?? [...d.features].reverse().find((f) => f.type === 'sketch');
-    if (!sketch) { store.notify(t('app.noSketch'), 'error'); return; }
+    const target = nextExtrudeTarget(d.features as never, selectedId);
+    if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
     const before = d.features.length;
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: sketch.id, end: 'blind', depth: 10, ...(controller.extrudeFlip(sketch.id, op) ? { flip: true } : {}) } }]);
+    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(target.regions ? { regions: target.regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);
