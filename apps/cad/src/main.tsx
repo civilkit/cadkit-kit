@@ -10,7 +10,7 @@ import { Viewport } from '@kit/viewport';
 import { annotate, applySnapConstraints, constraintTargets, DEFAULT_SETTINGS, deleteEntity, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
+  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, Inspector, Ribbon, StatusBar, Tip, Toast,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -81,19 +81,6 @@ if (import.meta.env.DEV) {
   Object.assign(window, { __cad: hook });
 }
 
-const I = (d: string) => `<svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-const RAIL_ICONS: Record<string, string> = {
-  undo: I('<path d="M6 3 3 6l3 3M3 6h6a4 4 0 010 8H6"/>'),
-  redo: I('<path d="m10 3 3 3-3 3M13 6H7a4 4 0 000 8h3"/>'),
-  'view-iso': I('<path d="M8 1.8 13.5 5v6L8 14.2 2.5 11V5zM2.5 5 8 8.2 13.5 5M8 8.2v6"/>'),
-  'view-front': I('<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M3 8h10" opacity=".4"/>'),
-  'view-top': I('<path d="M2.5 11.5 5 4.5h8.5l-2.5 7z"/>'),
-  'view-back': I('<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M3 8h10" opacity=".4"/>'),
-  'view-left': I('<path d="M13 3H7L3 5.5V13h10z"/>'),
-  'view-bottom': I('<path d="M2.5 4.5 5 11.5h8.5l-2.5-7z"/>'),
-  'view-right': I('<path d="M3 3h6l4 2.5v7.5H3z"/>'),
-  fit: I('<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>'),
-};
 const timed = async <T,>(f: () => Promise<T>): Promise<T> => {
   const t0 = performance.now();
   try { return await f(); } finally { store.facts.value = { ...store.facts.value, rebuildMs: Math.round(performance.now() - t0) }; }
@@ -675,7 +662,7 @@ function App() {
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <button class="rb-btn" onClick={() => setSettings(true)} title={t('app.settings.title')}>{t('app.settings')}</button>
       </div>
-      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} /></div> : null}
+      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       <div id="vp" ref={host}>
         {ws.leftPanel === 'floating' ? left : null}
@@ -683,14 +670,21 @@ function App() {
         {ws.toolRail ? (
           <div class="tool-rail" role="toolbar" aria-label={t('app.tools')}>
             {commands.filter((c) => ['view-iso', 'view-front', 'view-top', 'view-right', 'fit', 'undo', 'redo'].includes(c.id)).map((c) => (
-              <button key={c.id} title={c.label} aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run} dangerouslySetInnerHTML={{ __html: RAIL_ICONS[c.id] ?? c.label.slice(0, 2) }} />
+              <Tip key={c.id} label={c.label} keys={c.keys} side="right">
+                <button aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={20} /></button>
+              </Tip>
             ))}
           </div>
         ) : null}
         {ws.selectionBar ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
             {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E']] as const).map(([m, l, k]) => (
-              <button key={m} aria-pressed={store.mode.value === m} onClick={() => setMode(m)}><kbd>{k}</kbd>{t(l)}</button>
+              <Tip key={m} label={t(l)} keys={k}>
+                <button aria-pressed={store.mode.value === m} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
+                  <Icon name={'sel-' + m} size={ws.toolLabels === 'icons' ? 20 : 16} />
+                  {ws.toolLabels === 'icons' ? null : <><kbd>{k}</kbd>{t(l)}</>}
+                </button>
+              </Tip>
             ))}
           </div>
         ) : null}
@@ -700,7 +694,7 @@ function App() {
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
-        {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} /> : null}
+        {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}

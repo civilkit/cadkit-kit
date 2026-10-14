@@ -11,6 +11,7 @@ export interface Workspace {
   leftTabs: boolean;                       // Outliner / Features / Assets tabs instead of one list
   rightPanel: 'off' | 'docked' | 'floating';
   toolRail: boolean;
+  toolLabels: 'icons' | 'icons-and-text';   // buttons show an icon only (label on hover) or icon and text
   selectionBar: boolean;
   commandBar: boolean;
   drawerOpen: boolean;
@@ -19,9 +20,9 @@ export interface Workspace {
 }
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
-  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, rightPanel: 'off', toolRail: true, selectionBar: true, commandBar: true, drawerOpen: true, opacity: 0.62, blur: 14 },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, rightPanel: 'docked', toolRail: false, selectionBar: false, commandBar: false, drawerOpen: false, opacity: 1, blur: 0 },
-  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, rightPanel: 'off', toolRail: false, selectionBar: false, commandBar: false, drawerOpen: false, opacity: 0.5, blur: 14 },
+  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, opacity: 0.62, blur: 14 },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 1, blur: 0 },
+  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 0.5, blur: 14 },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
@@ -32,6 +33,7 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   pick('ribbon', ['full', 'compact', 'off'] as const);
   pick('leftPanel', ['docked', 'floating', 'hidden'] as const);
   pick('rightPanel', ['off', 'docked', 'floating'] as const);
+  pick('toolLabels', ['icons', 'icons-and-text'] as const);
   for (const k of ['leftTabs', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   if (typeof r.opacity === 'number' && Number.isFinite(r.opacity)) out.opacity = Math.min(1, Math.max(0.15, r.opacity));
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));

@@ -20,7 +20,7 @@ export function SettingsDialog(p: {
       <span>{t('settings.' + key)}</span>
     </label>
   );
-  const select = <K extends 'ribbon' | 'leftPanel' | 'rightPanel'>(key: K, options: Array<Workspace[K]>) => (
+  const select = <K extends 'ribbon' | 'leftPanel' | 'rightPanel' | 'toolLabels'>(key: K, options: Array<Workspace[K]>) => (
     <label class="set-row">
       <span>{t('settings.' + key)}</span>
       <select aria-label={t('settings.' + key)} value={w[key]} onChange={(e) => p.onChange({ [key]: (e.currentTarget as HTMLSelectElement).value } as Partial<Workspace>)}>
@@ -45,6 +45,7 @@ export function SettingsDialog(p: {
           {select('ribbon', ['off', 'compact', 'full'])}
           {select('leftPanel', ['docked', 'floating', 'hidden'])}
           {select('rightPanel', ['off', 'docked', 'floating'])}
+          {select('toolLabels', ['icons-and-text', 'icons'])}
           {check('leftTabs')}
           {check('toolRail')}
           {check('selectionBar')}

@@ -34,4 +34,12 @@ describe('SettingsDialog', () => {
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
     expect(onLocale).toHaveBeenCalledWith('de');
   });
+  it('the button labels select offers icons only and reports the choice', () => {
+    const onChange = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={onChange} onPreset={() => {}} onClose={() => {}} />);
+    const sel = screen.getByLabelText('Button labels') as HTMLSelectElement;
+    expect(sel.value).toBe('icons-and-text');
+    fireEvent.change(sel, { target: { value: 'icons' } });
+    expect(onChange).toHaveBeenCalledWith({ toolLabels: 'icons' });
+  });
 });

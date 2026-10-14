@@ -8,3 +8,5 @@ export { Drawer, type DrawerTab } from './Drawer';
 export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog';
 export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
+export { Icon, ICON_NAMES, hasIcon } from './icons';
+export { Tip, placeTip, type TipSide } from './Tip';

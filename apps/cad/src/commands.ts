@@ -52,11 +52,11 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'view-bottom', label: t('cmd.view-bottom'), tab: 'View', group: 'Views', keys: '6', run: () => a.setView('bottom') },
     { id: 'view-iso', label: t('cmd.view-iso'), tab: 'View', group: 'Views', keys: '7', run: () => a.setView('iso') },
     { id: 'fit', label: t('cmd.fit'), tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
-    { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: 'Q', run: () => a.setMode('face') },
-    { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', run: () => a.setMode('edge') },
+    { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: 'Q', pressed: () => a.mode() === 'face', run: () => a.setMode('face') },
+    { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', pressed: () => a.mode() === 'edge', run: () => a.setMode('edge') },
   ];
   for (const layer of LAYERS) {
-    cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', run: () => a.toggleLayer(layer) });
+    cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
   }
   return cmds;
 }
