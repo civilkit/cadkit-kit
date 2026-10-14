@@ -139,7 +139,7 @@ export class Viewport {
     this.camera.position.set(60, 50, 60);
 
     this.controls = new OrbitControls(this.camera, this.dom);
-    this.controls.addEventListener('change', () => { this.dirty = true; this.scheduleSketchRefresh(); });
+    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.9));
     const sun = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -708,11 +708,42 @@ export class Viewport {
     dir.normalize().multiplyScalar(dist);
     this.controls.target.copy(c);
     this.camera.position.copy(c).add(dir);
-    this.camera.near = Math.max(r / 1000, 0.01);
-    this.camera.far = r * 100;
-    this.camera.updateProjectionMatrix();
+    this.updateClip();
     this.controls.update();
     this.dirty = true;
+  }
+
+  private ortho = false;
+  /** Parallel projection is a perspective camera with a very narrow field of view, moved back to keep the same framing:
+   *  one camera, so orbit, pan, zoom, picking and the sketch overlay all keep working unchanged. */
+  setOrtho(on: boolean): void {
+    if (on === this.ortho) return;
+    const oldFov = this.camera.fov;
+    const newFov = on ? 1 : 45;
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    const d = dir.length() || this.radius() * 3;
+    dir.normalize().multiplyScalar(d * (Math.tan((oldFov * Math.PI) / 360) / Math.tan((newFov * Math.PI) / 360)));
+    this.ortho = on;
+    this.camera.fov = newFov;
+    this.camera.position.copy(this.controls.target).add(dir);
+    this.updateClip();
+    this.controls.update();
+    this.dirty = true;
+  }
+  isOrtho(): boolean { return this.ortho; }
+
+  /** Clip planes that hug the model: with the narrow field of view the camera is far away, so a fixed near plane would cut it. */
+  private updateClip(): void {
+    const r = this.radius();
+    if (this.ortho) {
+      const d = this.camera.position.distanceTo(this.controls.target);
+      this.camera.near = Math.max(d - 6 * r, d * 0.1);
+      this.camera.far = d + 6 * r;
+    } else {
+      this.camera.near = Math.max(r / 1000, 0.01);
+      this.camera.far = r * 100;
+    }
+    this.camera.updateProjectionMatrix();
   }
 
   resize(): void {

@@ -101,6 +101,7 @@ function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -165,6 +166,7 @@ function App() {
       onSketchView: () => viewTick((n) => n + 1),
     });
     viewport = vp;
+    try { if (localStorage.getItem('cad.ortho') === '1') vp.setOrtho(true); } catch { /* private window */ }
     const ro = new ResizeObserver(() => vp.resize());
     ro.observe(host.current!);
     return () => { ro.disconnect(); vp.dispose(); viewport = null; };
@@ -208,6 +210,12 @@ function App() {
     redraw((n) => n + 1);
   };
   const setMode = (m: 'face' | 'edge') => { store.mode.value = m; viewport?.setPickMode(m); };
+  const toggleProjection = () => {
+    const next = !(viewport?.isOrtho() ?? ortho);
+    viewport?.setOrtho(next);
+    setOrthoState(next);
+    try { localStorage.setItem('cad.ortho', next ? '1' : '0'); } catch { /* private window */ }
+  };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
@@ -226,6 +234,7 @@ function App() {
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
     palette: () => setPalette(true),
     toggleDrawer,
+    toggleProjection,
     toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
@@ -764,7 +773,10 @@ function App() {
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
         {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
-        <div class="cube-tools"><Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip></div>
+        <div class="cube-tools">
+          <Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip>
+          <Tip label={ortho ? t('app.view.parallel') : t('app.view.perspective')} side="bottom"><button aria-label={t('cmd.toggle-projection')} aria-pressed={ortho} class={ortho ? 'on' : ''} onClick={toggleProjection}><Icon name={ortho ? 'projection-ortho' : 'toggle-projection'} size={18} /></button></Tip>
+        </div>
         {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}

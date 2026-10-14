@@ -300,7 +300,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .spal-name { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); padding-left: 2px; }
 .spal-grid { display: grid; grid-template-columns: repeat(2, 38px); gap: 2px; }
 .sketch-palette .stool { width: 38px; height: 34px; }
-.cube-tools { position: absolute; top: 54px; right: 130px; z-index: 4; }
+.cube-tools { display: flex; gap: 6px; position: absolute; top: 54px; right: 130px; z-index: 4; }
 .cube-tools button { width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); color: var(--text-2); outline: 1px solid var(--line); outline-offset: -1px; }
 .cube-tools button:hover { background: var(--accent-soft); color: var(--text); }
 .topbar .tb-icon { width: 32px; height: 30px; padding: 0; display: grid; place-items: center; }
@@ -314,3 +314,4 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 #app, #app * { -webkit-user-select: none; user-select: none; }
 #app input, #app textarea, #app select, #app [contenteditable], #app .selectable, #app .he, #app .toast { -webkit-user-select: text; user-select: text; }
 canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.cube-tools button.on { background: var(--accent-soft); color: var(--accent); }
