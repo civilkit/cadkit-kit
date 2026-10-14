@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
-import { checkMesh, parseStl } from '@kit/io';
+import { checkMesh, parseDxf, parseStl, type DxfEntity } from '@kit/io';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
-import { exportObj, exportStep, exportStl } from './exportFiles';
+import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf } from './exportFiles';
 
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
   type: 'sketch', id, plane: { kind: 'std', id: 'front' },
@@ -79,5 +79,29 @@ describe('mesh and STEP export against the real kernel', { skip: !process.env.CK
     const { c } = await load(emptyPart('Empty') as unknown as PartDoc);
     expect(c.bodyMesh()).toBeNull();
     expect(exportStl(c.bodyMesh(), 'Empty').file).toBeUndefined();
+  });
+  it('DXF of the hole sketch and of the three views of the real body', async () => {
+    const { c } = await load(part());
+    const sk = c.document()!.features.find((f) => f.id === 'F3') as unknown as Parameters<typeof exportSketchDxf>[0];
+    const s = exportSketchDxf(sk, 'Box');
+    expect(s.file!.name).toBe('Box-F3.dxf');
+    expect(parseDxf(s.file!.data as string).entities).toEqual([{ type: 'CIRCLE', layer: '0', c: { x: 20, y: 12 }, r: 6 }]);
+    const v = exportViewsDxf(c.bodyEdges() as Array<{ pts: number[][] }>, c.bodyBox(), 'Box');
+    const ents = parseDxf(v.file!.data as string).entities;
+    const extent = (es: DxfEntity[]) => {
+      const xs: number[] = [], ys: number[] = [];
+      for (const e of es) {
+        if (e.type === 'LINE') { xs.push(e.a.x, e.b.x); ys.push(e.a.y, e.b.y); } else if (e.type === 'POLYLINE') for (const p of e.verts) { xs.push(p.x); ys.push(p.y); }
+      }
+      return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), x0: Math.min(...xs), y0: Math.min(...ys) };
+    };
+    // the front view is the 40 x 25 outline with the 12 mm hole in it (drawn as a polyline)
+    const front = ents.filter((e) => e.type === 'POLYLINE' ? e.verts.every((p) => p.y < 26) : e.type === 'LINE' && e.a.y < 26 && e.b.y < 26 && e.a.x < 41 && e.b.x < 41);
+    expect(extent(front)).toMatchObject({ w: 40, h: 25, x0: 0, y0: 0 });
+    const hole = ents.find((e) => e.type === 'POLYLINE' && e.verts.length > 8 && e.verts.every((p) => p.y < 26 && p.x < 41)) as Extract<DxfEntity, { type: 'POLYLINE' }>;
+    expect(hole).toBeDefined();
+    expect(Math.max(...hole.verts.map((p) => p.x)) - Math.min(...hole.verts.map((p) => p.x))).toBeCloseTo(12, 1);   // sampled edge, so a chord short of the true diameter
+    // the hole is not visible from the side, so those views hold the outline lines of the box only
+    expect(ents.length).toBeGreaterThan(12);
   });
 });
