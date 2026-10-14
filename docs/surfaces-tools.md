@@ -67,3 +67,5 @@ Display menu > Surface analysis, and Evaluate tab commands (`analysis-zebra` Alt
 - fill guide curves and strength, freeform control-net handles, editCurve and rebuildFace editors, curve-driven pattern: no UI yet.
   Freeform and editCurve need handle editing in the viewport.
 - Analysis is on the displayed mesh (tessellation), not exact surfaces; continuity (G1/G2) comparison between faces is not shown.
+
+Screenshots: `docs/img/analysis-zebra.png`, `analysis-mean.png`, `analysis-draft.png`, `analysis-comb.png`, `editor-loft.png`.
