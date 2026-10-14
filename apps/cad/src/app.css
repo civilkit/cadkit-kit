@@ -807,3 +807,4 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tree .row.hidden .row-hide, .tree .row .row-hide.on { opacity: 1; color: var(--text-2); }
 .tree .row.hov { background: var(--panel-2); box-shadow: inset 2px 0 0 #f2a93b; }
 .tree .row.hov.sel { background: var(--accent-soft); }
+.tree .row.hidden:not(:hover):not(.sel) { padding-right: 34px; }

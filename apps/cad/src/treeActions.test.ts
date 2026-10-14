@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
+import { viewOwner, faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
 
 const feats = [
   { id: 'F1', type: 'sketch', name: 'F2' },
@@ -82,5 +82,19 @@ describe('ops', () => {
     const f = [{ id: 'A', suppressed: true }, { id: 'B' }];
     expect(suppressOps(f, ['A', 'B'])).toEqual([{ op: 'set', id: 'B', path: 'suppressed', value: true }]);
     expect(suppressOps(f, ['A'])).toEqual([{ op: 'set', id: 'A', path: 'suppressed', value: false }]);
+  });
+});
+
+describe('viewOwner', () => {
+  const inserts = new Set(['F6', 'F8']);
+  it('is the feature id in a part', () => {
+    expect(viewOwner('F5.S.e1', new Set())).toBe('F5');
+    expect(viewOwner('F2.C1|F2.C2#0', new Set())).toBe('F2');
+  });
+  it('is the component for names of an inserted part, also pattern copies, and the feature for root-part names', () => {
+    expect(viewOwner('F2.S.e12@F6.1', inserts)).toBe('F6');
+    expect(viewOwner('F4.C0@F6.1@F12.1', inserts)).toBe('F6');
+    expect(viewOwner('F3.C1', inserts)).toBe('F3');
+    expect(viewOwner('F2.C1@F9.1', inserts)).toBeNull();
   });
 });

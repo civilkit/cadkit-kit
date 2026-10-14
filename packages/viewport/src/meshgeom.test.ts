@@ -51,3 +51,25 @@ describe('facesGeometry and namesBox', () => {
     expect(namesBox(null, [], ['A'])).toBeNull();
   });
 });
+
+import { nameOwner, withoutOwned } from './meshgeom';
+
+describe('nameOwner / withoutOwned (feature hide)', () => {
+  it('reads the feature id from face and edge names', () => {
+    expect(nameOwner('F5.S.e1')).toBe('F5');
+    expect(nameOwner('F12.C1')).toBe('F12');
+    expect(nameOwner('F5.C1|F5.C2#0')).toBe('F5');
+    expect(nameOwner('F5')).toBe('F5');
+    expect(nameOwner('vertex:1,2,3')).toBeNull();
+  });
+  it('drops the triangles and edges a hidden feature made and keeps the rest', () => {
+    const m = { positions: new Float32Array([...tri(0), ...tri(1), ...tri(2)]), normals: new Float32Array(27), triFace: new Int32Array([1, 0, 1]), faceIds: ['F2.C0', 'F7.C1'] };
+    const edges = [{ key: 'F2.C0|F7.C1#0', pts: [[0, 0, 0]] }, { key: 'F7.C1|F7.C2#0', pts: [[1, 1, 1]] }, { pts: [[2, 2, 2]] }];
+    const r = withoutOwned(m, edges, new Set(['F7']));
+    expect(Array.from(r.mesh.triFace)).toEqual([0]);
+    expect(r.mesh.positions.length).toBe(9);
+    expect(Array.from(r.mesh.positions)).toEqual(tri(1));
+    expect(r.edges.map((e) => e.key)).toEqual(['F2.C0|F7.C1#0', undefined]);
+    expect(withoutOwned(m, edges, new Set(['F9'])).mesh).toBe(m);
+  });
+});

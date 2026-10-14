@@ -349,3 +349,33 @@ describe('FeatureTree: editable reference row', () => {
     expect(container.querySelector('.ref-edit')!.getAttribute('aria-label')).toBe('Change material');
   });
 });
+
+describe('FeatureTree: hover and hide', () => {
+  const base = { status: [], selectedId: null, onSelect: () => {}, onMove: () => {}, onRemove: () => {} };
+  const rows = [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', op: 'add' }];
+  it('reports the hovered feature row and clears it on leave', () => {
+    const seen: Array<string | null> = [];
+    const { container } = render(<FeatureTree {...base} rows={rows} onToggleSuppress={() => {}} onHoverFeature={(id) => seen.push(id)} />);
+    const r = container.querySelectorAll('.row[data-id]')[1];
+    fireEvent.mouseEnter(r); fireEvent.mouseLeave(r);
+    expect(seen).toEqual(['F2', null]);
+  });
+  it('marks the row of the feature under the pointer in the 3D view', () => {
+    const { container } = render(<FeatureTree {...base} rows={rows} onToggleSuppress={() => {}} hoverId="F2" />);
+    expect(container.querySelector('.row[data-id="F2"]')!.className).toContain('hov');
+    expect(container.querySelector('.row[data-id="F1"]')!.className).not.toContain('hov');
+  });
+  it('the eye hides in the view only; suppress is its own button with a different icon and a rebuild tooltip', () => {
+    const hid: string[] = [], sup: string[] = [];
+    const { container } = render(<FeatureTree {...base} rows={rows} hiddenIds={['F2']} onToggleHide={(id) => hid.push(id)} onToggleSuppress={(id) => sup.push(id)} />);
+    const f2 = container.querySelector('.row[data-id="F2"]')!;
+    expect(f2.className).toContain('hidden');
+    expect(f2.querySelector('.row-hide svg')!.getAttribute('data-icon')).toBe('eye-off');
+    expect(container.querySelector('.row[data-id="F1"] .row-hide svg')!.getAttribute('data-icon')).toBe('eye');
+    expect(f2.querySelector('.row-sup svg')!.getAttribute('data-icon')).toBe('pause');
+    expect(f2.querySelector('.row-sup')!.getAttribute('title')).toContain('rebuilds');
+    fireEvent.click(f2.querySelector('.row-hide')!);
+    fireEvent.click(f2.querySelector('.row-sup')!);
+    expect(hid).toEqual(['F2']); expect(sup).toEqual(['F2']);
+  });
+});

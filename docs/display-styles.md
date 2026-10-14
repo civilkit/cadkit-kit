@@ -30,6 +30,16 @@ H hides the body of the selected faces, edges or corners, or the selected sketch
 "Show all" button in the popover) shows everything. Hidden state is for the session and is not saved. A hidden body also stops
 picking. Parts have one body, so "hide body" hides the whole solid.
 
+### Hiding a feature from the tree (the eye)
+
+The eye on a history row hides exactly what that feature made, in the view only: no kernel call, no rebuild, not saved. It
+adds the feature id to `lookStore.hidden.ids` (the same list sketches, planes and surface bodies already used). The viewport
+drops the triangles and edge lines whose names belong to a hidden feature (`withoutOwned` in `meshgeom.ts`; owner = the id
+before the first dot of a face name, or the component id in an assembly), and its sketch curves, curves and plane. Faces a
+later feature consumed are simply not there any more, so only what is still visible from the feature is hidden. Hidden faces
+stop picking. The row is dimmed and shows a closed eye; clicking it again, Alt+H or "Show all" restores. Suppress (which
+rebuilds) is a separate button with a pause glyph, tooltip "Suppress (rebuilds)".
+
 ## Lighting and background
 
 Lighting: studio (default), flat, high contrast. Background: theme (the `--vp-bottom` token), light, dark, gradient
@@ -46,5 +56,5 @@ Lighting: studio (default), flat, high contrast. Background: theme (the `--vp-bo
 
 - Silhouette edge emphasis (needs an extra outline pass; not cheap).
 - Realistic rendering and a material library.
-- Hiding individual faces (a single mesh; would need per-face draw ranges). Hiding a datum plane of the three base planes.
+- Hiding one chosen face (hiding all faces of one feature is done, see above). Hiding a datum plane of the three base planes.
 - Colour stored in the document: needs a kernel/part-model field.

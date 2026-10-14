@@ -24,6 +24,19 @@ Pure logic is in `apps/cad/src/treeActions.ts` and `treeCommands.ts`; the wiring
 | Escape | Clears the selection (model and tree) first; when nothing is selected it closes dialogs as before. Inside a sketch it still cancels the sketch. |
 | Arrows | Turn the view 15 degrees when focus is on the canvas or the page (not in a field or a panel) and no sketch is open. `Alt+arrow` pans. |
 
+## Hover highlight and hide (branch kit-treehover)
+
+| Feature | How |
+|---|---|
+| Hover a row | The 3D view tints what the feature made: faces and edges whose names start with its id (`F5.S.e1`, `F5.C1`), a sketch's curves, a curve, a datum plane's quad. In an assembly an insert row tints its component (names carrying `@F6.1`). Colour: pale amber (`FEATURE_HOVER` in `viewport.ts`), softer than the face hover blue and the selection blue. A feature that only modifies faces (fillet) shows the faces named after it. Rows the rollback bar greys out make no geometry, so nothing is tinted. The Outliner component rows do the same through `AsmHost.hover`. Reference planes keep their own plane highlight. |
+| Hover a face in the view | The owning feature's row gets a left amber mark (`.row.hov`) and is scrolled into view (`block: nearest`). Not while a tree row is hovered or a sketch is open. |
+| Eye | View-only hide of the feature's faces, edges and sketch curves, see `display-styles.md`. Dimmed row, closed eye, Alt+H / Show all restore. Per session. |
+| Pause button | Suppress / unsuppress (rebuilds); `Ctrl+Shift+U` unchanged. |
+
+Code: `Viewport.setFeatureHover(ids)`, `setOwnerFn`, `viewOwner` in `treeActions.ts`, props `hiddenIds`, `onToggleHide`,
+`onHoverFeature`, `hoverId` of `FeatureTree`. Not done: a "Solid Bodies" folder and a right-click menu on tree rows do not
+exist in this app, so there is nothing to hook there; pattern rows do not tint their copies.
+
 ## New keys
 
 `F2` rename, `Delete` / `Backspace` delete, `Ctrl+Y` redo, `Ctrl+B` rebuild, `Ctrl+A` select all, `Ctrl+Shift+U`
