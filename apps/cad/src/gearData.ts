@@ -111,7 +111,7 @@ export function gearReadout(p: GearParams): GearReadout {
   const minTeeth = Math.ceil((2 * p.addendum * Math.cos(g.beta)) / sin2 - 1e-9);
   const zEff = p.type === 'rack' ? Infinity : g.z;
   const undercut = p.type !== 'internal' && p.type !== 'rack' && g.z < minTeeth && p.shift < p.addendum * (minTeeth - g.z) / minTeeth - 1e-9;
-  const minShift = p.type === 'internal' || p.type === 'rack' || zEff >= minTeeth ? 0 : Math.round((p.addendum * (minTeeth - g.z) / minTeeth) * 1000) / 1000;
+  const minShift = p.type === 'internal' || p.type === 'rack' || zEff >= minTeeth ? 0 : Math.ceil((p.addendum * (minTeeth - g.z) / minTeeth) * 1000 - 1e-9) / 1000;
   const z2 = p.mate ? Math.round(p.mate.teeth) : g.z;
   const r2 = (g.mt * z2) / 2, rb2 = r2 * Math.cos(g.alphaT), ra2 = r2 + (p.addendum + p.shift) * g.mn;
   let eps = 0;
@@ -340,8 +340,9 @@ const MATE = 'm.';
 export function rolesFor(p: GearParams): string[] {
   const one = (q: { type: GearType; hubDia: number; hubLength: number; boreDia: number; keyway: boolean }): Role[] => {
     const out: Role[] = ['profile', 'body'];
-    if (q.type !== 'rack' && q.hubLength > 0 && q.hubDia > 0) out.push('hubSketch', 'hub');
-    if (q.type !== 'rack' && q.boreDia > 0) { out.push('boreSketch', 'bore'); if (q.keyway) out.push('keySketch', 'key'); }
+    const solid = q.type !== 'rack' && q.type !== 'internal';   // a rack has no axis, a ring is empty in the middle
+    if (solid && q.hubLength > 0 && q.hubDia > 0) out.push('hubSketch', 'hub');
+    if (solid && q.boreDia > 0) { out.push('boreSketch', 'bore'); if (q.keyway) out.push('keySketch', 'key'); }
     return out;
   };
   const roles: string[] = one(p);
@@ -418,7 +419,8 @@ function oneGear(p: GearParams, ids: Record<string, string>, pre: string, record
 
 /** All features of a gear (and its mate) with the given ids by role. The profile sketch carries the parameter record and the role map. */
 export function gearFeatures(p: GearParams, ids: Record<string, string>): Feat[] {
-  const record = { ...stripPlane(p), roles: ids };
+  // ids are kept as numbers: the kernel refuses to remove a feature whose id appears as a string in another feature
+  const record = { ...stripPlane(p), roles: Object.fromEntries(Object.entries(ids).map(([k, v]) => [k, Number(v.slice(1))])) };
   const first = oneGear(p, ids, '', record);
   if (!p.mate || p.type === 'rack' || p.type === 'internal') return first;
   return [...first, ...oneGear(mateParams(p), ids, MATE, null)];
@@ -429,10 +431,10 @@ const stripPlane = (p: GearParams): GearParams => ({ ...p, center: [...p.center]
 export function readGear(f: unknown): { params: GearParams; roles: Record<string, string> } | null {
   const rec = (f as { gear?: Record<string, unknown> } | null)?.gear;
   if (!rec || typeof rec !== 'object') return null;
-  const { roles, ...rest } = rec as { roles?: Record<string, string> } & Partial<GearParams>;
+  const { roles, ...rest } = rec as { roles?: Record<string, number | string> } & Partial<GearParams>;
   const params: GearParams = { ...DEFAULT_GEAR, ...rest, center: (rest.center as [number, number] | undefined) ?? [0, 0], plane: rest.plane ?? DEFAULT_GEAR.plane };
   if (rest.mate) params.mate = { ...rest.mate };
-  return { params, roles: roles ?? {} };
+  return { params, roles: Object.fromEntries(Object.entries((roles ?? {}) as Record<string, number | string>).map(([k, v]) => [k, typeof v === 'number' ? `F${v}` : v])) };
 }
 
 /** The gear that owns this feature id (the profile sketch's id and its roles), or null. */
@@ -462,8 +464,12 @@ export function gearOps(doc: { features: Array<{ id?: string; type?: string }>; 
   const ops: EditOp[] = [];
   const list = doc.features.map((f) => f.id as string);
   if (existing) {
-    for (const r of Object.keys(existing).reverse()) {
-      if (!wanted.includes(r)) { ops.push({ op: 'remove', id: existing[r] }); list.splice(list.indexOf(existing[r]), 1); }
+    // a sketch goes with the extrude that uses it (cascade): only the sketch of such a pair is removed
+    const gone = Object.keys(existing).filter((r) => !wanted.includes(r));
+    for (const r of gone.reverse()) {
+      const sketchGone = gone.includes(r + 'Sketch');   // the extrude of a removed sketch goes with it
+      if (!sketchGone) ops.push({ op: 'remove', id: existing[r], cascade: true });
+      list.splice(list.indexOf(existing[r]), 1);
     }
   }
   let last = existing && ids.profile ? list.indexOf(existing.profile) - 1 : list.length - 1;
@@ -479,6 +485,9 @@ export function gearOps(doc: { features: Array<{ id?: string; type?: string }>; 
       last = index;
     }
   });
+  // the profile's record names every role id, so it must be replaced before the features it no longer names are removed
+  const at = ops.findIndex((o) => o.op === 'replace' && (o as { id?: string }).id === ids.profile);
+  if (at > 0) ops.unshift(ops.splice(at, 1)[0]);
   return ops;
 }
 
