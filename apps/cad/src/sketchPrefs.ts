@@ -35,11 +35,11 @@ export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, arcSwi
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
 
-const flags = <T extends Record<string, boolean>>(raw: unknown, defaults: T, keys: readonly (keyof T)[]): T => {
+const flags = <T extends object>(raw: unknown, defaults: T, keys: readonly (keyof T)[]): T => {
   const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
-  const out = { ...defaults };
-  for (const k of keys) if (typeof r[k as string] === 'boolean') (out as Record<string, boolean>)[k as string] = r[k as string] as boolean;
-  return out;
+  const out = { ...defaults } as Record<string, boolean>;
+  for (const k of keys) if (typeof r[k as string] === 'boolean') out[k as string] = r[k as string] as boolean;
+  return out as T;
 };
 
 /** Merge stored values over the defaults, dropping anything unknown or invalid. */
