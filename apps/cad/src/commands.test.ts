@@ -50,7 +50,7 @@ import { matchShortcut, SHORTCUTS } from './commands';
 describe('shortcuts', () => {
   const ioStub = { importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true };
   const key = (k: string, mods: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
-  const cmds = buildCommands(actions({ io: ioStub }));
+  const cmds = buildCommands(actions({ io: ioStub, selectBody: vi.fn() }));
   it('every shortcut belongs to a command and no two commands share one', () => {
     const ids = new Set(cmds.map((c) => c.id));
     for (const id of Object.keys(SHORTCUTS)) expect(ids.has(id) || id.startsWith('add-'), id).toBe(true);
