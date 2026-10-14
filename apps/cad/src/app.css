@@ -743,3 +743,5 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .asm-bom-row { cursor: pointer; }
 .asm-bom-row:hover td, .asm-bom-row:focus td { background: var(--accent-soft); }
 .asm-bom tfoot td { font-weight: 600; }
+.asm-row .row-name .asm-dof { align-self: flex-start; margin-top: 2px; }
+.asm-row .row-name { flex: 1 1 0; min-width: 0; }

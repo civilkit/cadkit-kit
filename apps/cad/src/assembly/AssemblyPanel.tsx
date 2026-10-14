@@ -169,8 +169,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
               <span class="row-id">{r.id}</span>
               {renaming === r.id
                 ? <InlineName value={r.name} onCommit={(n) => { setRenaming(null); void host.edit([{ op: 'set', id: r.id, path: 'name', value: n }]); }} onCancel={() => setRenaming(null)} />
-                : <span class="row-name" onDblClick={() => setRenaming(r.id)}>{r.name}<small class="asm-part">{r.partName}</small></span>}
-              <DofBadge row={r} />
+                : <span class="row-name" onDblClick={() => setRenaming(r.id)}>{r.name}<small class="asm-part">{r.partName}</small><DofBadge row={r} /></span>}
               <span class="asm-acts" onClick={(e) => e.stopPropagation()}>
                 <button class="row-act on" aria-pressed={!hidden} title={hidden ? t('asm.part.show') : t('asm.part.hide')} aria-label={hidden ? t('asm.part.show') : t('asm.part.hide')} onClick={() => host.toggleHidden(r.id)}>{hidden ? '○' : '●'}</button>
                 <button class="row-act on" aria-pressed={r.suppressed} title={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} aria-label={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'suppressed', value: !r.suppressed }])}>S</button>
@@ -270,6 +269,7 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
           {kdef?.flip ? <label class="asm-chk"><input type="checkbox" checked={draft.flip} onChange={(e) => setDraft((d) => ({ ...d, flip: (e.target as HTMLInputElement).checked }))} /> {t('asm.mate.flip')}</label> : null}
           <label class="asm-f wide"><span>{t('asm.mate.name')}</span><input type="text" value={draft.name} onInput={(e) => setDraft((d) => ({ ...d, name: (e.target as HTMLInputElement).value }))} /></label>
           <div class="asm-note">{t('asm.mate.hint')}</div>
+          {problem && !msg ? <div class="asm-note">{t(problem)}</div> : null}
           {msg ? <div class="asm-note warn" role="status">{msg}</div> : null}
           <div class="asm-bar">
             <button class="btn primary" disabled={!!problem} onClick={() => void apply()}>{old ? t('asm.mate.update') : t('asm.mate.apply')}</button>

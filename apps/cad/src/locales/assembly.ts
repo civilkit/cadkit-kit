@@ -18,7 +18,7 @@ export const assemblyStrings: Record<string, string> = {
   'asm.part.deleted': 'Deleted {name} and {n} mate(s) / pattern(s) that used it.', 'asm.part.deletedOnly': 'Deleted {name}.',
   'asm.part.select': 'Select the bodies of {name}', 'asm.part.edit': 'Placement of {name}',
   'asm.dof': '{n} DOF remaining', 'asm.dof.zero': 'fully defined (0 DOF)', 'asm.dof.fixed': 'fixed', 'asm.dof.unknown': 'DOF unknown',
-  'asm.dof.tip': '{name}: {n} degrees of freedom remaining', 'asm.dof.tip.zero': '{name} is fully defined',
+  'asm.dof.tip': '{name}: {n} DOF remaining', 'asm.dof.tip.zero': '{name} is fully defined',
   // mates
   'asm.mate.title': 'Mates', 'asm.mate.new': 'New mate', 'asm.mate.edit': 'Edit', 'asm.mate.delete': 'Delete', 'asm.mate.empty': 'No mates. Add one to place a component against another.',
   'asm.mate.kind': 'Kind', 'asm.mate.apply': 'Apply', 'asm.mate.update': 'Update', 'asm.mate.cancel': 'Cancel', 'asm.mate.preview': 'Preview', 'asm.mate.flip': 'Flip',
