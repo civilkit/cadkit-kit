@@ -11,3 +11,5 @@ export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
 export { Icon, ICON_NAMES, hasIcon } from './icons';
 export { Tip, placeTip, type TipSide } from './Tip';
+export { ExprInput, VarsContext, useScope, errorText } from './ExprInput';
+export * from './expr';

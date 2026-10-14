@@ -13,7 +13,7 @@ function mount(feature: Wire, extra: Partial<Parameters<typeof FeatureEditor>[0]
   const r = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => picks.push(p)} options={optionsFor} {...extra} />);
   const q = (path: string) => r.container.querySelector(`[data-path="${path}"]`) as HTMLElement | null;
   const sel = (path: string) => q(path)!.querySelector('select') as HTMLSelectElement;
-  const num = (path: string) => q(path)!.querySelector('input[type="number"]') as HTMLInputElement;
+  const num = (path: string) => q(path)!.querySelector("input") as HTMLInputElement;
   const box = (path: string) => q(path)!.querySelector('input[type="checkbox"]') as HTMLInputElement;
   const texts = (el: HTMLSelectElement) => [...el.options].map((o) => o.textContent);
   return { ...r, drafts, picks, q, sel, num, box, texts };

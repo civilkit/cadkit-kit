@@ -15,7 +15,7 @@ function mount(feature: Wire = HOLE, extra: Partial<Parameters<typeof HoleEditor
   const r = render(<HoleEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={(d) => confirms.push(d)} onCancel={() => {}} {...extra} />);
   const q = (path: string) => r.container.querySelector(`[data-path="${path}"]`) as HTMLElement | null;
   const sel = (path: string) => q(path)!.querySelector('select') as HTMLSelectElement;
-  const num = (path: string) => q(path)!.querySelector('input[type="number"]') as HTMLInputElement;
+  const num = (path: string) => q(path)!.querySelector("input") as HTMLInputElement;
   return { ...r, drafts, confirms, q, sel, num, dia: () => r.container.querySelector('[data-testid="hole-diameter"]')?.textContent };
 }
 
