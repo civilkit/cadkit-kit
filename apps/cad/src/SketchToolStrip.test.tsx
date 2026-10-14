@@ -124,3 +124,29 @@ describe('palette slots', () => {
     expect(picked).toEqual([]);
   });
 });
+
+describe('palette slots on touch', () => {
+  afterEach(cleanup);
+  it('a flick towards the flyout opens it and the tap that ends it does not pick the tool', async () => {
+    const picked: Array<string | null> = [];
+    render(<SketchToolStrip layout="palette" active={null} onPick={(id) => picked.push(id)} />);
+    const b = screen.getByLabelText('Line');
+    // jsdom has no PointerEvent and no onpointer* properties, so Preact listens under the camel-case names there
+    const ev = (type: string, x: number) => b.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x }));
+    ev('PointerDown', 200);
+    ev('PointerMove', 170);
+    ev('PointerUp', 170);
+    fireEvent.click(b);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole('menu')).toBeTruthy();
+    expect(picked).toEqual([]);
+  });
+  it('a pointer cancel (the browser took the touch for scrolling) does not open the flyout later', async () => {
+    render(<SketchToolStrip layout="palette" active={null} onPick={() => {}} />);
+    const b = screen.getByLabelText('Line');
+    fireEvent.pointerDown(b, { clientX: 200 });
+    fireEvent.pointerCancel(b);
+    await new Promise((r) => setTimeout(r, 450));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+});

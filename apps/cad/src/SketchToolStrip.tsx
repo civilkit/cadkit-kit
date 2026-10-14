@@ -51,6 +51,7 @@ function SlotButton(p: { slot: PaletteSlot; active: string | null; last: string 
   const btn = useRef<HTMLDivElement>(null);
   const hold = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
+  const startX = useRef<number | null>(null);
   // the tool shown: the active one if it belongs to this slot (a shortcut key picked it), else the last used, else the default
   const shown = slot.tools.find((x) => x.id === p.active) ?? slot.tools.find((x) => x.id === p.last) ?? slot.tools[0];
   const multi = slot.tools.length > 1;
@@ -74,9 +75,20 @@ function SlotButton(p: { slot: PaletteSlot; active: string | null; last: string 
       <Tip label={name} keys={shown.key?.toUpperCase()} side="left">
         <button
           class="stool icon-only" aria-pressed={p.active === shown.id} aria-label={name} aria-haspopup={multi ? 'true' : undefined} aria-expanded={multi ? open : undefined}
-          onPointerDown={() => { held.current = false; if (multi) hold.current = setTimeout(() => { held.current = true; openFlyout(); }, 380); }}
-          onPointerUp={() => { if (hold.current) clearTimeout(hold.current); }}
-          onPointerLeave={() => { if (hold.current) clearTimeout(hold.current); }}
+          onPointerDown={(e) => {
+            held.current = false;
+            startX.current = (e as PointerEvent).clientX;
+            if (multi) hold.current = setTimeout(() => { held.current = true; openFlyout(); }, 380);
+          }}
+          // a flick towards the flyout opens it at once (the touch way: no waiting for a long press)
+          onPointerMove={(e) => {
+            if (multi && hold.current && startX.current !== null && startX.current - (e as PointerEvent).clientX > 12) {
+              clearTimeout(hold.current); hold.current = null; held.current = true; openFlyout();
+            }
+          }}
+          onPointerUp={() => { if (hold.current) clearTimeout(hold.current); hold.current = null; startX.current = null; }}
+          onPointerCancel={() => { if (hold.current) clearTimeout(hold.current); hold.current = null; startX.current = null; }}
+          onPointerLeave={() => { if (hold.current) clearTimeout(hold.current); hold.current = null; }}
           onContextMenu={(e) => { if (multi) { e.preventDefault(); openFlyout(); } }}
           onClick={() => { if (held.current) { held.current = false; return; } setOpen(false); p.onRemember(slot.id, shown.id); p.onPick(shown.id); }}
         ><Icon name={shown.id} size={20} /></button>
