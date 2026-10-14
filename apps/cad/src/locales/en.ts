@@ -1,6 +1,7 @@
 import type { Catalog } from '@kit/i18n';
 import { inspectStrings } from './inspect';
 import { assemblyStrings } from './assembly';
+import { drawingStrings } from './drawing';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -547,4 +548,5 @@ export const en: Catalog = {
   'app.sketch.defstate.full': 'fully defined', 'app.sketch.defstate.under': 'under defined', 'app.sketch.defstate.over': 'over defined',
   ...inspectStrings,
   ...assemblyStrings,
+  ...drawingStrings,
 };

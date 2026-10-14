@@ -169,7 +169,8 @@ export function refreshDim(d: DDim, g: ViewData): DDim | null {
   if (idx.some((i) => i === null)) return null;
   const nd = dimFromPicks(g, d.view, idx as number[], { radial: d.kind === 'radial' });
   if (!nd) return null;
-  return { ...d, kind: nd.kind, a: nd.a, b: nd.b, c: nd.c, r: nd.r, orient: nd.orient, refs: nd.refs };
+  const keep = d.kind === 'callout' || d.kind === 'radial' || d.kind === 'diameter' ? d.kind : nd.kind;
+  return { ...d, kind: nd.r !== undefined ? keep : nd.kind, a: nd.a, b: nd.b, c: nd.c, r: nd.r, orient: nd.orient, refs: nd.refs };
 }
 
 export interface HoleInfo { feature: string; text: string; faces: string[] }

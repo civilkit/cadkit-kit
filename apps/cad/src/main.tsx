@@ -78,6 +78,8 @@ import { useTriBall } from './triball/useTriBall';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
 import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
 import { createAssemblyState } from './assembly/state';
+import { DrawingWorkspace } from './drawing/DrawingWorkspace';
+import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
 import './tokens.css';
@@ -279,6 +281,7 @@ function App() {
   const [dragging, setDragging] = useState(false);
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
   useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
@@ -1545,6 +1548,10 @@ function App() {
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
           : null}
         <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
+        <div class="mode-tabs" role="tablist" aria-label={t('drawing.title')}>
+          <button role="tab" aria-selected={!drawingOpen} class="rb-btn" onClick={() => setDrawingOpen(false)}>{t('drawing.tab.part')}</button>
+          <button role="tab" aria-selected={drawingOpen} class="rb-btn" disabled={!doc} onClick={() => setDrawingOpen(true)}>{t('drawing.tab.drawing')}</button>
+        </div>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
@@ -1646,6 +1653,10 @@ function App() {
             ) },
           ]} />
       ) : null}
+      {drawingOpen && doc ? (() => {
+        const h = makeDrawingHost(controller, { save: (n, d, m) => platform.saveFile(n, d, m), notify: (x, l) => store.notify(x, l ?? 'info'), changed: () => redraw((n) => n + 1), close: () => setDrawingOpen(false) });
+        return h ? <DrawingWorkspace host={h} /> : null;
+      })() : null}
       <div class="status-wrap">
         <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           items={[

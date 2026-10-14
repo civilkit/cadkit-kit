@@ -7,6 +7,8 @@ import type { CheckPolicy } from './checkSettings';
 import { importStepView, type StepImportResult } from './files/stepImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
+import { drawingQuery } from './drawing/kernel';
+import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
@@ -97,8 +99,9 @@ export class Controller {
       this.session = await this.kernel.open(doc);
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
-      const ex = (doc as unknown as Record<string, unknown>).explode;
-      this.docExtra = ex ? { explode: structuredClone(ex) } : {};
+      // viewer-state fields kept in the file: the exploded view and the drawing sheet
+      this.docExtra = {};
+      for (const k of ['explode', 'drawing']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
       this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
     } finally {
@@ -557,6 +560,9 @@ export class Controller {
   setDocExtra(key: string, value: unknown | null): void {
     if (value === null) delete this.docExtra[key]; else this.docExtra[key] = structuredClone(value);
   }
+
+  /** The kernel's `drawing` request for the current state, for the Drawings workspace (null with no document). */
+  drawingQuery(): DrawingQuery | null { return this.session ? drawingQuery(this.session) : null; }
 
   /** Components of the assembly as the kernel reported them at the last rebuild: id, remaining degrees of freedom (0 = fixed or fully mated), placement. */
   components(): AsmComponent[] { return this.asmComponents; }
