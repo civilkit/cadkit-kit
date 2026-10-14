@@ -119,6 +119,7 @@ const ICONS: Record<string, string> = {
   'add-fillet': P('M4 20V10M10 4h10v16H4') + A('M4 10a6 6 0 016-6') + C('M4 20h16'),
   'add-chamfer': P('M4 20V12M12 4h8v16H4') + A('M4 12 12 4') + C('M4 20h16'),
   'add-shell': P(HEX) + C('M12 8.5l4.4 2.5v5L12 18.5 7.6 16v-5z') + A(FACE.top, 2),
+  'open-variables': P('M17.5 5H7.5l5 7-5 7h10'),
   'open-catalog': P('M3.5 4h7v7h-7z') + O(17, 7.5, 3.5) + P('M3.5 20l3.5-6 3.5 6z') + P('M14 14h6.5v6.5H14z') + C('M14 17.2h6.5'),
   'add-hole': P('M3 9l9-5 9 5-9 5z') + P('M3 9v6l9 5 9-5V9') + AE(12, 9, 3.4, 1.9, 0) + C('M12 11v8'),
   'add-thread': P('M8 3h8v18H8z') + T('M8 7l8 2M8 11l8 2M8 15l8 2M8 19l8 2'),

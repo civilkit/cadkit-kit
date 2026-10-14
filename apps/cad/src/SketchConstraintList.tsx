@@ -1,7 +1,7 @@
 import type { SketchSolverStatus } from '@ck/part-model';
 import { t } from './i18n';
 
-export interface ConstraintRow { id: string; type: string; refs: string[]; value?: number }
+export interface ConstraintRow { id: string; type: string; refs: string[]; value?: number; /** linked to a variable by this expression */ expr?: string }
 
 /** How constrained the sketch is, in words: fully defined, how many degrees of freedom remain, over-constrained, unsolved. */
 export function statusText(s: SketchSolverStatus | null): string {
@@ -39,7 +39,7 @@ export function SketchConstraintList(p: {
             >
               <span class="ctype">{t('app.sketch.constraint.' + r.type, undefined, r.type)}</span>
               <span class="crefs">{r.refs.join(' · ')}</span>
-              {r.value !== undefined ? <span class="cval">{Math.round(r.value * 100) / 100}</span> : null}
+              {r.value !== undefined ? <span class="cval" title={r.expr ? '=' + r.expr : undefined}>{r.expr ? <i class="annot-fx">fx</i> : null}{Math.round(r.value * 100) / 100}</span> : null}
               <button class="cdel" title={t('app.sketch.deleteConstraint')} aria-label={t('app.sketch.deleteConstraint')} onClick={() => p.onDelete(r.id)}>×</button>
             </li>
           ))}

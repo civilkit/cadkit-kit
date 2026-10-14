@@ -1,4 +1,5 @@
-import { useState } from 'preact/hooks';
+import { useRef } from 'preact/hooks';
+import { ExprInput, evalExpr, parseFieldText, useScope } from '@kit/ui';
 import type { FieldSpec } from '@kit/sketch';
 import { t } from './i18n';
 
@@ -9,47 +10,53 @@ export const parseTyped = (text: string): number | null => {
   return text.trim() !== '' && Number.isFinite(n) ? n : null;
 };
 
-/** One field. While it has focus it shows exactly what was typed ("3." and "3.5" included); otherwise the current value. */
-function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value: number | null, commit: boolean): void }) {
+/** One field. Takes a number or an expression (`=w*2`, a variable name): while it has focus it shows exactly what was typed;
+ *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension. */
+function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value: number | null, commit: boolean, expr?: string): void }) {
   const { f } = p;
-  const [text, setText] = useState<string | null>(null);
+  const scope = useScope();
+  const emit = (value: number | null, commit: boolean, expr?: string): void => { if (expr !== undefined) p.onField(f.id, value, commit, expr); else p.onField(f.id, value, commit); };
+  const latest = useRef<{ value: number; expr?: string } | null>(null);
+  const resolve = (v: number | string): { value: number; expr?: string } | null => {
+    if (typeof v === 'number') return { value: v };
+    const r = evalExpr(v, scope.values);
+    return r.ok ? { value: r.value, expr: v.replace(/^\s*=\s*/, '') } : null;
+  };
   return (
-    <input
+    <span
       data-field={f.id}
-      inputMode="decimal"
-      aria-label={t(f.label)}
-      value={text ?? round(f.value)}
-      onInput={(e) => {
-        const raw = (e.currentTarget as HTMLInputElement).value;
-        setText(raw);
-        p.onField(f.id, parseTyped(raw), false);
-      }}
-      onBlur={() => setText(null)}
       onKeyDown={(e) => {
-        const el = e.currentTarget as HTMLInputElement;
+        const el = e.target as HTMLInputElement;
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault();
           e.stopPropagation();
-          const v = parseTyped(el.value);
-          if (v !== null) p.onField(f.id, v, true);
-          setText(null);
+          const q = parseFieldText(el.value);
+          const got = q.kind === 'number' ? { value: q.value } : q.kind === 'expr' ? resolve(q.expr) : null;
+          if (got) emit(got.value, true, got.expr);
+          latest.current = null;
           const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
           if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
         } else if (e.key === 'Escape') {
           e.preventDefault();
           e.stopPropagation();
-          setText(null);
-          p.onField(f.id, null, false);
+          latest.current = null;
+          emit(null, false);
           el.blur();
         }
       }}
-    />
+    >
+      <ExprInput
+        value={f.expr ? '=' + f.expr : Math.round(f.value * 100) / 100}
+        label={t(f.label)}
+        onValue={(v) => { const got = resolve(v); latest.current = got; if (got) emit(got.value, false, got.expr); }}
+      />
+    </span>
   );
 }
 
 /** The typed-value fields that follow the pointer while a tool draws (length, angle, radius ...).
  *  Typing changes a live preview; Tab or Enter locks the value as a driving dimension. */
-export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; onField(id: string, value: number | null, commit: boolean): void }) {
+export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; onField(id: string, value: number | null, commit: boolean, expr?: string): void }) {
   if (!p.fields.length) return null;
   return (
     <div class={'sketch-fields ' + (p.cls ?? '')} style={{ left: p.x + 16 + 'px', top: p.y + 16 + 'px' }} onPointerDown={(e) => e.stopPropagation()}>
