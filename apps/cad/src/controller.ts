@@ -4,7 +4,7 @@ import { vertexName, BODY, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, type StepImportResult } from './files/stepImport';
-import { applyOpsLocal, warningsById, type ThreadRow, type ThreadStd } from './threadData';
+import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
@@ -36,6 +36,8 @@ export interface ViewSink {
   setHighlight(n: string[]): void;
   setSketchEdit(v: SketchEditView | null): void;
   setThreads?(items: unknown[]): void;
+  /** Light up the length range of the thread being edited (null clears it). */
+  setThreadFocus?(id: string | null): void;
 }
 
 export interface KernelFactory {
@@ -187,13 +189,18 @@ export class Controller {
     if (!doc.features.some((f) => (f as { type?: string }).type === 'thread')) return { threads: [], warnings: [] };
     try {
       const k = (s as unknown as { kernel?: { request(m: unknown): Promise<{ ok?: boolean; result?: unknown }> } }).kernel;
+      const modeled = doc.features.some((f) => (f as { type?: string; modeled?: unknown }).type === 'thread' && (f as { modeled?: unknown }).modeled === true);
+      const t0 = Date.now();
       const r = await k?.request({ type: 'regen', tag, part: doc });
+      if (modeled && r?.ok) saveThreadPrefs({ modeledMs: Date.now() - t0 });   // remembered: the editor's "about N s to rebuild" note
       const res = (r?.ok ? r.result : null) as { threads?: unknown[]; warnings?: unknown[] } | null;
       return { threads: res?.threads ?? [], warnings: res?.warnings ?? [] };
     } catch { return { threads: [], warnings: [] }; }
   }
   private committedExtras: { threads: unknown[]; warnings: unknown[] } = { threads: [], warnings: [] };
+  private shownThreads: unknown[] = [];
   private applyExtras(x: { threads: unknown[]; warnings: unknown[] }): void {
+    this.shownThreads = x.threads;
     this.view.setThreads?.(x.threads);
     this.store.featureWarnings.value = warningsById(x.warnings);
   }
@@ -235,6 +242,8 @@ export class Controller {
   }
   /** The markers and warnings of the last committed state, as the last refresh saw them. */
   threadsNow(): unknown[] { return this.committedExtras.threads; }
+  /** The markers of what is on screen now: the committed ones, or the candidate of a preview in progress. */
+  threadsShown(): unknown[] { return this.shownThreads; }
 
   /** Drop a pending/committed preview: restore the last good body, no edit record. */
   async cancelPreview(): Promise<void> {

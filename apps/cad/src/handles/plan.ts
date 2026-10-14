@@ -6,6 +6,7 @@
 //   end cap (Fn.C1) of a blind extrude: arrow along the normal edits `depth` (a cut deepens when the cap moves into the part)
 //   inner wall of a shell: arrow edits the shell `thickness`
 //   wall of a plain hole: dot edits the hole `diameter`
+//   Thread editor open: dot at the end of the thread edits `length` in the editor's draft (threadHandle.ts)
 //   whole body (Alt+click): the placement gizmo, only when the kernel has moveBody (it does not yet)
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
@@ -17,6 +18,7 @@ import { t } from '../i18n';
 import { bisectorAt, faceInfo, onHull, surfaceNear, type MeshLike } from './geom';
 import { MIN_SIZE, type HandleSession } from './session';
 import { placementSession, type Placement } from './placement';
+import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
 
@@ -34,6 +36,8 @@ export interface PlanCtx {
   enabled: boolean;
   /** Whether the kernel can move a body (`moveBody`); the placement gizmo is off without it. */
   placement?: Placement | null;
+  /** The Thread editor is open on a thread: its length handle (the only handle shown while an editor is open). */
+  thread?: ThreadHandleCtx | null;
 }
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];
@@ -171,6 +175,7 @@ const fmt = (v: number): string => String(Math.round(v * 100) / 100);
 
 /** The handle session for the selection, or null (nothing selected, a sketch or the Editor open, handles off, or no gesture for this selection). */
 export function planHandles(c: PlanCtx): HandleSession | null {
+  if (c.enabled && !c.sketching && c.editingId && c.thread && c.thread.id === c.editingId) return threadLengthSession(c.thread);
   if (!c.enabled || c.sketching || c.editingId || !c.doc || !c.mesh || !c.selection.length) return null;
   if (c.selection.includes(BODY)) return c.placement ? placementSession(c.placement, c.box) : null;
 

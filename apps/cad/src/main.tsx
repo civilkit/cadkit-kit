@@ -42,7 +42,8 @@ import { createLookStore, bodyLook, appearanceOf, anyHidden, LOOK_KEY } from './
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { ThreadEditor } from './ThreadEditor';
-import { cylinderOfFace, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, threadOps } from './threadData';
+import { cylinderOfFace, faceExtent, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, loadThreadPrefs, threadOps } from './threadData';
+import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
@@ -119,6 +120,7 @@ const controller = new Controller({
     },
     setHighlight: (n) => viewport?.setHighlight(n),
     setThreads: (items) => viewport?.setThreads(items as never),
+    setThreadFocus: (id) => viewport?.setThreadFocus(id),
     setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
   },
   kernel: {
@@ -526,14 +528,6 @@ function App() {
   dropFilesRef.current = dropFiles;
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
-  // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
-  const handles = useHandles({
-    controller, store, viewport: () => viewport, commands,
-    create: (ops) => createFeature(ops),
-    commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
-    editingId, sketching: !!sketching, enabled: ws.handles,
-  });
-  ctxMenuRef.current = handles.onContextMenu;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -619,6 +613,34 @@ function App() {
     setLeftTab('Features');
     redraw((n) => n + 1);
   };
+
+  // The Thread editor on the part: the threaded face lit, its length range bracketed, a length handle at the far end.
+  // The face geometry is read once per editor (a modeled preview rebuilds the wall, which would change the reading).
+  const threadFace = editingFeature?.type === 'thread' ? String(editingFeature.face ?? '') : '';
+  const threadGeom = useRef<{ id: string; cyl: ReturnType<typeof cylinderOfFace>; ext: ReturnType<typeof faceExtent> } | null>(null);
+  if (!threadFace) threadGeom.current = null;
+  else if (threadGeom.current?.id !== editingId || (!threadGeom.current.cyl && controller.bodyEdges().length)) {
+    const edges = controller.bodyEdges();
+    threadGeom.current = { id: editingId!, cyl: cylinderOfFace(threadFace, edges), ext: faceExtent(threadFace, edges, controller.bodyFaces()) };
+  }
+  const threadCyl = threadGeom.current?.cyl ?? null;
+  const threadExtent = threadGeom.current?.ext ?? null;
+  const threadInternal = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === editingId)?.internal ?? (isHoleWall(threadFace) ? true : threadCyl?.internal);
+  const threadEntry = threadFace ? (controller.threadsShown() as ThreadEntryLike[]).find((x) => x.id === editingId) : undefined;
+  const [handleInject, setHandleInject] = useState<{ seq: number; patch: Record<string, unknown> } | null>(null);
+  useEffect(() => { viewport?.setHighlight([...new Set([...store.selection.value, ...(threadFace ? [threadFace] : [])])]); }, [threadFace, store.selection.value]);
+  useEffect(() => { viewport?.setThreadFocus(threadFace ? editingId : null); return () => viewport?.setThreadFocus(null); }, [threadFace, editingId]);
+  // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
+  const handles = useHandles({
+    controller, store, viewport: () => viewport, commands,
+    create: (ops) => createFeature(ops),
+    commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
+    editingId, sketching: !!sketching, enabled: ws.handles,
+    thread: threadEntry && editingId ? { id: editingId, entry: threadEntry, maxLength: threadExtent?.length ?? null, ops: (length) => opsFromDraft({ ...draft, length }) } : null,
+    onDraftPatch: (patch) => setHandleInject((x) => ({ seq: (x?.seq ?? 0) + 1, patch })),
+    restorePreview: () => { if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops); } },
+  });
+  ctxMenuRef.current = handles.onContextMenu;
 
   const startEditing = (id: string) => {
     setSelectedId(id);
@@ -1033,9 +1055,6 @@ function App() {
       {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
     </div>
   );
-  const threadFace = editingFeature?.type === 'thread' ? String(editingFeature.face ?? '') : '';
-  const threadCyl = threadFace ? cylinderOfFace(threadFace, controller.bodyEdges()) : null;
-  const threadInternal = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === editingId)?.internal ?? (isHoleWall(threadFace) ? true : threadCyl?.internal);
   const holeThreads = (hole: Record<string, unknown>) => {
     if (!holeThreadSize(hole)) return null;
     const have = (doc?.features ?? []).find((x) => (x as { type?: string; face?: string }).type === 'thread' && (x as { face?: string }).face === holeWallFace(String(hole.id)));
@@ -1044,7 +1063,7 @@ function App() {
       : <div><div class="fedit-hint">{t('hole.thread.note')}</div><button type="button" data-testid="hole-add-thread" onClick={() => void addThreadToHole(hole)}>{t('hole.thread.add')}</button></div>;
   };
   const editor = editingFeature?.type === 'thread' ? (
-    <ThreadEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
+    <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
       loadStandards={() => controller.threadStandards()} loadSizes={(std) => controller.threadSizes(std)}
       faceDiameter={threadCyl ? threadCyl.radius * 2 : null} internal={threadInternal} warning={editingId ? store.featureWarnings.value[editingId] ?? null : null} />
   ) : editingFeature?.type === 'hole' ? (

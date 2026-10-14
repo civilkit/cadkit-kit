@@ -8,6 +8,7 @@ import type { PickMode, Viewport } from '@kit/viewport';
 import type { Controller } from './controller';
 import { planHandles, type PlanCtx } from './handles/plan';
 import { HandleRunner } from './handles/runner';
+import type { ThreadHandleCtx } from './handles/threadHandle';
 import type { HandleSession } from './handles/session';
 import { ContextMenu } from './ContextMenu';
 import { gestureHint, menuItems, selectionKind, type MenuItem } from './menuModel';
@@ -24,6 +25,12 @@ export interface HandlesDeps {
   editingId: string | null;
   sketching: boolean;
   enabled: boolean;
+  /** The Thread editor is open on this thread: the length handle at its far end (see handles/threadHandle.ts). */
+  thread?: ThreadHandleCtx | null;
+  /** A handle gesture that edits the open editor's draft (the thread length) hands its patch here instead of committing. */
+  onDraftPatch?(patch: Record<string, unknown>): void;
+  /** After a handle drag was cancelled: show the editor's own draft again (cancelPreview dropped it). */
+  restorePreview?(): void;
 }
 
 export function useHandles(p: HandlesDeps) {
@@ -32,11 +39,15 @@ export function useHandles(p: HandlesDeps) {
   const [hint, setHint] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[]; hint: string | null } | null>(null);
   const runner = useRef<HandleRunner | null>(null);
+  // a drag in progress keeps its handle: the preview it causes changes the thread entry and must not rebuild the handle under the pointer
+  const dragging = useRef(false);
+  const [tick, setTick] = useState(0);
   if (!runner.current) {
     runner.current = new HandleRunner({
       preview: async (ops) => { const r = await ref.current.controller.preview(ops, 0); return { ok: r.ok, stale: r.stale, hint: r.hint }; },
-      cancelPreview: () => ref.current.controller.cancelPreview(),
-      commit: async (c) => { if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
+      cancelPreview: async () => { await ref.current.controller.cancelPreview(); ref.current.restorePreview?.(); },
+      busy: (on) => { dragging.current = on; if (!on) setTick((n) => n + 1); },
+      commit: async (c) => { if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
       hint: setHint,
     });
   }
@@ -48,19 +59,22 @@ export function useHandles(p: HandlesDeps) {
       edges: controller.bodyEdges(), mesh: controller.bodyFaces(), box: controller.bodyBox(),
       editingId: ref.current.editingId, sketching: ref.current.sketching, enabled: ref.current.enabled,
       placement: null,   // the kernel has no moveBody yet: the placement gizmo stays off
+      thread: ref.current.thread ?? null,
     };
     return planHandles(c);
   };
 
   // Re-plan whenever the selection, the pick mode, the document (revision) or the reasons to hide change.
   const sel = p.store.selection.value;
+  const th = p.thread;
+  const threadKey = th ? [th.id, th.entry.start, th.entry.dir, th.entry.length, th.maxLength].join('|') : '';
   useEffect(() => {
     const vp = p.viewport();
-    if (!vp) return;
+    if (!vp || dragging.current) return;
     const s = plan();
     vp.setHandles(s ? s.specs : null, s ? runner.current!.sink(s) : null);
-    return () => { vp.setHandles(null, null); };
-  }, [sel, p.store.mode.value, p.controller.revision, p.editingId, p.sketching, p.enabled]);
+  }, [sel, p.store.mode.value, p.controller.revision, p.editingId, p.sketching, p.enabled, threadKey, tick]);
+  useEffect(() => () => { p.viewport()?.setHandles(null, null); }, []);
 
   const onContextMenu = (name: string | null, x: number, y: number, mode: PickMode) => {
     const { store, commands } = ref.current;

@@ -4,9 +4,13 @@
 import type { EditOp } from '@ck/session';
 import type { HandleSpec, Vec3 } from '@kit/viewport';
 
-export type GestureKind = 'round-new' | 'round-edit' | 'extrude-depth' | 'shell-thickness' | 'hole-diameter' | 'placement';
+export type GestureKind = 'round-new' | 'round-edit' | 'extrude-depth' | 'shell-thickness' | 'hole-diameter' | 'thread-length' | 'placement';
 
-export interface HandleCommit { ops: EditOp[]; create: boolean }
+export interface HandleCommit {
+  ops: EditOp[]; create: boolean;
+  /** The gesture edits an open editor's draft instead of the document: the app hands this patch to the editor and makes no edit itself. */
+  draft?: Record<string, unknown>;
+}
 
 export interface HandleSession {
   kind: GestureKind;

@@ -811,6 +811,36 @@ export class Viewport {
   setThreads(items: ViewThread[]): void {
     this.threadItems = items;
     this.buildThreads();
+    this.buildThreadFocus();
+  }
+  private threadFocusId: string | null = null;
+  private threadFocusObj: THREE.Object3D | null = null;
+  /**
+   * Light up the thread being edited: a bracket along the axis for its length (an orange line beside the face with a tick at
+   * each end), drawn from the thread's entry (modelled or cosmetic alike). null clears it. The threaded face itself is lit by the
+   * selection highlight (the app adds it); this adds only the length range.
+   */
+  setThreadFocus(id: string | null): void {
+    this.threadFocusId = id;
+    this.buildThreadFocus();
+  }
+  private buildThreadFocus(): void {
+    this.dropFat(this.threadFocusObj);
+    this.threadFocusObj = null;
+    this.dirty = true;
+    const th = this.threadFocusId ? this.threadItems.find((x) => x.id === this.threadFocusId) : undefined;
+    if (!th || !th.start || !th.dir) return;
+    const dir = new THREE.Vector3(...(th.dir as [number, number, number])).normalize();
+    const o = new THREE.Vector3(...(th.start as [number, number, number]));
+    const seed = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const u = new THREE.Vector3().crossVectors(dir, seed).normalize();
+    const r = th.major / 2;
+    const off = r + Math.max(1.5, r * 0.3);
+    const at = (radial: number, d: number) => o.clone().addScaledVector(u, radial).addScaledVector(dir, d);
+    const pt = (v: THREE.Vector3) => [v.x, v.y, v.z];
+    const segs = [[pt(at(off, 0)), pt(at(off, th.length))], [pt(at(r, 0)), pt(at(off * 1.08, 0))], [pt(at(r, th.length)), pt(at(off * 1.08, th.length))]];
+    const l = this.addFatLines(segs as never, 0xff8a00, this.hlWidth + 0.8, true);
+    if (l) { l.renderOrder = 8; (l.material as LineMaterial).depthTest = false; this.threadFocusObj = l; }
   }
   private buildThreads(): void {
     this.dropThreadGroup();
@@ -1289,6 +1319,7 @@ export class Viewport {
   private clearBody(): void {
     this.clearLayers();
     this.dropThreadGroup();
+    this.dropFat(this.threadFocusObj); this.threadFocusObj = null;
     this.dropFat(this.hoverObj); this.hoverObj = null;
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
