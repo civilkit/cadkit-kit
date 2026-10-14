@@ -520,8 +520,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .thread-fit.warn { color: var(--warn); background: rgba(217, 119, 6, .1); }
 .thread-fit button { margin-left: 6px; font: inherit; font-size: 12px; cursor: pointer; }
 .thread-hint { color: var(--text-2); font-size: 11px; line-height: 1.35; }
-.thread-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; justify-self: start; max-width: 100%; }
-.thread-seg button { display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; padding: 4px 8px; border: 0; border-right: 1px solid var(--line); background: var(--panel); color: inherit; cursor: pointer; white-space: nowrap; }
+.thread-seg { display: inline-flex; min-width: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; justify-self: start; max-width: 100%; }
+.thread-seg button { display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; padding: 4px 6px; border: 0; border-right: 1px solid var(--line); background: var(--panel); color: inherit; cursor: pointer; white-space: nowrap; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+
 .thread-seg button:last-child { border-right: 0; }
 .thread-seg button.on { background: var(--accent); color: #fff; }
 .thread-seg button:focus-visible { outline-offset: -2px; }

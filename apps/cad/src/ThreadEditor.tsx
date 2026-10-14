@@ -288,7 +288,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
             if (v === 'full') { if (typeof eff.length === 'number') lastCustom.current = eff.length; change({ length: 'full' }); }
             else change({ length: lastCustom.current ?? customLengthDefault(row?.pitch, maxLen) });
           }} />
-        <label class="fedit-fld" data-path="length">
+        {lengthFull && maxLen === null ? null : <label class="fedit-fld" data-path="length">
           <span class="fedit-fld-label" />
           <span class="fedit-num">
             <input type="number" step="any" min={row ? String(row.pitch) : '0'} max={maxLen !== null ? String(maxLen) : undefined} disabled={lengthFull} aria-label={t('thread.length')}
@@ -297,7 +297,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
               onChange={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value); if ((e.currentTarget as HTMLInputElement).value.trim() !== '' && Number.isFinite(v) && v > 0) change({ length: clampLength(v, maxLen, row?.pitch) }); }} />
             <span class="fedit-unit">mm</span>
           </span>
-        </label>
+        </label>}
         <Seg name="hand" label={t('thread.hand')} value={eff.hand === 'left' ? 'left' : 'right'}
           options={THREAD_HANDS.map((h) => ({ value: h, text: t('thread.hand.' + h), icon: h === 'left' ? 'helix-left' : 'helix-right', tip: t('thread.hand.' + h + 'Tip') }))}
           onChange={(v) => change({ hand: v })} />
