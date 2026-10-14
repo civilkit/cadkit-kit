@@ -1,6 +1,7 @@
 // The ribbon command table. A command is data (tab, group, label, enabled rule, handler); adding one adds a
 // button without touching layout code. Handlers come in through `Actions` so this file has no DOM or kernel code.
 import type { Command } from '@kit/ui';
+import { selectCommands, type SelectActions } from './select/selectCommands';
 import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
@@ -43,6 +44,8 @@ export interface Actions {
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
   inspect?: InspectActions;
+  /** Body pick mode, box select, select tangent / parallel / similar / loop / connected, invert, none (see select/selectCommands.ts). */
+  select?: SelectActions;
   open(): void;
   save(): void;
   samples(): void;
@@ -80,7 +83,7 @@ export const SHORTCUTS: Record<string, string> = {
   'sketch-here': 'S',
   'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H', 'add-thread': 'Shift+T',
   'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
-  'select-body': 'B', 'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
@@ -138,6 +141,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
+  if (a.select) cmds.push(...selectCommands(a.select));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
   if (a.tree) cmds.push(...treeCommands(a.tree));

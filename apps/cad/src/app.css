@@ -595,3 +595,26 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 
 /* messages (log, issues, status notice, toasts) can be selected and copied */
 .log, .issue, .st-notice, .toast, .fedit-warn, .row-hint, .insp-note { user-select: text; -webkit-user-select: text; cursor: text; }
+
+/* ---- selection: filters popover, list panel, box select ---- */
+.selmodes .sel-sep { width: 1px; background: var(--line); margin: 3px 4px; }
+.sel-filter { position: relative; display: flex; }
+.selmodes .sel-filter-btn { padding: 5px 8px; }
+.sel-filter-n { font-size: 10px; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 5px; line-height: 15px; }
+.selmodes .sel-filter-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); }
+.sel-filter-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 8; min-width: 150px; padding: 8px 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 5px;
+  background: var(--panel); outline: 1px solid var(--line); box-shadow: 0 6px 20px #0005; }
+.sel-filter-pop label { display: flex; gap: 8px; align-items: center; cursor: pointer; font-size: 13px; color: var(--text); }
+.sel-list { position: absolute; left: 72px; bottom: 12px; z-index: 4; width: 240px; max-height: 40%; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden;
+  background: rgba(var(--glass-rgb), max(var(--alpha), .8)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; font-size: 12px; }
+.sel-list-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 4px 8px; border-bottom: 1px solid var(--line); }
+.sel-list-head button { border: 0; background: none; color: var(--text); font: inherit; cursor: pointer; border-radius: 6px; padding: 2px 6px; }
+.sel-list-head button:hover { background: var(--accent-soft); }
+.sel-list-clear { color: var(--text-2) !important; }
+.sel-chips { list-style: none; margin: 0; padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; overflow-y: auto; scrollbar-width: thin; }
+.sel-chip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 2px 1px 8px; border-radius: 12px; background: var(--accent-soft); outline: 1px solid var(--accent); outline-offset: -1px; color: var(--text); }
+.sel-chip:hover { background: var(--accent); color: #fff; }
+.sel-chip.edge { outline-style: dashed; }
+.sel-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; border-radius: 50%; width: 18px; height: 18px; padding: 0; }
+.sel-chip button:hover { background: #0003; }
+.box-select { z-index: 5; }

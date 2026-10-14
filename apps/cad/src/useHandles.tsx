@@ -13,6 +13,7 @@ import type { ThreadHandleCtx } from './handles/threadHandle';
 import type { HandleSession } from './handles/session';
 import { ContextMenu } from './ContextMenu';
 import { t } from './i18n';
+import { whyNot } from './select/selectCommands';
 import { gestureHint, menuItems, selectionKind, type MenuItem } from './menuModel';
 
 export interface HandlesDeps {
@@ -101,7 +102,7 @@ export function useHandles(p: HandlesDeps) {
     if (name && !store.selection.value.includes(name)) { store.mode.value = mode2; store.select([name]); }
     else if (!name) store.select([]);
     const kind = selectionKind(store.selection.value, store.mode.value);
-    const items = menuItems(kind, commands, true);
+    const items = menuItems(kind, commands, true, (id) => whyNot(id, store.mode.value, store.selection.value));
     setMenu({ x, y, items, hint: gestureHint(plan()?.kind ?? null) });
   };
 

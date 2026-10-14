@@ -1,6 +1,7 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
+import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, type StepImportResult } from './files/stepImport';
@@ -563,9 +564,10 @@ export class Controller {
   }
 
   /** Names of every face, edge or corner on screen, for Select all. */
-  pickableNames(mode: 'face' | 'edge' | 'vertex'): string[] {
+  pickableNames(mode: 'face' | 'edge' | 'vertex' | 'body'): string[] {
     const v = this.lastView;
     if (!v) return [];
+    if (mode === 'body') return this.selModel()?.bodies().map((x) => x.name) ?? [];
     if (mode === 'face') return [...new Set<string>((v as unknown as { mesh?: { faceIds?: string[] } }).mesh?.faceIds ?? [])];
     const edges = v.edges ?? [];
     if (mode === 'edge') return edges.flatMap((e) => (e.key ? [e.key] : []));
@@ -713,6 +715,19 @@ export class Controller {
     const v3 = (a: number[]): [number, number, number] => [a[0], a[1], a[2]];
     return { o: v3(f.o), x: v3(f.x), y: v3(f.y), z: v3(f.z) };
   }
+
+  /** The selection model of what is on screen (faces, edges, bodies and the questions the Select commands ask); null when nothing is shown. */
+  selModel(): SelModel | null {
+    const view = this.lastView;
+    if (!view) return null;
+    if (this.selCache?.view === view) return this.selCache.model;
+    const m = this.bodyFaces();
+    if (!m && !view.edges?.length) return null;
+    const model = new SelModel({ mesh: m, edges: view.edges ?? [], surfaceOf: (n) => this.surfaceOf(n) });
+    this.selCache = { view, model };
+    return model;
+  }
+  private selCache: { view: object; model: SelModel } | null = null;
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {
