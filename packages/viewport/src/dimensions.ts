@@ -9,7 +9,7 @@ export function formatLength(v: number): string {
   return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
 }
 
-function label(text: string): THREE.Sprite {
+export function label(text: string): THREE.Sprite {
   const c = document.createElement('canvas');
   const g = c.getContext('2d');
   const font = '600 28px system-ui, sans-serif';

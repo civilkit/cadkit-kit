@@ -11,7 +11,7 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
 import { vertexName, parseVertexName } from '@kit/store';
-import { buildBoxDimensions } from './dimensions';
+import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 export type { RefPlaneId } from './refplanes';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
@@ -34,6 +34,12 @@ export interface ViewBody {
 }
 
 export type PickMode = 'face' | 'edge' | 'vertex';
+
+/** A thread entry of the regen result (see the kernel's `thread` feature). */
+export interface ViewThread {
+  id: string; size: string; standard?: string; major: number; minor: number; pitch?: number; length: number;
+  hand?: 'right' | 'left'; internal: boolean; modeled?: boolean; start: number[]; dir: number[];
+}
 
 
 /** What the sketch-edit overlay draws: the solved sketch and its plane frame. */
@@ -527,6 +533,7 @@ export class Viewport {
     if (layer === 'axes' && this.axisLines) this.axisLines.visible = on;
     if (layer === 'grid' && this.groundGrid) this.groundGrid.visible = on;
     if (layer === 'dimensions' && this.dimGroup) this.dimGroup.visible = on;
+    if (layer === 'threads' && this.threadGroup) this.threadGroup.visible = on;
     this.dirty = true;
   }
 
@@ -646,6 +653,7 @@ export class Viewport {
     this.clearBody();
     if (!body) { this.buildGroundGrid(null); this.dirty = true; return; }
     this.buildGroundGrid(body.box ?? null);
+    this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
       this.dimGroup = buildBoxDimensions(body.box);
       if (this.dimGroup) { this.dimGroup.visible = this.layers.dimensions === true; this.scene.add(this.dimGroup); }
@@ -699,6 +707,71 @@ export class Viewport {
     this.box = body.box;
     this.fit();
   }
+
+  private threadItems: ViewThread[] = [];
+  private threadGroup: THREE.Group | null = null;
+  /** Cosmetic threads from the regen result (modelled ones are real geometry and need no marker). Kept, so a rebuilt body redraws them. */
+  setThreads(items: ViewThread[]): void {
+    this.threadItems = items;
+    this.buildThreads();
+  }
+  private buildThreads(): void {
+    this.dropThreadGroup();
+    this.threadMats = [];
+    const items = this.threadItems.filter((th) => !th.modeled && th.start && th.dir);
+    if (!items.length) { this.dirty = true; return; }
+    this.drawThreads(items);
+  }
+  private dropThreadGroup(): void {
+    if (this.threadGroup) {
+      this.scene.remove(this.threadGroup);
+      this.threadGroup.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose?.();
+        const mat = m.material as (THREE.Material & { map?: THREE.Texture | null }) | undefined;
+        mat?.map?.dispose?.(); mat?.dispose?.();
+      });
+      this.fatMaterials = this.fatMaterials.filter((m) => this.threadMats.indexOf(m) < 0);
+      this.threadGroup = null;
+    }
+  }
+  private drawThreads(items: ViewThread[]): void {
+    const group = new THREE.Group();
+    group.userData.pickable = false;
+    for (const th of items) {
+      const dir = new THREE.Vector3(...(th.dir as [number, number, number])).normalize();
+      const o = new THREE.Vector3(...(th.start as [number, number, number]));
+      const seed = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      const u = new THREE.Vector3().crossVectors(dir, seed).normalize();
+      const v = new THREE.Vector3().crossVectors(dir, u).normalize();
+      // the root of an external thread, the major diameter of an internal one: the thin line CAD drawings use
+      const r = (th.internal ? th.major : th.minor) / 2;
+      const at = (a: number, d: number) => o.clone().addScaledVector(u, Math.cos(a) * r).addScaledVector(v, Math.sin(a) * r).addScaledVector(dir, d);
+      const segs: number[][][] = [];
+      const ring = (d: number) => { const p: number[][] = []; for (let i = 0; i <= 48; i++) { const q = at((i / 48) * Math.PI * 2, d); p.push([q.x, q.y, q.z]); } return p; };
+      segs.push(ring(0));
+      segs.push(ring(th.length));
+      for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) { const p0 = at(a, 0), p1 = at(a, th.length); segs.push([[p0.x, p0.y, p0.z], [p1.x, p1.y, p1.z]]); }
+      const lines = this.addFatLines(segs as never, 0x1f6feb, 1.2, true, 0.8);
+      if (lines) {
+        this.scene.remove(lines);                       // addFatLines adds to the scene; the thread group owns it
+        const m = lines.material as LineMaterial;
+        m.depthTest = false; m.dashed = true; m.dashSize = r * 0.18; m.gapSize = r * 0.12;
+        lines.computeLineDistances(); lines.renderOrder = 5;
+        this.threadMats.push(m);
+        group.add(lines);
+      }
+      const s = textLabel(th.size + (th.hand === 'left' ? ' LH' : ''));
+      const p = at(0, th.length / 2).addScaledVector(u, r * 0.0 + Math.max(r * 0.35, 1));
+      s.position.copy(p);
+      group.add(s);
+    }
+    group.visible = this.layerOn('threads');
+    this.scene.add(group);
+    this.threadGroup = group;
+    this.dirty = true;
+  }
+  private threadMats: LineMaterial[] = [];
 
   private sketchItems: Array<{ id: string; frame: ViewFrame; sketch: unknown }> = [];
   private shapeHover: THREE.Object3D | null = null;
@@ -899,7 +972,7 @@ export class Viewport {
    *  (the parallel view) would blow them up. Scale them by the field of view relative to the 45 degrees they are designed for. */
   private fixSpriteScale(): void {
     const k = Math.tan((this.camera.fov * Math.PI) / 360) / Math.tan((45 * Math.PI) / 360);
-    for (const g of [this.refPlanes.group, this.dimGroup]) {
+    for (const g of [this.refPlanes.group, this.dimGroup, this.threadGroup]) {
       g?.traverse((o) => {
         const base = o.userData.base as [number, number] | undefined;
         if (base && (o as THREE.Sprite).isSprite) o.scale.set(base[0] * k, base[1] * k, 1);
@@ -985,6 +1058,7 @@ export class Viewport {
 
   private clearBody(): void {
     this.clearLayers();
+    this.dropThreadGroup();
     this.dropFat(this.hoverObj); this.hoverObj = null;
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;

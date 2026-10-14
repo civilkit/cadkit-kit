@@ -27,6 +27,7 @@ export interface ViewSink {
   setBody(b: unknown | null): void;
   setHighlight(n: string[]): void;
   setSketchEdit(v: SketchEditView | null): void;
+  setThreads?(items: unknown[]): void;
 }
 
 export interface KernelFactory {
@@ -439,6 +440,7 @@ export class Controller {
     }
     this.store.dropMissing(existing);
     const report = await s.verify();
+    this.view.setThreads?.(((report.regen as unknown) as { threads?: unknown[] }).threads ?? []);
     const errors = new Map(report.regen.errors);
     this.store.featureStatus.value = s.document.features.map((f) => {
       const err = errors.get(f.id);

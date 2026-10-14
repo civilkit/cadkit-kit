@@ -77,7 +77,7 @@ export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boole
   });
 }
 
-const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions'];
+const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads'];
 
 export function buildCommands(a: Actions): Command[] {
   const cmds: Command[] = [

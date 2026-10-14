@@ -96,6 +96,7 @@ const controller = new Controller({
       store.facts.value = { ...store.facts.value, faces: body?.mesh?.faceIds.length ?? 0, triangles: body?.mesh?.triFace.length ?? 0 };
     },
     setHighlight: (n) => viewport?.setHighlight(n),
+    setThreads: (items) => viewport?.setThreads(items as never),
     setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
   },
   kernel: {

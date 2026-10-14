@@ -6,9 +6,9 @@ export type SelectionMode = 'face' | 'edge' | 'vertex';
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number }
-export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions';
+export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads';
 export type Display = Record<DisplayLayer, boolean>;
-export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false };
+export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true };
 export interface Workspace {
   ribbon: 'full' | 'compact' | 'off';
   leftPanel: 'docked' | 'floating' | 'hidden';
