@@ -9,7 +9,7 @@ import './i18n';
 afterEach(cleanup);
 
 const actions: Actions = {
-  open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, addExtrude() {}, newSketch() {},
+  open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, addExtrude() {}, newSketch() {}, sketchOnFace() {}, hasFaceSelection: () => false,
   setView() {}, fit() {}, setMode() {}, mode: () => 'face', toggleLayer() {}, layer: () => false,
 };
 
@@ -17,6 +17,10 @@ describe('icons cover everything the UI offers', () => {
   it('every command id has an icon', () => {
     const missing = buildCommands(actions).map((c) => c.id).filter((id) => !ICON_NAMES.includes(id));
     expect(missing).toEqual([]);
+  });
+  it('every feature command has an icon', () => {
+    const ids = ['add-fillet', 'add-chamfer', 'add-shell', 'add-hole', 'add-revolve', 'add-lpattern', 'add-cpattern', 'sketch-on-face'];
+    expect(ids.filter((id) => !ICON_NAMES.includes(id))).toEqual([]);
   });
   it('every selection mode used by the selection bar has an icon', () => {
     expect(['face', 'edge', 'vertex'].filter((m) => !ICON_NAMES.includes('sel-' + m))).toEqual([]);
