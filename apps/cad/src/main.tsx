@@ -174,7 +174,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor' | 'Catalog'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
@@ -1158,13 +1158,11 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Catalog', 'Editor', 'Assets'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
+            {(['Outliner', 'Features', 'Catalog', 'Editor'] as const).map((id) => <button key={id} class="pt" aria-selected={leftTab === id} onClick={() => setLeftTab(id)}>{t('app.leftTab.' + id)}</button>)}
           </div>
           {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
             : leftTab === 'Catalog' ? catalogPanel
-            : leftTab === 'Editor' ? editor : (
-            <div class="empty">{t('app.assets.text')} <button class="rb-btn" onClick={async () => setSamples(await platform.listSamples())}>{t('app.assets.browse')}</button></div>
-          )}
+            : editor}
         </>
       ) : leftBody}
     </div>
