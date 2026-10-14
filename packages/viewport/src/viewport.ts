@@ -697,7 +697,74 @@ export class Viewport {
     this.fit();
   }
 
+  private hlWidth = 3;
+  /** Thickness in pixels of the hover and selection lines of edges. */
+  setHighlightWidth(w: number): void {
+    this.hlWidth = w;
+    for (const o of [this.hoverObj, this.edgeHighlight]) {
+      const m = (o as LineSegments2 | null)?.material as LineMaterial | undefined;
+      if (m && 'linewidth' in m) m.linewidth = w;
+    }
+    this.dirty = true;
+  }
+  private selectedNames = new Set<string>();
+  private edgeHighlight: LineSegments2 | null = null;
+  private hoverObj: THREE.Object3D | null = null;
+
+  private edgeIndex(name: string): number {
+    return this.edges.findIndex((e, i) => (e.key ?? `edge#${i}`) === name);
+  }
+  private dropFat(o: THREE.Object3D | null): void {
+    if (!o) return;
+    this.scene.remove(o);
+    const l = o as LineSegments2 | THREE.Mesh;
+    l.geometry.dispose();
+    const m = l.material as THREE.Material;
+    this.fatMaterials = this.fatMaterials.filter((x) => x !== (m as unknown));
+    m.dispose();
+  }
+
+  /** The face or edge under the pointer: a lighter fill for a face, an amber thick line for an edge (selected ones keep their own look). */
+  setHover(name: string | null): void {
+    this.dropFat(this.hoverObj);
+    this.hoverObj = null;
+    this.dirty = true;
+    if (!name || this.selectedNames.has(name)) return;
+    const ei = this.edgeIndex(name);
+    if (ei >= 0) {
+      const l = this.addFatLines([this.edges[ei].pts as never], 0xffa21f, this.hlWidth, true);
+      if (l) { l.renderOrder = 6; this.hoverObj = l; }
+      return;
+    }
+    if (!this.grouped) return;
+    const pos: number[] = [], nor: number[] = [];
+    for (const r of this.grouped.ranges) {
+      if (r.name !== name) continue;
+      pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+      nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+    }
+    if (!pos.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color: 0x7fc1ff, emissive: 0x7fc1ff, emissiveIntensity: 0.25, transparent: true, opacity: 0.55,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, side: THREE.DoubleSide, depthWrite: false,
+    }));
+    m.userData.pickable = false;
+    this.scene.add(m);
+    this.hoverObj = m;
+  }
+
   setHighlight(names: string[]): void {
+    this.selectedNames = new Set(names);
+    this.dropFat(this.edgeHighlight);
+    this.edgeHighlight = null;
+    const polys = names.map((n) => this.edgeIndex(n)).filter((i) => i >= 0).map((i) => this.edges[i].pts as never);
+    if (polys.length) {
+      const l = this.addFatLines(polys, 0x0b74dc, this.hlWidth, true);
+      if (l) { l.renderOrder = 7; this.edgeHighlight = l; }
+    }
     if (this.highlight) {
       this.scene.remove(this.highlight);
       this.highlight.geometry.dispose();
@@ -872,6 +939,8 @@ export class Viewport {
 
   private clearBody(): void {
     this.clearLayers();
+    this.dropFat(this.hoverObj); this.hoverObj = null;
+    this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -897,11 +966,49 @@ export class Viewport {
 
   private nameAt(h: THREE.Intersection | null): string | null {
     if (!h || !this.grouped) return null;
+    return pickFace(this.grouped, h.faceIndex == null ? null : { faceIndex: h.faceIndex });
+  }
+
+  /** What a click or hover at this screen position picks: an edge within a few pixels in edge mode (hidden edges are skipped),
+   *  else the face under the pointer. */
+  private pickName(x: number, y: number): string | null {
     if (this.mode === 'edge') {
-      const i = nearestEdge(this.edges, [h.point.x, h.point.y, h.point.z], this.radius() * 0.03);
+      const i = this.edgeAtScreen(x, y, 8);
       return i === null ? null : this.edges[i].key ?? `edge#${i}`;
     }
-    return pickFace(this.grouped, h.faceIndex == null ? null : { faceIndex: h.faceIndex });
+    return this.nameAt(this.hit(x, y));
+  }
+
+  private edgeAtScreen(x: number, y: number, tolPx: number): number | null {
+    if (!this.edges.length) return null;
+    const r = this.dom.getBoundingClientRect();
+    const px = x - r.left, py = y - r.top;
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    let best: { i: number; d: number; t: number; j: number } | null = null;
+    const toScreen = (p: number[], out: THREE.Vector3) => { out.set(p[0], p[1], p[2]).project(this.camera); out.x = ((out.x + 1) / 2) * r.width; out.y = ((1 - out.y) / 2) * r.height; };
+    for (let i = 0; i < this.edges.length; i++) {
+      const pts = this.edges[i].pts;
+      for (let j = 0; j + 1 < pts.length; j++) {
+        toScreen(pts[j], a); toScreen(pts[j + 1], b);
+        if (a.z > 1 || b.z > 1) continue;                       // behind the camera
+        const dx = b.x - a.x, dy = b.y - a.y, len2 = dx * dx + dy * dy;
+        const t = len2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / len2));
+        const d = Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+        if (d <= tolPx && (!best || d < best.d)) best = { i, d, t, j };
+      }
+    }
+    if (!best) return null;
+    // hidden behind the body? compare the edge point's distance with the first surface the ray meets there
+    if (this.mesh) {
+      const pts = this.edges[best.i].pts, p0 = pts[best.j], p1 = pts[best.j + 1];
+      const w = new THREE.Vector3(p0[0] + (p1[0] - p0[0]) * best.t, p0[1] + (p1[1] - p0[1]) * best.t, p0[2] + (p1[2] - p0[2]) * best.t);
+      const dir = w.clone().sub(this.camera.position);
+      const dist = dir.length();
+      this.raycaster.set(this.camera.position, dir.normalize());
+      const h = this.raycaster.intersectObject(this.mesh, false)[0];
+      if (h && h.distance < dist - Math.max(this.radius() * 0.004, 1e-4)) return null;
+    }
+    return best.i;
   }
 
   /** Nearest sketch point within ~12 px of the cursor, else null. */
@@ -965,13 +1072,13 @@ export class Viewport {
     }
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
-    if (!hit0 && this.refPlanes.group.visible) {
+    if (!hit0 && this.mode !== 'edge' && this.refPlanes.group.visible) {
       this.raycaster.setFromCamera(this.ndc(e.clientX, e.clientY), this.camera);
       const plane = this.refPlanes.pick(this.raycaster);
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
     this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
-    const name = this.nameAt(hit0);
+    const name = this.pickName(e.clientX, e.clientY);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
 
@@ -992,8 +1099,8 @@ export class Viewport {
     if (this.hoverPending && !this.down && !this.sketchEdit) {
       const p = this.hoverPending;
       this.hoverPending = null;
-      const name = this.nameAt(this.hit(p.x, p.y));
-      if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); }
+      const name = this.pickName(p.x, p.y);
+      if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); this.setHover(name); }
     }
     if (this.dirty) {
       this.dirty = false;

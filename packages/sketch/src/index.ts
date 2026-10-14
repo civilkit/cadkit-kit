@@ -129,3 +129,4 @@ export * from './snap-constraints';
 export * from './select';
 export * from './annotations';
 export * from './extrude';
+export * from './shapes';

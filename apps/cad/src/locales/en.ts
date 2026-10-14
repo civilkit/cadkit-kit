@@ -64,6 +64,7 @@ export const en: Catalog = {
 
   'settings.label': 'Workspace',
   'settings.tab.general': 'General', 'settings.tab.layout': 'Layout', 'settings.tab.sketching': 'Sketching',
+  'settings.lineWidth': 'Highlight line thickness',
   'settings.preset': 'Preset',
   'settings.preset.choose': 'Choose...', 'settings.preset.custom': 'Custom (your own mix)',
   'settings.preset.plasticity': 'Plasticity-style',
@@ -163,6 +164,7 @@ export const en: Catalog = {
   'cmd.sketch-here': 'Sketch on selected face or plane', 'app.sketch.pickFirst': 'Select a plane or a face first, then press S.',
   'app.sketch.tangentPlane': 'Tangent plane',
   'app.sketch.failedCurved': 'Could not open a sketch on that face. Flat faces, cylinders and spheres work; for other curved faces make a plane first.',
+  'app.shape.circle': 'Shape {n}: circle, diameter {d}', 'app.shape.ellipse': 'Shape {n}: ellipse', 'app.shape.loop': 'Shape {n}: outline of {count} segments',
   'app.sketch.layerOn': 'Sketches were hidden in Display, so they are shown again.',
   'app.sketch.moreTools': 'More tools like {name}',
   'app.sketch.group.draw': 'Draw', 'app.sketch.group.dimension': 'Dimension', 'app.sketch.group.constrain': 'Constrain', 'app.sketch.group.edit': 'Edit',

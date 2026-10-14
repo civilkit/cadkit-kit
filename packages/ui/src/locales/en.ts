@@ -33,6 +33,7 @@ export const en: Catalog = {
   'ui.status.ready': 'Ready',
   'ui.status.drawer': 'Drawer \\',
   'ui.editor.confirm': 'Confirm',
+  'ui.editor.section.shapes': 'Shapes', 'ui.editor.shapes.note': 'Choose which closed shapes of the sketch are used.',
   'ui.editor.value.op.add': 'Add material', 'ui.editor.value.op.cut': 'Cut material',
   'ui.editor.value.end.blind': 'Blind', 'ui.editor.value.end.through': 'Through', 'ui.editor.value.end.throughBoth': 'Through both', 'ui.editor.value.end.upToNext': 'Up to next',
   'ui.editor.empty': 'No feature selected.',

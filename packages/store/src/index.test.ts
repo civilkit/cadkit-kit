@@ -82,3 +82,13 @@ describe('matchPreset', () => {
     expect(matchPreset({ ...WORKSPACE_PRESETS.minimal, ribbon: 'full' })).toBeNull();
   });
 });
+
+describe('highlight line width', () => {
+  it('defaults to 3 px in every preset, is clamped to 1..8, and bad values fall back', () => {
+    for (const p of Object.values(WORKSPACE_PRESETS)) expect(p.lineWidth).toBe(3);
+    expect(sanitizeWorkspace({ lineWidth: 20 }).lineWidth).toBe(8);
+    expect(sanitizeWorkspace({ lineWidth: 0 }).lineWidth).toBe(1);
+    expect(sanitizeWorkspace({ lineWidth: 'x' }).lineWidth).toBe(3);
+    expect(sanitizeWorkspace({ lineWidth: 1.5 }).lineWidth).toBe(1.5);
+  });
+});

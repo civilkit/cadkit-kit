@@ -87,6 +87,8 @@ export function SettingsDialog(p: {
           {check('drawerOpen')}
           <label class="set-row"><span>{t('settings.opacity')}</span>
             <input type="range" min="15" max="100" value={Math.round(w.opacity * 100)} aria-label={t('settings.opacity')} onInput={(e) => p.onChange({ opacity: Number((e.currentTarget as HTMLInputElement).value) / 100 })} /></label>
+          <label class="set-row"><span>{t('settings.lineWidth')}</span>
+            <input type="range" min="1" max="8" step="0.5" value={w.lineWidth} aria-label={t('settings.lineWidth')} onInput={(e) => p.onChange({ lineWidth: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
           <label class="set-row"><span>{t('settings.blur')}</span>
             <input type="range" min="0" max="30" value={w.blur} aria-label={t('settings.blur')} onInput={(e) => p.onChange({ blur: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
           </>) : null}

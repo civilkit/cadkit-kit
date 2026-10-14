@@ -36,7 +36,7 @@ const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools } from '@kit/sketch';
+import { sketchTools, sketchShapes } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 /** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
@@ -220,6 +220,7 @@ function App() {
   }, [store.display.value]);
   useEffect(() => {
     write('cad.workspace', ws);
+    viewport?.setHighlightWidth(ws.lineWidth);
     const r = document.documentElement.style;
     r.setProperty('--alpha', String(ws.opacity));
     r.setProperty('--blur', `${ws.blur}px`);
@@ -334,9 +335,25 @@ function App() {
   const failures = store.featureStatus.value.filter((s) => !s.ok);
   const facts = store.facts.value;
 
+  const editShapes = (() => {
+    const ef = editingId && doc ? doc.features.find((f) => f.id === editingId) as unknown as { type?: string; sketch?: string } | undefined : undefined;
+    if (!ef || (ef.type !== 'extrude' && ef.type !== 'revolve') || !ef.sketch) return [];
+    const sk = doc!.features.find((f) => f.id === ef.sketch);
+    return sketchShapes(sk as never).map((sh, i) => ({
+      id: sh.id,
+      label: t('app.shape.' + sh.kind, { n: i + 1, d: Math.round(sh.radius * 2 * 100) / 100, count: sh.entityIds.length }),
+    }));
+  })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   const opsFromDraft = (next: Record<string, unknown>): EditOp[] => {
     if (!editingFeature) return [];
+    // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
+    if (next.regions === null) {
+      const { regions: _drop, ...rest } = next;
+      const feature = { ...editingFeature, ...rest } as Record<string, unknown>;
+      delete feature.regions;
+      return editingFeature.regions === undefined && Object.keys(rest).every((k) => editingFeature[k] === rest[k]) ? [] : [{ op: 'replace' as const, id: editingId!, feature }];
+    }
     return Object.entries(next)
       .filter(([path, value]) => editingFeature[path] !== value)
       .map(([path, value]) => ({ op: 'set' as const, id: editingId!, path, value }));
@@ -791,6 +808,7 @@ function App() {
       pickingPath={pickingPath}
       picked={picked}
       hint={previewHint}
+      shapes={editShapes}
     />
   );
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>

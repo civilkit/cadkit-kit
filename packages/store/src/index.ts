@@ -18,12 +18,13 @@ export interface Workspace {
   drawerOpen: boolean;
   opacity: number;                         // 0.15..1, floating panels
   blur: number;                            // px
+  lineWidth: number;                       // px, thickness of the hover and selection highlight lines (1..8)
 }
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
-  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, opacity: 0.62, blur: 14 },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 1, blur: 0 },
-  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 0.5, blur: 14 },
+  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, opacity: 0.62, blur: 14, lineWidth: 3 },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 1, blur: 0, lineWidth: 3 },
+  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, opacity: 0.5, blur: 14, lineWidth: 3 },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
@@ -38,6 +39,7 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   for (const k of ['leftTabs', 'leftCollapsed', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   if (typeof r.opacity === 'number' && Number.isFinite(r.opacity)) out.opacity = Math.min(1, Math.max(0.15, r.opacity));
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));
+  if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));
   return out;
 }
 export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; }

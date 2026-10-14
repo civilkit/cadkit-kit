@@ -357,3 +357,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .row-chev:hover { background: var(--chip); }
 .tree .row.child { padding-left: 28px; min-height: 30px; font-size: 13px; }
 .tree .row.child::after { content: ''; position: absolute; left: 14px; top: 0; bottom: 50%; width: 10px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); border-bottom-left-radius: 5px; pointer-events: none; }
+
+.fedit-shapes { gap: 4px; }
+.fedit-shapes-note { color: var(--text-2); font-size: 12px; padding-bottom: 4px; }
+.fedit-shape:hover { background: var(--accent-soft); border-radius: 6px; }

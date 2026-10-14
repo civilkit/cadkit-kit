@@ -117,6 +117,10 @@ export function FeatureEditor(p: {
   picked?: { path: string; value: unknown } | null;
   /** Preview failure hint; the viewport keeps the last good mesh while it shows. */
   hint?: string | null;
+  /** The closed shapes of the feature's sketch (extrude, revolve): checkboxes choose which ones are used. Fewer than two: no list. */
+  shapes?: Array<{ id: string; label: string }>;
+  /** The pointer is over a shape's row (or left it: null), so the app can light it up in the view. */
+  onShapeHover?(id: string | null): void;
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -131,6 +135,16 @@ export function FeatureEditor(p: {
   }
 
   const featureId = feature.id;
+  const shapes = (feature.type === 'extrude' || feature.type === 'revolve') ? (p.shapes ?? []) : [];
+  const current = (draft.regions !== undefined ? draft.regions : feature.regions) as string[] | null | undefined;
+  const checkedShapes = new Set(Array.isArray(current) ? shapes.filter((s) => current.includes(s.id)).map((s) => s.id) : shapes.map((s) => s.id));
+  /** All checked means no `regions` field at all (every region, holes included), which is null in the draft. */
+  const toggleShape = (id: string): void => {
+    const next = new Set(checkedShapes);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    if (!next.size) return;
+    apply('regions', next.size === shapes.length ? null : shapes.filter((s) => next.has(s.id)).map((s) => s.id));
+  };
   const sections = sectionsOf(feature);
   const title = t('feature.' + feature.type, undefined, feature.type ?? '') + (feature.name ? ` — ${feature.name}` : '');
 
@@ -253,6 +267,20 @@ export function FeatureEditor(p: {
           )}
         </div>
       ))}
+      {shapes.length > 1 ? (
+        <div class="fedit-sec">
+          <div class="fedit-sec-head"><span class="fedit-sec-title">{t('ui.editor.section.shapes', undefined, 'Shapes')}</span></div>
+          <div class="fedit-sec-fields fedit-shapes">
+            <span class="fedit-shapes-note">{t('ui.editor.shapes.note', undefined, 'Choose which closed shapes of the sketch are used.')}</span>
+            {shapes.map((sh) => (
+              <label key={sh.id} class="fedit-fld bool fedit-shape" data-shape={sh.id} onMouseEnter={() => p.onShapeHover?.(sh.id)} onMouseLeave={() => p.onShapeHover?.(null)}>
+                <input type="checkbox" checked={checkedShapes.has(sh.id)} disabled={checkedShapes.has(sh.id) && checkedShapes.size === 1} onChange={() => toggleShape(sh.id)} />
+                <span class="fedit-fld-label">{sh.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
     </div>
   );
