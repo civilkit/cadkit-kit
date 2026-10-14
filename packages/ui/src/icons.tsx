@@ -159,6 +159,7 @@ const ICONS: Record<string, string> = {
   'feature-knit': P('M4 8h16v8H4z') + A('M4 12h16') + T('M9 8v8M15 8v8'),
   'feature-surface': P('M3 17C7 9 11 15 15 9s4-2 6-1') + T('M3 20h18'),
   'feature-pattern': P('M3 8h4v8H3z') + P('M10 8h4v8h-4z') + T('M17 8h4v8h-4z'),
+  'rollback': P('M4 17h16') + A('M12 14V5M8.5 8.5 12 5l3.5 3.5'),
   'layer-relations': P('M5 8h5M5 12h5') + P('M14 20 18 8M17 20l4-12') + C('M4 18h6'),
 };
 

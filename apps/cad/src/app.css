@@ -406,3 +406,19 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .dcheck-issue:disabled { cursor: default; }
 .dcheck-issue .rule { font-weight: 600; }
 .dcheck-issue .val { font: 500 12px ui-monospace, monospace; color: var(--text-2); white-space: nowrap; }
+
+/* tree interaction: rename field, rollback marker, dependency marker, multi-select */
+.inline-name { flex: 1 1 auto; min-width: 0; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 5px; height: 24px; outline: none; }
+.tree .row.rolled .row-name, .tree .row.rolled .row-icon, .tree .row.rolled .row-id { opacity: .35; }
+.tree .row.dep::after { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 0 2px 2px 0; background: var(--text-2); opacity: .55; pointer-events: none; }
+.tree .row.dep.child::after { content: none; }
+.tree .row.dep.child { box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--text-2) 55%, transparent); }
+.rb-bar { display: flex; align-items: center; gap: 8px; height: 14px; padding: 0 12px; cursor: grab; position: relative; font-size: 11px; color: var(--accent); outline: none; }
+.rb-bar::before { content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: var(--accent); opacity: .8; }
+.rb-bar:focus-visible::before { height: 3px; margin-top: -1.5px; }
+.rb-bar > * { position: relative; background: var(--panel); padding: 0 6px; border-radius: 7px; }
+.rb-grip { width: 22px; height: 8px; padding: 0; background: var(--accent) !important; border-radius: 4px; }
+.rb-label { margin-left: auto; }
+.rb-fwd { border: 0; font: inherit; color: var(--accent); cursor: pointer; }
+.rb-fwd:hover { text-decoration: underline; }
+.rb-end { min-height: 10px; flex: 1 0 10px; }
