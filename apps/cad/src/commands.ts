@@ -64,7 +64,7 @@ export const SHORTCUTS: Record<string, string> = {
   'sketch-here': 'S',
   'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H',
   'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
-  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', 'save-as': 'Ctrl+Shift+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
