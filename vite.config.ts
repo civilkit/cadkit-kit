@@ -6,6 +6,8 @@ const here = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 export default defineConfig(({ command }) => ({
   plugins: [preact()],
+  // several dev servers (one per worktree) share node_modules; give each its own dependency cache with VITE_CACHE_DIR
+  ...(process.env.VITE_CACHE_DIR ? { cacheDir: process.env.VITE_CACHE_DIR } : {}),
   resolve: {
     alias: [
       // The browser build never uses the Node worker client that Session loads lazily; stub it so it is not bundled.
