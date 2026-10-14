@@ -5,11 +5,6 @@ html, body, #root { margin: 0; height: 100%; background: var(--bg); overflow: hi
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   grid-template-areas: "top top top" "rib rib rib" "left vp right" "drawer drawer drawer" "status status status"; }
 #app[data-left="docked"] { --lw: 280px; }
-#app[data-left="docked"][data-split="true"] { --lw: 620px; }
-.tree-wrap.docked.split { display: grid; grid-template-columns: 280px minmax(0, 1fr); overflow: hidden; }
-.tree-wrap .tree-col { min-width: 0; min-height: 0; overflow: auto; }
-.tree-wrap.split .tree-col { border-right: 1px solid var(--line); }
-.tree-wrap .editor-col { min-width: 0; min-height: 0; overflow: auto; }
 #app[data-right="docked"] { --rw: 280px; }
 .topbar { grid-area: top; display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--title); color: var(--title-text); }
 .topbar .doc-name { margin-right: auto; margin-left: 6px; font-weight: 600; }
