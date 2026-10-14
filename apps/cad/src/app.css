@@ -366,3 +366,11 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .discard-body { padding: 14px 16px; }
 .discard-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 16px 14px; }
 .doc-dirty { color: var(--accent); }
+
+/* top bar export menu */
+.export-menu { position: relative; display: inline-flex; }
+.export-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 220px; padding: 6px; border-radius: 10px; display: flex; flex-direction: column;
+  background: var(--panel); color: var(--text); outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 10px 30px #0004; }
+.export-row { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.export-row:hover:not(:disabled) { background: var(--accent-soft); }
+.export-row:disabled { opacity: .4; cursor: default; }

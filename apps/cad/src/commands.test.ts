@@ -39,8 +39,9 @@ describe('ribbon commands', () => {
 
 import { matchShortcut, SHORTCUTS } from './commands';
 describe('shortcuts', () => {
+  const ioStub = { importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true };
   const key = (k: string, mods: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
-  const cmds = buildCommands(actions());
+  const cmds = buildCommands(actions({ io: ioStub }));
   it('every shortcut belongs to a command and no two commands share one', () => {
     const ids = new Set(cmds.map((c) => c.id));
     for (const id of Object.keys(SHORTCUTS)) expect(ids.has(id) || id.startsWith('add-'), id).toBe(true);
@@ -67,5 +68,44 @@ describe('undo and redo keys', () => {
     expect(matchShortcut(cmds, key('z', { ctrlKey: true }))?.id).toBe('undo');
     expect(matchShortcut(cmds, key('Z', { metaKey: true, shiftKey: true }))?.id).toBe('redo');
     expect(matchShortcut(cmds, key('Z', { ctrlKey: true, shiftKey: true }))?.id).toBe('redo');
+  });
+});
+
+import { EXPORT_KINDS, type IoActions } from './commands';
+import { hasIcon } from '@kit/ui';
+describe('import and export commands', () => {
+  const io = (over: Partial<IoActions> = {}): IoActions => ({ importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true, ...over });
+  it('are absent without io actions and present with them, each with an icon', () => {
+    expect(buildCommands(actions()).some((c) => c.id.startsWith('export'))).toBe(false);
+    const cmds = buildCommands(actions({ io: io(), hasDocument: () => true }));
+    const ids = ['export', 'sketch-import-dxf', 'sketch-from-dxf', ...EXPORT_KINDS.map((k) => `export-${k}`)];
+    for (const id of ids) {
+      const c = cmds.find((x) => x.id === id);
+      expect(c, id).toBeDefined();
+      expect(hasIcon(id), `icon ${id}`).toBe(true);
+    }
+  });
+  it('lists every format as its own command that exports that format', () => {
+    const a = io();
+    const cmds = buildCommands(actions({ io: a, hasDocument: () => true }));
+    expect(EXPORT_KINDS).toEqual(['stl', 'stl-ascii', 'obj', 'step', 'dxf-sketch', 'dxf-views']);
+    for (const k of EXPORT_KINDS) cmds.find((c) => c.id === `export-${k}`)!.run();
+    expect((a.exportAs as ReturnType<typeof vi.fn>).mock.calls.map((x) => x[0])).toEqual(EXPORT_KINDS);
+  });
+  it('a format is enabled by canExport, the Export menu command by having a document, Import DXF by sketching', () => {
+    const cmds = buildCommands(actions({ io: io({ canExport: (k) => k !== 'dxf-sketch', isSketching: () => false }), hasDocument: () => true }));
+    expect(cmds.find((c) => c.id === 'export-dxf-sketch')!.enabled!()).toBe(false);
+    expect(cmds.find((c) => c.id === 'export-stl')!.enabled!()).toBe(true);
+    expect(cmds.find((c) => c.id === 'sketch-import-dxf')!.enabled!()).toBe(false);
+    expect(buildCommands(actions({ io: io({ isSketching: () => true }) })).find((c) => c.id === 'sketch-import-dxf')!.enabled!()).toBe(true);
+    expect(buildCommands(actions({ io: io() })).find((c) => c.id === 'export')!.enabled!()).toBe(false);
+  });
+  it('Ctrl+E opens the Export menu', () => {
+    const a = io();
+    const cmds = buildCommands(actions({ io: a, hasDocument: () => true }));
+    expect(cmds.find((c) => c.id === 'export')!.keys).toBe('Ctrl+E');
+    const hit = matchShortcut(cmds, { key: 'e', shiftKey: false, ctrlKey: true, metaKey: false, altKey: false });
+    hit!.run();
+    expect(a.openExportMenu).toHaveBeenCalled();
   });
 });
