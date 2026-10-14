@@ -3,7 +3,7 @@ import { t } from './i18n';
 import { Icon, hasIcon } from './icons';
 import { Tip } from './Tip';
 
-export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; enabled?(): boolean; pressed?(): boolean; run(): void }
+export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; enabled?(): boolean; pressed?(): boolean; run(): void }
 
 export function Ribbon(p: { commands: Command[]; activeTab: string; onTab(t: string): void; labels?: 'icons' | 'icons-and-text' }): JSX.Element {
   const tabs = [...new Set(p.commands.map((c) => c.tab))];
@@ -38,7 +38,7 @@ export function Ribbon(p: { commands: Command[]; activeTab: string; onTab(t: str
                   {iconsOnly && hasIcon(c.id) ? null : c.label}
                 </button>
               );
-              return iconsOnly && hasIcon(c.id) ? <Tip key={c.id} label={c.label} keys={c.keys}>{btn}</Tip> : btn;
+              return iconsOnly && hasIcon(c.id) ? <Tip key={c.id} label={c.label} keys={c.keys} hint={c.tip}>{btn}</Tip> : btn;
             })}
           </div>
         ))}

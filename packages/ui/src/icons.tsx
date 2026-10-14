@@ -205,6 +205,11 @@ const ICONS: Record<string, string> = {
   'add-trim-surface': P('M3 17C7 9 11 15 21 8') + C('M12 3v18') + A('M12 12.5 21 8') + D(12, 12.5),
   'add-knit': P('M4 8h7v8H4z') + P('M13 8h7v8h-7z') + A('M11 9.5v5M13 9.5v5') + T('M4 12h7M13 12h7'),
   'add-thicken': P('M3 14C8 8 13 14 21 9') + P('M3 18C8 12 13 18 21 13') + T('M3 14v4M21 9v4') + A('M12 9v3M10.5 10.5 12 9l1.5 1.5'),
+  'add-loft': P('M4 19c0-1 3-2 6-2s6 1 6 2-3 2-6 2-6-1-6-2z') + P('M12 7h8v4h-8z') + A('M4 19 12 7M16 19l4-8') + T('M10 17v-3'),
+  'add-sweep': P('M4 19c0-1.5 2-2.5 4-2.5s4 1 4 2.5-2 2.5-4 2.5-4-1-4-2.5z') + A('M8 16.5C8 9 12 8 20 5') + T('M12 18.5C13 11 16 10 21 8') + D(20, 5),
+  'add-surface-loft': P('M4 18h7M13 8h7') + A('M4 18C6 12 11 12 13 8M11 18c2-6 7-6 9-10') + T('M7.5 15c2-1 4-3 5-5'),
+  'add-fill': P('M4 6h16v12H4z') + T('M4 6l16 12M20 6 4 18') + A('M12 9.5 14.5 12 12 14.5 9.5 12z') + D(12, 12, 1.3),
+  'add-extend': P('M4 17l4-9h7l-4 9z') + C('M15 8h5l-4 9h-5') + A('M14 17h6M18 15l2 2-2 2'),
   // ---- evaluate: measure, mass, interference, section
   measure: P('M4 17 17 4l3 3L7 20z') + T('M8 13l2 2M11 10l2 2M14 7l2 2') + D(4, 20),
   'mass-props': P('M5 20h14l-2.5-9h-9z') + O(12, 7.5, 2.5) + A('M12 11v4'),

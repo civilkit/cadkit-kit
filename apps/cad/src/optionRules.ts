@@ -40,6 +40,12 @@ export function managedPaths(type: string): Set<string> {
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
+    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'startNormal', 'endNormal']);
+    case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op']);
+    case 'fill': return new Set(['continuity', 'fairing', 'merge']);
+    case 'extend': return new Set(['distance', 'shape', 'end']);
+    case 'knit': return new Set(['surfaces', 'solid']);
+    case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
     default: return new Set();
   }
 }

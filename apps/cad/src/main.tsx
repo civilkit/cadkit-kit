@@ -1426,7 +1426,7 @@ function App() {
       }}
       pickingPath={pickingPath}
       picked={picked}
-      options={optionsFor}
+      options={(a) => optionsFor(a, doc)}
       hint={previewHint}
       shapes={editShapes}
       onShapeHover={(id) => {

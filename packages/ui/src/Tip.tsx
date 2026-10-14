@@ -33,7 +33,7 @@ export function placeTip(a: { left: number; top: number; right: number; bottom: 
  *  the shortcut as a small badge. It hides on leave, blur and Escape, flips to stay inside the viewport, and on touch
  *  appears on tap or long press and goes away by itself. The tooltip is drawn on the page body so a scrolling or
  *  blurred toolbar cannot clip it; the child gets aria-describedby while it shows. */
-export function Tip(p: { label: string; keys?: string; side?: TipSide; children: VNode }): VNode {
+export function Tip(p: { label: string; keys?: string; hint?: string; side?: TipSide; children: VNode }): VNode {
   const [id] = useState(() => 'tip-' + ++seq);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [hover, setHover] = useState(false);
@@ -66,13 +66,14 @@ export function Tip(p: { label: string; keys?: string; side?: TipSide; children:
       <div id={id} role="tooltip" class="tip" style={{ visibility: 'hidden' }}>
         <span class="tip-label">{p.label}</span>
         {p.keys ? <kbd class="tip-key">{p.keys}</kbd> : null}
+        {p.hint ? <span class="tip-hint">{p.hint}</span> : null}
       </div>, h);
     const el = h.firstElementChild as HTMLElement;
     const pos = placeTip(anchor.getBoundingClientRect(), el.offsetWidth, el.offsetHeight, window.innerWidth, window.innerHeight, p.side ?? 'bottom');
     el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px'; el.setAttribute('data-side', pos.side);
     el.style.visibility = 'visible';
     return () => { render(null, h); h.remove(); };
-  }, [shown, anchor, p.label, p.keys, p.side, id]);
+  }, [shown, anchor, p.label, p.keys, p.hint, p.side, id]);
 
   const child = p.children;
   const cp = (child.props ?? {}) as Record<string, (e: Event) => void> & Record<string, unknown>;

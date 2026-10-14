@@ -39,6 +39,8 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   deleteBody: { operation: ['mode'] },
   trimSurface: { operation: ['surface', 'toolSurface', 'plane', 'mutual', 'flip'] },
   knit: { surfaces: ['surfaces'], operation: ['solid'] },
+  fill: { edges: ['edges'], operation: ['continuity', 'fairing', 'merge'] },
+  extend: { edges: ['edges'], operation: ['distance'] },
   thicken: { operation: ['surface', 'thickness', 'side', 'op'] },
 };
 

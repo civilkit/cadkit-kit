@@ -55,7 +55,14 @@ export const faceNames = (selection: string[]): string[] => selection.filter((n)
 
 /** What a reference field takes from the current selection: the edge references, the face names, or the first name. Null when nothing fits. */
 export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {
-  if (path === 'edges') { const r = edgeRefs(selection, edges); return r.length ? r : null; }
+  if (path === 'edges') {
+    // an open border edge of a surface body has one face; surface edits (fill, extend) take those, fillets take the two-face edges
+    const r = edgeRefs(selection, edges);
+    const keys = new Set(edges.filter((e) => e.faces?.length === 1).map((e) => e.key));
+    const border = selection.filter((k) => keys.has(k)).map((k) => edges.find((e) => e.key === k)!).filter((e) => e.mid).map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
+    const all = [...r, ...border];
+    return all.length ? all : null;
+  }
   if (path === 'faces') { const r = faceNames(selection); return r.length ? r : null; }
   // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
   if (path === 'neutral' || path === 'plane') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }

@@ -4,6 +4,7 @@
 // the shape list. Only fields the kernel really reads are offered.
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
+import type { PartDoc } from '@ck/part-model';
 import { ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
@@ -11,6 +12,10 @@ import {
   patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, radiiOf,
   type ChamferType, type EndCondition, type FilletProfile,
 } from './optionRules';
+import {
+  CONTINUITIES, FAIRINGS, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, pathOf, pathPatch, removeAt, replaceAt,
+  sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
+} from './surfaceRules';
 
 type Wire = Record<string, unknown>;
 type Change = (patch: Wire) => void;
@@ -146,8 +151,173 @@ function ShellOptions(p: { eff: Wire; change: Change }): JSX.Element {
   );
 }
 
-/** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). */
-export function optionsFor(a: OptionsArgs & { eff: Wire }): OptionsResult | null {
+// ---- surfaces: loft, sweep, fill, extend, knit, trim ----
+
+/** One sketch drop-down (with a blank entry when `blank` is given). */
+function SketchSelect(p: { value: string; list: SketchInfo[]; blank?: string; onChange(id: string): void; name: string }): JSX.Element {
+  const known = p.list.some((s) => s.id === p.value);
+  return (
+    <select data-path={p.name} value={p.value} onChange={(e) => p.onChange((e.currentTarget as HTMLSelectElement).value)}>
+      {p.blank !== undefined ? <option value="">{p.blank}</option> : null}
+      {!known && p.value ? <option value={p.value}>{p.value}</option> : null}
+      {p.list.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+    </select>
+  );
+}
+
+/** An ordered list of sketches: a drop-down per row, up / down / remove buttons, and an add button. */
+function SketchList(p: { name: string; label: string; ids: string[]; list: SketchInfo[]; min: number; addLabel: string; onChange(ids: string[]): void }): JSX.Element {
+  const free = nextFree(p.list.map((s) => s.id), p.ids);
+  return (
+    <div class="fedit-order" data-path={p.name}>
+      <div class="fedit-fld-label">{p.label}</div>
+      {p.ids.map((id, i) => (
+        <div class="fedit-order-row" key={i} data-index={i}>
+          <span class="fedit-order-n">{i + 1}</span>
+          <SketchSelect name={`${p.name}.${i}`} value={id} list={p.list} onChange={(v) => p.onChange(replaceAt(p.ids, i, v))} />
+          <button type="button" class="fedit-mini" data-act="up" disabled={i === 0} title={t('opt.order.up')} aria-label={t('opt.order.up')} onClick={() => p.onChange(move(p.ids, i, -1))}>↑</button>
+          <button type="button" class="fedit-mini" data-act="down" disabled={i === p.ids.length - 1} title={t('opt.order.down')} aria-label={t('opt.order.down')} onClick={() => p.onChange(move(p.ids, i, 1))}>↓</button>
+          <button type="button" class="fedit-mini" data-act="remove" disabled={p.ids.length <= p.min} title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => p.onChange(removeAt(p.ids, i))}>×</button>
+        </div>
+      ))}
+      <button type="button" class="fedit-pick" data-act="add" disabled={!free} onClick={() => free && p.onChange([...p.ids, free])}>{p.addLabel}</button>
+    </div>
+  );
+}
+
+function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const all = sketchInfos(p.doc);
+  const surface = eff.surface === true;
+  const profiles = loftProfiles(eff);
+  const guides = loftGuides(eff);
+  const profileChoices = all.filter((s) => (surface ? s.closed || s.open : s.closed) || profiles.includes(s.id));
+  const guideChoices = all.filter((s) => s.open && !profiles.includes(s.id));
+  return (
+    <>
+      <Section id="loftProfiles" title={t('opt.loft.profiles')}>
+        <SketchList name="sketches" label={t('opt.loft.profilesNote')} ids={profiles} list={profileChoices} min={2} addLabel={t('opt.loft.addProfile')} onChange={(ids) => change({ sketches: ids })} />
+      </Section>
+      <Section id="loftGuides" title={t('opt.loft.guides')}>
+        <SketchList name="guides" label={t('opt.loft.guidesNote')} ids={guides} list={guideChoices} min={0} addLabel={t('opt.loft.addGuide')} onChange={(ids) => change(guidesPatch(ids))} />
+      </Section>
+      <Section id="loftOptions" title={t('opt.section.options')}>
+        <Check name="surface" label={t('opt.loft.surface')} value={surface} onChange={(v) => change({ surface: v ? true : null })} />
+        {!surface ? <Select name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} options={[['add', t('opt.op.add')], ['cut', t('opt.op.cut')]]} onChange={(v) => change({ op: v })} /> : null}
+        <Num name="startNormal" label={t('opt.loft.startTension')} value={tensionOf(eff, 'startNormal')} unit="" plain onChange={(v) => change(tensionPatch('startNormal', Number(v)))} />
+        <Num name="endNormal" label={t('opt.loft.endTension')} value={tensionOf(eff, 'endNormal')} unit="" plain onChange={(v) => change(tensionPatch('endNormal', Number(v)))} />
+      </Section>
+    </>
+  );
+}
+
+function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const all = sketchInfos(p.doc);
+  const profile = typeof eff.sketch === 'string' ? eff.sketch : '';
+  const path = pathOf(eff);
+  const guides = sweepGuides(eff);
+  const guideSketches = all.filter((s) => s.id !== profile && s.id !== path);
+  const setGuide = (i: number, g: CurveRef) => change(sweepGuidesPatch(replaceAt(guides, i, g)));
+  const addGuide = () => {
+    const sk = guideSketches.find((s) => !guides.some((g) => g.sketch === s.id));
+    const entity = sk ? curveEntities(p.doc, sk.id)[0] : undefined;
+    if (sk && entity) change(sweepGuidesPatch([...guides, { sketch: sk.id, entity }]));
+  };
+  return (
+    <>
+      <Section id="sweepProfile" title={t('opt.sweep.profile')}>
+        <label class="fedit-fld" data-path="sketch"><span class="fedit-fld-label">{t('opt.sweep.profileSketch')}</span>
+          <SketchSelect name="sketch" value={profile} list={all.filter((s) => s.closed || s.id === profile)} onChange={(v) => change({ sketch: v })} /></label>
+        <label class="fedit-fld" data-path="path"><span class="fedit-fld-label">{t('opt.sweep.pathSketch')}</span>
+          <SketchSelect name="path" value={path} list={all.filter((s) => (s.open || s.id === path) && s.id !== profile)} blank={t('opt.none')} onChange={(v) => change(pathPatch(v))} /></label>
+      </Section>
+      <Section id="sweepGuides" title={t('opt.sweep.guides')}>
+        <div class="fedit-order" data-path="guides">
+          <div class="fedit-fld-label">{t('opt.sweep.guidesNote')}</div>
+          {guides.map((g, i) => (
+            <div class="fedit-order-row" key={i} data-index={i}>
+              <span class="fedit-order-n">{i + 1}</span>
+              <SketchSelect name={`guides.${i}`} value={g.sketch} list={guideSketches} onChange={(id) => setGuide(i, { sketch: id, entity: curveEntities(p.doc, id)[0] ?? g.entity })} />
+              {curveEntities(p.doc, g.sketch).length > 1 ? (
+                <select data-path={`guides.${i}.entity`} value={g.entity} onChange={(e) => setGuide(i, { sketch: g.sketch, entity: (e.currentTarget as HTMLSelectElement).value })}>
+                  {curveEntities(p.doc, g.sketch).map((id) => <option key={id} value={id}>{id}</option>)}
+                </select>
+              ) : null}
+              <button type="button" class="fedit-mini" data-act="remove" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => change(sweepGuidesPatch(removeAt(guides, i)))}>×</button>
+            </div>
+          ))}
+          <button type="button" class="fedit-pick" data-act="add" disabled={!guideSketches.length} onClick={addGuide}>{t('opt.sweep.addGuide')}</button>
+        </div>
+      </Section>
+      <Section id="sweepOptions" title={t('opt.section.options')}>
+        {!guides.length ? <Num name="twist" label={t('opt.sweep.twist')} value={typeof eff.twist === 'number' ? eff.twist : 0} unit="°" onChange={(v) => change({ twist: Number(v) ? v : null })} /> : null}
+        <Select name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} options={[['add', t('opt.op.add')], ['cut', t('opt.op.cut')]]} onChange={(v) => change({ op: v })} />
+      </Section>
+    </>
+  );
+}
+
+function FillOptions(p: { eff: Wire; change: Change }): JSX.Element {
+  const { eff, change } = p;
+  return (
+    <Section id="fill" title={t('opt.section.fill')}>
+      <Select name="continuity" label={t('opt.fill.continuity')} value={continuityOf(eff)} options={CONTINUITIES.map((c): [string, string] => [c, t('opt.fill.continuity.' + c)])} onChange={(v) => change({ continuity: v })} />
+      <Select name="fairing" label={t('opt.fill.fairing')} value={fairingOf(eff)} options={FAIRINGS.map((f): [string, string] => [f, t('opt.fill.fairing.' + f)])} onChange={(v) => change({ fairing: v === 'meowNURBS' ? null : v })} />
+      <Check name="merge" label={t('opt.fill.merge')} value={eff.merge !== false} onChange={(v) => change({ merge: v })} />
+    </Section>
+  );
+}
+
+function ExtendOptions(p: { eff: Wire; change: Change }): JSX.Element {
+  return (
+    <Section id="extend" title={t('opt.section.extend')}>
+      <Num name="distance" label={t('opt.extend.distance')} value={p.eff.distance} unit="mm" onChange={(v) => p.change({ distance: v })} />
+      <div class="fedit-hint-line">{t('opt.extend.note')}</div>
+    </Section>
+  );
+}
+
+function KnitOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const all = surfaceInfos(p.doc, typeof eff.id === 'string' ? eff.id : undefined);
+  const ids = knitIds(eff);
+  const allIds = all.map((s) => s.id);
+  return (
+    <>
+      <Section id="knitSurfaces" title={t('opt.knit.surfaces')}>
+        {all.map((s) => (
+          <Check key={s.id} name={`surfaces.${s.id}`} label={s.name} value={ids.includes(s.id)} onChange={() => change({ surfaces: toggleKnit(allIds, ids, s.id) })} />
+        ))}
+      </Section>
+      <Section id="knit" title={t('opt.section.options')}>
+        <Check name="solid" label={t('opt.knit.solid')} value={eff.solid === true} onChange={(v) => change({ solid: v ? true : null })} />
+      </Section>
+    </>
+  );
+}
+
+function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const all = surfaceInfos(p.doc, typeof eff.id === 'string' ? eff.id : undefined);
+  const target = typeof eff.surface === 'string' ? eff.surface : '';
+  const tool = typeof eff.toolSurface === 'string' ? eff.toolSurface : '';
+  const opts = (cur: string, except: string): Array<[string, string]> => {
+    const l = all.filter((s) => s.id !== except).map((s): [string, string] => [s.id, s.name]);
+    return cur && !l.some(([id]) => id === cur) ? [[cur, cur], ...l] : l;
+  };
+  return (
+    <Section id="trim" title={t('opt.section.trim')}>
+      <Select name="surface" label={t('opt.trim.surface')} value={target} options={opts(target, tool)} onChange={(v) => change({ surface: v })} />
+      <Select name="toolSurface" label={t('opt.trim.tool')} value={tool} options={[['', t('opt.trim.toolPlane')], ...opts(tool, target)]} onChange={(v) => change(v ? { toolSurface: v, plane: null } : { toolSurface: null })} />
+      <Check name="flip" label={t('opt.trim.flip')} value={eff.flip} onChange={(v) => change({ flip: v })} />
+      <Check name="mutual" label={t('opt.trim.mutual')} value={eff.mutual} onChange={(v) => change({ mutual: v })} />
+    </Section>
+  );
+}
+
+/** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). `doc` feeds the sketch and surface lists. */
+export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null): OptionsResult | null {
   const type = String(a.eff.type ?? '');
   const hide = managedPaths(type);
   if (!hide.size) return null;
@@ -158,6 +328,12 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }): OptionsResult | null
     case 'chamfer': return { hide, node: <ChamferOptions {...common} /> };
     case 'fillet': return { hide, node: <FilletOptions {...common} /> };
     case 'shell': return { hide, node: <ShellOptions {...common} /> };
+    case 'loft': return { hide, node: <LoftOptions {...common} doc={doc} /> };
+    case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
+    case 'fill': return { hide, node: <FillOptions {...common} /> };
+    case 'extend': return { hide, node: <ExtendOptions {...common} /> };
+    case 'knit': return { hide, node: <KnitOptions {...common} doc={doc} /> };
+    case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     default: return null;
   }
 }
