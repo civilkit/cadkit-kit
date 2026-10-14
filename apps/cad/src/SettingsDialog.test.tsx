@@ -1,3 +1,4 @@
+import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
 import { WORKSPACE_PRESETS } from '@kit/store';
@@ -69,7 +70,7 @@ describe('SettingsDialog', () => {
 });
 
 describe('SettingsDialog: sketching', () => {
-  const prefs = { autoConstraints: true, arcSwitch: 'hover' as const, onViewValues: 'dimensions' as const, gridSnap: true };
+  const prefs = { ...DEFAULT_SKETCH_PREFS, autoConstraints: true, arcSwitch: 'hover' as const, onViewValues: 'dimensions' as const, gridSnap: true };
   it('shows the sketch input styles and reports only what changed', () => {
     const onSketchPrefs = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} sketchPrefs={prefs} onSketchPrefs={onSketchPrefs} />);
@@ -102,7 +103,7 @@ describe('SettingsDialog: preset display', () => {
 });
 
 describe('SettingsDialog: tabs', () => {
-  const full = { locale: 'en', locales: ['en', 'de'], onLocale: () => {}, theme: 'auto' as const, onTheme: () => {}, sketchPrefs: { autoConstraints: true, arcSwitch: 'hover' as const, onViewValues: 'dimensions' as const, gridSnap: true }, onSketchPrefs: () => {} };
+  const full = { locale: 'en', locales: ['en', 'de'], onLocale: () => {}, theme: 'auto' as const, onTheme: () => {}, sketchPrefs: DEFAULT_SKETCH_PREFS, onSketchPrefs: () => {} };
   const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
   it('has General, Layout and Sketching tabs, each showing only its own settings', () => {
     render(<SettingsDialog {...base} {...full} />);

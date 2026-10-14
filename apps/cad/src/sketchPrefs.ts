@@ -1,6 +1,6 @@
 /** How the sketch editor takes input: user settings, remembered in the browser. They feed the tools' `ToolSettings`
  *  (auto constraints, tangent-arc switching, on-view value entry) plus the grid snap. */
-import type { ToolSettings } from '@kit/sketch';
+import { ALL_SNAPS, SNAP_KINDS, type SnapToggles, type ToolSettings } from '@kit/sketch';
 
 export interface SketchPrefs {
   /** Infer horizontal, vertical, coincident and tangent while drawing (Shift at a click suppresses it). */
@@ -11,11 +11,36 @@ export interface SketchPrefs {
   onViewValues: 'both' | 'dimensions' | 'off';
   /** The pointer lands on grid points when nothing else is near. */
   gridSnap: boolean;
+  /** Which snaps are on (the snaps popover); `grid` here is `gridSnap` and is kept in step with it. */
+  snaps: SnapToggles;
+  /** What the sketch shows (the display popover). */
+  show: SketchShow;
 }
 
-export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true };
+export interface SketchShow {
+  /** Driving dimension labels. */
+  dimensions: boolean;
+  /** Relation glyphs (H, V, =, tangent ...). */
+  relations: boolean;
+  /** Reference (driven) dimensions, in brackets. */
+  reference: boolean;
+  /** Colour geometry by how defined it is (blue under, dark fully, red over). */
+  colours: boolean;
+  /** The constraints panel. */
+  panel: boolean;
+}
+export const DEFAULT_SHOW: SketchShow = { dimensions: true, relations: true, reference: true, colours: true, panel: true };
+
+export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snaps: ALL_SNAPS, show: DEFAULT_SHOW };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
+
+const flags = <T extends Record<string, boolean>>(raw: unknown, defaults: T, keys: readonly (keyof T)[]): T => {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out = { ...defaults };
+  for (const k of keys) if (typeof r[k as string] === 'boolean') (out as Record<string, boolean>)[k as string] = r[k as string] as boolean;
+  return out;
+};
 
 /** Merge stored values over the defaults, dropping anything unknown or invalid. */
 export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
@@ -25,6 +50,8 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     arcSwitch: pick(r.arcSwitch, ['hover', 'keys', 'off'] as const, DEFAULT_SKETCH_PREFS.arcSwitch),
     onViewValues: pick(r.onViewValues, ['both', 'dimensions', 'off'] as const, DEFAULT_SKETCH_PREFS.onViewValues),
     gridSnap: typeof r.gridSnap === 'boolean' ? r.gridSnap : DEFAULT_SKETCH_PREFS.gridSnap,
+    snaps: flags(r.snaps, ALL_SNAPS, SNAP_KINDS),
+    show: flags(r.show, DEFAULT_SHOW, Object.keys(DEFAULT_SHOW) as Array<keyof SketchShow>),
   };
 }
 
