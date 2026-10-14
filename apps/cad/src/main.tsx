@@ -504,6 +504,11 @@ function App() {
     if (!sketching) return false;
     const sel = selEntityRef.current;
     if (sel && !sketchToolRef.current) {
+      // a digit starts typing the selected item's size: focus its field, then the key lands in it (not the view keys)
+      if (/^[0-9.\-]$/.test(e.key)) {
+        const first = document.querySelector<HTMLInputElement>('.sketch-fields input');
+        if (first) { first.focus(); first.select(); return true; }
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const draft = controller.sketchDraft();
         e.preventDefault();
