@@ -268,7 +268,7 @@ function App() {
   }, []);
 
   const doc = controller.document();
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, suppressed: (f as { suppressed?: boolean }).suppressed })) : [];
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
@@ -646,7 +646,7 @@ function App() {
     </div>
   ) : null;
   const tree = (
-    <FeatureTree rows={rows} status={store.featureStatus.value} selectedId={selectedId}
+    <FeatureTree rows={rows} partName={doc?.name} status={store.featureStatus.value} selectedId={selectedId}
       onSelect={setSelectedId}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])}

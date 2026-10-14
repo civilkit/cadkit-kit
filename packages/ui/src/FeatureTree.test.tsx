@@ -94,3 +94,17 @@ describe('FeatureTree', () => {
     expect(container.querySelector('.row-edit')).toBeNull();
   });
 });
+
+describe('FeatureTree: look', () => {
+  it('shows a kind icon per row (cut and boss differ), the part header with count, and icon-only actions with labels', () => {
+    const { container } = render(
+      <FeatureTree partName="Bracket" rows={[{ id: 'F1', type: 'extrude', op: 'add' }, { id: 'F2', type: 'extrude', op: 'cut', suppressed: true }]}
+        status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} onEdit={() => {}} />,
+    );
+    expect(container.querySelector('.tree-head')!.textContent).toContain('Bracket');
+    const icons = [...container.querySelectorAll('.row-icon')].map((e) => e.getAttribute('data-icon'));
+    expect(icons).toEqual(['add-extrude', 'add-cut']);
+    for (const b of container.querySelectorAll('.row-act')) expect(b.getAttribute('aria-label')).toBeTruthy();
+    expect(container.querySelectorAll('.row-sup svg')[1].getAttribute('data-icon')).toBe('eye-off');
+  });
+});

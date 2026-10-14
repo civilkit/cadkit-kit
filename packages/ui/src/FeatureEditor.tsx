@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { t } from './i18n';
 import { fieldsOf, type Field } from './Inspector';
+import { Icon, featureIconName } from './icons';
 
 export interface Section {
   id: string;
@@ -48,6 +49,16 @@ const FIELD_LABELS: Record<string, string> = {
   seeds: 'Features to repeat',
   sections: 'Sections',
 };
+
+/** Fields whose value is one of a few words, shown as a dropdown (the current value is always kept in the list). */
+const ENUMS: Record<string, string[]> = {
+  op: ['add', 'cut'],
+  end: ['blind', 'through', 'throughBoth', 'upToNext'],
+};
+const UNITS: Record<string, string> = {
+  depth: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
+};
+const enumLabel = (path: string, v: string) => t(`ui.editor.value.${path}.${v}`, undefined, v);
 
 const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral']);
 /** Fields holding a list of references (edges, faces, features); filled from the viewport selection. */
@@ -150,14 +161,20 @@ export function FeatureEditor(p: {
 
   return (
     <div class="fedit" data-feature={featureId} tabIndex={0} onKeyDown={onKey}>
-      <div class="fedit-title">{title}</div>
+      <div class="fedit-head">
+        <Icon name={featureIconName(String(feature.type ?? ''), String((draft.op ?? feature.op) ?? ''))} size={22} class="fedit-icon" />
+        <div class="fedit-title">{title}</div>
+        <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
+        <button type="button" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
+      </div>
       {sections.map((sec) => (
-        <div class="fedit-sec" key={sec.id}>
+        <div class={'fedit-sec' + (collapsed[sec.id] ? ' closed' : '')} key={sec.id}>
           <div
             class="fedit-sec-head"
             onClick={() => setCollapsed((c) => ({ ...c, [sec.id]: !c[sec.id] }))}
           >
-            {sec.title}
+            <span class="fedit-sec-title">{sec.title}</span>
+            <Icon name="chevron" size={14} class="fedit-chev" />
           </div>
           {collapsed[sec.id] ? null : (
             <div class="fedit-sec-fields">
@@ -166,14 +183,22 @@ export function FeatureEditor(p: {
                 const picking = p.pickingPath === f.path;
                 const isRef = REFERENCE_FIELDS.has(f.path);
                 const isList = f.kind === 'list';
+                const refText = isList ? listText(f.path, draft[f.path] ?? feature[f.path]) : String(value);
+                const missing = (isRef || isList) && refText.trim() === '';
+                const isBool = !isRef && !isList && kindOf(f) === 'boolean';
+                const enums = !isRef && !isList && typeof value === 'string' && ENUMS[f.path]
+                  ? (ENUMS[f.path].includes(value) ? ENUMS[f.path] : [value, ...ENUMS[f.path]]) : null;
                 return (
-                  <label class={'fedit-fld' + (picking ? ' picking' : '')} key={f.path} data-path={f.path}>
+                  <label class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
+                    {isBool ? (
+                      <input type="checkbox" checked={Boolean(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).checked)} />
+                    ) : null}
                     <span class="fedit-fld-label">{labelOf(f)}</span>
                     {isList ? (
                       <span class="fedit-ref">
                         <input
                           type="text"
-                          value={listText(f.path, draft[f.path] ?? feature[f.path])}
+                          value={refText}
                           readonly={f.path === 'edges' || picking}
                           onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value.split(',').map((x) => x.trim()).filter(Boolean))}
                         />
@@ -187,7 +212,7 @@ export function FeatureEditor(p: {
                       <span class="fedit-ref">
                         <input
                           type="text"
-                          value={String(value)}
+                          value={refText}
                           readonly={picking}
                           onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value)}
                         />
@@ -197,22 +222,23 @@ export function FeatureEditor(p: {
                           </button>
                         ) : null}
                       </span>
-                    ) : kindOf(f) === 'boolean' ? (
-                      <input
-                        type="checkbox"
-                        checked={Boolean(value)}
-                        onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).checked)}
-                      />
+                    ) : isBool ? null : enums ? (
+                      <select value={String(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLSelectElement).value)}>
+                        {enums.map((v) => <option key={v} value={v}>{enumLabel(f.path, v)}</option>)}
+                      </select>
                     ) : kindOf(f) === 'number' ? (
-                      <input
-                        type="number"
-                        value={String(value)}
-                        onChange={(e) => {
-                          const raw = (e.currentTarget as HTMLInputElement).value;
-                          const v = Number(raw);
-                          if (raw.trim() !== '' && Number.isFinite(v)) apply(f.path, v);
-                        }}
-                      />
+                      <span class="fedit-num">
+                        <input
+                          type="number"
+                          value={String(value)}
+                          onChange={(e) => {
+                            const raw = (e.currentTarget as HTMLInputElement).value;
+                            const v = Number(raw);
+                            if (raw.trim() !== '' && Number.isFinite(v)) apply(f.path, v);
+                          }}
+                        />
+                        {UNITS[f.path] ? <span class="fedit-unit">{UNITS[f.path]}</span> : null}
+                      </span>
                     ) : (
                       <input
                         type="text"
@@ -228,14 +254,6 @@ export function FeatureEditor(p: {
         </div>
       ))}
       {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
-      <div class="fedit-actions">
-        <button type="button" class="fedit-confirm" onClick={confirm}>
-          {t('ui.editor.confirm', undefined, 'Confirm')}
-        </button>
-        <button type="button" class="fedit-cancel" onClick={cancel}>
-          {t('ui.cancel', undefined, 'Cancel')}
-        </button>
-      </div>
     </div>
   );
 }

@@ -176,3 +176,22 @@ describe('edge and face list fields', () => {
     expect(confirms.at(-1)).toEqual({ edges: EDGES });
   });
 });
+
+describe('FeatureEditor: look', () => {
+  it('uses dropdowns for operation and end condition, shows units, and marks an empty reference', () => {
+    const { container } = render(
+      <FeatureEditor feature={{ type: 'extrude', id: 'F2', op: 'add', sketch: '', end: 'blind', depth: 5 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />,
+    );
+    expect(container.querySelector('[data-path="op"] select')).toBeTruthy();
+    expect(container.querySelector('[data-path="end"] select')).toBeTruthy();
+    expect(container.querySelector('[data-path="depth"] .fedit-unit')!.textContent).toBe('mm');
+    expect(container.querySelector('[data-path="sketch"]')!.className).toContain('missing');
+    expect(container.querySelector('.fedit-confirm')!.getAttribute('aria-label')).toBe('Confirm');
+  });
+  it('keeps an unknown current value selectable', () => {
+    const { container } = render(
+      <FeatureEditor feature={{ type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'upToFace', depth: 5 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />,
+    );
+    expect((container.querySelector('[data-path="end"] select') as HTMLSelectElement).value).toBe('upToFace');
+  });
+});

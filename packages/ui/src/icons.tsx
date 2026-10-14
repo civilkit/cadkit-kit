@@ -116,6 +116,24 @@ const ICONS: Record<string, string> = {
   'layer-planes': C('M12 4l9 5-9 5-9-5z') + P('M12 8l4.5 2.5L12 13l-4.5-2.5z') + T('M3 14l9 5 9-5'),
   'layer-grid': P('M4 4h16v16H4z') + T('M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16'),
   'layer-axes': P('M6 18h14M6 18V4M6 18l-3 3') + D(6, 18, 2),
+  // history tree and feature editor
+  'edit': P('M5 19l1-4L16.5 4.5a2 2 0 0 1 3 3L9 18z') + T('M14.5 6.5l3 3'),
+  'eye': P('M2.5 12C5 7.5 8.5 5.5 12 5.5s7 2 9.5 6.5C19 16.5 15.5 18.5 12 18.5S5 16.5 2.5 12z') + O(12, 12, 3),
+  'eye-off': P('M2.5 12C5 7.5 8.5 5.5 12 5.5s7 2 9.5 6.5C19 16.5 15.5 18.5 12 18.5S5 16.5 2.5 12z') + T('M4 4l16 16'),
+  'trash': P('M5 7h14M9 7V4.5h6V7M7 7l1 13h8l1-13') + T('M10.5 11v6M13.5 11v6'),
+  'check': P('M5 12.5l4.5 4.5L19 7'),
+  'close': P('M6 6l12 12M18 6 6 18'),
+  'chevron': P('M9 6l6 6-6 6'),
+  'feature-part': P(HEX) + T(Y),
+  'feature-sketch': P('M4 18h12V8H4z') + A('M14 6l4-2.5 2.5 3.5L16.5 9.5z') + T('M16 18l4-3'),
+  'feature-plane': P('M3 15l9-5 9 5-9 5z') + C('M12 4v6'),
+  'feature-generic': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3'),
+  'feature-draft': P('M5 20V8l7-4 7 4v12z') + A('M5 20 19 8'),
+  'feature-rib': P('M3 18h18') + P('M7 18V9h10v9') + A('M12 9V4'),
+  'feature-mirror': P('M4 7l6 3v7l-6-3z') + P('M20 7l-6 3v7l6-3z') + C('M12 4v16'),
+  'feature-knit': P('M4 8h16v8H4z') + A('M4 12h16') + T('M9 8v8M15 8v8'),
+  'feature-surface': P('M3 17C7 9 11 15 15 9s4-2 6-1') + T('M3 20h18'),
+  'feature-pattern': P('M3 8h4v8H3z') + P('M10 8h4v8h-4z') + T('M17 8h4v8h-4z'),
   'layer-relations': P('M5 8h5M5 12h5') + P('M14 20 18 8M17 20l4-12') + C('M4 18h6'),
 };
 
@@ -138,4 +156,29 @@ export function Icon(p: { name: string; size?: number; class?: string }): JSX.El
       dangerouslySetInnerHTML={{ __html: hasIcon(p.name) ? ICONS[p.name] : PLACEHOLDER }}
     />
   );
+}
+
+/** The icon for a feature in the history tree: by kind, with a boss/cut distinction for extrudes. */
+export function featureIconName(type: string, op?: string): string {
+  const cut = op === 'cut';
+  switch (type) {
+    case 'sketch': case 'sketch3d': return 'feature-sketch';
+    case 'plane': return 'feature-plane';
+    case 'extrude': case 'surfaceExtrude': return cut ? 'add-cut' : 'add-extrude';
+    case 'revolve': case 'surfaceRevolve': return 'add-revolve';
+    case 'fillet': return 'add-fillet';
+    case 'chamfer': return 'add-chamfer';
+    case 'shell': return 'add-shell';
+    case 'hole': return 'add-hole';
+    case 'lpattern': return 'add-lpattern';
+    case 'cpattern': return 'add-cpattern';
+    case 'curvepattern': case 'fillpattern': case 'spattern': return 'feature-pattern';
+    case 'draft': return 'feature-draft';
+    case 'rib': case 'lip': return 'feature-rib';
+    case 'mirror': return 'feature-mirror';
+    case 'knit': return 'feature-knit';
+    case 'insertPart': return 'feature-part';
+    case 'surfacePlanar': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'sweep': case 'loft': case 'thicken': return 'feature-surface';
+    default: return 'feature-generic';
+  }
 }
