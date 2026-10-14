@@ -122,6 +122,8 @@ const ICONS: Record<string, string> = {
   'open-variables': P('M17.5 5H7.5l5 7-5 7h10'),
   'open-catalog': P('M3.5 4h7v7h-7z') + O(17, 7.5, 3.5) + P('M3.5 20l3.5-6 3.5 6z') + P('M14 14h6.5v6.5H14z') + C('M14 17.2h6.5'),
   'add-hole': P('M3 9l9-5 9 5-9 5z') + P('M3 9v6l9 5 9-5V9') + AE(12, 9, 3.4, 1.9, 0) + C('M12 11v8'),
+  'add-gear': P('M10 3h4l.6 2.4 1.7.7 2.1-1.3 2.8 2.8-1.3 2.1.7 1.7L21 10v4l-2.4.6-.7 1.7 1.3 2.1-2.8 2.8-2.1-1.3-1.7.7L14 21h-4l-.6-2.4-1.7-.7-2.1 1.3-2.8-2.8 1.3-2.1-.7-1.7L3 14v-4l2.4-.6.7-1.7-1.3-2.1 2.8-2.8 2.1 1.3 1.7-.7z') + O(12, 12, 3.2),
+  'add-gear-pair': P('M7 6.5l1.2.4.5 1 1.1-.2.8.8-.2 1.1 1 .5.4 1.2v1.1l-1.2.4-.5 1 .2 1.1-.8.8-1.1-.2-.5 1-1.2.4H6l-.4-1.2-1-.5-1.1.2-.8-.8.2-1.1-1-.5L2 12.6v-1.1l1.2-.4.5-1-.2-1.1.8-.8 1.1.2.5-1L6.4 6.5z') + O(6.5, 12, 2) + P('M17 11l1 .35.45.9 1-.2.7.7-.2 1 .9.45.35 1v1l-1 .35-.45.9.2 1-.7.7-1-.2-.45.9-1 .35h-1l-.35-1-.9-.45-1 .2-.7-.7.2-1-.9-.45L11 17.5v-1l1-.35.45-.9-.2-1 .7-.7 1 .2.45-.9 1-.35z') + O(15.5, 16.2, 1.5),
   'add-thread': P('M8 3h8v18H8z') + T('M8 7l8 2M8 11l8 2M8 15l8 2M8 19l8 2'),
   // thread hand: a vertical axis with the flank lines rising to the right (right hand) or to the left; thread ends: arrows up / down, an open mouth
   'helix-right': C('M12 3v18') + P('M6 8l12-3M6 13l12-3M6 18l12-3'),
@@ -239,6 +241,7 @@ export function featureIconName(type: string, op?: string): string {
     case 'shell': return 'add-shell';
     case 'hole': return 'add-hole';
     case 'thread': return 'add-thread';
+    case 'gear': return 'add-gear';
     case 'lpattern': return 'add-lpattern';
     case 'cpattern': return 'add-cpattern';
     case 'curvepattern': case 'fillpattern': case 'spattern': return 'feature-pattern';

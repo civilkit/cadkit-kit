@@ -52,6 +52,8 @@ import { findMaterial, loadUseColour } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { ThreadEditor } from './ThreadEditor';
+import { GearEditor } from './GearEditor';
+import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
@@ -740,6 +742,13 @@ function App() {
     setEditingMaterial(false);
     setSelectedId(id);
     const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;
+    const gear = gearOwner((controller.document()?.features ?? []) as unknown[], id);
+    if (gear) {   // any feature a gear made opens the Gear editor on its parameters
+      setSelectedId(gear.profileId); setEditingId(gear.profileId);
+      setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+      setLeftTab('Editor');
+      return;
+    }
     if (f?.type === 'sketch') {
       setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
       setSketchHint(null);
@@ -1169,7 +1178,19 @@ function App() {
     const entry = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === id);
     return { id, face, dia: cyl ? cyl.radius * 2 : null, internal: entry?.internal ?? (isHoleWall(face) ? true : cyl?.internal) };
   }) : null;
-  const featureEditor = editingFeature?.type === 'thread' ? (
+  // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
+  const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
+  const gearEditOps = (next: GearParams): EditOp[] => gearOps(doc as never, next, gearRec?.roles);
+  const onGearDraft = (next: GearParams) => { void controller.preview(gearEditOps(next)).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null))); };
+  const onGearConfirm = async (next: GearParams) => {
+    await timed(() => controller.commit(gearEditOps(next), 'gear'));
+    setEditingId(null); setDraft({}); setPreviewHint(null);
+    setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const featureEditor = gearRec ? (
+    <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
+  ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
       loadStandards={() => controller.threadStandards()} loadSizes={(std) => controller.threadSizes(std)}
       group={groupFaces ?? undefined} warnings={store.featureWarnings.value}

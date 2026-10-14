@@ -25,6 +25,16 @@
   "file": "surface-patch.ckpart"
  },
  {
+  "id": "spur-gear",
+  "title": "Spur gear: 24 teeth, module 2, bore with keyway and hub (Gear command)",
+  "file": "spur-gear.ckpart"
+ },
+ {
+  "id": "gear-pair",
+  "title": "Gear pair: 20 and 40 teeth, module 2, at the centre distance (Gear pair command)",
+  "file": "gear-pair.ckpart"
+ },
+ {
   "id": "bench-ball_knob",
   "title": "Bench Ball Knob",
   "file": "bench-ball_knob.ckpart"

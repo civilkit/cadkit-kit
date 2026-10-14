@@ -6,6 +6,7 @@
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
+import { DEFAULT_GEAR, defaultPair, gearOps, type GearParams } from './gearData';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Ctx, type FeatureActions } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
@@ -172,6 +173,20 @@ export function thickenOps(c: Ctx): EditOp[] | null {
   return s ? [{ op: 'add', feature: { type: 'thicken', surface: s.id, thickness: niceSize(c.box, 0.1) } }] : null;
 }
 
+/** The plane a new gear sits on: the one picked planar face, else the selected reference plane, else the top plane. */
+export function gearPlane(c: Ctx): { kind: string; id: string } {
+  const faces = faceMode(c);
+  if (faces.length === 1) return { kind: 'face', id: faces[0] };
+  const pl = planeFeatures(c).find((f) => f.id === c.selectedId);
+  return pl ? { kind: 'feature', id: pl.id } : { kind: 'std', id: 'top' };
+}
+/** A 20 tooth spur gear (module 2), or with `pair` that gear and a 40 tooth mate at the centre distance: all its features in ONE edit. */
+export function gearCreateOps(c: Ctx, pair = false): EditOp[] | null {
+  if (!c.doc) return null;
+  const base: GearParams = { ...DEFAULT_GEAR, plane: gearPlane(c) };
+  return gearOps(c.doc as never, pair ? defaultPair(base) : base);
+}
+
 // ---- commands ----
 
 interface Creator {
@@ -192,6 +207,8 @@ export const CREATORS: Creator[] = [
   { id: 'add-rib', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && ok((x) => sketchWhere(x, isOpenSketch))(c), ops: ribOps },
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
+  { id: 'add-gear', tab: 'Features', group: 'Create', keys: 'Shift+Y', enabled: doc, ops: (c) => gearCreateOps(c) },
+  { id: 'add-gear-pair', tab: 'Features', group: 'Create', enabled: doc, ops: (c) => gearCreateOps(c, true) },
   { id: 'add-helix', tab: 'Features', group: 'Curves', enabled: ok((c) => sketchWhere(c, hasCircle)), ops: helixOps },
   { id: 'add-pipe-cut', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && pipeCutOps(c) !== null, ops: pipeCutOps },
   { id: 'add-delete-body', tab: 'Features', group: 'Bodies', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: deleteBodyOps },
