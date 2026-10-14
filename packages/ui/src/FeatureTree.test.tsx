@@ -194,3 +194,138 @@ describe('FeatureTree: material colour chip', () => {
     expect(container.querySelector('[data-ref="material"] .ref-chip')).toBeTruthy();
   });
 });
+
+const base = { status: [], selectedId: null, onSelect: () => {}, onMove: () => {}, onRemove: () => {}, onToggleSuppress: () => {} };
+const four = [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }, { id: 'F3', type: 'sketch' }, { id: 'F4', type: 'extrude' }];
+
+describe('FeatureTree multi-select and dependents', () => {
+  it('passes the modifier keys with the click', () => {
+    const seen: Array<[string, boolean, boolean]> = [];
+    const { container } = render(<FeatureTree {...base} rows={four} onSelect={(id, m) => seen.push([id, !!m?.ctrl, !!m?.shift])} />);
+    const rows = container.querySelectorAll('.row');
+    fireEvent.click(rows[1], { ctrlKey: true });
+    fireEvent.click(rows[3], { shiftKey: true });
+    fireEvent.click(rows[0]);
+    expect(seen).toEqual([['F2', true, false], ['F4', false, true], ['F1', false, false]]);
+  });
+  it('marks every selected row and the rows that depend on the selection', () => {
+    const { container } = render(<FeatureTree {...base} rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }, { id: 'F5', type: 'fillet' }]} selectedId="F2" selectedIds={['F2', 'F5']} dependents={['F5']} />);
+    const cls = [...container.querySelectorAll('.row')].map((r) => r.className);
+    expect(cls[0]).not.toContain('sel');
+    expect(cls[1]).toContain('sel');
+    expect(cls[2]).toContain('sel');
+    expect(cls[2]).toContain('dep');
+    expect(cls[1]).not.toContain('dep');
+  });
+});
+
+describe('FeatureTree rename', () => {
+  it('shows a field for the renaming row; Enter commits the new name, Esc cancels', () => {
+    const renamed: Array<[string, string]> = [];
+    const changes: Array<string | null> = [];
+    const { container, rerender } = render(<FeatureTree {...base} rows={four} renaming="F2" onRenamingChange={(v) => changes.push(v)} onRename={(id, n) => renamed.push([id, n])} />);
+    const input = container.querySelector('input.inline-name') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    expect((container.querySelector('.row[data-id="F2"]') as HTMLElement).getAttribute('draggable')).toBe('false');
+    input.value = 'Base plate';
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(renamed).toEqual([['F2', 'Base plate']]);
+    expect(changes).toEqual([null]);
+    rerender(<FeatureTree {...base} rows={four} renaming="F3" onRenamingChange={(v) => changes.push(v)} onRename={(id, n) => renamed.push([id, n])} />);
+    const again = container.querySelector('input.inline-name') as HTMLInputElement;
+    again.value = 'ignored';
+    fireEvent.keyDown(again, { key: 'Escape' });
+    expect(renamed.length).toBe(1);
+  });
+  it('an empty or unchanged name is a cancel', () => {
+    const renamed: string[] = [];
+    const { container } = render(<FeatureTree {...base} rows={[{ id: 'F1', type: 'extrude', name: 'Pad' }]} renaming="F1" onRename={(_, n) => renamed.push(n)} />);
+    const input = container.querySelector('input.inline-name') as HTMLInputElement;
+    input.value = '   ';
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(renamed).toEqual([]);
+  });
+  it('double-click on the part name renames the part; double-click on a row still opens its editor', () => {
+    const parts: string[] = [];
+    const edited: string[] = [];
+    const { container } = render(<FeatureTree {...base} rows={four} partName="Bracket" onRenamePart={(n) => parts.push(n)} onEdit={(id) => edited.push(id)} />);
+    fireEvent.dblClick(container.querySelectorAll('.row')[1]);
+    expect(edited).toEqual(['F2']);
+    fireEvent.dblClick(container.querySelector('.tree-part')!);
+    const input = container.querySelector('input.inline-name') as HTMLInputElement;
+    expect(input.value).toBe('Bracket');
+    input.value = 'Hinge';
+    fireEvent.blur(input);
+    expect(parts).toEqual(['Hinge']);
+  });
+  it('without an onRename handler nothing becomes editable', () => {
+    const { container } = render(<FeatureTree {...base} rows={four} renaming="F2" />);
+    expect(container.querySelector('input.inline-name')).toBeNull();
+  });
+});
+
+describe('FeatureTree rollback marker', () => {
+  it('sits at the end when nothing is rolled back and greys no row', () => {
+    const { container } = render(<FeatureTree {...base} rows={four} rollback={null} onRollback={() => {}} />);
+    const kids = [...container.querySelector('.tree')!.children];
+    const bar = container.querySelector('.rb-bar')!;
+    expect(kids.indexOf(bar)).toBe(four.length);
+    expect(container.querySelectorAll('.row.rolled').length).toBe(0);
+    expect(container.querySelector('.rb-fwd')).toBeNull();
+  });
+  it('greys the features after the marker and offers Roll forward', () => {
+    const calls: Array<number | null> = [];
+    const { container } = render(<FeatureTree {...base} rows={four} rollback={2} onRollback={(c) => calls.push(c)} />);
+    const kids = [...container.querySelector('.tree')!.children];
+    expect(kids.indexOf(container.querySelector('.rb-bar')!)).toBe(2);
+    expect([...container.querySelectorAll('.row')].map((r) => r.className.includes('rolled'))).toEqual([false, false, true, true]);
+    fireEvent.click(container.querySelector('.rb-fwd')!);
+    expect(calls).toEqual([null]);
+  });
+  it('the row button rolls back to just after that row; the last row rolls forward', () => {
+    const calls: Array<number | null> = [];
+    const { container } = render(<FeatureTree {...base} rows={four} rollback={null} onRollback={(c) => calls.push(c)} />);
+    const btn = (i: number) => container.querySelectorAll('.row')[i].querySelector('.row-rb')!;
+    fireEvent.click(btn(1));
+    fireEvent.click(btn(3));
+    expect(calls).toEqual([2, null]);
+  });
+  it('arrow keys on the marker move it one row, Home and End jump', () => {
+    const calls: Array<number | null> = [];
+    const { container } = render(<FeatureTree {...base} rows={four} rollback={2} onRollback={(c) => calls.push(c)} />);
+    const bar = container.querySelector('.rb-bar')!;
+    fireEvent.keyDown(bar, { key: 'ArrowUp' });
+    fireEvent.keyDown(bar, { key: 'ArrowDown' });
+    fireEvent.keyDown(bar, { key: 'Home' });
+    fireEvent.keyDown(bar, { key: 'End' });
+    expect(calls).toEqual([1, 3, 0, null]);
+  });
+  it('dragging the marker onto a row puts it after that row (lower half) or before it, and does not reorder', () => {
+    const calls: Array<number | null> = [];
+    const moves: unknown[] = [];
+    const { container } = render(<FeatureTree {...base} rows={four} rollback={null} onRollback={(c) => calls.push(c)} onMove={(...a) => moves.push(a)} />);
+    fireEvent.dragStart(container.querySelector('.rb-bar')!);
+    const row = container.querySelectorAll('.row')[1];
+    const dropAt = (el: Element, clientY: number) => { const ev = new Event('drop', { bubbles: true }); Object.assign(ev, { clientY }); el.dispatchEvent(ev); };
+    dropAt(row, 50);     // jsdom rects are zero: a positive clientY is the lower half
+    fireEvent.dragStart(container.querySelector('.rb-bar')!);
+    dropAt(row, -5);
+    fireEvent.dragStart(container.querySelector('.rb-bar')!);
+    fireEvent.drop(container.querySelector('.rb-end')!);
+    expect(calls).toEqual([2, 1, null]);
+    expect(moves).toEqual([]);
+  });
+  it('nested sketches are not marker positions: rolling back after a feature with a sketch goes after the feature', () => {
+    const calls: Array<number | null> = [];
+    const rows = [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', uses: ['F1'] }, { id: 'F3', type: 'fillet' }];
+    const { container } = render(<FeatureTree {...base} rows={rows} rollback={null} onRollback={(c) => calls.push(c)} />);
+    const tops = [...container.querySelectorAll('.row')].filter((r) => !r.className.includes('child'));
+    expect(tops.length).toBe(2);
+    fireEvent.click(tops[0].querySelector('.row-rb')!);
+    expect(calls).toEqual([2]);
+  });
+  it('shows no marker without an onRollback handler', () => {
+    const { container } = render(<FeatureTree {...base} rows={four} />);
+    expect(container.querySelector('.rb-bar')).toBeNull();
+  });
+});

@@ -11,7 +11,7 @@ import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions }
 import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, Inspector, Ribbon, StatusBar, Tip, Toast,
+  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -20,6 +20,8 @@ import { dxfToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
 import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf, type ExportNotice, type ExportResult } from './exportFiles';
 import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
+import { useTreeInteraction } from './useTreeInteraction';
+import { treeKey } from './treeCommands';
 import { ExportMenu } from './ExportMenu';
 import { toEntries, type Rejection } from './history';
 import { CheckPanel } from './CheckPanel';
@@ -204,6 +206,8 @@ function App() {
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number } | null>(null);
   const [, viewTick] = useState(0);
   const [exportOpen, setExportOpen] = useState(false);
+  const bodyDoubleRef = useRef<((face: string) => void) | null>(null);
+  const treeKeyRef = useRef<(e: KeyboardEvent, onCanvas: boolean) => boolean>(() => false);
   const sketchHoverRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const sketchDoubleRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const sketchSelectRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
@@ -234,6 +238,7 @@ function App() {
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
+      onBodyDouble: (face) => bodyDoubleRef.current?.(face),
       onRefPlanePick: (id) => { setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
@@ -460,6 +465,9 @@ function App() {
     await onConfirm(draft);
     await createFeature(ops);
   };
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id) });
+  bodyDoubleRef.current = ti.onBodyDouble;
+  treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => void createFeature(ops),
@@ -496,6 +504,7 @@ function App() {
       massProps: () => { openInspect(); void inspect.runMass(); }, interference: () => { openInspect(); void inspect.runInterference(); },
       toggleSection: inspect.toggleSection, isSectioned: () => inspect.sectionOn, hasSolid: () => controller.bodyBox() !== null,
     },
+    tree: ti.actions,
     io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), isSketching: () => sketchingRef.current, exportAs: (k) => void exportAs(k), openExportMenu: () => setExportOpen(true), canExport },
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
@@ -529,6 +538,8 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      const onCanvas = !t || t === document.body || !!t.closest?.('#vp');
+      if (treeKeyRef.current(e, onCanvas)) { e.preventDefault(); return; }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchingRef.current && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
       // the common commands' keys (not while a sketch tool owns the letters, except Ctrl combinations)
       if (!sketchingRef.current || e.metaKey || e.ctrlKey) {
@@ -1005,11 +1016,9 @@ function App() {
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
       onOpenRef={(id) => { if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
-      onSelect={setSelectedId}
+      {...ti.treeProps}
       onEdit={startEditing}
-      onMove={(id, to) => edit([{ op: 'move', id, to }])}
-      onRemove={(id) => edit([{ op: 'remove', id }])}
-      onToggleSuppress={(id) => { const f = doc!.features.find((x) => x.id === id) as { suppressed?: boolean } | undefined; edit([{ op: 'set', id, path: 'suppressed', value: !f?.suppressed }]); }} />
+      onMove={(id, to) => edit([{ op: 'move', id, to }])} />
   );
   const outliner = (
     <div class="outliner">
@@ -1141,7 +1150,10 @@ function App() {
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
-        <b class="doc-name">{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
+        {ti.topRename.active && doc
+          ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
+          : null}
+        <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>

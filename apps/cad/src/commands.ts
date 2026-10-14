@@ -8,6 +8,7 @@ import { lookCommands, type LookActions } from './lookCommands';
 import { fileCommands, type FileActions } from './files/fileCommands';
 import { creatorCommands } from './featureCreators';
 import { inspectCommands, type InspectActions } from './inspect/inspectCommands';
+import { treeCommands, type TreeActions } from './treeCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -32,6 +33,8 @@ export interface Actions {
   io?: IoActions;
   /** Save as and Import STEP (see files/). */
   files?: FileActions;
+  /** Rename, delete, suppress, rebuild, select all, roll forward (see treeCommands.ts). */
+  tree?: TreeActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
@@ -131,6 +134,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
+  if (a.tree) cmds.push(...treeCommands(a.tree));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
