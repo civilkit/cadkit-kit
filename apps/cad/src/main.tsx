@@ -22,6 +22,8 @@ import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf, type
 import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
 import { ExportMenu } from './ExportMenu';
 import { toEntries, type Rejection } from './history';
+import { CheckPanel } from './CheckPanel';
+import { useDesignCheck } from './useDesignCheck';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
@@ -283,6 +285,7 @@ function App() {
     else store.notify(t('app.sketch.pickFirst'), 'error');
   };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
+  const check = useDesignCheck(controller, store, () => viewport, () => { setDrawerTab('check'); store.setWorkspace({ drawerOpen: true }); });
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
   const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
@@ -1043,6 +1046,7 @@ function App() {
             { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length, bad: failures.length > 0, content: failures.length ? (
               <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => { setSelectedId(f.id); setLeftTab('Features'); }}>{t('app.diagnostics.show')}</button></div>)}</div>
             ) : <div class="empty">{t('app.diagnostics.none')}</div> },
+            { id: 'check', label: t('app.drawer.check'), badge: check.badge, bad: check.badge > 0, content: <CheckPanel {...check.props} /> },
             { id: 'console', label: t('app.drawer.console'), content: (
               <pre class="log">{store.notices.value.map((n) => `${n.level.padEnd(5)} ${n.text}`).join('\n') || t('app.console.none')}</pre>
             ) },
@@ -1054,6 +1058,7 @@ function App() {
             { label: t('app.status.features'), value: String(rows.length) },
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },
+            ...(check.chip ? [check.chip] : []),
             ...(facts.rebuildMs !== null ? [{ label: t('app.status.lastRebuild'), value: t('app.status.secondsUnit', { value: (facts.rebuildMs / 1000).toFixed(1) }) }] : []),
             { label: t('app.status.errors'), value: String(failures.length), tone: failures.length ? ('err' as const) : ('ok' as const) },
           ]}

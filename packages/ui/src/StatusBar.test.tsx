@@ -16,3 +16,14 @@ describe('StatusBar: old messages go away', () => {
     vi.useRealTimers();
   });
 });
+
+describe('StatusBar: clickable item', () => {
+  it('an item with onClick is a button and calls back', () => {
+    let n = 0;
+    const { container } = render(<StatusBar notices={[]} hover={null} busy={false} items={[{ label: 'FDM:', value: '2 errors', tone: 'err', onClick: () => { n++; } }]} />);
+    const b = container.querySelector('button.st-chip') as HTMLButtonElement;
+    expect(b.textContent).toContain('2 errors');
+    b.click();
+    expect(n).toBe(1);
+  });
+});
