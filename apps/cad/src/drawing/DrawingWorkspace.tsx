@@ -9,7 +9,7 @@ import {
   type DDim, type DrawingDoc, type DView, type V2, type ViewData,
 } from './model';
 import { autoBalloons, autoDims, dimFromPicks, edgeShape, pickEdge, type HoleInfo } from './geom';
-import { addAux, addDetail, addProjected, addSection, fetchViews, moveView, nudgeClear, sideOfPoint, standardViews, type DrawingQuery } from './layout';
+import { cacheViews, addAux, addDetail, addProjected, addSection, fetchViews, moveView, nudgeClear, sideOfPoint, standardViews, type DrawingQuery } from './layout';
 import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, type BomRow, type Prim } from './render';
 import { hitAnnotation } from './hit';
 import { holeInfos } from './kernel';
@@ -79,7 +79,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     if (!(coalesce && now - lastPush.current < 900)) { undoStack.current.push(before); if (undoStack.current.length > 100) undoStack.current.shift(); }
     lastPush.current = now; redoStack.current = [];
   };
-  const commit = (next: DrawingDoc, coalesce = false) => { if (next !== docRef.current) remember(docRef.current, coalesce); docRef.current = next; setDoc(next); host.onChange(next); };
+  const commit = (next: DrawingDoc, coalesce = false) => { cacheViews(host.revision, next, dataRef.current); if (next !== docRef.current) remember(docRef.current, coalesce); docRef.current = next; setDoc(next); host.onChange(next); };
   /** A change the part made (mass, regenerated dimensions): saved but not a step of the user's history. */
   const quiet = (next: DrawingDoc) => { docRef.current = next; setDoc(next); host.onChange(next); };
   const undo = () => { const p = undoStack.current.pop(); if (!p) return; redoStack.current.push(docRef.current); docRef.current = p; setDoc(p); host.onChange(p); setSel(null); };
@@ -94,7 +94,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (!host.query || !host.hasBody || !docRef.current.views.length) { setData({}); return; }
       setBusy(true);
       try {
-        const d = await fetchViews(docRef.current, host.query);
+        const d = await fetchViews(docRef.current, host.query, undefined, { cacheKey: host.revision, onView: (id, g) => { if (!dead) { dataRef.current = { ...dataRef.current, [id]: g }; setData(dataRef.current); } } });
         if (dead) return;
         setData(d);
         const r = refreshDims(docRef.current, d);

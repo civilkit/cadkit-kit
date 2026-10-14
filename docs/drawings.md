@@ -65,7 +65,13 @@ Centre marks are drawn on round holes and on cylinder axes (two parallel silhoue
 - **BOM table** for assemblies: the Assembly panel's bill of materials (`apps/cad/src/assembly` `bomItems`: part, quantity, material,
   mass) drawn above the title block; the checkbox hides it.
 
-Not done: surface finish and GD&T symbols, tolerances other than typed text, ordinate or chain dimensions, break lines, weld symbols,
+- **Surface finish** (a symbol with a leader and a roughness value such as `Ra 1.6`) and **GD&T frame** (a feature control frame from cells
+  separated by `|`, e.g. `POS|0.1|A`; plain ASCII so the PDF stays in WinAnsi, no characteristic glyphs). Both are notes with a `style`.
+
+Undo and Redo (toolbar, Ctrl+Z / Ctrl+Y while the Drawing tab is open) step through sheet edits; the part's own history is not touched. Typing in a
+field is one step; changes the part makes (mass, regenerated dimensions) are saved but are not steps.
+
+Not done: GD&T characteristic glyphs and datum triangles, tolerances other than typed text, ordinate or chain dimensions, break lines, weld symbols,
 several sheets per document, a revision table.
 
 ## Output
@@ -77,6 +83,12 @@ PDF, SVG, DXF, Print in the toolbar. All four are written from one list of primi
 - DXF (R12 ASCII): millimetres, y up, layers per line style (`VISIBLE`, `HIDDEN`, `CENTER`, `THIN`, `HATCH`, `DIM`, `TEXT`, `BORDER`),
   line types `HIDDEN` and `CENTER`. Arrow heads are left out.
 - Print: a hidden frame with the SVG at the page size (`@page size`), then `window.print()`; "Save as PDF" in the print dialog also works.
+
+## Speed
+
+The kernel's hidden-line pass is the cost: a plate takes a fraction of a second per view, the 24-tooth spur gear about 20 s for four views (the
+isometric dominates). Views are asked one at a time, so each appears as it arrives, and are cached by part revision and view definition: leaving
+and re-entering the Drawing tab, or moving, scaling and toggling lines, costs no kernel call.
 
 ## Saved with the part, and associative
 

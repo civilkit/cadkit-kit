@@ -21,14 +21,51 @@ export function requestFor(doc: DrawingDoc, v: DView): Record<string, unknown> |
   return e;
 }
 
-/** Fetch geometry for the views of a drawing (hidden lines always included: the view toggles hide them on the sheet). */
-export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: string[]): Promise<Record<string, ViewData>> {
+/** Views already projected for a part state: key = part revision + the view request. Kept so that coming back to the sheet is instant. */
+const viewCache = new Map<string, ViewData>();
+export const clearViewCache = (): void => viewCache.clear();
+/** Remember views fetched by another route (the tools that make a view) under the part revision, so the refresh after the edit costs nothing. */
+export function cacheViews(cacheKey: string, doc: DrawingDoc, data: Record<string, ViewData | undefined>): void {
+  for (const v of doc.views) {
+    const r = requestFor(doc, v), g = data[v.id];
+    if (r && g) viewCache.set(cacheKey + JSON.stringify(r), g);
+  }
+}
+
+/** Fetch geometry for the views of a drawing (hidden lines always included: the view toggles hide them on the sheet). One kernel call
+ *  per view that is not cached (`cacheKey` = the part's revision), so a slow view does not hold up the others: `onView` is called as
+ *  each arrives. */
+export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: string[], opts: { cacheKey?: string; onView?: (id: string, g: ViewData) => void } = {}): Promise<Record<string, ViewData>> {
   const items = doc.views.filter((v) => !only || only.includes(v.id)).map((v) => ({ v, r: requestFor(doc, v) })).filter((x) => x.r);
   const out: Record<string, ViewData> = {};
-  if (!items.length) return out;
-  const res = await query(items.map((x) => x.r!));
+  const todo: typeof items = [];
+  for (const x of items) {
+    const hit = opts.cacheKey !== undefined ? viewCache.get(opts.cacheKey + JSON.stringify(x.r)) : undefined;
+    if (hit) { out[x.v.id] = hit; opts.onView?.(x.v.id, hit); } else todo.push(x);
+  }
+  if (items.length > 1 && todo.length) {
+    for (const x of todo) {
+      const res = await query([x.r!]);
+      const r = res?.[0];
+      if (r && r.lines) {
+        const g = { min: r.min, max: r.max, lines: r.lines, edges: r.edges ?? [] };
+        out[x.v.id] = g; opts.onView?.(x.v.id, g);
+        if (opts.cacheKey !== undefined) { viewCache.set(opts.cacheKey + JSON.stringify(x.r), g); if (viewCache.size > 64) viewCache.delete(viewCache.keys().next().value as string); }
+      }
+    }
+    return out;
+  }
+  if (!todo.length) return out;
+  const res = await query(todo.map((x) => x.r!));
   if (!res) return out;
-  items.forEach((x, i) => { const r = res[i]; if (r && r.lines) out[x.v.id] = { min: r.min, max: r.max, lines: r.lines, edges: r.edges ?? [] }; });
+  todo.forEach((x, i) => {
+    const r = res[i];
+    if (r && r.lines) {
+      const g = { min: r.min, max: r.max, lines: r.lines, edges: r.edges ?? [] };
+      out[x.v.id] = g; opts.onView?.(x.v.id, g);
+      if (opts.cacheKey !== undefined) viewCache.set(opts.cacheKey + JSON.stringify(x.r), g);
+    }
+  });
   return out;
 }
 
