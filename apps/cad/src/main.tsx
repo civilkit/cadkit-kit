@@ -1386,7 +1386,7 @@ function App() {
       <div class="status-wrap">
         <StatusBar notices={store.notices.value} hover={store.hover.value} busy={store.busy.value}
           items={[
-            ...(selText ? [{ label: t('app.status.selection'), value: selText, tone: 'ok' as const }] : []),
+            ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },

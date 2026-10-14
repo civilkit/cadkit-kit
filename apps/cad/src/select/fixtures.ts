@@ -5,7 +5,7 @@ type V = number[];
 export interface Quad { id: string; n: V; corners: [V, V, V, V] }
 
 /** Mesh arrays from quads (two triangles each, one normal per vertex). */
-export function meshOf(quads: Quad[]): NonNullable<SelData['mesh']> {
+export function meshOf(quads: Quad[]): { positions: Float32Array; normals: Float32Array; triFace: Int32Array; faceIds: string[] } {
   const positions: number[] = [], normals: number[] = [], triFace: number[] = [];
   const faceIds = quads.map((q) => q.id);
   quads.forEach((q, fi) => {

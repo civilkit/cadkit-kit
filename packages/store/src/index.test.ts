@@ -101,3 +101,17 @@ describe('highlight line width', () => {
     expect(sanitizeWorkspace({ lineWidth: 1.5 }).lineWidth).toBe(1.5);
   });
 });
+
+describe('pick filters and body mode', () => {
+  it('every pick type is on to begin with; setFilter switches one', async () => {
+    const { createStore, PICK_FILTER_KINDS, MODE_FILTER } = await import('./index');
+    const s = createStore();
+    expect(PICK_FILTER_KINDS.every((k) => s.filters.value[k])).toBe(true);
+    s.setFilter('edges', false);
+    expect(s.filters.value.edges).toBe(false);
+    expect(s.filters.value.faces).toBe(true);
+    expect(MODE_FILTER).toEqual({ face: 'faces', edge: 'edges', vertex: 'vertices', body: 'bodies' });
+    s.mode.value = 'body';
+    expect(s.mode.value).toBe('body');
+  });
+});

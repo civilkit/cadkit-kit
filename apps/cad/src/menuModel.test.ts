@@ -50,3 +50,28 @@ describe('menuItems', () => {
     expect(gestureHint(null)).toBeNull();
   });
 });
+
+describe('selection entries', () => {
+  const sel = ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-invert', 'select-none', 'select-all'].map((id) => cmd(id, id));
+  const all = [...registry, ...sel];
+  it('faces and edges offer the select-more family; a body only invert and deselect', () => {
+    expect(menuItems('edge', all, false).map((x) => x.id)).toEqual(['add-fillet', 'add-chamfer', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none']);
+    expect(menuItems('face', all, false).map((x) => x.id)).toContain('select-similar');
+    const body = menuItems('body', all, true).map((x) => x.id);
+    expect(body).toContain('select-invert');
+    expect(body).not.toContain('select-tangent');
+  });
+  it('empty space offers select all and invert', () => {
+    const ids = menuItems('none', all, false).map((x) => x.id);
+    expect(ids).toContain('select-all');
+    expect(ids).toContain('select-invert');
+  });
+  it('a disabled row carries the reason it is given', () => {
+    const off = [cmd('select-tangent', 'Select tangent', { enabled: () => false })];
+    const m = menuItems('face', off, false, (id) => (id === 'select-tangent' ? 'Select something first' : null));
+    expect(m[0]).toMatchObject({ enabled: false, reason: 'Select something first' });
+  });
+  it('body names and the whole-part name are the body kind', () => {
+    expect(selectionKind(['@body:F1.C0'], 'body')).toBe('body');
+  });
+});

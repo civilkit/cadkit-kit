@@ -1673,6 +1673,7 @@ export class Viewport {
       }
       return; // body picking stays off in sketch mode
     }
+    if (e.button !== 0) return; // a right click only opens the context menu: it keeps a multi-selection
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
     if (!hit0 && this.mode !== 'edge' && this.refPlanes.group.visible) {
