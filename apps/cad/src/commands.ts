@@ -22,6 +22,8 @@ export interface Actions {
   newSketch(plane: 'front' | 'top' | 'right'): void;
   palette(): void;
   toggleDrawer(): void;
+  /** Sketch on the selected face or plane (S). */
+  sketchHere(): void;
   toggleProjection(): void;
   toggleLeftPanel(): void;
   settings(): void;
@@ -31,6 +33,28 @@ export interface Actions {
   mode(): SelectionMode;
   toggleLayer(l: DisplayLayer): void;
   layer(l: DisplayLayer): boolean;
+}
+
+/** Keys for the common commands, shown in tooltips and in the command search. Feature commands use Shift because the
+ *  plain letters are taken (F search, Q/E pick, Z fit, and the sketch tools' own letters while sketching). */
+export const SHORTCUTS: Record<string, string> = {
+  'sketch-here': 'S',
+  'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H',
+  'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
+  'toggle-projection': 'P', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+};
+
+/** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
+export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }): Command | undefined {
+  if (e.altKey) return undefined;
+  const ctrl = e.ctrlKey || e.metaKey;
+  const key = e.key.toLowerCase();
+  return cmds.find((c) => {
+    if (!c.keys) return false;
+    const parts = c.keys.toLowerCase().split('+');
+    const k = parts[parts.length - 1];
+    return k === key && parts.includes('shift') === e.shiftKey && parts.includes('ctrl') === ctrl;
+  });
 }
 
 const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations'];
@@ -48,6 +72,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'new-part', label: t('cmd.new-part'), tab: 'Home', group: 'File', run: a.newPart },
     { id: 'add-extrude', label: t('cmd.add-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add') },
     { id: 'add-cut', label: t('cmd.add-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut') },
+    { id: 'sketch-here', label: t('cmd.sketch-here'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: a.sketchHere },
     { id: 'sketch-on-face', label: t('cmd.sketch-on-face'), tab: 'Home', group: 'Sketch', enabled: a.hasFaceSelection, run: a.sketchOnFace },
     { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('front') },
     { id: 'sketch-new-top', label: t('cmd.sketch-new-top'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('top') },
@@ -67,6 +92,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', pressed: () => a.mode() === 'edge', run: () => a.setMode('edge') },
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
+  for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
   }

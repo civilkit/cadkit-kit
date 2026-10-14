@@ -16,7 +16,7 @@ import {
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
 import { Controller } from './controller';
-import { buildCommands } from './commands';
+import { buildCommands, matchShortcut } from './commands';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DisplayMenu } from './DisplayMenu';
@@ -127,6 +127,7 @@ function App() {
   // instead of closing over state from the render they were created in.
   const sketchMoveRef = useRef<((pointId: string, u: number, v: number) => void) | null>(null);
   const sketchConfirmRef = useRef<(() => void) | null>(null);
+  const sketchingRef = useRef(false);
   const sketchCancelRef = useRef<(() => void) | null>(null);
   // Sketch tools: the active tool, its state and its last output live in refs because the viewport and the
   // key handler are created once; the React state below only drives what is drawn.
@@ -226,6 +227,13 @@ function App() {
     setOrthoState(next);
     try { localStorage.setItem('cad.ortho', next ? '1' : '0'); } catch { /* private window */ }
   };
+  const sketchHere = () => {
+    const face = selectedFace();
+    const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
+    if (face) startNewSketch({ kind: 'face', id: face });
+    else if (plane) startNewSketch(plane);
+    else store.notify(t('app.sketch.pickFirst'), 'error');
+  };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
@@ -244,6 +252,7 @@ function App() {
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
     palette: () => setPalette(true),
     toggleDrawer,
+    sketchHere,
     toggleProjection,
     toggleLeftPanel,
     settings: () => setSettings(true),
@@ -262,11 +271,18 @@ function App() {
     layer: (l) => store.display.value[l],
   });
 
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
+      // the common commands' keys (not while a sketch tool owns the letters, except Ctrl combinations)
+      if (!sketchingRef.current || e.metaKey || e.ctrlKey) {
+        const hit = matchShortcut(commandsRef.current, e);
+        if (hit && (hit.enabled?.() ?? true)) { e.preventDefault(); hit.run(); return; }
+      }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (sketchKeyRef.current?.(e)) return;
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
@@ -668,6 +684,7 @@ function App() {
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
   };
+  sketchingRef.current = !!sketching;
   sketchConfirmRef.current = confirmSketch;
   sketchCancelRef.current = cancelSketch;
   // Dimensions and constraint symbols, projected onto the screen for this frame.

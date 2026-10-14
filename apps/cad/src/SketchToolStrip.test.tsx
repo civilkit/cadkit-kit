@@ -9,7 +9,7 @@ import './i18n';
 afterEach(cleanup);
 
 const actions: Actions = {
-  open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, toggleProjection() {}, toggleLeftPanel() {}, addExtrude() {}, newSketch() {}, sketchOnFace() {}, hasFaceSelection: () => false,
+  open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, toggleProjection() {}, sketchHere() {}, toggleLeftPanel() {}, addExtrude() {}, newSketch() {}, sketchOnFace() {}, hasFaceSelection: () => false,
   setView() {}, fit() {}, setMode() {}, mode: () => 'face', toggleLayer() {}, layer: () => false,
 };
 
