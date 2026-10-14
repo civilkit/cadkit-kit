@@ -1,6 +1,8 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
 import { vertexName, type Store } from '@kit/store';
+import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
+import type { CheckPolicy } from './checkSettings';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -66,9 +68,15 @@ export class Controller {
   async edit(ops: EditOp[], reason?: string): Promise<EditResult> {
     const s = this.session;
     if (!s) throw new Error('no document loaded');
+    const guarded = !this.unguarded;
+    this.unguarded = false;
+    const policy = guarded ? this.policy?.() ?? null : null;
+    const blocking = policy && policy.blocking.length > 0 ? policy : null;
     this.store.busy.value = true;
     try {
       let result: EditResult;
+      // Block rules compare against the part as it is now: the last check of this state, or one made first.
+      const before = blocking ? await this.baselineFor(blocking) : null;
       try {
         result = await Promise.race([
           s.edit(ops, reason),
@@ -94,6 +102,16 @@ export class Controller {
       }
       this.redoStack = [];
       await this.refresh();
+      if (blocking && before) {
+        const blocked = await this.blockCheck(blocking, before);
+        if (blocked) {
+          // Same path as a failed edit: the part goes back, the history has no record, the shell logs a rejection.
+          await s.undo();
+          await this.refresh();
+          this.store.notify(blocked, 'error');
+          return { ok: false, record: null, hints: [{ feature: '', code: 'designCheckBlocked', hint: blocked }] };
+        }
+      } else if (policy?.afterEdit) this.scheduleAfterEdit();
       for (const w of result.refWarnings ?? []) {
         this.store.notify(
           `refDiff ${w.code}${w.feature ? ` on ${w.feature}` : ''}${w.reason ? `: ${w.reason}` : ''}`,
@@ -315,6 +333,7 @@ export class Controller {
     this.closeSketchPreview();
     this.view.setSketchEdit(null);
     const feature = toFeature(open.draft);
+    this.skipGuardOnce();
     return this.edit([open.isNew ? { op: 'add', feature } : { op: 'replace', id: open.featureId, feature }], open.isNew ? 'new sketch' : 'sketch');
   }
 
@@ -381,6 +400,102 @@ export class Controller {
       : [];
   }
 
+  /** The design-check policy now in force (rule modes, limits), or null for none. The app sets it. */
+  policy: (() => CheckPolicy | null) | null = null;
+  /** Called with every finished policy check (after an edit), for the panel and the status chip. */
+  onCheck: ((r: { report: ProfileReport; revision: number; policy: CheckPolicy }) => void) | null = null;
+  private unguarded = false;
+  private baseline: { revision: number; key: string; issues: Issue[] } | null = null;
+  private afterTimer: ReturnType<typeof setTimeout> | null = null;
+  private afterRunning = false;
+  private afterAgain = false;
+
+  /** The next edit is not subject to Block rules (sketch confirmations). */
+  private skipGuardOnce(): void { this.unguarded = true; }
+
+  private async rawCheck(profile: string | Record<string, unknown>, opts?: { samples?: number; maxIssues?: number }): Promise<ProfileReport | null> {
+    const s = this.session;
+    if (!s) return null;
+    try { return await s.checkProfile(profile, opts); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+  }
+
+  private async baselineFor(p: CheckPolicy): Promise<Issue[] | null> {
+    const key = JSON.stringify(p.profile);
+    if (this.baseline && this.baseline.revision === this.revision && this.baseline.key === key) return this.baseline.issues;
+    const report = await this.rawCheck(p.profile);
+    if (!report) return null;
+    this.baseline = { revision: this.revision, key, issues: report.issues };
+    return report.issues;
+  }
+
+  /** After an edit: the message to reject it with when a Block rule has new violations, else null (and the result is the new baseline). */
+  private async blockCheck(p: CheckPolicy, before: Issue[]): Promise<string | null> {
+    const report = await this.rawCheck(p.profile);
+    if (!report) return null;
+    const fresh = blockedIssues(before, report.issues, p.blocking);
+    if (fresh.length) return blockMessage(fresh, p.titles);
+    this.baseline = { revision: this.revision, key: JSON.stringify(p.profile), issues: report.issues };
+    this.onCheck?.({ report, revision: this.revision, policy: p });
+    return null;
+  }
+
+  /** Run the active profile shortly after the last edit; never two at once (a second request waits and reruns once). */
+  private scheduleAfterEdit(delayMs = 400): void {
+    if (this.afterTimer) clearTimeout(this.afterTimer);
+    this.afterTimer = setTimeout(() => { this.afterTimer = null; void this.runAfterEdit(); }, delayMs);
+  }
+  private async runAfterEdit(): Promise<void> {
+    if (this.afterRunning) { this.afterAgain = true; return; }
+    const p = this.policy?.();
+    if (!p || !p.afterEdit) return;
+    this.afterRunning = true;
+    try {
+      const r = await this.checkProfile(p.profile);
+      if (r) {
+        this.baseline = { revision: r.revision, key: JSON.stringify(p.profile), issues: r.report.issues };
+        this.onCheck?.({ report: r.report, revision: r.revision, policy: p });
+      }
+    } finally {
+      this.afterRunning = false;
+      if (this.afterAgain) { this.afterAgain = false; this.scheduleAfterEdit(0); }
+    }
+  }
+
+  /** Counts the documents shown so far; a design-check result carries the number it was made for and is stale once it moves. */
+  revision = 0;
+  private profileList: ProfileList | null = null;
+
+  /** The built-in design-rule profiles and their rule parameters (asked once, then kept). Null without a document or on a kernel error. */
+  async profiles(): Promise<ProfileList | null> {
+    if (this.profileList) return this.profileList;
+    const s = this.session;
+    if (!s) return null;
+    try { this.profileList = await s.profiles(); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+    return this.profileList;
+  }
+
+  /** Run a design-rule profile (built-in id or inline rules) on the part. Only when asked: never part of a rebuild.
+   *  Shows the busy state and can be cancelled like a rebuild. `null` when cancelled, without a document or on a kernel error. */
+  async checkProfile(profile: string | Record<string, unknown>, opts?: { samples?: number; maxIssues?: number }): Promise<{ report: ProfileReport; revision: number } | null> {
+    const s = this.session;
+    if (!s) return null;
+    const revision = this.revision;
+    this.store.busy.value = true;
+    try {
+      const report = await Promise.race([
+        s.checkProfile(profile, opts),
+        new Promise<never>((_, reject) => { this.pendingCancel = () => reject(new Error('cancelled')); }),
+      ]);
+      return { report, revision };
+    } catch (e) {
+      if ((e as Error).message !== 'cancelled') this.store.notify((e as Error).message, 'error');
+      return null;
+    } finally {
+      this.pendingCancel = null;
+      this.store.busy.value = false;
+    }
+  }
+
   async cancel(): Promise<void> {
     this.pendingCancel?.();
     this.pendingCancel = null;
@@ -430,6 +545,7 @@ export class Controller {
     const s = this.session;
     if (!s) return;
     const body = await s.bodyForView();
+    this.revision++;
     this.lastView = body;
     this.view.setBody(body);
     // everything that can be selected now: faces, edges and the corners at the ends of edges

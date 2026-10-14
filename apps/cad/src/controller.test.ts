@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { Controller, type ViewSink, type KernelFactory, type SketchEditView } from './controller';
 import { createStore } from '@kit/store';
@@ -674,4 +674,127 @@ describe('sketch on a face', { skip: !process.env.CK_WASM }, () => {
     await controller.cancelSketch();
     expect(controller.sketchFrame()).toBeNull();
   }, 60000);
+});
+
+describe('controller design check (fake session)', () => {
+  const profiles = { profiles: [{ id: 'fdm-print', name: 'FDM 3D printing', description: '', rules: [] }], rules: [] };
+  function fake(check: () => Promise<unknown>) {
+    const calls = { profiles: 0, check: [] as unknown[] };
+    const session = {
+      document: plateDoc(),
+      bodyForView: async () => null,
+      verify: async () => ({ regen: { errors: [] }, hints: [] }),
+      profiles: async () => { calls.profiles++; return profiles; },
+      checkProfile: async (p: unknown) => { calls.check.push(p); return check(); },
+    } as unknown as Session;
+    const store = createStore();
+    const kernel: KernelFactory = { async open() { return session; }, cancel() {} };
+    return { calls, store, controller: new Controller({ store, view: fakeView().view, kernel }) };
+  }
+
+  it('lists profiles once and caches them; null without a document', async () => {
+    const f = fake(async () => ({}));
+    expect(await f.controller.profiles()).toBeNull();
+    await f.controller.load(plateDoc());
+    expect((await f.controller.profiles())!.profiles[0].id).toBe('fdm-print');
+    await f.controller.profiles();
+    expect(f.calls.profiles).toBe(1);
+  });
+
+  it('does not run on load or edit; runs when asked, with busy during the call and the document revision', async () => {
+    let busyDuring = false;
+    const f = fake(async () => { busyDuring = f.store.busy.value; return { ok: true, issues: [], summary: {} }; });
+    await f.controller.load(plateDoc());
+    expect(f.calls.check.length).toBe(0);
+    const r = await f.controller.checkProfile('fdm-print');
+    expect(r!.revision).toBe(f.controller.revision);
+    expect(busyDuring).toBe(true);
+    expect(f.store.busy.value).toBe(false);
+    expect(f.calls.check).toEqual(['fdm-print']);
+  });
+
+  it('cancel resolves null and clears busy; a kernel error notifies and resolves null', async () => {
+    const f = fake(() => new Promise(() => {}));
+    await f.controller.load(plateDoc());
+    const p = f.controller.checkProfile('fdm-print');
+    await f.controller.cancel();
+    expect(await p).toBeNull();
+    expect(f.store.busy.value).toBe(false);
+    const g = fake(async () => { throw new Error('unknown rule'); });
+    await g.controller.load(plateDoc());
+    expect(await g.controller.checkProfile('x')).toBeNull();
+    expect(g.store.notices.value.some((n) => n.level === 'error' && /unknown rule/.test(n.text))).toBe(true);
+  });
+});
+
+describe('controller design check: Block rules and after-edit runs (fake session)', () => {
+  const wall = (faces: string[]) => ({ rule: 'minWall', severity: 'error', message: 'thin', faces, edges: [], value: 0.5, limit: 1.2, unit: 'mm' });
+  const report = (issues: unknown[]) => ({ ok: !issues.length, issues, summary: { errors: issues.length, warnings: 0, infos: 0, total: issues.length } });
+  function fake(afterEdit: (n: number) => unknown[], block = true) {
+    const st = { edits: 0, undos: 0, checks: 0, results: [] as unknown[] };
+    const session = {
+      document: plateDoc(),
+      bodyForView: async () => null,
+      verify: async () => ({ regen: { errors: [] }, hints: [] }),
+      edit: async () => { st.edits++; return { ok: true, record: { id: 'r', ops: [] }, hints: [] }; },
+      undo: async () => { st.undos++; st.edits--; return { records: [] }; },
+      checkProfile: async () => { st.checks++; return report(afterEdit(st.edits)); },
+    } as unknown as Session;
+    const store = createStore();
+    const kernel: KernelFactory = { async open() { return session; }, cancel() {} };
+    const controller = new Controller({ store, view: fakeView().view, kernel });
+    controller.policy = () => ({ profile: { id: 'p', name: 'P', rules: [] }, name: 'P', blocking: block ? ['minWall'] : [], afterEdit: !block, titles: { minWall: 'Minimum wall' } });
+    controller.onCheck = (r) => st.results.push(r);
+    return { st, store, controller };
+  }
+  const op: EditOp[] = [{ op: 'set', id: 'F2', path: 'depth', value: 1 }];
+
+  it('a Block rule with a pre-existing issue allows an unrelated edit', async () => {
+    const f = fake(() => [wall(['A', 'B'])]);
+    await f.controller.load(plateDoc());
+    const r = await f.controller.edit(op);
+    expect(r.ok).toBe(true);
+    expect(f.st.undos).toBe(0);
+    expect(f.st.results.length).toBe(1);
+  });
+
+  it('a new violation rejects the edit and rolls it back, naming rule, value, faces and limit', async () => {
+    const f = fake((n) => (n === 0 ? [] : [wall(['C', 'D'])]));
+    await f.controller.load(plateDoc());
+    const r = await f.controller.edit(op);
+    expect(r.ok).toBe(false);
+    expect(f.st.undos).toBe(1);
+    expect(f.st.edits).toBe(0);
+    expect(r.hints![0].hint).toMatch(/Minimum wall: 0\.5 mm on C, D, limit 1\.2/);
+    expect(f.store.notices.value.at(-1)!.level).toBe('error');
+    expect(f.store.busy.value).toBe(false);
+  });
+
+  it('a confirmed sketch is not blocked', async () => {
+    const f = fake((n) => (n === 0 ? [] : [wall(['C'])]));
+    await f.controller.load(plateDoc());
+    const sk = plateDoc().features[0] as never;
+    (f.controller as unknown as { sketchOpen: unknown }).sketchOpen = { featureId: 'F1', upTo: 0, draft: fromFeature(sk), baselineDof: null, isNew: false, undo: [], status: null };
+    const c = await f.controller.commitSketch();
+    expect(c!.ok).toBe(true);
+    expect(f.st.undos).toBe(0);
+  });
+
+  it('check after every edit is debounced and never overlaps', async () => {
+    vi.useFakeTimers();
+    try {
+      let release: () => void = () => {};
+      const f = fake(() => []);
+      f.controller.policy = () => ({ profile: { id: 'p', name: 'P', rules: [] }, name: 'P', blocking: [], afterEdit: true, titles: {} });
+      await f.controller.load(plateDoc());
+      const slow = (f.st as unknown as { checks: number });
+      void slow;
+      await f.controller.edit(op); await f.controller.edit(op);
+      expect(f.st.checks).toBe(0);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(f.st.checks).toBe(1);
+      expect(f.st.results.length).toBe(1);
+      release();
+    } finally { vi.useRealTimers(); }
+  });
 });
