@@ -64,3 +64,33 @@ describe('style commands and keys', () => {
     expect(matchShortcut(cmds, { ...ev('H', 'KeyH'), shiftKey: true })?.id).not.toBe('hide-selection');   // Shift+H is Hole
   });
 });
+
+describe('hide with surface bodies', () => {
+  const owners: Record<string, string> = { 'F5.S.sp': 'F5', 'F5.S.e1|F5.S.e2#0': 'F5', 'F8.S.q1': 'F8' };
+  const surfaceOf = (n: string) => owners[n] ?? null;
+  it('a selected sheet face hides that surface body, not the solid', () => {
+    expect(hideSelection(NOTHING_HIDDEN, { names: ['F5.S.sp'], surfaceOf })).toEqual({ body: false, ids: ['F5'] });
+    expect(hideSelection(NOTHING_HIDDEN, { names: ['F5.S.e1|F5.S.e2#0'], surfaceOf })).toEqual({ body: false, ids: ['F5'] });
+  });
+  it('faces of the solid and of two sheets hide all three', () => {
+    expect(hideSelection(NOTHING_HIDDEN, { names: ['F2.C1', 'F5.S.sp', 'F8.S.q1'], surfaceOf })).toEqual({ body: true, ids: ['F5', 'F8'] });
+  });
+  it('does not list a body twice', () => {
+    const once = hideSelection(NOTHING_HIDDEN, { names: ['F5.S.sp'], surfaceOf });
+    expect(hideSelection(once, { names: ['F5.S.sp'], surfaceOf })).toBe(once);
+  });
+  it('a corner of a part with no solid hides nothing', () => {
+    expect(hideSelection(NOTHING_HIDDEN, { names: ['v:1,2,3'], surfaceOf, solid: false })).toBe(NOTHING_HIDDEN);
+  });
+  it('a surface feature selected in the tree hides its body', () => {
+    expect(hideSelection(NOTHING_HIDDEN, { names: [], featureId: 'F5', featureType: 'surfaceExtrude', surfaceIds: ['F5'] }).ids).toEqual(['F5']);
+    expect(hideSelection(NOTHING_HIDDEN, { names: [], featureId: 'F2', featureType: 'extrude', surfaceIds: ['F5'] })).toBe(NOTHING_HIDDEN);
+  });
+  it('Show all clears surface bodies too', () => {
+    const s = createLookStore();
+    s.hide({ names: ['F5.S.sp'], surfaceOf });
+    expect(anyHidden(s.hidden.value)).toBe(true);
+    s.showAll();
+    expect(anyHidden(s.hidden.value)).toBe(false);
+  });
+});

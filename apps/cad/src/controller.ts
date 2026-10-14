@@ -9,6 +9,8 @@ import { queryInterference, queryMass, queryMeasure, type Interference } from '.
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
+import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, withSurfaces } from './surfaceView';
+import type { ViewSurface } from '@kit/viewport';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -39,6 +41,9 @@ export interface ViewSink {
   /** Light up the length range of the thread being edited (null clears it). */
   setThreadFocus?(id: string | null): void;
 }
+
+/** What the viewer is handed: the solid's view body plus the surface bodies. */
+export type ShownBody = NonNullable<Awaited<ReturnType<Session['bodyForView']>>> & { surfaces?: ViewSurface[] };
 
 export interface KernelFactory {
   open(doc: PartDoc): Promise<Session>;
@@ -168,7 +173,11 @@ export class Controller {
     }
     if (r.stale) return r;
     if (r.ok && r.body) {
-      this.view.setBody(r.body);
+      // the candidate's features, worked out here (an op it cannot apply, like a move, falls back to the committed ones)
+      const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+      const surfaces = await this.surfacesFor(s, { ...s.document, features: cand } as unknown as PartDoc, upTo, '-psurf');
+      if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
+      this.view.setBody(withSurfaces(r.body, surfaces));
       await this.previewExtras(s, ops, seq);
       return r;
     }
@@ -662,6 +671,8 @@ export class Controller {
     }
   }
 
+  /** The last body handed to the viewer, with its surface bodies kept apart (`lastView` has them merged in). */
+  private shown: ShownBody | null = null;
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
   private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
@@ -714,12 +725,39 @@ export class Controller {
   }
 
   /** The body to show: the whole model, or the first `rollbackCount()` features while rolled back. */
-  private async bodyNow(s: Session): Promise<Awaited<ReturnType<Session['bodyForView']>>> {
+  private async bodyNow(s: Session): Promise<ShownBody | null> {
     const n = this.rollbackCount();
-    if (n === null) return s.bodyForView();
-    const r = await s.preview([], { upTo: n });
-    if (!r.ok) this.store.notify(r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'rolled-back model did not build', 'error');
-    return r.body;
+    let body: Awaited<ReturnType<Session['bodyForView']>>;
+    if (n === null) body = await s.bodyForView();
+    else {
+      const r = await s.preview([], { upTo: n });
+      if (!r.ok) this.store.notify(r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'rolled-back model did not build', 'error');
+      body = r.body;
+    }
+    return withSurfaces(body, await this.surfacesFor(s, s.document, n));
+  }
+
+  /**
+   * The surface bodies (sheets) of a document. `Session.bodyForView` returns only the solid, so with a feature that makes a
+   * sheet this asks the kernel for the regen reply itself (a second regen on its own tag); documents without one pay nothing.
+   */
+  private async surfacesFor(s: Session, doc: PartDoc, upTo: number | null, suffix = '-surf'): Promise<ViewSurface[]> {
+    if (!hasSurfaceFeatures(doc.features as never)) return [];
+    const k = (s as unknown as { kernel?: { request(m: unknown): Promise<{ ok?: boolean; result?: unknown }> } }).kernel;
+    return fetchSurfaces(k, doc, `${this.previewTagOf(s)}${suffix}`, upTo);
+  }
+
+  /** The surface bodies on screen: feature id and the face names it owns. */
+  surfaceBodies(): Array<{ id: string; faces: string[] }> {
+    return (this.shown?.surfaces ?? []).map((x) => ({ id: x.id, faces: x.mesh.faceIds }));
+  }
+  /** The id of the surface body that owns this face or edge name (null for the solid, or a corner). */
+  surfaceOf(name: string): string | null {
+    return surfaceNames(this.shown).get(name) ?? null;
+  }
+  /** Whether the part has a solid on screen (a part of surfaces only has none: no volume, no mass). */
+  hasSolid(): boolean {
+    return (this.shown?.mesh.triFace.length ?? 0) > 0;
   }
 
   private async refresh(): Promise<void> {
@@ -730,12 +768,13 @@ export class Controller {
     this.lastIds = ids;
     const body = await this.bodyNow(s);
     this.revision++;
-    this.lastView = body;
+    this.shown = body;
+    this.lastView = body ? mergedView(body) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
     this.view.setBody(body);
     // everything that can be selected now: faces, edges and the corners at the ends of edges
-    const existing = new Set<string>(body?.mesh.faceIds ?? []);
+    const existing = new Set<string>(this.lastView?.mesh?.faceIds ?? []);
     if (body) existing.add(BODY);
-    for (const e of (body?.edges ?? []) as Array<{ key?: string; pts: number[][] }>) {
+    for (const e of (this.lastView?.edges ?? []) as Array<{ key?: string; pts: number[][] }>) {
       if (e.key) existing.add(e.key);
       for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) if (p) existing.add(vertexName(p));
     }

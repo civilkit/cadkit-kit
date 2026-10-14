@@ -271,10 +271,10 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     const t = await world(surf());
     expect(t.cmd('add-thicken').enabled!()).toBe(true);
     await t.run('add-thicken');
-    expect(last(t)).toMatchObject({ type: 'thicken', surface: 'F2', thickness: 1 });
+    expect(last(t)).toMatchObject({ type: 'thicken', surface: 'F2', thickness: 2.5 });   // 10 percent of the sheet's size now that the view box covers sheets (it was the 1 mm fallback)
     const after = await t.stats();
     expect(after.errors).toEqual([]);
-    expect(after.volume).toBeCloseTo(40 * 25 * 1, 2);
+    expect(after.volume).toBeCloseTo(40 * 25 * 2.5, 2);
   });
 
   it('trim surface: not enabled without a tool; with a reference plane it trims the surface', async () => {

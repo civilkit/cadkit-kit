@@ -6,6 +6,8 @@ export const inspectStrings: Record<string, string> = {
   'inspect.copy': 'Copy', 'inspect.copied': 'Copied to the clipboard', 'inspect.copyFailed': 'Could not copy',
   'inspect.stale': 'Out of date: the part changed.',
   'inspect.mass': 'Mass properties', 'inspect.mass.compute': 'Compute', 'inspect.mass.none': 'No solid to measure.',
+  'inspect.mass.sheets': 'Only surface bodies here: they have no volume or mass. Thicken or knit them into a solid to measure.',
+  'inspect.mass.sheetsAlso': 'Mass counts the solid only; surface bodies add no volume.',
   'inspect.density': 'Density', 'inspect.material': 'Material: {name}',
   'inspect.density.unknown': 'No density known for "{name}": set one.', 'inspect.density.noMaterial': 'The part names no material: set a density.',
   'mass.volume': 'Volume', 'mass.area': 'Surface area', 'mass.mass': 'Mass', 'mass.com': 'Centre of mass', 'mass.box': 'Bounding box',

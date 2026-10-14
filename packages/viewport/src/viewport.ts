@@ -17,6 +17,7 @@ import { HandleLayer } from './handleLayer';
 import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, HIDDEN_EDGE_OPACITY, lightSpec, backgroundColors, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode } from './styles';
+import { mergeBodies, mergedBox, vertexTints, type ViewSurface } from './surfaces';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -34,6 +35,8 @@ export interface ViewBody {
   curves?: Array<{ id: string; pts: number[][] }>;
   planes?: Array<{ id: string; frame: ViewFrame }>;
   markers?: unknown[];
+  /** Surface bodies (sheets), drawn with the solid in a tint; each can be hidden by its feature id. */
+  surfaces?: ViewSurface[];
 }
 
 export type PickMode = 'face' | 'edge' | 'vertex';
@@ -708,15 +711,22 @@ export class Viewport {
       this.axisLines = this.addLayerLines(axes, 0x2d3a4a, this.layerOn('axes'));
     }
 
-    if (body.mesh.triFace.length === 0) { this.dirty = true; return; }
-    const g = groupByFace(body.mesh);
+    // The solid (unless hidden) and the surface bodies not hidden, as one mesh: picking and highlights then treat them alike.
+    const solidShown = !this.bodyHidden && body.mesh.triFace.length > 0;
+    const surfaces = (body.surfaces ?? []).filter((x) => !this.hiddenIds.has(x.id) && x.mesh.triFace.length > 0);
+    const merged = mergeBodies(solidShown ? { mesh: body.mesh, edges: body.edges } : null, surfaces);
+    if (body.mesh.triFace.length > 0 || body.surfaces?.length) this.box = mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
+    if (merged.mesh.triFace.length === 0) { this.dirty = true; return; }
+    const g = groupByFace(merged.mesh);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
-    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1));
+    this.surfaceFaces = merged.surfaceFaces;
+    if (merged.surfaceFaces.size) geo.setAttribute('color', new THREE.BufferAttribute(vertexTints(g.ranges, g.positions.length / 3, merged.surfaceFaces), 3));
+    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1, this.surfaceFaces.size > 0));
     this.scene.add(this.mesh);
 
-    const seg = edgeSegments(body.edges);
+    const seg = edgeSegments(merged.edges);
     if (seg.length) {
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
@@ -727,8 +737,7 @@ export class Viewport {
       this.scene.add(this.hiddenEdgeLines);
     }
     this.grouped = g;
-    this.edges = body.edges;
-    this.box = body.box;
+    this.edges = merged.edges;
     this.buildIssueMeshes();
     this.applyMeshLook();
     this.applySection();
@@ -736,6 +745,8 @@ export class Viewport {
   }
 
   private keepView = false;
+  /** names of the faces and edges that belong to surface bodies (tinted) */
+  private surfaceFaces = new Set<string>();
 
   /** Display style, ghost opacity and the body's appearance (colour and material). Cheap; safe to call any time. */
   setLook(look: BodyLook): void {
@@ -746,16 +757,14 @@ export class Viewport {
   private applyMeshLook(): void {
     const spec = styleSpec(this.look.style);
     if (this.mesh) {
-      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1);
-      this.mesh.visible = !this.bodyHidden;
+      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1, this.surfaceFaces.size > 0);
     }
-    const edgesOn = !this.bodyHidden && (spec.edges === 'always' || (spec.edges === 'layer' && this.layerOn('edges')));
+    const edgesOn = (spec.edges === 'always' || (spec.edges === 'layer' && this.layerOn('edges')));
     if (this.edgeLines) {
       this.edgeLines.visible = edgesOn;
       (this.edgeLines.material as THREE.LineBasicMaterial).color.set(edgeColor(this.look.style));
     }
     if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
-    if (this.highlight) this.highlight.visible = !this.bodyHidden;
     this.dirty = true;
   }
 
@@ -793,7 +802,7 @@ export class Viewport {
   /** Viewer-only hiding: the whole body, and sketches / curves / planes by id (never saved in the document). */
   setHidden(o: { body: boolean; ids: Iterable<string> }): void {
     const ids = new Set(o.ids);
-    const changed = ids.size !== this.hiddenIds.size || [...ids].some((i) => !this.hiddenIds.has(i));
+    const changed = o.body !== this.bodyHidden || ids.size !== this.hiddenIds.size || [...ids].some((i) => !this.hiddenIds.has(i));
     this.bodyHidden = o.body;
     this.hiddenIds = ids;
     this.applyMeshLook();
@@ -1108,7 +1117,6 @@ export class Viewport {
           polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
         }));
         this.scene.add(this.highlight);
-        this.highlight.visible = !this.bodyHidden;
       }
     }
     this.dirty = true;
@@ -1332,6 +1340,7 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.mesh = this.edgeLines = this.highlight = null;
+    this.surfaceFaces = new Set();
     this.grouped = null;
     this.edges = [];
     this.box = null;
@@ -1343,7 +1352,7 @@ export class Viewport {
   }
 
   private hit(x: number, y: number): THREE.Intersection | null {
-    if (!this.mesh || this.bodyHidden) return null;
+    if (!this.mesh) return null;
     this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
     return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
   }
@@ -1381,7 +1390,7 @@ export class Viewport {
       }
     }
     if (!best) return null;
-    if (this.mesh && !this.bodyHidden) {
+    if (this.mesh) {
       const w = new THREE.Vector3(best.p[0], best.p[1], best.p[2]);
       const dir = w.clone().sub(this.camera.position);
       const dist = dir.length();
@@ -1412,7 +1421,7 @@ export class Viewport {
     }
     if (!best) return null;
     // hidden behind the body? compare the edge point's distance with the first surface the ray meets there
-    if (this.mesh && !this.bodyHidden) {
+    if (this.mesh) {
       const pts = this.edges[best.i].pts, p0 = pts[best.j], p1 = pts[best.j + 1];
       const w = new THREE.Vector3(p0[0] + (p1[0] - p0[0]) * best.t, p0[1] + (p1[1] - p0[1]) * best.t, p0[2] + (p1[2] - p0[2]) * best.t);
       const dir = w.clone().sub(this.camera.position);

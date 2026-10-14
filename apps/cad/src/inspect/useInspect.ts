@@ -14,6 +14,10 @@ export interface InspectHost {
   revision: number;
   document(): { material?: string } | null;
   bodyBox(): Box | null;
+  /** whether the part has a solid on screen (default: it has when there is a box); a part of surface bodies only has none */
+  hasSolid?(): boolean;
+  /** surface bodies on screen */
+  surfaceBodies?(): Array<{ id: string }>;
   bodyEdges(): EdgeInfo[];
   bodyFaces(): FaceMesh | null;
   massProps(): Promise<MassRaw | null>;
@@ -26,7 +30,7 @@ export interface InspectView {
   frameNames(n: string[]): void;
 }
 
-const hasSolid = (b: Box | null): boolean => !!b;
+const boxed = (b: Box | null): boolean => !!b;
 export const defaultSection = (): SectionState => ({ on: false, plane: 'front', faceId: null, offset: 0, flip: false });
 
 /** The spec the viewport draws for a section state, or null when it is off or has no plane. */
@@ -47,8 +51,9 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
   const [mbusy, setMbusy] = useState(false);
   const [density, setDensity] = useState<number>(known ?? 1);
   useEffect(() => { setDensity(known ?? 1); }, [material]);
+  const hasSolid = (): boolean => boxed(host.bodyBox()) && (host.hasSolid ? host.hasSolid() : true);
   const runMass = async () => {
-    if (mbusy || !hasSolid(host.bodyBox())) { if (!hasSolid(host.bodyBox())) setRaw(null); return; }
+    if (mbusy || !hasSolid()) { if (!hasSolid()) setRaw(null); return; }
     setMbusy(true);
     try { const d = await host.massProps(); if (d) setRaw({ data: d, revision: rev }); } finally { setMbusy(false); }
   };
@@ -121,7 +126,7 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
 
   const props: InspectProps = {
     material, density, densityKnown: known !== null, onDensity: (d) => { if (Number.isFinite(d) && d >= 0) setDensity(d); },
-    mass: massV, massBusy: mbusy, massStale: !!raw && raw.revision !== rev, box, hasSolid: hasSolid(box),
+    mass: massV, massBusy: mbusy, massStale: !!raw && raw.revision !== rev, box, hasSolid: hasSolid(), surfaces: host.surfaceBodies?.().length ?? 0,
     onMass: () => void runMass(),
     measuring, onMeasure: () => toggleMeasure(), picks, outcome: outcome && outcome.key === selKey ? outcome.out : null,
     onClearPicks: () => store.select([]),
@@ -133,7 +138,7 @@ export function useInspect(host: InspectHost, store: Store, getView: () => Inspe
     onSectionPlane: cutOn,
     onSection: (patch) => setSection(patch),
     onSectionOff: () => setSection({ on: false }),
-    onVisible: () => { if (hasSolid(host.bodyBox()) && (!raw || raw.revision !== rev)) void runMass(); },
+    onVisible: () => { if (hasSolid() && (!raw || raw.revision !== rev)) void runMass(); },
   };
   return { props, toggleMeasure, measuring, runMass, runInterference, toggleSection, sectionOn: section.on, copy, copyMeasure: () => outcome && copy(copyText(outcome.out.rows, (id) => t('measure.' + id))) };
 }

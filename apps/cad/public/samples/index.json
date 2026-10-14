@@ -15,6 +15,11 @@
   "file": "threaded-bolt-helix.ckpart"
  },
  {
+  "id": "surface-patch",
+  "title": "Surface patch: plate with a wavy surface wall and a planar patch",
+  "file": "surface-patch.ckpart"
+ },
+ {
   "id": "bench-ball_knob",
   "title": "Bench Ball Knob",
   "file": "bench-ball_knob.ckpart"
