@@ -113,6 +113,7 @@ const ICONS: Record<string, string> = {
   'layer-sketches': P('M4 13V6h9v7z') + O(15, 15, 5) + D(4, 13, 1.4),
   'layer-curves': P('M3 17C8 17 7 6 12 6s4 11 9 11') + D(3, 17) + D(21, 17),
   'layer-planes': C('M12 4l9 5-9 5-9-5z') + P('M12 8l4.5 2.5L12 13l-4.5-2.5z') + T('M3 14l9 5 9-5'),
+  'layer-grid': P('M4 4h16v16H4z') + T('M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16'),
   'layer-axes': P('M6 18h14M6 18V4M6 18l-3 3') + D(6, 18, 2),
   'layer-relations': P('M5 8h5M5 12h5') + P('M14 20 18 8M17 20l4-12') + C('M4 18h6'),
 };

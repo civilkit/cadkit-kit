@@ -31,7 +31,7 @@ export interface Actions {
   layer(l: DisplayLayer): boolean;
 }
 
-const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'relations'];
+const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations'];
 
 export function buildCommands(a: Actions): Command[] {
   const cmds: Command[] = [

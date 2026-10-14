@@ -2,9 +2,9 @@ import { signal, type Signal } from '@preact/signals-core';
 
 export type SelectionMode = 'face' | 'edge' | 'vertex';
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; }
-export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden';
+export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid';
 export type Display = Record<DisplayLayer, boolean>;
-export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false };
+export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true };
 export interface Workspace {
   ribbon: 'full' | 'compact' | 'off';
   leftPanel: 'docked' | 'floating' | 'hidden';

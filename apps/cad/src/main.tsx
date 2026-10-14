@@ -37,6 +37,9 @@ const platform = createWebPlatform({ base });
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools } from '@kit/sketch';
+/** Commands on the vertical rail. Empty on purpose: undo and redo are in the top bar, views are on the cube and the View tab, and a
+ *  rail of duplicates is clutter. Tools that belong at the screen edge (creation tools) are added here. */
+const RAIL_COMMANDS: string[] = [];
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
@@ -717,9 +720,9 @@ function App() {
       <div id="vp" ref={host}>
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
-        {ws.toolRail ? (
+        {ws.toolRail && RAIL_COMMANDS.length ? (
           <div class="tool-rail" role="toolbar" aria-label={t('app.tools')}>
-            {commands.filter((c) => ['view-iso', 'view-front', 'view-top', 'view-right', 'fit', 'undo', 'redo'].includes(c.id)).map((c) => (
+            {commands.filter((c) => RAIL_COMMANDS.includes(c.id)).map((c) => (
               <Tip key={c.id} label={c.label} keys={c.keys} side="right">
                 <button aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={20} /></button>
               </Tip>
@@ -745,7 +748,8 @@ function App() {
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
-        {sketching ? <SketchToolStrip active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
+        {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
+        <div class="cube-tools"><Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip></div>
         {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}

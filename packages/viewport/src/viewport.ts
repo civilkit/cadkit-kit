@@ -126,6 +126,7 @@ export class Viewport {
   private sketchGridGroup: THREE.Group | null = null;
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
+  private groundGrid: THREE.LineSegments | null = null;
   private meshFade: number | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
@@ -165,6 +166,7 @@ export class Viewport {
   refreshTheme(): void {
     const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim();
     if (bg) { this.scene.background = new THREE.Color(bg); this.dirty = true; }
+    this.buildGroundGrid(this.box);
     this.viewCube?.refreshTheme();
   }
 
@@ -174,6 +176,7 @@ export class Viewport {
    *  turn off body picking. null clears the overlay and restores everything. */
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
+    if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
     if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; }
     this.sketchEdit = v;
     this.sketchDrag = null;
@@ -489,10 +492,53 @@ export class Viewport {
     if (layer === 'curves' && this.curveLines) this.curveLines.visible = on;
     if (layer === 'planes' && this.planeLines) this.planeLines.visible = on;
     if (layer === 'axes' && this.axisLines) this.axisLines.visible = on;
+    if (layer === 'grid' && this.groundGrid) this.groundGrid.visible = on;
     this.dirty = true;
   }
 
   private layerOn(layer: string): boolean { return this.layers[layer] !== false; }
+
+  /** A ground grid under the part (at the part's lowest y), in the 3D view: fine lines, stronger every fifth, the step a
+   *  round number that gives about twenty cells across the part. */
+  private buildGroundGrid(box: { min: number[]; max: number[] } | null): void {
+    if (this.groundGrid) {
+      this.scene.remove(this.groundGrid);
+      this.groundGrid.geometry.dispose();
+      (this.groundGrid.material as THREE.Material).dispose();
+      this.groundGrid = null;
+    }
+    const cx = box ? (box.min[0] + box.max[0]) / 2 : 0;
+    const cz = box ? (box.min[2] + box.max[2]) / 2 : 0;
+    const y = box ? box.min[1] : 0;
+    const size = box ? Math.max(box.max[0] - box.min[0], box.max[2] - box.min[2], 20) : 100;
+    const half = size * 1.6;
+    const raw = (half * 2) / 24;
+    const mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
+    const n = Math.ceil(half / step);
+    const ox = Math.round(cx / step) * step;
+    const oz = Math.round(cz / step) * step;
+    const pos: number[] = [];
+    const col: number[] = [];
+    const css = getComputedStyle(this.host);
+    const minor = new THREE.Color(css.getPropertyValue('--line').trim() || '#aab2bd');
+    const major = new THREE.Color(css.getPropertyValue('--text-2').trim() || '#7a8591');
+    for (let i = -n; i <= n; i++) {
+      const c = i % 5 === 0 ? major : minor;
+      const x = ox + i * step;
+      const z = oz + i * step;
+      pos.push(x, y, oz - n * step, x, y, oz + n * step, ox - n * step, y, z, ox + n * step, y, z);
+      for (let k = 0; k < 4; k++) col.push(c.r, c.g, c.b);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+    const grid = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 }));
+    grid.userData.pickable = false;
+    grid.visible = this.layerOn('grid');
+    this.scene.add(grid);
+    this.groundGrid = grid;
+  }
 
   /** Flatten polylines to a segment soup (pairs of xyz) for one LineSegments. */
   private segmentsOf(polys: Polyline[]): Float32Array {
@@ -534,7 +580,8 @@ export class Viewport {
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   setBody(body: ViewBody | null): void {
     this.clearBody();
-    if (!body) { this.dirty = true; return; }
+    if (!body) { this.buildGroundGrid(null); this.dirty = true; return; }
+    this.buildGroundGrid(body.box ?? null);
 
     // Display layers first: they draw even when the mesh is empty (sketch-only docs).
     const diag = body.box
