@@ -68,6 +68,7 @@ const ICONS: Record<string, string> = {
   fillet: C('M4 12v8h8') + P('M4 4v8a8 8 0 008 8h8'),
   chamfer: C('M4 11v9h9') + P('M4 4v7l9 9h7'),
   trim: P('M12 3v18') + P('M3 12h9') + C('M12 12h9') + `<path d="m15.5 9 5 6M20.5 9l-5 6" stroke-width="1.5"/>`,
+  offset: T('M4 20V9a5 5 0 015-5h11') + P('M9 20v-8a3 3 0 013-3h8') + C('M4 20h5'),
   mirror: C('M12 3v18') + P('M9.5 5 4 12l5.5 7z') + C('M14.5 5 20 12l-5.5 7z'),
   // ---- files and edit
   open: P('M3 7.5A1.5 1.5 0 014.5 6H9l2 2.5h8a1.5 1.5 0 011.5 1.5V18a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18z'),

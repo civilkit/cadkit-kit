@@ -27,3 +27,12 @@ calls. The viewport turns pointer input into plane coordinates and snap hits; th
 
 Reference tools: `line.ts` (chained, typed length and angle, H/V inference, close on first point) and `rectangle.ts`
 (two corners, typed width and height).
+
+## Edit and reference tools added after the first set
+
+Each one has its conventions in its file header; the short version:
+
+- `offset` (`offset.ts`): click a line/arc/circle (selects its connected chain, Shift-click toggles one entity), Enter,
+  then the pointer picks the side and the distance (or type `d`). Copies are parametric: lines get `parallel` +
+  `pldist` (driving, value = the distance), arcs and circles share the original's centre point and get `raddiff`.
+  Corners are joined at the intersection of the offset curves (trim/extend); collapsed segments are dropped with a hint.
