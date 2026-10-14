@@ -93,7 +93,7 @@ const autosaver = createAutosaver(browserKV(), { onProblem: (r) => store.notify(
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes, nextExtrudeTarget } from '@kit/sketch';
+import { sketchTools, sketchShapes, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 /** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
@@ -699,10 +699,18 @@ function App() {
     const ef = editingId && doc ? doc.features.find((f) => f.id === editingId) as unknown as { type?: string; sketch?: string } | undefined : undefined;
     if (!ef || (ef.type !== 'extrude' && ef.type !== 'revolve') || !ef.sketch) return [];
     const sk = doc!.features.find((f) => f.id === ef.sketch);
-    return sketchShapes(sk as never).map((sh, i) => ({
-      id: sh.id,
-      label: t('app.shape.' + sh.kind, { n: i + 1, d: Math.round(sh.radius * 2 * 100) / 100, count: sh.entityIds.length }),
-    }));
+    const all = sketchShapes(sk as never);
+    return all.map((sh, i) => {
+      const parent = all.find((o) => o.id === sh.inside);
+      const holes = all.filter((o) => o.inside === sh.id);
+      // the projected-outline-plus-offset sketch gets plain names; other nestings say which shape they wrap or sit in
+      const label = parent?.reference ? t('app.shape.insideOffset')
+        : sh.reference && holes.length && !holes.every((h) => h.reference) ? t('app.shape.wall')
+        : parent ? t('app.shape.insideShape', { m: all.indexOf(parent) + 1 })
+        : holes.length ? t('app.shape.withHole', { n: i + 1, m: all.indexOf(holes[0]) + 1 })
+        : t('app.shape.' + sh.kind, { n: i + 1, d: Math.round(sh.radius * 2 * 100) / 100, count: sh.entityIds.length });
+      return { id: sh.id, label };
+    });
   })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   const opsOne = (f: Record<string, unknown>, id: string, next: Record<string, unknown>): EditOp[] => {
@@ -892,7 +900,9 @@ function App() {
     if (!entry || !draft) return;
     const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
     const frame = controller.sketchFrame();
-    const edges: import('@kit/sketch').BodyEdge[] = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+    const plainEdges: import('@kit/sketch').BodyEdge[] = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+    // an edge that is the wall of an extruded sketch spline projects as that spline itself, not a fit through its tessellation
+    const edges = withExactEdges(plainEdges, (controller.document()?.features ?? []) as never, (id) => controller.sketchFrameOf(id));
     // curves of the other (consumed) sketches are reference edges too
     const refEdges = sketchReferenceEdges((controller.document()?.features ?? []) as never, (id) => controller.sketchFrameOf(id), draft.id, edges);
     edges.push(...refEdges);
@@ -1257,7 +1267,9 @@ function App() {
     const target = nextExtrudeTarget(d.features as never, selectedId);
     if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
     const before = d.features.length;
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(target.regions ? { regions: target.regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
+    // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
+    const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
+    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(regions ? { regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);

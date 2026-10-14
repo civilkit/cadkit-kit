@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { regionsFor, sketchShapes } from './shapes';
+import { defaultCutRegions, regionsFor, sketchShapes } from './shapes';
 
 const rect = [
   { id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' },
@@ -58,5 +58,21 @@ describe('free-form closed shapes', () => {
   it('a closed spline is a shape by itself, so a ring of two splines offers both', () => {
     const f = { entities: [{ id: 'e1', type: 'spline', pts: ['a', 'b', 'c'], closed: true }, { id: 'e2', type: 'spline', pts: ['d', 'e', 'f'], closed: true }, { id: 'e3', type: 'spline', pts: ['g', 'h', 'i'] }] };
     expect(sketchShapes(f).map((s) => s.id)).toEqual(['e1', 'e2']);
+  });
+});
+
+describe('nesting and the default cut regions', () => {
+  const ring = (r: number, id: string, ext = false) => ({ id, type: 'circle', c: 'c', r, ...(ext ? { ext: true } : {}) });
+  const sk = (outerExt: boolean) => ({ points: [{ id: 'c', x: 0, y: 0 }], entities: [ring(10, 'o', outerExt), ring(8, 'i')] });
+  it('marks the loop that encloses another, and reference outlines', () => {
+    const sh = sketchShapes(sk(true) as never);
+    expect(sh.map((s) => [s.id, s.reference, s.inside])).toEqual([['o', true, undefined], ['i', false, 'o']]);
+  });
+  it('cutting a projected outline with a loop inside it picks the inner loop (the pocket)', () => {
+    expect(defaultCutRegions(sk(true) as never)).toEqual(['i']);
+  });
+  it('two drawn nested loops, or no nesting: the kernel default', () => {
+    expect(defaultCutRegions(sk(false) as never)).toBeNull();
+    expect(defaultCutRegions({ points: [{ id: 'c', x: 0, y: 0 }], entities: [ring(10, 'o', true)] } as never)).toBeNull();
   });
 });
