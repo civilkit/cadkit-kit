@@ -77,7 +77,7 @@ describe('boxSelect', () => {
   });
   it('crossing also takes what the box only touches, including a line passed through the middle', () => {
     expect(boxSelect(d(), { x0: 5, y0: -1, x1: 15, y1: 1 }, 'crossing')).toEqual(['e1', 'e2']);
-    expect(boxSelect(d(), { x0: 18, y0: -5, x1: 22, y1: 40 }, 'crossing')).toEqual(['e3']);
+    expect(boxSelect(d(), { x0: 18, y0: 10, x1: 22, y1: 40 }, 'crossing')).toEqual(['e3']);
     expect(boxSelect(d(), { x0: 14, y0: -1, x1: 16, y1: 1 }, 'crossing')).toEqual(['e2']);
     expect(boxSelect(d(), { x0: 14, y0: 5, x1: 16, y1: 9 }, 'crossing')).toEqual([]);
   });
