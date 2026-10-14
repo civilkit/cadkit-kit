@@ -35,3 +35,23 @@ describe('SettingsDialog', () => {
     expect(onLocale).toHaveBeenCalledWith('de');
   });
 });
+
+describe('SettingsDialog: sketching', () => {
+  const prefs = { autoConstraints: true, arcSwitch: 'hover' as const, onViewValues: 'dimensions' as const, gridSnap: true };
+  it('shows the sketch input styles and reports only what changed', () => {
+    const onSketchPrefs = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} sketchPrefs={prefs} onSketchPrefs={onSketchPrefs} />);
+    fireEvent.change(screen.getByLabelText('Line to tangent arc'), { target: { value: 'keys' } });
+    expect(onSketchPrefs).toHaveBeenCalledWith({ arcSwitch: 'keys' });
+    fireEvent.change(screen.getByLabelText('Values beside the pointer'), { target: { value: 'both' } });
+    expect(onSketchPrefs).toHaveBeenCalledWith({ onViewValues: 'both' });
+    fireEvent.click(screen.getByLabelText('Snap to the grid'));
+    expect(onSketchPrefs).toHaveBeenCalledWith({ gridSnap: false });
+    fireEvent.click(screen.getByLabelText(/Infer constraints/));
+    expect(onSketchPrefs).toHaveBeenCalledWith({ autoConstraints: false });
+  });
+  it('hides the section when the caller gives no sketch settings', () => {
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} />);
+    expect(screen.queryByText('Sketching')).toBeNull();
+  });
+});

@@ -237,4 +237,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--err); }
 .sketch-tip { position: absolute; z-index: 6; pointer-events: none; font: 12px system-ui; padding: 3px 8px; border-radius: 6px; background: var(--panel); color: var(--text); outline: 1px solid var(--line); box-shadow: 0 2px 8px #0003; white-space: nowrap; }
 .face-sketch-chip { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 6; font: inherit; padding: 5px 12px; border-radius: 16px; border: 0; cursor: pointer; background: var(--accent); color: #fff; box-shadow: 0 3px 12px #0004; }
+.set-section { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.set-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
 .sketch-status { font-size: 11px; font-weight: 600; color: var(--text-2); padding: 1px 8px; border-radius: 10px; background: var(--panel-2); }

@@ -144,6 +144,13 @@ export const en: Catalog = {
   // sketch tools: names, groups, on-view fields and hints
   'app.sketch.select': 'Select',
   'app.sketch.tools': 'Sketch tools',
+  'settings.sketch.title': 'Sketching',
+  'settings.sketch.autoConstraints': 'Infer constraints while drawing (Shift at a click turns it off)',
+  'settings.sketch.arcSwitch': 'Line to tangent arc',
+  'settings.sketch.arcSwitch.hover': 'Rest the pointer on the end', 'settings.sketch.arcSwitch.keys': 'Keys and drag only', 'settings.sketch.arcSwitch.off': 'Off',
+  'settings.sketch.onViewValues': 'Values beside the pointer',
+  'settings.sketch.onViewValues.dimensions': 'Dimensions', 'settings.sketch.onViewValues.both': 'Dimensions and positions', 'settings.sketch.onViewValues.off': 'Off',
+  'settings.sketch.gridSnap': 'Snap to the grid',
   'app.sketch.snap.point': 'point', 'app.sketch.snap.midpoint': 'midpoint', 'app.sketch.snap.align': 'aligned', 'app.sketch.snap.grid': 'grid',
   'app.sketch.newName': 'New sketch',
   'app.sketch.group.draw': 'Draw', 'app.sketch.group.dimension': 'Dimension', 'app.sketch.group.constrain': 'Constrain', 'app.sketch.group.edit': 'Edit',

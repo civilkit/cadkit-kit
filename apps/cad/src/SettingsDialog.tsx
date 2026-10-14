@@ -1,5 +1,7 @@
 import type { Workspace, WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
+import { SketchPrefsSection } from './SketchPrefsSection';
+import type { SketchPrefs } from './sketchPrefs';
 import { THEMES, type Theme } from './theme';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
@@ -12,6 +14,7 @@ export function SettingsDialog(p: {
   workspace: Workspace; onChange(patch: Partial<Workspace>): void; onPreset(name: WorkspacePreset): void; onClose(): void;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
+  sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
 }) {
   const w = p.workspace;
   const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen') => (
@@ -63,6 +66,7 @@ export function SettingsDialog(p: {
               </select>
             </label>
           ) : null}
+          {p.sketchPrefs && p.onSketchPrefs ? <SketchPrefsSection prefs={p.sketchPrefs} onChange={p.onSketchPrefs} /> : null}
           <label class="set-row"><span>{t('settings.opacity')}</span>
             <input type="range" min="15" max="100" value={Math.round(w.opacity * 100)} aria-label={t('settings.opacity')} onInput={(e) => p.onChange({ opacity: Number((e.currentTarget as HTMLInputElement).value) / 100 })} /></label>
           <label class="set-row"><span>{t('settings.blur')}</span>

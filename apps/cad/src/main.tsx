@@ -7,7 +7,7 @@ import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
-import { annotate, applySnapConstraints, constraintTargets, DEFAULT_SETTINGS, deleteEntity, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, applySnapConstraints, constraintTargets, deleteEntity, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Inspector, Ribbon, StatusBar, Toast,
@@ -21,6 +21,7 @@ import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DisplayMenu } from './DisplayMenu';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
+import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchConstraintList, statusText } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
@@ -130,6 +131,9 @@ function App() {
   const selEntityRef = useRef<{ kind: 'entity' | 'point'; id: string; x: number; y: number } | null>(null);
   // Hover and constraint highlights, a dimension being edited in place, and a tick that re-projects labels when the camera moves.
   const hoverRef = useRef<{ entity?: string; point?: string; constraint?: string }>({});
+  const [sketchPrefs, setSketchPrefs] = useState<SketchPrefs>(loadSketchPrefs);
+  const prefsRef = useRef(sketchPrefs);
+  prefsRef.current = sketchPrefs;
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
   // a small tip beside the pointer in Select mode: the value of what is under it, and that it can be edited
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -349,9 +353,9 @@ function App() {
     const draft = controller.sketchDraft();
     if (!entry || !draft) return;
     const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
-    const out = entry.tool.step(toolStateRef.current, ev, draft, DEFAULT_SETTINGS);
+    const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current));
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
-    if (ev.type === 'click' && out.draft !== draft && DEFAULT_SETTINGS.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
     toolStateRef.current = out.state;
     lastOutRef.current = out;
     viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
@@ -494,12 +498,12 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, grid: ev.grid });
+    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
     runTool({ type: ev.type, at, snap, mods: ev.mods });
     // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
     const anchor = lastOutRef.current?.anchor;
     const d = dwellRef.current;
-    if (DEFAULT_SETTINGS.arcSwitch === 'hover' && anchor && ev.type === 'move') {
+    if (prefsRef.current.arcSwitch === 'hover' && anchor && ev.type === 'move') {
       const near = Math.hypot(anchor.x - at.x, anchor.y - at.y) < ev.tol;
       if (near && !d.timer && !d.fired) {
         d.timer = setTimeout(() => {
@@ -748,6 +752,7 @@ function App() {
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
+        sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>
   );
