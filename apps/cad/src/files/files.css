@@ -1,0 +1,13 @@
+.saveas-body { display: flex; flex-direction: column; gap: 6px; padding: 12px; }
+.saveas-body label { display: flex; flex-direction: column; gap: 4px; }
+.saveas-body input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; }
+.saveas-body small { color: var(--muted, #667); min-height: 1.2em; }
+.drop-overlay { position: fixed; inset: 0; z-index: 90; background: #0a101766; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.drop-box { border: 3px dashed var(--accent, #4a90e2); border-radius: 12px; background: var(--panel); padding: 32px 48px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.recent-block { padding: 8px 8px 0; }
+.recent-block h4 { margin: 0 0 4px; font-size: 12px; opacity: .7; font-weight: 600; }
+.recent-row { display: flex; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
+.recent-row:hover { background: var(--panel-2); }
+.recent-row .rk { opacity: .6; font-size: 11px; min-width: 52px; }
+.recent-row .rn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-row .rt { opacity: .6; font-size: 11px; }

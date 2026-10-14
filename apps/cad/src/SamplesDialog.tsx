@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { t } from './i18n';
+import { ago } from './files/strings';
+import type { RecentEntry } from './files/recent';
+import './files/files.css';
 
 export interface SampleEntry { id: string; title: string; url: string }
 
 /** Filterable sample picker. The filter text survives close and reopen (module state), so it opens where you were. */
 let lastQuery = '';
 
-export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; onPick(s: SampleEntry): void; onClose(): void }) {
+export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; onPick(s: SampleEntry): void; onClose(): void; recent?: RecentEntry[]; onPickRecent?(e: RecentEntry): void }) {
   const [q, setQ] = useState(lastQuery);
   useEffect(() => { lastQuery = q; }, [q]);
   useEffect(() => {
@@ -25,6 +28,18 @@ export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; on
           <input autofocus placeholder={t('samples.filter')} value={q} onInput={(e) => setQ((e.target as HTMLInputElement).value)} />
           <button class="rb-btn" onClick={p.onClose}>{t('ui.close')}</button>
         </div>
+        {p.recent && p.recent.length > 0 && !q ? (
+          <div class="recent-block" aria-label={t('files.recent.title')}>
+            <h4>{t('files.recent.title')}</h4>
+            {p.recent.map((e) => (
+              <button key={`${e.kind}:${e.id}`} class="recent-row" onClick={() => p.onPickRecent?.(e)}>
+                <span class="rk">{t(e.kind === 'sample' ? 'files.recent.sample' : 'files.recent.file')}</span>
+                <span class="rn">{e.name}</span>
+                <span class="rt">{ago(e.at, Date.now(), t)}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div class="dlg-list">
           {shown.map((s) => (
             <button key={s.id} class="dlg-item" onClick={() => p.onPick(s)}>

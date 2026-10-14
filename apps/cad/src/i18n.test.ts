@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { setLocale, t, PSEUDO, resetMissing, missing } from '@kit/i18n';
 import { en as appEn } from './locales/en';
+import { filesEn } from './files/strings';
 import { en as uiEn } from '../../../packages/ui/src/locales/en';
 import { buildCommands, type Actions } from './commands';
 import './i18n';
@@ -11,7 +12,7 @@ const root = process.cwd();                       // tests run from the kit root
 const dirs = [path.join(root, 'apps/cad/src'), path.join(root, 'packages/ui/src')];
 const sources = dirs.flatMap((d) => readdirSync(d).filter((f) => /\.(tsx?|ts)$/.test(f) && !/\.test\./.test(f) && !/locales/.test(f))
   .map((f) => ({ f, text: readFileSync(path.join(d, f), 'utf8') })));
-const all = { ...uiEn, ...appEn } as Record<string, unknown>;
+const all = { ...uiEn, ...appEn, ...filesEn } as Record<string, unknown>;
 
 beforeEach(() => { setLocale('en'); resetMissing(); });
 

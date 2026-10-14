@@ -5,6 +5,7 @@ import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
 import { lookCommands, type LookActions } from './lookCommands';
+import { fileCommands, type FileActions } from './files/fileCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -27,6 +28,8 @@ export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', 'step', 'd
 
 export interface Actions {
   io?: IoActions;
+  /** Save as and Import STEP (see files/). */
+  files?: FileActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
@@ -119,6 +122,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.features) cmds.push(...featureCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
+  if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });

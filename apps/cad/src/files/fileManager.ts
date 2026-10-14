@@ -1,0 +1,99 @@
+// The state behind Save, Save As and Recent: the current file name and handle, the part name chosen by Save As, and the
+// recent list. No DOM and no kernel; the platform and storage come in through the constructor, so tests use fakes.
+import type { HandleStore, SavedDocument } from '@kit/platform';
+import { addRecent, dropped, readRecent, type RecentEntry } from './recent';
+import { createNameCounter, partNameOf, PART_EXT } from './names';
+import type { KV } from './storage';
+
+export interface FilePlatform {
+  saveDocument?(name: string, data: string, opts?: { handle?: unknown; pick?: boolean }): Promise<SavedDocument | null>;
+  saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void>;
+  canOverwrite?(): boolean;
+  readHandle?(handle: unknown): Promise<{ name: string; text: string } | 'denied' | null>;
+  handleStore?(): HandleStore | null;
+}
+
+export type SaveOutcome = { ok: true; file: string; partName: string } | { ok: false; cancelled: boolean; message?: string };
+export type ReopenOutcome = { ok: true; name: string; text: string } | { ok: false; reason: 'noHandle' | 'denied' | 'gone' };
+
+export class FileManager {
+  /** File name of the open part, null until it has been saved or opened from a file. */
+  fileName: string | null = null;
+  private handle: unknown | null = null;
+  /** Part name chosen with Save As; replaces the document's own name when saving and in the title. */
+  partName: string | null = null;
+  readonly names = createNameCounter();
+  private store: HandleStore | null;
+
+  constructor(private readonly platform: FilePlatform, private readonly kv: KV | null, private readonly now: () => number = Date.now) {
+    this.store = platform.handleStore?.() ?? null;
+  }
+
+  recent(): RecentEntry[] { return readRecent(this.kv); }
+
+  /** A part was loaded: forget the previous file and name. `file` is set when it came from a file the user chose. */
+  opened(file: string | null, handle: unknown | null = null): void {
+    this.fileName = file; this.handle = handle; this.partName = null;
+  }
+
+  noteSample(id: string, name: string, url: string): void {
+    this.record({ kind: 'sample', id, name, at: this.now(), url });
+  }
+
+  /** A file opened through the picker or a drop: remembered by name (a handle is only known after a save). */
+  noteFile(file: string): void {
+    this.record({ kind: 'file', id: file, name: file, at: this.now(), handle: this.handle !== null });
+  }
+
+  private record(e: RecentEntry): void {
+    const before = this.recent();
+    const after = addRecent(this.kv, e);
+    for (const d of dropped(before, after)) void this.store?.delete(d.id).catch(() => {});
+  }
+
+  /**
+   * Write the document. `saveAs` asks for a new file (the browser's picker, or the `name` the Save As dialog gave).
+   * The document's name inside the file is the part name chosen (or the document's own).
+   */
+  async save(doc: { name: string }, opts: { saveAs?: boolean; fileName?: string } = {}): Promise<SaveOutcome> {
+    const part = opts.fileName ? partNameOf(opts.fileName) : this.partName ?? doc.name ?? 'Part1';
+    const file = opts.fileName ?? this.fileName ?? `${part || 'part'}${PART_EXT}`;
+    const data = JSON.stringify({ ...doc, name: part }, null, 1);
+    try {
+      let saved: SavedDocument | null;
+      if (this.platform.saveDocument) {
+        // a name typed in the Save As dialog is final; without a picker it goes straight to a download
+        const pick = !!opts.saveAs && !opts.fileName;
+        saved = await this.platform.saveDocument(file, data, { handle: opts.saveAs ? undefined : this.handle, pick });
+      } else {
+        await this.platform.saveFile(file, data);
+        saved = { name: file, handle: null };
+      }
+      if (!saved) return { ok: false, cancelled: true };
+      this.fileName = saved.name;
+      this.handle = saved.handle;
+      // a picker may have chosen a different name than asked for: it wins
+      this.partName = opts.fileName || opts.saveAs ? partNameOf(saved.name) : this.partName;
+      this.record({ kind: 'file', id: saved.name, name: saved.name, at: this.now(), handle: saved.handle !== null });
+      if (saved.handle !== null) await this.store?.set(saved.name, saved.handle).catch(() => {});
+      return { ok: true, file: saved.name, partName: this.partName ?? part };
+    } catch (e) {
+      return { ok: false, cancelled: false, message: (e as Error).message };
+    }
+  }
+
+  /** Whether Save As should show its own name dialog (no browser picker to ask the name). */
+  needsNameDialog(): boolean { return !this.platform.canOverwrite?.(); }
+
+  /** Reopen a recent file through its kept handle. */
+  async reopen(e: RecentEntry): Promise<ReopenOutcome> {
+    const h = e.handle ? await this.store?.get(e.id).catch(() => undefined) : undefined;
+    if (!h || !this.platform.readHandle) return { ok: false, reason: 'noHandle' };
+    const r = await this.platform.readHandle(h);
+    if (r === 'denied') return { ok: false, reason: 'denied' };
+    if (!r) return { ok: false, reason: 'gone' };
+    this.opened(r.name, h);
+    this.noteFile(r.name);
+    return { ok: true, name: r.name, text: r.text };
+  }
+}

@@ -3,6 +3,7 @@ import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model'
 import { vertexName, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
+import { importStepView, type StepImportResult } from './files/stepImport';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -392,6 +393,17 @@ export class Controller {
 
   document(): PartDoc | null {
     return this.session?.document ?? null;
+  }
+
+  /** Show the solid of a STEP file in the viewport (view only: it is not a feature of the part and the next edit replaces it). */
+  async importStep(text: string, name: string): Promise<StepImportResult> {
+    if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
+    this.store.busy.value = true;
+    try {
+      const r = await importStepView(this.session, text, name);
+      if (r.ok) this.view.setBody(r.view);
+      return r;
+    } finally { this.store.busy.value = false; }
   }
 
   features(): Array<{ id: string; type: string; name?: string }> {

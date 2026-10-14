@@ -57,3 +57,67 @@ describe('createWebPlatform saveFile', () => {
     expect(blobs[0].size).toBe(3);
   });
 });
+
+import { saveDocumentWith, readHandleWith, type FsEnv } from './fsaccess';
+
+const fakeHandle = (name: string, perm = 'granted') => {
+  const writes: string[] = [];
+  return {
+    name, writes,
+    createWritable: async () => ({ write: async (d: string) => { writes.push(d); }, close: async () => {} }),
+    queryPermission: async () => perm,
+    requestPermission: async () => perm,
+    getFile: async () => ({ text: async () => 'file text' }),
+  };
+};
+
+describe('saveDocumentWith', () => {
+  it('downloads when there is no picker', async () => {
+    const dl: string[] = [];
+    const env: FsEnv = { download: async (n) => { dl.push(n); } };
+    expect(await saveDocumentWith(env, 'a.ckpart', 'x')).toEqual({ name: 'a.ckpart', handle: null });
+    expect(dl).toEqual(['a.ckpart']);
+  });
+  it('picks a file the first time and overwrites it the second time', async () => {
+    const h = fakeHandle('picked.ckpart');
+    let picks = 0;
+    const env: FsEnv = { showSaveFilePicker: async () => { picks++; return h; }, download: async () => { throw new Error('no download'); } };
+    const first = await saveDocumentWith(env, 'a.ckpart', 'one');
+    expect(first).toEqual({ name: 'picked.ckpart', handle: h });
+    await saveDocumentWith(env, 'a.ckpart', 'two', { handle: first!.handle });
+    expect(picks).toBe(1);
+    expect(h.writes).toEqual(['one', 'two']);
+  });
+  it('asks again with pick (Save As)', async () => {
+    const h = fakeHandle('x.ckpart');
+    let picks = 0;
+    const env: FsEnv = { showSaveFilePicker: async () => { picks++; return fakeHandle('y.ckpart'); }, download: async () => {} };
+    const r = await saveDocumentWith(env, 'y.ckpart', 'd', { handle: h, pick: true });
+    expect(picks).toBe(1);
+    expect(r!.name).toBe('y.ckpart');
+    expect(h.writes).toEqual([]);
+  });
+  it('returns null when the dialog is cancelled and does not download', async () => {
+    const env: FsEnv = { showSaveFilePicker: async () => { throw Object.assign(new Error('x'), { name: 'AbortError' }); }, download: async () => { throw new Error('no'); } };
+    expect(await saveDocumentWith(env, 'a.ckpart', 'x')).toBeNull();
+  });
+  it('falls back to a download when the picker fails otherwise, and when permission is refused it asks the picker', async () => {
+    const dl: string[] = [];
+    const env: FsEnv = { showSaveFilePicker: async () => { throw new Error('SecurityError'); }, download: async (n) => { dl.push(n); } };
+    expect((await saveDocumentWith(env, 'a.ckpart', 'x'))!.handle).toBeNull();
+    expect(dl).toEqual(['a.ckpart']);
+    const denied = fakeHandle('old.ckpart', 'denied');
+    const env2: FsEnv = { showSaveFilePicker: async () => fakeHandle('new.ckpart'), download: async () => {} };
+    expect((await saveDocumentWith(env2, 'a.ckpart', 'x', { handle: denied }))!.name).toBe('new.ckpart');
+    expect(denied.writes).toEqual([]);
+  });
+});
+
+describe('readHandleWith', () => {
+  it('reads a permitted handle, reports denied, and tolerates junk', async () => {
+    expect(await readHandleWith(fakeHandle('a.ckpart'))).toEqual({ name: 'a.ckpart', text: 'file text' });
+    expect(await readHandleWith(fakeHandle('a.ckpart', 'denied'))).toBe('denied');
+    expect(await readHandleWith(undefined)).toBeNull();
+    expect(await readHandleWith({})).toBeNull();
+  });
+});
