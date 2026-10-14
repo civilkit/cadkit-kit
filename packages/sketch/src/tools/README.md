@@ -49,3 +49,9 @@ Each one has its conventions in its file header; the short version:
   and `ext: true` entities (line / arc / circle by fit, else a spline). Limits are listed in the file header: a
   snapshot (not associative), tilted circles become splines, edges square-on to the plane are skipped, and body picking
   stays off while sketching, so the pre-selection must be made before the sketch opens.
+- `pattern-linear` / `pattern-circular` (`pattern.ts`): copies of selected entities along a line or around a centre.
+  The spacing (linear: `hdist` + `vdist`, or `horizontal`/`vertical` plus one `hdist`/`vdist`) and the step angle
+  (circular: an `angle` between construction radial lines) are visible driving dimensions; the placing of every other
+  point against its anchor is written with `hidden: true` constraints (`annotate` skips them, the list shows them).
+  Arcs are copied with `equal` radius rather than a placed centre to avoid a redundant constraint (the solver already
+  ties an arc's ends to one radius). Copies follow the spacing, not later reshaping of the original.
