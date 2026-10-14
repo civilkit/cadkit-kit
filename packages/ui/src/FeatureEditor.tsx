@@ -28,6 +28,16 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   hole: { profile: ['sketch'], operation: ['kind', 'diameter', 'end', 'depth', 'tip', 'flip'] },
   lpattern: { seeds: ['seeds'], operation: ['count', 'spacing', 'reverse'] },
   cpattern: { seeds: ['seeds'], operation: ['count', 'angle', 'equal', 'reverse'] },
+  plane: { operation: ['mode', 'offset', 'angle', 'flip'] },
+  rib: { profile: ['sketch'], operation: ['thickness', 'flip'] },
+  lip: { faces: ['faces'], edges: ['edges'], operation: ['kind', 'width', 'height'] },
+  mirror: { seeds: ['seeds'], operation: ['plane', 'body'] },
+  helix: { profile: ['sketch'], operation: ['definedBy', 'pitch', 'revolutions', 'height', 'startAngle', 'leftHand', 'reverse'] },
+  pipeCut: { faces: ['faces'], edges: ['edges'], operation: ['radius'] },
+  deleteBody: { operation: ['mode'] },
+  trimSurface: { operation: ['surface', 'toolSurface', 'plane', 'mutual', 'flip'] },
+  knit: { surfaces: ['surfaces'], operation: ['solid'] },
+  thicken: { operation: ['surface', 'thickness', 'side', 'op'] },
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -48,21 +58,35 @@ const FIELD_LABELS: Record<string, string> = {
   faces: 'Faces',
   seeds: 'Features to repeat',
   sections: 'Sections',
+  mode: 'Mode', offset: 'Offset', plane: 'Plane', base: 'Base', toolSurface: 'Tool surface', surface: 'Surface', surfaces: 'Surfaces',
+  pitch: 'Pitch', revolutions: 'Revolutions', startAngle: 'Start angle', definedBy: 'Defined by', width: 'Width', height: 'Height',
 };
 
 /** Fields whose value is one of a few words, shown as a dropdown (the current value is always kept in the list). */
 const ENUMS: Record<string, string[]> = {
   op: ['add', 'cut'],
   end: ['blind', 'through', 'throughBoth', 'upToNext'],
+  'plane.mode': ['offset', 'angle', 'mid', 'parallel', 'threePoints'],
+  'deleteBody.mode': ['delete', 'keep'],
+  definedBy: ['pitchRevs', 'pitchHeight', 'revsHeight'],
+  kind: ['lip', 'groove'],
+  side: ['front', 'back', 'both'],
 };
 const UNITS: Record<string, string> = {
   depth: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
 };
 const enumLabel = (path: string, v: string) => t(`ui.editor.value.${path}.${v}`, undefined, v);
 
-const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral']);
+const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral', 'plane']);
 /** Fields holding a list of references (edges, faces, features); filled from the viewport selection. */
-export const LIST_FIELDS = new Set(['edges', 'faces', 'seeds']);
+export const LIST_FIELDS = new Set(['edges', 'faces', 'seeds', 'surfaces']);
+/** Fields holding one geometry reference object ({kind:'face',id}, {kind:'std',id}, ...): shown as text, set with Pick. */
+export const GEOM_FIELDS = new Set(['neutral', 'plane']);
+export const geomText = (v: unknown): string => {
+  if (typeof v === 'string') return v;
+  const o = v as { kind?: string; id?: string; axis?: string } | null;
+  return o && typeof o === 'object' ? [o.kind, o.id ?? o.axis].filter(Boolean).join(' ') : '';
+};
 
 /** The text shown in a list field: edge refs by their two faces, everything else by name. */
 export function listText(path: string, value: unknown): string {
@@ -89,6 +113,10 @@ export function sectionsOf(feature: FeatureLike | null): Section[] {
   for (const path of LIST_FIELDS) {
     const v = feature[path];
     if (Array.isArray(v)) all.push({ path, label: path, kind: 'list', value: listText(path, v) });
+  }
+  for (const path of GEOM_FIELDS) {
+    const v = feature[path];
+    if (feature.type !== 'sketch' && v && typeof v === 'object') all.push({ path, label: path, kind: 'text', value: geomText(v) });
   }
   const groups = GROUPS[feature.type ?? ''] ?? {};
   const used = new Set<string>();
@@ -218,11 +246,13 @@ export function FeatureEditor(p: {
                 const picking = p.pickingPath === f.path;
                 const isRef = REFERENCE_FIELDS.has(f.path);
                 const isList = f.kind === 'list';
-                const refText = isList ? listText(f.path, draft[f.path] ?? feature[f.path]) : String(value);
+                const isGeom = GEOM_FIELDS.has(f.path);
+                const refText = isList ? listText(f.path, draft[f.path] ?? feature[f.path]) : isGeom ? geomText(draft[f.path] ?? feature[f.path]) : String(value);
                 const missing = (isRef || isList) && refText.trim() === '';
                 const isBool = !isRef && !isList && kindOf(f) === 'boolean';
-                const enums = !isRef && !isList && typeof value === 'string' && ENUMS[f.path]
-                  ? (ENUMS[f.path].includes(value) ? ENUMS[f.path] : [value, ...ENUMS[f.path]]) : null;
+                const enumList = ENUMS[`${feature.type}.${f.path}`] ?? ENUMS[f.path];
+                const enums = !isRef && !isList && typeof value === 'string' && enumList
+                  ? (enumList.includes(value) ? enumList : [value, ...enumList]) : null;
                 return (
                   <label class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
                     {isBool ? (
@@ -248,7 +278,7 @@ export function FeatureEditor(p: {
                         <input
                           type="text"
                           value={refText}
-                          readonly={picking}
+                          readonly={picking || isGeom}
                           onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value)}
                         />
                         {p.onPickRequest ? (

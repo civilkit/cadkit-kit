@@ -22,6 +22,24 @@ describe('sectionsOf', () => {
   });
 });
 
+describe('geometry reference fields', () => {
+  it('a draft shows its neutral plane object as text, a plane feature its mode, offset and flip', () => {
+    const draft = sectionsOf({ type: 'draft', id: 'F3', neutral: { kind: 'std', id: 'front' }, faces: ['F2.S.e1'], angle: 3 });
+    const neutral = draft.flatMap((s) => s.fields).find((f) => f.path === 'neutral')!;
+    expect(neutral.value).toBe('std front');
+    const plane = sectionsOf({ type: 'plane', id: 'F4', mode: 'offset', base: { kind: 'std', id: 'top' }, offset: 10, flip: false });
+    expect(plane[0].fields.map((f) => f.path)).toEqual(['mode', 'offset', 'flip']);
+    // a sketch's plane is not an editable reference field
+    expect(sectionsOf({ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' } }).flatMap((s) => s.fields).map((f) => f.path)).not.toContain('plane');
+  });
+  it('the plane mode dropdown offers plane modes only', () => {
+    const { container } = render(<FeatureEditor feature={{ type: 'plane', id: 'F4', mode: 'offset', offset: 10 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    const opts = [...container.querySelectorAll('[data-path="mode"] option')].map((o) => (o as HTMLOptionElement).value);
+    expect(opts).toContain('mid');
+    expect(opts).not.toContain('delete');
+  });
+});
+
 describe('FeatureEditor', () => {
   it('shows the feature title and section headings', () => {
     const { container } = render(
