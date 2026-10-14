@@ -82,3 +82,13 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   };
 }
 export type Store = ReturnType<typeof createStore>;
+/** Which preset the workspace currently is, comparing the layout choices (not opacity, blur, labels or the collapsed state),
+ *  or null when it is a mix. The Settings dialog shows this instead of a blank "Choose...". */
+export function matchPreset(w: Workspace): WorkspacePreset | null {
+  const keys = ['ribbon', 'leftPanel', 'leftTabs', 'rightPanel', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen'] as const;
+  for (const name of Object.keys(WORKSPACE_PRESETS) as WorkspacePreset[]) {
+    const p = WORKSPACE_PRESETS[name];
+    if (keys.every((k) => w[k] === p[k])) return name;
+  }
+  return null;
+}

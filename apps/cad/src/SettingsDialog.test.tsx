@@ -63,3 +63,15 @@ describe('SettingsDialog: sketching', () => {
     expect(screen.queryByText('Sketching')).toBeNull();
   });
 });
+
+describe('SettingsDialog: preset display', () => {
+  it('shows the preset the layout matches, and Custom for a mix', () => {
+    const { unmount } = render(<SettingsDialog workspace={WORKSPACE_PRESETS.classic} onChange={() => {}} onPreset={() => {}} onClose={() => {}} />);
+    expect((screen.getByLabelText('Preset') as HTMLSelectElement).value).toBe('classic');
+    unmount();
+    render(<SettingsDialog workspace={{ ...WORKSPACE_PRESETS.plasticity, ribbon: 'full' }} onChange={() => {}} onPreset={() => {}} onClose={() => {}} />);
+    const sel = screen.getByLabelText('Preset') as HTMLSelectElement;
+    expect(sel.value).toBe('custom');
+    expect(sel.selectedOptions[0].textContent).toMatch(/Custom/);
+  });
+});

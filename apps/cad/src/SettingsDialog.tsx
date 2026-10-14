@@ -1,4 +1,4 @@
-import type { Workspace, WorkspacePreset } from '@kit/store';
+import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
 import { SketchPrefsSection } from './SketchPrefsSection';
 import type { SketchPrefs } from './sketchPrefs';
@@ -38,8 +38,8 @@ export function SettingsDialog(p: {
         <div class="set-body">
           <label class="set-row">
             <span>{t('settings.preset')}</span>
-            <select aria-label={t('settings.preset')} value="" onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value as WorkspacePreset; if (v) p.onPreset(v); }}>
-              <option value="">{t('settings.preset.choose')}</option>
+            <select aria-label={t('settings.preset')} value={matchPreset(w) ?? 'custom'} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v !== 'custom') p.onPreset(v as WorkspacePreset); }}>
+              {matchPreset(w) === null ? <option value="custom">{t('settings.preset.custom')}</option> : null}
               <option value="plasticity">{t('settings.preset.plasticity')}</option>
               <option value="classic">{t('settings.preset.classic')}</option>
               <option value="minimal">{t('settings.preset.minimal')}</option>

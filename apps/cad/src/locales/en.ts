@@ -60,7 +60,7 @@ export const en: Catalog = {
 
   'settings.label': 'Workspace',
   'settings.preset': 'Preset',
-  'settings.preset.choose': 'Choose...',
+  'settings.preset.choose': 'Choose...', 'settings.preset.custom': 'Custom (your own mix)',
   'settings.preset.plasticity': 'Plasticity-style',
   'settings.preset.classic': 'Classic ribbon',
   'settings.preset.minimal': 'Minimal',

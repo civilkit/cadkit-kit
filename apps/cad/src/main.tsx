@@ -717,12 +717,10 @@ function App() {
     <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <b class="doc-name">{doc?.name ?? t('app.noPart')}</b>
-        <button class="rb-btn" onClick={() => commands.find((c) => c.id === 'open')!.run()}>{t('cmd.open')}</button>
-        <button class="rb-btn" disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}>{t('cmd.save')}</button>
-        <button class="rb-btn" disabled={!doc} onClick={() => commands.find((c) => c.id === 'undo')!.run()}>{t('cmd.undo')}</button>
-        <button class="rb-btn" disabled={!doc} onClick={() => commands.find((c) => c.id === 'redo')!.run()}>{t('cmd.redo')}</button>
+        <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
+        <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
-        <button class="rb-btn" onClick={() => setSettings(true)} title={t('app.settings.title')}>{t('app.settings')}</button>
+        <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}

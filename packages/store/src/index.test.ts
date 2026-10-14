@@ -73,3 +73,12 @@ describe('left panel collapse', () => {
     expect(sanitizeWorkspace({ leftCollapsed: 'yes' }).leftCollapsed).toBe(false);
   });
 });
+
+import { matchPreset } from './index';
+describe('matchPreset', () => {
+  it('names the preset the layout matches, ignoring looks and collapse, and null for a mix', () => {
+    expect(matchPreset(WORKSPACE_PRESETS.classic)).toBe('classic');
+    expect(matchPreset({ ...WORKSPACE_PRESETS.plasticity, opacity: 0.9, blur: 3, leftCollapsed: true, toolLabels: 'icons' })).toBe('plasticity');
+    expect(matchPreset({ ...WORKSPACE_PRESETS.minimal, ribbon: 'full' })).toBeNull();
+  });
+});
