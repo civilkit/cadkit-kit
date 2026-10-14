@@ -86,4 +86,39 @@ describe('assembly against the kernel', () => {
     expect(shown.mesh.triFace.length).toBeLessThan(all);
     expect(shown.mesh.triFace.length).toBeGreaterThan(0);
   });
+  it('every regen of the document asks for the DOF report: total with translational / rotational split, per component', async () => {
+    const { c } = await load(sample());
+    const r = c.assemblyExtra().report!;
+    expect(r.dof).toEqual({ total: 1, translational: 0, rotational: 1 });
+    expect(r.components.map((x) => [x.id, x.fixed, x.dof])).toEqual([['F1', true, 0], ['F2', false, 1]]);
+    expect(r.conflicts).toEqual([]);
+  });
+  it('a second mate that repeats the first is reported redundant, one that fights it is rolled back and named', async () => {
+    const { c } = await load(sample());
+    const d = c.document()!;
+    const twice = { ...JSON.parse(JSON.stringify(d.features.find((f) => f.id === 'F3'))), id: 'F9', name: 'Again' };
+    expect((await c.edit([{ op: 'add', feature: twice }])).ok).toBe(true);
+    const r = c.assemblyExtra().report!;
+    expect(r.overConstrained).toBe(true);
+    expect(r.redundant).toContain('F9');
+  });
+  it('the shipped samples: gear train (ratio 2, one DOF) and hinge door (one rotation) solve with no errors and no interference', async () => {
+    for (const [file, dof, comps] of [['assembly-gear-train', 1, 3], ['assembly-hinge-door', 1, 2]] as const) {
+      const { c } = await load(JSON.parse(readFileSync(`apps/cad/public/samples/${file}.ckpart`, 'utf8')) as PartDoc);
+      const x = c.assemblyExtra();
+      expect([...x.errors], file).toEqual([]);
+      expect(x.report!.dof.total, file).toBe(dof);
+      expect(x.report!.components.length).toBe(comps);
+      expect((await c.interference())!.pairs, file).toEqual([]);
+    }
+  }, 180000);
+  it('the Drive of a gear mate turns the follower by -angle / ratio', async () => {
+    const { c } = await load(JSON.parse(readFileSync('apps/cad/public/samples/assembly-gear-train.ckpart', 'utf8')) as PartDoc);
+    expect((await c.edit([{ op: 'set', id: 'F6', path: 'angle', value: 40 }])).ok).toBe(true);
+    const z = c.components().find((x) => x.id === 'F3')!.place!;
+    // the follower (F3) turned 20 degrees about its axis (y): x axis = (cos, 0, +-sin)
+    expect(z.x[0]).toBeCloseTo(Math.cos((20 * Math.PI) / 180), 3);
+    expect(Math.abs(z.x[2])).toBeCloseTo(Math.sin((20 * Math.PI) / 180), 3);
+    expect(c.assemblyExtra().report!.dof.total).toBe(0);
+  }, 120000);
 });

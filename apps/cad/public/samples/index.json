@@ -398,5 +398,15 @@
   "id": "swept-handle",
   "title": "Swept handle (a round section swept along a U-shaped path)",
   "file": "swept-handle.ckpart"
+ },
+ {
+  "id": "assembly-gear-train",
+  "title": "Assembly: gear train (20T and 40T gears on fixed shafts, hinge + gear mate with ratio 2)",
+  "file": "assembly-gear-train.ckpart"
+ },
+ {
+  "id": "assembly-hinge-door",
+  "title": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)",
+  "file": "assembly-hinge-door.ckpart"
  }
 ]

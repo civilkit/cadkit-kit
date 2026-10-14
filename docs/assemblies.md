@@ -27,23 +27,70 @@ different kind replaces the feature); the trash button removes it. A mate the ke
 `mateFixed`, `mateConflict`) shows the code on its row and the edit fails with the usual toast. The DOF tip above the list names the
 components that can still move.
 
-Kernel today (`ck-model` `MateKind`): coincident, concentric, distance, parallel solve; `angle` parses but the solver answers
-`mateGeometry`; all references are FACES (planes for coincident / distance / parallel, cylinders and cones, by their axis, for
-concentric). Edges are not accepted by the kernel; the table below can say `accept: ['face','edge']` when it does.
+Kinds (all solved by the kernel unless marked): references are FACES; angles are degrees.
+
+| Kind | References | Fields | Flip means |
+|---|---|---|---|
+| coincident, parallel, perpendicular, lock | `a`, `b` | | aligned / opposed (not perpendicular, lock) |
+| concentric | `a`, `b` round faces (axis) | | aligned / opposed |
+| distance | `a`, `b` | `distance` | |
+| angle | `a`, `b` | `angle` | supplementary angle |
+| tangent | `a`, `b` (plane / cylinder / sphere) | | other side of a plane; internal contact of two round faces |
+| symmetric | `a`, `b`, `c` (mirror plane) | | |
+| width | `a`, `a2` (tab), `b`, `b2` (slot) | | |
+| limits | `a`, `b` | `of` (`distance` or `angle`), `min`, `max` | |
+| hinge | `a`, `b` round faces; optional stop faces `a2`, `b2` | `distance` (stop offset, optional) | |
+| slot | `a` pin, `b` wall, optional `b2` second wall | | |
+| screw | `a`, `b` round faces | `pitch`, Drive `angle` (may exceed 360) | left-hand thread |
+| gear | `a` driver, `b` follower round faces | `ratio` (turns of `a` per turn of `b`), Drive `angle` | same direction |
+| rackPinion | `a` pinion, `b` rack (round or flat) | `radius`, Drive `angle`, `dir` (3 numbers, for a flat rack) | reverse |
+| profileCenter, path, linearCoupler, cam, universalJoint | | | disabled: "kernel pending" with the reason as its tooltip |
+
+The kind menu is grouped (Standard, Advanced, Mechanical), every kind has an icon, a tooltip and (where it applies) its own Flip wording.
+Optional references and numbers (hinge stops, second slot wall, Drive, `dir`) are left out of the feature when empty; clearing one on an
+existing mate replaces the feature (a `set` cannot remove a field). The draft is checked before it is sent: every required face, different
+faces, numbers present, `ratio` and `pitch` not zero, `radius` above zero, `min` not above `max`, `dir` all three numbers or none.
+
+### Drive and the test slider
+
+Gear, screw and rackPinion have a Drive field (degrees, empty = the coupling is free). Under it a "Test drive" slider (-360..360, screw
+-1080..1080) previews the motion: every change runs the mate as a preview (`host.preview`, the same path as Preview), Cancel drops it and
+Apply keeps the value in `angle`. With a Drive set the coupling takes the freedom it had (`dof.total` goes down by one).
+
+### Degrees-of-freedom report
+
+The session transport wrapper (`kernel.ts` `watchComponents`) adds `opts.dofReport: true` to every regen of the document itself and keeps
+the `assembly` object and the structured errors of the reply (`controller.assemblyExtra()`). The top of the Mates section shows:
+
+- the total (`N DOF remaining`, translational and rotational) and one line per component (`N DOF (t T, r R)`, or `fixed`);
+- when `overConstrained`, a banner listing the `redundant` mates (they add no constraint) and the `conflicts` (`<mate> conflicts with <earlier
+  mates>`); a click on either row selects that mate in the list and its faces in the model;
+- one "rolled back" note per mate the kernel rejected (`mateConflict` names the neighbouring mates, `mateGeometry` shows `params.detail`,
+  `mateFixed`, `mateSameBody`, `missingReference`); the mate row says "rolled back" too. A rolled-back mate leaves the components where the
+  earlier mates put them.
+
+An edit that would make the kernel reject a mate fails as a whole (the session keeps the document), so these notes mostly show for files
+opened with such a mate in them. Past 30 floating components the kernel skips the rotation split (`truncated`); the panel says so.
 
 ### Adding a kind
 
-One table: `assembly/mateKinds.ts` `MATE_KINDS`. A row is `{id, group, refs, params, flip, pending}`:
+One table: `assembly/mateKinds.ts` `MATE_KINDS`. A row is `{id, group, icon, refs, params, choice?, flip, flipLabel?, pending}`:
 
-- `refs`: the reference slots (`a`, `b`, optionally `c`), each with a label and the accepted entity types;
-- `params`: numeric fields stored on the feature under `key` (length, angle or plain number) with a default;
-- `flip`: whether the kind has the aligned / opposed switch;
-- `pending`: true while the kernel does not solve it (the kind is listed, disabled, with "kernel pending").
+- `refs`: the reference slots (`a`, `b`, `a2`, `b2`, `c`; `optional` ones may stay empty), each with a label and the accepted entity types;
+- `params`: numeric fields stored on the feature under `key` (length, angle or plain number) with a default; `optional` ones are left out
+  while empty (NaN default), `drive` adds the test slider, `vec` makes a component of a vector field (`dir`);
+- `choice`: a text field (limits `of`);
+- `flip`: whether the kind has the aligned / opposed switch (`flipLabel`: it has its own wording `asm.mate.flip.<id>`);
+- `pending`: true while the kernel does not solve it (listed, disabled, tooltip `asm.mate.pending.<id>`).
 
-Rows exist for perpendicular, tangent, lock, symmetric, width, limits, hinge, slot, screw, gear, rackPinion and angle. When the kernel
-solves one: set `pending: false`, check its field names against the kernel (`a`, `b`, `flip`, `distance` today) and adjust `refs` / `params`,
-and add the label strings `asm.mate.kind.<id>` (already there) in `locales/assembly.ts`. The editor, the list, the feature builder
-(`mateFeature`) and the validation (`draftProblem`) read the row; no other code changes.
+Strings: `asm.mate.kind.<id>`, `asm.mate.tip.<id>`, `asm.mate.ref.<label>`, `asm.mate.param.<key>`, `asm.mate.ptip.<key>` in `locales/assembly.ts`.
+The editor, the list, the feature builder (`mateFeature`) and the validation (`draftProblem`) read the row.
+
+## Samples
+
+`assembly-block-bolt` (insert part, coincident + concentric), `assembly-gear-train` (a 20-tooth and a 40-tooth gear from the Gear editor's
+generator on two fixed shafts: a hinge each with a stop face on the plate, and a gear mate with `ratio` 2 = 40/20; 1 DOF left, set a Drive
+on the gear mate to turn them), `assembly-hinge-door` (a door leaf on a pin: hinge with stop, plus a `limits` mate of `of: angle` 0..110).
 
 ## Interference
 
@@ -73,4 +120,5 @@ an undo step and never triggers a rebuild. Hidden components are not saved.
 ## Not done
 
 Edit part in context, new component in place, replace part, insert another instance from a component's menu, a real in-viewport drag
-of a component in the exploded view (the offset slider does it), angle mates (kernel).
+of a component in the exploded view (the offset slider does it), profileCenter / path / linearCoupler / cam / universalJoint mates (kernel),
+edge references (the kernel takes faces only), a Drive for hinge.
