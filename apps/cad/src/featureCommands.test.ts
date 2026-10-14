@@ -1,0 +1,77 @@
+import { describe, expect, it } from 'vitest';
+import { PSEUDO, setLocale } from '@kit/i18n';
+import { buildCommands, type Actions } from './commands';
+import { canFillet, canHole, canPattern, canRevolve, canShell, edgeRefs, niceSize, pickValue, type Ctx } from './featureCommands';
+import { en } from './locales/en';
+import './i18n';
+
+const box = { min: [0, 0, 0], max: [40, 25, 10] };
+const edges = [{ key: 'A|B#0', faces: ['A', 'B'], mid: [1, 2, 3] }, { key: 'A|C#1', faces: ['A', 'C'], mid: [4, 5, 6] }];
+const sketch = (entities: unknown[], extra = {}) => ({ type: 'sketch', id: 'F1', entities, ...extra });
+const ctx = (over: Partial<Ctx> = {}): Ctx => ({ doc: { features: [] } as never, selection: [], mode: 'face', box, edges, ...over });
+const docOf = (...features: unknown[]) => ({ features }) as never;
+
+describe('niceSize', () => {
+  it('is about 5% of the smallest dimension, rounded to a nice number', () => {
+    expect(niceSize(box)).toBe(0.5);
+    expect(niceSize({ min: [0, 0, 0], max: [100, 80, 40] })).toBe(2);
+    expect(niceSize({ min: [0, 0, 0], max: [100, 80, 50] })).toBe(2.5);
+    expect(niceSize({ min: [0, 0, 0], max: [500, 400, 300] })).toBe(15);
+    expect(niceSize(null)).toBe(1);
+  });
+});
+
+describe('enabled rules', () => {
+  it('fillet and chamfer need a selected edge in edge mode', () => {
+    expect(canFillet(ctx())).toBe(false);
+    expect(canFillet(ctx({ mode: 'edge', selection: ['A|B#0'] }))).toBe(true);
+    expect(canFillet(ctx({ mode: 'face', selection: ['A|B#0'] }))).toBe(false);
+    expect(canFillet(ctx({ mode: 'edge', selection: ['X|Y#9'] }))).toBe(false);
+  });
+  it('shell needs a selected face', () => {
+    expect(canShell(ctx())).toBe(false);
+    expect(canShell(ctx({ selection: ['A'] }))).toBe(true);
+    expect(canShell(ctx({ mode: 'edge', selection: ['A|B#0'] }))).toBe(false);
+  });
+  it('hole needs a face, or a sketch made of points', () => {
+    expect(canHole(ctx())).toBe(false);
+    expect(canHole(ctx({ selection: ['A'] }))).toBe(true);
+    expect(canHole(ctx({ doc: docOf(sketch([{ type: 'point', p: 'p1' }])) }))).toBe(true);
+    expect(canHole(ctx({ doc: docOf(sketch([{ type: 'line' }])) }))).toBe(false);
+    expect(canHole(ctx({ doc: docOf(sketch([{ type: 'point', p: 'p1' }])), box: null }))).toBe(false);
+  });
+  it('revolve needs a sketch; patterns need a feature that is not a sketch', () => {
+    expect(canRevolve(ctx())).toBe(false);
+    expect(canRevolve(ctx({ doc: docOf(sketch([])) }))).toBe(true);
+    expect(canPattern(ctx({ doc: docOf(sketch([])) }))).toBe(false);
+    expect(canPattern(ctx({ doc: docOf(sketch([]), { type: 'extrude', id: 'F2' }) }))).toBe(true);
+  });
+});
+
+describe('selection to references', () => {
+  it('edges become two faces and a point; unknown names are dropped', () => {
+    expect(edgeRefs(['A|C#1', 'nope', 'A'], edges)).toEqual([{ faces: ['A', 'C'], at: [4, 5, 6] }]);
+    expect(pickValue('edges', ['A|B#0'], edges)).toEqual([{ faces: ['A', 'B'], at: [1, 2, 3] }]);
+    expect(pickValue('edges', ['A'], edges)).toBeNull();
+    expect(pickValue('faces', ['A', 'A|B#0', 'C'], edges)).toEqual(['A', 'C']);
+    expect(pickValue('sketch', ['F1'], edges)).toBe('F1');
+    expect(pickValue('sketch', [], edges)).toBeNull();
+  });
+});
+
+describe('text', () => {
+  const a = { open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, sketchOnFace() {}, hasFaceSelection: () => false, addExtrude() {}, newSketch() {}, setView() {}, fit() {}, setMode() {}, mode: () => 'face', toggleLayer() {}, layer: () => false,
+    features: { context: () => ctx(), create() {}, holeOnFace() {}, holeFlip: () => false, notify() {} } } as unknown as Actions;
+  it('every feature command has a translated label, and the pseudo-locale marks them', () => {
+    const ids = ['add-fillet', 'add-chamfer', 'add-shell', 'add-hole', 'add-revolve', 'add-lpattern', 'add-cpattern'];
+    for (const id of ids) expect(en).toHaveProperty('cmd.' + id);
+    expect(en).toHaveProperty('app.noAxis');
+    expect(en).toHaveProperty('app.hole.hint');
+    const cmds = buildCommands(a).filter((c) => ids.includes(c.id));
+    expect(cmds.map((c) => c.id)).toEqual(ids);
+    expect(cmds.every((c) => c.tab === 'Home' && c.enabled)).toBe(true);
+    setLocale(PSEUDO);
+    expect(buildCommands(a).filter((c) => ids.includes(c.id)).every((c) => c.label.startsWith('[!! '))).toBe(true);
+    setLocale('en');
+  });
+});

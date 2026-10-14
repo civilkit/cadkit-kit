@@ -7,6 +7,7 @@ import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
+import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, constraintTargets, DEFAULT_SETTINGS, deleteEntity, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
@@ -109,6 +110,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickingPath, setPickingPath] = useState<string | null>(null);
+  const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [previewHint, setPreviewHint] = useState<string | null>(null);
@@ -171,8 +173,9 @@ function App() {
   // A selection made while a reference field is in the picking state lands in that field's draft.
   useEffect(() => {
     if (!pickingPath) return;
-    const id = store.selection.value[0];
-    if (id) { setPicked({ path: pickingPath, value: id }); setPickingPath(null); }
+    const list = LIST_PATHS.has(pickingPath);
+    const value = pickValue(pickingPath, store.selection.value, controller.bodyEdges());
+    if (value !== null) { setPicked({ path: pickingPath, value }); if (!list) setPickingPath(null); }
   }, [store.selection.value, pickingPath]);
   useEffect(() => {
     const d = store.display.value;
@@ -207,6 +210,13 @@ function App() {
   const setMode = (m: 'face' | 'edge') => { store.mode.value = m; viewport?.setPickMode(m); };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
 
+  const featureActions: FeatureActions = {
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
+    create: (ops) => void createFeature(ops),
+    holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
+    holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
+    notify: (text, level) => store.notify(text, level),
+  };
   const commands = buildCommands({
     open: async () => { const f = await platform.openFile(); if (f) await load(f.text); },
     save: async () => { const d = controller.document(); if (d) await platform.saveFile(`${d.name || 'part'}.ckpart`, JSON.stringify(d, null, 1)); },
@@ -222,6 +232,7 @@ function App() {
     sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
     hasFaceSelection: () => selectedFace() !== null,
     addExtrude: (op) => void addExtrude(op),
+    features: featureActions,
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m === 'edge' ? 'edge' : 'face'),
@@ -560,7 +571,8 @@ function App() {
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName') });
       viewport?.orientToSketch();
-      selectTool('line');
+      selectTool(holeSketchRef.current ? 'point' : 'line');
+      if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
     })();
   };
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
@@ -576,14 +588,30 @@ function App() {
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);
   };
+  // Add the feature the ops describe as one edit, clear the selection that fed it, and open the Editor on it.
+  const createFeature = async (ops: EditOp[]) => {
+    const before = controller.document()?.features.length ?? 0;
+    const r = await controller.edit(ops);
+    redraw((n) => n + 1);
+    if (!r.ok) return;
+    store.select([]);
+    const now = controller.document();
+    const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
+    if (added) startEditing(added.id);
+  };
   const fieldEvent = (id: string, value: number | null, commit: boolean) => runTool({ type: 'field', id, value, commit });
   const confirmSketch = async () => {
     if (!sketching) return;
     selectTool(null);
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
+    const wasHole = holeSketchRef.current; holeSketchRef.current = false;
+    const sketchId = sketching.id;
     await timed(() => controller.commitSketch());
     setSketching(null); setSketchHint(null);
+    const made = controller.document()?.features.find((f) => f.id === sketchId);
+    if (wasHole && made && hasPointEntities(made as never)) void createFeature(holeOps(sketchId, controller.extrudeFlip(sketchId, 'cut'), controller.bodyBox()));
+    else if (wasHole) store.notify(t('app.hole.hint'), 'error');
     redraw((n) => n + 1);
   };
   const cancelSketch = async () => {
@@ -592,6 +620,7 @@ function App() {
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
     await controller.cancelSketch();
+    holeSketchRef.current = false;
     setSketching(null); setSketchHint(null);
     redraw((n) => n + 1);
   };
@@ -640,7 +669,16 @@ function App() {
       onDraft={onDraft}
       onConfirm={onConfirm}
       onCancel={onCancel}
-      onPickRequest={(path) => { setPickingPath(path); store.select([]); }}
+      onPickRequest={(path) => {
+        if (LIST_PATHS.has(path)) {   // edge and face lists: fill from the selection now, keep following it until Done
+          if (pickingPath === path) { setPickingPath(null); return; }
+          const value = pickValue(path, store.selection.value, controller.bodyEdges());
+          if (value !== null) setPicked({ path, value });
+          setPickingPath(path);
+          return;
+        }
+        setPickingPath(path); store.select([]);
+      }}
       pickingPath={pickingPath}
       picked={picked}
       hint={previewHint}
