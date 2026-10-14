@@ -39,7 +39,7 @@ describe('i18n catalogues', () => {
   });
   it('every command label is translated, and the pseudo-locale marks all of them', () => {
     const a: Actions = {
-      open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, sketchOnFace() {}, hasFaceSelection: () => false, addExtrude() {}, newSketch() {},
+      open() {}, save() {}, samples() {}, undo() {}, redo() {}, palette() {}, toggleDrawer() {}, settings() {}, hasDocument: () => true, newPart() {}, toggleLeftPanel() {}, sketchOnFace() {}, hasFaceSelection: () => false, addExtrude() {}, newSketch() {},
       setView() {}, fit() {}, setMode() {}, mode: () => 'face', toggleLayer() {}, layer: () => false,
     };
     const labels = buildCommands(a).map((c) => c.label);

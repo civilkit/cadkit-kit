@@ -40,6 +40,7 @@ import { sketchTools } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 const RAIL_GROUPS: string[][] = [
+  ['toggle-left-panel'],
   ['undo', 'redo'],
   ['add-extrude', 'add-cut', 'add-revolve', 'add-hole'],
   ['add-fillet', 'add-chamfer', 'add-shell'],
@@ -208,6 +209,7 @@ function App() {
   };
   const setMode = (m: 'face' | 'edge') => { store.mode.value = m; viewport?.setPickMode(m); };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
+  const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
@@ -224,6 +226,7 @@ function App() {
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
     palette: () => setPalette(true),
     toggleDrawer,
+    toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
     newPart: async () => { await load(JSON.stringify(emptyPart('Part'))); },
@@ -249,6 +252,7 @@ function App() {
       if (sketchKeyRef.current?.(e)) return;
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
       else if (e.key === '\\') { e.preventDefault(); toggleDrawer(); }
+      else if (e.key === '[') { e.preventDefault(); toggleLeftPanel(); }
       else if (VIEW_KEYS[e.key]) { e.preventDefault(); viewport?.setView(VIEW_KEYS[e.key]); }
       else if (e.key === 'q' || e.key === 'Q') setMode('face');
       else if (e.key === 'e' || e.key === 'E') setMode('edge');
@@ -710,7 +714,7 @@ function App() {
   );
 
   return (
-    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail}>
+    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <b class="doc-name">{doc?.name ?? t('app.noPart')}</b>
         <button class="rb-btn" onClick={() => commands.find((c) => c.id === 'open')!.run()}>{t('cmd.open')}</button>

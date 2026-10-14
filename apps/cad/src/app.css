@@ -21,8 +21,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 #vp canvas { display: block; }
 .floating { position: absolute; z-index: 3; background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)) saturate(1.2); -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
   outline: 1px solid var(--line); outline-offset: -1px; border-radius: 12px; box-shadow: 0 10px 30px #0003; overflow: auto; }
-.tree-wrap.floating { left: 12px; top: 56px; bottom: 12px; width: 280px; }
-#app[data-rail="true"] .tree-wrap.floating { left: 56px; width: 264px; }   /* clear of the tool rail */
+.tree-wrap.floating { left: 12px; top: 12px; bottom: 12px; width: 264px; }
 .insp-wrap.floating { right: 12px; top: 12px; width: 260px; padding: 8px; max-height: 70%; }
 .tool-rail { position: absolute; left: 12px; top: 12px; z-index: 4; display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 12px;
   background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
@@ -271,3 +270,12 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .cube-tools button { width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); color: var(--text-2); outline: 1px solid var(--line); outline-offset: -1px; }
 .cube-tools button:hover { background: var(--accent-soft); color: var(--text); }
 .sketch-status { font-size: 11px; font-weight: 600; color: var(--text-2); padding: 1px 8px; border-radius: 10px; background: var(--panel-2); }
+
+/* the side panel folds away; the tool rail sits to its right (floating) or at the viewport edge (docked) */
+#app[data-lcol="true"] .tree-wrap { display: none; }
+#app[data-lcol="true"][data-left="docked"] { --lw: 0px; }
+#app[data-left="floating"][data-lcol="false"] .tool-rail { left: 284px; }
+/* chrome is not text: dragging across it must not select labels. Fields, history entries and messages stay selectable. */
+#app, #app * { -webkit-user-select: none; user-select: none; }
+#app input, #app textarea, #app select, #app [contenteditable], #app .selectable, #app .he, #app .toast { -webkit-user-select: text; user-select: text; }
+canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

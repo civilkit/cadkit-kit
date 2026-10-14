@@ -95,6 +95,7 @@ const ICONS: Record<string, string> = {
   'sketch-new-top': plane('M12 4l9 5.5-9 5.5-9-5.5z') + AE(12, 9.5, 3.8, 2.1, 0) + D(12, 9.5, 1),
   'sketch-new-front': plane('M3 6l9 5.5v9L3 15z') + AE(7.5, 13.2, 2.4, 2.4, 0) + D(7.5, 13.2, 1),
   'sketch-new-right': plane('M21 6l-9 5.5v9l9-5.5z') + AE(16.5, 13.2, 2.4, 2.4, 0) + D(16.5, 13.2, 1),
+  'toggle-left-panel': P('M4 5h16v14H4z') + T('M9.5 5v14') + A('M15 9.5 12.5 12l2.5 2.5'),
   'sketch-on-face': cubeDim + A(FACE.top, 2) + '<ellipse cx="12" cy="7.5" rx="3" ry="1.7"/>',
   'add-fillet': P('M4 20V10M10 4h10v16H4') + A('M4 10a6 6 0 016-6') + C('M4 20h16'),
   'add-chamfer': P('M4 20V12M12 4h8v16H4') + A('M4 12 12 4') + C('M4 20h16'),

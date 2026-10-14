@@ -65,3 +65,11 @@ describe('store', () => {
     expect(s.workspace.value.toolLabels).toBe('icons-and-text');
   });
 });
+
+describe('left panel collapse', () => {
+  it('is a remembered boolean, off by default in every preset, and bad values fall back', () => {
+    for (const p of Object.values(WORKSPACE_PRESETS)) expect(p.leftCollapsed).toBe(false);
+    expect(sanitizeWorkspace({ leftCollapsed: true }).leftCollapsed).toBe(true);
+    expect(sanitizeWorkspace({ leftCollapsed: 'yes' }).leftCollapsed).toBe(false);
+  });
+});

@@ -22,6 +22,7 @@ export interface Actions {
   newSketch(plane: 'front' | 'top' | 'right'): void;
   palette(): void;
   toggleDrawer(): void;
+  toggleLeftPanel(): void;
   settings(): void;
   setView(v: 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom'): void;
   fit(): void;
@@ -39,6 +40,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'save', label: t('cmd.save'), tab: 'Home', group: 'File', enabled: a.hasDocument, run: a.save },
     { id: 'samples', label: t('cmd.samples'), tab: 'Home', group: 'File', run: a.samples },
     { id: 'palette', label: t('cmd.palette'), tab: 'Home', group: 'Workspace', keys: 'F', run: a.palette },
+    { id: 'toggle-left-panel', label: t('cmd.toggle-left-panel'), tab: 'Home', group: 'Workspace', keys: '[', run: a.toggleLeftPanel },
     { id: 'drawer', label: t('cmd.drawer'), tab: 'Home', group: 'Workspace', keys: '\\', run: a.toggleDrawer },
     { id: 'settings', label: t('cmd.settings'), tab: 'Home', group: 'Workspace', run: a.settings },
     { id: 'new-part', label: t('cmd.new-part'), tab: 'Home', group: 'File', run: a.newPart },
