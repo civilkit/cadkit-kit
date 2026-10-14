@@ -861,6 +861,18 @@ export class Viewport {
     this.dirty = true;
   }
 
+  /** Constant-size sprites are sized as a fraction of the screen times the projection's focal factor, so a narrow field of view
+   *  (the parallel view) would blow them up. Scale them by the field of view relative to the 45 degrees they are designed for. */
+  private fixSpriteScale(): void {
+    const k = Math.tan((this.camera.fov * Math.PI) / 360) / Math.tan((45 * Math.PI) / 360);
+    for (const g of [this.refPlanes.group, this.dimGroup]) {
+      g?.traverse((o) => {
+        const base = o.userData.base as [number, number] | undefined;
+        if (base && (o as THREE.Sprite).isSprite) o.scale.set(base[0] * k, base[1] * k, 1);
+      });
+    }
+  }
+
   private ortho = false;
   /** Parallel projection is a perspective camera with a very narrow field of view, moved back to keep the same framing:
    *  one camera, so orbit, pan, zoom, picking and the sketch overlay all keep working unchanged. */
@@ -1104,6 +1116,7 @@ export class Viewport {
     }
     if (this.dirty) {
       this.dirty = false;
+      this.fixSpriteScale();
       this.renderer.render(this.scene, this.camera);
       this.viewCube?.render(this.camera, this.controls.target);
     }

@@ -24,7 +24,8 @@ function labelSprite(text: string, color: string): THREE.Sprite {
   const tex = new THREE.CanvasTexture(c);
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, sizeAttenuation: false });
   const s = new THREE.Sprite(mat);
-  s.scale.set(0.13, 0.0325, 1);          // fixed size on screen
+  s.scale.set(0.13, 0.0325, 1);          // fixed size on screen (the viewport rescales it when the field of view changes)
+  s.userData.base = [0.13, 0.0325];
   s.center.set(0, 0.5);
   s.renderOrder = 10;
   return s;

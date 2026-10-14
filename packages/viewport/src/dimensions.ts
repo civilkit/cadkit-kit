@@ -30,7 +30,8 @@ function label(text: string): THREE.Sprite {
   }
   const mat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false, sizeAttenuation: false });
   const s = new THREE.Sprite(mat);
-  s.scale.set(0.11, 0.028, 1);   // fixed size on screen
+  s.scale.set(0.11, 0.028, 1);   // fixed size on screen (the viewport rescales it when the field of view changes)
+  s.userData.base = [0.11, 0.028];
   s.renderOrder = 12;
   return s;
 }
