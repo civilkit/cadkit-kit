@@ -27,6 +27,19 @@ describe('ribbon commands', () => {
     c.run();
     expect(selectBody).toHaveBeenCalled();
   });
+  it('the move ball command exists only when the app supports it, has F10, follows its on state and runs the toggle', () => {
+    expect(buildCommands(actions()).find((c) => c.id === 'triball')).toBeUndefined();
+    let on = false;
+    const toggle = vi.fn(() => { on = !on; });
+    const cmds = buildCommands(actions({ triball: { toggle, isOn: () => on, canToggle: () => true } }));
+    const c = cmds.find((x) => x.id === 'triball')!;
+    expect(c.keys).toBe('F10');
+    expect(c.pressed?.()).toBe(false);
+    expect(matchShortcut(cmds, { key: 'F10', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false })).toBe(c);
+    c.run();
+    expect(toggle).toHaveBeenCalled();
+    expect(c.pressed?.()).toBe(true);
+  });
   it('layer commands toggle their layer and show a tick when on', () => {
     const a = actions();
     const edges = buildCommands(a).find((c) => c.id === 'layer-edges')!;

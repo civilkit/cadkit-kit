@@ -14,6 +14,7 @@ import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
+import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
 import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, HIDDEN_EDGE_OPACITY, lightSpec, backgroundColors, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode } from './styles';
@@ -165,6 +166,9 @@ export class Viewport {
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
   private readonly handleLayer: HandleLayer;
+  private readonly triball: TriBallLayer;
+  /** While set, a click on the body goes here (the name picked and the point on the surface) instead of selecting. */
+  private pickIntercept: ((name: string | null, point: [number, number, number] | null) => void) | null = null;
   private groundGrid: THREE.LineSegments | null = null;
   private static readonly SKETCH_FADE = 0.25;
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 0.9);
@@ -190,6 +194,7 @@ export class Viewport {
 
     // before the orbit controls, so a handle gets the press first (see HandleLayer)
     this.handleLayer = new HandleLayer(this.dom, host, this.camera, () => { this.dirty = true; });
+    this.triball = new TriBallLayer(this.dom, host, this.camera, () => { this.dirty = true; });
     this.controls = new OrbitControls(this.camera, this.dom);
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
 
@@ -226,6 +231,16 @@ export class Viewport {
   /** Direct-manipulation handles drawn over the model (arrows, dots, rings, plane squares). Null removes them. A drag is
    *  reported to `sink`; the handle never orbits the camera and never changes the selection. */
   setHandles(specs: HandleSpec[] | null, sink: HandleDragSink | null): void { this.handleLayer.set(specs, sink); }
+  /** The positioning ball over the selection (null removes it); see triballLayer.ts. */
+  setTriBall(view: TriView | null, sink: TriSink | null): void { this.triball.set(view, sink); }
+  /** Move or recolour the ball without resetting a gesture. */
+  setTriBallView(view: TriView | null): void { this.triball.setView(view); }
+  /** Where the camera is, for the ball's view-axis rotation. */
+  cameraPosition(): [number, number, number] { const c = this.camera.position; return [c.x, c.y, c.z]; }
+  triBallScreen() { return this.triball.screen(); }
+  triBallDragging(): boolean { return this.triball.dragging; }
+  /** Route the next clicks on the body to `fn` (a pick for the ball's menus); null restores selecting. */
+  setPickIntercept(fn: ((name: string | null, point: [number, number, number] | null) => void) | null): void { this.pickIntercept = fn; this.dom.style.cursor = fn ? 'crosshair' : ''; }
   /** True while a handle is being dragged. */
   handleDragging(): boolean { return this.handleLayer.dragging; }
 
@@ -741,7 +756,7 @@ export class Viewport {
     this.buildIssueMeshes();
     this.applyMeshLook();
     this.applySection();
-    if (!this.keepView) this.fit();
+    if (!this.keepView && !this.triball.active) this.fit();   // the camera stays put while the ball moves the body
   }
 
   private keepView = false;
@@ -1300,6 +1315,7 @@ export class Viewport {
     this.viewCube?.dispose();
     this.viewCube = null;
     this.handleLayer.dispose();
+    this.triball.dispose();
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
@@ -1512,6 +1528,7 @@ export class Viewport {
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
     this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
+    if (this.pickIntercept) { this.pickIntercept(this.pickName(e.clientX, e.clientY), this.lastPick as [number, number, number] | null); return; }
     // Alt+click on the part selects the whole body (the placement gizmo's target); empty space still deselects
     if (e.altKey && hit0) { this.opts.onPick([BODY], false, this.mode); return; }
     const name = this.pickName(e.clientX, e.clientY);
@@ -1543,6 +1560,7 @@ export class Viewport {
       this.fixSpriteScale();
       this.renderer.render(this.scene, this.camera);
       this.handleLayer.render(this.renderer);
+      this.triball.render();
       this.viewCube?.render(this.camera, this.controls.target);
     }
   };

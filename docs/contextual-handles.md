@@ -19,7 +19,7 @@ Built from `packages/viewport/src/handles.ts` (maths), `handleLayer.ts` (drawing
 | Inner (cavity) wall of a `shell` (a `~` face that is not on the part's outer box) | Arrow along the wall normal | `set thickness` (the wall grows when the cavity wall moves into the cavity) | one `set` | stays closed |
 | Wall `Hn.S.h1` of a plain (`simple`) `hole` | Dot on the wall, sliding into the material | `set diameter` = start + 2 x drag (a plain `diameter` wins over `size` in the kernel) | one `set` | stays closed |
 | Thread editor open, on the thread being edited | Dot on the axis at the far end of the thread (`start + dir * length`) | `set length` of the editor's whole draft, held between one pitch and the face length, "full" at the face | nothing is committed: the value goes into the editor's draft | the editor stays open |
-| Whole body (Alt+click, or the Select body command, key `B`) | Placement gizmo: 3 axis arrows, 3 plane squares, 3 rotation rings, a centre dot | would create / update ONE `moveBody` (translate / rotate, copy with a modifier) | **off in the app: the kernel has no `moveBody`** (see gaps) | n/a |
+| Whole body (Alt+click, or the Select body command, key `B`) | the move / rotate ball (F10), see `triball.md`; the dormant arrow gizmo in `handles/placement.ts` is no longer the plan | creates / updates ONE `moveBody` | on (the kernel has `moveBody` and `moveFace`) | n/a |
 | Any other face | none | none (the kernel has no `moveFace`) | | |
 
 Dragging back to (almost) zero shows the original part; releasing at zero makes no edit (the minimum size is 0.01).

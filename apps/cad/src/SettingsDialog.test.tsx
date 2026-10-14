@@ -6,6 +6,21 @@ import { SettingsDialog } from './SettingsDialog';
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe('SettingsDialog', () => {
+  it('the Positioning tab edits the move ball snap increments, and only valid numbers go out', () => {
+    const onTriPrefs = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} triPrefs={{ distance: 10, angle: 15 }} onTriPrefs={onTriPrefs} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Positioning' }));
+    const angle = screen.getByLabelText('Snap angle (degrees)') as HTMLInputElement;
+    expect(angle.value).toBe('15');
+    fireEvent.change(angle, { target: { value: '45' } });
+    expect(onTriPrefs).toHaveBeenLastCalledWith({ angle: 45 });
+    fireEvent.change(screen.getByLabelText('Snap distance (mm)'), { target: { value: '2.5' } });
+    expect(onTriPrefs).toHaveBeenLastCalledWith({ distance: 2.5 });
+    onTriPrefs.mockClear();
+    fireEvent.change(angle, { target: { value: '-3' } });
+    fireEvent.change(angle, { target: { value: '500' } });
+    expect(onTriPrefs).not.toHaveBeenCalled();
+  });
   it('toggling a checkbox sends only that option', () => {
     const onChange = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={onChange} onPreset={() => {}} onClose={() => {}} />);

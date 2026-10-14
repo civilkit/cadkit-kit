@@ -55,6 +55,8 @@ import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
+import { useTriBall } from './triball/useTriBall';
+import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
 import './tokens.css';
 import './app.css';
 
@@ -86,6 +88,7 @@ const RAIL_GROUPS: string[][] = [
   ['add-extrude', 'add-cut', 'add-revolve', 'add-hole', 'add-thread'],
   ['add-fillet', 'add-chamfer', 'add-shell'],
   ['add-lpattern', 'add-cpattern'],
+  ['triball'],
 ];
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
@@ -206,6 +209,8 @@ function App() {
   // Hover and constraint highlights, a dimension being edited in place, and a tick that re-projects labels when the camera moves.
   const hoverRef = useRef<{ entity?: string; point?: string; constraint?: string }>({});
   const [sketchPrefs, setSketchPrefs] = useState<SketchPrefs>(loadSketchPrefs);
+  const [triPrefs, setTriPrefs] = useState<TriPrefs>(loadTriPrefs);
+  const triRef = useRef<ReturnType<typeof useTriBall> | null>(null);
   const prefsRef = useRef(sketchPrefs);
   prefsRef.current = sketchPrefs;
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
@@ -511,6 +516,7 @@ function App() {
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m),
     selectBody: () => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select([BODY]); },
+    triball: { toggle: () => triRef.current?.toggle(), isOn: () => triRef.current?.on ?? false, canToggle: () => triRef.current?.canToggle() ?? false },
     mode: () => store.mode.value,
     toggleLayer: (l) => store.setDisplay(l, !store.display.value[l]),
     layer: (l) => store.display.value[l],
@@ -644,12 +650,19 @@ function App() {
   const [handleInject, setHandleInject] = useState<{ seq: number; patch: Record<string, unknown> } | null>(null);
   useEffect(() => { viewport?.setHighlight([...new Set([...store.selection.value, ...(threadFace ? [threadFace] : [])])]); }, [threadFace, store.selection.value]);
   useEffect(() => { viewport?.setThreadFocus(threadFace ? editingId : null); return () => viewport?.setThreadFocus(null); }, [threadFace, editingId]);
+  // The move / rotate ball (F10): see triball/useTriBall.tsx and docs/triball.md. While it is on, the contextual handles step aside.
+  const tri = useTriBall({
+    controller, store, viewport: () => viewport, selectedFeature: selectedId,
+    commit: async (ops) => { const r = await timed(() => controller.commit(ops)); redraw((n) => n + 1); return r.ok; },
+    editingId, sketching: !!sketching, prefs: triPrefs, onPrefs: setTriPrefs,
+  });
+  triRef.current = tri;
   // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
   const handles = useHandles({
     controller, store, viewport: () => viewport, commands,
     create: (ops) => createFeature(ops),
     commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
-    editingId, sketching: !!sketching, enabled: ws.handles,
+    editingId, sketching: !!sketching, enabled: ws.handles && !tri.on,
     thread: threadEntry && editingId ? { id: editingId, entry: threadEntry, maxLength: threadExtent?.length ?? null, ops: (length) => opsFromDraft({ ...draft, length }) } : null,
     onDraftPatch: (patch) => setHandleInject((x) => ({ seq: (x?.seq ?? 0) + 1, patch })),
     restorePreview: () => { if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops); } },
@@ -1200,7 +1213,7 @@ function App() {
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       <div id="vp" ref={host}>
-        {handles.menuEl}{handles.hintEl}
+        {handles.menuEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
         {ws.toolRail ? (
@@ -1212,7 +1225,7 @@ function App() {
                 <div class="rail-group" key={gi}>
                   {items.map((c) => (
                     <Tip key={c.id} label={c.label} keys={c.keys} side="right">
-                      <button aria-label={c.label} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={18} /></button>
+                      <button aria-label={c.label} aria-pressed={c.pressed ? c.pressed() : undefined} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={18} /></button>
                     </Tip>
                   ))}
                 </div>
@@ -1312,6 +1325,7 @@ function App() {
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
+        triPrefs={triPrefs} onTriPrefs={(patch) => { const next = { ...triPrefs, ...patch }; setTriPrefs(next); saveTriPrefs(next); }}
         sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>

@@ -65,6 +65,8 @@ export interface Actions {
   setMode(m: SelectionMode): void;
   /** Select the whole body (the target of the placement gizmo). Alt+click does the same in the viewport. */
   selectBody?(): void;
+  /** The move / rotate ball for the current selection (F10). */
+  triball?: { toggle(): void; isOn(): boolean; canToggle(): boolean };
   mode(): SelectionMode;
   toggleLayer(l: DisplayLayer): void;
   layer(l: DisplayLayer): boolean;
@@ -129,6 +131,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
+  if (a.triball) { const tb = a.triball; cmds.push({ id: 'triball', label: t('cmd.triball'), tab: 'Select', group: 'Position', keys: 'F10', enabled: tb.canToggle, pressed: tb.isOn, run: tb.toggle }); }
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));

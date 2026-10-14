@@ -83,14 +83,14 @@ export function useHandles(p: HandlesDeps) {
     if (name && !store.selection.value.includes(name)) { store.mode.value = mode2; store.select([name]); }
     else if (!name) store.select([]);
     const kind = selectionKind(store.selection.value, store.mode.value);
-    const items = menuItems(kind, commands, false);
+    const items = menuItems(kind, commands, true);
     setMenu({ x, y, items, hint: gestureHint(plan()?.kind ?? null) });
   };
 
   const menuEl = menu ? (
     <ContextMenu x={menu.x} y={menu.y} items={menu.items} hint={menu.hint}
       onClose={() => setMenu(null)}
-      onRun={(id) => { setMenu(null); const c = ref.current.commands.find((x) => x.id === id); if (c && (c.enabled?.() ?? true)) c.run(); }} />
+      onRun={(id) => { setMenu(null); const c = ref.current.commands.find((x) => x.id === (id === 'move-body' ? 'triball' : id)); if (c && (c.enabled?.() ?? true)) c.run(); }} />
   ) : null;
   const hintEl = hint ? <div class="handle-hint" role="status">{hint}</div> : null;
   return { onContextMenu, menuEl, hintEl };
