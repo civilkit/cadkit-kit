@@ -61,3 +61,44 @@ names) and keeps following the selection until "Done". Reference fields for a si
   picked in the viewport).
 - Hole is the simple kind only; counterbore/countersink fields (`cboreDiameter` ...) are not in the Editor yet.
 - Selected tree rows influence only the revolve, hole (point sketch) and pattern commands.
+
+# More creators (Features and Surfaces ribbon tabs)
+
+Code: `apps/cad/src/featureCreators.ts` (pure rules and edits, table `CREATORS`; registered next to the commands above
+in `commands.ts`). Tests: `featureCreators.kernel.test.ts` (kernel-backed, on a 40 x 25 x 10 box or a bare surface part).
+Each command creates its feature as one edit and opens the Editor on it, exactly like the first seven. When the kernel
+rejects the first preview the edit is not applied and the structured error is shown (for example `draftParallelFace`).
+Reference fields that hold one geometry object (`neutral`, `plane`) are shown as text (`std front`, `face F2.C1`) and are
+changed with Pick (a picked face becomes `{kind:'face', id}`); the dropdown for `mode` lists the modes of that feature only.
+
+| Command (key) | Tab / group | Enabled when | Defaults | Kernel feature | Status |
+|---|---|---|---|---|---|
+| Plane `add-plane` (Shift+N) | Features / Reference | a document | no face: offset 10 from the front plane; one face: offset 10 from it; two faces: `mode:'mid'` between them | `plane {mode, base, base2, offset}` | done; `angle`, `parallel`, three-point modes and the axis / point refs only by editing numbers (object refs `base`, `axis` are not editable) |
+| Axis `add-axis` (Shift+A) | Features / Reference | a document | no face: front and top planes meet; one face: its cylinder axis; two faces: where their planes meet | `axis {refs:[{kind,id}]}` | done; one flat face gives `faceNotCylindrical` (nothing is added); `refs` is not shown in the Editor |
+| Draft `add-draft` (Shift+T) | Features / Modify | body and at least one picked face | angle 3, neutral = the plane of the first sketch (the base of the first boss), faces = the picked faces | `draft {neutral, faces, angle, flip}` | done; a face parallel to the neutral plane gives `draftParallelFace` |
+| Rib `add-rib` | Features / Modify | body and an OPEN sketch (the one selected in the tree, else the last open one) | thickness = 10% of the smallest body size (nice) | `rib {sketch, thickness, flip}` | done; the line must reach the body, else `ribNoContact` |
+| Lip / groove `add-lip` | Features / Modify | body and a picked face that has edges | `kind:'lip'`, width = height = 5% of the smallest size, edges = every edge of the picked faces | `lip {kind, faces, edges, width, height}` | done; `kind` can be switched to `groove` |
+| Mirror `add-mirror` (Shift+M) | Features / Modify | body and a feature to repeat (as for patterns) | the selected / last feature about the right plane; one picked face: about that face; `body:false` | `mirror {seeds, plane, body}` | done; `body:true` mirrors the whole body (set in the Editor) |
+| Helix `add-helix` | Features / Curves | a sketch with a circle (selected, else last) | `pitchRevs`, pitch = 10% of the smallest size, 5 revolutions | `helix {sketch, definedBy, pitch, revolutions, height}` | done (a curve: no body change; use it as a sweep path) |
+| Pipe cut `add-pipe-cut` | Features / Modify | body and picked edges (edge mode) or picked faces (face mode) | radius = 10% of the smallest size | `pipeCut {radius, edges, faces}` | done; the solid becomes a SURFACE body (kernel behaviour) |
+| Delete body `add-delete-body` | Features / Bodies | body and a picked face | `mode:'delete'`, one `{face}` entry per picked face (the body holding it) | `deleteBody {mode, bodies}` | done; `mode:'keep'` in the Editor; surface bodies by `{surface:id}` are editor only |
+| Planar surface `add-surface-planar` | Surfaces / Create | a closed sketch (selected, else last) | none | `surfacePlanar {sketch}` | done |
+| Extruded surface `add-surface-extrude` | Surfaces / Create | a sketch with curves | blind, depth 10 | `surfaceExtrude {sketch, end, depth}` | done |
+| Revolved surface `add-surface-revolve` | Surfaces / Create | a closed sketch with a construction line | 360 degrees about the first construction line | `surfaceRevolve {sketch, axis, end, angle}` | done |
+| Trim surface `add-trim-surface` | Surfaces / Edit | a surface feature and a tool | tool = picked face's plane, else another surface, else the last plane feature; keeps the side unflipped | `trimSurface {surface, plane or toolSurface, mutual, flip}` | done (preview can be slow on big surfaces) |
+| Knit `add-knit` | Surfaces / Edit | any surface feature | the surface selected in the tree, else all surface features; `solid:false` | `knit {surfaces, solid}` | done; surfaces that do not close give `knitNotClosed` when `solid` is turned on |
+| Thicken `add-thicken` | Surfaces / Edit | any surface feature | surface = selected, else last; thickness 10% of the body (1 without a body) | `thicken {surface, thickness, side, op}` | done; `side` front / back / both in the Editor |
+| Delete face `add-delete-face` | Surfaces / Edit | body and a picked face | `mode:'delete'` | `deleteFace {faces, mode, edges}` | done; `heal` / `fill` modes are kernel TODO |
+
+The surface tools use the id of a surface feature as its name (the surface is registered under the feature id). Surface
+bodies are not drawn in the viewport yet (`Session.bodyForView` returns only the solid), so a surface made with these
+commands shows in the tree and Editor but not on screen, and its faces and edges cannot be picked.
+
+## Editor only / not offered
+
+| Feature | Why there is no command |
+|---|---|
+| `moveFace`, `dome`, `scale`, `fillpattern`, `spattern`, `curvepattern`, `splitLine`, `surfaceOffset`, `cutWithSurface`, `moveBody` | The kernel answers `TODO(rebuild): <type> needs ck-ops` (probed with the shipped wasm). A command would always fail. The builders are one-liners once the kernel lands (field names are in `packages/part-model/src/features.ts`; `spattern` wants a point sketch, `curvepattern` a path sketch, `fillpattern` a planar face). |
+| `fill`, `extend` | Need edges of a surface body; surface bodies are not in the viewport, so no edge can be picked. Add the feature by editing the document, or after surface display lands. |
+| `plane` modes other than offset / mid | Need axis / point / curve references (objects the Editor cannot pick yet). |
+| `deleteBody` on a surface body | Needs a surface to be pickable. |
