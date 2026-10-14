@@ -7,6 +7,8 @@ import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshge
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { ViewCube } from './viewcube';
+import { RefPlanes, type RefPlaneId } from './refplanes';
+export type { RefPlaneId } from './refplanes';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -38,6 +40,8 @@ export interface SketchEditShape {
 export interface ViewportOptions {
   onPick(names: string[], additive: boolean, mode: PickMode): void;
   onHover(name: string | null): void;
+  /** A click landed on a reference plane (shown for an empty part or by the tree) and on no body face. */
+  onRefPlanePick?(id: RefPlaneId): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
   onSketchMove?(pointId: string, u: number, v: number): void;
   /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
@@ -729,6 +733,14 @@ export class Viewport {
     this.dirty = true;
   }
 
+  private readonly refPlanes = new RefPlanes();
+  /** Show reference planes: `show` faintly (an empty part shows all three), `highlight` in orange with its label. */
+  setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
+    if (!this.refPlanes.group.parent) this.scene.add(this.refPlanes.group);
+    this.refPlanes.set(this.box ? this.radius() * 1.4 : 60, show, highlight, labels);
+    this.dirty = true;
+  }
+
   private ortho = false;
   /** Parallel projection is a perspective camera with a very narrow field of view, moved back to keep the same framing:
    *  one camera, so orbit, pan, zoom, picking and the sketch overlay all keep working unchanged. */
@@ -898,7 +910,13 @@ export class Viewport {
       return; // body picking stays off in sketch mode
     }
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
-    const name = this.nameAt(this.hit(e.clientX, e.clientY));
+    const hit0 = this.hit(e.clientX, e.clientY);
+    if (!hit0 && this.refPlanes.group.visible) {
+      this.raycaster.setFromCamera(this.ndc(e.clientX, e.clientY), this.camera);
+      const plane = this.refPlanes.pick(this.raycaster);
+      if (plane) { this.opts.onRefPlanePick?.(plane); return; }
+    }
+    const name = this.nameAt(hit0);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
 

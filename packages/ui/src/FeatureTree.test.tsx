@@ -108,3 +108,30 @@ describe('FeatureTree: look', () => {
     expect(container.querySelectorAll('.row-sup svg')[1].getAttribute('data-icon')).toBe('eye-off');
   });
 });
+
+describe('FeatureTree: reference rows', () => {
+  const refs = [
+    { id: 'material', label: 'Material: steel', icon: 'ref-material' },
+    { id: 'top', label: 'Top Plane', icon: 'feature-plane', choosable: true },
+    { id: 'origin', label: 'Origin', icon: 'ref-origin', choosable: true },
+  ];
+  it('lists the reference rows above the features; planes can be chosen, hovered and opened, the material row cannot', () => {
+    const chosen: Array<string | null> = [], hovered: Array<string | null> = [], opened: string[] = [];
+    const { container } = render(
+      <FeatureTree partName="Part1" rows={[]} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}}
+        refs={refs} selectedRef="top" onSelectRef={(id) => chosen.push(id)} onHoverRef={(id) => hovered.push(id)} onOpenRef={(id) => opened.push(id)} />,
+    );
+    const rows = [...container.querySelectorAll('.row.ref')];
+    expect(rows.map((r) => r.textContent)).toEqual(['Material: steel', 'Top Plane', 'Origin']);
+    expect(rows[1].className).toContain('sel');
+    fireEvent.click(rows[0]);
+    expect(chosen).toEqual([]);                       // information only
+    fireEvent.click(rows[1]);
+    expect(chosen).toEqual([null]);                   // clicking the chosen plane again clears it
+    fireEvent.dblClick(rows[1]);
+    expect(opened).toEqual(['top']);
+    fireEvent.mouseEnter(rows[1]);
+    fireEvent.mouseLeave(rows[1]);
+    expect(hovered).toEqual(['top', null]);
+  });
+});

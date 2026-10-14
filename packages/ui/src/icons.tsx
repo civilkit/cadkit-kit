@@ -132,6 +132,8 @@ const ICONS: Record<string, string> = {
   'check': P('M5 12.5l4.5 4.5L19 7'),
   'close': P('M6 6l12 12M18 6 6 18'),
   'chevron': P('M9 6l6 6-6 6'),
+  'ref-origin': D(12, 16, 2) + A('M12 16V5') + P('M12 16l8 3.5') + T('M12 16l-6 3'),
+  'ref-material': O(12, 12, 8) + T('M12 4a8 8 0 0 1 0 16') + T('M7 12h10'),
   'feature-part': P(HEX) + T(Y),
   'feature-sketch': P('M4 18h12V8H4z') + A('M14 6l4-2.5 2.5 3.5L16.5 9.5z') + T('M16 18l4-3'),
   'feature-plane': P('M3 15l9-5 9 5-9 5z') + C('M12 4v6'),

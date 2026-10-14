@@ -101,6 +101,8 @@ function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const [refSel, setRefSel] = useState<string | null>(null);
+  const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
@@ -171,6 +173,7 @@ function App() {
       onSketchHover: (ev) => sketchHoverRef.current?.(ev),
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
+      onRefPlanePick: (id) => { setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
     try { if (localStorage.getItem('cad.ortho') === '1') vp.setOrtho(true); } catch { /* private window */ }
@@ -245,7 +248,7 @@ function App() {
     toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
-    newPart: async () => { await load(JSON.stringify(emptyPart('Part'))); },
+    newPart: async () => { await load(JSON.stringify(emptyPart('Part1'))); setRefSel(null); },
     newSketch: (plane) => startNewSketch(plane),
     sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
     hasFaceSelection: () => selectedFace() !== null,
@@ -683,7 +686,17 @@ function App() {
     </div>
   ) : null;
   const tree = (
-    <FeatureTree rows={rows} partName={doc?.name} status={store.featureStatus.value} selectedId={selectedId}
+    <FeatureTree rows={rows} partName={doc?.name}
+      refs={doc ? [
+        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material' },
+        { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', choosable: true },
+        { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', choosable: true },
+        { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', choosable: true },
+        { id: 'origin', label: t('app.ref.origin'), icon: 'ref-origin', choosable: true },
+      ] : []}
+      selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
+      onOpenRef={(id) => { if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
+      status={store.featureStatus.value} selectedId={selectedId}
       onSelect={setSelectedId}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])}
@@ -724,7 +737,7 @@ function App() {
       hint={previewHint}
     />
   );
-  const leftBody = !rows.length ? <div class="empty">{t('app.left.empty')}</div>
+  const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingId ? editor : tree;
   const left = ws.leftPanel === 'hidden' ? null : (
     <div class={'tree-wrap ' + ws.leftPanel}>
@@ -749,6 +762,19 @@ function App() {
       }} />
     </div>
   );
+
+  // reference planes: all three for an empty part, otherwise the one chosen or hovered in the tree
+  const planeIds = ['front', 'top', 'right'] as const;
+  const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId;
+  const refPlane = (id: string | null) => (id === 'front' || id === 'top' || id === 'right' ? id : null);
+  useEffect(() => {
+    viewport?.setRefPlanes(
+      emptyPart1 ? [...planeIds] : [],
+      sketching ? null : refPlane(refHover) ?? refPlane(refSel),
+      { front: t('app.ref.front'), top: t('app.ref.top'), right: t('app.ref.right') },
+    );
+  }, [emptyPart1, sketching, refHover, refSel, !!doc]);
+  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart('Part1')); redraw((n) => n + 1); })(); }, []);
 
   return (
     <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
@@ -801,6 +827,20 @@ function App() {
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
         {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
+        {emptyPart1 ? (
+          <div class="start-card" role="region" aria-label={t('app.start.title')}>
+            <b>{t('app.start.title')}</b>
+            <span>{t('app.start.text')}</span>
+            <div class="start-planes">
+              {planeIds.map((id) => (
+                <button key={id} class={'rb-btn' + (refPlane(refSel) === id ? ' on' : '')} onMouseEnter={() => setRefHover(id)} onMouseLeave={() => setRefHover(null)} onClick={() => startNewSketch(id)}>
+                  <Icon name={'sketch-new-' + id} size={18} /> {t('app.start.sketchOn', { plane: t('app.ref.' + id) })}
+                </button>
+              ))}
+            </div>
+            <span class="start-or">{t('app.start.or')}</span>
+          </div>
+        ) : null}
         <div class="cube-tools">
           <Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip>
           <Tip label={ortho ? t('app.view.parallel') : t('app.view.perspective')} side="bottom"><button aria-label={t('cmd.toggle-projection')} aria-pressed={ortho} class={ortho ? 'on' : ''} onClick={toggleProjection}><Icon name={ortho ? 'projection-ortho' : 'toggle-projection'} size={18} /></button></Tip>

@@ -3,6 +3,8 @@ import type { FeatureStatus } from '@kit/store';
 import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 
+export interface RefRow { id: string; label: string; icon: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean }
+
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean }
 
 /** The history tree: one row per feature with its kind icon, a name, the id muted at the right, and (on hover or
@@ -17,6 +19,12 @@ export function FeatureTree(p: {
   onToggleSuppress(id: string): void;
   onEdit?(id: string): void;
   partName?: string;
+  /** Fixed rows above the features: material, the three planes, the origin. */
+  refs?: RefRow[];
+  selectedRef?: string | null;
+  onSelectRef?(id: string | null): void;
+  onHoverRef?(id: string | null): void;
+  onOpenRef?(id: string): void;
 }): JSX.Element {
   let dragId: string | null = null;
   const failedCount = p.status.filter((s) => !s.ok).length;
@@ -30,6 +38,20 @@ export function FeatureTree(p: {
           {failedCount ? <span class="tree-bad" title={t('ui.tree.failed', { n: failedCount }, String(failedCount))}>{failedCount}</span> : null}
         </div>
       ) : null}
+      {(p.refs ?? []).map((r) => (
+        <div
+          key={r.id}
+          class={'row ref' + (r.choosable ? '' : ' info') + (p.selectedRef === r.id ? ' sel' : '')}
+          data-ref={r.id}
+          onClick={() => { if (r.choosable) p.onSelectRef?.(p.selectedRef === r.id ? null : r.id); }}
+          onDblClick={() => { if (r.choosable) p.onOpenRef?.(r.id); }}
+          onMouseEnter={() => { if (r.choosable) p.onHoverRef?.(r.id); }}
+          onMouseLeave={() => p.onHoverRef?.(null)}
+        >
+          <Icon name={r.icon} size={18} class="row-icon" />
+          <span class="row-name">{r.label}</span>
+        </div>
+      ))}
       {p.rows.map((r, i) => {
         const st = p.status.find((s) => s.id === r.id);
         const failed = st !== undefined && !st.ok;
