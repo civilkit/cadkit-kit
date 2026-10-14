@@ -78,8 +78,7 @@ describe('palette slots', () => {
     }
     const known = new Set(sketchTools().map((x) => x.id));
     const unknown = Object.values(PALETTE_SLOTS).flat(2).filter((id) => !known.has(id));
-    // ids of tools not built yet are allowed (they are skipped), but a typo in an existing one would hide it from its slot
-    for (const id of unknown) expect(id, id).toMatch(/^(extend|offset|mirror|sketch.*Pattern|project|construction)$/);
+    expect(unknown).toEqual([]);   // every id in a slot is a real tool: a typo would hide it from its slot
   });
   it('groups the arcs into one slot that shows the default and offers the others in a flyout', () => {
     const picked: Array<string | null> = [];
