@@ -565,6 +565,7 @@ function App() {
         const hit = matchShortcut(commandsRef.current, e);
         if (hit && (hit.enabled?.() ?? true)) { e.preventDefault(); hit.run(); return; }
       }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && (e.key === 'a' || e.key === 'A') && sketchingRef.current && sketchKeyRef.current?.(e)) return;   // select all in a sketch
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (sketchKeyRef.current?.(e)) return;
       if (e.key === 'f' || e.key === 'F') { e.preventDefault(); setPalette(true); }
