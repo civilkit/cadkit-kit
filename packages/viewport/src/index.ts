@@ -5,6 +5,8 @@ export type { BodyMesh, FaceRange, Grouped } from './meshgeom';
 export type { Frame, Polyline, IdPolylines, IdQuad, SketchLayerItem, CurveLayerItem, PlaneLayerItem } from './layers';
 export { Viewport } from './viewport';
 export type { PickMode } from './viewport';
+export { clipPlane, capFrame, kept, STD_SECTION_NORMAL, type SectionSpec, type StdSectionPlane } from './section';
+export type { MeasureMark } from './measureMarks';
 export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape } from './viewport';
 export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 export * from './styles';

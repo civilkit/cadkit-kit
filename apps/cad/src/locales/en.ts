@@ -1,4 +1,5 @@
 import type { Catalog } from '@kit/i18n';
+import { inspectStrings } from './inspect';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -329,4 +330,5 @@ export const en: Catalog = {
   'cmd.add-trim-surface': 'Trim surface', 'cmd.add-knit': 'Knit', 'cmd.add-thicken': 'Thicken',
   'group.Reference': 'Reference', 'group.Modify': 'Modify', 'group.Curves': 'Curves', 'group.Bodies': 'Bodies', 'group.Create': 'Create',
   'app.creator.nothing': 'Nothing to build this feature from: pick what it needs first',
+  ...inspectStrings,
 };

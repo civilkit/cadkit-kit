@@ -178,6 +178,11 @@ const ICONS: Record<string, string> = {
   'add-trim-surface': P('M3 17C7 9 11 15 21 8') + C('M12 3v18') + A('M12 12.5 21 8') + D(12, 12.5),
   'add-knit': P('M4 8h7v8H4z') + P('M13 8h7v8h-7z') + A('M11 9.5v5M13 9.5v5') + T('M4 12h7M13 12h7'),
   'add-thicken': P('M3 14C8 8 13 14 21 9') + P('M3 18C8 12 13 18 21 13') + T('M3 14v4M21 9v4') + A('M12 9v3M10.5 10.5 12 9l1.5 1.5'),
+  // ---- evaluate: measure, mass, interference, section
+  measure: P('M4 17 17 4l3 3L7 20z') + T('M8 13l2 2M11 10l2 2M14 7l2 2') + D(4, 20),
+  'mass-props': P('M5 20h14l-2.5-9h-9z') + O(12, 7.5, 2.5) + A('M12 11v4'),
+  interference: O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
+  'section-view': cube('', P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')) + AD('M3 13.5 12 9l9 4.5'),
 };
 
 export const ICON_NAMES: string[] = Object.keys(ICONS);

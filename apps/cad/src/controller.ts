@@ -5,6 +5,9 @@ import { blockedIssues, blockMessage, type Issue, type ProfileList, type Profile
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, type StepImportResult } from './files/stepImport';
 import { applyOpsLocal, warningsById, type ThreadRow, type ThreadStd } from './threadData';
+import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
+import type { KernelMeasure } from './inspect/measure';
+import type { MassRaw } from './inspect/mass';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -603,6 +606,20 @@ export class Controller {
     const m = this.lastView?.mesh;
     return m && m.normals && m.triFace && m.faceIds && m.positions.length > 0 ? { positions: m.positions, normals: m.normals, triFace: m.triFace, faceIds: m.faceIds } : null;
   }
+
+
+  // ---- Inspect tools: read-only kernel queries on the current state. They never edit the document; null on a kernel error or no document. ----
+  private async inspect<T>(go: (s: Session) => Promise<T | null>): Promise<T | null> {
+    const s = this.session;
+    if (!s) return null;
+    try { return await go(s); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+  }
+  /** Volume, area, centre of mass and principal moments (unit density) of the body. */
+  massProps(): Promise<MassRaw | null> { return this.inspect((s) => queryMass(s)); }
+  /** The kernel's measurement of one or two faces / edges. */
+  measure(refs: Array<Record<string, unknown>>): Promise<KernelMeasure | null> { return this.inspect((s) => queryMeasure(s, refs)); }
+  /** Pairs of solid bodies that share volume. */
+  interference(): Promise<Interference | null> { return this.inspect((s) => queryInterference(s)); }
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
   async exportStep(): Promise<string | null> {

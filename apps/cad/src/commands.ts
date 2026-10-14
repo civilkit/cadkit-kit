@@ -7,6 +7,7 @@ import { featureCommands, type FeatureActions } from './featureCommands';
 import { lookCommands, type LookActions } from './lookCommands';
 import { fileCommands, type FileActions } from './files/fileCommands';
 import { creatorCommands } from './featureCreators';
+import { inspectCommands, type InspectActions } from './inspect/inspectCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -35,6 +36,8 @@ export interface Actions {
   features?: FeatureActions;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
   look?: LookActions;
+  /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
+  inspect?: InspectActions;
   open(): void;
   save(): void;
   samples(): void;
@@ -125,6 +128,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.look) cmds.push(...lookCommands(a.look));
+  if (a.inspect) cmds.push(...inspectCommands(a.inspect));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   if (a.files) cmds.push(...fileCommands(a.files, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
