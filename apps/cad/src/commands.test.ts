@@ -58,3 +58,14 @@ describe('shortcuts', () => {
     expect(matchShortcut(cmds, key('s', { altKey: true }))).toBeUndefined();
   });
 });
+
+describe('undo and redo keys', () => {
+  const key = (k: string, mods: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
+  it('Cmd (Mac) and Ctrl (Windows, Linux) both undo; with Shift both redo; Ctrl+Y is not claimed', () => {
+    const cmds = buildCommands(actions());
+    expect(matchShortcut(cmds, key('z', { metaKey: true }))?.id).toBe('undo');
+    expect(matchShortcut(cmds, key('z', { ctrlKey: true }))?.id).toBe('undo');
+    expect(matchShortcut(cmds, key('Z', { metaKey: true, shiftKey: true }))?.id).toBe('redo');
+    expect(matchShortcut(cmds, key('Z', { ctrlKey: true, shiftKey: true }))?.id).toBe('redo');
+  });
+});

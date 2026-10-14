@@ -301,7 +301,7 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey && sketchingRef.current && sketchUndoRef.current) { e.preventDefault(); sketchUndoRef.current(); return; }
       // the common commands' keys (not while a sketch tool owns the letters, except Ctrl combinations)
       if (!sketchingRef.current || e.metaKey || e.ctrlKey) {
         const hit = matchShortcut(commandsRef.current, e);
