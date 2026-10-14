@@ -18,6 +18,7 @@ Built from `packages/viewport/src/handles.ts` (maths), `handleLayer.ts` (drawing
 | End cap `Fn.C1` of a blind `extrude` (planar) | Arrow along the face normal | `set depth`; a cut deepens when the cap moves INTO the part; dragged past the sketch plane it becomes `depth = \|q\|` plus `flip` toggled | one or two `set`s in one edit | stays closed |
 | Inner (cavity) wall of a `shell` (a `~` face that is not on the part's outer box) | Arrow along the wall normal | `set thickness` (the wall grows when the cavity wall moves into the cavity) | one `set` | stays closed |
 | Wall `Hn.S.h1` of a plain (`simple`) `hole` | Dot on the wall, sliding into the material | `set diameter` = start + 2 x drag (a plain `diameter` wins over `size` in the kernel) | one `set` | stays closed |
+| Thread editor open, on the thread being edited | Dot on the axis at the far end of the thread (`start + dir * length`) | `set length` of the editor's whole draft, held between one pitch and the face length, "full" at the face | nothing is committed: the value goes into the editor's draft | the editor stays open |
 | Whole body (Alt+click, or the Select body command, key `B`) | Placement gizmo: 3 axis arrows, 3 plane squares, 3 rotation rings, a centre dot | would create / update ONE `moveBody` (translate / rotate, copy with a modifier) | **off in the app: the kernel has no `moveBody`** (see gaps) | n/a |
 | Any other face | none | none (the kernel has no `moveFace`) | | |
 
@@ -42,7 +43,7 @@ live readout next to it shows the number ("Fillet 3 mm", "Depth 42 mm", "Thickne
   Select body command (key `B`). A click on empty space still deselects. Selecting the body highlights all its faces.
 * Handles never take clicks away from selection: a press that does not start on a handle goes to the orbit controls and the
   selection code as usual (the handle listener runs first only when the pointer is on a handle).
-* Hidden while sketching, while the Editor tab is open on any feature (its own preview would fight the handle's), when the
+* Hidden while sketching, while the Editor tab is open on any feature (its own preview would fight the handle's), except the Thread editor's length handle, which previews the editor's whole draft, when the
   setting is off, and when nothing selected has a gesture.
 * The handle keeps its screen size in the parallel (narrow field of view) camera: the scale is computed from the real field
   of view and distance, so `fixSpriteScale`'s correction is not needed for them.
