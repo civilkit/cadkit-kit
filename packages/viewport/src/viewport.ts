@@ -88,8 +88,22 @@ export interface ViewportOptions {
   onBodyDouble?(face: string): void;
   /** A box was dragged in the 3D view (Box select mode, or Shift+drag from empty space): the names it picked in the current mode, and whether it adds to the selection. */
   onBoxSelect?(names: string[], additive: boolean, mode: PickMode): void;
+  /** Select mode: a rubber band dragged on empty sketch space. `move` while dragging (pixels relative to the viewport element,
+   *  `crossing` when dragged right to left), `end` on release with the corners in plane coordinates, `cancel` if it ended too small. */
+  onSketchBox?(ev: SketchBoxEvent): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
+}
+
+export interface SketchBoxEvent {
+  phase: 'move' | 'end' | 'cancel';
+  /** Corners in pixels relative to the viewport element. */
+  x0: number; y0: number; x1: number; y1: number;
+  /** Dragged right to left: select what the box touches, not only what it contains. */
+  crossing: boolean;
+  /** Corners in plane coordinates (phase `end` only). */
+  u0: number; v0: number; u1: number; v1: number;
+  mods: { shift: boolean; ctrl: boolean; alt: boolean };
 }
 
 export interface SketchPointerEvent {
@@ -115,7 +129,7 @@ export type SketchPreviewShape =
   | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number } }
   /** A snap marker, sized in screen pixels: a square on a point, a triangle on a midpoint, a diamond on an
    *  alignment, a ring on the chain end that flips to an arc when the pointer rests on it. */
-  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' };
+  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve' };
 
 export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom';
 
@@ -172,6 +186,11 @@ export class Viewport {
   /** The dashed material of the construction lines, resized with the zoom. */
   private constructionMat: THREE.LineDashedMaterial | null = null;
   private sketchDrag: string | null = null;
+  /** Rubber band in progress in Select mode: where it started (client pixels, element pixels, plane coordinates). */
+  private rubber: { cx: number; cy: number; x: number; y: number; moved: boolean } | null = null;
+  /** How defined each entity of the open sketch is (blue under, dark fully, red over); entities not listed stay blue. */
+  private sketchDef: Record<string, 'under' | 'full' | 'over'> | null = null;
+  private sketchDefLines: THREE.LineSegments[] = [];
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
@@ -349,9 +368,11 @@ export class Viewport {
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
-    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; }
+    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; }
+    this.sketchDefLines = [];
     this.sketchEdit = v;
     this.sketchDrag = null;
+    this.applySketchButtons();
     if (!v) {
       this.applyMeshLook();   // the fade is gone: back to the style's own opacity
       this.dirty = true;
@@ -396,8 +417,39 @@ export class Viewport {
     }
     this.scene.add(group);
     this.sketchOverlay = group;
+    this.rebuildSketchDef();
     this.rebuildSketchGrid();
     this.dirty = true;
+  }
+
+  /** Colour the sketch's geometry by how defined it is: dark when fully defined, red when over-constrained (blue stays for under-defined). Null clears. */
+  setSketchDefinition(map: Record<string, 'under' | 'full' | 'over'> | null): void {
+    this.sketchDef = map;
+    this.rebuildSketchDef();
+  }
+
+  private rebuildSketchDef(): void {
+    for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); (l.material as THREE.Material).dispose(); }
+    this.sketchDefLines = [];
+    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef;
+    this.dirty = true;
+    if (!v || !group || !map) return;
+    const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0';
+    const c = new THREE.Color(bg);
+    const dark = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.4;
+    const colours = { full: dark ? 0xf2f2f2 : 0x151515, over: 0xe03131 } as const;
+    for (const state of ['full', 'over'] as const) {
+      const ents = v.sketch.entities.filter((e) => map[e.id] === state && e.construction !== true);
+      if (!ents.length) continue;
+      const seg = this.segmentsOf(sketchEditPolylines({ ...v.sketch, entities: ents }, v.frame as never, 'solid'));
+      if (!seg.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
+      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: colours[state], depthTest: false, transparent: true }));
+      lines.renderOrder = 10;
+      group.add(lines);
+      this.sketchDefLines.push(lines);
+    }
   }
 
   /** A sketch tool is active: the pointer drives the tool instead of dragging points, and the left button
@@ -406,10 +458,16 @@ export class Viewport {
     this.sketchTool = on;
     this.sketchDrag = null;
     this.dom.style.cursor = on ? 'crosshair' : '';
-    this.controls.mouseButtons = on
+    this.applySketchButtons();
+    if (!on) this.setSketchPreview([]);
+  }
+
+  /** In a sketch the left button picks and rubber-bands (tool or Select), so the right button turns the view and the middle one pans. */
+  private applySketchButtons(): void {
+    const sketching = this.sketchTool || !!this.sketchEdit;
+    this.controls.mouseButtons = sketching
       ? { LEFT: -1 as never, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
       : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-    if (!on) this.setSketchPreview([]);
   }
 
   /** Draw what the active tool is about to make: amber lines, dotted guides and snap markers, on top of everything. */
@@ -454,7 +512,23 @@ export class Viewport {
         if (sh.style === 'point') loop(solid, [{ x: x - k, y: y - k }, { x: x + k, y: y - k }, { x: x + k, y: y + k }, { x: x - k, y: y + k }]);
         else if (sh.style === 'midpoint') loop(solid, [{ x, y: y + k }, { x: x + k, y: y - k * 0.8 }, { x: x - k, y: y - k * 0.8 }]);
         else if (sh.style === 'align') loop(solid, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]);
-        else {
+        else if (sh.style === 'quadrant') { loop(solid, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]); seg(solid, { x: x - k, y }, { x: x + k, y }); }
+        else if (sh.style === 'intersection') { seg(solid, { x: x - k, y: y - k }, { x: x + k, y: y + k }); seg(solid, { x: x - k, y: y + k }, { x: x + k, y: y - k }); }
+        else if (sh.style === 'perpendicular') { loop(solid, [{ x: x - k, y: y - k }, { x: x - k, y: y + k }]); seg(solid, { x: x - k, y: y - k }, { x: x + k, y: y - k }); seg(solid, { x: x - k, y: y }, { x, y }); seg(solid, { x, y }, { x, y: y - k }); }
+        else if (sh.style === 'tangent') {
+          const n = 20;
+          const r = k * 0.7;
+          const ring = Array.from({ length: n }, (_, i) => ({ x: x + r * Math.cos((i / n) * Math.PI * 2), y: y + k * 0.25 + r * Math.sin((i / n) * Math.PI * 2) }));
+          loop(solid, ring);
+          seg(solid, { x: x - k * 1.3, y: y - k * 0.45 }, { x: x + k * 1.3, y: y - k * 0.45 });
+        } else if (sh.style === 'center') {
+          const n = 20;
+          loop(solid, Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) })));
+          seg(solid, { x: x - k * 0.3, y }, { x: x + k * 0.3, y }); seg(solid, { x, y: y - k * 0.3 }, { x, y: y + k * 0.3 });
+        } else if (sh.style === 'oncurve') {
+          seg(solid, { x: x - k * 0.7, y }, { x: x + k * 0.7, y }); seg(solid, { x, y: y - k * 0.7 }, { x, y: y + k * 0.7 });
+          loop(solid, [{ x: x - k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y + k * 0.5 }, { x: x - k * 0.5, y: y + k * 0.5 }]);
+        } else {
           const n = 24;
           const ring = Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) }));
           loop(solid, ring);
@@ -1650,6 +1724,10 @@ export class Viewport {
         this.sketchDrag = id;
         this.controls.enabled = false; // orbit off while dragging a point
         this.dom.setPointerCapture(e.pointerId);
+      } else if (e.button === 0 && e.pointerType !== 'touch') {   // a finger keeps turning the view
+        const r = this.dom.getBoundingClientRect();
+        this.rubber = { cx: e.clientX, cy: e.clientY, x: e.clientX - r.left, y: e.clientY - r.top, moved: false };
+        this.dom.setPointerCapture(e.pointerId);
       }
     }
   };
@@ -1664,6 +1742,23 @@ export class Viewport {
     }
     if (this.sketchEdit && this.sketchTool) {
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e);
+      return;
+    }
+    if (this.sketchEdit && this.rubber) {
+      const b = this.rubber;
+      this.rubber = null;
+      try { this.dom.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+      if (b.moved) {
+        const r = this.dom.getBoundingClientRect();
+        const a = this.planeAt(b.cx, b.cy), z = this.planeAt(e.clientX, e.clientY);
+        if (a && z) {
+          this.opts.onSketchBox?.({ phase: 'end', x0: b.x, y0: b.y, x1: e.clientX - r.left, y1: e.clientY - r.top, crossing: e.clientX < b.cx, u0: a[0], v0: a[1], u1: z[0], v1: z[1], mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey } });
+          return;
+        }
+        this.opts.onSketchBox?.({ phase: 'cancel', x0: 0, y0: 0, x1: 0, y1: 0, crossing: false, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: false, ctrl: false, alt: false } });
+        return;
+      }
+      if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e, this.opts.onSketchSelect);
       return;
     }
     if (this.sketchEdit) {
@@ -1695,6 +1790,15 @@ export class Viewport {
   private onMove = (e: PointerEvent): void => {
     if (this.placement && !this.sketchEdit) { if (!this.down) this.placement.move(e.clientX, e.clientY, { alt: e.altKey }); return; }
     if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
+    if (this.sketchEdit && this.rubber) {
+      const b = this.rubber;
+      if (!b.moved && Math.hypot(e.clientX - b.cx, e.clientY - b.cy) >= 4) b.moved = true;
+      if (b.moved) {
+        const r = this.dom.getBoundingClientRect();
+        this.opts.onSketchBox?.({ phase: 'move', x0: b.x, y0: b.y, x1: e.clientX - r.left, y1: e.clientY - r.top, crossing: e.clientX < b.cx, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey } });
+      }
+      return;
+    }
     if (this.sketchEdit && !this.sketchDrag) this.emitSketchPointer('move', e, this.opts.onSketchHover);
     if (this.sketchDrag) {
       const uv = this.planeAt(e.clientX, e.clientY);

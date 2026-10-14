@@ -10,6 +10,8 @@
 import type { DraftEntity, SketchDraft } from './index';
 import { addConstraintOf } from './tools/builders';
 import { arcPolyline } from './tools/builders-arcs';
+import { curveOf } from './tools/edit-draft';
+import { lineLine, paramEnd, sample } from './tools/edit-geom';
 import type { FieldSpec, Pt, PreviewShape } from './tools/types';
 
 const pointMap = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
@@ -118,7 +120,13 @@ export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
   for (const e of entities) if (Array.isArray(e.pts)) for (const p of e.pts as string[]) used.add(p);
   for (const c of constraints) for (const r of c.refs ?? []) used.add(r);
   const points = draft.points.filter((p) => p.fixed || used.has(p.id));
-  return { ...draft, entities, constraints, points };
+  // reference dimensions that mention the entity (or a point that went with it) go too
+  const live = new Set([...points.map((p) => p.id), ...entities.map((e) => e.id)]);
+  const refs = Array.isArray(draft.extras?.refDims) ? (draft.extras!.refDims as Array<{ refs?: string[] }>) : null;
+  const kept = refs?.filter((r) => (r.refs ?? []).every((x) => live.has(x)));
+  const extras = kept && refs && kept.length !== refs.length ? { ...draft.extras, ...(kept.length ? { refDims: kept } : {}) } : draft.extras;
+  if (kept && refs && kept.length !== refs.length && !kept.length && extras) delete (extras as Record<string, unknown>).refDims;
+  return { ...draft, entities, constraints, points, ...(extras ? { extras } : {}) };
 }
 
 /** The origin point (fixed, at 0,0) that position dimensions are measured from, if the sketch has one. */
@@ -148,4 +156,58 @@ export function setPointDim(draft: SketchDraft, id: string, axis: 'x' | 'y', val
   const type = axis === 'x' ? 'hdist' : 'vdist';
   const kept: SketchDraft = { ...moved, constraints: moved.constraints.filter((c) => !(c.type === type && c.refs?.[0] === o.id && c.refs?.[1] === id)) };
   return Math.abs(value) < 1e-9 ? kept : addConstraintOf(kept, type, [o.id, id], Math.abs(value));
+}
+
+// ---- box selection -------------------------------------------------------------------------------------------
+
+export interface BoxRect { x0: number; y0: number; x1: number; y1: number }
+
+/** The segments an entity is drawn as, for box tests (curves are sampled; splines and ellipses use their points). */
+function entitySegments(draft: SketchDraft, e: DraftEntity): Array<[Pt, Pt]> {
+  const g = curveOf(draft, e);
+  if (g) return sample(g, 0, paramEnd(g), g.kind === 'line' ? 1 : 48).map((s) => [s.a, s.b] as [Pt, Pt]);
+  const pts = pointMap(draft);
+  const ids: string[] = [];
+  for (const k of ['p1', 'p2', 'c', 'p']) if (typeof e[k] === 'string') ids.push(e[k] as string);
+  if (Array.isArray(e.pts)) for (const p of e.pts) if (typeof p === 'string') ids.push(p);
+  const poly = ids.flatMap((i) => { const p = pts.get(i); return p ? [{ x: p.x, y: p.y }] : []; });
+  if (poly.length === 1) return [[poly[0], poly[0]]];
+  return poly.slice(1).map((p, i) => [poly[i], p] as [Pt, Pt]);
+}
+
+const inside = (r: BoxRect, p: Pt) => p.x >= Math.min(r.x0, r.x1) && p.x <= Math.max(r.x0, r.x1) && p.y >= Math.min(r.y0, r.y1) && p.y <= Math.max(r.y0, r.y1);
+
+/** Does the segment ab touch the rectangle (an end inside, or a crossing of one of its sides)? */
+function segTouches(r: BoxRect, a: Pt, b: Pt): boolean {
+  if (inside(r, a) || inside(r, b)) return true;
+  const lo = { x: Math.min(r.x0, r.x1), y: Math.min(r.y0, r.y1) }, hi = { x: Math.max(r.x0, r.x1), y: Math.max(r.y0, r.y1) };
+  const corners = [lo, { x: hi.x, y: lo.y }, hi, { x: lo.x, y: hi.y }];
+  for (let i = 0; i < 4; i++) if (lineLine(a, b, corners[i], corners[(i + 1) % 4]).some((p) => onSeg(p, a, b) && onSeg(p, corners[i], corners[(i + 1) % 4]))) return true;
+  return false;
+}
+const onSeg = (p: Pt, a: Pt, b: Pt) => {
+  const t = Math.abs(b.x - a.x) > Math.abs(b.y - a.y) ? (p.x - a.x) / (b.x - a.x) : (p.y - a.y) / (b.y - a.y);
+  return Number.isFinite(t) ? t >= -1e-9 && t <= 1 + 1e-9 : false;
+};
+
+/**
+ * Entities selected by a rectangle. `window` (dragged left to right): only those entirely inside it. `crossing` (dragged
+ * right to left): those inside it or touching it. Construction geometry is selectable like the rest.
+ */
+export function boxSelect(draft: SketchDraft, rect: BoxRect, mode: 'window' | 'crossing'): string[] {
+  const out: string[] = [];
+  for (const e of draft.entities) {
+    const segs = entitySegments(draft, e);
+    if (!segs.length) continue;
+    const hit = mode === 'window'
+      ? segs.every(([a, b]) => inside(rect, a) && inside(rect, b))
+      : segs.some(([a, b]) => segTouches(rect, a, b));
+    if (hit) out.push(e.id);
+  }
+  return out;
+}
+
+/** The points (not shapes) inside a rectangle, for selecting loose points. Fixed points are skipped. */
+export function boxPoints(draft: SketchDraft, rect: BoxRect): string[] {
+  return draft.points.filter((p) => !p.fixed && inside(rect, p)).map((p) => p.id);
 }

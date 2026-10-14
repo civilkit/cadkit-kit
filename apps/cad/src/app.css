@@ -664,3 +664,33 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sel-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; border-radius: 50%; width: 18px; height: 18px; padding: 0; }
 .sel-chip button:hover { background: #0003; }
 .box-select { z-index: 5; }
+/* ---- sketch: the aux bar (definition, snaps, display), box select, definition colours */
+.sketch-aux { position: absolute; left: 50%; transform: translateX(-50%); top: 56px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; max-width: min(900px, calc(100% - 140px));
+  padding: 5px 10px; border-radius: 12px; background: var(--panel, #fffffff0); border: 1px solid var(--line, #0002); box-shadow: 0 2px 10px #0002; font-size: 12px; }
+.sketch-aux .rb-btn { display: inline-flex; gap: 5px; align-items: center; }
+.sketch-aux .rb-btn[disabled] { opacity: .5; }
+.dof-chip { font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; }
+.dof-chip.under { color: #0b74dc; background: #0b74dc14; }
+.dof-chip.full { color: var(--text, #151515); background: #1515150f; }
+.dof-chip.over { color: #e03131; background: #e0313114; }
+.aux-pop { position: relative; }
+.aux-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; min-width: 200px; padding: 8px 10px; border-radius: 10px; background: var(--panel, #fff); border: 1px solid var(--line, #0003); box-shadow: 0 6px 22px #0004; display: flex; flex-direction: column; gap: 4px; }
+.aux-menu hr { border: 0; border-top: 1px solid var(--line, #0002); margin: 4px 0; width: 100%; }
+.aux-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+.aux-row { display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap; }
+.aux-sel { display: inline-flex; gap: 6px; align-items: center; }
+.aux-conflicts { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.aux-conflicts .conf { display: inline-flex; gap: 3px; align-items: center; padding: 1px 6px; border-radius: 6px; }
+.aux-conflicts .conf.bad { background: #e0313122; color: #e03131; }
+.aux-conflicts .conf.warn { background: #b8860b22; color: #b8860b; }
+.aux-conflicts .conf button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; }
+.sketch-box { position: absolute; z-index: 6; pointer-events: none; border: 1px solid #0b74dc; background: #0b74dc18; }
+.sketch-box.crossing { border-style: dashed; border-color: #1c9a4a; background: #1c9a4a18; }
+.sketch-annots .annot.dimension.driven { font-style: italic; opacity: .75; }
+.sketch-cons li.bad { background: #e0313118; color: #e03131; }
+.sketch-cons li.warn { background: #b8860b18; }
+.sketch-cons .cdrv { border: 0; background: none; cursor: pointer; opacity: .7; font-size: 12px; }
+.sketch-cons .cdrv:hover { opacity: 1; }
+.sketch-cons { top: 112px; max-height: calc(100% - 250px); }
+.sketch-aux { width: max-content; }
+.sketch-aux { z-index: 7; }

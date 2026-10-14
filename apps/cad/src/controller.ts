@@ -470,6 +470,16 @@ export class Controller {
     return this.sketchOpen?.status ?? null;
   }
 
+  /** Ask the solver about a draft without touching the session: nothing is shown, nothing goes on the undo stack. Used to
+   *  suggest constraints (Fully Define) and to find out how defined each entity is. Null when no sketch is open or the
+   *  regen gave no verdict. */
+  async probeSketch(draft: SketchDraft): Promise<SketchSolverStatus | null> {
+    const open = this.sketchOpen;
+    if (!open) return null;
+    const r = await this.previewSketch(draft, open.upTo, open.isNew);
+    return r.status ?? null;
+  }
+
   /** The draft being edited in the open sketch session (null when none). The
    *  shell drags on top of this so folds from earlier drags are kept. */
   sketchDraft(): SketchDraft | null {

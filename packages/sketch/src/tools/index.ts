@@ -30,3 +30,4 @@ export { projectTool, projectEdges, projectCurves, referenceChain, chainCurves, 
 export { linearPatternTool, circularPatternTool, applyLinear, applyCircular, type LinearState, type CircularState } from './pattern';
 export { fitCurve, bsplineCurve, clampDegree, minCvPoints } from './splineMath';
 export { sketchReferenceEdges, type SketchFeatureLike, type SketchFrameLike } from './refSketches';
+export { moveTool, copyTool, rotateTool, scaleTool, makeTransformTool, applyTransform, measure, place as placeXform, xformOf, pointsOfEntities, MAX_COPIES, type TransformState, type TransformKind, type Xform, type TransformRes } from './transform';

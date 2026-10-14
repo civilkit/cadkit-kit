@@ -48,7 +48,7 @@ function view(state: LineState, draft: SketchDraft, settings: ToolSettings, hint
     { id: 'ang', label: 'app.sketch.field.angle', value: r.ang, locked: state.locked.ang !== undefined, unit: 'angle' },
   ];
   const anchor = anchorOf(state, draft);
-  return { state, draft, preview: [{ kind: 'line', a, b: r.end }], fields, hint, mode: 'line', ...(anchor ? { anchor } : {}), ...(r.infer ? { pending: [r.infer] } : {}) };
+  return { state, draft, preview: [{ kind: 'line', a, b: r.end }], fields, hint, mode: 'line', from: a, ...(anchor ? { anchor } : {}), ...(r.infer ? { pending: [r.infer] } : {}) };
 }
 
 /** Wrap the arc tool's output as the line tool's: when an arc was placed the chain continues from its end. */

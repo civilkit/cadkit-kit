@@ -623,6 +623,26 @@ describe('controller sketch session', { skip: !(process.env.CK_WASM && existsSyn
     expect(results[results.length - 1].view).toBeDefined();
   }, 60000);
 
+  it('probeSketch asks the solver about a variant without touching the open sketch, the shown view or the undo stack', async () => {
+    const { controller, sketchEdits, history } = await openBolt({ underDefined: true });
+    await controller.beginSketch('F3');
+    const shown = sketchEdits.length;
+    const draft = controller.sketchDraft()!;
+    const statusBefore = controller.sketchStatus();
+    const hist = history().length;
+    // pin one point: the verdict is for the variant
+    const p = draft.points.find((q) => !q.fixed)!;
+    const pinned = { ...draft, constraints: [...draft.constraints, { id: 'kprobe', type: 'fix', refs: [p.id], value: [p.x, p.y] }] };
+    const st = await controller.probeSketch(pinned);
+    expect(st).not.toBeNull();
+    expect(typeof st!.dof).toBe('number');
+    expect(controller.sketchDraft()).toBe(draft);
+    expect(controller.sketchStatus()).toBe(statusBefore);
+    expect(sketchEdits.length).toBe(shown);
+    expect(history().length).toBe(hist);
+    expect(await controller.probeSketch(draft)).toMatchObject({ solved: true });
+  }, 60000);
+
   it('beginSketch on a non-sketch feature returns null', async () => {
     const { controller } = await openBolt();
     expect(await controller.beginSketch('F4')).toBeNull();

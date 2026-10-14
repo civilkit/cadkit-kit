@@ -22,6 +22,8 @@ export interface Annotation {
   value?: number;
   /** The expression a dimension is linked to (variables), without the leading =. */
   expr?: string;
+  /** A reference (driven) dimension: shown in brackets, not editable, constrains nothing. */
+  driven?: boolean;
   /** Entity and point ids the constraint refers to. */
   refs: string[];
 }

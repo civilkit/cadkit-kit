@@ -61,3 +61,15 @@ Each one has its conventions in its file header; the short version:
 - `mirror` (verified end to end, `mirror.kernel.test.ts`): selection is drawn highlighted so Enter reaches the tool (it used to
   confirm the sketch instead, so the axis step was unreachable); circle copies get `equal` radius; arc copies avoid the
   redundant constraint (see the header of `mirror.ts`).
+
+## Move, copy, rotate, scale; snaps; definition
+
+- `transform` (`transform.ts`): four tools from one factory (`makeTransformTool`) and the pure `applyTransform(draft, ids, xform, copies)`. They act on
+  `ToolEnv.entities` (the entities selected in Select mode before the tool was chosen) or on entities clicked in the tool
+  (clicks read `snap.entityId`, which the on-curve snap supplies). Details and constraint handling are in `docs/sketch-tools.md`.
+- `ToolOutput.from` is the start of the shape being drawn (the line tool sets it); the app passes it to `snapAt` for the
+  perpendicular and tangent snaps. `SnapHit.role` says what an existing-point snap is; `entityId` / `entityIds` name the
+  curves of an on-curve, quadrant, perpendicular, tangent or intersection snap, and `applySnapConstraints` turns them into
+  point-on-curve constraints.
+- `define.ts` (`fullyDefine`, `definitionMap`) and `refdims.ts` (reference dimensions) take a `solve` callback or only the draft:
+  no kernel dependency in the package; the app passes `Controller.probeSketch`.

@@ -9,13 +9,17 @@ import type { SketchDraft } from '../index';
 export interface Pt { x: number; y: number }
 export interface Modifiers { shift: boolean; ctrl: boolean; alt: boolean }
 
-export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align';
+export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve';
 /** What the snap engine found under the pointer. `pointId` is set when the hit is an existing sketch point. */
 export interface SnapHit {
   kind: SnapKind;
   at: Pt;
   pointId?: string;
   entityId?: string;
+  /** For `intersection`: the two curves that cross there. */
+  entityIds?: string[];
+  /** For `point`: what the point is (an end of a shape, the centre of a circle or arc, the sketch origin). */
+  role?: 'endpoint' | 'center' | 'origin';
   /** For `align`: the point whose x (vertical alignment) and/or y (horizontal alignment) the pointer matches. */
   alignTo?: { x?: string; y?: string };
 }
@@ -59,6 +63,8 @@ export interface ToolOutput<S> {
   hint?: string;
   /** Constraints the tool inferred for the pending segment, shown as glyphs before the click. */
   pending?: string[];
+  /** Where the shape being drawn started from (the line tool's last point): the perpendicular and tangent snaps are measured from it. */
+  from?: Pt;
   /** The point the chain continues from: resting the pointer on it flips the line tool to a tangent arc. */
   anchor?: Pt;
   /** The mode of a tool that has more than one (the line tool: `line` or `arc`). */
@@ -78,6 +84,8 @@ export interface ToolEnv {
   tol?: number;
   /** Edge keys and face names the user had selected in the 3D view before the sketch was opened. */
   selection?: string[];
+  /** Sketch entity ids selected in the sketch (Select mode, box or Ctrl-click) before this tool was chosen: the transform tools act on them. */
+  entities?: string[];
 }
 
 export interface Tool<S> {

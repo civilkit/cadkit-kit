@@ -4,6 +4,10 @@
  * the snap said gets the matching constraint:
  *   midpoint -> `midpoint` [point, line]   (the point is the midpoint of that line; kernel convention, see CONSTRAINTS.md)
  *   align    -> `vertical` [point, other]  for a matching x, `horizontal` [point, other] for a matching y
+ *   oncurve / perpendicular / tangent -> `pointOnLine` [point, line] or `pointOnCircle` [point, circle or arc]
+ *   intersection -> the same, once for each of the two curves
+ *   quadrant -> `pointOnCircle` plus `horizontal` / `vertical` [point, centre] (the point sits level with or above the centre)
+ * (perpendicular and tangent keep only the point-on-curve part: the direction of the new segment is not constrained.)
  * Existing points are never constrained (a click that reuses a point adds nothing), and a typed value that moved the
  * new point off the snap position adds nothing either.
  */
@@ -12,9 +16,19 @@ import { addConstraintOf } from './tools/builders';
 import type { SnapHit } from './tools/types';
 
 const EPS = 1e-6;
+const HANDLED = new Set(['midpoint', 'align', 'oncurve', 'perpendicular', 'tangent', 'intersection', 'quadrant']);
+
+/** The constraint that puts point `p` on entity `id` (a line, circle or arc); none for other shapes. */
+function onEntity(d: SketchDraft, p: string, id: string): SketchDraft {
+  const e = d.entities.find((x) => x.id === id);
+  if (!e) return d;
+  if (e.type === 'line') return addConstraintOf(d, 'pointOnLine', [p, id]);
+  if (e.type === 'circle' || e.type === 'arc') return addConstraintOf(d, 'pointOnCircle', [p, id]);
+  return d;
+}
 
 export function applySnapConstraints(before: SketchDraft, after: SketchDraft, snap: SnapHit | undefined): SketchDraft {
-  if (!snap || (snap.kind !== 'midpoint' && snap.kind !== 'align')) return after;
+  if (!snap || !HANDLED.has(snap.kind)) return after;
   const known = new Set(before.points.map((p) => p.id));
   // the tool may already have inferred the same horizontal or vertical for this segment: never add it twice
   const had = new Set(before.constraints.map((c) => c.id));
@@ -27,6 +41,24 @@ export function applySnapConstraints(before: SketchDraft, after: SketchDraft, sn
     if (!onX || !onY) continue;
     if (snap.kind === 'midpoint' && snap.entityId) {
       d = addConstraintOf(d, 'midpoint', [p.id, snap.entityId]);
+      break;
+    }
+    if (snap.kind === 'oncurve' || snap.kind === 'perpendicular' || snap.kind === 'tangent') {
+      if (snap.entityId) d = onEntity(d, p.id, snap.entityId);
+      break;
+    }
+    if (snap.kind === 'intersection') {
+      for (const id of snap.entityIds ?? []) d = onEntity(d, p.id, id);
+      break;
+    }
+    if (snap.kind === 'quadrant' && snap.entityId) {
+      d = onEntity(d, p.id, snap.entityId);
+      const e = d.entities.find((x) => x.id === snap.entityId);
+      const c = e && typeof e.c === 'string' ? d.points.find((q) => q.id === e.c) : undefined;
+      if (c) {
+        const level = Math.abs(p.y - c.y) < EPS;
+        d = addConstraintOf(d, level ? 'horizontal' : 'vertical', [p.id, c.id]);
+      }
       break;
     }
     if (snap.kind === 'align' && snap.alignTo) {

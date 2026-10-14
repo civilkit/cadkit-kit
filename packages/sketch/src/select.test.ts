@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { deleteEntity, entityDims, entityShape, pickEntity, setEntityDim } from './select';
+import { boxSelect, deleteEntity, entityDims, entityShape, pickEntity, setEntityDim } from './select';
 
 const draft = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
@@ -62,5 +62,26 @@ describe('deleteEntity and entityShape', () => {
     expect(entityShape(draft(), 'e3')).toEqual([{ kind: 'circle', c: { x: 30, y: 0 }, r: 4 }]);
     expect(entityShape(draft(), 'e4').length).toBeGreaterThan(8);
     expect(entityShape(draft(), 'nope')).toEqual([]);
+  });
+});
+
+describe('boxSelect', () => {
+  const d = (): SketchDraft => ({
+    id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], constraints: [],
+    points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 30, y: 0 }, { id: 'o', x: 20, y: 20 }],
+    entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' }, { id: 'e3', type: 'circle', c: 'o', r: 5 }],
+  });
+  it('window takes only what is entirely inside', () => {
+    expect(boxSelect(d(), { x0: -1, y0: -1, x1: 11, y1: 1 }, 'window')).toEqual(['e1']);
+    expect(boxSelect(d(), { x0: -1, y0: -1, x1: 40, y1: 30 }, 'window')).toEqual(['e1', 'e2', 'e3']);
+  });
+  it('crossing also takes what the box only touches, including a line passed through the middle', () => {
+    expect(boxSelect(d(), { x0: 5, y0: -1, x1: 15, y1: 1 }, 'crossing')).toEqual(['e1', 'e2']);
+    expect(boxSelect(d(), { x0: 18, y0: 10, x1: 22, y1: 40 }, 'crossing')).toEqual(['e3']);
+    expect(boxSelect(d(), { x0: 14, y0: -1, x1: 16, y1: 1 }, 'crossing')).toEqual(['e2']);
+    expect(boxSelect(d(), { x0: 14, y0: 5, x1: 16, y1: 9 }, 'crossing')).toEqual([]);
+  });
+  it('the corners can be given in any order', () => {
+    expect(boxSelect(d(), { x0: 11, y0: 1, x1: -1, y1: -1 }, 'window')).toEqual(['e1']);
   });
 });
