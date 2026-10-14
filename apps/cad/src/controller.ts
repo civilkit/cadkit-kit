@@ -3,6 +3,7 @@ import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model'
 import { vertexName, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
+import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -48,6 +49,11 @@ export class Controller {
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
   private previewSeq = 0;
   private previewWake: (() => void) | null = null;
+  /** Rollback marker: id of the last feature that is on (`''` none, null = all). View only: the session has no op that sets the document's `rollback`. */
+  private rollbackAnchor: string | null = null;
+  private lastIds: string[] = [];
+  /** A part name set in the app (the session cannot rename the document); applied to what `document()` returns. */
+  private docName: string | null = null;
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
@@ -59,6 +65,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
+      this.rollbackAnchor = null; this.lastIds = []; this.docName = null;
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -72,6 +79,10 @@ export class Controller {
     this.unguarded = false;
     const policy = guarded ? this.policy?.() ?? null : null;
     const blocking = policy && policy.blocking.length > 0 ? policy : null;
+    // while rolled back, new features go in right after the marker
+    const at = this.rollbackCount();
+    const adds = ops.filter((o) => o.op === 'add' && o.index === undefined).length;
+    ops = withRollbackInsert(ops, at);
     this.store.busy.value = true;
     try {
       let result: EditResult;
@@ -101,6 +112,8 @@ export class Controller {
         return result;
       }
       this.redoStack = [];
+      // the marker moves past what was just inserted
+      if (at !== null && adds) this.rollbackAnchor = s.document.features[at + adds - 1]?.id ?? this.rollbackAnchor;
       await this.refresh();
       if (blocking && before) {
         const blocked = await this.blockCheck(blocking, before);
@@ -141,7 +154,8 @@ export class Controller {
     this.previewTimer = null;
     const s = this.session;
     if (!s) return { ok: false, errors: [], hints: [], body: null, schemaError: 'no document loaded' };
-    const r = await s.preview(ops);
+    const upTo = this.rollbackCount();
+    const r = await s.preview(ops, upTo === null ? undefined : { upTo });
     if (seq !== this.previewSeq) {
       return { ok: true, errors: [], hints: [], body: null, stale: true };
     }
@@ -165,7 +179,7 @@ export class Controller {
     this.previewWake = null;
     const s = this.session;
     if (!s) return;
-    const body = await s.bodyForView().catch(() => null);
+    const body = await this.bodyNow(s).catch(() => null);
     this.view.setBody(body);
   }
 
@@ -247,7 +261,7 @@ export class Controller {
       type: 'sketch', id, name: 'Sketch', plane: typeof plane === 'string' ? { kind: 'std', id: plane } : plane,
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
-    const upTo = s.document.features.length + 1;
+    const upTo = (this.rollbackCount() ?? s.document.features.length) + 1;
     this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, upTo, true);
@@ -378,7 +392,7 @@ export class Controller {
     const s = this.session;
     if (!s) return { ok: false, hint: 'no document loaded' };
     const feature = toFeature(draft, { includeTemp: true });
-    const r = await s.preview([isNew ? { op: 'add', feature } : { op: 'replace', id: draft.id, feature }], { upTo, solveSketches: true });
+    const r = await s.preview([isNew ? { op: 'add', feature, index: upTo - 1 } : { op: 'replace', id: draft.id, feature }], { upTo, solveSketches: true });
     // a prefix with no solid yet (a first sketch) has no body but still carries its sketches
     const sketches = r.body?.sketches ?? r.sketches;
     if (r.ok && sketches) {
@@ -391,7 +405,59 @@ export class Controller {
   }
 
   document(): PartDoc | null {
-    return this.session?.document ?? null;
+    const d = this.session?.document ?? null;
+    return d && this.docName !== null ? { ...d, name: this.docName } : d;
+  }
+
+  /** Rename the part. The session has no document-level op, so the name lives here and is applied to `document()`
+   *  (so Save and the top bar see it); it is not an undo step. */
+  setPartName(name: string): void {
+    const n = name.trim();
+    if (this.session && n) this.docName = n;
+  }
+
+  /** How many features the rollback marker lets through (null = the whole model). */
+  rollbackCount(): number | null {
+    return countOf(this.rollbackAnchor, this.session?.document.features.map((f) => f.id) ?? []);
+  }
+
+  /** Move the rollback marker: show the model as it was after the first `count` features (null = roll forward to the end).
+   *  The document and history are untouched; features after the marker are not built. */
+  async setRollback(count: number | null): Promise<void> {
+    const s = this.session;
+    if (!s) return;
+    const ids = s.document.features.map((f) => f.id);
+    this.rollbackAnchor = count === null || count >= ids.length ? null : count <= 0 ? '' : ids[count - 1];
+    this.store.busy.value = true;
+    try { await this.refresh(); } finally { this.store.busy.value = false; }
+  }
+
+  /** Delete these features (those that depend on one of them go too only when they are selected as well; otherwise the
+   *  session refuses and says what still uses it). */
+  async deleteFeatures(ids: string[]): Promise<EditResult | null> {
+    const s = this.session;
+    if (!s || !ids.length) return null;
+    const ops = deleteOps(s.document.features as unknown as Array<{ id: string }>, ids);
+    return ops.length ? this.edit(ops, `delete ${ids.join(', ')}`) : null;
+  }
+
+  /** Build everything again from the document. (The kernel keeps no regen cache, so every build is already a full one.) */
+  async rebuild(): Promise<void> {
+    if (!this.session) return;
+    this.store.busy.value = true;
+    try { await this.refresh(); } finally { this.store.busy.value = false; }
+  }
+
+  /** Names of every face, edge or corner on screen, for Select all. */
+  pickableNames(mode: 'face' | 'edge' | 'vertex'): string[] {
+    const v = this.lastView;
+    if (!v) return [];
+    if (mode === 'face') return [...new Set<string>((v as unknown as { mesh?: { faceIds?: string[] } }).mesh?.faceIds ?? [])];
+    const edges = v.edges ?? [];
+    if (mode === 'edge') return edges.flatMap((e) => (e.key ? [e.key] : []));
+    const out = new Set<string>();
+    for (const e of edges) for (const p of [e.pts?.[0], e.pts?.[e.pts.length - 1]]) if (p) out.add(vertexName(p));
+    return [...out];
   }
 
   features(): Array<{ id: string; type: string; name?: string }> {
@@ -541,10 +607,22 @@ export class Controller {
     return defaultFlip(op, frame, v?.box ?? null);
   }
 
+  /** The body to show: the whole model, or the first `rollbackCount()` features while rolled back. */
+  private async bodyNow(s: Session): Promise<Awaited<ReturnType<Session['bodyForView']>>> {
+    const n = this.rollbackCount();
+    if (n === null) return s.bodyForView();
+    const r = await s.preview([], { upTo: n });
+    if (!r.ok) this.store.notify(r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'rolled-back model did not build', 'error');
+    return r.body;
+  }
+
   private async refresh(): Promise<void> {
     const s = this.session;
     if (!s) return;
-    const body = await s.bodyForView();
+    const ids = s.document.features.map((f) => f.id);
+    this.rollbackAnchor = repairAnchor(this.rollbackAnchor, this.lastIds, ids);
+    this.lastIds = ids;
+    const body = await this.bodyNow(s);
     this.revision++;
     this.lastView = body;
     this.view.setBody(body);
