@@ -383,6 +383,7 @@ function App() {
     if (out.draft !== draft) {
       void controller.applySketchDraft(out.draft).then((r) => {
         setSketchHint(r.ok || r.stale ? (out.hint ? t(out.hint) : null) : (r.hint ? t(r.hint) : null));
+        viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
       });
     }
   };
