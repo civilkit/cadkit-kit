@@ -5,6 +5,8 @@ export type SelectionMode = 'face' | 'edge' | 'vertex';
 /** Name of a corner pick: its position, rounded so the same corner always gets the same name (faces and edges have kernel names). */
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
+/** Selection name of the whole body (Alt+click in the viewport, the Select body command). */
+export const BODY = '@body';
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number }
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;

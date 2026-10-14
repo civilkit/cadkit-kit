@@ -1,6 +1,6 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
-import { vertexName, type Store } from '@kit/store';
+import { vertexName, BODY, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
@@ -550,6 +550,7 @@ export class Controller {
     this.view.setBody(body);
     // everything that can be selected now: faces, edges and the corners at the ends of edges
     const existing = new Set<string>(body?.mesh.faceIds ?? []);
+    if (body) existing.add(BODY);
     for (const e of (body?.edges ?? []) as Array<{ key?: string; pts: number[][] }>) {
       if (e.key) existing.add(e.key);
       for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) if (p) existing.add(vertexName(p));

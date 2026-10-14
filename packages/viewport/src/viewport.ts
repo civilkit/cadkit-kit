@@ -10,9 +10,11 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
-import { vertexName, parseVertexName } from '@kit/store';
+import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
+import { HandleLayer } from './handleLayer';
+import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
@@ -64,6 +66,8 @@ export interface ViewportOptions {
   onSketchHover?(ev: SketchPointerEvent): void;
   /** Select mode: a double click on the sketch. */
   onSketchDouble?(ev: SketchPointerEvent): void;
+  /** Right click (without a drag) on the canvas: what is under the pointer (a face, edge or corner name; null for empty space) and where, in client pixels. */
+  onContextMenu?(name: string | null, x: number, y: number, mode: PickMode): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
 }
@@ -150,6 +154,7 @@ export class Viewport {
   private sketchGridGroup: THREE.Group | null = null;
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
+  private readonly handleLayer: HandleLayer;
   private groundGrid: THREE.LineSegments | null = null;
   private meshFade: number | null = null;
 
@@ -162,6 +167,8 @@ export class Viewport {
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000);
     this.camera.position.set(60, 50, 60);
 
+    // before the orbit controls, so a handle gets the press first (see HandleLayer)
+    this.handleLayer = new HandleLayer(this.dom, host, this.camera, () => { this.dirty = true; });
     this.controls = new OrbitControls(this.camera, this.dom);
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
 
@@ -182,6 +189,8 @@ export class Viewport {
     this.dom.addEventListener('pointermove', this.onMove);
     this.dom.addEventListener('pointerleave', this.onLeave);
     this.dom.addEventListener('dblclick', this.onDouble);
+    this.dom.addEventListener('contextmenu', this.onContext);
+    this.dom.addEventListener('pointerdown', this.onRightDown);
     this.resize();
     this.loop();
   }
@@ -195,6 +204,12 @@ export class Viewport {
   }
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
+
+  /** Direct-manipulation handles drawn over the model (arrows, dots, rings, plane squares). Null removes them. A drag is
+   *  reported to `sink`; the handle never orbits the camera and never changes the selection. */
+  setHandles(specs: HandleSpec[] | null, sink: HandleDragSink | null): void { this.handleLayer.set(specs, sink); }
+  /** True while a handle is being dragged. */
+  handleDragging(): boolean { return this.handleLayer.dragging; }
 
   /** Sketch-edit overlay: draw the solved sketch on its plane, fade the body and
    *  turn off body picking. null clears the overlay and restores everything. */
@@ -948,6 +963,7 @@ export class Viewport {
   }
 
   setHighlight(names: string[]): void {
+    if (names.includes(BODY)) names = [...names.filter((n) => n !== BODY), ...(this.grouped?.ranges.map((r) => r.name) ?? [])];
     this.selectedNames = new Set(names);
     this.dropFat(this.edgeHighlight);
     this.edgeHighlight = null;
@@ -1117,8 +1133,11 @@ export class Viewport {
     this.dom.removeEventListener('pointerdown', this.onDown);
     this.dom.removeEventListener('pointerleave', this.onLeave);
     this.dom.removeEventListener('dblclick', this.onDouble);
+    this.dom.removeEventListener('contextmenu', this.onContext);
+    this.dom.removeEventListener('pointerdown', this.onRightDown);
     this.viewCube?.dispose();
     this.viewCube = null;
+    this.handleLayer.dispose();
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
@@ -1277,6 +1296,18 @@ export class Viewport {
     return rayPlane([o.x, o.y, o.z], [d.x, d.y, d.z], v.frame as never);
   }
 
+  private rightDown: { x: number; y: number } | null = null;
+  private onRightDown = (e: PointerEvent): void => { this.rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null; };
+  /** The canvas context menu: only for a right click that did not pan, and not while a sketch is open (the sketch has its own). */
+  private onContext = (e: MouseEvent): void => {
+    e.preventDefault();
+    const d = this.rightDown;
+    this.rightDown = null;
+    if (this.sketchEdit || !this.opts.onContextMenu) return;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return;
+    this.opts.onContextMenu(this.pickName(e.clientX, e.clientY), e.clientX, e.clientY, this.mode);
+  };
+
   private onDown = (e: PointerEvent): void => {
     this.down = { x: e.clientX, y: e.clientY };
     if (this.sketchEdit && this.sketchTool) return; // a tool is active: clicks go to the tool on release
@@ -1315,6 +1346,8 @@ export class Viewport {
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
     this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
+    // Alt+click on the part selects the whole body (the placement gizmo's target); empty space still deselects
+    if (e.altKey && hit0) { this.opts.onPick([BODY], false, this.mode); return; }
     const name = this.pickName(e.clientX, e.clientY);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
@@ -1343,6 +1376,7 @@ export class Viewport {
       this.dirty = false;
       this.fixSpriteScale();
       this.renderer.render(this.scene, this.camera);
+      this.handleLayer.render(this.renderer);
       this.viewCube?.render(this.camera, this.controls.target);
     }
   };
