@@ -6,3 +6,4 @@ export type { Frame, Polyline, IdPolylines, IdQuad, SketchLayerItem, CurveLayerI
 export { Viewport } from './viewport';
 export type { ViewThread, ViewportOptions, ViewBody, ViewFrame, SketchEditShape, SketchPointerEvent, SketchPreviewShape } from './viewport';
 export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPolylines, sketchPointWorld } from './sketchedit';
+export * from './styles';

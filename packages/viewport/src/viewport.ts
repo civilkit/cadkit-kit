@@ -14,6 +14,7 @@ import { vertexName, parseVertexName } from '@kit/store';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 export type { RefPlaneId } from './refplanes';
+import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, HIDDEN_EDGE_OPACITY, lightSpec, backgroundColors, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode } from './styles';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -151,7 +152,17 @@ export class Viewport {
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
   private groundGrid: THREE.LineSegments | null = null;
-  private meshFade: number | null = null;
+  private static readonly SKETCH_FADE = 0.25;
+  private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 0.9);
+  private readonly sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  private look: BodyLook = { style: 'shadedEdges', ghostOpacity: 0.35, appearance: { ...DEFAULT_APPEARANCE } };
+  private bgMode: BackgroundMode = 'theme';
+  private bgTexture: THREE.Texture | null = null;
+  /** faint edges seen through the body (wireframe) */
+  private hiddenEdgeLines: THREE.LineSegments | null = null;
+  private bodyHidden = false;
+  private hiddenIds = new Set<string>();
+  private lastBody: ViewBody | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -165,12 +176,10 @@ export class Viewport {
     this.controls = new OrbitControls(this.camera, this.dom);
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x556070, 0.9));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-    sun.position.set(1, 2, 1.5);
-    this.scene.add(sun);
-    const bg = getComputedStyle(host).getPropertyValue('--vp-bottom').trim();
-    this.scene.background = new THREE.Color(bg || '#e6eaf0');
+    this.scene.add(this.hemi);
+    this.sun.position.set(1, 2, 1.5);
+    this.scene.add(this.sun);
+    this.applyBackground();
 
     this.viewCube = new ViewCube(host, {
       snapTo: (dir) => this.setViewDir(dir),
@@ -188,8 +197,7 @@ export class Viewport {
 
   /** Re-read the page's background colour (after a theme change). */
   refreshTheme(): void {
-    const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim();
-    if (bg) { this.scene.background = new THREE.Color(bg); this.dirty = true; }
+    this.applyBackground();
     this.buildGroundGrid(this.box);
     this.viewCube?.refreshTheme();
   }
@@ -205,22 +213,12 @@ export class Viewport {
     this.sketchEdit = v;
     this.sketchDrag = null;
     if (!v) {
-      if (this.mesh && this.meshFade !== null) {
-        const m = this.mesh.material as THREE.MeshStandardMaterial;
-        m.opacity = this.meshFade;
-        m.transparent = this.meshFade < 1;
-        this.meshFade = null;
-      }
+      this.applyMeshLook();   // the fade is gone: back to the style's own opacity
       this.dirty = true;
       return;
     }
     // Fade the body so the sketch reads on top of it.
-    if (this.mesh) {
-      const m = this.mesh.material as THREE.MeshStandardMaterial;
-      this.meshFade = m.opacity;
-      m.transparent = true;
-      m.opacity = 0.25;
-    }
+    this.applyMeshLook();   // applyBodyLook caps the opacity at SKETCH_FADE while a sketch is open
     if (this.sketchLines) this.sketchLines.visible = false; // no double-draw of the same sketch
     if (this.sketchQuiet) this.sketchQuiet.visible = false;
     const group = new THREE.Group();
@@ -526,7 +524,7 @@ export class Viewport {
   /** Show or hide a display layer (sketches, curves, planes, axes, edges). */
   setLayerVisible(layer: string, on: boolean): void {
     this.layers[layer] = on;
-    if (layer === 'edges' && this.edgeLines) this.edgeLines.visible = on;
+    if (layer === 'edges') this.applyMeshLook();
     if (layer === 'sketches') { if (this.sketchLines) this.sketchLines.visible = on; if (this.sketchQuiet) this.sketchQuiet.visible = on; }
     if (layer === 'curves' && this.curveLines) this.curveLines.visible = on;
     if (layer === 'planes' && this.planeLines) this.planeLines.visible = on;
@@ -651,6 +649,7 @@ export class Viewport {
 
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   setBody(body: ViewBody | null): void {
+    this.lastBody = body;
     this.clearBody();
     if (!body) { this.buildGroundGrid(null); this.dirty = true; return; }
     this.buildGroundGrid(body.box ?? null);
@@ -665,20 +664,21 @@ export class Viewport {
       ? Math.hypot(body.box.max[0] - body.box.min[0], body.box.max[1] - body.box.min[1], body.box.max[2] - body.box.min[2])
       : 0;
     const scale = diag > 0 ? diag * 0.25 : 25;
-    this.sketchItems = (body.sketches as never) ?? [];
+    const shown = <T extends { id: string }>(xs: T[] | undefined): T[] => (xs ?? []).filter((x) => !this.hiddenIds.has(x.id));
+    this.sketchItems = shown(body.sketches) as never;
     if (body.sketches?.length) {
-      const all = sketchPolylines(body.sketches as never);
+      const all = sketchPolylines(shown(body.sketches) as never);
       const polys = all.filter((s) => !this.consumedSketches.has(s.id)).flatMap((s) => s.polylines);
       const quiet = all.filter((s) => this.consumedSketches.has(s.id)).flatMap((s) => s.polylines);
       this.sketchLines = this.addFatLines(polys, 0xe8730c, 2.6, this.layerOn('sketches'));
       this.sketchQuiet = this.addFatLines(quiet, 0xe8730c, 1.5, this.layerOn('sketches'), 0.6);
     }
     if (body.curves?.length) {
-      const polys = curvePolylines(body.curves as never).flatMap((c) => c.polylines);
+      const polys = curvePolylines(shown(body.curves) as never).flatMap((c) => c.polylines);
       this.curveLines = this.addFatLines(polys, 0x1f8f86, 2.2, this.layerOn('curves'));
     }
     if (body.planes?.length) {
-      const quads = planeOutlines(body.planes as never, scale).map((q) => q.quad);
+      const quads = planeOutlines(shown(body.planes) as never, scale).map((q) => q.quad);
       this.planeLines = this.addLayerLines(quads, 0x6f7f99, this.layerOn('planes'));
       const axes = axisLines(body.planes as never, scale * 0.4);
       this.axisLines = this.addLayerLines(axes, 0x2d3a4a, this.layerOn('axes'));
@@ -689,10 +689,7 @@ export class Viewport {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
-    this.mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-      color: 0xb8c4d6, metalness: 0.1, roughness: 0.6, side: THREE.DoubleSide,
-      polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // faces sit a hair behind sketches and edges lying on them
-    }));
+    this.mesh = new THREE.Mesh(geo, makeBodyMaterial(this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1));
     this.scene.add(this.mesh);
 
     const seg = edgeSegments(body.edges);
@@ -700,14 +697,87 @@ export class Viewport {
       const eg = new THREE.BufferGeometry();
       eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
       this.edgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129 }));
-      this.edgeLines.visible = this.layerOn('edges');
       this.scene.add(this.edgeLines);
+      this.hiddenEdgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129, depthTest: false, transparent: true, opacity: HIDDEN_EDGE_OPACITY }));
+      this.hiddenEdgeLines.renderOrder = -1;
+      this.scene.add(this.hiddenEdgeLines);
     }
     this.grouped = g;
     this.edges = body.edges;
     this.box = body.box;
     this.buildIssueMeshes();
-    this.fit();
+    this.applyMeshLook();
+    if (!this.keepView) this.fit();
+  }
+
+  private keepView = false;
+
+  /** Display style, ghost opacity and the body's appearance (colour and material). Cheap; safe to call any time. */
+  setLook(look: BodyLook): void {
+    this.look = { style: look.style, ghostOpacity: look.ghostOpacity, appearance: { ...look.appearance } };
+    this.applyMeshLook();
+  }
+
+  private applyMeshLook(): void {
+    const spec = styleSpec(this.look.style);
+    if (this.mesh) {
+      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.sketchEdit ? Viewport.SKETCH_FADE : 1);
+      this.mesh.visible = !this.bodyHidden;
+    }
+    const edgesOn = !this.bodyHidden && (spec.edges === 'always' || (spec.edges === 'layer' && this.layerOn('edges')));
+    if (this.edgeLines) {
+      this.edgeLines.visible = edgesOn;
+      (this.edgeLines.material as THREE.LineBasicMaterial).color.set(edgeColor(this.look.style));
+    }
+    if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
+    if (this.highlight) this.highlight.visible = !this.bodyHidden;
+    this.dirty = true;
+  }
+
+  /** Light preset (studio, flat, high contrast). */
+  setLighting(p: LightPreset): void {
+    const l = lightSpec(p);
+    this.hemi.color.set(l.sky); this.hemi.groundColor.set(l.ground); this.hemi.intensity = l.hemi;
+    this.sun.intensity = l.sun;
+    this.dirty = true;
+  }
+
+  setBackground(mode: BackgroundMode): void { this.bgMode = mode; this.applyBackground(); }
+
+  private applyBackground(): void {
+    const css = getComputedStyle(this.host);
+    const theme = { top: css.getPropertyValue('--vp-top').trim() || '#cfd8e4', bottom: css.getPropertyValue('--vp-bottom').trim() || '#e6eaf0' };
+    const c = backgroundColors(this.bgMode, theme);
+    this.bgTexture?.dispose(); this.bgTexture = null;
+    if (c.top === c.bottom) this.scene.background = new THREE.Color(c.bottom);
+    else {
+      const cv = document.createElement('canvas'); cv.width = 2; cv.height = 256;
+      const g = cv.getContext('2d');
+      if (g) {
+        const grad = g.createLinearGradient(0, 0, 0, 256);
+        grad.addColorStop(0, c.top); grad.addColorStop(1, c.bottom);
+        g.fillStyle = grad; g.fillRect(0, 0, 2, 256);
+        const tex = new THREE.CanvasTexture(cv);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        this.bgTexture = tex; this.scene.background = tex;
+      } else this.scene.background = new THREE.Color(c.bottom);
+    }
+    this.dirty = true;
+  }
+
+  /** Viewer-only hiding: the whole body, and sketches / curves / planes by id (never saved in the document). */
+  setHidden(o: { body: boolean; ids: Iterable<string> }): void {
+    const ids = new Set(o.ids);
+    const changed = ids.size !== this.hiddenIds.size || [...ids].some((i) => !this.hiddenIds.has(i));
+    this.bodyHidden = o.body;
+    this.hiddenIds = ids;
+    this.applyMeshLook();
+    if (changed && this.lastBody) {
+      const names = [...this.selectedNames];
+      this.keepView = true;
+      try { this.setBody(this.lastBody); } finally { this.keepView = false; }
+      this.setHighlight(names);
+    }
   }
 
   private threadItems: ViewThread[] = [];
@@ -982,6 +1052,7 @@ export class Viewport {
           polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
         }));
         this.scene.add(this.highlight);
+        this.highlight.visible = !this.bodyHidden;
       }
     }
     this.dirty = true;
@@ -1149,6 +1220,7 @@ export class Viewport {
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     this.dropIssueMeshes(); this.dropIssueHover();
+    if (this.hiddenEdgeLines) { this.scene.remove(this.hiddenEdgeLines); (this.hiddenEdgeLines.material as THREE.Material).dispose(); this.hiddenEdgeLines = null; }
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -1167,7 +1239,7 @@ export class Viewport {
   }
 
   private hit(x: number, y: number): THREE.Intersection | null {
-    if (!this.mesh) return null;
+    if (!this.mesh || this.bodyHidden) return null;
     this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
     return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
   }
@@ -1205,7 +1277,7 @@ export class Viewport {
       }
     }
     if (!best) return null;
-    if (this.mesh) {
+    if (this.mesh && !this.bodyHidden) {
       const w = new THREE.Vector3(best.p[0], best.p[1], best.p[2]);
       const dir = w.clone().sub(this.camera.position);
       const dist = dir.length();
@@ -1236,7 +1308,7 @@ export class Viewport {
     }
     if (!best) return null;
     // hidden behind the body? compare the edge point's distance with the first surface the ray meets there
-    if (this.mesh) {
+    if (this.mesh && !this.bodyHidden) {
       const pts = this.edges[best.i].pts, p0 = pts[best.j], p1 = pts[best.j + 1];
       const w = new THREE.Vector3(p0[0] + (p1[0] - p0[0]) * best.t, p0[1] + (p1[1] - p0[1]) * best.t, p0[2] + (p1[2] - p0[2]) * best.t);
       const dir = w.clone().sub(this.camera.position);
