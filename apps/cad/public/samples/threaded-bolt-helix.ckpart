@@ -1,0 +1,306 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Threaded bolt (real helix)",
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "name": "Head",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "h1",
+     "x": 9.8,
+     "y": 0
+    },
+    {
+     "id": "h2",
+     "x": 4.9,
+     "y": 8.487
+    },
+    {
+     "id": "h3",
+     "x": -4.9,
+     "y": 8.487
+    },
+    {
+     "id": "h4",
+     "x": -9.8,
+     "y": 0
+    },
+    {
+     "id": "h5",
+     "x": -4.9,
+     "y": -8.487
+    },
+    {
+     "id": "h6",
+     "x": 4.9,
+     "y": -8.487
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "h1",
+     "p2": "h2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "h2",
+     "p2": "h3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "h3",
+     "p2": "h4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "h4",
+     "p2": "h5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "h5",
+     "p2": "h6"
+    },
+    {
+     "id": "e6",
+     "type": "line",
+     "p1": "h6",
+     "p2": "h1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F2",
+   "name": "Head",
+   "op": "add",
+   "sketch": "F1",
+   "end": "blind",
+   "depth": 6,
+   "flip": true
+  },
+  {
+   "type": "sketch",
+   "id": "F3",
+   "name": "Shaft",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "c",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "c1",
+     "type": "circle",
+     "c": "c",
+     "r": 5
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F4",
+   "name": "Shaft",
+   "op": "add",
+   "sketch": "F3",
+   "end": "blind",
+   "depth": 40
+  },
+  {
+   "type": "chamfer",
+   "id": "F5",
+   "name": "Tip chamfer",
+   "chamferType": "equal",
+   "distance": 1,
+   "edges": [
+    {
+     "faces": [
+      "F4.C1",
+      "F4.S.c1"
+     ],
+     "at": [
+      5,
+      40,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "type": "thread",
+   "id": "F6",
+   "name": "M10 thread",
+   "face": "F4.S.c1",
+   "standard": "metric",
+   "size": "M10",
+   "class": "6g",
+   "length": 30,
+   "hand": "right",
+   "modeled": true
+  },
+  {
+   "type": "sketch",
+   "id": "F7",
+   "name": "Block",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "q1",
+     "x": 30,
+     "y": 0
+    },
+    {
+     "id": "q2",
+     "x": 70,
+     "y": 0
+    },
+    {
+     "id": "q3",
+     "x": 70,
+     "y": 30
+    },
+    {
+     "id": "q4",
+     "x": 30,
+     "y": 30
+    }
+   ],
+   "entities": [
+    {
+     "id": "b1",
+     "type": "line",
+     "p1": "q1",
+     "p2": "q2"
+    },
+    {
+     "id": "b2",
+     "type": "line",
+     "p1": "q2",
+     "p2": "q3"
+    },
+    {
+     "id": "b3",
+     "type": "line",
+     "p1": "q3",
+     "p2": "q4"
+    },
+    {
+     "id": "b4",
+     "type": "line",
+     "p1": "q4",
+     "p2": "q1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F8",
+   "name": "Block",
+   "op": "add",
+   "sketch": "F7",
+   "end": "blind",
+   "depth": 20
+  },
+  {
+   "type": "sketch",
+   "id": "F9",
+   "name": "Tapped hole",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "k",
+     "x": 50,
+     "y": 15
+    }
+   ],
+   "entities": [
+    {
+     "id": "pt1",
+     "type": "point",
+     "p": "k"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "hole",
+   "id": "F10",
+   "name": "M8 tapped hole",
+   "sketch": "F9",
+   "kind": "simple",
+   "size": "M8",
+   "fit": "tap",
+   "end": "blind",
+   "depth": 14,
+   "flip": true
+  },
+  {
+   "type": "thread",
+   "id": "F11",
+   "name": "M8 thread",
+   "face": "F10.S.h1",
+   "standard": "metric",
+   "size": "M8",
+   "class": "6H",
+   "length": "full",
+   "hand": "right",
+   "modeled": false
+  }
+ ],
+ "seq": 12,
+ "rollback": null,
+ "material": "steel",
+ "counters": {}
+}

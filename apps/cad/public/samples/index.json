@@ -10,6 +10,11 @@
   "file": "threaded-bolt.ckpart"
  },
  {
+  "id": "threaded-bolt-helix",
+  "title": "Threaded bolt: real helical M10 thread",
+  "file": "threaded-bolt-helix.ckpart"
+ },
+ {
   "id": "bench-ball_knob",
   "title": "Bench Ball Knob",
   "file": "bench-ball_knob.ckpart"
