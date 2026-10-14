@@ -16,7 +16,11 @@ import {
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
 import { Controller } from './controller';
-import { buildCommands, matchShortcut } from './commands';
+import { dxfToSketch } from '@kit/io';
+import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
+import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf, type ExportNotice, type ExportResult } from './exportFiles';
+import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
+import { ExportMenu } from './ExportMenu';
 import { toEntries, type Rejection } from './history';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
@@ -176,6 +180,7 @@ function App() {
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number } | null>(null);
   const [, viewTick] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
   const sketchHoverRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const sketchDoubleRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
   const sketchSelectRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
@@ -278,6 +283,66 @@ function App() {
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
+  const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
+  /** Add a DXF file's geometry to the open sketch. */
+  const importDxf = async () => {
+    if (!controller.sketchDraft()) { showNotices([{ level: 'error', key: 'io.dxf.noSketch' }]); return; }
+    const f = await platform.openFile();
+    if (!f) return;
+    const r = await importDxfIntoSketch(controller, f.text);
+    showNotices(r.notices);
+    if (r.ok) { viewTick((n) => n + 1); viewport?.fit(); }
+  };
+  /** Open a DXF file as a new sketch on the selected face or plane (front when nothing is selected). */
+  const sketchFromDxf = async () => {
+    const f = await platform.openFile();
+    if (!f) return;
+    const pre = dxfToSketch(f.text);
+    if (!pre.ok) { showNotices([importErrorNotice(pre.error)]); return; }
+    const face = selectedFace();
+    const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
+    startNewSketch(face ? { kind: 'face', id: face } : plane ?? 'front', async () => {
+      const r = await importDxfIntoSketch(controller, f.text);
+      showNotices(r.notices);
+      viewTick((n) => n + 1);
+      if (r.ok) viewport?.fit();
+    });
+  };
+
+  /** The sketch to export: the one being edited, else the one selected in the feature tree. */
+  const sketchToExport = () => {
+    const draft = controller.sketchDraft();
+    if (draft) return { points: draft.points, entities: draft.entities, id: draft.id, name: draft.name };
+    const f = controller.document()?.features.find((x) => x.id === selectedId);
+    return f && f.type === 'sketch' ? (f as unknown as { points: Array<{ id: string; x: number; y: number }>; entities: Array<{ id: string }>; id: string; name?: string }) : null;
+  };
+  const canExport = (kind: ExportKind): boolean => {
+    if (!controller.document()) return false;
+    if (kind === 'dxf-sketch') return sketchToExport() !== null;
+    return controller.bodyMesh() !== null;
+  };
+  const exportAs = async (kind: ExportKind) => {
+    const d = controller.document();
+    if (!d) return;
+    try {
+      let r: ExportResult;
+      const mesh = controller.bodyMesh();
+      if (kind === 'stl') r = exportStl(mesh, d.name, true);
+      else if (kind === 'stl-ascii') r = exportStl(mesh, d.name, false);
+      else if (kind === 'obj') r = exportObj(mesh, d.name);
+      else if (kind === 'dxf-sketch') r = exportSketchDxf(sketchToExport(), d.name);
+      else if (kind === 'dxf-views') r = exportViewsDxf(controller.bodyEdges() as Array<{ pts: number[][] }>, controller.bodyBox(), d.name);
+      else {
+        store.busy.value = true;
+        try { r = exportStep(mesh ? await controller.exportStep() : null, d.name); } finally { store.busy.value = false; }
+      }
+      if (r.file) await platform.saveFile(r.file.name, r.file.data, r.file.mime);
+      showNotices(r.notices);
+    } catch (e) {
+      showNotices([{ level: 'error', key: 'io.failed', params: { message: (e as Error).message } }]);
+    }
+  };
+
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => void createFeature(ops),
@@ -304,6 +369,7 @@ function App() {
     hasFaceSelection: () => selectedFace() !== null,
     addExtrude: (op) => void addExtrude(op),
     features: featureActions,
+    io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), isSketching: () => sketchingRef.current, exportAs: (k) => void exportAs(k), openExportMenu: () => setExportOpen(true), canExport },
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m),
@@ -679,7 +745,7 @@ function App() {
     const sel = store.selection.value;
     return store.mode.value === 'face' && sel.length === 1 ? sel[0] : null;
   };
-  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }) => {
+  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
@@ -704,6 +770,7 @@ function App() {
       viewport?.orientToSketch();
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
+      if (after) await after();
     })();
   };
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
@@ -892,6 +959,7 @@ function App() {
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
+        <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         <b class="doc-name">{doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>

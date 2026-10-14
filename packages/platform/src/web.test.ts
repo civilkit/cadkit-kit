@@ -38,3 +38,22 @@ describe('createWebPlatform wasmUrl', () => {
     expect(createWebPlatform({}).wasmUrl()).toBe('/kernel/ck_wasm.wasm');
   });
 });
+
+describe('createWebPlatform saveFile', () => {
+  it('downloads bytes and text with a type from the extension', async () => {
+    const blobs: Blob[] = [];
+    vi.stubGlobal('URL', { createObjectURL: (b: Blob) => { blobs.push(b); return 'blob:x'; }, revokeObjectURL: () => {} });
+    const clicks: string[] = [];
+    const orig = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) { clicks.push(this.download); };
+    try {
+      const p = createWebPlatform({});
+      await p.saveFile('a.stl', new Uint8Array([1, 2, 3]));
+      await p.saveFile('b.dxf', '0\nEOF\n');
+      await p.saveFile('c.bin', 'x', 'text/plain');
+    } finally { HTMLAnchorElement.prototype.click = orig; }
+    expect(clicks).toEqual(['a.stl', 'b.dxf', 'c.bin']);
+    expect(blobs.map((b) => b.type)).toEqual(['model/stl', 'image/vnd.dxf', 'text/plain']);
+    expect(blobs[0].size).toBe(3);
+  });
+});

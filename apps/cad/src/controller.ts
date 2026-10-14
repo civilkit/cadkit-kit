@@ -395,11 +395,22 @@ export class Controller {
   }
 
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[] } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number> } } | null = null;
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {
     return this.lastView?.box ?? null;
+  }
+
+  /** The triangles of the body on screen (three vertices per triangle, xyz, millimetres); null when there is none. */
+  bodyMesh(): { positions: ArrayLike<number> } | null {
+    const m = this.lastView?.mesh;
+    return m && m.positions.length > 0 ? m : null;
+  }
+
+  /** STEP text of the current document, from the kernel (null when nothing is loaded). */
+  async exportStep(): Promise<string | null> {
+    return this.session ? this.session.step() : null;
   }
 
   /** The edges of the body on screen: persistent key, the two faces they separate, and a point on each. */

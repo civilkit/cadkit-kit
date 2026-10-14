@@ -28,3 +28,4 @@ export { pickOf, classify, resolve as resolveConstraint, refusal, angleSpec, app
 export { constructionTool, setConstruction, markNewAsConstruction, CONSTRUCTIBLE } from './construction';
 export { projectTool, projectEdges, classifyCurve, edgesFor, edgeNear, flatten, type Projected, type ProjectRes } from './project';
 export { linearPatternTool, circularPatternTool, applyLinear, applyCircular, type LinearState, type CircularState } from './pattern';
+export { fitCurve, bsplineCurve, clampDegree, minCvPoints } from './splineMath';

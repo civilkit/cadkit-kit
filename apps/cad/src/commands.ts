@@ -5,7 +5,27 @@ import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
 
+/** Import and export of files other than the part itself (see ioCommands in this file). */
+export interface IoActions {
+  /** Add the geometry of a DXF file to the sketch being edited. */
+  importDxf(): void;
+  /** Open a DXF file as a new sketch on the selected plane or face (front when none). */
+  sketchFromDxf(): void;
+  isSketching(): boolean;
+  /** Write the current part or sketch to a file in this format. */
+  exportAs(kind: ExportKind): void;
+  /** Open the top bar's Export menu. */
+  openExportMenu(): void;
+  /** Whether there is a solid to export / a sketch (open or selected) to export. */
+  canExport(kind: ExportKind): boolean;
+}
+
+export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'obj' | 'dxf-sketch' | 'dxf-views';
+/** The export commands in menu order; each is the command `export-<kind>`. */
+export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', 'step', 'dxf-sketch', 'dxf-views'];
+
 export interface Actions {
+  io?: IoActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
   open(): void;
@@ -41,7 +61,7 @@ export const SHORTCUTS: Record<string, string> = {
   'sketch-here': 'S',
   'add-extrude': 'Shift+E', 'add-cut': 'Shift+C', 'add-revolve': 'Shift+R', 'add-hole': 'Shift+H',
   'add-fillet': 'Shift+F', 'add-chamfer': 'Shift+B', 'add-shell': 'Shift+S', 'add-lpattern': 'Shift+L', 'add-cpattern': 'Shift+P',
-  'toggle-projection': 'P', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
+  'toggle-projection': 'P', export: 'Ctrl+E', 'layer-dimensions': 'Shift+D', 'new-part': 'Ctrl+N', open: 'Ctrl+O', save: 'Ctrl+S', undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z',
 };
 
 /** The command a key press runs, or undefined. A spec is `Key`, `Shift+Key`, `Ctrl+Key` or `Ctrl+Shift+Key` (Ctrl means Ctrl or Cmd). */
@@ -93,9 +113,19 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
+  if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
   }
   return cmds;
+}
+
+function ioCommands(io: IoActions, hasDocument: () => boolean): Command[] {
+  return [
+    { id: 'sketch-import-dxf', label: t('cmd.sketch-import-dxf'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, run: io.importDxf },
+    { id: 'export', label: t('cmd.export'), tab: 'Home', group: 'File', enabled: hasDocument, run: io.openExportMenu },
+    ...EXPORT_KINDS.map((k): Command => ({ id: `export-${k}`, label: t(`cmd.export-${k}`), tab: 'Home', group: 'Export', enabled: () => io.canExport(k), run: () => io.exportAs(k) })),
+    { id: 'sketch-from-dxf', label: t('cmd.sketch-from-dxf'), tab: 'Home', group: 'Sketch', enabled: hasDocument, run: io.sketchFromDxf },
+  ];
 }

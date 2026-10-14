@@ -15,6 +15,7 @@ export default defineConfig(({ command }) => ({
       '@kit/i18n': here('./packages/i18n/src/index.ts'),
       '@kit/viewport': here('./packages/viewport/src/index.ts'),
       '@kit/platform': here('./packages/platform/src/index.ts'),
+      '@kit/io': here('./packages/io/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@ck/session': '/path/to/work/rebuild/packages/session/src/session.ts',
