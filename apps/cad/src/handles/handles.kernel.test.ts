@@ -170,13 +170,10 @@ describe('handle gestures against the real kernel', { skip: !process.env.CK_WASM
     expect(w.volume).toBeTruthy();
   }, 60000);
 
-  it('kernel gap: moveBody and moveFace are not implemented, so there is no body gizmo and no face-move arrow', async () => {
+  it('the kernel now builds moveBody and moveFace; the body gizmo and face-move arrow are not wired to them yet', async () => {
     const w = await world(block());
-    for (const type of ['moveBody', 'moveFace']) {
-      const r = await sessions.at(-1)!.preview([{ op: 'add', feature: { type, id: 'M' } } as never]);
-      expect(r.ok).toBe(false);
-      expect(JSON.stringify(r.hints)).toContain('needs ck-ops');
-    }
+    const body = await sessions.at(-1)!.preview([{ op: 'add', feature: { type: 'moveBody', id: 'M', translate: [5, 0, 0] } } as never]);
+    expect(JSON.stringify(body.hints ?? '')).not.toContain('needs ck-ops');
     expect(w.plan(['F2.S.e1'], 'face')).toBeNull();
   }, 60000);
 });
