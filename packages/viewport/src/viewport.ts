@@ -3,7 +3,7 @@
 // typed arrays (nothing here is reactive).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { groupByFace, edgeSegments, type BodyMesh, type Grouped } from './meshgeom';
+import { groupByFace, edgeSegments, facesGeometry, namesBox, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
@@ -522,7 +522,7 @@ export class Viewport {
     this.sketchOverlay = null;
   }
 
-  private layers: Record<string, boolean> = {};
+  private layers: Record<string, boolean> = { issues: false };
   /** Show or hide a display layer (sketches, curves, planes, axes, edges). */
   setLayerVisible(layer: string, on: boolean): void {
     this.layers[layer] = on;
@@ -534,6 +534,7 @@ export class Viewport {
     if (layer === 'grid' && this.groundGrid) this.groundGrid.visible = on;
     if (layer === 'dimensions' && this.dimGroup) this.dimGroup.visible = on;
     if (layer === 'threads' && this.threadGroup) this.threadGroup.visible = on;
+    if (layer === 'issues') for (const m of this.issueMeshes) m.visible = on;
     this.dirty = true;
   }
 
@@ -705,6 +706,7 @@ export class Viewport {
     this.grouped = g;
     this.edges = body.edges;
     this.box = body.box;
+    this.buildIssueMeshes();
     this.fit();
   }
 
@@ -859,6 +861,90 @@ export class Viewport {
     m.userData.pickable = false;
     this.scene.add(m);
     this.hoverObj = m;
+  }
+
+  private issueFaces: Record<string, 'error' | 'warn' | 'info'> = {};
+  private issueMeshes: THREE.Mesh[] = [];
+  private issueHover: THREE.Object3D[] = [];
+  private static readonly ISSUE_COLOUR = { error: 0xd1242f, warn: 0xe5a00d, info: 0x2f7fd6 };
+
+  /** Tint the faces named by design-check issues (worst severity per face). Shown while the `issues` layer is on; kept across rebuilds. */
+  setIssueFaces(map: Record<string, 'error' | 'warn' | 'info'>): void {
+    this.issueFaces = { ...map };
+    this.buildIssueMeshes();
+  }
+  private dropIssueMeshes(): void {
+    for (const m of this.issueMeshes) { this.scene.remove(m); m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
+    this.issueMeshes = [];
+  }
+  private buildIssueMeshes(): void {
+    this.dropIssueMeshes();
+    this.dirty = true;
+    if (!this.grouped) return;
+    for (const sev of ['error', 'warn', 'info'] as const) {
+      const names = Object.keys(this.issueFaces).filter((n) => this.issueFaces[n] === sev);
+      if (!names.length) continue;
+      const { positions, normals } = facesGeometry(this.grouped, names);
+      if (!positions.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+        color: Viewport.ISSUE_COLOUR[sev], transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+      }));
+      m.userData.pickable = false;
+      m.visible = this.layerOn('issues');
+      m.renderOrder = 2;
+      this.scene.add(m);
+      this.issueMeshes.push(m);
+    }
+  }
+
+  private dropIssueHover(): void {
+    for (const o of this.issueHover) this.dropFat(o);
+    this.issueHover = [];
+  }
+  /** Light several faces and edges at once (an issue under the pointer in the list), amber like a hovered face or edge. */
+  setIssueHover(names: string[]): void {
+    this.dropIssueHover();
+    this.dirty = true;
+    if (!this.grouped || !names.length) return;
+    const g = facesGeometry(this.grouped, names);
+    if (g.positions.length) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(g.positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(g.normals, 3));
+      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+        color: 0xffa21f, emissive: 0xffa21f, emissiveIntensity: 0.35, transparent: true, opacity: 0.7,
+        polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, side: THREE.DoubleSide, depthWrite: false,
+      }));
+      m.userData.pickable = false;
+      this.scene.add(m);
+      this.issueHover.push(m);
+    }
+    const polys = names.map((n) => this.edgeIndex(n)).filter((i) => i >= 0).map((i) => this.edges[i].pts as never);
+    if (polys.length) {
+      const l = this.addFatLines(polys, 0xffa21f, this.hlWidth, true);
+      if (l) { l.renderOrder = 6; this.issueHover.push(l); }
+    }
+  }
+
+  /** Bring the named faces and edges into view: aim at the middle of their box and move closer or further, keeping the view direction. */
+  frameNames(names: string[]): void {
+    const b = namesBox(this.grouped, this.edges, names);
+    if (!b) return;
+    const c = new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2);
+    const rad = Math.max(Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]) / 2, this.radius() * 0.05);
+    const dist = Math.min((rad * 2.4) / Math.sin((this.camera.fov * Math.PI) / 360), this.radius() * 6);
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-9) dir.set(1, 0.8, 1);
+    dir.normalize().multiplyScalar(dist);
+    this.controls.target.copy(c);
+    this.camera.position.copy(c).add(dir);
+    this.updateClip();
+    this.controls.update();
+    this.dirty = true;
   }
 
   setHighlight(names: string[]): void {
@@ -1062,6 +1148,7 @@ export class Viewport {
     this.dropFat(this.hoverObj); this.hoverObj = null;
     this.dropFat(this.shapeHover); this.shapeHover = null;
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
+    this.dropIssueMeshes(); this.dropIssueHover();
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);

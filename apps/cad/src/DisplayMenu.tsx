@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DisplayLayer, Display } from '@kit/store';
 import { t } from './i18n';
 
-export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads'];
+export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
 export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void }) {

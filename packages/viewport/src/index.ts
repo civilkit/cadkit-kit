@@ -1,4 +1,4 @@
-export { groupByFace, faceOfVertexIndex, edgeSegments } from './meshgeom';
+export { groupByFace, faceOfVertexIndex, edgeSegments, facesGeometry, namesBox } from './meshgeom';
 export { pickFace, nearestEdge } from './pick';
 export { sketchPolylines, curvePolylines, planeOutlines, axisLines } from './layers';
 export type { BodyMesh, FaceRange, Grouped } from './meshgeom';
