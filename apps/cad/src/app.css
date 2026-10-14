@@ -798,3 +798,6 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .dwg-props label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-2); }
 .dwg-props label.chk { flex-direction: row; align-items: center; gap: 6px; color: var(--text); }
 .dwg-props input[type="text"], .dwg-props input[type="number"], .dwg-props select, .dwg-props textarea { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--text); }
+
+/* Narrow windows: the selection-mode bar must not run under the Display button. */
+@media (max-width: 1100px) { .selmodes kbd { display: none; } .selmodes button { padding: 5px 8px; } }
