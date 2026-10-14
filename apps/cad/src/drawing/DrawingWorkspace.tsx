@@ -270,7 +270,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (picks.length >= 2) { setPend(null); addDim(v, picks, cur.radial); } else setPend({ ...cur, picks });
       return;
     }
-    if (!v && tool !== 'note') return;
+    if (!v && tool !== 'note' && !(tool === 'proj' && projParent.current)) return;
     if (tool === 'note') {
       const id = newId('N', d.notes.map((x) => x.id));
       const lead = e.shiftKey && v ? pt : undefined;
@@ -296,8 +296,8 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     } else if (tool === 'detail' && v) {
       drag.current = { kind: 'detail', view: v.id, c: toView(v, pt) };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } else if (tool === 'proj' && v) {
-      if (!projParent.current) { projParent.current = v.id; setSel({ kind: 'view', id: v.id }); return; }
+    } else if (tool === 'proj') {
+      if (!projParent.current) { if (!v) return; projParent.current = v.id; setSel({ kind: 'view', id: v.id }); return; }
       const par = d.views.find((x) => x.id === projParent.current)!;
       const g = dataRef.current[par.id]!;
       const side = sideOfPoint(viewBox(d, par, g), pt);
