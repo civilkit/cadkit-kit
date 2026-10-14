@@ -54,7 +54,7 @@ export const en: Catalog = {
   'cmd.open': 'Open', 'cmd.save': 'Save', 'cmd.samples': 'Samples', 'cmd.palette': 'Command search', 'cmd.drawer': 'Toggle drawer',
   'cmd.settings': 'Workspace settings', 'cmd.undo': 'Undo', 'cmd.redo': 'Redo',
   'cmd.view-iso': 'Iso', 'cmd.view-back': 'Back', 'cmd.view-left': 'Left', 'cmd.view-bottom': 'Bottom', 'cmd.view-front': 'Front', 'cmd.view-top': 'Top', 'cmd.view-right': 'Right', 'cmd.fit': 'Fit',
-  'cmd.sel-face': 'Face', 'cmd.sel-edge': 'Edge',
+  'cmd.sel-face': 'Face', 'cmd.sel-edge': 'Edge', 'cmd.sel-vertex': 'Corner',
   'layer.dimensions': 'Overall size', 'layer.edges': 'Edges', 'layer.sketches': 'Sketches', 'layer.curves': 'Curves', 'layer.planes': 'Planes', 'layer.axes': 'Axes', 'layer.grid': 'Grid', 'layer.relations': 'Relations',
 
   'display.label': 'Display',

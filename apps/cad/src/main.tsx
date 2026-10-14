@@ -231,7 +231,7 @@ function App() {
     try {
       const doc = JSON.parse(text) as PartDoc;
       await timed(() => controller.load(doc));
-      setSelectedId(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
+      setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t('app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
   };
@@ -244,7 +244,7 @@ function App() {
     for (let i = have; i > count; i--) await controller.undo();
     redraw((n) => n + 1);
   };
-  const setMode = (m: 'face' | 'edge') => { store.mode.value = m; viewport?.setPickMode(m); };
+  const setMode = (m: 'face' | 'edge' | 'vertex') => { store.mode.value = m; viewport?.setPickMode(m); };
   const toggleProjection = () => {
     const next = !(viewport?.isOrtho() ?? ortho);
     viewport?.setOrtho(next);
@@ -289,7 +289,7 @@ function App() {
     features: featureActions,
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
-    setMode: (m) => setMode(m === 'edge' ? 'edge' : 'face'),
+    setMode: (m) => setMode(m),
     mode: () => store.mode.value,
     toggleLayer: (l) => store.setDisplay(l, !store.display.value[l]),
     layer: (l) => store.display.value[l],
@@ -699,10 +699,12 @@ function App() {
   // Add the feature the ops describe as one edit, clear the selection that fed it, and open the Editor on it.
   const createFeature = async (ops: EditOp[]) => {
     const before = controller.document()?.features.length ?? 0;
+    // the picked edges, faces or corners are consumed by the feature: clear them first so the rebuild does not report them as lost
+    const picked = [...store.selection.value];
+    store.select([]);
     const r = await controller.edit(ops);
     redraw((n) => n + 1);
-    if (!r.ok) return;
-    store.select([]);
+    if (!r.ok) { store.select(picked); return; }
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);
@@ -884,7 +886,7 @@ function App() {
         ) : null}
         {ws.selectionBar ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
-            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E']] as const).map(([m, l, k]) => (
+            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V']] as const).map(([m, l, k]) => (
               <Tip key={m} label={t(l)} keys={k}>
                 <button aria-pressed={store.mode.value === m} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
                   <Icon name={'sel-' + m} size={ws.toolLabels === 'icons' ? 20 : 16} />

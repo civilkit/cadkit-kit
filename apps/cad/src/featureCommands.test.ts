@@ -75,3 +75,15 @@ describe('text', () => {
     setLocale('en');
   });
 });
+
+import { edgeRefs as edgeRefsForVertex } from './featureCommands';
+describe('edgeRefs: a corner stands for its edges', () => {
+  const e = (key: string, a: number[], b: number[]) => ({ key, faces: [key + 'a', key + 'b'], mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], pts: [a, b] });
+  const edges = [e('x', [0, 0, 0], [10, 0, 0]), e('y', [0, 0, 0], [0, 10, 0]), e('z', [0, 0, 0], [0, 0, 10]), e('far', [10, 10, 10], [10, 10, 0])];
+  it('takes every edge that ends at the corner, once, and ignores edges elsewhere', () => {
+    const refs = edgeRefsForVertex(['v:0,0,0'], edges);
+    expect(refs.length).toBe(3);
+    expect(edgeRefsForVertex(['v:0,0,0', 'x'], edges).length).toBe(3);        // the edge picked as well is not doubled
+    expect(edgeRefsForVertex(['v:5,5,5'], edges)).toEqual([]);
+  });
+});

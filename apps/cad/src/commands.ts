@@ -90,6 +90,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'fit', label: t('cmd.fit'), tab: 'View', group: 'Views', keys: 'Z', run: a.fit },
     { id: 'sel-face', label: t('cmd.sel-face'), tab: 'Select', group: 'Pick', keys: 'Q', pressed: () => a.mode() === 'face', run: () => a.setMode('face') },
     { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', pressed: () => a.mode() === 'edge', run: () => a.setMode('edge') },
+    { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];

@@ -1,6 +1,6 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
-import type { Store } from '@kit/store';
+import { vertexName, type Store } from '@kit/store';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -420,7 +420,13 @@ export class Controller {
     const body = await s.bodyForView();
     this.lastView = body;
     this.view.setBody(body);
-    this.store.dropMissing(new Set(body?.mesh.faceIds ?? []));
+    // everything that can be selected now: faces, edges and the corners at the ends of edges
+    const existing = new Set<string>(body?.mesh.faceIds ?? []);
+    for (const e of (body?.edges ?? []) as Array<{ key?: string; pts: number[][] }>) {
+      if (e.key) existing.add(e.key);
+      for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) if (p) existing.add(vertexName(p));
+    }
+    this.store.dropMissing(existing);
     const report = await s.verify();
     const errors = new Map(report.regen.errors);
     this.store.featureStatus.value = s.document.features.map((f) => {

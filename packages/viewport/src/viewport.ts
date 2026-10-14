@@ -10,6 +10,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
+import { vertexName, parseVertexName } from '@kit/store';
 import { buildBoxDimensions } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 export type { RefPlaneId } from './refplanes';
@@ -32,7 +33,8 @@ export interface ViewBody {
   markers?: unknown[];
 }
 
-export type PickMode = 'face' | 'edge';
+export type PickMode = 'face' | 'edge' | 'vertex';
+
 
 /** What the sketch-edit overlay draws: the solved sketch and its plane frame. */
 export interface SketchEditShape {
@@ -714,6 +716,17 @@ export class Viewport {
   private edgeIndex(name: string): number {
     return this.edges.findIndex((e, i) => (e.key ?? `edge#${i}`) === name);
   }
+  /** Round dots, a fixed size on screen, drawn on top, for hovered or selected corners. */
+  private vertexDots(points: number[][], color: number): THREE.Points {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(points.flat(), 3));
+    const mat = new THREE.PointsMaterial({ color, size: Math.max(9, this.hlWidth * 3 + 4), sizeAttenuation: false, depthTest: false, transparent: true });
+    const pts = new THREE.Points(geo, mat);
+    pts.renderOrder = 8; pts.userData.pickable = false;
+    this.scene.add(pts);
+    return pts;
+  }
+
   private dropFat(o: THREE.Object3D | null): void {
     if (!o) return;
     this.scene.remove(o);
@@ -730,6 +743,8 @@ export class Viewport {
     this.hoverObj = null;
     this.dirty = true;
     if (!name || this.selectedNames.has(name)) return;
+    const vp = parseVertexName(name);
+    if (vp) { this.hoverObj = this.vertexDots([vp], 0xffa21f); return; }
     const ei = this.edgeIndex(name);
     if (ei >= 0) {
       const l = this.addFatLines([this.edges[ei].pts as never], 0xffa21f, this.hlWidth, true);
@@ -760,6 +775,8 @@ export class Viewport {
     this.selectedNames = new Set(names);
     this.dropFat(this.edgeHighlight);
     this.edgeHighlight = null;
+    const verts = names.map(parseVertexName).filter((p): p is number[] => !!p);
+    if (verts.length) this.edgeHighlight = this.vertexDots(verts, 0x0b74dc) as never;
     const polys = names.map((n) => this.edgeIndex(n)).filter((i) => i >= 0).map((i) => this.edges[i].pts as never);
     if (polys.length) {
       const l = this.addFatLines(polys, 0x0b74dc, this.hlWidth, true);
@@ -984,11 +1001,40 @@ export class Viewport {
   /** What a click or hover at this screen position picks: an edge within a few pixels in edge mode (hidden edges are skipped),
    *  else the face under the pointer. */
   private pickName(x: number, y: number): string | null {
+    if (this.mode === 'vertex') return this.vertexAtScreen(x, y, 12);
     if (this.mode === 'edge') {
       const i = this.edgeAtScreen(x, y, 8);
       return i === null ? null : this.edges[i].key ?? `edge#${i}`;
     }
     return this.nameAt(this.hit(x, y));
+  }
+
+  /** The corner (end of an edge) within a few pixels of the pointer, not hidden behind the body. */
+  private vertexAtScreen(x: number, y: number, tolPx: number): string | null {
+    if (!this.edges.length) return null;
+    const r = this.dom.getBoundingClientRect();
+    const px = x - r.left, py = y - r.top;
+    const v = new THREE.Vector3();
+    let best: { p: number[]; d: number } | null = null;
+    for (const e of this.edges) {
+      for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) {
+        if (!p) continue;
+        v.set(p[0], p[1], p[2]).project(this.camera);
+        if (v.z > 1) continue;
+        const d = Math.hypot(((v.x + 1) / 2) * r.width - px, ((1 - v.y) / 2) * r.height - py);
+        if (d <= tolPx && (!best || d < best.d)) best = { p, d };
+      }
+    }
+    if (!best) return null;
+    if (this.mesh) {
+      const w = new THREE.Vector3(best.p[0], best.p[1], best.p[2]);
+      const dir = w.clone().sub(this.camera.position);
+      const dist = dir.length();
+      this.raycaster.set(this.camera.position, dir.normalize());
+      const h = this.raycaster.intersectObject(this.mesh, false)[0];
+      if (h && h.distance < dist - Math.max(this.radius() * 0.004, 1e-4)) return null;
+    }
+    return vertexName(best.p);
   }
 
   private edgeAtScreen(x: number, y: number, tolPx: number): number | null {

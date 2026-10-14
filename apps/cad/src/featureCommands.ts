@@ -8,7 +8,7 @@ import { t } from './i18n';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[] }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][] }
 type Feat = { id: string; type: string; [k: string]: unknown };
 
 /** A size for a new feature: about 5% of the smallest box dimension, rounded to 1, 2, 2.5 or 5 times a power of ten. */
@@ -32,9 +32,17 @@ const isEdgeName = (n: string): boolean => n.includes('|');
 export function edgeRefs(selection: string[], edges: ViewEdge[]): EdgeRef[] {
   const byKey = new Map(edges.filter((e) => e.key).map((e) => [e.key!, e]));
   const out: EdgeRef[] = [];
+  const seen = new Set<string>();
+  const add = (e: ViewEdge | undefined) => {
+    if (e?.faces && e.faces.length === 2 && e.mid && !seen.has(e.key ?? '')) { seen.add(e.key ?? ''); out.push({ faces: [...e.faces], at: [...e.mid] }); }
+  };
   for (const name of selection) {
-    const e = byKey.get(name);
-    if (e?.faces && e.faces.length === 2 && e.mid) out.push({ faces: [...e.faces], at: [...e.mid] });
+    if (name.startsWith('v:')) {
+      // a corner stands for every edge that ends there (rounding a cube corner rounds its three edges)
+      const v = name.slice(2).split(',').map(Number);
+      const near = (p?: number[]) => !!p && Math.hypot(p[0] - v[0], p[1] - v[1], p[2] - v[2]) < 1e-3;
+      for (const e of edges) if (near(e.pts?.[0]) || near(e.pts?.[(e.pts?.length ?? 1) - 1])) add(e);
+    } else add(byKey.get(name));
   }
   return out;
 }
@@ -61,7 +69,7 @@ export interface Ctx {
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];
 
-export const canFillet = (c: Ctx): boolean => !!c.doc && c.mode === 'edge' && edgeRefs(c.selection, c.edges).length > 0;
+export const canFillet = (c: Ctx): boolean => !!c.doc && (c.mode === 'edge' || c.mode === 'vertex') && edgeRefs(c.selection, c.edges).length > 0;
 export const canShell = (c: Ctx): boolean => !!c.doc && c.mode === 'face' && faceNames(c.selection).length > 0;
 
 export const hasPointEntities = (f: { type: string; entities?: unknown }): boolean => f.type === 'sketch' && ((f.entities as Array<{ type: string }> | undefined) ?? []).some((e) => e.type === 'point');
