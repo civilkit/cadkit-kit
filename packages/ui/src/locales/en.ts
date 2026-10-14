@@ -14,6 +14,7 @@ export const en: Catalog = {
   'ui.drawer.closeButton': 'Close \\',
   'ui.tree.count': '{n} features',
   'ui.tree.failed': '{n} failed',
+  'ui.tree.collapse': 'Collapse', 'ui.tree.expand': 'Expand',
   'ui.tree.suppress': 'Suppress',
   'ui.tree.unsuppress': 'Unsuppress',
   'ui.tree.remove': 'Remove',

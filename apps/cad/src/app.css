@@ -348,3 +348,12 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .start-planes .rb-btn { display: inline-flex; align-items: center; gap: 6px; }
 .start-planes .rb-btn.on { border-color: var(--accent); background: var(--accent-soft); }
 .start-or { font-size: 12px !important; }
+
+/* sketches tucked under the feature that uses them */
+.tree .row { padding-left: 6px; }
+.row-chev, .row-chev-space { width: 16px; height: 16px; flex: none; display: grid; place-items: center; border: 0; padding: 0; background: none; color: var(--text-2); cursor: pointer; border-radius: 4px; }
+.row-chev svg { transform: rotate(90deg); transition: transform .12s; }
+.row-chev[aria-expanded="false"] svg { transform: none; }
+.row-chev:hover { background: var(--chip); }
+.tree .row.child { padding-left: 28px; min-height: 30px; font-size: 13px; }
+.tree .row.child::after { content: ''; position: absolute; left: 14px; top: 0; bottom: 50%; width: 10px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); border-bottom-left-radius: 5px; pointer-events: none; }

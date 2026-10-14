@@ -135,3 +135,28 @@ describe('FeatureTree: reference rows', () => {
     expect(hovered).toEqual(['top', null]);
   });
 });
+
+import { sketchOwners } from './FeatureTree';
+describe('FeatureTree: sketches tucked under their feature', () => {
+  const rows = [
+    { id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', uses: ['F1'] },
+    { id: 'F3', type: 'sketch' },                                   // used by nobody
+    { id: 'P', type: 'sketch3d' }, { id: 'S0', type: 'sketch' }, { id: 'W', type: 'sweep', uses: ['S0', 'P'] },
+  ];
+  it('gives each sketch to the first feature that uses it, and leaves unused sketches alone', () => {
+    const o = sketchOwners(rows);
+    expect([...o.entries()]).toEqual([['F1', 'F2'], ['S0', 'W'], ['P', 'W']]);
+  });
+  it('shows owned sketches as indented children under the feature, folds them with the chevron, and still selects them', () => {
+    const picked: string[] = [];
+    localStorage.clear();
+    const { container } = render(<FeatureTree rows={rows} status={[]} selectedId={null} onSelect={(id) => picked.push(id)} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />);
+    const all = [...container.querySelectorAll('.tree > .row')].map((r) => r.querySelector('.row-id')!.textContent);
+    expect(all).toEqual(['F2', 'F1', 'F3', 'W', 'P', 'S0']);       // F1 right under its extrude, P and S0 under the sweep
+    expect(container.querySelectorAll('.row.child').length).toBe(3);
+    fireEvent.click(container.querySelectorAll('.row.child')[0]);
+    expect(picked).toEqual(['F1']);
+    fireEvent.click(container.querySelectorAll('.row-chev')[0]);
+    expect(container.querySelectorAll('.row.child').length).toBe(2);
+  });
+});

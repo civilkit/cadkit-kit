@@ -39,6 +39,18 @@ const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSO
 import { sketchTools } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
+/** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
+const usedSketches = (f: unknown): string[] => {
+  const out: string[] = [];
+  for (const v of Object.values(f as Record<string, unknown>)) {
+    for (const x of Array.isArray(v) ? v : [v]) {
+      const id = typeof x === 'string' ? x : x && typeof x === 'object' ? (x as { id?: unknown }).id : undefined;   // a path is {kind:'sketch', id}
+      if (typeof id === 'string' && /^[A-Za-z]+\d*$/.test(id)) out.push(id);
+    }
+  }
+  return out;
+};
+
 const RAIL_GROUPS: string[][] = [
   ['toggle-left-panel'],
   ['undo', 'redo'],
@@ -314,7 +326,7 @@ function App() {
   }, []);
 
   const doc = controller.document();
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed })) : [];
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f) })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
