@@ -16,6 +16,11 @@ interface FeatureLike { entities?: Array<{ id: string; type?: string; constructi
 
 const endpoints = (e: { type?: string; [k: string]: unknown }): string[] => {
   if (e.type === 'line' || e.type === 'arc') return [e.p1, e.p2].filter((x): x is string => typeof x === 'string');
+  if ((e.type === 'spline' || e.type === 'cvspline') && Array.isArray(e.pts)) {
+    // a closed spline is its own loop (both ends are one point); an open one runs first to last
+    const p = e.pts as unknown[];
+    return p.length ? [String(p[0]), e.closed === true ? String(p[0]) : String(p[p.length - 1])] : [];
+  }
   if (Array.isArray(e.points)) { const p = e.points as unknown[]; return p.length ? [String(p[0]), String(p[p.length - 1])] : []; }
   return [e.p1, e.p2].filter((x): x is string => typeof x === 'string');
 };

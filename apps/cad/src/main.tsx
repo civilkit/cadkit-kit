@@ -8,7 +8,7 @@ import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@ki
 import { BODY, createStore, type DisplayLayer, type Workspace } from '@kit/store';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
-import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast,
@@ -97,6 +97,8 @@ const RAIL_GROUPS: string[][] = [
   ['triball'],
 ];
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
+/** Sketch tools whose clicks pick a curve of the sketch. */
+const ENTITY_PICK_TOOLS = new Set<string | null>(['offset']);
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
@@ -741,6 +743,8 @@ function App() {
     setToolOut(null);
     viewport?.setSketchTool(!!entry);
     if (!entry) viewport?.setSketchPreview([]);
+    // Offset chosen while the sketch is on a face: offer that face's outline offset inward right away
+    else if (entry.id === 'offset' && projectSelRef.current.length) runTool({ type: 'key', key: OFFSET_FACE_KEY });
   };
   /** What the pointer is snapped to, drawn as markers and dotted guides, plus the ring on the chain end. */
   const snapVisuals = (draft: import('@kit/sketch').SketchDraft, snap: SnapHit | undefined, out: ToolOutput<unknown>): SketchPreviewShape[] => {
@@ -763,7 +767,10 @@ function App() {
     if (!entry || !draft) return;
     const snap = ev.type === 'move' || ev.type === 'click' ? ev.snap : undefined;
     const frame = controller.sketchFrame();
-    const edges = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+    const edges: import('@kit/sketch').BodyEdge[] = controller.bodyEdges().flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+    // curves of the other (consumed) sketches are reference edges too
+    const refEdges = sketchReferenceEdges((controller.document()?.features ?? []) as never, (id) => controller.sketchFrameOf(id), draft.id, edges);
+    edges.push(...refEdges);
     const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
@@ -923,7 +930,12 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    const snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    // tools that pick a whole curve need the curve under the pointer, not only a midpoint snap
+    if (ENTITY_PICK_TOOLS.has(sketchToolRef.current) && !snap?.entityId) {
+      const entityId = pickEntity(draft, at, ev.tol);
+      if (entityId) snap = snap ? { ...snap, entityId } : { kind: 'grid', at, entityId };
+    }
     runTool({ type: ev.type, at, snap, mods: ev.mods });
     // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
     const anchor = lastOutRef.current?.anchor;

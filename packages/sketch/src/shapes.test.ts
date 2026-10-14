@@ -53,3 +53,10 @@ describe('nextExtrudeTarget', () => {
     expect(nextExtrudeTarget([sk, all, sk2, all2])).toBeNull();
   });
 });
+
+describe('free-form closed shapes', () => {
+  it('a closed spline is a shape by itself, so a ring of two splines offers both', () => {
+    const f = { entities: [{ id: 'e1', type: 'spline', pts: ['a', 'b', 'c'], closed: true }, { id: 'e2', type: 'spline', pts: ['d', 'e', 'f'], closed: true }, { id: 'e3', type: 'spline', pts: ['g', 'h', 'i'] }] };
+    expect(sketchShapes(f).map((s) => s.id)).toEqual(['e1', 'e2']);
+  });
+});
