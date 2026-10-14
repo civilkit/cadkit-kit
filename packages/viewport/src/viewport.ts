@@ -105,6 +105,10 @@ const VIEW_DIRS: Record<StdView, [number, number, number]> = {
   bottom: [0, -1, 0.0001],
 };
 
+import { SectionView } from './sectionView';
+import type { SectionSpec } from './section';
+import { buildMeasureMarks, type MeasureMark } from './measureMarks';
+
 export class Viewport {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly camera: THREE.PerspectiveCamera;
@@ -154,9 +158,10 @@ export class Viewport {
   private meshFade: number | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.dom = this.renderer.domElement;
+    this.sectionView = new SectionView(this.scene, this.renderer);
     host.appendChild(this.dom);
 
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000);
@@ -652,7 +657,7 @@ export class Viewport {
   /** Show a body, or clear the scene when body is null (empty or failed document). */
   setBody(body: ViewBody | null): void {
     this.clearBody();
-    if (!body) { this.buildGroundGrid(null); this.dirty = true; return; }
+    if (!body) { this.buildGroundGrid(null); this.applySection(); this.dirty = true; return; }
     this.buildGroundGrid(body.box ?? null);
     this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
@@ -707,6 +712,7 @@ export class Viewport {
     this.edges = body.edges;
     this.box = body.box;
     this.buildIssueMeshes();
+    this.applySection();
     this.fit();
   }
 
@@ -1058,12 +1064,41 @@ export class Viewport {
    *  (the parallel view) would blow them up. Scale them by the field of view relative to the 45 degrees they are designed for. */
   private fixSpriteScale(): void {
     const k = Math.tan((this.camera.fov * Math.PI) / 360) / Math.tan((45 * Math.PI) / 360);
-    for (const g of [this.refPlanes.group, this.dimGroup, this.threadGroup]) {
+    for (const g of [this.refPlanes.group, this.dimGroup, this.threadGroup, this.measureGroup]) {
       g?.traverse((o) => {
         const base = o.userData.base as [number, number] | undefined;
         if (base && (o as THREE.Sprite).isSprite) o.scale.set(base[0] * k, base[1] * k, 1);
       });
     }
+  }
+
+
+  // ---- Inspect: section view and measurement leaders (see section.ts, sectionView.ts, measureMarks.ts) ----
+  private readonly sectionView: SectionView;
+  private sectionSpec: SectionSpec | null = null;
+  private measureGroup: THREE.Group | null = null;
+
+  /** Cut the body open with a plane (null removes the cut). The cut face is capped. Survives rebuilds of the body. */
+  setSection(spec: SectionSpec | null): void {
+    this.sectionSpec = spec;
+    this.applySection();
+  }
+  private applySection(): void {
+    this.sectionView.set(this.sectionSpec, this.mesh, this.edgeLines, this.box);
+    this.dirty = true;
+  }
+
+  /** Draw measurement leaders (null or empty removes them). */
+  setMeasure(marks: MeasureMark[] | null): void {
+    if (this.measureGroup) {
+      this.scene.remove(this.measureGroup);
+      this.measureGroup.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh || (o as THREE.Line).isLine) m.geometry?.dispose(); });
+      this.measureGroup = null;
+    }
+    const diag = this.box ? Math.hypot(this.box.max[0] - this.box.min[0], this.box.max[1] - this.box.min[1], this.box.max[2] - this.box.min[2]) : 100;
+    this.measureGroup = marks ? buildMeasureMarks(marks, diag) : null;
+    if (this.measureGroup) this.scene.add(this.measureGroup);
+    this.dirty = true;
   }
 
   private ortho = false;
@@ -1122,6 +1157,7 @@ export class Viewport {
     this.dom.removeEventListener('pointerup', this.onUp);
     this.dom.removeEventListener('pointermove', this.onMove);
     this.controls.dispose();
+    this.sectionView.clear(); this.setMeasure(null);
     this.clearSketchOverlay();
     this.clearBody();
     this.renderer.dispose();
