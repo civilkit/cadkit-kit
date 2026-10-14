@@ -160,6 +160,7 @@ export const en: Catalog = {
   'settings.sketch.gridSnap': 'Snap to the grid',
   'app.sketch.snap.point': 'point', 'app.sketch.snap.midpoint': 'midpoint', 'app.sketch.snap.align': 'aligned', 'app.sketch.snap.grid': 'grid',
   'app.sketch.newName': 'New sketch',
+  'app.sketch.layerOn': 'Sketches were hidden in Display, so they are shown again.',
   'app.sketch.moreTools': 'More tools like {name}',
   'app.sketch.group.draw': 'Draw', 'app.sketch.group.dimension': 'Dimension', 'app.sketch.group.constrain': 'Constrain', 'app.sketch.group.edit': 'Edit',
   'app.sketch.tool.line': 'Line', 'app.sketch.tool.rectangle': 'Rectangle', 'app.sketch.tool.center-rectangle': 'Centre rectangle',

@@ -602,6 +602,7 @@ function App() {
     return store.mode.value === 'face' && sel.length === 1 ? sel[0] : null;
   };
   const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }) => {
+    setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
       const view = await controller.beginNewSketch(plane);
@@ -649,6 +650,8 @@ function App() {
     const sketchId = sketching.id;
     await timed(() => controller.commitSketch());
     setSketching(null); setSketchHint(null);
+    // a sketch you just made must not vanish because the layer was switched off earlier: turn it back on and say so
+    if (!store.display.value.sketches) { store.setDisplay('sketches', true); store.notify(t('app.sketch.layerOn')); }
     const made = controller.document()?.features.find((f) => f.id === sketchId);
     if (wasHole && made && hasPointEntities(made as never)) void createFeature(holeOps(sketchId, controller.extrudeFlip(sketchId, 'cut'), controller.bodyBox()));
     else if (wasHole) store.notify(t('app.hole.hint'), 'error');
