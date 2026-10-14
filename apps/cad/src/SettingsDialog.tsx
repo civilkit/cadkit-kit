@@ -41,7 +41,7 @@ export function SettingsDialog(p: {
     choose(next);
     setTimeout(() => document.getElementById('settab-' + next)?.focus(), 0);
   };
-  const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen') => (
+  const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen' | 'handles') => (
     <label class="set-row">
       <input type="checkbox" checked={w[key]} onChange={(e) => p.onChange({ [key]: (e.currentTarget as HTMLInputElement).checked })} />
       <span>{t('settings.' + key)}</span>
@@ -85,6 +85,7 @@ export function SettingsDialog(p: {
           {check('toolRail')}
           {check('selectionBar')}
           {check('drawerOpen')}
+          {check('handles')}
           <label class="set-row"><span>{t('settings.opacity')}</span>
             <input type="range" min="15" max="100" value={Math.round(w.opacity * 100)} aria-label={t('settings.opacity')} onInput={(e) => p.onChange({ opacity: Number((e.currentTarget as HTMLInputElement).value) / 100 })} /></label>
           <label class="set-row"><span>{t('settings.lineWidth')}</span>

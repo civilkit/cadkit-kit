@@ -61,3 +61,6 @@ names) and keeps following the selection until "Done". Reference fields for a si
   picked in the viewport).
 - Hole is the simple kind only; counterbore/countersink fields (`cboreDiameter` ...) are not in the Editor yet.
 - Selected tree rows influence only the revolve, hole (point sketch) and pattern commands.
+
+
+See also `docs/contextual-handles.md`: dragging handles on a selected edge, corner or face runs the same fillet, chamfer and depth edits directly on the canvas, and the right-click menu lists these commands.

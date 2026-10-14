@@ -4,6 +4,7 @@
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
+import { BODY } from '@kit/store';
 import { t } from './i18n';
 import { newHole, type HolePrefs } from './holeData';
 
@@ -49,7 +50,7 @@ export function edgeRefs(selection: string[], edges: ViewEdge[]): EdgeRef[] {
 }
 
 /** The selected faces, by name. */
-export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n));
+export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY);
 
 /** What a reference field takes from the current selection: the edge references, the face names, or the first name. Null when nothing fits. */
 export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {

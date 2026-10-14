@@ -12,6 +12,14 @@ describe('SettingsDialog', () => {
     fireEvent.click(screen.getByLabelText('Tool rail'));
     expect(onChange).toHaveBeenCalledWith({ toolRail: false });
   });
+  it('the handles checkbox is in Layout, on by default, and sends only that option', () => {
+    const onChange = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={onChange} onPreset={() => {}} onClose={() => {}} />);
+    const box = screen.getByLabelText('Direct-manipulation handles on the canvas') as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenCalledWith({ handles: false });
+  });
   it('choosing a preset calls onPreset, and the ribbon select changes the ribbon', () => {
     const onPreset = vi.fn(), onChange = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={onChange} onPreset={onPreset} onClose={() => {}} />);
