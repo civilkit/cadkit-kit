@@ -5,7 +5,13 @@ import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
-import { BODY, createStore, type DisplayLayer, type Workspace } from '@kit/store';
+import { BODY, createStore, MODE_FILTER, type DisplayLayer, type PickFilterKind, type SelectionMode, type Workspace } from '@kit/store';
+import { toBodyMode } from './select/actions';
+import { summarize } from './select/actions';
+import { summaryText } from './select/summary';
+import { SelectionList, chipsOf } from './select/SelectionList';
+import { isBodyName } from './select/model';
+import { FilterMenu } from './select/FilterMenu';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, constraintTargets, deleteEntity, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
@@ -129,6 +135,7 @@ const controller = new Controller({
       }
       viewport?.setConsumedSketches([...used]);
       viewport?.setBody(b as never);
+      viewport?.setBodies(controller.selModel()?.bodies() ?? []);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
       const sheets = body?.surfaces ?? [];   // surface bodies count with the solid's faces and triangles
       store.facts.value = {
@@ -247,7 +254,7 @@ function App() {
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
+  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -262,7 +269,8 @@ function App() {
       onSketchView: () => viewTick((n) => n + 1),
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
-      onRefPlanePick: (id) => { setRefSel(id); setSelectedId(null); store.select([]); },
+      onBoxSelect: (names, additive) => { if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
+      onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
     try { if (localStorage.getItem('cad.ortho') === '1') vp.setOrtho(true); } catch { /* private window */ }
@@ -342,7 +350,23 @@ function App() {
     for (let i = 0; i < 1000 && (session?.history().length ?? 0) > count; i++) await controller.undo();
     redraw((n) => n + 1);
   };
-  const setMode = (m: 'face' | 'edge' | 'vertex') => { store.mode.value = m; viewport?.setPickMode(m); };
+  const setMode = (m: SelectionMode) => {
+    if (!store.filters.value[MODE_FILTER[m]]) { store.notify(t('select.filter.off'), 'warn'); return; }
+    // entering Body mode keeps the bodies that hold what was selected
+    if (m === 'body' && store.mode.value !== 'body') { const mdl = controller.selModel(); if (mdl && store.selection.value.length) store.select(toBodyMode(mdl, store.selection.value)); }
+    store.mode.value = m; viewport?.setPickMode(m);
+  };
+  const [boxOn, setBoxOn] = useState(false);
+  const toggleBox = () => { const on = !boxOn; setBoxOn(on); viewport?.setBoxMode(on); if (on) store.notify(t('select.box.on')); };
+  const setFilter = (k: PickFilterKind, on: boolean) => {
+    store.setFilter(k, on);
+    // the pick mode whose type was just switched off gives way to one that is still on
+    if (!on && MODE_FILTER[store.mode.value] === k) { const next = (['face', 'edge', 'vertex', 'body'] as const).find((m) => store.filters.value[MODE_FILTER[m]]); if (next) setMode(next); }
+  };
+  const applySelection = (r: { names: string[]; mode: SelectionMode }) => {
+    if (r.mode !== store.mode.value) { store.mode.value = r.mode; viewport?.setPickMode(r.mode); }
+    store.select(r.names);
+  };
   const toggleProjection = () => {
     const next = !(viewport?.isOrtho() ?? ortho);
     viewport?.setOrtho(next);
@@ -532,6 +556,11 @@ function App() {
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
     setMode: (m) => setMode(m),
+    select: {
+      model: () => controller.selModel(), selection: () => store.selection.value, mode: () => store.mode.value, hasDocument: () => controller.document() !== null,
+      apply: applySelection, clear: () => store.select([]), setMode: (m) => setMode(m), box: { isOn: () => boxOn, toggle: toggleBox },
+      notify: (text, level) => store.notify(text, level ?? 'info'),
+    },
     selectBody: () => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select([BODY]); },
     triball: { toggle: () => triRef.current?.toggle(), isOn: () => triRef.current?.on ?? false, canToggle: () => triRef.current?.canToggle() ?? false },
     mode: () => store.mode.value,
@@ -581,6 +610,9 @@ function App() {
     return () => removeEventListener('keydown', onKey);
   }, []);
 
+  const hoverLabel = (n: string | null) => (n && isBodyName(n) ? chipsOf([n], controller.selModel())[0].label : n);
+  const selModelNow = store.selection.value.length ? controller.selModel() : null;
+  const selText = selModelNow ? summaryText(summarize(selModelNow, store.selection.value)) : '';
   const doc = controller.document();
   const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f) })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
@@ -1302,16 +1334,23 @@ function App() {
         ) : null}
         {ws.selectionBar ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
-            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V']] as const).map(([m, l, k]) => (
+            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
               <Tip key={m} label={t(l)} keys={k}>
-                <button aria-pressed={store.mode.value === m} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
+                <button aria-pressed={store.mode.value === m} disabled={!store.filters.value[MODE_FILTER[m]]} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
                   <Icon name={'sel-' + m} size={ws.toolLabels === 'icons' ? 20 : 16} />
                   {ws.toolLabels === 'icons' ? null : <><kbd>{k}</kbd>{t(l)}</>}
                 </button>
               </Tip>
             ))}
+            <span class="sel-sep" />
+            <Tip label={t('cmd.select-box')} keys="X">
+              <button aria-pressed={boxOn} aria-label={t('cmd.select-box')} onClick={toggleBox}><Icon name="sel-box" size={ws.toolLabels === 'icons' ? 20 : 16} />{ws.toolLabels === 'icons' ? null : <kbd>X</kbd>}</button>
+            </Tip>
+            <FilterMenu filters={store.filters.value} onChange={setFilter} />
           </div>
         ) : null}
+        {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
+          onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)} /> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance,
@@ -1366,8 +1405,9 @@ function App() {
           ]} />
       ) : null}
       <div class="status-wrap">
-        <StatusBar notices={store.notices.value} hover={store.hover.value} busy={store.busy.value}
+        <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           items={[
+            ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },

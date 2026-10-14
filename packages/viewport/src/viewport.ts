@@ -11,6 +11,7 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
 import { vertexName, parseVertexName, BODY } from '@kit/store';
+import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
@@ -47,7 +48,10 @@ export interface PlacementHook {
   leave?(): void;
 }
 
-export type PickMode = 'face' | 'edge' | 'vertex';
+/** Append a typed-array slice to a plain array without spreading it (a spread of a big face overflows the call stack). */
+function pushAll(out: number[], src: ArrayLike<number>): void { for (let i = 0; i < src.length; i++) out.push(src[i]); }
+
+export type PickMode = 'face' | 'edge' | 'vertex' | 'body';
 
 /** A thread entry of the regen result (see the kernel's `thread` feature). */
 export interface ViewThread {
@@ -82,6 +86,8 @@ export interface ViewportOptions {
   onContextMenu?(name: string | null, x: number, y: number, mode: PickMode): void;
   /** A double click on a body face (not while a sketch is open): the name of the face under the pointer. */
   onBodyDouble?(face: string): void;
+  /** A box was dragged in the 3D view (Box select mode, or Shift+drag from empty space): the names it picked in the current mode, and whether it adds to the selection. */
+  onBoxSelect?(names: string[], additive: boolean, mode: PickMode): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
 }
@@ -215,6 +221,9 @@ export class Viewport {
       orbit: (dx, dy) => this.orbitBy(dx, dy),
       onChange: () => { this.dirty = true; },
     });
+    this.dom.addEventListener('pointerdown', this.onBoxDown, true);
+    window.addEventListener('pointermove', this.onBoxMove);
+    window.addEventListener('pointerup', this.onBoxUp, true);
     this.dom.addEventListener('pointerdown', this.onDown);
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
@@ -234,6 +243,90 @@ export class Viewport {
   }
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
+
+  private bodyList: Array<{ name: string; faces: string[] }> = [];
+  private faceBody = new Map<string, string>();
+  /** The bodies (connected sets of faces) the app found: Body pick mode and the highlight of a body name use them. */
+  setBodies(bodies: Array<{ name: string; faces: string[] }>): void {
+    this.bodyList = bodies;
+    this.faceBody = new Map(bodies.flatMap((b) => b.faces.map((f) => [f, b.name] as const)));
+  }
+  private expandNames(names: string[]): string[] {
+    if (!names.some((n) => n === BODY || n.startsWith('@body:'))) return names;
+    const out: string[] = [];
+    for (const n of names) {
+      if (n === BODY) out.push(...(this.grouped?.ranges.map((r) => r.name) ?? []));
+      else if (n.startsWith('@body:')) out.push(...(this.bodyList.find((b) => b.name === n)?.faces ?? []));
+      else out.push(n);
+    }
+    return out;
+  }
+
+  private boxMode = false;
+  private boxDrag: { x0: number; y0: number; id: number; add: boolean } | null = null;
+  private boxEl: HTMLDivElement | null = null;
+  /** Box select mode: a left drag draws a box instead of orbiting. */
+  setBoxMode(on: boolean): void { this.boxMode = on; this.dom.style.cursor = on ? 'crosshair' : ''; }
+  isBoxMode(): boolean { return this.boxMode; }
+
+  private onBoxDown = (e: PointerEvent): void => {
+    if (e.button !== 0 || this.sketchEdit || this.placement || this.pickIntercept || !this.opts.onBoxSelect) return;
+    // Box select mode starts anywhere; otherwise Shift+drag starting on empty space (a click on the body still adds to the selection)
+    if (!this.boxMode && !(e.shiftKey && this.pickName(e.clientX, e.clientY) === null && !this.hit(e.clientX, e.clientY))) return;
+    this.boxDrag = { x0: e.clientX, y0: e.clientY, id: e.pointerId, add: e.shiftKey };
+    this.controls.enabled = false;
+    try { this.dom.setPointerCapture(e.pointerId); } catch { /* synthetic events have no active pointer */ }
+  };
+  private onBoxMove = (e: PointerEvent): void => {
+    const d = this.boxDrag;
+    if (!d) return;
+    if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4 && !this.boxEl) return;
+    if (!this.boxEl) {
+      this.boxEl = document.createElement('div');
+      this.boxEl.className = 'box-select';
+      this.boxEl.style.cssText = 'position:absolute;pointer-events:none;z-index:5;box-sizing:border-box';
+      this.host.appendChild(this.boxEl);
+    }
+    const r = this.host.getBoundingClientRect();
+    const crossing = e.clientX < d.x0;
+    const el = this.boxEl;
+    el.style.left = Math.min(d.x0, e.clientX) - r.left + 'px'; el.style.top = Math.min(d.y0, e.clientY) - r.top + 'px';
+    el.style.width = Math.abs(e.clientX - d.x0) + 'px'; el.style.height = Math.abs(e.clientY - d.y0) + 'px';
+    el.dataset.kind = crossing ? 'crossing' : 'window';
+    el.style.border = crossing ? '1.5px dashed #2f9e5b' : '1.5px solid #0b74dc';
+    el.style.background = crossing ? 'rgba(47,158,91,.12)' : 'rgba(11,116,220,.12)';
+  };
+  private onBoxUp = (e: PointerEvent): void => {
+    const d = this.boxDrag;
+    if (!d) return;
+    this.boxDrag = null;
+    this.controls.enabled = true;
+    try { this.dom.releasePointerCapture(d.id); } catch { /* not captured */ }
+    const had = !!this.boxEl;
+    this.boxEl?.remove();
+    this.boxEl = null;
+    if (!had) {
+      // no drag: a plain click in Box select mode is an ordinary pick
+      if (this.boxMode) this.opts.onPick(((n) => (n ? [n] : []))(this.pickName(e.clientX, e.clientY)), e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
+      this.suppressUp = true;
+      return;
+    }
+    this.suppressUp = true;
+    this.opts.onBoxSelect?.(this.pickBox({ x0: d.x0, y0: d.y0, x1: e.clientX, y1: e.clientY }), d.add || e.shiftKey, this.mode);
+  };
+  private suppressUp = false;
+
+  /** The names a screen-space box (client pixels) picks in the current mode; dragging right is a window, dragging left a crossing box. */
+  pickBox(r: ScreenRect): string[] {
+    const hostR = this.host.getBoundingClientRect();
+    const v = new THREE.Vector3();
+    const project: Project = (p) => {
+      v.set(p[0], p[1], p[2]).project(this.camera);
+      if (v.z > 1 || v.z < -1) return null;
+      return [hostR.left + ((v.x + 1) / 2) * hostR.width, hostR.top + ((1 - v.y) / 2) * hostR.height];
+    };
+    return boxPick({ rect: r, crossing: r.x1 < r.x0, project, mode: this.mode, grouped: this.grouped, edges: this.edges, bodies: this.bodyList, vertexName });
+  }
 
   /** Direct-manipulation handles drawn over the model (arrows, dots, rings, plane squares). Null removes them. A drag is
    *  reported to `sink`; the handle never orbits the camera and never changes the selection. */
@@ -1031,11 +1124,11 @@ export class Viewport {
   }
 
   /** The face or edge under the pointer: a lighter fill for a face, an amber thick line for an edge (selected ones keep their own look). */
-  setHover(name: string | null): void {
+  setHover(name: string | null, force = false): void {
     this.dropFat(this.hoverObj);
     this.hoverObj = null;
     this.dirty = true;
-    if (!name || this.selectedNames.has(name)) return;
+    if (!name || (!force && this.selectedNames.has(name))) return;
     const vp = parseVertexName(name);
     if (vp) { this.hoverObj = this.vertexDots([vp], 0xffa21f); return; }
     const ei = this.edgeIndex(name);
@@ -1046,17 +1139,18 @@ export class Viewport {
     }
     if (!this.grouped) return;
     const pos: number[] = [], nor: number[] = [];
+    const faces = new Set(this.expandNames([name]));
     for (const r of this.grouped.ranges) {
-      if (r.name !== name) continue;
-      pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
-      nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+      if (!faces.has(r.name)) continue;
+      pushAll(pos, this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+      pushAll(nor, this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
     }
     if (!pos.length) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
     const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-      color: 0x7fc1ff, emissive: 0x7fc1ff, emissiveIntensity: 0.25, transparent: true, opacity: 0.55,
+      color: force ? 0xffa21f : 0x7fc1ff, emissive: force ? 0xffa21f : 0x7fc1ff, emissiveIntensity: force ? 0.5 : 0.25, transparent: true, opacity: force ? 0.85 : 0.55,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, side: THREE.DoubleSide, depthWrite: false,
     }));
     m.userData.pickable = false;
@@ -1149,8 +1243,9 @@ export class Viewport {
   }
 
   setHighlight(names: string[]): void {
-    if (names.includes(BODY)) names = [...names.filter((n) => n !== BODY), ...(this.grouped?.ranges.map((r) => r.name) ?? [])];
-    this.selectedNames = new Set(names);
+    const asked = names;
+    names = this.expandNames(names);
+    this.selectedNames = new Set([...asked, ...names]);
     this.dropFat(this.edgeHighlight);
     this.edgeHighlight = null;
     const verts = names.map(parseVertexName).filter((p): p is number[] => !!p);
@@ -1172,8 +1267,8 @@ export class Viewport {
       const nor: number[] = [];
       for (const r of this.grouped.ranges) {
         if (!want.has(r.name)) continue;
-        pos.push(...this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
-        nor.push(...this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
+        pushAll(pos, this.grouped.positions.subarray(r.start * 3, (r.start + r.count) * 3));
+        pushAll(nor, this.grouped.normals.subarray(r.start * 3, (r.start + r.count) * 3));
       }
       if (pos.length) {
         const geo = new THREE.BufferGeometry();
@@ -1359,6 +1454,9 @@ export class Viewport {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    this.dom.removeEventListener('pointerdown', this.onBoxDown, true);
+    window.removeEventListener('pointermove', this.onBoxMove);
+    window.removeEventListener('pointerup', this.onBoxUp, true);
     this.dom.removeEventListener('pointerdown', this.onDown);
     this.dom.removeEventListener('pointerleave', this.onLeave);
     this.dom.removeEventListener('dblclick', this.onDouble);
@@ -1438,7 +1536,8 @@ export class Viewport {
       const i = this.edgeAtScreen(x, y, 8);
       return i === null ? null : this.edges[i].key ?? `edge#${i}`;
     }
-    return this.nameAt(this.hit(x, y));
+    const f = this.nameAt(this.hit(x, y));
+    return this.mode === 'body' && f ? this.faceBody.get(f) ?? f : f;
   }
 
   /** The corner (end of an edge) within a few pixels of the pointer, not hidden behind the body. */
@@ -1558,6 +1657,7 @@ export class Viewport {
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.suppressUp) { this.suppressUp = false; return; }
     if (this.placement && !this.sketchEdit) {
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.placement.tap(e.clientX, e.clientY, { alt: e.altKey });
       return;
@@ -1576,6 +1676,7 @@ export class Viewport {
       }
       return; // body picking stays off in sketch mode
     }
+    if (e.button !== 0) return; // a right click only opens the context menu: it keeps a multi-selection
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
     if (!hit0 && this.mode !== 'edge' && this.refPlanes.group.visible) {

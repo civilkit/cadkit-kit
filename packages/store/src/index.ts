@@ -1,6 +1,13 @@
 import { signal, type Signal } from '@preact/signals-core';
 
-export type SelectionMode = 'face' | 'edge' | 'vertex';
+export type SelectionMode = 'face' | 'edge' | 'vertex' | 'body';
+/** What the selection filters let the pointer pick. */
+export type PickFilterKind = 'faces' | 'edges' | 'vertices' | 'bodies' | 'sketches' | 'planes';
+export type PickFilters = Record<PickFilterKind, boolean>;
+export const PICK_FILTER_KINDS: PickFilterKind[] = ['faces', 'edges', 'vertices', 'bodies', 'sketches', 'planes'];
+export const ALL_PICKABLE: PickFilters = { faces: true, edges: true, vertices: true, bodies: true, sketches: true, planes: true };
+/** The filter that governs each pick mode. */
+export const MODE_FILTER: Record<SelectionMode, PickFilterKind> = { face: 'faces', edge: 'edges', vertex: 'vertices', body: 'bodies' };
 
 /** Name of a corner pick: its position, rounded so the same corner always gets the same name (faces and edges have kernel names). */
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
@@ -58,6 +65,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const selection = signal<string[]>([]);
   const mode = signal<SelectionMode>('face');
   const hover = signal<string | null>(null);
+  const filters = signal<PickFilters>({ ...ALL_PICKABLE });
   const tool = signal<string | null>(null);
   const busy = signal(false);
   const notices = signal<Notice[]>([]);
@@ -71,9 +79,10 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
     notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now(), ...(action ? { action } : {}) }].slice(-20);
   };
   return {
-    selection, mode, hover, tool, busy, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
+    selection, mode, hover, filters, tool, busy, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) { workspace.value = sanitizeWorkspace({ ...workspace.value, ...patch }, workspace.value); },
     applyPreset(name: WorkspacePreset) { workspace.value = { ...WORKSPACE_PRESETS[name] }; },
+    setFilter(kind: PickFilterKind, on: boolean) { filters.value = { ...filters.value, [kind]: on }; },
     setDisplay(layer: DisplayLayer, on: boolean) { display.value = { ...display.value, [layer]: on }; },
     select(names: string[], additive = false) {
       selection.value = additive ? [...new Set([...selection.value, ...names])] : [...names];

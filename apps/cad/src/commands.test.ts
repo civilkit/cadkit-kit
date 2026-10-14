@@ -18,11 +18,11 @@ describe('ribbon commands', () => {
     const on = buildCommands(actions({ hasDocument: () => true })).filter((c) => ['save', 'undo', 'redo'].includes(c.id));
     expect(on.every((c) => c.enabled?.() === true)).toBe(true);
   });
-  it('Select body exists only when the app supports it, runs its action and has the B key', () => {
+  it('Select body exists only when the app supports it, runs its action and has no key of its own (B is the Body pick mode)', () => {
     expect(buildCommands(actions()).find((c) => c.id === 'select-body')).toBeUndefined();
     const selectBody = vi.fn();
     const c = buildCommands(actions({ selectBody, hasDocument: () => true })).find((x) => x.id === 'select-body')!;
-    expect(c.keys).toBe('B');
+    expect(c.keys).toBeUndefined();
     expect(c.enabled?.()).toBe(true);
     c.run();
     expect(selectBody).toHaveBeenCalled();

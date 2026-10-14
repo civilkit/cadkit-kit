@@ -17,3 +17,5 @@ export type { ViewSurface, MergedBody, SurfaceEdge } from './surfaces';
 export * from './triball';
 export { TriBallLayer } from './triballLayer';
 export type { TriGesture, TriValue, TriView, TriSink } from './triballLayer';
+export { boxPick, normRect, segmentHitsRect, triangleHitsRect } from './boxselect';
+export type { BoxInput, ScreenRect, Project } from './boxselect';

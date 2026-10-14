@@ -51,7 +51,7 @@ export function edgeRefs(selection: string[], edges: ViewEdge[]): EdgeRef[] {
 }
 
 /** The selected faces, by name. */
-export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY);
+export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:'));
 
 /** What a reference field takes from the current selection: the edge references, the face names, or the first name. Null when nothing fits. */
 export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {
