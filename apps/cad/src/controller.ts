@@ -13,7 +13,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
 import { setDocFields, type DocPatch } from './docFields';
-import { watchComponents, partMassProps, type AsmComponent } from './assembly/kernel';
+import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -82,6 +82,8 @@ export class Controller {
   private docExtra: Record<string, unknown> = {};
   /** The kernel's `components[]` of the last regen of the document (id, dof, place), for the assembly panel. */
   private asmComponents: AsmComponent[] = [];
+  /** The degrees-of-freedom report and rejected-mate details of the last regen (asked with `opts.dofReport`). */
+  private asmExtra: AsmExtra = { report: null, errors: new Map() };
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
@@ -93,8 +95,8 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
-      this.asmComponents = [];
-      watchComponents(this.session, (c) => { this.asmComponents = c; });
+      this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
+      watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       const ex = (doc as unknown as Record<string, unknown>).explode;
       this.docExtra = ex ? { explode: structuredClone(ex) } : {};
       this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
@@ -558,6 +560,9 @@ export class Controller {
 
   /** Components of the assembly as the kernel reported them at the last rebuild: id, remaining degrees of freedom (0 = fixed or fully mated), placement. */
   components(): AsmComponent[] { return this.asmComponents; }
+
+  /** The `assembly` report of the last regen (total and per-component freedom, redundant and conflicting mates) and the detail of rejected features. */
+  assemblyExtra(): AsmExtra { return this.asmExtra; }
 
   /** Volume (mm3, unit density) and solid count of a part document, asked of the kernel under a tag of its own so the open document is untouched. */
   async partMass(part: unknown): Promise<{ volume: number | null; error?: string }> {

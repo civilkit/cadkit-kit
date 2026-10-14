@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/preact';
 import type { EditOp } from '@ck/session';
+import type { AsmReport } from './kernel';
 import { AssemblyPanel, type AsmHost, type Section } from './AssemblyPanel';
 import { NO_EXPLODE } from './model';
 import '../i18n';
@@ -93,7 +94,7 @@ describe('AssemblyPanel mates', () => {
     const { h, calls } = host();
     const r = mount(h, 'mates');
     fireEvent.click(r.getByText('New mate'));
-    expect((r.container.querySelector('option[value="hinge"]') as HTMLOptionElement).disabled).toBe(true);
+    expect((r.container.querySelector('option[value="cam"]') as HTMLOptionElement).disabled).toBe(true);
     expect((r.getByText('Apply') as HTMLButtonElement).disabled).toBe(true);
     const picks = r.getAllByText('Pick');
     fireEvent.click(picks[0]);
@@ -117,6 +118,92 @@ describe('AssemblyPanel mates', () => {
     fireEvent.click(r.getByText('Update'));
     await waitFor(() => expect(calls.edits.length).toBe(1));
     expect(calls.edits[0]).toEqual([{ op: 'set', id: 'F3', path: 'flip', value: true }]);
+  });
+});
+
+const REPORT: AsmReport = {
+  dof: { total: 2, translational: 1, rotational: 1 },
+  components: [{ id: 'F1', fixed: true, dof: 0, translational: 0, rotational: 0 }, { id: 'F2', fixed: false, dof: 2, translational: 1, rotational: 1 }],
+  overConstrained: true, redundant: ['F4'], conflicts: [{ mate: 'F5', with: ['F3', 'F4'] }],
+};
+const DOC2 = { ...DOC, features: [...DOC.features,
+  { id: 'F4', type: 'mate', kind: 'parallel', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1' },
+  { id: 'F5', type: 'mate', kind: 'hinge', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1' },
+  { id: 'F6', type: 'mate', kind: 'width', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1' }] };
+
+describe('AssemblyPanel degrees-of-freedom report', () => {
+  it('shows the total with its split, each component, and the over-constrained banner naming redundant and conflicting mates', () => {
+    const { h } = host({ doc: DOC2 as never, report: REPORT });
+    const r = mount(h, 'mates');
+    expect(r.container.querySelector('.asm-rep-total')?.textContent).toContain('2 DOF remaining');
+    expect(r.container.querySelector('.asm-rep-total')?.textContent).toContain('1 translational, 1 rotational');
+    const comps = [...r.container.querySelectorAll('.asm-rep-comps li')].map((x) => x.textContent);
+    expect(comps[0]).toContain('Block'); expect(comps[0]).toContain('fixed');
+    expect(comps[1]).toContain('Bolt'); expect(comps[1]).toContain('2 DOF (1 T, 1 R)');
+    const banner = r.container.querySelector('.asm-banner')!;
+    expect(banner.textContent).toContain('Over-constrained');
+    expect(banner.textContent).toContain('Parallel F4');
+    expect(banner.textContent).toContain('Hinge F5 conflicts with Seat, Parallel F4');
+  });
+  it('a click on a conflict row selects that mate and its faces', () => {
+    const { h, calls } = host({ doc: DOC2 as never, report: REPORT });
+    const r = mount(h, 'mates');
+    fireEvent.click(r.container.querySelector('.asm-pair.conflict') as HTMLElement);
+    expect(calls.selects.at(-1)).toEqual(['F2.C0@F2.1', 'F2.C1@F1.1']);
+    expect([...r.container.querySelectorAll('.asm-row.sel .row-id')].map((x) => x.textContent)).toEqual(['F5']);
+  });
+  it('names the rolled-back mates with the kernel detail', () => {
+    const { h } = host({ doc: DOC2 as never, report: null, featureErrors: new Map([['F5', { code: 'mateConflict', mates: ['F5', 'F3'] }], ['F6', { code: 'mateGeometry', detail: 'width needs parallel planes' }]]) });
+    const r = mount(h, 'mates');
+    const notes = [...r.container.querySelectorAll('.asm-report .asm-note')].map((x) => x.textContent);
+    expect(notes[0]).toContain('Hinge F5 was rolled back'); expect(notes[0]).toContain('together with Seat');
+    expect(notes[1]).toContain('width needs parallel planes');
+    expect(r.container.textContent).toContain('rolled back');
+  });
+});
+
+describe('AssemblyPanel mate kinds', () => {
+  const pick = async (r: ReturnType<typeof mount>, h: AsmHost, i: number, face: string) => {
+    fireEvent.click(r.getAllByText('Pick')[i]);
+    r.rerender(<AssemblyPanel host={{ ...h, selection: [face] }} section="mates" onSection={() => {}} />);
+    await waitFor(() => expect(r.container.textContent).toContain(face));
+    r.rerender(<AssemblyPanel host={{ ...h, selection: [] }} section="mates" onSection={() => {}} />);
+  };
+  it('offers every kernel kind, disables the announced ones with their reason', () => {
+    const { h } = host();
+    const r = mount(h, 'mates');
+    fireEvent.click(r.getByText('New mate'));
+    for (const k of ['angle', 'perpendicular', 'tangent', 'lock', 'symmetric', 'width', 'limits', 'hinge', 'slot', 'screw', 'gear', 'rackPinion']) expect((r.container.querySelector(`option[value="${k}"]`) as HTMLOptionElement).disabled).toBe(false);
+    for (const k of ['profileCenter', 'path', 'linearCoupler', 'cam', 'universalJoint']) {
+      const o = r.container.querySelector(`option[value="${k}"]`) as HTMLOptionElement;
+      expect(o.disabled).toBe(true); expect(o.title).toContain('Not in the kernel yet');
+    }
+  });
+  it('a gear mate: ratio and Drive fields, the test slider previews the motion, Apply writes ratio and angle', async () => {
+    const previews: EditOp[][] = [];
+    const { h, calls } = host({ preview: async (ops) => { previews.push(ops); return { ok: true }; } });
+    const r = mount(h, 'mates');
+    fireEvent.click(r.getByText('New mate'));
+    fireEvent.change(r.getByLabelText('Kind'), { target: { value: 'gear' } });
+    await pick(r, h, 0, 'F2.C0@F2.1'); await pick(r, h, 1, 'F2.C1@F1.1');
+    fireEvent.input(r.getByLabelText('Ratio'), { target: { value: '2' } });
+    fireEvent.input(r.getByLabelText('Test drive'), { target: { value: '40' } });
+    await waitFor(() => expect(previews.length).toBeGreaterThan(0));
+    expect(previews.at(-1)![0]).toMatchObject({ op: 'add', feature: { kind: 'gear', ratio: 2, angle: 40, flip: false } });
+    expect((r.getByLabelText('Drive') as HTMLInputElement).value).toBe('40');
+    fireEvent.click(r.getByText('Apply'));
+    await waitFor(() => expect(calls.edits.length).toBe(1));
+    expect(calls.edits[0][0]).toMatchObject({ op: 'add', feature: { type: 'mate', kind: 'gear', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1', ratio: 2, angle: 40 } });
+  });
+  it('a hinge needs two refs; clearing its optional stop replaces the feature', async () => {
+    const doc = { ...DOC, features: [...DOC.features, { id: 'F4', type: 'mate', kind: 'hinge', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1', a2: 'F2.S.e1@F1.1' }] };
+    const { h, calls } = host({ doc: doc as never });
+    const r = mount(h, 'mates');
+    fireEvent.click(btn(r.container.querySelectorAll('.asm-row')[1] as HTMLElement, 'Edit'));
+    fireEvent.click(r.container.querySelector('button[aria-label^="Clear"]') as HTMLElement);
+    fireEvent.click(r.getByText('Update'));
+    await waitFor(() => expect(calls.edits.length).toBe(1));
+    expect(calls.edits[0][0]).toEqual({ op: 'replace', id: 'F4', feature: { type: 'mate', kind: 'hinge', id: 'F4', a: 'F2.C0@F2.1', b: 'F2.C1@F1.1' } });
   });
 });
 

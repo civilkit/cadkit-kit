@@ -1364,7 +1364,7 @@ function App() {
   const asmErrors = new Map(store.featureStatus.value.filter((s) => !s.ok).map((s) => [s.id, s.code ?? 'error'] as const));
   const asmDof = new Map(controller.components().map((c) => [c.id, c.dof] as const));
   const asmHost: AsmHost = {
-    doc: doc as never, dof: asmDof, errors: asmErrors, hidden: asmState.hidden.value, explode: asmState.explode.value, selection: store.selection.value,
+    doc: doc as never, dof: asmDof, errors: asmErrors, report: controller.assemblyExtra().report, featureErrors: controller.assemblyExtra().errors, hidden: asmState.hidden.value, explode: asmState.explode.value, selection: store.selection.value,
     faceNames: () => controller.bodyFaces()?.faceIds ?? [],
     bodyFaces: (n) => controller.selModel()?.bodyOfFace(n)?.faces ?? [n],
     select: (names) => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select(names); },

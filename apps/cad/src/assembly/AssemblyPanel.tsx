@@ -9,7 +9,8 @@ import {
   bomCsv, bomItems, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps,
   type ComponentRow, type DocLike, type ExplodeDir, type ExplodeState, type Placement, type V3,
 } from './model';
-import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, mateChanges, mateFeature, mateKind, newDraft, type MateDraft } from './mateKinds';
+import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
+import type { AsmFeatureError, AsmReport } from './kernel';
 import { massText } from '../inspect/mass';
 
 export type Section = 'parts' | 'mates' | 'interference' | 'bom' | 'explode';
@@ -23,6 +24,10 @@ export interface AsmHost {
   dof: ReadonlyMap<string, number>;
   /** failed features by id (the kernel's code) */
   errors: ReadonlyMap<string, string>;
+  /** the kernel's degrees-of-freedom report of the last rebuild (`assembly` of the regen reply), when it sent one */
+  report?: AsmReport | null;
+  /** detail of rejected features (mateGeometry `detail`, mateConflict neighbours) by feature id */
+  featureErrors?: ReadonlyMap<string, AsmFeatureError>;
   hidden: readonly string[];
   explode: ExplodeState;
   selection: readonly string[];
@@ -191,6 +196,62 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
   );
 }
 
+const mateLabel = (doc: DocLike, id: string): string => {
+  const f = doc.features.find((x) => x.id === id) as ({ name?: string; kind?: string } | undefined);
+  return f?.name ?? (f ? `${kindLabel(String(f.kind ?? 'coincident'))} ${id}` : id);
+};
+const REJECT_CODES = new Set(['mateConflict', 'mateGeometry', 'mateFixed', 'mateSameBody', 'missingReference']);
+/** Why the kernel rolled a mate back, in a sentence. */
+function rolledBack(doc: DocLike, id: string, e: AsmFeatureError): string {
+  const others = (e.mates ?? []).filter((m) => m !== id).map((m) => mateLabel(doc, m)).join(', ');
+  const why = e.code === 'mateConflict' ? t('asm.rb.conflict', { mates: others || '-' })
+    : e.code === 'mateGeometry' ? t('asm.rb.geometry', { detail: e.detail ?? '-' })
+    : e.code === 'mateFixed' ? t('asm.rb.fixed') : e.code === 'mateSameBody' ? t('asm.rb.sameBody') : t('asm.rb.missing');
+  return t('asm.rb.note', { name: mateLabel(doc, id), why });
+}
+
+function DofReport(p: { host: AsmHost; selMate: string | null; onMate(id: string): void }): JSX.Element | null {
+  const { host } = p, r = host.report, doc = host.doc!;
+  const rejected = [...(host.featureErrors ?? [])].filter(([id, e]) => REJECT_CODES.has(e.code) && doc.features.some((f) => f.id === id && f.type === 'mate'));
+  if (!r && !rejected.length) return null;
+  const nameOf = (id: string) => doc.features.find((f) => f.id === id)?.name ?? id;
+  return (
+    <section class="asm-card asm-report" aria-label={t('asm.rep.title')}>
+      {r ? (
+        <>
+          <div class="asm-rep-total" role="status">
+            <b>{t('asm.rep.total', { n: r.dof.total })}</b> <span>{t('asm.rep.split', { t: r.dof.translational, r: r.dof.rotational })}</span>
+            {r.truncated ? <small> {t('asm.rep.truncated')}</small> : null}
+          </div>
+          {r.components.length ? (
+            <ul class="asm-rep-comps">
+              {r.components.map((c) => (
+                <li key={c.id} class={c.fixed ? 'fixed' : c.dof === 0 ? 'ok' : 'free'}>
+                  <span>{nameOf(c.id)}</span>
+                  <span class="val">{c.fixed ? t('asm.dof.fixed') : t('asm.rep.comp', { n: c.dof, t: c.translational, r: c.rotational })}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {r.overConstrained || r.redundant.length || r.conflicts.length ? (
+            <div class="asm-banner warn" role="alert">
+              <b>{t('asm.rep.over')}</b>
+              {r.redundant.length ? <div>{t('asm.rep.redundant', { mates: r.redundant.map((m) => mateLabel(doc, m)).join(', ') })}</div> : null}
+              {r.redundant.map((m) => <button key={m} class={'asm-pair' + (p.selMate === m ? ' sel' : '')} onClick={() => p.onMate(m)}><span>{mateLabel(doc, m)}</span><span class="val">{t('asm.rep.redundantTag')}</span></button>)}
+              {r.conflicts.map((c) => (
+                <button key={c.mate} class={'asm-pair conflict' + (p.selMate === c.mate ? ' sel' : '')} onClick={() => p.onMate(c.mate)} title={t('asm.rep.conflictTip')}>
+                  <span>{t('asm.rep.conflict', { mate: mateLabel(doc, c.mate), with: c.with.map((m) => mateLabel(doc, m)).join(', ') || '-' })}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {rejected.map(([id, e]) => <div key={id} class="asm-note warn" role="status">{rolledBack(doc, id, e)}</div>)}
+    </section>
+  );
+}
+
 // ---- mates -----------------------------------------------------------------------------------------------------------
 
 function MatesSection({ host }: { host: AsmHost }): JSX.Element {
@@ -198,7 +259,9 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
   const mates = doc.features.filter((f) => f.type === 'mate');
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [draft, setDraft] = useState<MateDraft>(() => newDraft());
-  const [picking, setPicking] = useState<'a' | 'b' | 'c' | null>(null);
+  const [picking, setPicking] = useState<RefKey | null>(null);
+  const [selMate, setSelMate] = useState<string | null>(null);
+  const [driving, setDriving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [previewed, setPreviewed] = useState(false);
   const faces = useMemo(() => new Set(host.faceNames()), [host.faceNames().length]);
@@ -214,13 +277,13 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
     if (name) { setDraft((d) => ({ ...d, refs: { ...d.refs, [picking]: name } })); setPicking(null); setMsg(null); }
   }, [selKey, picking]);
 
-  const open = (id: string | 'new', d: MateDraft) => { setEditing(id); setDraft(d); setPicking(null); setMsg(null); setPreviewed(false); host.select([]); };
-  const close = () => { if (previewed) void host.cancelPreview(); setEditing(null); setPicking(null); setMsg(null); setPreviewed(false); };
+  const open = (id: string | 'new', d: MateDraft) => { setEditing(id); setDraft(d); setPicking(null); setMsg(null); setPreviewed(false); setDriving(false); host.select([]); };
+  const close = () => { if (previewed) void host.cancelPreview(); setEditing(null); setPicking(null); setMsg(null); setPreviewed(false); setDriving(false); };
   const problem = draftProblem(draft);
   const old = editing && editing !== 'new' ? (doc.features.find((f) => f.id === editing) as Record<string, unknown> | undefined) : undefined;
   const opsOf = (): EditOp[] => {
     if (!old) return [{ op: 'add', feature: mateFeature(draft) }];
-    if (String(old.kind) !== draft.kind) return [{ op: 'replace', id: editing!, feature: { ...mateFeature(draft), id: editing! } }];
+    if (String(old.kind) !== draft.kind || mateDropsField(old, draft)) return [{ op: 'replace', id: editing!, feature: { ...mateFeature(draft), id: editing! } }];
     return mateChanges(old, draft).map((c) => ({ op: 'set' as const, id: editing!, path: c.path, value: c.value }));
   };
   const apply = async () => {
@@ -237,12 +300,28 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
     setMsg(r.ok ? t('asm.mate.previewOk') : (r.hint ?? t('asm.mate.failed', { code: '?' })));
   };
   const setKind = (id: string) => setDraft((d) => ({ ...newDraft(id), refs: d.refs, name: d.name, flip: d.flip }));
+  // the test slider of a Drive field: every change previews the motion (the preview is dropped on Cancel; Apply keeps the value)
+  const driveKey = mateKind(draft.kind)?.params.find((q) => q.drive)?.key;
+  const driveVal = driveKey ? draft.params[driveKey] : undefined;
+  useEffect(() => {
+    if (!driving || !editing) return;
+    const id = setTimeout(() => { void preview(); }, 90);
+    return () => clearTimeout(id);
+  }, [driving, driveVal]);
+  const selectMate = (id: string) => {
+    setSelMate(id);
+    const m = doc.features.find((f) => f.id === id) as Record<string, unknown> | undefined;
+    const names = (['a', 'a2', 'b', 'b2', 'c'] as const).map((k) => m?.[k]).filter((n): n is string => typeof n === 'string' && faces.has(n));
+    host.select(names);
+  };
   const kdef = mateKind(draft.kind);
+  const unitOf = (q: MateParam): string => (limitsAreAngles(draft) && (q.key === 'min' || q.key === 'max')) || q.type === 'angle' ? ' (\u00B0)' : q.type === 'length' || q.key === 'min' || q.key === 'max' ? ' (mm)' : '';
   const movers = rows.filter((r) => !r.fixed && !r.suppressed && r.dof !== null);
 
   return (
     <div class="asm-sec">
-      {movers.length ? <div class="asm-tip" role="status">{movers.map((r) => (r.dof === 0 ? t('asm.dof.tip.zero', { name: r.name }) : t('asm.dof.tip', { name: r.name, n: r.dof ?? 0 }))).join(' · ')}</div> : null}
+      {!host.report && movers.length ? <div class="asm-tip" role="status">{movers.map((r) => (r.dof === 0 ? t('asm.dof.tip.zero', { name: r.name }) : t('asm.dof.tip', { name: r.name, n: r.dof ?? 0 }))).join(' · ')}</div> : null}
+      <DofReport host={host} selMate={selMate} onMate={selectMate} />
       <div class="asm-bar"><button class="btn primary" disabled={editing !== null} onClick={() => open('new', newDraft())}>{t('asm.mate.new')}</button></div>
       {editing ? (
         <section class="asm-card" aria-label={t('asm.mate.title')}>
@@ -250,23 +329,46 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
             <select value={draft.kind} aria-label={t('asm.mate.kind')} onChange={(e) => setKind((e.target as HTMLSelectElement).value)}>
               {KIND_GROUPS.map((g) => (
                 <optgroup key={g} label={t('asm.mate.group.' + g)}>
-                  {MATE_KINDS.filter((k) => k.group === g).map((k) => <option key={k.id} value={k.id} disabled={k.pending && k.id !== draft.kind}>{kindLabel(k.id)}{k.pending ? ` (${t('asm.mate.pendingTag')})` : ''}</option>)}
+                  {MATE_KINDS.filter((k) => k.group === g).map((k) => <option key={k.id} value={k.id} disabled={k.pending && k.id !== draft.kind} title={k.pending ? t('asm.mate.pending.' + k.id) : t('asm.mate.tip.' + k.id)}>{k.icon} {kindLabel(k.id)}{k.pending ? ` (${t('asm.mate.pendingTag')})` : ''}</option>)}
                 </optgroup>
               ))}
               {!kdef ? <option value={draft.kind}>{kindLabel(draft.kind)}</option> : null}
             </select></label>
+          {kdef ? <div class="asm-note" title={t('asm.mate.tip.' + kdef.id)}>{kdef.pending ? t('asm.mate.pending.' + kdef.id) : t('asm.mate.tip.' + kdef.id)}</div> : null}
           {(kdef?.refs ?? []).map((r) => (
             <div class="asm-ref" key={r.key}>
-              <span class="asm-ref-l">{t('asm.mate.ref.' + r.key)} ({t('asm.mate.ref.' + r.label)})</span>
+              <span class="asm-ref-l">{t('asm.mate.ref.' + r.key)} ({t('asm.mate.ref.' + r.label)}){r.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
               <button class={'btn' + (picking === r.key ? ' on' : '')} aria-pressed={picking === r.key} onClick={() => { setPicking(picking === r.key ? null : r.key); host.select([]); }}>{picking === r.key ? t('asm.mate.picking') : t('asm.mate.pick')}</button>
               <span class="asm-ref-v" title={draft.refs[r.key]}>{draft.refs[r.key] ? `${nameOfFace(host, draft.refs[r.key])}: ${draft.refs[r.key]}` : t('asm.mate.unpicked')}</span>
+              {r.optional && draft.refs[r.key] ? <button class="row-act on" title={t('asm.mate.clear')} aria-label={t('asm.mate.clear') + ' ' + t('asm.mate.ref.' + r.key)} onClick={() => setDraft((d) => { const refs = { ...d.refs }; delete refs[r.key]; return { ...d, refs }; })}>\u00D7</button> : null}
             </div>
           ))}
-          {(kdef?.params ?? []).map((q) => (
-            <label class="asm-f wide" key={q.key}><span>{t('asm.mate.param.' + q.key)}{q.type === 'angle' ? ' (°)' : q.type === 'length' ? ' (mm)' : ''}</span>
-              <input type="number" step="any" value={draft.params[q.key] ?? q.default} onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
+          {kdef?.choice ? (
+            <label class="asm-f wide"><span>{t('asm.mate.choice.' + kdef.choice.key)}</span>
+              <select value={draft.choice} aria-label={t('asm.mate.choice.' + kdef.choice.key)} onChange={(e) => setDraft((d) => ({ ...d, choice: (e.target as HTMLSelectElement).value }))}>
+                {kdef.choice.values.map((v) => <option key={v} value={v}>{t('asm.mate.choice.' + kdef.choice!.key + '.' + v)}</option>)}
+              </select></label>
+          ) : null}
+          {(kdef?.params ?? []).filter((q) => !q.vec).map((q) => (
+            <div key={q.key}>
+              <label class="asm-f wide" title={t(q.drive ? 'asm.mate.ptip.drive' : 'asm.mate.ptip.' + q.key)}><span>{t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}{unitOf(q)}{q.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
+                <input type="number" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
+                  onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
+              {q.drive ? (
+                <label class="asm-f wide"><span>{t('asm.mate.testDrive')} ({fmt(Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0, 4)}\u00B0)</span>
+                  <input type="range" min={draft.kind === 'screw' ? -1080 : -360} max={draft.kind === 'screw' ? 1080 : 360} step="1" value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0} aria-label={t('asm.mate.testDrive')}
+                    onInput={(e) => { setDriving(true); const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
+              ) : null}
+            </div>
           ))}
-          {kdef?.flip ? <label class="asm-chk"><input type="checkbox" checked={draft.flip} onChange={(e) => setDraft((d) => ({ ...d, flip: (e.target as HTMLInputElement).checked }))} /> {t('asm.mate.flip')}</label> : null}
+          {kdef?.params.some((q) => q.vec) ? (
+            <div class="asm-f wide" title={t('asm.mate.ptip.dir')}><span>{t('asm.mate.param.dir')} - {t('asm.mate.optional')}</span>
+              <span class="asm-place">{kdef.params.filter((q) => q.vec).map((q) => (
+                <input key={q.key} type="number" step="any" placeholder={'XYZ'[q.vec!.i]} aria-label={t('asm.mate.param.dir') + ' ' + 'XYZ'[q.vec!.i]} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''}
+                  onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} />
+              ))}</span></div>
+          ) : null}
+          {kdef?.flip ? <label class="asm-chk" title={kdef.flipLabel ? t('asm.mate.fliptip.' + kdef.id) : undefined}><input type="checkbox" checked={draft.flip} onChange={(e) => setDraft((d) => ({ ...d, flip: (e.target as HTMLInputElement).checked }))} /> {kdef.flipLabel ? t('asm.mate.flip.' + kdef.id) : t('asm.mate.flip')}</label> : null}
           <label class="asm-f wide"><span>{t('asm.mate.name')}</span><input type="text" value={draft.name} onInput={(e) => setDraft((d) => ({ ...d, name: (e.target as HTMLInputElement).value }))} /></label>
           <div class="asm-note">{t('asm.mate.hint')}</div>
           {problem && !msg ? <div class="asm-note">{t(problem)}</div> : null}
@@ -283,11 +385,14 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
         const kind = String(m.kind ?? 'coincident');
         const comps = mateComponents(doc, m).map((c) => doc.features.find((f) => f.id === c)?.name ?? c);
         const err = host.errors.get(m.id);
+        const fe = host.featureErrors?.get(m.id);
+        const rb = fe && REJECT_CODES.has(fe.code);
+        const icon = mateKind(kind)?.icon ?? '?';
         return (
-          <div key={m.id} class={'asm-row' + (err ? ' err' : '') + (m.suppressed ? ' suppressed' : '')}>
+          <div key={m.id} class={'asm-row' + (err ? ' err' : '') + (m.suppressed ? ' suppressed' : '') + (selMate === m.id ? ' sel' : '')} onClick={() => selectMate(m.id)} title={rb ? rolledBack(doc, m.id, fe) : undefined}>
             <span class="row-id">{m.id}</span>
-            <span class="row-name">{m.name ?? kindLabel(kind)}<small class="asm-part">{kindLabel(kind)}{comps.length >= 2 ? ` · ${t('asm.mate.between', { a: comps[0], b: comps[1] })}` : ''}{err ? ` · ${t('asm.mate.failed', { code: err })}` : ''}</small></span>
-            <span class="asm-acts">
+            <span class="row-name"><span class="asm-kind-icon" aria-hidden="true">{icon}</span> {m.name ?? kindLabel(kind)}<small class="asm-part">{kindLabel(kind)}{comps.length >= 2 ? ` · ${t('asm.mate.between', { a: comps[0], b: comps[1] })}` : ''}{err ? ` · ${t('asm.mate.failed', { code: err })}` : ''}{rb ? ` · ${t('asm.rb.tag')}` : ''}</small></span>
+            <span class="asm-acts" onClick={(e) => e.stopPropagation()}>
               <button class="row-act on" title={t('asm.mate.edit')} aria-label={t('asm.mate.edit')} disabled={editing !== null} onClick={() => open(m.id, draftOf(m as Record<string, unknown>))}>✎</button>
               <button class="row-act on del" title={t('asm.mate.delete')} aria-label={t('asm.mate.delete')} onClick={() => { if (editing === m.id) close(); void host.edit([{ op: 'remove', id: m.id }]); }}>×</button>
             </span>
