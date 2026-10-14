@@ -767,6 +767,12 @@ function App() {
       }
     }
     if (out.anchor) shapes.push({ kind: 'marker', at: out.anchor, style: 'anchor' });
+    // an inferred horizontal or vertical: a dotted guide through the start of the segment, running past both ends
+    const seg = out.preview[0];
+    if (out.from && seg && seg.kind === 'line' && out.pending?.some((p) => p === 'horizontal' || p === 'vertical')) {
+      const f = out.from, e = seg.b;
+      shapes.push({ kind: 'guide', a: { x: f.x - (e.x - f.x) * 0.6, y: f.y - (e.y - f.y) * 0.6 }, b: { x: f.x + (e.x - f.x) * 2.5, y: f.y + (e.y - f.y) * 2.5 } });
+    }
     return shapes;
   };
   const runTool = (ev: ToolEvent) => {
