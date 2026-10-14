@@ -1,4 +1,5 @@
 import type { Catalog } from '@kit/i18n';
+import { inspectStrings } from './inspect';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -273,4 +274,5 @@ export const en: Catalog = {
   'hole.end': 'End condition', 'hole.end.blind': 'Blind', 'hole.end.through': 'Through', 'hole.end.upToNext': 'Up to next', 'hole.depth': 'Depth',
   'hole.tip': 'Drill point tip ({angle}°)', 'hole.flip': 'Flip direction',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
+  ...inspectStrings,
 };

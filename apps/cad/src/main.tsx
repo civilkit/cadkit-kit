@@ -24,6 +24,8 @@ import { ExportMenu } from './ExportMenu';
 import { toEntries, type Rejection } from './history';
 import { CheckPanel } from './CheckPanel';
 import { useDesignCheck } from './useDesignCheck';
+import { InspectPanel } from './inspect/InspectPanel';
+import { useInspect } from './inspect/useInspect';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { DisplayMenu } from './DisplayMenu';
@@ -141,6 +143,7 @@ function App() {
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Assets' | 'Editor'>('Features');
   const [drawerTab, setDrawerTab] = useState('history');
+  const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -202,7 +205,7 @@ function App() {
 
   useEffect(() => {
     const vp = new Viewport(host.current!, {
-      onPick: (names, additive) => store.select(names, additive),
+      onPick: (names, additive) => store.select(names, additive || measureRef.current),
       onHover: (n) => { store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
       onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
@@ -286,6 +289,8 @@ function App() {
   };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
   const check = useDesignCheck(controller, store, () => viewport, () => { setDrawerTab('check'); store.setWorkspace({ drawerOpen: true }); });
+  const openInspect = () => { setDrawerTab('inspect'); store.setWorkspace({ drawerOpen: true }); };
+  const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef);
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
 
   const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
@@ -374,6 +379,11 @@ function App() {
     hasFaceSelection: () => selectedFace() !== null,
     addExtrude: (op) => void addExtrude(op),
     features: featureActions,
+    inspect: {
+      toggleMeasure: () => inspect.toggleMeasure(), isMeasuring: () => inspect.measuring,
+      massProps: () => { openInspect(); void inspect.runMass(); }, interference: () => { openInspect(); void inspect.runInterference(); },
+      toggleSection: inspect.toggleSection, isSectioned: () => inspect.sectionOn, hasSolid: () => controller.bodyBox() !== null,
+    },
     io: { importDxf: () => void importDxf(), sketchFromDxf: () => void sketchFromDxf(), isSketching: () => sketchingRef.current, exportAs: (k) => void exportAs(k), openExportMenu: () => setExportOpen(true), canExport },
     setView: (v) => viewport?.setView(v),
     fit: () => viewport?.fit(),
@@ -1046,6 +1056,7 @@ function App() {
             { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length, bad: failures.length > 0, content: failures.length ? (
               <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => { setSelectedId(f.id); setLeftTab('Features'); }}>{t('app.diagnostics.show')}</button></div>)}</div>
             ) : <div class="empty">{t('app.diagnostics.none')}</div> },
+            { id: 'inspect', label: t('app.drawer.inspect'), content: <InspectPanel {...inspect.props} /> },
             { id: 'check', label: t('app.drawer.check'), badge: check.badge, bad: check.badge > 0, content: <CheckPanel {...check.props} /> },
             { id: 'console', label: t('app.drawer.console'), content: (
               <pre class="log">{store.notices.value.map((n) => `${n.level.padEnd(5)} ${n.text}`).join('\n') || t('app.console.none')}</pre>
