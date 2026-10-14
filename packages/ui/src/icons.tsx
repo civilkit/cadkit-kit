@@ -119,6 +119,7 @@ const ICONS: Record<string, string> = {
   'add-chamfer': P('M4 20V12M12 4h8v16H4') + A('M4 12 12 4') + C('M4 20h16'),
   'add-shell': P(HEX) + C('M12 8.5l4.4 2.5v5L12 18.5 7.6 16v-5z') + A(FACE.top, 2),
   'add-hole': P('M3 9l9-5 9 5-9 5z') + P('M3 9v6l9 5 9-5V9') + AE(12, 9, 3.4, 1.9, 0) + C('M12 11v8'),
+  'add-thread': P('M8 3h8v18H8z') + T('M8 7l8 2M8 11l8 2M8 15l8 2M8 19l8 2'),
   'add-revolve': C('M12 3v18') + P('M12 6h5.5l2 3.5v5l-2 3.5H12') + A('M5 9.5c1.2-1.2 3-1.9 5-2M5 14.5c1.6 1.6 4.2 2.4 7 2.4'),
   'add-lpattern': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + T('M17 8h4v8h-4z') + A('M4 20h15M16.5 18l2.5 2-2.5 2'),
   'add-cpattern': CO(12, 12, 7.5) + O(12, 4.5, 2) + T('M20 16.5a2 2 0 11-4 0 2 2 0 014 0z') + T('M8 16.5a2 2 0 11-4 0 2 2 0 014 0z') + A('M12 12 12 6.5'),
@@ -195,6 +196,7 @@ export function featureIconName(type: string, op?: string): string {
     case 'chamfer': return 'add-chamfer';
     case 'shell': return 'add-shell';
     case 'hole': return 'add-hole';
+    case 'thread': return 'add-thread';
     case 'lpattern': return 'add-lpattern';
     case 'cpattern': return 'add-cpattern';
     case 'curvepattern': case 'fillpattern': case 'spattern': return 'feature-pattern';

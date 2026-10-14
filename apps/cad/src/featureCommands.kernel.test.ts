@@ -39,6 +39,7 @@ async function world(doc: PartDoc) {
     context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => { pending.push(controller.edit(ops)); },
     holeOnFace: () => {},
+    addThread: () => {},
     holeFlip: (id) => controller.extrudeFlip(id, 'cut'),
     notify: (text) => { notices.push(text); },
   };

@@ -272,5 +272,17 @@ export const en: Catalog = {
   'hole.fit.tap': 'Tap drill', 'hole.fit.close': 'Close', 'hole.fit.normal': 'Normal', 'hole.fit.loose': 'Loose',
   'hole.end': 'End condition', 'hole.end.blind': 'Blind', 'hole.end.through': 'Through', 'hole.end.upToNext': 'Up to next', 'hole.depth': 'Depth',
   'hole.tip': 'Drill point tip ({angle}°)', 'hole.flip': 'Flip direction',
+  // thread feature (ThreadEditor.tsx, threadData.ts)
+  'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'app.thread.noTable': 'The thread tables are not loaded yet',
+  'thread.section.thread': 'Thread', 'thread.section.length': 'Length and hand', 'thread.section.options': 'Options',
+  'thread.face': 'Face', 'thread.faceDia': 'Ø {d} mm', 'thread.internal': 'internal (hole)', 'thread.external': 'external (shaft)',
+  'thread.standard': 'Standard', 'thread.std.metric': 'ISO metric coarse', 'thread.std.metric-fine': 'ISO metric fine', 'thread.std.UNC': 'UNC', 'thread.std.UNF': 'UNF',
+  'thread.std.BSP': 'BSP parallel (G)', 'thread.std.NPT': 'NPT (tapered)', 'thread.std.Tr': 'Trapezoidal (Tr)', 'thread.std.Acme': 'Acme',
+  'thread.size': 'Size', 'thread.size.nearest': 'Nearest to Ø {d} mm', 'thread.size.all': 'All sizes', 'thread.size.marked': '{size} (nearest)',
+  'thread.pitch': 'Pitch', 'thread.major': 'Major diameter', 'thread.minor': 'Minor diameter', 'thread.tapDrill': 'Tap drill', 'thread.readout.none': 'Unknown size',
+  'thread.class': 'Class', 'thread.length': 'Length', 'thread.length.full': 'Full thread', 'thread.hand': 'Hand', 'thread.hand.right': 'Right', 'thread.hand.left': 'Left',
+  'thread.start': 'Start', 'thread.start.open': 'Open end', 'thread.start.top': 'Top', 'thread.start.bottom': 'Bottom',
+  'thread.modeled': 'Model the thread (real helix, slower)', 'thread.use': 'Use {size}', 'thread.warning.modelFallback': 'Not modeled',
+  'hole.thread.add': 'Add thread to this hole', 'hole.thread.note': 'A tapped hole: add a thread feature on its wall.', 'hole.thread.have': 'This hole already has a thread ({id}).',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
 };
