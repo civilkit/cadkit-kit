@@ -44,6 +44,7 @@ async function world(doc: PartDoc) {
     context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => { pending.push(controller.edit(ops).then((r) => { results.push(r); })); },
     holeOnFace: () => {},
+    addThread: () => {},
     holeFlip: () => false,
     notify: () => {},
   };
@@ -65,7 +66,7 @@ const edgeKey = (w: World, a: string, b: string) => w.controller.bodyEdges().fin
 
 describe('creator commands: registry', () => {
   it('every creator has a label, an icon, a unique id and a ribbon tab', () => {
-    const cmds = creatorCommands({ context: () => ({ doc: null, selection: [], mode: 'face', box: null, edges: [] }), create() {}, holeOnFace() {}, holeFlip: () => false, notify() {} });
+    const cmds = creatorCommands({ context: () => ({ doc: null, selection: [], mode: 'face', box: null, edges: [] }), create() {}, holeOnFace() {}, addThread() {}, holeFlip: () => false, notify() {} });
     expect(new Set(cmds.map((c) => c.id)).size).toBe(CREATORS.length);
     expect(cmds.filter((c) => !ICON_NAMES.includes(c.id)).map((c) => c.id)).toEqual([]);
     expect(cmds.every((c) => c.label && !c.label.startsWith('cmd.') && c.enabled!() === false)).toBe(true);   // no document: nothing is enabled

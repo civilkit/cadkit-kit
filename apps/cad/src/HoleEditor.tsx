@@ -25,7 +25,7 @@ export interface HoleEditorProps {
    * the section is not drawn. The section gets the hole as it is now (feature with the draft applied) through
    * `threadSection` being a function, so it can read the size.
    */
-  threadSection?: JSX.Element | ((hole: Wire) => JSX.Element);
+  threadSection?: JSX.Element | ((hole: Wire) => JSX.Element | null | undefined);
 }
 
 function Section(p: { id: string; title: string; children: ComponentChildren }): JSX.Element {

@@ -37,6 +37,8 @@ import { DisplayMenu } from './DisplayMenu';
 import { createLookStore, bodyLook, appearanceOf, anyHidden, LOOK_KEY } from './look';
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
+import { ThreadEditor } from './ThreadEditor';
+import { cylinderOfFace, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, threadOps } from './threadData';
 import { SketchToolStrip } from './SketchToolStrip';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
@@ -75,7 +77,7 @@ const usedSketches = (f: unknown): string[] => {
 const RAIL_GROUPS: string[][] = [
   ['toggle-left-panel'],
   ['undo', 'redo'],
-  ['add-extrude', 'add-cut', 'add-revolve', 'add-hole'],
+  ['add-extrude', 'add-cut', 'add-revolve', 'add-hole', 'add-thread'],
   ['add-fillet', 'add-chamfer', 'add-shell'],
   ['add-lpattern', 'add-cpattern'],
 ];
@@ -215,7 +217,7 @@ function App() {
   const [palette, setPalette] = useState(false);
   const [settings, setSettings] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.mode.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
+  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -437,11 +439,28 @@ function App() {
     });
   };
 
+  // A thread on a cylindrical face: metric, the size nearest to the face diameter, then the Thread editor opens on it.
+  const addThread = async (face: string) => {
+    const cyl = cylinderOfFace(face, controller.bodyEdges());
+    const rows = await controller.threadSizes('metric').catch(() => []);
+    const ops = cyl && rows.length ? threadOps(face, cyl.radius * 2, rows, cyl.internal) : null;
+    if (!ops) { store.notify(t('app.thread.noTable'), 'error'); return; }
+    await createFeature(ops);
+  };
+  // The Hole editor's Thread section: confirm the hole as it is, then add a thread on its wall.
+  const addThreadToHole = async (hole: Record<string, unknown>) => {
+    const rows = await controller.threadSizes('metric').catch(() => []);
+    const ops = holeThreadOps(hole, rows);
+    if (!ops) return;
+    await onConfirm(draft);
+    await createFeature(ops);
+  };
   const featureActions: FeatureActions = {
     context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
+    addThread: (face) => void addThread(face),
     notify: (text, level) => store.notify(text, level),
   };
   const commands = buildCommands({
@@ -975,7 +994,7 @@ function App() {
       ] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
       onOpenRef={(id) => { if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
-      status={store.featureStatus.value} selectedId={selectedId}
+      status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
       onSelect={setSelectedId}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])}
@@ -995,8 +1014,22 @@ function App() {
       {rows.length === 0 ? <div class="empty">{t('app.outliner.empty')}</div> : <div class="empty">{t('app.outliner.hint')}</div>}
     </div>
   );
-  const editor = editingFeature?.type === 'hole' ? (
-    <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} />
+  const threadFace = editingFeature?.type === 'thread' ? String(editingFeature.face ?? '') : '';
+  const threadCyl = threadFace ? cylinderOfFace(threadFace, controller.bodyEdges()) : null;
+  const threadInternal = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === editingId)?.internal ?? (isHoleWall(threadFace) ? true : threadCyl?.internal);
+  const holeThreads = (hole: Record<string, unknown>) => {
+    if (!holeThreadSize(hole)) return null;
+    const have = (doc?.features ?? []).find((x) => (x as { type?: string; face?: string }).type === 'thread' && (x as { face?: string }).face === holeWallFace(String(hole.id)));
+    return have
+      ? <div class="fedit-hint" data-testid="hole-has-thread">{t('hole.thread.have', { id: have.id })}</div>
+      : <div><div class="fedit-hint">{t('hole.thread.note')}</div><button type="button" data-testid="hole-add-thread" onClick={() => void addThreadToHole(hole)}>{t('hole.thread.add')}</button></div>;
+  };
+  const editor = editingFeature?.type === 'thread' ? (
+    <ThreadEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
+      loadStandards={() => controller.threadStandards()} loadSizes={(std) => controller.threadSizes(std)}
+      faceDiameter={threadCyl ? threadCyl.radius * 2 : null} internal={threadInternal} warning={editingId ? store.featureWarnings.value[editingId] ?? null : null} />
+  ) : editingFeature?.type === 'hole' ? (
+    <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} threadSection={holeThreads} />
   ) : (
     <FeatureEditor
       feature={editingFeature}
