@@ -511,7 +511,7 @@ export class Controller {
   }
 
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
-  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number> } } | null = null;
+  private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {
@@ -522,6 +522,12 @@ export class Controller {
   bodyMesh(): { positions: ArrayLike<number> } | null {
     const m = this.lastView?.mesh;
     return m && m.positions.length > 0 ? m : null;
+  }
+
+  /** The mesh arrays of the body on screen with normals and face ids (what the handles measure faces from), or null. */
+  bodyFaces(): { positions: ArrayLike<number>; normals: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null {
+    const m = this.lastView?.mesh;
+    return m && m.normals && m.triFace && m.faceIds && m.positions.length > 0 ? { positions: m.positions, normals: m.normals, triFace: m.triFace, faceIds: m.faceIds } : null;
   }
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
