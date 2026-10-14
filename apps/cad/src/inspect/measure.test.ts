@@ -75,7 +75,7 @@ describe('measure with the kernel', () => {
   it('a corner against a face is measured on the face triangles, with the distance along a flat face normal', async () => {
     const mesh = { positions: [0, 0, 2, 4, 0, 2, 4, 3, 2], triFace: [0], faceIds: ['top'] };
     const kernel = vi.fn(async () => null);
-    const o = await measure([resolvePick('v:1,1,5', edges)!, resolvePick('top', edges)!], ctx(kernel, mesh));
+    const o = await measure([resolvePick('v:3,1,5', edges)!, resolvePick('top', edges)!], ctx(kernel, mesh));
     expect(val(o, 'distance')).toBeCloseTo(3); expect(val(o, 'normalDistance')).toBeCloseTo(3);
     expect(kernel).not.toHaveBeenCalled();
   });
