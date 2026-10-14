@@ -43,6 +43,23 @@ describe('Ribbon', () => {
   });
 });
 
+describe('Ribbon label mode', () => {
+  it('icons mode drops the text, keeps an accessible name, and shows the label on hover', () => {
+    const { container, getByRole } = render(<Ribbon commands={commands} activeTab="Home" onTab={() => {}} labels="icons" />);
+    const b = getByRole('button', { name: 'Undo' });
+    expect(b.textContent).toBe('');
+    expect(b.querySelector('svg')).not.toBeNull();
+    fireEvent.pointerEnter(b, { pointerType: 'mouse' });
+    expect(document.querySelector('[role="tooltip"]')!.textContent).toBe('Undo');
+    expect(container.querySelectorAll('.rb-btn.icon-only').length).toBeGreaterThan(0);
+  });
+  it('the default keeps icon and text', () => {
+    const { container } = render(<Ribbon commands={commands} activeTab="Home" onTab={() => {}} />);
+    const undo = [...container.querySelectorAll('.rb-btn')].find((b) => b.textContent === 'Undo')!;
+    expect(undo.querySelector('svg')).not.toBeNull();
+  });
+});
+
 describe('StatusBar', () => {
   it('shows the last notice and Busy when busy', () => {
     const { container } = render(

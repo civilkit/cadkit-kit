@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createStore, sanitizeWorkspace } from './index';
+import { createStore, sanitizeWorkspace, WORKSPACE_PRESETS } from './index';
 
 describe('store', () => {
   it('selects, toggles and extends the selection', () => {
@@ -48,5 +48,20 @@ describe('store', () => {
     expect(w.toolRail).toBe(true);
     expect(w.leftPanel).toBe('floating');
     expect(sanitizeWorkspace(null).ribbon).toBe('off');
+  });
+
+  it('toolLabels defaults to icons-and-text in every preset, and round-trips through sanitize and the store', () => {
+    for (const p of Object.values(WORKSPACE_PRESETS)) expect(p.toolLabels).toBe('icons-and-text');
+    expect(sanitizeWorkspace(undefined).toolLabels).toBe('icons-and-text');
+    expect(sanitizeWorkspace({ toolLabels: 'icons' }).toolLabels).toBe('icons');
+    expect(sanitizeWorkspace({ toolLabels: 'bogus' }).toolLabels).toBe('icons-and-text');
+    expect(sanitizeWorkspace({ toolLabels: 3 }, { ...WORKSPACE_PRESETS.classic, toolLabels: 'icons' }).toolLabels).toBe('icons');
+    const s = createStore();
+    s.setWorkspace({ toolLabels: 'icons' });
+    expect(s.workspace.value.toolLabels).toBe('icons');
+    const again = createStore({}, JSON.parse(JSON.stringify(s.workspace.value)));
+    expect(again.workspace.value.toolLabels).toBe('icons');
+    s.applyPreset('classic');
+    expect(s.workspace.value.toolLabels).toBe('icons-and-text');
   });
 });

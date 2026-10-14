@@ -206,9 +206,27 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
   background: rgba(var(--glass-rgb), max(var(--alpha), .85)); backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
 .sgroup { display: flex; gap: 2px; align-items: center; padding-left: 10px; border-left: 1px solid var(--line); }
 .sgroup-name { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); margin-right: 4px; }
-.stool { font: inherit; font-size: 12px; white-space: nowrap; padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
+.stool { font: inherit; font-size: 12px; white-space: nowrap; padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.stool.icon-only { width: 34px; height: 34px; padding: 0; justify-content: center; flex: none; }
+.sketch-tools.icons-only { gap: 6px; scrollbar-width: thin; }
+.sketch-tools.icons-only .sgroup { gap: 2px; padding-left: 6px; }
+.sketch-tools .sgroup { flex: none; }
+.stool { flex: none; }
 .stool:hover { background: var(--accent-soft); }
 .stool[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.stool[aria-pressed="true"] .icon { --accent: currentColor; }
+.stool:focus-visible, .tool-rail button:focus-visible, .selmodes button:focus-visible, .rb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sketch-tools.icons-only .stool[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #fff6; }
+.icon { flex: none; display: block; }
+.rb-btn { display: inline-flex; align-items: center; gap: 6px; }
+.rb-btn.icon-only { width: 34px; height: 34px; padding: 0; justify-content: center; }
+.rb-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.tool-rail button { display: flex; align-items: center; justify-content: center; }
+.selmodes button svg { flex: none; }
+/* instant tooltip (packages/ui Tip): drawn in a portal on the body, positioned by script */
+.tip { position: fixed; z-index: 1000; left: 0; top: 0; display: flex; gap: 8px; align-items: center; max-width: 260px; padding: 4px 8px; border-radius: 6px; pointer-events: none;
+  font: 500 12px/1.3 system-ui, sans-serif; color: var(--title-text, #e9ecf1); background: var(--title, #0a1017); box-shadow: 0 4px 14px #0005; outline: 1px solid #ffffff22; outline-offset: -1px; }
+.tip-key { font: 600 10px ui-monospace, monospace; padding: 0 4px; border: 1px solid #ffffff55; border-radius: 3px; color: inherit; opacity: .85; }
 .sketch-fields { position: absolute; z-index: 6; display: flex; gap: 6px; padding: 4px 6px; border-radius: 8px; background: var(--panel); outline: 1px solid var(--line); box-shadow: 0 4px 14px #0004; pointer-events: auto; }
 .sketch-fields label { display: flex; gap: 4px; align-items: center; font: 11px ui-monospace, monospace; color: var(--text-2); text-transform: uppercase; }
 .sketch-fields input { width: 64px; font: 13px ui-monospace, monospace; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }

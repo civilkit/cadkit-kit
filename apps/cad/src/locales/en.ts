@@ -71,6 +71,8 @@ export const en: Catalog = {
   'settings.rightPanel': 'Inspector panel',
   'settings.rightPanel.off': 'Off', 'settings.rightPanel.docked': 'Docked right', 'settings.rightPanel.floating': 'Floating',
   'settings.leftTabs': 'Left panel tabs (Outliner, Features, Assets, Editor)',
+  'settings.toolLabels': 'Button labels',
+  'settings.toolLabels.icons-and-text': 'Icons and text', 'settings.toolLabels.icons': 'Icons only (label on hover)',
   'settings.toolRail': 'Tool rail',
   'settings.selectionBar': 'Selection mode bar',
   'settings.drawerOpen': 'Bottom drawer open',
