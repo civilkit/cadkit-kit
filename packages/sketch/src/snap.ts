@@ -5,8 +5,8 @@
  *
  * Priority (the first kind with a candidate inside the tolerance wins; within a kind the nearest):
  *   point (an end, a centre, the origin: `role` says which) > intersection of two curves > quadrant of a circle or arc
- *   > midpoint of a line > perpendicular foot / tangent point from the reference point `from` > alignment with other
- *   points (the dotted guide) > on-curve (the nearest spot on a line, circle or arc) > grid.
+ *   > midpoint of a line > perpendicular foot / tangent point from the reference point `from` > on-curve (the nearest spot
+ *   on a line, circle or arc) > alignment with other points (the dotted guide) > grid.
  * Every kind can be switched off with `kinds` (the snaps popover). `oncurve` also names the entity under the pointer in
  * `entityId`, which the edit and constraint tools use to pick a line, circle or arc by clicking it.
  */
@@ -139,18 +139,7 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     }
   }
 
-  // 6. alignment with other points
-  if (opts.align !== false && on('align')) {
-    let x: { id: string; x: number } | undefined;
-    let y: { id: string; y: number } | undefined;
-    for (const p of pts) {
-      if (!x && Math.abs(p.x - at.x) <= tol) x = { id: p.id, x: p.x };
-      if (!y && Math.abs(p.y - at.y) <= tol) y = { id: p.id, y: p.y };
-    }
-    if (x || y) return { kind: 'align', at: { x: x ? x.x : at.x, y: y ? y.y : at.y }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
-  }
-
-  // 7. anywhere on a curve
+  // 6. anywhere on a curve
   if (on('oncurve')) {
     const cc: Cand[] = [];
     for (const { id, g } of curves) {
@@ -161,6 +150,17 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     }
     const bc = best(cc);
     if (bc) return hit('oncurve', bc);
+  }
+
+  // 7. alignment with other points
+  if (opts.align !== false && on('align')) {
+    let x: { id: string; x: number } | undefined;
+    let y: { id: string; y: number } | undefined;
+    for (const p of pts) {
+      if (!x && Math.abs(p.x - at.x) <= tol) x = { id: p.id, x: p.x };
+      if (!y && Math.abs(p.y - at.y) <= tol) y = { id: p.id, y: p.y };
+    }
+    if (x || y) return { kind: 'align', at: { x: x ? x.x : at.x, y: y ? y.y : at.y }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
   }
 
   // 8. grid
