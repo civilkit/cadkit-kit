@@ -18,10 +18,11 @@ describe('tree commands', () => {
     expect(id('a', { metaKey: true })).toBe('select-all');
     expect(id('U', { ctrlKey: true, shiftKey: true })).toBe('suppress-selected');
   });
-  it('rename needs exactly one selected feature; delete and suppress need some; none run while sketching', () => {
+  it('delete and suppress need a selection; rename works with or without (the part then); none run while sketching', () => {
     const find = (a: TreeActions, id: string) => treeCommands(a).find((c) => c.id === id)!;
     expect(find(actions({ selected: () => [] }), 'delete-feature').enabled!()).toBe(false);
-    expect(find(actions({ selected: () => ['F1', 'F2'] }), 'rename').enabled!()).toBe(false);
+    expect(find(actions({ selected: () => [] }), 'rename').enabled!()).toBe(true);
+    expect(find(actions({ isSketching: () => true }), 'rename').enabled!()).toBe(false);
     expect(find(actions({ selected: () => ['F1', 'F2'] }), 'suppress-selected').enabled!()).toBe(true);
     expect(find(actions({ isSketching: () => true }), 'rebuild').enabled!()).toBe(false);
     expect(find(actions(), 'roll-forward').enabled!()).toBe(false);

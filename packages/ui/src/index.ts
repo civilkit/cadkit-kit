@@ -1,3 +1,4 @@
+export { InlineName } from './InlineName';
 export { FeatureTree, type FeatureRow, type RefRow } from './FeatureTree';
 export { FeatureEditor, sectionsOf, type Section } from './FeatureEditor';
 export { Inspector, fieldsOf, type Field } from './Inspector';

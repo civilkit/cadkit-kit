@@ -26,7 +26,7 @@ export interface TreeActions {
 export function treeCommands(a: TreeActions): Command[] {
   const idle = () => a.hasDocument() && !a.isSketching();
   return [
-    { id: 'rename', label: t('cmd.rename'), tab: 'Home', group: 'Edit', keys: 'F2', enabled: () => idle() && a.selected().length === 1, run: a.rename },
+    { id: 'rename', label: t('cmd.rename'), tab: 'Home', group: 'Edit', keys: 'F2', enabled: idle, run: a.rename },
     { id: 'delete-feature', label: t('cmd.delete-feature'), tab: 'Home', group: 'Edit', keys: 'Delete', enabled: () => idle() && a.selected().length > 0, run: a.deleteSelected },
     { id: 'suppress-selected', label: t('cmd.suppress-selected'), tab: 'Home', group: 'Edit', keys: 'Ctrl+Shift+U', enabled: () => idle() && a.selected().length > 0, run: a.suppressSelected },
     { id: 'rebuild', label: t('cmd.rebuild'), tab: 'Home', group: 'Edit', keys: 'Ctrl+B', enabled: idle, run: a.rebuild },

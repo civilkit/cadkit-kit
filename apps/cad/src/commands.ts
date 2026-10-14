@@ -4,6 +4,7 @@ import type { Command } from '@kit/ui';
 import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
+import { treeCommands, type TreeActions } from './treeCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -26,6 +27,8 @@ export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', 'step', 'd
 
 export interface Actions {
   io?: IoActions;
+  /** Rename, delete, suppress, rebuild, select all, roll forward (see treeCommands.ts). */
+  tree?: TreeActions;
   /** Fillet, chamfer, shell, hole, revolve and pattern commands (see featureCommands.ts). */
   features?: FeatureActions;
   open(): void;
@@ -114,6 +117,7 @@ export function buildCommands(a: Actions): Command[] {
   ];
   if (a.features) cmds.push(...featureCommands(a.features));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
+  if (a.tree) cmds.push(...treeCommands(a.tree));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });

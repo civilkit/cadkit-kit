@@ -100,7 +100,7 @@ export const en: Catalog = {
   'cmd.settings': 'Workspace settings', 'cmd.undo': 'Undo', 'cmd.redo': 'Redo',
   'cmd.view-iso': 'Iso', 'cmd.view-back': 'Back', 'cmd.view-left': 'Left', 'cmd.view-bottom': 'Bottom', 'cmd.view-front': 'Front', 'cmd.view-top': 'Top', 'cmd.view-right': 'Right', 'cmd.fit': 'Fit',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',
-  'app.notice.deleted': 'Deleted {names}', 'app.notice.undo': 'Undo', 'app.notice.rebuilt': 'Rebuilt', 'app.notice.rolledBack': 'Model rolled back to {name}: the features after it are not built', 'app.notice.rolledBackStart': 'Model rolled back to the start',
+  'app.notice.deleted': 'Deleted {names}', 'app.notice.undo': 'Undo', 'app.notice.rebuilt': 'Rebuilt',
   'cmd.sel-face': 'Face', 'cmd.sel-edge': 'Edge', 'cmd.sel-vertex': 'Corner',
   'layer.dimensions': 'Overall size', 'layer.threads': 'Threads', 'layer.edges': 'Edges', 'layer.sketches': 'Sketches', 'layer.curves': 'Curves', 'layer.planes': 'Planes', 'layer.axes': 'Axes', 'layer.grid': 'Grid', 'layer.relations': 'Relations',
 
