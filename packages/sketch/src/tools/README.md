@@ -58,3 +58,6 @@ Each one has its conventions in its file header; the short version:
 - `extend` (`extend.ts`): the counterpart of Trim. Click a line or arc near the end to lengthen: it runs on (a line straight,
   an arc round its own circle) to the nearest boundary line/arc/circle. A point already at that place is reused (so
   outlines close with a shared point); otherwise a new point is bound with `pointOnLine` / `pointOnCircle`.
+- `mirror` (verified end to end, `mirror.kernel.test.ts`): selection is drawn highlighted so Enter reaches the tool (it used to
+  confirm the sketch instead, so the axis step was unreachable); circle copies get `equal` radius; arc copies avoid the
+  redundant constraint (see the header of `mirror.ts`).
