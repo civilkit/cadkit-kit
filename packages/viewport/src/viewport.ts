@@ -411,7 +411,7 @@ export class Viewport {
     const r = this.dom.getBoundingClientRect();
     cb?.({
       type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
-      tol: this.sketchUnitsPerPixel() * 10,
+      tol: this.sketchUnitsPerPixel() * 12,
       grid: this.gridStep(),
       mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
     });

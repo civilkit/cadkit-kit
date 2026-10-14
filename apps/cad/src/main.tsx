@@ -131,6 +131,8 @@ function App() {
   // Hover and constraint highlights, a dimension being edited in place, and a tick that re-projects labels when the camera moves.
   const hoverRef = useRef<{ entity?: string; point?: string; constraint?: string }>({});
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
+  // a small tip beside the pointer in Select mode: the value of what is under it, and that it can be edited
+  const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [dimEdit, setDimEdit] = useState<{ id: string; x: number; y: number; value: number } | null>(null);
   const [, viewTick] = useState(0);
   const sketchHoverRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
@@ -404,6 +406,7 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     setDimEdit(null);
+    setHoverTip(null);
     selectEntity(pickEntity(draft, { x: ev.u, y: ev.v }, ev.tol), ev.x, ev.y);
   };
   sketchHoverRef.current = (ev) => {
@@ -414,6 +417,15 @@ function App() {
     const pt = snapAt(draft, at, { tolerance: ev.tol, midpoints: false, align: false });
     const next = pt?.pointId ? { point: pt.pointId } : { entity: pickEntity(draft, at, ev.tol) ?? undefined };
     const cur = hoverRef.current;
+    // say what is under the pointer and that clicking edits it
+    const r2 = (v: number) => String(Math.round(v * 100) / 100);
+    let tip: string | null = null;
+    if (pt?.pointId) { const p = draft.points.find((q) => q.id === pt.pointId); if (p && !p.fixed) tip = t('app.sketch.tip.point', { x: r2(p.x), y: r2(p.y) }); }
+    else if ((next as { entity?: string }).entity) {
+      const f = entityDims(draft, (next as { entity: string }).entity)[0];
+      if (f) tip = t(f.id === 'len' ? 'app.sketch.tip.length' : 'app.sketch.tip.radius', { value: r2(f.value) });
+    }
+    setHoverTip(tip ? { text: tip, x: ev.x + 14, y: ev.y + 16 } : null);
     if (cur.point === next.point && cur.entity === (next as { entity?: string }).entity) return;
     hoverRef.current = { ...next, constraint: cur.constraint };
     applyHighlight();
@@ -684,6 +696,7 @@ function App() {
         ) : null}
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} />
         {sketchBanner}
+        {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} /> : null}
         {sketching ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length' }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}

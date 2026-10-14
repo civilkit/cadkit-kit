@@ -183,6 +183,7 @@ export const en: Catalog = {
   'app.sketch.hint.status.fullyDefined': 'Fully defined', 'app.sketch.hint.status.overConstrained': 'Over-constrained', 'app.sketch.hint.status.redundant': 'Redundant constraint', 'app.sketch.hint.status.unsolved': 'The sketch did not solve',
   'app.sketch.newFront': 'New sketch on the front plane', 'app.sketch.newTop': 'New sketch on the top plane', 'app.sketch.newRight': 'New sketch on the right plane',
   'cmd.sketch-new-front': 'New sketch: front plane', 'cmd.sketch-new-top': 'New sketch: top plane', 'cmd.sketch-new-right': 'New sketch: right plane', 'cmd.new-part': 'New part', 'cmd.add-extrude': 'Extrude', 'cmd.add-cut': 'Extruded cut', 'app.noSketch': 'Draw a sketch first',
+  'app.sketch.tip.length': 'Length {value} · click to edit', 'app.sketch.tip.radius': 'Radius {value} · click to edit', 'app.sketch.tip.point': '({x}, {y}) · double-click to edit',
   'app.sketch.constraints': 'Constraints', 'app.sketch.constraints.none': 'No constraints yet', 'app.sketch.deleteConstraint': 'Delete constraint',
   'app.sketch.status.full': 'Fully defined', 'app.sketch.status.under': { one: '{count} degree of freedom', other: '{count} degrees of freedom' }, 'app.sketch.status.over': 'Over-constrained', 'app.sketch.status.unsolved': 'Does not solve',
   'app.sketch.field.x': 'x', 'app.sketch.field.y': 'y', 'app.sketch.field.value': 'value',
