@@ -422,3 +422,5 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .rb-fwd { border: 0; font: inherit; color: var(--accent); cursor: pointer; }
 .rb-fwd:hover { text-decoration: underline; }
 .rb-end { min-height: 10px; flex: 1 0 10px; }
+.toast-act { margin-left: 6px; border: 0; background: none; color: #8ab4ff; font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px; }
+.toast-act:hover { text-decoration: underline; }

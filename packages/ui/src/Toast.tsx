@@ -9,7 +9,7 @@ export function Toast(p: { notices: Notice[]; ms?: number }): JSX.Element | null
   useEffect(() => {
     if (!last) return;
     setShownId(last.id);
-    const t = setTimeout(() => setShownId((id) => (id === last.id ? null : id)), p.ms ?? 3000);
+    const t = setTimeout(() => setShownId((id) => (id === last.id ? null : id)), p.ms ?? (last.action ? 7000 : 3000));
     return () => clearTimeout(t);
   }, [last?.id]);
   if (!last || shownId !== last.id) return null;
@@ -18,6 +18,7 @@ export function Toast(p: { notices: Notice[]; ms?: number }): JSX.Element | null
     <div class={'toast ' + last.level} role="status">
       <span class="toast-icon">{icon}</span>
       <span>{last.text}</span>
+      {last.action ? <button class="toast-act" onClick={() => { last.action!.run(); setShownId(null); }}>{last.action.label}</button> : null}
     </div>
   );
 }

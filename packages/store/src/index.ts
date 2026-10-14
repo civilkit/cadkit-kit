@@ -5,7 +5,7 @@ export type SelectionMode = 'face' | 'edge' | 'vertex';
 /** Name of a corner pick: its position, rounded so the same corner always gets the same name (faces and edges have kernel names). */
 export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round(x * 1e4) / 1e4).toString()).join(',')}`;
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
-export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number }
+export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number; /** a button on the toast, e.g. Undo */ action?: { label: string; run(): void } }
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
 export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
@@ -61,8 +61,8 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const workspace = signal<Workspace>(sanitizeWorkspace(initialWorkspace));
   const facts = signal<{ faces: number; triangles: number; rebuildMs: number | null }>({ faces: 0, triangles: 0, rebuildMs: null });
 
-  const notify = (text: string, level: Notice['level'] = 'info') => {
-    notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now() }].slice(-20);
+  const notify = (text: string, level: Notice['level'] = 'info', action?: Notice['action']) => {
+    notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now(), ...(action ? { action } : {}) }].slice(-20);
   };
   return {
     selection, mode, hover, tool, busy, notices, featureStatus, display, workspace, facts, notify,
