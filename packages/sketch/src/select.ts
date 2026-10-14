@@ -120,7 +120,13 @@ export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
   for (const e of entities) if (Array.isArray(e.pts)) for (const p of e.pts as string[]) used.add(p);
   for (const c of constraints) for (const r of c.refs ?? []) used.add(r);
   const points = draft.points.filter((p) => p.fixed || used.has(p.id));
-  return { ...draft, entities, constraints, points };
+  // reference dimensions that mention the entity (or a point that went with it) go too
+  const live = new Set([...points.map((p) => p.id), ...entities.map((e) => e.id)]);
+  const refs = Array.isArray(draft.extras?.refDims) ? (draft.extras!.refDims as Array<{ refs?: string[] }>) : null;
+  const kept = refs?.filter((r) => (r.refs ?? []).every((x) => live.has(x)));
+  const extras = kept && refs && kept.length !== refs.length ? { ...draft.extras, ...(kept.length ? { refDims: kept } : {}) } : draft.extras;
+  if (kept && refs && kept.length !== refs.length && !kept.length && extras) delete (extras as Record<string, unknown>).refDims;
+  return { ...draft, entities, constraints, points, ...(extras ? { extras } : {}) };
 }
 
 /** The origin point (fixed, at 0,0) that position dimensions are measured from, if the sketch has one. */

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
 import { addRefDim, makeDriven, makeDriving, measureRef, refAnnotations, refDimsOf, removeRefDim } from './refdims';
 import { fromFeature, toFeature } from './index';
+import { deleteEntity } from './select';
 
 const d0 = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
@@ -37,6 +38,12 @@ describe('reference dimensions', () => {
     expect(a[0]).toMatchObject({ id: 'r1', text: '(10)', driven: true, kind: 'dimension' });
     const back = fromFeature(toFeature(d));
     expect(refDimsOf(back)).toEqual(refDimsOf(d));
+  });
+  it('deleting an entity takes the reference dimensions that name it', () => {
+    const d = makeDriven(d0(), 'k1')!;
+    const gone = deleteEntity(d, 'e1');
+    expect(refDimsOf(gone)).toEqual([]);
+    expect(refDimsOf(deleteEntity(addRefDim(d, 'distance', ['a', 'b']), 'e1'))).toEqual([]);
   });
   it('removes one, and refuses what is not a dimension', () => {
     const d = makeDriven(d0(), 'k1')!;
