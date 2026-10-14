@@ -228,3 +228,13 @@ describe('slot tool', () => {
     expect(o.hint).toBe('app.sketch.hint.degenerate');
   });
 });
+
+describe('polygon sides field', () => {
+  it('offers a sides field before and after the centre, and typing a number changes the side count', () => {
+    let o = run(polygonTool, [{ type: 'move', at: { x: 0, y: 0 }, mods: M } as ToolEvent]);
+    expect(o.fields.map((f) => f.id)).toContain('sides');
+    o = polygonTool.step(o.state, { type: 'field', id: 'sides', value: 8 } as ToolEvent, o.draft, DEFAULT_SETTINGS);
+    expect((o.state as { sides: number }).sides).toBe(8);
+    expect(o.fields.find((f) => f.id === 'sides')!.value).toBe(8);
+  });
+});

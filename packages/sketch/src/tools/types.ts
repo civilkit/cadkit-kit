@@ -45,7 +45,7 @@ export interface FieldSpec {
   label: string;
   value: number;
   locked: boolean;
-  unit: 'length' | 'angle';
+  unit: 'length' | 'angle' | 'count';
 }
 
 export interface ToolOutput<S> {

@@ -170,7 +170,7 @@ export const en: Catalog = {
   'app.sketch.tool.fillet': 'Fillet', 'app.sketch.tool.chamfer': 'Chamfer', 'app.sketch.tool.trim': 'Trim', 'app.sketch.tool.mirror': 'Mirror',
   'app.sketch.field.length': 'len', 'app.sketch.field.angle': 'ang', 'app.sketch.field.width': 'w', 'app.sketch.field.height': 'h',
   'app.sketch.field.radius': 'rad', 'app.sketch.field.diameter': 'dia', 'app.sketch.field.distance': 'dist',
-  'app.sketch.field.majorRadius': 'major', 'app.sketch.field.minorRadius': 'minor', 'app.sketch.field.apothem': 'apothem', 'app.sketch.field.circumradius': 'radius',
+  'app.sketch.field.majorRadius': 'major', 'app.sketch.field.minorRadius': 'minor', 'app.sketch.field.apothem': 'apothem', 'app.sketch.field.circumradius': 'radius', 'app.sketch.field.sides': 'sides',
   'app.sketch.hint.degenerate': 'Too small: move the pointer farther',
   'app.sketch.hint.collinear': 'The three points lie on one line',
   'app.sketch.hint.needPoints': 'Not enough points for this curve',

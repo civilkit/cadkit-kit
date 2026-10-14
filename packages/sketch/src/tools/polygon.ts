@@ -54,7 +54,8 @@ function measure(s: PolygonState, settings: ToolSettings) {
 
 function view(state: PolygonState, draft: SketchDraft, settings: ToolSettings, hint?: string): ToolOutput<PolygonState> {
   if (!validSides(state.sides)) return { state, draft, preview: [], fields: [], hint: 'app.sketch.hint.sides' };
-  if (!state.centre || !state.cursor) return { state, draft, preview: [], fields: [], hint };
+  const sidesField: FieldSpec = { id: 'sides', label: 'app.sketch.field.sides', value: state.sides, locked: false, unit: 'count' };
+  if (!state.centre || !state.cursor) return { state, draft, preview: [], fields: settings.onViewValues === 'off' ? [] : [sidesField], hint };
   const r = measure(state, settings);
   const c = state.centre.at;
   const v = r.len > 1e-9 ? polygonVertices(c, r.len, r.ang, state.sides, state.mode) : [];
@@ -63,6 +64,7 @@ function view(state: PolygonState, draft: SketchDraft, settings: ToolSettings, h
   const fields: FieldSpec[] = settings.onViewValues === 'off' ? [] : [
     { id: 'r', label: state.mode === 'inscribed' ? 'app.sketch.field.circumradius' : 'app.sketch.field.apothem', value: r.len, locked: state.locked.r !== undefined, unit: 'length' },
     { id: 'ang', label: 'app.sketch.field.angle', value: r.ang, locked: state.locked.ang !== undefined, unit: 'angle' },
+    sidesField,
   ];
   return { state, draft, preview: shapes, fields, hint };
 }
