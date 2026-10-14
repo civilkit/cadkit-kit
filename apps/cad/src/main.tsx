@@ -370,9 +370,13 @@ function App() {
   const guarded = (go: () => void | Promise<void>) => { if (isDirty()) setGuard(() => go); else void go(); };
   /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
+    const prevSig = cleanSig.current;
     try {
       const doc = JSON.parse(text) as PartDoc;
       asmState.reset(doc);
+      // While the part loads, controller.document() already changes (and a render can land in between) but the clean
+      // signature is still the old part's: that read as "modified". null means "not tracked", so nothing is dirty until markClean.
+      cleanSig.current = null;
       await timed(() => controller.load(doc));
       if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
       else { markClean(); autosaver.clear(); }
@@ -381,7 +385,7 @@ function App() {
       setEditingId(null); setEditingMaterial(false); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
-    } catch (e) { store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
+    } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
   };
   const edit = async (ops: EditOp[]) => {
     await timed(() => controller.edit(ops));
