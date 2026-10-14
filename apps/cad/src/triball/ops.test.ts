@@ -107,6 +107,7 @@ describe('faces, sketches, mirror', () => {
     expect(r).toMatchObject({ ok: true, target: { kind: 'feature', sketch: { id: 'S', u: [0, 0, -1], v: [0, 1, 0] } } });
     expect(r.ok && r.target.frame.axes[2].map((x) => x + 0)).toEqual([1, 0, 0]);
     expect(resolveTarget({ ...base, selection: [], selectedFeature: 'H' })).toEqual({ ok: false, reason: 'feature' });
+    expect(resolveTarget({ ...base, selection: ['@body:F2.C0'], mode: 'body', selectedFeature: null }).ok).toBe(true);
     expect(resolveTarget({ ...base, selection: ['a|b'], mode: 'edge', selectedFeature: null })).toEqual({ ok: false, reason: 'edges' });
     expect(resolveTarget({ ...base, doc: null as never, selection: [], selectedFeature: null })).toEqual({ ok: false, reason: 'noBody' });
   });
