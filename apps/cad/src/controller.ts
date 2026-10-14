@@ -3,6 +3,7 @@ import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model'
 import { vertexName, type Store } from '@kit/store';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
+import { applyOpsLocal, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -148,6 +149,7 @@ export class Controller {
     if (r.stale) return r;
     if (r.ok && r.body) {
       this.view.setBody(r.body);
+      await this.previewExtras(s, ops, seq);
       return r;
     }
     const hint =
@@ -157,8 +159,68 @@ export class Controller {
     return { ...r, hint };
   }
 
+  /**
+   * Warnings and cosmetic threads of a regen. The Session reports only `errors` today (verify() and preview() drop the
+   * rest of the regen reply), so when the document has a thread feature this asks the kernel for the reply itself; with a
+   * Session that passes `threads` / `warnings` through, `report.regen` already has them and no request is made.
+   */
+  private async regenExtras(s: Session, doc: PartDoc, tag: string, from?: { threads?: unknown[]; warnings?: unknown[] }): Promise<{ threads: unknown[]; warnings: unknown[] }> {
+    if (from && (from.threads || from.warnings)) return { threads: from.threads ?? [], warnings: from.warnings ?? [] };
+    if (!doc.features.some((f) => (f as { type?: string }).type === 'thread')) return { threads: [], warnings: [] };
+    try {
+      const k = (s as unknown as { kernel?: { request(m: unknown): Promise<{ ok?: boolean; result?: unknown }> } }).kernel;
+      const r = await k?.request({ type: 'regen', tag, part: doc });
+      const res = (r?.ok ? r.result : null) as { threads?: unknown[]; warnings?: unknown[] } | null;
+      return { threads: res?.threads ?? [], warnings: res?.warnings ?? [] };
+    } catch { return { threads: [], warnings: [] }; }
+  }
+  private committedExtras: { threads: unknown[]; warnings: unknown[] } = { threads: [], warnings: [] };
+  private applyExtras(x: { threads: unknown[]; warnings: unknown[] }): void {
+    this.view.setThreads?.(x.threads);
+    this.store.featureWarnings.value = warningsById(x.warnings);
+  }
+  /** After a preview of an edit that touches a thread: the warnings and markers of the candidate (restored by cancelPreview / the next refresh). */
+  private async previewExtras(s: Session, ops: EditOp[], seq: number): Promise<void> {
+    const feats = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops);
+    const hasThread = (feats ?? []).some((f) => f.type === 'thread');
+    if (!feats || !hasThread) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
+    const x = await this.regenExtras(s, { ...s.document, features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`);
+    if (seq !== this.previewSeq) return;
+    this.applyExtras(x);
+  }
+  private previewTagOf(s: Session): string { return (s as unknown as { tag?: string }).tag ?? 'main'; }
+
+  private threadCache: { standards?: ThreadStd[]; sizes: Map<string, ThreadRow[]> } = { sizes: new Map() };
+  /** The thread standards (cached: the tables never change within a kernel). Empty when there is no document. */
+  async threadStandards(): Promise<ThreadStd[]> {
+    if (this.threadCache.standards) return this.threadCache.standards;
+    const s = this.session;
+    if (!s) return [];
+    const r = await s.threadData();
+    this.threadCache.standards = (r.standards ?? []) as ThreadStd[];
+    return this.threadCache.standards;
+  }
+  /** The sizes of one standard with all numbers (cached per standard). */
+  async threadSizes(standard: string): Promise<ThreadRow[]> {
+    const hit = this.threadCache.sizes.get(standard);
+    if (hit) return hit;
+    const s = this.session;
+    if (!s) return [];
+    const r = await s.threadData(standard);
+    const rows = (r.sizes ?? []) as ThreadRow[];
+    this.threadCache.sizes.set(standard, rows);
+    return rows;
+  }
+  /** One size row, or null when the standard / size is unknown. */
+  async threadRow(standard: string, size: string): Promise<ThreadRow | null> {
+    return (await this.threadSizes(standard).catch(() => [])).find((r) => r.size === size) ?? null;
+  }
+  /** The markers and warnings of the last committed state, as the last refresh saw them. */
+  threadsNow(): unknown[] { return this.committedExtras.threads; }
+
   /** Drop a pending/committed preview: restore the last good body, no edit record. */
   async cancelPreview(): Promise<void> {
+    this.applyExtras(this.committedExtras);
     this.previewSeq++;
     if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
     this.previewWake?.();
@@ -556,7 +618,8 @@ export class Controller {
     }
     this.store.dropMissing(existing);
     const report = await s.verify();
-    this.view.setThreads?.(((report.regen as unknown) as { threads?: unknown[] }).threads ?? []);
+    this.committedExtras = await this.regenExtras(s, s.document, this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
+    this.applyExtras(this.committedExtras);
     const errors = new Map(report.regen.errors);
     this.store.featureStatus.value = s.document.features.map((f) => {
       const err = errors.get(f.id);

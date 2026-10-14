@@ -23,6 +23,27 @@ describe('FeatureTree', () => {
     expect(container.textContent).toContain('F4 cuts nothing');
   });
 
+  it('shows a regen warning as an amber hint under the row, the row stays ok', () => {
+    const { container } = render(
+      <FeatureTree
+        rows={[{ id: 'F1', type: 'sketch' }, { id: 'F5', type: 'thread' }]}
+        status={[{ id: 'F5', ok: true }]}
+        warnings={{ F5: { code: 'threadDiameterMismatch', hint: 'hole is 6.5, M6 tap drill is 5' } }}
+        selectedId={null}
+        onSelect={() => {}}
+        onMove={() => {}}
+        onRemove={() => {}}
+        onToggleSuppress={() => {}}
+      />,
+    );
+    const rows = container.querySelectorAll('.row');
+    expect(rows[1].className).not.toContain('err');
+    const hint = rows[1].querySelector('.row-hint.warn')!;
+    expect(hint.textContent).toBe('hole is 6.5, M6 tap drill is 5');
+    expect(hint.getAttribute('data-warning')).toBe('threadDiameterMismatch');
+    expect(rows[0].querySelector('.row-hint')).toBeNull();
+  });
+
   it('calls onSelect with the row id on click', () => {
     const picked: string[] = [];
     const { container } = render(

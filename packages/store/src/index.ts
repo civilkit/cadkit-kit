@@ -47,6 +47,8 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   return out;
 }
 export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; }
+/** A regen warning on a feature (the feature still works): the first one's code, the hints of all joined; `params` is the kernel's, `all` lists every warning when there are several. */
+export interface FeatureWarning { code: string; hint: string; params?: Record<string, unknown>; all?: Array<{ code: string; hint: string; params?: Record<string, unknown> }> }
 
 export function createStore(initialDisplay: Partial<Display> = {}, initialWorkspace?: unknown) {
   let noticeSeq = 1;
@@ -57,6 +59,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const busy = signal(false);
   const notices = signal<Notice[]>([]);
   const featureStatus = signal<FeatureStatus[]>([]);
+  const featureWarnings = signal<Record<string, FeatureWarning>>({});
   const display = signal<Display>({ ...DEFAULT_DISPLAY, ...initialDisplay });
   const workspace = signal<Workspace>(sanitizeWorkspace(initialWorkspace));
   const facts = signal<{ faces: number; triangles: number; rebuildMs: number | null }>({ faces: 0, triangles: 0, rebuildMs: null });
@@ -65,7 +68,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
     notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now() }].slice(-20);
   };
   return {
-    selection, mode, hover, tool, busy, notices, featureStatus, display, workspace, facts, notify,
+    selection, mode, hover, tool, busy, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) { workspace.value = sanitizeWorkspace({ ...workspace.value, ...patch }, workspace.value); },
     applyPreset(name: WorkspacePreset) { workspace.value = { ...WORKSPACE_PRESETS[name] }; },
     setDisplay(layer: DisplayLayer, on: boolean) { display.value = { ...display.value, [layer]: on }; },

@@ -28,6 +28,8 @@ export function sketchOwners(rows: FeatureRow[]): Map<string, string> {
 export function FeatureTree(p: {
   rows: FeatureRow[];
   status: FeatureStatus[];
+  /** Regen warnings by feature id (amber hint under the row; the feature still works). */
+  warnings?: Record<string, { code: string; hint: string }>;
   selectedId: string | null;
   onSelect(id: string): void;
   onMove(id: string, to: number): void;
@@ -95,7 +97,7 @@ export function FeatureTree(p: {
             <button class="row-del row-act" title={t('ui.tree.remove')} aria-label={t('ui.tree.remove')}
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}><Icon name="trash" size={15} /></button>
           </span>
-          {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
+          {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : p.warnings?.[r.id] ? <span class="row-hint warn" data-warning={p.warnings[r.id].code}>{p.warnings[r.id].hint}</span> : null}
         </div>
         {open ? kids.map((k) => renderRow(k, depth + 1)) : null}
       </>
