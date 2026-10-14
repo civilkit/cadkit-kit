@@ -42,15 +42,18 @@ describe('transforms against the real kernel', { skip: !process.env.CK_WASM }, (
       expect(status.conflicts).toEqual([]);
       expect(status.redundant).toEqual([]);
       expect(status.solved).toBe(true);
-      expect(status.dof).toBe(x.kind === 'rotate' && Math.abs(Math.sin((x.angleDeg * Math.PI) / 90)) > 1e-9 ? status.dof : 0);
+      expect(status.dof).toBe(x.kind === 'rotate' && Math.abs(Math.sin((x.angleDeg * Math.PI) / 90)) > 1e-9 ? 1 : 0);
       for (const p of d.points) { expect(pts[p.id][0]).toBeCloseTo(p.x, 4); expect(pts[p.id][1]).toBeCloseTo(p.y, 4); }
     });
   }
-  it('rotated off-axis: the pinned corner constraints no longer fit, the result is honest about it (solves, with freedom the fixes had removed)', async () => {
+  it('rotated off-axis: the rectangle stays a rectangle (parallel / perpendicular replace H / V), one freedom is left (its turn), and Fully define closes it', async () => {
     const d = ok(applyTransform(base, all4, { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 30 }));
-    const { status } = await solved(d);
+    const { status, pts } = await solved(d);
     expect(status.solved).toBe(true);
     expect(status.conflicts).toEqual([]);
+    expect(status.redundant).toEqual([]);
+    expect(status.dof).toBe(1);
+    for (const p of d.points) { expect(pts[p.id][0]).toBeCloseTo(p.x, 4); expect(pts[p.id][1]).toBeCloseTo(p.y, 4); }
   });
   it('two copies with their relations: solves, each copy keeps its own size and shape, dof is that of three independent rectangles minus nothing', async () => {
     const d = ok(applyTransform(base, all4, { kind: 'move', dx: 0, dy: 20 }, 2));

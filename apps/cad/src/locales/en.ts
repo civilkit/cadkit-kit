@@ -430,7 +430,7 @@ export const en: Catalog = {
   'triball.status.plane': 'Drag cursor to move plane to new position.', 'triball.status.axisRotate': 'Drag cursor to rotate the ball around the axis.', 'triball.status.ringRotate': 'Drag cursor to rotate the ball around the circle.',
   // ---- sketch: define, snaps, display, transform, reference dimensions
   'app.sketch.tool.move': 'Move entities', 'app.sketch.tool.copy': 'Copy entities', 'app.sketch.tool.rotate': 'Rotate entities', 'app.sketch.tool.scale': 'Scale entities',
-  'app.sketch.hint.transformPick': 'Click the entities, then Enter', 'app.sketch.hint.pickBase': 'Click the base point', 'app.sketch.hint.nothingToTransform': 'Select something first',
+  'app.sketch.hint.transformPick': 'Click the entities, then Enter', 'app.sketch.hint.pickBase': 'Click the base point', 'app.sketch.hint.rotateCenter': 'Click the centre of the rotation', 'app.sketch.hint.nothingToTransform': 'Select something first',
   'app.sketch.hint.transformFixed': 'A fixed point cannot be moved: unfix it first',
   'app.sketch.field.dx': 'dx', 'app.sketch.field.dy': 'dy', 'app.sketch.field.factor': 'factor', 'app.sketch.field.copies': 'copies',
   'app.sketch.fullyDefine': 'Fully define', 'app.sketch.fullyDefine.tip': 'Add relations and dimensions until nothing can move',

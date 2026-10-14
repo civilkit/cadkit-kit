@@ -64,8 +64,9 @@ then move the pointer and click, or type the values:
   (0 scales the originals; copy k is scaled by `f` to the k).
 
 In place, dimensions that mention what changed are **re-measured** (a moved line is still "this long", an angle dimension
-keeps its sign convention), a `fix` follows its point, horizontal / vertical are dropped on lines turned off the axes and
-swapped by a quarter turn. Relations to geometry that did not move are kept, so the solver can pull the shape back; when
+keeps its sign convention), a `fix` follows its point, horizontal / vertical on lines turned off the axes are replaced by parallel (between the turned
+horizontals, between the turned verticals) and one perpendicular, so a rectangle stays a rectangle with one freedom left (its turn); a quarter
+turn swaps them. Relations to geometry that did not move are kept, so the solver can pull the shape back; when
 it refuses, the usual solver hint appears and Ctrl+Z restores the sketch. A fixed point cannot be moved (the tool says so).
 Copies get fresh points and entities, and the constraints that live entirely inside the copied set (dimensions
 measured on the copy; `fix` never). Tests: `transform.test.ts`, `transform.kernel.test.ts` (move, rotate 30 and 90 degrees,

@@ -5,7 +5,7 @@
  * them, and keeps the sketch's constraints honest:
  *   - in place: a dimension that mentions what moved is re-measured from the new geometry (a moved line keeps meaning
  *     "this long", a rotated pair keeps its angle), a `fix` follows its point, and horizontal / vertical on a line that was
- *     turned off the axes is dropped. Relations to geometry that did not move are kept: the solver pulls the moved shape
+ *     turned off the axes becomes parallel / perpendicular between the turned lines (swapped by a quarter turn). Relations to geometry that did not move are kept: the solver pulls the moved shape
  *     back if they say so, and the tool reports it when the solver refuses.
  *   - copies: fresh points and entities (every point of a picked entity is copied, even one shared with an unpicked
  *     entity), and the constraints that live entirely inside the picked set are copied with them (dimensions re-measured).
@@ -114,6 +114,8 @@ function resettle(old: SketchDraft, d: SketchDraft, touched: Set<string>, x: Xfo
   const hit = (c: DraftConstraint) => (c.refs ?? []).some((r) => pointsOfRef(r).some((p) => touched.has(p)));
   const turned = x.kind === 'rotate' && Math.abs(Math.sin(rad(x.angleDeg) * 2)) > 1e-9;
   const constraints: DraftConstraint[] = [];
+  // lines that were horizontal / vertical and are turned off the axes: they keep their relations to each other instead
+  const wasH: string[] = [], wasV: string[] = [];
   for (const c of d.constraints) {
     if (!hit(c)) { constraints.push(c); continue; }
     if (c.type === 'fix' && Array.isArray(c.value) && c.refs?.[0]) {
@@ -124,7 +126,10 @@ function resettle(old: SketchDraft, d: SketchDraft, touched: Set<string>, x: Xfo
     if (x.kind === 'rotate' && (c.type === 'horizontal' || c.type === 'vertical')) {
       const refs = c.refs ?? [];
       const allTurned = refs.every((r) => pointsOfRef(r).every((p) => touched.has(p)));
-      if (allTurned && turned) continue;   // the line is no longer on an axis
+      if (allTurned && turned) {
+        if (refs.length === 1 && entityOf(d, refs[0])?.type === 'line') (c.type === 'horizontal' ? wasH : wasV).push(refs[0]);
+        continue;   // the line is no longer on an axis
+      }
       if (allTurned && Math.round(x.angleDeg / 90) % 2 !== 0) { constraints.push({ ...c, type: c.type === 'horizontal' ? 'vertical' : 'horizontal' }); continue; }   // a quarter turn swaps the axes
     }
     if (DIMS.has(c.type) && typeof c.value === 'number') {
@@ -134,7 +139,10 @@ function resettle(old: SketchDraft, d: SketchDraft, touched: Set<string>, x: Xfo
     }
     constraints.push(c);
   }
-  return { ...d, constraints };
+  let out: SketchDraft = { ...d, constraints };
+  for (const group of [wasH, wasV]) for (let i = 1; i < group.length; i++) out = withConstraint(out, 'parallel', [group[0], group[i]]);
+  if (wasH.length && wasV.length) out = withConstraint(out, 'perpendicular', [wasH[0], wasV[0]]);
+  return out;
 }
 
 /** Move / rotate / scale the entities in place (`copies` = 0), or leave them and make `copies` transformed copies. */
@@ -272,7 +280,7 @@ function view(kind: TransformKind, state: TransformState, draft: SketchDraft, se
       if (kind !== 'move') fields.push({ id: 'n', label: 'app.sketch.field.copies', value: state.n, locked: false, unit: 'count' });
     }
   }
-  const hintKey = hint ?? (state.phase === 'select' ? 'app.sketch.hint.transformPick' : state.phase === 'base' ? (kind === 'rotate' ? 'app.sketch.hint.pickCenter' : 'app.sketch.hint.pickBase') : undefined);
+  const hintKey = hint ?? (state.phase === 'select' ? 'app.sketch.hint.transformPick' : state.phase === 'base' ? (kind === 'rotate' ? 'app.sketch.hint.rotateCenter' : 'app.sketch.hint.pickBase') : undefined);
   return { state, draft, preview, fields, ...(hintKey ? { hint: hintKey } : {}) };
 }
 

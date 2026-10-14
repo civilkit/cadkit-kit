@@ -34,6 +34,9 @@ describe('applyTransform in place', () => {
     const d = ok(applyTransform(sized(), all4, { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 30 })).draft;
     expect(Math.hypot(pt(d, 'p2').x, pt(d, 'p2').y)).toBeCloseTo(10, 9);
     expect(d.constraints.some((c) => c.type === 'horizontal' || c.type === 'vertical')).toBe(false);
+    // ... the rectangle stays a rectangle: the turned sides keep their relations to each other
+    expect(d.constraints.filter((c) => c.type === 'parallel').map((c) => c.refs)).toEqual([['e1', 'e3'], ['e2', 'e4']]);
+    expect(d.constraints.filter((c) => c.type === 'perpendicular').map((c) => c.refs)).toEqual([['e1', 'e2']]);
     expect(d.constraints.find((c) => c.id === 'k5')!.value).toBeCloseTo(10, 9);
     expect(resolves(d)).toBe(true);
   });
