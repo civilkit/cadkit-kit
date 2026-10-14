@@ -150,5 +150,384 @@
  "seq": 5,
  "rollback": null,
  "material": "steel",
- "counters": {}
+ "counters": {},
+ "drawing": {
+  "v": 1,
+  "sheet": {
+   "size": "A3",
+   "orientation": "landscape",
+   "units": "mm",
+   "scale": "2:1",
+   "projection": "third",
+   "margin": 10
+  },
+  "title": {
+   "title": "Mounting plate",
+   "partNo": "MP-001",
+   "material": "steel",
+   "author": "Kit",
+   "date": "2026-10-15",
+   "revision": "A",
+   "mass": "142.64 g",
+   "company": ""
+  },
+  "views": [
+   {
+    "id": "V1",
+    "kind": "std",
+    "label": "Front",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     191,
+     153.5
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true
+   },
+   {
+    "id": "V2",
+    "kind": "proj",
+    "label": "Top",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     0,
+     -1
+    ],
+    "pos": [
+     191,
+     83.5
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "up"
+   },
+   {
+    "id": "V3",
+    "kind": "proj",
+    "label": "Right",
+    "x": [
+     0,
+     0,
+     -1
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     281,
+     153.5
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "right"
+   },
+   {
+    "id": "V4",
+    "kind": "std",
+    "label": "Isometric",
+    "x": [
+     0.7071067811865476,
+     0,
+     -0.7071067811865476
+    ],
+    "y": [
+     -0.40824829046386296,
+     0.816496580927726,
+     -0.40824829046386296
+    ],
+    "pos": [
+     281,
+     83.5
+    ],
+    "scale": "1:2",
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true
+   },
+   {
+    "id": "V5",
+    "kind": "section",
+    "label": "Section",
+    "x": [
+     0,
+     0,
+     -1
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     311,
+     153.5
+    ],
+    "scale": null,
+    "hidden": false,
+    "tangent": false,
+    "centerlines": false,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "right",
+    "cut": {
+     "dir": "v",
+     "at": 0,
+     "letter": "A"
+    }
+   }
+  ],
+  "dims": [
+   {
+    "id": "Dmv879tt30",
+    "view": "V1",
+    "kind": "linear",
+    "a": [
+     -30,
+     -20
+    ],
+    "b": [
+     30,
+     -20
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tt31",
+    "view": "V1",
+    "kind": "linear",
+    "a": [
+     -30,
+     -20
+    ],
+    "b": [
+     -30,
+     20
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   },
+   {
+    "id": "Dmv879tt42",
+    "view": "V1",
+    "kind": "callout",
+    "a": [
+     -24.000000000000043,
+     -14.00000000000002
+    ],
+    "r": 2.7499999999999822,
+    "angle": 1.7853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F2.C1",
+       "F4.S.h1~2"
+      ],
+      "at": [
+       25.01234251860442,
+       -16.556885336698862,
+       8
+      ]
+     }
+    ],
+    "feature": "F4"
+   },
+   {
+    "id": "Dmv879tt43",
+    "view": "V1",
+    "kind": "callout",
+    "a": [
+     24.000000000000096,
+     14.00000000000002
+    ],
+    "r": 2.750000000000059,
+    "angle": 0.7853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F2.C1",
+       "F4.S.h1~4"
+      ],
+      "at": [
+       -22.98765748139558,
+       11.443114663301138,
+       8
+      ]
+     }
+    ],
+    "feature": "F4"
+   },
+   {
+    "id": "Dmv879tt44",
+    "view": "V1",
+    "kind": "callout",
+    "a": [
+     -24.000000000000007,
+     14.000000000000021
+    ],
+    "r": 2.7499999999999813,
+    "angle": 1.2853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F2.C1",
+       "F4.S.h1~4"
+      ],
+      "at": [
+       -25.01234251860442,
+       16.556885336698862,
+       8
+      ]
+     }
+    ],
+    "feature": "F4"
+   },
+   {
+    "id": "Dmv879tt45",
+    "view": "V1",
+    "kind": "callout",
+    "a": [
+     24.00000000000001,
+     -13.999999999999977
+    ],
+    "r": 2.7499999999999933,
+    "angle": 1.7853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F2.C1",
+       "F4.S.h1~2"
+      ],
+      "at": [
+       22.98765748139558,
+       -11.443114663301138,
+       8
+      ]
+     }
+    ],
+    "feature": "F4"
+   },
+   {
+    "id": "Dmv879tt46",
+    "view": "V2",
+    "kind": "linear",
+    "a": [
+     -30,
+     -8
+    ],
+    "b": [
+     30,
+     -8
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tt47",
+    "view": "V2",
+    "kind": "linear",
+    "a": [
+     -30,
+     -8
+    ],
+    "b": [
+     -30,
+     0
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   },
+   {
+    "id": "Dmv879tt48",
+    "view": "V3",
+    "kind": "linear",
+    "a": [
+     -8,
+     -20
+    ],
+    "b": [
+     0,
+     -20
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tt49",
+    "view": "V3",
+    "kind": "linear",
+    "a": [
+     -8,
+     -20
+    ],
+    "b": [
+     -8,
+     20
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   }
+  ],
+  "notes": [
+   {
+    "id": "N1",
+    "text": "MATERIAL: STEEL",
+    "pos": [
+     25,
+     255
+    ]
+   },
+   {
+    "id": "N2",
+    "text": "BREAK SHARP EDGES 0.2 MAX",
+    "pos": [
+     25,
+     261
+    ]
+   }
+  ],
+  "balloons": [],
+  "bom": {
+   "show": true,
+   "pos": null
+  }
+ }
 }

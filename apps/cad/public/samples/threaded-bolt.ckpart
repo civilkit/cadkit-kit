@@ -302,5 +302,323 @@
  "seq": 12,
  "rollback": null,
  "material": "steel",
- "counters": {}
+ "counters": {},
+ "drawing": {
+  "v": 1,
+  "sheet": {
+   "size": "A3",
+   "orientation": "landscape",
+   "units": "mm",
+   "scale": "1:1",
+   "projection": "third",
+   "margin": 10
+  },
+  "title": {
+   "title": "Threaded bolt and tapped block",
+   "partNo": "TB-010",
+   "material": "steel",
+   "author": "Kit",
+   "date": "2026-10-15",
+   "revision": "A",
+   "mass": "220.71 g",
+   "company": ""
+  },
+  "views": [
+   {
+    "id": "V1",
+    "kind": "std",
+    "label": "Front",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     179.7565,
+     164.7435
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true
+   },
+   {
+    "id": "V2",
+    "kind": "proj",
+    "label": "Top",
+    "x": [
+     1,
+     0,
+     0
+    ],
+    "y": [
+     0,
+     0,
+     -1
+    ],
+    "pos": [
+     179.7565,
+     100.5
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "up"
+   },
+   {
+    "id": "V3",
+    "kind": "proj",
+    "label": "Right",
+    "x": [
+     0,
+     0,
+     -1
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     260.9,
+     164.7435
+    ],
+    "scale": null,
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "right"
+   },
+   {
+    "id": "V4",
+    "kind": "std",
+    "label": "Isometric",
+    "x": [
+     0.7071067811865476,
+     0,
+     -0.7071067811865476
+    ],
+    "y": [
+     -0.40824829046386296,
+     0.816496580927726,
+     -0.40824829046386296
+    ],
+    "pos": [
+     260.9,
+     100.5
+    ],
+    "scale": "1:2",
+    "hidden": true,
+    "tangent": false,
+    "centerlines": true,
+    "showLabel": true
+   },
+   {
+    "id": "V5",
+    "kind": "section",
+    "label": "Section",
+    "x": [
+     0,
+     0,
+     -1
+    ],
+    "y": [
+     0,
+     1,
+     0
+    ],
+    "pos": [
+     308.9,
+     164.7435
+    ],
+    "scale": null,
+    "hidden": false,
+    "tangent": false,
+    "centerlines": false,
+    "showLabel": true,
+    "parent": "V1",
+    "side": "right",
+    "cut": {
+     "dir": "v",
+     "at": 0,
+     "letter": "A"
+    }
+   }
+  ],
+  "dims": [
+   {
+    "id": "Dmv879tzfa",
+    "view": "V1",
+    "kind": "linear",
+    "a": [
+     -9.8,
+     -6
+    ],
+    "b": [
+     70,
+     -6
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tzfb",
+    "view": "V1",
+    "kind": "linear",
+    "a": [
+     -9.8,
+     -6
+    ],
+    "b": [
+     -9.8,
+     40
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   },
+   {
+    "id": "Dmv879tzfc",
+    "view": "V2",
+    "kind": "linear",
+    "a": [
+     -9.8,
+     -8.487
+    ],
+    "b": [
+     70,
+     -8.487
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tzfd",
+    "view": "V2",
+    "kind": "linear",
+    "a": [
+     -9.8,
+     -8.487
+    ],
+    "b": [
+     -9.8,
+     30
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   },
+   {
+    "id": "Dmv879tzge",
+    "view": "V2",
+    "kind": "callout",
+    "a": [
+     0,
+     -4.4061807782589466e-16
+    ],
+    "r": 5,
+    "angle": 1.7853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F2.C1",
+       "F4.S.c1"
+      ],
+      "at": [
+       -5,
+       0,
+       -6.123233995736766e-16
+      ]
+     }
+    ],
+    "feature": "F6"
+   },
+   {
+    "id": "Dmv879tzgf",
+    "view": "V2",
+    "kind": "diameter",
+    "a": [
+     -8.619072427993063e-17,
+     -1.7238144855986126e-16
+    ],
+    "r": 4,
+    "angle": 0.7853981633974483,
+    "offset": 14,
+    "refs": [
+     {
+      "faces": [
+       "F4.C1",
+       "F5.B0"
+      ],
+      "at": [
+       -4,
+       40,
+       -4.898587196589413e-16
+      ]
+     }
+    ]
+   },
+   {
+    "id": "Dmv879tzgg",
+    "view": "V3",
+    "kind": "linear",
+    "a": [
+     -8.487,
+     -6
+    ],
+    "b": [
+     30,
+     -6
+    ],
+    "orient": "h",
+    "offset": 14,
+    "overall": "w"
+   },
+   {
+    "id": "Dmv879tzgh",
+    "view": "V3",
+    "kind": "linear",
+    "a": [
+     -8.487,
+     -6
+    ],
+    "b": [
+     -8.487,
+     40
+    ],
+    "orient": "v",
+    "offset": -14,
+    "overall": "h"
+   }
+  ],
+  "notes": [
+   {
+    "id": "N1",
+    "text": "THREAD M10x1.5 6g",
+    "pos": [
+     25,
+     255
+    ]
+   }
+  ],
+  "balloons": [],
+  "bom": {
+   "show": true,
+   "pos": null
+  }
+ }
 }

@@ -13,6 +13,7 @@ import { addAux, addDetail, addProjected, addSection, fetchViews, moveView, nudg
 import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, type BomRow, type Prim } from './render';
 import { hitAnnotation } from './hit';
 import { holeInfos } from './kernel';
+import { massText } from '../inspect/mass';
 import { printSvg, toDxf, toPdf } from './output';
 import { componentOfName, insertIds } from '../assembly/model';
 import { projectedFrame } from './model';
@@ -99,7 +100,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (!dead) setBom(rows);
       const m = await host.mass();
       if (!dead && m !== null) {
-        const text = m >= 1000 ? `${(m / 1000).toFixed(3)} kg` : `${+m.toFixed(1)} g`;
+        const text = massText(m);
         if (docRef.current.title.mass !== text && (docRef.current.title.mass === '' || /^[\d.]+ (g|kg)$/.test(docRef.current.title.mass))) update((x) => ({ ...x, title: { ...x.title, mass: text } }));
       }
     })();
