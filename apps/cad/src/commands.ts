@@ -4,6 +4,7 @@ import type { Command } from '@kit/ui';
 import { t } from './i18n';
 import type { DisplayLayer, SelectionMode } from '@kit/store';
 import { featureCommands, type FeatureActions } from './featureCommands';
+import { creatorCommands } from './featureCreators';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -112,7 +113,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-edge', label: t('cmd.sel-edge'), tab: 'Select', group: 'Pick', keys: 'E', pressed: () => a.mode() === 'edge', run: () => a.setMode('edge') },
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
-  if (a.features) cmds.push(...featureCommands(a.features));
+  if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
   if (a.io) cmds.push(...ioCommands(a.io, a.hasDocument));
   for (const c of cmds) if (SHORTCUTS[c.id] && !c.keys) c.keys = SHORTCUTS[c.id];
   for (const layer of LAYERS) {

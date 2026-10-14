@@ -55,6 +55,8 @@ export const faceNames = (selection: string[]): string[] => selection.filter((n)
 export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {
   if (path === 'edges') { const r = edgeRefs(selection, edges); return r.length ? r : null; }
   if (path === 'faces') { const r = faceNames(selection); return r.length ? r : null; }
+  // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
+  if (path === 'neutral' || path === 'plane') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }
   return selection[0] ?? null;
 }
 

@@ -273,4 +273,12 @@ export const en: Catalog = {
   'hole.end': 'End condition', 'hole.end.blind': 'Blind', 'hole.end.through': 'Through', 'hole.end.upToNext': 'Up to next', 'hole.depth': 'Depth',
   'hole.tip': 'Drill point tip ({angle}°)', 'hole.flip': 'Flip direction',
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
+  // ---- feature creators (featureCreators.ts)
+  'tab.Features': 'Features', 'tab.Surfaces': 'Surfaces',
+  'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-mirror': 'Mirror', 'cmd.add-helix': 'Helix',
+  'cmd.add-pipe-cut': 'Pipe cut', 'cmd.add-delete-body': 'Delete body', 'cmd.add-delete-face': 'Delete face',
+  'cmd.add-surface-planar': 'Planar surface', 'cmd.add-surface-extrude': 'Extruded surface', 'cmd.add-surface-revolve': 'Revolved surface',
+  'cmd.add-trim-surface': 'Trim surface', 'cmd.add-knit': 'Knit', 'cmd.add-thicken': 'Thicken',
+  'group.Reference': 'Reference', 'group.Modify': 'Modify', 'group.Curves': 'Curves', 'group.Bodies': 'Bodies', 'group.Create': 'Create',
+  'app.creator.nothing': 'Nothing to build this feature from: pick what it needs first',
 };

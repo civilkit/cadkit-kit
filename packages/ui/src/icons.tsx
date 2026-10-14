@@ -160,6 +160,23 @@ const ICONS: Record<string, string> = {
   'feature-surface': P('M3 17C7 9 11 15 15 9s4-2 6-1') + T('M3 20h18'),
   'feature-pattern': P('M3 8h4v8H3z') + P('M10 8h4v8h-4z') + T('M17 8h4v8h-4z'),
   'layer-relations': P('M5 8h5M5 12h5') + P('M14 20 18 8M17 20l4-12') + C('M4 18h6'),
+  // ---- feature creators (apps/cad/src/featureCreators.ts)
+  'add-plane': P('M3 15l9-5 9 5-9 5z') + C('M3 9l9-5 9 5') + A('M12 10V4M9.5 6.5 12 4l2.5 2.5'),
+  'add-axis': C('M5 19 19 5') + P('M7 12h10') + A('M12 5v14') + D(12, 12),
+  'add-draft': P('M5 20V8l7-4 7 4v12z') + C('M3 20h18') + A('M5 20 19 8') + T('M9 20a4 4 0 00-1.2-2.8'),
+  'add-rib': P('M3 19h18') + T('M3 19V9M21 19V9') + P('M8 19V10h3v9') + A('M9.5 10V5'),
+  'add-lip': P('M4 16h16') + P('M4 16v-4h3v-3h10v3h3v4') + A('M7 9h10') + T('M4 20h16'),
+  'add-mirror': P('M4 7l6 3v7l-6-3z') + P('M20 7l-6 3v7l6-3z') + C('M12 4v16') + A('M10.5 12h3M12 10.5 13.5 12 12 13.5'),
+  'add-helix': P('M7 19c8 0 10-2 10-3.5S9 13 7 12.5') + P('M7 12.5c8 0 10-2 10-3.5S9 6.5 7 6') + A('M17 15.5v-6.5') + T('M7 19V6'),
+  'add-pipe-cut': P('M3 9c4-3 14-3 18 0v6c-4 3-14 3-18 0z') + C('M3 12c4 3 14 3 18 0') + A('M12 5v8M9.5 10.5 12 13l2.5-2.5'),
+  'add-delete-body': P(HEX) + T(Y) + A('M8 8l8 8M16 8l-8 8', 2),
+  'add-delete-face': cubeDim + A(FACE.top, 2) + P('M9.5 6.2l5 2.6M14.5 6.2l-5 2.6'),
+  'add-surface-planar': P('M4 16l5-9h11l-5 9z') + T('M4 16v3h11M20 7v3') + A('M9 7 4 16'),
+  'add-surface-extrude': P('M4 18h12M4 18C4 13 8 11 12 11s8 2 8 7') + T('M4 18v3h16v-3') + A('M12 11V3M9.5 5.5 12 3l2.5 2.5'),
+  'add-surface-revolve': C('M12 3v18') + P('M12 6c4 0 7 1.5 7 4s-3 4-7 4') + T('M12 14c4 0 7 1.5 7 4') + A('M5 10c1.2-1.5 3.5-2.4 7-2.4'),
+  'add-trim-surface': P('M3 17C7 9 11 15 21 8') + C('M12 3v18') + A('M12 12.5 21 8') + D(12, 12.5),
+  'add-knit': P('M4 8h7v8H4z') + P('M13 8h7v8h-7z') + A('M11 9.5v5M13 9.5v5') + T('M4 12h7M13 12h7'),
+  'add-thicken': P('M3 14C8 8 13 14 21 9') + P('M3 18C8 12 13 18 21 13') + T('M3 14v4M21 9v4') + A('M12 9v3M10.5 10.5 12 9l1.5 1.5'),
 };
 
 export const ICON_NAMES: string[] = Object.keys(ICONS);
