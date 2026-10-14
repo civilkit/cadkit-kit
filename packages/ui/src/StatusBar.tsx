@@ -1,6 +1,10 @@
 import type { JSX } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
 import type { Notice } from '@kit/store';
 import { t } from './i18n';
+
+/** How long the newest notice stays in the status bar; the drawer's log keeps all of them. */
+export const NOTICE_MS = 8000;
 
 export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn' | 'err' }
 
@@ -8,7 +12,15 @@ export function StatusBar(p: {
   notices: Notice[]; hover: string | null; busy: boolean;
   items?: StatusItem[]; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string;
 }): JSX.Element {
-  const last = p.notices.at(-1);
+  const newest = p.notices.at(-1);
+  const [, tick] = useState(0);
+  const age = newest?.at === undefined ? 0 : Date.now() - newest.at;
+  const last = newest && age < NOTICE_MS ? newest : undefined;
+  useEffect(() => {
+    if (!last || last.at === undefined) return;
+    const h = setTimeout(() => tick((n) => n + 1), Math.max(50, NOTICE_MS - (Date.now() - last.at) + 20));
+    return () => clearTimeout(h);
+  }, [last?.id]);
   return (
     <div class="status">
       {p.busy ? <span class="st-busy">{t('ui.status.busy')}</span> : <span class="ready"><span class="dot" />{t('ui.status.ready')}</span>}

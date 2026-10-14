@@ -1,7 +1,7 @@
 import { signal, type Signal } from '@preact/signals-core';
 
 export type SelectionMode = 'face' | 'edge' | 'vertex';
-export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; }
+export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number }
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid';
 export type Display = Record<DisplayLayer, boolean>;
 export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true };
@@ -56,7 +56,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const facts = signal<{ faces: number; triangles: number; rebuildMs: number | null }>({ faces: 0, triangles: 0, rebuildMs: null });
 
   const notify = (text: string, level: Notice['level'] = 'info') => {
-    notices.value = [...notices.value, { id: noticeSeq++, text, level }].slice(-20);
+    notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now() }].slice(-20);
   };
   return {
     selection, mode, hover, tool, busy, notices, featureStatus, display, workspace, facts, notify,
