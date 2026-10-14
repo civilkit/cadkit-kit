@@ -62,6 +62,17 @@ const controller = new Controller({
   store,
   view: {
     setBody: (b) => {
+      // sketches that a feature references are drawn quietly; compute them from the document
+      const used = new Set<string>();
+      const d = controller.document();
+      const sketchIds = new Set((d?.features ?? []).filter((f) => f.type === 'sketch' || f.type === 'sketch3d').map((f) => f.id));
+      for (const f of d?.features ?? []) {
+        if (f.type === 'sketch' || f.type === 'sketch3d') continue;
+        for (const v of Object.values(f as unknown as Record<string, unknown>)) {
+          for (const x of Array.isArray(v) ? v : [v]) if (typeof x === 'string' && sketchIds.has(x)) used.add(x);
+        }
+      }
+      viewport?.setConsumedSketches([...used]);
       viewport?.setBody(b as never);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> } } | null;
       store.facts.value = { ...store.facts.value, faces: body?.mesh?.faceIds.length ?? 0, triangles: body?.mesh?.triFace.length ?? 0 };

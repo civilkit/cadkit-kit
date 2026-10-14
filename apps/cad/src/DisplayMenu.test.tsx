@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/preact';
 import { DEFAULT_DISPLAY } from '@kit/store';
+import { t } from './i18n';
 import { DisplayMenu, DISPLAY_LAYERS } from './DisplayMenu';
 
 afterEach(cleanup);
@@ -10,7 +11,7 @@ describe('DisplayMenu', () => {
     render(<DisplayMenu display={{ ...DEFAULT_DISPLAY, planes: false }} onToggle={() => {}} />);
     expect(screen.queryByText('Sketches')).toBeNull();
     fireEvent.click(screen.getByText('Display'));
-    for (const l of DISPLAY_LAYERS) expect(screen.getByLabelText(l[0].toUpperCase() + l.slice(1))).toBeTruthy();
+    for (const l of DISPLAY_LAYERS) expect(screen.getByLabelText(t('layer.' + l))).toBeTruthy();
     expect((screen.getByLabelText('Planes') as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText('Sketches') as HTMLInputElement).checked).toBe(true);
   });

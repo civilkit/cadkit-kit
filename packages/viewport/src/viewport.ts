@@ -10,6 +10,7 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
+import { buildBoxDimensions } from './dimensions';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 export type { RefPlaneId } from './refplanes';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
@@ -110,6 +111,11 @@ export class Viewport {
   private sketchLines: THREE.LineSegments | LineSegments2 | null = null;
   private curveLines: THREE.LineSegments | LineSegments2 | null = null;
   private fatMaterials: LineMaterial[] = [];
+  private dimGroup: THREE.Group | null = null;
+  private sketchQuiet: LineSegments2 | null = null;
+  private consumedSketches = new Set<string>();
+  /** Sketches a feature already uses are drawn thin and quiet; the rest (still to be used) stay bright and thick. */
+  setConsumedSketches(ids: string[]): void { this.consumedSketches = new Set(ids); }
   private planeLines: THREE.LineSegments | null = null;
   private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
@@ -208,6 +214,7 @@ export class Viewport {
       m.opacity = 0.25;
     }
     if (this.sketchLines) this.sketchLines.visible = false; // no double-draw of the same sketch
+    if (this.sketchQuiet) this.sketchQuiet.visible = false;
     const group = new THREE.Group();
     group.userData.pickable = false;
     // Solved entities as bright lines.
@@ -512,11 +519,12 @@ export class Viewport {
   setLayerVisible(layer: string, on: boolean): void {
     this.layers[layer] = on;
     if (layer === 'edges' && this.edgeLines) this.edgeLines.visible = on;
-    if (layer === 'sketches' && this.sketchLines) this.sketchLines.visible = on;
+    if (layer === 'sketches') { if (this.sketchLines) this.sketchLines.visible = on; if (this.sketchQuiet) this.sketchQuiet.visible = on; }
     if (layer === 'curves' && this.curveLines) this.curveLines.visible = on;
     if (layer === 'planes' && this.planeLines) this.planeLines.visible = on;
     if (layer === 'axes' && this.axisLines) this.axisLines.visible = on;
     if (layer === 'grid' && this.groundGrid) this.groundGrid.visible = on;
+    if (layer === 'dimensions' && this.dimGroup) this.dimGroup.visible = on;
     this.dirty = true;
   }
 
@@ -592,13 +600,14 @@ export class Viewport {
   }
 
   /** Lines a few pixels wide (WebGL's own lines are always one pixel), drawn in front of the coplanar surface they lie on. */
-  private addFatLines(polys: Polyline[], color: number, width: number, visible: boolean): LineSegments2 | null {
+  private addFatLines(polys: Polyline[], color: number, width: number, visible: boolean, opacity = 1): LineSegments2 | null {
     const seg = this.segmentsOf(polys);
     if (!seg.length) return null;
     const geo = new LineSegmentsGeometry();
     geo.setPositions(seg);
     const mat = new LineMaterial({ color, linewidth: width, worldUnits: false });
     mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -2;
+    if (opacity < 1) { mat.transparent = true; mat.opacity = opacity; }
     mat.resolution.set(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
     this.fatMaterials.push(mat);
     const lines = new LineSegments2(geo, mat);
@@ -611,13 +620,23 @@ export class Viewport {
 
   private clearLayers(): void {
     this.fatMaterials = [];
-    for (const o of [this.sketchLines, this.curveLines, this.planeLines, this.axisLines]) {
+    for (const o of [this.sketchLines, this.sketchQuiet, this.curveLines, this.planeLines, this.axisLines]) {
       if (!o) continue;
       this.scene.remove(o);
       o.geometry.dispose();
       (o.material as THREE.Material).dispose();
     }
-    this.sketchLines = this.curveLines = this.planeLines = this.axisLines = null;
+    this.sketchLines = this.sketchQuiet = this.curveLines = this.planeLines = this.axisLines = null;
+    if (this.dimGroup) {
+      this.scene.remove(this.dimGroup);
+      this.dimGroup.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose?.();
+        const mat = m.material as (THREE.Material & { map?: THREE.Texture | null }) | undefined;
+        mat?.map?.dispose?.(); mat?.dispose?.();
+      });
+      this.dimGroup = null;
+    }
   }
 
   /** Show a body, or clear the scene when body is null (empty or failed document). */
@@ -625,6 +644,10 @@ export class Viewport {
     this.clearBody();
     if (!body) { this.buildGroundGrid(null); this.dirty = true; return; }
     this.buildGroundGrid(body.box ?? null);
+    if (body.box && body.mesh.triFace.length > 0) {
+      this.dimGroup = buildBoxDimensions(body.box);
+      if (this.dimGroup) { this.dimGroup.visible = this.layers.dimensions === true; this.scene.add(this.dimGroup); }
+    }
 
     // Display layers first: they draw even when the mesh is empty (sketch-only docs).
     const diag = body.box
@@ -632,8 +655,11 @@ export class Viewport {
       : 0;
     const scale = diag > 0 ? diag * 0.25 : 25;
     if (body.sketches?.length) {
-      const polys = sketchPolylines(body.sketches as never).flatMap((s) => s.polylines);
+      const all = sketchPolylines(body.sketches as never);
+      const polys = all.filter((s) => !this.consumedSketches.has(s.id)).flatMap((s) => s.polylines);
+      const quiet = all.filter((s) => this.consumedSketches.has(s.id)).flatMap((s) => s.polylines);
       this.sketchLines = this.addFatLines(polys, 0xe8730c, 2.6, this.layerOn('sketches'));
+      this.sketchQuiet = this.addFatLines(quiet, 0xe8730c, 1.5, this.layerOn('sketches'), 0.6);
     }
     if (body.curves?.length) {
       const polys = curvePolylines(body.curves as never).flatMap((c) => c.polylines);
