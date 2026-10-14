@@ -13,6 +13,8 @@ export interface InspectProps {
   material: string;
   density: number; densityKnown: boolean; onDensity(d: number): void;
   mass: MassView | null; massBusy: boolean; massStale: boolean; box: Box | null; hasSolid: boolean;
+  /** surface bodies on screen: they have no volume, so mass covers the solid only */
+  surfaces?: number;
   onMass(): void;
   measuring: boolean; onMeasure(): void; picks: Pick[]; outcome: Outcome | null; onClearPicks(): void; onCopy(text: string): void;
   interference: Interference | null; interferenceStale: boolean; interferenceBusy: boolean; onInterference(): void; onPair(a: string, b: string): void;
@@ -60,7 +62,8 @@ function MassCard(p: InspectProps): JSX.Element {
         <button class="btn" disabled={!m} onClick={() => p.onCopy(lines.map(([a, b]) => `${a}\t${b}`).join('\n'))}>{t('inspect.copy')}</button>
       </div>
       <div class="insp-note">{p.material ? (p.densityKnown ? t('inspect.material', { name: p.material }) : t('inspect.density.unknown', { name: p.material })) : t('inspect.density.noMaterial')}</div>
-      {!p.hasSolid ? <div class="empty">{t('inspect.mass.none')}</div> : null}
+      {!p.hasSolid ? <div class="empty">{t(p.surfaces ? 'inspect.mass.sheets' : 'inspect.mass.none')}</div> : null}
+      {p.hasSolid && p.surfaces ? <div class="insp-note">{t('inspect.mass.sheetsAlso')}</div> : null}
       {p.massStale ? <div class="insp-note warn">{t('inspect.stale')}</div> : null}
       {lines.length ? <dl class="insp-rows">{lines.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}</dl> : null}
       {m && m.bodies.length > 1 ? (

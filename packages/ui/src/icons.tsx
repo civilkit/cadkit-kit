@@ -219,8 +219,8 @@ export function featureIconName(type: string, op?: string): string {
   switch (type) {
     case 'sketch': case 'sketch3d': return 'feature-sketch';
     case 'plane': return 'feature-plane';
-    case 'extrude': case 'surfaceExtrude': return cut ? 'add-cut' : 'add-extrude';
-    case 'revolve': case 'surfaceRevolve': return 'add-revolve';
+    case 'extrude': return cut ? 'add-cut' : 'add-extrude';
+    case 'revolve': return 'add-revolve';
     case 'fillet': return 'add-fillet';
     case 'chamfer': return 'add-chamfer';
     case 'shell': return 'add-shell';
@@ -234,7 +234,8 @@ export function featureIconName(type: string, op?: string): string {
     case 'mirror': return 'feature-mirror';
     case 'knit': return 'feature-knit';
     case 'insertPart': return 'feature-part';
-    case 'surfacePlanar': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'sweep': case 'loft': case 'thicken': return 'feature-surface';
+    case 'surfacePlanar': case 'surfaceExtrude': case 'surfaceRevolve': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'pipeCut':
+    case 'sweep': case 'loft': case 'thicken': return 'feature-surface';
     default: return 'feature-generic';
   }
 }

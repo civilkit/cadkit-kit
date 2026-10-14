@@ -1,9 +1,21 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/preact';
 import { sketchTools } from '@kit/sketch';
-import { Icon, ICON_NAMES, hasIcon } from './icons';
+import { Icon, ICON_NAMES, hasIcon, featureIconName } from './icons';
 
 afterEach(cleanup);
+
+describe('featureIconName', () => {
+  it('every feature that makes a surface body gets the surface icon in the tree', () => {
+    for (const t of ['surfacePlanar', 'surfaceExtrude', 'surfaceRevolve', 'surfaceOffset', 'trimSurface', 'fill', 'extend', 'pipeCut']) expect(featureIconName(t)).toBe('feature-surface');
+    expect(hasIcon('feature-surface')).toBe(true);
+  });
+  it('solid extrudes and revolves keep their own icons', () => {
+    expect(featureIconName('extrude')).toBe('add-extrude');
+    expect(featureIconName('extrude', 'cut')).toBe('add-cut');
+    expect(featureIconName('revolve')).toBe('add-revolve');
+  });
+});
 
 describe('Icon', () => {
   it('has an icon for every sketch tool and Select', () => {

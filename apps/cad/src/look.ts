@@ -51,18 +51,36 @@ export function withAppearance(look: Look, part: string, patch: Partial<Appearan
   return { ...look, appearances };
 }
 
-/** What is hidden in the view (never in the document): the body, and sketches / planes / curves by feature id. */
+/** What is hidden in the view (never in the document): the solid, and sketches / planes / curves / surface bodies by feature id. */
 export interface Hidden { body: boolean; ids: string[] }
 export const NOTHING_HIDDEN: Hidden = { body: false, ids: [] };
 export const anyHidden = (h: Hidden): boolean => h.body || h.ids.length > 0;
 
-/** What the H key hides: faces / edges / corners selected -> the body they belong to; otherwise the selected feature if it is
- *  a sketch, plane or curve. Returns the new state, or the same one when there is nothing to hide. */
-export function hideSelection(h: Hidden, sel: { names: string[]; featureId?: string | null; featureType?: string | null }): Hidden {
-  if (sel.names.length) return h.body ? h : { ...h, body: true };
-  if (sel.featureId && sel.featureType && /^(sketch|plane|helix|curve|spiral|composite|projected)/.test(sel.featureType)) {
-    return h.ids.includes(sel.featureId) ? h : { ...h, ids: [...h.ids, sel.featureId] };
+/** What is under the cursor of the H key. `surfaceOf` names the surface body a face or edge belongs to (null: the solid);
+ *  `surfaceIds` are the surface bodies on screen; `solid` is false when the part has no solid (a corner then hides nothing). */
+export interface HideTarget {
+  names: string[]; featureId?: string | null; featureType?: string | null;
+  surfaceOf?: (name: string) => string | null; surfaceIds?: string[]; solid?: boolean;
+}
+
+/** What the H key hides: faces / edges / corners selected -> the body they belong to (the solid, or each surface body whose
+ *  face or edge is selected); otherwise the selected feature if it is a sketch, plane or curve, or a surface body's feature.
+ *  Returns the new state, or the same one when there is nothing to hide. */
+export function hideSelection(h: Hidden, sel: HideTarget): Hidden {
+  if (sel.names.length) {
+    let next = h;
+    for (const n of sel.names) {
+      const owner = sel.surfaceOf?.(n) ?? null;
+      if (owner) { if (!next.ids.includes(owner)) next = { ...next, ids: [...next.ids, owner] }; }
+      else if (sel.solid !== false && !next.body) next = { ...next, body: true };
+    }
+    return next;
   }
+  const id = sel.featureId;
+  if (id && sel.featureType && /^(sketch|plane|helix|curve|spiral|composite|projected)/.test(sel.featureType)) {
+    return h.ids.includes(id) ? h : { ...h, ids: [...h.ids, id] };
+  }
+  if (id && sel.surfaceIds?.includes(id)) return h.ids.includes(id) ? h : { ...h, ids: [...h.ids, id] };
   return h;
 }
 

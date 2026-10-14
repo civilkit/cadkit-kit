@@ -115,8 +115,13 @@ const controller = new Controller({
       }
       viewport?.setConsumedSketches([...used]);
       viewport?.setBody(b as never);
-      const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> } } | null;
-      store.facts.value = { ...store.facts.value, faces: body?.mesh?.faceIds.length ?? 0, triangles: body?.mesh?.triFace.length ?? 0 };
+      const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
+      const sheets = body?.surfaces ?? [];   // surface bodies count with the solid's faces and triangles
+      store.facts.value = {
+        ...store.facts.value,
+        faces: (body?.mesh?.faceIds.length ?? 0) + sheets.reduce((n, x) => n + x.mesh.faceIds.length, 0),
+        triangles: (body?.mesh?.triFace.length ?? 0) + sheets.reduce((n, x) => n + x.mesh.triFace.length, 0),
+      };
     },
     setHighlight: (n) => viewport?.setHighlight(n),
     setThreads: (items) => viewport?.setThreads(items as never),
@@ -335,7 +340,7 @@ function App() {
   /** What H would hide: the selected faces' body, or the selected sketch / plane / curve feature. */
   const hideTarget = () => {
     const f = selectedId ? controller.document()?.features.find((x) => x.id === selectedId) : undefined;
-    return { names: store.selection.value, featureId: f?.id ?? null, featureType: f?.type ?? null };
+    return { names: store.selection.value, featureId: f?.id ?? null, featureType: f?.type ?? null, surfaceOf: (n: string) => controller.surfaceOf(n), surfaceIds: controller.surfaceBodies().map((x) => x.id), solid: controller.hasSolid() };
   };
   const hideSelected = () => {
     const before = lookStore.hidden.value;

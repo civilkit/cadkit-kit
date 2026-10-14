@@ -60,9 +60,9 @@ export function sanitizeAppearance(raw: unknown): Appearance {
 
 export interface BodyLook { style: DisplayStyle; ghostOpacity: number; appearance: Appearance }
 
-/** Apply a look to the body's material: the colour, roughness, metalness, opacity and which buffers it writes.
+/** Apply a look to the body's material (`tinted`: the mesh has a per-vertex colour attribute, for surface bodies): the colour, roughness, metalness, opacity and which buffers it writes.
  *  `fade` (the sketch editor) caps the opacity and so composes with every style. */
-export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, fade = 1): void {
+export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, fade = 1, tinted = false): void {
   const spec = styleSpec(look.style);
   const p = materialParams(look.appearance.material);
   let opacity = p.opacity;
@@ -70,6 +70,7 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
   mat.roughness = p.roughness; mat.metalness = p.metalness;
   mat.emissive.set(0x000000); mat.emissiveIntensity = 1;
   mat.colorWrite = true; mat.depthWrite = true;
+  mat.vertexColors = tinted && spec.faces !== 'white';   // surface bodies carry a tint per vertex; hidden-line white stays plain
   if (spec.faces === 'white') {
     mat.color.set(0xffffff); mat.roughness = 1; mat.metalness = 0;
     mat.emissive.set(0xffffff); mat.emissiveIntensity = 0.55;   // flat paper white whatever the light
@@ -85,12 +86,12 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
   mat.needsUpdate = true;
 }
 
-export function makeBodyMaterial(look: BodyLook, fade = 1): THREE.MeshStandardMaterial {
+export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({
     side: THREE.DoubleSide,
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // faces sit a hair behind sketches and edges lying on them
   });
-  applyBodyLook(m, look, fade);
+  applyBodyLook(m, look, fade, tinted);
   return m;
 }
 

@@ -19,6 +19,24 @@ function setup(o: Partial<InspectProps> = {}) {
 }
 const card = (c: Element, name: string) => c.querySelector(`section[aria-label="${name}"]`) as HTMLElement;
 
+describe('InspectPanel with surface bodies', () => {
+  it('a part of surface bodies only says they have no volume, and Compute is off', () => {
+    const { container } = setup({ hasSolid: false, surfaces: 2 });
+    const c = card(container, 'Mass properties');
+    expect(c.textContent).toContain('surface bodies');
+    expect(c.textContent).toContain('no volume or mass');
+    expect((c.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
+  });
+  it('a solid with surface bodies notes that mass counts the solid only', () => {
+    const { container } = setup({ hasSolid: true, surfaces: 1 });
+    expect(card(container, 'Mass properties').textContent).toContain('Mass counts the solid only');
+  });
+  it('nothing at all keeps the plain empty note', () => {
+    const { container } = setup({ hasSolid: false });
+    expect(card(container, 'Mass properties').textContent).toContain('No solid to measure.');
+  });
+});
+
 describe('InspectPanel', () => {
   it('tells the app it is shown, and Compute asks for the mass properties', () => {
     const { p, getByText } = setup();

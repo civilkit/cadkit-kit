@@ -12,3 +12,5 @@ export { planeCoords, planeToWorld, rayPlane, nearestSketchPoint, sketchEditPoly
 export * from './styles';
 export { pixelScale, hitHandle, beginDrag, readDrag, applyMods, NumericEntry, formatQuantity, rayLineParam, rayPlanePoint, restPosition, defaultStep, ringPoints, planeCorners, perpendicular, V } from './handles';
 export type { HandleSpec, HandleKind, HandleDragSink, Vec3 } from './handles';
+export { mergeBodies, mergedBox, vertexTints, surfaceOwners, SURFACE_TINT } from './surfaces';
+export type { ViewSurface, MergedBody, SurfaceEdge } from './surfaces';
