@@ -9,13 +9,17 @@ import type { SketchDraft } from '../index';
 export interface Pt { x: number; y: number }
 export interface Modifiers { shift: boolean; ctrl: boolean; alt: boolean }
 
-export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align';
+export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve';
 /** What the snap engine found under the pointer. `pointId` is set when the hit is an existing sketch point. */
 export interface SnapHit {
   kind: SnapKind;
   at: Pt;
   pointId?: string;
   entityId?: string;
+  /** For `intersection`: the two curves that cross there. */
+  entityIds?: string[];
+  /** For `point`: what the point is (an end of a shape, the centre of a circle or arc, the sketch origin). */
+  role?: 'endpoint' | 'center' | 'origin';
   /** For `align`: the point whose x (vertical alignment) and/or y (horizontal alignment) the pointer matches. */
   alignTo?: { x?: string; y?: string };
 }

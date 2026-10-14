@@ -166,6 +166,9 @@ export class Viewport {
   /** The dashed material of the construction lines, resized with the zoom. */
   private constructionMat: THREE.LineDashedMaterial | null = null;
   private sketchDrag: string | null = null;
+  /** How defined each entity of the open sketch is (blue under, dark fully, red over); entities not listed stay blue. */
+  private sketchDef: Record<string, 'under' | 'full' | 'over'> | null = null;
+  private sketchDefLines: THREE.LineSegments[] = [];
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
@@ -256,7 +259,8 @@ export class Viewport {
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
-    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; }
+    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; }
+    this.sketchDefLines = [];
     this.sketchEdit = v;
     this.sketchDrag = null;
     if (!v) {
@@ -303,8 +307,39 @@ export class Viewport {
     }
     this.scene.add(group);
     this.sketchOverlay = group;
+    this.rebuildSketchDef();
     this.rebuildSketchGrid();
     this.dirty = true;
+  }
+
+  /** Colour the sketch's geometry by how defined it is: dark when fully defined, red when over-constrained (blue stays for under-defined). Null clears. */
+  setSketchDefinition(map: Record<string, 'under' | 'full' | 'over'> | null): void {
+    this.sketchDef = map;
+    this.rebuildSketchDef();
+  }
+
+  private rebuildSketchDef(): void {
+    for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); (l.material as THREE.Material).dispose(); }
+    this.sketchDefLines = [];
+    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef;
+    this.dirty = true;
+    if (!v || !group || !map) return;
+    const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0';
+    const c = new THREE.Color(bg);
+    const dark = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.4;
+    const colours = { full: dark ? 0xf2f2f2 : 0x151515, over: 0xe03131 } as const;
+    for (const state of ['full', 'over'] as const) {
+      const ents = v.sketch.entities.filter((e) => map[e.id] === state && e.construction !== true);
+      if (!ents.length) continue;
+      const seg = this.segmentsOf(sketchEditPolylines({ ...v.sketch, entities: ents }, v.frame as never, 'solid'));
+      if (!seg.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
+      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: colours[state], depthTest: false, transparent: true }));
+      lines.renderOrder = 10;
+      group.add(lines);
+      this.sketchDefLines.push(lines);
+    }
   }
 
   /** A sketch tool is active: the pointer drives the tool instead of dragging points, and the left button

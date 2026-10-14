@@ -130,3 +130,4 @@ export * from './select';
 export * from './annotations';
 export * from './extrude';
 export * from './shapes';
+export * from './define';
