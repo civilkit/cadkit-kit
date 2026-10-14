@@ -63,8 +63,23 @@ export interface ToolOutput<S> {
   mode?: string;
 }
 
+/** A world-space plane frame: origin and unit x, y, z axes (z is the normal). */
+export interface PlaneFrame3 { o: number[]; x: number[]; y: number[]; z: number[] }
+/** An edge of the body on screen, as the viewer has it: a world-space polyline, the two faces it separates and its key. */
+export interface BodyEdge { key?: string; faces?: string[]; pts: number[][] }
+
+/** What a tool may know about the world outside the sketch. Only tools that look at the body (project) read it. */
+export interface ToolEnv {
+  /** The sketch plane and the body's edges (world space). */
+  body?: { frame: PlaneFrame3; edges: BodyEdge[] };
+  /** Pointer hit tolerance in sketch units (the viewport's pick radius at the current zoom). */
+  tol?: number;
+  /** Edge keys and face names the user had selected in the 3D view before the sketch was opened. */
+  selection?: string[];
+}
+
 export interface Tool<S> {
   id: string;
   start(): S;
-  step(state: S, event: ToolEvent, draft: SketchDraft, settings: ToolSettings): ToolOutput<S>;
+  step(state: S, event: ToolEvent, draft: SketchDraft, settings: ToolSettings, env?: ToolEnv): ToolOutput<S>;
 }

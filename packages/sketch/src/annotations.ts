@@ -66,6 +66,7 @@ export function annotate(draft: SketchDraft): Annotation[] {
 
   const out: Annotation[] = [];
   for (const c of draft.constraints) {
+    if (c.hidden === true) continue;   // placed by a tool (patterns) and not worth a label; the constraint list still shows it
     const refs = c.refs ?? [];
     const base = { id: c.id, type: c.type, refs };
     if (DIM_TYPES.has(c.type) && typeof c.value === 'number') {

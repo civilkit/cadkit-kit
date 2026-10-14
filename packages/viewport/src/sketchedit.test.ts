@@ -87,6 +87,13 @@ describe('sketchEditPolylines / sketchPointWorld', () => {
     expect(polys[1]).toEqual([[20, 20, 30], [20, 30, 30]]);
   });
 
+  it('splits solid and construction entities (construction is drawn dashed by the viewport)', () => {
+    const mixed = { ...sketch, entities: [sketch.entities[0], { ...sketch.entities[1], construction: true }] };
+    expect(sketchEditPolylines(mixed, FRONT_UP, 'solid')).toEqual([[[10, 20, 30], [20, 20, 30]]]);
+    expect(sketchEditPolylines(mixed, FRONT_UP, 'construction')).toEqual([[[20, 20, 30], [20, 30, 30]]]);
+    expect(sketchEditPolylines(mixed, FRONT_UP)).toHaveLength(2);
+  });
+
   it('gives world positions for every point', () => {
     const world = sketchPointWorld(sketch.points, FRONT);
     expect(world).toEqual([

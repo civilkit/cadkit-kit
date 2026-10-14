@@ -27,3 +27,37 @@ calls. The viewport turns pointer input into plane coordinates and snap hits; th
 
 Reference tools: `line.ts` (chained, typed length and angle, H/V inference, close on first point) and `rectangle.ts`
 (two corners, typed width and height).
+
+## Edit and reference tools added after the first set
+
+Each one has its conventions in its file header; the short version:
+
+- `offset` (`offset.ts`): click a line/arc/circle (selects its connected chain, Shift-click toggles one entity), Enter,
+  then the pointer picks the side and the distance (or type `d`). Copies are parametric: lines get `parallel` +
+  `pldist` (driving, value = the distance), arcs and circles share the original's centre point and get `raddiff`.
+  Corners are joined at the intersection of the offset curves (trim/extend); collapsed segments are dropped with a hint.
+- `construction` (`construction.ts`): click to flip an entity between normal and `construction: true` (Shift-click: the whole
+  chain). `markNewAsConstruction(prev, next)` is the per-sketch "draw as construction" mode (the app applies it after
+  draw-group tool steps while the banner toggle is on). The kernel's profile builder skips construction entities, so
+  they are never extruded (kernel test); the viewport draws them dashed.
+- `project` (`project.ts`): the only tool that looks at the body. `Tool.step` takes an optional fifth argument `env`
+  (`ToolEnv`: the sketch plane frame, the body's edges as world polylines, the pick radius, and what was selected in the
+  3D view before the sketch opened); the app builds it in `runTool` from `controller.sketchFrame()` and
+  `controller.bodyEdges()` (edges carry their `pts` polyline from the regen reply; no kernel change was needed). Hover
+  previews the projection of the nearest edge, a click projects it, Enter projects the pre-selection (edge keys, and the
+  boundary edges of selected faces, including the face the sketch sits on). Result: fixed points, `construction: true`
+  and `ext: true` entities (line / arc / circle by fit, else a spline). Limits are listed in the file header: a
+  snapshot (not associative), tilted circles become splines, edges square-on to the plane are skipped, and body picking
+  stays off while sketching, so the pre-selection must be made before the sketch opens.
+- `pattern-linear` / `pattern-circular` (`pattern.ts`): copies of selected entities along a line or around a centre.
+  The spacing (linear: `hdist` + `vdist`, or `horizontal`/`vertical` plus one `hdist`/`vdist`) and the step angle
+  (circular: an `angle` between construction radial lines) are visible driving dimensions; the placing of every other
+  point against its anchor is written with `hidden: true` constraints (`annotate` skips them, the list shows them).
+  Arcs are copied with `equal` radius rather than a placed centre to avoid a redundant constraint (the solver already
+  ties an arc's ends to one radius). Copies follow the spacing, not later reshaping of the original.
+- `extend` (`extend.ts`): the counterpart of Trim. Click a line or arc near the end to lengthen: it runs on (a line straight,
+  an arc round its own circle) to the nearest boundary line/arc/circle. A point already at that place is reused (so
+  outlines close with a shared point); otherwise a new point is bound with `pointOnLine` / `pointOnCircle`.
+- `mirror` (verified end to end, `mirror.kernel.test.ts`): selection is drawn highlighted so Enter reaches the tool (it used to
+  confirm the sketch instead, so the axis step was unreachable); circle copies get `equal` radius; arc copies avoid the
+  redundant constraint (see the header of `mirror.ts`).

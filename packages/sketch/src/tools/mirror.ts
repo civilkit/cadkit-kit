@@ -9,14 +9,23 @@
  *    counter-clockwise; circles keep `r`; ellipses map `c` and the major-axis point `p`; splines map `pts` and
  *    keep their other fields (degree, knots, closed);
  *  - constraints: `symmetric` takes refs = [pointA, pointB, lineEntityId] (solver.rs: the two points are
- *    mirror images over the line). One is written per mirrored point pair, tying the copy to the original.
- *    The copy of a circle's radius is only the number `r`; no `equal` is written;
+ *    mirror images over the line). One is written per mirrored point pair, tying the copy to the original. The
+ *    radius of a mirrored circle is tied with `equal` to the original. The solver already ties both ends of an
+ *    arc to one radius, so `symmetric` on all three arc points would read as over-constrained (one redundant
+ *    constraint): an arc whose centre belongs to it alone gets `equal` radius instead of a `symmetric` centre; an
+ *    arc near a half circle (the centre is then not fixed by its radius) across a horizontal or vertical axis
+ *    gets, for its better-conditioned end, only `horizontal` / `vertical` (same row / column) instead of the full
+ *    `symmetric`; other half circles keep all three and show one redundant constraint (still solves). A mirrored
+ *    ellipse gets a `radius` of the original's value;
+ *  - the Enter key reaches this tool because the selection is always drawn highlighted (the app routes keys to a
+ *    tool that has something on show; otherwise Enter confirms the sketch);
  *  - the mirror line itself is never mirrored, and constraints of the originals are not copied.
  * Escape drops the selection, then the whole operation.
  */
 import type { DraftEntity, SketchDraft } from '../index';
+import { entityShape } from '../select';
 import { arcSweep, distToLine, reflect, sample, TOL, type CurveG } from './edit-geom';
-import { curveOf, entityOf, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';
+import { curveOf, entityOf, entityPoints, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';
 import type { PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
 
 export interface MirrorState {
@@ -40,6 +49,14 @@ export function mirrorEntities(draft: SketchDraft, ids: string[], lineId: string
   const map = new Map<string, string>();
   const created: string[] = [];
   const pairs: Array<[string, string]> = [];
+  const equalPairs: Array<[string, string]> = [];     // [original, copy] whose radius is tied with `equal`
+  const alignOnly = new Set<string>();                // original points whose copy gets only the "same height / same column" half of `symmetric`
+  const axisDir = { x: b.x - a.x, y: b.y - a.y };
+  const axisKind = Math.abs(axisDir.y) <= TOL * Math.hypot(axisDir.x, axisDir.y) ? 'horizontal' : Math.abs(axisDir.x) <= TOL * Math.hypot(axisDir.x, axisDir.y) ? 'vertical' : null;
+  // how many of the mirrored entities use each point (a shared centre is not ours to drop)
+  const use = new Map<string, number>();
+  for (const e of src) for (const p of new Set(entityPoints(e))) use.set(p, (use.get(p) ?? 0) + 1);
+  const dropCentre = new Set<string>();                // arc centres: not mirrored with `symmetric` but through `equal` radius
   const mirrorPoint = (id: string): string => {
     const got = map.get(id);
     if (got) return got;
@@ -64,8 +81,30 @@ export function mirrorEntities(draft: SketchDraft, ids: string[], lineId: string
     }
     const add = withEntity(d, fields);
     d = add.draft; created.push(add.id);
+    if (e.type === 'circle') equalPairs.push([e.id, add.id]);
+    if (e.type === 'ellipse') d = withConstraint(d, 'radius', [add.id], { value: Number(e.r) });
+    if (e.type === 'arc') {
+      // The solver already ties both ends of an arc to one radius, so `symmetric` on all three of its points is one constraint
+      // too many (the sketch would read as over-constrained). Leave out the centre (the copy gets `equal` radius instead) when
+      // it is the arc's own; otherwise leave out half of one end's `symmetric` when the axis is horizontal or vertical.
+      const c = String(e.c);
+      const g = curveOf(draft, e);
+      const nearHalf = !g || g.kind !== 'arc' || Math.abs(arcSweep(g) - Math.PI) < (15 * Math.PI) / 180;   // the centre is then not determined by the radius
+      if ((use.get(c) ?? 0) === 1 && map.get(c) !== c && !nearHalf) { dropCentre.add(c); equalPairs.push([e.id, add.id]); }
+      else if (axisKind) {
+        // the end whose kept half is best conditioned: the arc equation must be able to move it along the axis direction
+        const cen = ptOf(draft, c)!;
+        const cond = (q: string) => { const p = ptOf(draft, q)!; return axisKind === 'vertical' ? Math.abs(p.x - cen.x) : Math.abs(p.y - cen.y); };
+        const end = [String(e.p2), String(e.p1)].filter((q) => map.get(q) !== q && !alignOnly.has(q)).sort((x, y) => cond(y) - cond(x))[0];
+        if (end && cond(end) > 1e-6) alignOnly.add(end);
+      }
+    }
   }
-  for (const [p, q] of pairs) d = withConstraint(d, 'symmetric', [p, q, lineId]);
+  for (const [p, q] of pairs) {
+    if (dropCentre.has(p)) continue;
+    d = alignOnly.has(p) ? withConstraint(d, axisKind === 'vertical' ? 'horizontal' : 'vertical', [p, q]) : withConstraint(d, 'symmetric', [p, q, lineId]);
+  }
+  for (const [o, c] of equalPairs) d = withConstraint(d, 'equal', [o, c]);
   return { ok: true, draft: d, created };
 }
 
@@ -89,8 +128,10 @@ function previewOf(draft: SketchDraft, ids: string[], lineId: string | undefined
   return out;
 }
 
+/** The selection is always drawn highlighted. Besides telling the user what is selected, this is what lets Enter reach the tool:
+ *  the app only routes keys to a tool that has something on show (a preview or a field), otherwise Enter confirms the sketch. */
 const view = (state: MirrorState, draft: SketchDraft, settings: ToolSettings, hint?: string, preview: PreviewShape[] = []): ToolOutput<MirrorState> =>
-  ({ state, draft, preview, fields: [], ...(hint ? { hint } : {}) });
+  ({ state, draft, preview: [...state.selected.flatMap((id) => entityShape(draft, id) as PreviewShape[]), ...preview], fields: [], ...(hint ? { hint } : {}) });
 
 export const mirrorTool: Tool<MirrorState> = {
   id: 'mirror',
