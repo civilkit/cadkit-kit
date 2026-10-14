@@ -188,7 +188,7 @@ const ok = (f: (c: Ctx) => unknown) => (c: Ctx): boolean => !!c.doc && f(c) !== 
 export const CREATORS: Creator[] = [
   { id: 'add-plane', tab: 'Features', group: 'Reference', keys: 'Shift+N', enabled: doc, ops: planeOps },
   { id: 'add-axis', tab: 'Features', group: 'Reference', keys: 'Shift+A', enabled: doc, ops: axisOps },
-  { id: 'add-draft', tab: 'Features', group: 'Modify', keys: 'Shift+T', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: draftOps },
+  { id: 'add-draft', tab: 'Features', group: 'Modify', keys: 'Shift+G', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: draftOps },
   { id: 'add-rib', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && ok((x) => sketchWhere(x, isOpenSketch))(c), ops: ribOps },
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
