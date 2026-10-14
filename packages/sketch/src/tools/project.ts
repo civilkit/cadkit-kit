@@ -121,9 +121,15 @@ function findExisting(draft: SketchDraft, c: Projected): string | null {
   return null;
 }
 
+/** The curve an edge projects to: the exact source spline when the edge has one, else the tessellation recognised as a line, arc, circle or fit spline. */
+export function edgeCurve(frame: PlaneFrame3, edge: BodyEdge): Projected | null {
+  if (edge.exact && edge.exact.pts.length >= 3 && edge.exact.pieces === 1) return { kind: 'spline', pts: flatten(frame, edge.exact.pts).pts, closed: edge.exact.closed };
+  return classifyCurve(flatten(frame, edge.pts).pts);
+}
+
 /** Add the projection of `edges` onto the plane of `frame` to the draft. */
 export function projectEdges(draft: SketchDraft, frame: PlaneFrame3, edges: BodyEdge[]): ProjectRes {
-  const curves: Array<Projected | null> = edges.map((edge) => classifyCurve(flatten(frame, edge.pts).pts));
+  const curves: Array<Projected | null> = edges.map((edge) => edgeCurve(frame, edge));
   return projectCurves(draft, curves);
 }
 
@@ -167,7 +173,7 @@ const rkey = (p: Pt) => `${Math.round(p.x * 1e4)}:${Math.round(p.y * 1e4)}`;
  * join it end to end (a vertex with exactly two of them continues the chain; a branch or an open end stops it).
  * Returned in walking order, each as the flattened polyline oriented along the walk.
  */
-export function referenceChain(env: ToolEnv, edge: BodyEdge): Array<{ edge: BodyEdge; pts: Pt[] }> {
+export function referenceChain(env: ToolEnv, edge: BodyEdge): Array<{ edge: BodyEdge; pts: Pt[]; exact?: Pt[]; closed?: boolean; whole?: boolean }> {
   if (!env.body) return [];
   type Piece = { edge: BodyEdge; pts: Pt[]; off: number };
   const all: Piece[] = [];
@@ -186,7 +192,10 @@ export function referenceChain(env: ToolEnv, edge: BodyEdge): Array<{ edge: Body
   const at = new Map<string, Piece[]>();
   for (const p of group) for (const k of new Set(ends(p))) at.set(k, [...(at.get(k) ?? []), p]);
   const closedSelf = (p: Piece) => ends(p)[0] === ends(p)[1];
-  if (closedSelf(s0)) return [{ edge: s0.edge, pts: s0.pts }];
+  if (closedSelf(s0)) {
+    const ex = s0.edge.exact;
+    return [{ edge: s0.edge, pts: s0.pts, ...(ex && ex.pts.length >= 3 && ex.pieces === 1 ? { exact: flatten(env.body.frame, ex.pts).pts, closed: ex.closed } : {}) }];
+  }
   // grow both ways from the seed
   function walkFrom(startPiece: Piece, farKey: string, seen: Set<Piece>): Array<{ edge: BodyEdge; pts: Pt[] }> {
     const out: Array<{ edge: BodyEdge; pts: Pt[] }> = [];
@@ -207,14 +216,20 @@ export function referenceChain(env: ToolEnv, edge: BodyEdge): Array<{ edge: Body
   const seenAll = new Set<Piece>([s0]);
   const fwd = walkFrom(s0, ends(s0)[1], seenAll);
   const back = walkFrom(s0, ends(s0)[0], seenAll).map((x) => ({ edge: x.edge, pts: [...x.pts].reverse() })).reverse();
-  return [...back, { edge: s0.edge, pts: s0.pts }, ...fwd];
+  const walked = [...back, { edge: s0.edge, pts: s0.pts }, ...fwd];
+  const ex = s0.edge.exact;
+  // every piece of a split closed outline shares the one exact spline; it stands for the chain only when the chain is all of them
+  if (ex && ex.pts.length >= 3 && ex.pieces === walked.length && walked.every((w) => w.edge.exact === ex))
+    return walked.map((w) => ({ ...w, exact: flatten(env.body!.frame, ex.pts).pts, closed: ex.closed, whole: true }));
+  return walked;
 }
 
 /** The curves that stand for a reference chain: each edge on its own, except that two or more free-form pieces are
  *  joined into one spline (a closed one when the outline closes), so a smooth outline made of several kernel edges is
  *  one curve that can be offset. */
-export function chainCurves(chain: Array<{ pts: Pt[] }>): Array<Projected | null> {
-  const each = chain.map((c) => classifyCurve(c.pts));
+export function chainCurves(chain: Array<{ pts: Pt[]; exact?: Pt[]; closed?: boolean; whole?: boolean }>): Array<Projected | null> {
+  if (chain.length >= 2 && chain[0].exact && chain.every((c) => c.whole)) return [{ kind: 'spline', pts: chain[0].exact, closed: chain[0].closed === true }];
+  const each = chain.map((c) => (c.exact ? { kind: 'spline' as const, pts: c.exact, closed: c.closed === true } : classifyCurve(c.pts)));
   if (chain.length < 2 || !each.every((c) => c?.kind === 'spline')) return each;
   const merged: Pt[] = [];
   for (const c of chain) for (const p of c.pts) if (!merged.length || dist(p, merged[merged.length - 1]) > 1e-9) merged.push(p);
@@ -270,7 +285,7 @@ const view = (draft: SketchDraft, hint?: string, preview: PreviewShape[] = [], f
 function pending(env: ToolEnv, draft: SketchDraft): PreviewShape[] {
   if (!env.body || !env.selection?.length) return [];
   return edgesFor(env.body.edges, env.selection).flatMap((e) => {
-    const c = classifyCurve(flatten(env.body!.frame, e.pts).pts);
+    const c = edgeCurve(env.body!.frame, e);
     return c && !findExisting(draft, c) ? shapesOf(c) : [];
   });
 }
@@ -289,7 +304,7 @@ export const projectTool: Tool<ProjectState> = {
     switch (ev.type) {
       case 'move': {
         const e = edgeNear(env, ev.at);
-        const c = e ? classifyCurve(flatten(env.body.frame, e.pts).pts) : null;
+        const c = e ? edgeCurve(env.body.frame, e) : null;
         if (c) return view(draft, undefined, shapesOf(c));
         const left = pending(env, draft);
         return view(draft, left.length ? 'app.sketch.hint.projectSelection' : undefined, left);

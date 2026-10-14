@@ -74,7 +74,13 @@ export interface ToolOutput<S> {
 /** A world-space plane frame: origin and unit x, y, z axes (z is the normal). */
 export interface PlaneFrame3 { o: number[]; x: number[]; y: number[]; z: number[] }
 /** An edge of the body on screen, as the viewer has it: a world-space polyline, the two faces it separates and its key. */
-export interface BodyEdge { key?: string; faces?: string[]; pts: number[][] }
+export interface BodyEdge {
+  key?: string; faces?: string[]; pts: number[][];
+  /** Exact source of a free-form edge: the fit points (world space) of the sketch spline whose extrusion made it. The closed spline's outline may be split into `pieces` edges that
+   *  share this one value: it is used when all of them are projected together. Projecting the edge
+   *  then reproduces that spline point for point instead of fitting the tessellation, so the copy coincides with the wall. */
+  exact?: { pts: number[][]; closed: boolean; pieces: number };
+}
 
 /** What a tool may know about the world outside the sketch. Only tools that look at the body (project) read it. */
 export interface ToolEnv {

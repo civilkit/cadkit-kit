@@ -26,8 +26,17 @@ Several free-form kernel edges that form one smooth outline are joined into one 
 ## Limits
 
 - A reference outline that mixes free-form edges with lines / arcs is projected edge by edge; offsetting it says to pick the spline alone.
-- Reference curves are a snapshot (projected, fixed); the tessellation of a free-form body edge limits how exactly a projected
-  spline follows it (at most 48 fit points).
-- Extruding the ring as an **add / cut on a free-form (spline) solid** failed in the kernel build tested (`booleanFailed`, also for
-  an unrelated spline pocket), so only the ring sketch itself is verified as extruding to the correct volume.
+- Reference curves are a snapshot (projected, fixed). A free-form body edge that is the wall of an extruded sketch **spline** (the
+  usual kidney outline, the top or bottom edge of the part) is projected as that sketch spline itself (`withExactEdges`: its fit
+  points, checked to lie on the edge and to cover all of it), so the copy coincides with the wall exactly and a cut that uses it
+  works. Other free-form edges (after a fillet, a cut, a draft, a spline edited by constraints to other positions than the
+  sketch holds) fall back to a fit through the tessellation (at most 48 points), which follows the wall only to about 0.01 mm: such an outline
+  is NEARLY coincident with the wall and a cut of the *ring* may fail with `booleanFailed`; cut the inside loop instead.
+
+## Cutting a face sketch that has an outline and an offset
+
+Shapes in the extrude / cut editor are labelled by how they nest: **Inside the offset (pocket)** (the loop drawn or offset inside
+a projected outline) and **Wall between outline and offset** (the projected outline with the offset as its hole). Shift+C on such a
+sketch picks the pocket by default (`defaultCutRegions`): the wall ring would remove material whose outer face is the body wall
+itself, a coincident-face cut that adds nothing a pocket does not. Check both shapes for the ring.
 - Trim and Extend still pick only sketch entities (they use the same app-side curve pick now only for Offset).
