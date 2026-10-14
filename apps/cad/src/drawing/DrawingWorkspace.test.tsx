@@ -36,6 +36,17 @@ describe('DrawingWorkspace', () => {
     expect(last.views.map((v) => v.label)).toEqual(['Front', 'Top', 'Right', 'Isometric']);
     expect(last.dims.length).toBeGreaterThan(0);
   });
+  it('Undo and Redo step through sheet edits; typing in one field is one step', async () => {
+    const onChange = vi.fn();
+    render(<DrawingWorkspace host={host({ onChange })} />);
+    const f = document.querySelector('input[data-field=author]') as HTMLInputElement;
+    fireEvent.input(f, { target: { value: 'K' } }); fireEvent.input(f, { target: { value: 'Ki' } }); fireEvent.input(f, { target: { value: 'Kit' } });
+    fireEvent.click(screen.getByText('Undo'));
+    expect((document.querySelector('input[data-field=author]') as HTMLInputElement).value).toBe('');
+    fireEvent.click(screen.getByText('Redo'));
+    expect((document.querySelector('input[data-field=author]') as HTMLInputElement).value).toBe('Kit');
+    expect((onChange.mock.calls[onChange.mock.calls.length - 1][0] as DrawingDoc).title.author).toBe('Kit');
+  });
   it('a stored drawing is shown again, and an edited title block field is saved', async () => {
     const onChange = vi.fn();
     const stored = { ...emptyDrawing('Plate'), title: { ...emptyDrawing('Plate').title, partNo: 'MP-1' } };

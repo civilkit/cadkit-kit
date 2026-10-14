@@ -53,7 +53,8 @@ export interface DDim {
   /** overall width / height of the view: follows the view's bounds instead of an edge */
   overall?: 'w' | 'h';
 }
-export interface DNote { id: string; view?: string; text: string; pos: V2; leader?: V2 }
+/** `text`, a surface finish symbol (text = the roughness, e.g. `Ra 1.6`) or a feature control frame (cells split by `|`, e.g. `POS|0.1|A`) */
+export interface DNote { id: string; view?: string; text: string; pos: V2; leader?: V2; style?: 'text' | 'finish' | 'fcf' }
 export interface DBalloon { id: string; view: string; at: V2; pos: V2; n: number }
 export interface DrawingDoc {
   v: 1; sheet: Sheet; title: TitleBlock; views: DView[]; dims: DDim[]; notes: DNote[]; balloons: DBalloon[];

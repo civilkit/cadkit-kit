@@ -203,6 +203,14 @@ describe('sheet output', () => {
     const ys = back.entities.flatMap((e) => (e.type === 'POLYLINE' ? e.verts.map((q) => q.y) : []));
     expect(Math.max(...ys)).toBeLessThanOrEqual(297); expect(Math.min(...ys)).toBeGreaterThanOrEqual(0); expect(dxf.trim().endsWith('EOF')).toBe(true);
   });
+  it('surface finish symbol and GD&T frame are drawn; the sheet says which projection', () => {
+    const d2: DrawingDoc = { ...doc, notes: [{ id: 'N2', text: 'Ra 1.6', pos: [50, 50], style: 'finish', leader: [40, 60] }, { id: 'N3', text: 'POS|0.1|A', pos: [80, 80], style: 'fcf' }] };
+    const p2 = renderSheet({ doc: d2, data });
+    const texts = p2.filter((p) => p.t === 'text').map((p) => (p as { s: string }).s);
+    expect(texts).toContain('Ra 1.6'); expect(texts).toContain('POS'); expect(texts).toContain('0.1'); expect(texts).toContain('A'); expect(texts).toContain('THIRD ANGLE PROJECTION');
+    expect(p2.filter((p) => p.t === 'poly' && p.closed && p.tag?.id === 'N3').length).toBe(3);
+    expect(renderSheet({ doc: { ...d2, sheet: { ...d2.sheet, projection: 'first' } }, data }).some((p) => p.t === 'text' && p.s === 'FIRST ANGLE PROJECTION')).toBe(true);
+  });
   it('hit testing: dimension text, a note, the title block', () => {
     const dim = prims.find((p) => p.t === 'text' && p.s === '60')!;
     expect(hitAnnotation(prims, [(dim as { x: number }).x, (dim as { y: number }).y - 1], 2)).toMatchObject({ kind: 'dim', id: 'D1' });

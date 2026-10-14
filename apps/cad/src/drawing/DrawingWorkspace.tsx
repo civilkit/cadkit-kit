@@ -39,7 +39,7 @@ export interface DrawingHost {
   close(): void;
 }
 
-type Tool = 'select' | 'dim' | 'proj' | 'section' | 'detail' | 'aux' | 'note' | 'balloon';
+type Tool = 'select' | 'dim' | 'proj' | 'section' | 'detail' | 'aux' | 'note' | 'balloon' | 'finish' | 'fcf';
 type Sel = { kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label'; id: string } | null;
 const PX = 3.7795;      // css pixels per mm at zoom 1
 
@@ -69,8 +69,21 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const projParent = useRef<string | null>(null);
   const pitchesRef = useRef<Record<string, number>>({});
 
-  const commit = (next: DrawingDoc) => { docRef.current = next; setDoc(next); host.onChange(next); };
-  const update = (fn: (d: DrawingDoc) => DrawingDoc) => commit(fn(docRef.current));
+  // undo / redo of sheet edits (the part has its own history: Ctrl+Z here is the sheet's). Typing in one field is one step.
+  const undoStack = useRef<DrawingDoc[]>([]);
+  const redoStack = useRef<DrawingDoc[]>([]);
+  const lastPush = useRef(0);
+  const remember = (before: DrawingDoc, coalesce = false) => {
+    const now = Date.now();
+    if (!(coalesce && now - lastPush.current < 900)) { undoStack.current.push(before); if (undoStack.current.length > 100) undoStack.current.shift(); }
+    lastPush.current = now; redoStack.current = [];
+  };
+  const commit = (next: DrawingDoc, coalesce = false) => { if (next !== docRef.current) remember(docRef.current, coalesce); docRef.current = next; setDoc(next); host.onChange(next); };
+  /** A change the part made (mass, regenerated dimensions): saved but not a step of the user's history. */
+  const quiet = (next: DrawingDoc) => { docRef.current = next; setDoc(next); host.onChange(next); };
+  const undo = () => { const p = undoStack.current.pop(); if (!p) return; redoStack.current.push(docRef.current); docRef.current = p; setDoc(p); host.onChange(p); setSel(null); };
+  const redo = () => { const p = redoStack.current.pop(); if (!p) return; undoStack.current.push(docRef.current); docRef.current = p; setDoc(p); host.onChange(p); setSel(null); };
+  const update = (fn: (d: DrawingDoc) => DrawingDoc, coalesce = false) => commit(fn(docRef.current), coalesce);
 
   // ---- keep the title block's part-derived fields and the views in step with the part -------------------------------------
   const sig = frameSig(doc);
@@ -85,7 +98,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         setData(d);
         const r = refreshDims(docRef.current, d);
         setLost(r.lost.length);
-        if (!same(r.dims, docRef.current.dims)) update((x) => ({ ...x, dims: r.dims }));
+        if (!same(r.dims, docRef.current.dims)) quiet({ ...docRef.current, dims: r.dims });
       } finally { if (!dead) setBusy(false); }
     })();
     return () => { dead = true; };
@@ -101,7 +114,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       const m = await host.mass();
       if (!dead && m !== null) {
         const text = massText(m);
-        if (docRef.current.title.mass !== text && (docRef.current.title.mass === '' || /^[\d.]+ (g|kg)$/.test(docRef.current.title.mass))) update((x) => ({ ...x, title: { ...x.title, mass: text } }));
+        if (docRef.current.title.mass !== text && (docRef.current.title.mass === '' || /^[\d.]+ (g|kg)$/.test(docRef.current.title.mass))) quiet({ ...docRef.current, title: { ...docRef.current.title, mass: text } });
       }
     })();
     return () => { dead = true; };
@@ -112,7 +125,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     const patch: Partial<DrawingDoc['title']> = {};
     if (!d.title.title) patch.title = host.partName;
     if (!d.title.material) patch.material = host.material;
-    if (Object.keys(patch).length) update((x) => ({ ...x, title: { ...x.title, ...patch } }));
+    if (Object.keys(patch).length) quiet({ ...d, title: { ...d.title, ...patch } });
   }, [host.partName, host.material]);
 
   // ---- rendering ----------------------------------------------------------------------------------------------------------
@@ -270,11 +283,13 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (picks.length >= 2) { setPend(null); addDim(v, picks, cur.radial); } else setPend({ ...cur, picks });
       return;
     }
-    if (!v && tool !== 'note' && !(tool === 'proj' && projParent.current)) return;
-    if (tool === 'note') {
+    if (!v && tool !== 'note' && tool !== 'finish' && tool !== 'fcf' && !(tool === 'proj' && projParent.current)) return;
+    if (tool === 'note' || tool === 'finish' || tool === 'fcf') {
       const id = newId('N', d.notes.map((x) => x.id));
-      const lead = e.shiftKey && v ? pt : undefined;
-      commit({ ...d, notes: [...d.notes, { id, text: 'NOTE', pos: lead ? [pt[0] + 20, pt[1] - 14] : pt, ...(lead ? { leader: lead, view: v!.id } : {}) }] });
+      const lead = (e.shiftKey || tool === 'finish') && v ? pt : undefined;
+      const style = tool === 'note' ? undefined : tool;
+      const text = tool === 'finish' ? 'Ra 1.6' : tool === 'fcf' ? 'POS|0.1|A' : 'NOTE';
+      commit({ ...d, notes: [...d.notes, { id, text, ...(style ? { style } : {}), pos: lead ? [pt[0] + (tool === 'finish' ? 14 : 20), pt[1] - (tool === 'finish' ? 10 : 14)] : pt, ...(lead ? { leader: lead, view: v!.id } : {}) }] });
       setSel({ kind: 'note', id }); setTool('select');
     } else if (tool === 'balloon' && v) {
       const id = newId('B', d.balloons.map((x) => x.id));
@@ -382,7 +397,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const onUp = async (e: PointerEvent) => {
     const dr = drag.current; drag.current = null;
     if (!dr) return;
-    if (dr.kind === 'item') { if (dr.moved) host.onChange(docRef.current); return; }
+    if (dr.kind === 'item') { if (dr.moved) { remember(dr.base); host.onChange(docRef.current); } return; }
     if (dr.kind === 'detail') {
       const pt = mm(e);
       const v = docRef.current.views.find((x) => x.id === dr.view)!;
@@ -406,8 +421,16 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { e.preventDefault(); deleteSel(); }
       else if (e.key === 'd' || e.key === 'D') setTool('dim');
     };
+    const mod = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const tg = e.target as HTMLElement | null;
+      if (tg && /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' || k === 'y') { e.preventDefault(); e.stopPropagation(); if (k === 'y' || e.shiftKey) redo(); else undo(); }
+    };
     addEventListener('keydown', key);
-    return () => removeEventListener('keydown', key);
+    addEventListener('keydown', mod, true);
+    return () => { removeEventListener('keydown', key); removeEventListener('keydown', mod, true); };
   });
 
   // ---- panels -------------------------------------------------------------------------------------------------------------
@@ -419,7 +442,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const tb = (id: Tool, label: string, tip: string, onPick?: () => void) => (
     <button class={'dwg-btn' + (tool === id ? ' on' : '')} aria-pressed={tool === id} title={tip} onClick={() => { projParent.current = null; setPend(null); setGhost(null); setTool(id); onPick?.(); }}>{label}</button>
   );
-  const hint = tool === 'dim' ? t('drawing.status.hint.pickDim') : tool === 'proj' ? t('drawing.status.hint.projected') : tool === 'section' ? t('drawing.status.hint.section') : tool === 'detail' ? t('drawing.status.hint.detail') : tool === 'aux' ? t('drawing.status.hint.aux') : tool === 'note' ? t('drawing.status.hint.note') : tool === 'balloon' ? t('drawing.status.hint.balloon') : '';
+  const hint = tool === 'dim' ? t('drawing.status.hint.pickDim') : tool === 'proj' ? t('drawing.status.hint.projected') : tool === 'section' ? t('drawing.status.hint.section') : tool === 'detail' ? t('drawing.status.hint.detail') : tool === 'aux' ? t('drawing.status.hint.aux') : tool === 'note' ? t('drawing.status.hint.note') : tool === 'balloon' ? t('drawing.status.hint.balloon') : tool === 'finish' ? t('drawing.finish.tip') : tool === 'fcf' ? t('drawing.fcf.tip') : '';
   const [addName, setAddName] = useState('left');
 
   return (
@@ -440,6 +463,8 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <button class="dwg-btn" title={t('drawing.autoDim.tip')} onClick={doAutoDim}>{t('drawing.autoDim')}</button>
         {tb('note', t('drawing.note'), t('drawing.note.tip'))}
         {tb('balloon', t('drawing.balloon'), t('drawing.balloon.tip'))}
+        {tb('finish', t('drawing.finish'), t('drawing.finish.tip'))}
+        {tb('fcf', t('drawing.fcf'), t('drawing.fcf.tip'))}
         {bom.length ? <button class="dwg-btn" title={t('drawing.autoBalloons.tip')} onClick={doAutoBalloons}>{t('drawing.autoBalloons')}</button> : null}
         <span class="dwg-sep" />
         <button class="dwg-btn" onClick={out('pdf')}>{t('drawing.exportPdf')}</button>
@@ -449,6 +474,8 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <span class="dwg-sep" />
         <button class="dwg-btn" onClick={() => { userCam.current = false; fit(); }}>{t('drawing.fit')}</button>
         <button class="dwg-btn" disabled={!sel} onClick={deleteSel}>{t('drawing.delete')}</button>
+        <button class="dwg-btn" title="Ctrl+Z" onClick={undo}>{t('drawing.undo')}</button>
+        <button class="dwg-btn" title="Ctrl+Y" onClick={redo}>{t('drawing.redo')}</button>
       </div>
       <div class="dwg-stage" ref={stage} onPointerDown={onDown as never} onPointerMove={onMove as never} onPointerUp={onUp as never} onDblClick={onDbl} onContextMenu={(e) => e.preventDefault()} data-tool={tool}>
         <div class="dwg-sheet" ref={sheetEl} style={{ width: size[0] * PX + 'px', height: size[1] * PX + 'px', transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.k})` }} dangerouslySetInnerHTML={{ __html: svg }} />
@@ -469,13 +496,13 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <label>{t('drawing.sheet.projection')}<select value={doc.sheet.projection} onChange={(e) => update((d) => ({ ...d, sheet: { ...d.sheet, projection: (e.target as HTMLSelectElement).value as 'third' | 'first' } }))}><option value="third">{t('drawing.sheet.third')}</option><option value="first">{t('drawing.sheet.first')}</option></select></label>
         <h4>{t('drawing.titleBlock')}</h4>
         {(['title', 'partNo', 'material', 'author', 'date', 'revision', 'mass', 'company'] as const).map((k) => (
-          <label key={k}>{t('drawing.field.' + k)}<input data-field={k} type="text" value={doc.title[k]} onInput={(e) => update((d) => ({ ...d, title: { ...d.title, [k]: (e.target as HTMLInputElement).value } }))} /></label>
+          <label key={k}>{t('drawing.field.' + k)}<input data-field={k} type="text" value={doc.title[k]} onInput={(e) => update((d) => ({ ...d, title: { ...d.title, [k]: (e.target as HTMLInputElement).value } }), true)} /></label>
         ))}
         {sel?.kind === 'title' ? <div class="dwg-hint">{t('drawing.titleBlock')}</div> : null}
         {selView ? (
           <>
             <h4>{t('drawing.kind.' + selView.kind)}: {selView.label}</h4>
-            <label>{t('drawing.view.label')}<input data-focus type="text" value={selView.label} onInput={(e) => setView(selView.id, { label: (e.target as HTMLInputElement).value })} /></label>
+            <label>{t('drawing.view.label')}<input data-focus type="text" value={selView.label} onInput={(e) => update((d) => ({ ...d, views: d.views.map((v) => (v.id === selView.id ? { ...v, label: (e.target as HTMLInputElement).value } : v)) }), true)} /></label>
             <label>{t('drawing.view.scale')}<select value={selView.scale ?? ''} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; update((d) => moveAfterScale(d, selView.id, v || null)); }}><option value="">{t('drawing.view.sheetScale')} ({doc.sheet.scale})</option>{SCALES.map((n) => <option key={n}>{n}</option>)}</select></label>
             <label class="chk"><input type="checkbox" checked={selView.hidden} onChange={(e) => setView(selView.id, { hidden: (e.target as HTMLInputElement).checked })} />{t('drawing.view.hidden')}</label>
             <label class="chk"><input type="checkbox" checked={selView.tangent} onChange={(e) => setView(selView.id, { tangent: (e.target as HTMLInputElement).checked })} />{t('drawing.view.tangent')}</label>
@@ -487,14 +514,14 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         {selDim ? (
           <>
             <h4>{t('drawing.dim')}</h4>
-            <label>{t('drawing.dim.text')}<input data-focus type="text" value={selDim.text ?? ''} placeholder={dimMeasure(selDim, doc, { doc, data, callout: calloutOf })} onInput={(e) => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, text: (e.target as HTMLInputElement).value || undefined } : x)) }))} /></label>
+            <label>{t('drawing.dim.text')}<input data-focus type="text" value={selDim.text ?? ''} placeholder={dimMeasure(selDim, doc, { doc, data, callout: calloutOf })} onInput={(e) => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, text: (e.target as HTMLInputElement).value || undefined } : x)) }), true)} /></label>
             {selDim.r !== undefined && selDim.kind !== 'callout' ? <button class="dwg-btn" onClick={() => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, kind: x.kind === 'radial' ? 'diameter' : 'radial' } : x)) }))}>{selDim.kind === 'radial' ? t('drawing.dim.diameter') : t('drawing.dim.radial')}</button> : null}
           </>
         ) : null}
         {selNote ? (
           <>
             <h4>{t('drawing.note')}</h4>
-            <label>{t('drawing.note.text')}<textarea data-focus rows={3} value={selNote.text} onInput={(e) => update((d) => ({ ...d, notes: d.notes.map((x) => (x.id === selNote.id ? { ...x, text: (e.target as HTMLTextAreaElement).value } : x)) }))} /></label>
+            <label>{selNote.style === 'fcf' ? t('drawing.fcf.text') : selNote.style === 'finish' ? t('drawing.finish.text') : t('drawing.note.text')}<textarea data-focus rows={selNote.style ? 1 : 3} value={selNote.text} onInput={(e) => update((d) => ({ ...d, notes: d.notes.map((x) => (x.id === selNote.id ? { ...x, text: (e.target as HTMLTextAreaElement).value } : x)) }), true)} /></label>
           </>
         ) : null}
         {selBal ? (

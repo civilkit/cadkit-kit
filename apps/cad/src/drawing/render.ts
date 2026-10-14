@@ -126,10 +126,25 @@ export function renderSheet(ctx: RenderCtx): Prim[] {
   }
   for (const n of doc.notes) {
     const tag: Tag = { id: n.id, kind: 'note' };
-    n.text.split('\n').forEach((line, i) => out.push({ t: 'text', x: n.pos[0], y: n.pos[1] + i * 4.6, s: line, size: 3.5, anchor: 'start', rot: 0, layer: 'text', tag }));
+    if (n.style === 'finish') {
+      const [x, y] = n.pos;
+      out.push({ t: 'poly', pts: [x - 3.5, y - 4, x, y, x + 4.5, y - 9, x + 6 + n.text.length * 1.9, y - 9], w: W.med, layer: 'dim', tag });
+      out.push({ t: 'text', x: x + 5.5, y: y - 10.4, s: n.text, size: 3.2, anchor: 'start', rot: 0, layer: 'text', tag });
+    } else if (n.style === 'fcf') {
+      const cells = n.text.split('|').map((c) => c.trim());
+      let x = n.pos[0];
+      const y = n.pos[1], h = 6;
+      for (const c of cells) {
+        const w = Math.max(6, c.length * 2.1 + 3);
+        out.push({ t: 'poly', pts: [x, y, x + w, y, x + w, y + h, x, y + h], closed: true, w: W.med, layer: 'dim', tag });
+        out.push({ t: 'text', x: x + w / 2, y: y + 4.3, s: c, size: 3.2, anchor: 'middle', rot: 0, layer: 'text', tag });
+        x += w;
+      }
+    } else n.text.split('\n').forEach((line, i) => out.push({ t: 'text', x: n.pos[0], y: n.pos[1] + i * 4.6, s: line, size: 3.5, anchor: 'start', rot: 0, layer: 'text', tag }));
     if (n.leader) {
-      out.push({ t: 'poly', pts: [n.pos[0] - 1, n.pos[1] - 1.2, n.leader[0], n.leader[1]], w: W.thin, layer: 'dim', tag });
-      arrow(out, n.leader, [n.pos[0] - 1 - n.leader[0], n.pos[1] - 1.2 - n.leader[1]], tag);
+      const from: V2 = n.style === 'finish' ? [n.pos[0], n.pos[1]] : [n.pos[0] - 1, n.pos[1] - 1.2];
+      out.push({ t: 'poly', pts: [from[0], from[1], n.leader[0], n.leader[1]], w: W.thin, layer: 'dim', tag });
+      arrow(out, n.leader, [from[0] - n.leader[0], from[1] - n.leader[1]], tag);
     }
   }
   if (doc.bom.show && ctx.bom && ctx.bom.length) bomTable(ctx, out, sw - m, sh - m);
@@ -365,6 +380,7 @@ function titleBlock(ctx: RenderCtx, out: Prim[], right: number, bottom: number):
     out.push({ t: 'text', x: x0 + cw * c + 1.2, y: y0 + r * 10 + 3, s: label.toUpperCase(), size: 2, anchor: 'start', rot: 0, layer: 'text', tag });
     out.push({ t: 'text', x: x0 + cw * c + 1.5, y: y0 + r * 10 + 8, s: fit(value, (cw * span - 3) / (big ? 2.4 : 1.9)), size: big ? 5 : 3.5, anchor: 'start', rot: 0, bold: big, layer: 'text', tag });
   };
+  out.push({ t: 'text', x: x0, y: y0 - 2.5, s: doc.sheet.projection === 'third' ? 'THIRD ANGLE PROJECTION' : 'FIRST ANGLE PROJECTION', size: 2.4, anchor: 'start', rot: 0, layer: 'text', tag });
   cell(0, 0, 'Title', t.title, 3, true);
   cell(0, 1, 'Part number', t.partNo); cell(1, 1, 'Revision', t.revision); cell(2, 1, 'Scale', doc.sheet.scale);
   cell(0, 2, 'Material', t.material); cell(1, 2, 'Mass', t.mass); cell(2, 2, 'Date', t.date);
