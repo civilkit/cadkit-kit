@@ -193,7 +193,7 @@ describe('placement gizmo (against a fake kernel feature)', () => {
     expect(s.kind).toBe('placement');
     expect(s.preview('move-x', 5, [5, 0, 0])).toEqual([{ op: 'add', feature: { type: 'moveBody', translate: [5, 0, 0], copy: false } }]);
     expect(s.commit('move-x', 5, [5, 0, 0])!.create).toBe(true);
-    const r = s.preview('turn-z', 45, [0, 0, 45])![0] as { feature: { rotate: { axis: number[]; angle: number; origin: number[] } } };
+    const r = s.preview('turn-z', 45, [0, 0, 45])![0] as unknown as { feature: { rotate: { axis: number[]; angle: number; origin: number[] } } };
     expect(r.feature.rotate).toEqual({ axis: [0, 0, 1], angle: 45, origin: [0, 0, 15] });
     expect(s.preview('centre', 3, [3, 0, 0])).toBeNull();   // the centre dot moves the gizmo, not the body
     expect(s.preview('move-y', 0, [0, 0, 0])).toBeNull();
