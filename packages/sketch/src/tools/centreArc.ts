@@ -1,7 +1,8 @@
 /**
  * Arc by centre point. Click the centre, click the start (this sets the radius), click the end. The end is the
- * pointer's direction projected onto the circle, and the arc always runs counter-clockwise from start to end
- * (the kernel's only arc direction), so sweeping the pointer clockwise draws the larger remaining arc.
+ * pointer's direction projected onto the circle. The kernel's only arc direction is counter-clockwise, so the
+ * shorter way round wins: a pointer that is less than half a turn clockwise of the start draws the small arc with
+ * the two end points swapped (p1 = the pointer end), and past half a turn the large arc.
  * Entity `arc {c, p1: start, p2: end}`. A typed radius (field `radius`, commit with Tab or Enter) is accepted
  * while placing the start: it pins the start at that distance in the pointer's direction and writes a `radius`
  * constraint `refs [arcId]` (the radius of an arc is |c-p1|). Existing points are reused for the centre, the start
@@ -48,7 +49,8 @@ function view(state: CentreArcState, draft: SketchDraft, settings: ToolSettings,
   if (state.start && r > 1e-9) {
     const a0 = angleOf(c, state.start.at);
     const end = along(c, state.cursor, r);
-    preview.push(...arcPolyline(c, r, a0, sweepCcw(a0, angleOf(c, end))), { kind: 'line', a: c, b: end });
+    const a1 = angleOf(c, end), ccw = sweepCcw(a0, a1);
+    preview.push(...(ccw <= Math.PI ? arcPolyline(c, r, a0, ccw) : arcPolyline(c, r, a1, sweepCcw(a1, a0))), { kind: 'line', a: c, b: end });
   }
   return { state, draft, preview, fields, hint };
 }
@@ -68,7 +70,8 @@ function finish(state: CentreArcState, draft: SketchDraft, settings: ToolSetting
   let eid = ev?.pointId;
   const onCircle = eid !== undefined && ev !== undefined && Math.abs(dist(c, ev.at) - r) <= 1e-6 * Math.max(1, r);
   if (!eid || !onCircle || eid === sid || eid === cid) { const a = addPoint(d, end); d = a.draft; eid = a.id; }
-  const arc = addArc(d, cid, sid, eid);
+  // shorter way round: a clockwise pointer draws the small arc from the end point to the start point
+  const arc = sweep <= Math.PI ? addArc(d, cid, sid, eid) : addArc(d, cid, eid, sid);
   d = arc.draft;
   if (state.lockedR !== undefined) d = addSizeConstraint(d, 'radius', arc.id, state.lockedR);
   return view({ ...(state.cursor ? { cursor: state.cursor } : {}) }, d, settings);
