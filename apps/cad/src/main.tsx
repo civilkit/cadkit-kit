@@ -1657,7 +1657,7 @@ function App() {
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
       <div id="vp" ref={host}>
-        {handles.menuEl}{handles.aboutEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
+        {handles.menuEl}{handles.aboutEl}{handles.fieldsEl}{handles.askEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
         {lay.floating}

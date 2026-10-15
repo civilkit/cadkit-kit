@@ -4,7 +4,7 @@
 // turns into a live preview and, on release, one edit. Everything here is plain numbers, so it is tested without WebGL.
 
 export type Vec3 = [number, number, number];
-export type HandleKind = 'arrow' | 'dot' | 'ring' | 'plane' | 'cube' | 'wire' | 'label';
+export type HandleKind = 'arrow' | 'dot' | 'ring' | 'plane' | 'cube' | 'pad' | 'wire' | 'label';
 
 export interface HandleSpec {
   id: string;
@@ -40,10 +40,23 @@ export interface HandleSpec {
   shiftSnaps?: boolean;
   /** Hovering shows the value in the readout (the sink's `format` of `base`). */
   hoverReadout?: boolean;
+  /** `cube` only: `diamond` draws a flat diamond lying in the plane instead of a cube. */
+  look?: 'diamond';
+  /** A planar widget that reports the modifier keys itself (the move pad / anchor): its drag is the raw pointer move, the sink decides what Shift, Ctrl and Alt do. */
+  reportMods?: boolean;
+  /** Overrides the kind's hit priority (lower wins): the anchor diamond wins over the pad it sits on, only at its own spot. */
+  priority?: number;
+  /** The widget hides (and cannot be hit) while `spanWorld` is smaller than `showMinPx` on screen, so crowded handles clear off a small shape. */
+  spanWorld?: number;
+  showMinPx?: number;
 }
 
+/** Whether a widget is shown at a view where one pixel is `worldPerPx` world units. */
+export const shownAt = (s: Pick<HandleSpec, 'spanWorld' | 'showMinPx'>, worldPerPx: number): boolean =>
+  s.spanWorld === undefined || s.showMinPx === undefined || worldPerPx <= 0 || s.spanWorld / worldPerPx >= s.showMinPx;
+
 /** A widget that is dragged in a plane (a plane square, or a cube with `drag: 'plane'`) rather than along a line. */
-export const isPlanar = (s: HandleSpec): boolean => s.kind === 'plane' || (s.kind === 'cube' && s.drag === 'plane');
+export const isPlanar = (s: HandleSpec): boolean => s.kind === 'plane' || s.kind === 'pad' || (s.kind === 'cube' && s.drag === 'plane');
 /** A widget that is dragged along a line (arrow, dot, cube). */
 const isLine = (s: HandleSpec): boolean => s.kind === 'arrow' || s.kind === 'dot' || (s.kind === 'cube' && s.drag !== 'plane');
 
@@ -51,16 +64,21 @@ const isLine = (s: HandleSpec): boolean => s.kind === 'arrow' || s.kind === 'dot
 export interface HandleDragSink {
   onStart?(id: string): void;
   /** `q` is the quantity now; `delta` the raw drag in the handle's own unit; `vec` the world move (planes) or `axis * delta`. */
-  onDrag(id: string, q: number, vec: Vec3): void;
-  onCommit(id: string, q: number, vec: Vec3): void;
+  onDrag(id: string, q: number, vec: Vec3, mods?: HandleMods): void;
+  onCommit(id: string, q: number, vec: Vec3, mods?: HandleMods): void;
   onCancel(id: string): void;
   /** Text for the readout next to the handle; default is the number with its unit. */
   format?(id: string, q: number): string;
   /** Snap step for Ctrl (default 1 mm / 15 degrees). */
   step?(id: string): number;
   /** While a drag runs: the specs to show now (a `follow` widget, a `wire` and the labels change with the value). Null keeps what is shown. */
-  live?(id: string, q: number, vec: Vec3): HandleSpec[] | null;
+  live?(id: string, q: number, vec: Vec3, mods?: HandleMods): HandleSpec[] | null;
+  /** A double click on a handle (the move pad opens its typed fields). */
+  onActivate?(id: string): void;
 }
+
+/** Modifier keys held at a drag step (the move handle reads them itself: Shift one axis, Ctrl grid, Alt no snapping). */
+export interface HandleMods { shift: boolean; ctrl: boolean; alt: boolean }
 
 export const V = {
   add: (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
@@ -203,7 +221,7 @@ function distToSegment(px: number, py: number, a: [number, number], b: [number, 
   return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
 }
 
-export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22, cube: 5, wire: 0, label: 0 };
+export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22, cube: 5, pad: 24, wire: 0, label: 0 };
 
 /** Points (world) that outline a ring handle. */
 export function ringPoints(centre: Vec3, axis: Vec3, radius: number, n = 48): Vec3[] {
@@ -234,7 +252,7 @@ function inQuad(px: number, py: number, q: [number, number][]): boolean {
   return inside;
 }
 
-const PRIORITY: Record<HandleKind, number> = { cube: 0, dot: 0, arrow: 1, plane: 2, ring: 3, wire: 9, label: 9 };
+const PRIORITY: Record<HandleKind, number> = { cube: 0, dot: 0, pad: -0.5, arrow: 1, plane: 2, ring: 3, wire: 9, label: 9 };
 
 /** The handle under the pointer (pixels), or null. A dot wins over an arrow, an arrow over a plane square, a square over a ring. */
 export function hitHandle(specs: HandleSpec[], project: Project, px: number, py: number, worldPerPx: (p: Vec3) => number, tol = 7): string | null {
@@ -245,7 +263,8 @@ export function hitHandle(specs: HandleSpec[], project: Project, px: number, py:
     const axis = V.norm(s.axis);
     let d: number | null = null;
     if (s.kind === 'wire' || s.kind === 'label') continue;
-    if (s.kind === 'dot' || s.kind === 'cube') {
+    if (!shownAt(s, w)) continue;
+    if (s.kind === 'dot' || s.kind === 'cube' || s.kind === 'pad') {
       const c = project(restPosition(s, w));
       if (c) { const e = Math.hypot(px - c[0], py - c[1]) - size; d = e <= tol ? Math.max(0, e) : null; }
     } else if (s.kind === 'arrow') {
@@ -261,7 +280,7 @@ export function hitHandle(specs: HandleSpec[], project: Project, px: number, py:
       if (q.every(Boolean) && inQuad(px, py, q as [number, number][])) d = 0;
     }
     if (d === null) continue;
-    const pr = PRIORITY[s.kind];
+    const pr = s.priority ?? PRIORITY[s.kind];
     if (!best || pr < best.pr || (pr === best.pr && d < best.d)) best = { id: s.id, d, pr };
   }
   return best?.id ?? null;

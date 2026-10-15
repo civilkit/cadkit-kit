@@ -16,7 +16,9 @@ import { sketchShapes } from '@kit/sketch';
 import { holeDiameter, kindOf } from '../holeData';
 import { faceNames } from '../featureCommands';
 import { t } from '../i18n';
-import { MIN_SIZE, type HandleSession } from './session';
+import { MIN_SIZE, type HandleCommit, type HandleSession } from './session';
+import { gridStep, moveCandidates, NO_CANDS, resolveMove, type MoveCands, type MoveMods, type MoveResult } from './move';
+import type { EdgeLike } from '../catalog/geometry';
 
 type Wire = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -136,6 +138,8 @@ export interface Shape {
   uniform: boolean;
   /** The sketch has no editable profile: width and length are shown only. */
   sizeEditable: boolean;
+  /** Other features that use the same sketch (moving it moves them too). */
+  sharedWith: string[];
 }
 
 /** Depth range of an open-ended shape (through, up to ...): the body's extent along the extrusion. */
@@ -166,7 +170,7 @@ export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: 
     return {
       id, kind: 'hole', frame, sketch, profile: null,
       box: { u0: p.x - d / 2, u1: p.x + d / 2, v0: p.y - d / 2, v1: p.y + d / 2, d0: Math.min(0, dir * len), d1: Math.max(0, dir * len) },
-      anchor: { u: p.x, v: p.y }, dir, depth: blind ? 'blind' : null, hole: { pointId: p.id, editable }, uniform: true, sizeEditable: editable,
+      anchor: { u: p.x, v: p.y }, dir, depth: blind ? 'blind' : null, hole: { pointId: p.id, editable }, uniform: true, sizeEditable: editable, sharedWith: usersOf(doc, sketch.id, id),
     };
   }
   const profile = profileOf(sketch, f.regions);
@@ -182,9 +186,14 @@ export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: 
   }
   return {
     id, kind: f.type, frame, sketch, profile,
-    box: { ...profile.box, d0, d1 }, anchor: { u: 0, v: 0 }, dir, depth, uniform: profile.round, sizeEditable: true,
+    // the anchor is the profile's own reference point (its footprint centre): it moves with the profile, not the fixed sketch origin
+    box: { ...profile.box, d0, d1 }, anchor: { u: (profile.box.u0 + profile.box.u1) / 2, v: (profile.box.v0 + profile.box.v1) / 2 }, dir, depth, uniform: profile.round, sizeEditable: true, sharedWith: usersOf(doc, sketch.id, id),
   };
 }
+
+/** The other features (not sketches) that read this sketch. */
+export const usersOf = (doc: PartDoc | null, sketchId: string, except: string): string[] =>
+  feats(doc).filter((f) => f.type !== 'sketch' && f.sketch === sketchId && f.id !== except).map((f) => f.id as string);
 
 // ---- the numbers of a resize ----
 
@@ -345,6 +354,27 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
   return { sketch: out, dropped };
 }
 
+/**
+ * The sketch with the shape's whole profile shifted by (du, dv): its outline points, the points of its construction geometry
+ * (a revolve axis) and the dimension constraints that follow. A fixed point moves too (its `fix` value is updated): moving a
+ * shape is not resizing it, so a pinned corner goes with the shape.
+ */
+export function translateSketch(shape: Shape, du: number, dv: number): SketchEdit | null {
+  const profile = shape.profile;
+  if (!profile) return null;
+  const ids = new Set(profile.pointIds);
+  const ents = new Set(profile.entityIds);
+  for (const e of shape.sketch.entities ?? []) if (e.construction) { ents.add(e.id); for (const id of [e.p1, e.p2, e.c, e.p, ...(e.pts ?? [])]) if (typeof id === 'string') ids.add(id); }
+  const pinned = new Set<string>((shape.sketch.points ?? []).filter((p: Wire) => p.fixed && ids.has(p.id)).map((p: Wire) => p.id));
+  const free = structuredClone(shape.sketch) as Wire;
+  for (const p of free.points ?? []) if (pinned.has(p.id)) delete p.fixed;
+  const b = shape.box;
+  const r = transformSketch(free, { ...profile, pointIds: ids, entityIds: ents }, b, shiftBox(b, du, dv));
+  if (!r) return null;
+  for (const p of r.sketch.points ?? []) if (pinned.has(p.id)) p.fixed = true;
+  return r;
+}
+
 // ---- the ops a box stands for ----
 
 const same = (a: number, b: number): boolean => Math.abs(a - b) < EPS;
@@ -371,7 +401,8 @@ export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[
     }
   } else if (uv) {
     if (!shape.profile) return null;
-    const r = transformSketch(shape.sketch, shape.profile, from, to);
+    const pure = same(to.u1 - to.u0, from.u1 - from.u0) && same(to.v1 - to.v0, from.v1 - from.v0);
+    const r = pure ? translateSketch(shape, to.u0 - from.u0, to.v0 - from.v0) : transformSketch(shape.sketch, shape.profile, from, to);
     if (!r) return null;
     dropped = r.dropped;
     ops.push({ op: 'replace', id: shape.sketch.id, feature: r.sketch } as EditOp);
@@ -386,6 +417,10 @@ export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[
 const AXIS_COLOUR = { u: '#e5484d', v: '#30a46c', d: '#3e63dd' } as const;
 const BOX_COLOUR = '#4da3ff';
 const ANCHOR_COLOUR = '#f5a623';
+const MOVE_COLOUR = '#d6409f';
+const GHOST_COLOUR = '#9aa7b5';
+/** Below these on-screen spans (pixels) the handles that would crowd the move pad hide until the view is zoomed in. */
+const FACE_MIN_PX = 90, CORNER_MIN_PX = 100, DEPTH_MIN_PX = 50;
 
 export function worldOf(f: Frame3, u: number, v: number, d: number): Vec3 {
   return [f.o[0] + f.x[0] * u + f.y[0] * v + f.z[0] * d, f.o[1] + f.x[1] * u + f.y[1] * v + f.z[1] * d, f.o[2] + f.x[2] * u + f.y[2] * v + f.z[2] * d];
@@ -394,7 +429,12 @@ export function worldOf(f: Frame3, u: number, v: number, d: number): Vec3 {
 /** A round step for a value: whole millimetres up to 20, fives up to 100, tens above. */
 export const niceStep = (v: number): number => (Math.abs(v) < 20 ? 1 : Math.abs(v) < 100 ? 5 : 10);
 
-export interface LayoutOpts { mode: AboutMode; /** the anchor marker's offset while it is dragged */ anchorAt?: { u: number; v: number } }
+export interface LayoutOpts {
+  mode: AboutMode;
+  /** the anchor marker's offset while it is dragged */ anchorAt?: { u: number; v: number };
+  /** While a move runs: show the original footprint and the inference guides (sketch-plane lines). */
+  moving?: { guides: MoveResult['guides'] };
+}
 
 /** Every spec of the size box for `box`: wire, face handles, corner handles, anchor marker, labels. */
 export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
@@ -410,30 +450,38 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
   for (let i = 0; i < 8; i++) for (const bit of [1, 2, 4]) if (!(i & bit)) lines.push(corner(i), corner(i | bit));
   const out: HandleSpec[] = [{ id: 'box', kind: 'wire', origin: W(um, vm, dm), axis: f.z, lines, color: BOX_COLOUR, follow: true }];
   const edit = shape.sizeEditable;
-  const face = (id: string, at: Vec3, axis: Vec3, base: number, sc: number, colour: string, label: string): HandleSpec =>
-    ({ id, kind: 'cube', origin: at, axis, base, scale: sc, sizePx: 5, color: colour, unit: 'mm', label, follow: true, shiftSnaps: true, hoverReadout: true });
+  const face = (id: string, at: Vec3, axis: Vec3, base: number, sc: number, colour: string, label: string, span = Infinity): HandleSpec =>
+    ({ id, kind: 'cube', origin: at, axis, base, scale: sc, sizePx: 5, color: colour, unit: 'mm', label, follow: true, shiftSnaps: true, hoverReadout: true, ...(Number.isFinite(span) ? { spanWorld: span, showMinPx: FACE_MIN_PX } : {}) });
   if (edit) {
-    out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip')));
-    out.push(face('u0', W(u0, vm, dm), neg(f.x), width, faceScale(u0, u1, 'lo', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip')));
-    out.push(face('v1', W(um, v1, dm), f.y, length, faceScale(v0, v1, 'hi', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip')));
-    out.push(face('v0', W(um, v0, dm), neg(f.y), length, faceScale(v0, v1, 'lo', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip')));
+    out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
+    out.push(face('u0', W(u0, vm, dm), neg(f.x), width, faceScale(u0, u1, 'lo', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
+    out.push(face('v1', W(um, v1, dm), f.y, length, faceScale(v0, v1, 'hi', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
+    out.push(face('v0', W(um, v0, dm), neg(f.y), length, faceScale(v0, v1, 'lo', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
   }
   const far = shape.dir > 0 ? d1 : d0;
-  if (shape.depth === 'blind') out.push(face('df', W(um, vm, far), V.mul(f.z, shape.dir), depth, 1, AXIS_COLOUR.d, t('sizebox.height.tip')));
+  if (shape.depth === 'blind') out.push({ ...face('df', W(um, vm, far), V.mul(f.z, shape.dir), depth, 1, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
   if (shape.depth === 'mid') {
-    out.push(face('d1', W(um, vm, d1), f.z, depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')));
-    out.push(face('d0', W(um, vm, d0), neg(f.z), depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')));
+    out.push({ ...face('d1', W(um, vm, d1), f.z, depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
+    out.push({ ...face('d0', W(um, vm, d0), neg(f.z), depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
   }
   // corners of the cap (the end face away from the sketch plane)
   const cap = shape.depth === 'mid' ? d1 : far;
   if (edit) {
     for (const [id, su, sv] of [['c++', 1, 1], ['c+-', 1, -1], ['c-+', -1, 1], ['c--', -1, -1]] as Array<[string, 1 | -1, 1 | -1]>) {
-      out.push({ id, kind: 'cube', origin: W(su > 0 ? u1 : u0, sv > 0 ? v1 : v0, cap), axis: f.z, u: f.x, drag: 'plane', sizePx: 4, color: '#c8d6e5', unit: 'mm', label: t('sizebox.corner.tip'), follow: true, shiftSnaps: true });
+      out.push({ id, kind: 'cube', origin: W(su > 0 ? u1 : u0, sv > 0 ? v1 : v0, cap), axis: f.z, u: f.x, drag: 'plane', sizePx: 4, color: '#c8d6e5', unit: 'mm', label: t('sizebox.corner.tip'), follow: true, shiftSnaps: true, spanWorld: Math.min(width, length), showMinPx: CORNER_MIN_PX });
     }
   }
-  // the anchor: the sketch origin (the hole's centre), draggable along the face
+  // the MOVE pad: a flat four-arrow cross at the centre of the footprint on the sketch plane; dragging it (or the shape's own faces) moves the shape
+  out.push({ id: 'move', kind: 'pad', origin: W(um, vm, 0), axis: f.z, u: f.x, drag: 'plane', reportMods: true, sizePx: 24, color: MOVE_COLOUR, unit: 'mm', label: t('sizebox.move.tip'), follow: true });
+  // the anchor: the profile's reference point (an orange diamond, kept off the pad's centre by being drawn small on top of it)
   const au = shape.anchor.u + (o.anchorAt?.u ?? 0), av = shape.anchor.v + (o.anchorAt?.v ?? 0);
-  out.push({ id: 'anchor', kind: 'cube', origin: W(au, av, 0), axis: f.z, u: f.x, drag: 'plane', sizePx: 6, color: ANCHOR_COLOUR, unit: 'mm', label: t('sizebox.anchor.tip'), follow: true, shiftSnaps: true });
+  out.push({ id: 'anchor', kind: 'cube', look: 'diamond', reportMods: true, priority: -1, origin: W(au, av, 0), axis: f.z, u: f.x, drag: 'plane', sizePx: 5, color: ANCHOR_COLOUR, unit: 'mm', label: t('sizebox.anchor.tip'), follow: true });
+  // the original footprint (ghost) and the alignment guides, only while a move runs
+  const sb = shape.box;
+  const ghost: Vec3[] = o.moving ? [W(sb.u0, sb.v0, 0), W(sb.u1, sb.v0, 0), W(sb.u1, sb.v0, 0), W(sb.u1, sb.v1, 0), W(sb.u1, sb.v1, 0), W(sb.u0, sb.v1, 0), W(sb.u0, sb.v1, 0), W(sb.u0, sb.v0, 0)] : [];
+  out.push({ id: 'ghost', kind: 'wire', origin: W(um, vm, 0), axis: f.z, lines: ghost, color: GHOST_COLOUR, follow: true });
+  const guide: Vec3[] = (o.moving?.guides ?? []).flatMap(([a, b, c, d]) => [W(a, b, 0), W(c, d, 0)]);
+  out.push({ id: 'guides', kind: 'wire', origin: W(um, vm, 0), axis: f.z, lines: guide, color: MOVE_COLOUR, follow: true });
   // the numbers
   const lab = (id: string, at: Vec3, value: number, forId: string | undefined, colour: string, tip: string): HandleSpec =>
     ({ id, kind: 'label', origin: at, axis: f.z, text: fmt(value), forId, color: colour, label: tip });
@@ -451,6 +499,47 @@ export interface SizeBoxCtx {
   frameOf(sketchId: string): Frame3 | null;
   bodyBox: { min: number[]; max: number[] } | null;
   mode: AboutMode;
+  /** The body's edges on screen: a move snaps to the ones on the shape's plane (corners, hole rims, midpoints, the face centre). */
+  edges?: EdgeLike[];
+  /** Snap distance in world units for a point (the Catalog's 14 px at the current zoom); absent: no snapping. */
+  snapTol?(p: Vec3): number;
+}
+
+/** Centres of the other shapes that sit on the same plane as `frame`, in its (u, v). */
+function othersOn(doc: PartDoc | null, shape: Shape, frameOf: SizeBoxCtx['frameOf'], bodyBox: SizeBoxCtx['bodyBox']): Array<{ u: number; v: number }> {
+  const out: Array<{ u: number; v: number }> = [];
+  const f = shape.frame;
+  for (const x of feats(doc)) {
+    if (x.id === shape.id || !(SHAPE_TYPES as readonly string[]).includes(x.type) || x.sketch === shape.sketch.id) continue;
+    const m = shapeModel(doc, x.id, frameOf, bodyBox);
+    if (!m) continue;
+    const g = m.frame;
+    if (V.dot(g.z, f.z) < 0.9999 || Math.abs(V.dot(V.sub(g.o, f.o), f.z)) > 1e-3) continue;
+    const c = worldOf(g, (m.box.u0 + m.box.u1) / 2, (m.box.v0 + m.box.v1) / 2, 0);
+    const r = V.sub(c, f.o);
+    out.push({ u: V.dot(r, f.x), v: V.dot(r, f.y) });
+  }
+  return out;
+}
+
+/** The edit that moves the shape by (du, dv) in its sketch plane, with the shared-sketch choice when other features use the sketch. */
+export function moveCommit(doc: PartDoc | null, shape: Shape, du: number, dv: number): HandleCommit | null {
+  const o = opsFor(shape, shiftBox(shape.box, du, dv));
+  if (!o) return null;
+  const notice = o.dropped.length ? t('sizebox.dropped', { ids: o.dropped.join(', ') }) : undefined;
+  if (!shape.sharedWith.length) return { ops: o.ops, create: false, ...(notice ? { notice } : {}) };
+  const all = o.ops;
+  // "Duplicate sketch": the moved copy goes in front of this shape and only this shape reads it
+  const sk = all.find((x) => x.op === 'replace' && (x as { id?: string }).id === shape.sketch.id) as { feature: Wire } | undefined;
+  const choices: NonNullable<HandleCommit['choices']> = [{ id: 'all', label: t('sizebox.shared.all'), ops: all }];
+  if (sk && doc) {
+    const nid = `F${(doc as unknown as { seq: number }).seq}`;
+    const at = feats(doc).findIndex((x) => x.id === shape.id);
+    const copy = { ...structuredClone(sk.feature), id: nid, name: `${shape.sketch.name ?? shape.sketch.id} copy` };
+    const rest = all.filter((x) => x !== (sk as unknown));
+    choices.push({ id: 'duplicate', label: t('sizebox.shared.duplicate'), ops: [{ op: 'add', feature: copy, index: at } as EditOp, { op: 'set', id: shape.id, path: 'sketch', value: nid } as EditOp, ...rest] });
+  }
+  return { ops: all, create: false, choices, notice: t('sizebox.shared', { ids: shape.sharedWith.join(', ') }) };
 }
 
 /** The session of a size box: its specs, and the ops every handle drag stands for. Null when the shape has no sketch frame yet. */
@@ -460,15 +549,20 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   const { mode } = c;
   const b = shape.box;
   let last = '';
+  let cands: MoveCands | null = null;
+  const candidates = (): MoveCands => cands ??= c.edges ? moveCandidates(shape.frame, b, c.edges, othersOn(c.doc, shape, c.frameOf, c.bodyBox)) : NO_CANDS;
+  const step = gridStep(b);
+  const snapLabel = (r: MoveResult): string => (r.snap ? ' - ' + t(r.snap === 'grid' || r.snap === 'axis' || r.snap === 'align' ? 'sizebox.snap.' + r.snap : 'catalog.snap.' + r.snap) : '');
   /** The box a handle reading stands for. `q` is the new dimension (faces) or the drag length (corner / anchor, which read `vec`). */
-  const resolve = (id: string, q: number, vec: Vec3): { box: Box; text: string; anchorAt?: { u: number; v: number } } | null => {
+  const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult } | null => {
     const f = shape.frame;
     if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.width', { v: fmt(q) }) };
     if (id === 'v1' || id === 'v0') return q < MIN_SIZE ? null : { box: boxFor(shape, { v: { side: id === 'v1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.length', { v: fmt(q) }) };
     if (id === 'df' || id === 'd1' || id === 'd0') return q < MIN_SIZE ? null : { box: depthBox(shape, q), text: t('sizebox.height', { v: fmt(q) }) };
-    if (id === 'anchor') {
-      const du = V.dot(vec, f.x), dv = V.dot(vec, f.y);
-      return { box: shiftBox(b, du, dv), text: t('sizebox.move', { u: fmt(shape.anchor.u + du), v: fmt(shape.anchor.v + dv) }), anchorAt: { u: du, v: dv } };
+    if (id === 'anchor' || id === 'move') {
+      const tol = c.snapTol ? c.snapTol(worldOf(f, (b.u0 + b.u1) / 2, (b.v0 + b.v1) / 2, 0)) : 0;
+      const m = resolveMove(b, { du: V.dot(vec, f.x), dv: V.dot(vec, f.y) }, mods, tol > 0 ? candidates() : NO_CANDS, tol, step);
+      return { box: shiftBox(b, m.du, m.dv), text: t('sizebox.delta', { dx: fmt(m.du), dy: fmt(m.dv) }) + snapLabel(m), anchorAt: { u: m.du, v: m.dv }, moved: m };
     }
     if (id.startsWith('c')) {
       const su = id[1] === '+' ? 1 : -1, sv = id[2] === '+' ? 1 : -1;
@@ -481,8 +575,8 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
     }
     return null;
   };
-  const edit = (id: string, q: number, vec: Vec3) => {
-    const r = resolve(id, q, vec);
+  const edit = (id: string, q: number, vec: Vec3, mods?: MoveMods) => {
+    const r = resolve(id, q, vec, mods);
     if (!r) return null;
     last = r.text;
     const o = opsFor(shape, r.box);
@@ -491,10 +585,18 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   return {
     kind: 'size-box', target: shape.id,
     specs: layout(shape, b, { mode }),
-    preview: (id, q, vec) => edit(id, q, vec)?.ops ?? null,
-    commit: (id, q, vec) => { const e = edit(id, q, vec); return e ? { ops: e.ops, create: false, ...(e.dropped.length ? { notice: t('sizebox.dropped', { ids: e.dropped.join(', ') }) } : {}) } : null; },
-    live: (id, q, vec) => { const r = resolve(id, q, vec); return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt }) : null; },
-    format: (id, q) => (id.startsWith('c') || id === 'anchor' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : t('sizebox.height', { v: fmt(q) })),
+    preview: (id, q, vec, mods) => edit(id, q, vec, mods)?.ops ?? null,
+    commit: (id, q, vec, mods) => {
+      if (id === 'move' || id === 'anchor') {
+        const r = resolve(id, q, vec, mods);
+        return r?.moved ? moveCommit(c.doc, shape, r.moved.du, r.moved.dv) : null;
+      }
+      const e = edit(id, q, vec, mods);
+      return e ? { ops: e.ops, create: false, ...(e.dropped.length ? { notice: t('sizebox.dropped', { ids: e.dropped.join(', ') }) } : {}) } : null;
+    },
+    live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
+    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
+    move: { box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv) },
   };
 }

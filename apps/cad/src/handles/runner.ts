@@ -15,6 +15,8 @@ export interface RunnerDeps {
   hint?(text: string | null): void;
   /** A drag started / ended (the app can pause other work). */
   busy?(on: boolean): void;
+  /** A double click on a handle. */
+  activate?(id: string): void;
 }
 
 export class HandleRunner {
@@ -28,12 +30,13 @@ export class HandleRunner {
   sink(s: HandleSession): HandleDragSink {
     return {
       onStart: () => { this.deps.busy?.(true); },
-      onDrag: (id, q, vec) => this.drag(s.preview(id, q, vec)),
-      onCommit: (id, q, vec) => { void this.commit(s.commit(id, q, vec)); },
+      onDrag: (id, q, vec, mods) => this.drag(s.preview(id, q, vec, mods)),
+      onCommit: (id, q, vec, mods) => { void this.commit(s.commit(id, q, vec, mods)); },
       onCancel: () => { void this.cancel(); },
       format: s.format ? (id, q) => s.format!(id, q) : undefined,
       step: s.step ? (id) => s.step!(id) : undefined,
-      live: s.live ? (id, q, vec) => s.live!(id, q, vec) : undefined,
+      live: s.live ? (id, q, vec, mods) => s.live!(id, q, vec, mods) : undefined,
+      onActivate: this.deps.activate,
     };
   }
 
