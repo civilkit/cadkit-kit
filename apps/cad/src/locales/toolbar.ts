@@ -1,0 +1,25 @@
+// Ribbon group titles, the short names written under ribbon icons, and the tool palette's section titles.
+export const toolbarStrings: Record<string, string> = {
+  'group.Sketch': 'Sketch', 'group.Pattern': 'Pattern', 'group.Appearance': 'Appearance', 'group.Expand': 'Expand', 'group.Style': 'Display style',
+  'group.Create': 'Create', 'group.Modify': 'Modify', 'group.Edit': 'Edit', 'group.File': 'File', 'group.Export': 'Import / Export',
+  'group.Reference': 'Reference', 'group.Bodies': 'Bodies', 'group.Views': 'Views', 'group.Workspace': 'Workspace', 'group.Pick': 'Pick', 'group.Position': 'Position',
+  'rail.label': 'Modelling tools', 'rail.history': 'Edit', 'rail.sketch': 'Sketch', 'rail.create': 'Create', 'rail.modify': 'Modify', 'rail.surfaces': 'Surfaces',
+  'rail.pattern': 'Pattern', 'rail.inspect': 'Inspect', 'rail.assembly': 'Assembly', 'rail.select': 'Select', 'rail.context': 'For selection',
+  'rail.context.tip': 'Commands that apply to what is selected',
+  // short names under the ribbon icons (the tooltip and the lists keep the full name)
+  'rb.palette': 'Search', 'rb.toggle-projection': 'Perspective', 'rb.toggle-left-panel': 'Side panel', 'rb.drawer': 'Drawer', 'rb.settings': 'Settings',
+  'rb.sketch-here': 'Sketch', 'rb.sketch-on-face': 'On face', 'rb.sketch-new-front': 'Front', 'rb.sketch-new-top': 'Top', 'rb.sketch-new-right': 'Right',
+  'rb.sketch-from-dxf': 'DXF sketch', 'rb.sketch-import-dxf': 'Import DXF', 'rb.export-stl': 'STL', 'rb.export-stl-ascii': 'STL text', 'rb.export-obj': 'OBJ',
+  'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP', 'rb.add-cut': 'Cut',
+  'rb.add-lpattern': 'Linear', 'rb.add-cpattern': 'Circular', 'rb.open-catalog': 'Catalog', 'rb.suppress-selected': 'Suppress', 'rb.delete-feature': 'Delete',
+  'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
+  'rb.add-surface-revolve': 'Revolved', 'rb.add-surface-loft': 'Lofted', 'rb.add-fill': 'Fill', 'rb.add-extend': 'Extend', 'rb.add-delete-face': 'Del. face',
+  'rb.add-delete-body': 'Del. body', 'rb.add-pipe-cut': 'Pipe cut', 'rb.add-gear-pair': 'Gear pair', 'rb.add-lip': 'Lip', 'rb.hide-selection': 'Hide',
+  'rb.style-shadedEdges': 'Shaded+edges', 'rb.style-hiddenLines': 'Hidden', 'rb.style-wireframe': 'Wireframe', 'rb.light-contrast': 'Contrast',
+  'rb.mass-props': 'Mass', 'rb.interference': 'Overlap', 'rb.asm-interference': 'Overlap', 'rb.section-view': 'Section', 'rb.bom': 'BOM', 'rb.explode': 'Explode',
+  'rb.analysis-zebra': 'Zebra', 'rb.analysis-gaussian': 'Gaussian', 'rb.analysis-mean': 'Mean', 'rb.analysis-draft': 'Draft check', 'rb.analysis-comb': 'Comb',
+  'rb.triball': 'Move ball', 'rb.select-tangent': 'Tangent', 'rb.select-parallel': 'Parallel', 'rb.select-similar': 'Similar', 'rb.select-loop': 'Loop',
+  'rb.select-connected': 'Connected', 'rb.select-invert': 'Invert', 'rb.select-none': 'Deselect', 'rb.select-box': 'Box', 'rb.select-body': 'Body',
+  'rb.sel-vertex': 'Corner', 'rb.add-extrude': 'Extrude', 'rb.add-revolve': 'Revolve', 'rb.view-iso': 'Iso', 'rb.open-variables': 'Variables',
+  'rb.explode-all': 'Explode', 'rb.insert-part': 'Insert part', 'rb.new-part': 'New', 'rb.light-studio': 'Studio', 'rb.bg-theme': 'Theme', 'rb.bg-gradient': 'Gradient',
+};

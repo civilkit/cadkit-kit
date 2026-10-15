@@ -2,6 +2,7 @@ import type { Catalog } from '@kit/i18n';
 import { inspectStrings } from './inspect';
 import { assemblyStrings } from './assembly';
 import { drawingStrings } from './drawing';
+import { toolbarStrings } from './toolbar';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -549,4 +550,5 @@ export const en: Catalog = {
   ...inspectStrings,
   ...assemblyStrings,
   ...drawingStrings,
+  ...toolbarStrings,
 };

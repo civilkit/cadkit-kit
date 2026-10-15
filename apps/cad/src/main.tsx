@@ -60,6 +60,9 @@ import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip } from './SketchToolStrip';
+import { ToolRail } from './ToolRail';
+import { selectionKind } from './menuModel';
+import { RIBBON_LAYOUT } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
@@ -85,6 +88,7 @@ import { insertIds, isExploded } from './assembly/model';
 import { viewOwner } from './treeActions';
 import './tokens.css';
 import './app.css';
+import './toolbar.css';
 
 const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
@@ -108,14 +112,6 @@ const usedSketches = (f: unknown): string[] => {
   return out;
 };
 
-const RAIL_GROUPS: string[][] = [
-  ['toggle-left-panel'],
-  ['undo', 'redo'],
-  ['add-extrude', 'add-cut', 'add-revolve', 'add-hole', 'add-thread'],
-  ['add-fillet', 'add-chamfer', 'add-shell'],
-  ['add-lpattern', 'add-cpattern'],
-  ['triball'],
-];
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
 const ENTITY_PICK_TOOLS = new Set<string | null>(['offset']);
@@ -1590,29 +1586,13 @@ function App() {
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
-      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
+      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} layout={RIBBON_LAYOUT} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       <div id="vp" ref={host}>
         {handles.menuEl}{handles.aboutEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
-        {ws.toolRail ? (
-          <div class="tool-rail" role="toolbar" aria-label={t('app.tools')}>
-            {RAIL_GROUPS.map((ids, gi) => {
-              const items = ids.map((id) => commands.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c);
-              if (!items.length) return null;
-              return (
-                <div class="rail-group" key={gi}>
-                  {items.map((c) => (
-                    <Tip key={c.id} label={c.label} keys={c.keys} side="right">
-                      <button aria-label={c.label} aria-pressed={c.pressed ? c.pressed() : undefined} disabled={c.enabled ? !c.enabled() : false} onClick={c.run}><Icon name={c.id} size={18} /></button>
-                    </Tip>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        ) : null}
+        {ws.toolRail ? <ToolRail commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons'} caption={(c) => t('rb.' + c.id, undefined, c.label)} /> : null}
         {ws.selectionBar && !sketching ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
             {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (

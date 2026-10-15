@@ -23,13 +23,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
   outline: 1px solid var(--line); outline-offset: -1px; border-radius: 12px; box-shadow: 0 10px 30px #0003; overflow: auto; }
 .tree-wrap.floating { left: 12px; top: 12px; bottom: 12px; width: 264px; }
 .insp-wrap.floating { right: 12px; top: 12px; width: 260px; padding: 8px; max-height: 70%; }
-.tool-rail { position: absolute; left: 12px; top: 12px; z-index: 4; display: flex; flex-direction: column; gap: 2px; padding: 6px; border-radius: 12px;
-  background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
-.rail-group { display: flex; flex-direction: column; gap: 1px; }
-.rail-group + .rail-group { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 3px; }
-.tool-rail button { width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--text-2); cursor: pointer; font: 600 11px system-ui; }
-.tool-rail button:hover:not(:disabled) { background: var(--accent-soft); color: var(--text); }
-.tool-rail button:disabled { opacity: .35; cursor: default; }
 .selmodes { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; z-index: 4; display: flex; gap: 2px; padding: 4px; border-radius: 12px;
   background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
 .selmodes button { display: flex; gap: 6px; align-items: center; border: 0; border-radius: 8px; padding: 5px 10px; background: none; color: var(--text); cursor: pointer; font: inherit; }
@@ -56,8 +49,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .rb-tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: var(--title); }
 .rb-tab { border: 0; background: none; color: var(--title-text); padding: 6px 12px; cursor: pointer; font: inherit; border-radius: 4px 4px 0 0; opacity: .75; }
 .rb-tab.on { background: var(--panel); color: var(--text); opacity: 1; }
-.rb-groups { display: flex; gap: 12px; padding: 6px 8px; flex-wrap: wrap; }
-.rb-group { display: flex; gap: 4px; padding-right: 12px; border-right: 1px solid var(--line-soft); }
 .rb-btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 4px; padding: 6px 10px; cursor: pointer; font: inherit; color: inherit; }
 .rb-btn:hover:not(:disabled) { border-color: var(--accent); }
 .rb-btn:disabled { opacity: .4; cursor: default; }
@@ -261,7 +252,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .rb-btn { display: inline-flex; align-items: center; gap: 6px; }
 .rb-btn.icon-only { width: 34px; height: 34px; padding: 0; justify-content: center; }
 .rb-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
-.tool-rail button { display: flex; align-items: center; justify-content: center; }
 .selmodes button svg { flex: none; }
 /* instant tooltip (packages/ui Tip): drawn in a portal on the body, positioned by script */
 .tip { position: fixed; z-index: 1000; left: 0; top: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 260px; padding: 4px 8px; border-radius: 6px; pointer-events: none;
@@ -304,7 +294,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .spal-group:first-child { border-top: 0; padding-top: 0; }
 .spal-name { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); padding-left: 2px; }
 .spal-grid { display: grid; grid-template-columns: repeat(2, 38px); gap: 2px; }
-.sketch-palette .stool { width: 38px; height: 34px; }
 .cube-tools { display: flex; gap: 6px; position: absolute; top: 54px; right: 130px; z-index: 4; }
 .cube-tools button { width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); color: var(--text-2); outline: 1px solid var(--line); outline-offset: -1px; }
 .cube-tools button:hover { background: var(--accent-soft); color: var(--text); }
@@ -321,24 +310,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .cube-tools button.on { background: var(--accent-soft); color: var(--accent); }
 
-/* palette slots: one button per family of tools; the corner arrow, a long press or a right click opens the others */
-.spal-slot { position: relative; width: 38px; height: 34px; }
-.spal-more { position: absolute; left: 0; bottom: 0; width: 16px; height: 16px; border: 0; padding: 0; cursor: pointer; background: none; touch-action: manipulation; }
-.spal-more::after { content: ''; position: absolute; left: 2px; bottom: 2px; width: 7px; height: 7px; background: var(--text-2); clip-path: polygon(0 0, 0 100%, 100% 100%); }
-.spal-more:hover::after { background: var(--accent); }
-.sketch-palette .stool, .spal-flyout .stool { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-/* fingers: bigger buttons, a corner target you can hit, a flyout you can read between thumbs */
-@media (pointer: coarse) {
-  .sketch-palette { width: 116px; }
-  .spal-grid { grid-template-columns: repeat(2, 50px); }
-  .sketch-palette .stool, .spal-flyout .stool { width: 50px; height: 46px; }
-  .spal-slot { width: 50px; height: 46px; }
-  .spal-more { width: 26px; height: 26px; }
-  .spal-more::after { left: 4px; bottom: 4px; width: 9px; height: 9px; }
-  .spal-flyout { gap: 4px; padding: 6px; }
-}
-.spal-flyout { position: fixed; z-index: 30; display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: var(--panel); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); outline: 1px solid var(--line); outline-offset: -1px; }
-.spal-flyout .stool { width: 38px; height: 34px; }
 
 /* reference rows in the tree, and the start card on an empty part */
 .tree .row.ref .row-name { flex: 1; }
@@ -568,7 +539,6 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tb-unit { color: var(--text-2); min-width: 20px; }
 .tb-note { font-size: 12px; color: var(--text-2); }
 .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
-.tool-rail button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
 /* material row of the tree: clickable, with a pencil that shows on hover / focus */
 .tree .row.ref.editable { cursor: pointer; }

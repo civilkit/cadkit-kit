@@ -46,5 +46,6 @@ It draws on the page body, so scrolling toolbars cannot clip it. Do not also set
 ## Label mode
 
 The workspace setting `toolLabels` (`'icons-and-text'` by default, or `'icons'`) is chosen in Settings. It drives the
-sketch tool strip, the ribbon and the selection-mode bar. The tool rail is icon-only in both modes (it always was)
-and gets the same instant tooltip.
+sketch palette, the tool palette, the ribbon and the selection-mode bar (see docs/toolbar.md). In the text mode the
+ribbon and the palettes write a short name under each icon; in the icons-only mode every command is an icon with the
+same instant tooltip (name and key), so every command needs an icon.
