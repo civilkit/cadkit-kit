@@ -131,13 +131,13 @@ describe('centrepoint arc tool', () => {
   it('a 15 degree clockwise sweep is a 15 degree arc, not the 345 degree remainder', () => {
     const a = (15 * Math.PI) / 180;
     const o = run(centreArcTool, [click(0, 0), click(0, 10), move(10 * Math.sin(a), 10 * Math.cos(a)), click(10 * Math.sin(a), 10 * Math.cos(a))]);
-    const arc = o.draft.entities[0] as { p1: string; p2: string };
+    const arc = o.draft.entities[0] as unknown as { p1: string; p2: string };
     expect(arc.p1).toBe('p3'); // starts at the pointer end, runs ccw 15 degrees to the first click
     expect(arc.p2).toBe('p2');
   });
 
   it('past half a turn clockwise keeps the larger arc', () => {
-    const o = run(centreArcTool, [click(0, 0), click(10, 0), move(-10, -1), click(-10, -1)]);
+    const o = run(centreArcTool, [click(0, 0), click(10, 0), move(-10, 1), click(-10, 1)]);
     expect(o.draft.entities).toEqual([{ id: 'e1', type: 'arc', c: 'p1', p1: 'p2', p2: 'p3' }]);
   });
 
