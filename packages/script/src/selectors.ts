@@ -6,7 +6,20 @@ export interface Geometry { mesh: Mesh | null; edges: EdgeInfo[]; box: { min: nu
 export interface FaceInfo { id: string; normal: Vec; centroid: Vec; area: number; planar: boolean }
 
 export type FaceSel = { kind: 'face'; sel: string; line: number };
-export type EdgeSel = { kind: 'edges'; sel: string; line: number };
+/** A rule over the live edges: keys AND together. */
+export interface EdgeRule {
+  parallel?: 'X' | 'Y' | 'Z';
+  /** edge midpoint outside / inside the box [[x0,y0,z0],[x1,y1,z1]] */
+  outside?: [Vec, Vec]; inside?: [Vec, Vec];
+  not?: EdgeSel;
+  onFace?: FaceSel;
+  lengthGreater?: number; lengthLess?: number;
+  near?: Vec; within?: number;
+  union?: EdgeSel[]; intersect?: EdgeSel[];
+  /** first minus all the others */
+  difference?: EdgeSel[];
+}
+export type EdgeSel = { kind: 'edges'; sel: string | EdgeRule; line: number };
 
 const AXES: Record<string, Vec> = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
 const TOL = 1e-3;
@@ -71,33 +84,52 @@ export function resolveFace(sel: string, geo: Geometry, line = 0): FaceInfo {
   return faces[0];
 }
 
-/** Edge references ({faces, at}) for the selector. '|Z' straight edges parallel to Z; '>Z' / '<Z' edges lying in the top / bottom plane; 'all'. */
-export function resolveEdges(sel: string, geo: Geometry, line = 0): Array<{ faces: string[]; at: number[] }> {
-  const usable = geo.edges.filter((e) => e.faces && e.faces.length === 2 && e.mid);
-  if (!usable.length) throw new SelectorError(`edges('${sel}'): there is no body yet to select edges from`, line);
-  let out: EdgeInfo[];
-  if (sel.trim().toLowerCase() === 'all') out = usable;
-  else {
-    const p = parseAxisSel(sel);
-    if (!p) throw new SelectorError(`edges('${sel}'): unsupported selector (use ${EDGE_SELECTORS.map((s) => `'${s}'`).join(', ')})`, line);
-    if (p.op === '|') {
-      out = usable.filter((e) => {
-        const pts = e.pts ?? [];
-        if (pts.length < 2) return false;
-        const a = pts[0], b = pts[pts.length - 1];
-        const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-        const l = Math.hypot(d[0], d[1], d[2]);
-        if (l < 1e-9 || Math.abs(dot(d, p.axis)) / l < 1 - TOL) return false;
-        // straight: every point stays on the chord
-        return pts.every((q) => { const r = [q[0] - a[0], q[1] - a[1], q[2] - a[2]]; const t = dot(r, d) / (l * l); return Math.hypot(r[0] - t * d[0], r[1] - t * d[1], r[2] - t * d[2]) < 1e-3; });
-      });
-    } else {
-      const sign = p.op === '>' ? 1 : -1;
-      const h = (e: EdgeInfo) => dot(e.mid!, p.axis);
-      const best = Math.max(...usable.map((e) => h(e) * sign));
-      out = usable.filter((e) => (e.pts ?? []).every((q) => Math.abs(dot(q, p.axis) * sign - best) < 1e-3));
-    }
+const straightAlong = (e: EdgeInfo, axis: Vec): boolean => {
+  const pts = e.pts ?? [];
+  if (pts.length < 2) return false;
+  const a = pts[0], b = pts[pts.length - 1];
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const l = Math.hypot(d[0], d[1], d[2]);
+  if (l < 1e-9 || Math.abs(dot(d, axis)) / l < 1 - TOL) return false;
+  // straight: every point stays on the chord
+  return pts.every((q) => { const r = [q[0] - a[0], q[1] - a[1], q[2] - a[2]]; const t = dot(r, d) / (l * l); return Math.hypot(r[0] - t * d[0], r[1] - t * d[1], r[2] - t * d[2]) < 1e-3; });
+};
+const edgeLength = (e: EdgeInfo): number => { const p = e.pts ?? []; let s = 0; for (let i = 0; i + 1 < p.length; i++) s += Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1], p[i + 1][2] - p[i][2]); return s; };
+const inBox = (p: ArrayLike<number>, b: [Vec, Vec]) => [0, 1, 2].every((k) => p[k] >= Math.min(b[0][k], b[1][k]) - 1e-6 && p[k] <= Math.max(b[0][k], b[1][k]) + 1e-6);
+
+/** The usable edges (two faces, a midpoint) that a selector or rule matches; may be empty. */
+function matchEdges(sel: string | EdgeRule, geo: Geometry, usable: EdgeInfo[], line: number): EdgeInfo[] {
+  if (typeof sel !== 'string') {
+    const sub = (s: EdgeSel) => matchEdges(s.sel, geo, usable, line);
+    let out = usable;
+    if (sel.parallel) { const ax = AXES[String(sel.parallel).toUpperCase()]; if (!ax) throw new SelectorError(`edges({parallel}): use 'X', 'Y' or 'Z'`, line); out = out.filter((e) => straightAlong(e, ax)); }
+    if (sel.outside) out = out.filter((e) => !inBox(e.mid!, sel.outside!));
+    if (sel.inside) out = out.filter((e) => inBox(e.mid!, sel.inside!));
+    if (sel.not) { const ex = new Set(sub(sel.not)); out = out.filter((e) => !ex.has(e)); }
+    if (sel.onFace) { const id = resolveFace(sel.onFace.sel, geo, sel.onFace.line).id; out = out.filter((e) => e.faces!.includes(id)); }
+    if (sel.lengthGreater !== undefined) out = out.filter((e) => edgeLength(e) > sel.lengthGreater!);
+    if (sel.lengthLess !== undefined) out = out.filter((e) => edgeLength(e) < sel.lengthLess!);
+    if (sel.near) { const r = sel.within ?? 1; out = out.filter((e) => Math.hypot(e.mid![0] - sel.near![0], e.mid![1] - sel.near![1], e.mid![2] - sel.near![2]) <= r); }
+    if (sel.union) { const u = new Set(sel.union.flatMap(sub)); out = out.filter((e) => u.has(e)); }
+    if (sel.intersect) for (const s of sel.intersect) { const u = new Set(sub(s)); out = out.filter((e) => u.has(e)); }
+    if (sel.difference?.length) { const [a, ...rest] = sel.difference; const base = new Set(sub(a)); const ex = new Set(rest.flatMap(sub)); out = out.filter((e) => base.has(e) && !ex.has(e)); }
+    return out;
   }
-  if (!out.length) throw new SelectorError(`edges('${sel}'): no edge of the current body matches`, line);
+  if (sel.trim().toLowerCase() === 'all') return usable;
+  const p = parseAxisSel(sel);
+  if (!p) throw new SelectorError(`edges('${sel}'): unsupported selector (use ${EDGE_SELECTORS.map((s) => `'${s}'`).join(', ')}, or a rule object)`, line);
+  if (p.op === '|') return usable.filter((e) => straightAlong(e, p.axis));
+  const sign = p.op === '>' ? 1 : -1;
+  const best = Math.max(...usable.map((e) => dot(e.mid!, p.axis) * sign));
+  return usable.filter((e) => (e.pts ?? []).every((q) => Math.abs(dot(q, p.axis) * sign - best) < 1e-3));
+}
+
+/** Edge references ({faces, at}) for the selector or rule. '|Z' straight edges parallel to Z; '>Z' / '<Z' edges lying in the top / bottom plane; 'all'; or a rule object (see EdgeRule). */
+export function resolveEdges(sel: string | EdgeRule, geo: Geometry, line = 0): Array<{ faces: string[]; at: number[] }> {
+  const label = typeof sel === 'string' ? `'${sel}'` : '{rule}';
+  const usable = geo.edges.filter((e) => e.faces && e.faces.length === 2 && e.mid);
+  if (!usable.length) throw new SelectorError(`edges(${label}): there is no body yet to select edges from`, line);
+  const out = matchEdges(sel, geo, usable, line);
+  if (!out.length) throw new SelectorError(`edges(${label}): no edge of the current body matches`, line);
   return out.map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
 }

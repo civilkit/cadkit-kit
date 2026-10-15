@@ -1,6 +1,6 @@
 // The recorder: a fluent API whose calls are REMEMBERED (with the script line) and later compiled to EditOps by the runner.
 // Selectors (face(), edges()) are resolved at compile time against the body as it is just before that step.
-import { resolveEdges, resolveFace, SelectorError, type EdgeSel, type FaceSel, type Geometry } from './selectors';
+import { resolveEdges, resolveFace, SelectorError, type EdgeRule, type EdgeSel, type FaceSel, type Geometry } from './selectors';
 
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
 export type Plane = 'front' | 'top' | 'right';
@@ -33,19 +33,21 @@ export function callerLine(): number {
 }
 
 export const face = (sel: string): FaceSel => ({ kind: 'face', sel, line: callerLine() });
-export const edges = (sel: string): EdgeSel => ({ kind: 'edges', sel, line: callerLine() });
+export const edges = (sel: string | EdgeRule): EdgeSel => ({ kind: 'edges', sel, line: callerLine() });
 export const through = (): { through: true } => ({ through: true });
 export type EndSpec = Num | { through: true };
 
 // ---- sketch ----
 type Pt = [number, number];
+const polarPts = (c: Pt, r: number, n: number, a0: number): Pt[] => Array.from({ length: n }, (_, i) => { const a = (a0 + (360 * i) / n) * Math.PI / 180; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)] as Pt; });
+const gridPts = (o: Pt, p: Pt, c: [number, number]): Pt[] => { const out: Pt[] = []; for (let j = 0; j < c[1]; j++) for (let i = 0; i < c[0]; i++) out.push([o[0] + i * p[0], o[1] + j * p[1]]); return out; };
 export class SketchBuilder {
-  points: Array<Record<string, unknown>> = [{ id: 'O', x: 0, y: 0, fixed: true }];
+  pointList: Array<Record<string, unknown>> = [{ id: 'O', x: 0, y: 0, fixed: true }];
   entities: Array<Record<string, unknown>> = [];
   private np = 0;
   private ne = 0;
   axisId: string | null = null;
-  private pt(x: number, y: number): string { const id = `p${++this.np}`; this.points.push({ id, x: +x.toFixed(6), y: +y.toFixed(6) }); return id; }
+  private pt(x: number, y: number): string { const id = `p${++this.np}`; this.pointList.push({ id, x: +x.toFixed(6), y: +y.toFixed(6) }); return id; }
   private ent(e: Record<string, unknown>): void { this.entities.push({ id: `e${++this.ne}`, ...e }); }
   /** Closed polygon through the points. */
   polygon(pts: Pt[]): this {
@@ -73,7 +75,7 @@ export class SketchBuilder {
     this.ent({ type: 'arc', c, p1: a, p2: b });
     return this;
   }
-  private apt(id: string): { x: number; y: number } { const p = this.points.find((q) => q.id === id) as { x: number; y: number }; return p; }
+  private apt(id: string): { x: number; y: number } { const p = this.pointList.find((q) => q.id === id) as { x: number; y: number }; return p; }
   private arcIds(c: string, a: string, b: string): void { this.ent({ type: 'arc', c, p1: a, p2: b }); }
   /** Arc from a to b through the middle point m (any direction); the circle is the one through the three points. */
   arc3(a: Pt, m: Pt, b: Pt): this {
@@ -103,6 +105,19 @@ export class SketchBuilder {
   }
   /** A point (hole centres). */
   point(at: Pt): this { this.ent({ type: 'point', p: this.pt(at[0], at[1]) }); return this; }
+  /** Several point features (hole centres). */
+  points(pts: Pt[]): this { pts.forEach((p) => this.point(p)); return this; }
+  /** `n` points on a circle of `radius` about `center`, first at `startAngle` degrees. */
+  polarPoints(center: Pt, radius: number, n: number, startAngle = 0): this { return this.points(polarPts(center, radius, n, startAngle)); }
+  /** nx by ny points from `origin` at `pitch` spacing. */
+  grid(origin: Pt, pitch: Pt, count: [number, number]): this { return this.points(gridPts(origin, pitch, count)); }
+  /** Construction line through two sketch points, used as a revolve axis not on the sketch's Y axis. */
+  axisAt(from: Pt, to: Pt): this {
+    const a = this.pt(...from), b = this.pt(...to);
+    this.ent({ type: 'line', p1: a, p2: b, construction: true });
+    this.axisId = this.entities[this.entities.length - 1].id as string;
+    return this;
+  }
   /** Construction line along the sketch's Y axis (the default revolve axis). */
   axis(): this {
     const a = this.pt(0, 0), b = this.pt(0, 10);
@@ -138,7 +153,7 @@ export class PartBuilder {
       const id = ctx.nextId();
       ctx.lastSketch = id;
       ctx.lastFeature = id;
-      return [...pre, { op: 'add', feature: { type: 'sketch', id, ...(name ? { name } : {}), plane: pl, points: s.points, entities: s.entities, constraints: [] } }];
+      return [...pre, { op: 'add', feature: { type: 'sketch', id, ...(name ? { name } : {}), plane: pl, points: s.pointList, entities: s.entities, constraints: [] } }];
     } });
     this.steps[this.steps.length - 1].sk = s;
     return this;
@@ -162,10 +177,11 @@ export class PartBuilder {
   extrude(depth: Num, o: ExtrudeOpts = {}): this { return this.solid('extrude', 'add', depth, o); }
   /** Cut the last sketch through the body: a depth, or through(). */
   cut(end: EndSpec, o: ExtrudeOpts = {}): this { return this.solid('cut', 'cut', end, o); }
-  /** Revolve the last sketch about its Y axis (a construction line is added when the sketch has none). */
-  revolve(angle: Num = 360, o: { op?: 'add' | 'cut'; thin?: Num } = {}): this {
+  /** Revolve the last sketch about its Y axis (a construction line is added when the sketch has none), or about `axis: {from, to}`, a line in the sketch plane anywhere. */
+  revolve(angle: Num = 360, o: { op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this {
     const sk = [...this.steps].reverse().find((x) => x.sk)?.sk;
-    if (sk && !sk.axisId) sk.axis();
+    if (sk && o.axis) sk.axisAt(o.axis.from, o.axis.to);
+    else if (sk && !sk.axisId) sk.axis();
     return this.add('revolve', (ctx) => {
       if (!ctx.lastSketch) throw new SelectorError('revolve() needs a sketch before it', this.line());
       const id = ctx.nextId();
@@ -190,15 +206,25 @@ export class PartBuilder {
     return this;
   }
   /** A hole on a planar face at [x, y] (sketch-plane coordinates): diameter, optional blind depth (through otherwise). */
-  hole(on: FaceSel, at: Pt, o: { diameter: Num; depth?: Num; flip?: boolean }): this {
-    return this.add('hole', (ctx) => {
+  hole(on: FaceSel, at: Pt, o: { diameter: Num; depth?: Num; flip?: boolean }): this { return this.holePoints('hole', on, [at], o); }
+  /** Hole arrays: ONE hole feature (one sketch of points) for many centres. */
+  get holes() {
+    type HO = { diameter: Num; depth?: Num; flip?: boolean };
+    return {
+      points: (on: FaceSel, pts: Pt[], o: HO): this => this.holePoints('holes', on, pts, o),
+      polar: (on: FaceSel, c: { center: Pt; radius: number; count: number; startAngle?: number }, o: HO): this => this.holePoints('holes.polar', on, polarPts(c.center, c.radius, c.count, c.startAngle ?? 0), o),
+      grid: (on: FaceSel, g: { origin: Pt; pitch: Pt; count: [number, number] }, o: HO): this => this.holePoints('holes.grid', on, gridPts(g.origin, g.pitch, g.count), o),
+    };
+  }
+  private holePoints(label: string, on: FaceSel, pts: Pt[], o: { diameter: Num; depth?: Num; flip?: boolean }): this {
+    return this.add(label, (ctx) => {
       const sid = ctx.nextId(), id = ctx.nextId();
       const fc = resolveFace(on.sel, ctx.geo, on.line);
       ctx.lastFeature = id;
       const hole: Record<string, unknown> = { type: 'hole', id, sketch: sid, kind: 'simple', diameter: ref(o.diameter), end: o.depth === undefined ? 'through' : 'blind', flip: o.flip ?? false };
       if (o.depth !== undefined) hole.depth = ref(o.depth);
       return [
-        { op: 'add', feature: { type: 'sketch', id: sid, plane: { kind: 'face', id: fc.id }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: at[0], y: at[1] }], entities: [{ id: 'e1', type: 'point', p: 'p1' }], constraints: [] } },
+        { op: 'add', feature: { type: 'sketch', id: sid, plane: { kind: 'face', id: fc.id }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...pts.map((p, i) => ({ id: `p${i + 1}`, x: +p[0].toFixed(6), y: +p[1].toFixed(6) }))], entities: pts.map((_, i) => ({ id: `e${i + 1}`, type: 'point', p: `p${i + 1}` })), constraints: [] } },
         { op: 'add', feature: hole },
       ];
     });
