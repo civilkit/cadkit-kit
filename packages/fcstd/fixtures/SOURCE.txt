@@ -6,4 +6,4 @@ Used as a real-file test of the importer: volume of the first Pad against the vo
 ModelFromV021.FCStd (24.7 KiB, unmodified)
 Source: https://github.com/FreeCAD/FreeCAD/blob/main/tests/src/Mod/PartDesign/App/TestModels/ModelFromV021.FCStd
 Licence: LGPL-2.1 (the FreeCAD repository licence)
-Pad > Revolution > Chamfer. The chamfer is not importable (edge names need the cached BRep); Pad and Revolution volumes are checked against the cached shapes (15803.6505 and 15837.8813 mm3, read with OCCT).
+Pad > Revolution > Chamfer. Pad, Revolution and Chamfer volumes are checked against the cached shapes (15803.6505, 15837.8813 and 15759.2146 mm3, read with OCCT).

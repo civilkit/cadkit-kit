@@ -2,7 +2,8 @@
 // clean equivalent: Sketch + Pad/Pocket/Revolution/Groove/Mirrored/LinearPattern/PolarPattern. Everything else becomes a
 // warning (never a throw). Coordinates are kept as FreeCAD has them (no Y-up rotation); sketch planes are mapped to our
 // standard planes by normal, plus an offset plane when the sketch is not through the origin. See docs/fcstd.md.
-import { zipFile } from './zip';
+import { zipFile, zipEntries, zipRead } from './zip';
+import { brepEdges } from './brep';
 
 export interface FcWarning { object: string; code: string; message: string }
 export interface FcStep { fc: string; type: string; features: string[]; shape?: string }
@@ -14,6 +15,8 @@ export interface FcImport {
   steps: FcStep[];
   /** FreeCAD features that could not be mapped (their names, in order). */
   skipped: string[];
+  /** Fillet / chamfer features waiting for their edges: the edge points (from the cached BRep) to be resolved by the kernel, see resolveEdges. */
+  edgeRequests: Array<{ feature: string; fc: string; names: string[]; points: Array<[number, number, number]> }>;
   /** Names of all PartDesign bodies in the file (only one is imported, see opts.body). */
   bodies: string[];
   /** FreeCAD object type counts, for reports. */
@@ -102,20 +105,21 @@ function readSketch(o: Obj) {
   return { geo, cons };
 }
 
-export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { body?: string } = {}): FcImport {
+export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { body?: string; /** text of the cached BRep files by name; enables fillet / chamfer edge lookup */ brp?: (file: string) => string | undefined } = {}): FcImport {
   const warnings: FcWarning[] = [];
   const warn = (object: string, code: string, message: string) => warnings.push({ object, code, message });
   const objectTypes: Record<string, number> = {};
   const features: Feat[] = [];
   const steps: FcStep[] = [];
   const skipped: string[] = [];
+  const edgeRequests: FcImport['edgeRequests'] = [];
   let seq = 1;
   const nextId = () => `F${seq++}`;
 
   let doc: Document;
   try { doc = new DOMParser().parseFromString(xml, 'text/xml'); } catch (e) { warn('Document', 'parse', (e as Error).message); doc = null as unknown as Document; }
   const bad = !doc || doc.querySelector('parsererror');
-  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes, bodies: [], skipped });
+  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes, bodies: [], skipped, edgeRequests });
   if (bad) { if (doc) warn('Document', 'parse', 'Document.xml is not valid XML'); return finish(); }
 
   const objs = parseObjects(doc);
@@ -408,8 +412,31 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
           produced.push(id);
           return true;
         }
-        case 'PartDesign::Fillet': case 'PartDesign::Chamfer': case 'PartDesign::Thickness': case 'PartDesign::Draft': {
-          warn(fname, 'edgeReferences', `${t.slice(12)} refers to cached topology names (Edge/Face index); resolving them needs a BRep reader for ${fname}.Shape.brp`);
+        case 'PartDesign::Fillet': case 'PartDesign::Chamfer': {
+          const { obj, sub } = pLinkSub(o, 'Base');
+          const names = Array.from(o.props.get('Base')?.querySelectorAll('Sub') ?? []).map((x) => x.getAttribute('value') ?? '').filter((n) => /^Edge\d+$/.test(n));
+          const baseFile = objs.get(obj) ? shapeFile(objs.get(obj)!) : undefined;
+          const text = baseFile && opts.brp ? opts.brp(baseFile) : undefined;
+          if (!names.length || pBool(o, 'UseAllEdges')) { warn(fname, 'edgeReferences', `${t.slice(12)} on all edges or without edge names is not mapped`); return false; }
+          if (!text) { warn(fname, 'edgeReferences', `${t.slice(12)} refers to ${names.join(', ')} of ${obj}; resolving them needs its cached BRep (${baseFile ?? 'no shape file'})`); return false; }
+          const all = brepEdges(text);
+          const pts = names.map((n) => all[Number(n.slice(4)) - 1]);
+          if (pts.some((e) => !e)) { warn(fname, 'edgeReferences', `edge name out of range in ${baseFile}`); return false; }
+          if (pts.some((e) => e.approx)) warn(fname, 'edgeApprox', 'some edges are free-form curves; their point is the vertex midpoint, which may not lie on the edge');
+          void sub;
+          const id = nextId();
+          if (t === 'PartDesign::Fillet') features.push({ type: 'fillet', id, radius: pNum(o, 'Radius'), edges: [] });
+          else {
+            const ct = pNum(o, 'ChamferType');
+            if (ct !== 0) { warn(fname, 'chamferType', 'only equal-distance chamfers are mapped'); seq--; return false; }
+            features.push({ type: 'chamfer', id, chamferType: 'equal', distance: pNum(o, 'Size'), edges: [] });
+          }
+          edgeRequests.push({ feature: id, fc: fname, names, points: pts.map((e) => e.at) });
+          produced.push(id);
+          return true;
+        }
+        case 'PartDesign::Thickness': case 'PartDesign::Draft': {
+          warn(fname, 'edgeReferences', `${t.slice(12)} refers to cached face names (Face index); resolving them needs the BRep reader plus a face lookup`);
           return false;
         }
         case 'PartDesign::Hole': case 'PartDesign::Boolean': case 'PartDesign::SubShapeBinder': case 'PartDesign::AdditiveLoft': case 'PartDesign::SubtractiveLoft': case 'PartDesign::AdditivePipe': case 'PartDesign::SubtractivePipe': case 'PartDesign::AdditiveHelix': case 'PartDesign::SubtractiveHelix': case 'PartDesign::MultiTransform': case 'PartDesign::Scaled': case 'PartDesign::FeatureBase': case 'PartDesign::AdditiveBox': case 'PartDesign::SubtractiveBox': case 'PartDesign::AdditiveCylinder': case 'PartDesign::SubtractiveCylinder':
@@ -435,6 +462,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
   const tip = objs.get(tipName);
   const res = finish();
   res.bodies = bodyNames;
+  res.edgeRequests = edgeRequests;
   if (!steps.length) warn(body.name, 'noFeatures', 'no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)');
   res.finalShape = (tip && shapeFile(tip)) ?? shapeFile(body);
   return res;
@@ -444,8 +472,34 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
 export async function importFcstd(bytes: Uint8Array, name = 'FreeCAD part', opts: { body?: string } = {}): Promise<FcImport> {
   let xml: Uint8Array | null = null;
   try { xml = await zipFile(bytes, 'Document.xml'); } catch (e) {
-    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {}, bodies: [], skipped: [] };
+    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {}, bodies: [], skipped: [], edgeRequests: [] };
   }
-  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {}, bodies: [], skipped: [] };
-  return importFcDocument(new TextDecoder().decode(xml), name, opts);
+  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {}, bodies: [], skipped: [], edgeRequests: [] };
+  // cached BRep files (up to 4 MB each) for fillet / chamfer edge lookup
+  const brp = new Map<string, string>();
+  try { for (const e of zipEntries(bytes)) if (/\.brp$/i.test(e.name) && e.size <= 4e6) brp.set(e.name, new TextDecoder().decode(await zipRead(bytes, e))); } catch { /* the document still imports */ }
+  return importFcDocument(new TextDecoder().decode(xml), name, { ...opts, brp: (f) => brp.get(f) });
+}
+
+/** Resolves points on the current body to kernel edge references ({faces, at}); null for a point that matches no edge. */
+export type EdgeResolver = (partBefore: FcImport['part'], points: Array<[number, number, number]>) => Promise<Array<Record<string, unknown> | null>>;
+
+/**
+ * Fill in the edges of imported fillets / chamfers with the kernel's help. A feature whose edges do not resolve is removed
+ * again and reported, so the tree stays regenerable. Without a resolver those features are removed too.
+ */
+export async function resolveEdges(imp: FcImport, resolver?: EdgeResolver): Promise<FcImport> {
+  for (const rq of imp.edgeRequests) {
+    const at = imp.part.features.findIndex((f) => f.id === rq.feature);
+    if (at < 0) continue;
+    const refs = resolver ? await resolver({ ...imp.part, features: imp.part.features.slice(0, at) }, rq.points).catch(() => null) : null;
+    if (refs && refs.every(Boolean)) { (imp.part.features[at] as { edges: unknown }).edges = refs; continue; }
+    imp.part.features.splice(at, 1);
+    const st = imp.steps.findIndex((x) => x.fc === rq.fc);
+    if (st >= 0) imp.steps.splice(st, 1);
+    imp.skipped.push(rq.fc);
+    imp.warnings.push({ object: rq.fc, code: 'edgeReferences', message: resolver ? `could not find ${rq.names.join(', ')} on the rebuilt body; feature left out` : 'edge lookup needs the kernel; feature left out' });
+  }
+  imp.edgeRequests = [];
+  return imp;
 }

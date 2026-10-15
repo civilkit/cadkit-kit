@@ -44,7 +44,7 @@ import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Auto
 import { RestoreDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
-import { importFcstd } from '@kit/fcstd';
+import { importFcstd, resolveEdges } from '@kit/fcstd';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -564,7 +564,7 @@ function App() {
   });
   /** A FreeCAD file becomes a new part with the mapped features; what could not be mapped is listed in a notice (see packages/fcstd). */
   const importFcstdBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
-    const r = await importFcstd(bytes, partNameOf(file));
+    const r = await resolveEdges(await importFcstd(bytes, partNameOf(file)));   // no kernel resolver here yet: fillets / chamfers are left out and listed
     if (!r.part.features.length) { store.notify(t('files.fcstd.failed', { name: file, message: r.warnings[0]?.message ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part), { file: null });
     viewport?.fit();
