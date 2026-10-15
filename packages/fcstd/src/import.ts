@@ -123,6 +123,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
   if (bad) { if (doc) warn('Document', 'parse', 'Document.xml is not valid XML'); return finish(); }
 
   const objs = parseObjects(doc);
+  const legacy = /^0\.(1[0-6]|[0-9])(\D|$)/.test(doc.documentElement.getAttribute('ProgramVersion') ?? '');
   for (const o of objs.values()) objectTypes[o.type] = (objectTypes[o.type] ?? 0) + 1;
 
   const bodies = Array.from(objs.values()).filter((o) => o.type === 'PartDesign::Body');
@@ -354,7 +355,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
           if (type === 0 && side !== 1) {
             if (mid) push({ end: 'mid', depth: L });
             else push({ end: 'blind', depth: L, ...(flip ? { flip: true } : {}) });
-          } else if (cut && type === 1) {
+          } else if (cut && type === 1 && !legacy) { // (0.14 to 0.16 files: type 1 of a pocket is UpToFirst)
             push({ end: mid ? 'throughBoth' : 'through', ...(flip ? { flip: true } : {}) });
           } else if (type === 4 || (side === 1 && type === 0)) { // two lengths: one extrude each way
             push({ end: 'blind', depth: L, ...(flip ? { flip: true } : {}) });
