@@ -1028,6 +1028,8 @@ export class Viewport {
     this.applyMeshLook();
     this.applySection();
     // the camera is framed once per document (load, new part, first body); edits, drags, previews and undo keep the user's view
+    // the reference planes are sized from the body, so a new body (an imported part, a much bigger edit) resizes them
+    if (this.lastRefPlanes) this.setRefPlanes(...this.lastRefPlanes);
     if (this.needFit && !this.keepView && !this.holdView && this.previewFade === null && !this.triball.active && this.edges.length > 0) { this.fit(); this.needFit = false; }
   }
 
@@ -1651,8 +1653,10 @@ export class Viewport {
   /** Where the last face click landed on the body (world coordinates), for tools that need a point on a curved face. */
   lastPickPoint(): [number, number, number] | null { return this.lastPick; }
   private readonly refPlanes = new RefPlanes();
+  private lastRefPlanes: [RefPlaneId[], RefPlaneId | null, Record<RefPlaneId, string>] | null = null;
   /** Show reference planes: `show` faintly (an empty part shows all three), `highlight` in orange with its label. */
   setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
+    this.lastRefPlanes = [show, highlight, labels];
     if (!this.refPlanes.group.parent) this.scene.add(this.refPlanes.group);
     this.refPlanes.set(this.box ? this.radius() * 1.4 : 60, show, highlight, labels);
     this.dirty = true;
