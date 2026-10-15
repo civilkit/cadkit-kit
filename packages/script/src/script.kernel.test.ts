@@ -73,4 +73,16 @@ describe('script examples on the kernel', () => {
   .sketch(face('>Z'), (s) => s.circle(2, [10, 5])).cut(2).circularPattern({ count: 4, axis: 'z' });`, h);
     expect(r.errors).toEqual([]);
   }, 60000);
+  it('rrect, arc3 (either direction) and offset planes', async () => {
+    const { h, volume, controller } = await host();
+    // rounded rectangle ring on a plane moved 100 along +z, and a separate half disc by three points (drawn clockwise)
+    const r = await runScript(`part('R')
+  .sketch(at('front', 100), (s) => { s.rrect(60, 40, 8); s.rrect(56, 36, 6); }).extrude(5)
+  .sketch('top', (s) => s.arc3([10, 0], [5, 5], [0, 0]).line([0, 0], [10, 0])).extrude(2);`, h);
+    expect(r.errors).toEqual([]);
+    const ring = (60 * 40 - (4 - Math.PI) * 64) - (56 * 36 - (4 - Math.PI) * 36);
+    expect(await volume()).toBeCloseTo(ring * 5 + Math.PI * 25 / 2 * 2, 0);
+    const b = controller.bodyBox() as { min: number[]; max: number[] };
+    expect(b.max[2]).toBeCloseTo(105, 5);
+  }, 60000);
 });

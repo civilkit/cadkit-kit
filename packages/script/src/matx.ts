@@ -3,7 +3,7 @@
 // builds the whole case as ONE part (the lumps stay separate bodies of that part). Written from the design's description,
 // re-expressed on our API. Frame: the script works in the design's frame (X depth, Y width, Z height) and bx/cyl map it to
 // the app's planes (front sketch = YZ of the design, extrusions run along its X).
-export const MATX_ORDER = ['rear', 'base', 'top', 'front', 'blocks', 'strips', 'hoops', 'refs', 'rivets', 'slats', 'tray', 'straps'];
+export const MATX_ORDER = ['tray', 'straps', 'rear', 'front', 'base', 'blocks', 'strips', 'top', 'hoops', 'refs', 'rivets', 'slats'];
 
 const BODY = `
 const V = variables({ WIDTH: 178, HEIGHT: 400, DEPTH: 310, FAN: 140, FAN_PITCH: 124.5, FAN_T: 25, TOP_T: 4, TOP_SHELF: 14,
@@ -92,7 +92,8 @@ const pegs = [], topPegs = [];
 const stripBoxes = [];
 [-1, 1].forEach((sy) => { [-1, 1].forEach((sz) => {
   const cy = sy * (hy - R_OUT), tz = sz * (hz - BAR_T - CLR - 2 - TUN_CLR);
-  stripBoxes.push([Math.min(cy, cy - sy * STRIP_W), Math.min(tz, tz - sz * STRIP_T)]);
+  // 0.02 short of the tunnel wall on the outboard side: a face laid exactly on the block's wall makes the boolean fail
+  stripBoxes.push([sy > 0 ? cy - STRIP_W : cy + 0.02, Math.min(tz, tz - sz * STRIP_T)]);
 }); });
 const notches = (x0, x1, withBlocks, blocksX) => {
   if (withBlocks) { blocksX.forEach((bxx) => { [-1, 1].forEach((sy) => { [-1, 1].forEach((sz) => { blockBody(bxx, sy, sz, 'cut'); }); }); }); }
@@ -161,29 +162,94 @@ C.blocks = () => {
   cylZ(pegs, FLOOR_Z - 6, RIV_D / 2 + 0.15, 10, 'cut');
   cylZ(topPegs, TOP_Z - 6, RIV_D / 2 + 0.15, 10, 'cut');
 };
-C.strips = () => { stripBoxes.forEach((q) => bx(STRIP_X0, q[0], q[1], STRIP_X1 - STRIP_X0, STRIP_W, STRIP_T)); };
+C.strips = () => { stripBoxes.forEach((q) => bx(STRIP_X0, q[0], q[1], STRIP_X1 - STRIP_X0, STRIP_W - 0.02, STRIP_T)); };
 C.hoops = () => { [REAR_X, FRONT_X].forEach((x0) => { P.sketch(at('front', x0), (s) => { rr(s, 0); rr(s, -BAR_T); }).extrude(BAR_W); }); };
 C.refs = () => {
   bx(PSU_X0, -PSU_W / 2, FLOOR_Z + BASE_T, PSU_D, PSU_W, PSU_H);
   bx(PSU_X0, BOARD_Y, BOARD_Z0, BOARD, BOARD_T, BOARD);
   bx(FP_X - FAN_T - 0.5, -FAN / 2, FAN_Z - FAN / 2, FAN_T, FAN, FAN);
-  cylX(FP_X - FAN_T - 1.5, 0, FAN_Z, FAN / 2 - 2, FAN_T + 2, 'cut');
+  cylX(FP_X - FAN_T - 1.5, 0, FAN_Z, FAN / 2 - 2, FAN_T + 1, 'cut');   // ends on the fan's front face: the design's tool overshoots by 1 mm, which would cut the panel here
 };
 C.rivets = () => {
-  const one = (px, py, zt, grip) => {
+  const one = (px, py, zt, grip, ext) => {
+    zt += 0.02;   // the head floats 0.02 above the face it presses on: a face laid exactly on another makes the boolean fail
     cylZ([[px, py]], zt, RIV_HEAD / 2, 2);
-    cylZ([[px, py]], zt - grip - 3, RIV_D / 2, grip + 3);
-    bx(px - RIV_HEAD / 2 - 1, py - RIV_SLOT / 2, zt - grip - 3.5, RIV_HEAD + 2, RIV_SLOT, grip + 2, 'cut');
+    cylZ([[px, py]], zt - grip - 3 - ext, RIV_D / 2, grip + 3 + ext);   // ext: the kernel's boolean fails on some shank lengths in the top hole, 2 mm longer works
+    if (ext === 0) bx(px - RIV_D / 2 - 0.05, py - RIV_SLOT / 2, zt - grip - 3.5 - ext, RIV_D + 0.1, RIV_SLOT, grip + 2 + ext, 'cut');   // only across the shank: it stays inside the hole's clearance (no slot in the top rivets: the kernel's cut fails there, see docs/matx-case.md)
   };
-  pegs.forEach((p) => one(p[0], p[1], FLOOR_Z + BASE_T, BASE_T + 3));
-  topPegs.forEach((p) => one(p[0], p[1], TOP_Z + TOP_T, BASE_T + 3));
+  pegs.forEach((p) => one(p[0], p[1], FLOOR_Z + BASE_T, BASE_T + 3, 0));
+  topPegs.forEach((p) => one(p[0], p[1], TOP_Z + TOP_T, BASE_T + 3, 2));
 };
 C.slats = () => { slatYs.forEach((y) => bx(SLAT_X, y - SLAT_W / 2, -SLAT_TOP, SLAT_T, SLAT_W, 2 * SLAT_TOP)); };
-C.tray = () => {};
-C.straps = () => {};
+
+const TRAY_Y1 = BOARD_Y - STANDOFF, TRAY_Y0 = TRAY_Y1 - TRAY_T, LOW_Y1 = -PSU_W / 2 - 1, LOW_Y0 = LOW_Y1 - TRAY_T, STEP_Z = PSU_TOP + 3 + TRAY_T;
+const TRAY_X0 = REAR_X + BAR_W + BLK_FLOOR + 0.3, TRAY_X1 = FP_X - FAN_T - 1.5, TL = TRAY_X1 - TRAY_X0;
+const S_IN = -(hy - R_OUT) + STRIP_W, S_OUT = -(hy - R_OUT), S_ZT = hz - BAR_T - CLR - 2 - TUN_CLR, Z_TOP = S_ZT - STRIP_T - 0.3 - 2, ZB = -S_ZT + STRIP_T + 0.3;
+const SEAM_X = (TRAY_X0 + TRAY_X1) / 2, SEAM_Z = (STEP_Z + Z_TOP) / 2;
+const K_LEG = 2, K_FOOT = 4, K_BAR = 2, K_W = 8, K_SLIDE = 6, K_OFF = 10;
+// the microATX hole pattern: [name, along the rear edge, behind the datum]
+const MATX = [['B', 0, 0], ['C', 45.72, 0], ['F', 168.91, -22.86], ['R', -20.32, -154.94], ['S', 0, -154.94], ['H', 45.72, -154.94], ['J', 168.91, -154.94], ['L', 45.72, -227.33], ['M', 168.91, -227.33]];
+const bosses = MATX.map((m) => [PSU_X0 + (10.16 - m[2]), BOARD_Z0 + (m[1] + 54.61)]);
+// cylinders along Y (the design's width) from y0
+const cylY = (list, y0, r, l, op) => { P.sketch(at('right', y0), (s) => { list.forEach((c) => s.circle(r, [-c[0], c[1]])); }); run(op, l); };
+// box spanning s0..s1 along unit vector a, t0..t1 along c (both in the XZ plane), y0..y1 in Y, from the point Q
+const abox = (Q, a, c, s0, s1, t0, t1, y0, y1, op) => {
+  const p1 = [Q[0] + a[0] * s0 + c[0] * t0, Q[1] + a[1] * s0 + c[1] * t0], p2 = [Q[0] + a[0] * s1 + c[0] * t1, Q[1] + a[1] * s1 + c[1] * t1];
+  bx(Math.min(p1[0], p2[0]), y0, Math.min(p1[1], p2[1]), Math.abs(p2[0] - p1[0]), y1 - y0, Math.abs(p2[1] - p1[1]), op);
+};
+// the keyhole strap positions on the two seams: [point (x, z), along the seam, across it]
+const KEYS = [];
+for (let k = 0; k < 3; k++) {
+  KEYS.push([[SEAM_X, SEAM_Z + 14 + k * (Z_TOP - RIM - SEAM_Z - 30) / 2], [0, 1], [1, 0]]);
+  KEYS.push([[SEAM_X, SEAM_Z - 14 - K_W - k * (SEAM_Z - STEP_Z - RIM - 30) / 2], [0, 1], [1, 0]]);
+}
+for (let k = 0; k < 2; k++) {
+  KEYS.push([[SEAM_X - 20 - K_W - k * (SEAM_X - TRAY_X0 - RIM - 40), SEAM_Z], [1, 0], [0, 1]]);
+  KEYS.push([[SEAM_X + 20 + k * (TRAY_X1 - RIM - SEAM_X - 40), SEAM_Z], [1, 0], [0, 1]]);
+}
+C.tray = () => {
+  const X0 = TRAY_X0, zl = -S_ZT + STRIP_T + 0.3 + 2;
+  bx(X0, TRAY_Y0, STEP_Z, TL, TRAY_T, Z_TOP - STEP_Z);
+  bx(X0, LOW_Y0, STEP_Z - TRAY_T, TL, TRAY_Y1 - LOW_Y0, TRAY_T);
+  bx(X0, LOW_Y0, zl, TL, TRAY_T, STEP_Z - zl);
+  bx(X0, S_OUT - 2.3, Z_TOP, TL, (S_IN + 0.3) - (S_OUT - 2.3), 2);
+  bx(X0, S_OUT - 2.3, Z_TOP, TL, 2, STRIP_T + 0.6 + 4);
+  bx(X0, S_OUT - 2.3, Z_TOP + 2 + STRIP_T + 0.6, TL, 12, 2);
+  bx(X0, S_IN + 0.1, Z_TOP + 1.8, TL, 1.2, 1);   // snap lip (overlapping the ledge a little: the design's lip only touches it along an edge)
+  bx(X0, LOW_Y0, ZB, TL, (S_IN + 0.3) - LOW_Y0, 2);
+  bx(X0, S_OUT - 2.3, ZB - 2 - STRIP_T - 0.6, TL, 2, STRIP_T + 0.6 + 4);
+  bx(X0, S_OUT - 2.3, ZB - 2 - STRIP_T - 0.6, TL, 12, 2);
+  bx(X0, S_IN + 0.1, ZB - 0.8, TL, 1.2, 1);
+  cylY(bosses, TRAY_Y1, BOSS_D / 2, STANDOFF);
+  cylY(bosses, TRAY_Y0 - 1, BOSS_HOLE / 2, STANDOFF + TRAY_T + 2, 'cut');
+  const keep = bosses.map((b) => [b[0] - 7, b[1] - 7, b[0] + 7, b[1] + 7]);
+  keep.push([SEAM_X - 19, -hz, SEAM_X + 19, hz], [TRAY_X0, SEAM_Z - 19, TRAY_X1, SEAM_Z + 19]);
+  const RC = HEX_AF / Math.sqrt(3), PITCH = HEX_AF + HEX_WALL;
+  let kx = Math.floor((SEAM_X - RC - (TRAY_X0 + RIM)) / (1.5 * RC)); if (kx % 2) kx -= 1;
+  const GX0 = SEAM_X - RC - kx * 1.5 * RC, nz = Math.floor((SEAM_Z - HEX_AF / 2 - (STEP_Z + RIM)) / PITCH), GZ0 = SEAM_Z - HEX_AF / 2 - nz * PITCH;
+  const cs = cells(HEX_AF, HEX_WALL, GX0, GZ0, TRAY_X1 - RIM, Z_TOP - RIM, keep);
+  P.sketch(at('right', TRAY_Y0 - 1), (s) => { cs.forEach((c) => hexAt(s, c, RC, (x, y) => [-x, y])); }); CUT(TRAY_T + 2);
+  KEYS.forEach((q) => {
+    [-1, 1].forEach((sg) => {
+      abox([q[0][0], q[0][1]], q[1], q[2], -K_SLIDE - 0.3, K_W - K_SLIDE + 0.3, sg * (K_OFF - 0.3), sg * (K_OFF + K_LEG + K_FOOT + 0.3), TRAY_Y0 - 1, TRAY_Y1 + 1, 'cut');
+      abox([q[0][0], q[0][1]], q[1], q[2], -0.3, K_W + 0.3, sg * (K_OFF - 0.3), sg * (K_OFF + K_LEG + 0.3), TRAY_Y0 - 1, TRAY_Y1 + 1, 'cut');
+    });
+  });
+};
+C.straps = () => {
+  KEYS.forEach((q) => {
+    const Q = [q[0][0], q[0][1]], y0 = TRAY_Y0, yb = TRAY_Y1;
+    abox(Q, q[1], q[2], 0, K_W, -(K_OFF + K_LEG), K_OFF + K_LEG, y0 - K_BAR, y0);
+    [-1, 1].forEach((sg) => {
+      abox(Q, q[1], q[2], 0, K_W, sg * K_OFF, sg * (K_OFF + K_LEG), y0 - K_BAR, yb + K_BAR);
+      abox(Q, q[1], q[2], 0, K_W, sg * K_OFF, sg * (K_OFF + K_LEG + K_FOOT), yb, yb + K_BAR);
+    });
+  });
+};
 const ONLY = null;
 const ORDER = ${JSON.stringify(MATX_ORDER)};
-ORDER.forEach((k) => { if (!ONLY || ONLY.indexOf(k) >= 0) { C[k](); } });
+// the push rivets are left out of the whole case (the kernel's boolean fails when they are fused next to the holes); ask for them with only = ['rivets']
+ORDER.forEach((k) => { if (ONLY ? ONLY.indexOf(k) >= 0 : k !== 'rivets') { C[k](); } });
 `;
 
 /** The script text; `only` keeps just the listed component groups (see MATX_ORDER). */

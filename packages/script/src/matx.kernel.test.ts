@@ -48,5 +48,16 @@ describe('matx debug', () => {
     const { h, mp } = await host();
     const r = await runScript(matxScript([]) + process.env.MATX_DEBUG, h);
     console.log('DBG', JSON.stringify(r.errors), (await mp()).volume);
-  }, 60000);
+  }, 600000);
+});
+describe('matx whole case', () => {
+  it.skipIf(!process.env.MATX_ALL)('all components as one part', async () => {
+    const { h, mp, controller } = await host();
+    const t0 = Date.now();
+    const r = await runScript(matxScript(), h);
+    const v = (await mp()).volume, ref = Object.values(FC).reduce((a, b) => a + b, 0);
+    console.log('ALL', JSON.stringify(r.errors).slice(0, 600), 'steps', (r.document as { features: unknown[] }).features.length, 'vol', v.toFixed(1), 'fc', ref.toFixed(1), ((v - ref) / ref * 100).toFixed(3) + '%', Date.now() - t0, 'ms', JSON.stringify(controller.bodyBox()));
+    writeFileSync('/path/to/work/scratch-matx/matx-case.ckpart.json', JSON.stringify(r.document));
+    expect(r.errors).toEqual([]);
+  }, 900000);
 });
