@@ -18,7 +18,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .ribbon-wrap.compact .rb-btn { padding: 3px 8px; font-size: 12px; }
 .tree-wrap.docked { grid-area: left; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; min-height: 0; }
 .insp-wrap.docked { grid-area: right; background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 8px; min-height: 0; }
-#vp { grid-area: vp; position: relative; min-width: 0; min-height: 0; background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
+#vp { grid-area: vp; overflow: clip; position: relative; min-width: 0; min-height: 0; background: linear-gradient(var(--vp-top), var(--vp-bottom)); }
 #vp canvas { display: block; }
 .floating { position: absolute; z-index: 3; background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)) saturate(1.2); -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
   outline: 1px solid var(--line); outline-offset: -1px; border-radius: 12px; box-shadow: 0 10px 30px #0003; overflow: auto; }
