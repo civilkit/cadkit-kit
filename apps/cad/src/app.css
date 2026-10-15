@@ -833,3 +833,5 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .row-blocked:hover, .row-blocked:focus-visible { color: var(--text); border-color: var(--text-2); }
 .fedit-hint, .row-hint { overflow-wrap: anywhere; word-break: break-word; user-select: text; -webkit-user-select: text; }
 .issue { overflow-wrap: anywhere; user-select: text; }
+.row-blocked-line { order: 99; flex: 1 0 100%; padding: 0 0 5px 26px; line-height: 1; }
+.tree .row:has(> .row-blocked-line) { flex-wrap: wrap; }

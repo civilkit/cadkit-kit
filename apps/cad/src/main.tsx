@@ -1721,7 +1721,7 @@ function App() {
             { label: t('app.status.triangles'), value: String(facts.triangles) },
             ...(check.chip ? [check.chip] : []),
             ...(facts.rebuildMs !== null ? [{ label: t('app.status.lastRebuild'), value: t('app.status.secondsUnit', { value: (facts.rebuildMs / 1000).toFixed(1) }) }] : []),
-            { label: t('app.status.errors'), value: String(failures.length), tone: failures.length ? ('err' as const) : ('ok' as const) },
+            { label: t('app.status.errors'), value: String(failures.filter((f) => !f.blockedBy).length) + (failures.some((f) => f.blockedBy) ? ' ' + t('app.status.blocked', { n: failures.filter((f) => f.blockedBy).length }) : ''), tone: failures.length ? ('err' as const) : ('ok' as const) },
           ]}
           drawerOpen={ws.drawerOpen} onToggleDrawer={toggleDrawer} />
       </div>

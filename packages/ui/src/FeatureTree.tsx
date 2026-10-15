@@ -176,11 +176,11 @@ export function FeatureTree(p: {
           </span>
           {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
           {blocked ? (
-            <button type="button" class="row-blocked" data-blocked-by={blocked} title={t('ui.tree.blockedByTitle', { id: blocked }, 'Only fails because {id} failed. Select {id}.')}
+            <span class="row-blocked-line"><button type="button" class="row-blocked" data-blocked-by={blocked} title={t('ui.tree.blockedByTitle', { id: blocked }, 'Only fails because {id} failed. Select {id}.')}
               onClick={(e) => { e.stopPropagation(); p.onSelect(blocked); }}>
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>
               {t('ui.tree.blockedBy', { id: blocked }, 'blocked by {id}')}
-            </button>
+            </button></span>
           ) : null}
         </div>
         {open ? kids.map((k) => renderRow(k, depth + 1)) : null}

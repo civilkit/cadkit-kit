@@ -99,6 +99,7 @@ export const en: Catalog = {
   'app.diagnostics.none': 'No feature errors.',
   'app.diagnostics.error': 'error',
   'app.diagnostics.copy': 'Copy all errors', 'app.diagnostics.copied': 'Copied',
+  'app.status.blocked': '(+{n} blocked)',
   'diag.summary': 'The edit broke the model at {feature}: {reason}.',
   'diag.summary.later': { one: '{count} later feature could not be built because of it.', other: '{count} later features could not be built because of it.' },
   'diag.summary.others': { one: 'Plus {count} other separate problem.', other: 'Plus {count} other separate problems.' },
