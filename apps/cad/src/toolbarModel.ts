@@ -3,10 +3,16 @@
 // adding a command to a slot adds it everywhere. Command ids and keys are defined in commands.ts and are not touched here.
 import type { RibbonLayout, RibbonEntry } from '@kit/ui';
 
-/** Families of commands that share one button. The first id is the default; the button then shows the one used last. */
+/** Commands whose ids are reserved here before the command exists (their icons exist already). Slots may list them; the tests do not
+ *  require them to be registered, and the toolbars skip ids that are not. */
+export const PLANNED = ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'];
+
+/** THE table: slot id -> its commands in order (first is the default). The ribbon (`RIBBON_LAYOUT`) and the tool palette
+ *  (`RAIL_SECTIONS`) only say where each slot goes, so adding a command is one id in one slot below (plus its icon). Families of commands that share one button. The first id is the default; the button then shows the one used last. */
 export const SLOTS: Record<string, string[]> = {
   'new-sketch': ['sketch-here', 'sketch-on-face', 'sketch-new-front', 'sketch-new-top', 'sketch-new-right', 'sketch-from-dxf'],
   extrude: ['add-extrude', 'add-cut'],
+  thin: ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'],
   hole: ['add-hole', 'add-thread'],
   catalog: ['open-catalog', 'open-variables'],
   'edge-round': ['add-fillet', 'add-chamfer'],
@@ -43,7 +49,7 @@ export const RIBBON_LAYOUT: RibbonLayout = {
     { id: 'File', entries: ['new-part', 'open', 'save', 'save-as', 'samples'] },
     { id: 'Export', entries: [slot('export'), 'import-step'] },
     { id: 'Sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
-    { id: 'Create', entries: [slot('extrude'), 'add-revolve', slot('hole'), slot('catalog')] },
+    { id: 'Create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
     { id: 'Edit', entries: ['undo', 'redo', slot('history')] },
@@ -84,7 +90,7 @@ export const RIBBON_LAYOUT: RibbonLayout = {
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
-  { id: 'create', entries: [slot('extrude'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
+  { id: 'create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'surfaces', entries: [slot('surface-new'), slot('surface-reshape'), slot('surface-edit')] },
   { id: 'pattern', entries: [slot('pattern')] },

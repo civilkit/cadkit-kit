@@ -26,6 +26,15 @@ A slot is one button for a family of related commands.
 `pick-set`, `measure`, `surface-check`, `asm-parts`, `asm-review`, `delete-geom`, `catalog`.
 Adding a command id to a slot adds it to the ribbon and the palette at once.
 
+## Adding a command: one entry
+
+`SLOTS` in `toolbarModel.ts` is the single table: slot id -> command ids in order (the first is the default cell). The ribbon
+and the palette both read it; `RIBBON_LAYOUT` and `RAIL_SECTIONS` only choose where a slot goes. To add a command: register it
+in the command table, add its icon to `icons.tsx` (the audit test fails without one), and add its id to a slot (or a new slot,
+placed once in each layout). The command search finds it automatically. Ids may be reserved ahead of the command in `PLANNED`;
+the toolbars skip ids that are not registered. Reserved now: `add-thin-extrude`, `add-thin-cut`, `add-thin-revolve` (slot `thin`,
+in the Create group of the ribbon's Home tab and the palette).
+
 ## The ribbon (`RIBBON_LAYOUT`)
 
 Tabs of titled groups, each group a row of slots (File, Import / Export, Sketch, Create, Modify, Pattern, Edit on Home;
