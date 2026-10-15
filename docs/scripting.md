@@ -70,6 +70,30 @@ part('Flanged cylinder')
 part('Thin box').sketch('front', (s) => s.rect(50, 30)).extrude(20).shell(face('>Z'), 2);
 ```
 
+## BenchCAD examples
+
+Five parts of the BenchCAD library (CC-BY-4.0, BenchCAD, arXiv 2605.10865; the scripts are our own translations, not copies of the dataset programs) are in the Script tab's example list (`bc-*` in `packages/script/src/examples.ts`) and checked against the dataset's reference volume on the real kernel by `packages/script/src/benchcad.kernel.test.ts` (tolerance 1e-3).
+
+| Part | Features used | Script lines | Reference volume (mm3) | Our volume | Relative error |
+| --- | --- | --- | --- | --- | --- |
+| pulley_000030 | revolve of a polygon | 10 | 315628.4374 | 315628.4374 | 1.5e-10 |
+| washer_000001 | extrude, hole, chamfer on a face's edges | 7 | 11087.95596 | 11087.95596 | 1.0e-10 |
+| hex_nut_000006 | computed polygon, sketch on a face, through cut | 8 | 45.891956 | 45.891964 | 1.7e-7 |
+| enclosure_000042 | mid-plane extrude, shell, fillet | 7 | 100770.1092 | 100770.1092 | 2.1e-10 |
+| motor_end_cap_000242 | face sketches, cut, chamfer, fillet, circular pattern (x2) | 16 | 245873.6614 | 245880.6963 | 2.9e-5 |
+
+Notes: the 'top' sketch plane extrudes along +Y, so the face on top of a 'top' sketch is `face('>Y')` (the 'front' plane extrudes along Z). A workplane offset was not needed: the motor end cap sketches on the face of the disc instead. The 2.9e-5 on the end cap (7 mm3) was not chased; the other four match to 1e-7 or better.
+
+```js
+// BenchCAD pulley_000030
+const { bore, rim, flange, w, gw } = variables({ bore: 17.5, rim: 62.4, flange: 70, w: 12.6, gw: 5 });
+part('Pulley')
+  .sketch('right', (s) => s.polygon([[bore, -w], [rim, -w], [rim, -gw], [flange, -gw], [flange, gw], [rim, gw], [rim, w], [bore, w]]))
+  .revolve(360);
+```
+
+The other four are in the example list.
+
 ## Design: MCP tool `run_script` (not implemented here)
 
 For the agent interface (`packages/mcp` of the kernel repo): `run_script({ session_id?, code })` evaluates the same script text with the same `evaluate()` / step compiler, but with the kernel `Session` as the host (`load` = open a session on the recorded base document, `edit` = `session.edit`, `geometry` = `bodyForView()` plus the edge/face enrichment the viewer does). It returns `{ ok, features, errors: [{ line, feature, message }], volume }`. The compiler lives in `@kit/script` and has no DOM dependency, so it can be moved or published as a separate package; only `geometry()` needs the face/edge enrichment (`faces`/`mid` on edges) that the viewer's Controller currently produces and that would need to be factored out of the app.
