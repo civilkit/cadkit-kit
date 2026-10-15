@@ -49,12 +49,12 @@ Whole case as ONE part (`matx-case` sample): see the result at the end of this f
 
 ## Findings and gaps (ranked)
 
-1. **Cuts are body-wide** (high value, medium effort): every cut hits every lump in range, forcing the ordering above and the extra care for cutters (the fan cutter's 1 mm overshoot would nick the front panel). A cut with a target ("from body k" / lump pick) or a script-level `body('name')` with an assembly is the real fix. Alternative: an assembly sample of the 51 components (each its own part): not done, needs one script part per component.
+1. **Cuts are body-wide; still OPEN: no target-body option exists on the kernel extrude/revolve cut feature (no `target`/`bodies` field; only the interference check names lumps), so `cut(..., {target})` needs a kernel change first** (high value, medium effort): every cut hits every lump in range, forcing the ordering above and the extra care for cutters (the fan cutter's 1 mm overshoot would nick the front panel). A cut with a target ("from body k" / lump pick) or a script-level `body('name')` with an assembly is the real fix. Alternative: an assembly sample of the 51 components (each its own part): not done, needs one script part per component.
 2. **Boolean robustness** (kernel, unknown effort): fuse/cut failed (`booleanFailed`) with faces laid exactly on another (strip on tunnel wall, rivet head on the panel, snap lip on its ledge edge) and, unexplained, a thin slot cut through a free-hanging cylinder end and a shank-length-dependent fuse near hole walls. Workarounds are in the script comments.
-3. **Edge-rule selectors for fillets** (API, small): "all outside edges except those near box X" (block fillets, +1.3% volume).
-4. **Positioned revolve / cone** (API, small): revolve about an axis at an offset (rivet barb cone, rivet head+shank in one go).
+3. **CLOSED: edge-rule selectors for fillets** (API, small; `edges({parallel, outside, not, onFace, lengthGreater, near, union, ...})`): "all outside edges except those near box X" (block fillets, +1.3% volume).
+4. **CLOSED: positioned revolve / cone** (API, small; `revolve(angle, { axis: {from, to} })`): revolve about an axis at an offset (rivet barb cone, rivet head+shank in one go).
 5. **Speed** (kernel/app, medium): 678 features regenerate one step at a time (3.5 min); a batch edit (all ops, one regeneration) in `runScript` would cut that to seconds.
-6. 2D array of holes in one sketch is scripted by hand (JS loops); a `s.grid()` / `s.polarArray()` helper is cheap (small) but not needed to reproduce this case.
+6. **CLOSED** (`holes.polar/grid/points`, `s.points/polarPoints/grid`): 2D array of holes in one sketch is scripted by hand (JS loops); a `s.grid()` / `s.polarArray()` helper is cheap (small) but not needed to reproduce this case.
 7. Colours per body (the design colours aluminium, black, steel, wood): not part of the part model.
 
 ## Not done

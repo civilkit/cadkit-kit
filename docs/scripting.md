@@ -13,7 +13,7 @@ part('Bracket')                                          // the script must buil
   .fillet(edges('|Z'), 4);
 ```
 
-Sketch builder `s`: `rect(w, h, [cx, cy])` (centred), `circle(radius, [cx, cy])` (RADIUS), `polygon(pts)` (closed), `polyline(pts)`, `line(a, b)`, `arc(centre, start, end)` (counter-clockwise), `point(at)`, `axis()`.
+Sketch builder `s`: `rect(w, h, [cx, cy])` (centred), `circle(radius, [cx, cy])` (RADIUS), `polygon(pts)` (closed), `polyline(pts)`, `line(a, b)`, `arc(centre, start, end)` (counter-clockwise), `point(at)`, `axis()`, `axisAt(from, to)` (construction line used as the revolve axis), and point arrays that make one point feature each: `points([[x, y], ...])`, `polarPoints(center, radius, n, startAngle = 0)`, `grid(origin, [dx, dy], [nx, ny])`.
 
 Part methods (each adds one feature, in order):
 
@@ -22,10 +22,13 @@ Part methods (each adds one feature, in order):
 | `.sketch(plane, fn, name?)` | sketch |
 | `.extrude(depth, {mid, flip, draft, thin})` | extrude (add) of the last sketch |
 | `.cut(depth \| through(), {...})` | extrude (cut) of the last sketch |
-| `.revolve(angle = 360, {op, thin})` | revolve about the sketch's Y axis (a construction line is added) |
+| `.revolve(angle = 360, {op, thin, axis})` | revolve about the sketch's Y axis (a construction line is added), or `axis: {from: [x0, y0], to: [x1, y1]}`, any line in the sketch plane (e.g. a cone about an offset axis) |
 | `.thin(t)` | makes the previous extrude / revolve thin-walled |
 | `.hole(face, [x, y], {diameter, depth?})` | sketch with a point + simple hole (through unless `depth`) |
 | `.fillet(edges, r)`, `.chamfer(edges, d)` | fillet / chamfer |
+| `.holes.polar(face, {center, radius, count, startAngle = 0}, {diameter, depth?})` | ONE hole feature at `count` points on a circle (sketch-plane coordinates) |
+| `.holes.grid(face, {origin, pitch: [dx, dy], count: [nx, ny]}, {diameter, depth?})` | ONE hole feature at a grid of points |
+| `.holes.points(face, [[x, y], ...], {diameter, depth?})` | ONE hole feature at the listed points |
 | `.shell(face, t)` | shell, the face is opened |
 | `.linearPattern({count, spacing, axis})` | pattern of the last feature along x / y / z |
 | `.circularPattern({count, axis, angle})` | pattern of the last feature about x / y / z |
@@ -38,6 +41,8 @@ Resolved when the script runs, against the body as it is just BEFORE that step.
 
 * `face(sel)`: one planar face. `'>X' '<X' '>Y' '<Y' '>Z' '<Z'`: the face whose normal is that axis and which is furthest along it (ties: the biggest). `'#top'` = `'>Z'`, `'#bottom'` = `'<Z'`.
 * `edges(sel)`: `'all'`; `'|X' '|Y' '|Z'` straight edges parallel to the axis; `'>X' … '<Z'` edges lying in the extreme plane along that axis.
+
+* `edges(rule)`: a rule object; keys AND together. `parallel: 'X'|'Y'|'Z'` (straight edges), `outside: [[x0,y0,z0],[x1,y1,z1]]` / `inside: box` (edge midpoint outside / inside the box), `not: edges(...)`, `onFace: face(...)`, `lengthGreater: n`, `lengthLess: n`, `near: [x,y,z], within: r` (midpoint within r), and set operators `union: [edges(...), ...]`, `intersect: [...]`, `difference: [a, b, ...]` (a minus the others). Rules nest, e.g. `edges({ parallel: 'Z', outside: [[0,-99,-99],[99,99,99]] })` or `edges({ not: edges('|X') })`.
 
 An unsupported selector, or one that matches nothing, gives `Line N: ...` in the error list; clicking it selects that line.
 
