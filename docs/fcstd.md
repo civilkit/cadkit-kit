@@ -49,17 +49,16 @@ are checked in as test fixtures under `packages/fcstd/fixtures` (see `SOURCE.txt
 | PadTest.fcstd | same | 52 KB | 0.14 file: Body, 3 sketches, 3 Pad | 1 of 3 (Pad001 and Pad002 are up-to-last / up-to-face) | Pad 3e-16 |
 | EngineBlock.FCStd | FreeCAD `data/examples`, LGPL-2.1 | 87 KB | Part workbench only: Box x5, Cylinder x3, Extrusion x7, Cut x5, MultiFuse x3, Mirroring x3, Part2DObjectPython x8 | 0 (no PartDesign Body) | not applicable |
 | dressuptest.FCStd | FreeCAD CAM tests, LGPL-2.1 | 42 KB | Path (CAM) and Python feature objects, one Box | 0, out of scope | not applicable |
-| Universal Joint.FCStd | local, licence unknown | 406 KB | 12 Bodies, 5 App::Part, Assembly + joints, 11 sketches (69 lines, 25 arcs, 4 circles), 7 Pad, 2 Pocket, Revolution, Groove, Fillet, 2 Boolean, 3 SubShapeBinder, 5 clones, 5 Python features | Pad of three bodies exact (0 to 1e-16); Body003 and Body005 limited by binders, booleans, axes taken from other objects | Pad 0, Pad001 0 (after the negative-length fix); a Pad on a binder cannot be compared (FreeCAD volume is of the fused result, and signed) |
-| hopper_shape.FCStd | local | 4.1 MB | Body with 4 sketches (53 lines, 31 circles, 5 B-splines, 21 points, 52 internal-alignment constraints) and one `Part::Feature` (a loft or imported shape, no PartDesign features) | 0 | not applicable |
+| Universal Joint.FCStd | local, licence unknown | 406 KB | 12 Bodies, 5 App::Part, Assembly + joints, 11 sketches (69 lines, 25 arcs, 4 circles), 7 Pad, 2 Pocket, Revolution, Groove, Fillet, 2 Boolean, 3 SubShapeBinder, 5 clones, 5 Python features | Pad of two bodies exact (0); Body003 and Body005 limited by binders, booleans, axes taken from other objects | Pad 0, Pad001 0 (after the negative-length fix); a Pad on a binder cannot be compared (FreeCAD volume is of the fused result, and signed) |
+| hopper_shape.FCStd | local | 4.1 MB | Body with 4 sketches (53 lines, 31 circles, 5 B-splines, 21 points, 52 internal-alignment constraints) and one `Part::Feature` (a shape feature; no PartDesign features) | 0 | not applicable |
 | Spinfire_Core.FCStd | local | 3.2 MB | 94 `Part::Feature` shapes in 9 App::Part groups | 0 (shapes only) | not applicable |
 | Tropical Modern Living Space.FCStd | local | 84 KB | 30 Part::Feature, 9 Python features, 1 sketch | 0 | not applicable |
 | FRY002_..._ASM.STEP.FCStd | local | 2.4 KB | empty document | 0 | not applicable |
 
-Across the six files that have a PartDesign tree, 17 of the 20 FreeCAD features that reach the importer are mapped
-(3 are not because of up-to-face end conditions) and 15 of them regenerate to under 2e-6 relative volume error against FreeCAD's
-own cached shape of the same step. The two Grooves of the Pozidriv example map but fail in our boolean (`booleanFailed`,
-a coincident-surface case: the groove cuts a revolved profile whose seam lies in the cutting profile), so the result is
-within 9e-4 of FreeCAD, not failed. Per-step comparison is `packages/fcstd/src/real.kernel.test.ts` (set `CK_WASM`,
+Across the six files that have a PartDesign tree, 18 of the 22 FreeCAD features are mapped (4 are not: up-to-first / last / face
+end conditions) and 16 of the 18 regenerate to under 2e-6 relative volume error against FreeCAD's own cached shape of the
+same step. The last two Grooves of the Pozidriv example map but our boolean reports `booleanFailed` for them (cause not
+investigated), so the result is within 9e-4 of FreeCAD rather than exact. Per-step comparison is `packages/fcstd/src/real.kernel.test.ts` (set `CK_WASM`,
 `FCSTD_DIR`, `FCSTD_VOLS` = JSON of OCCT volumes by object name made with `OCP`, `FCSTD_FILES`).
 
 ## What the importer supports
@@ -94,13 +93,13 @@ of thirteen files here that have no PartDesign tree (Part workbench, imported sh
 
 ## Gaps, ranked by how many of the 13 files they block
 
-1. **BRep text to kernel body** (view-only import of the cached shapes): blocks 6 of 13 files completely (EngineBlock, dressuptest, hopper_shape, Spinfire_Core, Tropical, and the Universal Joint binders/clones); also the fallback for any unmappable feature. About 600 to 900 lines for the reader plus a kernel entry that builds a body from analytic and B-spline faces (STEP import has most of it).
+1. **BRep text to kernel body** (view-only import of the cached shapes): blocks 6 of 13 files completely (EngineBlock, dressuptest, hopper_shape, Spinfire_Core, Tropical, FRY002); also the fallback for any unmappable feature. About 600 to 900 lines for the reader plus a kernel entry that builds a body from analytic and B-spline faces (STEP import has most of it).
 2. **Multi-body, App::Part, binders, clones, assembly joints**: Universal Joint, Spinfire_Core and any real assembly. Needs one part per body with its placement, `SubShapeBinder` as a reference to another body, joints to our mates (coincident / revolute exist).
 3. **End conditions up to first / last / face (and through-all pockets in old files)**: PadTest, PocketTest and a Pad in Universal Joint. The kernel has `upToFace` / `offsetFromFace` / `upToNext`; the work is mapping the face name to a persistent face (same BRep lookup as edges, for faces) and the up-to-last / first semantics.
 4. **Sketch constraints and B-splines**: point on object, symmetric, angle, block, internal alignment appear in every file that has a sketch (PartDesignExample 14 point-on-object, Universal Joint 21 and 7 symmetric, hopper_shape 52 internal alignments); our solver has `pointOnCircle`, `midpoint`, `mate`; needs `pointOnLine` / symmetric / angle checked in the sketch schema, and B-spline entities with knots and weights (the `spline` entity takes through-points only; sampling loses editability). Does not change the volume, changes how the sketch behaves when edited.
 5. **Arbitrary sketch planes** (a custom frame: origin, x axis, normal): no file here needs it (all sketches are axis aligned), but any tilted datum plane does. A `plane` feature `mode:"frame"` (or 3 points) in the kernel removes the only placement restriction.
 
-Smaller: Thickness (needs face lookup, then `shell`), Draft, Hole (a cut with a circle sketch is enough for plain holes; threaded and counterbore map to `hole`/`thread`), Part workbench primitives (Box and Cylinder map to extrudes; Cut / Fuse / Common / Mirroring to booleans we do not expose as features), expressions and spreadsheets (map `Spreadsheet.A1` to our variables; cached values are used today), loft / pipe / helix, a boolean robustness case (`Groove001` of the Pozidriv example).
+Smaller: Thickness (needs face lookup, then `shell`), Draft, Hole (a cut with a circle sketch is enough for plain holes; threaded and counterbore map to `hole`/`thread`), Part workbench primitives (Box and Cylinder map to extrudes; Cut / Fuse / Common / Mirroring to booleans we do not expose as features), expressions and spreadsheets (map `Spreadsheet.A1` to our variables; cached values are used today), loft / pipe / helix, the boolean failure of `Groove001` / `Groove002` in the Pozidriv example (needs a kernel look).
 
 ## Effort estimate for a full importer
 
