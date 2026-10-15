@@ -57,6 +57,7 @@ export function useHandles(p: HandlesDeps) {
   const [boxOn, setBoxOn] = useState(false);
   const session = useRef<HandleSession | null>(null);
   const [fieldsOpen, setFieldsOpen] = useState(false);
+  const fieldsFor = useRef<string | undefined>(undefined);
   const [ask, setAsk] = useState<HandleCommit | null>(null);
   const nudge = useRef<{ du: number; dv: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
   if (!runner.current) {
@@ -66,7 +67,7 @@ export function useHandles(p: HandlesDeps) {
       busy: (on) => { dragging.current = on; if (!on) setTick((n) => n + 1); },
       commit: async (c) => { if (c.choices) { setAsk(c); return; } if (c.notice) ref.current.store.notify(c.notice, 'warn'); if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
       hint: setHint,
-      activate: (id) => { if (id === 'move' || id === 'anchor') setFieldsOpen(true); },
+      activate: (id) => { if (id === 'move' || id === 'anchor') { fieldsFor.current = session.current?.target; setFieldsOpen(true); } },
     });
   }
 
@@ -103,7 +104,7 @@ export function useHandles(p: HandlesDeps) {
     const s = plan();
     session.current = s;
     setBoxOn(s?.kind === 'size-box');
-    setFieldsOpen(false);
+    if (!s?.target || s.target !== fieldsFor.current) setFieldsOpen(false);     // a replan after a gesture keeps the fields of the same shape open
     const doc = p.controller.document();
     const onShape = s?.kind === 'size-box' && s.target ? (face: string) => ownerShape(doc, face) === s.target : null;
     vp.setHandles(s ? s.specs : null, s ? runner.current!.sink(s) : null, onShape);
@@ -128,7 +129,7 @@ export function useHandles(p: HandlesDeps) {
       if (a && a !== document.body && a.tagName !== 'CANVAS') return;     // focus is on a button, the tree, a field: the keys are theirs
       if (e.key === 'Escape' && nudge.current) { e.preventDefault(); e.stopPropagation(); if (nudge.current.timer) clearTimeout(nudge.current.timer); nudge.current = null; void runner.current!.cancel(); return; }
       if (e.ctrlKey || e.metaKey) return;
-      if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); setFieldsOpen(true); return; }
+      if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); fieldsFor.current = s.target; setFieldsOpen(true); return; }
       const dir = e.key === 'ArrowRight' ? [1, 0] : e.key === 'ArrowLeft' ? [-1, 0] : e.key === 'ArrowUp' ? [0, 1] : e.key === 'ArrowDown' ? [0, -1] : null;
       if (!dir) return;
       e.preventDefault(); e.stopPropagation();

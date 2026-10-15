@@ -227,7 +227,7 @@ export class HandleLayer {
       b.group.matrixWorldNeedsUpdate = true;
       const lift = hot ? 0.45 : 0;
       for (const mt of b.materials) if (mt instanceof THREE.MeshBasicMaterial) mt.color.set(s.color ?? KIND_COLOUR[s.kind]).lerp(new THREE.Color('#ffffff'), lift);
-      b.group.visible = (!this.drag || this.drag.st.spec.id === s.id) && shownAt(s, w);
+      b.group.visible = (!this.drag || this.drag.st.spec.id === s.id || (!!s.reportMods && !!this.drag.st.spec.reportMods)) && shownAt(s, w);
     }
     this.placeReadout();
   }

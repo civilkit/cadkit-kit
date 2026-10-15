@@ -44,6 +44,8 @@ export interface HandleSpec {
   look?: 'diamond';
   /** A planar widget that reports the modifier keys itself (the move pad / anchor): its drag is the raw pointer move, the sink decides what Shift, Ctrl and Alt do. */
   reportMods?: boolean;
+  /** Overrides the kind's hit priority (lower wins): the anchor diamond wins over the pad it sits on, only at its own spot. */
+  priority?: number;
   /** The widget hides (and cannot be hit) while `spanWorld` is smaller than `showMinPx` on screen, so crowded handles clear off a small shape. */
   spanWorld?: number;
   showMinPx?: number;
@@ -219,7 +221,7 @@ function distToSegment(px: number, py: number, a: [number, number], b: [number, 
   return Math.hypot(px - (a[0] + t * dx), py - (a[1] + t * dy));
 }
 
-export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22, cube: 5, pad: 16, wire: 0, label: 0 };
+export const DEFAULT_SIZE: Record<HandleKind, number> = { arrow: 70, dot: 8, ring: 64, plane: 22, cube: 5, pad: 24, wire: 0, label: 0 };
 
 /** Points (world) that outline a ring handle. */
 export function ringPoints(centre: Vec3, axis: Vec3, radius: number, n = 48): Vec3[] {
@@ -250,7 +252,7 @@ function inQuad(px: number, py: number, q: [number, number][]): boolean {
   return inside;
 }
 
-const PRIORITY: Record<HandleKind, number> = { cube: 0, dot: 0, pad: 0.5, arrow: 1, plane: 2, ring: 3, wire: 9, label: 9 };
+const PRIORITY: Record<HandleKind, number> = { cube: 0, dot: 0, pad: -0.5, arrow: 1, plane: 2, ring: 3, wire: 9, label: 9 };
 
 /** The handle under the pointer (pixels), or null. A dot wins over an arrow, an arrow over a plane square, a square over a ring. */
 export function hitHandle(specs: HandleSpec[], project: Project, px: number, py: number, worldPerPx: (p: Vec3) => number, tol = 7): string | null {
@@ -278,7 +280,7 @@ export function hitHandle(specs: HandleSpec[], project: Project, px: number, py:
       if (q.every(Boolean) && inQuad(px, py, q as [number, number][])) d = 0;
     }
     if (d === null) continue;
-    const pr = PRIORITY[s.kind];
+    const pr = s.priority ?? PRIORITY[s.kind];
     if (!best || pr < best.pr || (pr === best.pr && d < best.d)) best = { id: s.id, d, pr };
   }
   return best?.id ?? null;

@@ -74,3 +74,10 @@ on a flat face with volume checks, uv placement, bottom face, curved face, groun
 
 Rib; patterns of dropped shapes; resize handles (the size box); catalog items saved from the user's own parts; a sphere that
 is whole and sits on a face (kernel meshing, above); placing on surface (sheet) bodies.
+
+## Repositioning a placed shape
+
+After the drop the shape is selected and shows its size box. Move it with the magenta pad at the centre of its footprint, by dragging the
+shape itself, by typing an offset (Tab) or with the arrow keys; it snaps like the placement did (same code: corners, hole-rim centres, edge
+midpoints, face centres, plus centres of other shapes and alignment guides; Alt switches snapping off). See "Moving a shape" in
+`docs/size-box.md`.

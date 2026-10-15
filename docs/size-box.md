@@ -28,7 +28,8 @@ with an editor open. The `handles` workspace setting still switches everything o
 | `v1`, `v0` (along sketch y) | green | length |
 | `df` (far cap; blind extrude / hole) or `d1`, `d0` (mid-plane extrude) | blue | feature `depth` |
 | `c++`, `c+-`, `c-+`, `c--` (corners of the cap) | grey | width and length together |
-| `anchor` (at the sketch origin; a hole: its centre) | orange | moves the shape in the sketch |
+| `move` (the pad: a flat four-arrow cross at the centre of the footprint, on the sketch plane) | magenta | moves the shape in its sketch plane |
+| `anchor` (small diamond on the pad: the profile's reference point, a hole's centre) | orange | the same move; the point Anchor mode resizes about |
 
 The quantity of a face handle is the new dimension, so a typed value and a drag are the same operation. Dragging a face
 outward grows the dimension in both directions (each of the two faces has its own handle).
@@ -60,11 +61,38 @@ factor); a polygon scales per direction. The face handle tracks the pointer in e
 * Which entities: the shapes the feature uses (`regions`), else every closed outline of the sketch.
 * Hole: `set diameter` (plain `simple` holes only; cbore / countersink holes show the box and anchor, no width or length handles),
   `set depth` for blind holes, and the hole point of its sketch moves for the anchor or an off-centre resize.
-* The anchor drag moves the shape relative to the sketch origin. The marker stays on the origin after the release.
+* The anchor is the profile's own reference point (its footprint centre), not the sketch origin, so it follows the shape after a move.
+
+## Moving a shape
+
+Four ways, all the same edit: drag the **move pad**; press-drag **the shape itself** (its cut region, walls or boss top; a movement of
+under 4 px is still a click and selects; orbit with the right or middle button is unchanged); type the offset (**Tab** or double-click the
+pad: "X offset", "Y offset" from where the shape is now along the sketch axes, numbers or expressions, and "Distance from edge": pick
+the left / right / bottom / top edge of the face it sits on and type the clear distance); or **arrow keys** (canvas focus, no field
+focused): nudge by the grid step, 1 mm (5 above 100 mm parts, 10 above a metre), Shift 10x, Alt 0.1x, along the sketch's x and y axes;
+a burst of presses is one edit, Esc drops it.
+
+* The move translates the profile IN ITS SKETCH PLANE by editing the sketch: every outline point, the points of construction geometry
+  (a revolve axis) and the dimension constraints that follow (a pinned point moves too and its `fix` value follows). Constraints that the move
+  breaks are removed and named. A hole moves its hole point. Live preview through the normal preview path, ONE undo step per drag.
+  Only the whole profile moves; there is no single-point move here (use the sketch editor).
+* Modifiers: **Shift** one axis (the larger), **Ctrl** snap to the grid step, **Alt** no snapping (they can be pressed or released mid-drag).
+* Snapping is the Catalog's (`catalog/geometry.ts`: `snapTo`, `circleCentre`): the shape's centre catches corners, hole-rim centres,
+  edge midpoints, the face centre and the centres of other shapes on the same plane, within 14 px, with a chip in the readout
+  ("Move dx 10, dy 2 mm - face centre"). Candidates are the body's edges lying IN the sketch plane; the shape's own outline is skipped.
+  When no point catches, each axis aligns the shape's centre or a side with a candidate coordinate or an edge of the host face, with a
+  dotted magenta inference line.
+* While dragging the original footprint stays as a grey ghost and the readout shows (dx, dy). Esc cancels.
+* A sketch used by several features asks on release: **Move all** (everything that uses it moves) or **Duplicate sketch** (a copy
+  of the moved sketch is inserted before this shape and only this shape reads it).
+* Handles that would crowd a small shape hide until the view is zoomed in: face handles below 90 px, corner handles below
+  100 px, the depth handle below 50 px; the number labels stay (click to type). The move ball (F10) still does 3D moves.
+* Code: `handles/move.ts` (snap candidates, `resolveMove`, edge distance), `handles/MoveFields.tsx` (typed fields), `useHandles.tsx`
+  (keys, dialogs), `translateSketch` / `moveCommit` in `sizeBox.ts`, the pad and the shape-surface drag in `packages/viewport/src/handleLayer.ts`.
 
 ## Limits
 
-* The sketch is shared: another feature using the same sketch changes with it.
+* A sketch shared by several features is moved only after the Move all / Duplicate sketch question; a resize still changes every user.
 * Through / up-to extrudes get width, length and corners but no depth handle (their box depth is the body extent).
 * Revolve: the box is the flat profile rectangle (no angle or axis handle). Slots resize uniformly like other arc profiles,
   not by lengthening only the straight part. Angle constraints are not recomputed under non-uniform scaling.

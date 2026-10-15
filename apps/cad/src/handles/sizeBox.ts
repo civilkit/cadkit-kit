@@ -420,7 +420,7 @@ const ANCHOR_COLOUR = '#f5a623';
 const MOVE_COLOUR = '#d6409f';
 const GHOST_COLOUR = '#9aa7b5';
 /** Below these on-screen spans (pixels) the handles that would crowd the move pad hide until the view is zoomed in. */
-const FACE_MIN_PX = 60, CORNER_MIN_PX = 90;
+const FACE_MIN_PX = 90, CORNER_MIN_PX = 100, DEPTH_MIN_PX = 50;
 
 export function worldOf(f: Frame3, u: number, v: number, d: number): Vec3 {
   return [f.o[0] + f.x[0] * u + f.y[0] * v + f.z[0] * d, f.o[1] + f.x[1] * u + f.y[1] * v + f.z[1] * d, f.o[2] + f.x[2] * u + f.y[2] * v + f.z[2] * d];
@@ -459,10 +459,10 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
     out.push(face('v0', W(um, v0, dm), neg(f.y), length, faceScale(v0, v1, 'lo', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
   }
   const far = shape.dir > 0 ? d1 : d0;
-  if (shape.depth === 'blind') out.push(face('df', W(um, vm, far), V.mul(f.z, shape.dir), depth, 1, AXIS_COLOUR.d, t('sizebox.height.tip')));
+  if (shape.depth === 'blind') out.push({ ...face('df', W(um, vm, far), V.mul(f.z, shape.dir), depth, 1, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
   if (shape.depth === 'mid') {
-    out.push(face('d1', W(um, vm, d1), f.z, depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')));
-    out.push(face('d0', W(um, vm, d0), neg(f.z), depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')));
+    out.push({ ...face('d1', W(um, vm, d1), f.z, depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
+    out.push({ ...face('d0', W(um, vm, d0), neg(f.z), depth, 2, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
   }
   // corners of the cap (the end face away from the sketch plane)
   const cap = shape.depth === 'mid' ? d1 : far;
@@ -472,10 +472,10 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
     }
   }
   // the MOVE pad: a flat four-arrow cross at the centre of the footprint on the sketch plane; dragging it (or the shape's own faces) moves the shape
-  out.push({ id: 'move', kind: 'pad', origin: W(um, vm, 0), axis: f.z, u: f.x, drag: 'plane', reportMods: true, sizePx: 17, color: MOVE_COLOUR, unit: 'mm', label: t('sizebox.move.tip'), follow: true });
+  out.push({ id: 'move', kind: 'pad', origin: W(um, vm, 0), axis: f.z, u: f.x, drag: 'plane', reportMods: true, sizePx: 24, color: MOVE_COLOUR, unit: 'mm', label: t('sizebox.move.tip'), follow: true });
   // the anchor: the profile's reference point (an orange diamond, kept off the pad's centre by being drawn small on top of it)
   const au = shape.anchor.u + (o.anchorAt?.u ?? 0), av = shape.anchor.v + (o.anchorAt?.v ?? 0);
-  out.push({ id: 'anchor', kind: 'cube', look: 'diamond', reportMods: true, origin: W(au, av, 0), axis: f.z, u: f.x, drag: 'plane', sizePx: 6, color: ANCHOR_COLOUR, unit: 'mm', label: t('sizebox.anchor.tip'), follow: true });
+  out.push({ id: 'anchor', kind: 'cube', look: 'diamond', reportMods: true, priority: -1, origin: W(au, av, 0), axis: f.z, u: f.x, drag: 'plane', sizePx: 5, color: ANCHOR_COLOUR, unit: 'mm', label: t('sizebox.anchor.tip'), follow: true });
   // the original footprint (ghost) and the alignment guides, only while a move runs
   const sb = shape.box;
   const ghost: Vec3[] = o.moving ? [W(sb.u0, sb.v0, 0), W(sb.u1, sb.v0, 0), W(sb.u1, sb.v0, 0), W(sb.u1, sb.v1, 0), W(sb.u1, sb.v1, 0), W(sb.u0, sb.v1, 0), W(sb.u0, sb.v1, 0), W(sb.u0, sb.v0, 0)] : [];
