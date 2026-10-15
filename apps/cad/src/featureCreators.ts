@@ -25,11 +25,11 @@ function degrees(ents: Ent[]): Map<string, number> {
   const bump = (p?: string) => { if (p) d.set(p, (d.get(p) ?? 0) + 1); };
   for (const e of ents) {
     if (e.type === 'line' || e.type === 'arc') { bump(e.p1); bump(e.p2); }
-    else if (e.type === 'spline' && e.pts && e.pts.length > 1) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
+    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
   }
   return d;
 }
-const chainEntities = (ents: Ent[]) => ents.filter((e) => e.type === 'line' || e.type === 'arc' || e.type === 'spline');
+const chainEntities = (ents: Ent[]) => ents.filter((e) => e.type === 'line' || e.type === 'arc' || e.type === 'spline' || e.type === 'cvspline');
 const hasCircle = (s: Feat): boolean => entitiesOf(s).some((e) => e.type === 'circle' || e.type === 'ellipse');
 /** A chain of lines / arcs with two loose ends (what a rib is drawn from). */
 export const isOpenSketch = (s: Feat): boolean => {

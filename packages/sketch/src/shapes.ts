@@ -55,6 +55,40 @@ export function sketchShapes(feature: FeatureLike | null | undefined): SketchSha
   return out.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
+/** An open chain of a sketch: lines, arcs and splines joined end to end that do not close (a thin wall can be made of it). */
+export interface SketchChain {
+  /** One entity id of the chain: what `regions` takes. */
+  id: string;
+  entityIds: string[];
+  /** The two loose end points (point ids) when the chain is a simple path, else null. */
+  ends: [string, string] | null;
+}
+
+/** The open chains of a sketch (construction geometry is left out; circles and closed loops are shapes, not chains). */
+export function sketchOpenChains(feature: FeatureLike | null | undefined): SketchChain[] {
+  const out: SketchChain[] = [];
+  const chain = (feature?.entities ?? []).filter((e) => !e.construction && e.type !== 'circle' && e.type !== 'ellipse');
+  const parent = new Map<string, string>();
+  const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; return r; };
+  const union = (a: string, b: string) => { if (!parent.has(a)) parent.set(a, a); if (!parent.has(b)) parent.set(b, b); parent.set(find(a), find(b)); };
+  const segs: Array<{ id: string; ends: string[] }> = [];
+  for (const e of chain) {
+    const ends = endpoints(e);
+    if (ends.length === 2) { union(ends[0], ends[1]); segs.push({ id: e.id, ends }); }
+  }
+  const groups = new Map<string, Array<{ id: string; ends: string[] }>>();
+  for (const s of segs) { const r = find(s.ends[0]); groups.set(r, [...(groups.get(r) ?? []), s]); }
+  for (const g of groups.values()) {
+    const degree = new Map<string, number>();
+    for (const s of g) for (const p of s.ends) degree.set(p, (degree.get(p) ?? 0) + 1);
+    if ([...degree.values()].every((d) => d === 2)) continue;   // closed: a shape
+    const loose = [...degree.entries()].filter(([, d]) => d === 1).map(([p]) => p);
+    out.push({ id: g[0].id, entityIds: g.map((s) => s.id), ends: loose.length === 2 && [...degree.values()].every((d) => d <= 2) ? [loose[0], loose[1]] : null });
+  }
+  const order = new Map((feature?.entities ?? []).map((e, i) => [e.id, i]));
+  return out.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
 /** The `regions` value for a set of checked shapes: null when all are checked (the kernel then uses every region of the sketch,
  *  holes included), else the id of each checked shape. */
 export function regionsFor(shapes: SketchShape[], checked: ReadonlySet<string>): string[] | null {

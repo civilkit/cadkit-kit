@@ -19,6 +19,7 @@ import { bisectorAt, faceInfo, onHull, surfaceNear, type MeshLike } from './geom
 import { MIN_SIZE, type HandleSession } from './session';
 import { placementSession, type Placement } from './placement';
 import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
+import { thinOf } from '../thinRules';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
 
@@ -153,6 +154,27 @@ function shellThickness(c: PlanCtx, name: string): HandleSession | null {
   };
 }
 
+
+/** The offset wall (`Fn.S.<entity>.W0`) of a thin extrude / revolve: dragging it along its outward normal edits the wall `thickness`
+ *  (`mid` grows on both sides, so the face moves half as far as the thickness changes). */
+function thinThickness(c: PlanCtx, f: Feat, name: string): HandleSession | null {
+  const spec0 = thinOf(f);
+  const t0 = spec0 && typeof spec0.thickness === 'number' ? spec0.thickness : null;
+  if (!c.mesh || !spec0 || t0 === null) return null;
+  const info = faceInfo(c.mesh, name);
+  if (!info) return null;
+  const on = surfaceNear(c.mesh, name, info.centroid);
+  if (!on) return null;
+  const spec: HandleSpec = { id: 'thin', kind: 'arrow', origin: on.point, axis: on.normal, base: t0, scale: spec0.side === 'mid' ? 2 : 1, sizePx: 80, unit: 'mm', label: t('handles.thin.label') };
+  const ops = (q: number): EditOp[] | null => (q < MIN_SIZE ? null : [set(f.id, 'thin', { ...(f.thin as object), thickness: Math.round(q * 100) / 100 })]);
+  return {
+    kind: 'thin-thickness', target: f.id, specs: [spec],
+    preview: (_id, q) => ops(q),
+    commit: (_id, q) => { const o = ops(q); return o ? { ops: o, create: false } : null; },
+    format: (_id, q) => t('handles.thin', { v: fmt(Math.max(q, 0)) }),
+  };
+}
+
 function holeDiameterGesture(c: PlanCtx, h: Feat, name: string): HandleSession | null {
   if (!c.mesh || kindOf(h) !== 'simple') return null;
   const d0 = holeDiameter(h);
@@ -196,6 +218,8 @@ export function planHandles(c: PlanCtx): HandleSession | null {
     if (round) return roundEdit(c, round, name);
     const ex = feats(c.doc).find((f) => f.type === 'extrude' && name === f.id + '.C1');
     if (ex) return extrudeDepth(c, ex, name);
+    const thin = feats(c.doc).find((f) => (f.type === 'extrude' || f.type === 'revolve') && thinOf(f) && name.startsWith(f.id + '.S.') && /\.W0(~\d+)?$/.test(name));
+    if (thin) return thinThickness(c, thin, name);
     const hole = feats(c.doc).find((f) => f.type === 'hole' && name.startsWith(f.id + '.S.h'));
     if (hole) return holeDiameterGesture(c, hole, name);
     return shellThickness(c, name);

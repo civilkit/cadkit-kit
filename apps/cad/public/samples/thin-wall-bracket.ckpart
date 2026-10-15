@@ -1,0 +1,36 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "thin-wall-bracket",
+ "features": [
+  {
+   "type": "sketch", "id": "F1", "name": "C arc", "plane": {"kind": "std", "id": "front"},
+   "points": [
+    {"id": "p0", "x": 20, "y": 0}, {"id": "p1", "x": 14, "y": 14}, {"id": "p2", "x": 0, "y": 20},
+    {"id": "p3", "x": -14, "y": 14}, {"id": "p4", "x": -20, "y": 0}, {"id": "p5", "x": -14, "y": -14}
+   ],
+   "entities": [{"type": "spline", "id": "e1", "pts": ["p0", "p1", "p2", "p3", "p4", "p5"], "closed": false}],
+   "constraints": []
+  },
+  {
+   "type": "extrude", "id": "F2", "name": "Bracket wall", "op": "add", "sketch": "F1", "end": "blind", "depth": 30,
+   "thin": {"thickness": 3, "side": "mid", "ends": "flat", "cornerStyle": "mitre"}
+  },
+  {
+   "type": "sketch", "id": "F3", "name": "Sleeve profile", "plane": {"kind": "std", "id": "front"},
+   "points": [
+    {"id": "a", "x": 17, "y": -8}, {"id": "b", "x": 17, "y": 8},
+    {"id": "o1", "x": 0, "y": -14}, {"id": "o2", "x": 0, "y": 14}
+   ],
+   "entities": [
+    {"type": "line", "id": "e1", "p1": "a", "p2": "b"},
+    {"type": "line", "id": "ax", "p1": "o1", "p2": "o2", "construction": true}
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve", "id": "F4", "name": "Sleeve", "op": "add", "sketch": "F3", "axis": "ax", "angle": 360,
+   "thin": {"thickness": 2, "side": "mid"}
+  }
+ ]
+}
