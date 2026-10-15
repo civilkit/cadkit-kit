@@ -20,6 +20,7 @@ import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, edgePixels, HIDDEN_EDGE_OPACITY, effectiveLight, backgroundColors, materialParams, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode, type EdgeWidth, type Appearance } from './styles';
 import { buildStudioEnv } from './studioEnv';
+const TECHNICAL_FACE = '#f2f4f7';
 import { makeHullMaterial } from './hull';
 import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
 import { AnalysisLayer } from './analysisLayer';
@@ -990,7 +991,7 @@ export class Viewport {
     geo.setAttribute('aSurf', new THREE.BufferAttribute(new Float32Array((g.positions.length / 3) * 2).fill(-1), 2));
     this.grouped = g;
     this.faceLooks(geo);
-    const bodyMat = makeBodyMaterial(this.look, this.bodyFade(), this.baseTints !== null);
+    const bodyMat = makeBodyMaterial(this.shownLook(), this.bodyFade(), this.baseTints !== null);
     this.analysis.install(bodyMat);
     this.analysis.reset();
     this.mesh = new THREE.Mesh(geo, bodyMat);
@@ -1047,7 +1048,7 @@ export class Viewport {
     if (this.mesh) {
       this.faceLooks(this.mesh.geometry);
       const mat = this.mesh.material as THREE.MeshStandardMaterial;
-      applyBodyLook(mat, this.look, this.bodyFade(), this.baseTints !== null);
+      applyBodyLook(mat, this.shownLook(), this.bodyFade(), this.baseTints !== null);
       if (this.baseTints && spec.faces === 'shaded') mat.color.setHex(0xffffff);   // the colour is in the vertices
       else if (this.baseTints && spec.faces === 'translucent') mat.color.setHex(0xffffff);
     }
@@ -1091,6 +1092,7 @@ export class Viewport {
     this.sun.intensity = l.sun;
     this.scene.environment = this.envTex && l.env > 0 ? this.envTex : null;
     this.scene.environmentIntensity = l.env;
+    this.metalScale = Math.min(1, l.env);
     this.renderer.toneMappingExposure = l.exposure;
     this.sunOffset.set(-0.42, 0.62, 0.66).multiplyScalar(100);
     this.applyMeshLook();
@@ -1122,12 +1124,12 @@ export class Viewport {
     let col = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
     if (!col || col.count !== nv || this.analysisColored()) { col = new THREE.BufferAttribute(new Float32Array(nv * 3), 3); geo.setAttribute('color', col); }
     const surf = geo.getAttribute('aSurf') as THREE.BufferAttribute;
-    const c = this.tmpColor, own = this.look.appearance;
+    const c = this.tmpColor, own = this.shownLook().appearance;
     for (const r of g.ranges) {
       const app = (comps && this.compLooks.get(this.ownerFn(r.name) ?? '')) || own;
       c.set(app.color);
       if (this.surfaceFaces.has(r.name)) c.multiply(this.tintColor.setRGB(SURFACE_TINT[0], SURFACE_TINT[1], SURFACE_TINT[2]));
-      const mp = materialParams(app.material);
+      const mp = this.scaledFinish(materialParams(app.material));
       for (let v = r.start; v < r.start + r.count; v++) {
         col.setXYZ(v, c.r, c.g, c.b);
         surf.setXY(v, comps ? mp.roughness : -1, comps ? mp.metalness : -1);
@@ -1135,6 +1137,17 @@ export class Viewport {
     }
     col.needsUpdate = true; surf.needsUpdate = true;
     this.baseTints = col.array as Float32Array;
+  }
+  /** The look the body is drawn with: technical paints every face matte white. */
+  private shownLook(): BodyLook {
+    const l = this.look;
+    const appearance = this.lightPreset === 'technical' ? { color: TECHNICAL_FACE, material: 'matte' as const } : l.appearance;
+    return { ...l, appearance, metalScale: this.metalScale };
+  }
+  /** Metal needs reflections: with little or no studio light the metalness fades out so faces do not go black. */
+  private metalScale = 1;
+  private scaledFinish(p: { roughness: number; metalness: number }): { roughness: number; metalness: number } {
+    return { roughness: p.roughness, metalness: p.metalness * this.metalScale };
   }
   private readonly tmpColor = new THREE.Color();
   private readonly tintColor = new THREE.Color();

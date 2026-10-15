@@ -64,7 +64,7 @@ export function sanitizeAppearance(raw: unknown): Appearance {
   };
 }
 
-export interface BodyLook { style: DisplayStyle; ghostOpacity: number; appearance: Appearance }
+export interface BodyLook { style: DisplayStyle; ghostOpacity: number; appearance: Appearance; /** 0..1 factor on the metalness (no reflections, no metal) */ metalScale?: number }
 
 /** Apply a look to the body's material (`tinted`: the mesh has a per-vertex colour attribute, for surface bodies): the colour, roughness, metalness, opacity and which buffers it writes.
  *  `fade` (the sketch editor) caps the opacity and so composes with every style. */
@@ -73,7 +73,7 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
   const p = materialParams(look.appearance.material);
   let opacity = p.opacity;
   mat.color.set(look.appearance.color);
-  mat.roughness = p.roughness; mat.metalness = p.metalness;
+  mat.roughness = p.roughness; mat.metalness = p.metalness * (look.metalScale ?? 1);
   mat.emissive.set(0x000000); mat.emissiveIntensity = 1;
   mat.colorWrite = true; mat.depthWrite = true;
   mat.vertexColors = tinted && spec.faces !== 'white';   // surface bodies carry a tint per vertex; hidden-line white stays plain
@@ -112,9 +112,9 @@ export const HIDDEN_EDGE_OPACITY = 0.18;
 export interface LightSpec { sky: number; ground: number; hemi: number; sun: number; fill: number; env: number; exposure: number; white: boolean }
 export function lightSpec(p: LightPreset): LightSpec {
   switch (p) {
-    case 'flat': return { sky: 0xffffff, ground: 0xffffff, hemi: 1.6, sun: 0, fill: 0, env: 0, exposure: 1, white: false };
-    case 'contrast': return { sky: 0xffffff, ground: 0x202428, hemi: 0.15, sun: 2.4, fill: 0, env: 0.45, exposure: 1, white: false };
-    case 'technical': return { sky: 0xffffff, ground: 0xdfe3e8, hemi: 1.1, sun: 0.9, fill: 0, env: 0.35, exposure: 1, white: true };
+    case 'flat': return { sky: 0xffffff, ground: 0xffffff, hemi: 3.6, sun: 0, fill: 0, env: 0, exposure: 1, white: false };
+    case 'contrast': return { sky: 0xffffff, ground: 0x202428, hemi: 0.5, sun: 5.2, fill: 0, env: 0.45, exposure: 1, white: false };
+    case 'technical': return { sky: 0xffffff, ground: 0xdfe3e8, hemi: 2.6, sun: 1.8, fill: 0, env: 0.35, exposure: 1, white: true };
     default: return { sky: 0xffffff, ground: 0xaab4c4, hemi: 0.45, sun: 1.1, fill: 0, env: 1.5, exposure: 1.12, white: false };
   }
 }
