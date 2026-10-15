@@ -789,7 +789,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tree .row.hidden .row-hide, .tree .row .row-hide.on { opacity: 1; color: var(--text-2); }
 .tree .row.hov { background: var(--panel-2); box-shadow: inset 2px 0 0 #f2a93b; }
 .tree .row.hov.sel { background: var(--accent-soft); }
-.tree .row.hidden:not(:hover):not(.sel) { padding-right: 34px; }
+.tree .row.hidden:not(:hover):not(.sel) .row-actions { position: static; transform: none; margin: 0 0 0 4px; padding-left: 0; }   /* the closed eye takes its own place after the id instead of sitting on top of the type label */
 
 /* failure card (Diagnostics tab and the editor panel) */
 .diag { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; user-select: text; -webkit-user-select: text; cursor: text; }
