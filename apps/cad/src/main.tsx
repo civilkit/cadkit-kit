@@ -1617,8 +1617,10 @@ function App() {
       ) : leftBody}
     </div>
   );
-  const right = ws.rightPanel === 'off' ? null : (
-    <div class={'insp-wrap ' + ws.rightPanel}>
+  // the properties panel only exists while there is a feature to show: no empty column, nothing to close
+  const rightMode = feature ? ws.rightPanel : 'off';
+  const right = rightMode === 'off' ? null : (
+    <div class={'insp-wrap ' + rightMode}>
       <Inspector feature={feature} onSet={(path, value) => {
         clearTimeout(pending);
         pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
@@ -1667,7 +1669,7 @@ function App() {
   const lay = layoutHandles(store, ws);
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
-    <div id="app" style={layoutStyle(ws)} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
+    <div id="app" style={layoutStyle(ws)} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
@@ -1691,7 +1693,7 @@ function App() {
       <div id="vp" ref={host}>
         {handles.menuEl}{handles.aboutEl}{handles.fieldsEl}{handles.askEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
-        {ws.rightPanel === 'floating' ? right : null}
+        {rightMode === 'floating' ? right : null}
         {lay.floating}
         {ws.toolRail ? <ToolRail commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons'} caption={(c) => t('rb.' + c.id, undefined, c.label)} /> : null}
         {ws.selectionBar && !sketching ? (
@@ -1755,7 +1757,7 @@ function App() {
           <Toast notices={store.notices.value} />
         </div>
       </div>
-      {ws.rightPanel === 'docked' ? right : null}
+      {rightMode === 'docked' ? right : null}
       {ws.drawerOpen ? (
         <Drawer active={drawerTab} onTab={setDrawerTab} onClose={toggleDrawer}
           tabs={[
