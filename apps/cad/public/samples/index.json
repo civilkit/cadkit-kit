@@ -468,5 +468,10 @@
   "id": "thin-wall-bracket",
   "title": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)",
   "file": "thin-wall-bracket.ckpart"
+ },
+ {
+  "id": "matx-case",
+  "title": "mATX tower case (618 features built by a script: hoops, corner blocks, honeycomb panels, tray, slats; see docs/matx-case.md)",
+  "file": "matx-case.ckpart"
  }
 ]
