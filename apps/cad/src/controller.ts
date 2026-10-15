@@ -12,7 +12,7 @@ import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
-import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, withSurfaces } from './surfaceView';
+import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
@@ -99,6 +99,7 @@ export class Controller {
       this.session = await this.kernel.open(doc);
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
+      this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
       // viewer-state fields kept in the file: the exploded view and the drawing sheet
       this.docExtra = {};
       for (const k of ['explode', 'drawing']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
@@ -127,7 +128,7 @@ export class Controller {
       const before = blocking ? await this.baselineFor(blocking) : null;
       try {
         result = await Promise.race([
-          s.edit(ops, reason),
+          s.edit(ops, reason, { lean: true }),
           new Promise<never>((_, reject) => {
             this.pendingCancel = () => reject(new Error('cancelled'));
           }),
@@ -162,12 +163,12 @@ export class Controller {
           return { ok: false, record: null, hints: [{ feature: '', code: 'designCheckBlocked', hint: blocked }] };
         }
       } else if (policy?.afterEdit) this.scheduleAfterEdit();
-      for (const w of result.refWarnings ?? []) {
-        this.store.notify(
-          `refDiff ${w.code}${w.feature ? ` on ${w.feature}` : ''}${w.reason ? `: ${w.reason}` : ''}`,
-          'warn',
-        );
-      }
+      const warn = (ws: Array<{ code: string; feature?: string; reason?: string }>): void => {
+        for (const w of ws) this.store.notify(`refDiff ${w.code}${w.feature ? ` on ${w.feature}` : ''}${w.reason ? `: ${w.reason}` : ''}`, 'warn');
+      };
+      warn(result.refWarnings ?? []);
+      // the reference check regenerates both documents: it reports when it is done, the edit is already on screen
+      void result.refWarningsLater?.then(warn).catch(() => {});
       return result;
     } finally {
       this.store.busy.value = false;
@@ -200,10 +201,11 @@ export class Controller {
     if (r.ok && r.body) {
       // the candidate's features, worked out here (an op it cannot apply, like a move, falls back to the committed ones)
       const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
-      const surfaces = await this.surfacesFor(s, { ...s.document, features: cand } as unknown as PartDoc, upTo, '-psurf');
+      // the preview's own reply carries the surface bodies and thread markers: no second regen of the candidate
+      const surfaces = r.surfaces !== undefined ? (hasSurfaceFeatures(cand as never) ? toViewSurfaces(r.surfaces) : []) : await this.surfacesFor(s, { ...s.document, features: cand } as unknown as PartDoc, upTo, '-psurf');
       if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
       this.view.setBody(withSurfaces(r.body, surfaces));
-      await this.previewExtras(s, ops, seq);
+      await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
       return r;
     }
     const hint =
@@ -239,12 +241,12 @@ export class Controller {
     this.store.featureWarnings.value = warningsById(x.warnings);
   }
   /** After a preview of an edit that touches a thread: the warnings and markers of the candidate (restored by cancelPreview / the next refresh). */
-  private async previewExtras(s: Session, ops: EditOp[], seq: number): Promise<void> {
+  private async previewExtras(s: Session, ops: EditOp[], seq: number, reply?: { threads: unknown[]; warnings: unknown[] }): Promise<void> {
     const feats = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops);
     const hasThread = (feats ?? []).some((f) => f.type === 'thread');
     if (feats && !hasThread && this.committedExtras.threads.length) { this.applyExtras({ threads: [], warnings: [] }); return; }   // the candidate removes the last thread
     if (!feats || !hasThread) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
-    const x = await this.regenExtras(s, { ...s.document, features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`);
+    const x = reply ?? (await this.regenExtras(s, { ...s.document, features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`));
     if (seq !== this.previewSeq) return;
     this.applyExtras(x);
   }
@@ -848,13 +850,18 @@ export class Controller {
   private async bodyNow(s: Session): Promise<ShownBody | null> {
     const n = this.rollbackCount();
     let body: Awaited<ReturnType<Session['bodyForView']>>;
-    if (n === null) body = await s.bodyForView();
-    else {
+    let surfaces: ViewSurface[] | null = null;
+    if (n === null) {
+      body = await s.bodyForView();
+      // the surface bodies come from the same regen (the session keeps its reply): no second request
+      if (typeof s.regenReport === 'function') surfaces = hasSurfaceFeatures(s.document.features as never) ? toViewSurfaces((await s.regenReport()).surfaces) : [];
+    } else {
       const r = await s.preview([], { upTo: n });
       if (!r.ok) this.store.notify(r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'rolled-back model did not build', 'error');
       body = r.body;
+      if (r.surfaces !== undefined) surfaces = hasSurfaceFeatures(s.document.features as never) ? toViewSurfaces(r.surfaces) : [];
     }
-    return withSurfaces(body, await this.surfacesFor(s, s.document, n));
+    return withSurfaces(body, surfaces ?? (await this.surfacesFor(s, s.document, n)));
   }
 
   /**
@@ -899,7 +906,10 @@ export class Controller {
       for (const p of [e.pts[0], e.pts[e.pts.length - 1]]) if (p) existing.add(vertexName(p));
     }
     this.store.dropMissing(existing);
-    const report = await s.verify();
+    // errors, repair hints, markers and warnings of the regen the session already holds (no validate / check: the design
+    // check runs on its own schedule)
+    const rr = typeof s.regenReport === 'function' ? await s.regenReport() : null;
+    const report = rr ? { regen: { errors: rr.errors, threads: rr.threads, warnings: rr.warnings }, hints: rr.hints } : await s.verify();
     this.committedExtras = await this.regenExtras(s, s.document, this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
     this.applyExtras(this.committedExtras);
     const errors = new Map(report.regen.errors);
