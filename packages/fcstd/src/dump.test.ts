@@ -4,7 +4,8 @@ import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { importFcstd } from './import';
 it('dump', { skip: !process.env.F }, async () => {
-  const imp = await importFcstd(new Uint8Array(readFileSync(process.env.F!)), 'x');
+  const imp = await importFcstd(new Uint8Array(readFileSync(process.env.F!)), 'x', { body: process.env.B });
+  console.log('FEATS', JSON.stringify(imp.part.features).slice(0, 4000));
   const want = (process.env.IDS ?? '').split(',');
   const fs = imp.part.features.filter((f) => want.includes(f.id as string));
   const s = await Session.open({ ...imp.part, features: fs } as unknown as PartDoc);

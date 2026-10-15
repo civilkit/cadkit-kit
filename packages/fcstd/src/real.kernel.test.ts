@@ -15,9 +15,9 @@ const files = (process.env.FCSTD_FILES ?? 'PartDesignExample.FCStd,TwoLengthsPad
 describe('real FCStd files', { skip: !process.env.CK_WASM || !dir || !existsSync(dir) }, () => {
   for (const f of files) {
     it(f, async () => {
-      const imp = await importFcstd(new Uint8Array(readFileSync(`${dir}/${f}`)), f);
+      const imp = await importFcstd(new Uint8Array(readFileSync(f.startsWith('/') ? f : `${dir}/${f}`)), f, { body: process.env.FCSTD_BODY });
       const vols: Record<string, Record<string, number | null>> = volsPath ? JSON.parse(readFileSync(volsPath, 'utf8')) : {};
-      const ref = vols[f] ?? {};
+      const ref = vols[f.split('/').pop()!] ?? {};
       const rows: string[] = [];
       let lastOurs = 0;
       for (const st of imp.steps) {

@@ -33,7 +33,7 @@ export async function zipRead(bytes: Uint8Array, e: ZipEntry): Promise<Uint8Arra
   if (e.method === 0) return raw;
   if (e.method !== 8) throw new Error(`zip method ${e.method} not supported`);
   const src = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(raw); c.close(); } });
-  const reader = src.pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const reader = src.pipeThrough(new DecompressionStream('deflate-raw') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>).getReader();
   const parts: Uint8Array[] = [];
   let total = 0;
   for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); total += value.length; }

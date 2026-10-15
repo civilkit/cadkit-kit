@@ -12,6 +12,8 @@ export interface FcImport {
   warnings: FcWarning[];
   /** One entry per mapped FreeCAD feature, in order: which of our feature ids it produced and its cached shape file. */
   steps: FcStep[];
+  /** Names of all PartDesign bodies in the file (only one is imported, see opts.body). */
+  bodies: string[];
   /** FreeCAD object type counts, for reports. */
   objectTypes: Record<string, number>;
   /** Cached final shape of the Body Tip (view-only fallback needs a BRep reader). */
@@ -85,7 +87,7 @@ function readSketch(o: Obj) {
   const geo: SketchGeo[] = [];
   for (const g of Array.from(o.props.get('Geometry')?.querySelectorAll('Geometry') ?? [])) {
     const type = g.getAttribute('type') ?? '';
-    const body = Array.from(g.children).find((c) => c.tagName !== 'GeoExtensions' && c.tagName !== 'Construction');
+    const body = Array.from(g.children).find((c) => !['GeoExtensions', 'Construction', 'UID'].includes(c.tagName));
     const a: Record<string, number> = {};
     for (const at of Array.from(body?.attributes ?? [])) a[at.name] = num(at.value);
     geo.push({ type, construction: g.querySelector('Construction')?.getAttribute('value') === '1', a });
@@ -98,7 +100,7 @@ function readSketch(o: Obj) {
   return { geo, cons };
 }
 
-export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
+export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { body?: string } = {}): FcImport {
   const warnings: FcWarning[] = [];
   const warn = (object: string, code: string, message: string) => warnings.push({ object, code, message });
   const objectTypes: Record<string, number> = {};
@@ -110,7 +112,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
   let doc: Document;
   try { doc = new DOMParser().parseFromString(xml, 'text/xml'); } catch (e) { warn('Document', 'parse', (e as Error).message); doc = null as unknown as Document; }
   const bad = !doc || doc.querySelector('parsererror');
-  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes });
+  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes, bodies: [] });
   if (bad) { if (doc) warn('Document', 'parse', 'Document.xml is not valid XML'); return finish(); }
 
   const objs = parseObjects(doc);
@@ -123,7 +125,9 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
     return finish();
   }
   // Nested bodies (inside App::Part / links) are listed too; import the first top-level one with features, mention the rest.
-  const body = bodies.find((b) => pLinks(b, 'Group').some((n) => objs.get(n)?.type.startsWith('PartDesign::') || objs.get(n)?.type === 'Sketcher::SketchObject')) ?? bodies[0];
+  const nFeat = (b: Obj) => pLinks(b, 'Group').filter((n) => /^PartDesign::(Pad|Pocket|Revolution|Groove|Fillet|Chamfer|Mirrored|LinearPattern|PolarPattern|Hole|Thickness|Draft)$/.test(objs.get(n)?.type ?? '')).length;
+  const body = bodies.find((b) => b.name === opts.body) ?? [...bodies].sort((a, b) => nFeat(b) - nFeat(a))[0];
+  const bodyNames = bodies.map((b) => b.name);
   if (bodies.length > 1) warn(body.name, 'multipleBodies', `${bodies.length} bodies in the file; only "${body.name}" is imported`);
   if (!isIdentity(placement(body))) warn(body.name, 'bodyPlacement', 'the Body has a non-identity Placement; it is ignored');
 
@@ -302,7 +306,14 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
   };
   const shapeFile = (o: Obj) => first(o.props.get('Shape'))?.getAttribute('file') ?? undefined;
 
-  const group = pLinks(body, 'Group');
+  let group = pLinks(body, 'Group');
+  if (!group.length) { // FreeCAD 0.14-0.16 files have no Group: follow BaseFeature links back from the Tip
+    const chain: string[] = [];
+    let cur = tipName;
+    while (cur && objs.has(cur) && !chain.includes(cur)) { chain.unshift(cur); cur = pLink(objs.get(cur)!, 'BaseFeature'); }
+    group = chain;
+    if (chain.length) warn(body.name, 'legacyFormat', 'old file format (no Body Group); features taken from the BaseFeature chain');
+  }
   for (const fname of group) {
     const o = objs.get(fname);
     if (!o) continue;
@@ -313,7 +324,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
     if (o.props.get('ExpressionEngine')?.querySelector('Expression')) warn(fname, 'expressions', 'parameter expressions are dropped (cached values kept)');
     const produced: string[] = [];
     const mark = features.length;
-    const profile = pLinkSub(o, 'Profile').obj;
+    const profile = pLinkSub(o, 'Profile').obj || pLink(o, 'Sketch');
     const sk = objs.get(profile);
     const ok = (() => {
       switch (t) {
@@ -329,8 +340,9 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
           const s = emitSketch(sk);
           if (!s) return false;
           const base: Feat = { type: 'extrude', op: cut ? 'cut' : 'add', sketch: s.sketchId };
-          const flip = reversed !== !s.flipSame;
-          const L = pNum(o, 'Length');
+          let flip = reversed !== !s.flipSame;
+          let L = pNum(o, 'Length');
+          if (L < 0) { L = -L; flip = !flip; } // a negative length runs the other way
           const push = (extra: Feat) => { const id = nextId(); features.push({ ...base, id, ...extra }); produced.push(id); };
           if (type === 0 && side !== 1) {
             if (mid) push({ end: 'mid', depth: L });
@@ -418,16 +430,18 @@ export function importFcDocument(xml: string, name = 'FreeCAD part'): FcImport {
   if (!tipName) tipName = group[group.length - 1] ?? '';
   const tip = objs.get(tipName);
   const res = finish();
+  res.bodies = bodyNames;
+  if (!steps.length) warn(body.name, 'noFeatures', 'no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)');
   res.finalShape = (tip && shapeFile(tip)) ?? shapeFile(body);
   return res;
 }
 
 /** Read an FCStd (zip) and map it. */
-export async function importFcstd(bytes: Uint8Array, name = 'FreeCAD part'): Promise<FcImport> {
+export async function importFcstd(bytes: Uint8Array, name = 'FreeCAD part', opts: { body?: string } = {}): Promise<FcImport> {
   let xml: Uint8Array | null = null;
   try { xml = await zipFile(bytes, 'Document.xml'); } catch (e) {
-    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {} };
+    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {}, bodies: [] };
   }
-  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {} };
-  return importFcDocument(new TextDecoder().decode(xml), name);
+  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {}, bodies: [] };
+  return importFcDocument(new TextDecoder().decode(xml), name, opts);
 }
