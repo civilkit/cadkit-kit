@@ -458,8 +458,8 @@ export const en: Catalog = {
   // thread feature (ThreadEditor.tsx, threadData.ts)
   'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',
   'thread.section.thread': 'Thread', 'thread.section.length': 'Thread options', 'thread.section.options': 'Options',
-  'feature.thread': 'Thread', 'tree.patternedBy': 'patterned by {id}', 'app.thread.followed': '{face} gets its thread from {id}: edit {id} and every copy follows', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',
-  'thread.section.thread': 'Thread', 'thread.section.length': 'Length and hand', 'thread.section.options': 'Options',
+ 'tree.patternedBy': 'patterned by {id}', 'app.thread.followed': '{face} gets its thread from {id}: edit {id} and every copy follows',
+
   'thread.face': 'Face', 'thread.faceDia': 'Ø {d} mm', 'thread.internal': 'internal (hole)', 'thread.external': 'external (shaft)',
   'thread.standard': 'Standard', 'thread.std.metric': 'ISO metric coarse', 'thread.std.metric-fine': 'ISO metric fine', 'thread.std.UNC': 'UNC', 'thread.std.UNF': 'UNF',
   'thread.std.BSP': 'BSP parallel (G)', 'thread.std.NPT': 'NPT (tapered)', 'thread.std.Tr': 'Trapezoidal (Tr)', 'thread.std.Acme': 'Acme',
