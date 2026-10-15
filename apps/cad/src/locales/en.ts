@@ -136,7 +136,7 @@ export const en: Catalog = {
   'io.failed': 'Could not export: {message}',
   'tab.Home': 'Home', 'tab.View': 'View', 'tab.Select': 'Select',
   'group.File': 'File', 'group.Edit': 'Edit', 'group.Workspace': 'Workspace', 'group.Views': 'Views', 'group.Show': 'Show', 'group.Pick': 'Pick',
-  'cmd.open': 'Open', 'cmd.save': 'Save', 'cmd.samples': 'Samples', 'cmd.palette': 'Command search', 'cmd.drawer': 'Toggle drawer',
+  'cmd.open': 'Open', 'cmd.save': 'Save', 'cmd.samples': 'Samples', 'cmd.palette': 'Command search', 'cmd.drawer': 'Toggle drawer', 'cmd.reset-layout': 'Reset layout', 'settings.resetLayout.hint': 'Panel sizes', 'app.resize.left': 'Resize side panel', 'app.resize.right': 'Resize properties panel', 'app.resize.drawer': 'Resize drawer', 'app.resize.floating': 'Resize floating panel width', 'app.resize.corner': 'Resize floating panel',
   'cmd.settings': 'Workspace settings', 'cmd.undo': 'Undo', 'cmd.redo': 'Redo',
   'cmd.view-iso': 'Iso', 'cmd.view-back': 'Back', 'cmd.view-left': 'Left', 'cmd.view-bottom': 'Bottom', 'cmd.view-front': 'Front', 'cmd.view-top': 'Top', 'cmd.view-right': 'Right', 'cmd.fit': 'Fit',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',

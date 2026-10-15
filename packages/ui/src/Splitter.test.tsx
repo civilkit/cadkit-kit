@@ -132,7 +132,7 @@ describe('Splitter', () => {
 describe('CornerGrip', () => {
   it('drags width and height together with clamps and commits once', () => {
     const onLive = vi.fn(), onCommit = vi.fn();
-    render(<CornerGrip width={264} height={400} min={[200, 150]} max={() => [500, 700]} onLive={onLive} onCommit={onCommit} label="Resize panel" />);
+    render(<CornerGrip size={() => [264, 400]} min={[200, 150]} max={() => [500, 700]} onLive={onLive} onCommit={onCommit} label="Resize panel" />);
     const g = screen.getByRole('separator');
     pointer.down(g, { clientX: 100, clientY: 100, pointerId: 1 });
     pointer.move(g, { clientX: 150, clientY: 80, pointerId: 1 });

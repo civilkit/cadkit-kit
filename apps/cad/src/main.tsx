@@ -79,6 +79,7 @@ import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPref
 import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
 import { createAssemblyState } from './assembly/state';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
+import { layoutHandles, layoutStyle, resetLayout } from './useLayout';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
@@ -598,6 +599,7 @@ function App() {
     redo: async () => { await controller.redo(); redraw((n) => n + 1); },
     palette: () => setPalette(true),
     toggleDrawer,
+    resetLayout: () => resetLayout(store),
     sketchHere,
     toggleProjection,
     toggleLeftPanel,
@@ -1570,9 +1572,10 @@ function App() {
     return () => removeEventListener('beforeunload', warn);
   }, []);
 
+  const lay = layoutHandles(store, ws);
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
-    <div id="app" data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
+    <div id="app" style={layoutStyle(ws)} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={ws.rightPanel} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       <div class="topbar">
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
@@ -1592,10 +1595,12 @@ function App() {
       </div>
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
+      {lay.docked}
       <div id="vp" ref={host}>
         {handles.menuEl}{handles.aboutEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {ws.rightPanel === 'floating' ? right : null}
+        {lay.floating}
         {ws.toolRail ? (
           <div class="tool-rail" role="toolbar" aria-label={t('app.tools')}>
             {RAIL_GROUPS.map((ids, gi) => {
@@ -1718,7 +1723,7 @@ function App() {
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
         onDiscard={() => { const go = guard; setGuard(null); void go(); }}
         onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
-      {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onClose={() => setSettings(false)}
+      {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         triPrefs={triPrefs} onTriPrefs={(patch) => { const next = { ...triPrefs, ...patch }; setTriPrefs(next); saveTriPrefs(next); }}

@@ -31,6 +31,8 @@ export interface SplitterProps {
   onLive?(v: number): void;
   /** Called once when a drag ends or a key changes the size (0 = collapse). */
   onCommit(v: number): void;
+  /** Called after a drag ends, committed or cancelled: drop any inline overrides set by onLive. */
+  onEnd?(): void;
   label: string;
   class?: string;
 }
@@ -67,8 +69,10 @@ export function Splitter(p: SplitterProps): JSX.Element {
     drag.current = null;
     setBusy(false);
     try { (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId); } catch { /* already released */ }
-    if (cancel) { p.onLive?.(d.start); return; }
-    if (d.last !== d.start) p.onCommit(d.last); else p.onLive?.(d.start);
+    if (cancel) p.onLive?.(d.start);
+    else if (d.last !== d.start) p.onCommit(d.last);
+    else p.onLive?.(d.start);
+    p.onEnd?.();
   };
   const onKey = (e: KeyboardEvent) => {
     const step = e.shiftKey ? BIG : STEP;
@@ -99,7 +103,7 @@ export function Splitter(p: SplitterProps): JSX.Element {
 
 /** A two-axis grip (the bottom-right corner of a floating panel). Reports width and height; the panel decides what 0 means. */
 export function CornerGrip(p: {
-  width: number; height: number; min: [number, number]; max: () => [number, number];
+  size(): [number, number]; min: [number, number]; max: () => [number, number];
   onLive?(w: number, h: number): void; onCommit(w: number, h: number): void; onReset?(): void; label: string;
 }): JSX.Element {
   const drag = useRef<{ id: number; x: number; y: number; w: number; h: number; lw: number; lh: number } | null>(null);
@@ -108,7 +112,8 @@ export function CornerGrip(p: {
     <div class="splitter sp-corner" role="separator" tabIndex={0} aria-label={p.label}
       onPointerDown={(e) => {
         try { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); } catch { /* synthetic */ }
-        drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, w: p.width, h: p.height, lw: p.width, lh: p.height };
+        const [w0, h0] = p.size();
+        drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, w: w0, h: h0, lw: w0, lh: h0 };
         document.documentElement.setAttribute('data-resizing', 'corner'); e.preventDefault();
         e.stopPropagation();
       }}
@@ -121,7 +126,8 @@ export function CornerGrip(p: {
         if (e.key === 'Enter') { e.preventDefault(); p.onReset?.(); return; }
         if (!d) return;
         e.preventDefault();
-        const [w, h] = clampWH(p.width + d[0], p.height + d[1]);
+        const [w0, h0] = p.size();
+        const [w, h] = clampWH(w0 + d[0], h0 + d[1]);
         p.onCommit(w, h);
       }}
       onDblClick={() => p.onReset?.()} />
