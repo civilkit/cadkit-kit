@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
 import { sketchTools } from '@kit/sketch';
-import { ICON_NAMES } from '@kit/ui';
+import { ICON_NAMES, slotMemory } from '@kit/ui';
 import { SketchToolStrip, slotsFor, PALETTE_SLOTS } from './SketchToolStrip';
 import { buildCommands, type Actions } from './commands';
 import './i18n';
@@ -68,7 +68,7 @@ describe('SketchToolStrip', () => {
 
 describe('palette slots', () => {
   afterEach(cleanup);
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => { localStorage.clear(); slotMemory.reset(); });
   it('every configured tool id exists or is a planned tool, and no tool is hidden', () => {
     const tools = sketchTools();
     for (const g of ['draw', 'dimension', 'constrain', 'edit'] as const) {
