@@ -14,7 +14,7 @@ start. The tables and all checks live in the kernel (`threadData` request, `thre
 - The new feature is `metric`, the size nearest to the face diameter, `length: "full"`, `hand: "right"`, `modeled: false`. Nearest means
   the closest tap drill for a hole wall (`.S.h1`), the closest major diameter for a shaft, and the closer of the two when that is not
   known yet (the editor re-sorts as soon as the kernel reports `internal`). Then the Thread editor opens on it.
-- **Hole editor**: the Thread section's **Threaded** box creates the thread together with the hole (one undo step), drills the hole
+- **Hole editor**: the **Threaded** toggle at the top of the Size block creates the thread together with the hole (one undo step), drills the hole
   to the tap drill and keeps both in step when the hole is edited; see `docs/hole-editor.md` (Threaded). A hole with several
   positions gets one thread per wall (`<holeId>.S.h1~k`).
 - **Several faces at once**: Shift+T (and the Add thread button) take every selected cylindrical face, ctrl/shift-click to add faces,
@@ -25,7 +25,10 @@ start. The tables and all checks live in the kernel (`threadData` request, `thre
 
 ## The Thread editor (dialog fields to wire format)
 
-Top to bottom (a column about 270 px wide):
+Two sections, **Thread** (face chip, Standard, one-row size chips, Size search, Class, fit line, readout card) and **Thread options**
+(Length *Full | Custom* with the number inline to the right for Custom, Hand, Start when it matters, *Model the thread* with the cost as a
+muted second line). The controls are shared with the Hole editor's Threaded block (`ThreadControls.tsx`), so the two look the same, and
+the sections follow the shared grid / collapse rules in `docs/hole-editor.md` (Layout). Works from 280 to 460 px wide. Top to bottom:
 
 - **Group**: threads created together (or any run of neighbouring thread features with exactly the same settings, `threadGroup` in
   `threadData.ts`; there is no stored group, the settings are the link) are edited together: opening one in the tree opens the

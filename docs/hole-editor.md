@@ -39,21 +39,36 @@ Shift+H on a point sketch, or on a face (which first asks for the points), opens
 Through. Confirming a hole remembers its type, size and fit in `localStorage` (`kit.hole.prefs`) as the next default; a Custom
 diameter is not remembered.
 
+## Layout
+
+Sections, top to bottom: **Type** (kind and its dimensions), **Size**, **Thread options** (only while threaded), **End**,
+**Options**. Every section uses the shared primitives: `EditorSection` (`packages/ui/src/EditorSection.tsx`, one header height, a
+muted summary in the header while collapsed, chevron; collapsed sections are remembered per section id across editors in
+`localStorage` key `kit.editor.collapsed`, try/catch) and one label/control grid (`.fedit-fld`: label column 38%, at least 90 px,
+controls fill the rest, unit inside the number box). Below 300 px wide the Standard dropdown stacks its label above it so the
+text is never clipped (container query). Extrude, Revolve, Fillet, Shell, Thin wall and the other option sections use the same
+primitives; the generic field editor remembers its collapsed sections the same way.
+
+Size, not threaded: the **Threaded** toggle (disabled with a note for counterbore / countersink), Size, Fit and the resulting
+diameter. Size, threaded: the toggle, then this block IS the thread picker: Standard, the common sizes in **one row** that scrolls
+sideways (the picked size is kept in view), the Size search, Class, and the **readout card** (size name, then label-over-value
+cells for tap drill, minor D1 and pitch, tabular numbers). The plain Size / Fit controls and the hole diameter row are gone while
+threaded (the card's tap drill is the hole diameter).
+
 ## Threaded (tapped hole)
 
-The editor ends with a **Thread** section (drawn when the host passes `threads`, the kernel tables and the part's view of the
-thread; `HoleThreadSection.tsx`, rules in `holeThread.ts`). It has a **Threaded** checkbox. Ticking it:
+The **Threaded** toggle sits at the top of the Size block (drawn when the host passes `threads`, the kernel tables and the part's
+view of the thread; `HoleThreadSection.tsx`, rules in `holeThread.ts`). Ticking it:
 
 - starts a thread with the hole's own metric size (a Custom diameter, or a size the table lacks, takes the size whose tap drill is
   nearest to the diameter), `length: "full"`, right hand, class from the table, `modeled` as remembered (cosmetic by default);
 - drills the hole to the tap drill: a metric size the hole table knows with the same tap drill keeps `size` and becomes `fit: "tap"`;
-  anything else (inch, BSP, fine pitch) becomes a plain `diameter` equal to the size's `tapDrill`. The Size section then shows
-  "the size comes from the thread", hides the hole's Size and Fit selects, and the Ø read-out shows the tap drill with
-  "M8 tap drill" beside it;
-- shows the Thread editor's controls: Standard (metric, metric fine, UNC, UNF, BSP, NPT, Tr, Acme), quick-size chips and the
-  searchable Size list (nearest to the hole first), the read-out (tap drill, minor D1, pitch), Class, Length *Full | Custom*,
-  Hand *Right | Left*, and *Model the thread* with the same cost note and amber "Not built: ..." note as the Thread editor
-  (the components `Select`, `Seg`, `SizePicker` are the Thread editor's, exported from `ThreadEditor.tsx`).
+  anything else (inch, BSP, fine pitch) becomes a plain `diameter` equal to the size's `tapDrill`;
+- shows the Thread editor's controls, the same components (`ThreadControls.tsx`: `Select`, `Seg`, `SizePicker`, `SizeChips`,
+  `ReadoutCard`, `LengthRow`, `HandRow`, `ModelRow`). The **Thread options** section holds Length *Full | Custom* (the number box
+  appears to the right of the control only for Custom; Full shows the wall length as muted text), Hand *Right | Left*, and *Model
+  the thread* with its cost as a muted second line and the amber "Not built: ..." note as in the Thread editor. Its collapsed
+  header reads like "Full · Right".
 
 Length: *Full* is the hole wall. A **blind** hole caps a custom length at its depth ("Capped at the hole depth, N mm") and shrinks the
 length when the depth does; a through hole is held to the wall length when the view knows it.
