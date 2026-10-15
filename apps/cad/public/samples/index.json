@@ -250,6 +250,51 @@
   "file": "bench-propeller.ckpart"
  },
  {
+  "id": "bench-ratchet_sector",
+  "title": "Bench Ratchet Sector",
+  "file": "bench-ratchet_sector.ckpart"
+ },
+ {
+  "id": "bench-shaft_collar",
+  "title": "Bench Shaft Collar",
+  "file": "bench-shaft_collar.ckpart"
+ },
+ {
+  "id": "bench-pipe_flange",
+  "title": "Bench Pipe Flange",
+  "file": "bench-pipe_flange.ckpart"
+ },
+ {
+  "id": "bench-piston",
+  "title": "Bench Piston",
+  "file": "bench-piston.ckpart"
+ },
+ {
+  "id": "bench-pull_handle",
+  "title": "Bench Pull Handle",
+  "file": "bench-pull_handle.ckpart"
+ },
+ {
+  "id": "bench-vented_panel",
+  "title": "Bench Vented Panel",
+  "file": "bench-vented_panel.ckpart"
+ },
+ {
+  "id": "bench-waffle_plate",
+  "title": "Bench Waffle Plate",
+  "file": "bench-waffle_plate.ckpart"
+ },
+ {
+  "id": "bench-rect_frame",
+  "title": "Bench Rect Frame",
+  "file": "bench-rect_frame.ckpart"
+ },
+ {
+  "id": "bench-snap_clip",
+  "title": "Bench Snap Clip",
+  "file": "bench-snap_clip.ckpart"
+ },
+ {
   "id": "brepjs-axial_fan",
   "title": "Brepjs Axial Fan",
   "file": "brepjs-axial_fan.ckpart"
