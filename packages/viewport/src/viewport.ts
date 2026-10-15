@@ -1056,7 +1056,7 @@ export class Viewport {
     for (const m of this.edgeMats) { m.color.setHex(ecol); m.linewidth = px; }
     if (this.hull) {
       const hm = this.hull.material as THREE.ShaderMaterial;
-      hm.uniforms.uColor.value.setHex(ecol); hm.uniforms.uWidth.value = px * 1.15;
+      hm.uniforms.uColor.value.setHex(ecol); hm.uniforms.uWidth.value = px * 0.9;
       const faces = styleSpec(this.look.style).faces;
       this.hull.visible = this.silhouette && (faces === 'shaded' || faces === 'white') && !this.sectionView.active && this.bodyFade() >= 1;
     }
@@ -2032,6 +2032,7 @@ export class Viewport {
       this.dirty = false;
       this.fixSpriteScale();
       this.sun.position.copy(this.sunOffset).applyQuaternion(this.camera.quaternion);   // the key light travels with the camera
+      this.scene.environmentRotation.setFromQuaternion(this.camera.quaternion);   // the studio stays fixed to the screen, like a lit turntable
       this.renderer.render(this.scene, this.camera);
       this.handleLayer.render(this.renderer);
       this.triball.render();

@@ -14,7 +14,7 @@ export const LIGHT_PRESETS: readonly LightPreset[] = ['studio', 'flat', 'contras
 export type EdgeWidth = 'thin' | 'medium' | 'bold';
 export const EDGE_WIDTHS: readonly EdgeWidth[] = ['thin', 'medium', 'bold'];
 /** Line width in CSS pixels per option. */
-export const edgePixels = (w: EdgeWidth): number => (w === 'bold' ? 2.2 : w === 'medium' ? 1.5 : 1.1);
+export const edgePixels = (w: EdgeWidth): number => (w === 'bold' ? 2 : w === 'medium' ? 1.4 : 0.9);
 
 export type BackgroundMode = 'theme' | 'light' | 'dark' | 'gradient';
 export const BACKGROUND_MODES: readonly BackgroundMode[] = ['theme', 'light', 'dark', 'gradient'];
@@ -51,7 +51,7 @@ export function materialParams(m: MaterialPreset): MaterialParams {
     case 'matte': return { roughness: 0.85, metalness: 0, opacity: 1 };
     case 'brushed': return { roughness: 0.3, metalness: 0.9, opacity: 1 };
     case 'glass': return { roughness: 0.08, metalness: 0, opacity: 0.35 };
-    default: return { roughness: 0.36, metalness: 0.5, opacity: 1 };   // satin metal: reads as steel under the studio light
+    default: return { roughness: 0.24, metalness: 0.45, opacity: 1 };   // satin metal: reads as steel under the studio light
   }
 }
 
@@ -104,7 +104,7 @@ export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THRE
 /** Edge colour per style (hidden-line white faces want black edges; a dark body on a dark background wants none of this). */
 export function edgeColor(style: DisplayStyle, preset: LightPreset = 'studio', dark = false): number {
   if (style === 'hiddenLines' || preset === 'technical') return 0x000000;
-  return dark ? 0x0d1117 : 0x2b3542;   // darker than the face, not black
+  return dark ? 0x0d1117 : 0x4a5565;   // darker than the face, not black
 }
 export const HIDDEN_EDGE_OPACITY = 0.18;
 
@@ -115,7 +115,7 @@ export function lightSpec(p: LightPreset): LightSpec {
     case 'flat': return { sky: 0xffffff, ground: 0xffffff, hemi: 1.6, sun: 0, fill: 0, env: 0, exposure: 1, white: false };
     case 'contrast': return { sky: 0xffffff, ground: 0x202428, hemi: 0.15, sun: 2.4, fill: 0, env: 0.45, exposure: 1, white: false };
     case 'technical': return { sky: 0xffffff, ground: 0xdfe3e8, hemi: 1.1, sun: 0.9, fill: 0, env: 0.35, exposure: 1, white: true };
-    default: return { sky: 0xffffff, ground: 0xaab4c4, hemi: 0.45, sun: 1.1, fill: 0, env: 1.35, exposure: 1.05, white: false };
+    default: return { sky: 0xffffff, ground: 0xaab4c4, hemi: 0.45, sun: 1.1, fill: 0, env: 1.5, exposure: 1.12, white: false };
   }
 }
 /** The scene's light at a preset, scaled by the user's intensity slider; without reflections the studio light is replaced by sky light. */
