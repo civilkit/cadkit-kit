@@ -92,7 +92,9 @@ a burst of presses is one edit, Esc drops it.
 
 ## Limits
 
-* A sketch shared by several features is moved only after the Move all / Duplicate sketch question; a resize still changes every user.
+* A sketch shared by several features: a move applies to every user at once and says so (undo reverts). It used to wait for a Move all / Duplicate sketch answer in a small dialog; a release that was not answered left the old document and looked like the shape snapping back. `moveCommit` still returns both choices; the app uses the first.
+* Typed position: the move fields take the shape centre as an absolute X / Y in the sketch's own coordinates (the model coordinates of the centre are shown beside them); an offset typed too adds to it.
+* Lock to: see shape-constraints.md.
 * Through / up-to extrudes get width, length and corners but no depth handle (their box depth is the body extent).
 * Revolve: the box is the flat profile rectangle (no angle or axis handle). Slots resize uniformly like other arc profiles,
   not by lengthening only the straight part. Angle constraints are not recomputed under non-uniform scaling.

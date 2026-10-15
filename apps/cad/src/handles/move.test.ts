@@ -75,13 +75,19 @@ describe('distance from edge and typed fields', () => {
     expect(moveToEdgeDistance(box, host, 'right', 5)).toEqual({ du: 55, dv: 0 });
     expect(moveToEdgeDistance(box, host, 'top', 6)).toEqual({ du: 0, dv: 40 });
   });
-  const info = { box, host: { u0: 0, u1: 80, v0: 0, v1: 60 }, step: 1, to: () => null };
+  const info = { box, host: { u0: 0, u1: 80, v0: 0, v1: 60 }, step: 1, to: () => null, centre: { u: (box.u0 + box.u1) / 2, v: (box.v0 + box.v1) / 2 }, world: [0, 0, 0] as [number, number, number], near: [], lockTo: () => null };
   it('fields take numbers and expressions; a bad field is refused; an edge distance replaces that axis', () => {
     const vals = { w: 6 } as never;
     expect(movesFromFields(info, { x: '2+3', y: '', edge: '', dist: '' }, vals)).toEqual({ du: 5, dv: 0 });
     expect(movesFromFields(info, { x: 'w*2', y: '-1,5', edge: '', dist: '' }, vals)).toEqual({ du: 12, dv: -1.5 });
     expect(movesFromFields(info, { x: 'abc', y: '', edge: '', dist: '' }, vals)).toBeNull();
     expect(movesFromFields(info, { x: '3', y: '2', edge: 'left', dist: '4' }, vals)).toEqual({ du: -6, dv: 2 });
+  });
+  it('a typed position is absolute (centre in the sketch), an offset beside it adds, a bad one is refused', () => {
+    const c = info.centre;
+    expect(movesFromFields(info, { x: '', y: '', edge: '', dist: '', px: String(c.u + 7), py: String(c.v - 3) }, {} as never)).toEqual({ du: 7, dv: -3 });
+    expect(movesFromFields(info, { x: '1', y: '', edge: '', dist: '', px: String(c.u + 7) }, {} as never)).toEqual({ du: 8, dv: 0 });
+    expect(movesFromFields(info, { x: '', y: '', edge: '', dist: '', px: 'abc' }, {} as never)).toBeNull();
   });
   it('the grid step grows with the part', () => { expect(gridStep(box)).toBe(1); expect(gridStep({ ...box, u1: 300 })).toBe(5); expect(gridStep({ ...box, u1: 5000 })).toBe(10); });
 });

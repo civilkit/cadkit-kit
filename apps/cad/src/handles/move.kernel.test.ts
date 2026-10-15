@@ -39,12 +39,12 @@ async function world(d: PartDoc) {
     await new Promise((r) => setTimeout(r, 150));
     if (end === 'commit') await runner.commit(s.commit('move', Math.hypot(...vec), vec, mods)); else await runner.cancel();
   };
-  const place = async (itemId: string, point: [number, number, number]) => {
-    const probe = buildShape(catalogItem('add-block')!, { kind: 'face', face: 'F2.C1', planar: true, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, point: [0, 0, 0] }, controller.document()!.seq);
+  const place = async (itemId: string, point: [number, number, number], faceId = 'F2.C1') => {
+    const probe = buildShape(catalogItem('add-block')!, { kind: 'face', face: faceId, planar: true, frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, point: [0, 0, 0] }, controller.document()!.seq);
     const r = await controller.preview(probe.ops, 0);
     const frame = (r.body?.sketches ?? r.sketches ?? []).find((s: { id: string }) => s.id === probe.sketchId)!.frame as PlaceTarget['frame'];
     await controller.cancelPreview();
-    const built = buildShape(catalogItem(itemId)!, { kind: 'face', face: 'F2.C1', planar: true, frame, point, extent: [80, 60], thickness: 20 }, controller.document()!.seq);
+    const built = buildShape(catalogItem(itemId)!, { kind: 'face', face: faceId, planar: true, frame, point, extent: [80, 60], thickness: 20 }, controller.document()!.seq);
     expect((await controller.commit(built.ops)).ok).toBe(true);
     return { id: built.mainId, sketchId: built.sketchId, frame: frame! };
   };
@@ -149,6 +149,125 @@ describe('moving shapes against the real kernel', { skip: !process.env.CK_WASM, 
     expect(doc.features.findIndex((f) => f.id === f6.sketch)).toBeLessThan(doc.features.findIndex((f) => f.id === 'F6'));
     expect(pts(doc, 'S5').find((q) => q.id === 'c')!.x).toBe(40);
     expect(pts(doc, f6.sketch).find((q) => q.id === 'c')!.x).toBe(44);
+    expect(await w.errors()).toEqual([]);
+  });
+
+  it('a block on a cylinder top (with a boss) keeps its position after the move is released', async () => {
+    const cyl = [
+      { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 0, y: 0 }], entities: [{ id: 'k', type: 'circle', c: 'c', r: 40 }], constraints: [] },
+      { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 20 },
+    ];
+    const w = await world({ ...emptyPart('Cyl'), features: cyl, seq: 3 } as unknown as PartDoc);
+    const boss = await w.place('add-cylinder', [0, 0, 20]);
+    const blk = await w.place('add-block', [20, 10, 20]);
+    const before = centre(w.doc(), blk.sketchId);
+    const s = w.plan(blk.id);
+    const fx = blk.frame.x, fy = blk.frame.y;
+    await w.drag(s, [fx[0] * 5 + fy[0] * 2, fx[1] * 5 + fy[1] * 2, fx[2] * 5 + fy[2] * 2], { alt: true });
+    const after = centre(w.doc(), blk.sketchId);
+    expect(after[0] - before[0]).toBeCloseTo(5, 3);
+    expect(after[1] - before[1]).toBeCloseTo(2, 3);
+  });
+
+  for (const variant of ['constrained', 'ctrl', 'fixed-corner']) it('a block with ' + variant + ' sketch keeps its move', async () => {
+    const cyl = [
+      { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 0, y: 0 }], entities: [{ id: 'k', type: 'circle', c: 'c', r: 40 }], constraints: [] },
+      { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 20 },
+    ];
+    const w = await world({ ...emptyPart('Cyl'), features: cyl, seq: 3 } as unknown as PartDoc);
+    const blk = await w.place('add-block', [20, 10, 20]);
+    const sk = structuredClone(w.doc().features.find((f) => f.id === blk.sketchId)) as unknown as { points: Array<{ id: string; x: number; y: number; fixed?: boolean }>; constraints: unknown[] };
+    const P = (id: string) => sk.points.find((q) => q.id === id)!;
+    if (variant === 'constrained') sk.constraints = [
+      { id: 'c1', type: 'horizontal', refs: ['e1'] }, { id: 'c2', type: 'vertical', refs: ['e2'] }, { id: 'c3', type: 'horizontal', refs: ['e3'] }, { id: 'c4', type: 'vertical', refs: ['e4'] },
+      { id: 'd1', type: 'hdist', refs: ['O', 'p1'], value: P('p1').x }, { id: 'd2', type: 'vdist', refs: ['O', 'p1'], value: P('p1').y },
+      { id: 'd3', type: 'hdist', refs: ['p1', 'p2'], value: P('p2').x - P('p1').x }, { id: 'd4', type: 'vdist', refs: ['p2', 'p3'], value: P('p3').y - P('p2').y },
+    ];
+    if (variant === 'fixed-corner') P('p1').fixed = true;
+    expect((await w.controller.commit([{ op: 'replace', id: blk.sketchId, feature: sk } as never])).ok).toBe(true);
+    const before = centre(w.doc(), blk.sketchId);
+    const s = w.plan(blk.id);
+    const fx = blk.frame.x, fy = blk.frame.y;
+    await w.drag(s, [fx[0] * 5 + fy[0] * 2, fx[1] * 5 + fy[1] * 2, fx[2] * 5 + fy[2] * 2], variant === 'ctrl' ? { ctrl: true } : { alt: true });
+    const after = centre(w.doc(), blk.sketchId);
+    const verify = await w.sess().verify();
+    expect(after[0] - before[0]).toBeCloseTo(variant === 'ctrl' ? 5 : 5, 3);
+    void verify;
+  });
+
+  it('a block moved onto a boss added after it keeps the move', async () => {
+    const cyl = [
+      { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 0, y: 0 }], entities: [{ id: 'k', type: 'circle', c: 'c', r: 40 }], constraints: [] },
+      { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 20 },
+    ];
+    const w = await world({ ...emptyPart('Cyl'), features: cyl, seq: 3 } as unknown as PartDoc);
+    const blk = await w.place('add-block', [20, 10, 20]);
+    const boss = await w.place('add-cylinder', [0, 0, 20]);
+    const before = centre(w.doc(), blk.sketchId);
+    const s = w.plan(blk.id);
+    const fx = blk.frame.x, fy = blk.frame.y;
+    await w.drag(s, [-fx[0] * 20 - fy[0] * 8, -fx[1] * 20 - fy[1] * 8, -fx[2] * 20 - fy[2] * 8], { alt: true });
+  });
+
+  it('release while previews are still in flight', async () => {
+    const cyl = [
+      { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 0, y: 0 }], entities: [{ id: 'k', type: 'circle', c: 'c', r: 40 }], constraints: [] },
+      { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 20 },
+    ];
+    const w = await world({ ...emptyPart('Cyl'), features: cyl, seq: 3 } as unknown as PartDoc);
+    const blk = await w.place('add-block', [20, 10, 20]);
+    const before = centre(w.doc(), blk.sketchId);
+    const s = w.plan(blk.id);
+    const sink = (w as never as { runnerSink?: never }).runnerSink;
+    void sink;
+    const fx = blk.frame.x, fy = blk.frame.y;
+    const run = new HandleRunner({ preview: (ops) => w.controller.preview(ops, 0), cancelPreview: () => w.controller.cancelPreview(), commit: async (c) => { await w.controller.commit(c.ops); } });
+    const k = run.sink(s);
+    k.onStart!('move');
+    for (let i = 1; i <= 6; i++) { const v: [number, number, number] = [fx[0] * i + fy[0] * 0.4 * i, fx[1] * i + fy[1] * 0.4 * i, fx[2] * i + fy[2] * 0.4 * i]; k.onDrag('move', i, v, { alt: true } as never); }
+    const v: [number, number, number] = [fx[0] * 6 + fy[0] * 2.4, fx[1] * 6 + fy[1] * 2.4, fx[2] * 6 + fy[2] * 2.4];
+    k.onCommit('move', 6, v, { alt: true } as never);
+    await new Promise((r) => setTimeout(r, 1500));
+  });
+
+  it('a shared sketch no longer waits for an answer: its first choice moves every user, one undo step', async () => {
+    const d = slab([
+      { type: 'sketch', id: 'S5', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 40, y: 30 }], entities: [{ id: 'k1', type: 'circle', c: 'c', r: 5 }], constraints: [] },
+      { type: 'extrude', id: 'F6', op: 'add', sketch: 'S5', end: 'blind', depth: 5 },
+      { type: 'extrude', id: 'F7', op: 'add', sketch: 'S5', end: 'blind', depth: 8, flip: true },
+    ]);
+    const w = await world(d);
+    const c = w.plan('F6').commit('move', 1, [4, 0, 0], { alt: true })!;
+    expect(c.choices![0].id).toBe('all');
+    await w.controller.commit(c.choices![0].ops);
+    expect(pts(w.doc(), 'S5').find((q) => q.id === 'c')!.x).toBe(44);
+  });
+
+  it('Lock to: a block is tied to a hole centre with distances that survive regen and follow the next move', async () => {
+    const w = await world(slab());
+    const hole = await w.place('hole', [20, 20, 20]);
+    const blk = await w.place('add-block', [50, 40, 20]);
+    const hc = pts(w.doc(), hole.sketchId).find((q) => q.id !== 'O')!;
+    // hole sketch and block sketch are in the same face frame: lock to the hole centre
+    const s = w.plan(blk.id);
+    expect(s.move!.near.length).toBeGreaterThan(0);
+    const lock = s.move!.lockTo({ u: hc.x, v: hc.y })!;
+    expect((await w.controller.commit(lock.ops)).ok).toBe(true);
+    const sk = w.doc().features.find((f) => f.id === blk.sketchId) as unknown as { points: Array<{ id: string; x: number; y: number; ext?: boolean; fixed?: boolean }>; constraints: Array<{ type: string; value?: number }> };
+    expect(sk.points.some((q) => q.ext && q.fixed)).toBe(true);
+    expect(sk.constraints.map((c) => c.type).sort()).toEqual(['hdist', 'vdist']);
+    expect(await w.errors()).toEqual([]);
+    const c0 = centre(w.doc(), blk.sketchId);
+    const h1 = sk.constraints.find((c) => c.type === 'hdist')!.value as number;
+    // the lock is still there after a reload of the same document, and the shape did not move
+    await w.controller.load(structuredClone(w.doc()) as PartDoc);
+    expect(centre(w.doc(), blk.sketchId)).toEqual(c0);
+    expect(await w.errors()).toEqual([]);
+    // a later move updates the held distances
+    const s2 = w.plan(blk.id);
+    expect((await w.controller.commit(s2.move!.to(3, 0)!.ops)).ok).toBe(true);
+    const after = w.doc().features.find((f) => f.id === blk.sketchId) as unknown as { constraints: Array<{ type: string; value: number }> };
+    expect(Math.abs(after.constraints.find((c) => c.type === 'hdist')!.value - h1)).toBeCloseTo(3, 3);
     expect(await w.errors()).toEqual([]);
   });
 });

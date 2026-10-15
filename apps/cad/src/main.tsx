@@ -862,7 +862,7 @@ function App() {
   const handles = useHandles({
     controller, store, viewport: () => viewport, commands,
     create: (ops) => createFeature(ops),
-    commitInPlace: async (ops) => { await timed(() => controller.commit(ops)); redraw((n) => n + 1); },
+    commitInPlace: async (ops) => { const r = await timed(() => controller.commit(ops)); if (r && !r.ok) await controller.cancelPreview(); redraw((n) => n + 1); },
     editingId, selectedId, sketching: !!sketching, enabled: ws.handles && !tri.on,
     thread: threadEntry && editingId ? { id: editingId, entry: threadEntry, maxLength: threadExtent?.length ?? null, ops: (length) => opsFromDraft({ ...draft, length }) } : null,
     onDraftPatch: (patch) => setHandleInject((x) => ({ seq: (x?.seq ?? 0) + 1, patch })),

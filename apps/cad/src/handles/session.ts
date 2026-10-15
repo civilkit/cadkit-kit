@@ -24,6 +24,13 @@ export interface MoveInfo {
   /** The footprint in the sketch plane and the host face's extent there. */
   box: { u0: number; u1: number; v0: number; v1: number };
   host: { u0: number; u1: number; v0: number; v1: number } | null;
+  /** Centre of the footprint in the sketch plane, and in world coordinates (shown beside the typed position). */
+  centre: { u: number; v: number };
+  world: Vec3;
+  /** The body points nearest the shape (hole centres, corners, midpoints) that "Lock to" offers. */
+  near: Array<{ u: number; v: number; kind: string }>;
+  /** The edit that ties the shape to such a point with persistent sketch constraints holding the present offset. */
+  lockTo(p: { u: number; v: number }): HandleCommit | null;
   /** Grid step for nudges and Ctrl moves. */
   step: number;
   /** The edit (and notice / choices) of moving by (du, dv) in the sketch plane, no snapping. Null when it changes nothing or cannot be done. */

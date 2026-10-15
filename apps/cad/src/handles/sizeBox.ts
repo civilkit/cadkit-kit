@@ -17,7 +17,7 @@ import { holeDiameter, kindOf } from '../holeData';
 import { faceNames } from '../featureCommands';
 import { t } from '../i18n';
 import { MIN_SIZE, type HandleCommit, type HandleSession } from './session';
-import { gridStep, moveCandidates, NO_CANDS, resolveMove, type MoveCands, type MoveMods, type MoveResult } from './move';
+import { gridStep, moveCandidates, NO_CANDS, resolveMove, type MoveCands, type MoveMods, type MovePoint, type MoveResult } from './move';
 import type { EdgeLike } from '../catalog/geometry';
 
 type Wire = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -364,7 +364,8 @@ export function translateSketch(shape: Shape, du: number, dv: number): SketchEdi
   if (!profile) return null;
   const ids = new Set(profile.pointIds);
   const ents = new Set(profile.entityIds);
-  for (const e of shape.sketch.entities ?? []) if (e.construction) { ents.add(e.id); for (const id of [e.p1, e.p2, e.c, e.p, ...(e.pts ?? [])]) if (typeof id === 'string') ids.add(id); }
+  for (const e of shape.sketch.entities ?? []) if (e.construction && !e.ext) { ents.add(e.id);   // projected reference geometry (ext) stays where the body is
+ for (const id of [e.p1, e.p2, e.c, e.p, ...(e.pts ?? [])]) if (typeof id === 'string') ids.add(id); }
   const pinned = new Set<string>((shape.sketch.points ?? []).filter((p: Wire) => p.fixed && ids.has(p.id)).map((p: Wire) => p.id));
   const free = structuredClone(shape.sketch) as Wire;
   for (const p of free.points ?? []) if (pinned.has(p.id)) delete p.fixed;
@@ -542,6 +543,45 @@ export function moveCommit(doc: PartDoc | null, shape: Shape, du: number, dv: nu
   return { ops: all, create: false, choices, notice: t('sizebox.shared', { ids: shape.sharedWith.join(', ') }) };
 }
 
+/**
+ * "Lock to": a persistent relation between the shape and a point of the body it sits on (a hole centre, a corner, an edge
+ * midpoint, the face centre). The point is added to the shape's sketch as reference geometry (a fixed, external construction
+ * point, the same kind the Project tool makes) and the profile point nearest to it is tied to it: `coincident` when they are
+ * at the same place (concentric with a circle centre), else a horizontal and a vertical distance holding the offset the shape
+ * has now. Later moves keep the distances up to date (transformSketch), so the lock follows an edit instead of snapping back.
+ * Like Project, the reference is a snapshot of where the point is: it does not follow a later change of the body.
+ */
+export function lockOps(shape: Shape, to: { u: number; v: number }): HandleCommit | null {
+  const sk = structuredClone(shape.sketch) as Wire;
+  const pts: Wire[] = sk.points ?? [];
+  const ids = new Set<string>(pts.map((q) => q.id));
+  const uniq = (prefix: string): string => { let i = 1; while (ids.has(prefix + i)) i++; ids.add(prefix + i); return prefix + i; };
+  let key: Wire | undefined;
+  if (shape.hole) key = pts.find((q) => q.id === shape.hole!.pointId);
+  else if (shape.profile) {
+    let best = Infinity;
+    for (const q of pts) if (shape.profile.pointIds.has(q.id) && !q.fixed && !q.ext) { const d = Math.hypot(q.x - to.u, q.y - to.v); if (d < best) { best = d; key = q; } }
+  }
+  if (!key) return null;
+  let ref = pts.find((q) => q.ext && q.fixed && Math.hypot(q.x - to.u, q.y - to.v) < 1e-6);
+  if (!ref) {
+    ref = { id: uniq('L'), x: round3(to.u), y: round3(to.v), fixed: true, ext: true };
+    pts.push(ref);
+    (sk.entities ??= []).push({ id: uniq('Le'), type: 'point', p: ref.id, construction: true, ext: true });
+  }
+  const dx = key.x - ref.x, dy = key.y - ref.y;
+  const pair = (c: Wire): boolean => (c.refs ?? []).length === 2 && c.refs.includes(ref!.id) && c.refs.includes(key!.id);
+  const cons: Wire[] = (sk.constraints ?? []).filter((c: Wire) => !pair(c) || !['coincident', 'hdist', 'vdist', 'distance'].includes(c.type));
+  const cid = (): string => { let i = 1; while (cons.some((c) => c.id === 'K' + i) || (sk.constraints ?? []).some((c: Wire) => c.id === 'K' + i)) i++; return 'K' + i; };
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) cons.push({ id: cid(), type: 'coincident', refs: [ref.id, key.id] });
+  else {
+    if (Math.abs(dx) >= 1e-6) cons.push({ id: cid(), type: 'hdist', refs: dx >= 0 ? [ref.id, key.id] : [key.id, ref.id], value: round3(Math.abs(dx)) });
+    if (Math.abs(dy) >= 1e-6) cons.push({ id: cid(), type: 'vdist', refs: dy >= 0 ? [ref.id, key.id] : [key.id, ref.id], value: round3(Math.abs(dy)) });
+  }
+  sk.constraints = cons;
+  return { ops: [{ op: 'replace', id: sk.id, feature: sk } as EditOp], create: false, notice: t('sizebox.lock.done', { dx: fmt(Math.abs(dx)), dy: fmt(Math.abs(dy)) }) };
+}
+
 /** The session of a size box: its specs, and the ops every handle drag stands for. Null when the shape has no sketch frame yet. */
 export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   const shape = shapeModel(c.doc, c.shapeId, c.frameOf, c.bodyBox);
@@ -552,6 +592,16 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   let cands: MoveCands | null = null;
   const candidates = (): MoveCands => cands ??= c.edges ? moveCandidates(shape.frame, b, c.edges, othersOn(c.doc, shape, c.frameOf, c.bodyBox)) : NO_CANDS;
   const step = gridStep(b);
+  /** The few body points closest to the shape's centre, for "Lock to". */
+  const nearest = (): MovePoint[] => {
+    const cu = (b.u0 + b.u1) / 2, cv = (b.v0 + b.v1) / 2, out: MovePoint[] = [];
+    for (const p of [...candidates().pts].sort((x, y) => Math.hypot(x.u - cu, x.v - cv) - Math.hypot(y.u - cu, y.v - cv))) {
+      if (p.kind === 'center' || out.some((q) => Math.hypot(q.u - p.u, q.v - p.v) < 1e-6)) continue;
+      out.push(p);
+      if (out.length === 4) break;
+    }
+    return out;
+  };
   const snapLabel = (r: MoveResult): string => (r.snap ? ' - ' + t(r.snap === 'grid' || r.snap === 'axis' || r.snap === 'align' ? 'sizebox.snap.' + r.snap : 'catalog.snap.' + r.snap) : '');
   /** The box a handle reading stands for. `q` is the new dimension (faces) or the drag length (corner / anchor, which read `vec`). */
   const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult } | null => {
@@ -597,6 +647,12 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
     live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
     format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
-    move: { box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv) },
+    move: {
+      box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv),
+      centre: { u: (b.u0 + b.u1) / 2, v: (b.v0 + b.v1) / 2 },
+      world: worldOf(shape.frame, (b.u0 + b.u1) / 2, (b.v0 + b.v1) / 2, 0),
+      near: nearest(),
+      lockTo: (pt) => lockOps(shape, pt),
+    },
   };
 }

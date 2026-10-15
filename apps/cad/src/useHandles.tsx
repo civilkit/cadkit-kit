@@ -58,14 +58,17 @@ export function useHandles(p: HandlesDeps) {
   const session = useRef<HandleSession | null>(null);
   const [fieldsOpen, setFieldsOpen] = useState(false);
   const fieldsFor = useRef<string | undefined>(undefined);
-  const [ask, setAsk] = useState<HandleCommit | null>(null);
   const nudge = useRef<{ du: number; dv: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
   if (!runner.current) {
     runner.current = new HandleRunner({
       preview: async (ops) => { const r = await ref.current.controller.preview(ops, 0); return { ok: r.ok, stale: r.stale, hint: r.hint }; },
       cancelPreview: async () => { await ref.current.controller.cancelPreview(); ref.current.restorePreview?.(); },
       busy: (on) => { dragging.current = on; if (!on) setTick((n) => n + 1); },
-      commit: async (c) => { if (c.choices) { setAsk(c); return; } if (c.notice) ref.current.store.notify(c.notice, 'warn'); if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
+      commit: async (c) => {
+        // A shared sketch used to wait for an answer in a small dialog; a release that was not answered left the old document and the move was lost.
+        // The move now applies to every user at once (undo puts it back) and says so.
+        if (c.choices) { ref.current.store.notify(`${c.notice ?? ''} - ${t('sizebox.shared.applied')}`, 'warn'); await ref.current.commitInPlace(c.choices[0].ops); return; }
+        if (c.notice) ref.current.store.notify(c.notice, 'warn'); if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
       hint: setHint,
       activate: (id) => { if (id === 'move' || id === 'anchor') { fieldsFor.current = session.current?.target; setFieldsOpen(true); } },
     });
@@ -173,21 +176,9 @@ export function useHandles(p: HandlesDeps) {
   const info = fieldsOpen ? session.current?.move : undefined;
   const fieldsEl = info ? (
     <MoveFields info={info} values={scopeOf(p.controller.document()).values} onClose={() => setFieldsOpen(false)}
-      onApply={(du, dv) => { setFieldsOpen(false); void runner.current!.commit(info.to(du, dv)); }} />
-  ) : null;
-  const choose = (c: NonNullable<HandleCommit['choices']>[number] | null) => {
-    setAsk(null);
-    if (c) void ref.current.commitInPlace(c.ops); else void ref.current.controller.cancelPreview().then(() => ref.current.restorePreview?.());
-  };
-  const askEl = ask?.choices ? (
-    <div class="sizebox-ask" role="alertdialog" aria-label={ask.notice}>
-      <div>{ask.notice}</div>
-      <div class="sizebox-ask-btns">
-        {ask.choices.map((c) => <button key={c.id} type="button" onClick={() => choose(c)}>{c.label}</button>)}
-        <button type="button" onClick={() => choose(null)}>{t('sizebox.shared.cancel')}</button>
-      </div>
-    </div>
+      onApply={(du, dv) => { setFieldsOpen(false); void runner.current!.commit(info.to(du, dv)); }}
+      onLock={(pt) => { setFieldsOpen(false); void runner.current!.commit(info.lockTo(pt)); }} />
   ) : null;
   const hintEl = hint ? <div class="handle-hint" role="status">{hint}</div> : null;
-  return { onContextMenu, menuEl, hintEl, aboutEl, fieldsEl, askEl };
+  return { onContextMenu, menuEl, hintEl, aboutEl, fieldsEl, askEl: null };
 }
