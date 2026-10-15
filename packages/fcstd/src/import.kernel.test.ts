@@ -38,7 +38,7 @@ import { readFileSync } from 'node:fs';
 import { importFcstd } from './import';
 describe('real FCStd file (FreeCAD data/tests/PocketTest.fcstd, LGPL-2.1)', { skip: !process.env.CK_WASM }, () => {
   it('imports the legacy 0.14 file; the first pad has the volume of the cached FreeCAD shape', async () => {
-    const r = await importFcstd(new Uint8Array(readFileSync(new URL('../fixtures/PocketTest.fcstd', import.meta.url))), 'PocketTest');
+    const r = await importFcstd(new Uint8Array(readFileSync(process.cwd() + '/packages/fcstd/fixtures/PocketTest.fcstd')), 'PocketTest');
     expect(r.steps.map((s) => s.fc)).toEqual(['Pad']);
     expect(r.warnings.map((w) => w.code)).toContain('legacyFormat');
     const s = await Session.open(r.part as unknown as PartDoc); sessions.push(s);
