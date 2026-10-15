@@ -227,6 +227,36 @@ const ICONS: Record<string, string> = {
   explode: P('M9 9h6v6H9z') + A('M12 7V3M10.5 4.5 12 3l1.5 1.5M12 17v4M10.5 19.5 12 21l1.5-1.5M7 12H3M4.5 10.5 3 12l1.5 1.5M17 12h4M19.5 10.5 21 12l-1.5 1.5'),
   'asm-interference': O(9.5, 12, 6.5) + A('M15 6.3a6.5 6.5 0 0 1 0 11.4a6.5 6.5 0 0 1 0-11.4z'),
   'section-view': cube('', P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')) + AD('M3 13.5 12 9l9 4.5'),
+  // ---- added by the icon audit: files, history, selection, display style, lighting, background
+  'save-as': P('M5 4h9l4 4v12H5z') + P('M8 4v4h5V4') + A('M15.5 21.5l1-3.5 5-5 2.5 2.5-5 5z', 1.5),
+  'import-step': P(HEX) + T(Y) + A('M12 1.8v7M9 6l3 3 3-3', 2),
+  rename: P('M4 8h12v8H4z') + A('M19 5v14M17 5h4M17 19h4', 1.75) + D(7, 12, 1.2) + D(10, 12, 1.2) + D(13, 12, 1.2),
+  'delete-feature': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3') + A('M14 14l6 6M20 14l-6 6', 2),
+  'suppress-selected': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3') + A('M9 19.5 19 4.5', 2),
+  rebuild: P('M19.5 8A8 8 0 006 6.5L4 9') + P('M4 4v5h5') + P('M4.5 16A8 8 0 0018 17.5L20 15') + P('M20 20v-5h-5'),
+  'roll-forward': P('M4 17h16') + A('M12 5v10M8.5 11.5 12 15l3.5-3.5') + D(12, 5, 1.5),
+  'select-all': cubeDim + A(FACE.top, 2) + A(FACE.front, 2) + A(FACE.right, 2),
+  'select-body': A(HEX, 2) + T(Y) + D(12, 12, 1.8),
+  'select-box': '<rect x="3.5" y="5" width="17" height="14" rx="1" stroke-width="1.5" stroke-dasharray="3 2" style="stroke:var(--accent,currentColor)"/>' + D(9, 12) + D(15, 12),
+  'select-same-size': cubeDim + A('M5 18h5v-5H5zM14 11h5V6h-5z', 1.8) + T('M10 15.5h4M16.5 11v2.5'),
+  // display styles: the cube drawn as it will look
+  'style-shaded': P(HEX) + '<path d="M12 12l7.8-4.5v9L12 21z" fill="currentColor" stroke="none" opacity=".55"/>' + '<path d="M4.2 7.5 12 12v9l-7.8-4.5z" fill="currentColor" stroke="none" opacity=".25"/>',
+  'style-shadedEdges': '<path d="M12 12l7.8-4.5v9L12 21z" fill="currentColor" stroke="none" opacity=".4"/>' + P(HEX) + P(Y),
+  'style-wireframe': P(HEX) + P('M4.2 7.5 12 12l7.8-4.5M12 12v9') + C('M4.2 16.5l7.8-4.5 7.8 4.5'),
+  'style-hiddenLines': P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z') + C('M4.2 7.5 12 12l7.8-4.5M12 12v9'),
+  'style-ghost': C(HEX) + C(Y) + A('M6 12.5h12', 1.5) + T('M8 16h8'),
+  'hide-selection': P('M2.5 12C5 7.5 8.5 5.5 12 5.5s7 2 9.5 6.5C19 16.5 15.5 18.5 12 18.5S5 16.5 2.5 12z') + O(12, 12, 3) + A('M4 4l16 16', 2),
+  'show-all': P('M2.5 12C5 7.5 8.5 5.5 12 5.5s7 2 9.5 6.5C19 16.5 15.5 18.5 12 18.5S5 16.5 2.5 12z') + O(12, 12, 3) + A('M18 3.5v4M16 5.5h4', 1.75),
+  // lighting: a lamp over the cube
+  'light-studio': P('M12 3a5 5 0 013 9v2H9v-2a5 5 0 013-9z') + P('M10 17h4M10.5 20h3') + T('M3 6l2 1.5M21 6l-2 1.5M3 14l2-1M21 14l-2-1'),
+  'light-flat': P('M5 8h14v8H5z') + T('M5 12h14') + A('M8 12h8', 1.75),
+  'light-contrast': O(12, 12, 8) + '<path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>',
+  // background: a framed canvas
+  'bg-theme': P('M4 5h16v14H4z') + A('M4 5l16 14', 1.75) + T('M4 5h16v14H4z'),
+  'bg-light': P('M4 5h16v14H4z') + O(12, 12, 3) + T('M12 7v-1M12 18v-1M7 12H6M18 12h-1'),
+  'bg-dark': P('M4 5h16v14H4z') + '<path d="M14.5 8.5a4 4 0 100 7 3.4 3.4 0 010-7z" fill="currentColor" stroke="none"/>',
+  'bg-gradient': P('M4 5h16v14H4z') + T('M4 9h16M4 13h16') + '<path d="M4.9 15.5h14.2V18H4.9z" fill="currentColor" stroke="none" opacity=".45"/>',
+  more: D(5.5, 12, 1.9) + D(12, 12, 1.9) + D(18.5, 12, 1.9),
 };
 
 export const ICON_NAMES: string[] = Object.keys(ICONS);
