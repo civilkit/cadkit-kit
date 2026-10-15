@@ -92,13 +92,14 @@
 }
 #app[data-left="floating"][data-lcol="false"] .tool-rail { left: 284px; }
 
-/* ---- the sketch palette (right edge) */
+/* ---- the sketch palette (right edge; on a phone a strip above the tool palette) */
+
 .sketch-palette .spal-grid { grid-template-columns: repeat(2, 38px); }
 .sketch-palette.labels { width: 142px; }
 .sketch-palette.labels .spal-grid { grid-template-columns: repeat(2, 58px); }
 
 /* short windows: a labelled palette would scroll, so its cells go back to icons (names stay in the tooltip and the lists) */
-@media (max-height: 820px) {
+@media (max-height: 820px) and (min-width: 641px) {
   .tool-rail.labels, .sketch-palette.labels { width: 92px; }
   .tool-rail.labels .rail-grid, .sketch-palette.labels .spal-grid { grid-template-columns: repeat(2, 38px); }
   .tool-rail .slot-lab, .sketch-palette .slot-lab { display: none; }
@@ -107,3 +108,12 @@
 
 /* the active tool: after the cell rules above so it is not overridden by their transparent background */
 .slot .slot-btn[aria-pressed="true"], .slot .slot-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* phones: a strip above the tool palette (last in the file so it beats the width rules above) */
+@media (max-width: 640px) {
+  .sketch-palette, .sketch-palette.labels { left: 8px; right: 8px; top: auto; bottom: 66px; width: auto; max-height: none; flex-direction: row; gap: 4px; overflow-x: auto; overflow-y: hidden; }
+  .sketch-palette .spal-group { flex: none; flex-direction: row; align-items: center; border-top: 0; border-left: 1px solid var(--line); padding: 0 0 0 4px; }
+  .sketch-palette .spal-group:first-child { border-left: 0; padding-left: 0; }
+  .sketch-palette .spal-name { display: none; }
+  .sketch-palette .spal-grid, .sketch-palette.labels .spal-grid { display: flex; }
+}
