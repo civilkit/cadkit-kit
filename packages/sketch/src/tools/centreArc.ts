@@ -20,6 +20,20 @@ export interface CentreArcState {
   lockedR?: number;
   liveR?: number;
   cursor?: Pt;
+  /** signed turn of the pointer around the centre since the start click (ccw positive), summed over small moves so it can pass half a turn */
+  acc?: number;
+  prev?: number;
+}
+
+const wrapPi = (d: number): number => { let x = d % (Math.PI * 2); if (x > Math.PI) x -= Math.PI * 2; if (x <= -Math.PI) x += Math.PI * 2; return x; };
+
+/** Follow the pointer round the centre: the arc keeps growing the way the pointer went instead of flipping at half a turn. */
+function track(s: CentreArcState, cursor: Pt): CentreArcState {
+  if (!s.centre || !s.start || dist(s.centre.at, cursor) < 1e-9) return { ...s, cursor };
+  const a = angleOf(s.centre.at, cursor);
+  const prev = s.prev ?? angleOf(s.centre.at, s.start.at);
+  const acc = Math.max(-(Math.PI * 2 - 1e-6), Math.min(Math.PI * 2 - 1e-6, (s.acc ?? 0) + wrapPi(a - prev)));
+  return { ...s, cursor, acc, prev: a };
 }
 
 const along = (c: Pt, toward: Pt, r: number): Pt => {
@@ -49,8 +63,8 @@ function view(state: CentreArcState, draft: SketchDraft, settings: ToolSettings,
   if (state.start && r > 1e-9) {
     const a0 = angleOf(c, state.start.at);
     const end = along(c, state.cursor, r);
-    const a1 = angleOf(c, end), ccw = sweepCcw(a0, a1);
-    preview.push(...(ccw <= Math.PI ? arcPolyline(c, r, a0, ccw) : arcPolyline(c, r, a1, sweepCcw(a1, a0))), { kind: 'line', a: c, b: end });
+    const acc = state.acc ?? 0, a1 = angleOf(c, end);
+    preview.push(...(acc >= 0 ? arcPolyline(c, r, a0, acc) : arcPolyline(c, r, a1, -acc)), { kind: 'line', a: c, b: end });
   }
   return { state, draft, preview, fields, hint };
 }
@@ -60,7 +74,7 @@ function finish(state: CentreArcState, draft: SketchDraft, settings: ToolSetting
   const start = state.start!;
   const r = dist(c, start.at);
   const end = along(c, state.cursor!, r);
-  const sweep = sweepCcw(angleOf(c, start.at), angleOf(c, end));
+  const acc = state.acc ?? 0, sweep = Math.abs(acc);
   if (r < 1e-9 || sweep < 1e-9 || sweep > Math.PI * 2 - 1e-9) return view(state, draft, settings, 'app.sketch.hint.degenerate');
   let d = draft;
   let cid = state.centre!.pointId;
@@ -71,7 +85,7 @@ function finish(state: CentreArcState, draft: SketchDraft, settings: ToolSetting
   const onCircle = eid !== undefined && ev !== undefined && Math.abs(dist(c, ev.at) - r) <= 1e-6 * Math.max(1, r);
   if (!eid || !onCircle || eid === sid || eid === cid) { const a = addPoint(d, end); d = a.draft; eid = a.id; }
   // shorter way round: a clockwise pointer draws the small arc from the end point to the start point
-  const arc = sweep <= Math.PI ? addArc(d, cid, sid, eid) : addArc(d, cid, eid, sid);
+  const arc = acc >= 0 ? addArc(d, cid, sid, eid) : addArc(d, cid, eid, sid);
   d = arc.draft;
   if (state.lockedR !== undefined) d = addSizeConstraint(d, 'radius', arc.id, state.lockedR);
   return view({ ...(state.cursor ? { cursor: state.cursor } : {}) }, d, settings);
@@ -82,16 +96,16 @@ export const centreArcTool: Tool<CentreArcState> = {
   start: () => ({}),
   step(state, ev, draft, settings) {
     switch (ev.type) {
-      case 'move': return view({ ...state, cursor: ev.snap?.at ?? ev.at }, draft, settings);
+      case 'move': return view(track(state, ev.snap?.at ?? ev.at), draft, settings);
       case 'click': {
         const at = ev.snap?.at ?? ev.at;
-        const withCursor = { ...state, cursor: at };
+        const withCursor = state.start ? track(state, at) : { ...state, cursor: at };
         if (!state.centre) return view({ ...withCursor, centre: { at, ...(ev.snap?.pointId ? { pointId: ev.snap.pointId } : {}) } }, draft, settings);
         if (!state.start) {
           const s = startNow(withCursor)!;
           if (dist(state.centre.at, s.at) < 1e-9) return view(withCursor, draft, settings, 'app.sketch.hint.degenerate');
           const pointId = state.lockedR === undefined && ev.snap?.pointId && ev.snap.pointId !== state.centre.pointId ? ev.snap.pointId : undefined;
-          return view({ ...withCursor, start: { at: s.at, ...(pointId ? { pointId } : {}) }, liveR: undefined }, draft, settings);
+          return view({ ...withCursor, start: { at: s.at, ...(pointId ? { pointId } : {}) }, liveR: undefined, acc: 0, prev: angleOf(state.centre.at, s.at) }, draft, settings);
         }
         return finish(withCursor, draft, settings, { at, ...(ev.snap?.pointId ? { pointId: ev.snap.pointId } : {}) });
       }
@@ -102,7 +116,7 @@ export const centreArcTool: Tool<CentreArcState> = {
           // locking the radius fixes the start in the pointer's direction; the end is still to be placed
           const next = { ...state, lockedR: ev.value, liveR: undefined };
           const s = startNow(next);
-          return view(s ? { ...next, start: { at: s.at } } : next, draft, settings);
+          return view(s ? { ...next, start: { at: s.at }, acc: 0, prev: angleOf(next.centre!.at, s.at) } : next, draft, settings);
         }
         return view({ ...state, liveR: ev.value }, draft, settings);
       }

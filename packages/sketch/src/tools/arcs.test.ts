@@ -136,9 +136,10 @@ describe('centrepoint arc tool', () => {
     expect(arc.p2).toBe('p2');
   });
 
-  it('past half a turn clockwise keeps the larger arc', () => {
-    const o = run(centreArcTool, [click(0, 0), click(10, 0), move(-10, 1), click(-10, 1)]);
-    expect(o.draft.entities).toEqual([{ id: 'e1', type: 'arc', c: 'p1', p1: 'p2', p2: 'p3' }]);
+  it('past half a turn clockwise the arc keeps following the pointer (no flip)', () => {
+    const o = run(centreArcTool, [click(0, 0), click(10, 0), move(0, -10), move(-10, -1), move(-10, 1), move(-3, 10), click(-3, 10)]);
+    // clockwise from (10,0) through the bottom and the left to just short of the top: stored ccw from the pointer end to the start
+    expect(o.draft.entities).toEqual([{ id: 'e1', type: 'arc', c: 'p1', p1: 'p3', p2: 'p2' }]);
   });
 
   it('reuses snapped centre and start points, and the end only when it already lies on the circle', () => {
