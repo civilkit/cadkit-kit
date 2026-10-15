@@ -2,7 +2,7 @@
    A slot is one button for a family of tools; the corner triangle, a long press, a flick or a right click opens the list. */
 
 /* ---- ribbon: one row of titled groups, what does not fit goes into the "more" menu */
-.ribbon-wrap { position: relative; z-index: 8; min-width: 0; }
+.ribbon-wrap { position: relative; z-index: 8; min-width: 0; contain: inline-size; }
 .ribbon { min-width: 0; }
 .rb-tabs { overflow-x: auto; scrollbar-width: none; }
 .rb-tab { flex: none; }
@@ -29,7 +29,7 @@
 .slot.ribbon .slot-btn:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--line); }
 .slot.ribbon .slot-btn.icon-only { width: 34px; height: 34px; }
 .slot.ribbon .slot-btn.has-label { flex-direction: column; justify-content: flex-start; gap: 3px; width: 56px; height: 58px; padding: 5px 2px 2px; }
-.slot-lab { display: block; width: 100%; font-size: 10px; line-height: 12px; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
+.slot-lab { display: block; width: 100%; font-size: 10px; line-height: 12px; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: normal; overflow-wrap: normal; }
 .slot.ribbon.multi.has-label .slot-btn, .slot.ribbon.multi .slot-btn.has-label { padding-right: 3px; }
 /* palette cells (rail and sketch) */
 .slot.rail .slot-btn, .slot.icon .slot-btn { width: 38px; height: 34px; border: 0; border-radius: 7px; background: none; padding: 0; flex: none; }
@@ -85,10 +85,10 @@
   .tool-rail .rail-title { display: none; }
 }
 @media (max-width: 640px) {
-  .tool-rail { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: auto; max-height: none; flex-direction: row; gap: 4px; overflow-x: auto; overflow-y: hidden; }
+  .tool-rail, .tool-rail.labels { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: auto; max-height: none; flex-direction: row; gap: 4px; overflow-x: auto; overflow-y: hidden; }
   .tool-rail .rail-sec { flex-direction: row; flex: none; border-top: 0; border-left: 1px solid var(--line); padding: 0 0 0 4px; }
   .tool-rail .rail-sec:first-child { border-left: 0; padding-left: 0; }
-  .tool-rail .rail-grid { display: flex; }
+  .tool-rail .rail-grid, .tool-rail.labels .rail-grid { display: flex; }
 }
 #app[data-left="floating"][data-lcol="false"] .tool-rail { left: 284px; }
 
@@ -96,3 +96,14 @@
 .sketch-palette .spal-grid { grid-template-columns: repeat(2, 38px); }
 .sketch-palette.labels { width: 142px; }
 .sketch-palette.labels .spal-grid { grid-template-columns: repeat(2, 58px); }
+
+/* short windows: a labelled palette would scroll, so its cells go back to icons (names stay in the tooltip and the lists) */
+@media (max-height: 820px) {
+  .tool-rail.labels, .sketch-palette.labels { width: 92px; }
+  .tool-rail.labels .rail-grid, .sketch-palette.labels .spal-grid { grid-template-columns: repeat(2, 38px); }
+  .tool-rail .slot-lab, .sketch-palette .slot-lab { display: none; }
+  .slot.rail .slot-btn.has-label, .slot.icon .slot-btn.has-label { width: 38px; height: 34px; justify-content: center; padding: 0; }
+}
+
+/* the active tool: after the cell rules above so it is not overridden by their transparent background */
+.slot .slot-btn[aria-pressed="true"], .slot .slot-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }

@@ -57,13 +57,16 @@ export function Ribbon(p: {
   const row = useRef<HTMLDivElement>(null);
   // how many groups fit on the one row; null = measure with all of them drawn
   const [fit, setFit] = useState<number | null>(null);
+  const fitNow = useRef<number | null>(null);
+  fitNow.current = fit;
   const sig = p.activeTab + '|' + p.labels + '|' + groups.map((g) => g.id + g.entries.length).join(',');
   useLayoutEffect(() => { setAuto(false); setFit(null); }, [sig]);
   useLayoutEffect(() => {
     const el = row.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     let w = el.clientWidth;
-    const ro = new ResizeObserver(() => { if (el.clientWidth !== w) { w = el.clientWidth; setAuto(false); setFit(null); } });
+    const ro = new ResizeObserver(() => { if (fitNow.current === null) return;                    // measuring: the width of the full row is not news
+      if (Math.abs(el.clientWidth - w) > 1) { w = el.clientWidth; setAuto(false); setFit(null); } });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
