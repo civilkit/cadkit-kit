@@ -120,6 +120,7 @@ const ICONS: Record<string, string> = {
   'toggle-projection': P('M4 8l8-3 8 3v8l-8 3-8-3z') + T('M4 8l8 3 8-3M12 11v8'),
   'projection-ortho': P('M5 7h14v10H5z') + T('M8 7v10M16 7v10') + A('M5 7l3-3h11v10l-3 3'),
   'toggle-left-panel': P('M4 5h16v14H4z') + T('M9.5 5v14') + A('M15 9.5 12.5 12l2.5 2.5'),
+  'reset-layout': P('M4 5h16v14H4z') + T('M9.5 5v14M4 12h5.5') + A('M13 10l2 2-2 2M19 10v4'),
   'sketch-on-face': cubeDim + A(FACE.top, 2) + '<ellipse cx="12" cy="7.5" rx="3" ry="1.7"/>',
   'add-fillet': P('M4 20V10M10 4h10v16H4') + A('M4 10a6 6 0 016-6') + C('M4 20h16'),
   'add-chamfer': P('M4 20V12M12 4h8v16H4') + A('M4 12 12 4') + C('M4 20h16'),
