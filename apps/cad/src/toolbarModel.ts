@@ -29,7 +29,7 @@ export const SLOTS: Record<string, string[]> = {
   export: ['export', 'export-step', 'export-stl', 'export-stl-ascii', 'export-obj', 'export-dxf-sketch', 'export-dxf-views'],
   views: ['view-iso', 'view-top', 'view-front', 'view-right', 'view-back', 'view-left', 'view-bottom'],
   style: ['style-shaded', 'style-shadedEdges', 'style-wireframe', 'style-hiddenLines', 'style-ghost'],
-  light: ['light-studio', 'light-flat', 'light-contrast'],
+  light: ['light-studio', 'light-flat', 'light-contrast', 'light-technical'],
   background: ['bg-theme', 'bg-light', 'bg-dark', 'bg-gradient'],
   layers: ['layer-edges', 'layer-sketches', 'layer-curves', 'layer-planes', 'layer-axes', 'layer-grid', 'layer-relations', 'layer-dimensions', 'layer-threads'],
   'pick-mode': ['sel-face', 'sel-edge', 'sel-vertex', 'sel-body'],

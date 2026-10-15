@@ -860,3 +860,13 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .fedit-fld .fedit-inline { position: relative; }
 .fedit-fld .fedit-inline input { padding-right: 32px; }
 .fedit-fld .fedit-inline .fedit-unit { position: absolute; right: 9px; pointer-events: none; }
+
+/* lighting presets: a small lit sphere per preset */
+.preset-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px 8px; }
+.preset-thumb { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 2px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; font: inherit; font-size: 10.5px; }
+.preset-thumb.on { border-color: var(--accent); background: var(--accent-soft); }
+.preset-ball { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #4a5565; }
+.preset-studio .preset-ball { background: radial-gradient(circle at 30% 28%, #fff 0 8%, #dfe6ef 18%, #9aa7b8 62%, #5c6878 100%); }
+.preset-flat .preset-ball { background: #b9c3d0; }
+.preset-contrast .preset-ball { background: radial-gradient(circle at 28% 25%, #fff 0 10%, #c9d2de 28%, #3a4350 72%, #14181e 100%); }
+.preset-technical .preset-ball { background: radial-gradient(circle at 40% 35%, #fff, #eef0f3 70%, #d5d9df); border: 2px solid #000; }

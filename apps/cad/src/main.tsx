@@ -48,7 +48,7 @@ import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
 import { AnalysisLegend } from './AnalysisControls';
-import { createLookStore, effectiveAppearance, componentAppearances, anyHidden, LOOK_KEY } from './look';
+import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
@@ -364,6 +364,9 @@ function App() {
   const [treeHover, setTreeHover] = useState<string | null>(null);
   useEffect(() => { viewport?.setFeatureHover(treeHover ? [treeHover] : []); }, [treeHover]);
   const viewOwnerOf = (n: string): string | null => { const d = controller.document(); return d ? viewOwner(n, insertIds(d as never)) : null; };
+  const compAppearances = compParts.length ? componentAppearances(lk, partName, compParts, appearanceOfMaterial, useMatColour) : new Map<string, import('@kit/viewport').Appearance>();
+  const selOwner = store.selection.value.length ? viewOwnerOf(store.selection.value[0]) : null;
+  const selComp = selOwner && compAppearances.has(selOwner) ? { id: selOwner, name: ((controller.document()?.features ?? []) as Array<{ id: string; name?: string }>).find((f) => f.id === selOwner)?.name ?? selOwner } : null;
   const faceHover = store.hover.value;
   const hoverRowId = !treeHover && faceHover && !sketching ? viewOwnerOf(faceHover) : null;
   const toggleHideFeature = (id: string) => {
@@ -1680,8 +1683,9 @@ function App() {
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
-          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance,
-          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(partName || 'part', patch),
+          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
+          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
+          componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
         {sketchBanner}

@@ -251,6 +251,7 @@ const ICONS: Record<string, string> = {
   // lighting: a lamp over the cube
   'light-studio': P('M12 3a5 5 0 013 9v2H9v-2a5 5 0 013-9z') + P('M10 17h4M10.5 20h3') + T('M3 6l2 1.5M21 6l-2 1.5M3 14l2-1M21 14l-2-1'),
   'light-flat': P('M5 8h14v8H5z') + T('M5 12h14') + A('M8 12h8', 1.75),
+  'light-technical': O(12, 12, 8) + T('M4 12h16M12 4v16'),
   'light-contrast': O(12, 12, 8) + '<path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>',
   // background: a framed canvas
   'bg-theme': P('M4 5h16v14H4z') + A('M4 5l16 14', 1.75) + T('M4 5h16v14H4z'),
