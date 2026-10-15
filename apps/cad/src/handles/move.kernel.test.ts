@@ -95,14 +95,14 @@ describe('moving shapes against the real kernel', { skip: !process.env.CK_WASM, 
     const u = fc[0] * fx[0] + fc[1] * fx[1], v = fc[0] * fy[0] + fc[1] * fy[1];
     const want = [u - c0[0], v - c0[1]];
     const ops = s.preview('move', 1, wv(want[0] + 1, want[1] - 1))!;           // within 3 mm of it
-    const sk = (ops[0] as { feature: { points: Array<{ id: string; x: number; y: number }> } }).feature;
+    const sk = (ops[0] as unknown as { feature: { points: Array<{ id: string; x: number; y: number }> } }).feature;
     const moved = sk.points.filter((q) => q.id !== 'O');
     const mc = [(Math.min(...moved.map((q) => q.x)) + Math.max(...moved.map((q) => q.x))) / 2, (Math.min(...moved.map((q) => q.y)) + Math.max(...moved.map((q) => q.y))) / 2];
     expect(mc[0]).toBeCloseTo(u, 2); expect(mc[1]).toBeCloseTo(v, 2);
     expect(s.format!('move', 1)).toContain('face centre');
     // Alt: exactly where the pointer put it
     const free = s.preview('move', 1, wv(want[0] + 1, want[1] - 1), { alt: true })!;
-    const fp = (free[0] as { feature: { points: Array<{ id: string; x: number }> } }).feature.points.filter((q) => q.id !== 'O');
+    const fp = (free[0] as unknown as { feature: { points: Array<{ id: string; x: number }> } }).feature.points.filter((q) => q.id !== 'O');
     expect(Math.min(...fp.map((q) => q.x)) + (Math.max(...fp.map((q) => q.x)) - Math.min(...fp.map((q) => q.x))) / 2).toBeCloseTo(u + 1, 2);
     // Ctrl: whole millimetres; Shift: only the larger component
     const g = s.move!.to(2.4, 0)!;
