@@ -995,11 +995,15 @@ export class Viewport {
     this.setFeatureHover(this.featureHoverIds);
     this.applyMeshLook();
     this.applySection();
-    if (!this.keepView && !this.holdView && this.previewFade === null && !this.triball.active) this.fit();   // the camera stays put while the ball moves the body
+    // the camera is framed once per document (load, new part, first body); edits, drags, previews and undo keep the user's view
+    if (this.needFit && !this.keepView && !this.holdView && this.previewFade === null && !this.triball.active && this.edges.length > 0) { this.fit(); this.needFit = false; }
   }
 
   private keepView = false;
   private holdView = false;
+  /** True until a body has been framed; `requestFit()` asks for the next body to be framed (a document was loaded or started). */
+  private needFit = true;
+  requestFit(): void { this.needFit = true; }
   /** While true a new body does not re-fit the camera (the catalog keeps the view still while shapes are placed on a part). */
   setHoldView(on: boolean): void { this.holdView = on; }
   /** names of the faces and edges that belong to surface bodies (tinted) */

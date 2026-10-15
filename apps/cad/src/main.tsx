@@ -403,6 +403,7 @@ function App() {
       // While the part loads, controller.document() already changes (and a render can land in between) but the clean
       // signature is still the old part's: that read as "modified". null means "not tracked", so nothing is dirty until markClean.
       cleanSig.current = null;
+      viewport?.requestFit();
       await timed(() => controller.load(doc));
       if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
       else { markClean(); autosaver.clear(); }
@@ -1595,7 +1596,7 @@ function App() {
       { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
-  useEffect(() => { if (!controller.document()) void (async () => { await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
   const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
   useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload); });
