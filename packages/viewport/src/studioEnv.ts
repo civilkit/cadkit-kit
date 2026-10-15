@@ -20,7 +20,7 @@ vec3 studio(vec3 d) {
   vec3 floorC = mix(vec3(0.2, 0.205, 0.21), vec3(0.4, 0.405, 0.41), smoothstep(-0.2, -1.0, h));
   c = mix(floorC, c, smoothstep(-0.05, 0.05, h));
   c *= 1.0 - 0.6 * exp(-h * h * 700.0);
-  c += vec3(1.1, 1.12, 1.16) * softbox(d, normalize(vec3(0.25, 0.3, 1.0)), Y, 0.75, 0.5, 0.45);
+  c += vec3(1.9, 1.92, 1.98) * softbox(d, normalize(vec3(0.2, 0.25, 1.0)), Y, 0.9, 0.7, 0.5);
   c += vec3(7.0) * softbox(d, normalize(vec3(-0.97, 0.08, -0.12)), Y, 0.16, 0.9, 0.05);
   c += vec3(6.0) * softbox(d, normalize(vec3(0.94, 0.14, -0.3)), Y, 0.14, 0.85, 0.05);
   c += vec3(5.0) * softbox(d, normalize(vec3(0.05, 0.97, 0.25)), Z, 0.7, 0.3, 0.08);

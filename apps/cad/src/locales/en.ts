@@ -187,7 +187,7 @@ export const en: Catalog = {
   'display.style': 'Style', 'display.opacity': 'Opacity', 'display.appearance': 'Appearance', 'display.color': 'Colour', 'display.material': 'Material',
   'display.scene': 'Scene', 'display.lighting': 'Lighting', 'display.background': 'Background', 'display.layers': 'Show',
   'style.shaded': 'Shaded', 'style.shadedEdges': 'Shaded with edges', 'style.wireframe': 'Wireframe', 'style.hiddenLines': 'Hidden lines removed', 'style.ghost': 'Ghost',
-  'material.default': 'Default', 'material.plastic': 'Matte plastic', 'material.brushed': 'Brushed metal', 'material.glass': 'Glass', 'material.matte': 'Matte',
+  'material.default': 'Default', 'material.plastic': 'Plastic', 'material.brushed': 'Brushed metal', 'material.glass': 'Glass', 'material.matte': 'Matte',
   'light.studio': 'Studio', 'light.flat': 'Flat', 'light.contrast': 'High contrast', 'light.technical': 'Technical',
   'display.intensity': 'Light strength', 'display.reflections': 'Reflections', 'display.edgeWidth': 'Edge width', 'display.silhouette': 'Silhouette outline',
   'display.appearanceOf': 'Appearance of {name}', 'edge.thin': 'Thin', 'edge.medium': 'Medium', 'edge.bold': 'Bold',
