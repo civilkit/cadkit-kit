@@ -14,6 +14,8 @@ import type { MassRaw } from './inspect/mass';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
+import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
+import { summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
@@ -103,7 +105,7 @@ export class Controller {
       // viewer-state fields kept in the file: the exploded view and the drawing sheet
       this.docExtra = {};
       for (const k of ['explode', 'drawing']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
-      this.rollbackAnchor = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
+      this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -142,13 +144,19 @@ export class Controller {
         this.pendingCancel = null;
       }
       if (!result.ok) {
-        const text =
-          result.hints?.map((h) => h.hint).join('; ') ||
-          result.schemaError ||
-          'edit failed';
+        // the cause and its consequences, not every error joined into one wall of text
+        let text = result.hints?.map((h) => h.hint).join('; ') || result.schemaError || 'edit failed';
+        this.rejected = null;
+        if (result.errors?.length) {
+          const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+          const diagnosis = this.diagnoseErrors(result.errors, result.hints ?? [], cand);
+          const summary = summaryLine(diagnosis);
+          if (summary) { text = summary; this.rejected = { diagnosis, summary, at: Date.now() }; }
+        }
         this.store.notify(text, 'error');
         return result;
       }
+      this.rejected = null;
       this.redoStack = [];
       // the marker moves past what was just inserted
       if (at !== null && adds) this.rollbackAnchor = s.document.features[at + adds - 1]?.id ?? this.rollbackAnchor;
@@ -177,7 +185,7 @@ export class Controller {
 
   /** Speculative edit: shows the candidate body, leaves document and history untouched.
    *  Debounced ~150 ms; a newer preview supersedes an older one (stale:true, body dropped). */
-  async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string }> {
+  async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null }> {
     const seq = ++this.previewSeq;
     if (this.previewTimer) clearTimeout(this.previewTimer);
     this.previewWake?.();
@@ -208,11 +216,11 @@ export class Controller {
       await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
       return r;
     }
-    const hint =
-      r.hints?.map((h) => h.hint).join('; ') ||
-      r.schemaError ||
-      'preview failed';
-    return { ...r, hint };
+    const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+    const diagnosis = r.errors?.length ? this.diagnoseErrors(r.errors, r.hints ?? [], cand) : null;
+    // one short sentence about the cause instead of every error joined (the full list is in `diagnosis`)
+    const hint = (diagnosis ? summaryLine(diagnosis) : '') || r.schemaError || 'preview failed';
+    return { ...r, hint, diagnosis };
   }
 
   /**
@@ -232,6 +240,15 @@ export class Controller {
       const res = (r?.ok ? r.result : null) as { threads?: unknown[]; warnings?: unknown[] } | null;
       return { threads: res?.threads ?? [], warnings: res?.warnings ?? [] };
     } catch { return { threads: [], warnings: [] }; }
+  }
+  private rejected: { diagnosis: Diagnosis; summary: string; at: number } | null = null;
+  /** The last edit the kernel refused because it broke the model (the model itself is unchanged); null after the next successful edit or load. */
+  rejection(): { diagnosis: Diagnosis; summary: string; at: number } | null { return this.rejected; }
+  private committedDiag: Diagnosis = diagnose([], []);
+  /** The roots and consequences of the committed model's last regen (empty when it built cleanly). */
+  diagnosis(): Diagnosis { return this.committedDiag; }
+  private diagnoseErrors(errors: Array<[string, { code: string; params?: Record<string, unknown> }]>, hints: Array<{ feature: string; code: string; hint: string }>, features: unknown): Diagnosis {
+    return diagnose(errors.map(([id, e]) => ({ id, code: e.code, params: e.params, hint: hints.find((h) => h.feature === id && h.code === e.code)?.hint })), features as DiagFeature[]);
   }
   private committedExtras: { threads: unknown[]; warnings: unknown[] } = { threads: [], warnings: [] };
   private shownThreads: unknown[] = [];
@@ -913,11 +930,12 @@ export class Controller {
     this.committedExtras = await this.regenExtras(s, s.document, this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
     this.applyExtras(this.committedExtras);
     const errors = new Map(report.regen.errors);
+    this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, s.document.features);
     this.store.featureStatus.value = s.document.features.map((f) => {
       const err = errors.get(f.id);
       if (!err) return { id: f.id, ok: true };
       const hint = report.hints.find((h) => h.feature === f.id && h.code === err.code);
-      return { id: f.id, ok: false, code: err.code, hint: hint?.hint };
+      return { id: f.id, ok: false, code: err.code, hint: hint?.hint, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
     });
     this.lastGood = s.document;
   }

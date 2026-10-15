@@ -56,7 +56,8 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));
   return out;
 }
-export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; }
+/** `blockedBy`: this failure only follows from an earlier one (the root cause's feature id); the tree shows it muted, not red. */
+export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; params?: Record<string, unknown>; blockedBy?: string; }
 /** A regen warning on a feature (the feature still works): the first one's code, the hints of all joined; `params` is the kernel's, `all` lists every warning when there are several. */
 export interface FeatureWarning { code: string; hint: string; params?: Record<string, unknown>; all?: Array<{ code: string; hint: string; params?: Record<string, unknown> }> }
 
