@@ -234,7 +234,7 @@ function App() {
     setPreviewHint(r.ok ? null : (r.hint ?? null));
     if (!r.ok && r.diagnosis?.roots.length) setPreviewDiag({ d: r.diagnosis, fresh: newBreakage(r.diagnosis, controller.diagnosis()) });
   };
-  const [sketching, setSketching] = useState<{ id: string; name: string } | null>(null);
+  const [sketching, setSketching] = useState<{ id: string; name: string; plane?: string } | null>(null);
   const [sketchHint, setSketchHint] = useState<string | null>(null);
   // Per-sketch mode: new geometry from the draw tools is made as construction (dashed, never extruded). UI state, not saved.
   const [constructionMode, setConstructionMode] = useState(false);
@@ -1328,7 +1328,7 @@ function App() {
       if (!view) { store.notify(t('app.sketch.failedCurved'), 'error'); return; }
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
-      setSketching({ id: view.featureId, name: t('app.sketch.newName') });
+      setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : t('app.sketch.dialog.onFace') });
       viewport?.orientToSketch();
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
@@ -1750,7 +1750,7 @@ function App() {
         {sketching && sketchPrefs.show.panel ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
         {sketching && (ws.sketchPalette || ws.ribbon === 'off') ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
-        {sketching ? <SketchDialog name={sketching.name} plane={sketchPlaneLabel} showRelations={sketchPrefs.show.relations} showDimensions={sketchPrefs.show.dimensions}
+        {sketching ? <SketchDialog name={sketching.name} plane={sketching.plane ?? sketchPlaneLabel} showRelations={sketchPrefs.show.relations} showDimensions={sketchPrefs.show.dimensions}
           onShow={(patch) => { const next = { ...sketchPrefs, show: { ...sketchPrefs.show, ...(patch.relations !== undefined ? { relations: patch.relations } : {}), ...(patch.dimensions !== undefined ? { dimensions: patch.dimensions } : {}) } }; setSketchPrefs(next); saveSketchPrefs(next); }}
           onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()} /> : null}
         {emptyPart1 ? (

@@ -72,3 +72,23 @@ active tool is drawn pressed; text mode shows a name under each icon; the list s
 
 Every command has an icon in `packages/ui/src/icons.tsx` (see `docs/icons.md`); `apps/cad/src/iconAudit.test.ts` builds the
 whole command table (every optional command included) and fails for a command without one.
+
+
+## Contextual ribbon (Onshape style)
+
+- **File actions live in the top bar only** (New, Open, Save, Export, Samples, and a "more" menu with Save as and Import STEP). The
+  ribbon no longer has File / Import-Export groups: `isFileCommand` (toolbarModel.ts) lists them and the ribbon's `hidden` prop keeps
+  `resolveLayout` from appending them to a tab. Chosen over a second app-menu button because the top bar already had the group.
+- **Home** holds the model commands: Sketch, Create (extrude, thin, revolve, loft / sweep, hole, catalog), Modify (fillet, chamfer,
+  shell), Pattern, Edit (undo, redo, history / rebuild).
+- **Sketch tab**: while a sketch is open the tab strip is replaced by one tab named after the sketch ("Editing <name>"), with the
+  groups Select, Draw, Dimension, Constrain, Modify, Reference and Finish (OK / Cancel). It uses the palette's slots
+  (`sketchRibbonGroups` in SketchToolStrip.tsx), so the last-used memory, icons, names and keys are the same. Closing the sketch
+  restores the tab the user was on (the user's tab is never overwritten: `activeRibbonTab`). The Sketch tab is not a command tab, so
+  the command search (F) lists the same commands as before.
+- **Sketch dialog** (left of the viewport): name, plane, Show constraints, Show dimensions, OK and Cancel (`SketchDialog.tsx`).
+- **Tool palette in sketches** (Settings, `sketchPalette`, default off): the right-hand floating sketch palette. It is also shown when
+  the ribbon is off (the Plasticity preset), as then nothing else carries the sketch tools. Flick / long press stay in the slot.
+- **Feature editors**: while one is open the ribbon greys the model commands (`idleDuringEdit` / `MODEL_COMMANDS`); undo, redo,
+  views, selection and inspection stay. Keyboard shortcuts are not affected.
+- **Assemblies**: a document with inserted components (`docKindOf`) selects the Assembly tab when it becomes one (`tabForKindChange`).
