@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { loadCollapsed, rememberCollapsed } from './EditorSection';
 import type { JSX } from 'preact';
 import { t } from './i18n';
 import { fieldsOf, type Field } from './Inspector';
@@ -172,7 +173,7 @@ export function FeatureEditor(p: {
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
 
   if (!feature) {
     return (
@@ -245,7 +246,7 @@ export function FeatureEditor(p: {
         <div class={'fedit-sec' + (collapsed[sec.id] ? ' closed' : '')} key={sec.id}>
           <div
             class="fedit-sec-head"
-            onClick={() => setCollapsed((c) => ({ ...c, [sec.id]: !c[sec.id] }))}
+            onClick={() => { rememberCollapsed(sec.id, !collapsed[sec.id]); setCollapsed((c) => ({ ...c, [sec.id]: !c[sec.id] })); }}
           >
             <span class="fedit-sec-title">{sec.title}</span>
             <Icon name="chevron" size={14} class="fedit-chev" />

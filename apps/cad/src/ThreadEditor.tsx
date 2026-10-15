@@ -4,12 +4,14 @@
 // every change goes to onDraft with the whole draft (null = remove the field), Enter / the tick confirm, Escape / the
 // cross cancel. The tables come in through props (the controller caches the kernel's threadData); the amber line is the
 // kernel's (threadDiameterMismatch with a one-click "Use M8", threadModelFallback).
-import { Fragment } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { ComponentChildren, JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import type { JSX } from 'preact';
+import { EditorSection as Section, Icon } from '@kit/ui';
 import type { FeatureWarning } from '@kit/store';
 import { t } from './i18n';
+import { HandRow, LengthRow, ModelRow, ReadoutCard, Select, Seg, SizeChips, SizePicker, fmt, stdLabel } from './ThreadControls';
+
+export { Select, Seg, SizePicker, stdLabel };
 import {
   NEAREST_MARKED, THREAD_HANDS, THREAD_STARTS, classOptions, clampLength, customLengthDefault, filterSizes, fitStatus, loadThreadPrefs, modelFallbackReason,
   groupChip, groupMisfits, nearestSizes, patchSize, patchStandard, quickSizes, suggestedSize, readoutRows, rememberSize, saveThreadPrefs, sizeLabel, startMatters,
@@ -48,125 +50,6 @@ export interface ThreadEditorProps {
   inject?: { seq: number; patch: Wire } | null;
 }
 
-function Section(p: { id: string; title: string; children: ComponentChildren }): JSX.Element {
-  const [closed, setClosed] = useState(false);
-  const toggle = (): void => setClosed(!closed);
-  return (
-    <div class={'fedit-sec' + (closed ? ' closed' : '')} data-section={p.id}>
-      <div class="fedit-sec-head" role="button" tabIndex={0} aria-expanded={!closed} onClick={toggle}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); toggle(); } }}>
-        <span class="fedit-sec-title">{p.title}</span>
-        <Icon name="chevron" size={14} class="fedit-chev" />
-      </div>
-      {closed ? null : <div class="fedit-sec-fields">{p.children}</div>}
-    </div>
-  );
-}
-
-export function Select(p: { name: string; label: string; value: string; onChange(v: string): void; children: ComponentChildren }): JSX.Element {
-  return (
-    <label class="fedit-fld" data-path={p.name}>
-      <span class="fedit-fld-label">{p.label}</span>
-      <select value={p.value} onChange={(e) => p.onChange((e.currentTarget as HTMLSelectElement).value)}>{p.children}</select>
-    </label>
-  );
-}
-
-/** A segmented control (radio group): arrow keys move the choice, Tab leaves the group. */
-export function Seg<V extends string>(p: { name: string; label: string; value: V; options: Array<{ value: V; text: string; icon?: string; tip?: string }>; onChange(v: V): void }): JSX.Element {
-  const move = (e: KeyboardEvent, i: number): void => {
-    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-    if (!d) return;
-    e.preventDefault();
-    const next = p.options[(i + d + p.options.length) % p.options.length];
-    p.onChange(next.value);
-    ((e.currentTarget as HTMLElement).parentElement?.querySelector(`[data-value="${next.value}"]`) as HTMLElement | null)?.focus();
-  };
-  return (
-    <div class="fedit-fld" data-path={p.name}>
-      <span class="fedit-fld-label" id={`thread-${p.name}-label`}>{p.label}</span>
-      <div class="thread-seg" role="radiogroup" aria-labelledby={`thread-${p.name}-label`}>
-        {p.options.map((o, i) => (
-          <button key={o.value} type="button" role="radio" aria-checked={p.value === o.value} data-value={o.value} title={o.tip ?? o.text}
-            tabIndex={p.value === o.value ? 0 : -1} class={p.value === o.value ? 'on' : ''} onClick={() => p.onChange(o.value)} onKeyDown={(e) => move(e, i)}>
-            {o.icon ? <Icon name={o.icon} size={16} /> : null}<span>{o.text}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type Item = { head: string } | { row: ThreadRow };
-/** The size field: a combobox with a listbox. Type to filter (name or diameter), Up / Down move, Enter picks, Esc closes the list. */
-export function SizePicker(p: { rows: ThreadRow[]; value: string; dia: number | null; internal?: boolean; standard: string; onPick(size: string): void }): JSX.Element {
-  const [q, setQ] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const [act, setAct] = useState(0);
-  const listRef = useRef<HTMLUListElement>(null);
-  const query = q ?? '';
-  const matches = filterSizes(p.rows, query, p.dia, p.internal);
-  const items: Item[] = [];
-  if (!query.trim()) {
-    const near = p.dia !== null ? nearestSizes(p.rows, p.dia, p.internal).slice(0, NEAREST_MARKED) : [];
-    const nearSet = new Set(near.map((r) => r.size));
-    if (near.length) { items.push({ head: t('thread.size.nearest', { d: fmt(p.dia!) }) }); for (const r of near) items.push({ row: r }); }
-    const rest = matches.filter((r) => !nearSet.has(r.size));
-    if (rest.length) { items.push({ head: t(p.standard === 'metric' ? 'thread.size.coarse' : p.standard === 'metric-fine' ? 'thread.size.fine' : 'thread.size.all') }); for (const r of rest) items.push({ row: r }); }
-  } else for (const r of matches) items.push({ row: r });
-  const opts = items.filter((x): x is { row: ThreadRow } => 'row' in x);
-  const cur = Math.min(act, Math.max(0, opts.length - 1));
-  useEffect(() => { (listRef.current?.querySelector('[data-active="true"]') as HTMLElement | null)?.scrollIntoView?.({ block: 'nearest' }); }, [cur, open]);
-  const pick = (r: ThreadRow): void => { setOpen(false); setQ(null); p.onPick(r.size); };
-  const current = p.rows.find((r) => r.size === p.value);
-  const shown = q ?? (current ? sizeLabel(current) : p.value);
-  const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault(); e.stopPropagation();
-      if (!open) { setOpen(true); setAct(0); return; }
-      setAct((cur + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % Math.max(1, opts.length));
-    } else if (e.key === 'Enter' && open) {
-      e.preventDefault(); e.stopPropagation();
-      if (opts[cur]) pick(opts[cur].row);
-    } else if (e.key === 'Escape' && open) {
-      e.preventDefault(); e.stopPropagation();
-      setOpen(false); setQ(null);
-    }
-  };
-  let oi = -1;
-  return (
-    <div class="fedit-fld" data-path="size">
-      <label class="fedit-fld-label" for="thread-size-input">{t('thread.size')}</label>
-      <div class="thread-combo">
-        <input id="thread-size-input" type="text" role="combobox" aria-expanded={open} aria-controls="thread-size-list" aria-autocomplete="list" autocomplete="off"
-          aria-activedescendant={open && opts.length ? `thread-size-opt-${cur}` : undefined} aria-label={t('thread.size')} title={t('thread.sizeSearch')}
-          value={shown} spellcheck={false}
-          onFocus={(e) => { (e.currentTarget as HTMLInputElement).select(); setOpen(true); setAct(0); }}
-          onBlur={() => { setOpen(false); setQ(null); }}
-          onInput={(e) => { setQ((e.currentTarget as HTMLInputElement).value); setOpen(true); setAct(0); }}
-          onKeyDown={onKey} />
-        {open ? (
-          <ul id="thread-size-list" role="listbox" class="thread-list" ref={listRef} aria-label={t('thread.size')}>
-            {opts.length === 0 ? <li class="thread-list-empty" role="presentation">{t('thread.size.none')}</li> : null}
-            {items.map((it, i) => {
-              if ('head' in it) return <li key={'h' + i} role="presentation" class="thread-list-head">{it.head}</li>;
-              oi++;
-              const k = oi;
-              return (
-                <li key={it.row.size} id={`thread-size-opt-${k}`} role="option" aria-selected={it.row.size === p.value} data-active={k === cur} data-size={it.row.size}
-                  class={(k === cur ? 'active ' : '') + (it.row.size === p.value ? 'sel' : '')}
-                  onMouseDown={(e) => { e.preventDefault(); pick(it.row); }} onMouseEnter={() => setAct(k)}>{sizeLabel(it.row)}</li>
-              );
-            })}
-          </ul>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
-export const stdLabel = (s: ThreadStd): string => t('thread.std.' + s.id, undefined, s.description);
 
 export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
   const [draft, setDraft] = useState<Wire>({});
@@ -257,15 +140,18 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
             <span>{faceText}</span><span class="thread-chip-name">{grp ? `${grp[0].face} +${grp.length - 1}` : faceName}</span>
           </span>
         </div>
-        <Select name="standard" label={t('thread.standard')} value={standard} onChange={(v) => { prevMajor.current = row?.major ?? null; change({ standard: v }); }}>
+        <Select name="standard" stack label={t('thread.standard')} value={standard} onChange={(v) => { prevMajor.current = row?.major ?? null; change({ standard: v }); }}>
           {(stds.length ? stds : [{ id: standard, description: standard, count: 0 }]).map((s) => <option key={s.id} value={s.id}>{stdLabel(s)}</option>)}
         </Select>
-        {chips.length ? (
-          <div class="thread-chips" role="group" aria-label={t('thread.sizeQuick')} data-testid="thread-chips">
-            {chips.map((c) => <button key={c} type="button" class={'thread-chipbtn' + (c === size ? ' on' : '')} aria-pressed={c === size} data-size={c} onClick={() => pickSize(c)}>{c}</button>)}
-          </div>
-        ) : null}
+        <SizeChips chips={chips} value={size} onPick={pickSize} />
         <SizePicker rows={rows} value={size} dia={dia} internal={p.internal} standard={standard} onPick={pickSize} />
+        <label class="fedit-fld" data-path="class" title={t('thread.class.note')}>
+          <span class="fedit-fld-label">{t('thread.class')}</span>
+          <select value={String(eff.class ?? '')} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; change({ class: v === '' ? null : v }); }}>
+            <option value="">-</option>
+            {classOptions(row, eff.class === undefined ? undefined : String(eff.class), p.internal).map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
         {grp ? (
           misfits.length === 0
             ? (row && grp.every((g) => g.internal !== undefined && g.dia !== null)
@@ -286,54 +172,23 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
               </div>
             )
         ) : null}
-        {row ? (
-          <dl class="thread-readout" data-testid="thread-readout">
-            {readoutRows(row, p.internal).map((r) => <Fragment key={r.key}><dt>{t(r.key === 'root' ? 'thread.root' : r.key === 'minor' && p.internal ? 'thread.minorD1' : 'thread.' + r.key)}</dt><dd data-k={r.key}>{r.value}</dd></Fragment>)}
-          </dl>
-        ) : <div class="thread-hint" data-testid="thread-readout">{rows.length ? t('thread.readout.none') : ''}</div>}
-        <label class="fedit-fld" data-path="class">
-          <span class="fedit-fld-label">{t('thread.class')}</span>
-          <select value={String(eff.class ?? '')} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; change({ class: v === '' ? null : v }); }}>
-            <option value="">-</option>
-            {classOptions(row, eff.class === undefined ? undefined : String(eff.class), p.internal).map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
-        <div class="thread-hint" data-testid="thread-class-note">{t('thread.class.note')}</div>
+        <ReadoutCard row={row} internal={p.internal} empty={rows.length ? t('thread.readout.none') : ''} />
       </Section>
 
-      <Section id="length" title={t('thread.section.length')}>
-        <Seg name="lengthMode" label={t('thread.length')} value={lengthFull ? 'full' : 'custom'}
-          options={[{ value: 'full', text: t('thread.length.full') }, { value: 'custom', text: t('thread.length.custom') }]}
-          onChange={(v) => {
-            if (v === 'full') { if (typeof eff.length === 'number') lastCustom.current = eff.length; change({ length: 'full' }); }
+      <Section id="length" title={t('thread.section.length')} summary={[lengthFull ? t('thread.length.full') : `${eff.length} mm`, t('thread.hand.' + (eff.hand === 'left' ? 'left' : 'right')), modeled ? t('thread.modeled.short') : ''].filter(Boolean).join(' · ')}>
+        <LengthRow custom={!lengthFull} value={lengthFull ? null : Number(eff.length)} fullLength={maxLen} min={row?.pitch} max={maxLen}
+          onMode={(custom) => {
+            if (!custom) { if (typeof eff.length === 'number') lastCustom.current = eff.length; change({ length: 'full' }); }
             else change({ length: lastCustom.current ?? customLengthDefault(row?.pitch, maxLen) });
-          }} />
-        {lengthFull && maxLen === null ? null : <label class="fedit-fld" data-path="length">
-          <span class="fedit-fld-label" />
-          <span class="fedit-num">
-            <input type="number" step="any" min={row ? String(row.pitch) : '0'} max={maxLen !== null ? String(maxLen) : undefined} disabled={lengthFull} aria-label={t('thread.length')}
-              title={maxLen !== null ? t('thread.length.max', { v: fmt(maxLen) }) : undefined}
-              value={lengthFull ? (maxLen !== null ? fmt(maxLen) : '') : String(eff.length ?? '')}
-              onChange={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value); if ((e.currentTarget as HTMLInputElement).value.trim() !== '' && Number.isFinite(v) && v > 0) change({ length: clampLength(v, maxLen, row?.pitch) }); }} />
-            <span class="fedit-unit">mm</span>
-          </span>
-        </label>}
-        <Seg name="hand" label={t('thread.hand')} value={eff.hand === 'left' ? 'left' : 'right'}
-          options={THREAD_HANDS.map((h) => ({ value: h, text: t('thread.hand.' + h), icon: h === 'left' ? 'helix-left' : 'helix-right', tip: t('thread.hand.' + h + 'Tip') }))}
-          onChange={(v) => change({ hand: v })} />
+          }}
+          onValue={(v) => change({ length: clampLength(v, maxLen, row?.pitch) })} />
+        <HandRow value={eff.hand === 'left' ? 'left' : 'right'} onChange={(v) => change({ hand: v })} />
         {showStart ? (
           <Seg name="start" label={t('thread.start')} value={startValue as 'open' | 'top' | 'bottom'}
             options={THREAD_STARTS.map((s) => ({ value: s, text: t('thread.start.' + s), icon: s === 'open' ? 'end-open' : s === 'top' ? 'arrow-up' : 'arrow-down', tip: t('thread.start.' + s + 'Tip') }))}
             onChange={(v) => change({ start: v === 'open' ? null : v })} />
         ) : null}
-      </Section>
-
-      <Section id="options" title={t('thread.section.options')}>
-        <label class="fedit-fld bool" data-path="modeled">
-          <input type="checkbox" checked={modeled} onChange={(e) => { const on = (e.currentTarget as HTMLInputElement).checked; saveThreadPrefs({ modeled: on }); change({ modeled: on }); }} />
-          <span class="fedit-fld-label">{t('thread.modeled')}</span>
-        </label>
-        {modeled ? <div class="thread-hint" data-testid="thread-cost">{sec ? t('thread.modeled.cost', { n: sec }) : t('thread.modeled.costUnknown')}</div> : null}
+        <ModelRow on={modeled} seconds={sec} onChange={(on) => { saveThreadPrefs({ modeled: on }); change({ modeled: on }); }} />
         {modeled && p.entryModeled === false && f.modeled === true
           ? <div class="thread-fit warn" role="status" data-testid="thread-notbuilt" data-warning="threadModelFallback">{notBuilt ? t('thread.modeled.notBuilt', { reason: notBuilt }) : t('thread.modeled.notBuiltUnknown')}</div> : null}
       </Section>

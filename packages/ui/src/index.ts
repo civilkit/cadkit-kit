@@ -15,3 +15,4 @@ export { Icon, ICON_NAMES, hasIcon } from './icons';
 export { Tip, placeTip, type TipSide } from './Tip';
 export { ExprInput, VarsContext, useScope, errorText } from './ExprInput';
 export * from './expr';
+export { EditorSection, loadCollapsed, rememberCollapsed } from './EditorSection';

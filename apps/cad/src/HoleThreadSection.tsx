@@ -1,20 +1,21 @@
-// The Thread section of the Hole editor: a "Threaded" checkbox and, when on, the same controls as the Thread editor (standard,
-// size, class, length, hand, model the thread) acting on the thread feature that sits on the hole's wall. The hole follows
-// the thread: tapped, it is drilled to the size's tap drill (holeThread.ts tapHolePatch), and the section tells the editor
-// what to change in the hole and in the thread through onApply, so one draft carries both.
-import { Fragment } from 'preact';
+// The thread blocks of the Hole editor. `useHoleThread` holds what both blocks share (tables, the size and the handlers);
+// `HoleThreadPick` is the top of the Size section (the Threaded toggle and, when on, the thread picker: standard, common
+// sizes, size, class, readout), `HoleThreadOptions` is the Thread options section (length, hand, model). They act on the
+// thread feature that sits on the hole's wall. The hole follows the thread: tapped, it is drilled to the size's tap
+// drill (holeThread.ts tapHolePatch), and the handlers tell the editor what to change in the hole and in the thread
+// through onApply, so one draft carries both.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { FeatureWarning } from '@kit/store';
 import { t } from './i18n';
-import { Select, Seg, SizePicker, stdLabel } from './ThreadEditor';
+import { Check, HandRow, LengthRow, ModelRow, ReadoutCard, Select, SizeChips, SizePicker, fmt, stdLabel } from './ThreadControls';
 import { holeDiameter } from './holeData';
 import {
   canThreadHole, defaultHoleThread, tapHolePatch, threadMaxLength, type HoleThread,
 } from './holeThread';
 import {
-  THREAD_HANDS, classOptions, clampLength, customLengthDefault, defaultClass, loadThreadPrefs, modelFallbackReason, patchStandard,
-  quickSizes, readoutRows, rememberSize, saveThreadPrefs, type ThreadRow, type ThreadStd,
+  classOptions, clampLength, customLengthDefault, defaultClass, loadThreadPrefs, modelFallbackReason, patchStandard,
+  quickSizes, rememberSize, saveThreadPrefs, type ThreadRow, type ThreadStd,
 } from './threadData';
 
 type Wire = Record<string, unknown>;
@@ -32,14 +33,14 @@ export interface HoleThreadApi {
   warning?: FeatureWarning | null;
 }
 
-const fmt = (v: number): string => String(Math.round(v * 1000) / 1000);
-
-export function HoleThreadSection(p: {
+export interface HoleThreadProps {
   api: HoleThreadApi;
   hole: Wire;
   th: HoleThread | null;
   onApply(holePatch: Wire, th: HoleThread | null): void;
-}): JSX.Element {
+}
+
+export function useHoleThread(p: HoleThreadProps) {
   const { api, hole, th } = p;
   const [stds, setStds] = useState<ThreadStd[]>([]);
   const [rows, setRows] = useState<ThreadRow[]>([]);
@@ -94,70 +95,66 @@ export function HoleThreadSection(p: {
     p.onApply(tapHolePatch(r), { ...th, standard: v, size: r.size, class: typeof pick.class === 'string' ? pick.class : undefined });
   };
   const upd = (patch: Partial<HoleThread>): void => { if (th) p.onApply({}, { ...th, ...patch }); };
+  return { api, hole, th, stds, rows, busy, allowed, dia, row, maxLen, lastCustom, enable, disable, pickSize, setStandard, upd };
+}
+export type HoleThreadState = ReturnType<typeof useHoleThread>;
 
+/** One-line summary of the thread options for the collapsed section header. */
+export function threadOptionsSummary(th: HoleThread): string {
+  return [th.length === 'full' ? t('thread.length.full') : `${th.length} mm`, t('thread.hand.' + th.hand), th.modeled ? t('thread.modeled.short') : ''].filter(Boolean).join(' · ');
+}
+
+/** The Threaded toggle (always) and, while on, the thread picker. */
+export function HoleThreadPick(p: { s: HoleThreadState }): JSX.Element {
+  const { s, } = p;
+  const { th, row, rows, stds } = s;
   const check = (
-    <label class="fedit-fld bool" data-path="threaded">
-      <input type="checkbox" checked={th !== null} disabled={!allowed || busy} aria-label={t('hole.thread.on')}
-        onChange={(e) => { if ((e.currentTarget as HTMLInputElement).checked) void enable(); else disable(); }} />
-      <span class="fedit-fld-label">{t('hole.thread.on')}</span>
-    </label>
+    <Check name="threaded" strong label={t('hole.thread.on')} checked={th !== null} disabled={!s.allowed || s.busy}
+      sub={!s.allowed && th === null ? <span data-testid="hole-thread-simple">{t('hole.thread.needSimple')}</span> : undefined}
+      onChange={(on) => { if (on) void s.enable(); else s.disable(); }} />
   );
-  if (!th) return <div class="hole-thread" data-testid="hole-thread">{check}{!allowed ? <div class="thread-hint" data-testid="hole-thread-simple">{t('hole.thread.needSimple')}</div> : null}</div>;
-
-  const lengthFull = th.length === 'full';
+  if (!th) return <div class="hole-thread" data-testid="hole-thread">{check}</div>;
   const chips = quickSizes(th.standard, rows, loadThreadPrefs().lastSize?.[th.standard] ?? null);
-  const notBuilt = modelFallbackReason(th.modeled, api.entryModeled, api.warning);
-  const sec = api.modeledMs ? Math.max(1, Math.round(api.modeledMs / 1000)) : null;
-  const warns = (api.warning ? (api.warning.all ?? [api.warning]) : []).filter((w) => w.code !== 'threadModelFallback');
-
   return (
     <div class="hole-thread" data-testid="hole-thread">
       {check}
-      <Select name="standard" label={t('thread.standard')} value={th.standard} onChange={(v) => void setStandard(v)}>
-        {(stds.length ? stds : [{ id: th.standard, description: th.standard, count: 0 }]).map((s) => <option key={s.id} value={s.id}>{stdLabel(s)}</option>)}
+      <Select name="standard" stack label={t('thread.standard')} value={th.standard} onChange={(v) => void s.setStandard(v)}>
+        {(stds.length ? stds : [{ id: th.standard, description: th.standard, count: 0 }]).map((x) => <option key={x.id} value={x.id}>{stdLabel(x)}</option>)}
       </Select>
-      {chips.length ? (
-        <div class="thread-chips" role="group" aria-label={t('thread.sizeQuick')} data-testid="thread-chips">
-          {chips.map((c) => <button key={c} type="button" class={'thread-chipbtn' + (c === th.size ? ' on' : '')} aria-pressed={c === th.size} data-size={c} onClick={() => void pickSize(c)}>{c}</button>)}
-        </div>
-      ) : null}
-      <SizePicker rows={rows} value={th.size} dia={dia} internal standard={th.standard} onPick={(v) => void pickSize(v)} />
-      {row ? (
-        <dl class="thread-readout" data-testid="thread-readout">
-          {readoutRows(row, true).map((r) => <Fragment key={r.key}><dt>{t(r.key === 'minor' ? 'thread.minorD1' : 'thread.' + r.key)}</dt><dd data-k={r.key}>{r.value}</dd></Fragment>)}
-        </dl>
-      ) : <div class="thread-hint">{t('hole.thread.loading')}</div>}
-      <label class="fedit-fld" data-path="class">
+      <SizeChips chips={chips} value={th.size} onPick={(v) => void s.pickSize(v)} />
+      <SizePicker rows={rows} value={th.size} dia={s.dia} internal standard={th.standard} onPick={(v) => void s.pickSize(v)} />
+      <label class="fedit-fld" data-path="class" title={t('thread.class.note')}>
         <span class="fedit-fld-label">{t('thread.class')}</span>
-        <select value={th.class ?? ''} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; upd({ class: v === '' ? undefined : v }); }}>
+        <select value={th.class ?? ''} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; s.upd({ class: v === '' ? undefined : v }); }}>
           <option value="">-</option>
           {classOptions(row, th.class, true).map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </label>
-      <Seg name="lengthMode" label={t('thread.length')} value={lengthFull ? 'full' : 'custom'}
-        options={[{ value: 'full', text: t('thread.length.full') }, { value: 'custom', text: t('thread.length.custom') }]}
-        onChange={(v) => {
-          if (v === 'full') { if (typeof th.length === 'number') lastCustom.current = th.length; upd({ length: 'full' }); }
-          else upd({ length: lastCustom.current !== null ? clampLength(lastCustom.current, maxLen, row?.pitch) : customLengthDefault(row?.pitch, maxLen) });
-        }} />
-      <label class="fedit-fld" data-path="length">
-        <span class="fedit-fld-label" />
-        <span class="fedit-num">
-          <input type="number" step="any" min={row ? String(row.pitch) : '0'} max={maxLen !== null ? String(maxLen) : undefined} disabled={lengthFull} aria-label={t('thread.length')}
-            value={lengthFull ? (maxLen !== null ? fmt(maxLen) : '') : String(th.length)}
-            onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v) && v > 0) upd({ length: clampLength(v, maxLen, row?.pitch) }); }} />
-          <span class="fedit-unit">mm</span>
-        </span>
-      </label>
-      {hole.end === 'blind' && maxLen !== null ? <div class="thread-hint" data-testid="hole-thread-cap">{t('hole.thread.depthCap', { v: fmt(maxLen) })}</div> : null}
-      <Seg name="hand" label={t('thread.hand')} value={th.hand}
-        options={THREAD_HANDS.map((h) => ({ value: h, text: t('thread.hand.' + h), icon: h === 'left' ? 'helix-left' : 'helix-right', tip: t('thread.hand.' + h + 'Tip') }))}
-        onChange={(v) => upd({ hand: v })} />
-      <label class="fedit-fld bool" data-path="modeled">
-        <input type="checkbox" checked={th.modeled} onChange={(e) => { const on = (e.currentTarget as HTMLInputElement).checked; saveThreadPrefs({ modeled: on }); upd({ modeled: on }); }} />
-        <span class="fedit-fld-label">{t('thread.modeled')}</span>
-      </label>
-      {th.modeled ? <div class="thread-hint" data-testid="thread-cost">{sec ? t('thread.modeled.cost', { n: sec }) : t('thread.modeled.costUnknown')}</div> : null}
+      {row ? <ReadoutCard row={row} internal /> : <div class="thread-hint">{t('hole.thread.loading')}</div>}
+    </div>
+  );
+}
+
+/** Length, hand and model, for a hole that is threaded. */
+export function HoleThreadOptions(p: { s: HoleThreadState }): JSX.Element | null {
+  const { s } = p;
+  const { th, api, row, maxLen, hole } = s;
+  if (!th) return null;
+  const lengthFull = th.length === 'full';
+  const notBuilt = modelFallbackReason(th.modeled, api.entryModeled, api.warning);
+  const sec = api.modeledMs ? Math.max(1, Math.round(api.modeledMs / 1000)) : null;
+  const warns = (api.warning ? (api.warning.all ?? [api.warning]) : []).filter((w) => w.code !== 'threadModelFallback');
+  return (
+    <div class="hole-thread-opts" data-testid="hole-thread-options">
+      <LengthRow custom={!lengthFull} value={typeof th.length === 'number' ? th.length : null} fullLength={maxLen} min={row?.pitch} max={maxLen}
+        onMode={(custom) => {
+          if (!custom) { if (typeof th.length === 'number') s.lastCustom.current = th.length; s.upd({ length: 'full' }); }
+          else s.upd({ length: s.lastCustom.current !== null ? clampLength(s.lastCustom.current, maxLen, row?.pitch) : customLengthDefault(row?.pitch, maxLen) });
+        }}
+        onValue={(v) => s.upd({ length: clampLength(v, maxLen, row?.pitch) })} />
+      {hole.end === 'blind' && maxLen !== null ? <div class="thread-hint fedit-note" data-testid="hole-thread-cap">{t('hole.thread.depthCap', { v: fmt(maxLen) })}</div> : null}
+      <HandRow value={th.hand} onChange={(v) => s.upd({ hand: v })} />
+      <ModelRow on={th.modeled} seconds={sec} onChange={(on) => { saveThreadPrefs({ modeled: on }); s.upd({ modeled: on }); }} />
       {th.modeled && api.entryModeled === false
         ? <div class="thread-fit warn" role="status" data-testid="thread-notbuilt" data-warning="threadModelFallback">{notBuilt ? t('thread.modeled.notBuilt', { reason: notBuilt }) : t('thread.modeled.notBuiltUnknown')}</div> : null}
       {warns.map((w, i) => <div key={i} class="fedit-warn" role="status" data-warning={w.code}>{w.hint}</div>)}

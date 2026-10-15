@@ -1,12 +1,12 @@
-// The Hole editor: Type, Size, End and Options sections with real controls (dropdowns for type, ISO size, fit and end
+// The Hole editor: Type, Size (with the Threaded toggle and thread picker), Thread options, End and Options sections with real controls (dropdowns for type, ISO size, fit and end
 // condition; the resulting diameter as text) instead of the generic text / number fields. It keeps the look and the
 // draft protocol of packages/ui/src/FeatureEditor.tsx: every change goes to onDraft with the whole draft, Enter / the tick
 // confirm, Escape / the cross cancel. A draft value of null means "remove this field" (see holeData.ts).
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { ExprInput, Icon } from '@kit/ui';
+import { EditorSection as Section, ExprInput, Icon } from '@kit/ui';
 import { t } from './i18n';
-import { HoleThreadSection, type HoleThreadApi } from './HoleThreadSection';
+import { HoleThreadOptions, HoleThreadPick, threadOptionsSummary, useHoleThread, type HoleThreadApi } from './HoleThreadSection';
 import { canThreadHole, capLength, threadCfgOf, threadMaxLength, type HoleThread } from './holeThread';
 import {
   CUSTOM, DRILL_TIP_ANGLE, HOLE_ENDS, HOLE_FITS, HOLE_KINDS, ISO_SIZES, KERNEL_CUTS_CUSTOM_DIMS,
@@ -35,19 +35,6 @@ export interface HoleEditorProps {
   threadSection?: JSX.Element | ((hole: Wire) => JSX.Element | null | undefined);
 }
 
-function Section(p: { id: string; title: string; children: ComponentChildren }): JSX.Element {
-  const [closed, setClosed] = useState(false);
-  return (
-    <div class={'fedit-sec' + (closed ? ' closed' : '')} data-section={p.id}>
-      <div class="fedit-sec-head" onClick={() => setClosed(!closed)}>
-        <span class="fedit-sec-title">{p.title}</span>
-        <Icon name="chevron" size={14} class="fedit-chev" />
-      </div>
-      {closed ? null : <div class="fedit-sec-fields">{p.children}</div>}
-    </div>
-  );
-}
-
 function Select(p: { name: string; label: string; value: string; options: Array<[string, string]>; onChange(v: string): void }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
@@ -70,11 +57,16 @@ function Num(p: { name: string; label: string; value: unknown; unit: string; onC
   );
 }
 
+const NO_THREADS: HoleThreadApi = { loadStandards: async () => [], loadSizes: async () => [] };
 const fmt = (d: number | null) => (d === null ? '' : String(Math.round(d * 1000) / 1000));
 
 export function HoleEditor(p: HoleEditorProps): JSX.Element {
   const [draft, setDraft] = useState<Wire>({});
   const [th, setTh] = useState<HoleThread | null>(() => (p.linked?.length ? threadCfgOf(p.linked[0]) : null));
+  const eff0: Wire = { ...(p.feature ?? {}), ...draft };
+  for (const k of Object.keys(eff0)) if (eff0[k] === null) delete eff0[k];
+  const applyRef = useRef<(patch: Wire, thread: HoleThread | null) => void>(() => {});
+  const ts = useHoleThread({ api: p.threads ?? NO_THREADS, hole: eff0, th, onApply: (patch, next) => applyRef.current(patch, next) });
   if (!p.feature) return <div class="fedit empty"><div class="fedit-hint">{t('ui.editor.empty', undefined, 'No feature selected.')}</div></div>;
   // the feature with the draft applied; null in the draft = field removed
   const eff: Wire = { ...p.feature, ...draft };
@@ -93,6 +85,7 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
     setTh(t2);
     p.onDraft(next, p.threads ? t2 : undefined);
   };
+  applyRef.current = (patch, next) => apply(patch, next);
   const change = (patch: Wire): void => apply(patch);
   const confirm = (): void => { saveHolePrefs(eff); p.onConfirm(draft, p.threads ? th : undefined); };
   const onKey = (e: KeyboardEvent): void => {
@@ -136,17 +129,21 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
         {kind !== 'simple' && !KERNEL_CUTS_CUSTOM_DIMS ? <div class="fedit-shapes-note" data-note="dims">{t(kind === 'cbore' ? 'hole.note.cbore' : 'hole.note.csink')}</div> : null}
       </Section>
 
-      <Section id="size" title={t('hole.section.size')}>
-        {threaded ? <div class="thread-hint" data-testid="hole-thread-size">{t('hole.thread.sizeFromThread')}</div> : <Select name="size" label={t('hole.size')} value={choice} options={sizes} onChange={(v) => change(patchSize(eff, v))} />}
-        {custom && !threaded ? <Num name="diameter" label={t('hole.diameter')} value={eff.diameter} unit="mm" onChange={(v) => change({ diameter: v })} /> : <>
-          {threaded ? null : <Select name="fit" label={t('hole.fit')} value={fits.includes(eff.fit as HoleFit) ? String(eff.fit) : 'normal'} options={fits.map((f) => [f, t('hole.fit.' + f)])} onChange={(v) => change(patchFit(eff, v as HoleFit))} />}
-          <div class="fedit-fld" data-path="resultDiameter">
-            <span class="fedit-fld-label">{t('hole.resultDiameter')}</span>
-            <span class="hole-dia" data-testid="hole-diameter">{dia === null ? t('hole.invalidSize') : `Ø ${fmt(dia)} mm`}</span>
-            {threaded && th ? <span class="thread-hint" data-testid="hole-tap-note">{t('hole.thread.tapNote', { size: th.size })}</span> : null}
-          </div>
+      <Section id="size" title={t('hole.section.size')} summary={threaded && th ? `${th.size} · ${th.standard}` : `${choice} · Ø ${dia === null ? '?' : fmt(dia)}`}>
+        {p.threads ? <HoleThreadPick s={ts} /> : null}
+        {threaded ? null : <>
+          <Select name="size" label={t('hole.size')} value={choice} options={sizes} onChange={(v) => change(patchSize(eff, v))} />
+          {custom ? <Num name="diameter" label={t('hole.diameter')} value={eff.diameter} unit="mm" onChange={(v) => change({ diameter: v })} /> : <>
+            <Select name="fit" label={t('hole.fit')} value={fits.includes(eff.fit as HoleFit) ? String(eff.fit) : 'normal'} options={fits.map((f) => [f, t('hole.fit.' + f)])} onChange={(v) => change(patchFit(eff, v as HoleFit))} />
+            <div class="fedit-fld" data-path="resultDiameter">
+              <span class="fedit-fld-label">{t('hole.resultDiameter')}</span>
+              <span class="hole-dia" data-testid="hole-diameter">{dia === null ? t('hole.invalidSize') : `Ø ${fmt(dia)} mm`}</span>
+            </div>
+          </>}
         </>}
       </Section>
+
+      {threaded && th ? <Section id="thread" title={t('hole.section.thread')} summary={threadOptionsSummary(th)}><HoleThreadOptions s={ts} /></Section> : null}
 
       <Section id="end" title={t('hole.section.end')}>
         <Select name="end" label={t('hole.end')} value={end} options={HOLE_ENDS.map((e) => [e, t('hole.end.' + e)])} onChange={(v) => change(patchEnd(eff, v as HoleEnd))} />
@@ -166,11 +163,6 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
         </label>
       </Section>
 
-      {p.threads ? (
-        <Section id="thread" title={t('hole.section.thread')}>
-          <HoleThreadSection api={p.threads} hole={eff} th={th} onApply={(patch, next) => apply(patch, next)} />
-        </Section>
-      ) : null}
       {thread && !p.threads ? <Section id="thread" title={t('hole.section.thread')}><div class="hole-thread-slot" data-slot="thread">{thread}</div></Section> : null}
       {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
     </div>

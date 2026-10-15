@@ -5,7 +5,7 @@
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
+import { EditorSection as Section, ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsFace, endNeedsPoint, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
@@ -23,19 +23,6 @@ import {
 
 type Wire = Record<string, unknown>;
 type Change = (patch: Wire) => void;
-
-function Section(p: { id: string; title: string; children: ComponentChildren }): JSX.Element {
-  const [closed, setClosed] = useState(false);
-  return (
-    <div class={'fedit-sec' + (closed ? ' closed' : '')} data-section={p.id}>
-      <div class="fedit-sec-head" onClick={() => setClosed(!closed)}>
-        <span class="fedit-sec-title">{p.title}</span>
-        <Icon name="chevron" size={14} class="fedit-chev" />
-      </div>
-      {closed ? null : <div class="fedit-sec-fields">{p.children}</div>}
-    </div>
-  );
-}
 
 function Select(p: { name: string; label: string; value: string; options: Array<[string, string]>; onChange(v: string): void }): JSX.Element {
   return (

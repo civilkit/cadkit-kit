@@ -38,14 +38,16 @@ const text = (c: Element, id: string) => c.querySelector(`[data-testid="${id}"]`
 const dd = (c: Element, k: string) => c.querySelector(`[data-testid="thread-readout"] [data-k="${k}"]`)?.textContent;
 
 describe('ThreadEditor: form', () => {
-  it('has Thread, Length and hand, Options sections, reachable by keyboard', async () => {
+  it('has Thread and Thread options sections, reachable by keyboard', async () => {
     const m = await mount();
     const heads = [...m.container.querySelectorAll('.fedit-sec-head')] as HTMLElement[];
-    expect(heads.map((h) => h.textContent)).toEqual(['Thread', 'Length and hand', 'Options']);
+    expect(heads.map((h) => h.textContent)).toEqual(['Thread', 'Thread options']);
     expect(heads.every((h) => h.tabIndex === 0 && h.getAttribute('role') === 'button')).toBe(true);
-    fireEvent.keyDown(heads[2], { key: 'Enter' });
+    fireEvent.keyDown(heads[1], { key: 'Enter' });
     expect(m.confirms).toHaveLength(0);           // Enter on a section head toggles it, it does not confirm
     expect(m.q('modeled')).toBeNull();
+    expect(heads[1].textContent).toContain('Full');   // the collapsed header carries the summary (length, hand)
+    try { localStorage.clear(); } catch { /* none */ }
   });
 
   it('Standard dropdown lists the eight standards with their names', async () => {
@@ -187,7 +189,7 @@ describe('ThreadEditor: class', () => {
   it('is a dropdown of the standard\'s classes with a note that it does not change the geometry', async () => {
     const m = await mount();
     expect([...m.sel('class').options].map((o) => o.value)).toEqual(['', '6H', '6g']);
-    expect(text(m.container, 'thread-class-note')).toContain('does not change the geometry');
+    expect(m.q('class')!.getAttribute('title')).toContain('does not change the geometry');
     fireEvent.change(m.sel('class'), { target: { value: '6g' } });
     expect(m.drafts.at(-1)).toEqual({ class: '6g' });
     fireEvent.change(m.sel('class'), { target: { value: '' } });
@@ -197,14 +199,14 @@ describe('ThreadEditor: class', () => {
 
 describe('ThreadEditor: length, hand, start', () => {
   const num = (m: { q(p: string): HTMLElement | null }) => m.q('length')!.querySelector('input[type="number"]') as HTMLInputElement;
-  it('Full | Custom: the number is disabled for Full (showing the face length) and enabled for Custom', async () => {
+  it('Full | Custom: the number sits next to the control and shows only for Custom (Full shows the face length as text)', async () => {
     const m = await mount(THREAD, { extent: { length: 30, open: [true, false] } });
     expect(m.seg('lengthMode', 'full').getAttribute('aria-checked')).toBe('true');
-    expect(num(m).disabled).toBe(true);
-    expect(num(m).value).toBe('30');
+    expect(m.q('length')).toBeNull();                          // no number box while Full
+    expect(text(m.container, 'thread-fulllen')).toBe('30 mm');
     fireEvent.click(m.seg('lengthMode', 'custom'));
     expect(m.drafts.at(-1)).toEqual({ length: 8 });         // 8 pitches of M6
-    await waitFor(() => expect(num(m).disabled).toBe(false));
+    await waitFor(() => expect(num(m)).not.toBeNull());
     expect(num(m).max).toBe('30');
     fireEvent.click(m.seg('lengthMode', 'full'));
     expect(m.drafts.at(-1)).toMatchObject({ length: 'full' });

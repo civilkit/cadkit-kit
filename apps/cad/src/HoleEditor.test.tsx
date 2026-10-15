@@ -166,9 +166,9 @@ describe('HoleEditor: Threaded', () => {
     return { ...r, drafts, confirms, q, box, last: () => drafts.at(-1)!, dia: () => r.container.querySelector('[data-testid="hole-diameter"]')?.textContent };
   }
 
-  it('has a Thread section with an unchecked Threaded box; without the thread tables there is none', async () => {
+  it('has the Threaded box at the top of Size, unchecked, and no thread section; without the thread tables there is none', async () => {
     const m = await mountT();
-    expect([...m.container.querySelectorAll('.fedit-sec-head')].map((h) => h.textContent)).toEqual(['Type', 'Size', 'End', 'Options', 'Thread']);
+    expect([...m.container.querySelectorAll('.fedit-sec-head')].map((h) => h.textContent)).toEqual(['Type', 'Size', 'End', 'Options']);
     expect(m.box().checked).toBe(false);
     expect(m.q('standard')).toBeNull();
     cleanup();
@@ -183,14 +183,36 @@ describe('HoleEditor: Threaded', () => {
     await waitFor(() => expect(m.drafts.length).toBe(1));
     expect(m.last().hole).toMatchObject({ size: 'M8', fit: 'tap' });   // no `diameter` to remove on this hole
     expect(m.last().thread).toEqual({ standard: 'metric', size: 'M8', class: '6H', length: 'full', hand: 'right', modeled: false });
-    expect(m.dia()).toContain('6.8');
-    expect(m.container.querySelector('[data-testid="hole-tap-note"]')!.textContent).toContain('M8');
+    expect(m.dia()).toBeUndefined();   // the hole diameter row is gone: the readout card carries the tap drill
     expect(m.q('size')).not.toBeNull();   // the thread's Size field; the hole's own size and fit selects are gone
     expect(m.q('fit')).toBeNull();
-    expect(m.container.querySelector('[data-testid="hole-thread-size"]')).not.toBeNull();
-    for (const p of ['standard', 'class', 'lengthMode', 'length', 'hand', 'modeled']) expect(m.q(p), p).not.toBeNull();
+    expect([...m.container.querySelectorAll('.fedit-sec-head')].map((h) => h.textContent)).toEqual(['Type', 'Size', 'Thread options', 'End', 'Options']);
+    for (const p of ['standard', 'class', 'lengthMode', 'hand', 'modeled']) expect(m.q(p), p).not.toBeNull();
+    expect(m.q('length')).toBeNull();   // the number only shows for Custom
     await waitFor(() => expect(m.container.querySelector('[data-testid="thread-readout"] [data-k="tapDrill"]')).not.toBeNull());
     expect(m.container.querySelector('[data-testid="thread-readout"] [data-k="tapDrill"]')!.textContent).toContain('6.8');
+  });
+
+  it('layout: Size holds the picker (toggle first, readout card after the size), options hold length / hand / model with the cost as a second line; collapsing is remembered', async () => {
+    try { localStorage.clear(); } catch { /* none */ }
+    const m = await mountT({ ...HOLE, size: 'M8' });
+    fireEvent.click(m.box());
+    await waitFor(() => expect(m.container.querySelector('[data-testid="thread-card"]')).not.toBeNull());
+    const size = m.container.querySelector('[data-section="size"]')!;
+    const order = [...size.querySelectorAll('[data-path], [data-testid="thread-chips"], [data-testid="thread-card"]')].map((e) => e.getAttribute('data-path') ?? e.getAttribute('data-testid'));
+    expect(order).toEqual(['threaded', 'standard', 'thread-chips', 'size', 'class', 'thread-card']);
+    expect(size.querySelectorAll('[data-testid="thread-readout"] dt')).toHaveLength(3);
+    const opts = m.container.querySelector('[data-section="thread"]')!;
+    expect(opts.querySelector('[data-path="modeled"] .fedit-sub')!.textContent).toContain('slower');
+    fireEvent.click(m.q('lengthMode')!.querySelector('[data-value="custom"]')!);
+    expect(opts.querySelector('[data-path="lengthMode"] [data-path="length"] input')).not.toBeNull();   // the number is inside the control column
+    fireEvent.click(opts.querySelector('.fedit-sec-head')!);
+    expect(opts.querySelector('.fedit-sec-sum')!.textContent).toContain('mm');
+    expect(JSON.parse(localStorage.getItem('kit.editor.collapsed')!)).toEqual({ thread: true });
+    cleanup();
+    const again = await mountT({ ...HOLE, size: 'M8' }, { linked: [{ type: 'thread', id: 'F5', face: 'F4.S.h1', standard: 'metric', size: 'M8', length: 'full', hand: 'right', modeled: false }] });
+    expect(again.container.querySelector('[data-section="thread"]')!.classList.contains('closed')).toBe(true);
+    try { localStorage.clear(); } catch { /* none */ }
   });
 
   it('size, standard, class, length, hand and model all go into the thread of the same draft; an inch size makes a plain diameter', async () => {
@@ -201,7 +223,7 @@ describe('HoleEditor: Threaded', () => {
     fireEvent.click(m.container.querySelector('[data-testid="thread-chips"] [data-size="M10"]')!);
     await waitFor(() => expect(m.last().thread).toMatchObject({ size: 'M10' }));
     expect(m.last().hole).toMatchObject({ size: 'M10', fit: 'tap' });
-    expect(m.dia()).toContain('8.5');
+    await waitFor(() => expect(m.container.querySelector('[data-testid="thread-readout"] [data-k="tapDrill"]')!.textContent).toContain('8.5'));
     fireEvent.click(m.q('hand')!.querySelector('[data-value="left"]')!);
     expect(m.last().thread).toMatchObject({ hand: 'left' });
     fireEvent.click(m.q('lengthMode')!.querySelector('[data-value="custom"]')!);
@@ -214,7 +236,7 @@ describe('HoleEditor: Threaded', () => {
     fireEvent.change(m.q('standard')!.querySelector('select')!, { target: { value: 'UNC' } });
     await waitFor(() => expect(m.last().thread).toMatchObject({ standard: 'UNC', size: '5/16-18', class: '2B' }));   // nearest tap drill to the 8.5 mm hole
     expect(m.last().hole).toMatchObject({ diameter: 6.5, size: null, fit: null });
-    expect(m.dia()).toContain('6.5');
+    expect(m.drafts.at(-1)!.hole).toMatchObject({ diameter: 6.5 });
   });
 
   it('a blind hole caps the custom length at its depth, also when the depth shrinks afterwards', async () => {
