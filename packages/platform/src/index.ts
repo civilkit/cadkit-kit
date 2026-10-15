@@ -2,7 +2,8 @@
 // wasm comes from. The web implementation is in ./web; desktop and mobile
 // (Tauri, Capacitor) will add their own behind this interface.
 export interface Platform {
-  openFile(): Promise<{ name: string; text: string } | null>;
+  /** Pick one file and read it as text. `accept` limits the picker to those extensions (like ['.step', '.stp']); without it every file shows. */
+  openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string } | null>;
   /** Download a file. Text goes out as UTF-8; bytes as they are. `mime` defaults from the file extension. */
   saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void>;
   listSamples(): Promise<Array<{ id: string; title: string; url: string }>>;

@@ -482,7 +482,7 @@ function App() {
   /** Add a DXF file's geometry to the open sketch. */
   const importDxf = async () => {
     if (!controller.sketchDraft()) { showNotices([{ level: 'error', key: 'io.dxf.noSketch' }]); return; }
-    const f = await platform.openFile();
+    const f = await platform.openFile({ accept: ['.dxf'] });
     if (!f) return;
     const r = await importDxfIntoSketch(controller, f.text);
     showNotices(r.notices);
@@ -490,7 +490,7 @@ function App() {
   };
   /** Open a DXF file as a new sketch on the selected face or plane (front when nothing is selected). */
   const sketchFromDxf = async () => {
-    const f = await platform.openFile();
+    const f = await platform.openFile({ accept: ['.dxf'] });
     if (f) sketchFromDxfText(f.text);
   };
   const sketchFromDxfText = (text: string) => {
@@ -615,11 +615,11 @@ function App() {
   const commands = buildCommands({
     catalog: () => showCatalog(),
     variables: () => showVariables(),
-    open: async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.dxf'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),
-      importStep: () => void (async () => { const f = await platform.openFile(); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : 'unknown'); })(),
+      importStep: () => void (async () => { const f = await platform.openFile({ accept: ['.step', '.stp'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : 'unknown'); })(),
     },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
@@ -1471,7 +1471,7 @@ function App() {
     cancelPreview: async () => { await controller.cancelPreview(); redraw((n) => n + 1); },
     samples: () => platform.listSamples(),
     readUrl: async (url) => { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status}`); return r.text(); },
-    openFile: () => platform.openFile(),
+    openFile: (opts) => platform.openFile(opts),
     saveFile: (name, data, mime) => platform.saveFile(name, data, mime),
     partVolume: async (part) => (await controller.partMass(part)).volume,
     notify: (text, level) => store.notify(text, level ?? 'info'),

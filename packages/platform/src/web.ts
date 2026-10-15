@@ -7,10 +7,12 @@ const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? '
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
   const base = opts.base ?? '/';
   return {
-    openFile(): Promise<{ name: string; text: string } | null> {
+    openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string } | null> {
       return new Promise((resolve) => {
         const input = document.createElement('input');
         input.type = 'file';
+        // both cases of each extension: some pickers match the accept list case-sensitively
+        if (opts?.accept?.length) input.accept = [...new Set(opts.accept.flatMap((e) => [e.toLowerCase(), e.toUpperCase().replace(/^\./, '.')]))].join(',');
         input.onchange = async () => {
           const f = input.files?.[0];
           if (!f) return resolve(null);

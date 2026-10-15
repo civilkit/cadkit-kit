@@ -44,7 +44,7 @@ export interface AsmHost {
   cancelPreview(): Promise<void>;
   samples(): Promise<Array<{ id: string; title: string; url: string }>>;
   readUrl(url: string): Promise<string>;
-  openFile(): Promise<{ name: string; text: string } | null>;
+  openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string } | null>;
   saveFile(name: string, data: string, mime: string): Promise<void>;
   partVolume(part: unknown): Promise<number | null>;
   notify(text: string, level?: 'info' | 'warn' | 'error'): void;
@@ -136,7 +136,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
     setBusy(true);
     try { accept(s?.title ?? url, await host.readUrl(url), s?.id ?? url); } catch (e) { host.notify(t('asm.insert.failed', { message: (e as Error).message }), 'error'); } finally { setBusy(false); }
   };
-  const openFile = async () => { const f = await host.openFile(); if (f) accept(f.name, f.text, f.name); };
+  const openFile = async () => { const f = await host.openFile({ accept: ['.ckpart', '.json'] }); if (f) accept(f.name, f.text, f.name); };
   const insert = async () => {
     if (!chosen) return;
     setBusy(true);
