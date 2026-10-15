@@ -35,8 +35,8 @@ export const endAllowsDraft = (end: string): boolean => end !== 'mid' && end !==
 /** The fields a form of this feature type owns; the generic editor hides them. */
 export function managedPaths(type: string): Set<string> {
   switch (type) {
-    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endFace', 'endOffset', 'endPoint']);
-    case 'revolve': return new Set(['end', 'angle', 'flip']);
+    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endFace', 'endOffset', 'endPoint', 'thin']);
+    case 'revolve': return new Set(['end', 'angle', 'flip', 'thin']);
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);

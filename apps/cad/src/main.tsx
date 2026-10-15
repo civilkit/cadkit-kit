@@ -53,6 +53,7 @@ import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
 import { findMaterial, loadUseColour } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
+import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
 import { ThreadEditor } from './ThreadEditor';
 import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
@@ -93,7 +94,7 @@ const autosaver = createAutosaver(browserKV(), { onProblem: (r) => store.notify(
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
+import { sketchTools, sketchShapes, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 /** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
@@ -700,7 +701,9 @@ function App() {
     if (!ef || (ef.type !== 'extrude' && ef.type !== 'revolve') || !ef.sketch) return [];
     const sk = doc!.features.find((f) => f.id === ef.sketch);
     const all = sketchShapes(sk as never);
-    return all.map((sh, i) => {
+    // a thin wall can be made of open curves too: they are listed after the closed shapes
+    const chains = thinOf({ ...ef, ...draft } as Record<string, unknown>) ? sketchOpenChains(sk as never).map((c, i) => ({ id: c.id, label: t('app.shape.chain', { n: i + 1, count: c.entityIds.length }) })) : [];
+    return [...all.map((sh, i) => {
       const parent = all.find((o) => o.id === sh.inside);
       const holes = all.filter((o) => o.inside === sh.id);
       // the projected-outline-plus-offset sketch gets plain names; other nestings say which shape they wrap or sit in
@@ -710,9 +713,27 @@ function App() {
         : holes.length ? t('app.shape.withHole', { n: i + 1, m: all.indexOf(holes[0]) + 1 })
         : t('app.shape.' + sh.kind, { n: i + 1, d: Math.round(sh.radius * 2 * 100) / 100, count: sh.entityIds.length });
       return { id: sh.id, label };
-    });
+    }), ...chains];
   })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
+  // An Extrude / Cut / Revolve of an open sketch (no thin wall): the editor shows a hint card with three ways out instead of the kernel's dead-end error.
+  const openCard = editingFeature && (editingFeature.type === 'extrude' || editingFeature.type === 'revolve') && !thinOf({ ...editingFeature, ...draft })
+    ? openProfile(doc, editingFeature.sketch) : null;
+  useEffect(() => {
+    const g = openCard?.gap;
+    viewport?.highlightSketchGap(g && openCard ? openCard.sketchId : null, g?.a, g?.b);
+    return () => viewport?.highlightSketchGap(null);
+  }, [openCard?.sketchId, openCard?.gap?.a[0], openCard?.gap?.a[1], openCard?.gap?.b[0], openCard?.gap?.b[1], editingId]);
+  const thinActions = {
+    closeWithLine: (sketchId: string) => {
+      const op = closeWithLineOp(doc, sketchId);
+      if (op) void timed(() => controller.commit([op], 'closeProfile')).then(() => { redraw((n) => n + 1); if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null))); } });
+    },
+    asSurface: () => {
+      if (!editingFeature) return;
+      void timed(() => controller.commit([asSurfaceOp({ ...editingFeature, ...draft })], 'surfaceExtrude')).then(() => { setDraft({}); setPreviewHint(null); redraw((n) => n + 1); });
+    },
+  };
   const opsOne = (f: Record<string, unknown>, id: string, next: Record<string, unknown>): EditOp[] => {
     // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
     // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
@@ -1475,8 +1496,9 @@ function App() {
       }}
       pickingPath={pickingPath}
       picked={picked}
-      options={(a) => optionsFor(a, doc)}
-      hint={previewHint}
+      key={`${editingId}:${String(editingFeature?.type)}`}
+      options={(a) => optionsFor(a, doc, thinActions)}
+      hint={openCard ? null : previewHint}
       shapes={editShapes}
       onShapeHover={(id) => {
         const ef = editingFeature as { sketch?: string } | null;

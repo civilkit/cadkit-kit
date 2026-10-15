@@ -1195,6 +1195,23 @@ export class Viewport {
     const l = this.addFatLines(polys, 0x0b74dc, Math.max(this.hlWidth, 3), true);
     if (l) { l.renderOrder = 9; (l.material as LineMaterial).depthTest = false; this.shapeHover = l; }   // on top: the sketch may lie on a face turned away
   }
+  private gapMark: THREE.Object3D | null = null;
+  /** Mark the gap between the loose ends of an almost closed sketch chain: a red line from `a` to `b` (sketch coordinates). Null clears it. */
+  highlightSketchGap(sketchId: string | null, a?: [number, number], b?: [number, number]): void {
+    this.dropFat(this.gapMark);
+    this.gapMark = null;
+    this.dirty = true;
+    if (!sketchId || !a || !b) return;
+    const item = this.sketchItems.find((s) => s.id === sketchId);
+    if (!item) return;
+    const marker = {
+      ...item,
+      sketch: { ...(item.sketch as object), points: [{ id: 'gap1', x: a[0], y: a[1] }, { id: 'gap2', x: b[0], y: b[1] }], entities: [{ id: 'gap', type: 'line', p1: 'gap1', p2: 'gap2' }] },
+    };
+    const polys = sketchPolylines([marker as never]).flatMap((x) => x.polylines);
+    const l = this.addFatLines(polys, 0xd62828, Math.max(this.hlWidth, 3) + 1, true);
+    if (l) { l.renderOrder = 9; (l.material as LineMaterial).depthTest = false; this.gapMark = l; }
+  }
   private hlWidth = 3;
   /** Thickness in pixels of the hover and selection lines of edges. */
   setHighlightWidth(w: number): void {

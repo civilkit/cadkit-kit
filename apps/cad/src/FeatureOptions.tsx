@@ -13,6 +13,10 @@ import {
   type ChamferType, type EndCondition, type FilletProfile,
 } from './optionRules';
 import {
+  THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
+} from './thinRules';
+import { sketchOpenChains } from '@kit/sketch';
+import {
   CONTINUITIES, FAIRINGS, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, pathOf, pathPatch, removeAt, replaceAt,
   sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
 } from './surfaceRules';
@@ -79,7 +83,7 @@ function PickField(p: { name: string; label: string; value: unknown; picking: bo
 
 const endLabel = (e: string): string => t('opt.end.' + e);
 
-function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | null; onPick?(path: string): void; revolve: boolean }): JSX.Element {
+function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | null; onPick?(path: string): void; revolve: boolean; doc: PartDoc | null; actions?: ThinActions }): JSX.Element {
   const { eff, change } = p;
   const ends = endsFor(p.revolve ? 'revolve' : 'extrude');
   const raw = endOf(eff);
@@ -102,6 +106,88 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
         {!p.revolve && endAllowsDraft(end) ? <>
           <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" plain onChange={(v) => change(patchDraft(eff, Number(v)))} />
           {draftAngle > 0 ? <Check name="draftOut" label={t('opt.draftOut')} value={eff.draftOut} onChange={(v) => change({ draftOut: v ? true : null })} /> : null}
+        </> : null}
+      </Section>
+      <ThinSection eff={eff} change={change} doc={p.doc} actions={p.actions} />
+    </>
+  );
+}
+
+
+// ---- thin wall (Extrude, Extruded cut, Revolve) ----
+
+/** What the open-profile hint card can do beyond changing the feature's own fields; the app implements them (each is ONE undo step). */
+export interface ThinActions {
+  /** Add the closing line to the sketch. */
+  closeWithLine(sketchId: string): void;
+  /** Turn the extrude into a surface extrude. */
+  asSurface(): void;
+}
+
+const ARCH = 'M3 14 Q12 0 21 14';
+const SIDE_ICON: Record<ThinSide, JSX.Element> = {
+  // an arch (the profile curve) with a band on the chosen side: inside = below, outside = above, both = either side, mid = centred
+  inside: <svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><path d={ARCH} fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="4" transform="translate(0 2.5)" /><path d={ARCH} fill="none" stroke="currentColor" stroke-width="1.2" /></svg>,
+  outside: <svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><path d={ARCH} fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="4" transform="translate(0 -2.5)" /><path d={ARCH} fill="none" stroke="currentColor" stroke-width="1.2" /></svg>,
+  both: <svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><path d={ARCH} fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="7" /><path d={ARCH} fill="none" stroke="currentColor" stroke-width="1.2" /></svg>,
+  mid: <svg viewBox="0 0 24 16" width="24" height="16" aria-hidden="true"><path d={ARCH} fill="none" stroke="currentColor" stroke-opacity=".35" stroke-width="4" /><path d={ARCH} fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 2" /></svg>,
+};
+
+/** A segmented control: one button per choice, the chosen one pressed. */
+function Segmented<T extends string>(p: { name: string; label: string; value: T; choices: T[]; text(c: T): string; icon?(c: T): JSX.Element; onChange(v: T): void }): JSX.Element {
+  return (
+    <div class="fedit-fld seg" data-path={p.name} role="radiogroup" aria-label={p.label}>
+      <span class="fedit-fld-label">{p.label}</span>
+      <span class="fedit-seg">
+        {p.choices.map((c) => (
+          <button key={c} type="button" role="radio" aria-checked={p.value === c} class={'fedit-seg-btn' + (p.value === c ? ' on' : '')} data-value={c} title={p.text(c)} onClick={() => p.onChange(c)}>
+            {p.icon ? p.icon(c) : null}<span class="fedit-seg-text">{p.text(c)}</span>
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** The sketch of the feature holds an open chain (a thin wall can be made of it, with its end caps). */
+const hasOpenChain = (doc: PartDoc | null, sketchId: unknown): boolean => {
+  const sk = ((doc?.features ?? []) as unknown as Array<{ id: string; type: string }>).find((f) => f.type === 'sketch' && f.id === sketchId);
+  return !!sk && sketchOpenChains(sk as never).length > 0;
+};
+
+/** The hint that replaces the dead-end "profile is not closed" error: three one-click ways out. */
+function OpenProfileCard(p: { info: OpenProfile; eff: Wire; change: Change; revolve: boolean; doc: PartDoc | null; actions?: ThinActions }): JSX.Element {
+  const { info, eff, change } = p;
+  const g = info.gap;
+  const d = g ? String(Math.round(g.distance * 100) / 100) : '';
+  return (
+    <div class="fedit-card open-profile" role="status" data-card="open-profile">
+      <div class="fedit-card-title">{t('opt.open.title')}</div>
+      <div class="fedit-card-body">{g ? t(g.near ? 'opt.open.gapNear' : 'opt.open.gap', { d }) : t('opt.open.body')}</div>
+      <div class="fedit-card-actions">
+        <button type="button" class="fedit-card-btn" data-act="thin" onClick={() => change(patchThinOn(eff, p.doc, true))}>{t('opt.open.thin')}</button>
+        <button type="button" class="fedit-card-btn" data-act="close" disabled={!g || !p.actions} title={g ? undefined : t('opt.open.noGap')} onClick={() => p.actions?.closeWithLine(info.sketchId)}>{t('opt.open.close')}</button>
+        {!p.revolve ? <button type="button" class="fedit-card-btn" data-act="surface" disabled={!p.actions} onClick={() => p.actions?.asSurface()}>{t('opt.open.surface')}</button> : null}
+      </div>
+    </div>
+  );
+}
+
+function ThinSection(p: { eff: Wire; change: Change; doc: PartDoc | null; actions?: ThinActions }): JSX.Element {
+  const { eff, change } = p;
+  const thin = thinOf(eff);
+  const info = thin ? null : openProfile(p.doc, eff.sketch);
+  return (
+    <>
+      {info ? <OpenProfileCard info={info} eff={eff} change={change} revolve={eff.type === 'revolve'} doc={p.doc} actions={p.actions} /> : null}
+      <Section id="thin" title={t('opt.section.thin')}>
+        <Check name="thin" label={t('opt.thin.on')} value={!!thin} onChange={(v) => change(patchThinOn(eff, p.doc, v))} />
+        {thin ? <>
+          <Num name="thin.thickness" label={t('opt.thin.thickness')} value={thin.thickness} unit="mm" onChange={(v) => change(patchThin(eff, 'thickness', v))} />
+          <Segmented<ThinSide> name="thin.side" label={t('opt.thin.side')} value={thin.side} choices={THIN_SIDES} text={(c) => t('opt.thin.side.' + c)} icon={(c) => SIDE_ICON[c]} onChange={(v) => change(patchThin(eff, 'side', v))} />
+          {thin.side === 'both' ? <Num name="thin.thickness2" label={t('opt.thin.thickness2')} value={thin.thickness2 ?? thin.thickness} unit="mm" onChange={(v) => change(patchThin(eff, 'thickness2', v))} /> : null}
+          {hasOpenChain(p.doc, eff.sketch) ? <Segmented<ThinEnds> name="thin.ends" label={t('opt.thin.ends')} value={thin.ends} choices={THIN_ENDS} text={(c) => t('opt.thin.ends.' + c)} onChange={(v) => change(patchThin(eff, 'ends', v))} /> : null}
+          <Segmented<ThinCorner> name="thin.cornerStyle" label={t('opt.thin.corner')} value={thin.cornerStyle} choices={THIN_CORNERS} text={(c) => t('opt.thin.corner.' + c)} onChange={(v) => change(patchThin(eff, 'cornerStyle', v))} />
         </> : null}
       </Section>
     </>
@@ -317,14 +403,14 @@ function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
 }
 
 /** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). `doc` feeds the sketch and surface lists. */
-export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null): OptionsResult | null {
+export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null, actions?: ThinActions): OptionsResult | null {
   const type = String(a.eff.type ?? '');
   const hide = managedPaths(type);
   if (!hide.size) return null;
   const common = { eff: a.eff, change: a.change };
   switch (type) {
-    case 'extrude': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve={false} /> };
-    case 'revolve': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve /> };
+    case 'extrude': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve={false} doc={doc} actions={actions} /> };
+    case 'revolve': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve doc={doc} actions={actions} /> };
     case 'chamfer': return { hide, node: <ChamferOptions {...common} /> };
     case 'fillet': return { hide, node: <FilletOptions {...common} /> };
     case 'shell': return { hide, node: <ShellOptions {...common} /> };

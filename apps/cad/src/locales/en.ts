@@ -402,6 +402,18 @@ export const en: Catalog = {
   'opt.fillet.variable': 'Variable radius', 'opt.fillet.radius': 'Radius', 'opt.fillet.chord': 'Chord width', 'opt.fillet.radius0': 'Start radius', 'opt.fillet.radius1': 'End radius', 'opt.fillet.chord0': 'Start chord width', 'opt.fillet.chord1': 'End chord width',
   'opt.fillet.profile': 'Profile', 'opt.fillet.profile.circular': 'Circular', 'opt.fillet.profile.conic': 'Conic', 'opt.fillet.profile.chord': 'Chordal', 'opt.fillet.profile.curvature': 'Curvature continuous (G2)',
   'opt.fillet.rho': 'Conic ratio (0 to 1)', 'opt.fillet.shape': 'Shape (0.1 to 1)',
+  // thin wall (FeatureOptions.tsx ThinSection, thinRules.ts)
+  'opt.section.thin': 'Thin wall', 'opt.thin.on': 'Thin wall', 'opt.thin.thickness': 'Wall thickness', 'opt.thin.thickness2': 'Other side thickness',
+  'opt.thin.side': 'Side', 'opt.thin.side.inside': 'Inside', 'opt.thin.side.outside': 'Outside', 'opt.thin.side.both': 'Both', 'opt.thin.side.mid': 'Mid',
+  'opt.thin.ends': 'End caps', 'opt.thin.ends.flat': 'Flat', 'opt.thin.ends.round': 'Round',
+  'opt.thin.corner': 'Corners', 'opt.thin.corner.mitre': 'Mitre', 'opt.thin.corner.round': 'Round',
+  'opt.open.title': 'This profile is open',
+  'opt.open.body': 'A solid needs a closed loop. Give the curve a wall thickness, close it, or make a surface from it.',
+  'opt.open.gap': 'A solid needs a closed loop. The ends are {d} mm apart.',
+  'opt.open.gapNear': 'Almost closed: the ends are {d} mm apart. Close the loop, or give the curve a wall thickness.',
+  'opt.open.noGap': 'This sketch has no single chain with two loose ends to close',
+  'opt.open.thin': 'Make thin wall', 'opt.open.close': 'Close with a line', 'opt.open.surface': 'Extrude as surface',
+  'app.shape.chain': 'Open curve {n} ({count} segments)', 'handles.thin.label': 'Wall thickness', 'handles.thin': 'Wall {v} mm',
   'opt.shell.thickness': 'Wall thickness', 'opt.shell.outward': 'Grow outward',
   // thread feature (ThreadEditor.tsx, threadData.ts)
   'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',

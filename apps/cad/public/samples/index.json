@@ -413,5 +413,10 @@
   "id": "assembly-hinge-door",
   "title": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)",
   "file": "assembly-hinge-door.ckpart"
+ },
+ {
+  "id": "thin-wall-bracket",
+  "title": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)",
+  "file": "thin-wall-bracket.ckpart"
  }
 ]
