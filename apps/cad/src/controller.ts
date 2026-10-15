@@ -668,7 +668,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importStepView(this.session, text, name);
-      if (r.ok) this.view.setBody(r.view);
+      if (r.ok) { this.view.setBody(r.view); this.importedOnScreen = true; }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -899,6 +899,9 @@ export class Controller {
   surfaceOf(name: string): string | null {
     return surfaceNames(this.shown).get(name) ?? null;
   }
+  /** True while the viewport shows an imported STEP body (view only) that no edit has replaced yet. */
+  private importedOnScreen = false;
+  hasImportedBody(): boolean { return this.importedOnScreen; }
   /** Whether the part has a solid on screen (a part of surfaces only has none: no volume, no mass). */
   hasSolid(): boolean {
     return (this.shown?.mesh.triFace.length ?? 0) > 0;
@@ -907,6 +910,7 @@ export class Controller {
   private async refresh(): Promise<void> {
     const s = this.session;
     if (!s) return;
+    this.importedOnScreen = false;
     const ids = s.document.features.map((f) => f.id);
     this.rollbackAnchor = repairAnchor(this.rollbackAnchor, this.lastIds, ids);
     this.lastIds = ids;

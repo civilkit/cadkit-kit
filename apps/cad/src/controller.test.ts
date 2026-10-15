@@ -113,6 +113,26 @@ describe('controller with the real kernel', { skip: !process.env.CK_WASM }, () =
     expect(store.featureStatus.value.every((s) => s.ok)).toBe(true);
   });
 
+  it('an imported STEP body counts as on screen (so no empty-part card) until the next load or edit', async () => {
+    const store = createStore();
+    const { view } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store, view, kernel: f.kernel });
+    const src = await Session.open(plateDoc());
+    const text = await src.step();
+    await src.close();
+
+    await controller.load(emptyPart('Imported'));
+    expect(controller.hasImportedBody()).toBe(false);
+    const r = await controller.importStep(text, 'Plate');
+    expect(r.ok).toBe(true);
+    expect(controller.hasImportedBody()).toBe(true);
+    expect(controller.hasSolid()).toBe(false);   // it is view only: no features, no volume of the part
+    await controller.load(plateDoc());
+    expect(controller.hasImportedBody()).toBe(false);
+  });
+
   it('a failing cut keeps the previous body and shows the hint', async () => {
     const store = createStore();
     const { view, bodies } = fakeView();

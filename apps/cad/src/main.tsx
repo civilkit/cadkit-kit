@@ -1596,7 +1596,7 @@ function App() {
 
   // reference planes: all three for an empty part, otherwise the one chosen or hovered in the tree
   const planeIds = ['front', 'top', 'right'] as const;
-  const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId && !controller.hasSolid();   // an imported part has no features but is not an empty start
+  const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId && !controller.hasSolid() && !controller.hasImportedBody();   // an imported part has no features but is not an empty start
   const refPlane = (id: string | null) => (id === 'front' || id === 'top' || id === 'right' ? id : null);
   useEffect(() => {
     viewport?.setRefPlanes(
