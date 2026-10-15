@@ -63,6 +63,8 @@ export type PickMode = 'face' | 'edge' | 'vertex' | 'body';
 export interface ViewThread {
   id: string; size: string; standard?: string; major: number; minor: number; pitch?: number; length: number;
   hand?: 'right' | 'left'; internal: boolean; modeled?: boolean; start: number[]; dir: number[];
+  /** Set on the copies a pattern or mirror makes of a thread: the id of the thread they follow. */
+  instanceOf?: string;
 }
 
 

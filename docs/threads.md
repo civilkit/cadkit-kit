@@ -119,6 +119,26 @@ Cosmetic threads (not `modeled`) are drawn by `Viewport.setThreads` from `regen.
 major / 2 for an internal thread (thin line of a drawing), minor / 2 for an external one, with the size (and LH) as a label. Checked
 against the kernel's entries for the sample. The Threads layer in the Display menu hides them.
 
+## Threads in patterns and mirrors
+
+A linear or circular pattern and a mirror copy the threads of the features they repeat: a threaded hole patterned six times has six
+threads. The kernel does it (`docs/spec-agent-interface.md`, "Threads in patterns and mirrors"); the GUI shows and guards it.
+
+- **Pattern / mirror editor**: a Threads section lists the features to repeat as they are meant ("Hole F4 + Thread F5") and a Carry
+  threads checkbox (on by default; off writes `carryThreads: false`, on removes the field). A thread feature may also be listed in the
+  features to repeat on its own (it is then copied even with Carry threads off). `patternThreads.ts` holds the rules.
+- **Copies are not features**: each copy is an entry of the regen result named `F5@F7.2` with `instanceOf: "F5"`, on the face
+  `F4.S.h1@F7.2`. The viewport draws a marker on each (cosmetic) or the real groove is in the body (modeled). They have no tree row.
+- **History tree**: a thread that follows its hole is nested under it (after the hole sketch); the seed and its thread carry the note
+  "patterned by F7". The rollback bar after the hole counts the nested thread.
+- **Editing**: edit the source thread (or its hole) and every copy follows. Opening a copy's id, or Shift+T on a face that already
+  gets its thread from a pattern, edits the source thread instead and says so in a toast, so no duplicate thread is added.
+- **Drawing callouts**: a threaded hole that patterns repeat reads `4x M5 THRU` (the product of the pattern counts; a count that is an
+  expression is not counted; a mirror doubles).
+- **Sample**: `patterned-threaded-holes.ckpart`, a plate with one M5 tapped hole, its thread and a circular pattern of six.
+
+Tests: `patternThreads.test.ts` (rules), `PatternOptions.test.tsx`, `FeatureTree.test.tsx`, `patternThreads.kernel.test.ts` (needs `CK_WASM`).
+
 ## Sample
 
 `apps/cad/public/samples/threaded-bolt.ckpart` (Samples dialog, "Threaded bolt and tapped block"): a hex head, a 10 mm shaft 40 mm

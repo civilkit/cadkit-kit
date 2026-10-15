@@ -7,7 +7,7 @@ import { InlineName } from './InlineName';
 
 export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string }
 
-export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[] }
+export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
 
 const isSketch = (type: string) => type === 'sketch' || type === 'sketch3d';
 const COLLAPSED_KEY = 'cad.treeCollapsed';
@@ -21,6 +21,9 @@ export function sketchOwners(rows: FeatureRow[]): Map<string, string> {
     if (isSketch(r.type)) continue;
     for (const id of r.uses ?? []) if (sketches.has(id) && !owner.has(id)) owner.set(id, r.id);
   }
+  // rows that hang under another feature (a thread under its hole); never under themselves or a row that is itself nested under them
+  const ids = new Set(rows.map((r) => r.id));
+  for (const r of rows) if (r.under && r.under !== r.id && ids.has(r.under) && !owner.has(r.id) && owner.get(r.under) !== r.id) owner.set(r.id, r.under);
   return owner;
 }
 
@@ -95,7 +98,9 @@ export function FeatureTree(p: {
   const picked = new Set([...(p.selectedIds ?? []), ...(p.selectedId ? [p.selectedId] : [])]);
   /** Marker position as a number of top-level rows above it, and the feature count that position means. */
   const slot = top.filter((r) => indexOf(r.id) < upTo).length;
-  const countAt = (k: number): number | null => (k >= top.length ? null : k <= 0 ? 0 : indexOf(top[k - 1].id) + 1);
+  /** The last history position of a row and everything nested under it (a thread listed after its hole). */
+  const span = (id: string): number => Math.max(indexOf(id), ...(childrenOf.get(id) ?? []).map((c) => span(c.id)));
+  const countAt = (k: number): number | null => (k >= top.length ? null : k <= 0 ? 0 : span(top[k - 1].id) + 1);
   const moveMarker = (k: number) => p.onRollback?.(countAt(Math.max(0, Math.min(top.length, k))));
   const renderRow = (r: FeatureRow, depth: number): JSX.Element => {
     const i = p.rows.findIndex((x) => x.id === r.id);
@@ -152,6 +157,7 @@ export function FeatureTree(p: {
             ? <InlineName class="row-name" value={r.name ?? label} onCommit={(n) => { setRenaming(null); p.onRename!(r.id, n); }} onCancel={() => setRenaming(null)} />
             : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{label}</span>}
           {r.name && !renamingThis ? <span class="row-type">{t('feature.' + r.type, undefined, r.type)}</span> : null}
+          {r.note && !renamingThis ? <span class="row-note" data-note={r.note}>{r.note}</span> : null}
           {!failed && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code}>!</span> : null}
           <span class="row-id">{r.id}</span>
           <span class="row-actions">

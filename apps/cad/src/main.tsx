@@ -57,6 +57,7 @@ import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
 import { ThreadEditor } from './ThreadEditor';
+import { followedFaces, patternedBy, threadParents, type ThreadEntry } from './patternThreads';
 import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
@@ -574,6 +575,15 @@ function App() {
 
   // A thread on each selected cylindrical face (one edit, so one undo step), the size nearest to the first face's diameter, then the Thread editor opens on them.
   const addThread = async (faces: string[]) => {
+    // a face that is a copy made by a pattern already carries the thread of its source: edit that one instead of adding another
+    const followed = followedFaces(faces, controller.threadsNow() as ThreadEntry[]);
+    const copies = Object.keys(followed);
+    if (copies.length) {
+      const src = followed[copies[0]];
+      store.notify(t('app.thread.followed', { face: copies[0], id: src }), 'info');
+      faces = faces.filter((f) => !followed[f]);
+      if (!faces.length) { startEditing(src); return; }
+    }
     const cyls = cylindersOfFaces(faces, controller.bodyEdges());
     const rows = await controller.threadSizes('metric').catch(() => []);
     const ops = cyls && rows.length ? threadOpsForFaces(cyls, rows) : null;
@@ -696,7 +706,10 @@ function App() {
   const selModelNow = store.selection.value.length ? controller.selModel() : null;
   const selText = selModelNow ? summaryText(summarize(selModelNow, store.selection.value)) : '';
   const doc = controller.document();
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f) })) : [];
+  const wireFeatures = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
+  const threadUnder = doc ? threadParents(wireFeatures) : {};
+  const patterned = doc ? patternedBy(wireFeatures) : {};
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
@@ -851,6 +864,9 @@ function App() {
     closeMaterial(); redraw((n) => n + 1);
   };
   const startEditing = (id: string) => {
+    // a thread copy made by a pattern is read-only: its source thread is the one to edit, and every copy follows
+    const copy = id.includes('@') ? (controller.threadsNow() as ThreadEntry[]).find((x) => x.id === id) : undefined;
+    if (copy?.instanceOf && doc?.features.some((x) => x.id === copy.instanceOf)) { store.notify(t('app.thread.followed', { face: copy.face ?? id, id: copy.instanceOf }), 'info'); id = copy.instanceOf; }
     setEditingMaterial(false);
     setSelectedId(id);
     const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;

@@ -16,6 +16,7 @@ import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
 } from './thinRules';
 import { sketchOpenChains } from '@kit/sketch';
+import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
   CONTINUITIES, FAIRINGS, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, pathOf, pathPatch, removeAt, replaceAt,
   sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
@@ -331,6 +332,25 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
   );
 }
 
+/** Pattern and mirror: the seeds as the user thinks of them ("Hole F4 + Thread F5") and the Carry threads switch. */
+function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+  const features = (p.doc?.features ?? []) as unknown as Wire[];
+  const infos = seedInfos(features, p.eff);
+  const carry = carriesThreads(p.eff);
+  const name = (type: string) => t('feature.' + type, undefined, type);
+  const anyThread = features.some((f) => f.type === 'thread' && !f.suppressed);
+  if (!infos.length && !anyThread) return null;
+  return (
+    <Section id="patternThreads" title={t('opt.pattern.threads')}>
+      <div class="fedit-seeds" data-testid="pattern-seeds">
+        {infos.map((i) => <div key={i.id} class="fedit-seed" data-seed={i.id}>{seedLabel(i, name)}</div>)}
+      </div>
+      <Check name="carryThreads" label={t('opt.pattern.carry')} value={carry} onChange={(v) => p.change(carryPatch(v))} />
+      <div class="fedit-hint-line">{t(carry ? 'opt.pattern.carryOn' : 'opt.pattern.carryOff')}</div>
+    </Section>
+  );
+}
+
 function FillOptions(p: { eff: Wire; change: Change }): JSX.Element {
   const { eff, change } = p;
   return (
@@ -405,6 +425,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };
     case 'extend': return { hide, node: <ExtendOptions {...common} /> };
+    case 'lpattern': case 'cpattern': case 'mirror': return { hide, node: <PatternOptions {...common} doc={doc} /> };
     case 'knit': return { hide, node: <KnitOptions {...common} doc={doc} /> };
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     default: return null;

@@ -264,6 +264,31 @@ describe('FeatureTree rename', () => {
   });
 });
 
+describe('FeatureTree: a thread under its hole, patterned by', () => {
+  const rows = [
+    { id: 'F2', type: 'extrude', note: 'patterned by F7' }, { id: 'F3', type: 'sketch' }, { id: 'F4', type: 'hole', uses: ['F3'], note: 'patterned by F7' },
+    { id: 'F5', type: 'thread', under: 'F4', note: 'patterned by F7' }, { id: 'F7', type: 'cpattern' },
+  ];
+  it('nests the thread under its hole, after the hole sketch, and notes the pattern on both', () => {
+    localStorage.clear();
+    const { container } = render(<FeatureTree rows={rows} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />);
+    expect([...container.querySelectorAll('.tree > .row')].map((r) => r.querySelector('.row-id')!.textContent)).toEqual(['F2', 'F4', 'F3', 'F5', 'F7']);
+    expect([...container.querySelectorAll('.row.child')].map((r) => r.getAttribute('data-id'))).toEqual(['F3', 'F5']);
+    expect(container.querySelector('[data-id="F5"] .row-note')!.textContent).toBe('patterned by F7');
+    expect(container.querySelector('[data-id="F7"] .row-note')).toBeNull();
+  });
+  it('a nested thread is behind the rollback bar with its hole: the bar after the hole counts the thread', () => {
+    const calls: Array<number | null> = [];
+    const { container } = render(<FeatureTree rows={rows} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} rollback={null} onRollback={(c) => calls.push(c)} />);
+    fireEvent.click(container.querySelector('[data-id="F4"] .row-rb')!);
+    expect(calls).toEqual([4]);   // F2 F3 F4 F5 built, F7 not
+  });
+  it('an unknown or self parent is ignored', () => {
+    const o = sketchOwners([{ id: 'A', type: 'thread', under: 'A' }, { id: 'B', type: 'thread', under: 'Z' }]);
+    expect(o.size).toBe(0);
+  });
+});
+
 describe('FeatureTree rollback marker', () => {
   it('sits at the end when nothing is rolled back and greys no row', () => {
     const { container } = render(<FeatureTree {...base} rows={four} rollback={null} onRollback={() => {}} />);

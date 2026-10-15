@@ -20,6 +20,11 @@
   "file": "threaded-bolt-helix.ckpart"
  },
  {
+  "id": "patterned-threaded-holes",
+  "title": "Plate with six threaded M5 holes (one hole, one thread, a circular pattern: the copies are threaded too)",
+  "file": "patterned-threaded-holes.ckpart"
+ },
+ {
   "id": "surface-patch",
   "title": "Surface patch: plate with a wavy surface wall and a planar patch",
   "file": "surface-patch.ckpart"
