@@ -89,6 +89,13 @@ export class Controller {
   /** The degrees-of-freedom report and rejected-mate details of the last regen (asked with `opts.dofReport`). */
   private asmExtra: AsmExtra = { report: null, errors: new Map() };
 
+  /** The session hands out a deep copy of the document on every `document` read (1.4 MB of JSON for a 500-feature part, ~0.3 s each).
+   *  One copy is kept until the session changes; callers get the same object and must not mutate it. */
+  private snap: PartDoc | null = null;
+  private sdoc(): PartDoc {
+    return (this.snap ??= this.session!.document);
+  }
+
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
     this.store = deps.store;
     this.view = deps.view;
@@ -99,11 +106,12 @@ export class Controller {
     this.store.busy.value = true;
     try {
       this.session = await this.kernel.open(doc);
+      this.snap = null;
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
       // viewer-state fields kept in the file: the exploded view and the drawing sheet
-      this.docExtra = {};
+      this.docExtra = {}; this.extraRev++;
       for (const k of ['explode', 'drawing', 'script']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
       this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
@@ -142,13 +150,14 @@ export class Controller {
         throw e;
       } finally {
         this.pendingCancel = null;
+        this.snap = null;
       }
       if (!result.ok) {
         // the cause and its consequences, not every error joined into one wall of text
         let text = result.hints?.map((h) => h.hint).join('; ') || result.schemaError || 'edit failed';
         this.rejected = null;
         if (result.errors?.length) {
-          const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+          const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
           const diagnosis = this.diagnoseErrors(result.errors, result.hints ?? [], cand);
           const summary = summaryLine(diagnosis);
           if (summary) { text = summary; this.rejected = { diagnosis, summary, at: Date.now() }; }
@@ -159,13 +168,14 @@ export class Controller {
       this.rejected = null;
       this.redoStack = [];
       // the marker moves past what was just inserted
-      if (at !== null && adds) this.rollbackAnchor = s.document.features[at + adds - 1]?.id ?? this.rollbackAnchor;
+      if (at !== null && adds) this.rollbackAnchor = this.sdoc().features[at + adds - 1]?.id ?? this.rollbackAnchor;
       await this.refresh();
       if (blocking && before) {
         const blocked = await this.blockCheck(blocking, before);
         if (blocked) {
           // Same path as a failed edit: the part goes back, the history has no record, the shell logs a rejection.
           await s.undo();
+          this.snap = null;
           await this.refresh();
           this.store.notify(blocked, 'error');
           return { ok: false, record: null, hints: [{ feature: '', code: 'designCheckBlocked', hint: blocked }] };
@@ -208,15 +218,15 @@ export class Controller {
     if (r.stale) return r;
     if (r.ok && r.body) {
       // the candidate's features, worked out here (an op it cannot apply, like a move, falls back to the committed ones)
-      const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+      const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
       // the preview's own reply carries the surface bodies and thread markers: no second regen of the candidate
-      const surfaces = r.surfaces !== undefined ? (hasSurfaceFeatures(cand as never) ? toViewSurfaces(r.surfaces) : []) : await this.surfacesFor(s, { ...s.document, features: cand } as unknown as PartDoc, upTo, '-psurf');
+      const surfaces = r.surfaces !== undefined ? (hasSurfaceFeatures(cand as never) ? toViewSurfaces(r.surfaces) : []) : await this.surfacesFor(s, { ...this.sdoc(), features: cand } as unknown as PartDoc, upTo, '-psurf');
       if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
       this.view.setBody(withSurfaces(r.body, surfaces));
       await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
       return r;
     }
-    const cand = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops) ?? s.document.features;
+    const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
     const diagnosis = r.errors?.length ? this.diagnoseErrors(r.errors, r.hints ?? [], cand) : null;
     // one short sentence about the cause instead of every error joined (the full list is in `diagnosis`)
     const hint = (diagnosis ? summaryLine(diagnosis) : '') || r.schemaError || 'preview failed';
@@ -259,11 +269,11 @@ export class Controller {
   }
   /** After a preview of an edit that touches a thread: the warnings and markers of the candidate (restored by cancelPreview / the next refresh). */
   private async previewExtras(s: Session, ops: EditOp[], seq: number, reply?: { threads: unknown[]; warnings: unknown[] }): Promise<void> {
-    const feats = applyOpsLocal(s.document.features as unknown as Array<Record<string, unknown>>, ops);
+    const feats = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops);
     const hasThread = (feats ?? []).some((f) => f.type === 'thread');
     if (feats && !hasThread && this.committedExtras.threads.length) { this.applyExtras({ threads: [], warnings: [] }); return; }   // the candidate removes the last thread
     if (!feats || !hasThread) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
-    const x = reply ?? (await this.regenExtras(s, { ...s.document, features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`));
+    const x = reply ?? (await this.regenExtras(s, { ...this.sdoc(), features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`));
     if (seq !== this.previewSeq) return;
     this.applyExtras(x);
   }
@@ -332,6 +342,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const { records } = await s.undo();
+      this.snap = null;
       // Session has no forward stack: replay these ops to redo.
       for (const rec of records) this.redoStack.push(this.docSteps.get(rec.id) ?? rec.ops);
       await this.refresh();
@@ -371,7 +382,7 @@ export class Controller {
   async beginSketch(featureId: string): Promise<SketchEditView | null> {
     const s = this.session;
     if (!s) return null;
-    const features = s.document.features;
+    const features = this.sdoc().features;
     const index = features.findIndex((f) => f.id === featureId);
     if (index < 0) return null;
     const feature = features[index] as unknown as Record<string, unknown>;
@@ -392,12 +403,12 @@ export class Controller {
   async beginNewSketch(plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string } = 'front'): Promise<SketchEditView | null> {
     const s = this.session;
     if (!s) return null;
-    const id = `F${s.document.seq}`;
+    const id = `F${this.sdoc().seq}`;
     const draft = fromFeature({
       type: 'sketch', id, name: 'Sketch', plane: typeof plane === 'string' ? { kind: 'std', id: plane } : plane,
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
-    const upTo = (this.rollbackCount() ?? s.document.features.length) + 1;
+    const upTo = (this.rollbackCount() ?? this.sdoc().features.length) + 1;
     this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, upTo, true);
@@ -569,14 +580,24 @@ export class Controller {
   }
 
   document(): PartDoc | null {
-    const d = this.session?.document ?? null;
+    const d = this.session ? this.sdoc() : null;
     if (!d) return d;
     const extra = Object.keys(this.docExtra).length ? this.docExtra : null;
-    return this.docName !== null || this.material !== null || extra ? { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}), ...(extra ? structuredClone(extra) : {}) } : d;
+    if (this.docName === null && this.material === null && !extra) return d;
+    const m = this.merged;
+    if (m && m.base === d && m.name === this.docName && m.material === this.material && m.extraRev === this.extraRev) return m.out;
+    const out = { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}), ...(extra ? structuredClone(extra) : {}) } as PartDoc;
+    this.merged = { base: d, name: this.docName, material: this.material, extraRev: this.extraRev, out };
+    return out;
   }
+  /** The document with the app-level name, material and viewer fields applied, kept while none of them (nor the session's document) changed. */
+  private merged: { base: PartDoc; name: string | null; material: string | null; extraRev: number; out: PartDoc } | null = null;
+  private extraRev = 0;
 
   /** Keep a viewer-state field (the exploded view) in the document; `null` removes it. Not a history step and no rebuild. */
   setDocExtra(key: string, value: unknown | null): void {
+    this.extraRev++;
+    this.extraRev++;
     if (value === null) delete this.docExtra[key]; else this.docExtra[key] = structuredClone(value);
   }
 
@@ -619,7 +640,7 @@ export class Controller {
 
   /** How many features the rollback marker lets through (null = the whole model). */
   rollbackCount(): number | null {
-    return countOf(this.rollbackAnchor, this.session?.document.features.map((f) => f.id) ?? []);
+    return countOf(this.rollbackAnchor, (this.session ? this.sdoc().features : []).map((f) => f.id));
   }
 
   /** Move the rollback marker: show the model as it was after the first `count` features (null = roll forward to the end).
@@ -627,7 +648,7 @@ export class Controller {
   async setRollback(count: number | null): Promise<void> {
     const s = this.session;
     if (!s) return;
-    const ids = s.document.features.map((f) => f.id);
+    const ids = this.sdoc().features.map((f) => f.id);
     this.rollbackAnchor = count === null || count >= ids.length ? null : count <= 0 ? '' : ids[count - 1];
     this.store.busy.value = true;
     try { await this.refresh(); } finally { this.store.busy.value = false; }
@@ -638,7 +659,7 @@ export class Controller {
   async deleteFeatures(ids: string[]): Promise<EditResult | null> {
     const s = this.session;
     if (!s || !ids.length) return null;
-    const ops = deleteOps(s.document.features as unknown as Array<{ id: string }>, ids);
+    const ops = deleteOps(this.sdoc().features as unknown as Array<{ id: string }>, ids);
     return ops.length ? this.edit(ops, `delete ${ids.join(', ')}`) : null;
   }
 
@@ -675,7 +696,7 @@ export class Controller {
 
   features(): Array<{ id: string; type: string; name?: string }> {
     return this.session
-      ? this.session.document.features.map((f) => ({ id: f.id, type: f.type, name: f.name }))
+      ? this.sdoc().features.map((f) => ({ id: f.id, type: f.type, name: f.name }))
       : [];
   }
 
@@ -782,7 +803,8 @@ export class Controller {
     if (!this.session) return;
     this.store.busy.value = true;
     try {
-      this.session = await this.kernel.open(this.lastGood ?? this.session.document);
+      this.session = await this.kernel.open(this.lastGood ?? this.sdoc());
+      this.snap = null;
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -871,14 +893,14 @@ export class Controller {
     if (n === null) {
       body = await s.bodyForView();
       // the surface bodies come from the same regen (the session keeps its reply): no second request
-      if (typeof s.regenReport === 'function') surfaces = hasSurfaceFeatures(s.document.features as never) ? toViewSurfaces((await s.regenReport()).surfaces) : [];
+      if (typeof s.regenReport === 'function') surfaces = hasSurfaceFeatures(this.sdoc().features as never) ? toViewSurfaces((await s.regenReport()).surfaces) : [];
     } else {
       const r = await s.preview([], { upTo: n });
       if (!r.ok) this.store.notify(r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'rolled-back model did not build', 'error');
       body = r.body;
-      if (r.surfaces !== undefined) surfaces = hasSurfaceFeatures(s.document.features as never) ? toViewSurfaces(r.surfaces) : [];
+      if (r.surfaces !== undefined) surfaces = hasSurfaceFeatures(this.sdoc().features as never) ? toViewSurfaces(r.surfaces) : [];
     }
-    return withSurfaces(body, surfaces ?? (await this.surfacesFor(s, s.document, n)));
+    return withSurfaces(body, surfaces ?? (await this.surfacesFor(s, this.sdoc(), n)));
   }
 
   /**
@@ -910,8 +932,9 @@ export class Controller {
   private async refresh(): Promise<void> {
     const s = this.session;
     if (!s) return;
+    this.snap = null;
     this.importedOnScreen = false;
-    const ids = s.document.features.map((f) => f.id);
+    const ids = this.sdoc().features.map((f) => f.id);
     this.rollbackAnchor = repairAnchor(this.rollbackAnchor, this.lastIds, ids);
     this.lastIds = ids;
     const body = await this.bodyNow(s);
@@ -931,11 +954,11 @@ export class Controller {
     // check runs on its own schedule)
     const rr = typeof s.regenReport === 'function' ? await s.regenReport() : null;
     const report = rr ? { regen: { errors: rr.errors, threads: rr.threads, warnings: rr.warnings }, hints: rr.hints } : await s.verify();
-    this.committedExtras = await this.regenExtras(s, s.document, this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
+    this.committedExtras = await this.regenExtras(s, this.sdoc(), this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
     this.applyExtras(this.committedExtras);
     const errors = new Map(report.regen.errors);
-    this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, s.document.features);
-    this.store.featureStatus.value = s.document.features.map((f) => {
+    this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, this.sdoc().features);
+    this.store.featureStatus.value = this.sdoc().features.map((f) => {
       const err = errors.get(f.id);
       if (!err) return { id: f.id, ok: true };
       const hint = report.hints.find((h) => h.feature === f.id && h.code === err.code);
@@ -944,6 +967,6 @@ export class Controller {
       const text = root && (!hint?.hint || hint.hint.includes('see the features field table')) ? adviceOf(root) : hint?.hint;
       return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
     });
-    this.lastGood = s.document;
+    this.lastGood = this.sdoc();
   }
 }
