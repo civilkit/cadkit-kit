@@ -67,6 +67,7 @@ export interface Actions {
   newSketch(plane: 'front' | 'top' | 'right'): void;
   palette(): void;
   toggleDrawer(): void;
+  resetLayout?(): void;
   /** Sketch on the selected face or plane (S). */
   sketchHere(): void;
   toggleProjection(): void;
@@ -118,6 +119,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'toggle-projection', label: t('cmd.toggle-projection'), tab: 'Home', group: 'View', run: a.toggleProjection },
     { id: 'toggle-left-panel', label: t('cmd.toggle-left-panel'), tab: 'Home', group: 'Workspace', keys: '[', run: a.toggleLeftPanel },
     { id: 'drawer', label: t('cmd.drawer'), tab: 'Home', group: 'Workspace', keys: '\\', run: a.toggleDrawer },
+    { id: 'reset-layout', label: t('cmd.reset-layout'), tab: 'Home', group: 'Workspace', run: () => a.resetLayout?.() },
     { id: 'settings', label: t('cmd.settings'), tab: 'Home', group: 'Workspace', run: a.settings },
     { id: 'new-part', label: t('cmd.new-part'), tab: 'Home', group: 'File', run: a.newPart },
     { id: 'add-extrude', label: t('cmd.add-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add') },

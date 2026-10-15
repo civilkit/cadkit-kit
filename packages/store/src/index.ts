@@ -33,12 +33,20 @@ export interface Workspace {
   opacity: number;                         // 0.15..1, floating panels
   blur: number;                            // px
   lineWidth: number;                       // px, thickness of the hover and selection highlight lines (1..8)
+  leftWidth: number;                       // px, docked left panel
+  rightWidth: number;                      // px, docked right panel
+  drawerHeight: number;                    // px, bottom drawer
+  floatWidth: number;                      // px, floating left panel
+  floatHeight: number;                     // px, floating left panel; 0 = fill the viewport height
 }
+/** Default panel sizes; "Reset layout" restores these. */
+export const DEFAULT_SIZES = { leftWidth: 280, rightWidth: 280, drawerHeight: 210, floatWidth: 264, floatHeight: 0 } as const;
+export const SIZE_KEYS = ['leftWidth', 'rightWidth', 'drawerHeight', 'floatWidth', 'floatHeight'] as const;
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
-  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3 },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3 },
-  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3 },
+  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
+  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
@@ -54,6 +62,7 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   if (typeof r.opacity === 'number' && Number.isFinite(r.opacity)) out.opacity = Math.min(1, Math.max(0.15, r.opacity));
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));
   if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));
+  for (const k of SIZE_KEYS) if (typeof r[k] === 'number' && Number.isFinite(r[k])) out[k] = Math.round(Math.min(4000, Math.max(0, r[k] as number)));
   return out;
 }
 /** `blockedBy`: this failure only follows from an earlier one (the root cause's feature id); the tree shows it muted, not red. */
@@ -82,7 +91,8 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   return {
     selection, mode, hover, filters, tool, busy, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) { workspace.value = sanitizeWorkspace({ ...workspace.value, ...patch }, workspace.value); },
-    applyPreset(name: WorkspacePreset) { workspace.value = { ...WORKSPACE_PRESETS[name] }; },
+    resetLayout() { workspace.value = sanitizeWorkspace({ ...workspace.value, ...DEFAULT_SIZES, leftCollapsed: false }, workspace.value); },
+    applyPreset(name: WorkspacePreset) { const w = workspace.value; workspace.value = { ...WORKSPACE_PRESETS[name], leftWidth: w.leftWidth, rightWidth: w.rightWidth, drawerHeight: w.drawerHeight, floatWidth: w.floatWidth, floatHeight: w.floatHeight }; },
     setFilter(kind: PickFilterKind, on: boolean) { filters.value = { ...filters.value, [kind]: on }; },
     setDisplay(layer: DisplayLayer, on: boolean) { display.value = { ...display.value, [layer]: on }; },
     select(names: string[], additive = false) {

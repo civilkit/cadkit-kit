@@ -18,7 +18,7 @@ const languageName = (code: string, pseudo: string) => {
 };
 
 export function SettingsDialog(p: {
-  workspace: Workspace; onChange(patch: Partial<Workspace>): void; onPreset(name: WorkspacePreset): void; onClose(): void;
+  workspace: Workspace; onChange(patch: Partial<Workspace>): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
@@ -80,6 +80,7 @@ export function SettingsDialog(p: {
               <option value="minimal">{t('settings.preset.minimal')}</option>
             </select>
           </label>
+          {p.onResetLayout ? <div class="set-row"><span>{t('settings.resetLayout.hint')}</span><button class="rb-btn" onClick={p.onResetLayout}>{t('cmd.reset-layout')}</button></div> : null}
           {select('ribbon', ['off', 'compact', 'full'])}
           {select('leftPanel', ['docked', 'floating', 'hidden'])}
           {select('rightPanel', ['off', 'docked', 'floating'])}

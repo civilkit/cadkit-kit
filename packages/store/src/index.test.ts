@@ -115,3 +115,27 @@ describe('pick filters and body mode', () => {
     expect(s.mode.value).toBe('body');
   });
 });
+
+describe('panel sizes', () => {
+  it('are stored, rounded, clamped and survive a reload through sanitizeWorkspace', () => {
+    const s = createStore();
+    expect(s.workspace.value.leftWidth).toBe(280);
+    s.setWorkspace({ leftWidth: 412.6, drawerHeight: 99999, rightWidth: -5 });
+    expect(s.workspace.value.leftWidth).toBe(413);
+    expect(s.workspace.value.drawerHeight).toBe(4000);
+    expect(s.workspace.value.rightWidth).toBe(0);
+    const again = createStore({}, JSON.parse(JSON.stringify(s.workspace.value)));
+    expect(again.workspace.value.leftWidth).toBe(413);
+    expect(createStore({}, { leftWidth: 'wide' }).workspace.value.leftWidth).toBe(280);
+  });
+  it('a preset keeps the sizes; resetLayout restores the defaults and unfolds the panel', () => {
+    const s = createStore();
+    s.setWorkspace({ leftWidth: 400, drawerHeight: 300, leftCollapsed: true });
+    s.applyPreset('classic');
+    expect(s.workspace.value.leftWidth).toBe(400);
+    s.resetLayout();
+    expect(s.workspace.value.leftWidth).toBe(280);
+    expect(s.workspace.value.drawerHeight).toBe(210);
+    expect(s.workspace.value.leftCollapsed).toBe(false);
+  });
+});

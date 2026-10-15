@@ -6,6 +6,7 @@ export { Ribbon, type Command } from './Ribbon';
 export { StatusBar, type StatusItem } from './StatusBar';
 export { CommandPalette } from './CommandPalette';
 export { Drawer, type DrawerTab } from './Drawer';
+export { Splitter, CornerGrip, resolveDrag, type SplitterProps, type DragLimits } from './Splitter';
 export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog';
 export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
