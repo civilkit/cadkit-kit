@@ -18,8 +18,10 @@ import { HandleLayer } from './handleLayer';
 import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
 import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
-import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, HIDDEN_EDGE_OPACITY, lightSpec, backgroundColors, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode } from './styles';
-import { mergeBodies, mergedBox, vertexTints, type ViewSurface } from './surfaces';
+import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, edgePixels, HIDDEN_EDGE_OPACITY, effectiveLight, backgroundColors, materialParams, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode, type EdgeWidth, type Appearance } from './styles';
+import { buildStudioEnv } from './studioEnv';
+import { makeHullMaterial } from './hull';
+import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
 import { AnalysisLayer } from './analysisLayer';
 import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend } from './analysis';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
@@ -171,7 +173,18 @@ export class Viewport {
   /** The colour attribute of the mesh without analysis (surface tints), and the polylines a comb is drawn over. */
   private baseTints: Float32Array | null = null;
   private combLines: number[][][] = [];
-  private edgeLines: THREE.LineSegments | null = null;
+  private edgeLines: LineSegments2 | null = null;
+  private hull: THREE.Mesh | null = null;
+  private edgeMats: LineMaterial[] = [];
+  private edgeWidth: EdgeWidth = 'thin';
+  private silhouette = true;
+  private darkBg = false;
+  private lightPreset: LightPreset = 'studio';
+  private lightIntensity = 1;
+  private reflections = true;
+  private compLooks = new Map<string, Appearance>();
+  private envTex: THREE.Texture | null = null;
+  private readonly sunOffset = new THREE.Vector3();
   private highlight: THREE.Mesh | null = null;
   private sketchLines: THREE.LineSegments | LineSegments2 | null = null;
   private curveLines: THREE.LineSegments | LineSegments2 | null = null;
@@ -218,13 +231,13 @@ export class Viewport {
   private pickIntercept: ((name: string | null, point: [number, number, number] | null) => void) | null = null;
   private groundGrid: THREE.LineSegments | null = null;
   private static readonly SKETCH_FADE = 0.25;
-  private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 0.9);
-  private readonly sun = new THREE.DirectionalLight(0xffffff, 0.8);
+  private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x8a95a5, 0.18);
+  private readonly sun = new THREE.DirectionalLight(0xffffff, 0.9);
   private look: BodyLook = { style: 'shadedEdges', ghostOpacity: 0.35, appearance: { ...DEFAULT_APPEARANCE } };
   private bgMode: BackgroundMode = 'theme';
   private bgTexture: THREE.Texture | null = null;
   /** faint edges seen through the body (wireframe) */
-  private hiddenEdgeLines: THREE.LineSegments | null = null;
+  private hiddenEdgeLines: LineSegments2 | null = null;
   private bodyHidden = false;
   private hiddenIds = new Set<string>();
   private lastBody: ViewBody | null = null;
@@ -232,6 +245,8 @@ export class Viewport {
   constructor(private readonly host: HTMLElement, private readonly opts: ViewportOptions) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.toneMapping = THREE.NeutralToneMapping;   // keeps colours as they are and only rolls off the highlights
+    this.renderer.toneMappingExposure = 1;
     this.dom = this.renderer.domElement;
     this.sectionView = new SectionView(this.scene, this.renderer);
     host.appendChild(this.dom);
@@ -248,6 +263,8 @@ export class Viewport {
     this.scene.add(this.hemi);
     this.sun.position.set(1, 2, 1.5);
     this.scene.add(this.sun);
+    try { this.envTex = buildStudioEnv(this.renderer); this.scene.environment = this.envTex; } catch { this.envTex = null; }   // no float targets: lit by the lamps alone
+    this.setLighting(this.lightPreset);
     this.applyBackground();
 
     this.viewCube = new ViewCube(host, {
@@ -846,7 +863,7 @@ export class Viewport {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
-    const grid = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 }));
+    const grid = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.35 }));
     grid.userData.pickable = false;
     grid.visible = this.layerOn('grid');
     this.scene.add(grid);
@@ -970,21 +987,35 @@ export class Viewport {
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
     this.surfaceFaces = merged.surfaceFaces;
-    this.baseTints = merged.surfaceFaces.size ? vertexTints(g.ranges, g.positions.length / 3, merged.surfaceFaces) : null;
-    if (this.baseTints) geo.setAttribute('color', new THREE.BufferAttribute(this.baseTints, 3));
-    const bodyMat = makeBodyMaterial(this.look, this.bodyFade(), this.surfaceFaces.size > 0);
+    geo.setAttribute('aSurf', new THREE.BufferAttribute(new Float32Array((g.positions.length / 3) * 2).fill(-1), 2));
+    this.grouped = g;
+    this.faceLooks(geo);
+    const bodyMat = makeBodyMaterial(this.look, this.bodyFade(), this.baseTints !== null);
     this.analysis.install(bodyMat);
     this.analysis.reset();
     this.mesh = new THREE.Mesh(geo, bodyMat);
     this.scene.add(this.mesh);
+    this.hull = new THREE.Mesh(geo, makeHullMaterial());
+    this.hull.raycast = () => { /* an outline is never picked */ };
+    this.hull.userData.pickable = false;
+    this.hull.renderOrder = -2;
+    this.hullSize();
+    this.scene.add(this.hull);
 
     const seg = edgeSegments(merged.edges);
     if (seg.length) {
-      const eg = new THREE.BufferGeometry();
-      eg.setAttribute('position', new THREE.BufferAttribute(seg, 3));
-      this.edgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129 }));
+      const eg = new LineSegmentsGeometry();
+      eg.setPositions(seg);
+      const px = edgePixels(this.edgeWidth), size = new THREE.Vector2(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+      const em = new LineMaterial({ color: 0x2b3542, linewidth: px, worldUnits: false });
+      const hm = new LineMaterial({ color: 0x2b3542, linewidth: px, worldUnits: false, depthTest: false, transparent: true, opacity: HIDDEN_EDGE_OPACITY });
+      em.resolution.copy(size); hm.resolution.copy(size);
+      this.edgeMats = [em, hm];
+      this.edgeLines = new LineSegments2(eg, em);
+      this.edgeLines.userData.pickable = false;
       this.scene.add(this.edgeLines);
-      this.hiddenEdgeLines = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({ color: 0x1c2129, depthTest: false, transparent: true, opacity: HIDDEN_EDGE_OPACITY }));
+      this.hiddenEdgeLines = new LineSegments2(eg, hm);
+      this.hiddenEdgeLines.userData.pickable = false;
       this.hiddenEdgeLines.renderOrder = -1;
       this.scene.add(this.hiddenEdgeLines);
     }
@@ -1014,12 +1045,24 @@ export class Viewport {
   private applyMeshLook(): void {
     const spec = styleSpec(this.look.style);
     if (this.mesh) {
-      applyBodyLook(this.mesh.material as THREE.MeshStandardMaterial, this.look, this.bodyFade(), this.surfaceFaces.size > 0);
+      this.faceLooks(this.mesh.geometry);
+      const mat = this.mesh.material as THREE.MeshStandardMaterial;
+      applyBodyLook(mat, this.look, this.bodyFade(), this.baseTints !== null);
+      if (this.baseTints && spec.faces === 'shaded') mat.color.setHex(0xffffff);   // the colour is in the vertices
+      else if (this.baseTints && spec.faces === 'translucent') mat.color.setHex(0xffffff);
+    }
+    const ecol = edgeColor(this.look.style, this.lightPreset, this.darkBg);
+    const px = edgePixels(this.edgeWidth);
+    for (const m of this.edgeMats) { m.color.setHex(ecol); m.linewidth = px; }
+    if (this.hull) {
+      const hm = this.hull.material as THREE.ShaderMaterial;
+      hm.uniforms.uColor.value.setHex(ecol); hm.uniforms.uWidth.value = px * 1.15;
+      const faces = styleSpec(this.look.style).faces;
+      this.hull.visible = this.silhouette && (faces === 'shaded' || faces === 'white') && !this.sectionView.active && this.bodyFade() >= 1;
     }
     const edgesOn = (spec.edges === 'always' || (spec.edges === 'layer' && this.layerOn('edges')));
     if (this.edgeLines) {
       this.edgeLines.visible = edgesOn;
-      (this.edgeLines.material as THREE.LineBasicMaterial).color.set(edgeColor(this.look.style));
     }
     if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
     this.applyAnalysis();
@@ -1040,12 +1083,67 @@ export class Viewport {
     this.analysis.apply({ mesh: this.mesh, grouped: this.grouped, faces, tints: this.baseTints, o: this.analysisOpts, lines: this.combLines, size, combVisible: true });
   }
 
-  /** Light preset (studio, flat, high contrast). */
-  setLighting(p: LightPreset): void {
-    const l = lightSpec(p);
+  /** Light preset (studio, flat, high contrast, technical), the intensity slider (0.3 to 2) and the reflections switch. */
+  setLighting(p: LightPreset, intensity = this.lightIntensity, reflections = this.reflections): void {
+    this.lightPreset = p; this.lightIntensity = intensity; this.reflections = reflections;
+    const l = effectiveLight(p, intensity, reflections);
     this.hemi.color.set(l.sky); this.hemi.groundColor.set(l.ground); this.hemi.intensity = l.hemi;
     this.sun.intensity = l.sun;
-    this.dirty = true;
+    this.scene.environment = this.envTex && l.env > 0 ? this.envTex : null;
+    this.scene.environmentIntensity = l.env;
+    this.renderer.toneMappingExposure = l.exposure;
+    this.sunOffset.set(-0.42, 0.62, 0.66).multiplyScalar(100);
+    this.applyMeshLook();
+  }
+
+  /** Edge line width and the silhouette outline (a dark outline around the body where no feature edge lies). */
+  setEdges(width: EdgeWidth, silhouette: boolean): void { this.edgeWidth = width; this.silhouette = silhouette; this.applyMeshLook(); }
+
+  /** The appearance of each component of an assembly (by component id); a face of a component not listed takes the body's. */
+  setComponentLooks(m: ReadonlyMap<string, Appearance> | null): void {
+    this.compLooks = new Map(m ?? []);
+    this.applyMeshLook();
+  }
+
+  /** Per-face colour (and finish) of the body: the surface tint, the component's colour in an assembly, white for technical. Sets `baseTints`. */
+  private faceLooks(geo: THREE.BufferGeometry): void {
+    const g = this.grouped;
+    if (!g) return;
+    const technical = this.lightPreset === 'technical';
+    const comps = !technical && this.compLooks.size > 0 && styleSpec(this.look.style).faces !== 'white';
+    if (!comps && !this.surfaceFaces.size) {
+      this.baseTints = null;
+      if (geo.getAttribute('color')) geo.deleteAttribute('color');
+      const a = geo.getAttribute('aSurf') as THREE.BufferAttribute | undefined;
+      if (a) { a.array.fill(-1); a.needsUpdate = true; }
+      return;
+    }
+    const nv = g.positions.length / 3;
+    let col = geo.getAttribute('color') as THREE.BufferAttribute | undefined;
+    if (!col || col.count !== nv || this.analysisColored()) { col = new THREE.BufferAttribute(new Float32Array(nv * 3), 3); geo.setAttribute('color', col); }
+    const surf = geo.getAttribute('aSurf') as THREE.BufferAttribute;
+    const c = this.tmpColor, own = this.look.appearance;
+    for (const r of g.ranges) {
+      const app = (comps && this.compLooks.get(this.ownerFn(r.name) ?? '')) || own;
+      c.set(app.color);
+      if (this.surfaceFaces.has(r.name)) c.multiply(this.tintColor.setRGB(SURFACE_TINT[0], SURFACE_TINT[1], SURFACE_TINT[2]));
+      const mp = materialParams(app.material);
+      for (let v = r.start; v < r.start + r.count; v++) {
+        col.setXYZ(v, c.r, c.g, c.b);
+        surf.setXY(v, comps ? mp.roughness : -1, comps ? mp.metalness : -1);
+      }
+    }
+    col.needsUpdate = true; surf.needsUpdate = true;
+    this.baseTints = col.array as Float32Array;
+  }
+  private readonly tmpColor = new THREE.Color();
+  private readonly tintColor = new THREE.Color();
+  private analysisColored(): boolean { return this.analysisOpts.mode === 'gaussian' || this.analysisOpts.mode === 'mean' || this.analysisOpts.mode === 'draft'; }
+
+  /** The outline reads the canvas size in pixels. */
+  private hullSize(): void {
+    if (!this.hull) return;
+    (this.hull.material as THREE.ShaderMaterial).uniforms.uInvSize.value.set(2 / Math.max(1, this.host.clientWidth), 2 / Math.max(1, this.host.clientHeight));
   }
 
   setBackground(mode: BackgroundMode): void { this.bgMode = mode; this.applyBackground(); }
@@ -1054,6 +1152,7 @@ export class Viewport {
     const css = getComputedStyle(this.host);
     const theme = { top: css.getPropertyValue('--vp-top').trim() || '#cfd8e4', bottom: css.getPropertyValue('--vp-bottom').trim() || '#e6eaf0' };
     const c = backgroundColors(this.bgMode, theme);
+    this.darkBg = new THREE.Color(c.bottom).getHSL({ h: 0, s: 0, l: 0 }).l < 0.4;
     this.bgTexture?.dispose(); this.bgTexture = null;
     if (c.top === c.bottom) this.scene.background = new THREE.Color(c.bottom);
     else {
@@ -1567,6 +1666,7 @@ export class Viewport {
   }
   private applySection(): void {
     this.sectionView.set(this.sectionSpec, this.mesh, this.edgeLines, this.box);
+    this.applyMeshLook();   // the silhouette outline is not clipped, so it hides while a section shows
     this.dirty = true;
   }
 
@@ -1625,6 +1725,8 @@ export class Viewport {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     for (const m of this.fatMaterials) m.resolution.set(w, h);
+    for (const m of this.edgeMats) m.resolution.set(w, h);
+    this.hullSize();
     this.dirty = true;
   }
 
@@ -1684,6 +1786,8 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.mesh = this.edgeLines = this.highlight = null;
+    if (this.hull) { this.scene.remove(this.hull); (this.hull.material as THREE.Material).dispose(); this.hull = null; }
+    this.edgeMats = [];
     this.analysis.dispose();
     this.combLines = [];
     this.baseTints = null;
@@ -1927,6 +2031,7 @@ export class Viewport {
     if (this.dirty) {
       this.dirty = false;
       this.fixSpriteScale();
+      this.sun.position.copy(this.sunOffset).applyQuaternion(this.camera.quaternion);   // the key light travels with the camera
       this.renderer.render(this.scene, this.camera);
       this.handleLayer.render(this.renderer);
       this.triball.render();

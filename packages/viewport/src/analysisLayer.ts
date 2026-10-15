@@ -24,8 +24,13 @@ export class AnalysisLayer {
     const u = this.uniforms;
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uAnalysis = u.uAnalysis; sh.uniforms.uDensity = u.uDensity; sh.uniforms.uAxis = u.uAxis;
+      // per-face finish: the body's buffer carries (roughness, metalness) per vertex, or -1 to keep the material's own
+      sh.vertexShader = sh.vertexShader
+        .replace('void main() {', 'attribute vec2 aSurf;\nvarying vec2 vSurf;\nvoid main() {\n  vSurf = aSurf;')
       sh.fragmentShader = sh.fragmentShader
-        .replace('void main() {', 'uniform int uAnalysis;\nuniform float uDensity;\nuniform vec3 uAxis;\nvoid main() {')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  if (vSurf.x >= 0.0) roughnessFactor = vSurf.x;')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n  if (vSurf.y >= 0.0) metalnessFactor = vSurf.y;')
+        .replace('void main() {', 'varying vec2 vSurf;\nuniform int uAnalysis;\nuniform float uDensity;\nuniform vec3 uAxis;\nvoid main() {')
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
   if (uAnalysis == 1) {
     vec3 vdir = normalize(vViewPosition);
@@ -43,7 +48,7 @@ export class AnalysisLayer {
   }
   #endif`);
     };
-    mat.customProgramCacheKey = () => 'analysis-v1';
+    mat.customProgramCacheKey = () => 'analysis-v2';
     mat.needsUpdate = true;
   }
 

@@ -34,7 +34,7 @@ describe('DisplayMenu', () => {
 });
 
 describe('DisplayMenu look sections', () => {
-  const base = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'theme', appearance: { color: '#b8c4d6', material: 'default' }, anyHidden: false } as const;
+  const base = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'theme', appearance: { color: '#c3ccd8', material: 'default' }, anyHidden: false } as const;
   const mk = (over = {}) => {
     const look = { ...base, ...over, onLook: vi.fn(), onAppearance: vi.fn(), onShowAll: vi.fn() };
     render(<DisplayMenu display={DEFAULT_DISPLAY} onToggle={() => {}} look={look as never} />);
@@ -63,7 +63,7 @@ describe('DisplayMenu look sections', () => {
     const look = mk();
     fireEvent.click(screen.getByLabelText('#e8730c'));
     expect(look.onAppearance).toHaveBeenCalledWith({ color: '#e8730c' });
-    expect((screen.getByLabelText('#b8c4d6') as HTMLElement).getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByLabelText('#c3ccd8') as HTMLElement).getAttribute('aria-pressed')).toBe('true');
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'brushed' } });
     expect(look.onAppearance).toHaveBeenCalledWith({ material: 'brushed' });
   });

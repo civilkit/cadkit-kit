@@ -4,8 +4,8 @@
 // the session.
 import { signal } from '@preact/signals-core';
 import {
-  DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, DEFAULT_APPEARANCE, clampOpacity, sanitizeAppearance,
-  type DisplayStyle, type LightPreset, type BackgroundMode, type Appearance, type BodyLook,
+  DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, EDGE_WIDTHS, DEFAULT_APPEARANCE, clampOpacity, clampIntensity, sanitizeAppearance,
+  type EdgeWidth, type DisplayStyle, type LightPreset, type BackgroundMode, type Appearance, type BodyLook,
 } from '@kit/viewport';
 
 export interface Look {
@@ -13,10 +13,21 @@ export interface Look {
   ghostOpacity: number;
   light: LightPreset;
   background: BackgroundMode;
-  /** by part name; a part not listed has the default look */
+  /** lighting strength, 0.3 to 2 */
+  intensity: number;
+  /** studio reflections on metal */
+  reflections: boolean;
+  edgeWidth: EdgeWidth;
+  /** dark outline around the silhouette */
+  silhouette: boolean;
+  /** by part name (or `part#component` for one component of an assembly); a key not listed has the default look */
   appearances: Record<string, Appearance>;
+  /** storage version (see LOOK_VERSION) */
+  v?: number;
 }
-export const DEFAULT_LOOK: Look = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'theme', appearances: {} };
+export const DEFAULT_LOOK: Look = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'gradient', intensity: 1, reflections: true, edgeWidth: 'thin', silhouette: true, appearances: {}, v: 2 };
+/** Bumped when the defaults of the scene change: a look stored by an older version gets the new lighting and background once. */
+export const LOOK_VERSION = 2;
 export const LOOK_KEY = 'cad.look';
 
 const oneOf = <T extends string>(v: unknown, ok: readonly T[], d: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : d);
@@ -31,20 +42,50 @@ export function sanitizeLook(raw: unknown): Look {
       if (a.color !== DEFAULT_APPEARANCE.color || a.material !== 'default') appearances[k] = a;
     }
   }
+  const fresh = r.v === LOOK_VERSION;
   return {
     style: oneOf(r.style, DISPLAY_STYLES, DEFAULT_LOOK.style),
     ghostOpacity: clampOpacity(r.ghostOpacity, DEFAULT_LOOK.ghostOpacity),
-    light: oneOf(r.light, LIGHT_PRESETS, DEFAULT_LOOK.light),
-    background: oneOf(r.background, BACKGROUND_MODES, DEFAULT_LOOK.background),
+    light: fresh ? oneOf(r.light, LIGHT_PRESETS, DEFAULT_LOOK.light) : DEFAULT_LOOK.light,
+    background: fresh ? oneOf(r.background, BACKGROUND_MODES, DEFAULT_LOOK.background) : DEFAULT_LOOK.background,
+    intensity: clampIntensity(r.intensity, DEFAULT_LOOK.intensity),
+    reflections: typeof r.reflections === 'boolean' ? r.reflections : DEFAULT_LOOK.reflections,
+    edgeWidth: oneOf(r.edgeWidth, EDGE_WIDTHS, DEFAULT_LOOK.edgeWidth),
+    silhouette: typeof r.silhouette === 'boolean' ? r.silhouette : DEFAULT_LOOK.silhouette,
+    v: LOOK_VERSION,
     appearances,
   };
 }
 
 /** What the viewport and the tree swatch show for a part: the colour the user picked in Display > Appearance when there is one,
  *  otherwise the material's colour (when "Use material colour" is on), otherwise the default. */
-export function effectiveAppearance(look: Look, part: string | undefined, materialColor: string | null | undefined, useMaterialColour = true): Appearance {
+export function effectiveAppearance(look: Look, part: string | undefined, materialColor: string | Appearance | null | undefined, useMaterialColour = true): Appearance {
   const a = appearanceOf(look, part);
-  return useMaterialColour && materialColor && a.color === DEFAULT_APPEARANCE.color ? { ...a, color: materialColor } : a;
+  if (!useMaterialColour || !materialColor) return a;
+  const m = typeof materialColor === 'string' ? { color: materialColor, material: a.material } : materialColor;
+  return {
+    color: a.color === DEFAULT_APPEARANCE.color ? m.color : a.color,
+    material: a.material === 'default' ? m.material : a.material,
+  };
+}
+
+/** Storage key of the look of one component of an assembly (the part's own look is keyed by the part name). */
+export const componentKey = (part: string | undefined, comp: string): string => `${part || 'part'}#${comp}`;
+
+/** What each component of an assembly looks like: the user's override of that component, else the colour and finish of its material
+ *  (a gasket material is orange, brass warm, plastics glossy), else the assembly's own look. `parts` lists the components by id with their material name. */
+export function componentAppearances(
+  look: Look, part: string | undefined, parts: ReadonlyArray<{ id: string; material?: string | null }>,
+  materialOf: (name: string | null | undefined) => Appearance | null, useMaterialColour = true,
+): Map<string, Appearance> {
+  const out = new Map<string, Appearance>();
+  for (const p of parts) {
+    const own = look.appearances[componentKey(part, p.id)];
+    const mat = useMaterialColour ? materialOf(p.material) : null;
+    const a = own ?? mat ?? appearanceOf(look, part);
+    out.set(p.id, own && mat ? { color: own.color === DEFAULT_APPEARANCE.color ? mat.color : own.color, material: own.material === 'default' ? mat.material : own.material } : a);
+  }
+  return out;
 }
 
 export const appearanceOf = (look: Look, part: string | undefined): Appearance => (part && look.appearances[part]) || DEFAULT_APPEARANCE;

@@ -15,8 +15,8 @@ describe('look state', () => {
   it('appearance is per part name, and the default is not stored', () => {
     let l = withAppearance(DEFAULT_LOOK, 'a', { color: '#e8730c' });
     expect(appearanceOf(l, 'a').color).toBe('#e8730c');
-    expect(appearanceOf(l, 'b').color).toBe('#b8c4d6');
-    l = withAppearance(l, 'a', { color: '#b8c4d6' });
+    expect(appearanceOf(l, 'b').color).toBe('#c3ccd8');
+    l = withAppearance(l, 'a', { color: '#c3ccd8' });
     expect(l.appearances).toEqual({});
     expect(bodyLook(DEFAULT_LOOK, 'a').style).toBe('shadedEdges');
   });
@@ -25,8 +25,8 @@ describe('look state', () => {
 describe('material colour', () => {
   it('shows the material colour unless the user picked one in Display > Appearance, or the toggle is off', () => {
     expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a').color).toBe('#c8774a');
-    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a', false).color).toBe('#b8c4d6');
-    expect(effectiveAppearance(DEFAULT_LOOK, 'a', null).color).toBe('#b8c4d6');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a', false).color).toBe('#c3ccd8');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', null).color).toBe('#c3ccd8');
     const picked = withAppearance(DEFAULT_LOOK, 'a', { color: '#d0463b' });
     expect(effectiveAppearance(picked, 'a', '#c8774a').color).toBe('#d0463b');
     expect(effectiveAppearance(picked, 'b', '#c8774a').color).toBe('#c8774a');
