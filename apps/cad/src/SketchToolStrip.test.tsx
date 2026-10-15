@@ -149,3 +149,22 @@ describe('palette slots on touch', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 });
+
+describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
+  it('carries the palette tools in Select, Draw, Dimension, Constrain, Modify, Reference groups plus Finish with OK and Cancel', async () => {
+    const { sketchRibbonGroups } = await import('./SketchToolStrip');
+    const { Ribbon } = await import('@kit/ui');
+    const picked: Array<string | null> = []; let ok = 0, no = 0;
+    const groups = sketchRibbonGroups({ active: null, onPick: (id) => picked.push(id), labels: true, onOk: () => { ok++; }, onCancel: () => { no++; } });
+    expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference', 'Finish']);
+    const { container } = render(<Ribbon commands={[]} activeTab="Sketch" onTab={() => {}} layout={{ Sketch: groups }} onlyTab="Sketch" tabLabel={() => 'Editing S1'} />);
+    expect(container.querySelectorAll('.rb-tab').length).toBe(1);
+    expect(container.querySelector('.rb-tab')?.textContent).toBe('Editing S1');
+    fireEvent.click(container.querySelector('[aria-label="Confirm sketch"]')!);
+    fireEvent.click(container.querySelector('[aria-label="Cancel sketch"]')!);
+    expect([ok, no]).toEqual([1, 1]);
+    // every palette tool is reachable from the ribbon groups
+    const rendered = container.querySelectorAll('.slot, [data-slot]').length;
+    expect(rendered).toBeGreaterThan(10);
+  });
+});

@@ -44,7 +44,7 @@ export function SettingsDialog(p: {
     choose(next);
     setTimeout(() => document.getElementById('settab-' + next)?.focus(), 0);
   };
-  const check = (key: 'leftTabs' | 'toolRail' | 'selectionBar' | 'drawerOpen' | 'handles') => (
+  const check = (key: 'leftTabs' | 'toolRail' | 'sketchPalette' | 'selectionBar' | 'drawerOpen' | 'handles') => (
     <label class="set-row">
       <input type="checkbox" checked={w[key]} onChange={(e) => p.onChange({ [key]: (e.currentTarget as HTMLInputElement).checked })} />
       <span>{t('settings.' + key)}</span>
@@ -87,6 +87,7 @@ export function SettingsDialog(p: {
           {select('toolLabels', ['icons-and-text', 'icons'])}
           {check('leftTabs')}
           {check('toolRail')}
+          {check('sketchPalette')}
           {check('selectionBar')}
           {check('drawerOpen')}
           {check('handles')}

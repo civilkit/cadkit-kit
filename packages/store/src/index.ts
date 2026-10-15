@@ -25,6 +25,7 @@ export interface Workspace {
   leftTabs: boolean;                       // Outliner / Features / Assets tabs instead of one list
   rightPanel: 'off' | 'docked' | 'floating';
   toolRail: boolean;
+  sketchPalette: boolean;                  // the floating sketch tool palette on the right edge (off: the ribbon's Sketch tab carries the tools)
   toolLabels: 'icons' | 'icons-and-text';   // buttons show an icon only (label on hover) or icon and text
   selectionBar: boolean;
   commandBar: boolean;
@@ -44,9 +45,9 @@ export const DEFAULT_SIZES = { leftWidth: 280, rightWidth: 280, drawerHeight: 21
 export const SIZE_KEYS = ['leftWidth', 'rightWidth', 'drawerHeight', 'floatWidth', 'floatHeight'] as const;
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
-  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
-  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
+  plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
+  minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
@@ -58,7 +59,7 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRES
   pick('leftPanel', ['docked', 'floating', 'hidden'] as const);
   pick('rightPanel', ['off', 'docked', 'floating'] as const);
   pick('toolLabels', ['icons', 'icons-and-text'] as const);
-  for (const k of ['leftTabs', 'leftCollapsed', 'toolRail', 'selectionBar', 'commandBar', 'drawerOpen', 'handles'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
+  for (const k of ['leftTabs', 'leftCollapsed', 'toolRail', 'sketchPalette', 'selectionBar', 'commandBar', 'drawerOpen', 'handles'] as const) if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   if (typeof r.opacity === 'number' && Number.isFinite(r.opacity)) out.opacity = Math.min(1, Math.max(0.15, r.opacity));
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));
   if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));

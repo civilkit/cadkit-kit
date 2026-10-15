@@ -17,7 +17,7 @@ import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions }
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, StatusBar, Tip, Toast, VarsContext,
+  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -66,10 +66,11 @@ import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
-import { SketchToolStrip } from './SketchToolStrip';
+import { SketchToolStrip, sketchRibbonGroups } from './SketchToolStrip';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
-import { RIBBON_LAYOUT } from './toolbarModel';
+import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, type DocKind } from './toolbarModel';
+import { SketchDialog } from './SketchDialog';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
@@ -1446,8 +1447,6 @@ function App() {
       <button class="rb-btn" aria-pressed={constructionMode} title={t('app.sketch.constructionMode.tip')} onClick={() => setConstructionMode(!constructionMode)}>{t('app.sketch.constructionMode')}</button>
       {(entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={toggleSelectedConstruction}>{t('app.sketch.toggleConstruction')}</button> : null}
       <button class="rb-btn" onClick={() => viewport?.orientToSketch()}>{t('app.sketch.lookNormal')}</button>
-      <button class="rb-btn ok" onClick={() => void confirmSketch()} title={t('app.sketch.confirm')}>✓</button>
-      <button class="rb-btn no" onClick={() => void cancelSketch()} title={t('app.sketch.cancel')}>✗</button>
     </div>
   ) : null;
   const tree = (
@@ -1666,6 +1665,25 @@ function App() {
     return () => removeEventListener('beforeunload', warn);
   }, []);
 
+  // the contextual ribbon: a sketch replaces the tabs by the Sketch tab; an open feature editor greys the model commands; an assembly opens on its tab
+  const fileIds = new Set(commands.filter((c) => isFileCommand(c.id)).map((c) => c.id));
+  const ribbonCommands = editingId ? commands.map((c) => (idleDuringEdit(c.id) ? { ...c, enabled: () => false } : c)) : commands;
+  const ribbonLayout = sketching
+    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: ws.toolLabels !== 'icons', onOk: () => void confirmSketch(), onCancel: () => void cancelSketch() }) }
+    : RIBBON_LAYOUT;
+  const kindRef = useRef<DocKind | null>(null);
+  const kindNow = docKindOf(doc as never);
+  useEffect(() => {
+    const next = tabForKindChange(kindRef.current, kindNow, tab);
+    kindRef.current = kindNow;
+    if (next !== tab) setTab(next);
+  }, [kindNow]);
+  const sketchFeat = sketching && doc ? (doc.features.find((f) => f.id === sketching.id) as unknown as { plane?: unknown } | undefined) : undefined;
+  const sketchPlaneLabel = (() => {
+    const pl = sketchFeat?.plane;
+    if (pl === 'front' || pl === 'top' || pl === 'right') return t('app.ref.' + pl);
+    return pl && typeof pl === 'object' ? t('app.sketch.dialog.onFace') : '';
+  })();
   const lay = layoutHandles(store, ws);
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
@@ -1675,6 +1693,7 @@ function App() {
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
+        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'import-step'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
@@ -1687,7 +1706,7 @@ function App() {
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
-      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={commands} activeTab={tab} onTab={setTab} labels={ws.toolLabels} layout={RIBBON_LAYOUT} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}
+      {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={ribbonCommands} activeTab={activeRibbonTab(tab, !!sketching)} onTab={setTab} labels={ws.toolLabels} layout={ribbonLayout} hidden={fileIds} onlyTab={sketching ? SKETCH_TAB : undefined} tabLabel={(x) => (x === SKETCH_TAB && sketching ? t('app.sketch.editing', { name: sketching.name }) : undefined)} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
       <div id="vp" ref={host}>
@@ -1730,7 +1749,10 @@ function App() {
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} /> : null}
         {sketching && sketchPrefs.show.panel ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
-        {sketching ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
+        {sketching && (ws.sketchPalette || ws.ribbon === 'off') ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
+        {sketching ? <SketchDialog name={sketching.name} plane={sketchPlaneLabel} showRelations={sketchPrefs.show.relations} showDimensions={sketchPrefs.show.dimensions}
+          onShow={(patch) => { const next = { ...sketchPrefs, show: { ...sketchPrefs.show, ...(patch.relations !== undefined ? { relations: patch.relations } : {}), ...(patch.dimensions !== undefined ? { dimensions: patch.dimensions } : {}) } }; setSketchPrefs(next); saveSketchPrefs(next); }}
+          onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()} /> : null}
         {emptyPart1 ? (
           <div class="start-card" role="region" aria-label={t('app.start.title')}>
             <b>{t('app.start.title')}</b>

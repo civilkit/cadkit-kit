@@ -1,7 +1,7 @@
 // Where every command sits on the three toolbars. Pure data: the ribbon (top), the tool palette (left edge) and the
 // right-click flyouts all read the same SLOTS, so a slot shows the tool you used last wherever it appears, and
 // adding a command to a slot adds it everywhere. Command ids and keys are defined in commands.ts and are not touched here.
-import type { RibbonLayout, RibbonEntry } from '@kit/ui';
+import type { RibbonEntry } from '@kit/ui';
 
 /** Commands whose ids are reserved here before the command exists (their icons exist already). Slots may list them; the tests do not
  *  require them to be registered, and the toolbars skip ids that are not. */
@@ -44,19 +44,17 @@ export const SLOTS: Record<string, string[]> = {
 const slot = (id: string, extra: Partial<Extract<RibbonEntry, object>> = {}): RibbonEntry => ({ slot: id, ids: SLOTS[id], ...extra });
 
 /** The ribbon: tabs of titled groups. Group titles are `group.<id>` in the catalogue. */
-export const RIBBON_LAYOUT: RibbonLayout = {
+export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEntry[] }>> = {
   Home: [
-    { id: 'File', entries: ['new-part', 'open', 'save', 'save-as', 'samples'] },
-    { id: 'Export', entries: [slot('export'), 'import-step'] },
     { id: 'Sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
-    { id: 'Create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('hole'), slot('catalog')] },
+    { id: 'Create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
     { id: 'Edit', entries: ['undo', 'redo', slot('history')] },
   ],
   Features: [
     { id: 'Reference', entries: [slot('reference')] },
-    { id: 'Create', entries: [slot('loft-sweep'), slot('gear')] },
+    { id: 'Create', entries: [slot('gear')] },
     { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-pipe-cut'] },
     { id: 'Bodies', entries: [slot('delete-geom')] },
   ],
@@ -104,3 +102,36 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-)/.test(id) ||
   ['new-part', 'open', 'save', 'save-as', 'samples', 'import-step', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'fit', 'hide-selection', 'show-all'].includes(id);
+
+// ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
+
+/** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
+export const isFileCommand = (id: string): boolean =>
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'samples', 'import-step'].includes(id);
+
+/** The contextual tab that replaces the others while a sketch is open. */
+export const SKETCH_TAB = 'Sketch';
+
+export type DocKind = 'part' | 'assembly';
+/** A document that holds inserted components is an assembly. */
+export const docKindOf = (doc: { features: Array<{ type?: string }> } | null | undefined): DocKind =>
+  doc && doc.features.some((f) => f.type === 'insertPart') ? 'assembly' : 'part';
+
+/** The tab the ribbon draws: the Sketch tab while a sketch is open, else the tab the user picked (which is kept, so leaving the sketch restores it). */
+export const activeRibbonTab = (userTab: string, sketching: boolean): string => (sketching ? SKETCH_TAB : userTab);
+
+/** The tab to select when the document kind changes: an assembly opens on the Assembly tab; leaving one drops that tab back to Home. Else unchanged. */
+export function tabForKindChange(prev: DocKind | null, next: DocKind, userTab: string): string {
+  if (prev === next) return userTab;
+  if (next === 'assembly') return 'Assembly';
+  return userTab === 'Assembly' ? 'Home' : userTab;
+}
+
+/** Ids of the commands that make or change geometry (the Sketch, Create, Modify, Pattern, Reference, Bodies and Components groups of the model tabs). */
+export const MODEL_COMMANDS: ReadonlySet<string> = new Set(
+  Object.entries(RIBBON_LAYOUT).filter(([tab]) => ['Home', 'Features', 'Surfaces', 'Assembly'].includes(tab))
+    .flatMap(([tab, gs]) => gs.filter((g) => !(tab === 'Home' && g.id === 'Edit') && g.id !== 'Review').flatMap((g) => g.entries.flatMap((e) => (typeof e === 'string' ? [e] : 'ids' in e ? e.ids : [])))),
+);
+
+/** While a feature editor is open the model commands are greyed out (Undo, Redo, view, selection and inspection stay). */
+export const idleDuringEdit = (id: string): boolean => MODEL_COMMANDS.has(id);

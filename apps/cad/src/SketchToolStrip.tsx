@@ -1,5 +1,5 @@
 import { sketchTools, type ToolEntry, type ToolGroup } from '@kit/sketch';
-import { Icon, Slot, Tip, type SlotItem } from '@kit/ui';
+import { Icon, Slot, Tip, type SlotItem, type RibbonGroup } from '@kit/ui';
 import { t } from './i18n';
 
 const GROUPS: ToolGroup[] = ['draw', 'dimension', 'constrain', 'edit'];
@@ -101,4 +101,34 @@ export function SketchToolStrip(p: { active: string | null; onPick(id: string | 
       })}
     </div>
   );
+}
+
+/** The groups of the ribbon's contextual Sketch tab: the same slots, tools and memory as the palette, drawn as ribbon buttons.
+ *  Select, Draw, Dimension, Constrain, Modify (trim, fillet, offset, mirror, patterns, move), Reference (project, construction) and Finish (OK / Cancel). */
+export function sketchRibbonGroups(p: {
+  tools?: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean; onOk(): void; onCancel(): void;
+}): RibbonGroup[] {
+  const tools = p.tools ?? sketchTools();
+  const cell = (sl: PaletteSlot) => ({ key: 'sk-' + sl.id, node: <Slot id={sl.id} variant="ribbon" side="bottom" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} /> });
+  const edit = slotsFor('edit', tools);
+  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'construction');
+  const groups: RibbonGroup[] = [
+    { id: 'SketchSelect', entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> }] },
+    { id: 'Draw', entries: slotsFor('draw', tools).map(cell) },
+    { id: 'Dimension', entries: slotsFor('dimension', tools).map(cell) },
+    { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
+    { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
+    { id: 'Reference', entries: edit.filter(isRef).map(cell) },
+    {
+      id: 'Finish', entries: [{
+        key: 'sk-finish', node: (
+          <span class="sk-finish">
+            <button class="rb-btn ok" aria-label={t('app.sketch.confirm')} title={t('app.sketch.confirm')} onClick={p.onOk}>✓<span>{p.labels ? t('app.sketch.ok') : ''}</span></button>
+            <button class="rb-btn no" aria-label={t('app.sketch.cancel')} title={t('app.sketch.cancel')} onClick={p.onCancel}>✗<span>{p.labels ? t('app.sketch.cancelShort') : ''}</span></button>
+          </span>
+        ),
+      }],
+    },
+  ];
+  return groups.filter((g) => g.entries.length);
 }

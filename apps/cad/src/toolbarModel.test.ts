@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { resolveLayout } from '@kit/ui';
 import { buildCommands } from './commands';
 import { fullActions } from './testActions';
-import { PLANNED, RIBBON_LAYOUT, RAIL_SECTIONS, SLOTS, notOnRail } from './toolbarModel';
+import { PLANNED, RIBBON_LAYOUT, RAIL_SECTIONS, SLOTS, notOnRail, isFileCommand, SKETCH_TAB, docKindOf, activeRibbonTab, tabForKindChange, MODEL_COMMANDS, idleDuringEdit } from './toolbarModel';
 import { contextIds } from './ToolRail';
 import { MENU_COMMANDS } from './menuModel';
 
 const cmds = buildCommands(fullActions());
 const ids = new Set(cmds.map((c) => c.id));
-const idsOf = (entries: Array<string | { ids: string[] }>) => entries.flatMap((e) => (typeof e === 'string' ? [e] : e.ids));
+const idsOf = (entries: Array<string | { ids: string[] } | { node: unknown }>) => entries.flatMap((e) => (typeof e === 'string' ? [e] : 'ids' in e ? e.ids : []));
 
 describe('toolbar model', () => {
   it('every slot lists only commands that exist, with no duplicates inside a slot', () => {
@@ -20,10 +20,10 @@ describe('toolbar model', () => {
   it('the ribbon layout places every command exactly once and names no command that does not exist', () => {
     const placed = Object.values(RIBBON_LAYOUT).flatMap((gs) => gs.flatMap((g) => idsOf(g.entries)));
     expect(placed.filter((id) => !ids.has(id) && !PLANNED.includes(id))).toEqual([]);
-    expect([...ids].filter((id) => !placed.includes(id))).toEqual([]);
+    expect([...ids].filter((id) => !placed.includes(id) && !isFileCommand(id))).toEqual([]);
     expect(placed.filter((id, i) => placed.indexOf(id) !== i)).toEqual([]);
     // resolving adds nothing: no group is made up from leftovers
-    const resolved = resolveLayout(cmds, RIBBON_LAYOUT);
+    const resolved = resolveLayout(cmds, RIBBON_LAYOUT, new Set([...ids].filter(isFileCommand)));
     expect(Object.keys(resolved)).toEqual(Object.keys(RIBBON_LAYOUT));
   });
   it('the reserved thin-wall ids have icons and sit in the Create groups of the ribbon and the palette', async () => {
@@ -45,5 +45,42 @@ describe('toolbar model', () => {
     expect(contextIds('face')).toEqual(['sketch-on-face', 'add-hole', 'add-shell', 'add-lpattern', 'add-cpattern']);
     expect(contextIds('edge')).toEqual(['add-fillet', 'add-chamfer']);
     for (const k of ['face', 'edge', 'corner', 'body'] as const) for (const id of contextIds(k)) expect(MENU_COMMANDS[k]).toContain(id);
+  });
+});
+
+describe('contextual ribbon', () => {
+  it('file actions are in the top bar only: no File or Export group on any tab', () => {
+    const groups = Object.values(RIBBON_LAYOUT).flatMap((gs) => gs.map((g) => g.id));
+    expect(groups).not.toContain('File');
+    expect(groups).not.toContain('Export');
+    const placed = Object.values(RIBBON_LAYOUT).flatMap((gs) => gs.flatMap((g) => idsOf(g.entries)));
+    expect(placed.filter(isFileCommand)).toEqual([]);
+    const resolved = resolveLayout(cmds, RIBBON_LAYOUT, new Set([...ids].filter(isFileCommand)));
+    expect(Object.values(resolved).flatMap((gs) => gs.flatMap((g) => idsOf(g.entries))).filter(isFileCommand)).toEqual([]);
+  });
+  it('Home carries the model commands: sketch, extrude, revolve, sweep and loft, fillet, shell, pattern, undo/redo', () => {
+    const home = JSON.stringify(RIBBON_LAYOUT.Home);
+    for (const id of ['sketch-here', 'add-extrude', 'add-revolve', 'add-loft', 'add-fillet', 'add-shell', 'add-lpattern', 'undo', 'redo', 'rebuild']) expect(home, id).toContain(id);
+  });
+  it('entering a sketch selects the Sketch tab and leaving restores the tab the user was on', () => {
+    expect(activeRibbonTab('Surfaces', false)).toBe('Surfaces');
+    expect(activeRibbonTab('Surfaces', true)).toBe(SKETCH_TAB);
+    expect(activeRibbonTab('Surfaces', false)).toBe('Surfaces');
+  });
+  it('document kind: inserted components make an assembly, which selects the Assembly tab; a part leaves it', () => {
+    expect(docKindOf(null)).toBe('part');
+    expect(docKindOf({ features: [{ type: 'sketch' }] })).toBe('part');
+    expect(docKindOf({ features: [{ type: 'insertPart' }] })).toBe('assembly');
+    expect(tabForKindChange(null, 'assembly', 'Home')).toBe('Assembly');
+    expect(tabForKindChange('assembly', 'assembly', 'View')).toBe('View');
+    expect(tabForKindChange('part', 'part', 'View')).toBe('View');
+    expect(tabForKindChange('assembly', 'part', 'Assembly')).toBe('Home');
+    expect(tabForKindChange('assembly', 'part', 'View')).toBe('View');
+  });
+  it('a feature editor greys the model commands but not undo, redo or the view', () => {
+    expect(idleDuringEdit('add-extrude')).toBe(true);
+    expect(idleDuringEdit('sketch-here')).toBe(true);
+    for (const id of ['undo', 'redo', 'fit', 'view-iso', 'measure']) expect(idleDuringEdit(id), id).toBe(false);
+    expect(MODEL_COMMANDS.size).toBeGreaterThan(20);
   });
 });
