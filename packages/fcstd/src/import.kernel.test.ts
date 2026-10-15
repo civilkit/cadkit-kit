@@ -45,3 +45,18 @@ describe('real FCStd file (FreeCAD data/tests/PocketTest.fcstd, LGPL-2.1)', { sk
     expect((await s.facts()).volume).toBeCloseTo(230000, 3); // OCCT volume of Pad.Shape in the file
   });
 });
+
+describe('real FCStd file (FreeCAD tests/.../ModelFromV021.FCStd, LGPL-2.1)', { skip: !process.env.CK_WASM }, () => {
+  it('Pad and Revolution match the cached volumes step by step; the Chamfer is reported, not guessed', async () => {
+    const r = await importFcstd(new Uint8Array(readFileSync(process.cwd() + '/packages/fcstd/fixtures/ModelFromV021.FCStd')), 'ModelFromV021');
+    expect(r.steps.map((s) => s.fc)).toEqual(['Pad', 'Revolution']);
+    expect(r.skipped).toEqual(['Chamfer']);
+    expect(r.warnings.find((w) => w.object === 'Chamfer')?.code).toBe('edgeReferences');
+    const want = [15803.6505, 15837.8813]; // OCCT volumes of Pad.Shape and Revolution.Shape in the file
+    for (const [i, st] of r.steps.entries()) {
+      const last = Math.max(...st.features.map((id) => r.part.features.findIndex((x) => x.id === id)));
+      const s = await Session.open({ ...r.part, features: r.part.features.slice(0, last + 1) } as unknown as PartDoc); sessions.push(s);
+      expect((await s.facts()).volume).toBeCloseTo(want[i], 3);
+    }
+  });
+});
