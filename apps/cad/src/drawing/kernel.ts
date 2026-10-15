@@ -4,6 +4,7 @@ import { sessionQuery } from '../inspect/kernel';
 import type { ViewData } from './model';
 import type { DrawingQuery } from './layout';
 import type { HoleInfo } from './geom';
+import { countedLabel, seedCount } from '../patternThreads';
 
 export function drawingQuery(session: Session): DrawingQuery {
   return async (views) => {
@@ -47,7 +48,12 @@ export function holeInfos(features: Feat[], pitchOf?: PitchOf): Array<HoleInfo &
   const threadsOf = (hid: string) => features.find((f) => f.type === 'thread' && !f.suppressed && typeof f.face === 'string' && f.face.startsWith(hid + '.'));
   for (const f of features) {
     if (f.suppressed) continue;
-    if (f.type === 'hole') out.push({ feature: f.id, text: holeCallout(f, threadsOf(f.id) ?? null, pitchOf), faces: [f.id] });
+    if (f.type === 'hole') {
+      const th = threadsOf(f.id) ?? null;
+      // a patterned threaded hole is called out once for all its copies: `4x M5x0.8`
+      const n = th ? seedCount(features as never, f.id) : 1;
+      out.push({ feature: f.id, text: countedLabel(n, holeCallout(f, th, pitchOf)), faces: [f.id] });
+    }
     else if (f.type === 'thread' && f.face && !features.some((h) => h.type === 'hole' && f.face!.startsWith(h.id + '.'))) out.push({ feature: f.id, text: threadLabel(f, pitchOf) + (typeof f.length === 'number' ? ` ↧ ${num(f.length)}` : ''), faces: [f.face], thread: true });
   }
   return out;

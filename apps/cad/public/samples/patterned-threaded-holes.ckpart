@@ -1,0 +1,146 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Plate with six threaded M5 holes",
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "name": "Plate outline",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": -40,
+     "y": -40
+    },
+    {
+     "id": "p2",
+     "x": 40,
+     "y": -40
+    },
+    {
+     "id": "p3",
+     "x": 40,
+     "y": 40
+    },
+    {
+     "id": "p4",
+     "x": -40,
+     "y": 40
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F2",
+   "name": "Plate",
+   "op": "add",
+   "sketch": "F1",
+   "end": "blind",
+   "depth": 10
+  },
+  {
+   "type": "sketch",
+   "id": "F3",
+   "name": "Hole position",
+   "plane": {
+    "kind": "face",
+    "id": "F2.C1"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "k",
+     "x": 25,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "pt1",
+     "type": "point",
+     "p": "k"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "hole",
+   "id": "F4",
+   "name": "M5 tapped hole",
+   "sketch": "F3",
+   "kind": "simple",
+   "standard": "iso",
+   "size": "M5",
+   "fit": "tap",
+   "end": "through"
+  },
+  {
+   "type": "thread",
+   "id": "F5",
+   "name": "M5 thread",
+   "face": "F4.S.h1",
+   "standard": "metric",
+   "size": "M5",
+   "class": "6H",
+   "length": "full",
+   "hand": "right",
+   "modeled": false
+  },
+  {
+   "type": "cpattern",
+   "id": "F7",
+   "name": "Six around the plate",
+   "seeds": [
+    "F4"
+   ],
+   "axis": {
+    "kind": "axis",
+    "axis": "y"
+   },
+   "count": 6,
+   "angle": 360,
+   "equal": true
+  }
+ ],
+ "seq": 8,
+ "rollback": null,
+ "material": "steel",
+ "counters": {}
+}

@@ -44,6 +44,7 @@ export function managedPaths(type: string): Set<string> {
     case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op']);
     case 'fill': return new Set(['continuity', 'fairing', 'merge']);
     case 'extend': return new Set(['distance', 'shape', 'end']);
+    case 'lpattern': case 'cpattern': case 'mirror': return new Set(['carryThreads']);
     case 'knit': return new Set(['surfaces', 'solid']);
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
     default: return new Set();
