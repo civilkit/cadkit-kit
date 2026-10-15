@@ -80,3 +80,36 @@ describe('StatusBar', () => {
     expect(container.textContent).not.toContain('Busy');
   });
 });
+
+describe('Ribbon layout', () => {
+  const cmds: Command[] = [
+    { id: 'open', label: 'Open', tab: 'Home', group: 'File', run: () => {} },
+    { id: 'ex-a', label: 'Export A', tab: 'Home', group: 'Export', keys: 'Ctrl+E', run: () => {} },
+    { id: 'ex-b', label: 'Export B', tab: 'Home', group: 'Export', run: () => {} },
+    { id: 'stray', label: 'Stray', tab: 'Home', group: 'Misc', run: () => {} },
+    { id: 'cam', label: 'Camera', tab: 'View', group: 'Views', run: () => {} },
+  ];
+  const layout = { Home: [{ id: 'File', entries: ['open'] }, { id: 'Export', entries: [{ slot: 'export', ids: ['ex-a', 'ex-b', 'gone'] }] }] };
+  it('draws titled groups from the layout, a slot as one split button, and appends commands the layout forgot', () => {
+    const { container } = render(<Ribbon commands={cmds} activeTab="Home" onTab={() => {}} layout={layout} />);
+    expect([...container.querySelectorAll('.rb-gtitle')].map((x) => x.textContent)).toEqual(['File', 'Export', 'Misc']);
+    expect(container.querySelectorAll('.rb-group').length).toBe(3);
+    expect(container.querySelectorAll('.slot.multi').length).toBe(1);
+    expect(container.textContent).toContain('Stray');
+  });
+  it('icons-only mode has no group titles and no label text', () => {
+    const { container } = render(<Ribbon commands={cmds} activeTab="Home" onTab={() => {}} layout={layout} labels="icons" />);
+    expect(container.querySelector('.rb-gtitle')).toBeNull();
+    expect(container.querySelector('.slot-lab')).toBeNull();
+    expect(container.querySelectorAll('.rb-group').length).toBe(3);
+  });
+  it('tabs come from the layout and the commands that are in no layout tab', () => {
+    const { container } = render(<Ribbon commands={cmds} activeTab="Home" onTab={() => {}} layout={layout} />);
+    expect([...container.querySelectorAll('.rb-tab')].map((x) => x.textContent)).toEqual(['Home', 'View']);
+  });
+  it('uses the short caption under the icon but keeps the full name for assistive tech', () => {
+    const { getByRole, container } = render(<Ribbon commands={cmds} activeTab="Home" onTab={() => {}} layout={layout} caption={(c) => c.label.replace('Export ', '')} />);
+    expect(getByRole('button', { name: 'Export A' }).textContent).toBe('A');
+    expect(container.querySelector('.slot-lab')).not.toBeNull();
+  });
+});
