@@ -240,6 +240,11 @@
   "file": "bench-worm_screw.ckpart"
  },
  {
+  "id": "bench-propeller",
+  "title": "Bench Propeller (4 twisted blades)",
+  "file": "bench-propeller.ckpart"
+ },
+ {
   "id": "brepjs-axial_fan",
   "title": "Brepjs Axial Fan",
   "file": "brepjs-axial_fan.ckpart"
