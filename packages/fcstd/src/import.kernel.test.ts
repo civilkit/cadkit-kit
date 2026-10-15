@@ -1,0 +1,47 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { Session } from '@ck/session';
+import type { PartDoc } from '@ck/part-model';
+import { importFcDocument } from './import';
+import { DOC, pl } from './fixture';
+
+const sessions: Session[] = [];
+afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
+const run = async (xml: string) => {
+  const r = importFcDocument(xml);
+  const s = await Session.open(r.part as unknown as PartDoc); sessions.push(s);
+  return s.facts();
+};
+
+describe('FCStd fixture against the kernel', { skip: !process.env.CK_WASM }, () => {
+  it('a 20 x 10 sketch padded 5 is 1000 mm3 and sits where FreeCAD put it', async () => {
+    const f = await run(DOC);
+    expect(f.volume).toBeCloseTo(1000, 6);
+    expect(f.box?.min).toEqual([0, 0, 0]);
+    expect(f.box?.max).toEqual([20, 10, 5]);
+  });
+  it('a sketch on XY at z = 7 with a downward normal pads downwards (z 2..7)', async () => {
+    const f = await run(DOC.replace(`<Property name="Placement" type="App::PropertyPlacement">${pl(0, 0, 0)}`, `<Property name="Placement" type="App::PropertyPlacement">${pl(0, 0, 7, [1, 0, 0, 0])}`));
+    expect(f.volume).toBeCloseTo(1000, 6);
+    // the 180 degree turn about X also mirrors y, so the rectangle lies at y -10..0
+    expect(f.box?.min.map((v) => +v.toFixed(6))).toEqual([0, -10, 2]);
+    expect(f.box?.max.map((v) => +v.toFixed(6))).toEqual([20, 0, 7]);
+  });
+  it('a sketch on the YZ plane maps to our right plane', async () => {
+    // rotation taking x->y, y->z (normal along +x): quaternion (0.5, 0.5, 0.5, 0.5)
+    const f = await run(DOC.replace(`<Property name="Placement" type="App::PropertyPlacement">${pl(0, 0, 0)}`, `<Property name="Placement" type="App::PropertyPlacement">${pl(0, 0, 0, [0.5, 0.5, 0.5, 0.5])}`));
+    expect(f.volume).toBeCloseTo(1000, 6);
+    expect(f.box?.max.map((v) => +v.toFixed(6))).toEqual([5, 20, 10]);
+  });
+});
+
+import { readFileSync } from 'node:fs';
+import { importFcstd } from './import';
+describe('real FCStd file (FreeCAD data/tests/PocketTest.fcstd, LGPL-2.1)', { skip: !process.env.CK_WASM }, () => {
+  it('imports the legacy 0.14 file; the first pad has the volume of the cached FreeCAD shape', async () => {
+    const r = await importFcstd(new Uint8Array(readFileSync(new URL('../fixtures/PocketTest.fcstd', import.meta.url))), 'PocketTest');
+    expect(r.steps.map((s) => s.fc)).toEqual(['Pad']);
+    expect(r.warnings.map((w) => w.code)).toContain('legacyFormat');
+    const s = await Session.open(r.part as unknown as PartDoc); sessions.push(s);
+    expect((await s.facts()).volume).toBeCloseTo(230000, 3); // OCCT volume of Pad.Shape in the file
+  });
+});
