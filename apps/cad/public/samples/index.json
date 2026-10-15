@@ -471,7 +471,7 @@
  },
  {
   "id": "matx-case",
-  "title": "mATX tower case (618 features built by a script: hoops, corner blocks, honeycomb panels, tray, slats; see docs/matx-case.md)",
-  "file": "matx-case.ckpart"
+  "title": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)",
+  "file": "heavy/matx-case.ckpart"
  }
 ]
