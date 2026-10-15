@@ -213,3 +213,19 @@ describe('FeatureEditor: look', () => {
     expect((container.querySelector('[data-path="end"] select') as HTMLSelectElement).value).toBe('upToFace');
   });
 });
+
+describe('FeatureEditor: a draft that breaks the model', () => {
+  it('Confirm is greyed with the tooltip and does nothing, unless Shift is held', () => {
+    const confirmed: unknown[] = [];
+    const { container } = render(<FeatureEditor feature={EXTRUDE} onDraft={() => {}} onConfirm={(n) => confirmed.push(n)} onCancel={() => {}} okBlocked="This change breaks the model (F14). Cancel or adjust." diag={<div class="diag">card</div>} hint="plain hint" />);
+    const ok = container.querySelector('.fedit-confirm') as HTMLElement;
+    expect(ok.getAttribute('aria-disabled')).toBe('true');
+    expect(ok.getAttribute('title')).toBe('This change breaks the model (F14). Cancel or adjust.');
+    fireEvent.click(ok);
+    expect(confirmed.length).toBe(0);
+    fireEvent.click(ok, { shiftKey: true });
+    expect(confirmed.length).toBe(1);
+    expect(container.querySelector('.diag')!.textContent).toBe('card');
+    expect(container.querySelector('.fedit-hint')).toBeNull();
+  });
+});

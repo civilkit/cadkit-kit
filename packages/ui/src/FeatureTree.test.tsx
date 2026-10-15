@@ -379,3 +379,24 @@ describe('FeatureTree: hover and hide', () => {
     expect(hid).toEqual(['F2']); expect(sup).toEqual(['F2']);
   });
 });
+
+describe('FeatureTree: blocked rows', () => {
+  const rows = [{ id: 'F1', type: 'sketch' }, { id: 'F14', type: 'trimSurface' }, { id: 'F28', type: 'shell' }];
+  const status = [
+    { id: 'F14', ok: false, code: 'trimNoIntersection', hint: 'The trim tool no longer crosses the surface.' },
+    { id: 'F28', ok: false, code: 'nothingToCut', hint: 'F28 removes nothing', blockedBy: 'F14' },
+  ];
+  it('the cause is red; the consequence is muted with a link to the cause and no red error text', () => {
+    const picked: string[] = [];
+    const { container } = render(<FeatureTree rows={rows} status={status} selectedId={null} onSelect={(id) => picked.push(id)} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />);
+    const [, cause, echo] = [...container.querySelectorAll('.row')];
+    expect(cause.className).toContain('err');
+    expect(echo.className).not.toContain('err');
+    expect(echo.className).toContain('blocked');
+    expect(echo.querySelector('.row-hint')).toBeNull();
+    const chip = echo.querySelector('.row-blocked') as HTMLElement;
+    expect(chip.textContent).toContain('blocked by F14');
+    fireEvent.click(chip);
+    expect(picked).toEqual(['F14']);
+  });
+});
