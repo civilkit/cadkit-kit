@@ -34,7 +34,7 @@ describe('DisplayMenu', () => {
 });
 
 describe('DisplayMenu look sections', () => {
-  const base = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'theme', appearance: { color: '#b8c4d6', material: 'default' }, anyHidden: false } as const;
+  const base = { style: 'shadedEdges', ghostOpacity: 0.35, light: 'studio', background: 'theme', intensity: 1, reflections: true, edgeWidth: 'thin', silhouette: true, appearance: { color: '#c3ccd8', material: 'default' }, anyHidden: false } as const;
   const mk = (over = {}) => {
     const look = { ...base, ...over, onLook: vi.fn(), onAppearance: vi.fn(), onShowAll: vi.fn() };
     render(<DisplayMenu display={DEFAULT_DISPLAY} onToggle={() => {}} look={look as never} />);
@@ -45,10 +45,25 @@ describe('DisplayMenu look sections', () => {
     const look = mk();
     fireEvent.change(screen.getByLabelText('Style'), { target: { value: 'wireframe' } });
     expect(look.onLook).toHaveBeenCalledWith({ style: 'wireframe' });
-    fireEvent.change(screen.getByLabelText('Lighting'), { target: { value: 'flat' } });
+    fireEvent.click(screen.getByTitle('Flat'));
     expect(look.onLook).toHaveBeenCalledWith({ light: 'flat' });
     fireEvent.change(screen.getByLabelText('Background'), { target: { value: 'gradient' } });
     expect(look.onLook).toHaveBeenCalledWith({ background: 'gradient' });
+  });
+  it('has a thumbnail per lighting preset, an intensity slider, reflections, edge width and outline', () => {
+    const look = mk();
+    for (const n of ['Studio', 'Flat', 'High contrast', 'Technical']) expect(screen.getByTitle(n)).toBeTruthy();
+    expect(screen.getByTitle('Studio').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByTitle('Technical'));
+    expect(look.onLook).toHaveBeenCalledWith({ light: 'technical' });
+    fireEvent.input(screen.getByLabelText('Light strength'), { target: { value: '1.5' } });
+    expect(look.onLook).toHaveBeenCalledWith({ intensity: 1.5 });
+    fireEvent.click(screen.getByLabelText('Reflections'));
+    expect(look.onLook).toHaveBeenCalledWith({ reflections: false });
+    fireEvent.change(screen.getByLabelText('Edge width'), { target: { value: 'bold' } });
+    expect(look.onLook).toHaveBeenCalledWith({ edgeWidth: 'bold' });
+    fireEvent.click(screen.getByLabelText('Silhouette outline'));
+    expect(look.onLook).toHaveBeenCalledWith({ silhouette: false });
   });
   it('shows the opacity slider only for the ghost style', () => {
     cleanup();
@@ -63,7 +78,7 @@ describe('DisplayMenu look sections', () => {
     const look = mk();
     fireEvent.click(screen.getByLabelText('#e8730c'));
     expect(look.onAppearance).toHaveBeenCalledWith({ color: '#e8730c' });
-    expect((screen.getByLabelText('#b8c4d6') as HTMLElement).getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByLabelText('#c3ccd8') as HTMLElement).getAttribute('aria-pressed')).toBe('true');
     fireEvent.change(screen.getByLabelText('Material'), { target: { value: 'brushed' } });
     expect(look.onAppearance).toHaveBeenCalledWith({ material: 'brushed' });
   });

@@ -48,11 +48,11 @@ import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
 import { AnalysisLegend } from './AnalysisControls';
-import { createLookStore, effectiveAppearance, anyHidden, LOOK_KEY } from './look';
+import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
-import { findMaterial, loadUseColour } from './materials';
+import { findMaterial, loadUseColour, appearanceOfMaterial } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { optionsFor } from './FeatureOptions';
 import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
@@ -344,20 +344,29 @@ function App() {
   const [useMatColour, setUseMatColour] = useState<boolean>(() => loadUseColour());
   const [editingMaterial, setEditingMaterial] = useState(false);
   const matColor = findMaterial(controller.document()?.material)?.color ?? null;
-  const appearance = effectiveAppearance(lk, partName, matColor, useMatColour);
+  const appearance = effectiveAppearance(lk, partName, appearanceOfMaterial(controller.document()?.material), useMatColour);
+  // an assembly shows each component in its own material's colour and finish (and the user's override of it)
+  const compParts = ((controller.document()?.features ?? []) as Array<{ type: string; id: string; suppressed?: boolean; part?: { material?: string } }>)
+    .filter((f) => f.type === 'insertPart' && f.part).map((f) => ({ id: f.id, material: f.part?.material ?? null }));
+  const compKey = compParts.map((c) => c.id + ':' + c.material).join('|') + '|' + JSON.stringify(lk.appearances) + '|' + useMatColour;
   useEffect(() => {
     const vp = viewport;
     if (!vp) return;
     vp.setLook({ style: lk.style, ghostOpacity: lk.ghostOpacity, appearance });
-    vp.setLighting(lk.light);
+    vp.setComponentLooks(compParts.length ? componentAppearances(lk, partName, compParts, appearanceOfMaterial, useMatColour) : null);
+    vp.setLighting(lk.light, lk.intensity, lk.reflections);
+    vp.setEdges(lk.edgeWidth, lk.silhouette);
     vp.setBackground(lk.background);
     write(LOOK_KEY, lk);
-  }, [lk, partName, appearance.color, appearance.material]);
+  }, [lk, partName, appearance.color, appearance.material, compKey]);
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
   // hovering a tree row tints what that feature made (soft, apart from the hover and selection colours); the reverse: the row of the face under the pointer
   const [treeHover, setTreeHover] = useState<string | null>(null);
   useEffect(() => { viewport?.setFeatureHover(treeHover ? [treeHover] : []); }, [treeHover]);
   const viewOwnerOf = (n: string): string | null => { const d = controller.document(); return d ? viewOwner(n, insertIds(d as never)) : null; };
+  const compAppearances = compParts.length ? componentAppearances(lk, partName, compParts, appearanceOfMaterial, useMatColour) : new Map<string, import('@kit/viewport').Appearance>();
+  const selOwner = store.selection.value.length ? viewOwnerOf(store.selection.value[0]) : null;
+  const selComp = selOwner && compAppearances.has(selOwner) ? { id: selOwner, name: ((controller.document()?.features ?? []) as Array<{ id: string; name?: string }>).find((f) => f.id === selOwner)?.name ?? selOwner } : null;
   const faceHover = store.hover.value;
   const hoverRowId = !treeHover && faceHover && !sketching ? viewOwnerOf(faceHover) : null;
   const toggleHideFeature = (id: string) => {
@@ -1675,8 +1684,9 @@ function App() {
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
-          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, appearance,
-          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(partName || 'part', patch),
+          style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
+          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
+          componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
         {sketchBanner}

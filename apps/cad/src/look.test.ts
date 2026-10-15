@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeLook, DEFAULT_LOOK, withAppearance, appearanceOf, effectiveAppearance, hideSelection, NOTHING_HIDDEN, createLookStore, anyHidden, bodyLook } from './look';
+import { componentAppearances, componentKey, LOOK_VERSION, sanitizeLook, DEFAULT_LOOK, withAppearance, appearanceOf, effectiveAppearance, hideSelection, NOTHING_HIDDEN, createLookStore, anyHidden, bodyLook } from './look';
 import type { LookActions } from './lookCommands';
 import { buildCommands, matchShortcut, type Actions } from './commands';
 
@@ -15,8 +15,8 @@ describe('look state', () => {
   it('appearance is per part name, and the default is not stored', () => {
     let l = withAppearance(DEFAULT_LOOK, 'a', { color: '#e8730c' });
     expect(appearanceOf(l, 'a').color).toBe('#e8730c');
-    expect(appearanceOf(l, 'b').color).toBe('#b8c4d6');
-    l = withAppearance(l, 'a', { color: '#b8c4d6' });
+    expect(appearanceOf(l, 'b').color).toBe('#c3ccd8');
+    l = withAppearance(l, 'a', { color: '#c3ccd8' });
     expect(l.appearances).toEqual({});
     expect(bodyLook(DEFAULT_LOOK, 'a').style).toBe('shadedEdges');
   });
@@ -25,8 +25,8 @@ describe('look state', () => {
 describe('material colour', () => {
   it('shows the material colour unless the user picked one in Display > Appearance, or the toggle is off', () => {
     expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a').color).toBe('#c8774a');
-    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a', false).color).toBe('#b8c4d6');
-    expect(effectiveAppearance(DEFAULT_LOOK, 'a', null).color).toBe('#b8c4d6');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a', false).color).toBe('#c3ccd8');
+    expect(effectiveAppearance(DEFAULT_LOOK, 'a', null).color).toBe('#c3ccd8');
     const picked = withAppearance(DEFAULT_LOOK, 'a', { color: '#d0463b' });
     expect(effectiveAppearance(picked, 'a', '#c8774a').color).toBe('#d0463b');
     expect(effectiveAppearance(picked, 'b', '#c8774a').color).toBe('#c8774a');
@@ -104,5 +104,52 @@ describe('hide with surface bodies', () => {
     expect(anyHidden(s.hidden.value)).toBe(true);
     s.showAll();
     expect(anyHidden(s.hidden.value)).toBe(false);
+  });
+});
+
+describe('studio defaults and persistence', () => {
+  it('default look is studio light on a gradient with a silhouette and thin edges', () => {
+    expect(DEFAULT_LOOK).toMatchObject({ light: 'studio', background: 'gradient', intensity: 1, reflections: true, edgeWidth: 'thin', silhouette: true });
+  });
+  it('a look stored before the studio defaults gets them once, keeping style and appearances', () => {
+    const old = sanitizeLook({ style: 'ghost', light: 'flat', background: 'theme', appearances: { a: { color: '#d0463b', material: 'plastic' } } });
+    expect(old).toMatchObject({ style: 'ghost', light: 'studio', background: 'gradient', v: LOOK_VERSION });
+    expect(old.appearances.a.color).toBe('#d0463b');
+    // from then on the user's choice is kept
+    expect(sanitizeLook({ ...old, light: 'flat', background: 'theme' })).toMatchObject({ light: 'flat', background: 'theme' });
+  });
+  it('round-trips the new scene settings and clamps garbage', () => {
+    const l = sanitizeLook({ v: LOOK_VERSION, light: 'technical', intensity: 1.4, reflections: false, edgeWidth: 'bold', silhouette: false });
+    expect(sanitizeLook(JSON.parse(JSON.stringify(l)))).toEqual(l);
+    expect(l).toMatchObject({ light: 'technical', intensity: 1.4, reflections: false, edgeWidth: 'bold', silhouette: false });
+    expect(sanitizeLook({ v: LOOK_VERSION, intensity: 99, edgeWidth: 'huge', reflections: 'yes' })).toMatchObject({ intensity: 2, edgeWidth: 'thin', reflections: true });
+  });
+  it('the store persists the settings through set()', () => {
+    const s = createLookStore();
+    s.set({ light: 'technical', intensity: 1.5, reflections: false });
+    expect(s.look.value).toMatchObject({ light: 'technical', intensity: 1.5, reflections: false });
+  });
+});
+
+describe('component appearances', () => {
+  const mat = (n: string | null | undefined) => (n === 'gasket' ? { color: '#e8802a', material: 'matte' as const } : n === 'steel' ? { color: '#aab4c2', material: 'default' as const } : null);
+  const parts = [{ id: 'F1', material: 'steel' }, { id: 'F2', material: 'gasket' }, { id: 'F3', material: null }];
+  it('each component takes its material colour and finish; the gasket is orange', () => {
+    const m = componentAppearances(DEFAULT_LOOK, 'asm', parts, mat);
+    expect(m.get('F1')!.color).toBe('#aab4c2');
+    expect(m.get('F2')).toEqual({ color: '#e8802a', material: 'matte' });
+    expect(m.get('F3')).toEqual(DEFAULT_LOOK.appearances.asm ?? { color: '#c3ccd8', material: 'default' });
+  });
+  it('a per-component override wins over the material and survives the store', () => {
+    const l = withAppearance(DEFAULT_LOOK, componentKey('asm', 'F2'), { color: '#3f8f5f' });
+    const m = componentAppearances(l, 'asm', parts, mat);
+    expect(m.get('F2')!.color).toBe('#3f8f5f');
+    expect(m.get('F2')!.material).toBe('matte');   // the finish stays the material's
+    expect(m.get('F1')!.color).toBe('#aab4c2');
+    expect(sanitizeLook(JSON.parse(JSON.stringify(l))).appearances[componentKey('asm', 'F2')].color).toBe('#3f8f5f');
+  });
+  it('with Use material colour off every component takes the assembly look', () => {
+    const m = componentAppearances(DEFAULT_LOOK, 'asm', parts, mat, false);
+    expect(new Set([...m.values()].map((a) => a.color))).toEqual(new Set(['#c3ccd8']));
   });
 });

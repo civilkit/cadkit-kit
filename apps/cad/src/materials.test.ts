@@ -74,3 +74,24 @@ describe('custom materials in the browser', () => {
     expect(loadUseColour()).toBe(false);
   });
 });
+
+import { finishOf, appearanceOfMaterial } from './materials';
+describe('material looks', () => {
+  it('finish follows the category: metals shine, plastics are glossy, rubber and wood are matte', () => {
+    expect(finishOf(findMaterial('steel'))).toBe('default');
+    expect(finishOf(findMaterial('brass'))).toBe('brushed');
+    expect(finishOf(findMaterial('abs'))).toBe('plastic');
+    expect(finishOf(findMaterial('rubber'))).toBe('matte');
+    expect(finishOf(findMaterial('oak'))).toBe('matte');
+    expect(finishOf(findMaterial('glass'))).toBe('glass');
+    expect(finishOf(null)).toBe('default');
+  });
+  it('a gasket material is orange and matte; steel is lifted to a light metal', () => {
+    expect(findMaterial('Gasket material')).toBeTruthy();
+    expect(appearanceOfMaterial('Gasket material')).toEqual({ color: '#e8802a', material: 'matte' });
+    const steel = appearanceOfMaterial('steel')!;
+    expect(steel.material).toBe('default');
+    expect(parseInt(steel.color.slice(1, 3), 16)).toBeGreaterThan(0x8d);
+    expect(appearanceOfMaterial('unobtainium')).toBeNull();
+  });
+});

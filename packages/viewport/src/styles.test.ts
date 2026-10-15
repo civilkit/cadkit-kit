@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { styleSpec, DISPLAY_STYLES, materialParams, sanitizeAppearance, clampOpacity, makeBodyMaterial, applyBodyLook, backgroundColors, lightSpec, edgeColor, DEFAULT_APPEARANCE, type BodyLook } from './styles';
+import { effectiveLight, clampIntensity, displayColor, edgePixels, EDGE_WIDTHS, LIGHT_PRESETS, MATERIAL_PRESETS, styleSpec, DISPLAY_STYLES, materialParams, sanitizeAppearance, clampOpacity, makeBodyMaterial, applyBodyLook, backgroundColors, lightSpec, edgeColor, DEFAULT_APPEARANCE, type BodyLook } from './styles';
 
 const look = (over: Partial<BodyLook> = {}): BodyLook => ({ style: 'shadedEdges', ghostOpacity: 0.4, appearance: DEFAULT_APPEARANCE, ...over });
 
@@ -82,5 +82,51 @@ describe('scene presets', () => {
   it('flat lighting has no sun, contrast has a strong one', () => {
     expect(lightSpec('flat').sun).toBe(0);
     expect(lightSpec('contrast').sun).toBeGreaterThan(lightSpec('studio').sun);
+  });
+});
+
+describe('studio look', () => {
+  it('offers studio, flat, high contrast and technical', () => {
+    expect(LIGHT_PRESETS).toEqual(['studio', 'flat', 'contrast', 'technical']);
+    expect(lightSpec('studio').env).toBeGreaterThan(1);   // reflections on by default
+    expect(lightSpec('flat').env).toBe(0);
+    expect(lightSpec('technical').white).toBe(true);
+    expect(lightSpec('studio').white).toBe(false);
+  });
+  it('the default body is a light cool metal that reflects', () => {
+    expect(DEFAULT_APPEARANCE.color).toBe('#c3ccd8');
+    const p = materialParams('default');
+    expect(p.metalness).toBeGreaterThan(0.3);
+    expect(p.roughness).toBeLessThan(0.5);
+    expect(materialParams('plastic').metalness).toBe(0);
+    expect(materialParams('matte').roughness).toBeGreaterThan(materialParams('plastic').roughness);
+    expect(MATERIAL_PRESETS).toContain('matte');
+  });
+  it('intensity scales the lights and is clamped; reflections off swaps the studio light for sky light', () => {
+    expect(clampIntensity(9)).toBe(2);
+    expect(clampIntensity(0)).toBe(0.3);
+    expect(clampIntensity('x')).toBe(1);
+    const on = effectiveLight('studio', 1, true), half = effectiveLight('studio', 0.5, true);
+    expect(half.env).toBeCloseTo(on.env / 2);
+    expect(half.sun).toBeCloseTo(on.sun / 2);
+    const off = effectiveLight('studio', 1, false);
+    expect(off.env).toBe(0);
+    expect(off.hemi).toBeGreaterThan(on.hemi);
+    expect(effectiveLight('flat', 1, false).hemi).toBe(lightSpec('flat').hemi);   // flat has no reflections to lose
+  });
+  it('edge colour is darker than the faces but not black, except technical and hidden lines', () => {
+    expect(edgeColor('shadedEdges')).not.toBe(0);
+    expect(edgeColor('shadedEdges')).not.toBe(edgeColor('shadedEdges', 'studio', true));
+    expect(edgeColor('shadedEdges', 'technical')).toBe(0);
+  });
+  it('edge widths grow from thin to bold', () => {
+    const px = EDGE_WIDTHS.map(edgePixels);
+    expect([...px].sort((a, b) => a - b)).toEqual(px);
+    expect(px[0]).toBeGreaterThan(0.5);
+  });
+  it('metal colours are lifted towards white, plastics are not', () => {
+    const lifted = new THREE.Color(displayColor('#8d97a5', 0.5)), base = new THREE.Color('#8d97a5');
+    expect(lifted.r).toBeGreaterThan(base.r);
+    expect(displayColor('#8d97a5', 0)).toBe('#8d97a5');
   });
 });

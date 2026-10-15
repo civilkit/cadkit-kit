@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DisplayLayer, Display } from '@kit/store';
-import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type Appearance } from '@kit/viewport';
+import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE_WIDTHS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type EdgeWidth, type Appearance } from '@kit/viewport';
 import type { AnalysisOptions } from '@kit/viewport';
 import { AnalysisSection } from './AnalysisControls';
 import { t } from './i18n';
@@ -8,8 +8,11 @@ import { t } from './i18n';
 /** The look half of the popover: display style, appearance of the part, lighting and background (see look.ts). */
 export interface LookControls {
   style: DisplayStyle; ghostOpacity: number; light: LightPreset; background: BackgroundMode;
+  intensity: number; reflections: boolean; edgeWidth: EdgeWidth; silhouette: boolean;
   appearance: Appearance;
-  onLook(patch: { style?: DisplayStyle; ghostOpacity?: number; light?: LightPreset; background?: BackgroundMode }): void;
+  /** the component an appearance change applies to (an assembly's selected component), if any */
+  componentName?: string;
+  onLook(patch: { style?: DisplayStyle; ghostOpacity?: number; light?: LightPreset; background?: BackgroundMode; intensity?: number; reflections?: boolean; edgeWidth?: EdgeWidth; silhouette?: boolean }): void;
   onAppearance(patch: Partial<Appearance>): void;
   anyHidden: boolean;
   onShowAll(): void;
@@ -74,7 +77,7 @@ function LookSections({ look }: { look: LookControls }) {
             onInput={(e) => look.onLook({ ghostOpacity: Number((e.currentTarget as HTMLInputElement).value) })} />
         </label>
       ) : null}
-      <div class="display-head">{t('display.appearance')}</div>
+      <div class="display-head">{look.componentName ? t('display.appearanceOf', { name: look.componentName }) : t('display.appearance')}</div>
       <div class="swatches" role="group" aria-label={t('display.color')}>
         {PALETTE.map((c) => (
           <button key={c} type="button" class={'swatch' + (look.appearance.color === c ? ' on' : '')} style={{ background: c }}
@@ -83,7 +86,29 @@ function LookSections({ look }: { look: LookControls }) {
       </div>
       {pick(t('display.material'), 'dm-material', MATERIAL_PRESETS as readonly MaterialPreset[], look.appearance.material, 'material.', (v) => look.onAppearance({ material: v }))}
       <div class="display-head">{t('display.scene')}</div>
-      {pick(t('display.lighting'), 'dm-light', LIGHT_PRESETS, look.light, 'light.', (v) => look.onLook({ light: v }))}
+      <div class="preset-row" role="group" aria-label={t('display.lighting')}>
+        {LIGHT_PRESETS.map((l) => (
+          <button key={l} type="button" class={'preset-thumb preset-' + l + (look.light === l ? ' on' : '')} aria-pressed={look.light === l}
+            title={t('light.' + l)} onClick={() => look.onLook({ light: l })}>
+            <span class="preset-ball" aria-hidden="true" />
+            <span class="preset-name">{t('light.' + l)}</span>
+          </button>
+        ))}
+      </div>
+      <label class="display-field">
+        <span>{t('display.intensity')}</span>
+        <input type="range" aria-label={t('display.intensity')} min="0.3" max="2" step="0.05" value={look.intensity}
+          onInput={(e) => look.onLook({ intensity: Number((e.currentTarget as HTMLInputElement).value) })} />
+      </label>
+      <label class="display-row">
+        <input type="checkbox" checked={look.reflections} onChange={(e) => look.onLook({ reflections: (e.currentTarget as HTMLInputElement).checked })} />
+        <span>{t('display.reflections')}</span>
+      </label>
+      {pick(t('display.edgeWidth'), 'dm-edge', EDGE_WIDTHS, look.edgeWidth, 'edge.', (v) => look.onLook({ edgeWidth: v }))}
+      <label class="display-row">
+        <input type="checkbox" checked={look.silhouette} onChange={(e) => look.onLook({ silhouette: (e.currentTarget as HTMLInputElement).checked })} />
+        <span>{t('display.silhouette')}</span>
+      </label>
       {pick(t('display.background'), 'dm-bg', BACKGROUND_MODES, look.background, 'bg.', (v) => look.onLook({ background: v }))}
       {look.anyHidden ? <button type="button" class="rb-btn display-showall" onClick={look.onShowAll}>{t('cmd.show-all')}</button> : null}
     </>

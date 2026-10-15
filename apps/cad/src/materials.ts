@@ -47,6 +47,7 @@ export const BUILTIN_MATERIALS: readonly MaterialDef[] = [
   m('pine', 'Pine', 'Wood', 500, '#d8b27a', 9, 0.3),
   m('mdf', 'MDF', 'Wood', 750, '#b79a76', 3.5),
   m('rubber', 'Rubber', 'Rubber', 1100, '#2f3236', 0.01, 0.49),
+  m('gasket', 'Gasket material', 'Rubber', 1400, '#e8802a', 0.5, 0.45),
   m('glass', 'Glass', 'Glass', 2500, '#bfe3ea', 70, 0.22),
   m('concrete', 'Concrete', 'Concrete', 2400, '#a2a29c', 30, 0.2),
 ];
@@ -145,4 +146,27 @@ export function loadUseColour(): boolean {
 }
 export function saveUseColour(on: boolean): void {
   try { localStorage.setItem(COLOUR_KEY, on ? '1' : '0'); } catch { /* ignore */ }
+}
+
+import { displayColor, materialParams, type Appearance, type MaterialPreset } from '@kit/viewport';
+
+/** How a material looks: metals shine, plastics are glossy, wood and rubber are matte, glass is clear. */
+export function finishOf(def: MaterialDef | null): MaterialPreset {
+  if (!def) return 'default';
+  switch (def.category) {
+    case 'Steel': case 'Aluminium': case 'Titanium': case 'Cast iron': return 'default';
+    case 'Copper alloys': return 'brushed';
+    case 'Plastics': return 'plastic';
+    case 'Glass': return 'glass';
+    case 'Wood': case 'Rubber': case 'Concrete': return 'matte';
+    default: return 'default';
+  }
+}
+
+/** The appearance a material gives a part or component (colour lifted a little for metals so it does not read dark), or null when unknown. */
+export function appearanceOfMaterial(name: string | undefined | null, custom?: MaterialDef[]): Appearance | null {
+  const def = findMaterial(name, custom);
+  if (!def) return null;
+  const material = finishOf(def);
+  return { color: displayColor(def.color, materialParams(material).metalness), material };
 }

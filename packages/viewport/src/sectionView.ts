@@ -8,23 +8,23 @@ import { capFrame, clipPlane, type SectionSpec } from './section';
 export class SectionView {
   private group: THREE.Group | null = null;
   private plane: THREE.Plane | null = null;
-  private clipped: Array<THREE.Mesh | THREE.LineSegments> = [];
+  private clipped: THREE.Object3D[] = [];
 
   constructor(private readonly scene: THREE.Scene, private readonly renderer: THREE.WebGLRenderer) {}
 
   get active(): boolean { return this.plane !== null; }
 
   /** Show the cut, or (spec null) remove it. Call again after the body was rebuilt: `mesh` / `edges` are the new objects. */
-  set(spec: SectionSpec | null, mesh: THREE.Mesh | null, edges: THREE.LineSegments | null, box: { min: number[]; max: number[] } | null): void {
+  set(spec: SectionSpec | null, mesh: THREE.Mesh | null, edges: THREE.Object3D | null, box: { min: number[]; max: number[] } | null): void {
     this.clear();
     if (!spec) return;
     const c = clipPlane(spec);
     this.plane = new THREE.Plane(new THREE.Vector3(...c.normal), c.constant);
     this.renderer.localClippingEnabled = true;
-    for (const o of [mesh, edges]) {
+    for (const o of [mesh, edges] as Array<THREE.Object3D | null>) {
       if (!o) continue;
-      (o.material as THREE.Material).clippingPlanes = [this.plane];
-      (o.material as THREE.Material).needsUpdate = true;
+      ((o as THREE.Mesh).material as THREE.Material).clippingPlanes = [this.plane];
+      ((o as THREE.Mesh).material as THREE.Material).needsUpdate = true;
       this.clipped.push(o);
     }
     if (!mesh || !box) return;
@@ -56,7 +56,7 @@ export class SectionView {
 
   /** Remove the clipping and the cap. */
   clear(): void {
-    for (const o of this.clipped) { (o.material as THREE.Material).clippingPlanes = null; (o.material as THREE.Material).needsUpdate = true; }
+    for (const o of this.clipped) { ((o as THREE.Mesh).material as THREE.Material).clippingPlanes = null; ((o as THREE.Mesh).material as THREE.Material).needsUpdate = true; }
     this.clipped = [];
     this.plane = null;
     if (this.group) {
