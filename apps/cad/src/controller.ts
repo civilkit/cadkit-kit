@@ -15,7 +15,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
 import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
-import { summaryLine } from './diagnosticsText';
+import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
@@ -935,7 +935,10 @@ export class Controller {
       const err = errors.get(f.id);
       if (!err) return { id: f.id, ok: true };
       const hint = report.hints.find((h) => h.feature === f.id && h.code === err.code);
-      return { id: f.id, ok: false, code: err.code, hint: hint?.hint, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
+      const root = this.committedDiag.roots.find((r) => r.id === f.id);
+      // an error code with no repair text gets the plain advice instead of the raw "error code {params}" line
+      const text = root && (!hint?.hint || hint.hint.includes('see the features field table')) ? adviceOf(root) : hint?.hint;
+      return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
     });
     this.lastGood = s.document;
   }

@@ -22,6 +22,8 @@ import {
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
 import { Controller } from './controller';
+import { DiagnosticsCard } from './DiagnosticsCard';
+import { newBreakage, type DiagRoot, type Diagnosis } from './errorSummary';
 import { dxfToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
 import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf, type ExportNotice, type ExportResult } from './exportFiles';
@@ -183,7 +185,7 @@ controller.edit = async (ops, reason) => {
   const at = session?.history().length ?? 0;
   const r = await rawEdit(ops, reason);
   if (!r.ok) {
-    const hint = r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'edit failed';
+    const hint = controller.rejection()?.summary || r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'edit failed';
     rejections.value = [...rejections.value, { at, time: Date.now(), reason: reason ?? '', hint, ops }];
   }
   return r;
@@ -220,7 +222,14 @@ function App() {
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
-  const [previewHint, setPreviewHint] = useState<string | null>(null);
+  const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
+  // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
+  const [previewDiag, setPreviewDiag] = useState<{ d: Diagnosis; fresh: DiagRoot[] } | null>(null);
+  const setPreviewHint = (h: string | null) => { setPreviewHintRaw(h); if (h === null) setPreviewDiag(null); };
+  const onPreviewResult = (r: { ok: boolean; hint?: string; diagnosis?: Diagnosis | null }) => {
+    setPreviewHint(r.ok ? null : (r.hint ?? null));
+    if (!r.ok && r.diagnosis?.roots.length) setPreviewDiag({ d: r.diagnosis, fresh: newBreakage(r.diagnosis, controller.diagnosis()) });
+  };
   const [sketching, setSketching] = useState<{ id: string; name: string } | null>(null);
   const [sketchHint, setSketchHint] = useState<string | null>(null);
   // Per-sketch mode: new geometry from the draw tools is made as construction (dashed, never extruded). UI state, not saved.
@@ -745,17 +754,21 @@ function App() {
     setDraft(next);
     const ops = opsFromDraft(next, thread);
     if (!ops.length) return;
-    void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null)));
+    void controller.preview(ops).then(onPreviewResult);
   };
   const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
     const ops = opsFromDraft(next, thread);
-    if (ops.length) await timed(() => controller.commit(ops));
+    if (ops.length) {
+      const r = await timed(() => controller.commit(ops));
+      if (!r.ok) { await controller.cancelPreview(); setDrawerTab('diagnostics'); store.setWorkspace({ drawerOpen: true }); }   // refused: show the model as it was, and why in Diagnostics
+    }
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     if (editingId) setSelectedId(editingId);
     setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
     redraw((n) => n + 1);
   };
+  const selectFailed = (id: string) => { setSelectedId(id); if (!editingId) setLeftTab('Features'); };
   const onCancel = async () => {
     viewport?.highlightSketchEntities(null, []);
     await controller.cancelPreview();
@@ -1437,7 +1450,7 @@ function App() {
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
   const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
   const gearEditOps = (next: GearParams): EditOp[] => gearOps(doc as never, next, gearRec?.roles);
-  const onGearDraft = (next: GearParams) => { void controller.preview(gearEditOps(next)).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null))); };
+  const onGearDraft = (next: GearParams) => { void controller.preview(gearEditOps(next)).then(onPreviewResult); };
   const onGearConfirm = async (next: GearParams) => {
     await timed(() => controller.commit(gearEditOps(next), 'gear'));
     setEditingId(null); setDraft({}); setPreviewHint(null);
@@ -1477,6 +1490,8 @@ function App() {
       picked={picked}
       options={(a) => optionsFor(a, doc)}
       hint={previewHint}
+      diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} /> : null}
+      okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
       shapes={editShapes}
       onShapeHover={(id) => {
         const ef = editingFeature as { sketch?: string } | null;
@@ -1678,9 +1693,14 @@ function App() {
         <Drawer active={drawerTab} onTab={setDrawerTab} onClose={toggleDrawer}
           tabs={[
             { id: 'history', label: t('app.drawer.history'), badge: entries.length, content: <HistoryLog entries={entries} here={records.length} filter={histFilter} onFilter={setHistFilter} onGoto={gotoStep} /> },
-            { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length, bad: failures.length > 0, content: failures.length ? (
-              <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => { setSelectedId(f.id); setLeftTab('Features'); }}>{t('app.diagnostics.show')}</button></div>)}</div>
-            ) : <div class="empty">{t('app.diagnostics.none')}</div> },
+            { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length || (controller.rejection() ? 1 : 0), bad: failures.length > 0 || !!controller.rejection(), content: (() => {
+              const dg = controller.diagnosis(); const rej = controller.rejection();
+              if (dg.roots.length) return <DiagnosticsCard diagnosis={dg} onSelect={selectFailed} onUndo={records.length ? () => { void controller.undo().then(() => redraw((n) => n + 1)); } : undefined} />;
+              if (rej) return <DiagnosticsCard diagnosis={rej.diagnosis} onSelect={selectFailed} note={t('diag.rejected')} />;
+              return failures.length ? (
+                <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => selectFailed(f.id)}>{t('app.diagnostics.show')}</button></div>)}</div>
+              ) : <div class="empty">{t('app.diagnostics.none')}</div>;
+            })() },
             { id: 'inspect', label: t('app.drawer.inspect'), content: <InspectPanel {...inspect.props} /> },
             { id: 'check', label: t('app.drawer.check'), badge: check.badge, bad: check.badge > 0, content: <CheckPanel {...check.props} /> },
             { id: 'console', label: t('app.drawer.console'), content: (

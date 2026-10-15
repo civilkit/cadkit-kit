@@ -159,6 +159,10 @@ export function FeatureEditor(p: {
   picked?: { path: string; value: unknown } | null;
   /** Preview failure hint; the viewport keeps the last good mesh while it shows. */
   hint?: string | null;
+  /** Replaces the plain hint when the app has something richer to show (the failure card). */
+  diag?: JSX.Element | null;
+  /** The draft breaks the model: Confirm is greyed with this tooltip and only applies while Shift is held. */
+  okBlocked?: string | null;
   /** The closed shapes of the feature's sketch (extrude, revolve): checkboxes choose which ones are used. Fewer than two: no list. */
   shapes?: Array<{ id: string; label: string }>;
   /** The pointer is over a shape's row (or left it: null), so the app can light it up in the view. */
@@ -218,11 +222,14 @@ export function FeatureEditor(p: {
     applyPicked(p.picked.path, p.picked.value);
   }
 
-  const confirm = (): void => p.onConfirm(draft);
+  const confirm = (e?: { shiftKey?: boolean }): void => {
+    if (p.okBlocked && !e?.shiftKey) return;   // greyed: only Shift forces it
+    p.onConfirm(draft);
+  };
   const cancel = (): void => p.onCancel();
 
   const onKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+    if (e.key === 'Enter') { e.preventDefault(); confirm(e); }
     if (e.key === 'Escape') { e.preventDefault(); cancel(); }
   };
 
@@ -231,7 +238,7 @@ export function FeatureEditor(p: {
       <div class="fedit-head">
         <Icon name={featureIconName(String(feature.type ?? ''), String((draft.op ?? feature.op) ?? ''))} size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
-        <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
+        <button type="button" class={'fedit-confirm' + (p.okBlocked ? ' blocked' : '')} aria-disabled={p.okBlocked ? true : undefined} onClick={confirm} title={p.okBlocked ?? t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       {sections.map((sec) => (
@@ -328,7 +335,7 @@ export function FeatureEditor(p: {
           </div>
         </div>
       ) : null}
-      {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
+      {p.diag ?? (p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null)}
     </div>
   );
 }

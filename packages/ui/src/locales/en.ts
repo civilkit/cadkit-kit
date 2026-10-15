@@ -41,6 +41,7 @@ export const en: Catalog = {
   'ui.status.ready': 'Ready',
   'ui.status.drawer': 'Drawer \\',
   'ui.editor.confirm': 'Confirm',
+  'ui.tree.blockedBy': 'blocked by {id}', 'ui.tree.blockedByTitle': 'Only fails because {id} failed. Select {id}.',
   'expr.driven': 'Driven by an expression. Click to keep the current value as a plain number.',
   'expr.unlink': 'Unlink from the expression',
   'expr.error.plain': 'This field takes a plain number',

@@ -808,3 +808,28 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tree .row.hov { background: var(--panel-2); box-shadow: inset 2px 0 0 #f2a93b; }
 .tree .row.hov.sel { background: var(--accent-soft); }
 .tree .row.hidden:not(:hover):not(.sel) { padding-right: 34px; }
+
+/* failure card (Diagnostics tab and the editor panel) */
+.diag { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; user-select: text; -webkit-user-select: text; cursor: text; }
+.diag p { margin: 0; line-height: 1.4; }
+.diag-summary { color: var(--err); font-weight: 600; font-size: 13px; }
+.diag-note { color: var(--text-2); font-size: 12px; }
+.diag-root { border: 1px solid color-mix(in srgb, var(--err) 40%, var(--line)); border-radius: 8px; padding: 8px 10px; background: color-mix(in srgb, var(--err) 6%, transparent); display: flex; flex-direction: column; gap: 6px; }
+.diag-root-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.diag-code { font: 11px ui-monospace, monospace; background: var(--chip); border-radius: 6px; padding: 1px 6px; }
+.diag-advice { font-size: 12px; color: var(--text); }
+.diag-label { color: var(--text-2); font-weight: 600; }
+.diag-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.diag-actions .btn { max-width: 100%; white-space: normal; }
+.diag-list ul, .diag-others { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.diag-item { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 3px 6px; border-radius: 5px; font-size: 12px; color: var(--text-2); cursor: pointer; overflow-wrap: anywhere; }
+.diag-item:hover, .diag-item:focus-visible { background: var(--chip); color: var(--text); }
+.fedit .diag { border-top: 1px solid var(--line); }
+.fedit-confirm.blocked { opacity: .4; cursor: not-allowed; }
+/* a failure that only follows from an earlier one: muted, with a link to its cause, never red */
+.tree .row.blocked { color: var(--text-2); }
+.tree .row.blocked .row-name, .tree .row.blocked .row-icon { opacity: .6; }
+.row-blocked { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 11px; color: var(--text-2); border: 1px dashed var(--line); border-radius: 9px; padding: 0 6px; cursor: pointer; }
+.row-blocked:hover, .row-blocked:focus-visible { color: var(--text); border-color: var(--text-2); }
+.fedit-hint, .row-hint { overflow-wrap: anywhere; word-break: break-word; user-select: text; -webkit-user-select: text; }
+.issue { overflow-wrap: anywhere; user-select: text; }

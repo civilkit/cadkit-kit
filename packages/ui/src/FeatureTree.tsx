@@ -75,7 +75,7 @@ export function FeatureTree(p: {
   const owner = sketchOwners(p.rows);
   const childrenOf = new Map<string, FeatureRow[]>();
   for (const r of p.rows) { const o = owner.get(r.id); if (o) childrenOf.set(o, [...(childrenOf.get(o) ?? []), r]); }
-  const failedCount = p.status.filter((s) => !s.ok).length;
+  const failedCount = p.status.filter((s) => !s.ok && !s.blockedBy).length;   // the causes; the rest are only blocked by them
   const top = p.rows.filter((r) => !owner.has(r.id));
   const indexOf = (id: string) => p.rows.findIndex((x) => x.id === id);
   const upTo = p.rollback ?? p.rows.length;
@@ -87,6 +87,11 @@ export function FeatureTree(p: {
     const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === p.hoverId);
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [p.hoverId]);
+  useEffect(() => {
+    if (!p.selectedId) return;
+    const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === p.selectedId);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [p.selectedId]);
   const picked = new Set([...(p.selectedIds ?? []), ...(p.selectedId ? [p.selectedId] : [])]);
   /** Marker position as a number of top-level rows above it, and the feature count that position means. */
   const slot = top.filter((r) => indexOf(r.id) < upTo).length;
@@ -95,7 +100,8 @@ export function FeatureTree(p: {
   const renderRow = (r: FeatureRow, depth: number): JSX.Element => {
     const i = p.rows.findIndex((x) => x.id === r.id);
     const st = p.status.find((x) => x.id === r.id);
-    const failed = st !== undefined && !st.ok;
+    const failed = st !== undefined && !st.ok && !st.blockedBy;
+    const blocked = st !== undefined && !st.ok ? st.blockedBy : undefined;   // only follows from an earlier failure: muted, not red
     const label = r.name ?? t('feature.' + r.type, undefined, r.type);
     const kids = childrenOf.get(r.id) ?? [];
     const open = !collapsed.includes(r.id);
@@ -109,6 +115,7 @@ export function FeatureTree(p: {
             'row' +
             (depth ? ' child' : '') +
             (failed ? ' err' : '') +
+            (blocked ? ' blocked' : '') +
             (r.suppressed ? ' suppressed' : '') +
             (picked.has(r.id) ? ' sel' : '') +
             (dep.has(r.id) ? ' dep' : '') +
@@ -168,6 +175,13 @@ export function FeatureTree(p: {
               onClick={(e) => { e.stopPropagation(); p.onRemove(r.id); }}><Icon name="trash" size={15} /></button>
           </span>
           {failed ? <span class="row-hint">{st.hint ?? st.code}</span> : null}
+          {blocked ? (
+            <button type="button" class="row-blocked" data-blocked-by={blocked} title={t('ui.tree.blockedByTitle', { id: blocked }, 'Only fails because {id} failed. Select {id}.')}
+              onClick={(e) => { e.stopPropagation(); p.onSelect(blocked); }}>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>
+              {t('ui.tree.blockedBy', { id: blocked }, 'blocked by {id}')}
+            </button>
+          ) : null}
         </div>
         {open ? kids.map((k) => renderRow(k, depth + 1)) : null}
       </>
