@@ -116,6 +116,6 @@ describe('names', () => {
     expect(c.next()).toBe('Part8');
   });
   it('classifies dropped files', () => {
-    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'd.dxf', 'm.stl', 'p.png', 'noext'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'dxf', 'stl', 'unknown', 'unknown']);
+    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'd.dxf', 'm.stl', 'p.png', 'noext', 'a.FCStd'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'dxf', 'stl', 'unknown', 'unknown', 'fcstd']);
   });
 });

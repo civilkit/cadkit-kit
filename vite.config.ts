@@ -20,6 +20,7 @@ export default defineConfig(({ command }) => ({
       '@kit/viewport': here('./packages/viewport/src/index.ts'),
       '@kit/platform': here('./packages/platform/src/index.ts'),
       '@kit/io': here('./packages/io/src/index.ts'),
+      '@kit/fcstd': here('./packages/fcstd/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/script': here('./packages/script/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),

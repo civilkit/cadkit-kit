@@ -44,6 +44,7 @@ import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Auto
 import { RestoreDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
+import { importFcstd } from '@kit/fcstd';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -561,8 +562,19 @@ function App() {
     if (r.ok) { viewport?.fit(); store.notify(t('files.step.done', { name: file, faces: r.faces })); }
     else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
   });
-  /** Open a file by what it is: a part, STEP, or DXF; anything else gets a notice. */
-  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind) => {
+  /** A FreeCAD file becomes a new part with the mapped features; what could not be mapped is listed in a notice (see packages/fcstd). */
+  const importFcstdBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
+    const r = await importFcstd(bytes, partNameOf(file));
+    if (!r.part.features.length) { store.notify(t('files.fcstd.failed', { name: file, message: r.warnings[0]?.message ?? 'nothing to import' }), 'error'); return; }
+    await load(JSON.stringify(r.part), { file: null });
+    viewport?.fit();
+    const total = r.steps.length + r.skipped.length;
+    if (r.warnings.length) store.notify(t('files.fcstd.done', { name: file, features: r.steps.length, total, warnings: r.warnings.length, first: `${r.warnings[0].object}: ${r.warnings[0].message}` }), 'warn');
+    else store.notify(t('files.fcstd.clean', { name: file, total }));
+  });
+  /** Open a file by what it is: a part, STEP, DXF or FreeCAD; anything else gets a notice. `bytes` reads binary files. */
+  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>) => {
+    if (kind === 'fcstd') { if (bytes) void bytes().then((b) => importFcstdBytes(b, name)); return; }
     if (kind === 'part') guarded(async () => { await load(await read(), { file: name }); });
     else if (kind === 'step') void read().then((text) => importStepText(text, name));
     else if (kind === 'dxf') void read().then((text) => { if (controller.sketchDraft()) void importDxfIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromDxfText(text); });
@@ -573,7 +585,7 @@ function App() {
     const plan = planDrop(list.map((f) => f.name));
     if (plan.action === 'none') return;
     if (plan.action === 'multiple') { store.notify(t('files.drop.one'), 'warn'); return; }
-    openByKind(plan.name, () => list[0].text(), plan.kind);
+    openByKind(plan.name, () => list[0].text(), plan.kind, async () => new Uint8Array(await list[0].arrayBuffer()));
   };
   const openRecent = (e: RecentEntry) => {
     setSamples(null);
@@ -618,7 +630,7 @@ function App() {
     catalog: () => showCatalog(),
     variables: () => showVariables(),
     script: () => showScript(),
-    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.dxf'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),

@@ -26,12 +26,13 @@ export function createNameCounter(start = 1) {
   };
 }
 
-export type DropKind = 'part' | 'step' | 'dxf' | 'stl' | 'unknown';
+export type DropKind = 'part' | 'step' | 'dxf' | 'stl' | 'fcstd' | 'unknown';
 export function dropKind(fileName: string): DropKind {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (ext === 'ckpart' || ext === 'json') return 'part';
   if (ext === 'step' || ext === 'stp') return 'step';
   if (ext === 'dxf') return 'dxf';
   if (ext === 'stl') return 'stl';
+  if (ext === 'fcstd') return 'fcstd';
   return 'unknown';
 }

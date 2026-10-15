@@ -12,6 +12,8 @@ export interface FcImport {
   warnings: FcWarning[];
   /** One entry per mapped FreeCAD feature, in order: which of our feature ids it produced and its cached shape file. */
   steps: FcStep[];
+  /** FreeCAD features that could not be mapped (their names, in order). */
+  skipped: string[];
   /** Names of all PartDesign bodies in the file (only one is imported, see opts.body). */
   bodies: string[];
   /** FreeCAD object type counts, for reports. */
@@ -106,13 +108,14 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
   const objectTypes: Record<string, number> = {};
   const features: Feat[] = [];
   const steps: FcStep[] = [];
+  const skipped: string[] = [];
   let seq = 1;
   const nextId = () => `F${seq++}`;
 
   let doc: Document;
   try { doc = new DOMParser().parseFromString(xml, 'text/xml'); } catch (e) { warn('Document', 'parse', (e as Error).message); doc = null as unknown as Document; }
   const bad = !doc || doc.querySelector('parsererror');
-  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes, bodies: [] });
+  const finish = (): FcImport => ({ name, part: { format: 'ck-part', version: 1, name, features, seq }, warnings, steps, objectTypes, bodies: [], skipped });
   if (bad) { if (doc) warn('Document', 'parse', 'Document.xml is not valid XML'); return finish(); }
 
   const objs = parseObjects(doc);
@@ -422,6 +425,7 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
       made.set(fname, result);
       end(fname, t, true, features.slice(mark).map((f) => f.id as string), shapeFile(o));
     } else {
+      skipped.push(fname);
       // a sketch emitted for a feature that failed stays out of the tree
       features.length = mark;
       for (const [k, v] of sketchDone) if (!features.some((f) => f.id === v.sketchId)) sketchDone.delete(k);
@@ -440,8 +444,8 @@ export function importFcDocument(xml: string, name = 'FreeCAD part', opts: { bod
 export async function importFcstd(bytes: Uint8Array, name = 'FreeCAD part', opts: { body?: string } = {}): Promise<FcImport> {
   let xml: Uint8Array | null = null;
   try { xml = await zipFile(bytes, 'Document.xml'); } catch (e) {
-    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {}, bodies: [] };
+    return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'zip', message: (e as Error).message }], steps: [], objectTypes: {}, bodies: [], skipped: [] };
   }
-  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {}, bodies: [] };
+  if (!xml) return { name, part: { format: 'ck-part', version: 1, name, features: [], seq: 1 }, warnings: [{ object: 'file', code: 'noDocument', message: 'no Document.xml in the archive' }], steps: [], objectTypes: {}, bodies: [], skipped: [] };
   return importFcDocument(new TextDecoder().decode(xml), name, opts);
 }

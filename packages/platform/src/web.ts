@@ -7,7 +7,7 @@ const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? '
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
   const base = opts.base ?? '/';
   return {
-    openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string } | null> {
+    openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string; bytes?: Uint8Array } | null> {
       return new Promise((resolve) => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -16,6 +16,7 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
         input.onchange = async () => {
           const f = input.files?.[0];
           if (!f) return resolve(null);
+          if (/\.fcstd$/i.test(f.name)) return resolve({ name: f.name, text: '', bytes: new Uint8Array(await f.arrayBuffer()) });   // a zip: text would be garbage
           resolve({ name: f.name, text: await f.text() });
         };
         // Cancel has no change event; a later focus with no selection means cancel.
