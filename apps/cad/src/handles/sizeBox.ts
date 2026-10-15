@@ -594,7 +594,7 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
       const e = edit(id, q, vec, mods);
       return e ? { ops: e.ops, create: false, ...(e.dropped.length ? { notice: t('sizebox.dropped', { ids: e.dropped.join(', ') }) } : {}) } : null;
     },
-    live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
+    live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
     format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
     move: { box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv) },

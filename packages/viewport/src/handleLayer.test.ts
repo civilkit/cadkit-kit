@@ -177,7 +177,7 @@ describe('HandleLayer move pad and shape surface', () => {
     t.layer.set([pad], { ...t.sink, onActivate: act });
     t.ev('dblclick', 400, 300);
     expect(act).toHaveBeenCalledWith('move');
-    const small: HandleSpec = { id: 'c', kind: 'cube', origin: [0, 0, 0], axis: [0, 0, 1], sizePx: 6, spanWorld: 1, showMinPx: 60 };
+    const small: HandleSpec = { id: 'c', kind: 'cube', origin: [0, 0, 0], axis: [0, 0, 1], drag: 'plane', sizePx: 6, spanWorld: 1, showMinPx: 60 };
     t.layer.set([small], t.sink);
     t.ev('pointerdown', 400, 300);
     expect(t.sink.onStart).not.toHaveBeenCalled();           // 1 mm is ~7 px here: hidden
