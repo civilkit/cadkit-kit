@@ -206,6 +206,8 @@ export class Viewport {
   private raf = 0;
   private disposed = false;
   private down: { x: number; y: number } | null = null;
+  /** Cmd/Ctrl + left drag pans the view in a sketch (a click without movement stays a Ctrl-click). */
+  private modPan: { x: number; y: number; moved: boolean } | null = null;
   private hoverPending: { x: number; y: number } | null = null;
   private lastHover: string | null = null;
 
@@ -498,6 +500,7 @@ export class Viewport {
   /** In a sketch the left button picks and rubber-bands (tool or Select), so the right button turns the view and the middle one pans. */
   private applySketchButtons(): void {
     const sketching = this.sketchTool || !!this.sketchEdit;
+    this.controls.zoomToCursor = sketching;   // in a sketch the wheel zooms towards the pointer, so a small detail can be reached without panning first
     this.controls.mouseButtons = sketching
       ? { LEFT: -1 as never, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
       : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
@@ -1947,8 +1950,25 @@ export class Viewport {
     this.opts.onContextMenu(this.pickName(e.clientX, e.clientY), e.clientX, e.clientY, this.mode);
   };
 
+  /** Move the camera and its target by a screen-space drag, so the point under the pointer follows it. */
+  private dragPan(dx: number, dy: number): void {
+    const cam = this.camera;
+    const target = this.controls.target;
+    const dist = cam.position.distanceTo(target);
+    const h = this.dom.clientHeight || 1;
+    const perPixel = (2 * dist * Math.tan((cam.fov * Math.PI) / 360)) / h;
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 0);
+    const up = new THREE.Vector3().setFromMatrixColumn(cam.matrix, 1);
+    const move = right.multiplyScalar(-dx * perPixel).add(up.multiplyScalar(dy * perPixel));
+    cam.position.add(move);
+    target.add(move);
+    this.controls.update();
+    this.dirty = true;
+  }
+
   private onDown = (e: PointerEvent): void => {
     this.down = { x: e.clientX, y: e.clientY };
+    if (this.sketchEdit && e.button === 0 && e.pointerType !== 'touch' && (e.metaKey || e.ctrlKey)) { this.modPan = { x: e.clientX, y: e.clientY, moved: false }; this.dom.setPointerCapture(e.pointerId); }
     if (this.sketchEdit && this.sketchTool) return; // a tool is active: clicks go to the tool on release
     if (this.sketchEdit) {
       const id = this.sketchPick(e.clientX, e.clientY);
@@ -1967,6 +1987,17 @@ export class Viewport {
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.modPan) {
+      const moved = this.modPan.moved;
+      this.modPan = null;
+      this.dom.style.cursor = '';
+      if (moved) {   // the drag was a pan: it is neither a tool click nor a rubber band
+        if (this.rubber) { this.rubber = null; this.opts.onSketchBox?.({ phase: 'cancel', x0: 0, y0: 0, x1: 0, y1: 0, crossing: false, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: false, ctrl: false, alt: false } } as never); }
+        this.sketchDrag = null;
+        this.controls.enabled = true;
+        return;
+      }
+    }
     if (this.suppressUp) { this.suppressUp = false; return; }
     if (this.placement && !this.sketchEdit) {
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.placement.tap(e.clientX, e.clientY, { alt: e.altKey });
@@ -2020,6 +2051,11 @@ export class Viewport {
   };
 
   private onMove = (e: PointerEvent): void => {
+    if (this.modPan) {
+      const m = this.modPan;
+      if (!m.moved && Math.hypot(e.clientX - m.x, e.clientY - m.y) >= 4) { m.moved = true; this.dom.style.cursor = 'grabbing'; }
+      if (m.moved) { this.dragPan(e.clientX - m.x, e.clientY - m.y); m.x = e.clientX; m.y = e.clientY; return; }
+    }
     if (this.placement && !this.sketchEdit) { if (!this.down) this.placement.move(e.clientX, e.clientY, { alt: e.altKey }); return; }
     if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
     if (this.sketchEdit && this.rubber) {
