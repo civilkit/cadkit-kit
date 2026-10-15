@@ -104,7 +104,7 @@ export class Controller {
       this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
       // viewer-state fields kept in the file: the exploded view and the drawing sheet
       this.docExtra = {};
-      for (const k of ['explode', 'drawing']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
+      for (const k of ['explode', 'drawing', 'script']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
       this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
       await this.refresh();
     } finally {

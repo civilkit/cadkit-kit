@@ -50,6 +50,8 @@ import { createAnalysisStore } from './analysisState';
 import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
+import { ScriptPanel } from './ScriptPanel';
+import { runScript } from '@kit/script';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
 import { findMaterial, loadUseColour, appearanceOfMaterial } from './materials';
@@ -211,7 +213,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script'>('Features');
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
@@ -615,6 +617,7 @@ function App() {
   const commands = buildCommands({
     catalog: () => showCatalog(),
     variables: () => showVariables(),
+    script: () => showScript(),
     open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.dxf'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name)); },
     save: () => doSave(false),
     files: {
@@ -1563,6 +1566,22 @@ function App() {
   const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
+  const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
+  const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code) => new Promise((resolve) => {
+    // a script always builds a NEW untitled part; the unsaved-changes guard decides whether the current one may be left
+    guarded(async () => {
+      const r = await runScript(code, {
+        load: (d) => load(JSON.stringify({ ...emptyPart(files.names.next()), ...d })),
+        edit: async (ops, why) => (await controller.edit(ops, why)) as never,
+        geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
+      });
+      controller.setDocExtra('script', code);
+      redraw((n) => n + 1);
+      setLeftTab('Script');
+      if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));
+      resolve(r.errors);
+    });
+  })} />;
   const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Catalog'); };
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
@@ -1571,15 +1590,16 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables'] as const).map((id) => {
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script'] as const).map((id) => {
               const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables' }[id];
+              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script' }[id];
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
           {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
             : leftTab === 'Catalog' ? catalogPanel
             : leftTab === 'Variables' ? variablesPanel
+            : leftTab === 'Script' ? scriptPanel
             : editor}
         </>
       ) : leftBody}

@@ -14,7 +14,7 @@ export const SLOTS: Record<string, string[]> = {
   extrude: ['add-extrude', 'add-cut'],
   thin: ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'],
   hole: ['add-hole', 'add-thread'],
-  catalog: ['open-catalog', 'open-variables'],
+  catalog: ['open-catalog', 'open-variables', 'open-script'],
   'edge-round': ['add-fillet', 'add-chamfer'],
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern'],
