@@ -102,6 +102,7 @@ const startupAutosave: Autosave | null = (() => { const a = readAutosave(browser
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
 import { sketchTools, sketchShapes, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
+import { defaultThickness } from './thinRules';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
 /** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
@@ -615,7 +616,7 @@ function App() {
     newSketch: (plane) => startNewSketch(plane),
     sketchOnFace: () => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); },
     hasFaceSelection: () => selectedFace() !== null,
-    addExtrude: (op) => void addExtrude(op),
+    addExtrude: (op, thin) => void addExtrude(op, thin),
     features: featureActions,
     inspect: {
       toggleMeasure: () => inspect.toggleMeasure(), isMeasuring: () => inspect.measuring,
@@ -1293,7 +1294,7 @@ function App() {
     })();
   };
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
-  const addExtrude = async (op: 'add' | 'cut') => {
+  const addExtrude = async (op: 'add' | 'cut', thin = false) => {
     const d = controller.document();
     if (!d) return;
     const target = nextExtrudeTarget(d.features as never, selectedId);
@@ -1301,7 +1302,7 @@ function App() {
     const before = d.features.length;
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(regions ? { regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
+    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);

@@ -1,6 +1,7 @@
 // Feature-creation commands: fillet, chamfer, shell, hole, revolve and the two patterns. The functions that decide
 // what a new feature contains are pure (they take the document, the selection and the body on screen), so they are
 // tested against the real kernel without a DOM; `featureCommands` turns them into palette and ribbon commands.
+import { defaultThickness } from './thinRules';
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
@@ -202,6 +203,13 @@ export function featureCommands(a: FeatureActions): Command[] {
       const sk = revolveSketch(c());
       const ops = sk ? revolveOps(sk) : null;
       if (ops) a.create(ops); else a.notify(t('app.noAxis'), 'error');
+    }),
+    cmd('add-thin-revolve', canRevolve, () => {
+      const sk = revolveSketch(c());
+      const ops = sk ? revolveOps(sk) : null;
+      if (!ops || !sk) { a.notify(t('app.noAxis'), 'error'); return; }
+      const thin = { thickness: defaultThickness(sk), side: 'inside', ends: 'flat', cornerStyle: 'mitre' };
+      a.create(ops.map((o) => (o.op === 'add' ? { ...o, feature: { ...(o as { feature: object }).feature, thin } } : o)) as EditOp[]);
     }),
     cmd('add-lpattern', canPattern, () => { const s = patternSeed(c()); if (s) a.create(linearPatternOps(s, c().box)); }),
     cmd('add-cpattern', canPattern, () => { const s = patternSeed(c()); if (s) a.create(circularPatternOps(s, c().box)); }),

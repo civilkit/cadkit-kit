@@ -20,6 +20,6 @@ export const toolbarStrings: Record<string, string> = {
   'rb.analysis-zebra': 'Zebra', 'rb.analysis-gaussian': 'Gaussian', 'rb.analysis-mean': 'Mean', 'rb.analysis-draft': 'Draft check', 'rb.analysis-comb': 'Comb',
   'rb.triball': 'Move ball', 'rb.select-tangent': 'Tangent', 'rb.select-parallel': 'Parallel', 'rb.select-similar': 'Similar', 'rb.select-loop': 'Loop',
   'rb.select-connected': 'Connected', 'rb.select-invert': 'Invert', 'rb.select-none': 'Deselect', 'rb.select-box': 'Box', 'rb.select-body': 'Body',
-  'rb.sel-vertex': 'Corner', 'rb.add-extrude': 'Extrude', 'rb.add-revolve': 'Revolve', 'rb.view-iso': 'Iso', 'rb.open-variables': 'Variables',
+  'rb.sel-vertex': 'Corner', 'rb.add-extrude': 'Extrude', 'rb.add-thin-extrude': 'Thin extrude', 'rb.add-thin-cut': 'Thin cut', 'rb.add-thin-revolve': 'Thin revolve', 'rb.add-revolve': 'Revolve', 'rb.view-iso': 'Iso', 'rb.open-variables': 'Variables',
   'rb.explode-all': 'Explode', 'rb.insert-part': 'Insert part', 'rb.new-part': 'New', 'rb.light-studio': 'Studio', 'rb.bg-theme': 'Theme', 'rb.bg-gradient': 'Gradient',
 };

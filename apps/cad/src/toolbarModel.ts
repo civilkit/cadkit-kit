@@ -5,7 +5,7 @@ import type { RibbonLayout, RibbonEntry } from '@kit/ui';
 
 /** Commands whose ids are reserved here before the command exists (their icons exist already). Slots may list them; the tests do not
  *  require them to be registered, and the toolbars skip ids that are not. */
-export const PLANNED = ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'];
+export const PLANNED: string[] = [];
 
 /** THE table: slot id -> its commands in order (first is the default). The ribbon (`RIBBON_LAYOUT`) and the tool palette
  *  (`RAIL_SECTIONS`) only say where each slot goes, so adding a command is one id in one slot below (plus its icon). Families of commands that share one button. The first id is the default; the button then shows the one used last. */

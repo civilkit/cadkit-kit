@@ -63,7 +63,7 @@ export interface Actions {
   /** Start a sketch on the one face that is selected. */
   sketchOnFace(): void;
   hasFaceSelection(): boolean;
-  addExtrude(op: 'add' | 'cut'): void;
+  addExtrude(op: 'add' | 'cut', thin?: boolean): void;
   newSketch(plane: 'front' | 'top' | 'right'): void;
   palette(): void;
   toggleDrawer(): void;
@@ -124,6 +124,8 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'new-part', label: t('cmd.new-part'), tab: 'Home', group: 'File', run: a.newPart },
     { id: 'add-extrude', label: t('cmd.add-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add') },
     { id: 'add-cut', label: t('cmd.add-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut') },
+    { id: 'add-thin-extrude', label: t('cmd.add-thin-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add', true) },
+    { id: 'add-thin-cut', label: t('cmd.add-thin-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut', true) },
     { id: 'sketch-here', label: t('cmd.sketch-here'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: a.sketchHere },
     { id: 'sketch-on-face', label: t('cmd.sketch-on-face'), tab: 'Home', group: 'Sketch', enabled: a.hasFaceSelection, run: a.sketchOnFace },
     { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('front') },
