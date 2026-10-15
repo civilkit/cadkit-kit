@@ -364,7 +364,13 @@ export class Viewport {
 
   /** Direct-manipulation handles drawn over the model (arrows, dots, rings, plane squares). Null removes them. A drag is
    *  reported to `sink`; the handle never orbits the camera and never changes the selection. */
-  setHandles(specs: HandleSpec[] | null, sink: HandleDragSink | null): void { this.handleLayer.set(specs, sink); }
+  setHandles(specs: HandleSpec[] | null, sink: HandleDragSink | null, onShape?: ((faceName: string) => boolean) | null): void {
+    // `onShape`: pressing and dragging on a face it accepts moves the shape (the move pad's drag); a plain click still selects
+    this.handleLayer.set(specs, sink, onShape ? {
+      hit: (x, y) => { const h = this.hit(x, y); const n = this.nameAt(h); return h && n && onShape(n) ? [h.point.x, h.point.y, h.point.z] : null; },
+      click: (e) => { this.down = { x: e.clientX, y: e.clientY }; this.onUp(e); },
+    } : null);
+  }
   /** The positioning ball over the selection (null removes it); see triballLayer.ts. */
   setTriBall(view: TriView | null, sink: TriSink | null): void { this.triball.set(view, sink); }
   /** Move or recolour the ball without resetting a gesture. */

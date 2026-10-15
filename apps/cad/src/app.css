@@ -860,3 +860,15 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .fedit-fld .fedit-inline { position: relative; }
 .fedit-fld .fedit-inline input { padding-right: 32px; }
 .fedit-fld .fedit-inline .fedit-unit { position: absolute; right: 9px; pointer-events: none; }
+/* size box: typed move fields and the shared-sketch question */
+.sizebox-moveto, .sizebox-ask { position: absolute; left: 14px; bottom: 54px; z-index: 7; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; font-size: 12px; width: 230px;
+  background: rgba(var(--glass-rgb), max(var(--alpha), .95)); color: var(--text); outline: 1px solid var(--line, rgba(128,128,128,.4)); outline-offset: -1px; box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+.sizebox-moveto-title { font-weight: 600; }
+.sizebox-moveto label { display: flex; flex-direction: column; gap: 2px; color: var(--text-2); }
+.sizebox-moveto input, .sizebox-moveto select { font: inherit; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel); color: var(--text); min-width: 0; }
+.sizebox-moveto-edge { display: flex; gap: 4px; }
+.sizebox-moveto-edge select { flex: 1; } .sizebox-moveto-edge input { width: 70px; }
+.sizebox-moveto-hint { color: var(--text-2); font-size: 11px; line-height: 1.35; } .sizebox-moveto-bad { color: var(--danger, #d1242f); }
+.sizebox-moveto-btns, .sizebox-ask-btns { display: flex; gap: 6px; justify-content: flex-end; }
+.sizebox-moveto-btns button, .sizebox-ask-btns button { font: inherit; padding: 3px 10px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel); color: inherit; cursor: pointer; }
+.sizebox-moveto-btns button:first-child, .sizebox-ask-btns button:first-child { background: var(--accent); color: #fff; border-color: var(--accent); }

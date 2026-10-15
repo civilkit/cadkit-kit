@@ -90,7 +90,7 @@ describe('size box numbers', () => {
     const sh = shape('F4');
     const r = transformSketch(circle, sh.profile as never, sh.box, boxFor(sh, { u: { side: 'hi', dim: 10 } }, 'anchor'))!;
     expect(r.sketch.entities[0].r).toBe(5);
-    expect(r.sketch.points.find((p: any) => p.id === 'c').x).toBe(2.5);
+    expect(r.sketch.points.find((p: any) => p.id === 'c').x).toBe(5);   // the anchor is the profile's own centre, so Anchor mode keeps it
   });
 });
 
@@ -111,7 +111,7 @@ describe('size box selection and layout', () => {
   it('layout: a box, six face handles, four corners, the anchor and three labels for a blind extrude', () => {
     const s = shape('F2');
     const ids = layout(s, s.box, { mode: 'opposite' }).map((x) => x.id);
-    expect(ids).toEqual(['box', 'u1', 'u0', 'v1', 'v0', 'df', 'c++', 'c+-', 'c-+', 'c--', 'anchor', 'lw', 'll', 'lh']);
+    expect(ids).toEqual(['box', 'u1', 'u0', 'v1', 'v0', 'df', 'c++', 'c+-', 'c-+', 'c--', 'move', 'anchor', 'ghost', 'guides', 'lw', 'll', 'lh']);
     const box = layout(s, s.box, { mode: 'opposite' })[0];
     expect(box.lines).toHaveLength(24);
     const u1 = layout(s, s.box, { mode: 'opposite' }).find((x) => x.id === 'u1')!;
@@ -129,6 +129,6 @@ describe('size box selection and layout', () => {
     expect(s.preview('c++', 0, [10, 5, 0])).not.toBeNull();
     expect(s.format!('u1', 50)).toBe('Width 50 mm');
     const a = s.live!('anchor', 3, [3, 0, 0])!;
-    expect(a.find((x) => x.id === 'anchor')!.origin).toEqual([3, 0, 0]);
+    expect(a.find((x) => x.id === 'anchor')!.origin).toEqual([3, 0, 0]);   // the shape's anchor (its centre) is at the origin here
   });
 });

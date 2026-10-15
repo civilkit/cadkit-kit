@@ -12,6 +12,22 @@ export interface HandleCommit {
   draft?: Record<string, unknown>;
   /** Said to the user after the edit (e.g. sketch constraints the new size broke were removed). */
   notice?: string;
+  /** The edit needs a decision first (a shared sketch: move every user, or give this shape its own copy). The app asks; `ops` is the first choice's edit. */
+  choices?: Array<{ id: string; label: string; ops: EditOp[] }>;
+}
+
+/** Modifier keys held during a drag. */
+export interface DragMods { shift?: boolean; ctrl?: boolean; alt?: boolean }
+
+/** What the typed-position fields and the nudge keys need to know about the shape being moved. */
+export interface MoveInfo {
+  /** The footprint in the sketch plane and the host face's extent there. */
+  box: { u0: number; u1: number; v0: number; v1: number };
+  host: { u0: number; u1: number; v0: number; v1: number } | null;
+  /** Grid step for nudges and Ctrl moves. */
+  step: number;
+  /** The edit (and notice / choices) of moving by (du, dv) in the sketch plane, no snapping. Null when it changes nothing or cannot be done. */
+  to(du: number, dv: number): HandleCommit | null;
 }
 
 export interface HandleSession {
@@ -20,13 +36,15 @@ export interface HandleSession {
   /** The feature this gesture edits in place (absent when it adds one). */
   target?: string;
   /** Ops to show for the quantity now, or null when there is nothing to show (a zero-size feature). */
-  preview(handleId: string, q: number, vec: Vec3): EditOp[] | null;
+  preview(handleId: string, q: number, vec: Vec3, mods?: DragMods): EditOp[] | null;
   /** The one edit to make on release, or null to leave the document alone. */
-  commit(handleId: string, q: number, vec: Vec3): HandleCommit | null;
+  commit(handleId: string, q: number, vec: Vec3, mods?: DragMods): HandleCommit | null;
   format?(handleId: string, q: number): string;
   /** The specs to show while this drag runs (the size box and its labels follow the value). */
-  live?(handleId: string, q: number, vec: Vec3): HandleSpec[] | null;
+  live?(handleId: string, q: number, vec: Vec3, mods?: DragMods): HandleSpec[] | null;
   step?(handleId: string): number;
+  /** The size box: repositioning in the sketch plane. */
+  move?: MoveInfo;
 }
 
 /** Smallest size a drag may produce; below it the gesture shows and commits nothing. */

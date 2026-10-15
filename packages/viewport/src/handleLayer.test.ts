@@ -93,7 +93,7 @@ describe('HandleLayer interaction', () => {
     t.ev('pointermove', 480, 300);                          // the pointer no longer matters
     expect((t.sink.onDrag as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1]).toBe(25.5);
     t.key('Enter');
-    expect(t.sink.onCommit).toHaveBeenCalledWith('a', 25.5, expect.any(Array));
+    expect(t.sink.onCommit).toHaveBeenCalledWith('a', 25.5, expect.any(Array), expect.anything());
     t.dispose();
   });
 
@@ -127,6 +127,64 @@ describe('HandleLayer interaction', () => {
     t.ev('pointermove', 400, 300 - 64);                     // a quarter turn counter-clockwise on screen
     expect((t.sink.onDrag as ReturnType<typeof vi.fn>).mock.calls.at(-1)![1]).toBeCloseTo(90, 0);
     t.ev('pointerup', 400, 236);
+    t.dispose();
+  });
+});
+
+describe('HandleLayer move pad and shape surface', () => {
+  const pad: HandleSpec = { id: 'move', kind: 'pad', origin: [0, 0, 0], axis: [0, 0, 1], u: [1, 0, 0], drag: 'plane', reportMods: true, sizePx: 17 };
+
+  it('the pad drags in its plane and reports the raw move with the modifier keys', () => {
+    const t = setup([pad]);
+    t.ev('pointerdown', 400, 300);
+    t.ev('pointermove', 400 + 2 * pxPerUnit, 300 - pxPerUnit, { shiftKey: true, altKey: true });
+    const [id, , vec, mods] = (t.sink.onDrag as ReturnType<typeof vi.fn>).mock.calls.at(-1)!;
+    expect(id).toBe('move');
+    expect(vec[0]).toBeCloseTo(2, 2); expect(vec[1]).toBeCloseTo(1, 2);          // raw: Shift does not slow or lock it here
+    expect(mods).toEqual({ shift: true, ctrl: false, alt: true });
+    t.key('Escape');
+    expect(t.sink.onCancel).toHaveBeenCalledWith('move');
+    t.dispose();
+  });
+
+  it('pressing on the shape surface moves it after a small threshold; a plain click is handed back to select', () => {
+    const t = setup([pad]);
+    const click = vi.fn();
+    t.layer.set([pad], t.sink, { hit: (x) => (x > 600 ? [0, 0, 0] : null), click });
+    t.ev('pointerdown', 700, 300);
+    expect(t.later).toHaveBeenCalledTimes(0);                // the press is ours (no orbit)
+    t.ev('pointermove', 702, 300);
+    expect(t.sink.onStart).not.toHaveBeenCalled();           // under the threshold
+    t.ev('pointerup', 702, 300);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(t.sink.onStart).not.toHaveBeenCalled();
+    t.ev('pointerdown', 700, 300);
+    t.ev('pointermove', 740, 300);
+    expect(t.sink.onStart).toHaveBeenCalledWith('move');
+    const vec = (t.sink.onDrag as ReturnType<typeof vi.fn>).mock.calls.at(-1)![2];
+    expect(vec[0]).toBeCloseTo(40 / pxPerUnit, 2);           // measured from where the press began, no jump
+    t.ev('pointerup', 740, 300);
+    expect(t.sink.onCommit).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    t.ev('pointerdown', 100, 300);                           // off the shape: not ours, orbit gets it
+    expect(t.later).toHaveBeenCalledTimes(1);
+    t.dispose();
+  });
+
+  it('a double click on the pad is reported; a handle too small on screen is hidden and not hit', () => {
+    const t = setup([pad]);
+    const act = vi.fn();
+    t.layer.set([pad], { ...t.sink, onActivate: act });
+    t.ev('dblclick', 400, 300);
+    expect(act).toHaveBeenCalledWith('move');
+    const small: HandleSpec = { id: 'c', kind: 'cube', origin: [0, 0, 0], axis: [0, 0, 1], sizePx: 6, spanWorld: 1, showMinPx: 60 };
+    t.layer.set([small], t.sink);
+    t.ev('pointerdown', 400, 300);
+    expect(t.sink.onStart).not.toHaveBeenCalled();           // 1 mm is ~7 px here: hidden
+    const big = { ...small, spanWorld: 20 };
+    t.layer.set([big], t.sink);
+    t.ev('pointerdown', 400, 300);
+    expect(t.sink.onStart).toHaveBeenCalledWith('c');
     t.dispose();
   });
 });

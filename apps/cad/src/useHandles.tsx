@@ -8,10 +8,13 @@ import type { PickMode, Viewport } from '@kit/viewport';
 import type { Controller } from './controller';
 import { planHandles, type PlanCtx } from './handles/plan';
 import { HandleRunner } from './handles/runner';
-import { ABOUT_MODES, DEFAULT_ABOUT, planSizeBox, shapeSelection, type AboutMode } from './handles/sizeBox';
+import { ABOUT_MODES, DEFAULT_ABOUT, ownerShape, planSizeBox, shapeSelection, type AboutMode } from './handles/sizeBox';
+import { MoveFields } from './handles/MoveFields';
+import { scopeOf } from './variables';
 import type { ThreadHandleCtx } from './handles/threadHandle';
-import type { HandleSession } from './handles/session';
+import type { HandleCommit, HandleSession } from './handles/session';
 import { ContextMenu } from './ContextMenu';
+import { SNAP_PX } from './catalog/placer';
 import { t } from './i18n';
 import { whyNot } from './select/selectCommands';
 import { gestureHint, menuItems, selectionKind, type MenuItem } from './menuModel';
@@ -52,13 +55,18 @@ export function useHandles(p: HandlesDeps) {
   aboutRef.current = about;
   const setAbout = (m: AboutMode) => { setAboutState(m); try { localStorage.setItem('cad.sizeBoxAbout', m); } catch { /* private window */ } };
   const [boxOn, setBoxOn] = useState(false);
+  const session = useRef<HandleSession | null>(null);
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [ask, setAsk] = useState<HandleCommit | null>(null);
+  const nudge = useRef<{ du: number; dv: number; timer: ReturnType<typeof setTimeout> | null } | null>(null);
   if (!runner.current) {
     runner.current = new HandleRunner({
       preview: async (ops) => { const r = await ref.current.controller.preview(ops, 0); return { ok: r.ok, stale: r.stale, hint: r.hint }; },
       cancelPreview: async () => { await ref.current.controller.cancelPreview(); ref.current.restorePreview?.(); },
       busy: (on) => { dragging.current = on; if (!on) setTick((n) => n + 1); },
-      commit: async (c) => { if (c.notice) ref.current.store.notify(c.notice, 'warn'); if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
+      commit: async (c) => { if (c.choices) { setAsk(c); return; } if (c.notice) ref.current.store.notify(c.notice, 'warn'); if (c.draft) { ref.current.onDraftPatch?.(c.draft); return; } if (c.create) await ref.current.create(c.ops); else await ref.current.commitInPlace(c.ops); },
       hint: setHint,
+      activate: (id) => { if (id === 'move' || id === 'anchor') setFieldsOpen(true); },
     });
   }
 
@@ -75,7 +83,10 @@ export function useHandles(p: HandlesDeps) {
     if (c.enabled && !c.sketching && !c.editingId) {
       const shapeId = shapeSelection(c.doc, c.selection, c.mode, ref.current.selectedId ?? null);
       if (shapeId) {
-        const s = planSizeBox({ doc: c.doc, shapeId, frameOf: (id) => controller.sketchFrameOf(id), bodyBox: c.box, mode: aboutRef.current });
+        const s = planSizeBox({
+          doc: c.doc, shapeId, frameOf: (id) => controller.sketchFrameOf(id), bodyBox: c.box, mode: aboutRef.current,
+          edges: c.edges, snapTol: (p) => SNAP_PX * (ref.current.viewport()?.worldPerPixel(p) ?? 0),
+        });
         if (s) return s;
       }
     }
@@ -90,10 +101,49 @@ export function useHandles(p: HandlesDeps) {
     const vp = p.viewport();
     if (!vp || dragging.current) return;
     const s = plan();
+    session.current = s;
     setBoxOn(s?.kind === 'size-box');
-    vp.setHandles(s ? s.specs : null, s ? runner.current!.sink(s) : null);
+    setFieldsOpen(false);
+    const doc = p.controller.document();
+    const onShape = s?.kind === 'size-box' && s.target ? (face: string) => ownerShape(doc, face) === s.target : null;
+    vp.setHandles(s ? s.specs : null, s ? runner.current!.sink(s) : null, onShape);
   }, [sel, p.store.mode.value, p.controller.revision, p.editingId, p.selectedId, p.sketching, p.enabled, threadKey, tick, about]);
   useEffect(() => () => { p.viewport()?.setHandles(null, null); }, []);
+
+  // Keyboard: Tab opens the typed move; arrow keys nudge the shape by the grid step (Shift 10x, Alt 0.1x). A burst of presses is one edit.
+  const flushNudge = () => {
+    const n = nudge.current;
+    nudge.current = null;
+    if (!n) return;
+    if (n.timer) clearTimeout(n.timer);
+    const c = session.current?.move?.to(n.du, n.dv) ?? null;
+    void runner.current!.commit(c);
+  };
+  useEffect(() => {
+    const typing = (el: EventTarget | null): boolean => { const e = el as HTMLElement | null; return !!e && (e.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.tagName)); };
+    const key = (e: KeyboardEvent) => {
+      const s = session.current;
+      if (!s?.move || typing(e.target) || (dragging.current && !nudge.current)) return;
+      const a = document.activeElement;
+      if (a && a !== document.body && a.tagName !== 'CANVAS') return;     // focus is on a button, the tree, a field: the keys are theirs
+      if (e.key === 'Escape' && nudge.current) { e.preventDefault(); e.stopPropagation(); if (nudge.current.timer) clearTimeout(nudge.current.timer); nudge.current = null; void runner.current!.cancel(); return; }
+      if (e.ctrlKey || e.metaKey) return;
+      if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); setFieldsOpen(true); return; }
+      const dir = e.key === 'ArrowRight' ? [1, 0] : e.key === 'ArrowLeft' ? [-1, 0] : e.key === 'ArrowUp' ? [0, 1] : e.key === 'ArrowDown' ? [0, -1] : null;
+      if (!dir) return;
+      e.preventDefault(); e.stopPropagation();
+      const k = s.move.step * (e.shiftKey ? 10 : e.altKey ? 0.1 : 1);
+      const n = nudge.current ?? { du: 0, dv: 0, timer: null };
+      if (n.timer) clearTimeout(n.timer);
+      n.du += dir[0] * k; n.dv += dir[1] * k;
+      n.timer = setTimeout(flushNudge, 350);
+      nudge.current = n;
+      dragging.current = true;
+      runner.current!.drag(s.move.to(n.du, n.dv)?.ops ?? null);
+    };
+    window.addEventListener('keydown', key, true);
+    return () => window.removeEventListener('keydown', key, true);
+  }, []);
 
   const onContextMenu = (name: string | null, x: number, y: number, mode: PickMode) => {
     const { store, commands } = ref.current;
@@ -119,6 +169,24 @@ export function useHandles(p: HandlesDeps) {
       ))}
     </div>
   ) : null;
+  const info = fieldsOpen ? session.current?.move : undefined;
+  const fieldsEl = info ? (
+    <MoveFields info={info} values={scopeOf(p.controller.document()).values} onClose={() => setFieldsOpen(false)}
+      onApply={(du, dv) => { setFieldsOpen(false); void runner.current!.commit(info.to(du, dv)); }} />
+  ) : null;
+  const choose = (c: NonNullable<HandleCommit['choices']>[number] | null) => {
+    setAsk(null);
+    if (c) void ref.current.commitInPlace(c.ops); else void ref.current.controller.cancelPreview().then(() => ref.current.restorePreview?.());
+  };
+  const askEl = ask?.choices ? (
+    <div class="sizebox-ask" role="alertdialog" aria-label={ask.notice}>
+      <div>{ask.notice}</div>
+      <div class="sizebox-ask-btns">
+        {ask.choices.map((c) => <button key={c.id} type="button" onClick={() => choose(c)}>{c.label}</button>)}
+        <button type="button" onClick={() => choose(null)}>{t('sizebox.shared.cancel')}</button>
+      </div>
+    </div>
+  ) : null;
   const hintEl = hint ? <div class="handle-hint" role="status">{hint}</div> : null;
-  return { onContextMenu, menuEl, hintEl, aboutEl };
+  return { onContextMenu, menuEl, hintEl, aboutEl, fieldsEl, askEl };
 }

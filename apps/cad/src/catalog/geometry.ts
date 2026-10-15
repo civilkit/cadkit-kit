@@ -100,7 +100,7 @@ export function raycast(mesh: MeshArrays, o: ArrayLike<number>, d: ArrayLike<num
   return best;
 }
 
-export type SnapKind = 'center' | 'midpoint' | 'vertex' | 'circle';
+export type SnapKind = 'center' | 'midpoint' | 'vertex' | 'circle' | 'feature';
 export interface Snap { point: V3; kind: SnapKind }
 
 /** The centre of a closed polyline that is (nearly) a circle, e.g. the rim of a hole, else null. */
@@ -137,7 +137,7 @@ export function snapCandidates(face: FaceInfo, edges: EdgeLike[]): Snap[] {
   return out;
 }
 
-const RANK: Record<SnapKind, number> = { vertex: 0, circle: 1, midpoint: 2, center: 3 };
+const RANK: Record<SnapKind, number> = { vertex: 0, circle: 1, midpoint: 2, feature: 2.5, center: 3 };
 /** The candidate within `tol` (world units) of `p`; ties inside 15% of the tolerance go to the stronger kind. */
 export function snapTo(p: V3, cands: Snap[], tol: number): Snap | null {
   let best: { s: Snap; d: number } | null = null;
