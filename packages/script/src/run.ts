@@ -18,8 +18,8 @@ export interface ScriptResult {
 }
 
 const DENIED = ['window', 'document', 'fetch', 'XMLHttpRequest', 'WebSocket', 'globalThis', 'self', 'parent', 'top', 'localStorage', 'sessionStorage', 'indexedDB', 'Worker', 'importScripts', 'Function', 'process', 'require', 'navigator', 'location', 'setTimeout', 'setInterval', 'queueMicrotask'];
-export const MAX_SOURCE = 20000;
-export const MAX_STEPS = 500;
+export const MAX_SOURCE = 40000;
+export const MAX_STEPS = 2000;
 
 /** Evaluate only: the recorded steps, variables and the part name. Never touches a kernel. */
 export function evaluate(code: string): { state: ScriptState; errors: ScriptError[] } {

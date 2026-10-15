@@ -4,6 +4,9 @@ import { resolveEdges, resolveFace, SelectorError, type EdgeSel, type FaceSel, t
 
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
 export type Plane = 'front' | 'top' | 'right';
+/** A standard plane moved along its normal (front: +z, top: +y, right: +x): a reference plane feature is added for it. */
+export interface OffsetPlane { kind: 'offset'; plane: Plane; offset: Num }
+export const at = (plane: Plane, offset: Num): OffsetPlane => ({ kind: 'offset', plane, offset });
 
 /** A parameter written as an expression over the part's variables, e.g. expr('w/2'). */
 export class Expr { constructor(public text: string, public value: number) {} valueOf(): number { return this.value; } }
@@ -70,6 +73,34 @@ export class SketchBuilder {
     this.ent({ type: 'arc', c, p1: a, p2: b });
     return this;
   }
+  private apt(id: string): { x: number; y: number } { const p = this.points.find((q) => q.id === id) as { x: number; y: number }; return p; }
+  private arcIds(c: string, a: string, b: string): void { this.ent({ type: 'arc', c, p1: a, p2: b }); }
+  /** Arc from a to b through the middle point m (any direction); the circle is the one through the three points. */
+  arc3(a: Pt, m: Pt, b: Pt): this {
+    const d = 2 * (a[0] * (m[1] - b[1]) + m[0] * (b[1] - a[1]) + b[0] * (a[1] - m[1]));
+    if (Math.abs(d) < 1e-12) throw new Error('arc3: the three points are in line');
+    const q = (p: Pt) => p[0] * p[0] + p[1] * p[1];
+    const cx = (q(a) * (m[1] - b[1]) + q(m) * (b[1] - a[1]) + q(b) * (a[1] - m[1])) / d;
+    const cy = (q(a) * (b[0] - m[0]) + q(m) * (a[0] - b[0]) + q(b) * (m[0] - a[0])) / d;
+    const ccw = (m[0] - a[0]) * (b[1] - m[1]) - (m[1] - a[1]) * (b[0] - m[0]) > 0;   // a -> m -> b turns left
+    const c = this.pt(cx, cy), pa = this.pt(...a), pb = this.pt(...b);
+    if (ccw) this.arcIds(c, pa, pb); else this.arcIds(c, pb, pa);
+    return this;
+  }
+  /** Rounded rectangle (corner radius r) centred on `at`: four lines and four arcs that share their end points. */
+  rrect(w: Num, h: Num, r: Num, at: Pt = [0, 0]): this {
+    const hw = num(w) / 2, hh = num(h) / 2, rr = num(r), [x, y] = at;
+    if (rr <= 0) return this.rect(w, h, at);
+    const P = (px: number, py: number) => this.pt(x + px, y + py);
+    const b0 = P(-hw + rr, -hh), b1 = P(hw - rr, -hh), r0 = P(hw, -hh + rr), r1 = P(hw, hh - rr);
+    const t0 = P(hw - rr, hh), t1 = P(-hw + rr, hh), l0 = P(-hw, hh - rr), l1 = P(-hw, -hh + rr);
+    const cs = [P(hw - rr, -hh + rr), P(hw - rr, hh - rr), P(-hw + rr, hh - rr), P(-hw + rr, -hh + rr)];
+    this.ent({ type: 'line', p1: b0, p2: b1 }); this.arcIds(cs[0], b1, r0);
+    this.ent({ type: 'line', p1: r0, p2: r1 }); this.arcIds(cs[1], r1, t0);
+    this.ent({ type: 'line', p1: t0, p2: t1 }); this.arcIds(cs[2], t1, l0);
+    this.ent({ type: 'line', p1: l0, p2: l1 }); this.arcIds(cs[3], l1, b0);
+    return this;
+  }
   /** A point (hole centres). */
   point(at: Pt): this { this.ent({ type: 'point', p: this.pt(at[0], at[1]) }); return this; }
   /** Construction line along the sketch's Y axis (the default revolve axis). */
@@ -91,16 +122,23 @@ export class PartBuilder {
   /** The feature a step adds is reported to the context once the runner has applied it; steps record their own ids through ctx.nextId. */
   private line = (): number => this.steps[this.steps.length - 1]?.line ?? 0;
 
-  sketch(plane: Plane | FaceSel, build: (s: SketchBuilder) => void, name?: string): this {
+  sketch(plane: Plane | OffsetPlane | FaceSel, build: (s: SketchBuilder) => void, name?: string): this {
     const s = new SketchBuilder();
     build(s);
     const line = callerLine();
     this.steps.push({ line, label: 'sketch', run: (ctx) => {
+      const pre: EditOp[] = [];
+      let pl: Record<string, unknown>;
+      if (typeof plane === 'string') pl = { kind: 'std', id: plane };
+      else if (plane.kind === 'offset') {
+        const pid = ctx.nextId();
+        pre.push({ op: 'add', feature: { type: 'plane', id: pid, mode: 'offset', base: { kind: 'std', id: plane.plane }, offset: ref(plane.offset) } });
+        pl = { kind: 'feature', id: pid };
+      } else pl = { kind: 'face', id: resolveFace(plane.sel, ctx.geo, plane.line).id };
       const id = ctx.nextId();
-      const pl = typeof plane === 'string' ? { kind: 'std', id: plane } : { kind: 'face', id: resolveFace(plane.sel, ctx.geo, plane.line).id };
       ctx.lastSketch = id;
       ctx.lastFeature = id;
-      return [{ op: 'add', feature: { type: 'sketch', id, ...(name ? { name } : {}), plane: pl, points: s.points, entities: s.entities, constraints: [] } }];
+      return [...pre, { op: 'add', feature: { type: 'sketch', id, ...(name ? { name } : {}), plane: pl, points: s.points, entities: s.entities, constraints: [] } }];
     } });
     this.steps[this.steps.length - 1].sk = s;
     return this;
@@ -223,7 +261,7 @@ export function makeApi(state: ScriptState) {
       return { ...state.vars };
     },
     expr: (text: string): Expr => new Expr(text, evalExpr(text)),
-    face, edges, through,
+    face, edges, through, at,
   };
 }
 export type ScriptApi = ReturnType<typeof makeApi>;
