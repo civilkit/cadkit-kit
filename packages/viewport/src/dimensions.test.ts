@@ -16,3 +16,12 @@ describe('overall size dimensions', () => {
     expect(buildBoxDimensions({ min: [1, 1, 1], max: [1, 1, 1] })).toBeNull();
   });
 });
+
+describe('box dimensions with Z up', () => {
+  it('the same extents, laid out for a Z-up world (group turned a quarter turn about X)', () => {
+    const g = buildBoxDimensions({ min: [0, 0, 0], max: [10, 20, 30] }, 'z')!;
+    const y = buildBoxDimensions({ min: [0, 0, 0], max: [10, 30, 20] })!;
+    expect(g.children.length).toBe(y.children.length);
+    expect(g.rotation.x).toBeCloseTo(Math.PI / 2);
+  });
+});

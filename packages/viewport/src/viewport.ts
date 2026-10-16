@@ -983,7 +983,7 @@ export class Viewport {
     this.buildGroundGrid(body.box ?? null);
     this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
-      this.dimGroup = buildBoxDimensions(body.box);
+      this.dimGroup = buildBoxDimensions(body.box, this.upAxis);
       if (this.dimGroup) { this.dimGroup.visible = this.layers.dimensions === true; this.scene.add(this.dimGroup); }
     }
 
@@ -1656,6 +1656,13 @@ export class Viewport {
       this.hemi.position.set(...upVector(n.upAxis));
       this.viewCube?.setUpAxis(n.upAxis);
       this.buildGroundGrid(this.box);
+      if (this.dimGroup && this.lastBody?.box) {
+        const vis = this.dimGroup.visible;
+        this.scene.remove(this.dimGroup);
+        this.dimGroup.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); const mat = m.material as THREE.SpriteMaterial | undefined; mat?.map?.dispose?.(); mat?.dispose?.(); });
+        this.dimGroup = buildBoxDimensions(this.lastBody.box, n.upAxis);
+        if (this.dimGroup) { this.dimGroup.visible = vis; this.scene.add(this.dimGroup); }
+      }
       this.controls.update();
       if (this.sketchEdit) this.rebuildSketchGrid();
     }

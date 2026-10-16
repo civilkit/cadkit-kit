@@ -55,5 +55,5 @@ The rotation is rigid about the pivot (camera and target turn together), so the 
 Fixed: ground grid, view cube labels, standard views, hemisphere light direction (sky is the up axis), turntable pole clamp.
 Left alone because they are not tied to world up: the key light and studio environment (camera-relative), reference planes,
 sketch grid, triball/move handles (axis-aligned world axes, colours unchanged), dimension labels (screen-facing sprites).
-Known limit: the box dimension layer (`buildBoxDimensions`) places width/height/depth labels along the world axes as before,
-so with Z up the "height" label sits on the Y extent.
+The box dimension layer (`buildBoxDimensions(box, up)`) is laid out for the up axis:
+but with Z up they are laid out in a frame turned a quarter turn about X (length along X, height along Z, depth along Y).
