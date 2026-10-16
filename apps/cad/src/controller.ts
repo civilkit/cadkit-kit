@@ -140,10 +140,10 @@ export class Controller {
    * `load` of the same list finds it built. The document is completed with the defaults a loaded part has (the kernel's cache key
    * covers the material and the variables), or the later load would not find what was built here.
    */
-  async scratchBuild(doc: PartDoc, view: boolean): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
+  async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
     const k = this.transport();
     if (!k) throw new Error('no kernel');
-    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
+    const r = await k.request({ type: 'regen', tag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
     const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; body?: Record<string, unknown> | null };
     const errors = res.errors ?? [];
@@ -182,10 +182,10 @@ export class Controller {
     return out;
   }
   /** Drop the scratch state of `scratchBuild` (the kernel keeps a body per tag): the tag goes back to an empty part. */
-  async scratchRelease(): Promise<void> {
+  async scratchRelease(tag: string = this.scratchTag): Promise<void> {
     const k = this.transport();
     if (!k) return;
-    await k.request({ type: 'regen', tag: this.scratchTag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
+    await k.request({ type: 'regen', tag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
   }
 
   /** Changes to the document (edit, undo, redo, document patches) run one after the other: an undo pressed while an edit is

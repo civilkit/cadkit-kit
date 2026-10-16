@@ -1,5 +1,5 @@
 import { render } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { createBrowserKernel, type BrowserKernel } from '@ck/kernel-client/browser';
 import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
@@ -94,9 +94,10 @@ import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
 import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
-import type { LibraryActions } from './library/LibrarySection';
+import type { LibraryActions } from './library/LibraryBrowser';
 import { useCatalog } from './catalog/useCatalog';
 import { libraryRegistry } from './library';
+import { makeThumbRenderer } from './library/renderThumb';
 import { liveSources } from './library/insert';
 import { insertPart, openText, downloadName } from './library/actions';
 import { catalogActive, catalogPlane, setShapeSelector } from './catalog/state';
@@ -1821,9 +1822,11 @@ function App() {
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
     upAxis: () => navPrefs.upAxis,
+    library: libraryRegistry(),
     hide: (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; },
   });
   // External parts libraries: Insert is one document patch (one undo step); the provenance goes in the document's `sources` field
+  const thumbRenderer = useMemo(() => makeThumbRenderer(controller), []);
   const libraryActions: LibraryActions = {
     insert: async (data, lib) => {
       const r = await insertPart(controller, lib, data);
@@ -1836,7 +1839,7 @@ function App() {
     download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
     sources: () => liveSources(doc),
   };
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} library={{ registry: libraryRegistry(), actions: libraryActions }} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {

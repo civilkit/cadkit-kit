@@ -39,3 +39,8 @@ export const placementSetting = signal<PlacementSetting>(DEFAULT_SETTING);
 export const catalogPlane = signal<'front' | 'top' | 'right' | null>(null);
 /** A catalog item is armed or being dragged: the viewport shows the reference planes as drop targets. */
 export const catalogActive = signal(false);
+
+/** The title of the library part being fetched for a drag or a drop (a spinner shows it); null: nothing is being fetched. */
+export const libFetching = signal<string | null>(null);
+/** The tab of the Catalog panel. */
+export const catalogTab = signal<'primitives' | 'libraries'>('primitives');

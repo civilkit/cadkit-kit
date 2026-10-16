@@ -518,13 +518,12 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .cat-item.off { opacity: .45; cursor: not-allowed; }
 .cat-item:active { cursor: grabbing; }
 .cat-name { text-align: center; line-height: 1.15; }
-.bosl { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .bosl-search { width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; }
 .bosl-cats { display: flex; flex-wrap: wrap; gap: 4px; }
 .bosl-cat { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text-2); font: 11px system-ui; cursor: pointer; }
 .bosl-cat.on { background: var(--chip); color: var(--text); border-color: var(--accent, #5b8cff); }
-.bosl-item.sel { border-color: var(--accent, #5b8cff); }
-.bosl-item img { border-radius: 6px; image-rendering: auto; }
+.lib-item.sel { border-color: var(--accent, #5b8cff); }
+.lib-item img { border-radius: 6px; image-rendering: auto; }
 .bosl-form { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; font: 12px system-ui; }
 .bosl-form-h { display: flex; justify-content: space-between; align-items: center; }
 .bosl-reset { border: 0; background: transparent; color: var(--accent, #5b8cff); cursor: pointer; font: 11px system-ui; }
@@ -987,7 +986,6 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .lib button, .lib-add button { padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; cursor: pointer; }
 .lib button:disabled { opacity: 0.5; cursor: default; }
 .lib-offline { padding: 1px 6px; border-radius: 8px; background: var(--chip); border: 1px solid var(--line); font: 11px system-ui; }
-.lib-nothumb { display: inline-block; width: 64px; height: 48px; border-radius: 6px; background: var(--chip); }
 .lib-add, .lib-found, .lib-detail { display: flex; flex-direction: column; gap: 6px; }
 .lib-add-row { display: flex; gap: 4px; }
 .lib-add-row input { flex: 1; min-width: 0; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; }
@@ -997,3 +995,36 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .lib-actions { gap: 4px; }
 .lib-link { align-self: flex-start; background: none !important; border: none !important; text-decoration: underline; }
 .lib-sources ul { margin: 2px 0 0; padding-left: 16px; font: 12px system-ui; }
+
+/* Catalog tabs and the unified Libraries list */
+.cat-tabs { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--chip); }
+.cat-tab { flex: 1; padding: 5px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font: 600 12px system-ui; cursor: pointer; }
+.cat-tab.on { background: var(--panel, #fff); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+.lib { display: flex; flex-direction: column; gap: 6px; }
+.lib-head { display: flex; align-items: center; justify-content: space-between; }
+.lib-head .cat-h { padding-bottom: 4px; }
+.lib-addbtn { padding: 3px 10px; border: 1px solid var(--accent, #5b8cff); border-radius: 999px; background: transparent; color: var(--accent, #5b8cff); font: 600 12px system-ui; cursor: pointer; }
+.lib-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; }
+.lib-filters select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; max-width: 45%; }
+.lib-card { position: relative; display: flex; }
+.lib-card > .lib-item { flex: 1; min-width: 0; }
+.lib-ph { display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 48px; border-radius: 6px; background: var(--chip); color: var(--text-2); }
+.lib-ph svg { width: 32px; height: 32px; }
+.lib-origin { font: normal 9px/1.2 system-ui; padding: 0 5px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-2); }
+.lib-origin[data-origin=addon] { color: var(--accent, #5b8cff); border-color: var(--accent, #5b8cff); }
+.lib-state { position: absolute; top: 3px; right: 3px; display: inline-flex; align-items: center; gap: 2px; padding: 1px 4px; border-radius: 999px; background: color-mix(in srgb, var(--panel, #fff) 85%, transparent); color: var(--text-2); font: 9px/1.2 system-ui; }
+.lib-state[data-state=installed] { color: #2e8b57; }
+/* in the corner of the card where the cloud badge is, so pressing the middle of the card still starts a drag */
+.lib-install { position: absolute; top: 3px; right: 3px; display: none; padding: 1px 7px; border: 1px solid var(--accent, #5b8cff); border-radius: 999px; background: var(--accent, #5b8cff); color: #fff; font: 600 10px/1.4 system-ui; cursor: pointer; }
+.lib-card:hover > .lib-item .lib-state[data-state=cloud], .lib-card:focus-within > .lib-item .lib-state[data-state=cloud] { visibility: hidden; }
+.lib-card:hover > .lib-install, .lib-card:focus-within > .lib-install { display: block; }
+.lib-manage { border-top: 1px solid var(--line); padding-top: 6px; font: 12px system-ui; }
+.lib-manage ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lib-row-h { display: flex; gap: 6px; align-items: center; }
+.lib-row-a { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.lib-row-a button { padding: 2px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 11px system-ui; cursor: pointer; }
+.cat-fetching { position: fixed; z-index: 61; left: 50%; bottom: 28px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--accent, #5b8cff); color: var(--text); font: 12px system-ui; box-shadow: 0 6px 18px rgba(0,0,0,.28); }
+.cat-spin { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent, #5b8cff); border-radius: 50%; animation: cat-spin .8s linear infinite; }
+@keyframes cat-spin { to { transform: rotate(360deg); } }
+.cat-placement { border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; font: 12px system-ui; }
+.cat-placement > summary { cursor: pointer; color: var(--text-2); }

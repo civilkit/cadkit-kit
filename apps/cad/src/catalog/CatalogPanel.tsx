@@ -3,23 +3,23 @@ import type { JSX } from 'preact';
 import { t } from '../i18n';
 import { CATALOG, catalogItem, type CatalogItem } from './shapes';
 import { CatalogIcon } from './CatalogIcon';
-import { armedItem, ghost, placeStatus, placementSetting } from './state';
+import { armedItem, catalogTab, ghost, libFetching, placeStatus, placementSetting } from './state';
 import { groundPlane, type StdPlane, type UpAxis } from './placement';
 import type { PlaceStatus } from './placer';
-import { BoslSection } from './BoslSection';
 import { itemLabel } from './labels';
-import { LibrarySection, type LibraryActions } from '../library/LibrarySection';
+import { LibraryBrowser, type LibraryActions } from '../library/LibraryBrowser';
 import type { LibraryRegistry } from '../library/registry';
+import type { ThumbRenderer } from '../library/thumbs';
 
 export interface CatalogPanelProps {
   hasDoc: boolean;
   hasSolid: boolean;
   /** Pointer pressed on a shape: starts a drag, or (a click without movement) arms the shape for click-to-place. */
-  onItemDown(item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLButtonElement>): void;
+  onItemDown(item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLElement>): void;
   onItemKey(item: CatalogItem): void;
   upAxis?: UpAxis;
-  /** The external parts libraries (omitted: no Libraries section). */
-  library?: { registry: LibraryRegistry; actions: LibraryActions };
+  /** The libraries (omitted: the Libraries tab is not offered). */
+  library?: { registry: LibraryRegistry; actions: LibraryActions; notify?(text: string, level?: 'error' | 'warn' | 'info'): void; renderThumb?: ThumbRenderer };
 }
 
 const PLANES: StdPlane[] = ['front', 'top', 'right'];
@@ -52,9 +52,13 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
   );
 }
 
+const TABS = ['primitives', 'libraries'] as const;
+
+/** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
 export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
+  const tab = library ? catalogTab.value : 'primitives';
   const column = (op: 'add' | 'cut', title: string) => (
     <div class={'cat-col cat-' + op} data-testid={'catalog-' + op}>
       <div class="cat-h">{title}</div>
@@ -76,12 +80,21 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
   );
   return (
     <div class="catalog" aria-label={t('catalog.title')}>
-      <div class="cat-sub">{t('catalog.hint')}</div>
-      <PlacementRow upAxis={upAxis} />
-      {column('add', t('catalog.add'))}
-      {column('cut', t('catalog.remove'))}
-      <BoslSection onItemDown={onItemDown} onItemKey={onItemKey} />
-      {library ? <LibrarySection registry={library.registry} hasDoc={hasDoc} actions={library.actions} /> : null}
+      {library ? (
+        <div class="cat-tabs" role="tablist" aria-label={t('catalog.title')}>
+          {TABS.map((id) => <button key={id} role="tab" id={'cat-tab-' + id} aria-selected={tab === id} class={'cat-tab' + (tab === id ? ' on' : '')} onClick={() => { catalogTab.value = id; }}>{t('catalog.tab.' + id)}</button>)}
+        </div>
+      ) : null}
+      <div class="cat-sub">{t(tab === 'libraries' ? 'catalog.hint.libraries' : 'catalog.hint')}</div>
+      {tab === 'primitives' ? <PlacementRow upAxis={upAxis} /> : (
+        <details class="cat-placement"><summary>{t('catalog.place.title')}</summary><PlacementRow upAxis={upAxis} /></details>
+      )}
+      {tab === 'primitives' ? (
+        <>
+          {column('add', t('catalog.add'))}
+          {column('cut', t('catalog.remove'))}
+        </>
+      ) : library ? <LibraryBrowser registry={library.registry} hasDoc={hasDoc} actions={library.actions} onItemDown={onItemDown} onItemKey={onItemKey} notify={library.notify} renderThumb={library.renderThumb} /> : null}
     </div>
   );
 }
@@ -95,19 +108,29 @@ function planeLine(s: Extract<PlaceStatus, { state: 'ready' }>, hasSolid: boolea
   return hasSolid ? t('catalog.status.onPlane', { plane }) : t('catalog.status.ground', { plane });
 }
 
+/** The chip while a library part is fetched for a drag or a drop (not shown for a part that is already on this device). */
+export function LibraryFetching() {
+  const title = libFetching.value;
+  if (!title) return null;
+  return <div class="cat-fetching" role="status" data-testid="lib-fetching"><span class="cat-spin" aria-hidden="true" />{t('library.fetching', { title })}</div>;
+}
+
 export function CatalogGhost({ hasSolid = false }: { hasSolid?: boolean }) {
   const g = ghost.value;
-  if (!g) return null;
+  if (!g) return <LibraryFetching />;
   const item = catalogItem(g.itemId);
-  if (!item) return null;
+  if (!item) return <LibraryFetching />;
   const s = placeStatus.value;
   let line = '';
   if (s.state === 'ready') line = s.face ? t('catalog.status.face', { face: s.face }) + (s.snap ? ' - ' + t('catalog.snap.' + s.snap) : '') : planeLine(s, hasSolid);
   else if (s.state === 'blocked') line = t('catalog.blocked.' + s.reason);
   return (
-    <div class={'cat-ghost' + (s.state === 'blocked' ? ' blocked' : '')} style={{ left: g.x + 16 + 'px', top: g.y + 14 + 'px' }} role="status">
-      <CatalogIcon kind={item.kind} op={item.op} />
-      <span class="cat-ghost-t"><b>{itemLabel(item)}</b>{line ? <span>{line}</span> : null}<span class="cat-keys">{t('catalog.keys')}</span></span>
-    </div>
+    <>
+      <div class={'cat-ghost' + (s.state === 'blocked' && s.reason !== 'loading' ? ' blocked' : '')} style={{ left: g.x + 16 + 'px', top: g.y + 14 + 'px' }} role="status">
+        <CatalogIcon kind={item.kind} op={item.op} />
+        <span class="cat-ghost-t"><b>{itemLabel(item)}</b>{line ? <span>{line}</span> : null}<span class="cat-keys">{t('catalog.keys')}</span></span>
+      </div>
+      <LibraryFetching />
+    </>
   );
 }
