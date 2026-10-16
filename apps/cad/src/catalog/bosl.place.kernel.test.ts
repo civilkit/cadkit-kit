@@ -95,6 +95,21 @@ describe('parts library placement', { skip: !process.env.CK_WASM, timeout: 24000
     }
   });
 
+  it('mode cut: the shape is removed from the part through the picked face (refused on the ground)', async () => {
+    for (const e of BOSL_ENTRIES.filter((x) => x.params.some((q) => q.key === 'mode'))) {
+      const params = { ...defaultParams(e), mode: 'cut', ...(e.id === 'cyl' ? { rounding: 0 } : {}) };
+      const g = await world(emptyPart('Empty') as unknown as PartDoc);
+      expect(await buildBosl(g.host, g.controller.document(), { entryId: e.id, params }, { kind: 'ground', point: [0, 0, 0] }, true), e.id).toEqual({ error: 'needsBody' });
+      const w = await world(slab());
+      const frame = await topFrame(w);
+      const b = await buildBosl(w.host, w.controller.document(), { entryId: e.id, params }, { kind: 'face', face: 'F2.C1', planar: true, frame, point: [0, 0, 20], extent: [100, 100], thickness: 20 }, true);
+      if ('error' in b) throw new Error(`${e.id}: ${b.error} ${b.hint}`);
+      expect((await w.controller.applyDocPatch(b.patch!, 'test')).ok, e.id).toBe(true);
+      expect(await w.valid(), `${e.id} valid`).toBe(true);
+      expect(await w.volume(), `${e.id} removes material`).toBeLessThan(SLAB - 1);
+    }
+  });
+
   it('a preview (parameters as numbers) uses no variables', async () => {
     const w = await world(emptyPart('Empty') as unknown as PartDoc);
     const e = BOSL_ENTRIES[0];

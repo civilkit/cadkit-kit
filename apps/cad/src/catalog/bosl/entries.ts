@@ -130,18 +130,29 @@ function revolveScript(name: string, pl: Place, segsOrCircle: { segs?: Seg[]; ci
 }
 
 // ---------------------------------------------------------------- entries
+
+/** The depth step: an extrude (add) or a cut (mode cut: from the face into the part). `both`: symmetric about the sketch plane. */
+const sweep = (p: Params, key: string, pl: Place, both: boolean): string =>
+  p.mode === 'cut' ? `.cut(${val(p, key, pl)}, { direction: '${both ? 'both' : 'into'}' })` : `.extrude(${val(p, key, pl)}${both ? ", { direction: 'both' }" : ''})`;
+const modeParam: ParamDef = { key: 'mode', type: 'choice', default: 'add', choices: ['add', 'cut'] };
+/** A cut cannot be rounded or chamfered (those are fillets of the added solid). */
+const cutProblem = (p: Params): string | null => (p.mode === 'cut' && (num(p, 'rounding') > 0 || num(p, 'chamfer') > 0) ? 'a cut cannot be rounded or chamfered' : null);
+/** Oracle: the same shape removed from a 100 x 100 x 20 slab through its top face, going into the part. */
+export const CUT_HOST = { entryId: 'cuboid', params: { x: 100, y: 100, z: 20, rounding: 0, chamfer: 0, anchor: 'bottom', mode: 'add' } as Params };
+const scadMode = (p: Params, shape: string): string => (p.mode === 'cut' ? `difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) ${shape} }` : shape);
 const anchorParam: ParamDef = { key: 'anchor', type: 'choice', default: 'bottom', choices: ['bottom', 'center'] };
 const scadAnchor = (p: Params): string => (p.anchor === 'center' ? 'CENTER' : 'BOTTOM');
 const L = (key: string, def: number, min: number, max: number, linked = false): ParamDef => ({ key, type: 'length', default: def, min, max, unit: 'mm', linked });
 
 const cuboid: BoslEntry = {
   id: 'cuboid', name: 'Cuboid', category: 'blocks', tags: ['box', 'block', 'cube', 'brick', 'rectangular', 'rounded box', 'chamfered box', 'plate'],
-  params: [L('x', 40, 1, 200), L('y', 30, 1, 200), L('z', 20, 1, 200, true), L('rounding', 0, 0, 50, true), L('chamfer', 0, 0, 50, true), anchorParam],
+  params: [modeParam, L('x', 40, 1, 200), L('y', 30, 1, 200), L('z', 20, 1, 200, true), L('rounding', 0, 0, 50, true), L('chamfer', 0, 0, 50, true), anchorParam],
   source: { module: 'cuboid', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
-  samples: { rounded: { x: 40, y: 30, z: 20, rounding: 5, chamfer: 0, anchor: 'center' }, chamfered: { x: 35, y: 25, z: 18, rounding: 0, chamfer: 3, anchor: 'bottom' } },
+  samples: { cut: { mode: 'cut', x: 30, y: 24, z: 12, rounding: 0, chamfer: 0, anchor: 'bottom' }, cut_through: { mode: 'cut', x: 20, y: 20, z: 30, rounding: 0, chamfer: 0, anchor: 'bottom' }, rounded: { x: 40, y: 30, z: 20, rounding: 5, chamfer: 0, anchor: 'center' }, chamfered: { x: 35, y: 25, z: 18, rounding: 0, chamfer: 3, anchor: 'bottom' } },
   notes: 'rounding or chamfer applies to all twelve edges (BOSL2 accepts both options for edge subsets: not ported). Only one of them may be set. A chamfer leaves the three-chamfer corners as the kernel makes them (BOSL2 trimcorners=false); BOSL2 trims those corners by default with one more small cut.',
   onFace: true,
   check(p) {
+    const cp = cutProblem(p); if (cp) return cp;
     const m = Math.min(num(p, 'x'), num(p, 'y'), num(p, 'z')) / 2;
     if (num(p, 'rounding') > 0 && num(p, 'chamfer') > 0) return 'give rounding or chamfer, not both';
     if (num(p, 'rounding') >= m - 1e-9 || num(p, 'chamfer') >= m - 1e-9) return 'rounding / chamfer must be smaller than half the smallest side';
@@ -151,11 +162,11 @@ const cuboid: BoslEntry = {
     const both = p.anchor === 'center';
     const kind = num(p, 'rounding') > 0 ? 'rounding' : num(p, 'chamfer') > 0 ? 'chamfer' : null;
     let s = header(this, p, pl);
-    s += `const body_ = part('Cuboid')\n  .sketch(${pl.plane}, (s) => s.rect(${n(num(p, 'x'))}, ${n(num(p, 'y'))}, ${P(pl.at)}))\n  .extrude(${val(p, 'z', pl)}${both ? ", { direction: 'both' }" : ''});\n`;
+    s += `const body_ = part('Cuboid')\n  .sketch(${pl.plane}, (s) => s.rect(${n(num(p, 'x'))}, ${n(num(p, 'y'))}, ${P(pl.at)}))\n  ${sweep(p, 'z', pl, both)};\n`;
     if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, ownEdges(pl), val(p, kind, pl))};\n`;
     return s;
   },
-  scad: (p) => `cuboid([${p.x}, ${p.y}, ${p.z}]${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}, trimcorners=false` : ''}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `cuboid([${p.x}, ${p.y}, ${p.z}]${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}, trimcorners=false` : ''}, anchor=${scadAnchor(p)});`),
 };
 
 const prismoid: BoslEntry = {
@@ -176,15 +187,17 @@ const prismoid: BoslEntry = {
 
 const cyl: BoslEntry = {
   id: 'cyl', name: 'Cylinder / cone', category: 'cylinders', tags: ['cylinder', 'cone', 'frustum', 'rod', 'pin', 'disc', 'round', 'rounded cylinder', 'chamfered cylinder', 'tapered'],
-  params: [L('h', 30, 1, 200, true), L('d1', 20, 1, 200), L('d2', 20, 0.5, 200), L('rounding', 0, 0, 20, true), L('chamfer', 0, 0, 20, true), anchorParam],
+  params: [modeParam, L('h', 30, 1, 200, true), L('d1', 20, 1, 200), L('d2', 20, 0.5, 200), L('rounding', 0, 0, 20, true), L('chamfer', 0, 0, 20, true), anchorParam],
   source: { module: 'cyl', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
-  samples: {
+  samples: { cut_cylinder: { mode: 'cut', h: 12, d1: 20, d2: 20, rounding: 0, chamfer: 0, anchor: 'center' },
     rounded_cylinder: { h: 30, d1: 20, d2: 20, rounding: 3, chamfer: 0, anchor: 'bottom' }, chamfered_cylinder: { h: 25, d1: 24, d2: 24, rounding: 0, chamfer: 2.5, anchor: 'center' },
     rounded_cone: { h: 30, d1: 30, d2: 14, rounding: 2.5, chamfer: 0, anchor: 'bottom' }, chamfered_cone: { h: 28, d1: 26, d2: 12, rounding: 0, chamfer: 3, anchor: 'center' },
   },
   notes: 'd1 = d2 is a cylinder (extrude + fillet / chamfer, all linked to variables); d1 differing is a cone (loft; with rounding or chamfer a revolved profile, whose dimensions are numbers in the sketch). rounding / chamfer apply to both end edges.',
   onFace: true,
   check(p) {
+    const cp = cutProblem(p); if (cp) return cp;
+    if (p.mode === 'cut' && Math.abs(num(p, 'd1') - num(p, 'd2')) > 1e-9) return 'only a cylinder (d1 = d2) can be a cut';
     if (num(p, 'rounding') > 0 && num(p, 'chamfer') > 0) return 'give rounding or chamfer, not both';
     const m = Math.min(num(p, 'h') / 2, num(p, 'd1') / 2, num(p, 'd2') / 2);
     if (num(p, 'rounding') >= m * 0.95 || num(p, 'chamfer') >= m * 0.95) return 'rounding / chamfer must be clearly smaller than half the height and the smaller radius';
@@ -197,7 +210,7 @@ const cyl: BoslEntry = {
     let s = header(this, p, pl);
     const cylinder = Math.abs(r1 - r2) < 1e-9;
     if (cylinder) {
-      s += `const body_ = part('Cylinder')\n  .sketch(${pl.plane}, (s) => s.circle(${n(r1)}, ${P(pl.at)}))\n  .extrude(${val(p, 'h', pl)}${center ? ", { direction: 'both' }" : ''});\n`;
+      s += `const body_ = part('Cylinder')\n  .sketch(${pl.plane}, (s) => s.circle(${n(r1)}, ${P(pl.at)}))\n  ${sweep(p, 'h', pl, center)};\n`;
       if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, ownEdges(pl), val(p, kind, pl))};\n`;
       return s;
     }
@@ -224,48 +237,51 @@ const cyl: BoslEntry = {
     if (kind === 'rounding') segs.push({ k: 'l', a: [0, z1], b: [0, z0] });
     return s + revolveScript('Cone', pl, { segs });
   },
-  scad: (p) => `cyl(h=${p.h}, d1=${p.d1}, d2=${p.d2}${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `cyl(h=${p.h}, d1=${p.d1}, d2=${p.d2}${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`),
 };
 
 const tube: BoslEntry = {
   id: 'tube', name: 'Tube', category: 'cylinders', tags: ['pipe', 'ring', 'sleeve', 'bushing', 'spacer', 'hollow cylinder', 'bearing', 'washer'],
-  params: [L('h', 30, 1, 200, true), L('od', 30, 2, 200), L('id', 22, 1, 198), anchorParam],
+  params: [modeParam, L('h', 30, 1, 200, true), L('od', 30, 2, 200), L('id', 22, 1, 198), anchorParam],
   source: { module: 'tube', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
+  samples: { cut: { mode: 'cut', h: 12, od: 30, id: 22, anchor: 'bottom' } },
   notes: 'Outer diameter od and inner diameter id (BOSL2 also takes the wall thickness: id = od - 2 wall).',
   onFace: true,
   check: (p) => (num(p, 'id') >= num(p, 'od') - 0.2 ? 'id must be smaller than od' : null),
   script(p, pl) {
-    return header(this, p, pl) + `part('Tube')\n  .sketch(${pl.plane}, (s) => s.circle(${n(num(p, 'od') / 2)}, ${P(pl.at)}).circle(${n(num(p, 'id') / 2)}, ${P(pl.at)}))\n  .extrude(${val(p, 'h', pl)}${p.anchor === 'center' ? ", { direction: 'both' }" : ''});\n`;
+    return header(this, p, pl) + `part('Tube')\n  .sketch(${pl.plane}, (s) => s.circle(${n(num(p, 'od') / 2)}, ${P(pl.at)}).circle(${n(num(p, 'id') / 2)}, ${P(pl.at)}))\n  ${sweep(p, 'h', pl, p.anchor === 'center')};\n`;
   },
-  scad: (p) => `tube(h=${p.h}, od=${p.od}, id=${p.id}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `tube(h=${p.h}, od=${p.od}, id=${p.id}, anchor=${scadAnchor(p)});`),
 };
 
 const rectTube: BoslEntry = {
   id: 'rect_tube', name: 'Rectangular tube', category: 'blocks', tags: ['box section', 'square tube', 'rhs', 'shs', 'frame', 'hollow box', 'channel'],
-  params: [L('h', 30, 1, 200, true), L('x', 30, 2, 200), L('y', 20, 2, 200), L('wall', 3, 0.2, 40), anchorParam],
+  params: [modeParam, L('h', 30, 1, 200, true), L('x', 30, 2, 200), L('y', 20, 2, 200), L('wall', 3, 0.2, 40), anchorParam],
   source: { module: 'rect_tube', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
+  samples: { cut: { mode: 'cut', h: 10, x: 30, y: 20, wall: 3, anchor: 'center' } },
   notes: 'Outer size x by y and a wall thickness (the inside is x - 2 wall by y - 2 wall).',
   onFace: true,
   check: (p) => (num(p, 'wall') * 2 >= Math.min(num(p, 'x'), num(p, 'y')) - 0.1 ? 'wall is too thick for the size' : null),
   script(p, pl) {
-    return header(this, p, pl) + `part('Rect tube')\n  .sketch(${pl.plane}, (s) => s.rect(${n(num(p, 'x'))}, ${n(num(p, 'y'))}, ${P(pl.at)}).rect(${n(num(p, 'x') - 2 * num(p, 'wall'))}, ${n(num(p, 'y') - 2 * num(p, 'wall'))}, ${P(pl.at)}))\n  .extrude(${val(p, 'h', pl)}${p.anchor === 'center' ? ", { direction: 'both' }" : ''});\n`;
+    return header(this, p, pl) + `part('Rect tube')\n  .sketch(${pl.plane}, (s) => s.rect(${n(num(p, 'x'))}, ${n(num(p, 'y'))}, ${P(pl.at)}).rect(${n(num(p, 'x') - 2 * num(p, 'wall'))}, ${n(num(p, 'y') - 2 * num(p, 'wall'))}, ${P(pl.at)}))\n  ${sweep(p, 'h', pl, p.anchor === 'center')};\n`;
   },
-  scad: (p) => `rect_tube(h=${p.h}, size=[${p.x}, ${p.y}], wall=${p.wall}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `rect_tube(h=${p.h}, size=[${p.x}, ${p.y}], wall=${p.wall}, anchor=${scadAnchor(p)});`),
 };
 
 const pie: BoslEntry = {
   id: 'pie_slice', name: 'Pie slice', category: 'cylinders', tags: ['sector', 'wedge', 'segment', 'slice', 'cake', 'fan', 'quadrant'],
-  params: [L('h', 10, 1, 200, true), L('d', 40, 2, 200), { key: 'ang', type: 'angle', default: 60, min: 5, max: 350, unit: 'deg' }, anchorParam],
+  params: [modeParam, L('h', 10, 1, 200, true), L('d', 40, 2, 200), { key: 'ang', type: 'angle', default: 60, min: 5, max: 350, unit: 'deg' }, anchorParam],
   source: { module: 'pie_slice', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
+  samples: { cut: { mode: 'cut', h: 8, d: 40, ang: 120, anchor: 'bottom' } },
   notes: 'A sector of a cylinder from 0 to ang degrees about the Z axis, apex at the origin.',
   onFace: true,
   check: () => null,
   script(p, pl) {
     const r = num(p, 'd') / 2, a = num(p, 'ang') * Math.PI / 180, [u, v] = pl.at;
     const end: Pt = [u + r * Math.cos(a), v + r * Math.sin(a)];
-    return header(this, p, pl) + `part('Pie slice')\n  .sketch(${pl.plane}, (s) => s.line(${P([u, v])}, ${P([u + r, v])}).arc(${P([u, v])}, ${P([u + r, v])}, ${P(end)}).line(${P(end)}, ${P([u, v])}))\n  .extrude(${val(p, 'h', pl)}${p.anchor === 'center' ? ", { direction: 'both' }" : ''});\n`;
+    return header(this, p, pl) + `part('Pie slice')\n  .sketch(${pl.plane}, (s) => s.line(${P([u, v])}, ${P([u + r, v])}).arc(${P([u, v])}, ${P([u + r, v])}, ${P(end)}).line(${P(end)}, ${P([u, v])}))\n  ${sweep(p, 'h', pl, p.anchor === 'center')};\n`;
   },
-  scad: (p) => `pie_slice(h=${p.h}, d=${p.d}, ang=${p.ang}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `pie_slice(h=${p.h}, d=${p.d}, ang=${p.ang}, anchor=${scadAnchor(p)});`),
 };
 
 const wedge: BoslEntry = {
@@ -285,12 +301,13 @@ const wedge: BoslEntry = {
 
 const regularPrism: BoslEntry = {
   id: 'regular_prism', name: 'Regular prism', category: 'cylinders', tags: ['hexagon', 'hex', 'octagon', 'pentagon', 'polygon', 'nut', 'hex bar', 'n-gon', 'triangle prism'],
-  params: [{ key: 'n', type: 'integer', default: 6, min: 3, max: 24 }, L('h', 20, 1, 200, true), L('r', 15, 1, 100), { key: 'realign', type: 'bool', default: false }, L('rounding', 0, 0, 20, true), L('chamfer', 0, 0, 20, true), anchorParam],
+  params: [modeParam, { key: 'n', type: 'integer', default: 6, min: 3, max: 24 }, L('h', 20, 1, 200, true), L('r', 15, 1, 100), { key: 'realign', type: 'bool', default: false }, L('rounding', 0, 0, 20, true), L('chamfer', 0, 0, 20, true), anchorParam],
   source: { module: 'regular_prism', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
-  samples: { rounded: { n: 6, h: 20, r: 15, realign: false, rounding: 3, chamfer: 0, anchor: 'bottom' }, chamfered: { n: 5, h: 18, r: 14, realign: true, rounding: 0, chamfer: 2, anchor: 'center' } },
+  samples: { cut: { mode: 'cut', n: 6, h: 10, r: 15, realign: false, rounding: 0, chamfer: 0, anchor: 'bottom' }, rounded: { n: 6, h: 20, r: 15, realign: false, rounding: 3, chamfer: 0, anchor: 'bottom' }, chamfered: { n: 5, h: 18, r: 14, realign: true, rounding: 0, chamfer: 2, anchor: 'center' } },
   notes: 'n sided prism, r is the circumradius (a vertex lies on +X unless realign). rounding / chamfer apply to the two end edges.',
   onFace: true,
   check(p) {
+    const cp = cutProblem(p); if (cp) return cp;
     if (num(p, 'rounding') > 0 && num(p, 'chamfer') > 0) return 'give rounding or chamfer, not both';
     const ap = num(p, 'r') * Math.cos(Math.PI / num(p, 'n'));
     if (Math.max(num(p, 'rounding'), num(p, 'chamfer')) >= Math.min(num(p, 'h') / 2, ap) * 0.9) return 'rounding / chamfer is too big for the height or the apothem';
@@ -300,11 +317,11 @@ const regularPrism: BoslEntry = {
     const nn = Math.round(num(p, 'n')), r = num(p, 'r'), off = p.realign ? Math.PI / nn : 0;
     const pts = Array.from({ length: nn }, (_, i) => [+(pl.at[0] + r * Math.cos(off + 2 * Math.PI * i / nn)).toFixed(6), +(pl.at[1] + r * Math.sin(off + 2 * Math.PI * i / nn)).toFixed(6)]);
     const kind = num(p, 'rounding') > 0 ? 'rounding' : num(p, 'chamfer') > 0 ? 'chamfer' : null;
-    let s = header(this, p, pl) + `const body_ = part('Prism')\n  .sketch(${pl.plane}, (s) => s.polygon(${JSON.stringify(pts)}))\n  .extrude(${val(p, 'h', pl)}${p.anchor === 'center' ? ", { direction: 'both' }" : ''});\n`;
+    let s = header(this, p, pl) + `const body_ = part('Prism')\n  .sketch(${pl.plane}, (s) => s.polygon(${JSON.stringify(pts)}))\n  ${sweep(p, 'h', pl, p.anchor === 'center')};\n`;
     if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, pl.ground ? `edges({ createdBy: body, not: edges('|Z') })` : ownEdges(pl, `edges('|Z')`), val(p, kind, pl))};\n`;
     return s;
   },
-  scad: (p) => `regular_prism(n=${p.n}, h=${p.h}, r=${p.r}${p.realign ? ', realign=true' : ''}${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`,
+  scad: (p) => scadMode(p, `regular_prism(n=${p.n}, h=${p.h}, r=${p.r}${p.realign ? ', realign=true' : ''}${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`),
 };
 
 const sphere: BoslEntry = {

@@ -15,7 +15,7 @@ const KIND: Record<string, ShapeKind> = { cuboid: 'block', prismoid: 'cone', wed
 
 /** The catalog item an entry stands for, with its current parameter values (registered so the placement finds it by id). */
 export function boslItem(e: BoslEntry): CatalogItem {
-  return registerDynamicItem({ id: 'bosl:' + e.id, kind: KIND[e.id] ?? 'block', op: e.mask ? 'cut' : 'add', bosl: { entryId: e.id, params: paramsOf(e.id) } });
+  return registerDynamicItem({ id: 'bosl:' + e.id, kind: KIND[e.id] ?? 'block', op: e.mask || paramsOf(e.id).mode === 'cut' ? 'cut' : 'add', bosl: { entryId: e.id, params: paramsOf(e.id) } });
 }
 
 interface Props {

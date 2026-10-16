@@ -7,7 +7,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { runScript, type ScriptHost } from '@kit/script';
 import { Controller, type KernelFactory } from '../controller';
-import { boslEntry, type Params, type Place } from './bosl/entries';
+import { boslEntry, CUT_HOST, type Params, type Place } from './bosl/entries';
 import { buildBosl } from './bosl/build';
 
 interface Ref { name: string; params: Params; scad: string; volume: number; area: number; bbox: { min: number[]; max: number[] } }
@@ -42,10 +42,11 @@ describe(`BOSL2 entries vs OpenSCAD (${REF.openscad}, BOSL2 ${REF.bosl2.commit.s
       it(`${id} ${c.name}`, async () => {
         expect(entry.check(c.params), 'parameters are valid').toBeNull();
         const w = await world();
-        if (entry.mask) {
-          // a mask works on a body: the oracle's host block first, then the mask on its top face (named by the cuboid script: F2.C1)
-          const hostEntry = boslEntry(entry.mask.host.entryId)!;
-          const hr = await runScript(hostEntry.script(entry.mask.host.params, GROUND), w.host);
+        const hostSpec = entry.mask?.host ?? (c.params.mode === 'cut' ? CUT_HOST : null);
+        if (hostSpec) {
+          // a mask or a cut works on a body: the oracle's host block first, then the shape on its top face (named by the cuboid script: F2.C1)
+          const hostEntry = boslEntry(hostSpec.entryId)!;
+          const hr = await runScript(hostEntry.script(hostSpec.params, GROUND), w.host);
           expect(hr.errors).toEqual([]);
           const sh = { load: async () => {}, edit: async () => ({ ok: true }), geometry: () => ({ mesh: null, edges: [], box: null }), build: (d: unknown, v: boolean) => w.controller.scratchBuild(d as never, v) as never, release: () => w.controller.scratchRelease(), facts: (n: never) => w.controller.scratchFacts(n) } as ScriptHost;
           const b = await buildBosl(sh, w.controller.document(), { entryId: id, params: c.params }, { kind: 'face', face: 'F2.C1', planar: true, frame: { o: [0, 0, 20], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, point: [0, 0, 20] }, false);
@@ -66,7 +67,8 @@ describe(`BOSL2 entries vs OpenSCAD (${REF.openscad}, BOSL2 ${REF.bosl2.commit.s
         const m = ((await s.check({ volume: 1 })) as unknown as { measured: { bbox: { min: number[]; max: number[] }; solids: number } }).measured;
         const mesh = w.controller.bodyBox()!;
         const box = { min: [0, 1, 2].map((i) => Math.min(m.bbox.min[i], mesh.min[i])), max: [0, 1, 2].map((i) => Math.max(m.bbox.max[i], mesh.max[i])) };
-        expect(m.solids, 'one solid').toBe(1);
+        // a ring cut out of a slab leaves its core as a second solid (OpenSCAD gives the same)
+        if (c.params.mode === 'cut' && (id === 'tube' || id === 'rect_tube')) expect(m.solids).toBeGreaterThanOrEqual(1); else expect(m.solids, 'one solid').toBe(1);
         const flat = isFlat(id, c.params);
         const err = Math.abs(volume - c.volume) / c.volume;
         const bboxErr = Math.max(...[0, 1, 2].flatMap((i) => [Math.abs(box.min[i] - c.bbox.min[i]), Math.abs(box.max[i] - c.bbox.max[i])]));

@@ -1126,8 +1126,10 @@
   "settings.nav.orbitPivot.selection"
  ],
  "catalog.bosl.choice.+": [
+  "catalog.bosl.choice.add",
   "catalog.bosl.choice.bottom",
-  "catalog.bosl.choice.center"
+  "catalog.bosl.choice.center",
+  "catalog.bosl.choice.cut"
  ],
  "catalog.bosl.cat.+": [
   "catalog.bosl.cat.all",
@@ -1165,6 +1167,7 @@
   "catalog.bosl.param.h",
   "catalog.bosl.param.id",
   "catalog.bosl.param.l",
+  "catalog.bosl.param.mode",
   "catalog.bosl.param.n",
   "catalog.bosl.param.od",
   "catalog.bosl.param.r",

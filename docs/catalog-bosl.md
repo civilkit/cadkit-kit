@@ -15,6 +15,7 @@ script API (`docs/scripting.md`), so the result is edited afterwards in the feat
 * **Drag the card onto the model**, or click it and then click a face (Alt turns snapping off, Esc cancels). While the pointer moves the real features are previewed (the
   parameters as plain numbers); the drop commits them as ONE undo step together with the variables.
 * First body: drop on the ground (Front plane, shape rises along +Z). Edge masks need a body and are placed with the cut items (they act on the edges of the picked face).
+* **`mode`** (cuboid, tube, rectangular tube, pie slice, regular prism, cylinder): `add` (default) or `cut`: the same shape removed from the part, going INTO it from the picked face (anchor `bottom`) or symmetric about the face (`center`). A cut needs a body (it is placed with the cut items), cannot be rounded or chamfered and a cone cannot be a cut. The oracle compares it with `difference() { cuboid([100, 100, 20]); up(20) mirror([0, 0, 1]) <shape>; }`.
 * The `anchor` parameter is where the shape sits relative to the sketch plane: `bottom` (the default, base on the face) or `center` (BOSL2's `CENTER`: half of it goes into the part).
 
 ## What gets created
@@ -83,14 +84,14 @@ the cone of a revolved profile that ends in a point (an uncapped onion), so each
 
 | Entry (BOSL2 module) | Parameters | Cases | Volume error | Bbox error (mm) |
 | --- | --- | --- | --- | --- |
-| Cuboid (`cuboid`) | x, y, z, rounding, chamfer, anchor | 7 | 2.9e-5 | 0 |
+| Cuboid (`cuboid`) | mode, x, y, z, rounding, chamfer, anchor | 9 | 2.9e-5 | 0 |
 | Prismoid (`prismoid`) | x1, y1, x2, y2, h, shiftx, shifty | 5 | 7.4e-8 | 0 |
 | Wedge (`wedge`) | x, y, z | 5 | 8.2e-8 | 0 |
-| Rectangular tube (`rect_tube`) | h, x, y, wall, anchor | 5 | 2.1e-7 | 0 |
-| Cylinder / cone (`cyl`) | h, d1, d2, rounding, chamfer, anchor | 9 | 1.1e-4 | 0.0063 |
-| Tube (`tube`) | h, od, id, anchor | 5 | 1.0e-4 | 0 |
-| Pie slice (`pie_slice`) | h, d, ang, anchor | 5 | 1.0e-4 | 0.0012 |
-| Regular prism (`regular_prism`) | n, h, r, realign, rounding, chamfer, anchor | 7 | 1.0e-5 | 0 |
+| Rectangular tube (`rect_tube`) | mode, h, x, y, wall, anchor | 6 | 4.1e-7 | 0 |
+| Cylinder / cone (`cyl`) | mode, h, d1, d2, rounding, chamfer, anchor | 10 | 1.1e-4 | 0.0063 |
+| Tube (`tube`) | mode, h, od, id, anchor | 6 | 1.0e-4 | 0 |
+| Pie slice (`pie_slice`) | mode, h, d, ang, anchor | 6 | 1.0e-4 | 0.0012 |
+| Regular prism (`regular_prism`) | mode, n, h, r, realign, rounding, chamfer, anchor | 8 | 1.0e-5 | 0 |
 | Sphere (`spheroid`) | d, anchor | 5 | 2.8e-4 | 0.0022 |
 | Torus (`torus`) | rmaj, rmin, anchor | 5 | 2.0e-4 | 0.0104 |
 | Teardrop (`teardrop`) | l, r, ang, cap_h | 6 | 8.8e-5 | 0 |
@@ -133,5 +134,5 @@ The curved volume errors are the facet error of the OpenSCAD reference (a regula
 | `polyhedra.scad`, `cubetruss.scad` | platonic solids, truss modules | no polyhedron / face-from-points feature in the kernel; build from lofts and extrudes per shape |
 | `walls.scad`, `modular_hose.scad`, `hooks.scad`, `bottlecaps.scad`, `tripod_mounts.scad` | profile sweeps, patterns | sweep keep-normal; `rounding.scad` (`round_corners`, `offset_sweep`) needs offset curves on sketch profiles |
 
-Cross-cutting next steps: a `mode: add | cut` parameter for every entry (a Teardrop or a Tube as a cut, not only material), the `edges` / `except` options of `cuboid`, a curved-face placement through a tangent plane, live preview of the parameter form
+Cross-cutting next steps: `mode: cut` for the loft and revolve entries (prismoid, cones, sphere, torus, onion, teardrop, wedge), the `edges` / `except` options of `cuboid`, a curved-face placement through a tangent plane, live preview of the parameter form
 (re-run the preview while a field is edited; today the preview follows the pointer), and a sketch dimension to variable link in the script API.
