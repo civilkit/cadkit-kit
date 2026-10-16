@@ -72,7 +72,7 @@ import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
-import { SketchReadout, readout, clearReadout } from './sketchReadout';
+import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
 import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchBar } from './SketchBar';
@@ -316,6 +316,7 @@ function App() {
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchBox: (ev) => sketchBoxRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
+      onHoverPoint: (p) => { readout.model.value = p; },
       onPlaneCursor: (c) => { readout.cursor.value = c; if (!c) { readout.snapAt.value = null; readout.snapName.value = null; } },
       onAnalysisLegend: (l) => { analysisStore.legend.value = l; },
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
@@ -1890,7 +1891,7 @@ function App() {
       <div class="status-wrap">
         <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           sketch={sketching ? <SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
-            onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} /> : undefined}
+            onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} /> : <ModelReadout />}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },

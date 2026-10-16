@@ -108,6 +108,8 @@ export interface ViewportOptions {
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
   /** The pointer moved over the sketch plane (any tool, at most once per frame): plane coordinates, plane units per pixel and the grid's minor spacing; null when it left. */
+  /** The pointer over the model (not in a sketch): the world point on the surface under it, or null off the model. At most once per frame. */
+  onHoverPoint?(p: [number, number, number] | null): void;
   onPlaneCursor?(c: { u: number; v: number; upp: number; grid: number } | null): void;
   /** The surface analysis on screen changed: what its colour legend shows (null when nothing is drawn). */
   onAnalysisLegend?(legend: Legend | null): void;
@@ -839,6 +841,7 @@ export class Viewport {
 
   private onLeave = (): void => {
     this.opts.onPlaneCursor?.(null);
+    this.opts.onHoverPoint?.(null);
     this.placement?.leave?.();
     if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
   };
@@ -2177,6 +2180,7 @@ export class Viewport {
     if (this.hoverPending && !this.down && !this.sketchEdit) {
       const p = this.hoverPending;
       this.hoverPending = null;
+      if (this.opts.onHoverPoint) { const h = this.hit(p.x, p.y); this.opts.onHoverPoint(h ? [h.point.x, h.point.y, h.point.z] : null); }
       const name = this.pickName(p.x, p.y);
       if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); this.setHover(name); }
     }

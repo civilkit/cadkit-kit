@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals-core';
 import { useSignals } from './useSignals';
 import { t } from './i18n';
-import { formatCursor, formatDelta, formatSpacing, formatZoom, type DisplayUnit } from './sketchStatus';
+import { formatCursor, formatPoint3, formatDelta, formatSpacing, formatZoom, type DisplayUnit } from './sketchStatus';
 import { parseSpacing } from '@kit/viewport';
 import { useState } from 'preact/hooks';
 
@@ -15,6 +15,8 @@ export const readout = {
   /** The last placed point of the shape being drawn. */
   from: signal<{ x: number; y: number } | null>(null),
   unit: signal<DisplayUnit>('mm'),
+  /** In model mode: the world point under the pointer. */
+  model: signal<[number, number, number] | null>(null),
 };
 export const clearReadout = () => { readout.cursor.value = null; readout.snapAt.value = null; readout.snapName.value = null; readout.from.value = null; };
 
@@ -46,4 +48,13 @@ export function SketchReadout(p: ReadoutControls) {
           </button>}
     </span>
   );
+}
+
+/** Model mode: the coordinates of the point under the pointer on a face or edge. */
+export function ModelReadout() {
+  useSignals(() => { readout.model.value; readout.unit.value; });
+  const m = readout.model.value;
+  if (!m) return null;
+  const unit = readout.unit.value;
+  return <span class="st-sketch"><span class="st-coords" aria-label={t('app.status.model.cursor')}>{formatPoint3(m, unit)}</span></span>;
 }

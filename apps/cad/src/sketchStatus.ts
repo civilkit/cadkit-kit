@@ -10,7 +10,7 @@ export function decimalsFor(upp: number, unit: DisplayUnit = 'mm'): number {
 
 export function formatLen(mm: number, decimals: number, unit: DisplayUnit = 'mm'): string {
   const v = Number((mm * PER_MM[unit]).toFixed(decimals));
-  return `${Object.is(v, -0) ? 0 : v.toFixed(decimals)} ${unit}`;
+  return `${(Object.is(v, -0) ? 0 : v).toFixed(decimals)} ${unit}`;
 }
 
 /** '232.1 mm, -5.1 mm' */
@@ -33,7 +33,7 @@ export function formatDelta(from: { x: number; y: number }, to: { x: number; y: 
 const PX_PER_MM_100 = 96 / 25.4;
 /** Zoom as a percentage of real size at 96 dpi: 100 % when one millimetre is about 3.78 px. */
 export function zoomPercent(upp: number): number {
-  return Math.round((PX_PER_MM_100 / Math.max(upp, 1e-9)) * 100);
+  return Math.round((100 / Math.max(upp, 1e-9) / PX_PER_MM_100));
 }
 export const formatZoom = (upp: number): string => `${zoomPercent(upp)}%`;
 
@@ -42,4 +42,10 @@ export function formatSpacing(mm: number, unit: DisplayUnit = 'mm'): string {
   const v = mm * PER_MM[unit];
   const s = Number(v.toPrecision(4)).toString();
   return `${s} ${unit}`;
+}
+
+/** '12.5 mm, 3.0 mm, -40.2 mm' for the point under the pointer in the 3D view (about 0.1 mm resolution). */
+export function formatPoint3(p: readonly [number, number, number], unit: DisplayUnit = 'mm'): string {
+  const d = unit === 'in' ? 3 : 1;
+  return p.map((v) => formatLen(v, d, unit)).join(', ');
 }
