@@ -135,3 +135,25 @@ export const MODEL_COMMANDS: ReadonlySet<string> = new Set(
 
 /** While a feature editor is open the model commands are greyed out (Undo, Redo, view, selection and inspection stay). */
 export const idleDuringEdit = (id: string): boolean => MODEL_COMMANDS.has(id);
+
+// ---- the sketch-mode UI: who owns what ------------------------------------------------------------------------------------
+
+/** What the chrome shows while a sketch is open, from the workspace settings. Always: ONE sketch bar at the top centre (name, OK /
+ *  Cancel, modes, definition badge, Fully define, Snaps, Display). The sketch tools have exactly one home:
+ *  - ribbon on: the contextual Sketch tab; the right-hand palette only if the Tool palette (`sketchPalette`) setting is on; a left
+ *    tool column, if enabled, shrinks to undo / redo / rebuild (the tools are on the tab, the model groups are hidden);
+ *  - ribbon off with the left column on (Plasticity): the left column swaps to the sketch tool groups (undo / redo / rebuild stay
+ *    at its top, the model groups are hidden), no right-hand palette;
+ *  - ribbon off and no left column (Minimal): the floating right-hand palette, as nothing else would carry the tools. */
+export interface SketchChrome { ribbonTab: boolean; leftColumn: 'model' | 'sketch' | 'history' | 'none'; rightPalette: boolean; bar: boolean }
+export function sketchChrome(ws: { ribbon: string; toolRail: boolean; sketchPalette: boolean }, sketching: boolean): SketchChrome {
+  if (!sketching) return { ribbonTab: false, leftColumn: ws.toolRail ? 'model' : 'none', rightPalette: false, bar: false };
+  const ribbon = ws.ribbon !== 'off';
+  const column = !ribbon && ws.toolRail;
+  return {
+    ribbonTab: ribbon,
+    leftColumn: ws.toolRail ? (ribbon ? 'history' : 'sketch') : 'none',
+    rightPalette: ribbon ? ws.sketchPalette : !column,
+    bar: true,
+  };
+}

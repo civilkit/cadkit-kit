@@ -71,6 +71,31 @@ function Palette(p: { tools: ToolEntry[]; active: string | null; onPick(id: stri
   );
 }
 
+/** The sketch tools as sections of the left tool column (Plasticity preset): the same groups, slots and last-used memory as the Sketch tab. */
+export function SketchRailSections(p: { active: string | null; onPick(id: string | null): void; tools?: ToolEntry[]; labels: boolean }) {
+  const tools = p.tools ?? sketchTools();
+  const sec = (id: string, title: string, cells: preact.ComponentChildren) => (
+    <div class="rail-sec" key={id} role="group" aria-label={title}><span class="rail-title">{title}</span><div class="rail-grid">{cells}</div></div>
+  );
+  const slotCell = (sl: PaletteSlot) => <Slot key={sl.id} id={sl.id} variant="rail" side="right" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} />;
+  const edit = slotsFor('edit', tools);
+  const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'construction');
+  const parts: Array<[string, string, PaletteSlot[]]> = [
+    ['draw', t('app.sketch.group.draw'), slotsFor('draw', tools)],
+    ['dimension', t('app.sketch.group.dimension'), slotsFor('dimension', tools)],
+    ['constrain', t('app.sketch.group.constrain'), slotsFor('constrain', tools)],
+    ['modify', t('group.Modify'), edit.filter((sl) => !isRef(sl))],
+    ['reference', t('group.Reference'), edit.filter(isRef)],
+  ];
+  return (
+    <>
+      {sec('select', t('app.sketch.select'), <Slot id="sketch-select" variant="rail" side="right" labels={p.labels}
+        items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} />)}
+      {parts.filter(([, , sls]) => sls.length).map(([id, title, sls]) => sec(id, title, sls.map(slotCell)))}
+    </>
+  );
+}
+
 export function SketchToolStrip(p: { active: string | null; onPick(id: string | null): void; tools?: ToolEntry[]; labels?: 'icons' | 'icons-and-text'; layout?: 'strip' | 'palette' }) {
   const tools = p.tools ?? sketchTools();
   const iconsOnly = p.labels === 'icons';
@@ -104,9 +129,9 @@ export function SketchToolStrip(p: { active: string | null; onPick(id: string | 
 }
 
 /** The groups of the ribbon's contextual Sketch tab: the same slots, tools and memory as the palette, drawn as ribbon buttons.
- *  Select, Draw, Dimension, Constrain, Modify (trim, fillet, offset, mirror, patterns, move), Reference (project, construction) and Finish (OK / Cancel). */
+ *  Select, Draw, Dimension, Constrain, Modify (trim, fillet, offset, mirror, patterns, move), and Reference (project, construction). OK / Cancel live in the sketch bar, not here. */
 export function sketchRibbonGroups(p: {
-  tools?: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean; onOk(): void; onCancel(): void;
+  tools?: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean;
 }): RibbonGroup[] {
   const tools = p.tools ?? sketchTools();
   const cell = (sl: PaletteSlot) => ({ key: 'sk-' + sl.id, node: <Slot id={sl.id} variant="ribbon" side="bottom" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} /> });
@@ -119,16 +144,6 @@ export function sketchRibbonGroups(p: {
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
     { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
     { id: 'Reference', entries: edit.filter(isRef).map(cell) },
-    {
-      id: 'Finish', entries: [{
-        key: 'sk-finish', node: (
-          <span class="sk-finish">
-            <button class="rb-btn ok" aria-label={t('app.sketch.confirm')} title={t('app.sketch.confirm')} onClick={p.onOk}>✓<span>{p.labels ? t('app.sketch.ok') : ''}</span></button>
-            <button class="rb-btn no" aria-label={t('app.sketch.cancel')} title={t('app.sketch.cancel')} onClick={p.onCancel}>✗<span>{p.labels ? t('app.sketch.cancelShort') : ''}</span></button>
-          </span>
-        ),
-      }],
-    },
   ];
   return groups.filter((g) => g.entries.length);
 }

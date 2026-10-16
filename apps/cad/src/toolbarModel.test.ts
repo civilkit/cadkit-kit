@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { resolveLayout } from '@kit/ui';
 import { buildCommands } from './commands';
 import { fullActions } from './testActions';
-import { PLANNED, RIBBON_LAYOUT, RAIL_SECTIONS, SLOTS, notOnRail, isFileCommand, SKETCH_TAB, docKindOf, activeRibbonTab, tabForKindChange, MODEL_COMMANDS, idleDuringEdit } from './toolbarModel';
+import { PLANNED, RIBBON_LAYOUT, RAIL_SECTIONS, SLOTS, notOnRail, isFileCommand, SKETCH_TAB, docKindOf, activeRibbonTab, tabForKindChange, MODEL_COMMANDS, idleDuringEdit, sketchChrome } from './toolbarModel';
 import { contextIds } from './ToolRail';
 import { MENU_COMMANDS } from './menuModel';
 
@@ -82,5 +82,25 @@ describe('contextual ribbon', () => {
     expect(idleDuringEdit('sketch-here')).toBe(true);
     for (const id of ['undo', 'redo', 'fit', 'view-iso', 'measure']) expect(idleDuringEdit(id), id).toBe(false);
     expect(MODEL_COMMANDS.size).toBeGreaterThan(20);
+  });
+});
+
+describe('sketch-mode chrome per preset', () => {
+  const ws = (ribbon: string, toolRail: boolean, sketchPalette = false) => ({ ribbon, toolRail, sketchPalette });
+  it('ribbon preset: the Sketch tab carries the tools, no right palette, the left column (if on) keeps only undo / redo / rebuild', () => {
+    expect(sketchChrome(ws('full', false), true)).toEqual({ ribbonTab: true, leftColumn: 'none', rightPalette: false, bar: true });
+    expect(sketchChrome(ws('full', true), true).leftColumn).toBe('history');
+  });
+  it('the Tool palette setting brings the right palette back in a ribbon preset', () => {
+    expect(sketchChrome(ws('full', false, true), true).rightPalette).toBe(true);
+  });
+  it('Plasticity (ribbon off, left column on): the column swaps to the sketch tools, no right palette, no ribbon tab', () => {
+    expect(sketchChrome(ws('off', true), true)).toEqual({ ribbonTab: false, leftColumn: 'sketch', rightPalette: false, bar: true });
+  });
+  it('Minimal (ribbon off, no column): the floating palette is the only home of the tools', () => {
+    expect(sketchChrome(ws('off', false), true)).toEqual({ ribbonTab: false, leftColumn: 'none', rightPalette: true, bar: true });
+  });
+  it('outside a sketch the column is the model column and there is no bar', () => {
+    expect(sketchChrome(ws('off', true), false)).toEqual({ ribbonTab: false, leftColumn: 'model', rightPalette: false, bar: false });
   });
 });

@@ -66,15 +66,14 @@ import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
-import { SketchToolStrip, sketchRibbonGroups } from './SketchToolStrip';
+import { SketchToolStrip, SketchRailSections, sketchRibbonGroups } from './SketchToolStrip';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
-import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, type DocKind } from './toolbarModel';
-import { SketchDialog } from './SketchDialog';
+import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
-import { SketchAuxBar } from './SketchAuxBar';
+import { SketchBar } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
@@ -1428,26 +1427,26 @@ function App() {
     const c = sketchDraftNow?.constraints.find((x) => x.id === id);
     return c ? `${t('app.sketch.constraint.' + c.type, undefined, c.type)}${typeof c.value === 'number' ? ' ' + Math.round(c.value * 100) / 100 : ''} (${id})` : id;
   };
-  const auxBar = sketching ? (
-    <SketchAuxBar
+  const sketchFeat = sketching && doc ? (doc.features.find((f) => f.id === sketching.id) as unknown as { plane?: unknown } | undefined) : undefined;
+  const sketchPlaneLabel = (() => {
+    const pl = sketchFeat?.plane;
+    if (pl === 'front' || pl === 'top' || pl === 'right') return t('app.ref.' + pl);
+    return pl && typeof pl === 'object' ? t('app.sketch.dialog.onFace') : '';
+  })();
+  const sketchBar = sketching ? (
+    <SketchBar
+      name={sketching.name} plane={sketching.plane ?? sketchPlaneLabel}
+      onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()}
+      construction={constructionMode} onConstruction={() => setConstructionMode(!constructionMode)}
+      {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
+      onLookNormal={() => viewport?.orientToSketch()} hint={sketchHint}
       status={stNow} busy={defining} prefs={sketchPrefs}
       onPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
       onFullyDefine={() => void fullyDefineNow()}
       selected={selectedEntityIds().length > 1 ? selectedEntityIds().length : 0}
       onClearSelection={() => setMultiSelection([])}
-      conflicts={(stNow?.conflicts ?? []).map((id) => ({ id, name: rowName(id) }))}
-      redundant={(stNow?.redundant ?? []).map((id) => ({ id, name: rowName(id) }))}
-      onHover={hoverConstraint} onDelete={deleteConstraint}
+      list={<SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />}
     />
-  ) : null;
-  const sketchBanner = sketching ? (
-    <div class="sketch-banner" role="toolbar" aria-label={t('app.sketch.editing', { name: sketching.name })}>
-      <span class="sketch-name">{t('app.sketch.editing', { name: sketching.name })}</span>
-      {sketchHint ? <span class="sketch-hint" role="status">{sketchHint}</span> : null}
-      <button class="rb-btn" aria-pressed={constructionMode} title={t('app.sketch.constructionMode.tip')} onClick={() => setConstructionMode(!constructionMode)}>{t('app.sketch.constructionMode')}</button>
-      {(entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={toggleSelectedConstruction}>{t('app.sketch.toggleConstruction')}</button> : null}
-      <button class="rb-btn" onClick={() => viewport?.orientToSketch()}>{t('app.sketch.lookNormal')}</button>
-    </div>
   ) : null;
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
@@ -1669,7 +1668,7 @@ function App() {
   const fileIds = new Set(commands.filter((c) => isFileCommand(c.id)).map((c) => c.id));
   const ribbonCommands = editingId ? commands.map((c) => (idleDuringEdit(c.id) ? { ...c, enabled: () => false } : c)) : commands;
   const ribbonLayout = sketching
-    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: ws.toolLabels !== 'icons', onOk: () => void confirmSketch(), onCancel: () => void cancelSketch() }) }
+    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: ws.toolLabels !== 'icons', }) }
     : RIBBON_LAYOUT;
   const kindRef = useRef<DocKind | null>(null);
   const kindNow = docKindOf(doc as never);
@@ -1678,12 +1677,7 @@ function App() {
     kindRef.current = kindNow;
     if (next !== tab) setTab(next);
   }, [kindNow]);
-  const sketchFeat = sketching && doc ? (doc.features.find((f) => f.id === sketching.id) as unknown as { plane?: unknown } | undefined) : undefined;
-  const sketchPlaneLabel = (() => {
-    const pl = sketchFeat?.plane;
-    if (pl === 'front' || pl === 'top' || pl === 'right') return t('app.ref.' + pl);
-    return pl && typeof pl === 'object' ? t('app.sketch.dialog.onFace') : '';
-  })();
+  const chrome = sketchChrome(ws, !!sketching);
   const lay = layoutHandles(store, ws);
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
@@ -1714,7 +1708,11 @@ function App() {
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}
-        {ws.toolRail ? <ToolRail commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons'} caption={(c) => t('rb.' + c.id, undefined, c.label)} /> : null}
+        {chrome.leftColumn !== 'none' ? (
+          <ToolRail commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons'} caption={(c) => t('rb.' + c.id, undefined, c.label)}
+            {...(chrome.leftColumn === 'model' ? {} : { only: ['history'] })}
+            {...(chrome.leftColumn === 'sketch' ? { after: <SketchRailSections active={sketchToolId} onPick={selectTool} labels={ws.toolLabels !== 'icons'} /> } : {})} />
+        ) : null}
         {ws.selectionBar && !sketching ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
             {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
@@ -1742,17 +1740,12 @@ function App() {
           componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
-        {sketchBanner}
-        {auxBar}
+        {sketchBar}
         {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} /> : null}
-        {sketching && sketchPrefs.show.panel ? <SketchConstraintList rows={conRows} status={controller.sketchStatus()} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} /> : null}
-        {sketching && (ws.sketchPalette || ws.ribbon === 'off') ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
-        {sketching ? <SketchDialog name={sketching.name} plane={sketching.plane ?? sketchPlaneLabel} showRelations={sketchPrefs.show.relations} showDimensions={sketchPrefs.show.dimensions}
-          onShow={(patch) => { const next = { ...sketchPrefs, show: { ...sketchPrefs.show, ...(patch.relations !== undefined ? { relations: patch.relations } : {}), ...(patch.dimensions !== undefined ? { dimensions: patch.dimensions } : {}) } }; setSketchPrefs(next); saveSketchPrefs(next); }}
-          onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()} /> : null}
+        {chrome.rightPalette ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
         {emptyPart1 ? (
           <div class="start-card" role="region" aria-label={t('app.start.title')}>
             <b>{t('app.start.title')}</b>
