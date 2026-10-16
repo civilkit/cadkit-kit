@@ -110,3 +110,9 @@ The mATX case showed "Busy" at 432 features, the renderer tab at 1.6 GB and unre
 ### Phase 0 result (batched run)
 
 Confirmed: (a) was the cause. The runner called `controller.edit` per step, each a full regeneration WITH a view (tessellation, edges, mesh reply, tree refresh) and one undo entry holding a document clone. Now `runScript` (packages/script/src/run.ts) records the whole feature list, builds it in chunks of 25 steps on a scratch kernel tag with the existing regen option `noView` (the kernel's regen cache makes each chunk cost only its new features), builds a view only when a selector reads the body (`face()`, `edges()`: lazy geometry, the step is run again after one view build), and then opens the empty part and adds the list in ONE edit: one view regeneration, one undo entry, nothing of the open document touched before that (cancel needs no undo). The scratch document must carry the loaded part's defaults (`material`, `variables`), because the kernel's cache key covers them. `tools/script_perf.mjs` measures a run in headless Chrome. Kernel option still wanted: a checkpoint interval for the regen cache (store every Nth feature state, not every one), which would cut the per-feature snapshot cost and the wasm memory of a 600-feature build.
+
+### Phase 2 result (snapshot renderer)
+
+`packages/snapshot` (`@kit/snapshot`) is built: see `docs/snapshot.md`. Exact section loops (not images) draw the hatched
+section view, which is stronger than their image-only sections. Not done: consuming the kernel `drawing` reply (hidden
+lines come from the depth buffer instead), clipping the 3D section overlay.
