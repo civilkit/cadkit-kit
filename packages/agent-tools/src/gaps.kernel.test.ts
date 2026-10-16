@@ -36,4 +36,13 @@ p.expectValid();` });
     expect(json.errors[0].message).toMatch(/expected volume 999/);
     expect(a.doc.features.length).toBe(before);
   });
+  it('attach mode reads back the whole body, hand-made features included', async () => {
+    await call('run_script', { mode: 'new', code: `part('A').sketch('front', (s) => s.rect(40, 30)).extrude(20);` });
+    const { json } = await call('run_script', { mode: 'attach', replace: 'none', code: `const p = part('A').sketch(face('>Z'), (s) => s.circle(5)).extrude(10);
+const v = await p.volume();
+p.expectVolume(40 * 30 * 20 + Math.PI * 25 * 10, { tol: 1e-6 }).expectBBox({ size: [40, 30, 30] });
+if (Math.abs(v - (24000 + Math.PI * 250)) > 1e-3) throw new Error('read-back volume ' + v);` });
+    expect(json.errors).toEqual([]);
+    expect(json.ok).toBe(true);
+  });
 });

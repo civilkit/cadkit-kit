@@ -65,7 +65,7 @@ describe('listMethods and docs', () => {
     expect(r.unknown).toEqual([]);
     const ex = r.entries[0];
     expect(ex.signature).toContain('.extrude(depth: Num');
-    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['mid', 'flip', 'draft', 'thin', 'direction']);
+    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
     expect(ex.example).toContain('extrude');
     expect(ex.related).toContain('part.cut');
     expect(ex.notes).toContain('consumes the sketch');
@@ -85,10 +85,11 @@ describe('listMethods and docs', () => {
 });
 
 describe('recipes', () => {
-  it('has the ten buildable recipes and two guides, each with id, title, intent keywords and code', () => {
+  it('has the buildable recipes and two guides, each with id, title, intent keywords and code', () => {
     const all = recipes();
-    expect(all.length).toBe(12);
-    expect(all.filter((r) => r.kind !== 'guide').length).toBe(10);
+    expect(all.length).toBeGreaterThanOrEqual(13);   // grows with the API: at least these ten + the face-selection recipe + two guides
+    expect(all.filter((r) => r.kind !== 'guide').length).toBeGreaterThanOrEqual(11);
+    expect(all.filter((r) => r.kind === 'guide').length).toBe(2);
     expect(new Set(all.map((r) => r.id)).size).toBe(all.length);
     for (const r of all) { expect(r.intent.length, r.id).toBeGreaterThan(3); expect(getRecipe(r.id)!.code.length, r.id).toBeGreaterThan(100); }
   });
