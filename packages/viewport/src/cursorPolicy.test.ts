@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cursorFor } from './cursorPolicy';
+import { cursorFor, handleHover } from './cursorPolicy';
 
 describe('cursor policy', () => {
   it('crosshair in drawing tools, arrow for select', () => {
@@ -17,7 +17,9 @@ describe('cursor policy', () => {
     expect(cursorFor({ tool: 'select', hover: 'resize-ew' })).toBe('ew-resize');
     expect(cursorFor({ tool: 'select', hover: 'resize-nwse' })).toBe('nwse-resize');
     expect(cursorFor({ tool: 'select', hover: 'resize-nesw' })).toBe('nesw-resize');
-    expect(cursorFor({ tool: 'select', hover: 'rotate' })).toBe('alias');
+    const rot = cursorFor({ tool: 'select', hover: 'rotate' });
+    expect(rot.startsWith('url(')).toBe(true); expect(rot.endsWith(', alias')).toBe(true);
+    expect(handleHover('ring')).toBe('rotate'); expect(handleHover('plane')).toBe('move'); expect(handleHover('dot')).toBe('handle'); expect(handleHover('label')).toBe('text');
   });
   it('not-allowed over a locked element, also with a drawing tool', () => {
     expect(cursorFor({ tool: 'select', hover: 'locked' })).toBe('not-allowed');

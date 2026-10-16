@@ -23,7 +23,7 @@ export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, g
 export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';
 export { markerStyleFor, markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX } from './snapMarks';
 export type { MarkerStyle, MarkerHit } from './snapMarks';
-export { cursorFor } from './cursorPolicy';
+export { cursorFor, handleHover, ROTATE_CURSOR } from './cursorPolicy';
 export type { CursorContext, CursorTool, HoverTarget, DragState } from './cursorPolicy';
 export { adaptiveGrid, niceStep, parseSpacing, GRID_MIN_PX, GRID_MAX_PX } from './gridSpacing';
 export type { GridSpec } from './gridSpacing';

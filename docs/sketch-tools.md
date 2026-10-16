@@ -93,9 +93,9 @@ scale, two copies, then Fully define on a copy).
 | 3 | quadrant of a circle or arc | diamond with bar | 0, 90, 180, 270 degrees; on an arc only inside the sweep |
 | 4 | midpoint of a line | triangle | |
 | 5 | perpendicular foot / tangent point | right angle / circle on a line | from the start of the shape being drawn (the line tool's chain end); foot only on the span |
-| 6 | on curve | plus in a square | nearest point of a line, circle or arc; names the entity (`entityId`) |
+| 6 | on curve | hourglass | nearest point of a line, circle or arc; names the entity (`entityId`) |
 | 7 | alignment | diamond + dotted guide | horizontal / vertical with another point (the inference lines) |
-| 8 | grid | | |
+| 8 | grid | small plus | the point lands on the displayed minor grid line crossing |
 
 A snap shows its glyph and a name beside the pointer; Alt at a click turns snapping off for it. The **Snaps** popover in the aux
 bar switches each kind on or off (kept in `cad.sketchPrefs`), and "Add constraints from snaps" (the old auto-constraints
@@ -106,6 +106,40 @@ of the new segment is not constrained.
 
 On curve is also what lets the edit and constraint tools (patterns, trim, offset, fillet, the constraint tools) pick a
 **line by clicking on it**: they read `snap.entityId`, which until now only the midpoint snap set.
+
+## Snaps and status bar
+
+**Glyphs** (`packages/viewport/src/snapMarks.ts`): `markerStyleFor(hit)` picks the glyph, `markerSegments` draws it. Square = endpoint,
+triangle = midpoint, circle = centre, diamond = quadrant, X = intersection, right-angle mark = perpendicular, circle on a line =
+tangent, hourglass = on curve, small plus = grid point, diamond (with the dotted guide) = alignment. The model snaps use the same
+glyphs (endpoint, midpoint, centre, extent as a diamond) in cyan; the sketch's own are orange. The glyph is about 11 px across at
+every zoom (half size `MARKER_HALF_PX` times plane units per pixel), and the shade changes with the viewport background (darker on
+light, brighter on dark). The text tag beside the pointer stays.
+
+**Status bar** while a sketch is open (`SketchReadout`, `sketchReadout.tsx`; text in `sketchStatus.ts`):
+
+* the pointer on the sketch plane in the display unit, for example `232.1 mm, -5.1 mm`, with one more decimal per tenfold zoom; with a
+  snap it is the snapped position; any tool (also Select) feeds it, once per animation frame;
+* while drawing, the delta from the last point: `dx 12.0  dy 3.5  len 12.5  angle 16°`;
+* the active snap: `Snap: midpoint`;
+* **Snap** switches all point snapping (every kind and the model snaps) and **Grid** switches grid snapping and the grid lines;
+  both are in `cad.sketchPrefs` (`snapOn`, `gridSnap`) beside the Snaps popover;
+* the zoom as a percentage of real size at 96 dpi, and the grid **Spacing**, which is a field: click it, type `2.5`, `0.25 in` or
+  `0` / empty for automatic (Enter commits, Escape cancels).
+
+In model mode the status bar keeps its content (Ready, features, faces, triangles, rebuild time, errors) and adds the coordinates of the
+surface point under the pointer (`onHoverPoint`, one ray cast per frame; faces only, so an edge hover shows the face point behind it).
+
+**Grid** (`gridSpacing.ts`): the minor spacing is a 1-2-5 step that keeps neighbouring lines 8 to 80 px apart (about 20 px preferred),
+so the grid subdivides and merges as you zoom; every 10th line (every 5th after a 2 or 5 step, and for a user spacing) is stronger,
+the axes are red (u) and green (v), and a ring marks the origin. A typed spacing is the base: the displayed step is that spacing
+times 1, 2, 5 and powers of ten. Grid snapping uses the displayed minor step.
+
+**Cursors** (`cursorPolicy.ts`, pure, one function `cursorFor({ tool, hover, drag, panHeld, overField, zoomOut, invalid })`):
+crosshair in drawing tools, arrow for Select, pointer over a sketch point or a handle, grabbing while dragging, move over plane and pad
+handles, resize cursors for size-box handles, a rotate cursor over rings, not-allowed over a fixed point, zoom-in or zoom-out for a zoom
+drag, grab while Space or the middle button is held (Space with a drag pans), text over typed fields. The sketch view and the
+handle layer apply it; the TriBall keeps its own for now.
 
 ## Display
 

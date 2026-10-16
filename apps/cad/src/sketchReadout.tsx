@@ -44,7 +44,7 @@ export function SketchReadout(p: ReadoutControls) {
             onInput={(e) => setEdit((e.currentTarget as HTMLInputElement).value)} onBlur={commit}
             onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setEdit(null); e.stopPropagation(); }} />
         : <button class="st-item st-chip st-spacing" title={t('app.status.gridSpacing.tip')} onClick={() => setEdit(String(p.gridBase > 0 ? p.gridBase : c?.grid ?? 10))}>
-            {t('app.status.grid')} <b>{c || p.gridBase > 0 ? formatSpacing(p.gridBase > 0 ? p.gridBase : c!.grid, unit) : t('app.status.gridAuto')}</b>
+            {t('app.status.spacing')} <b>{c || p.gridBase > 0 ? formatSpacing(p.gridBase > 0 ? p.gridBase : c!.grid, unit) : t('app.status.gridAuto')}</b>
           </button>}
     </span>
   );

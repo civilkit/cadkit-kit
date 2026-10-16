@@ -979,6 +979,7 @@ function App() {
     setSketchToolId(entry ? entry.id : null);
     setToolOut(null);
     viewport?.setSketchTool(!!entry);
+    readout.snapAt.value = null; readout.snapName.value = null; readout.from.value = null;
     if (!entry) { viewport?.setSketchPreview([]); applyHighlight(); }
     // Offset chosen while the sketch is on a face: offer that face's outline offset inward right away
     else if (entry.id === 'offset' && projectSelRef.current.length) runTool({ type: 'key', key: OFFSET_FACE_KEY });

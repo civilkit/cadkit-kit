@@ -2,6 +2,7 @@
 // (so handles are never hidden by the part), every widget scaled each frame to a constant size on screen, a hover look,
 // pointer capture for dragging, and a live readout. While a handle is hovered or dragged the event is stopped before it
 // reaches the orbit controls or the selection code, so a handle never orbits the camera or changes the selection.
+import { cursorFor, handleHover } from './cursorPolicy';
 import * as THREE from 'three';
 import {
   applyMods, beginDrag, defaultStep, DEFAULT_SIZE, formatQuantity, hitHandle, isPlanar, NumericEntry, perpendicular, pixelScale, readDrag, restPosition, shownAt, V,
@@ -447,13 +448,13 @@ export class HandleLayer {
       if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < SURFACE_DRAG_PX) return;
       this.press = null;
       if (!this.startDrag(p.spec, e, { x: p.x, y: p.y }, p.pt)) { try { this.dom.releasePointerCapture(e.pointerId); } catch { /* released */ } return; }
-      this.dom.style.cursor = 'move';
+      this.dom.style.cursor = cursorFor({ tool: 'select', drag: 'drag' });
     }
     const d = this.drag;
     if (!d) {
       if (!this.specs.length) return;
       const id = this.hitAt(e.clientX, e.clientY);
-      if (id !== this.hover) { this.hover = id; this.dom.style.cursor = id ? 'pointer' : ''; this.invalidate(); }
+      if (id !== this.hover) { this.hover = id; this.dom.style.cursor = id ? cursorFor({ tool: 'select', hover: handleHover(this.specs.find((h) => h.id === id)?.kind ?? 'dot') }) : ''; this.invalidate(); }
       else if (!id && this.surface && e.buttons === 0) this.dom.style.cursor = this.surface.hit(e.clientX, e.clientY) ? 'move' : '';
       return;
     }
