@@ -2,7 +2,8 @@ import type { JSX } from 'preact';
 
 export interface Field { path: string; label: string; kind: 'number' | 'boolean' | 'text' | 'choice' | 'list'; value: number | boolean | string; choices?: string[] }
 
-const SKIP = new Set(['id', 'type', 'name', 'points', 'entities', 'constraints']);
+// autoName (a generated name that follows the feature) and draftNew (a refused first try kept in its editor) are bookkeeping, not fields
+const SKIP = new Set(['id', 'type', 'name', 'points', 'entities', 'constraints', 'autoName', 'draftNew']);
 
 /** Flat primitive fields of a feature, for the parameter form. */
 export function fieldsOf(feature: Record<string, unknown>): Field[] {

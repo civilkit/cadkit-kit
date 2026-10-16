@@ -1676,7 +1676,7 @@ function App() {
       }} />
   ) : (
     <FeatureEditor
-      feature={editingFeature}
+      feature={(editingFeature as { draftNew?: boolean } | null)?.draftNew ? (({ suppressed: _s, ...rest }) => rest)(editingFeature as unknown as Record<string, unknown>) as never : editingFeature}
       onDraft={onDraft}
       onConfirm={onConfirm}
       onCancel={onCancel}
