@@ -58,9 +58,9 @@ describe('surface edges', () => {
   });
 });
 
-function mount(feature: Wire) {
+function mount(feature: Wire, doc: PartDoc = DOC) {
   const drafts: Wire[] = [];
-  const r = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} options={(a) => optionsFor(a, DOC)} />);
+  const r = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} options={(a) => optionsFor(a, doc)} />);
   const q = (s: string) => r.container.querySelector(s) as HTMLElement | null;
   return { ...r, drafts, q };
 }
@@ -74,6 +74,20 @@ describe('surface editors', () => {
     expect(m.drafts.at(-1)).toMatchObject({ sketches: ['B', 'A'] });
     fireEvent.click(m.q('[data-path="sketches"] [data-act="add"]')!);
     expect((m.drafts.at(-1) as Wire).sketches).toEqual(['B', 'A', 'C']);
+  });
+  it('loft: a point sketch is listed as a Point profile; a point in the middle shows the rule, at an end it does not', () => {
+    const pt: Wire = { type: 'sketch', id: 'P', name: 'SP', points: [{ id: 'p1' }], entities: [{ id: 'e', type: 'point', p: 'p1' }] };
+    const doc = { features: [sk('A', true), sk('B', true), pt] } as unknown as PartDoc;
+    const mid = mount({ type: 'loft', id: 'L9', sketches: ['A', 'P', 'B'] }, doc);
+    expect(mid.q('[data-path="sketches"] select option[value="P"]')?.textContent).toMatch(/^Point/);
+    expect(mid.q('[data-note="loftPointMiddle"]')).not.toBeNull();
+    mid.unmount();
+    const end = mount({ type: 'loft', id: 'L9', sketches: ['A', 'B', 'P'] }, doc);
+    expect(end.q('[data-note="loftPointMiddle"]')).toBeNull();
+    expect(end.q('[data-note="pointHint"]')).not.toBeNull();
+    end.unmount();
+    const both = mount({ type: 'loft', id: 'L9', sketches: ['P', 'A', 'P'] }, doc);
+    expect(both.q('[data-note="loftPointBoth"]')).not.toBeNull();
   });
   it('loft: the last two profiles cannot be removed, a third can', () => {
     const m = mount({ type: 'loft', id: 'L9', sketches: ['A', 'B', 'C'] });

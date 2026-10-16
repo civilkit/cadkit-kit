@@ -16,6 +16,7 @@ import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
 } from './thinRules';
 import { sketchOpenChains } from '@kit/sketch';
+import { loftPointIssue } from './featureCreators';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
   CONTINUITIES, FAIRINGS, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, pathOf, pathPatch, removeAt, replaceAt,
@@ -265,12 +266,15 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   const surface = eff.surface === true;
   const profiles = loftProfiles(eff);
   const guides = loftGuides(eff);
-  const profileChoices = all.filter((s) => (surface ? s.closed || s.open : s.closed) || profiles.includes(s.id));
+  const profileChoices = all.filter((s) => (surface ? s.closed || s.open : s.closed || s.point) || profiles.includes(s.id)).map((s) => (s.point ? { ...s, name: `${t('opt.loft.pointTag')}: ${s.name}` } : s));
+  const isPoint = (id: string) => all.some((s) => s.id === id && s.point);
+  const issue = surface ? (profiles.some(isPoint) ? 'loftPointSurface' : null) : loftPointIssue(profiles, isPoint) ?? (guides.length && profiles.some(isPoint) ? 'loftPointGuides' : null);
   const guideChoices = all.filter((s) => s.open && !profiles.includes(s.id));
   return (
     <>
       <Section id="loftProfiles" title={t('opt.loft.profiles')}>
         <SketchList name="sketches" label={t('opt.loft.profilesNote')} ids={profiles} list={profileChoices} min={2} addLabel={t('opt.loft.addProfile')} onChange={(ids) => change({ sketches: ids })} />
+        {issue ? <div class="fedit-note fedit-warn" role="alert" data-note={issue}>{t('opt.loft.' + issue)}</div> : <div class="fedit-note" data-note="pointHint">{t('opt.loft.pointHint')}</div>}
       </Section>
       <Section id="loftGuides" title={t('opt.loft.guides')}>
         <SketchList name="guides" label={t('opt.loft.guidesNote')} ids={guides} list={guideChoices} min={0} addLabel={t('opt.loft.addGuide')} onChange={(ids) => change(guidesPatch(ids))} />

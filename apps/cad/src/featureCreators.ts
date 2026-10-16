@@ -48,6 +48,11 @@ export const isClosedSketch = (s: Feat): boolean => {
   const d = degrees(ents);
   return chainEntities(ents).length > 0 && d.size > 0 && [...d.values()].every((n) => n >= 2);
 };
+/** A sketch whose only (non-construction) entity is one point: a loft can end in it (the apex). */
+export const isPointSketch = (s: Feat): boolean => {
+  const ents = entitiesOf(s);
+  return ents.length === 1 && ents[0].type === 'point';
+};
 export const hasCurves = (s: Feat): boolean => hasCircle(s) || chainEntities(entitiesOf(s)).length > 0;
 const hasAxisLine = (s: Feat): boolean => isClosedSketch(s) && axisLine(s) !== null;
 
@@ -245,7 +250,7 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
  * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
  */
 export function loftProfileIds(c: Ctx, surface = false): string[] {
-  const fits = surface ? hasCurves : isClosedSketch;
+  const fits = surface ? hasCurves : (s: Feat) => isClosedSketch(s) || isPointSketch(s);
   const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
   if (picked.length >= 2) return picked.map((s) => s.id);
   let list = freeSketches(c, fits);
@@ -255,6 +260,16 @@ export function loftProfileIds(c: Ctx, surface = false): string[] {
   const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
   const since = list.filter((s) => all.indexOf(s) > lastBody);
   return (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id);
+}
+/**
+ * The rule for point sections of a solid loft: a point may only be the first or the last section, and not both. Returns the
+ * message key of the first broken rule, else null. `isPoint` says whether a profile id is a point sketch.
+ */
+export function loftPointIssue(ids: string[], isPoint: (id: string) => boolean): 'loftPointMiddle' | 'loftPointBoth' | null {
+  const pts = ids.map((id, i) => (isPoint(id) ? i : -1)).filter((i) => i >= 0);
+  if (pts.length >= 2 && pts.every((i) => i === 0 || i === ids.length - 1) && ids.length >= 2) return 'loftPointBoth';
+  if (pts.some((i) => i !== 0 && i !== ids.length - 1)) return 'loftPointMiddle';
+  return null;
 }
 /** A loft through the profiles `loftProfileIds` picks (a surface loft also takes open ones, all of one kind). */
 export function loftOps(c: Ctx, surface = false): EditOp[] | null {
