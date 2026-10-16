@@ -265,7 +265,7 @@ const ICONS: Record<string, string> = {
   'add-thin-extrude': P('M4 17c3-6 6-6 9-2s5 2 7-4') + P('M4 20c3-6 6-6 9-2s5 2 7-4') + T('M4 17v3M20 11v3') + A('M12 9V3M9.5 5.5 12 3l2.5 2.5'),
   'add-thin-cut': P('M4 17c3-6 6-6 9-2s5 2 7-4') + P('M4 20c3-6 6-6 9-2s5 2 7-4') + T('M4 17v3M20 11v3') + C('M9 12h6') + A('M12 3v6M9.5 6.5 12 9l2.5-2.5'),
   'add-thin-revolve': C('M12 3v18') + P('M12 8c4 0 6 1 7 4') + P('M12 11c3 0 4 .8 5 3') + T('M19 12l-2 2') + A('M5 9c1.2-1.2 3-1.9 5-2M5 15c1.6 1.6 4.2 2.4 7 2.4'),
-  more: D(5.5, 12, 1.9) + D(12, 12, 1.9) + D(18.5, 12, 1.9),
+  more: D(5.5, 12, 2.3) + D(12, 12, 2.3) + D(18.5, 12, 2.3),
 };
 
 export const ICON_NAMES: string[] = Object.keys(ICONS);

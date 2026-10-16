@@ -125,3 +125,8 @@
 .sk-finish .rb-btn { display: flex; flex-direction: column; align-items: center; min-width: 40px; font-size: 18px; font-weight: 700; }
 .sk-finish .rb-btn span { font-size: 10px; font-weight: 500; }
 .sk-finish .rb-btn.ok, .sk-finish .rb-btn.no, .rb-tab.on:only-child { font-weight: 600; }
+
+/* the file "more" menu: the bare dots were nearly invisible on the dark theme; give it the same outlined button as its neighbours */
+.slot[data-slot="file-more"] .slot-btn { width: 34px; height: 34px; border: 1px solid var(--line, var(--line-soft)); border-radius: 7px; color: var(--text); background: var(--panel, transparent); }
+.slot[data-slot="file-more"] .slot-btn .icon { opacity: 1; }
+.slot[data-slot="file-more"] .slot-btn:hover:not(:disabled) { background: var(--accent-soft); }
