@@ -574,7 +574,8 @@ export class Viewport {
         }
       } else {
         const k = upp * (sh.style === 'anchor' ? ANCHOR_HALF_PX : MARKER_HALF_PX);
-        for (const [p, q] of markerSegments(sh.style, sh.at.x, sh.at.y, k)) seg(S, p, q);
+        // drawn three times, a fraction of a pixel apart, so the 1 px line reads about 2 px thick (stays legible over the grid and the geometry)
+        for (const [dx, dy] of [[0, 0], [upp * 0.7, 0], [0, upp * 0.7]]) for (const [p, q] of markerSegments(sh.style, sh.at.x + dx, sh.at.y + dy, k)) seg(S, p, q);
       }
     }
     const group = new THREE.Group();
