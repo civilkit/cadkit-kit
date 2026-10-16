@@ -43,9 +43,7 @@ lenses (36 in total, checked by the test via `massProps({bodies:true})`). Parts 
 
 ![section](img/dash-section-gauge.png)
 
-The section sheet (left) shows plate, bezel through-tube, dial, ledge, needle, hub, cap and the domed lens. The extra full
-circles drawn at the rolled edges are an artefact of the kernel `section` reply (see gaps); the solid is right (volume and
-the 3D renders agree).
+The section sheet (left) shows plate, bezel through-tube, rolled crown, dial, ledge, needle, hub, cap and the domed lens.
 
 ![bezel profile](img/dash-bezel-profile.png)
 
@@ -80,9 +78,9 @@ function of the inset, so the same function draws the plate and the rim pocket.
 
 ## API and kernel gaps found
 
-1. `section` reply: a revolved rolled edge (torus face) comes back as a FULL circle loop, not the trimmed arc, so hatching
-   shows a white circle and the section area double counts (253.65 mm2 reported for two bezel sides, about 195 expected).
-   Repro: `rev` a profile with a quarter arc `arc3([R,0],[R-.9,.9],[R-3,3])` plus lines, section through the axis.
+1. A bare bezel sectioned through its own axis (`only: ['bezel']`, `--section x=0`) drew a full circle at the rolled crown and
+   reported about 28 mm2 too much area, while the same bezel inside the whole dash sectioned cleanly: a possible `section` artefact for a
+   lone torus face (not minimised). Because of it the profile image is a thin extruded plate of the profile instead.
 2. The snapshot renderer draws glass opaque (no transparency), so lensed models hide the dial; no per-lump colours either.
 3. No sketch helper for rounded outlines with a curved side (computed by hand here); `rrect` only does straight sides.
 4. `at('top', y)` sketch coordinates (y = -z) make revolves about Z awkward; a `revolve` with `axisAlong: 'z'` would help.
