@@ -36,13 +36,19 @@ export async function summarize(a: AgentSession) {
   if (facts && facts.solids > 0) {
     try { const v = await s.validate(); validity = { ok: v.ok, issues: v.issues.slice(0, 10) }; } catch { /* no body */ }
   }
+  // exact bounding box from the kernel's check (the facts box comes from the display mesh and is a little smaller on curved parts)
+  let exact: { min: number[]; max: number[] } | null = null;
+  if (facts && facts.solids > 0) {
+    try { exact = ((await s.check([{ kind: 'valid' }])) as { measured?: { bbox?: { min: number[]; max: number[] } } }).measured?.bbox ?? null; } catch { exact = null; }
+  }
+  const box = exact ?? facts?.box ?? null;
   return {
     featureCount: a.doc.features.length,
     solids: facts?.solids ?? 0,
     volume: round(mass?.volume ?? facts?.volume ?? null),
     area: round(mass?.area ?? null),
     centerOfMass: mass?.com ? mass.com.map((x) => round(x) as number) : null,
-    bbox: facts?.box ? { min: facts.box.min.map((x) => round(x)), max: facts.box.max.map((x) => round(x)), size: facts.box.max.map((x, i) => round(x - facts.box!.min[i])) } : null,
+    bbox: box ? { min: box.min.map((x) => round(x)), max: box.max.map((x) => round(x)), size: box.max.map((x, i) => round(x - box.min[i])) } : null,
     faceCount: facts?.faces.length ?? 0,
     edgeCount: facts?.edges.length ?? 0,
     validity,

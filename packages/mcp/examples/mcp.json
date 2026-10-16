@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "ck-cad": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/REPO/packages/mcp/bin/ck-mcp.mjs"],
+      "env": { "CK_WASM": "/ABSOLUTE/PATH/TO/REPO/apps/cad/public/kernel/ck_wasm.wasm" }
+    }
+  }
+}
