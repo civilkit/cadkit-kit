@@ -12,7 +12,7 @@ import { summaryText } from './select/summary';
 import { SelectionList, chipsOf } from './select/SelectionList';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
-import { Viewport } from '@kit/viewport';
+import { Viewport, markerStyleFor } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
@@ -72,7 +72,8 @@ import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
-import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
+import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
+import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchBar } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
@@ -128,6 +129,7 @@ const usedSketches = (f: unknown): string[] => {
 
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
+const OBJECT_SNAPS_OFF: SketchPrefs['snaps'] = Object.fromEntries(Object.keys(DEFAULT_SKETCH_PREFS.snaps).map((k) => [k, k === 'grid'])) as SketchPrefs['snaps'];
 const ENTITY_PICK_TOOLS = new Set<string | null>(['offset']);
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
@@ -270,6 +272,7 @@ function App() {
   const [navPrefs, setNavPrefs] = useState<NavPrefs>(loadNavPrefs);
   const changeNav = (patch: Partial<NavPrefs>) => { const next = { ...navPrefs, ...patch }; setNavPrefs(next); saveNavPrefs(next); viewport?.setNavigation(next); };
   const triRef = useRef<ReturnType<typeof useTriBall> | null>(null);
+  const updatePrefs = (patch: Partial<SketchPrefs>) => { const next = { ...prefsRef.current, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); };
   const prefsRef = useRef(sketchPrefs);
   prefsRef.current = sketchPrefs;
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
@@ -317,6 +320,8 @@ function App() {
       onSketchDouble: (ev) => sketchDoubleRef.current?.(ev),
       onSketchBox: (ev) => sketchBoxRef.current?.(ev),
       onSketchView: () => viewTick((n) => n + 1),
+      onHoverPoint: (p) => { readout.model.value = p; },
+      onPlaneCursor: (c) => { readout.cursor.value = c; if (!c) { readout.snapAt.value = null; readout.snapName.value = null; } },
       onAnalysisLegend: (l) => { analysisStore.legend.value = l; },
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
@@ -993,6 +998,7 @@ function App() {
     setSketchToolId(entry ? entry.id : null);
     setToolOut(null);
     viewport?.setSketchTool(!!entry);
+    readout.snapAt.value = null; readout.snapName.value = null; readout.from.value = null;
     if (!entry) { viewport?.setSketchPreview([]); applyHighlight(); }
     // Offset chosen while the sketch is on a face: offer that face's outline offset inward right away
     else if (entry.id === 'offset' && projectSelRef.current.length) runTool({ type: 'key', key: OFFSET_FACE_KEY });
@@ -1001,13 +1007,11 @@ function App() {
   /** What the pointer is snapped to, drawn as markers and dotted guides, plus the ring on the chain end. */
   const snapVisuals = (draft: import('@kit/sketch').SketchDraft, snap: SnapHit | undefined, out: ToolOutput<unknown>): SketchPreviewShape[] => {
     const shapes: SketchPreviewShape[] = [];
-    if (snap?.kind === 'point') shapes.push({ kind: 'marker', at: snap.at, style: snap.role === 'center' ? 'center' : 'point' });
-    else if (snap && ['quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve'].includes(snap.kind)) shapes.push({ kind: 'marker', at: snap.at, style: snap.kind as 'quadrant' });
-    else if (snap?.kind === 'midpoint') shapes.push({ kind: 'marker', at: snap.at, style: 'midpoint' });
-    else if (snap?.model) {
-      // model snaps use the model colour (see `model: true`); a guide line is dashed through the body
-      shapes.push({ kind: 'marker', at: snap.at, style: snap.kind === 'modelCenter' ? 'center' : snap.kind === 'modelMidpoint' ? 'midpoint' : snap.kind === 'modelExtent' ? 'align' : 'point', model: true });
-      if (snap.guide) shapes.push({ kind: 'guide', a: snap.guide.a, b: snap.guide.b, model: true });
+    const style = markerStyleFor(snap);
+    if (snap && style && snap.kind !== 'align') {
+      // the glyph says what the point is (see snapMarks.ts); model snaps use the same glyphs in the model colour, with a dashed guide through the body
+      shapes.push({ kind: 'marker', at: snap.at, style, ...(snap.model ? { model: true } : {}) });
+      if (snap.model && snap.guide) shapes.push({ kind: 'guide', a: snap.guide.a, b: snap.guide.b, model: true });
     }
     else if (snap?.kind === 'align') {
       shapes.push({ kind: 'marker', at: snap.at, style: 'align' });
@@ -1047,6 +1051,9 @@ function App() {
     toolStateRef.current = out.state;
     lastOutRef.current = out;
     viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
+    readout.snapAt.value = snap ? snap.at : null;
+    readout.snapName.value = snap && snap.kind !== 'grid' ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : snap ? t('app.sketch.snap.grid') : null;
+    readout.from.value = out.from ?? out.anchor ?? null;
     setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : undefined, snapModel: !!snap?.model });
     if (out.hint) setSketchHint(t(out.hint));
     if (out.draft !== draft) {
@@ -1305,13 +1312,13 @@ function App() {
   };
   sketchPointerRef.current = (ev) => {
     if (!sketchToolRef.current) return;
-    if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); return; }
+    if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); readout.snapAt.value = null; readout.snapName.value = null; return; }
     lastPosRef.current = { x: ev.x, y: ev.y };
     toolTolRef.current = ev.tol;
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, model: modelSnapsNow(), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snapOn ? prefsRef.current.snaps : OBJECT_SNAPS_OFF, ...(prefsRef.current.snapOn ? { model: modelSnapsNow() } : {}), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
     // tools that pick a whole curve need the curve under the pointer, not only a midpoint snap
     if (ENTITY_PICK_TOOLS.has(sketchToolRef.current) && !snap?.entityId) {
       const entityId = pickEntity(draft, at, ev.tol);
@@ -1472,6 +1479,8 @@ function App() {
     redraw((n) => n + 1);
   };
   sketchingRef.current = !!sketching;
+  useEffect(() => { viewport?.setSketchGrid({ base: sketchPrefs.gridSpacing, visible: sketchPrefs.gridSnap }); }, [viewport, sketching?.id, sketchPrefs.gridSpacing, sketchPrefs.gridSnap]);
+  useEffect(() => { if (!sketching) clearReadout(); }, [!!sketching]);
   sketchConfirmRef.current = confirmSketch;
   sketchCancelRef.current = cancelSketch;
   // Dimensions and constraint symbols, projected onto the screen for this frame.
@@ -1522,7 +1531,7 @@ function App() {
       {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
       onLookNormal={() => viewport?.orientToSketch()} hint={sketchHint}
       status={stNow} busy={defining} prefs={sketchPrefs}
-      onPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
+      onPrefs={updatePrefs}
       onFullyDefine={() => void fullyDefineNow()}
       selected={selectedEntityIds().length > 1 ? selectedEntityIds().length : 0}
       onClearSelection={() => setMultiSelection([])}
@@ -1903,6 +1912,8 @@ function App() {
       })() : null}
       <div class="status-wrap">
         <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
+          sketch={sketching ? <SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
+            onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} /> : <ModelReadout />}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },
