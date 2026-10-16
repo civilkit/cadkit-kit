@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
+import { constrainsFromGuides, lookChipNeeded, DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
 
 describe('keep view when entering a sketch', () => {
   it('is on by default, can be turned off, ignores junk', () => {
@@ -15,6 +15,24 @@ describe('auto-constrain from guides', () => {
     expect(sanitizeSketchPrefs({}).guideConstraints).toBe(false);
     expect(sanitizeSketchPrefs({ guideConstraints: true }).guideConstraints).toBe(true);
     expect(sanitizeSketchPrefs({ guideConstraints: 'yes' }).guideConstraints).toBe(false);
+  });
+});
+
+describe('a clean profile: guides show but never constrain', () => {
+  const store = (v: string | null) => ({ getItem: () => v });
+  it('no stored value, a broken one, or one without the key all load as OFF', () => {
+    expect(loadSketchPrefs(store(null)).guideConstraints).toBe(false);
+    expect(loadSketchPrefs(store('{oops')).guideConstraints).toBe(false);
+    expect(loadSketchPrefs(store('{"autoConstraints":true}')).guideConstraints).toBe(false);
+    expect(loadSketchPrefs(null).guideConstraints).toBe(false);
+  });
+  it('the default adds no constraint from a guide click, with or without Shift; the guide snaps themselves stay on', () => {
+    const p = loadSketchPrefs(store(null));
+    expect(constrainsFromGuides(p, false)).toBe(false);
+    expect(constrainsFromGuides({ ...p, guideConstraints: true }, false)).toBe(true);
+    expect(constrainsFromGuides({ ...p, guideConstraints: true }, true)).toBe(false);
+    expect(constrainsFromGuides({ ...p, guideConstraints: true, autoConstraints: false }, false)).toBe(false);
+    expect(p.snaps.align).toBe(true);
   });
 });
 
@@ -47,5 +65,20 @@ describe('sketch preferences', () => {
   });
   it('maps to the tools settings', () => {
     expect(toToolSettings({ ...DEFAULT_SKETCH_PREFS, autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both', gridSnap: true })).toEqual({ autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both' });
+  });
+});
+
+describe('look normal on entry', () => {
+  it('the chip is offered above 5 degrees off the plane normal', () => {
+    expect(lookChipNeeded(null)).toBe(false);
+    expect(lookChipNeeded(0)).toBe(false);
+    expect(lookChipNeeded(5)).toBe(false);
+    expect(lookChipNeeded(5.5)).toBe(true);
+    expect(lookChipNeeded(55)).toBe(true);
+  });
+  it('auto look normal is off by default and survives sanitising', () => {
+    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(false);
+    expect(sanitizeSketchPrefs({ autoLookNormal: true }).autoLookNormal).toBe(true);
+    expect(sanitizeSketchPrefs({ autoLookNormal: 1 }).autoLookNormal).toBe(false);
   });
 });

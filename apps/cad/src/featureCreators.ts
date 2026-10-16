@@ -89,15 +89,38 @@ const planeFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'pla
 
 // ---- the edits (each is ONE edit) ----
 
-/** What a reference counts as in a default name: Front / Top / Right, a plane feature's own name, or the face id. */
-export function refLabel(doc: { features?: unknown[] } | null | undefined, ref: { kind?: string; id?: string } | null | undefined): string {
+type RefIn = { kind?: string; id?: string } | null | undefined;
+type DocIn = { features?: unknown[] } | null | undefined;
+const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A regex for a default-name template such as `Plane {offset} from {base}`: the old documents carry no autoName flag, so their names are recognised by shape. */
+const templateRe = (key: string) => new RegExp('^' + t(key).split(/\{\w+\}/).map(escRe).join('.+') + '$');
+/** True when a Plane or Sketch still carries a generated name (autoName true, or an old document whose name has the generated shape and was not renamed by the user). */
+export function hasAutoName(f: { type?: string; name?: unknown; autoName?: unknown } | null | undefined): boolean {
+  if (!f) return false;
+  if (f.autoName === true) return true;
+  if (f.autoName === false) return false;
+  const n = typeof f.name === 'string' ? f.name : '';
+  if (f.type === 'plane') return !n || templateRe('app.plane.defaultName').test(n) || templateRe('app.plane.midName').test(n);
+  if (f.type === 'sketch') return templateRe('app.sketch.defaultName').test(n);
+  return false;
+}
+/** The name a feature is shown under: a generated Plane / Sketch name is derived live from its current offset, base and plane (so `Plane -60 from Right` stays true when the offset is edited); a user's name is kept. */
+export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
+  if (!f) return '';
+  const name = typeof f.name === 'string' ? f.name : '';
+  if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
+  if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
+  return name || String(f.id ?? '');
+}
+/** What a reference counts as in a default name: Front / Top / Right, a plane feature's displayed label (never a stale stored one), or the face id. */
+export function refLabel(doc: DocIn, ref: RefIn): string {
   if (!ref?.id) return t('app.ref.front');
   if (ref.kind === 'std') return t('app.ref.' + ref.id).replace(/ Plane$/, '');
   const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
-  return typeof f?.name === 'string' && f.name ? f.name : ref.id;
+  return f ? featureLabel(doc, f) : ref.id;
 }
 /** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
-export function planeDefaultName(doc: { features?: unknown[] } | null | undefined, f: { mode?: string; base?: { kind?: string; id?: string }; base2?: { kind?: string; id?: string }; offset?: number }): string {
+export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number }): string {
   if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
   return t('app.plane.defaultName', { offset: String(f.offset ?? 0), base: refLabel(doc, f.base) });
 }
@@ -115,10 +138,10 @@ export function planeOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
   if (faces.length >= 2) {
     const f = { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } };
-    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f), autoName: true } }];
   }
   const f = { type: 'plane', mode: 'offset', base: planeBase(c), offset: 10 };
-  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f), autoName: true } }];
 }
 /** A reference axis: along the cylinder of one face, or where two faces' planes meet. Nothing picked: the line where the front and top planes meet. */
 export function axisOps(c: Ctx): EditOp[] | null {
@@ -245,6 +268,41 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
   const used = usedSketches(c);
   return feats(c).filter((f) => f.type === 'sketch' && fits(f) && !used.has(f.id));
 };
+
+const STD_AXIS: Record<string, number> = { right: 0, top: 1, front: 2 };   // the world axis a standard plane is normal to
+/** Where a plane sits along its normal: the axis (0 x, 1 y, 2 z) and the signed distance, through standard planes and chains of offset Plane features; null when it cannot be told (a face, a tangent plane, a tilted one). */
+function planePosition(c: Ctx, ref: { kind?: string; id?: string } | undefined, depth = 0): { axis: number; v: number } | null {
+  if (!ref?.id || depth > 8) return null;
+  if (ref.kind === 'std') return ref.id in STD_AXIS ? { axis: STD_AXIS[ref.id], v: 0 } : null;
+  if (ref.kind !== 'feature') return null;
+  const f = feats(c).find((x) => x.id === ref.id);
+  if (!f || f.type !== 'plane' || (f.mode !== undefined && f.mode !== 'offset')) return null;
+  const base = planePosition(c, f.base as never, depth + 1);
+  const off = typeof f.offset === 'number' ? f.offset : Number(f.offset);
+  return base && Number.isFinite(off) ? { axis: base.axis, v: base.v + off } : null;
+}
+/**
+ * A solid loft may only start or end in a point. When one or two of the sections are point sketches they are moved to the
+ * ends: the one lying before the other sections (along the loft direction, read from the planes) first, the one beyond them
+ * last. Without readable plane positions the order is kept, so the editor shows the problem instead of a guess.
+ */
+export function orderPointSections(c: Ctx, ids: string[]): string[] {
+  const sk = (id: string) => feats(c).find((f) => f.id === id);
+  const points = ids.filter((id) => { const s = sk(id); return !!s && isPointSketch(s); });
+  if (!points.length || points.length > 2 || points.length === ids.length) return ids;
+  const pos = new Map(ids.map((id) => [id, planePosition(c, sk(id)?.plane as never)] as const));
+  if ([...pos.values()].some((p) => !p) || new Set([...pos.values()].map((p) => p!.axis)).size !== 1) return ids;
+  const v = (id: string) => pos.get(id)!.v;
+  const others = ids.filter((id) => !points.includes(id));
+  const dir = others.length >= 2 && v(others[others.length - 1]) < v(others[0]) ? -1 : 1;
+  const lo = Math.min(...others.map((id) => v(id) * dir)), hi = Math.max(...others.map((id) => v(id) * dir));
+  const head: string[] = [], tail: string[] = [];
+  for (const id of [...points].sort((a, b) => (v(a) - v(b)) * dir)) {
+    const x = v(id) * dir;
+    if (x <= lo || (x < hi && x - lo <= hi - x && !head.length)) head.push(id); else tail.push(id);
+  }
+  return [...head, ...others, ...tail];
+}
 /**
  * A loft's profiles: the sketches selected in the tree (in selection order) when two or more fit; else every unused fitting
  * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
@@ -252,14 +310,14 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
 export function loftProfileIds(c: Ctx, surface = false): string[] {
   const fits = surface ? hasCurves : (s: Feat) => isClosedSketch(s) || isPointSketch(s);
   const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
-  if (picked.length >= 2) return picked.map((s) => s.id);
+  if (picked.length >= 2) return orderPointSections(c, picked.map((s) => s.id));
   let list = freeSketches(c, fits);
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
   if (list.length < 2) return [];
   const all = feats(c);
   const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
   const since = list.filter((s) => all.indexOf(s) > lastBody);
-  return (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id);
+  return orderPointSections(c, (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id));
 }
 /**
  * The rule for point sections of a solid loft: a point may only be the first or the last section, and not both. Returns the
@@ -270,6 +328,17 @@ export function loftPointIssue(ids: string[], isPoint: (id: string) => boolean):
   if (pts.length >= 2 && pts.every((i) => i === 0 || i === ids.length - 1) && ids.length >= 2) return 'loftPointBoth';
   if (pts.some((i) => i !== 0 && i !== ids.length - 1)) return 'loftPointMiddle';
   return null;
+}
+/**
+ * A loft can only use sketches that come before it. When the profiles chosen include a later sketch, the loft moves to just
+ * after the last one it uses: returns the `move` op and the id of that sketch (for the notice `Loft moved after ...`), else null.
+ */
+export function loftMoveAfter(features: Array<{ id: string }>, loftId: string, sketches: string[]): { op: EditOp; after: string } | null {
+  const at = features.findIndex((f) => f.id === loftId);
+  if (at < 0) return null;
+  let last = -1, after = '';
+  for (const id of sketches) { const i = features.findIndex((f) => f.id === id); if (i > last) { last = i; after = id; } }
+  return last > at ? { op: { op: 'move', id: loftId, to: last }, after } : null;
 }
 /** A loft through the profiles `loftProfileIds` picks (a surface loft also takes open ones, all of one kind). */
 export function loftOps(c: Ctx, surface = false): EditOp[] | null {

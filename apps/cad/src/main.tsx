@@ -13,7 +13,8 @@ import { SelectionList, chipsOf } from './select/SelectionList';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
-import { isPointSketch } from './featureCreators';
+import { autoCutFlip, editorFixes } from './editorFixes';
+import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
@@ -74,7 +75,7 @@ import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
-import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
+import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchBar } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
@@ -228,10 +229,13 @@ function App() {
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // a feature (a new Plane after OK, a clicked plane) and a Front / Top / Right row are never both selected: the Plane tool reads ONE base from the tree
+  useEffect(() => { if (selectedId) setRefSel(null); }, [selectedId]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
-  const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
+  const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
+  useEffect(() => { if (picked?.once) setPicked(null); }, [picked]);   // a one-click fix lands in the draft once; later typing in that field is not overridden
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
   // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
@@ -242,6 +246,7 @@ function App() {
     if (!r.ok && r.diagnosis?.roots.length) setPreviewDiag({ d: r.diagnosis, fresh: newBreakage(r.diagnosis, controller.diagnosis()) });
   };
   const [sketching, setSketching] = useState<{ id: string; name: string; plane?: string } | null>(null);
+  const [lookChip, setLookChip] = useState(false);   // the 'Look normal (N)' chip of the sketch bar: shown when a sketch is entered with the view angled to its plane
   const [sketchHint, setSketchHint] = useState<string | null>(null);
   // Per-sketch mode: new geometry from the draw tools is made as construction (dashed, never extruded). UI state, not saved.
   const [constructionMode, setConstructionMode] = useState(false);
@@ -475,7 +480,7 @@ function App() {
   };
   /** The Plane feature (an offset or tangent reference plane) selected in the tree or clicked in the viewport. */
   const selectedPlaneFeature = () => (selectedId ? controller.document()?.features.find((x) => x.id === selectedId && x.type === 'plane') ?? null : null);
-  const planeLabel = (id: string) => { const f = controller.document()?.features.find((x) => x.id === id) as { name?: string } | undefined; return f?.name ?? id; };
+  const planeLabel = (id: string) => { const d = controller.document(); const f = d?.features.find((x) => x.id === id); return f ? featureLabel(d, f as never) : id; };
   const sketchHere = () => {
     const face = selectedFace();
     const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
@@ -763,7 +768,7 @@ function App() {
   const wireFeatures = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
   const threadUnder = doc ? threadParents(wireFeatures) : {};
   const patterned = doc ? patternedBy(wireFeatures) : {};
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.type === 'plane' || f.type === 'sketch' ? featureLabel(doc, f as never) : f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
@@ -839,7 +844,8 @@ function App() {
       void timed(() => controller.commit([asSurfaceOp({ ...editingFeature, ...draft })], 'surfaceExtrude')).then(() => { setDraft({}); setPreviewHint(null); redraw((n) => n + 1); });
     },
   };
-  const opsOne = (f: Record<string, unknown>, id: string, next: Record<string, unknown>): EditOp[] => {
+  const opsOne = (f: Record<string, unknown>, id: string, next0: Record<string, unknown>): EditOp[] => {
+    const next = f.draftNew ? { ...next0, suppressed: null, draftNew: null } : next0;   // a draft loft (refused when made) becomes real with its first accepted edit
     // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
     // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
     if (Object.values(next).some((v) => v === null)) {
@@ -865,6 +871,8 @@ function App() {
     const ops = editingFeature.type === 'thread' && groupIds.length > 1
       ? groupIds.flatMap((id) => { const f = feats.find((x) => x.id === id); return f ? opsOne(f, id, next) : []; })
       : opsOne(editingFeature, editingId!, next);
+    const mv = editingFeature.type === 'loft' && Array.isArray(next.sketches) ? loftMoveAfter(feats as never, editingId!, next.sketches as string[]) : null;   // a loft picked a later sketch: it moves down after it
+    if (mv) return [...ops, mv.op];
     return thread !== undefined && editingFeature.type === 'hole' ? [...ops, ...holeThreadEditOps(editingId!, holeLinked, thread, holeWalls)] : ops;
   };
   const onDraft = (next: Record<string, unknown>, thread?: HoleThread | null) => {
@@ -876,6 +884,8 @@ function App() {
   const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
     const ops = opsFromDraft(next, thread);
+    const moved = ops.find((o) => o.op === 'move' && o.id === editingId) as { to: number } | undefined;
+    const movedAfter = moved ? (controller.document()?.features ?? [])[moved.to] : undefined;
     if (ops.length) {
       const r = await timed(() => controller.commit(ops));
       if (!r.ok) {
@@ -888,14 +898,23 @@ function App() {
       }
     }
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    if (movedAfter) store.notify(t('app.loft.moved', { name: featureLabel(controller.document(), movedAfter as never) }), 'info');
     if (editingId) setSelectedId(editingId);
     setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
     redraw((n) => n + 1);
+  };
+  /** The refused edit's one-click fixes (suggested shell thickness, flip a cut that misses the body): they patch the draft, which previews again. */
+  const diagFixes = () => {
+    const root = previewDiag?.d.roots[0];
+    if (!root || !editingFeature) return {};
+    const r = editorFixes(root, editingFeature as never, draft);
+    return { ...(r.message ? { message: r.message } : {}), fixes: r.fixes.map((f) => ({ key: f.key, label: f.label, run: () => setPicked({ path: f.path, value: f.value, once: true }) })) };
   };
   const selectFailed = (id: string) => { setSelectedId(id); if (!editingId) setLeftTab('Features'); };
   const onCancel = async () => {
     viewport?.highlightSketchEntities(null, []);
     await controller.cancelPreview();
+    if (editingId && (editingFeature as { draftNew?: boolean } | null)?.draftNew) await controller.deleteFeatures([editingId]);   // the refused draft loft goes away with its editor
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     setLeftTab('Features');
     redraw((n) => n + 1);
@@ -954,6 +973,13 @@ function App() {
     if (controller.setMaterial(c.name)) store.notify(t('material.changed', { name: c.name }));
     closeMaterial(); redraw((n) => n + 1);
   };
+  /** The camera on entering a sketch: squared up when the view is not kept, or for a NEW sketch with 'Auto look normal'; otherwise left alone, with a Look normal chip when it is angled to the plane (more than 5 degrees). */
+  const enteredSketch = (isNew: boolean) => {
+    const p = prefsRef.current;
+    if (!p.keepView || (isNew && p.autoLookNormal)) { viewport?.orientToSketch(); setLookChip(false); return; }
+    setLookChip(lookChipNeeded(viewport?.sketchLookAngle() ?? null));
+  };
+  const lookNormal = () => { viewport?.orientToSketch(); setLookChip(false); };
   const startEditing = (id: string) => {
     // a thread copy made by a pattern is read-only: its source thread is the one to edit, and every copy follows
     const copy = id.includes('@') ? (controller.threadsNow() as ThreadEntry[]).find((x) => x.id === id) : undefined;
@@ -974,8 +1000,8 @@ function App() {
       void (async () => {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
-        setSketching({ id, name: f.name ?? id });
-        if (!prefsRef.current.keepView) viewport?.orientToSketch();   // the setting 'keep view when entering a sketch' (default on)
+        setSketching({ id, name: featureLabel(controller.document(), f as never) || id });
+        enteredSketch(false);
       })();
       return;
     }
@@ -1053,7 +1079,7 @@ function App() {
     const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current, entities: toolEntitiesRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
-    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && prefsRef.current.guideConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    if (ev.type === 'click' && out.draft !== draft && constrainsFromGuides(prefsRef.current, ev.mods.shift)) out.draft = applySnapConstraints(draft, out.draft, snap);
     // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
     if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
@@ -1393,6 +1419,7 @@ function App() {
       return true;
     }
     if (e.key === 'Escape' && sketchToolRef.current) { e.preventDefault(); selectTool(null); return true; }
+    if ((e.key === 'n' || e.key === 'N') && !e.shiftKey) { e.preventDefault(); lookNormal(); return true; }   // Look normal
     const hit = SKETCH_TOOL_KEYS.get(e.key.toLowerCase());
     if (hit && e.key.length === 1) { e.preventDefault(); selectTool(hit); return true; }
     return false;
@@ -1425,7 +1452,7 @@ function App() {
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
-      if (!prefsRef.current.keepView) viewport?.orientToSketch();   // default: the view stays exactly as it was; Look normal squares up
+      enteredSketch(true);
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
       if (after) await after();
@@ -1437,15 +1464,24 @@ function App() {
     if (!d) return;
     const target = nextExtrudeTarget(d.features as never, selectedId);
     if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
-    const before = d.features.length;
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
-    const now = controller.document();
-    const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
-    if (added) startEditing(added.id);
+    const make = (flip: boolean) => ({ type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
+    // a cut's direction is 'auto': the side the body lies on first, then the other, and the one that really touches the body is kept
+    let flip = controller.extrudeFlip(target.sketchId, op);
+    if (op === 'cut') {
+      const pick = await autoCutFlip(flip, async (f) => {
+        const r = await controller.preview([{ op: 'add', feature: make(f) as never }], 0);
+        return { ok: r.ok, codes: (r.errors ?? []).map((e) => String((e as unknown as [string, { code?: string }])[1]?.code ?? '')) };
+      });
+      await controller.cancelPreview();
+      flip = pick.flip;
+    }
+    await createFeature([{ op: 'add', feature: make(flip) as never }]);
   };
   // Add the feature the ops describe as one edit, clear the selection that fed it, and open the Editor on it.
+  // features whose first try is kept as a draft in their editor when the kernel refuses it (the toast alone left nothing to fix)
+  const DRAFTABLE = new Set(['loft', 'shell', 'extrude', 'revolve', 'fillet', 'chamfer', 'sweep']);
   const createFeature = async (ops: EditOp[]) => {
     const before = controller.document()?.features.length ?? 0;
     // the picked edges, faces or corners are consumed by the feature: clear them first so the rebuild does not report them as lost
@@ -1453,7 +1489,25 @@ function App() {
     store.select([]);
     const r = await controller.edit(ops);
     redraw((n) => n + 1);
-    if (!r.ok) { store.select(picked); return; }
+    if (!r.ok) {
+      // a Loft refused on its first try still opens its editor, on the draft, with the problem shown inline (the editor's Cancel removes the draft)
+      const op0 = ops[0];
+      const f0 = ops.length === 1 && op0.op === 'add' ? (op0.feature as Record<string, unknown>) : null;
+      if (f0 && DRAFTABLE.has(String(f0.type))) {
+        const rej = controller.rejection();
+        const text = rej?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || '');
+        const made = await controller.edit([{ op: 'add', feature: { ...f0, suppressed: true, draftNew: true } as never }]);
+        redraw((n) => n + 1);
+        const added = (controller.document()?.features ?? []).find((x) => (x as { draftNew?: boolean }).draftNew) as unknown as Record<string, unknown> | undefined;
+        if (made.ok && added) {
+          startEditing(String(added.id));
+          setPreviewHint(text || null);
+          if (rej) setPreviewDiag({ d: rej.diagnosis, fresh: [] });   // the structured error stays in the editor (with its fixes) until the draft builds
+          return;
+        }
+      }
+      store.select(picked); return;
+    }
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);
@@ -1538,7 +1592,7 @@ function App() {
       onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()}
       construction={constructionMode} onConstruction={() => setConstructionMode(!constructionMode)}
       {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
-      onLookNormal={() => viewport?.orientToSketch()} hint={sketchHint}
+      onLookNormal={lookNormal} lookChip={lookChip} hint={sketchHint}
       status={stNow} busy={defining} prefs={sketchPrefs}
       onPrefs={updatePrefs}
       onFullyDefine={() => void fullyDefineNow()}
@@ -1630,7 +1684,7 @@ function App() {
       }} />
   ) : (
     <FeatureEditor
-      feature={editingFeature}
+      feature={(editingFeature as { draftNew?: boolean } | null)?.draftNew ? (({ suppressed: _s, ...rest }) => rest)(editingFeature as unknown as Record<string, unknown>) as never : editingFeature}
       onDraft={onDraft}
       onConfirm={onConfirm}
       onCancel={onCancel}
@@ -1649,7 +1703,7 @@ function App() {
       key={`${editingId}:${String(editingFeature?.type)}`}
       options={(a) => optionsFor(a, doc, thinActions)}
       hint={openCard ? null : previewHint}
-      diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} /> : null}
+      diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} {...diagFixes()} /> : null}
       okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
       shapes={editShapes}
       onShapeHover={(id) => {
@@ -1796,7 +1850,7 @@ function App() {
     { id: 'sketch-cancel', label: t('app.sketch.cancel'), tab: 'Sketch', group: 'Finish', run: () => void cancelSketch() },
     { id: 'sketch-fully-define', label: t('app.sketch.fullyDefine'), tip: t('app.sketch.fullyDefine.tip'), tab: 'Sketch', group: 'Sketch', run: () => void fullyDefineNow() },
     { id: 'sketch-construction', label: t('app.sketch.constructionMode'), tip: t('app.sketch.constructionMode.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => constructionMode, run: () => setConstructionMode(!constructionMode) },
-    { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', run: () => viewport?.orientToSketch() },
+    { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', keys: 'N', run: () => lookNormal() },
     { id: 'sketch-show-dimensions', label: t('app.sketch.show.dimensions'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.dimensions, run: () => sketchSetShow('dimensions') },
     { id: 'sketch-show-relations', label: t('app.sketch.show.relations'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.relations, run: () => sketchSetShow('relations') },
     { id: 'sketch-select', label: t('app.sketch.select'), tab: 'Sketch', group: 'Sketch', run: () => selectTool(null) },

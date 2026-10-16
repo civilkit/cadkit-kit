@@ -84,7 +84,7 @@ describe('point sections: profile rules', () => {
     expect(ids.at(-1)).toBe('F10');
     expect(loftOps(c)).not.toBeNull();
     expect(sketchInfos(doc).filter((s) => s.point).map((s) => s.id)).toEqual(['F10']);
-    expect(loftProfileIds({ ...c, selectedIds: ['F10', 'F2', 'F4'] } as Ctx)).toEqual(['F10', 'F2', 'F4']);
+    expect(loftProfileIds({ ...c, selectedIds: ['F10', 'F2', 'F4'] } as Ctx)).toEqual(['F2', 'F4', 'F10']);
   });
 });
 

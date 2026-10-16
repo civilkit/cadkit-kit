@@ -97,7 +97,8 @@ export function withRollbackInsert(ops: EditOp[], count: number | null): EditOp[
   return ops.map((o) => (o.op === 'add' && o.index === undefined ? { ...o, index: at++ } : o));
 }
 
-export const renameOps = (id: string, name: string): EditOp[] => [{ op: 'set', id, path: 'name', value: name }];
+/** A user rename also ends the live generated name (`autoName` false): the name given is kept as typed. */
+export const renameOps = (id: string, name: string): EditOp[] => [{ op: 'set', id, path: 'name', value: name }, { op: 'set', id, path: 'autoName', value: false }];
 
 /** Ops to delete these features. A feature other features still use is removed with them only when all of them are in
  *  the selection too; otherwise the plain `remove` goes through and the session refuses it with its reason. */

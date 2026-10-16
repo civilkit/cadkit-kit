@@ -31,7 +31,7 @@ import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend }
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
 import { adaptiveGrid } from './gridSpacing';
-import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
+import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchFitView, sketchPointWorld, lookAngleDeg } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -880,6 +880,14 @@ export class Viewport {
     this.placement?.leave?.();
     if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
   };
+
+  /** How far the camera is from looking straight at the sketch plane, in degrees; null outside a sketch. */
+  sketchLookAngle(): number | null {
+    const v = this.sketchEdit;
+    if (!v) return null;
+    const sight = this.controls.target.clone().sub(this.camera.position);
+    return lookAngleDeg([sight.x, sight.y, sight.z], v.frame.z as number[]);
+  }
 
   /** Point the camera normal to the sketch plane, looking at its centre. */
   orientToSketch(): void {
@@ -1788,8 +1796,10 @@ export class Viewport {
   }
 
   fit(): void {
-    const c = this.center();
-    const r = this.radius();
+    // in a sketch, Fit frames the SKETCH (its geometry, else a 100 mm view around the origin), never the reference planes or the body
+    const sk = this.sketchEdit ? sketchFitView(this.sketchEdit as never, this.sketchEdit.frame as never) : null;
+    const c = sk ? new THREE.Vector3(...sk.center) : this.center();
+    const r = sk ? sk.radius : this.radius();
     const dist = (r * 1.2) / Math.sin((this.camera.fov * Math.PI) / 360);
     const dir = this.camera.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-9) dir.set(1, 0.8, 1);

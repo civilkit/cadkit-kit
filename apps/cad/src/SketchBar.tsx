@@ -57,6 +57,8 @@ export function SketchBar(p: {
   /** Shown when geometry is selected: turn the selection into / out of construction. */
   onToggleSelected?: () => void;
   onLookNormal(): void;
+  /** The camera is angled to the sketch plane (more than 5 degrees) on entry: show a one-click `Look normal (N)` chip. It goes away once used. */
+  lookChip?: boolean;
   hint?: string | null;
   status: SketchSolverStatus | null;
   busy: boolean;
@@ -98,6 +100,7 @@ export function SketchBar(p: {
       ))}
       <hr />
       <label class="aux-row"><input type="checkbox" checked={p.prefs.autoConstraints} onChange={(e) => p.onPrefs({ autoConstraints: (e.currentTarget as HTMLInputElement).checked })} /><span>{t('app.sketch.snaps.auto')}</span></label>
+      <label class="aux-row"><input type="checkbox" data-pref="autoLookNormal" checked={p.prefs.autoLookNormal} onChange={(e) => p.onPrefs({ autoLookNormal: (e.currentTarget as HTMLInputElement).checked })} /><span>{t('settings.sketch.autoLookNormal')}</span></label>
       <label class="aux-row" title={t('app.sketch.snaps.guideTip')}><input type="checkbox" data-pref="guideConstraints" checked={p.prefs.guideConstraints} onChange={(e) => p.onPrefs({ guideConstraints: (e.currentTarget as HTMLInputElement).checked })} /><span>{t('app.sketch.snaps.guide')}</span></label>
     </>
   );
@@ -119,6 +122,7 @@ export function SketchBar(p: {
         <button class="rb-btn" aria-pressed={p.construction} title={t('app.sketch.constructionMode.tip')} onClick={p.onConstruction}>{t('app.sketch.constructionMode')}</button>
         {p.onToggleSelected ? <button class="rb-btn" title={t('app.sketch.toggleConstruction.tip')} onClick={p.onToggleSelected}>{t('app.sketch.toggleConstruction')}</button> : null}
         <button class="rb-btn" onClick={p.onLookNormal}>{t('app.sketch.lookNormal')}</button>
+        {p.lookChip ? <button class="rb-btn look-chip" data-action="look-normal-chip" title={t('app.sketch.lookNormalChip.tip')} onClick={p.onLookNormal}>{t('app.sketch.lookNormalChip')}</button> : null}
         <span class="sb-sep" />
         {p.status ? (
           <button class={`dof-chip ${level}`} data-level={level} aria-expanded={listOpen} aria-haspopup="true" onClick={() => setListOpen(!listOpen)}

@@ -104,11 +104,11 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     w.select(['F2.C1'], 'face');
     expect(w.cmd('add-shell').enabled!()).toBe(true);
     await w.run('add-shell');
-    expect(lastFeature(w)).toMatchObject({ type: 'shell', faces: ['F2.C1'], thickness: 0.5 });
+    expect(lastFeature(w)).toMatchObject({ type: 'shell', faces: ['F2.C1'], thickness: 1 });
     const after = await w.stats();
     expect(after.errors).toEqual([]);
     expect(after.faces).toBe(11);
-    expect(after.volume).toBeCloseTo(40 * 25 * 10 - 39 * 24 * 9.5, 1);
+    expect(after.volume).toBeCloseTo(40 * 25 * 10 - 38 * 23 * 9, 1);
     expect(after.box).toEqual(base.box);
   });
 

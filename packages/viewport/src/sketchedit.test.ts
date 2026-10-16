@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   planeCoords, planeToWorld, rayPlane, nearestSketchPoint,
-  sketchEditPolylines, sketchPointWorld,
+  sketchEditPolylines, sketchPointWorld, sketchFitView, lookAngleDeg,
 } from './sketchedit';
 import type { Frame } from './layers';
 
@@ -115,5 +115,39 @@ describe('viewSide', () => {
   it('uses the plane normal with no body or a plane through the body', () => {
     expect(viewSide(frame, null)).toBe(1);
     expect(viewSide(frame, [5, 5, 0])).toBe(1);
+  });
+});
+
+describe('lookAngleDeg', () => {
+  it('is 0 looking straight at the plane from either side and grows as the view tilts', () => {
+    expect(lookAngleDeg([0, 0, -5], [0, 0, 1])).toBeCloseTo(0);
+    expect(lookAngleDeg([0, 0, 5], [0, 0, 1])).toBeCloseTo(0);
+    expect(lookAngleDeg([1, 0, -1], [0, 0, 1])).toBeCloseTo(45);
+    expect(lookAngleDeg([1, 0, 0], [0, 0, 1])).toBeCloseTo(90);
+    expect(lookAngleDeg([-1, -1, -1], [0, 0, 1])).toBeCloseTo(54.74, 1);
+  });
+});
+
+describe('sketchFitView (Fit inside a sketch)', () => {
+  const sk = (points: unknown[], entities: unknown[] = []) => ({ points, entities, constraints: [] }) as never;
+  const O = { id: 'O', x: 0, y: 0, fixed: true };
+  it('an empty sketch gets a 100 mm view around the plane origin', () => {
+    const v = sketchFitView(sk([O]), FRONT_UP);
+    expect(v.empty).toBe(true);
+    expect(v.center).toEqual([10, 20, 30]);
+    expect(v.radius).toBe(50);
+  });
+  it('frames the entities, not the origin point, the body or the planes', () => {
+    const pts = [O, { id: 'a', x: 10, y: 10 }, { id: 'b', x: 30, y: 10 }, { id: 'c', x: 30, y: 20 }, { id: 'd', x: 10, y: 20 }];
+    const ents = [['e1', 'a', 'b'], ['e2', 'b', 'c'], ['e3', 'c', 'd'], ['e4', 'd', 'a']].map(([id, p1, p2]) => ({ id, type: 'line', p1, p2 }));
+    const v = sketchFitView(sk(pts, ents), FRONT);
+    expect(v.empty).toBe(false);
+    expect(v.center[0]).toBeCloseTo(20); expect(v.center[1]).toBeCloseTo(15);
+    expect(v.radius).toBeCloseTo(Math.hypot(20, 10) / 2);
+  });
+  it('a single point still gets a few mm of room', () => {
+    const v = sketchFitView(sk([O, { id: 'a', x: 5, y: 5 }]), FRONT);
+    expect(v.center[0]).toBeCloseTo(5);
+    expect(v.radius).toBeGreaterThanOrEqual(2);
   });
 });

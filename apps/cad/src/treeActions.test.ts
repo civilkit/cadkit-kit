@@ -72,7 +72,7 @@ describe('rollback anchor', () => {
 });
 
 describe('ops', () => {
-  it('rename sets name', () => expect(renameOps('F2', 'Base')).toEqual([{ op: 'set', id: 'F2', path: 'name', value: 'Base' }]));
+  it('rename sets name', () => expect(renameOps('F2', 'Base')).toEqual([{ op: 'set', id: 'F2', path: 'name', value: 'Base' }, { op: 'set', id: 'F2', path: 'autoName', value: false }]));
   it('delete cascades only inside the selection', () => {
     expect(deleteOps(feats, ['F5'])).toEqual([{ op: 'remove', id: 'F5' }]);
     expect(deleteOps(feats, ['F4', 'F5'])).toEqual([{ op: 'remove', id: 'F4', cascade: true }, { op: 'remove', id: 'F5' }]);

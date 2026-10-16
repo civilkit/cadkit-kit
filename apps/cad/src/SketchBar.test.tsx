@@ -24,6 +24,28 @@ describe('definition level', () => {
   });
 });
 
+describe('Look normal chip', () => {
+  it('shows only when asked, with the shortcut in its label, and calls Look normal', () => {
+    const none = bar(st({}));
+    expect(none.container.querySelector('[data-action="look-normal-chip"]')).toBeNull();
+    cleanup();
+    const { container, props } = bar(st({}), { lookChip: true });
+    const chip = container.querySelector('[data-action="look-normal-chip"]')!;
+    expect(chip.textContent).toBe('Look normal (N)');
+    fireEvent.click(chip);
+    expect(props.onLookNormal).toHaveBeenCalled();
+  });
+  it('the option Auto look normal for new sketches is off by default and toggles', () => {
+    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(false);
+    const { container, props } = bar(st({}));
+    fireEvent.click(container.querySelector('.aux-pop button')!);
+    const box = container.querySelector('[data-pref="autoLookNormal"]') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    expect(props.onPrefs).toHaveBeenCalledWith({ autoLookNormal: true });
+  });
+});
+
 describe('SketchBar', () => {
   it('shows the chip with its level and the degrees of freedom, and Fully define is live until fully defined', () => {
     const { container, props } = bar(st({ dof: 4 }));

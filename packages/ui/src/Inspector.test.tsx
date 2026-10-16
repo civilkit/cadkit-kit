@@ -51,3 +51,10 @@ describe('Inspector', () => {
     expect(container.querySelector('.insp')?.textContent).toBe('');
   });
 });
+
+describe('bookkeeping fields', () => {
+  it('autoName and draftNew are not editable fields', () => {
+    const paths = fieldsOf({ type: 'plane', id: 'P1', offset: 5, autoName: true, draftNew: true, name: 'x' }).map((f) => f.path);
+    expect(paths).toEqual(['offset']);
+  });
+});

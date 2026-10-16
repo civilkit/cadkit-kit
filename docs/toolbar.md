@@ -134,3 +134,34 @@ whole command table (every optional command included) and fails for a command wi
   points as handles, in the sketch layer and while editing.
 * **Keep view when entering a sketch** (Settings, Sketching; default on): the camera stays exactly where it is; Look normal squares up.
   Off: entering a sketch squares the view to the plane (the old behaviour).
+
+## Hull fixes, second round (UX review of the narrated hull film)
+
+* **Live default names.** A Plane or Sketch that still carries its generated name is shown under a name derived from its CURRENT offset,
+  base and plane: a plane typed at -60 reads `Plane -60 from Right`, a plane built on it reads `Plane 20 from Plane -60 from Right`, a
+  sketch on it `Sketch on Plane -60 from Right`. New planes carry `autoName: true`; older documents are recognised by the shape of the
+  name. A rename (F2 or double-click) writes `autoName: false` and the typed name is kept. A base plane is always labelled by what the
+  tree shows, never by an inherited stale name. Code: `featureLabel`, `hasAutoName`, `refLabel` in `featureCreators.ts`.
+* **Plane tool base.** The base is read from the tree selection at the moment the tool starts. Selecting a feature row clears the chosen
+  Front / Top / Right row and the reverse (and a new Plane after OK is a selected feature, so the Right row is no longer highlighted and the
+  next click on it selects instead of toggling off). Test: `planeBase.test.ts` (select Right, Plane, OK, select Right, Plane).
+* **Loft order.** If the loft editor is given a sketch that comes later in the tree, the loft moves to just after the last sketch it uses
+  (one `move` op in the same edit) and a notice says `Loft moved after <name>` (`loftMoveAfter`).
+* **Loft tool and point sections.** With one or two point sketches among the profiles they are put at the ends, by their plane positions
+  along the loft direction (read through standard planes and chains of offset planes; with unreadable positions the order is kept and the
+  editor's inline rule shows the problem). When the kernel refuses the first try, the editor still opens: the loft is stored as a
+  suppressed draft (`draftNew`) with the error shown inline; the first accepted edit makes it real, Cancel removes it. The same draft
+  mechanism serves Shell, Fillet, Chamfer, Extrude, Revolve and Sweep (`createFeature` in `main.tsx`). Tests: `loftOrder.kernel.test.ts`.
+* **Look normal.** Entering a sketch with the camera more than 5 degrees off the plane normal shows a `Look normal (N)` chip in the sketch
+  bar; N does the same in a sketch. Settings > Sketching (and the Snaps menu) has `Auto look normal for new sketches` (default off).
+  The automatic grid is 1 mm whenever 1 mm is 8 to 80 px wide, so the snap step is whole millimetres without setting the spacing.
+* **Guides and constraints.** `Auto-constrain from guides` is off for a clean profile (tests: `sketchPrefs.test.ts`); guides are drawn and
+  snap either way, only the constraint is gated (`constrainsFromGuides`).
+* **Fit in a sketch** frames the sketch (its entities and points; a 100 mm view around the origin when empty), never the body or the
+  reference planes (`sketchFitView`).
+* **Shell.** The default wall is 1.0 mm or 2% of the body's smallest bounding-box side, whichever is larger, to 0.1 mm. A refused Shell
+  keeps the editor open with the structured error persistently; when the error carries `maxThickness` the card offers
+  `Use suggested thickness (x mm)` (`editorFixes.ts`). The kernel gives `maxThickness` only for some failures (for example `thinTooThick`).
+* **Extruded cut.** Direction is `auto`: the side the body lies on is tried first, then the other, and the one that cuts is kept
+  (`autoCutFlip`, probed with a preview). If neither touches the body the editor opens on the draft with `The cut does not touch the body
+  in this direction. Flip?` and a `Flip direction` button. There is no extra direction arrow in the viewport (the boss preview has none either).
