@@ -48,7 +48,7 @@ const cases: Array<[string, Parameters<typeof script>[0]]> = [
   ['lens,    rho 10', { lens: true, rho: 10 }],
   ['lens,    rho 14', { lens: true, rho: 14 }],
 ];
-for (const [name, o] of cases) { const r = await run(script(o)); console.log(name.padEnd(20), r.errors); if (name.startsWith('lens,    rho 10')) writeFileSync(process.env.REPRO_DOC ?? 'repro_text_lens_doc.json', JSON.stringify(r.doc, null, 1)); }
+for (const [name, o] of cases) { const r = await run(script(o)); console.log(name.padEnd(20), r.errors); if (name.startsWith('lens,    rho 14')) writeFileSync(process.env.REPRO_DOC ?? new URL('repro_text_lens_doc.json', import.meta.url).pathname, JSON.stringify(r.doc, null, 1)); }
 console.log('\nscan of the numeral radius rho (mm from the dial centre, at 225 deg), lens present:');
 const row: string[] = [];
 for (let rho = 4; rho <= 16; rho += 0.5) { const r = await run(script({ lens: true, rho })); row.push(`${rho.toFixed(1)}:${r.errors === 'ok' ? 'ok' : 'FAIL'}`); }
