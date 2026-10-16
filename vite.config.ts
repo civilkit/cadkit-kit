@@ -23,6 +23,7 @@ export default defineConfig(({ command }) => ({
       '@kit/fcstd': here('./packages/fcstd/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/script': here('./packages/script/src/index.ts'),
+      '@kit/snapshot': here('./packages/snapshot/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@ck/session': FW + '/packages/session/src/session.ts',
       '@ck/mesh': FW + '/packages/render/src/mesh.ts',
