@@ -1,0 +1,2 @@
+- RADIUS, not diameter: a 10 mm bore is circle(5).
+- To drill, prefer part.hole / holes.* over a circle + cut: they carry the hole kind and are one feature.

@@ -1,0 +1,2 @@
+- Points go in order around the profile, either direction; the shape closes itself.
+- For a revolve profile keep every x >= 0 (radius).

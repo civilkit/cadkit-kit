@@ -1,0 +1,3 @@
+- A sketch on a face(): the sketch origin is the world origin projected on that face; coordinates are in mm.
+- Feature order matters: sketch, then the feature that uses it. Two sketches in a row without a feature between them: only the last is used.
+- Units mm, Y up. front = XY (normal +Z), top = XZ (normal +Y), right = ZY (normal +X).

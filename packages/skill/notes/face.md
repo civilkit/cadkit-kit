@@ -1,0 +1,2 @@
+- Matches planar faces only, by outward normal direction; ties go to the biggest. It does not pick by position: two coplanar faces at the same height resolve to the larger.
+- Resolved against the body as it is just before the step: after a boss on top, face('>Z') is the boss top, not the plate top.

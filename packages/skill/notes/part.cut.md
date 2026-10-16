@@ -1,0 +1,4 @@
+- A cut runs AGAINST the sketch normal. On face('>Z') that is into the body. On the front plane at z = 0 with the body above it, it runs away: the run reports `cutNoEffect`; sketch on the face instead, or pass `{ flip: true }`.
+- A cut sketch must overlap the material in plan; a circle outside the body also gives `cutNoEffect`.
+- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).
+- Depth beyond the body is fine; through() is clearer when you mean all the way.

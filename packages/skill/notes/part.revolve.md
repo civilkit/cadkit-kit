@@ -1,0 +1,3 @@
+- Draw the half profile on ONE side of the axis: x is the distance from the axis, y the height. Keep the profile from crossing the axis (no negative x).
+- The sketch plane decides the world axis: on 'front' and 'right' the sketch Y axis is world Y or world Z accordingly; for a pulley on 'right' the axis is world Y and the end faces are face('>Y') / face('<Y').
+- 360 is a full solid of revolution; a smaller angle leaves two planar end faces.

@@ -1,0 +1,2 @@
+- The axis passes through the world origin: centre the part on it, or the copies swing around the origin instead of the part.
+- Repeats ONLY the last feature. For a ring of drilled holes use holes.polar (one feature, simpler).

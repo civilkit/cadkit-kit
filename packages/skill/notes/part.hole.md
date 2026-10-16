@@ -1,0 +1,3 @@
+- diameter, not radius (circle() is radius). Centres are in the face sketch plane relative to the world origin projected on the face, NOT a corner of the face: a hole at [0, 0] on a plate centred on the origin is in the middle.
+- face('>Z') must exist as a planar face at that step. After a shell or fillet on the top, the top face may be a different face: select again.
+- Through unless depth is given. Many holes: use holes.points / polar / grid (one feature).

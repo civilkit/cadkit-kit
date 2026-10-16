@@ -1,0 +1,3 @@
+- Repeats ONLY the last feature (one seed), count includes the original, spacing is between instances in mm.
+- axis is a WORLD axis ('x' | 'y' | 'z'), not a sketch axis.
+- Patterning twice (rows then columns) is not supported by the helper: draw the whole grid in one sketch with a loop, or use holes.grid.

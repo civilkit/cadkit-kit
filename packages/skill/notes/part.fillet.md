@@ -1,0 +1,3 @@
+- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.
+- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.
+- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists.

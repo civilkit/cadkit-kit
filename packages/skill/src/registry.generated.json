@@ -1,0 +1,1251 @@
+{
+ "version": 1,
+ "source": "packages/script/src/recorder.ts",
+ "domains": [
+  "sketch",
+  "features",
+  "selectors",
+  "holes",
+  "patterns",
+  "utilities"
+ ],
+ "types": {
+  "EditOp": "{ op: 'add'; feature: Record<string, unknown>; index?: number }",
+  "Plane": "'front' | 'top' | 'right'",
+  "Num": "number | Expr",
+  "EndSpec": "Num | { through: true }",
+  "Pt": "[number, number]",
+  "ScriptApi": "ReturnType<typeof makeApi>",
+  "EdgeRule": "{ parallel?: 'X' | 'Y' | 'Z'; outside?: [Vec, Vec]; inside?: [Vec, Vec]; not?: EdgeSel; onFace?: FaceSel; lengthGreater?: number; lengthLess?: number; near?: Vec; within?: number; union?: EdgeSel[]; intersect?: EdgeSel[]; difference?: EdgeSel[]; }",
+  "FaceSel": "the result of face(sel)",
+  "EdgeSel": "the result of edges(sel)"
+ },
+ "methods": [
+  {
+   "id": "at",
+   "kind": "function",
+   "domain": "sketch",
+   "signature": "at(plane: Plane, offset: Num): OffsetPlane",
+   "summary": "A standard plane moved along its normal, for a sketch on a workplane at a distance.",
+   "description": "at(plane, offset) returns a plane reference for sketch(): front moves along +Z, top along +Y, right along +X. A reference plane feature is added to the part. Use it to sketch above or below the origin without needing a face to select.",
+   "parameters": [
+    {
+     "name": "plane",
+     "type": "Plane",
+     "optional": false,
+     "description": "the standard plane: front, top or right"
+    },
+    {
+     "name": "offset",
+     "type": "Num",
+     "optional": false,
+     "description": "distance along the plane normal in mm (a number or expr)"
+    }
+   ],
+   "returns": "OffsetPlane",
+   "example": "part('Stack')\n  .sketch('front', (s) => s.rect(40, 40)).extrude(5)\n  .sketch(at('front', 20), (s) => s.circle(8)).extrude(5);",
+   "related": [
+    "part.sketch"
+   ]
+  },
+  {
+   "id": "part.sketch",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": ".sketch(plane: Plane | OffsetPlane | FaceSel, build: (s: SketchBuilder) => void, name?: string): this",
+   "summary": "Start a sketch on a plane or a face; the next extrude, cut or revolve uses it.",
+   "description": "Opens a sketch on 'front' (XY, normal +Z), 'top' (XZ, normal +Y), 'right' (ZY, normal +X), on at('front', 20) (a plane moved along its normal), or on a face(): face('>Z'). The callback draws with the sketch builder `s`. A feature needs its own sketch: each extrude / cut / revolve consumes the last sketch. Units mm, Y is up.",
+   "parameters": [
+    {
+     "name": "plane",
+     "type": "Plane | OffsetPlane | FaceSel",
+     "optional": false,
+     "description": "'front' | 'top' | 'right', at(plane, offset), or face(sel)"
+    },
+    {
+     "name": "build",
+     "type": "(s: SketchBuilder) => void",
+     "optional": false,
+     "description": "callback receiving the sketch builder s"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "optional": true,
+     "description": "optional name shown in the feature tree"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10)\n  .sketch(face('>Z'), (s) => s.circle(5)).cut(through());",
+   "related": [
+    "sketch.rect",
+    "face",
+    "at",
+    "part.extrude"
+   ],
+   "notes": "- A sketch on a face(): the sketch origin is the world origin projected on that face; coordinates are in mm.\n- Feature order matters: sketch, then the feature that uses it. Two sketches in a row without a feature between them: only the last is used.\n- Units mm, Y up. front = XY (normal +Z), top = XZ (normal +Y), right = ZY (normal +X)."
+  },
+  {
+   "id": "sketch.arc",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.arc(centre: Pt, start: Pt, end: Pt): this",
+   "summary": "Counter-clockwise arc about a centre from a start point to an end point.",
+   "description": "Adds an arc on the circle through `start` centred on `centre`, running counter-clockwise to `end` (projected on the radius). For an arc through three points in either direction use arc3.",
+   "parameters": [
+    {
+     "name": "centre",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] of the arc"
+    },
+    {
+     "name": "start",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] where the arc begins"
+    },
+    {
+     "name": "end",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] where it ends (counter-clockwise from start)"
+    }
+   ],
+   "returns": "this",
+   "example": "s.arc([0, 0], [10, 0], [0, 10]);",
+   "related": [
+    "sketch.arc3"
+   ]
+  },
+  {
+   "id": "sketch.arc3",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.arc3(a: Pt, m: Pt, b: Pt): this",
+   "summary": "Arc from a to b passing through the middle point m (either direction).",
+   "description": "Adds the arc of the circle through the three points. It fails if the points are in line. Easier than arc() when you know three points on the outline.",
+   "parameters": [
+    {
+     "name": "a",
+     "type": "Pt",
+     "optional": false,
+     "description": "start [x, y]"
+    },
+    {
+     "name": "m",
+     "type": "Pt",
+     "optional": false,
+     "description": "a point on the arc between a and b"
+    },
+    {
+     "name": "b",
+     "type": "Pt",
+     "optional": false,
+     "description": "end [x, y]"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Half disc').sketch('top', (s) => s.arc3([10, 0], [5, 5], [0, 0]).line([0, 0], [10, 0])).extrude(2);",
+   "related": [
+    "sketch.arc",
+    "sketch.line"
+   ]
+  },
+  {
+   "id": "sketch.axis",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.axis(): this",
+   "summary": "Construction line along the sketch Y axis (the default revolve axis).",
+   "description": "revolve() adds this automatically when the sketch has no axis, so you rarely call it. Profile x is the distance from the axis, profile y the height along it.",
+   "parameters": [],
+   "returns": "this",
+   "example": "s.axis();",
+   "related": [
+    "part.revolve"
+   ]
+  },
+  {
+   "id": "sketch.axisAt",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.axisAt(from: Pt, to: Pt): this",
+   "summary": "Construction line used as the revolve axis when it is not the sketch Y axis.",
+   "description": "Adds a construction line between two sketch points and makes it the axis of the next revolve. Normally you pass the same thing as revolve(360, { axis: { from, to } }), which calls this for you.",
+   "parameters": [
+    {
+     "name": "from",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] start of the axis"
+    },
+    {
+     "name": "to",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] end of the axis"
+    }
+   ],
+   "returns": "this",
+   "example": "s.axisAt([30, 0], [30, 10]);",
+   "related": [
+    "part.revolve",
+    "sketch.axis"
+   ]
+  },
+  {
+   "id": "sketch.circle",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.circle(r: Num, at: Pt = [0, 0]): this",
+   "summary": "Circle given its RADIUS (not diameter).",
+   "description": "Adds a circle of radius r centred on `at`. Remember radius: a 10 mm bore is circle(5). Several circles in one sketch with nesting make rings; a circle on a face with cut() makes a round pocket or a through bore.",
+   "parameters": [
+    {
+     "name": "r",
+     "type": "Num",
+     "optional": false,
+     "description": "radius in mm"
+    },
+    {
+     "name": "at",
+     "type": "Pt",
+     "optional": true,
+     "default": "[0, 0]",
+     "description": "centre [x, y], default [0, 0]"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Disc').sketch('front', (s) => s.circle(25)).extrude(8);",
+   "related": [
+    "part.hole",
+    "part.cut"
+   ],
+   "notes": "- RADIUS, not diameter: a 10 mm bore is circle(5).\n- To drill, prefer part.hole / holes.* over a circle + cut: they carry the hole kind and are one feature."
+  },
+  {
+   "id": "sketch.grid",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.grid(origin: Pt, pitch: Pt, count: [number, number]): this",
+   "summary": "Points on a rectangular grid.",
+   "description": "Adds nx by ny points starting at `origin` with spacing `pitch` along x then y (x varies fastest).",
+   "parameters": [
+    {
+     "name": "origin",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] of the first point"
+    },
+    {
+     "name": "pitch",
+     "type": "Pt",
+     "optional": false,
+     "description": "[dx, dy] spacing in mm"
+    },
+    {
+     "name": "count",
+     "type": "[number, number]",
+     "optional": false,
+     "description": "[nx, ny] number of points along x and y"
+    }
+   ],
+   "returns": "this",
+   "example": "s.grid([-15, -10], [10, 10], [4, 3]);",
+   "related": [
+    "part.holes.grid",
+    "sketch.polarPoints"
+   ]
+  },
+  {
+   "id": "sketch.line",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.line(a: Pt, b: Pt): this",
+   "summary": "One line segment between two points.",
+   "description": "Adds a single line from a to b. Combine with arc or arc3 to close a profile that has curved sides (a half disc is arc3 plus a line).",
+   "parameters": [
+    {
+     "name": "a",
+     "type": "Pt",
+     "optional": false,
+     "description": "start [x, y]"
+    },
+    {
+     "name": "b",
+     "type": "Pt",
+     "optional": false,
+     "description": "end [x, y]"
+    }
+   ],
+   "returns": "this",
+   "example": "s.arc3([10, 0], [5, 5], [0, 0]).line([0, 0], [10, 0]);",
+   "related": [
+    "sketch.arc3",
+    "sketch.polyline"
+   ]
+  },
+  {
+   "id": "sketch.point",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.point(at: Pt): this",
+   "summary": "A single point (a hole centre).",
+   "description": "Adds a point entity. Points in a sketch are used as hole centres by hole features; for a hole use part.hole or part.holes.* rather than placing points yourself.",
+   "parameters": [
+    {
+     "name": "at",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y]"
+    }
+   ],
+   "returns": "this",
+   "example": "s.point([10, 5]);",
+   "related": [
+    "sketch.points",
+    "part.hole"
+   ]
+  },
+  {
+   "id": "sketch.points",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.points(pts: Pt[]): this",
+   "summary": "Several points (hole centres).",
+   "description": "Adds one point entity per [x, y]. See holes.points for the usual way to drill them.",
+   "parameters": [
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "list of [x, y]"
+    }
+   ],
+   "returns": "this",
+   "example": "s.points([[0, 0], [10, 0], [20, 0]]);",
+   "related": [
+    "part.holes.points"
+   ]
+  },
+  {
+   "id": "sketch.polarPoints",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.polarPoints(center: Pt, radius: number, n: number, startAngle: number = 0): this",
+   "summary": "Points on a circle: a bolt circle of centres.",
+   "description": "Adds `n` points on a circle of `radius` about `center`, the first at `startAngle` degrees (counter-clockwise from sketch x). For drilled holes use part.holes.polar.",
+   "parameters": [
+    {
+     "name": "center",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] of the circle"
+    },
+    {
+     "name": "radius",
+     "type": "number",
+     "optional": false,
+     "description": "in mm"
+    },
+    {
+     "name": "n",
+     "type": "number",
+     "optional": false,
+     "description": "number of points"
+    },
+    {
+     "name": "startAngle",
+     "type": "number",
+     "optional": true,
+     "default": "0",
+     "description": "in degrees, default 0"
+    }
+   ],
+   "returns": "this",
+   "example": "s.polarPoints([0, 0], 20, 6);",
+   "related": [
+    "part.holes.polar",
+    "sketch.grid"
+   ]
+  },
+  {
+   "id": "sketch.polygon",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.polygon(pts: Pt[]): this",
+   "summary": "Closed polygon through the points.",
+   "description": "Adds a closed profile of straight lines through the points, in order; the last point joins the first. Coordinates are in the sketch plane in mm. Use it for L, T, U shapes and for revolve profiles (half cross-section).",
+   "parameters": [
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "list of [x, y] points, at least three"
+    }
+   ],
+   "returns": "this",
+   "example": "part('L').sketch('front', (s) => s.polygon([[0,0],[40,0],[40,8],[8,8],[8,30],[0,30]])).extrude(20);",
+   "related": [
+    "sketch.rect",
+    "sketch.polyline",
+    "part.revolve"
+   ],
+   "notes": "- Points go in order around the profile, either direction; the shape closes itself.\n- For a revolve profile keep every x >= 0 (radius)."
+  },
+  {
+   "id": "sketch.polyline",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.polyline(pts: Pt[]): this",
+   "summary": "Open chain of lines through the points.",
+   "description": "Adds line segments joining consecutive points without closing. An open chain extrudes only when thin walls are requested (thin option) or when it is closed by other entities of the same sketch.",
+   "parameters": [
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "list of [x, y] points"
+    }
+   ],
+   "returns": "this",
+   "example": "s.polyline([[0,0],[10,0],[10,10]]);",
+   "related": [
+    "sketch.polygon",
+    "sketch.line"
+   ]
+  },
+  {
+   "id": "sketch.rect",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.rect(w: Num, h: Num, at: Pt = [0, 0]): this",
+   "summary": "Rectangle of width x height centred on a point.",
+   "description": "Adds a closed rectangle: width along sketch x, height along sketch y, centred on `at` (default the sketch origin). A second rect inside the first makes a frame (ring) that extrudes as a hollow section.",
+   "parameters": [
+    {
+     "name": "w",
+     "type": "Num",
+     "optional": false,
+     "description": "width (sketch x) in mm"
+    },
+    {
+     "name": "h",
+     "type": "Num",
+     "optional": false,
+     "description": "height (sketch y) in mm"
+    },
+    {
+     "name": "at",
+     "type": "Pt",
+     "optional": true,
+     "default": "[0, 0]",
+     "description": "centre [x, y], default [0, 0]"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10);",
+   "related": [
+    "sketch.rrect",
+    "sketch.polygon",
+    "sketch.circle"
+   ]
+  },
+  {
+   "id": "sketch.rrect",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.rrect(w: Num, h: Num, r: Num, at: Pt = [0, 0]): this",
+   "summary": "Rounded rectangle: width x height with corner radius r.",
+   "description": "Adds four lines and four arcs that share end points, centred on `at`. With r <= 0 it is a plain rect. Prefer this over filleting the vertical edges of a plate afterwards: it is faster and more robust.",
+   "parameters": [
+    {
+     "name": "w",
+     "type": "Num",
+     "optional": false,
+     "description": "width in mm"
+    },
+    {
+     "name": "h",
+     "type": "Num",
+     "optional": false,
+     "description": "height in mm"
+    },
+    {
+     "name": "r",
+     "type": "Num",
+     "optional": false,
+     "description": "corner radius in mm"
+    },
+    {
+     "name": "at",
+     "type": "Pt",
+     "optional": true,
+     "default": "[0, 0]",
+     "description": "centre [x, y], default [0, 0]"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Tile').sketch('front', (s) => s.rrect(60, 40, 8)).extrude(5);",
+   "related": [
+    "sketch.rect",
+    "part.fillet"
+   ]
+  },
+  {
+   "id": "part.chamfer",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".chamfer(on: EdgeSel, distance: Num): this",
+   "summary": "Bevel edges with an equal distance.",
+   "description": "Cuts a flat bevel on the chosen edges, the same distance along both faces. Good for edge breaks on bores and rims.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "EdgeSel",
+     "optional": false,
+     "description": "edges(sel) the edges to bevel"
+    },
+    {
+     "name": "distance",
+     "type": "Num",
+     "optional": false,
+     "description": "in mm"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Washer').sketch('front', (s) => s.circle(30)).extrude(5)\n  .hole(face('>Z'), [0, 0], { diameter: 18 }).chamfer(edges('>Z'), 0.5);",
+   "related": [
+    "part.fillet",
+    "edges"
+   ]
+  },
+  {
+   "id": "part.cut",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".cut(end: EndSpec, o: ExtrudeOpts = {}): this",
+   "summary": "Cut the last sketch out of the body: a depth or through().",
+   "description": "Removes material. The cut runs AGAINST the sketch normal: from a face sketch (face('>Z')) that is into the body; from a standard plane whose normal points into the body (the front plane at the start of a Z extrude) it runs away from the body and reports cutNoEffect, so sketch on a face or pass flip: true. Depth is a number or through() for all the way. Same options as extrude (mid, flip, draft, thin).",
+   "parameters": [
+    {
+     "name": "end",
+     "type": "EndSpec",
+     "optional": false,
+     "description": "depth in mm, or through()"
+    },
+    {
+     "name": "o",
+     "type": "ExtrudeOpts",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "mid",
+       "type": "boolean",
+       "optional": true,
+       "description": "cut half each way"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      },
+      {
+       "name": "draft",
+       "type": "number",
+       "optional": true,
+       "description": "taper angle in degrees"
+      },
+      {
+       "name": "thin",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Pocketed').sketch('front', (s) => s.rect(60, 40)).extrude(10)\n  .sketch(face('>Z'), (s) => s.rect(30, 20)).cut(4);",
+   "related": [
+    "through",
+    "part.extrude",
+    "part.hole"
+   ],
+   "notes": "- A cut runs AGAINST the sketch normal. On face('>Z') that is into the body. On the front plane at z = 0 with the body above it, it runs away: the run reports `cutNoEffect`; sketch on the face instead, or pass `{ flip: true }`.\n- A cut sketch must overlap the material in plan; a circle outside the body also gives `cutNoEffect`.\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way."
+  },
+  {
+   "id": "part.extrude",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".extrude(depth: Num, o: ExtrudeOpts = {}): this",
+   "summary": "Extrude the last sketch into a solid (adds material).",
+   "description": "Extrudes the last sketch along its plane normal by `depth` mm. Options: mid (symmetric about the plane), flip (opposite direction), draft (taper angle in degrees), thin (hollow wall thickness: closed profile gives a tube, open profile a thin sheet). The first extrude makes the body; later ones add to it (a boss when sketched on a face).",
+   "parameters": [
+    {
+     "name": "depth",
+     "type": "Num",
+     "optional": false,
+     "description": "length in mm (number or expr)"
+    },
+    {
+     "name": "o",
+     "type": "ExtrudeOpts",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "mid",
+       "type": "boolean",
+       "optional": true,
+       "description": "extrude half each way"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      },
+      {
+       "name": "draft",
+       "type": "number",
+       "optional": true,
+       "description": "taper angle in degrees"
+      },
+      {
+       "name": "thin",
+       "type": "Num",
+       "optional": true,
+       "description": "wall thickness for a thin-walled extrude"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Boss').sketch('front', (s) => s.rect(50, 50)).extrude(10)\n  .sketch(face('>Z'), (s) => s.circle(12)).extrude(15);",
+   "related": [
+    "part.cut",
+    "part.thin",
+    "part.revolve"
+   ],
+   "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; flip reverses, mid is symmetric.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world: when an offset position matters, sketch on a face or check with a probe.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss."
+  },
+  {
+   "id": "part.fillet",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".fillet(on: EdgeSel, radius: Num): this",
+   "summary": "Round edges with a constant radius.",
+   "description": "Rounds the edges chosen by edges() with a fillet of the given radius (mm). Fails when the radius is too big for the adjacent faces (blendOverflow): reduce it. Fillet before shelling and before adding small features; select with edges('|Z') for the vertical edges of a block.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "EdgeSel",
+     "optional": false,
+     "description": "edges(sel) the edges to round"
+    },
+    {
+     "name": "radius",
+     "type": "Num",
+     "optional": false,
+     "description": "in mm (number or expr)"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).fillet(edges('|Z'), 4);",
+   "related": [
+    "part.chamfer",
+    "edges",
+    "sketch.rrect"
+   ],
+   "notes": "- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.\n- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.\n- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists."
+  },
+  {
+   "id": "part.revolve",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".revolve(angle: Num = 360, o: { op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this",
+   "summary": "Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).",
+   "description": "Revolves the last sketch `angle` degrees (default 360). The axis is the sketch Y axis unless axis: { from, to } gives a line in the sketch plane. Profile x is the radius, y the height along the axis, so draw a half cross-section on one side of the axis. op: 'cut' removes the revolved volume instead. thin makes a revolved shell.",
+   "parameters": [
+    {
+     "name": "angle",
+     "type": "Num",
+     "optional": true,
+     "default": "360",
+     "description": "degrees, default 360"
+    },
+    {
+     "name": "o",
+     "type": "{ op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "op",
+       "type": "'add' | 'cut'",
+       "optional": true,
+       "description": "add (default) or cut"
+      },
+      {
+       "name": "thin",
+       "type": "Num",
+       "optional": true,
+       "description": "wall thickness for a thin revolve"
+      },
+      {
+       "name": "axis",
+       "type": "{ from: Pt; to: Pt }",
+       "optional": true,
+       "description": "{ from: [x, y], to: [x, y] } axis line in the sketch plane"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Flanged bush')\n  .sketch('front', (s) => s.polygon([[10, 0], [25, 0], [25, 6], [15, 6], [15, 30], [10, 30]]))\n  .revolve(360);",
+   "related": [
+    "sketch.polygon",
+    "sketch.axisAt"
+   ],
+   "notes": "- Draw the half profile on ONE side of the axis: x is the distance from the axis, y the height. Keep the profile from crossing the axis (no negative x).\n- The sketch plane decides the world axis: on 'front' and 'right' the sketch Y axis is world Y or world Z accordingly; for a pulley on 'right' the axis is world Y and the end faces are face('>Y') / face('<Y').\n- 360 is a full solid of revolution; a smaller angle leaves two planar end faces."
+  },
+  {
+   "id": "part.shell",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".shell(open: FaceSel, thickness: Num): this",
+   "summary": "Hollow the body to a wall thickness, opening the selected face.",
+   "description": "Hollows out the solid leaving walls of `thickness` mm and removing the selected face to make an opening (box open at the top: shell(face('>Z'), 2)). Do fillets of the outside edges before the shell. A thickness larger than the smallest feature fails (shellTooThick).",
+   "parameters": [
+    {
+     "name": "open",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the face left open"
+    },
+    {
+     "name": "thickness",
+     "type": "Num",
+     "optional": false,
+     "description": "wall thickness in mm"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Thin box').sketch('front', (s) => s.rect(50, 30)).extrude(20).shell(face('>Z'), 2);",
+   "related": [
+    "part.thin",
+    "part.fillet"
+   ],
+   "notes": "- Fillet or chamfer the OUTSIDE edges before shelling; shelling a rounded box keeps even walls.\n- The selected face is REMOVED (the opening). To close the box again sketch a lid on the rim face and extrude it (recipe hollow-box-lid).\n- A thickness that is too big gives shellTooThick / shellFailed with maxThickness in the error."
+  },
+  {
+   "id": "part.thin",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".thin(thickness: Num): this",
+   "summary": "Make the previous extrude or revolve a thin-walled one.",
+   "description": "Edits the step recorded just before it: the same as passing the thin option. Closed profile gives a hollow section of this wall thickness (centred on the profile).",
+   "parameters": [
+    {
+     "name": "thickness",
+     "type": "Num",
+     "optional": false,
+     "description": "wall thickness in mm"
+    }
+   ],
+   "returns": "this",
+   "example": "part('Tube').sketch('front', (s) => s.circle(20)).extrude(40).thin(2);",
+   "related": [
+    "part.extrude",
+    "part.shell"
+   ]
+  },
+  {
+   "id": "through",
+   "kind": "function",
+   "domain": "features",
+   "signature": "through(): { through: true }",
+   "summary": "End condition for cut(): through all material.",
+   "description": "through() is passed to cut() instead of a depth to cut all the way through the body, in the direction the cut goes (against the sketch normal).",
+   "parameters": [],
+   "returns": "{ through: true }",
+   "example": "part('Tube').sketch('front', (s) => s.circle(20)).extrude(30)\n  .sketch(face('>Z'), (s) => s.circle(12)).cut(through());",
+   "related": [
+    "part.cut"
+   ]
+  },
+  {
+   "id": "edges",
+   "kind": "function",
+   "domain": "selectors",
+   "signature": "edges(sel: string | EdgeRule): EdgeSel",
+   "summary": "Select edges of the current body by direction, extreme plane, or a rule object.",
+   "description": "edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face()), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches.",
+   "parameters": [
+    {
+     "name": "sel",
+     "type": "string | EdgeRule",
+     "optional": false,
+     "description": "a selector string, or an EdgeRule object"
+    }
+   ],
+   "returns": "EdgeSel",
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)\n  .fillet(edges('|Z'), 3)\n  .chamfer(edges({ onFace: face('>Z') }), 1);",
+   "related": [
+    "face",
+    "part.fillet",
+    "part.chamfer"
+   ],
+   "notes": "- Rule keys AND together; use union / intersect / difference for combinations.\n- edges('>Z') selects edges lying in the highest plane only (after a boss, that is the boss rim). Combine with onFace or not to refine.\n- A selector that matches nothing is an error with the script line, not a silent no-op."
+  },
+  {
+   "id": "face",
+   "kind": "function",
+   "domain": "selectors",
+   "signature": "face(sel: string): FaceSel",
+   "summary": "Select one planar face of the current body by direction: >X <X >Y <Y >Z <Z.",
+   "description": "face(sel) is resolved when the script runs, against the body as it is just before the step that uses it. '>Z' is the planar face whose outward normal is +Z and which lies furthest along +Z (ties: the biggest face). '#top' is '>Z' and '#bottom' is '<Z'. Only planar faces match; it fails with a line number when none does. Pass it to sketch(), hole(), holes.*, shell().",
+   "parameters": [
+    {
+     "name": "sel",
+     "type": "string",
+     "optional": false,
+     "description": "one of '>X' '<X' '>Y' '<Y' '>Z' '<Z' '#top' '#bottom'"
+    }
+   ],
+   "returns": "FaceSel",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10)\n  .hole(face('>Z'), [0, 0], { diameter: 8 });",
+   "related": [
+    "edges",
+    "part.sketch",
+    "part.hole",
+    "part.shell"
+   ],
+   "notes": "- Matches planar faces only, by outward normal direction; ties go to the biggest. It does not pick by position: two coplanar faces at the same height resolve to the larger.\n- Resolved against the body as it is just before the step: after a boss on top, face('>Z') is the boss top, not the plate top."
+  },
+  {
+   "id": "part.hole",
+   "kind": "method",
+   "domain": "holes",
+   "signature": ".hole(on: FaceSel, at: Pt, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "summary": "A simple drilled hole on a planar face at [x, y].",
+   "description": "Drills a round hole into the material from the face. [x, y] are coordinates in the sketch plane of that face, measured from the part origin projected onto it (not from a corner). Through unless depth is given. Use flip: true if it cuts the wrong way on an unusual face. Diameter, not radius.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the planar face to drill from"
+    },
+    {
+     "name": "at",
+     "type": "Pt",
+     "optional": false,
+     "description": "[x, y] hole centre in the face sketch plane"
+    },
+    {
+     "name": "o",
+     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "diameter",
+       "type": "Num",
+       "optional": false,
+       "description": "hole diameter in mm"
+      },
+      {
+       "name": "depth",
+       "type": "Num",
+       "optional": true,
+       "description": "blind depth in mm, omit for through"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse the drilling direction"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(12)\n  .hole(face('>Z'), [-15, 0], { diameter: 8 });",
+   "related": [
+    "part.holes.polar",
+    "part.holes.grid",
+    "part.holes.points",
+    "part.cut"
+   ],
+   "notes": "- diameter, not radius (circle() is radius). Centres are in the face sketch plane relative to the world origin projected on the face, NOT a corner of the face: a hole at [0, 0] on a plate centred on the origin is in the middle.\n- face('>Z') must exist as a planar face at that step. After a shell or fillet on the top, the top face may be a different face: select again.\n- Through unless depth is given. Many holes: use holes.points / polar / grid (one feature)."
+  },
+  {
+   "id": "part.holes.grid",
+   "kind": "method",
+   "domain": "holes",
+   "signature": ".holes.grid(on: FaceSel, g: { origin: Pt; pitch: Pt; count: [number, number] }, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "summary": "A rectangular grid of holes.",
+   "description": "Drills nx by ny holes from `origin` at `pitch` spacing, as one feature.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the face to drill from"
+    },
+    {
+     "name": "g",
+     "type": "{ origin: Pt; pitch: Pt; count: [number, number] }",
+     "optional": false,
+     "description": "{ origin: [x, y], pitch: [dx, dy], count: [nx, ny] }",
+     "properties": [
+      {
+       "name": "origin",
+       "type": "Pt",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "pitch",
+       "type": "Pt",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "count",
+       "type": "[number, number]",
+       "optional": false,
+       "description": ""
+      }
+     ]
+    },
+    {
+     "name": "o",
+     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "diameter",
+       "type": "Num",
+       "optional": false,
+       "description": "hole diameter in mm"
+      },
+      {
+       "name": "depth",
+       "type": "Num",
+       "optional": true,
+       "description": "blind depth, omit for through"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Perf').sketch('front', (s) => s.rect(60, 40)).extrude(4)\n  .holes.grid(face('>Z'), { origin: [-20, -10], pitch: [10, 10], count: [5, 3] }, { diameter: 4 });",
+   "related": [
+    "part.holes.points",
+    "part.linearPattern"
+   ]
+  },
+  {
+   "id": "part.holes.points",
+   "kind": "method",
+   "domain": "holes",
+   "signature": ".holes.points(on: FaceSel, pts: Pt[], o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "summary": "One hole feature at a list of centres.",
+   "description": "All holes share diameter and depth. Centres are [x, y] in the face sketch plane.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the face to drill from"
+    },
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "list of [x, y] centres"
+    },
+    {
+     "name": "o",
+     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "diameter",
+       "type": "Num",
+       "optional": false,
+       "description": "hole diameter in mm"
+      },
+      {
+       "name": "depth",
+       "type": "Num",
+       "optional": true,
+       "description": "blind depth, omit for through"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('P').sketch('front', (s) => s.rect(60, 40)).extrude(8)\n  .holes.points(face('>Z'), [[-20, 0], [0, 10], [20, 0]], { diameter: 5 });",
+   "related": [
+    "part.hole",
+    "part.holes.grid"
+   ]
+  },
+  {
+   "id": "part.holes.polar",
+   "kind": "method",
+   "domain": "holes",
+   "signature": ".holes.polar(on: FaceSel, c: { center: Pt; radius: number; count: number; startAngle?: number }, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "summary": "A bolt circle: count holes equally spaced on a circle.",
+   "description": "Drills `count` holes on a circle of `radius` about `center` (sketch-plane coordinates, usually [0, 0]), the first at startAngle degrees. All holes are one feature.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the face to drill from"
+    },
+    {
+     "name": "c",
+     "type": "{ center: Pt; radius: number; count: number; startAngle?: number }",
+     "optional": false,
+     "description": "{ center: [x, y], radius, count, startAngle? degrees }",
+     "properties": [
+      {
+       "name": "center",
+       "type": "Pt",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "radius",
+       "type": "number",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "count",
+       "type": "number",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "startAngle",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    },
+    {
+     "name": "o",
+     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "diameter",
+       "type": "Num",
+       "optional": false,
+       "description": "hole diameter in mm"
+      },
+      {
+       "name": "depth",
+       "type": "Num",
+       "optional": true,
+       "description": "blind depth, omit for through"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Flange plate').sketch('front', (s) => s.circle(40)).extrude(8)\n  .holes.polar(face('>Z'), { center: [0, 0], radius: 28, count: 6 }, { diameter: 6 });",
+   "related": [
+    "part.holes.points",
+    "part.circularPattern"
+   ],
+   "notes": "- One feature for the whole bolt circle. center is [x, y] in the face sketch plane (usually [0, 0] for a centred disc); startAngle shifts the first hole (degrees).\n- Check that radius + diameter/2 stays inside the face and that holes do not overlap the centre bore."
+  },
+  {
+   "id": "part.circularPattern",
+   "kind": "method",
+   "domain": "patterns",
+   "signature": ".circularPattern(o: { count: number; axis?: 'x' | 'y' | 'z'; angle?: number }): this",
+   "summary": "Repeat the last feature about a world axis.",
+   "description": "Repeats the last feature `count` times around the x, y or z axis over `angle` degrees (360 = equally spaced full circle). The axis passes through the world origin, so centre your part on it. For a ring of drilled holes holes.polar is simpler.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ count: number; axis?: 'x' | 'y' | 'z'; angle?: number }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "count",
+       "type": "number",
+       "optional": false,
+       "description": "total instances"
+      },
+      {
+       "name": "axis",
+       "type": "'x' | 'y' | 'z'",
+       "optional": true,
+       "description": "'x' | 'y' | 'z', default 'z'"
+      },
+      {
+       "name": "angle",
+       "type": "number",
+       "optional": true,
+       "description": "total angle in degrees, default 360"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Disc').sketch('front', (s) => s.circle(40)).extrude(5)\n  .sketch(face('>Z'), (s) => s.circle(2, [30, 0])).cut(through())\n  .circularPattern({ count: 6, axis: 'z' });",
+   "related": [
+    "part.holes.polar",
+    "part.linearPattern"
+   ],
+   "notes": "- The axis passes through the world origin: centre the part on it, or the copies swing around the origin instead of the part.\n- Repeats ONLY the last feature. For a ring of drilled holes use holes.polar (one feature, simpler)."
+  },
+  {
+   "id": "part.linearPattern",
+   "kind": "method",
+   "domain": "patterns",
+   "signature": ".linearPattern(o: { count: number; spacing: Num; axis?: 'x' | 'y' | 'z' }): this",
+   "summary": "Repeat the last feature along a world axis.",
+   "description": "Repeats the feature added just before it `count` times (including the original) every `spacing` mm along the x, y or z axis. The seed is only the last feature: build the pocket or boss first, then pattern it.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ count: number; spacing: Num; axis?: 'x' | 'y' | 'z' }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "count",
+       "type": "number",
+       "optional": false,
+       "description": "total number of instances"
+      },
+      {
+       "name": "spacing",
+       "type": "Num",
+       "optional": false,
+       "description": "distance between instances in mm"
+      },
+      {
+       "name": "axis",
+       "type": "'x' | 'y' | 'z'",
+       "optional": true,
+       "description": "'x' | 'y' | 'z', default 'x'"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Slots').sketch('front', (s) => s.rect(80, 30)).extrude(10)\n  .sketch(face('>Z'), (s) => s.circle(3, [-30, 0])).cut(through())\n  .linearPattern({ count: 4, spacing: 20, axis: 'x' });",
+   "related": [
+    "part.circularPattern",
+    "part.holes.grid"
+   ],
+   "notes": "- Repeats ONLY the last feature (one seed), count includes the original, spacing is between instances in mm.\n- axis is a WORLD axis ('x' | 'y' | 'z'), not a sketch axis.\n- Patterning twice (rows then columns) is not supported by the helper: draw the whole grid in one sketch with a loop, or use holes.grid."
+  },
+  {
+   "id": "expr",
+   "kind": "function",
+   "domain": "utilities",
+   "signature": "expr(text: string): Expr",
+   "summary": "A parameter written as an expression over the variables.",
+   "description": "expr('w/2') keeps the feature parameter linked to the variable w (stored as =w/2). Inside a sketch an expr contributes its current number only. Characters are limited to arithmetic and Math.*.",
+   "parameters": [
+    {
+     "name": "text",
+     "type": "string",
+     "optional": false,
+     "description": "expression string"
+    }
+   ],
+   "returns": "Expr",
+   "example": "const { w } = variables({ w: 40 });\npart('Bar').sketch('front', (s) => s.rect(w, 10)).extrude(expr('w/4'));",
+   "related": [
+    "variables"
+   ]
+  },
+  {
+   "id": "part",
+   "kind": "function",
+   "domain": "utilities",
+   "signature": "part(name: string = 'Script part'): PartBuilder",
+   "summary": "Start the part the script builds; returns the fluent builder.",
+   "description": "Every script builds one part (the last wins). Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.",
+   "parameters": [
+    {
+     "name": "name",
+     "type": "string",
+     "optional": true,
+     "default": "'Script part'",
+     "description": "part name, default \"Script part\""
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "part('Bracket').sketch('front', (s) => s.rect(60, 40)).extrude(12);",
+   "related": [
+    "part.sketch",
+    "variables"
+   ]
+  },
+  {
+   "id": "variables",
+   "kind": "function",
+   "domain": "utilities",
+   "signature": "variables(defs: Record<string, number | string>): Record<string, number>",
+   "summary": "Declare named values; strings are expressions over earlier ones.",
+   "description": "variables({ w: 60, t: 'w/10' }) defines document variables (editable in the Variables tab) and returns their numbers for use in the script. Use expr('w*2') to keep a feature parameter linked to a variable instead of a fixed number.",
+   "parameters": [
+    {
+     "name": "defs",
+     "type": "Record<string, number | string>",
+     "optional": false,
+     "description": "{ name: number | 'expression' }"
+    }
+   ],
+   "returns": "Record<string, number>",
+   "example": "const { w, t } = variables({ w: 60, t: 'w/10' });\npart('Bar').sketch('front', (s) => s.rect(w, 10)).extrude(expr('t'));",
+   "related": [
+    "expr"
+   ]
+  }
+ ]
+}
