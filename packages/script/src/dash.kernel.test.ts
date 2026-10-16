@@ -27,15 +27,19 @@ describe('speedboat dash', () => {
     const { h, session } = await host();
     const t0 = Date.now();
     const r = await runScript(dashScript({ ...(only.length ? { only } : {}), lens: !process.env.DASH_NOLENS }), h);
+    expect(r.errors).toEqual([]);
     const mp = (await session().massProps()) as { volume: number };
+    const mb = (await session().massProps({ bodies: true })) as { bodies?: { volume: number }[] };
+    console.log('LUMPS', mb.bodies?.length, JSON.stringify(mb.bodies?.slice(0, 3)));
     const val = (await (session() as unknown as { validate(): Promise<unknown> }).validate?.()) as unknown;
     console.log('DASH', JSON.stringify(r.errors).slice(0, 800), 'features', (r.document as { features: unknown[] }).features.length, 'vol', mp.volume.toFixed(1), Date.now() - t0, 'ms', JSON.stringify(val).slice(0, 300));
     if (process.env.DASH_OUT) writeFileSync(process.env.DASH_OUT, JSON.stringify(r.document, null, 1));
     expect(r.errors).toEqual([]);
     expect((val as { ok: boolean }).ok).toBe(true);
     if (!only.length && !process.env.DASH_NOLENS) {
-      expect(mp.volume).toBeGreaterThan(300000);   // panel ~259.7k mm3 + 4 bezels, dials, lenses, screws, lamps ~ 49.6k
-      expect(mp.volume).toBeLessThan(320000);
+      expect(mb.bodies?.length ?? 0).toBeGreaterThanOrEqual(36);   // panel + 4 x (bezel, dial, red inlay x2, needle, cap, lens) + screws, plate, rivets, lamps
+      expect(mp.volume).toBeGreaterThan(310000);   
+      expect(mp.volume).toBeLessThan(335000);
       expect((r.document as { features: unknown[] }).features.length).toBeLessThan(200);
       expect(Date.now() - t0).toBeLessThan(60000);
     }

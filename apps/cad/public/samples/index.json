@@ -473,5 +473,10 @@
   "id": "matx-case",
   "title": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)",
   "file": "heavy/matx-case.ckpart"
+ },
+ {
+  "id": "speedboat-dash",
+  "title": "Speedboat analog dash cluster (script-built)",
+  "file": "speedboat-dash.ckpart"
  }
 ]
