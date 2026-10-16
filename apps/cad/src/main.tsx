@@ -80,6 +80,8 @@ import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { TextPanel } from './TextPanel';
+import { makeFontsApi } from './textFonts';
+import { webFontSource } from './fonts';
 import { isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch } from '@kit/sketch';
 import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
 import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
@@ -151,6 +153,8 @@ const lookStore = createLookStore(read(LOOK_KEY));
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
 
 // One kernel worker for the app; cancel() restarts it.
+/** Curated fonts are fetched from /fonts when picked (or when a document names one). */
+const fontSource = webFontSource(base);
 let kernelP: Promise<BrowserKernel> = createBrowserKernel(platform.wasmUrl());
 let session: Session | null = null;
 let viewport: Viewport | null = null;
@@ -215,7 +219,11 @@ const controller = new Controller({
     async open(doc: PartDoc) { session = new Session(doc, withCacheCap(await kernelP), 'user'); return session; },
     cancel() { void kernelP.then((k) => k.close()); kernelP = createBrowserKernel(platform.wasmUrl()); },
   },
+  fonts: fontSource,
 });
+/** The Text panel's font picker; `apply` goes to the text edit of the current render. */
+const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {} };
+const fontsApi = makeFontsApi({ controller, source: fontSource, apply: (p) => textEditRef.current(p) });
 controller.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   // every undo first keeps the state it leaves
 // Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
 const rejections = signal<Rejection[]>([]);
@@ -1209,6 +1217,7 @@ function App() {
     if (next === d) return;
     void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); applyHighlight(); viewTick((n) => n + 1); });
   };
+  textEditRef.current = textEdit;
   controller.onTextOutlines = () => { applyHighlight(); viewTick((n) => n + 1); const id = selectedText(); const d = controller.sketchDraft(); const e = id && d ? d.entities.find((x) => x.id === id) : null; const note = e && d ? textNotes(textOutlineOf(d, e))[0] : null; if (note) setSketchHint(t(note.key, note.params ?? {})); };
   sketchSelectRef.current = (ev) => {
     if (sketchToolRef.current) return;
@@ -2060,7 +2069,7 @@ function App() {
         {sketching && !sketchToolId && entityOut && entityOut.fields.length ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && !sketchToolId && selectedText() ? (() => {
           const d = controller.sketchDraft()!; const id = selectedText()!; const f = textFields(d, id); const e = d.entities.find((x) => x.id === id)!;
-          return f ? <TextPanel fields={f} notes={textNotes(textOutlineOf(d, e))} picking={textPickRef.current === id}
+          return f ? <TextPanel fields={f} notes={textNotes(textOutlineOf(d, e))} picking={textPickRef.current === id} fonts={fontsApi}
             onPatch={textEdit} onDone={() => selectEntity(null, 0, 0)}
             onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }}
             onPickCentre={() => { textPickRef.current = textPickRef.current === id ? null : id; viewTick((n) => n + 1); }} /> : null;

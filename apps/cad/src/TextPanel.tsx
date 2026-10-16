@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { TEXT_FONTS, TEXT_H, TEXT_V, TEXT_MIN_HEIGHT, type TextFields, type TextPatch } from '@kit/sketch';
 import { t } from './i18n';
+import { FontPicker, type FontsApi } from './FontPicker';
 
 /** What the Text panel needs: the entity's fields, the kernel's notes about it (warnings, a failed outline) and the callbacks. */
 export interface TextPanelProps {
@@ -14,6 +15,8 @@ export interface TextPanelProps {
   /** ask the sketch for the next click as the arc centre */
   onPickCentre(): void;
   picking: boolean;
+  /** the font picker's connection to the app; without it only the two built-in fonts are offered */
+  fonts?: FontsApi;
 }
 
 const DEBOUNCE_MS = 160;
@@ -61,11 +64,14 @@ export function TextPanel(p: TextPanelProps) {
       </label>
       <div class="tp-row">
         <NumField id="height" label={t('app.sketch.text.height')} value={f.height} min={0.01} unit="mm" onValue={(v) => p.onPatch({ height: v })} />
-        <label class="tp-field" data-field="font"><span>{t('app.sketch.text.font')}</span>
-          <select value={f.font} aria-label={t('app.sketch.text.font')} onChange={(e) => p.onPatch({ font: (e.target as HTMLSelectElement).value as 'gauge' | 'engrave' })}>
-            {TEXT_FONTS.map((x) => <option value={x} selected={f.font === x}>{t('app.sketch.text.font.' + x)}</option>)}
-          </select></label>
+        {p.fonts ? null : (
+          <label class="tp-field" data-field="font"><span>{t('app.sketch.text.font')}</span>
+            <select value={f.font} aria-label={t('app.sketch.text.font')} onChange={(e) => p.onPatch({ font: (e.target as HTMLSelectElement).value })}>
+              {TEXT_FONTS.map((x) => <option value={x} selected={f.font === x}>{t('app.sketch.text.font.' + x)}</option>)}
+            </select></label>
+        )}
       </div>
+      {p.fonts ? <FontPicker value={f.font} fonts={p.fonts} onBuiltin={(name) => p.onPatch({ font: name })} /> : null}
       <div class="tp-row">
         <div class="tp-field" data-field="anchor"><span>{t('app.sketch.text.anchor')}</span>
           <div class="tp-grid" role="radiogroup" aria-label={t('app.sketch.text.anchor')}>

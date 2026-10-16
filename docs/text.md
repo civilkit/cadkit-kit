@@ -18,7 +18,7 @@ letters of a built-in font into closed loops, so everything that works on a sket
    |---|---|
    | Characters | the string (1 to 500 characters, one line) |
    | Cap height | height of a capital H in mm |
-   | Font | **Gauge** (condensed sans) or **Engrave** (serif) |
+   | Font | **Gauge** (condensed sans) or **Engrave** (serif), a font of the library, a font file you add, or a system font (see Fonts) |
    | Anchor | 3 x 3 grid: which point of the text sits on the clicked point (left / centre / right, top / middle / baseline) |
    | Angle, Spacing | rotation about the anchor in degrees, letter pitch factor (1 = the font's own) |
    | Mirror | flips the text (for the back of a clear part) |
@@ -59,10 +59,48 @@ part('Plate').sketch('front', (s) => s.rect(60, 20)).extrude(4)
 ## Fonts
 
 Two fonts are compiled into the kernel (SIL OFL): `gauge` (Barlow Condensed) and `engrave` (PT Serif), Basic Latin and Latin-1
-(including the degree sign). Nothing is read from the machine, so a part looks the same everywhere.
+(including the degree sign). They need nothing else and look the same everywhere.
+
+The **Font** list in the Text panel offers more:
+
+| Source | What it is | Stored in the saved file |
+|---|---|---|
+| **Library** | ten open-licence fonts hosted with the app (Barlow, Source Sans 3, Barlow Condensed, Bebas Neue, PT Serif, Special Elite, IBM Plex Mono, Great Vibes, Satisfy, Anton; licences in `THIRD_PARTY.md` and beside the files in `apps/cad/public/fonts/`). Fetched when you pick one (not part of the app bundle; the browser caches them) and checked against their SHA-256 | the font id and checksum only; the file is fetched again when the part opens |
+| **Add font file...** | a TTF, OTF or TTC (first face) from disk | the whole font file, up to 1.5 MB; a larger font as a subset holding just the letters the part's text uses |
+| **System fonts...** | the fonts installed on the machine, listed with a filter. Needs the Local Font Access API, which only Chromium browsers (Chrome, Edge) have: elsewhere the button is hidden and the panel says so. The browser asks for permission when you click the button, never earlier | as for a font file |
+
+Picking a font loads it into the kernel and sets the text's `font` (a unique name such as `plex-sans-1a2b3c4d`: family plus the
+first digits of the file's hash) and `fontHash`, so the same name can never mean two different files. The lettering follows at
+once. Warnings of the kernel are shown under the list: kerning and ligatures are ignored, a variable font gives its default style
+only, a font collection gives its first face, overlapping strokes may fail to engrave, and the licence flags of the font file
+(embedding restricted, no subsetting).
+
+**Licence of your own fonts.** A font you add or take from the system is stored inside the part file. Make sure you may embed
+it; the panel says so under such a font. Library fonts are open-licence and only referenced.
+
+**Subsets.** When a font file is over 1.5 MB the part keeps only the letters its text uses. The panel then says so: changing the
+text to characters that were not there needs the original font (add the file again, or pick the system font again), otherwise the
+new characters are reported as missing.
+
+**Opening a part.** The kernel starts with no fonts, so every time a part opens (and after the kernel is restarted with Cancel)
+the app first loads the fonts the part lists in its `fonts` field and only then builds it. A library font that cannot be fetched
+(offline), or an embedded font that is damaged, is reported by name; the part still opens and its lettering shows the kernel's
+`textFontNotLoaded` until the font is available (re-open online, or pick the font again).
+
+Document field (a normal part file; an older app keeps it and ignores it):
+
+```json
+"fonts": [
+  { "name": "barlow", "hash": "<sha-256>", "source": "curated", "id": "barlow" },
+  { "name": "plex-sans-1a2b3c4d", "hash": "<sha-256 of data>", "source": "embedded", "family": "IBM Plex Sans", "data": "<base64 TTF/OTF>", "subset": true }
+]
+```
+
+Only fonts used by a text of the part are written. In a script, `s.text('...', at, { font: 'barlow' })` takes a library id (or
+`gauge` / `engrave`); an unknown id stops the script with a message listing the valid ones.
 
 ## Limits
 
-Text is flat on a plane (no wrapping onto curved faces); one line per entity; no kerning, ligatures, bold or italic; at most 500
+Text is flat on a plane (no wrapping onto curved faces); one line per entity; no kerning, no ligatures (fonts are drawn letter by letter with their plain advance widths); bold and italic are separate font files; WOFF and WOFF2 are not supported (use the TTF or OTF); fonts whose strokes overlap inside a letter, and connected script faces, can fail validation when engraved; system fonts need a Chromium browser; at most 500
 characters. In the editor the lettering outlines come from the kernel while a sketch is open; a closed sketch shows the extruded
 or cut result, not the lettering curves.

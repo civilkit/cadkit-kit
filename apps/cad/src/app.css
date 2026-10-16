@@ -979,3 +979,10 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .text-panel .tp-note.warn { background: color-mix(in srgb, #e0a02a 22%, transparent); }
 .text-panel .tp-note.err { background: color-mix(in srgb, #d83a2e 25%, transparent); }
 .text-panel .tp-foot { justify-content: flex-end; }
+.text-panel .tp-fonts { display: flex; flex-direction: column; gap: 6px; }
+.text-panel .tp-fontbtns { align-items: center; flex-wrap: wrap; }
+.text-panel .tp-btn:disabled { opacity: .55; cursor: default; }
+.text-panel .tp-sys { display: flex; flex-direction: column; gap: 4px; }
+.text-panel .tp-syslist { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 5px; }
+.text-panel .tp-sysitem { display: block; width: 100%; text-align: left; font: 12px system-ui, sans-serif; color: var(--text); background: transparent; border: 0; padding: 3px 8px; cursor: pointer; }
+.text-panel .tp-sysitem:hover, .text-panel .tp-sysitem:focus-visible { background: var(--accent-soft); }
