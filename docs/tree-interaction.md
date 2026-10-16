@@ -65,7 +65,7 @@ suppress / unsuppress the selection, arrows orbit, `Alt+arrows` pan. `S` stays S
    part, so `Ctrl+B` simply rebuilds from the document and shows a "Rebuilt" notice.
 4. A rollback to before the first solid shows an empty view (the preview then carries only sketches, which the controller
    does not turn into a view body).
-5. Folders, "delete with sketches", hide / show and the tree's right-click menu are out of scope here.
+5. "Delete with sketches" and hide / show are out of scope here. Folders and the tree's right-click menu are described under Folders below.
 
 ## Tests
 
@@ -78,3 +78,24 @@ suppress / unsuppress the selection, arrows orbit, `Alt+arrows` pan. `S` stays S
 
 Nothing was looked at in a browser; the viewport additions (`onBodyDouble`, `panBy`) are covered by type checking only,
 as WebGL is not available in the test environment.
+
+## Folders
+
+A folder is not a record of its own: it is the `group` name on features (what the script helper `group()` writes), and the tree
+shows a run of two or more consecutive top-level rows with the same name under one folder row. So a folder is always a
+contiguous range of the build order, and nothing about it changes how the part regenerates. The names are in the document and
+survive save and load; open / closed is a per-document choice kept in the browser (`cad.treeFolders`), not in the file.
+`treeFolders.ts` turns each action into edits: select two or more neighbouring rows and use Group into folder (right-click
+menu or Ctrl+G); the name starts as "Folder" ("Folder 2" ...) and is in rename mode at once. Double click a folder, or use the
+menu, to rename it (a name another folder has is refused); Ungroup removes the name and leaves the features where they are;
+Delete folder deletes its features through the normal delete (refused, with the reason, while a feature outside still uses
+one of them) and offers Undo; Remove from folder takes features off the first or last end of a folder. Drag a row onto a folder
+to join it (it goes to the end of the folder), onto a row inside a folder to take that place, onto a row outside to leave; drag
+a folder header onto a row or another folder to move the whole folder (a row inside a folder stands for that folder; folders do
+not nest). A row travels with the sketches tucked under it. A move is refused with a short message when it would put a feature
+before one it uses, when the rows to group are not neighbours, or when it would split a folder. Name changes and grouping are
+`set` / `replace` ops in one `controller.edit`; anything that changes the order goes in as one document patch (`order` in
+`DocPatch`, because the session checks each `move` of a batch against the document before any applies, so a feature cannot be
+moved past its own sketch that way). Every action is one undo step. Tests: `treeFolders.test.ts` (grouping, naming, ungroup,
+refused moves), `treeFolders.ui.test.tsx` (menu, rename, drag), `controller.folders.kernel.test.ts` (undo, redo, reload; needs
+`CK_WASM`). Not looked at in a browser.

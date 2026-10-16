@@ -12,6 +12,8 @@ export interface DocPatch {
   activeConfig?: string | null;
   /** whole replacement features by id (a rename rewrites the expressions that used the old name) */
   features?: Record<string, Record<string, unknown>>;
+  /** the feature ids in their new order (every id once): moves a feature together with the sketch under it, which no list of single `move` ops can do (the session checks each against the document before any applies) */
+  order?: string[];
   /** features appended at the end (with `seq` the document's next feature number): the parts library adds its features together with the variables they use, as ONE step */
   append?: Array<Record<string, unknown>>;
   seq?: number;
@@ -26,6 +28,18 @@ interface Internals {
 
 const clone = <T,>(x: T): T => structuredClone(x);
 
+/** Single `move`s that turn `cur` into `order`, front to back (what the record says happened). */
+function moveOps(cur: string[], order: string[] | undefined): Array<{ op: 'move'; id: string; to: number }> {
+  const c = [...cur], out: Array<{ op: 'move'; id: string; to: number }> = [];
+  for (let to = 0; to < (order?.length ?? 0); to++) {
+    const id = order![to];
+    if (c[to] === id) continue;
+    out.push({ op: 'move', id, to });
+    c.splice(c.indexOf(id), 1); c.splice(to, 0, id);
+  }
+  return out;
+}
+
 /** The candidate document with the patch applied (empty lists are dropped). */
 export function patched(doc: PartDoc, patch: DocPatch): PartDoc {
   const d = clone(doc) as PartDoc & Record<string, unknown>;
@@ -33,6 +47,10 @@ export function patched(doc: PartDoc, patch: DocPatch): PartDoc {
   if (patch.configurations) { if (patch.configurations.length) d.configurations = clone(patch.configurations); else delete d.configurations; }
   if (patch.activeConfig !== undefined) { if (patch.activeConfig) d.activeConfig = patch.activeConfig; else delete d.activeConfig; }
   if (patch.features) d.features = d.features.map((f) => (patch.features![f.id] ? ({ ...clone(patch.features![f.id]), id: f.id } as typeof f) : f));
+  if (patch.order && patch.order.length === d.features.length && new Set(patch.order).size === d.features.length) {
+    const byId = new Map(d.features.map((f) => [f.id, f] as const));
+    if (patch.order.every((id) => byId.has(id))) d.features = patch.order.map((id) => byId.get(id)!);
+  }
   if (patch.append?.length) d.features = [...d.features, ...clone(patch.append) as typeof d.features];
   if (patch.seq !== undefined) d.seq = patch.seq;
   return d;
@@ -52,6 +70,7 @@ export async function setDocFields(session: Session, patch: DocPatch, reason: st
   }
   s.doc = candidate;
   const ops = [
+    ...moveOps(before.features.map((f) => f.id), patch.order),
     ...Object.keys(patch.features ?? {}).map((id) => ({ op: 'replace' as const, id, feature: clone(candidate.features.find((f) => f.id === id) as unknown as Record<string, unknown>) })),
     ...(patch.append ?? []).map((feature) => ({ op: 'add' as const, feature: clone(feature) })),
   ];

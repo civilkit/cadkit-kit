@@ -34,6 +34,7 @@ import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './c
 import { useTreeInteraction } from './useTreeInteraction';
 import { treeKey } from './treeCommands';
 import { ExportMenu } from './ExportMenu';
+import { ContextMenu } from './ContextMenu';
 import { toEntries, type Rejection } from './history';
 import { CheckPanel } from './CheckPanel';
 import { useDesignCheck } from './useDesignCheck';
@@ -676,7 +677,7 @@ function App() {
     if (!ops) { store.notify(t('app.thread.noTable'), 'error'); return; }
     await createFeature(ops);
   };
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id) });
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -1994,7 +1995,7 @@ function App() {
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
       <div id="vp" ref={host}>
-        {handles.menuEl}{handles.aboutEl}{handles.fieldsEl}{handles.askEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
+        {handles.menuEl}{ti.menu ? <ContextMenu x={ti.menu.x} y={ti.menu.y} items={ti.menu.items} onRun={ti.runMenu} onClose={ti.closeMenu} /> : null}{handles.aboutEl}{handles.fieldsEl}{handles.askEl}{handles.hintEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}

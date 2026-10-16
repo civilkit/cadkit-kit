@@ -52,6 +52,9 @@ export function sketchOwners(rows: FeatureRow[]): Map<string, string> {
   return owner;
 }
 
+/** A row or a folder named in a drag, a drop or a context menu. */
+export type TreeDrop = { kind: 'row'; id: string } | { kind: 'folder'; name: string };
+
 /** The history tree: one row per feature with its kind icon, a name, the id muted at the right, and (on hover or
  *  selection) icon buttons to edit, suppress and remove. A failed feature is red with its hint underneath. */
 export function FeatureTree(p: {
@@ -65,6 +68,12 @@ export function FeatureTree(p: {
   /** A click; `mods` says whether Ctrl/Cmd or Shift was held, for multi-select. */
   onSelect(id: string, mods?: { ctrl: boolean; shift: boolean }): void;
   onMove(id: string, to: number): void;
+  /** A drag dropped on a row or a folder. When given it replaces `onMove` for row-on-row drops and also covers dragging a folder (its header is draggable) and dropping on a folder. */
+  onDropOn?(drag: TreeDrop, target: TreeDrop): void;
+  /** Right click on a row or a folder; the app opens its menu. The browser's own menu is suppressed when this is given. */
+  onContextMenu?(target: TreeDrop, x: number, y: number): void;
+  /** Rename a folder in place (double click on it, or the app sets `renaming` to `'@g:' + name`). */
+  onRenameFolder?(name: string, to: string): void;
   onRemove(id: string): void;
   onToggleSuppress(id: string): void;
   /** Feature ids hidden in the view only (the eye); the row is dimmed with a closed eye. Nothing is rebuilt. */
@@ -101,6 +110,7 @@ export function FeatureTree(p: {
 }): JSX.Element {
   const dragId = useRef<string | null>(null);
   const dragBar = useRef(false);
+  const dragFolder = useRef<string | null>(null);
   const [ownRenaming, setOwnRenaming] = useState<string | null>(null);
   const renaming = p.renaming !== undefined ? p.renaming : ownRenaming;
   const setRenaming = (v: string | null) => { setOwnRenaming(v); p.onRenamingChange?.(v); };
@@ -230,7 +240,8 @@ export function FeatureTree(p: {
           onMouseLeave={() => p.onHoverFeature?.(null)}
           onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
           onDblClick={() => p.onEdit?.(r.id)}
-          onDragStart={() => { dragId.current = r.id; }}
+          onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY); } : undefined}
+          onDragStart={() => { dragId.current = r.id; dragFolder.current = null; }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             if (dragBar.current) {
@@ -239,7 +250,8 @@ export function FeatureTree(p: {
               moveMarker(topOf(r.id) + (e.clientY >= rect.top + rect.height / 2 ? 1 : 0));
               return;
             }
-            if (dragId.current !== null) p.onMove(dragId.current, i);
+            if (dragFolder.current !== null) { if (p.onDropOn) p.onDropOn({ kind: 'folder', name: dragFolder.current }, { kind: 'row', id: r.id }); dragFolder.current = null; return; }
+            if (dragId.current !== null) { if (p.onDropOn) p.onDropOn({ kind: 'row', id: dragId.current }, { kind: 'row', id: r.id }); else p.onMove(dragId.current, i); }
             dragId.current = null;
           }}
         >
@@ -370,19 +382,39 @@ export function FeatureTree(p: {
 
   const renderFolder = (e: Extract<Entry, { kind: 'folder' }>): JSX.Element => {
     const holdsReveal = e.ids.some((id) => revealIds.has(id));
+    const renamingThis = renaming === '@g:' + e.name && !!p.onRenameFolder;
+    const target: TreeDrop = { kind: 'folder', name: e.name };
+    const head = (
+      <>
+        <span class="row-chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
+        <Icon name={e.open ? 'folder-open' : 'folder'} size={18} class="row-icon" />
+        {renamingThis
+          ? <InlineName class="row-name" value={e.name} onCommit={(n) => { setRenaming(null); const was = folderMap[e.name]; if (was !== undefined) setFolder(n, was); p.onRenameFolder!(e.name, n); }} onCancel={() => setRenaming(null)} />
+          : <span class="row-name">{hl(e.name)}</span>}
+        <span class="row-type">{t('ui.tree.folderCount', { n: e.count }, String(e.count))}</span>
+      </>
+    );
     return (
       <div
         class={'row folder' + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
         data-group={e.name}
-        onClick={() => { if (!filtering) setFolder(e.name, !e.open); }}
+        draggable={!renamingThis && !!p.onDropOn}
+        onClick={() => { if (!filtering && !renamingThis) setFolder(e.name, !e.open); }}
+        onDblClick={() => { if (p.onRenameFolder) setRenaming('@g:' + e.name); }}
+        onContextMenu={p.onContextMenu ? (ev: MouseEvent) => { ev.preventDefault(); p.onContextMenu!(target, ev.clientX, ev.clientY); } : undefined}
+        onDragStart={() => { dragFolder.current = e.name; dragId.current = null; }}
+        onDragOver={(ev) => ev.preventDefault()}
+        onDrop={() => {
+          if (!p.onDropOn) return;
+          if (dragFolder.current !== null) p.onDropOn({ kind: 'folder', name: dragFolder.current }, target);
+          else if (dragId.current !== null) p.onDropOn({ kind: 'row', id: dragId.current }, target);
+          dragFolder.current = null; dragId.current = null;
+        }}
       >
-        <button type="button" class="folder-toggle" aria-expanded={e.open} aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}>
-          <span class="row-chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
-          <Icon name={e.open ? 'folder-open' : 'folder'} size={18} class="row-icon" />
-          <span class="row-name">{hl(e.name)}</span>
-          <span class="row-type">{t('ui.tree.folderCount', { n: e.count }, String(e.count))}</span>
-        </button>
-        {p.onSelectGroup ? (
+        {renamingThis
+          ? <div class="folder-toggle">{head}</div>
+          : <button type="button" class="folder-toggle" aria-expanded={e.open} aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}>{head}</button>}
+        {p.onSelectGroup && !renamingThis ? (
           <span class="row-actions">
             <button class="row-act" title={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')} aria-label={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')}
               onClick={(ev) => { ev.stopPropagation(); p.onSelectGroup!(e.ids, e.name); }}><Icon name="sel-box" size={15} /></button>

@@ -4,11 +4,14 @@
 import { useRef, useState } from 'preact/hooks';
 import type { EditOp } from '@ck/session';
 import type { Store } from '@kit/store';
+import type { FeatureRow, TreeDrop } from '@kit/ui';
 import type { Controller } from './controller';
 import { t } from './i18n';
 import { isShapeFeature } from './handles/sizeBox';
 import { dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
 import type { TreeActions } from './treeCommands';
+import type { MenuItem } from './menuModel';
+import { dropPlan, folderIds, folderOf, groupPlan, patchOf, removeFromFolderPlan, renameFolderPlan, ungroupPlan, type Plan, type Refusal } from './treeFolders';
 
 interface ViewportLike { orbitBy(dx: number, dy: number): void; panBy(dx: number, dy: number): void }
 
@@ -23,6 +26,21 @@ export interface TreeInteractionDeps {
   /** Run edit ops through the app's edit path (busy state, timing, redraw). */
   edit(ops: EditOp[]): Promise<void>;
   startEditing(id: string): void;
+  /** The rows the tree shows (read when an action runs, so it may be built later in the render). */
+  rows(): FeatureRow[];
+}
+
+/** The short message for a refused folder action. */
+function refusal(r: Refusal, detail = ''): string {
+  switch (r) {
+    case 'needTwo': return t('app.folder.refuse.needTwo');
+    case 'notContiguous': return t('app.folder.refuse.notContiguous');
+    case 'order': return t('app.folder.refuse.order', { detail });
+    case 'nameTaken': return t('app.folder.refuse.nameTaken', { detail });
+    case 'nameEmpty': return t('app.folder.refuse.nameEmpty');
+    case 'splits': return t('app.folder.refuse.splits', { detail });
+    case 'noFolder': return t('app.folder.refuse.noFolder');
+  }
 }
 
 export function useTreeInteraction(d: TreeInteractionDeps) {
@@ -30,6 +48,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
   const anchor = useRef<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [topRename, setTopRename] = useState(false);
+  const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[]; run(id: string): void } | null>(null);
   const doc = d.controller.document();
   const feats = (doc?.features ?? []) as unknown as Array<{ id: string; [k: string]: unknown }>;
   const ids = feats.map((f) => f.id);
@@ -67,10 +86,76 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
   /** A row's own button acts on the whole selection when the row is part of a multi-selection. */
   const group = (id: string): string[] => (sel.length > 1 && sel.includes(id) ? sel : [id]);
 
+  /** Run a folder plan as one edit (one undo step); a refused plan says why in a short notice. True when it went through. */
+  const apply = async (plan: Plan): Promise<boolean> => {
+    if (!plan.ok) { d.store.notify(refusal(plan.reason, plan.detail), 'warn'); return false; }
+    if (plan.order) {   // a reorder: one document step (the session's single `move` ops cannot carry a sketch along)
+      const r = await d.controller.applyDocPatch(patchOf(feats, plan), 'tree folders');
+      d.redraw();
+      return r.ok;
+    }
+    if (plan.ops.length) await d.edit(plan.ops);
+    return true;
+  };
+  const groupInto = async (ids: string[]) => {
+    const plan = groupPlan(d.rows(), feats, ids, t('app.folder.default'));
+    if (!(await apply(plan)) || !plan.ok || plan.name === undefined) return;
+    // the new folder asks for its name in place
+    if ((d.controller.document()?.features ?? []).some((f) => (f as { group?: string }).group === plan.name)) setRenaming('@g:' + plan.name);
+  };
+  const renameFolder = (name: string, to: string) => void apply(renameFolderPlan(feats, name, to));
+  const ungroup = (name: string) => void apply(ungroupPlan(feats, name));
+  const removeFromFolder = (ids: string[]) => void apply(removeFromFolderPlan(d.rows(), feats, ids));
+  const onDropOn = (drag: TreeDrop, target: TreeDrop) => void apply(dropPlan(d.rows(), feats, drag, target));
+  const planText = (p: Plan): { enabled: boolean; reason?: string } => (p.ok ? { enabled: true } : { enabled: false, reason: refusal(p.reason, p.detail) });
+  const openMenu = (target: TreeDrop, x: number, y: number) => {
+    const rows = d.rows();
+    if (target.kind === 'folder') {
+      const name = target.name;
+      setMenu({
+        x, y,
+        items: [
+          { id: 'rename-folder', label: t('app.folder.menu.rename'), enabled: true },
+          { id: 'ungroup', label: t('app.folder.menu.ungroup'), enabled: true },
+          { id: '-', label: '', enabled: false, separator: true },
+          { id: 'delete-folder', label: t('app.folder.menu.delete'), enabled: true },
+        ],
+        run: (id) => {
+          if (id === 'rename-folder') setRenaming('@g:' + name);
+          else if (id === 'ungroup') ungroup(name);
+          else if (id === 'delete-folder') void deleteIds(folderIds(rows, feats, name));
+        },
+      });
+      return;
+    }
+    const picked = sel.includes(target.id) ? sel : [target.id];
+    if (!sel.includes(target.id)) select(target.id);
+    const inFolder = picked.some((id) => folderOf(rows, feats, id) !== undefined);
+    setMenu({
+      x, y,
+      items: [
+        { id: 'group', label: t('app.folder.menu.group'), keys: 'Ctrl+G', ...planText(groupPlan(rows, feats, picked, t('app.folder.default'))) },
+        ...(inFolder ? [{ id: 'remove-from-folder', label: t('app.folder.menu.remove'), ...planText(removeFromFolderPlan(rows, feats, picked)) }] : []),
+        { id: '-', label: '', enabled: false, separator: true },
+        { id: 'rename', label: t('app.folder.menu.renameFeature'), keys: 'F2', enabled: picked.length === 1 },
+        { id: 'suppress', label: t('app.folder.menu.suppress'), keys: 'Ctrl+Shift+U', enabled: true },
+        { id: 'delete', label: t('app.folder.menu.deleteFeature'), keys: 'Delete', enabled: true },
+      ],
+      run: (id) => {
+        if (id === 'group') void groupInto(picked);
+        else if (id === 'remove-from-folder') removeFromFolder(picked);
+        else if (id === 'rename') setRenaming(picked[0]);
+        else if (id === 'suppress') void suppressIds(picked);
+        else if (id === 'delete') void deleteIds(picked);
+      },
+    });
+  };
+
   const actions: TreeActions = {
     isSketching: () => !!d.controller.sketchDraft(),
     hasDocument: () => d.controller.document() !== null,
     selected: () => sel,
+    groupSelected: () => void groupInto(sel),
     rename: () => { if (sel.length === 1) setRenaming(sel[0]); else setTopRename(true); },
     deleteSelected: () => void deleteIds(sel),
     suppressSelected: () => void suppressIds(sel),
@@ -95,12 +180,19 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       renaming,
       onRenamingChange: setRenaming,
       onRename: (id: string, name: string) => void d.edit(renameOps(id, name)),
+      onRenameFolder: renameFolder,
+      onDropOn,
+      onContextMenu: openMenu,
       onRenamePart: (name: string) => { d.controller.setPartName(name); d.redraw(); },
       rollback: d.controller.rollbackCount(),
       onRollback: (count: number | null) => void d.controller.setRollback(count).then(d.redraw),
       onRemove: (id: string) => void deleteIds(group(id)),
       onToggleSuppress: (id: string) => void suppressIds(group(id)),
     },
+    /** The tree's right-click menu (null when closed); main.tsx shows it with <ContextMenu>. */
+    menu: menu ? { x: menu.x, y: menu.y, items: menu.items } : null,
+    runMenu: (id: string) => { const m = menu; setMenu(null); m?.run(id); },
+    closeMenu: () => setMenu(null),
     /** The part name in the top bar. */
     topRename: { active: topRename, begin: () => setTopRename(true), end: () => setTopRename(false), commit: (name: string) => { d.controller.setPartName(name); setTopRename(false); d.redraw(); } },
     /** A double click on a body face opens the editor of the feature that made it. */
