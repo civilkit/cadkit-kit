@@ -1,0 +1,7 @@
+{
+  "name": "@kit/mcp",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": { "ck-mcp": "bin/ck-mcp.mjs" }
+}

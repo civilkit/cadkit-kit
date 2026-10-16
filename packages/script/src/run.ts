@@ -28,6 +28,12 @@ export interface RunOptions {
   onProgress?(p: Progress): void;
   /** Let the UI breathe between chunks (default: a macrotask). */
   yieldToUi?(): Promise<void>;
+  /**
+   * Attach mode: features already in the open document. The script's steps are built AFTER them (selectors see their body,
+   * ids continue from `seq`), the host is never asked to load or edit (the caller applies the returned ops itself) and
+   * `result.document.features` is the prefix followed by the script's features.
+   */
+  prefix?: { features: Array<Record<string, unknown>>; seq: number };
 }
 export interface RunStats { batched: boolean; steps: number; builds: number; viewBuilds: number; buildMs: number; loadMs: number; totalMs: number }
 export interface ScriptError { line: number; message: string; feature?: string }
@@ -132,10 +138,11 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   const stats: RunStats = { batched: true, steps: steps.length, builds: 0, viewBuilds: 0, buildMs: 0, loadMs: 0, totalMs: 0 };
   const every = opts.flushEvery ?? FLUSH_EVERY;
   const yieldToUi = opts.yieldToUi ?? macrotask;
-  const features: Array<Record<string, unknown>> = [];
+  const prefix = opts.prefix?.features ?? [];
+  const features: Array<Record<string, unknown>> = [...prefix];
   const stepOfFeature = new Map<string, number>();
   const ops: EditOp[] = [];
-  let n = 0;
+  let n = opts.prefix ? opts.prefix.seq - 1 : 0;
   let built = 0;                 // steps whose features the kernel has accepted
   let geo: Geometry = { mesh: null, edges: [], box: null };
   let geoAt = 0;                 // feature count `geo` belongs to
@@ -210,6 +217,9 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     if (cancelled()) return cancelResult();
     // what the app gets: everything up to (not including) the step the kernel refused
     const kept = keep >= 0 ? ops.filter((o) => (stepOfFeature.get(o.feature.id as string) ?? 0) < keep) : ops;
+    if (opts.prefix) {
+      return { ops: kept, document: { ...doc, features: [...prefix, ...kept.map((o) => o.feature)], seq: n + 1 }, errors, stats: { ...stats, totalMs: performance.now() - t0 } };
+    }
     progress('loading');
     await yieldToUi();
     const tl = performance.now();

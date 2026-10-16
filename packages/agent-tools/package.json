@@ -1,0 +1,6 @@
+{
+  "name": "@kit/agent-tools",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}
