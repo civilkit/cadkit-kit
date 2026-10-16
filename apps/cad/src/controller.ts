@@ -11,6 +11,8 @@ import { drawingQuery } from './drawing/kernel';
 import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
+import { t } from './i18n';
+import { refLabel } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
@@ -441,7 +443,7 @@ export class Controller {
     if (!s) return null;
     const id = `F${this.sdoc().seq}`;
     const draft = fromFeature({
-      type: 'sketch', id, name: 'Sketch', plane: typeof plane === 'string' ? { kind: 'std', id: plane } : plane,
+      type: 'sketch', id, name: typeof plane === 'string' || plane.kind === 'feature' ? t('app.sketch.defaultName', { plane: refLabel(this.sdoc(), typeof plane === 'string' ? { kind: 'std', id: plane } : plane) }) : 'Sketch', plane: typeof plane === 'string' ? { kind: 'std', id: plane } : plane,
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
     const upTo = (this.rollbackCount() ?? this.sdoc().features.length) + 1;

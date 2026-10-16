@@ -104,3 +104,27 @@ whole command table (every optional command included) and fails for a command wi
 - **Feature editors**: while one is open the ribbon greys the model commands (`idleDuringEdit` / `MODEL_COMMANDS`); undo, redo,
   views, selection and inspection stay. Keyboard shortcuts are not affected.
 - **Assemblies**: a document with inserted components (`docKindOf`) selects the Assembly tab when it becomes one (`tabForKindChange`).
+
+## Hull fixes (UX review of the boat-hull film)
+
+* **Loft profiles.** A closed spline, closed control-point spline, circle or ellipse is ONE closed profile (a closed spline's two ends are
+  one point, so it counts twice in the chain degree). Loft takes the sketches selected in the tree (in selection order) when two or more
+  are selected; otherwise every unused closed sketch drawn since the last Loft / Extrude / Revolve / Sweep, in tree order; otherwise the
+  two newest. The loft editor lists them with up / down / remove / add. If Confirm is refused the editor stays open on the same draft and
+  shows the structured error and its hint (nothing is reverted).
+* **Sketch on a plane feature.** A Plane feature selected in the tree, or a datum plane clicked in the viewport (its square outline is the
+  pick area, `onPlaneFeaturePick`), is a valid sketch target: S or the "Sketch on this plane" chip starts a sketch on it.
+* **Plane tool base.** Base = picked planar face, else the selected Plane feature, else the Front / Top / Right plane chosen in the tree,
+  else Front. The plane editor shows it as a "Base plane" selector (Front / Top / Right / earlier planes / the face) that can be changed.
+* **Default names.** Planes `Plane -60 from Front` (or `Plane between A and B`), sketches `Sketch on <plane>`. Only the defaults;
+  existing documents and typed names are untouched.
+* **Auto-constrain from guides** (Snaps menu, off by default): a click on a snap or alignment guide only places the point. With it on,
+  the snap's constraint (aligned, midpoint, on curve ...) is added too, as before. Shift at the click still suppresses it.
+* **Dismissing a menu.** The click that closes a menu or popover is not passed to the viewport (`dismissGuard.ts`), so it no longer
+  starts a line point.
+* **Navigation.** Middle-drag orbits, Shift+middle pans, Ctrl/Cmd+middle zooms; right-drag pans and never opens the context menu (a right
+  click without movement does). In a sketch the middle button still pans.
+* **Splines** draw as their curve (interpolating spline or B-spline, sampled by the same math the sketch tools preview with), with the
+  points as handles, in the sketch layer and while editing.
+* **Keep view when entering a sketch** (Settings, Sketching; default on): the camera stays exactly where it is; Look normal squares up.
+  Off: entering a sketch squares the view to the plane (the old behaviour).

@@ -9,7 +9,7 @@ import { EditorSection as Section, ExprInput, Icon, type OptionsArgs, type Optio
 import { t } from './i18n';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsFace, endNeedsPoint, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
-  patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, radiiOf,
+  patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf,
   type ChamferType, type EndCondition, type FilletProfile,
 } from './optionRules';
 import {
@@ -409,6 +409,16 @@ function TrimOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   );
 }
 
+/** The Base plane of a reference plane, as a selector: Front / Top / Right, an earlier Plane feature, or the planar face it hangs on. */
+function PlaneOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const choices = planeBaseChoices(p.doc, String(p.eff.id ?? ''), p.eff.base);
+  return (
+    <Section id="planeBase" title={t('opt.plane.base')}>
+      <Select name="base" label={t('opt.plane.base')} value={planeBaseValue(p.eff.base)} options={choices} onChange={(v) => p.change(planeBasePatch(v))} />
+    </Section>
+  );
+}
+
 /** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). `doc` feeds the sketch and surface lists. */
 export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null, actions?: ThinActions): OptionsResult | null {
   const type = String(a.eff.type ?? '');
@@ -427,6 +437,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'extend': return { hide, node: <ExtendOptions {...common} /> };
     case 'lpattern': case 'cpattern': case 'mirror': return { hide, node: <PatternOptions {...common} doc={doc} /> };
     case 'knit': return { hide, node: <KnitOptions {...common} doc={doc} /> };
+    case 'plane': return { hide, node: <PlaneOptions {...common} doc={doc} /> };
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     default: return null;
   }

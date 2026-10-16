@@ -13,6 +13,7 @@ import { ViewCube } from './viewcube';
 import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
+import { navButtons, zoomedDistance } from './navButtons';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
 import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
@@ -83,6 +84,8 @@ export interface ViewportOptions {
   onHover(name: string | null): void;
   /** A click landed on a reference plane (shown for an empty part or by the tree) and on no body face. */
   onRefPlanePick?(id: RefPlaneId): void;
+  /** A click on a reference-plane FEATURE (a datum plane drawn in the viewport) that hit nothing else. */
+  onPlaneFeaturePick?(id: string, additive: boolean): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
   onSketchMove?(pointId: string, u: number, v: number): void;
   /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
@@ -196,6 +199,7 @@ export class Viewport {
   /** Sketches a feature already uses are drawn thin and quiet; the rest (still to be used) stay bright and thick. */
   setConsumedSketches(ids: string[]): void { this.consumedSketches = new Set(ids); }
   private planeLines: THREE.LineSegments | null = null;
+  private planeQuads: Array<{ id: string; quad: number[][] }> = [];
   private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
   private edges: Array<{ key?: string; pts: number[][] }> = [];
@@ -276,6 +280,10 @@ export class Viewport {
       onChange: () => { this.dirty = true; },
     });
     this.dom.addEventListener('pointerdown', this.onBoxDown, true);
+    this.dom.addEventListener('pointerdown', this.midZoomDown, true);
+    window.addEventListener('pointermove', this.midZoomMove);
+    window.addEventListener('pointerup', this.midZoomUp, true);
+    window.addEventListener('pointerup', this.onRightUp, true);
     window.addEventListener('pointermove', this.onBoxMove);
     window.addEventListener('pointerup', this.onBoxUp, true);
     this.dom.addEventListener('pointerdown', this.onDown);
@@ -322,6 +330,35 @@ export class Viewport {
   /** Box select mode: a left drag draws a box instead of orbiting. */
   setBoxMode(on: boolean): void { this.boxMode = on; this.dom.style.cursor = on ? 'crosshair' : ''; }
   isBoxMode(): boolean { return this.boxMode; }
+
+  /** Ctrl (or Cmd) + middle drag zooms: up zooms in. OrbitControls would pan, so this takes the press first. */
+  private midZoom: { y: number; id: number } | null = null;
+  private midZoomDown = (e: PointerEvent): void => {
+    if (e.button !== 1 || !(e.ctrlKey || e.metaKey) || this.sketchEdit) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    this.midZoom = { y: e.clientY, id: e.pointerId };
+    try { this.dom.setPointerCapture(e.pointerId); } catch { /* synthetic events have no active pointer */ }
+  };
+  private midZoomMove = (e: PointerEvent): void => {
+    const m = this.midZoom;
+    if (!m) return;
+    this.zoomBy(e.clientY - m.y);
+    m.y = e.clientY;
+  };
+  private midZoomUp = (e: PointerEvent): void => {
+    if (!this.midZoom || e.button !== 1) return;
+    this.midZoom = null;
+    e.stopImmediatePropagation();
+  };
+  /** Dolly towards (dy < 0, a drag up) or away from the target by a screen drag of dy pixels. */
+  zoomBy(dy: number): void {
+    const off = this.camera.position.clone().sub(this.controls.target);
+    const len = zoomedDistance(off.length(), dy, this.controls.minDistance || 1e-3, this.controls.maxDistance || Infinity);
+    this.camera.position.copy(this.controls.target).add(off.setLength(len));
+    this.controls.update();
+    this.dirty = true;
+  }
 
   private onBoxDown = (e: PointerEvent): void => {
     if (e.button !== 0 || this.sketchEdit || this.placement || this.pickIntercept || !this.opts.onBoxSelect) return;
@@ -507,9 +544,7 @@ export class Viewport {
   private applySketchButtons(): void {
     const sketching = this.sketchTool || !!this.sketchEdit;
     this.controls.zoomToCursor = sketching;   // in a sketch the wheel zooms towards the pointer, so a small detail can be reached without panning first
-    this.controls.mouseButtons = sketching
-      ? { LEFT: -1 as never, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
-      : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    this.controls.mouseButtons = navButtons(sketching);   // model: middle orbits, Shift+middle pans, Ctrl+middle zooms (midZoomDown)
   }
 
   /** Draw what the active tool is about to make: amber lines, dotted guides and snap markers, on top of everything. */
@@ -965,6 +1000,7 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.sketchLines = this.sketchQuiet = this.curveLines = this.planeLines = this.axisLines = null;
+    this.planeQuads = [];
     if (this.dimGroup) {
       this.scene.remove(this.dimGroup);
       this.dimGroup.traverse((o) => {
@@ -1008,7 +1044,9 @@ export class Viewport {
       this.curveLines = this.addFatLines(polys, 0x1f8f86, 2.2, this.layerOn('curves'));
     }
     if (body.planes?.length) {
-      const quads = planeOutlines(shown(body.planes) as never, scale).map((q) => q.quad);
+      const outlines = planeOutlines(shown(body.planes) as never, scale);
+      this.planeQuads = outlines.map((q) => ({ id: q.id, quad: q.quad as number[][] }));
+      const quads = outlines.map((q) => q.quad);
       this.planeLines = this.addLayerLines(quads, 0x6f7f99, this.layerOn('planes'));
       const axes = axisLines(body.planes as never, scale * 0.4);
       this.axisLines = this.addLayerLines(axes, 0x2d3a4a, this.layerOn('axes'));
@@ -1794,6 +1832,10 @@ export class Viewport {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.dom.removeEventListener('pointerdown', this.onBoxDown, true);
+    this.dom.removeEventListener('pointerdown', this.midZoomDown, true);
+    window.removeEventListener('pointermove', this.midZoomMove);
+    window.removeEventListener('pointerup', this.midZoomUp, true);
+    window.removeEventListener('pointerup', this.onRightUp, true);
     window.removeEventListener('pointermove', this.onBoxMove);
     window.removeEventListener('pointerup', this.onBoxUp, true);
     this.dom.removeEventListener('pointerdown', this.onDown);
@@ -1975,15 +2017,31 @@ export class Viewport {
   }
 
   private rightDown: { x: number; y: number } | null = null;
-  private onRightDown = (e: PointerEvent): void => { this.rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null; };
-  /** The canvas context menu: only for a right click that did not pan, and not while a sketch is open (the sketch has its own). */
+  private rightHeld = false;
+  private ctxPending: { x: number; y: number } | null = null;
+  private onRightDown = (e: PointerEvent): void => { this.rightDown = e.button === 2 ? { x: e.clientX, y: e.clientY } : null; this.rightHeld = e.button === 2; this.ctxPending = null; };
+  /** A right-button release: the context menu opens only if the button did not travel (a right drag pans, it never opens the menu). */
+  private onRightUp = (e: PointerEvent): void => {
+    if (e.button !== 2) return;
+    this.rightHeld = false;
+    const pend = this.ctxPending, d = this.rightDown;
+    this.ctxPending = null;
+    if (pend) this.rightDown = null;
+    if (pend && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.showContext(pend.x, pend.y);
+  };
+  private showContext(x: number, y: number): void {
+    if (this.sketchEdit || !this.opts.onContextMenu) return;
+    this.opts.onContextMenu(this.pickName(x, y), x, y, this.mode);
+  }
+  /** The canvas context menu: only for a right click that did not pan, and not while a sketch is open (the sketch has its own).
+   *  Some platforms send `contextmenu` on the press, so while the button is still down the menu waits for the release. */
   private onContext = (e: MouseEvent): void => {
     e.preventDefault();
+    if (this.rightHeld) { this.ctxPending = { x: e.clientX, y: e.clientY }; return; }
     const d = this.rightDown;
     this.rightDown = null;
-    if (this.sketchEdit || !this.opts.onContextMenu) return;
     if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return;
-    this.opts.onContextMenu(this.pickName(e.clientX, e.clientY), e.clientX, e.clientY, this.mode);
+    this.showContext(e.clientX, e.clientY);
   };
 
   /** Move the camera and its target by a screen-space drag, so the point under the pointer follows it. */
@@ -2082,6 +2140,10 @@ export class Viewport {
       const plane = this.refPlanes.pick(this.raycaster);
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
+    if (!hit0 && this.layerOn('planes') && !this.pickIntercept) {
+      const pid = this.pickPlaneFeature(e.clientX, e.clientY);
+      if (pid) { this.opts.onPlaneFeaturePick?.(pid, e.shiftKey || e.ctrlKey || e.metaKey); return; }
+    }
     this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
     if (this.pickIntercept) { this.pickIntercept(this.pickName(e.clientX, e.clientY), this.lastPick as [number, number, number] | null); return; }
     // Alt+click on the part selects the whole body (the placement gizmo's target); empty space still deselects
@@ -2089,6 +2151,26 @@ export class Viewport {
     const name = this.pickName(e.clientX, e.clientY);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
+
+  /** The nearest drawn datum-plane feature under the pointer (its square outline is the pick area). */
+  private pickPlaneFeature(cx: number, cy: number): string | null {
+    if (!this.planeQuads.length) return null;
+    this.raycaster.setFromCamera(this.ndc(cx, cy), this.camera);
+    const ray = this.raycaster.ray;
+    const V = (p: number[]) => new THREE.Vector3(p[0], p[1], p[2]);
+    const out = new THREE.Vector3();
+    let best: string | null = null, bt = Infinity;
+    for (const { id, quad } of this.planeQuads) {
+      const [a, b, c, d] = [V(quad[0]), V(quad[1]), V(quad[2]), V(quad[3])];
+      for (const tri of [[a, b, c], [a, c, d]]) {
+        if (ray.intersectTriangle(tri[0], tri[1], tri[2], false, out)) {
+          const t = out.distanceTo(ray.origin);
+          if (t < bt) { bt = t; best = id; }
+        }
+      }
+    }
+    return best;
+  }
 
   private onMove = (e: PointerEvent): void => {
     if (this.modPan) {

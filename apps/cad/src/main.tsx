@@ -79,6 +79,7 @@ import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
+import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
@@ -317,6 +318,7 @@ function App() {
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
       onBoxSelect: (names, additive) => { if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
+      onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
@@ -461,11 +463,16 @@ function App() {
     setOrthoState(next);
     try { localStorage.setItem('cad.ortho', next ? '1' : '0'); } catch { /* private window */ }
   };
+  /** The Plane feature (an offset or tangent reference plane) selected in the tree or clicked in the viewport. */
+  const selectedPlaneFeature = () => (selectedId ? controller.document()?.features.find((x) => x.id === selectedId && x.type === 'plane') ?? null : null);
+  const planeLabel = (id: string) => { const f = controller.document()?.features.find((x) => x.id === id) as { name?: string } | undefined; return f?.name ?? id; };
   const sketchHere = () => {
     const face = selectedFace();
     const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
+    const pf = selectedPlaneFeature();
     if (face) startNewSketch({ kind: 'face', id: face });
     else if (plane) startNewSketch(plane);
+    else if (pf) startNewSketch({ kind: 'feature', id: pf.id });
     else store.notify(t('app.sketch.pickFirst'), 'error');
   };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
@@ -621,7 +628,7 @@ function App() {
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
-    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
@@ -852,7 +859,14 @@ function App() {
     const ops = opsFromDraft(next, thread);
     if (ops.length) {
       const r = await timed(() => controller.commit(ops));
-      if (!r.ok) { await controller.cancelPreview(); setDrawerTab('diagnostics'); store.setWorkspace({ drawerOpen: true }); }   // refused: show the model as it was, and why in Diagnostics
+      if (!r.ok) {
+        // refused: the editor stays open on the same draft with the structured error and its hint (nothing is reverted or discarded silently)
+        const rej = controller.rejection();
+        setPreviewHint(rej?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed'));
+        if (rej) setPreviewDiag({ d: rej.diagnosis, fresh: newBreakage(rej.diagnosis, controller.diagnosis()) });
+        redraw((n) => n + 1);
+        return;
+      }
     }
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     if (editingId) setSelectedId(editingId);
@@ -942,7 +956,7 @@ function App() {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
         setSketching({ id, name: f.name ?? id });
-        viewport?.orientToSketch();
+        if (!prefsRef.current.keepView) viewport?.orientToSketch();   // the setting 'keep view when entering a sketch' (default on)
       })();
       return;
     }
@@ -1021,7 +1035,7 @@ function App() {
     const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current, entities: toolEntitiesRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
-    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && prefsRef.current.guideConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
     // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
     if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
@@ -1368,7 +1382,7 @@ function App() {
     const sel = store.selection.value;
     return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
   };
-  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }, after?: () => Promise<void>) => {
+  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
@@ -1389,8 +1403,8 @@ function App() {
       if (!view) { store.notify(t('app.sketch.failedCurved'), 'error'); return; }
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
-      setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : t('app.sketch.dialog.onFace') });
-      viewport?.orientToSketch();
+      setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
+      if (!prefsRef.current.keepView) viewport?.orientToSketch();   // default: the view stays exactly as it was; Look normal squares up
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
       if (after) await after();
@@ -1709,6 +1723,7 @@ function App() {
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
   const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
   useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
@@ -1816,6 +1831,7 @@ function App() {
         ) : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)} /> : null}
+        {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{

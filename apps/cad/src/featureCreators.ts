@@ -10,7 +10,7 @@ import { DEFAULT_GEAR, defaultPair, gearOps, type GearParams } from './gearData'
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
-type Ent = { id: string; type: string; p1?: string; p2?: string; pts?: string[]; construction?: boolean };
+type Ent = { id: string; type: string; p1?: string; p2?: string; pts?: string[]; construction?: boolean; closed?: boolean };
 
 const feats = (c: Ctx): Feat[] => (c.doc?.features ?? []) as unknown as Feat[];
 const hasSolid = (c: Ctx): boolean => !!c.box;
@@ -25,7 +25,11 @@ function degrees(ents: Ent[]): Map<string, number> {
   const bump = (p?: string) => { if (p) d.set(p, (d.get(p) ?? 0) + 1); };
   for (const e of ents) {
     if (e.type === 'line' || e.type === 'arc') { bump(e.p1); bump(e.p2); }
-    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
+    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) {
+      // a closed spline is a loop: both ends are one point, so it counts twice and never reads as an open chain
+      const k = e.closed === true ? 2 : 1;
+      for (let i = 0; i < k; i++) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
+    }
   }
   return d;
 }
@@ -80,12 +84,36 @@ const planeFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'pla
 
 // ---- the edits (each is ONE edit) ----
 
-/** A reference plane. Two faces: the plane midway between them. One face: offset 10 from it. Nothing picked: offset 10 from the front plane. */
+/** What a reference counts as in a default name: Front / Top / Right, a plane feature's own name, or the face id. */
+export function refLabel(doc: { features?: unknown[] } | null | undefined, ref: { kind?: string; id?: string } | null | undefined): string {
+  if (!ref?.id) return t('app.ref.front');
+  if (ref.kind === 'std') return t('app.ref.' + ref.id).replace(/ Plane$/, '');
+  const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
+  return typeof f?.name === 'string' && f.name ? f.name : ref.id;
+}
+/** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
+export function planeDefaultName(doc: { features?: unknown[] } | null | undefined, f: { mode?: string; base?: { kind?: string; id?: string }; base2?: { kind?: string; id?: string }; offset?: number }): string {
+  if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
+  return t('app.plane.defaultName', { offset: String(f.offset ?? 0), base: refLabel(doc, f.base) });
+}
+/** The base a new plane offsets from: a picked planar face, else a Plane feature selected in the tree, else the Front / Top / Right plane chosen, else Front. */
+export function planeBase(c: Ctx): { kind: string; id: string } {
+  const faces = faceMode(c);
+  if (faces.length) return { kind: 'face', id: faces[0] };
+  const pf = planeFeatures(c).find((f) => f.id === c.selectedId);
+  if (pf) return { kind: 'feature', id: pf.id };
+  if (c.refPlane === 'front' || c.refPlane === 'top' || c.refPlane === 'right') return { kind: 'std', id: c.refPlane };
+  return { kind: 'std', id: 'front' };
+}
+/** A reference plane. Two faces: the plane midway between them. Otherwise offset 10 from the base the selection names (a face, a Plane feature, a standard plane; Front when nothing is picked). */
 export function planeOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
-  if (faces.length >= 2) return [{ op: 'add', feature: { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } } }];
-  const base = faces.length ? { kind: 'face', id: faces[0] } : { kind: 'std', id: 'front' };
-  return [{ op: 'add', feature: { type: 'plane', mode: 'offset', base, offset: 10 } }];
+  if (faces.length >= 2) {
+    const f = { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } };
+    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+  }
+  const f = { type: 'plane', mode: 'offset', base: planeBase(c), offset: 10 };
+  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
 }
 /** A reference axis: along the cylinder of one face, or where two faces' planes meet. Nothing picked: the line where the front and top planes meet. */
 export function axisOps(c: Ctx): EditOp[] | null {
@@ -212,12 +240,26 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
   const used = usedSketches(c);
   return feats(c).filter((f) => f.type === 'sketch' && fits(f) && !used.has(f.id));
 };
-/** A loft through the two newest unused closed sketches (a surface loft also takes open ones, all of one kind). */
-export function loftOps(c: Ctx, surface = false): EditOp[] | null {
-  let list = freeSketches(c, surface ? hasCurves : isClosedSketch);
+/**
+ * A loft's profiles: the sketches selected in the tree (in selection order) when two or more fit; else every unused fitting
+ * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
+ */
+export function loftProfileIds(c: Ctx, surface = false): string[] {
+  const fits = surface ? hasCurves : isClosedSketch;
+  const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
+  if (picked.length >= 2) return picked.map((s) => s.id);
+  let list = freeSketches(c, fits);
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
-  if (list.length < 2) return null;
-  const ids = list.slice(-2).map((s) => s.id);
+  if (list.length < 2) return [];
+  const all = feats(c);
+  const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
+  const since = list.filter((s) => all.indexOf(s) > lastBody);
+  return (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id);
+}
+/** A loft through the profiles `loftProfileIds` picks (a surface loft also takes open ones, all of one kind). */
+export function loftOps(c: Ctx, surface = false): EditOp[] | null {
+  const ids = loftProfileIds(c, surface);
+  if (ids.length < 2) return null;
   return [{ op: 'add', feature: { type: 'loft', op: 'add', sketches: ids, ...(surface ? { surface: true } : {}) } }];
 }
 /** A sweep of the newest unused closed sketch along the newest unused open one. */

@@ -98,6 +98,7 @@ export function SketchBar(p: {
       ))}
       <hr />
       <label class="aux-row"><input type="checkbox" checked={p.prefs.autoConstraints} onChange={(e) => p.onPrefs({ autoConstraints: (e.currentTarget as HTMLInputElement).checked })} /><span>{t('app.sketch.snaps.auto')}</span></label>
+      <label class="aux-row" title={t('app.sketch.snaps.guideTip')}><input type="checkbox" data-pref="guideConstraints" checked={p.prefs.guideConstraints} onChange={(e) => p.onPrefs({ guideConstraints: (e.currentTarget as HTMLInputElement).checked })} /><span>{t('app.sketch.snaps.guide')}</span></label>
     </>
   );
   const display = (
