@@ -113,3 +113,11 @@ describe('batched script run', () => {
     expect(r.history()).toBe(0);
   }, 120000);
 });
+
+describe('whole mATX case (MATX_FULL=1)', () => {
+  it.skipIf(!process.env.MATX_FULL)('batched', async () => {
+    const { r, res, ms } = await run(true, {}, matxScript());
+    console.log('FULLNEW', JSON.stringify({ ms: Math.round(ms), errors: res.errors.length, feats: r.controller.document()!.features.length, ...r.counts, setBody: r.setBody(), hist: r.history(), stats: res.stats, vol: await r.mass() }));
+    expect(res.errors).toEqual([]);
+  }, 900000);
+});

@@ -1,5 +1,5 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
-import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
+import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
 import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
@@ -132,12 +132,13 @@ export class Controller {
    * Build `doc` on a scratch kernel state of its own: the open document, its history, the view and the store are untouched.
    * Without `view` the kernel skips tessellation, edge extraction and the mesh reply (`noView`), so only the errors come back;
    * with `view` the body comes too, for a script's selectors. The kernel's regen cache is keyed by the document, so a later
-   * `load` of the same list finds it built.
+   * `load` of the same list finds it built. The document is completed with the defaults a loaded part has (the kernel's cache key
+   * covers the material and the variables), or the later load would not find what was built here.
    */
   async scratchBuild(doc: PartDoc, view: boolean): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
     const k = this.transport();
     if (!k) throw new Error('no kernel');
-    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: doc, ...(view ? {} : { opts: { noView: true } }) });
+    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
     const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; body?: Record<string, unknown> | null };
     const errors = res.errors ?? [];

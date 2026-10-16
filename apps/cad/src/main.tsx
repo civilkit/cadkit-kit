@@ -1653,7 +1653,7 @@ function App() {
             build: (d, view) => controller.scratchBuild(d as never, view) as never,
             release: () => controller.scratchRelease(),
           } : {}),
-        }, {}, run);
+        }, {}, { ...run, ...(new URLSearchParams(location.search).has('legacyScript') ? { batched: false } : {}) });
         if (r.cancelled) { store.notify(t('script.cancelled')); resolve([]); return; }
         controller.setDocExtra('script', code);
         redraw((n) => n + 1);
