@@ -10,12 +10,12 @@ import { CatalogIcon } from './CatalogIcon';
 import { registerDynamicItem, type CatalogItem, type ShapeKind } from './shapes';
 import { armedItem } from './state';
 
-const CATEGORIES: Array<Category | 'all'> = ['all', 'blocks', 'cylinders', 'round', 'profiles'];
-const KIND: Record<string, ShapeKind> = { cuboid: 'block', prismoid: 'cone', wedge: 'block', rect_tube: 'block', cyl: 'cylinder', tube: 'cylinder', pie_slice: 'cylinder', regular_prism: 'boss', spheroid: 'sphere', torus: 'boss', teardrop: 'slot', onion: 'sphere' };
+const CATEGORIES: Array<Category | 'all'> = ['all', 'blocks', 'cylinders', 'round', 'profiles', 'masks'];
+const KIND: Record<string, ShapeKind> = { cuboid: 'block', prismoid: 'cone', wedge: 'block', rect_tube: 'block', cyl: 'cylinder', tube: 'cylinder', pie_slice: 'cylinder', regular_prism: 'boss', spheroid: 'sphere', torus: 'boss', teardrop: 'slot', onion: 'sphere', edge_rounding_mask: 'block', edge_chamfer_mask: 'block' };
 
 /** The catalog item an entry stands for, with its current parameter values (registered so the placement finds it by id). */
 export function boslItem(e: BoslEntry): CatalogItem {
-  return registerDynamicItem({ id: 'bosl:' + e.id, kind: KIND[e.id] ?? 'block', op: 'add', bosl: { entryId: e.id, params: paramsOf(e.id) } });
+  return registerDynamicItem({ id: 'bosl:' + e.id, kind: KIND[e.id] ?? 'block', op: e.mask ? 'cut' : 'add', bosl: { entryId: e.id, params: paramsOf(e.id) } });
 }
 
 interface Props {
@@ -87,7 +87,7 @@ export function BoslSection({ onItemDown, onItemKey }: Props) {
               aria-pressed={armed === item.id}
               onPointerDown={(ev) => { boslSelected.value = e.id; onItemDown(boslItem(e), ev); }}
               onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); boslSelected.value = e.id; onItemKey(boslItem(e)); } }}>
-              {thumb ? <img src={thumb} width="64" height="48" alt="" draggable={false} /> : <CatalogIcon kind={item.kind} op="add" />}
+              {thumb ? <img src={thumb} width="64" height="48" alt="" draggable={false} /> : <CatalogIcon kind={item.kind} op={item.op} />}
               <span class="cat-name">{t('catalog.bosl.entry.' + e.id)}</span>
             </button>
           );

@@ -8,6 +8,7 @@ import { createStore } from '@kit/store';
 import { runScript, type ScriptHost } from '@kit/script';
 import { Controller, type KernelFactory } from '../controller';
 import { boslEntry, type Params, type Place } from './bosl/entries';
+import { buildBosl } from './bosl/build';
 
 interface Ref { name: string; params: Params; scad: string; volume: number; area: number; bbox: { min: number[]; max: number[] } }
 import reference from './bosl_reference.json';
@@ -31,7 +32,7 @@ const GROUND: Place = { plane: "'front'", ground: true, at: [0, 0], prefix: null
 
 /** Curved shapes are compared at 0.3 percent (OpenSCAD facets at $fn), flat ones to 1e-6. */
 const FLAT = new Set(['prismoid', 'wedge', 'rect_tube']);
-const isFlat = (id: string, p: Params): boolean => FLAT.has(id) || (id === 'cuboid' && !(Number(p.rounding) > 0)) || (id === 'regular_prism' && !(Number(p.rounding) > 0));
+const isFlat = (id: string, p: Params): boolean => FLAT.has(id) || id === 'edge_chamfer_mask' || (id === 'cuboid' && !(Number(p.rounding) > 0)) || (id === 'regular_prism' && !(Number(p.rounding) > 0));
 
 export const report: string[] = [];
 describe(`BOSL2 entries vs OpenSCAD (${REF.openscad}, BOSL2 ${REF.bosl2.commit.slice(0, 8)}, $fn=${REF.fn})`, { skip: !process.env.CK_WASM, timeout: 180000 }, () => {
@@ -41,9 +42,21 @@ describe(`BOSL2 entries vs OpenSCAD (${REF.openscad}, BOSL2 ${REF.bosl2.commit.s
       it(`${id} ${c.name}`, async () => {
         expect(entry.check(c.params), 'parameters are valid').toBeNull();
         const w = await world();
-        const code = entry.script(c.params, GROUND);
-        const r = await runScript(code, w.host);
-        expect(r.errors, code).toEqual([]);
+        if (entry.mask) {
+          // a mask works on a body: the oracle's host block first, then the mask on its top face (named by the cuboid script: F2.C1)
+          const hostEntry = boslEntry(entry.mask.host.entryId)!;
+          const hr = await runScript(hostEntry.script(entry.mask.host.params, GROUND), w.host);
+          expect(hr.errors).toEqual([]);
+          const sh = { load: async () => {}, edit: async () => ({ ok: true }), geometry: () => ({ mesh: null, edges: [], box: null }), build: (d: unknown, v: boolean) => w.controller.scratchBuild(d as never, v) as never, release: () => w.controller.scratchRelease(), facts: (n: never) => w.controller.scratchFacts(n) } as ScriptHost;
+          const b = await buildBosl(sh, w.controller.document(), { entryId: id, params: c.params }, { kind: 'face', face: 'F2.C1', planar: true, frame: { o: [0, 0, 20], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, point: [0, 0, 20] }, false);
+          if ('error' in b) throw new Error(`${b.error} ${b.hint}`);
+          const ok = await w.controller.commit(b.ops);
+          expect(ok.ok, 'mask applied').toBe(true);
+        } else {
+          const code = entry.script(c.params, GROUND);
+          const r = await runScript(code, w.host);
+          expect(r.errors, code).toEqual([]);
+        }
         const s = sessions.at(-1)!;
         const volume = ((await s.massProps()) as { volume: number }).volume;
         const valid = ((await s.validate()) as { ok: boolean }).ok;

@@ -20,7 +20,7 @@ export interface BoslBuilt {
   patch?: DocPatch;
   script: string;
 }
-export type BoslFailure = { error: 'planarOnly' | 'invalid' | 'scriptFailed' | 'noFrame'; hint?: string };
+export type BoslFailure = { error: 'planarOnly' | 'invalid' | 'scriptFailed' | 'noFrame' | 'needsBody'; hint?: string };
 
 /** Variable prefix not yet used in the document: `cuboid1_`, `cuboid2_`... */
 export function freePrefix(doc: Pick<PartDoc, 'features'> & { variables?: unknown[] }, entry: BoslEntry): string {
@@ -49,6 +49,7 @@ export async function buildBosl(host: ScriptHost, doc: PartDoc | null, item: Bos
   if (!entry) return { error: 'invalid', hint: `unknown entry ${item.entryId}` };
   const bad = entry.check(item.params);
   if (bad) return { error: 'invalid', hint: bad };
+  if (entry.mask && target.kind === 'ground') return { error: 'needsBody' };
   const prefix = linked && doc ? freePrefix(doc as never, entry) : null;
   const pl = placeFor(target, prefix);
   if (!isPlace(pl)) return pl;

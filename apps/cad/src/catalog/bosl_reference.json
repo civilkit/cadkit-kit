@@ -1757,6 +1757,220 @@
      ]
     }
    }
+  ],
+  "edge_rounding_mask": [
+   {
+    "name": "default",
+    "params": {
+     "r": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=3);",
+    "volume": 23739.86209282808,
+    "area": 5014.617820991787,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "r": 1.8
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=1.8);",
+    "volume": 23904.85836512894,
+    "area": 5089.994604723577,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "r": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=3);",
+    "volume": 23739.86209282808,
+    "area": 5014.617820991787,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "r": 5.6
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=5.6);",
+    "volume": 23124.85094074156,
+    "area": 4845.702876394109,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "r": 4.9
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=4.9);",
+    "volume": 23323.51509779128,
+    "area": 4891.933684209965,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   }
+  ],
+  "edge_chamfer_mask": [
+   {
+    "name": "default",
+    "params": {
+     "c": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=3);",
+    "volume": 23406,
+    "area": 4939.058007951268,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "c": 4.5
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.5);",
+    "volume": 22704,
+    "area": 4797.403245742829,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "c": 1.4
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=1.4);",
+    "volume": 23866.458430470688,
+    "area": 5081.938314349738,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "c": 4.9
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.9);",
+    "volume": 22476.164995755495,
+    "area": 4758.3693770400905,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "c": 4.4
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.4);",
+    "volume": 22758.378358500147,
+    "area": 4807.078800882173,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   }
   ]
  },
  "generated": "2026-10-16"

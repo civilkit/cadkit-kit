@@ -49,6 +49,7 @@ describe('parts library placement', { skip: !process.env.CK_WASM, timeout: 24000
     for (const e of BOSL_ENTRIES) {
       const w = await world(emptyPart('Empty') as unknown as PartDoc);
       const target: PlaceTarget = { kind: 'ground', point: [0, 0, 0] };
+      if (e.mask) { expect(await buildBosl(w.host, w.controller.document(), { entryId: e.id, params: defaultParams(e) }, target, true), `${e.id} needs a body`).toEqual({ error: 'needsBody' }); continue; }
       const b = await buildBosl(w.host, w.controller.document(), { entryId: e.id, params: defaultParams(e) }, target, true);
       if ('error' in b) throw new Error(`${e.id}: ${b.error} ${b.hint}`);
       const before = w.session().history().length;
@@ -81,6 +82,7 @@ describe('parts library placement', { skip: !process.env.CK_WASM, timeout: 24000
       expect(r.ok, e.id).toBe(true);
       expect(await w.valid(), `${e.id} valid`).toBe(true);
       const v = await w.volume();
+      if (e.mask) { expect(v, `${e.id} removes material`).toBeLessThan(SLAB - 0.5); continue; }
       expect(v, `${e.id} adds material`).toBeGreaterThan(SLAB + 0.5);
       if (STANDS.has(e.id)) {
         const ref = REF.entries[e.id].find((c) => c.name === 'default')!.volume;

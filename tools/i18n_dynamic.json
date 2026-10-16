@@ -1133,12 +1133,15 @@
   "catalog.bosl.cat.all",
   "catalog.bosl.cat.blocks",
   "catalog.bosl.cat.cylinders",
+  "catalog.bosl.cat.masks",
   "catalog.bosl.cat.profiles",
   "catalog.bosl.cat.round"
  ],
  "catalog.bosl.entry.+": [
   "catalog.bosl.entry.cuboid",
   "catalog.bosl.entry.cyl",
+  "catalog.bosl.entry.edge_chamfer_mask",
+  "catalog.bosl.entry.edge_rounding_mask",
   "catalog.bosl.entry.onion",
   "catalog.bosl.entry.pie_slice",
   "catalog.bosl.entry.prismoid",
@@ -1153,6 +1156,7 @@
  "catalog.bosl.param.+": [
   "catalog.bosl.param.anchor",
   "catalog.bosl.param.ang",
+  "catalog.bosl.param.c",
   "catalog.bosl.param.cap_h",
   "catalog.bosl.param.chamfer",
   "catalog.bosl.param.d",

@@ -17,7 +17,7 @@ export interface ParamDef {
   linked?: boolean;
 }
 export type Params = Record<string, number | boolean | string>;
-export type Category = 'blocks' | 'cylinders' | 'round' | 'profiles';
+export type Category = 'blocks' | 'cylinders' | 'round' | 'profiles' | 'masks';
 
 /** Where an entry is built. */
 export interface Place {
@@ -49,6 +49,11 @@ export interface BoslEntry {
   check(p: Params): string | null;
   /** Placement on a face is supported (false: the ground / first body only). */
   onFace: boolean;
+  /**
+   * A MASK removes material along the edges of the picked face (BOSL2 edge masks): it needs a body, adds no sketch and is placed
+   * with the cut items. `host` is the body the oracle applies the mask to (a cuboid entry with these parameters, base on Z = 0).
+   */
+  mask?: { host: { entryId: string; params: Params } };
   /** Named parameter sets that exercise options the defaults leave off (they are oracle cases too). */
   samples?: Record<string, Params>;
 }
@@ -379,7 +384,29 @@ const onion: BoslEntry = {
   scad: (p) => `onion(r=${p.r}, ang=${p.ang}${num(p, 'cap_h') > 0 ? `, cap_h=${p.cap_h}` : ''});`,
 };
 
-export const BOSL_ENTRIES: BoslEntry[] = [cuboid, prismoid, wedge, rectTube, cyl, tube, pie, regularPrism, sphere, torus, teardrop, onion];
+const HOST = { entryId: 'cuboid', params: { x: 40, y: 30, z: 20, rounding: 0, chamfer: 0, anchor: 'bottom' } as Params };
+const faceRounding: BoslEntry = {
+  id: 'edge_rounding_mask', name: 'Round face edges', category: 'masks', tags: ['fillet', 'round over', 'soften', 'edge round', 'break edges', 'smooth edges', 'mask'],
+  params: [L('r', 3, 0.5, 8, true)],
+  source: { module: 'rounding_edge_mask', file: 'masks.scad', licence: 'BSD-2-Clause' },
+  notes: 'Rounds every edge of the picked face (BOSL2 edge_mask(TOP) rounding_edge_mask(r=...) on a block): an exact cylindrical fillet linked to a variable.',
+  onFace: true, mask: { host: HOST },
+  check: (p) => (num(p, 'r') > 0 ? null : 'r must be positive'),
+  script(p, pl) { return header(this, p, pl) + `part('Edge rounding')\n  .fillet(edges({ onFace: face('${pl.hostFace}') }), ${val(p, 'r', pl)});\n`; },
+  scad: (p) => `diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=${p.r});`,
+};
+const faceChamfer: BoslEntry = {
+  id: 'edge_chamfer_mask', name: 'Chamfer face edges', category: 'masks', tags: ['bevel', 'break edges', 'edge break', 'countersunk edge', 'mask', 'chamfer'],
+  params: [L('c', 3, 0.5, 8, true)],
+  source: { module: 'chamfer_edge_mask', file: 'masks.scad', licence: 'BSD-2-Clause' },
+  notes: 'Chamfers every edge of the picked face with legs of c (BOSL2 edge_mask(TOP) chamfer_edge_mask(chamfer=...) on a block).',
+  onFace: true, mask: { host: HOST },
+  check: (p) => (num(p, 'c') > 0 ? null : 'c must be positive'),
+  script(p, pl) { return header(this, p, pl) + `part('Edge chamfer')\n  .chamfer(edges({ onFace: face('${pl.hostFace}') }), ${val(p, 'c', pl)});\n`; },
+  scad: (p) => `diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=${p.c});`,
+};
+
+export const BOSL_ENTRIES: BoslEntry[] = [cuboid, prismoid, wedge, rectTube, cyl, tube, pie, regularPrism, sphere, torus, teardrop, onion, faceRounding, faceChamfer];
 export const boslEntry = (id: string): BoslEntry | undefined => BOSL_ENTRIES.find((e) => e.id === id);
 export const defaultParams = (e: BoslEntry): Params => Object.fromEntries(e.params.map((d) => [d.key, d.default]));
 
