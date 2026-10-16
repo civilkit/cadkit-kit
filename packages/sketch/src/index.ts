@@ -124,6 +124,7 @@ export function removeConstraint(draft: SketchDraft, id: string): SketchDraft {
 // The sketch tools and the snapping they use.
 export * from './tools/index';
 export * from './snap';
+export * from './modelSnaps';
 export * from './registry';
 export * from './snap-constraints';
 export * from './select';

@@ -14,7 +14,7 @@ import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport } from '@kit/viewport';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
-import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext,
@@ -106,7 +106,7 @@ const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value, o
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
+import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
 import { defaultThickness } from './thinRules';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
@@ -253,7 +253,7 @@ function App() {
   // Sketch tools: the active tool, its state and its last output live in refs because the viewport and the
   // key handler are created once; the React state below only drives what is drawn.
   const [sketchToolId, setSketchToolId] = useState<string | null>(null);
-  const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[]; snapLabel?: string } | null>(null);
+  const [toolOut, setToolOut] = useState<{ fields: FieldSpec[]; x: number; y: number; pending?: string[]; snapLabel?: string; snapModel?: boolean } | null>(null);
   const dwellRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
   const sketchToolRef = useRef<string | null>(null);
   // Select mode: the picked entity and the size field shown beside it.
@@ -771,6 +771,36 @@ function App() {
     viewport?.highlightSketchGap(g && openCard ? openCard.sketchId : null, g?.a, g?.b);
     return () => viewport?.highlightSketchGap(null);
   }, [openCard?.sketchId, openCard?.gap?.a[0], openCard?.gap?.a[1], openCard?.gap?.b[0], openCard?.gap?.b[1], editingId]);
+  // Click the shaded region of the sketch in the viewport to choose what an Extrude / Revolve uses (the same toggle as the Shapes list);
+  // pointing at one lights its outline. The ref holds the current draft, so the hook installed below never goes stale.
+  const regionRef = useRef<{ move(u: number, v: number | null): void; tap(u: number, v: number): boolean } | null>(null);
+  regionRef.current = {
+    move: (u, v) => {
+      const ef = editingFeature as { sketch?: string } | null;
+      const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
+      const sh = v !== null && sk ? shapeAtPoint(sk as never, sketchShapes(sk as never), u, v) : null;
+      viewport?.highlightSketchEntities(sh ? ef!.sketch! : null, sh?.entityIds ?? []);
+    },
+    tap: (u, v) => {
+      const ef = editingFeature as { sketch?: string; regions?: string[] } | null;
+      const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
+      if (!ef || !sk || editShapes.length < 2) return false;
+      const sh = shapeAtPoint(sk as never, sketchShapes(sk as never), u, v);
+      if (!sh || !editShapes.some((x) => x.id === sh.id)) return false;
+      const cur = (draft.regions !== undefined ? draft.regions : ef.regions) as string[] | null | undefined;
+      const checked = new Set(Array.isArray(cur) ? editShapes.filter((x) => cur.includes(x.id)).map((x) => x.id) : editShapes.map((x) => x.id));
+      if (checked.has(sh.id)) checked.delete(sh.id); else checked.add(sh.id);
+      if (!checked.size) return true;   // at least one stays
+      setPicked({ path: 'regions', value: checked.size === editShapes.length ? null : editShapes.filter((x) => checked.has(x.id)).map((x) => x.id) });
+      return true;
+    },
+  };
+  const regionFrame = editShapes.length > 1 && editingFeature?.sketch ? controller.sketchFrameOf(String(editingFeature.sketch)) : null;
+  useEffect(() => {
+    if (!regionFrame) return;
+    viewport?.setRegionPicker({ frame: regionFrame as never, move: (u, v) => regionRef.current?.move(u, v), tap: (u, v) => regionRef.current?.tap(u, v) ?? false });
+    return () => { viewport?.setRegionPicker(null); viewport?.highlightSketchEntities(null, []); };
+  }, [viewport, editingId, !!regionFrame]);
   const thinActions = {
     closeWithLine: (sketchId: string) => {
       const op = closeWithLineOp(doc, sketchId);
@@ -953,6 +983,11 @@ function App() {
     if (snap?.kind === 'point') shapes.push({ kind: 'marker', at: snap.at, style: snap.role === 'center' ? 'center' : 'point' });
     else if (snap && ['quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve'].includes(snap.kind)) shapes.push({ kind: 'marker', at: snap.at, style: snap.kind as 'quadrant' });
     else if (snap?.kind === 'midpoint') shapes.push({ kind: 'marker', at: snap.at, style: 'midpoint' });
+    else if (snap?.model) {
+      // model snaps use the model colour (see `model: true`); a guide line is dashed through the body
+      shapes.push({ kind: 'marker', at: snap.at, style: snap.kind === 'modelCenter' ? 'center' : snap.kind === 'modelMidpoint' ? 'midpoint' : snap.kind === 'modelExtent' ? 'align' : 'point', model: true });
+      if (snap.guide) shapes.push({ kind: 'guide', a: snap.guide.a, b: snap.guide.b, model: true });
+    }
     else if (snap?.kind === 'align') {
       shapes.push({ kind: 'marker', at: snap.at, style: 'align' });
       for (const id of [snap.alignTo?.x, snap.alignTo?.y]) {
@@ -985,11 +1020,13 @@ function App() {
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
     if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
+    if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
     toolStateRef.current = out.state;
     lastOutRef.current = out;
     viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
-    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind)) : undefined });
+    setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : undefined, snapModel: !!snap?.model });
     if (out.hint) setSketchHint(t(out.hint));
     if (out.draft !== draft) {
       if (['move', 'copy', 'rotate', 'scale'].includes(entry.id)) toolEntitiesRef.current = [];   // done: the next run picks again
@@ -1223,6 +1260,28 @@ function App() {
       store.notify(msg, r.fully || added > 0 ? 'info' : 'error');
     } finally { setDefining(false); viewTick((n) => n + 1); applyHighlight(); }
   };
+  /** Model snaps of the open sketch: built once per sketch session and when the body, the plane or the picked extrusion changes, not per pointer move. */
+  const modelSnapCache = useRef<{ edges: unknown; key: string; snaps: ModelSnaps } | null>(null);
+  const modelSnapsNow = (): ModelSnaps => {
+    const frame = controller.sketchFrame();
+    const edges = controller.bodyEdges();
+    if (!frame || !edges.length) return EMPTY_MODEL_SNAPS;
+    const doc0 = controller.document();
+    const ids = new Set<string>([...(editingId ? [editingId] : []), ...store.selection.value]);
+    const spans: ExtrusionSpan[] = [];
+    for (const f of (doc0?.features ?? []) as unknown as Array<Record<string, unknown>>) {
+      if (f.type !== 'extrude' || !ids.has(String(f.id)) || typeof f.depth !== 'number') continue;
+      const fr = controller.sketchFrameOf(String(f.sketch));
+      if (!fr) continue;
+      spans.push({ frame: fr, depth: f.depth, dir: (f.op === 'cut' ? -1 : 1) * (f.flip ? -1 : 1) as 1 | -1, ...(f.end === 'mid' ? { mid: true } : {}) });
+    }
+    const key = JSON.stringify([frame, spans]);
+    const c = modelSnapCache.current;
+    if (c && c.edges === edges && c.key === key) return c.snaps;
+    const snaps = buildModelSnaps(frame, edges.flatMap((e) => (e.pts && e.pts.length >= 2 ? [{ key: e.key, faces: e.faces, pts: e.pts }] : [])), { extrusions: spans });
+    modelSnapCache.current = { edges, key, snaps };
+    return snaps;
+  };
   sketchPointerRef.current = (ev) => {
     if (!sketchToolRef.current) return;
     if (ev.type === 'leave') { viewport?.setSketchPreview([]); setToolOut(null); return; }
@@ -1231,7 +1290,7 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snaps, model: modelSnapsNow(), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
     // tools that pick a whole curve need the curve under the pointer, not only a midpoint snap
     if (ENTITY_PICK_TOOLS.has(sketchToolRef.current) && !snap?.entityId) {
       const entityId = pickEntity(draft, at, ev.tol);
@@ -1780,7 +1839,7 @@ function App() {
         </div>
         {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
-        {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class="sketch-pending" style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
+        {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />

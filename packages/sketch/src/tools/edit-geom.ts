@@ -179,3 +179,20 @@ export function sample(g: CurveG, t0: number, t1: number, steps = 24): Array<{ a
   for (let i = 1; i <= n; i++) { const p = pointAt(g, t0 + (t1 - t0) * i / n); out.push({ a: prev, b: p }); prev = p; }
   return out;
 }
+
+/** The nearest point of a line segment, or of a circle / arc (the arc's ends when the pointer is off its span). */
+export function nearestOn(g: CurveG, p: Pt): Pt | null {
+  if (g.kind === 'line') {
+    const d = sub(g.b, g.a), l2 = dot(d, d);
+    if (l2 < 1e-18) return null;
+    const t = Math.max(0, Math.min(1, dot(sub(p, g.a), d) / l2));
+    return { x: g.a.x + d.x * t, y: g.a.y + d.y * t };
+  }
+  const v = sub(p, g.c);
+  const l = len(v);
+  if (l < 1e-12) return null;
+  const t = angleOf(v);
+  if (g.kind === 'arc' && !onArc(g, t)) return dist(p, g.p1) <= dist(p, g.p2) ? { ...g.p1 } : { ...g.p2 };
+  return { x: g.c.x + (v.x / l) * g.r, y: g.c.y + (v.y / l) * g.r };
+}
+

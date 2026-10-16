@@ -50,7 +50,7 @@ export const en: Catalog = {
   'expr.error.badName': 'Invalid name: letters, digits and _, not starting with a digit, and not pi, sqrt, sin, cos, tan, abs or a unit',
   'expr.error.duplicateName': 'Name already in use',
   'expr.error.cyclicVariables': 'Circular reference between variables',
-  'ui.editor.section.shapes': 'Shapes', 'ui.editor.shapes.note': 'Choose which closed shapes of the sketch are used.',
+  'ui.editor.section.shapes': 'Shapes', 'ui.editor.shapes.note': 'Click regions to choose what to extrude (outer, inner or both).',
   'ui.editor.value.op.add': 'Add material', 'ui.editor.value.op.cut': 'Cut material',
   'ui.editor.value.end.blind': 'Blind', 'ui.editor.value.end.through': 'Through', 'ui.editor.value.end.throughBoth': 'Through both', 'ui.editor.value.end.upToNext': 'Up to next',
   'ui.editor.empty': 'No feature selected.',
