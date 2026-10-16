@@ -106,7 +106,7 @@ const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value, o
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
+import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
 import { defaultThickness } from './thinRules';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
@@ -771,6 +771,36 @@ function App() {
     viewport?.highlightSketchGap(g && openCard ? openCard.sketchId : null, g?.a, g?.b);
     return () => viewport?.highlightSketchGap(null);
   }, [openCard?.sketchId, openCard?.gap?.a[0], openCard?.gap?.a[1], openCard?.gap?.b[0], openCard?.gap?.b[1], editingId]);
+  // Click the shaded region of the sketch in the viewport to choose what an Extrude / Revolve uses (the same toggle as the Shapes list);
+  // pointing at one lights its outline. The ref holds the current draft, so the hook installed below never goes stale.
+  const regionRef = useRef<{ move(u: number, v: number | null): void; tap(u: number, v: number): boolean } | null>(null);
+  regionRef.current = {
+    move: (u, v) => {
+      const ef = editingFeature as { sketch?: string } | null;
+      const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
+      const sh = v !== null && sk ? shapeAtPoint(sk as never, sketchShapes(sk as never), u, v) : null;
+      viewport?.highlightSketchEntities(sh ? ef!.sketch! : null, sh?.entityIds ?? []);
+    },
+    tap: (u, v) => {
+      const ef = editingFeature as { sketch?: string; regions?: string[] } | null;
+      const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
+      if (!ef || !sk || editShapes.length < 2) return false;
+      const sh = shapeAtPoint(sk as never, sketchShapes(sk as never), u, v);
+      if (!sh || !editShapes.some((x) => x.id === sh.id)) return false;
+      const cur = (draft.regions !== undefined ? draft.regions : ef.regions) as string[] | null | undefined;
+      const checked = new Set(Array.isArray(cur) ? editShapes.filter((x) => cur.includes(x.id)).map((x) => x.id) : editShapes.map((x) => x.id));
+      if (checked.has(sh.id)) checked.delete(sh.id); else checked.add(sh.id);
+      if (!checked.size) return true;   // at least one stays
+      setPicked({ path: 'regions', value: checked.size === editShapes.length ? null : editShapes.filter((x) => checked.has(x.id)).map((x) => x.id) });
+      return true;
+    },
+  };
+  const regionFrame = editShapes.length > 1 && editingFeature?.sketch ? controller.sketchFrameOf(String(editingFeature.sketch)) : null;
+  useEffect(() => {
+    if (!regionFrame) return;
+    viewport?.setRegionPicker({ frame: regionFrame as never, move: (u, v) => regionRef.current?.move(u, v), tap: (u, v) => regionRef.current?.tap(u, v) ?? false });
+    return () => { viewport?.setRegionPicker(null); viewport?.highlightSketchEntities(null, []); };
+  }, [viewport, editingId, !!regionFrame]);
   const thinActions = {
     closeWithLine: (sketchId: string) => {
       const op = closeWithLineOp(doc, sketchId);

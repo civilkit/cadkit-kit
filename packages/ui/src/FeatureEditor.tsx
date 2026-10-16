@@ -326,7 +326,7 @@ export function FeatureEditor(p: {
         <div class="fedit-sec">
           <div class="fedit-sec-head"><span class="fedit-sec-title">{t('ui.editor.section.shapes', undefined, 'Shapes')}</span></div>
           <div class="fedit-sec-fields fedit-shapes">
-            <span class="fedit-shapes-note">{t('ui.editor.shapes.note', undefined, 'Choose which closed shapes of the sketch are used.')}</span>
+            <span class="fedit-shapes-note">{t('ui.editor.shapes.note', undefined, 'Click regions to choose what to extrude (outer, inner or both).')}</span>
             {shapes.map((sh) => (
               <label key={sh.id} class="fedit-fld bool fedit-shape" data-shape={sh.id} onMouseEnter={() => p.onShapeHover?.(sh.id)} onMouseLeave={() => p.onShapeHover?.(null)}>
                 <input type="checkbox" checked={checkedShapes.has(sh.id)} disabled={checkedShapes.has(sh.id) && checkedShapes.size === 1} onChange={() => toggleShape(sh.id)} />

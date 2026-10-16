@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultCutRegions, regionsFor, sketchShapes } from './shapes';
+import { defaultCutRegions, regionsFor, shapeAtPoint, sketchShapes } from './shapes';
 
 const rect = [
   { id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' },
@@ -74,5 +74,16 @@ describe('nesting and the default cut regions', () => {
   it('two drawn nested loops, or no nesting: the kernel default', () => {
     expect(defaultCutRegions(sk(false) as never)).toBeNull();
     expect(defaultCutRegions({ points: [{ id: 'c', x: 0, y: 0 }], entities: [ring(10, 'o', true)] } as never)).toBeNull();
+  });
+});
+
+describe('shapeAtPoint', () => {
+  const ring = { points: [{ id: 'o', x: 0, y: 0 }], entities: [{ id: 'out', type: 'circle', c: 'o', r: 10 }, { id: 'in', type: 'circle', c: 'o', r: 5 }] };
+  it('a click on the ring means the outer circle, a click in the hole the inner one, off both nothing', () => {
+    const shapes = sketchShapes(ring);
+    expect(shapeAtPoint(ring, shapes, 7, 0)?.id).toBe('out');
+    expect(shapeAtPoint(ring, shapes, 1, 1)?.id).toBe('in');
+    expect(shapeAtPoint(ring, shapes, 20, 0)).toBeNull();
+    expect(shapeAtPoint(null, shapes, 0, 0)).toBeNull();
   });
 });

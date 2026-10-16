@@ -193,3 +193,19 @@ export function defaultCutRegions(feature: FeatureLike | null | undefined): stri
   const pocket = shapes.filter((s) => !s.reference && s.inside !== undefined && enclosingRef.has(s.inside));
   return pocket.length ? pocket.map((s) => s.id) : null;
 }
+
+/**
+ * The shape a click at (u, v) of the sketch plane means: the smallest closed shape whose outline encloses the point (a click on
+ * the ring between an outer and an inner circle is the outer one, a click inside the inner circle is the inner one). Null off every shape.
+ */
+export function shapeAtPoint(feature: FeatureLike | null | undefined, shapes: SketchShape[], u: number, v: number): SketchShape | null {
+  if (!feature) return null;
+  let best: SketchShape | null = null, bestArea = Infinity;
+  for (const sh of shapes) {
+    const poly = polygonOf(feature, sh);
+    if (!poly || !inPoly([u, v], poly)) continue;
+    const a = area2(poly);
+    if (a < bestArea) { best = sh; bestArea = a; }
+  }
+  return best;
+}

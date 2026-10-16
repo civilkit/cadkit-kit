@@ -745,6 +745,21 @@ export class Viewport {
     this.dirty = true;
   }
 
+  private regionPick: { frame: ViewFrame; move(u: number, v: number | null): void; tap(u: number, v: number): boolean } | null = null;
+  /**
+   * While the Extrude / Revolve editor is open: the pointer over the sketch's plane is reported in sketch coordinates (`move`, with
+   * v = null off the plane) and a click that is not a drag goes to `tap`, which returns true when it used the click (a region was toggled).
+   */
+  setRegionPicker(hook: { frame: ViewFrame; move(u: number, v: number | null): void; tap(u: number, v: number): boolean } | null): void {
+    this.regionPick = hook;
+  }
+  private regionPlaneAt(x: number, y: number): [number, number] | null {
+    if (!this.regionPick) return null;
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    const o = this.raycaster.ray.origin, d = this.raycaster.ray.direction;
+    return rayPlane([o.x, o.y, o.z], [d.x, d.y, d.z], this.regionPick.frame as never);
+  }
+
   private placement: PlacementHook | null = null;
   /**
    * Hand the pointer to the catalog: while a hook is set, moving over the canvas calls `move` and a click (no drag) calls `tap`
@@ -2020,6 +2035,10 @@ export class Viewport {
       }
     }
     if (this.suppressUp) { this.suppressUp = false; return; }
+    if (this.regionPick && !this.sketchEdit && d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) {
+      const uv = this.regionPlaneAt(e.clientX, e.clientY);
+      if (uv && this.regionPick.tap(uv[0], uv[1])) return;
+    }
     if (this.placement && !this.sketchEdit) {
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.placement.tap(e.clientX, e.clientY, { alt: e.altKey });
       return;
@@ -2077,6 +2096,7 @@ export class Viewport {
       if (!m.moved && Math.hypot(e.clientX - m.x, e.clientY - m.y) >= 4) { m.moved = true; this.dom.style.cursor = 'grabbing'; }
       if (m.moved) { this.dragPan(e.clientX - m.x, e.clientY - m.y); m.x = e.clientX; m.y = e.clientY; return; }
     }
+    if (this.regionPick && !this.sketchEdit && !this.down) { const uv = this.regionPlaneAt(e.clientX, e.clientY); this.regionPick.move(uv ? uv[0] : 0, uv ? uv[1] : null); }
     if (this.placement && !this.sketchEdit) { if (!this.down) this.placement.move(e.clientX, e.clientY, { alt: e.altKey }); return; }
     if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
     if (this.sketchEdit && this.rubber) {
