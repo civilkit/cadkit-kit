@@ -114,17 +114,17 @@ The first point is in the bore (outside the material, 10 mm from the wall), the 
 
 9. The user opens the same document in the GUI and adds a hand fillet. The agent then runs a second script in attach mode to add a keyway; the hand fillet is untouched:
 
-`run_script {"mode": "attach", "code": "..."}` returns `{ok: true, run: "script#2", mode: "attach", created: ["F9","F10"], removed: [], ...}`; a corrected re-run returns `removed: ["F9","F10"]` and new ids.
+`run_script {"mode": "attach", "code": "..."}` returns `{ok: true, run: "script#2", mode: "attach", created: [...ids after the document's counter], removed: [], ...}`; a corrected re-run returns `removed: [<the previous run's ids>]` and new ids (ids shown here are not literal).
 
 10. A script error:
 
 ```json
 { "ok": false, "run": "script#3", "mode": "attach",
-  "errors": [ { "line": 5, "message": "edges('|Q'): unsupported selector ..." } ],
-  "created": [], "removed": [], "featureCount": 4 }
+  "errors": [ { "line": 4, "message": "edges('|Q'): unsupported selector (use 'all', '|X', '|Y', '|Z', '>X', '<X', '>Y', '<Y', '>Z', '<Z', or a rule object)" } ],
+  "warnings": [], "created": [], "removed": [], "regenMs": 112, "featureCount": 4 }
 ```
 
-Nothing changed; fix line 5 and run again. `undo` and `restore {"name": "v1"}` are there for the other cases.
+Nothing changed; fix line 4 and run again. `undo` and `restore {"name": "v1"}` are there for the other cases.
 
 ## Limits and notes
 
@@ -153,7 +153,7 @@ Implemented in the daemon:
 
 What the app would do (not built):
 
-1. Discover the daemon: a browser cannot read `~/.ck-cad/daemon.json`. Either the user starts the app with `--allow-origin <app origin>` and pastes the token once (the token is shown by `ck-mcp --status` once we add it to that output), or a tiny native/Vite-dev-server proxy attaches the token server-side. The default stays closed: no Origin is accepted.
+1. Discover the daemon: a browser cannot read `~/.ck-cad/daemon.json`. Either the user starts the app with `--allow-origin <app origin>` and pastes the token once (`--status` deliberately does not print the token), or a tiny native/Vite-dev-server proxy attaches the token server-side. The default stays closed: no Origin is accepted.
 2. Subscribe: `fetch('/events')` with the bearer header and a streaming reader (EventSource cannot set headers). On `document`, if `version` is newer than the last applied, `GET /document` and call `controller.load(doc)` in a read-only "agent" mode (or open it as a second tab), keeping the app's own undo separate.
 3. Hand edits flow the other way: when the user edits in the GUI, post `POST /rpc` `tools/call` is NOT the way (agents own `run_script`); add a `PUT /document` (token, version check) that replaces the daemon's document with the app's, so the agent's next `tree` sees the user's edit. Feature `origin` marks make the agent's next attach run keep the user's features.
 4. Conflicts: last writer wins by `version`; the daemon answers 409 on a stale PUT and the app reloads.
