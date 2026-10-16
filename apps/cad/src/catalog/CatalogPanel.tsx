@@ -4,6 +4,8 @@ import { t } from '../i18n';
 import { CATALOG, catalogItem, type CatalogItem } from './shapes';
 import { CatalogIcon } from './CatalogIcon';
 import { armedItem, ghost, placeStatus } from './state';
+import { BoslSection } from './BoslSection';
+import { itemLabel } from './labels';
 
 export interface CatalogPanelProps {
   hasDoc: boolean;
@@ -40,6 +42,7 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey }: Catalo
       <div class="cat-sub">{t('catalog.hint')}</div>
       {column('add', t('catalog.add'))}
       {column('cut', t('catalog.remove'))}
+      <BoslSection onItemDown={onItemDown} onItemKey={onItemKey} />
     </div>
   );
 }
@@ -57,7 +60,7 @@ export function CatalogGhost() {
   return (
     <div class={'cat-ghost' + (s.state === 'blocked' ? ' blocked' : '')} style={{ left: g.x + 16 + 'px', top: g.y + 14 + 'px' }} role="status">
       <CatalogIcon kind={item.kind} op={item.op} />
-      <span class="cat-ghost-t"><b>{t('catalog.item.' + item.id)}</b>{line ? <span>{line}</span> : null}</span>
+      <span class="cat-ghost-t"><b>{itemLabel(item)}</b>{line ? <span>{line}</span> : null}</span>
     </div>
   );
 }

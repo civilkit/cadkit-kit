@@ -11,6 +11,7 @@ import { buildBosl } from './bosl/build';
 import type { ScriptHost } from '@kit/script';
 import { armedItem, ghost, placeStatus, selectShapeFeature } from './state';
 import { t } from '../i18n';
+import { itemLabel } from './labels';
 
 export interface CatalogDeps {
   controller: Controller;
@@ -86,7 +87,7 @@ export function useCatalog(d: CatalogDeps) {
     if (armedItem.value === item.id) { disarm(); return; }
     if (item.op === 'cut' && !ref.current.controller.hasSolid()) { ref.current.notify(t('catalog.blocked.needsBody'), 'warn'); return; }
     armedItem.value = item.id;
-    ref.current.notify(t('catalog.armed', { name: t('catalog.item.' + item.id) }), 'info');
+    ref.current.notify(t('catalog.armed', { name: itemLabel(item) }), 'info');
     ref.current.viewport()?.setPlacementHook({
       move: (x, y, m) => { ghost.value = { x, y, itemId: item.id }; placer.current!.hover(catalogItem(item.id) ?? item, x, y, m.alt); },
       tap: (x, y, m) => { void finish(catalogItem(item.id) ?? item, x, y, m.alt, false); },
