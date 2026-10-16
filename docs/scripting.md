@@ -24,7 +24,7 @@ Part methods (each adds one feature, in order):
 | `.cut(depth \| through(), {...})` | extrude (cut) of the last sketch |
 | `.revolve(angle = 360, {op, thin, axis})` | revolve about the sketch's Y axis (a construction line is added), or `axis: {from: [x0, y0], to: [x1, y1]}`, any line in the sketch plane (e.g. a cone about an offset axis) |
 | `.thin(t)` | makes the previous extrude / revolve thin-walled |
-| `.hole(face, [x, y], {diameter, depth?})` | sketch with a point + simple hole (through unless `depth`) |
+| `.hole(face, [x, y], {diameter, depth?, kind?, ...})` | sketch with a point + hole (through unless `depth`); `kind` 'cbore' / 'csk' / 'tapped' below |
 | `.fillet(edges, r)`, `.chamfer(edges, d)` | fillet / chamfer |
 | `.holes.polar(face, {center, radius, count, startAngle = 0}, {diameter, depth?})` | ONE hole feature at `count` points on a circle (sketch-plane coordinates) |
 | `.holes.grid(face, {origin, pitch: [dx, dy], count: [nx, ny]}, {diameter, depth?})` | ONE hole feature at a grid of points |
@@ -32,6 +32,38 @@ Part methods (each adds one feature, in order):
 | `.shell(face, t)` | shell, the face is opened |
 | `.linearPattern({count, spacing, axis})` | pattern of the last feature along x / y / z |
 | `.circularPattern({count, axis, angle})` | pattern of the last feature about x / y / z |
+
+### More features (loft, sweep, mirror, holes, surfaces, ...)
+
+Helpers in `packages/script/src/features/` (documented with JSDoc, so they are in the skill registry and `docs([...])`; executed examples in `packages/skill/src/recipes.ts`, kernel tests in `helpers.kernel.test.ts`). A *section* or *profile* is a plain object `{ on, draw }` (`on`: `'front' | 'top' | 'right'`, `at(plane, offset)` or `face(sel)`; `draw(s)` uses the sketch builder) or, for a loft apex, `{ on, point: [x, y] }`; the helper builds the sketches (and offset planes) itself.
+
+| Call | Feature |
+| --- | --- |
+| `.loft(sections, {ends: {first?, last?: 'cap' \| 'point'}, guides?, centre?, startNormal?, endNormal?, op?})` | loft through the sections; only the first or last may be a point; guides / centre line are `{on, draw}` sketches. No closed (ring) loft: the kernel has none |
+| `.sweep(profile, path, {twist?, op?})` | sweep a closed profile along an open path sketch (profile plane perpendicular to the path start). No keep-normal option in the kernel |
+| `.mirror(plane, {body?})` | mirror the last feature (or the whole body with `body: true`) about `'front' \| 'top' \| 'right'`, `at()` or `face()`. The kernel always keeps the original |
+| `.rib(thickness, {flip?})` | rib from the last (open) sketch, grown into the surrounding material (`ribNoContact` in open air) |
+| `.gear({module, teeth, thickness, bore?, pressureAngle?, type?, helixAngle?, plane?, center?})` | the app's involute gear generator: profile, body, bore |
+| `.hole(face, [x, y], {kind: 'cbore' \| 'csk' \| 'tapped', size?, diameter?, cboreDiameter?, cboreDepth?, cskDiameter?, cskAngle?, thread?, modeled?, end?: 'through' \| 'blind' \| 'upTo', depth?, flip?})` | counterbore, countersink (standard ISO sizes only; a standard clearance diameter such as 6.6 maps to M6) and tapped holes; the same options work in `holes.points / polar / grid` |
+| `.thread('hole' \| faceName \| 'last:c1', {size \| diameter + pitch, length?, standard?, hand?, modeled?})` | cosmetic or modeled thread on the last hole or a cylinder face |
+| `.surfaceExtrude(depth)`, `.surfacePlanar()`, `.surfaceLoft(sections)`, `.thicken(t)`, `.knit({solid?})` | surface bodies; `thicken` / `knit` use the surfaces made earlier |
+| `.insertPart(doc, {at, fixed, name})`, `.mate({kind, a, b, distance?, angle?, flip?})` | assembly inside the part document; a face is `{part: n, face: 'F2.C1'}` (n-th insertPart), a persistent name or `face()` |
+| `.feature(json)` | raw kernel feature: `type` checked against the kernel list; `face()` / `edges()` / `at()` handles and `'$last'` / `'$sketch'` are resolved |
+| `.sketchFeature(on, {points, entities, constraints?})` | raw sketch JSON |
+| `s.spline(pts, {closed?})`, `s.cvspline(pts, {closed?, degree?})` | interpolating / control-vertex spline sketch entities |
+
+```js
+// hull lofted through four stations to a point bow (right plane: sketch x is -Z, y is up)
+const st = [[-60, 6, 5, 3], [-35, 15, 9, 4], [0, 18, 12, 5], [30, 13, 9, 5.5]];   // [x, half beam, depth, deck]
+part('Hull').loft([
+  ...st.map(([x, w, d, h]) => ({ on: at('right', x), draw: (s) => s.arc3([-w, h], [0, -d], [w, h]).line([w, h], [-w, h]) })),
+  { on: at('right', 62), point: [0, 2] },
+], { ends: { last: 'point' } });
+
+// counterbored plate
+part('Plate').sketch('front', (s) => s.rect(80, 50)).extrude(12)
+  .holes.grid(face('>Z'), { origin: [-30, -15], pitch: [60, 30], count: [2, 2] }, { kind: 'cbore', size: 'M6' });
+```
 
 Values are numbers or `expr('w*2')` (an expression over the variables; it is stored as `=w*2` in the feature, and `variables` become the document's variables, so they stay editable in the Variables tab). Inside a sketch an `expr` contributes its current number only.
 
@@ -54,7 +86,7 @@ An unsupported selector, or one that matches nothing, gives `Line N: ...` in the
 
 * The code runs in `new Function` with only the API names in scope; `window`, `document`, `fetch`, `Function`, timers etc. are shadowed with `undefined`, loops are fuel-limited (100000 turns), source is limited to 20000 characters and 500 steps. This stops accidents, it is NOT a security boundary against hostile scripts (e.g. `(()=>{}).constructor`); do not run untrusted scripts. A Worker would be the next step.
 * Line numbers come from the V8 stack (Chrome, Edge, Node); in other engines errors may show line 0.
-* Not supported yet: sweep, loft, mirror, draft, rib, threads, assemblies, face selectors by index or by feature, sketch constraints (sketches are unconstrained geometry), spline sketch entities.
+* Not supported yet: face selectors by index or by feature, sketch constraints (sketches are unconstrained geometry), a separate assembly document (assemblies are `insertPart` + `mate` features inside the part), closed (ring) lofts, sweep keep-normal. Other kernel features (draft, helix, lip, dome, moveFace, ...) have no helper: use `.feature({ type: ... })`.
 * Hole direction: the hole drills into the material from the selected face; use `flip: true` if a hole on an unusual face cuts the wrong way.
 
 ## Examples

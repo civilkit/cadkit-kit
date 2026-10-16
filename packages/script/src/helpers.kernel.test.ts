@@ -86,6 +86,12 @@ part('Hull').loft([
     const a = await run(`part('C').loft(${sq}, { centre: { on: 'right', draw: (s) => s.line([0, 0], [-30, 0]) } });`);
     expect(a.r.errors).toEqual([]);
     expect(a.v).toBeCloseTo(7000, 2);
+    // a straight guide along the middle of one side (top plane: sketch x is X, sketch y is -Z)
+    const g = await run(`part('G').loft(${sq}, { guides: [{ on: 'top', draw: (s) => s.line([10, 0], [5, -30]) }] });`);
+    expect(g.r.errors).toEqual([]);
+    expect(g.valid).toBe(true);
+    expect(g.v).toBeCloseTo(7000, 2);
+    expect(features(g.r).at(-1)).toMatchObject({ type: 'loft', guides: [{ sketch: 'F4' }] });
   }, T);
 });
 
