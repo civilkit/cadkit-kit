@@ -185,6 +185,7 @@ export class Viewport {
   /** Per-body appearance and visibility (see setBodyView) and the meshes of the transparent bodies, drawn back to front after the opaque ones. */
   private bodyView: BodyViewSpec = { bodies: [], looks: {}, hidden: [] };
   private glass: Array<{ mesh: THREE.Mesh; key: string; opacity: number; centre: THREE.Vector3 }> = [];
+  private glassFaces = new Set<string>();
   private faceLookMap = new Map<string, { color: string | null; roughness: number | null; metalness: number | null }>();
   private edgeMats: LineMaterial[] = [];
   private edgeWidth: EdgeWidth = 'thin';
@@ -1231,6 +1232,7 @@ export class Viewport {
   /** Transparent bodies: one mesh each over its contiguous range of the shared vertex buffer. Returns the geometry the silhouette hull uses. */
   private buildGlass(geo: THREE.BufferGeometry, g: Grouped, tb: { keys: string[]; rank: Map<string, number> }): THREE.BufferGeometry {
     this.glass = [];
+    this.glassFaces = new Set(tb.rank.keys());
     if (!tb.keys.length) return geo;
     const share = (start: number, count: number): THREE.BufferGeometry => {
       const x = new THREE.BufferGeometry();
@@ -1259,7 +1261,7 @@ export class Viewport {
       this.glass.push({ mesh, key, opacity: op, centre: new THREE.Vector3(c[0], c[1], c[2]) });
     });
     this.applyGlassStyle();
-    return share(0, g.positions.length / 3);
+    return share(0, opaque);   // the outline hull covers the opaque bodies only: a clear body has no outline over what is behind it
   }
 
   /** The transparent bodies follow the display style: shaded and ghost draw them (ghost caps the opacity), hidden-line paints them white, wireframe not at all. */
@@ -1813,9 +1815,12 @@ export class Viewport {
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
         geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        // a selected clear body stays see-through, so what is behind it can still be read
+        const clear = names.every((n) => this.glassFaces.has(n) || !this.grouped!.ranges.some((r) => r.name === n));
         this.highlight = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
           color: 0x0b74dc, emissive: 0x0b74dc, emissiveIntensity: 0.35,
           polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
+          ...(clear && this.glassFaces.size ? { transparent: true, opacity: 0.4, depthWrite: false } : {}),
         }));
         this.scene.add(this.highlight);
       }
