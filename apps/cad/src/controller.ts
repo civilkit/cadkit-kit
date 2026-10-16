@@ -21,6 +21,8 @@ import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
+import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
+import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
 import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -99,17 +101,53 @@ export class Controller {
     return (this.snap ??= this.session!.document);
   }
 
-  constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory }) {
+  constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory; /** where curated fonts come from (default: none, so a document with a curated font opens without it) */ fonts?: FontSource; /** size above which a user font travels as a subset (tests) */ fontEmbedMax?: number }) {
     this.store = deps.store;
     this.view = deps.view;
     this.kernel = deps.kernel;
+    this.fontPool = new DocFontPool({ request: () => { const k = this.transport(); return k ? (m) => k.request(m) : null; }, source: deps.fonts ?? null, embedMax: deps.fontEmbedMax });
+  }
+
+  // ---- fonts of the document (docs/text.md, "Fonts") ----
+  private readonly fontPool: DocFontPool;
+  /** Fonts of the document that could not be loaded at the last open (the document still opens; its text reports textFontNotLoaded). */
+  fontProblems: FontProblem[] = [];
+  private reportFontProblems(ps: FontProblem[]): void {
+    this.fontProblems = ps;
+    for (const p of ps) this.store.notify(t('app.font.loadFailed', { name: p.name, reason: p.code + ': ' + p.message }), 'error');
+  }
+  private fontKernel: unknown = null;
+  /** The pool's fonts are loaded into one kernel instance; a session on another one needs them loaded again. */
+  private noteKernel(): void {
+    const k = this.transport();
+    if (k !== this.fontKernel) { this.fontPool.invalidate(); this.fontKernel = k; }
+  }
+  /** Load a font for the text tool: a curated one by id, or the bytes of a file / system font. The document's `fonts` field follows when a text entity uses it. */
+  async addFont(src: { curated: string } | { bytes: Uint8Array; family: string; name: (hash: string) => string }): Promise<FontResult & { pin?: string }> {
+    const r = 'curated' in src ? await this.fontPool.addCurated(src.curated) : await this.fontPool.addBytes(src.bytes, src.family, src.name);
+    return r.ok ? { ...r, pin: this.fontPool.pinFor(r.name) } : r;
+  }
+  /** The loaded fonts (pool) with what the kernel said, and whether the document carries one only as a subset. */
+  fontInfo(name: string): { loaded: boolean; subset: boolean; info?: ReturnType<DocFontPool['infoOf']>; pin?: string } {
+    return { loaded: this.fontPool.has(name), subset: this.fontPool.isSubset(name), info: this.fontPool.infoOf(name), pin: this.fontPool.pinFor(name) };
+  }
+  /** Curated fonts a list of features names but the kernel does not hold yet (a script writes `font: 'barlow'`): fetched and loaded before the features build. */
+  private async ensureFontsFor(features: unknown[] | undefined): Promise<void> {
+    if (!features?.length) return;
+    const ps = await this.fontPool.ensureFor(features);
+    if (ps.length) this.reportFontProblems(ps);
   }
 
   async load(doc: PartDoc): Promise<void> {
     this.store.busy.value = true;
     try {
-      this.session = await this.kernel.open(doc);
+      // the fonts travel in the file, not in the session's document (they would be copied with every edit and sent with every regen)
+      const { fonts: docFonts, ...forKernel } = doc as PartDoc & { fonts?: unknown };
+      this.session = await this.kernel.open(forKernel as PartDoc);
       this.snap = null;
+      // a kernel instance starts with no fonts: the document's go in before anything is built (a kernel the pool has not seen: all again)
+      this.noteKernel();
+      this.reportFontProblems(await this.fontPool.loadAll(readDocFonts(docFonts)));
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
@@ -143,7 +181,9 @@ export class Controller {
   async scratchBuild(doc: PartDoc, view: boolean): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
     const k = this.transport();
     if (!k) throw new Error('no kernel');
-    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
+    await this.ensureFontsFor(doc.features);
+    const { fonts: _fonts, ...plain } = doc as PartDoc & { fonts?: unknown };
+    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...plain }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
     const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; body?: Record<string, unknown> | null };
     const errors = res.errors ?? [];
@@ -160,6 +200,7 @@ export class Controller {
     if (!k) throw new Error('no kernel');
     const out: Awaited<ReturnType<Controller['scratchFacts']>> = {};
     if (need.text) {
+      if (need.text.font) await this.ensureFontsFor([{ entities: [{ type: 'text', font: need.text.font, string: '' }] }]);
       const r = await k.request({ type: 'textMetrics', ...need.text }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
       if (!r.ok) throw new Error(`text(): ${typeof r.error === 'string' ? r.error : r.error?.message ?? 'the kernel could not measure the text'}`);
       out.text = r.result as never;
@@ -254,6 +295,7 @@ export class Controller {
     ops = syncNameOps(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops, applyOpsLocal as never);
     this.store.busy.value = true;
     try {
+      await this.ensureFontsFor(featuresOf(ops));
       let result: EditResult;
       // Block rules compare against the part as it is now: the last check of this state, or one made first.
       const before = blocking ? await this.baselineFor(blocking) : null;
@@ -350,6 +392,7 @@ export class Controller {
     const upTo = this.rollbackCount();
     const lim = clampDepthOps(ops, (id) => this.limits.get(id));
     ops = lim.ops;
+    await this.ensureFontsFor(featuresOf(ops));
     const r = await s.preview(ops, upTo === null ? undefined : { upTo });
     if (seq !== this.previewSeq) {
       return { ok: true, errors: [], hints: [], body: null, stale: true };
@@ -764,16 +807,17 @@ export class Controller {
   document(): PartDoc | null {
     const d = this.session ? this.sdoc() : null;
     if (!d) return d;
-    const extra = Object.keys(this.docExtra).length ? this.docExtra : null;
-    if (this.docName === null && this.material === null && !extra) return d;
     const m = this.merged;
-    if (m && m.base === d && m.name === this.docName && m.material === this.material && m.extraRev === this.extraRev) return m.out;
+    if (m && m.base === d && m.name === this.docName && m.material === this.material && m.extraRev === this.extraRev && m.fontRev === this.fontPool.rev) return m.out;
+    const fonts = this.fontPool.fieldsFor(d);
+    const extra = Object.keys(this.docExtra).length || fonts.length ? { ...this.docExtra, ...(fonts.length ? { fonts } : {}) } : null;
+    if (this.docName === null && this.material === null && !extra) return d;
     const out = { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}), ...(extra ? structuredClone(extra) : {}) } as PartDoc;
-    this.merged = { base: d, name: this.docName, material: this.material, extraRev: this.extraRev, out };
+    this.merged = { base: d, name: this.docName, material: this.material, extraRev: this.extraRev, fontRev: this.fontPool.rev, out };
     return out;
   }
   /** The document with the app-level name, material and viewer fields applied, kept while none of them (nor the session's document) changed. */
-  private merged: { base: PartDoc; name: string | null; material: string | null; extraRev: number; out: PartDoc } | null = null;
+  private merged: { base: PartDoc; name: string | null; material: string | null; extraRev: number; fontRev: number; out: PartDoc } | null = null;
   private extraRev = 0;
 
   /** Keep a viewer-state field (the exploded view) in the document; `null` removes it. Not a history step and no rebuild. */
@@ -1004,6 +1048,10 @@ export class Controller {
       const stale = oldStack !== null && oldStack.length < keep;
       const doc = stale ? old.document : this.lastGood ?? this.sdoc();
       const fresh = await this.kernel.open(doc);
+      this.session = fresh;   // the font reload below asks the new kernel
+      this.noteKernel();
+      this.reportFontProblems(await this.fontPool.reload());
+      fresh.forgetReplies?.();
       const freshStack = this.stackOf(fresh);
       if (oldStack && freshStack) {
         freshStack.push(...oldStack.slice(0, stale ? oldStack.length : keep));
@@ -1178,6 +1226,13 @@ export class Controller {
     });
     this.lastGood = this.sdoc();
     this.lastGoodHistory = typeof s.history === 'function' ? s.history().length : 0;
+    // a font too big to embed whole travels as the glyphs of the document's text: ask for those after every change of the text
+    await this.fontPool.syncEmbeds(this.sdoc()).catch(() => {});
   }
   private lastGoodHistory = 0;
+}
+
+/** The features an edit adds or replaces (what a font check reads). */
+function featuresOf(ops: EditOp[]): unknown[] {
+  return ops.flatMap((o) => ((o.op === 'add' || o.op === 'replace') && 'feature' in o ? [(o as { feature: unknown }).feature] : []));
 }

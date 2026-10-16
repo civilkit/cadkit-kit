@@ -11,11 +11,13 @@ import type { DraftEntity, SketchDraft } from './index';
 import { nextId } from './tools/builders';
 import type { Pt } from './tools/types';
 
-export type TextFont = 'gauge' | 'engrave';
+/** A built-in font ('gauge', 'engrave') or the name of a font loaded into the kernel (a curated id, or a slug of a user's font). */
+export type TextFont = string;
 export type TextHAnchor = 'left' | 'center' | 'right';
 export type TextVAnchor = 'baseline' | 'middle' | 'top';
 
 export const TEXT_DEFAULTS = { string: 'TEXT', font: 'gauge' as TextFont, height: 5 };
+/** The built-in fonts. */
 export const TEXT_FONTS: TextFont[] = ['gauge', 'engrave'];
 export const TEXT_H: TextHAnchor[] = ['left', 'center', 'right'];
 export const TEXT_V: TextVAnchor[] = ['top', 'middle', 'baseline'];
@@ -119,7 +121,7 @@ export function textDistance(sketch: PointsLike, e: { [k: string]: unknown }, at
 }
 
 export interface TextPatch {
-  string?: string; font?: TextFont; height?: number; anchor?: [TextHAnchor, TextVAnchor]; angle?: number; spacing?: number; mirror?: boolean;
+  string?: string; font?: TextFont; /** pins the font file (prefix of its SHA-256); null / absent with a new `font` clears it */ fontHash?: string | null; height?: number; anchor?: [TextHAnchor, TextVAnchor]; angle?: number; spacing?: number; mirror?: boolean;
   /** true: lay along an arc with the given parameters (missing ones keep the old value or the default); false: straight */
   arc?: false | { radius?: number; angleCentre?: number; side?: 'outside' | 'inside'; centre?: Pt; /** an existing sketch point as the centre */ centreId?: string };
 }
@@ -135,7 +137,8 @@ export function patchText(draft: SketchDraft, id: string, patch: TextPatch): Ske
   let points = draft.points;
   const set = <K extends keyof TextPatch>(k: K, v: unknown, dflt?: unknown) => { if (v === dflt) delete e[k as string]; else e[k as string] = v; };
   if (patch.string !== undefined) e.string = patch.string;
-  if (patch.font !== undefined) e.font = patch.font;
+  if (patch.font !== undefined) { e.font = patch.font; if (patch.fontHash === undefined) delete e.fontHash; }
+  if (patch.fontHash) e.fontHash = patch.fontHash; else if (patch.fontHash === null) delete e.fontHash;
   if (patch.height !== undefined && Number.isFinite(patch.height)) e.height = patch.height;
   if (patch.anchor !== undefined) set('anchor', patch.anchor, undefined);
   if (patch.angle !== undefined && Number.isFinite(patch.angle)) set('angle', patch.angle, 0);
@@ -177,7 +180,7 @@ export function addText(draft: SketchDraft, at: Pt, opts: { string?: string; fon
 
 /** What the panel shows for a text entity: every field with its default filled in. */
 export interface TextFields {
-  string: string; font: TextFont; height: number; anchor: [TextHAnchor, TextVAnchor]; angle: number; spacing: number; mirror: boolean;
+  string: string; font: TextFont; fontHash?: string; height: number; anchor: [TextHAnchor, TextVAnchor]; angle: number; spacing: number; mirror: boolean;
   arc: null | { radius: number; angleCentre: number; side: 'outside' | 'inside'; centre: Pt };
   x: number; y: number;
 }
@@ -189,7 +192,7 @@ export function textFields(draft: SketchDraft, id: string): TextFields | null {
   const arc = e.arc as { radius?: number; angleCentre?: number; side?: 'outside' | 'inside'; c?: string; centre?: number[] } | undefined;
   const cp = arc?.c ? draft.points.find((q) => q.id === arc.c) : undefined;
   return {
-    string: String(e.string ?? ''), font: e.font === 'engrave' ? 'engrave' : 'gauge', height: Number(e.height ?? TEXT_DEFAULTS.height),
+    string: String(e.string ?? ''), font: typeof e.font === 'string' && e.font ? e.font : 'gauge', ...(typeof e.fontHash === 'string' ? { fontHash: e.fontHash } : {}), height: Number(e.height ?? TEXT_DEFAULTS.height),
     anchor: [a[0] ?? 'left', a[1] ?? 'baseline'], angle: Number(e.angle ?? 0), spacing: Number(e.spacing ?? 1), mirror: e.mirror === true,
     arc: arc ? { radius: Number(arc.radius ?? ARC_DEFAULT.radius), angleCentre: Number(arc.angleCentre ?? 90), side: arc.side === 'inside' ? 'inside' : 'outside', centre: cp ? { x: cp.x, y: cp.y } : { x: Number(arc.centre?.[0] ?? 0), y: Number(arc.centre?.[1] ?? 0) } } : null,
     x: p?.x ?? 0, y: p?.y ?? 0,
@@ -200,12 +203,12 @@ export function textFields(draft: SketchDraft, id: string): TextFields | null {
 export function textNotes(d: TextOutlineEntry | undefined): Array<{ key: string; params?: Record<string, string> }> {
   if (!d) return [];
   if (isOutlineError(d)) {
-    const m = /\btext(Empty|NothingToDraw|BadFont|BadHeight|BadArc|BadValue)\b/.exec(d.error);
+    const m = /\btext(Empty|NothingToDraw|BadFont|BadHeight|BadArc|BadValue|FontNotLoaded|FontMismatch)\b/.exec(d.error);
     return [{ key: 'app.sketch.text.err.' + (m ? m[1] : 'Other'), params: { detail: d.error } }];
   }
   return d.warnings.flatMap((w) => {
     const code = String(w.code ?? '');
-    if (!/^text(TooSmall|MissingGlyph|Truncated|SpacingAdjusted|Overlap)$/.test(code)) return [];
+    if (!/^text(TooSmall|MissingGlyph|Truncated|SpacingAdjusted|Overlap|OverlappingContours)$/.test(code)) return [];
     return [{ key: 'app.sketch.text.warn.' + code.slice(4), params: { detail: String(w.detail ?? '') } }];
   });
 }

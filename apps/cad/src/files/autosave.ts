@@ -2,8 +2,8 @@
 import type { KV } from './storage';
 
 export const AUTOSAVE_KEY = 'cad.autosave.v1';
-/** localStorage holds about 5 MB of UTF-16; a document over 2 MB of text is skipped rather than risk the quota. */
-export const AUTOSAVE_MAX = 2 * 1024 * 1024;
+/** localStorage holds about 5 MB of UTF-16; a document over 3 MB of text (a font embedded whole is up to 2 MB of it) is skipped rather than risk the quota. */
+export const AUTOSAVE_MAX = 3 * 1024 * 1024;
 export const AUTOSAVE_DELAY = 400;
 
 export interface Autosave { name: string; doc: unknown; savedAt: number }

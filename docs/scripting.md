@@ -130,7 +130,7 @@ s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'm
 | Option | Meaning |
 |---|---|
 | `at` | `[x, y]` or `{x, y}`: the anchor in the sketch plane (it becomes a normal sketch point) |
-| `font` | `'gauge'` (condensed sans, default) or `'engrave'` (serif) |
+| `font` | `'gauge'` (condensed sans, default), `'engrave'` (serif) or the id of a library font: `barlow`, `source-sans-3`, `barlow-condensed`, `bebas-neue`, `pt-serif`, `special-elite`, `ibm-plex-mono`, `great-vibes`, `satisfy`, `anton`. The app fetches and loads the font when the part is built; an unknown id stops the script with the list of valid ids. Fonts picked in the editor (files, system fonts) cannot be named from a script. |
 | `height` | CAP height in mm (the height of an H), default 5. Under 0.8 mm the run warns `textTooSmall` |
 | `anchor` | `['left'\|'center'\|'right', 'baseline'\|'middle'\|'top']` or `'center middle'`; horizontal refers to the ink, default `['left','baseline']` |
 | `angle` | degrees, counter-clockwise about the anchor |
