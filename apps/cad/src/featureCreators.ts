@@ -268,6 +268,41 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
   const used = usedSketches(c);
   return feats(c).filter((f) => f.type === 'sketch' && fits(f) && !used.has(f.id));
 };
+
+const STD_AXIS: Record<string, number> = { right: 0, top: 1, front: 2 };   // the world axis a standard plane is normal to
+/** Where a plane sits along its normal: the axis (0 x, 1 y, 2 z) and the signed distance, through standard planes and chains of offset Plane features; null when it cannot be told (a face, a tangent plane, a tilted one). */
+function planePosition(c: Ctx, ref: { kind?: string; id?: string } | undefined, depth = 0): { axis: number; v: number } | null {
+  if (!ref?.id || depth > 8) return null;
+  if (ref.kind === 'std') return ref.id in STD_AXIS ? { axis: STD_AXIS[ref.id], v: 0 } : null;
+  if (ref.kind !== 'feature') return null;
+  const f = feats(c).find((x) => x.id === ref.id);
+  if (!f || f.type !== 'plane' || (f.mode !== undefined && f.mode !== 'offset')) return null;
+  const base = planePosition(c, f.base as never, depth + 1);
+  const off = typeof f.offset === 'number' ? f.offset : Number(f.offset);
+  return base && Number.isFinite(off) ? { axis: base.axis, v: base.v + off } : null;
+}
+/**
+ * A solid loft may only start or end in a point. When one or two of the sections are point sketches they are moved to the
+ * ends: the one lying before the other sections (along the loft direction, read from the planes) first, the one beyond them
+ * last. Without readable plane positions the order is kept, so the editor shows the problem instead of a guess.
+ */
+export function orderPointSections(c: Ctx, ids: string[]): string[] {
+  const sk = (id: string) => feats(c).find((f) => f.id === id);
+  const points = ids.filter((id) => { const s = sk(id); return !!s && isPointSketch(s); });
+  if (!points.length || points.length > 2 || points.length === ids.length) return ids;
+  const pos = new Map(ids.map((id) => [id, planePosition(c, sk(id)?.plane as never)] as const));
+  if ([...pos.values()].some((p) => !p) || new Set([...pos.values()].map((p) => p!.axis)).size !== 1) return ids;
+  const v = (id: string) => pos.get(id)!.v;
+  const others = ids.filter((id) => !points.includes(id));
+  const dir = others.length >= 2 && v(others[others.length - 1]) < v(others[0]) ? -1 : 1;
+  const lo = Math.min(...others.map((id) => v(id) * dir)), hi = Math.max(...others.map((id) => v(id) * dir));
+  const head: string[] = [], tail: string[] = [];
+  for (const id of [...points].sort((a, b) => (v(a) - v(b)) * dir)) {
+    const x = v(id) * dir;
+    if (x <= lo || (x < hi && x - lo <= hi - x && !head.length)) head.push(id); else tail.push(id);
+  }
+  return [...head, ...others, ...tail];
+}
 /**
  * A loft's profiles: the sketches selected in the tree (in selection order) when two or more fit; else every unused fitting
  * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
@@ -275,14 +310,14 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
 export function loftProfileIds(c: Ctx, surface = false): string[] {
   const fits = surface ? hasCurves : (s: Feat) => isClosedSketch(s) || isPointSketch(s);
   const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
-  if (picked.length >= 2) return picked.map((s) => s.id);
+  if (picked.length >= 2) return orderPointSections(c, picked.map((s) => s.id));
   let list = freeSketches(c, fits);
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
   if (list.length < 2) return [];
   const all = feats(c);
   const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
   const since = list.filter((s) => all.indexOf(s) > lastBody);
-  return (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id);
+  return orderPointSections(c, (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id));
 }
 /**
  * The rule for point sections of a solid loft: a point may only be the first or the last section, and not both. Returns the
@@ -293,6 +328,17 @@ export function loftPointIssue(ids: string[], isPoint: (id: string) => boolean):
   if (pts.length >= 2 && pts.every((i) => i === 0 || i === ids.length - 1) && ids.length >= 2) return 'loftPointBoth';
   if (pts.some((i) => i !== 0 && i !== ids.length - 1)) return 'loftPointMiddle';
   return null;
+}
+/**
+ * A loft can only use sketches that come before it. When the profiles chosen include a later sketch, the loft moves to just
+ * after the last one it uses: returns the `move` op and the id of that sketch (for the notice `Loft moved after ...`), else null.
+ */
+export function loftMoveAfter(features: Array<{ id: string }>, loftId: string, sketches: string[]): { op: EditOp; after: string } | null {
+  const at = features.findIndex((f) => f.id === loftId);
+  if (at < 0) return null;
+  let last = -1, after = '';
+  for (const id of sketches) { const i = features.findIndex((f) => f.id === id); if (i > last) { last = i; after = id; } }
+  return last > at ? { op: { op: 'move', id: loftId, to: last }, after } : null;
 }
 /** A loft through the profiles `loftProfileIds` picks (a surface loft also takes open ones, all of one kind). */
 export function loftOps(c: Ctx, surface = false): EditOp[] | null {

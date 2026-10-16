@@ -13,7 +13,7 @@ import { SelectionList, chipsOf } from './select/SelectionList';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
-import { isPointSketch, featureLabel } from './featureCreators';
+import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
@@ -833,7 +833,8 @@ function App() {
       void timed(() => controller.commit([asSurfaceOp({ ...editingFeature, ...draft })], 'surfaceExtrude')).then(() => { setDraft({}); setPreviewHint(null); redraw((n) => n + 1); });
     },
   };
-  const opsOne = (f: Record<string, unknown>, id: string, next: Record<string, unknown>): EditOp[] => {
+  const opsOne = (f: Record<string, unknown>, id: string, next0: Record<string, unknown>): EditOp[] => {
+    const next = f.draftNew ? { ...next0, suppressed: null, draftNew: null } : next0;   // a draft loft (refused when made) becomes real with its first accepted edit
     // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
     // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
     if (Object.values(next).some((v) => v === null)) {
@@ -859,6 +860,8 @@ function App() {
     const ops = editingFeature.type === 'thread' && groupIds.length > 1
       ? groupIds.flatMap((id) => { const f = feats.find((x) => x.id === id); return f ? opsOne(f, id, next) : []; })
       : opsOne(editingFeature, editingId!, next);
+    const mv = editingFeature.type === 'loft' && Array.isArray(next.sketches) ? loftMoveAfter(feats as never, editingId!, next.sketches as string[]) : null;   // a loft picked a later sketch: it moves down after it
+    if (mv) return [...ops, mv.op];
     return thread !== undefined && editingFeature.type === 'hole' ? [...ops, ...holeThreadEditOps(editingId!, holeLinked, thread, holeWalls)] : ops;
   };
   const onDraft = (next: Record<string, unknown>, thread?: HoleThread | null) => {
@@ -870,6 +873,8 @@ function App() {
   const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
     const ops = opsFromDraft(next, thread);
+    const moved = ops.find((o) => o.op === 'move' && o.id === editingId) as { to: number } | undefined;
+    const movedAfter = moved ? (controller.document()?.features ?? [])[moved.to] : undefined;
     if (ops.length) {
       const r = await timed(() => controller.commit(ops));
       if (!r.ok) {
@@ -882,6 +887,7 @@ function App() {
       }
     }
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    if (movedAfter) store.notify(t('app.loft.moved', { name: featureLabel(controller.document(), movedAfter as never) }), 'info');
     if (editingId) setSelectedId(editingId);
     setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
     redraw((n) => n + 1);
@@ -890,6 +896,7 @@ function App() {
   const onCancel = async () => {
     viewport?.highlightSketchEntities(null, []);
     await controller.cancelPreview();
+    if (editingId && (editingFeature as { draftNew?: boolean } | null)?.draftNew) await controller.deleteFeatures([editingId]);   // the refused draft loft goes away with its editor
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     setLeftTab('Features');
     redraw((n) => n + 1);
@@ -1447,7 +1454,19 @@ function App() {
     store.select([]);
     const r = await controller.edit(ops);
     redraw((n) => n + 1);
-    if (!r.ok) { store.select(picked); return; }
+    if (!r.ok) {
+      // a Loft refused on its first try still opens its editor, on the draft, with the problem shown inline (the editor's Cancel removes the draft)
+      const op0 = ops[0];
+      const f0 = ops.length === 1 && op0.op === 'add' ? (op0.feature as Record<string, unknown>) : null;
+      if (f0?.type === 'loft') {
+        const text = controller.rejection()?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || '');
+        const made = await controller.edit([{ op: 'add', feature: { ...f0, suppressed: true, draftNew: true } as never }]);
+        redraw((n) => n + 1);
+        const id = (controller.document()?.features ?? []).find((x) => (x as { draftNew?: boolean }).draftNew)?.id;
+        if (made.ok && id) { startEditing(id); setPreviewHint(text || null); return; }
+      }
+      store.select(picked); return;
+    }
     const now = controller.document();
     const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
     if (added) startEditing(added.id);
