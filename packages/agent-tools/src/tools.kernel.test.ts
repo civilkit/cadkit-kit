@@ -170,15 +170,15 @@ describe('agent tools on the real kernel', () => {
     expect(q2.needsUserInput).toBe(true);
   });
 
-  it('snapshot returns image content (placeholder renderer), and a clear error when the package is missing', async () => {
+  it('snapshot returns PNG image content from the real renderer', async () => {
     const { r, json } = await call('snapshot', { view: 'front', size: 96 });
     expect(r.content.some((c) => c.type === 'image' && c.mimeType === 'image/png' && c.data.startsWith('iVBOR'))).toBe(true);
-    expect(json.size).toBe(96);
+    expect(json.size ?? json.width).toBe(96);
+    // an empty document has nothing to draw, but the package itself is found: not a 'not installed' error
     const bare = await AgentSession.open({ wasmPath: WASM });
-    const miss = await callTool(bare, tools, 'snapshot', {});
+    const again = await callTool(bare, tools, 'snapshot', { view: 'top', size: 64 });
     await bare.close();
-    expect(miss.isError).toBe(true);
-    if (miss.isError) expect((miss.content[0] as { text: string }).text).toMatch(/snapshot (package )?not installed|snapshot_failed|renderer/);
+    if (again.isError) expect((again.content[0] as { text: string }).text).not.toMatch(/not installed/);
   });
 
   it('export writes step, stl, glb and ckpart', async () => {
