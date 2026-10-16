@@ -1,0 +1,50 @@
+{
+ "format": "fwlib",
+ "version": 1,
+ "name": "Fixture parts",
+ "description": "A tiny library used by the tests.",
+ "homepage": "https://example.com/fixture-parts",
+ "licence": "CC0-1.0",
+ "parts": [
+  {
+   "id": "block-small",
+   "title": "Small block",
+   "category": "blocks",
+   "tags": [
+    "small",
+    "cube"
+   ],
+   "file": "parts/block-small.ckpart",
+   "source": "https://example.com/fixture-parts/block-small",
+   "bytes": 1865,
+   "sha256": "c81caef756e3419231d039a76a21b2740650a039d277ac080211c99c94aa31c2"
+  },
+  {
+   "id": "block-wide",
+   "title": "Wide block",
+   "category": "blocks",
+   "tags": [
+    "wide",
+    "plate"
+   ],
+   "file": "parts/block-wide.ckpart",
+   "source": "https://example.com/fixture-parts/block-wide",
+   "bytes": 1862,
+   "sha256": "9f6af9c97274ddc05a1c8655fafb02e8960e5d7ee560dd5cfc31e1dd1f35a01b"
+  },
+  {
+   "id": "plate-gpl",
+   "title": "Plate (GPL)",
+   "category": "plates",
+   "tags": [
+    "plate",
+    "gpl"
+   ],
+   "file": "parts/plate-gpl.ckpart",
+   "source": "https://example.com/fixture-parts/plate-gpl",
+   "bytes": 1847,
+   "sha256": "2f496743954037434e23683172398d87c8b53cdc59ba229eb49126c32e628f2c",
+   "licence": "GPL-3.0-or-later"
+  }
+ ]
+}

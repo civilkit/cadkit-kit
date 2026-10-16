@@ -8,6 +8,8 @@ import { groundPlane, type StdPlane, type UpAxis } from './placement';
 import type { PlaceStatus } from './placer';
 import { BoslSection } from './BoslSection';
 import { itemLabel } from './labels';
+import { LibrarySection, type LibraryActions } from '../library/LibrarySection';
+import type { LibraryRegistry } from '../library/registry';
 
 export interface CatalogPanelProps {
   hasDoc: boolean;
@@ -16,6 +18,8 @@ export interface CatalogPanelProps {
   onItemDown(item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLButtonElement>): void;
   onItemKey(item: CatalogItem): void;
   upAxis?: UpAxis;
+  /** The external parts libraries (omitted: no Libraries section). */
+  library?: { registry: LibraryRegistry; actions: LibraryActions };
 }
 
 const PLANES: StdPlane[] = ['front', 'top', 'right'];
@@ -48,7 +52,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
   );
 }
 
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y' }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const column = (op: 'add' | 'cut', title: string) => (
@@ -77,6 +81,7 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
       {column('add', t('catalog.add'))}
       {column('cut', t('catalog.remove'))}
       <BoslSection onItemDown={onItemDown} onItemKey={onItemKey} />
+      {library ? <LibrarySection registry={library.registry} hasDoc={hasDoc} actions={library.actions} /> : null}
     </div>
   );
 }

@@ -979,3 +979,21 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .text-panel .tp-note.warn { background: color-mix(in srgb, #e0a02a 22%, transparent); }
 .text-panel .tp-note.err { background: color-mix(in srgb, #d83a2e 25%, transparent); }
 .text-panel .tp-foot { justify-content: flex-end; }
+
+/* Libraries section of the Catalog tab */
+.lib { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.lib-bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.lib-bar select { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; }
+.lib button, .lib-add button { padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; cursor: pointer; }
+.lib button:disabled { opacity: 0.5; cursor: default; }
+.lib-offline { padding: 1px 6px; border-radius: 8px; background: var(--chip); border: 1px solid var(--line); font: 11px system-ui; }
+.lib-nothumb { display: inline-block; width: 64px; height: 48px; border-radius: 6px; background: var(--chip); }
+.lib-add, .lib-found, .lib-detail { display: flex; flex-direction: column; gap: 6px; }
+.lib-add-row { display: flex; gap: 4px; }
+.lib-add-row input { flex: 1; min-width: 0; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; }
+.lib-warn, .lib-err { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); font: 12px system-ui; }
+.lib-err { color: #c0392b; }
+.lib-meta, .lib-links, .lib-actions { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px system-ui; }
+.lib-actions { gap: 4px; }
+.lib-link { align-self: flex-start; background: none !important; border: none !important; text-decoration: underline; }
+.lib-sources ul { margin: 2px 0 0; padding-left: 16px; font: 12px system-ui; }

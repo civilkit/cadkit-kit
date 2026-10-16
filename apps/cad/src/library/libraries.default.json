@@ -1,0 +1,11 @@
+{
+  "libraries": [
+    {
+      "id": "samples",
+      "name": "Bundled samples",
+      "description": "The example parts that ship with the app.",
+      "source": "bundled:samples",
+      "licence": "LicenseRef-bundled"
+    }
+  ]
+}

@@ -1211,5 +1211,24 @@
   "catalog.bosl.param.y1",
   "catalog.bosl.param.y2",
   "catalog.bosl.param.z"
+ ],
+ "library.err.+": [
+  "library.err.exists",
+  "library.err.http",
+  "library.err.missing",
+  "library.err.needsConfirm",
+  "library.err.network",
+  "library.err.offline",
+  "library.err.origin",
+  "library.err.parse",
+  "library.err.part",
+  "library.err.path",
+  "library.err.schema",
+  "library.err.scheme",
+  "library.err.sha",
+  "library.err.size",
+  "library.err.source",
+  "library.err.tooLarge",
+  "library.err.unsupported"
  ]
 }
