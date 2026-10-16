@@ -42,6 +42,7 @@ describe('recipes run on the real kernel', () => {
       if (r.id === 'boat-hull-loft') {
         // independent check: the volume integrated from the areas of 80 sections along the hull agrees with the exact volume
         const sec = (await s.sections({ axis: 'x', n: 80 })) as { volume: number };
+        console.log('LOFT sections volume', sec.volume, 'exact', volume);
         expect(Math.abs(sec.volume - volume) / volume).toBeLessThan(5e-3);
       }
       const e = r.expected!;
