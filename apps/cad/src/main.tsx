@@ -621,7 +621,7 @@ function App() {
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
-    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected() }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
@@ -852,7 +852,14 @@ function App() {
     const ops = opsFromDraft(next, thread);
     if (ops.length) {
       const r = await timed(() => controller.commit(ops));
-      if (!r.ok) { await controller.cancelPreview(); setDrawerTab('diagnostics'); store.setWorkspace({ drawerOpen: true }); }   // refused: show the model as it was, and why in Diagnostics
+      if (!r.ok) {
+        // refused: the editor stays open on the same draft with the structured error and its hint (nothing is reverted or discarded silently)
+        const rej = controller.rejection();
+        setPreviewHint(rej?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed'));
+        if (rej) setPreviewDiag({ d: rej.diagnosis, fresh: newBreakage(rej.diagnosis, controller.diagnosis()) });
+        redraw((n) => n + 1);
+        return;
+      }
     }
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     if (editingId) setSelectedId(editingId);

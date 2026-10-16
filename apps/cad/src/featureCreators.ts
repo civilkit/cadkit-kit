@@ -10,7 +10,7 @@ import { DEFAULT_GEAR, defaultPair, gearOps, type GearParams } from './gearData'
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
-type Ent = { id: string; type: string; p1?: string; p2?: string; pts?: string[]; construction?: boolean };
+type Ent = { id: string; type: string; p1?: string; p2?: string; pts?: string[]; construction?: boolean; closed?: boolean };
 
 const feats = (c: Ctx): Feat[] => (c.doc?.features ?? []) as unknown as Feat[];
 const hasSolid = (c: Ctx): boolean => !!c.box;
@@ -25,7 +25,11 @@ function degrees(ents: Ent[]): Map<string, number> {
   const bump = (p?: string) => { if (p) d.set(p, (d.get(p) ?? 0) + 1); };
   for (const e of ents) {
     if (e.type === 'line' || e.type === 'arc') { bump(e.p1); bump(e.p2); }
-    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
+    else if ((e.type === 'spline' || e.type === 'cvspline') && e.pts && e.pts.length > 1) {
+      // a closed spline is a loop: both ends are one point, so it counts twice and never reads as an open chain
+      const k = e.closed === true ? 2 : 1;
+      for (let i = 0; i < k; i++) { bump(e.pts[0]); bump(e.pts[e.pts.length - 1]); }
+    }
   }
   return d;
 }
@@ -212,12 +216,26 @@ const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
   const used = usedSketches(c);
   return feats(c).filter((f) => f.type === 'sketch' && fits(f) && !used.has(f.id));
 };
-/** A loft through the two newest unused closed sketches (a surface loft also takes open ones, all of one kind). */
-export function loftOps(c: Ctx, surface = false): EditOp[] | null {
-  let list = freeSketches(c, surface ? hasCurves : isClosedSketch);
+/**
+ * A loft's profiles: the sketches selected in the tree (in selection order) when two or more fit; else every unused fitting
+ * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
+ */
+export function loftProfileIds(c: Ctx, surface = false): string[] {
+  const fits = surface ? hasCurves : isClosedSketch;
+  const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
+  if (picked.length >= 2) return picked.map((s) => s.id);
+  let list = freeSketches(c, fits);
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
-  if (list.length < 2) return null;
-  const ids = list.slice(-2).map((s) => s.id);
+  if (list.length < 2) return [];
+  const all = feats(c);
+  const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
+  const since = list.filter((s) => all.indexOf(s) > lastBody);
+  return (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id);
+}
+/** A loft through the profiles `loftProfileIds` picks (a surface loft also takes open ones, all of one kind). */
+export function loftOps(c: Ctx, surface = false): EditOp[] | null {
+  const ids = loftProfileIds(c, surface);
+  if (ids.length < 2) return null;
   return [{ op: 'add', feature: { type: 'loft', op: 'add', sketches: ids, ...(surface ? { surface: true } : {}) } }];
 }
 /** A sweep of the newest unused closed sketch along the newest unused open one. */
