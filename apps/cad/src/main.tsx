@@ -94,7 +94,11 @@ import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
 import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
+import type { LibraryActions } from './library/LibrarySection';
 import { useCatalog } from './catalog/useCatalog';
+import { libraryRegistry } from './library';
+import { liveSources } from './library/insert';
+import { insertPart, openText, downloadName } from './library/actions';
 import { catalogActive, catalogPlane, setShapeSelector } from './catalog/state';
 import { useTriBall } from './triball/useTriBall';
 import { loadNavPrefs, saveNavPrefs, type NavPrefs } from './navPrefs';
@@ -1812,7 +1816,20 @@ function App() {
     upAxis: () => navPrefs.upAxis,
     hide: (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; },
   });
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} />;
+  // External parts libraries: Insert is one document patch (one undo step); the provenance goes in the document's `sources` field
+  const libraryActions: LibraryActions = {
+    insert: async (data, lib) => {
+      const r = await insertPart(controller, lib, data);
+      if (!r.ok) { store.notify(t('library.insert.failed', { title: data.part.title, reason: r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') }), 'error'); return false; }
+      redraw((n) => n + 1);
+      store.notify(t('library.inserted', { title: data.part.title, licence: data.licence ?? t('library.licence.unknown') }));
+      return true;
+    },
+    openNew: (data, lib) => guarded(async () => { await load(openText(lib, data), { file: null }); }),
+    download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
+    sources: () => liveSources(doc),
+  };
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} library={{ registry: libraryRegistry(), actions: libraryActions }} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {

@@ -4,7 +4,8 @@ import type { PartDoc } from '@ck/part-model';
 import type { LibraryRecord, PartData } from './registry';
 import { sourceLink, parseSource } from './source';
 import { openableText } from './partFile';
-import type { InsertMeta, SourceEntry } from './insert';
+import { buildInsert, withSource, type InsertMeta, type SourceEntry } from './insert';
+import type { Controller } from '../controller';
 
 export function metaOf(lib: LibraryRecord, data: PartData): InsertMeta {
   let url: string | undefined = data.part.source;
@@ -28,3 +29,14 @@ export function openText(lib: LibraryRecord, data: PartData): string {
 }
 
 export const downloadName = (data: PartData): string => `${data.part.id.replace(/[^A-Za-z0-9._-]/g, '_')}.ckpart`;
+
+/** Insert the part into the open document as one undo step and record where it came from. */
+export async function insertPart(c: Pick<Controller, 'document' | 'applyDocPatch' | 'setDocExtra'>, lib: LibraryRecord, data: PartData): Promise<{ ok: true; entry: SourceEntry } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
+  const cur = c.document();
+  if (!cur) return { ok: false, errors: [] };
+  const ins = buildInsert(cur, data.doc, metaOf(lib, data));
+  const r = await c.applyDocPatch(ins.patch, 'library.insert');
+  if (!r.ok) return r;
+  c.setDocExtra('sources', withSource(c.document()!, ins.entry));
+  return { ok: true, entry: ins.entry };
+}

@@ -3,6 +3,7 @@ import { inspectStrings } from './inspect';
 import { assemblyStrings } from './assembly';
 import { drawingStrings } from './drawing';
 import { toolbarStrings } from './toolbar';
+import { libraryStrings } from './library';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -767,4 +768,5 @@ export const en: Catalog = {
   ...assemblyStrings,
   ...drawingStrings,
   ...toolbarStrings,
+  ...libraryStrings,
 };
