@@ -19,6 +19,7 @@ import { t } from '../i18n';
 import { MIN_SIZE, type HandleCommit, type HandleSession } from './session';
 import { gridStep, moveCandidates, NO_CANDS, resolveMove, type MoveCands, type MoveMods, type MovePoint, type MoveResult } from './move';
 import type { EdgeLike } from '../catalog/geometry';
+import { clampToTip } from '../taperLimit';
 
 type Wire = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -504,6 +505,8 @@ export interface SizeBoxCtx {
   edges?: EdgeLike[];
   /** Snap distance in world units for a point (the Catalog's 14 px at the current zoom); absent: no snapping. */
   snapTol?(p: Vec3): number;
+  /** The depth at which a tapered extrude closes to a tip (the kernel's `limits`); the height handle stops there. */
+  tipLimit?(featureId: string): number | undefined;
 }
 
 /** Centres of the other shapes that sit on the same plane as `frame`, in its (u, v). */
@@ -604,11 +607,16 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   };
   const snapLabel = (r: MoveResult): string => (r.snap ? ' - ' + t(r.snap === 'grid' || r.snap === 'axis' || r.snap === 'align' ? 'sizebox.snap.' + r.snap : 'catalog.snap.' + r.snap) : '');
   /** The box a handle reading stands for. `q` is the new dimension (faces) or the drag length (corner / anchor, which read `vec`). */
-  const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult } | null => {
+  const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult; tip?: number } | null => {
     const f = shape.frame;
     if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.width', { v: fmt(q) }) };
     if (id === 'v1' || id === 'v0') return q < MIN_SIZE ? null : { box: boxFor(shape, { v: { side: id === 'v1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.length', { v: fmt(q) }) };
-    if (id === 'df' || id === 'd1' || id === 'd0') return q < MIN_SIZE ? null : { box: depthBox(shape, q), text: t('sizebox.height', { v: fmt(q) }) };
+    if (id === 'df') {
+      // a tapered extrude that closes to a tip: the height stops there however far the pointer goes
+      const k = clampToTip(q, c.tipLimit?.(shape.id));
+      return k.value < MIN_SIZE ? null : { box: depthBox(shape, k.value), text: t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }), ...(k.clamped ? { tip: k.value } : {}) };
+    }
+    if (id === 'd1' || id === 'd0') return q < MIN_SIZE ? null : { box: depthBox(shape, q), text: t('sizebox.height', { v: fmt(q) }) };
     if (id === 'anchor' || id === 'move') {
       const tol = c.snapTol ? c.snapTol(worldOf(f, (b.u0 + b.u1) / 2, (b.v0 + b.v1) / 2, 0)) : 0;
       const m = resolveMove(b, { du: V.dot(vec, f.x), dv: V.dot(vec, f.y) }, mods, tol > 0 ? candidates() : NO_CANDS, tol, step);
@@ -642,10 +650,11 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
         return r?.moved ? moveCommit(c.doc, shape, r.moved.du, r.moved.dv) : null;
       }
       const e = edit(id, q, vec, mods);
-      return e ? { ops: e.ops, create: false, ...(e.dropped.length ? { notice: t('sizebox.dropped', { ids: e.dropped.join(', ') }) } : {}) } : null;
+      const notice = e?.r.tip !== undefined ? t('tip.limited', { h: fmt(e.r.tip) }) : e?.dropped.length ? t('sizebox.dropped', { ids: e.dropped.join(', ') }) : undefined;
+      return e ? { ops: e.ops, create: false, ...(notice ? { notice } : {}) } : null;
     },
     live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
-    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : t('sizebox.height', { v: fmt(q) })),
+    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : id === 'df' ? (() => { const k = clampToTip(q, c.tipLimit?.(shape.id)); return t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }); })() : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
     move: {
       box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv),

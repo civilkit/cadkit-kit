@@ -82,6 +82,7 @@ export function useHandles(p: HandlesDeps) {
       editingId: ref.current.editingId, sketching: ref.current.sketching, enabled: ref.current.enabled,
       placement: null,   // the kernel has no moveBody yet: the placement gizmo stays off
       thread: ref.current.thread ?? null,
+      tipLimit: (id) => controller.tipLimit(id),
     };
     // a shape (extrude / cut / revolve / hole, picked in the tree or by its faces) shows its size box; edges keep the fillet dot
     if (c.enabled && !c.sketching && !c.editingId) {
@@ -89,7 +90,7 @@ export function useHandles(p: HandlesDeps) {
       if (shapeId) {
         const s = planSizeBox({
           doc: c.doc, shapeId, frameOf: (id) => controller.sketchFrameOf(id), bodyBox: c.box, mode: aboutRef.current,
-          edges: c.edges, snapTol: (p) => SNAP_PX * (ref.current.viewport()?.worldPerPixel(p) ?? 0),
+          edges: c.edges, tipLimit: c.tipLimit, snapTol: (p) => SNAP_PX * (ref.current.viewport()?.worldPerPixel(p) ?? 0),
         });
         if (s) return s;
       }

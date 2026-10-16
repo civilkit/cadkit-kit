@@ -20,6 +20,7 @@ import { MIN_SIZE, type HandleSession } from './session';
 import { placementSession, type Placement } from './placement';
 import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
 import { thinOf } from '../thinRules';
+import { clampToTip } from '../taperLimit';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
 
@@ -39,6 +40,8 @@ export interface PlanCtx {
   placement?: Placement | null;
   /** The Thread editor is open on a thread: its length handle (the only handle shown while an editor is open). */
   thread?: ThreadHandleCtx | null;
+  /** The depth at which a tapered extrude closes to a tip (the kernel's `limits`), when it has one. */
+  tipLimit?(featureId: string): number | undefined;
 }
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];
@@ -123,7 +126,10 @@ function extrudeDepth(c: PlanCtx, f: Feat, name: string): HandleSession | null {
   // Moving the cap along its outward normal lengthens an added extrude and shortens a cut (the floor of a pocket faces out of the part).
   const sign = f.op === 'cut' ? -1 : 1;
   const spec: HandleSpec = { id: 'depth', kind: 'arrow', origin: info.centroid, axis: info.normal, base: d0, scale: sign, sizePx: 80, unit: 'mm', label: t('handles.depth.label') };
-  const ops = (q: number): EditOp[] | null => {
+  const max = c.tipLimit?.(f.id);
+  // past the tip the depth stays at the tip however far the pointer goes
+  const ops = (q0: number): EditOp[] | null => {
+    const q = clampToTip(q0, max).value;
     if (Math.abs(q) < MIN_SIZE) return null;
     if (q > 0) return [set(f.id, 'depth', q)];
     // dragged through the sketch plane: the same extrude the other way round
@@ -132,8 +138,8 @@ function extrudeDepth(c: PlanCtx, f: Feat, name: string): HandleSession | null {
   return {
     kind: 'extrude-depth', target: f.id, specs: [spec],
     preview: (_id, q) => ops(q),
-    commit: (_id, q) => { const o = ops(q); return o ? { ops: o, create: false } : null; },
-    format: (_id, q) => t('handles.depth', { v: fmt(Math.abs(q)) }),
+    commit: (_id, q) => { const o = ops(q); return o ? { ops: o, create: false, ...(clampToTip(q, max).clamped ? { notice: t('tip.limited', { h: fmt(max!) }) } : {}) } : null; },
+    format: (_id, q) => { const c2 = clampToTip(q, max); return t(c2.atTip ? 'handles.depth.tip' : 'handles.depth', { v: fmt(Math.abs(c2.value)) }); },
   };
 }
 

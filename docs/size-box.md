@@ -101,6 +101,20 @@ a burst of presses is one edit, Esc drops it.
 * The box is drawn in the sketch frame, so it is the profile's bounding rectangle: for a rotated profile it is not tight.
 * The front half of the box is not depth-tested (it is drawn over the part, like all handles).
 
+## The tip of a Cone
+
+A drafted extrude of one circle (the Cone) closes to a point at some height. The kernel reports it in the regen reply as
+`limits: [["F3", {"maxHeight": 12.5}]]` and refuses a deeper one with `draftTooLarge {maxHeight}`. The Session drops
+`limits`, so `Controller.refresh` asks for it itself (a no-view regen on its own tag, only when a drafted extrude exists)
+and `controller.tipLimit(id)` returns it. The height handle (size box `df`, and the cap arrow `depth`) stops at that height
+however far the pointer goes; the label reads "Height 12.5 mm (tip)" and the release says "Limited to the tip (12.5 mm)".
+A typed height (drag-time typing, or the Extrude editor's Depth field) is lowered the same way in `Controller.edit` and
+`preview`; the field takes the clamped number. If the kernel still answers `draftTooLarge` with `maxHeight` (a document saved
+past the tip, which `load` repairs once; a smaller radius that moves the tip under the height), the controller sets the height
+to `maxHeight` and rebuilds once (`controller.tipNote()` holds the note). A draft-angle edit that puts the tip under the height
+is refused instead: the height is kept and the note names the limit. Polygon tapers have no limit yet and behave as before.
+Logic: `taperLimit.ts`; tests: `taperLimit.test.ts`, `taperTip.kernel.test.ts`.
+
 ## Tests
 
 `sizeBox.test.ts` (numbers, sketch edits, selection, layout, session), `sizeBox.kernel.test.ts` (real kernel through the

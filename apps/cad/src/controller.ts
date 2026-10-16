@@ -12,6 +12,7 @@ import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { t } from './i18n';
+import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors, type Tip } from './taperLimit';
 import { refLabel, syncNameOps } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
@@ -116,10 +117,12 @@ export class Controller {
       this.docExtra = {}; this.extraRev++;
       for (const k of ['explode', 'drawing', 'script', 'appearance', 'faceAppearance', 'bodyNames', 'view']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
       this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
+      this.tipNoteV = null; this.limits = new Map();
       await this.refresh();
     } finally {
       this.store.busy.value = false;
     }
+    await this.repairTip();   // a document saved past the tip opens with the height at the tip (once; an edit that still fails is left alone)
   }
 
   /** The kernel transport the open session talks to (null for a session that has none, e.g. a test double). */
@@ -197,13 +200,51 @@ export class Controller {
   /** The session's edit records, oldest first (empty with no document). */
   history(): EditRecord[] { return this.session?.history() ?? []; }
 
+  // ---- the tip of a tapered extrude (the Cone) ----
+  /** The kernel's `limits` of the committed model: feature id -> the depth at which its taper closes to a point. */
+  private limits = new Map<string, number>();
+  private tipNoteV: { feature: string; maxHeight: number; text: string } | null = null;
+  /** The depth at which the tapered extrude closes to a tip, when it has one. */
+  tipLimit(featureId: string): number | undefined { return this.limits.get(featureId); }
+  /** The note of the last height that was limited to the tip (null after the next edit that was not). */
+  tipNote(): { feature: string; maxHeight: number; text: string } | null { return this.tipNoteV; }
+  private tipText(h: number): string { return t('tip.limited', { h: String(Math.round(h * 100) / 100) }); }
+  private setTipNote(tip: Tip, text?: string): void {
+    this.tipNoteV = { ...tip, text: text ?? this.tipText(tip.maxHeight) };
+    this.store.notify(this.tipNoteV.text, 'warn');
+  }
+  /** The Session drops the `limits` of the regen reply, so a document with a drafted extrude is asked once more (no view: cheap). */
+  private async askLimits(): Promise<Map<string, number>> {
+    const k = this.transport();
+    const feats = this.sdoc().features as unknown as Array<{ type?: string; draft?: unknown }>;
+    if (!k || !mayHaveTip(feats)) return new Map();
+    try {
+      const r = await k.request({ type: 'regen', tag: `${this.previewTagOf(this.session!)}-limits`, part: this.sdoc(), opts: { noView: true } });
+      return r.ok ? limitsOf((r.result as { limits?: unknown } | undefined)?.limits) : new Map();
+    } catch { return new Map(); }
+  }
+  /** The edit of a document that opens past the tip (or whose edit moved the tip under the height): the height goes to the tip. */
+  private async repairTip(): Promise<void> {
+    const tips = tipErrors(this.lastErrors);
+    if (!tips.length) return;
+    const r = await this.edit(tips.map((x) => ({ op: 'set', id: x.feature, path: 'depth', value: x.maxHeight }) as EditOp), 'tip');
+    if (r.ok) this.setTipNote(tips[0]);
+  }
+  private lastErrors: Array<[string, { code?: string; params?: Record<string, unknown> }]> = [];
+
   edit(ops: EditOp[], reason?: string): Promise<EditResult> { return this.serial(() => this.editNow(ops, reason)); }
 
-  private async editNow(ops: EditOp[], reason?: string): Promise<EditResult> {
+  private async editNow(ops: EditOp[], reason?: string, retried = false): Promise<EditResult> {
     const s = this.session;
     if (!s) throw new Error('no document loaded');
     const guarded = !this.unguarded;
     this.unguarded = false;
+    const asked = ops;
+    // a height typed past the tip of a tapered extrude goes in at the tip
+    const lim = clampDepthOps(ops, (id) => this.limits.get(id));
+    ops = lim.ops;
+    if (!retried) this.tipNoteV = null;
+    if (lim.tips.length) this.setTipNote(lim.tips[0]);
     const policy = guarded ? this.policy?.() ?? null : null;
     const blocking = policy && policy.blocking.length > 0 ? policy : null;
     // while rolled back, new features go in right after the marker
@@ -231,6 +272,22 @@ export class Controller {
       } finally {
         this.pendingCancel = null;
         this.snap = null;
+      }
+      if (!result.ok && !retried) {
+        const tips = tipErrors(result.errors);
+        const ang = tips.find((x) => editsDraft(asked, x.feature));
+        if (ang) {
+          // the angle was changed so far that the tip is below the height: the height stays and the limit is reported (the angle edit is refused)
+          this.setTipNote(ang, t('tip.angle', { h: String(Math.round(ang.maxHeight * 100) / 100) }));
+          this.rejected = null;
+          return result;
+        }
+        if (tips.length) {
+          // anything else that moved the tip under the height (a smaller radius, a stale limit): clamp the height and rebuild once
+          const fixed = await this.editNow([...asked, ...tips.map((x) => ({ op: 'set', id: x.feature, path: 'depth', value: x.maxHeight }) as EditOp)], reason, true);
+          if (fixed.ok) this.setTipNote(tips[0]);
+          return fixed;
+        }
       }
       if (!result.ok) {
         // the cause and its consequences, not every error joined into one wall of text
@@ -275,7 +332,7 @@ export class Controller {
 
   /** Speculative edit: shows the candidate body, leaves document and history untouched.
    *  Debounced ~150 ms; a newer preview supersedes an older one (stale:true, body dropped). */
-  async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null }> {
+  async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null; tip?: Tip }> {
     const seq = ++this.previewSeq;
     if (this.previewTimer) clearTimeout(this.previewTimer);
     this.previewWake?.();
@@ -291,6 +348,8 @@ export class Controller {
     const s = this.session;
     if (!s) return { ok: false, errors: [], hints: [], body: null, schemaError: 'no document loaded' };
     const upTo = this.rollbackCount();
+    const lim = clampDepthOps(ops, (id) => this.limits.get(id));
+    ops = lim.ops;
     const r = await s.preview(ops, upTo === null ? undefined : { upTo });
     if (seq !== this.previewSeq) {
       return { ok: true, errors: [], hints: [], body: null, stale: true };
@@ -304,7 +363,7 @@ export class Controller {
       if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
       this.view.setBody(withSurfaces(r.body, surfaces));
       await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
-      return r;
+      return lim.tips.length ? { ...r, tip: lim.tips[0] } : r;
     }
     const cand = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops) ?? this.sdoc().features;
     const diagnosis = r.errors?.length ? this.diagnoseErrors(r.errors, r.hints ?? [], cand) : null;
@@ -1105,6 +1164,8 @@ export class Controller {
     this.committedExtras = await this.regenExtras(s, this.sdoc(), this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
     this.applyExtras(this.committedExtras);
     const errors = new Map(report.regen.errors);
+    this.lastErrors = report.regen.errors as never;
+    this.limits = await this.askLimits();
     this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, this.sdoc().features);
     this.store.featureStatus.value = this.sdoc().features.map((f) => {
       const err = errors.get(f.id);

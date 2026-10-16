@@ -926,7 +926,11 @@ function App() {
     setDraft(next);
     const ops = opsFromDraft(next, thread);
     if (!ops.length) return;
-    void controller.preview(ops).then(onPreviewResult);
+    void controller.preview(ops).then((r) => {
+      onPreviewResult(r);
+      // a height typed past the tip: the field takes the number the model has, and the panel says why
+      if (r.tip) { setPicked({ path: 'depth', value: r.tip.maxHeight, once: true }); setDraft({ ...next, depth: r.tip.maxHeight }); setPreviewHint(t('tip.limited', { h: String(Math.round(r.tip.maxHeight * 100) / 100) })); }
+    });
   };
   const onConfirm = async (next: Record<string, unknown>, thread?: HoleThread | null) => {
     viewport?.highlightSketchEntities(null, []);
