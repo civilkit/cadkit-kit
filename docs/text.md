@@ -9,7 +9,10 @@ letters of a built-in font into closed loops, so everything that works on a sket
 1. Open a sketch (on a plane or on a face). Choose **Text** in the Draw palette (key `Q`).
 2. Click where the text should sit. A text entity with the string `TEXT` is placed at once and its panel opens; the lettering is
    drawn in the sketch colour and follows every change.
-3. Edit it in the panel:
+3. Edit it in the panel (here `RPM x100` on an arc of radius 16 around the origin, anchor centre-baseline):
+
+   ![The Text tool: panel and live preview](img/text-tool.png)
+
 
    | Field | Meaning |
    |---|---|
