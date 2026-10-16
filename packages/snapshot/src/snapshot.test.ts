@@ -9,7 +9,7 @@ import { Raster, evenOddMask, hatchPolygons } from './raster';
 import { renderSnapshot } from './render';
 import { renderSectionPanel } from './section2d';
 import { boxInput, union } from './testmesh';
-import type { SnapshotInput } from './types';
+import type { SnapshotInput, SnapshotOpts } from './types';
 
 const px = (r: { rgba: Uint8Array; width: number }, x: number, y: number) => { const i = (Math.round(y) * r.width + Math.round(x)) * 4; return [r.rgba[i], r.rgba[i + 1], r.rgba[i + 2]]; };
 const isBg = (c: number[]) => c[0] === 234 && c[1] === 238 && c[2] === 244;
@@ -136,7 +136,7 @@ describe('sheets', () => {
     expect(r.meta.panels?.length).toBe(4);
   });
   it('same input, same bytes', async () => {
-    const o = { sheet: 'drawing-third-angle', size: 300, markers: [{ p: [1, 2, 3] as [number, number, number], label: 'A' }] } as const;
+    const o: SnapshotOpts = { sheet: 'drawing-third-angle', size: 300, markers: [{ p: [1, 2, 3], label: 'A' }] };
     const a = await renderSnapshot(L, o), b = await renderSnapshot(L, o);
     expect(Buffer.from(a.png).equals(Buffer.from(b.png))).toBe(true);
     const c = await renderSnapshot({ ...L, mesh: { ...L.mesh, positions: Float32Array.from(L.mesh.positions as Float32Array) } }, o);
