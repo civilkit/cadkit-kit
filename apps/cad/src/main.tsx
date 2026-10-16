@@ -40,6 +40,7 @@ import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { FileManager } from './files/fileManager';
 import { browserKV } from './files/storage';
+import { withCacheCap } from './kernelCaps';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
 import { RestoreDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { dragHasFiles, planDrop } from './files/drop';
@@ -177,7 +178,7 @@ const controller = new Controller({
     setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
   },
   kernel: {
-    async open(doc: PartDoc) { session = new Session(doc, await kernelP, 'user'); return session; },
+    async open(doc: PartDoc) { session = new Session(doc, withCacheCap(await kernelP), 'user'); return session; },
     cancel() { void kernelP.then((k) => k.close()); kernelP = createBrowserKernel(platform.wasmUrl()); },
   },
 });
