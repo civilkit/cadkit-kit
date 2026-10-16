@@ -518,6 +518,24 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .cat-item.off { opacity: .45; cursor: not-allowed; }
 .cat-item:active { cursor: grabbing; }
 .cat-name { text-align: center; line-height: 1.15; }
+.bosl { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.bosl-search { width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--chip); color: var(--text); font: 12px system-ui; }
+.bosl-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.bosl-cat { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--text-2); font: 11px system-ui; cursor: pointer; }
+.bosl-cat.on { background: var(--chip); color: var(--text); border-color: var(--accent, #5b8cff); }
+.bosl-item.sel { border-color: var(--accent, #5b8cff); }
+.bosl-item img { border-radius: 6px; image-rendering: auto; }
+.bosl-form { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; font: 12px system-ui; }
+.bosl-form-h { display: flex; justify-content: space-between; align-items: center; }
+.bosl-reset { border: 0; background: transparent; color: var(--accent, #5b8cff); cursor: pointer; font: 11px system-ui; }
+.bosl-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.bosl-field { display: flex; flex-direction: column; gap: 2px; color: var(--text-2); }
+.bosl-field input[type=number], .bosl-field select { width: 100%; box-sizing: border-box; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--chip); color: var(--text); font: 12px system-ui; }
+.bosl-label i { font-style: normal; opacity: .7; }
+.bosl-var { color: var(--accent, #5b8cff); margin-left: 2px; }
+.bosl-bad { color: #d9534f; }
+.bosl-note { color: var(--text-2); font-size: 11px; line-height: 1.35; }
+.bosl-script pre { margin: 4px 0 0; padding: 6px; overflow: auto; max-height: 220px; border-radius: 6px; background: var(--chip); font: 11px/1.4 ui-monospace, monospace; white-space: pre; }
 .cat-ghost { position: fixed; z-index: 60; pointer-events: none; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 10px; background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--accent, #5b8cff); color: var(--text); font: 12px system-ui; box-shadow: 0 6px 18px rgba(0,0,0,.28); backdrop-filter: blur(6px); }
 .cat-ghost.blocked { border-color: #d9534f; }
 .cat-ghost svg { width: 28px; height: 28px; }

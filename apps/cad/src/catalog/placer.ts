@@ -4,7 +4,7 @@
 // viewport and the controller come in through `PlacerDeps`, so it is tested with plain objects.
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
-import { buildShape, defaultSize, shapeName, type CatalogItem, type PlaceTarget } from './shapes';
+import { buildShape, defaultSize, shapeName, type BuildResult, type BuiltShape, type CatalogItem, type PlaceTarget } from './shapes';
 import { faceInfos, rayFrontPlane, raycast, snapCandidates, snapTo, type EdgeLike, type MeshArrays, type SnapKind, type V3 } from './geometry';
 
 export interface PlacerDeps {
@@ -18,6 +18,10 @@ export interface PlacerDeps {
   cancelPreview(): Promise<void>;
   /** One edit = one undo step. */
   commit(ops: EditOp[], reason: string): Promise<{ ok: boolean }>;
+  /** Parts library: variables and features together, one undo step. */
+  commitPatch?(patch: NonNullable<BuiltShape['patch']>, reason: string): Promise<{ ok: boolean }>;
+  /** Parts library: run the entry's script in attach mode (linked: parameters become document variables). */
+  buildBosl?(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult>;
   rayAt(x: number, y: number): { o: number[]; d: number[] } | null;
   worldPerPixel(p: number[]): number;
   /** Translucent body while previewing. */
@@ -28,7 +32,7 @@ export interface PlacerDeps {
 
 export type PlaceStatus =
   | { state: 'idle' }
-  | { state: 'blocked'; reason: 'needsBody' | 'miss' | 'noFrame' | 'failed'; hint?: string }
+  | { state: 'blocked'; reason: 'needsBody' | 'miss' | 'noFrame' | 'failed' | 'planarOnly' | 'invalid' | 'scriptFailed'; hint?: string }
   | { state: 'ready'; face: string | null; snap: SnapKind | null; size: number; point: V3 };
 
 /** Pixels within which a corner, midpoint or centre catches the pointer. */
@@ -50,6 +54,12 @@ export class Placer {
   private fading = false;
 
   constructor(private readonly deps: PlacerDeps, private readonly onStatus: (s: PlaceStatus) => void = () => {}) {}
+
+  /** The shape for this spot: the built-in ones are plain data, a parts-library entry runs its script. */
+  private async make(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult> {
+    if (item.bosl) return this.deps.buildBosl ? this.deps.buildBosl(item, target, doc, linked) : { error: 'scriptFailed', hint: 'no script host' };
+    return buildShape(item, target, doc.seq);
+  }
 
   private set(s: PlaceStatus): void { this.status = s; this.onStatus(s); }
 
@@ -107,7 +117,7 @@ export class Placer {
     }
     const doc = this.deps.document();
     if (!doc) return;
-    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length].join('|');
+    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length, item.bosl ? JSON.stringify(item.bosl.params) : ''].join('|');
     this.set({ state: 'ready', face: spot.target.face ?? null, snap: spot.snap, size: defaultSize(spot.target), point: spot.target.point });
     if (this.wanted?.key === key || this.current?.key === key) return;
     this.wanted = { item, target: spot.target, key };
@@ -144,8 +154,9 @@ export class Placer {
           if (!frame) { this.set({ state: 'blocked', reason: 'noFrame' }); continue; }
           target = { ...target, frame };
         }
-        const built = buildShape(w.item, target, doc.seq);
-        if ('error' in built) { this.set({ state: 'blocked', reason: built.error }); continue; }
+        const built = await this.make(w.item, target, doc, false);
+        if (gen !== this.generation) break;
+        if ('error' in built) { this.set({ state: 'blocked', reason: built.error, hint: (built as { hint?: string }).hint }); continue; }
         this.fading = true;
         this.deps.setFade(true);
         const r = await this.deps.preview(built.ops);
@@ -174,11 +185,12 @@ export class Placer {
       if (!frame) { await this.end(); this.set({ state: 'blocked', reason: 'noFrame' }); return null; }
       target = { ...target, frame };
     }
-    const built = buildShape(item, target, doc.seq);
-    if ('error' in built) { await this.end(); this.set({ state: 'blocked', reason: built.error }); return null; }
+    const built = await this.make(item, target, doc, true);
+    if ('error' in built) { await this.end(); this.set({ state: 'blocked', reason: built.error, hint: (built as { hint?: string }).hint }); return null; }
     this.deps.setFade(false); this.fading = false;
     this.deps.holdView(this.deps.hasSolid());
-    const r = await this.deps.commit(built.ops, `Catalog: ${shapeName(item)}`).finally(() => this.deps.holdView(false));
+    const why = `Catalog: ${shapeName(item)}`;
+    const r = await (built.patch && this.deps.commitPatch ? this.deps.commitPatch(built.patch, why) : this.deps.commit(built.ops, why)).finally(() => this.deps.holdView(false));
     this.lastHelpers = built.helpers;
     void this.end(true);
     return r.ok ? built.mainId : null;

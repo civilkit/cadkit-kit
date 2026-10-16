@@ -2,6 +2,7 @@
 // so the mixins never import recorder.ts at run time (no import cycle) and recorder.ts stays untouched by new features.
 import type { Ctx, EditOp, Expr, OffsetPlane, Plane, SketchBuilder as SketchBuilderT } from '../recorder';
 import type { EdgeSel, FaceSel, Geometry } from '../selectors';
+import { buildPlane } from '../planes';
 
 export interface Helpers {
   callerLine(): number;
@@ -36,10 +37,11 @@ export const memOf = (ctx: Ctx): Memory => { let m = memory.get(ctx); if (!m) me
 export function planeRef(ctx: Ctx, on: Plane | OffsetPlane | FaceSel, pre: EditOp[]): Record<string, unknown> {
   if (typeof on === 'string') return { kind: 'std', id: on };
   if ((on as OffsetPlane).kind === 'offset') {
+    // the same builder `sketch(at(...))` uses: the base may be a standard plane, a face, a plane handle, a point + normal spec, between(), with rotate
     const o = on as OffsetPlane;
-    const pid = ctx.nextId();
-    pre.push({ op: 'add', feature: { type: 'plane', id: pid, mode: 'offset', base: { kind: 'std', id: o.plane }, offset: H.ref(o.offset) } });
-    return { kind: 'feature', id: pid };
+    const b = buildPlane(o.plane, o.offset, o.opts, { geo: ctx.geo, nextId: ctx.nextId, warn: ctx.warn }, o.line);
+    pre.push(...b.ops);
+    return b.ref;
   }
   const f = on as FaceSel;
   return { kind: 'face', id: H.resolveFaceSel(f, ctx.geo, ctx.warn).id };

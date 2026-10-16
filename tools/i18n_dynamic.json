@@ -721,9 +721,12 @@
  ],
  "catalog.blocked.+": [
   "catalog.blocked.failed",
+  "catalog.blocked.invalid",
   "catalog.blocked.miss",
   "catalog.blocked.needsBody",
-  "catalog.blocked.noFrame"
+  "catalog.blocked.noFrame",
+  "catalog.blocked.planarOnly",
+  "catalog.blocked.scriptFailed"
  ],
  "cmd.export-${k}": [
   "cmd.export-dxf-sketch",
@@ -1121,5 +1124,66 @@
   "settings.nav.orbitPivot.centre",
   "settings.nav.orbitPivot.cursor",
   "settings.nav.orbitPivot.selection"
+ ],
+ "catalog.bosl.choice.+": [
+  "catalog.bosl.choice.add",
+  "catalog.bosl.choice.bottom",
+  "catalog.bosl.choice.center",
+  "catalog.bosl.choice.cut"
+ ],
+ "catalog.bosl.cat.+": [
+  "catalog.bosl.cat.all",
+  "catalog.bosl.cat.blocks",
+  "catalog.bosl.cat.cylinders",
+  "catalog.bosl.cat.masks",
+  "catalog.bosl.cat.profiles",
+  "catalog.bosl.cat.round"
+ ],
+ "catalog.bosl.entry.+": [
+  "catalog.bosl.entry.cuboid",
+  "catalog.bosl.entry.cyl",
+  "catalog.bosl.entry.edge_chamfer_mask",
+  "catalog.bosl.entry.edge_rounding_mask",
+  "catalog.bosl.entry.onion",
+  "catalog.bosl.entry.pie_slice",
+  "catalog.bosl.entry.prismoid",
+  "catalog.bosl.entry.rect_tube",
+  "catalog.bosl.entry.regular_prism",
+  "catalog.bosl.entry.spheroid",
+  "catalog.bosl.entry.teardrop",
+  "catalog.bosl.entry.torus",
+  "catalog.bosl.entry.tube",
+  "catalog.bosl.entry.wedge"
+ ],
+ "catalog.bosl.param.+": [
+  "catalog.bosl.param.anchor",
+  "catalog.bosl.param.ang",
+  "catalog.bosl.param.c",
+  "catalog.bosl.param.cap_h",
+  "catalog.bosl.param.chamfer",
+  "catalog.bosl.param.d",
+  "catalog.bosl.param.d1",
+  "catalog.bosl.param.d2",
+  "catalog.bosl.param.h",
+  "catalog.bosl.param.id",
+  "catalog.bosl.param.l",
+  "catalog.bosl.param.mode",
+  "catalog.bosl.param.n",
+  "catalog.bosl.param.od",
+  "catalog.bosl.param.r",
+  "catalog.bosl.param.realign",
+  "catalog.bosl.param.rmaj",
+  "catalog.bosl.param.rmin",
+  "catalog.bosl.param.rounding",
+  "catalog.bosl.param.shiftx",
+  "catalog.bosl.param.shifty",
+  "catalog.bosl.param.wall",
+  "catalog.bosl.param.x",
+  "catalog.bosl.param.x1",
+  "catalog.bosl.param.x2",
+  "catalog.bosl.param.y",
+  "catalog.bosl.param.y1",
+  "catalog.bosl.param.y2",
+  "catalog.bosl.param.z"
  ]
 }

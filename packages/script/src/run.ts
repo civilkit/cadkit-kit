@@ -163,7 +163,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   if (errors.length) return { ops: [], document: null, errors };
   const part = state.parts[state.parts.length - 1];
   if (part.steps.length > MAX_STEPS) return { ops: [], document: null, errors: [{ line: 1, message: `more than ${MAX_STEPS} steps` }] };
-  const doc: Record<string, unknown> = { format: 'ck-part', version: 1, name: part.name, features: [], seq: 1, rollback: null, ...base, ...(state.varDefs.length ? { variables: state.varDefs } : {}), script: code };
+  const doc: Record<string, unknown> = { format: 'ck-part', version: 1, name: part.name, features: [], seq: 1, rollback: null, ...base, ...(state.varDefs.length ? { variables: [...(Array.isArray(base.variables) ? (base.variables as unknown[]) : []), ...state.varDefs] } : {}), script: code };
   const warnings: ScriptWarning[] = [];
   const warn = (message: string, line: number): void => { if (!warnings.some((w) => w.message === message && w.line === line)) warnings.push({ line, message }); };
   if (host.build && opts.batched !== false) return runBatched(part.steps, doc, host, opts, { errors, warnings, warn, finished, flags });

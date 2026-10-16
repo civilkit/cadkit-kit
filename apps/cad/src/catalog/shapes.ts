@@ -10,6 +10,8 @@ export type ShapeKind = 'block' | 'cylinder' | 'sphere' | 'cone' | 'boss' | 'slo
 export type ShapeOp = 'add' | 'cut';
 
 export interface CatalogItem {
+  /** A parts-library (BOSL2) entry with its parameter values; the shape is then built by `buildBosl`, not by `buildShape`. */
+  bosl?: { entryId: string; params: Record<string, number | boolean | string> };
   /** Stable id (`add-block`, `cut-slot`, `hole`...); also the end of the i18n key `catalog.item.<id>`. */
   id: string;
   kind: ShapeKind;
@@ -34,7 +36,10 @@ export const CATALOG: CatalogItem[] = [
   { id: 'cbore', kind: 'cbore', op: 'cut' },
   { id: 'csink', kind: 'csink', op: 'cut' },
 ];
-export const catalogItem = (id: string): CatalogItem | undefined => CATALOG.find((c) => c.id === id);
+/** Parts-library items made on the fly (their id is `bosl:<entry>`): kept here so the ghost and the placement can find the armed one. */
+const dynamic = new Map<string, CatalogItem>();
+export function registerDynamicItem(item: CatalogItem): CatalogItem { dynamic.set(item.id, item); return item; }
+export const catalogItem = (id: string): CatalogItem | undefined => CATALOG.find((c) => c.id === id) ?? dynamic.get(id);
 
 /** What the placement knows about the spot: the face (or the ground) and where on it. */
 export interface PlaceTarget {
@@ -60,8 +65,11 @@ export interface BuiltShape {
   helpers: string[];
   /** The size every dimension was derived from (millimetres). */
   size: number;
+  /** Parts library: the variables and features as one step (instead of `ops`, which then only serve the preview). */
+  patch?: import('../docFields').DocPatch;
+  script?: string;
 }
-export type BuildResult = BuiltShape | { error: 'needsBody' | 'noFrame' };
+export type BuildResult = BuiltShape | { error: 'needsBody' | 'noFrame' | 'planarOnly' | 'invalid' | 'scriptFailed'; hint?: string };
 
 /** First number of the 1, 1.5, 2, 2.5 ... 10 series nearest to x. */
 const nice = (x: number): number => niceSize({ min: [0], max: [Math.max(x, 1e-6)] }, 1);
@@ -149,7 +157,7 @@ export const coneDraft = (r: number, height: number): number => +(Math.atan((r *
 
 const LABEL: Record<ShapeKind, string> = { block: 'Block', cylinder: 'Cylinder', sphere: 'Sphere', cone: 'Cone', boss: 'Boss', slot: 'Slot', hole: 'Hole', cbore: 'Counterbore', csink: 'Countersink' };
 /** The feature name the tree shows (not translated: it is part of the document). */
-export const shapeName = (item: CatalogItem): string => (item.op === 'cut' && item.kind === 'block' ? 'Pocket' : item.op === 'cut' && item.kind !== 'hole' && item.kind !== 'cbore' && item.kind !== 'csink' ? `${LABEL[item.kind]} cut` : LABEL[item.kind]);
+export const shapeName = (item: CatalogItem): string => item.bosl ? (item.bosl.entryId.replace(/_/g, ' ')[0].toUpperCase() + item.bosl.entryId.replace(/_/g, ' ').slice(1)) : (item.op === 'cut' && item.kind === 'block' ? 'Pocket' : item.op === 'cut' && item.kind !== 'hole' && item.kind !== 'cbore' && item.kind !== 'csink' ? `${LABEL[item.kind]} cut` : LABEL[item.kind]);
 
 /**
  * The edit for one shape at one spot. `seq` is the document's next feature number: ids are chosen here (F<seq>...) so the

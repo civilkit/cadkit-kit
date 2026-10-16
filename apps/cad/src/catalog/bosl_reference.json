@@ -1,0 +1,2186 @@
+{
+ "openscad": "OpenSCAD version 2021.01",
+ "bosl2": {
+  "repo": "https://github.com/BelfrySCAD/BOSL2",
+  "commit": "48304c31bf4b45bc42590abe7244494dad74b15e",
+  "licence": "BSD-2-Clause"
+ },
+ "fn": 256,
+ "entries": {
+  "wedge": [
+   {
+    "name": "default",
+    "params": {
+     "x": 30,
+     "y": 20,
+     "z": 15
+    },
+    "scad": "wedge([30, 20, 15]);",
+    "volume": 4500,
+    "area": 2100,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      30,
+      20,
+      15
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "x": 20.6,
+     "y": 29.1,
+     "z": 14.9
+    },
+    "scad": "wedge([20.6, 29.1, 14.9]);",
+    "volume": 4465.977026906965,
+    "area": 2013.4619681674644,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      20.600000381469727,
+      29.100000381469727,
+      14.899999618530273
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "x": 3.7,
+     "y": 20.2,
+     "z": 12.1
+    },
+    "scad": "wedge([3.7, 20.2, 12.1]);",
+    "volume": 452.17703716135117,
+    "area": 451.0530463277114,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      3.700000047683716,
+      20.200000762939453,
+      12.100000381469727
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "x": 33.2,
+     "y": 21,
+     "z": 20.6
+    },
+    "scad": "wedge([33.2, 21, 20.6]);",
+    "volume": 7181.160298004153,
+    "area": 2790.364546363424,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      33.20000076293945,
+      21,
+      20.600000381469727
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "x": 37.6,
+     "y": 24.6,
+     "z": 27.4
+    },
+    "scad": "wedge([37.6, 24.6, 27.4]);",
+    "volume": 12671.951505828853,
+    "area": 4013.777859300636,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      37.599998474121094,
+      24.600000381469727,
+      27.399999618530273
+     ]
+    }
+   }
+  ],
+  "tube": [
+   {
+    "name": "default",
+    "params": {
+     "h": 30,
+     "od": 30,
+     "id": 22,
+     "anchor": "bottom"
+    },
+    "scad": "tube(h=30, od=30, id=22, anchor=BOTTOM);",
+    "volume": 9800.784654550083,
+    "area": 5554.146972782862,
+    "bbox": {
+     "min": [
+      -15,
+      -15,
+      0
+     ],
+     "max": [
+      15,
+      15,
+      30
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "cut",
+     "h": 3.9,
+     "od": 43.8,
+     "id": 25.5,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) tube(h=3.9, od=43.8, id=25.5, anchor=CENTER); }",
+    "volume": 198057.93318252105,
+    "area": 28424.527715478438,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "cut",
+     "h": 36.4,
+     "od": 43.1,
+     "id": 32.6,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) tube(h=36.4, od=43.1, id=32.6, anchor=BOTTOM); }",
+    "volume": 187515.7898388408,
+    "area": 32756.247742751413,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "add",
+     "h": 39.2,
+     "od": 55,
+     "id": 10.1,
+     "anchor": "center"
+    },
+    "scad": "tube(h=39.2, od=55, id=10.1, anchor=CENTER);",
+    "volume": 89982.80618155227,
+    "area": 12607.846521062449,
+    "bbox": {
+     "min": [
+      -27.5,
+      -27.5,
+      -19.599990844726562
+     ],
+     "max": [
+      27.5,
+      27.5,
+      19.599990844726562
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "cut",
+     "h": 23.5,
+     "od": 40,
+     "id": 34.9,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) tube(h=23.5, od=40, id=34.9, anchor=CENTER); }",
+    "volume": 196475.18292398797,
+    "area": 30764.76743598376,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "cut",
+    "params": {
+     "mode": "cut",
+     "h": 12,
+     "od": 30,
+     "id": 22,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) tube(h=12, od=30, id=22, anchor=BOTTOM); }",
+    "volume": 196079.6861381802,
+    "area": 29960.30453165856,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   }
+  ],
+  "cuboid": [
+   {
+    "name": "default",
+    "params": {
+     "x": 40,
+     "y": 30,
+     "z": 20,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cuboid([40, 30, 20], anchor=BOTTOM);",
+    "volume": 24000,
+    "area": 5200,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "cut",
+     "x": 5,
+     "y": 35.6,
+     "z": 29.7,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([5, 35.6, 29.7], anchor=BOTTOM); }",
+    "volume": 196440.00015258777,
+    "area": 29267.999954223633,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "cut",
+     "x": 49.9,
+     "y": 29.3,
+     "z": 18.6,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([49.9, 29.3, 18.6], anchor=BOTTOM); }",
+    "volume": 172805.49731880575,
+    "area": 30946.240088806153,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "cut",
+     "x": 58.5,
+     "y": 47.9,
+     "z": 15.5,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([58.5, 47.9, 15.5], anchor=CENTER); }",
+    "volume": 178283.33680820462,
+    "area": 29649.200023651123,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "cut",
+     "x": 25.8,
+     "y": 14,
+     "z": 4.2,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([25.8, 14, 4.2], anchor=CENTER); }",
+    "volume": 199241.47988464346,
+    "area": 28167.160027160644,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "cut",
+    "params": {
+     "mode": "cut",
+     "x": 30,
+     "y": 24,
+     "z": 12,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([30, 24, 12], anchor=BOTTOM); }",
+    "volume": 191359.99999999997,
+    "area": 29296,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "cut_through",
+    "params": {
+     "mode": "cut",
+     "x": 20,
+     "y": 20,
+     "z": 30,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cuboid([20, 20, 30], anchor=BOTTOM); }",
+    "volume": 192000.00000000006,
+    "area": 28800,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "rounded",
+    "params": {
+     "x": 40,
+     "y": 30,
+     "z": 20,
+     "rounding": 5,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "cuboid([40, 30, 20], rounding=5, anchor=CENTER);",
+    "volume": 22235.33155119164,
+    "area": 4399.007780668484,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      -10
+     ],
+     "max": [
+      20,
+      15,
+      10
+     ]
+    }
+   },
+   {
+    "name": "chamfered",
+    "params": {
+     "x": 35,
+     "y": 25,
+     "z": 18,
+     "rounding": 0,
+     "chamfer": 3,
+     "anchor": "bottom"
+    },
+    "scad": "cuboid([35, 25, 18], chamfer=3, trimcorners=false, anchor=BOTTOM);",
+    "volume": 14508,
+    "area": 3348.6012972767758,
+    "bbox": {
+     "min": [
+      -17.5,
+      -12.5,
+      0
+     ],
+     "max": [
+      17.5,
+      12.5,
+      18
+     ]
+    }
+   }
+  ],
+  "prismoid": [
+   {
+    "name": "default",
+    "params": {
+     "x1": 40,
+     "y1": 30,
+     "x2": 20,
+     "y2": 15,
+     "h": 25,
+     "shiftx": 0,
+     "shifty": 0
+    },
+    "scad": "prismoid(size1=[40, 30], size2=[20, 15], h=25, shift=[0, 0]);",
+    "volume": 17500,
+    "area": 4277.708057941846,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      25
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "x1": 61.9,
+     "y1": 39.2,
+     "x2": 28,
+     "y2": 13,
+     "h": 23.2,
+     "shiftx": -46,
+     "shifty": -10.1
+    },
+    "scad": "prismoid(size1=[61.9, 39.2], size2=[28, 13], h=23.2, shift=[-46, -10.1]);",
+    "volume": 28935.27415600718,
+    "area": 8038.150285821741,
+    "bbox": {
+     "min": [
+      -60,
+      -19.600000381469727,
+      0
+     ],
+     "max": [
+      30.950000762939453,
+      19.600000381469727,
+      23.200000762939453
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "x1": 15.6,
+     "y1": 27,
+     "x2": 22.3,
+     "y2": 3.8,
+     "h": 2.4,
+     "shiftx": -16.4,
+     "shifty": -7.2
+    },
+    "scad": "prismoid(size1=[15.6, 27], size2=[22.3, 3.8], h=2.4, shift=[-16.4, -7.2]);",
+    "volume": 669.304029449145,
+    "area": 1470.796172404597,
+    "bbox": {
+     "min": [
+      -27.549999237060547,
+      -13.5,
+      0
+     ],
+     "max": [
+      7.800000190734863,
+      13.5,
+      2.4000000953674316
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "x1": 71.2,
+     "y1": 44.1,
+     "x2": 10.1,
+     "y2": 25.6,
+     "h": 13.3,
+     "shiftx": -8.9,
+     "shifty": -25.5
+    },
+    "scad": "prismoid(size1=[71.2, 44.1], size2=[10.1, 25.6], h=13.3, shift=[-8.9, -25.5]);",
+    "volume": 20094.281699791118,
+    "area": 8100.960739303954,
+    "bbox": {
+     "min": [
+      -35.599998474121094,
+      -38.29999923706055,
+      0
+     ],
+     "max": [
+      35.599998474121094,
+      22.049999237060547,
+      13.300000190734863
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "x1": 4.7,
+     "y1": 57.3,
+     "x2": 27.5,
+     "y2": 24.9,
+     "h": 9.6,
+     "shiftx": -19,
+     "shifty": -49.8
+    },
+    "scad": "prismoid(size1=[4.7, 57.3], size2=[27.5, 24.9], h=9.6, shift=[-19, -49.8]);",
+    "volume": 5761.440287075046,
+    "area": 4403.9434260333655,
+    "bbox": {
+     "min": [
+      -32.75,
+      -62.25,
+      0
+     ],
+     "max": [
+      2.3499999046325684,
+      28.649999618530273,
+      9.600000381469727
+     ]
+    }
+   }
+  ],
+  "rect_tube": [
+   {
+    "name": "default",
+    "params": {
+     "h": 30,
+     "x": 30,
+     "y": 20,
+     "wall": 3,
+     "anchor": "bottom"
+    },
+    "scad": "rect_tube(h=30, size=[30, 20], wall=3, anchor=BOTTOM);",
+    "volume": 7920,
+    "area": 5808,
+    "bbox": {
+     "min": [
+      -15,
+      -10,
+      0
+     ],
+     "max": [
+      15,
+      10,
+      30
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "cut",
+     "h": 19.8,
+     "x": 53.5,
+     "y": 20.7,
+     "wall": 5.4,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) rect_tube(h=19.8, size=[53.5, 20.7], wall=5.4, anchor=BOTTOM); }",
+    "volume": 186442.54481394961,
+    "area": 33021.27962524415,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "add",
+     "h": 9.7,
+     "x": 18.9,
+     "y": 39.6,
+     "wall": 0.6,
+     "anchor": "bottom"
+    },
+    "scad": "rect_tube(h=9.7, size=[18.9, 39.6], wall=0.6, anchor=BOTTOM);",
+    "volume": 666.9717249069496,
+    "area": 2360.7598726654105,
+    "bbox": {
+     "min": [
+      -9.449999809265137,
+      -19.799999237060547,
+      0
+     ],
+     "max": [
+      9.449999809265137,
+      19.799999237060547,
+      9.699999809265137
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "cut",
+     "h": 50.8,
+     "x": 41.5,
+     "y": 23.2,
+     "wall": 5.3,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) rect_tube(h=50.8, size=[41.5, 23.2], wall=5.3, anchor=CENTER); }",
+    "volume": 188530.79991073607,
+    "area": 31181.079869003297,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "cut",
+     "h": 39.7,
+     "x": 38.7,
+     "y": 7.2,
+     "wall": 2.9,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) rect_tube(h=39.7, size=[38.7, 7.2], wall=2.9, anchor=CENTER); }",
+    "volume": 195383.288151541,
+    "area": 31183.939849207403,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "cut",
+    "params": {
+     "mode": "cut",
+     "h": 10,
+     "x": 30,
+     "y": 20,
+     "wall": 3,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) rect_tube(h=10, size=[30, 20], wall=3, anchor=CENTER); }",
+    "volume": 198679.99999999997,
+    "area": 28880,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   }
+  ],
+  "cyl": [
+   {
+    "name": "default",
+    "params": {
+     "h": 30,
+     "d1": 20,
+     "d2": 20,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=30, d1=20, d2=20, anchor=BOTTOM);",
+    "volume": 9423.831682465716,
+    "area": 2513.1637191518903,
+    "bbox": {
+     "min": [
+      -10,
+      -10,
+      0
+     ],
+     "max": [
+      10,
+      10,
+      30
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "add",
+     "h": 49.4,
+     "d1": 37,
+     "d2": 23,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=49.4, d1=37, d2=23, anchor=BOTTOM);",
+    "volume": 35548.94568654156,
+    "area": 6192.761522445098,
+    "bbox": {
+     "min": [
+      -18.5,
+      -18.5,
+      0
+     ],
+     "max": [
+      18.5,
+      18.5,
+      49.400001525878906
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "add",
+     "h": 38.5,
+     "d1": 18.1,
+     "d2": 37.2,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=38.5, d1=18.1, d2=37.2, anchor=BOTTOM);",
+    "volume": 24034.343094110012,
+    "area": 4789.588530121058,
+    "bbox": {
+     "min": [
+      -18.600000381469727,
+      -18.600000381469727,
+      0
+     ],
+     "max": [
+      18.600000381469727,
+      18.600000381469727,
+      38.5
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "add",
+     "h": 47.1,
+     "d1": 17.7,
+     "d2": 34.1,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "cyl(h=47.1, d1=17.7, d2=34.1, anchor=CENTER);",
+    "volume": 25641.31761533593,
+    "area": 5049.1473076957045,
+    "bbox": {
+     "min": [
+      -17.049999237060547,
+      -17.049999237060547,
+      -23.549999237060547
+     ],
+     "max": [
+      17.049999237060547,
+      17.049999237060547,
+      23.549999237060547
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "add",
+     "h": 58.1,
+     "d1": 26.9,
+     "d2": 27,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=58.1, d1=26.9, d2=27, anchor=BOTTOM);",
+    "volume": 33139.079292517396,
+    "area": 6059.73099795783,
+    "bbox": {
+     "min": [
+      -13.5,
+      -13.5,
+      0
+     ],
+     "max": [
+      13.5,
+      13.5,
+      58.099998474121094
+     ]
+    }
+   },
+   {
+    "name": "cut_cylinder",
+    "params": {
+     "mode": "cut",
+     "h": 12,
+     "d1": 20,
+     "d2": 20,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) cyl(h=12, d1=20, d2=20, anchor=CENTER); }",
+    "volume": 198115.2338574173,
+    "area": 28376.98163533862,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "rounded_cylinder",
+    "params": {
+     "h": 30,
+     "d1": 20,
+     "d2": 20,
+     "rounding": 3,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=30, d1=20, d2=20, rounding=3, anchor=BOTTOM);",
+    "volume": 9197.34710902427,
+    "area": 2343.3490105196042,
+    "bbox": {
+     "min": [
+      -10,
+      -10,
+      0
+     ],
+     "max": [
+      10,
+      10,
+      30
+     ]
+    }
+   },
+   {
+    "name": "chamfered_cylinder",
+    "params": {
+     "h": 25,
+     "d1": 24,
+     "d2": 24,
+     "rounding": 0,
+     "chamfer": 2.5,
+     "anchor": "center"
+    },
+    "scad": "cyl(h=25, d1=24, d2=24, chamfer=2.5, anchor=CENTER);",
+    "volume": 10870.128242783154,
+    "area": 2552.5071284655382,
+    "bbox": {
+     "min": [
+      -12,
+      -12,
+      -12.5
+     ],
+     "max": [
+      12,
+      12,
+      12.5
+     ]
+    }
+   },
+   {
+    "name": "rounded_cone",
+    "params": {
+     "h": 30,
+     "d1": 30,
+     "d2": 14,
+     "rounding": 2.5,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=30, d1=30, d2=14, rounding=2.5, anchor=BOTTOM);",
+    "volume": 11662.809693114874,
+    "area": 2795.6574604102725,
+    "bbox": {
+     "min": [
+      -14.245953559875488,
+      -14.245953559875488,
+      0
+     ],
+     "max": [
+      14.245953559875488,
+      14.245953559875488,
+      30
+     ]
+    }
+   },
+   {
+    "name": "chamfered_cone",
+    "params": {
+     "h": 28,
+     "d1": 26,
+     "d2": 12,
+     "rounding": 0,
+     "chamfer": 3,
+     "anchor": "center"
+    },
+    "scad": "cyl(h=28, d1=26, d2=12, chamfer=3, anchor=CENTER);",
+    "volume": 7830.892833774951,
+    "area": 2109.848632086267,
+    "bbox": {
+     "min": [
+      -12.272390365600586,
+      -12.272390365600586,
+      -14
+     ],
+     "max": [
+      12.272390365600586,
+      12.272390365600586,
+      14
+     ]
+    }
+   }
+  ],
+  "pie_slice": [
+   {
+    "name": "default",
+    "params": {
+     "h": 10,
+     "d": 40,
+     "ang": 60,
+     "anchor": "bottom"
+    },
+    "scad": "pie_slice(h=10, d=40, ang=60, anchor=BOTTOM);",
+    "volume": 2094.1843492755474,
+    "area": 1028.2576780597792,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      0
+     ],
+     "max": [
+      20,
+      17.319347381591797,
+      10
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "add",
+     "h": 18.3,
+     "d": 65.5,
+     "ang": 36.5,
+     "anchor": "bottom"
+    },
+    "scad": "pie_slice(h=18.3, d=65.5, ang=36.5, anchor=BOTTOM);",
+    "volume": 6251.297936692055,
+    "area": 2263.6316605378834,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      3.814697322468419e-7
+     ],
+     "max": [
+      32.75,
+      19.480195999145508,
+      18.299999237060547
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "add",
+     "h": 7.1,
+     "d": 33.8,
+     "ang": 43.9,
+     "anchor": "bottom"
+    },
+    "scad": "pie_slice(h=7.1, d=33.8, ang=43.9, anchor=BOTTOM);",
+    "volume": 776.7835947576859,
+    "area": 550.7200922351066,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      7.629394644936838e-7
+     ],
+     "max": [
+      16.899999618530273,
+      11.717888832092285,
+      7.09999942779541
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "cut",
+     "h": 10,
+     "d": 8.1,
+     "ang": 35.1,
+     "anchor": "center"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) pie_slice(h=10, d=8.1, ang=35.1, anchor=CENTER); }",
+    "volume": 199974.8816726248,
+    "area": 28052.904807837524,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "add",
+     "h": 20,
+     "d": 70.7,
+     "ang": 21.8,
+     "anchor": "center"
+    },
+    "scad": "pie_slice(h=20, d=70.7, ang=21.8, anchor=CENTER);",
+    "volume": 4754.1087211846025,
+    "area": 2158.3514349688594,
+    "bbox": {
+     "min": [
+      0,
+      0,
+      -10
+     ],
+     "max": [
+      35.349998474121094,
+      13.126864433288574,
+      10
+     ]
+    }
+   },
+   {
+    "name": "cut",
+    "params": {
+     "mode": "cut",
+     "h": 8,
+     "d": 40,
+     "ang": 120,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) pie_slice(h=8, d=40, ang=120, anchor=BOTTOM); }",
+    "volume": 196649.30424560333,
+    "area": 28655.084096811486,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   }
+  ],
+  "regular_prism": [
+   {
+    "name": "default",
+    "params": {
+     "n": 6,
+     "h": 20,
+     "r": 15,
+     "realign": false,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "regular_prism(n=6, h=20, r=15, anchor=BOTTOM);",
+    "volume": 11691.343116760254,
+    "area": 2969.1343244293334,
+    "bbox": {
+     "min": [
+      -15,
+      -12.990381240844727,
+      -1.7763568394002505e-15
+     ],
+     "max": [
+      15,
+      12.990381240844727,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "mode": "add",
+     "n": 17,
+     "h": 7.6,
+     "r": 6.4,
+     "realign": true,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "regular_prism(n=17, h=7.6, r=6.4, realign=true, anchor=CENTER);",
+    "volume": 955.851212923747,
+    "area": 555.4173942173267,
+    "bbox": {
+     "min": [
+      -6.400000095367432,
+      -6.372698783874512,
+      -3.799999952316284
+     ],
+     "max": [
+      6.291028022766113,
+      6.372698783874512,
+      3.799999952316284
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "mode": "cut",
+     "n": 18,
+     "h": 20.6,
+     "r": 7.7,
+     "realign": false,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) regular_prism(n=18, h=20.6, r=7.7, anchor=BOTTOM); }",
+    "volume": 196349.8932463451,
+    "area": 28597.694739865576,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "mode": "cut",
+     "n": 4,
+     "h": 4.3,
+     "r": 15.4,
+     "realign": false,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) regular_prism(n=4, h=4.3, r=15.4, anchor=BOTTOM); }",
+    "volume": 197960.42401057444,
+    "area": 28374.5968957383,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "mode": "add",
+     "n": 11,
+     "h": 24.9,
+     "r": 12.3,
+     "realign": true,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "regular_prism(n=11, h=24.9, r=12.3, realign=true, anchor=CENTER);",
+    "volume": 11201.626545359815,
+    "area": 2798.0261007398954,
+    "bbox": {
+     "min": [
+      -12.300000190734863,
+      -12.174803733825684,
+      -12.449999809265137
+     ],
+     "max": [
+      11.801763534545898,
+      12.174803733825684,
+      12.449999809265137
+     ]
+    }
+   },
+   {
+    "name": "cut",
+    "params": {
+     "mode": "cut",
+     "n": 6,
+     "h": 10,
+     "r": 15,
+     "realign": false,
+     "rounding": 0,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "difference() { cuboid([100, 100, 20], anchor=BOTTOM); up(20) mirror([0, 0, 1]) regular_prism(n=6, h=10, r=15, anchor=BOTTOM); }",
+    "volume": 194154.3289946592,
+    "area": 28899.99996380365,
+    "bbox": {
+     "min": [
+      -50,
+      -50,
+      0
+     ],
+     "max": [
+      50,
+      50,
+      20
+     ]
+    }
+   },
+   {
+    "name": "rounded",
+    "params": {
+     "n": 6,
+     "h": 20,
+     "r": 15,
+     "realign": false,
+     "rounding": 3,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "regular_prism(n=6, h=20, r=15, rounding=3, anchor=BOTTOM);",
+    "volume": 11361.504708716438,
+    "area": 2728.509707321575,
+    "bbox": {
+     "min": [
+      -15,
+      -12.990381240844727,
+      1.7763568394002505e-15
+     ],
+     "max": [
+      15,
+      12.990381240844727,
+      20
+     ]
+    }
+   },
+   {
+    "name": "chamfered",
+    "params": {
+     "n": 5,
+     "h": 18,
+     "r": 14,
+     "realign": true,
+     "rounding": 0,
+     "chamfer": 2,
+     "anchor": "center"
+    },
+    "scad": "regular_prism(n=5, h=18, r=14, realign=true, chamfer=2, anchor=CENTER);",
+    "volume": 8078.533279722981,
+    "area": 2208.3991692598047,
+    "bbox": {
+     "min": [
+      -14,
+      -13.314791679382324,
+      -9
+     ],
+     "max": [
+      11.326237678527832,
+      13.314791679382324,
+      9
+     ]
+    }
+   }
+  ],
+  "spheroid": [
+   {
+    "name": "default",
+    "params": {
+     "d": 30,
+     "anchor": "bottom"
+    },
+    "scad": "spheroid(d=30, style=\"orig\", anchor=BOTTOM);",
+    "volume": 14133.206797509567,
+    "area": 2827.023682966766,
+    "bbox": {
+     "min": [
+      -14.998855590820312,
+      -14.998855590820312,
+      0.0011444091796875
+     ],
+     "max": [
+      14.998855590820312,
+      14.998855590820312,
+      29.998855590820312
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "d": 26,
+     "anchor": "bottom"
+    },
+    "scad": "spheroid(d=26, style=\"orig\", anchor=BOTTOM);",
+    "volume": 9200.194173070306,
+    "area": 2123.4088996427427,
+    "bbox": {
+     "min": [
+      -12.999008178710938,
+      -12.999008178710938,
+      0.0009918212890625
+     ],
+     "max": [
+      12.999008178710938,
+      12.999008178710938,
+      25.999008178710938
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "d": 57.8,
+     "anchor": "center"
+    },
+    "scad": "spheroid(d=57.8, style=\"orig\", anchor=CENTER);",
+    "volume": 101078.88993701842,
+    "area": 10494.037541824735,
+    "bbox": {
+     "min": [
+      -28.897794723510742,
+      -28.897794723510742,
+      -28.897794723510742
+     ],
+     "max": [
+      28.897794723510742,
+      28.897794723510742,
+      28.897794723510742
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "d": 50.5,
+     "anchor": "center"
+    },
+    "scad": "spheroid(d=50.5, style=\"orig\", anchor=CENTER);",
+    "volume": 67414.15308056174,
+    "area": 8010.685707910083,
+    "bbox": {
+     "min": [
+      -25.24807357788086,
+      -25.24807357788086,
+      -25.24807357788086
+     ],
+     "max": [
+      25.24807357788086,
+      25.24807357788086,
+      25.24807357788086
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "d": 30.3,
+     "anchor": "center"
+    },
+    "scad": "spheroid(d=30.3, style=\"orig\", anchor=CENTER);",
+    "volume": 14561.457056764011,
+    "area": 2883.846853763008,
+    "bbox": {
+     "min": [
+      -15.148843765258789,
+      -15.148843765258789,
+      -15.148843765258789
+     ],
+     "max": [
+      15.148843765258789,
+      15.148843765258789,
+      15.148843765258789
+     ]
+    }
+   }
+  ],
+  "torus": [
+   {
+    "name": "default",
+    "params": {
+     "rmaj": 15,
+     "rmin": 4,
+     "anchor": "bottom"
+    },
+    "scad": "torus(r_maj=15, r_min=4, anchor=BOTTOM);",
+    "volume": 4736.458938853715,
+    "area": 2368.496978942438,
+    "bbox": {
+     "min": [
+      -19,
+      -19,
+      0
+     ],
+     "max": [
+      19,
+      19,
+      8
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "rmaj": 10.1,
+     "rmin": 6.9,
+     "anchor": "center"
+    },
+    "scad": "torus(r_maj=10.1, r_min=6.9, anchor=CENTER);",
+    "volume": 9489.909892860238,
+    "area": 2751.0092380196484,
+    "bbox": {
+     "min": [
+      -17,
+      -17,
+      -6.900000095367432
+     ],
+     "max": [
+      17,
+      17,
+      6.900000095367432
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "rmaj": 26.5,
+     "rmin": 2.5,
+     "anchor": "center"
+    },
+    "scad": "torus(r_maj=26.5, r_min=2.5, anchor=CENTER);",
+    "volume": 3268.6500107360425,
+    "area": 2615.2154000727874,
+    "bbox": {
+     "min": [
+      -29,
+      -29,
+      -2.5
+     ],
+     "max": [
+      29,
+      29,
+      2.5
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "rmaj": 18.8,
+     "rmin": 7.4,
+     "anchor": "bottom"
+    },
+    "scad": "torus(r_maj=18.8, r_min=7.4, anchor=BOTTOM);",
+    "volume": 20317.198470250652,
+    "area": 5491.754992988417,
+    "bbox": {
+     "min": [
+      -26.200000762939453,
+      -26.200000762939453,
+      0
+     ],
+     "max": [
+      26.200000762939453,
+      26.200000762939453,
+      14.800000190734863
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "rmaj": 14.4,
+     "rmin": 6.6,
+     "anchor": "bottom"
+    },
+    "scad": "torus(r_maj=14.4, r_min=6.6, anchor=BOTTOM);",
+    "volume": 12379.209055042658,
+    "area": 3751.6992104859596,
+    "bbox": {
+     "min": [
+      -21,
+      -21,
+      0
+     ],
+     "max": [
+      21,
+      21,
+      13.199999809265137
+     ]
+    }
+   }
+  ],
+  "teardrop": [
+   {
+    "name": "default",
+    "params": {
+     "l": 20,
+     "r": 5,
+     "ang": 45,
+     "cap_h": 0
+    },
+    "scad": "teardrop(l=20, r=5, ang=45);",
+    "volume": 1677.9789600526892,
+    "area": 839.0249643677066,
+    "bbox": {
+     "min": [
+      -5,
+      -10,
+      -5
+     ],
+     "max": [
+      5,
+      10,
+      7.071067810058594
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "l": 25.5,
+     "r": 4.4,
+     "ang": 33.9,
+     "cap_h": 0
+    },
+    "scad": "teardrop(l=25.5, r=4.4, ang=33.9);",
+    "volume": 1802.1305974246293,
+    "area": 960.5304855462391,
+    "bbox": {
+     "min": [
+      -4.400000095367432,
+      -12.75,
+      -4.400000095367432
+     ],
+     "max": [
+      4.400000095367432,
+      12.75,
+      7.888908386230469
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "l": 15.9,
+     "r": 3.1,
+     "ang": 67.7,
+     "cap_h": 0
+    },
+    "scad": "teardrop(l=15.9, r=3.1, ang=67.7);",
+    "volume": 483.18662923126806,
+    "area": 372.53199578628676,
+    "bbox": {
+     "min": [
+      -3.0999999046325684,
+      -7.949999809265137,
+      -3.0999999046325684
+     ],
+     "max": [
+      3.0999999046325684,
+      7.949999809265137,
+      3.3505916595458984
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "l": 38.7,
+     "r": 9,
+     "ang": 31.7,
+     "cap_h": 0
+    },
+    "scad": "teardrop(l=38.7, r=9, ang=31.7);",
+    "volume": 11733.155217718535,
+    "area": 3213.84335342029,
+    "bbox": {
+     "min": [
+      -9,
+      -19.350000381469727,
+      -9
+     ],
+     "max": [
+      9,
+      19.350000381469727,
+      17.127470016479492
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "l": 21.9,
+     "r": 4.5,
+     "ang": 59.7,
+     "cap_h": 0
+    },
+    "scad": "teardrop(l=21.9, r=4.5, ang=59.7);",
+    "volume": 1417.7226956555671,
+    "area": 759.610017281643,
+    "bbox": {
+     "min": [
+      -4.5,
+      -10.949999809265137,
+      -4.5
+     ],
+     "max": [
+      4.5,
+      10.949999809265137,
+      5.211979389190674
+     ]
+    }
+   },
+   {
+    "name": "capped",
+    "params": {
+     "l": 20,
+     "r": 5,
+     "ang": 45,
+     "cap_h": 6
+    },
+    "scad": "teardrop(l=20, r=5, ang=45, cap_h=6);",
+    "volume": 1655.0352349778145,
+    "area": 818.9845593343189,
+    "bbox": {
+     "min": [
+      -5,
+      -10,
+      -5
+     ],
+     "max": [
+      5,
+      10,
+      6
+     ]
+    }
+   }
+  ],
+  "onion": [
+   {
+    "name": "default",
+    "params": {
+     "r": 15,
+     "ang": 45,
+     "cap_h": 0
+    },
+    "scad": "onion(r=15, ang=45);",
+    "volume": 14562.644539835554,
+    "area": 2912.8647332967253,
+    "bbox": {
+     "min": [
+      -15,
+      -15,
+      -15
+     ],
+     "max": [
+      15,
+      15,
+      21.21319580078125
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "r": 2.9,
+     "ang": 21.8,
+     "cap_h": 0
+    },
+    "scad": "onion(r=2.9, ang=21.8);",
+    "volume": 129.31339179157897,
+    "area": 133.7864040458991,
+    "bbox": {
+     "min": [
+      -2.899993896484375,
+      -2.899993896484375,
+      -2.899993896484375
+     ],
+     "max": [
+      2.899993896484375,
+      2.899993896484375,
+      7.8089599609375
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "r": 4,
+     "ang": 54.7,
+     "cap_h": 0
+    },
+    "scad": "onion(r=4, ang=54.7);",
+    "volume": 270.7929191592784,
+    "area": 203.11927754404914,
+    "bbox": {
+     "min": [
+      -4,
+      -4,
+      -4
+     ],
+     "max": [
+      4,
+      4,
+      4.901123046875
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "r": 12.1,
+     "ang": 80,
+     "cap_h": 0
+    },
+    "scad": "onion(r=12.1, ang=80);",
+    "volume": 7419.258834226335,
+    "area": 1839.7170657442744,
+    "bbox": {
+     "min": [
+      -12.099990844726562,
+      -12.099990844726562,
+      -12.099990844726562
+     ],
+     "max": [
+      12.099990844726562,
+      12.099990844726562,
+      12.286651611328125
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "r": 2.3,
+     "ang": 23.6,
+     "cap_h": 0
+    },
+    "scad": "onion(r=2.3, ang=23.6);",
+    "volume": 62.396309851328546,
+    "area": 81.39525996225802,
+    "bbox": {
+     "min": [
+      -2.29998779296875,
+      -2.29998779296875,
+      -2.29998779296875
+     ],
+     "max": [
+      2.29998779296875,
+      2.29998779296875,
+      5.7449798583984375
+     ]
+    }
+   },
+   {
+    "name": "capped",
+    "params": {
+     "r": 15,
+     "ang": 30,
+     "cap_h": 20
+    },
+    "scad": "onion(r=15, ang=30, cap_h=20);",
+    "volume": 15552.0714486822,
+    "area": 3075.8397413874745,
+    "bbox": {
+     "min": [
+      -15,
+      -15,
+      -15
+     ],
+     "max": [
+      15,
+      15,
+      20
+     ]
+    }
+   }
+  ],
+  "edge_rounding_mask": [
+   {
+    "name": "default",
+    "params": {
+     "r": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=3);",
+    "volume": 23739.86209282808,
+    "area": 5014.617820991787,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "r": 1.8
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=1.8);",
+    "volume": 23904.85836512894,
+    "area": 5089.994604723577,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "r": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=3);",
+    "volume": 23739.86209282808,
+    "area": 5014.617820991787,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "r": 5.6
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=5.6);",
+    "volume": 23124.85094074156,
+    "area": 4845.702876394109,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "r": 4.9
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) rounding_edge_mask(r=4.9);",
+    "volume": 23323.51509779128,
+    "area": 4891.933684209965,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   }
+  ],
+  "edge_chamfer_mask": [
+   {
+    "name": "default",
+    "params": {
+     "c": 3
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=3);",
+    "volume": 23406,
+    "area": 4939.058007951268,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random1",
+    "params": {
+     "c": 4.5
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.5);",
+    "volume": 22704,
+    "area": 4797.403245742829,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random2",
+    "params": {
+     "c": 1.4
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=1.4);",
+    "volume": 23866.458430470688,
+    "area": 5081.938314349738,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random3",
+    "params": {
+     "c": 4.9
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.9);",
+    "volume": 22476.164995755495,
+    "area": 4758.3693770400905,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   },
+   {
+    "name": "random4",
+    "params": {
+     "c": 4.4
+    },
+    "scad": "diff() cuboid([40, 30, 20], anchor=BOTTOM) edge_mask(TOP) chamfer_edge_mask(chamfer=4.4);",
+    "volume": 22758.378358500147,
+    "area": 4807.078800882173,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      0
+     ],
+     "max": [
+      20,
+      15,
+      20
+     ]
+    }
+   }
+  ]
+ },
+ "generated": "2026-10-16"
+}
