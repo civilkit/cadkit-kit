@@ -139,10 +139,10 @@ export type SketchPreviewShape =
   | { kind: 'line'; a: { x: number; y: number }; b: { x: number; y: number } }
   | { kind: 'circle'; c: { x: number; y: number }; r: number }
   /** A dotted guide, for example from the point a shape is aligned with to the pointer. */
-  | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number } }
+  | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number }; /** a guide through the model: drawn dashed in the model colour */ model?: boolean }
   /** A snap marker, sized in screen pixels: a square on a point, a triangle on a midpoint, a diamond on an
    *  alignment, a ring on the chain end that flips to an arc when the pointer rests on it. */
-  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve' };
+  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve'; /** a snap onto the model rather than the sketch: drawn in the model colour */ model?: boolean };
 
 export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom';
 
@@ -536,44 +536,48 @@ export class Viewport {
     const upp = this.sketchUnitsPerPixel();
     const solid: number[] = [];
     const dotted: number[] = [];
+    const msolid: number[] = [];
+    const mdotted: number[] = [];
     const seg = (out: number[], p: { x: number; y: number }, q: { x: number; y: number }) => { out.push(...planeToWorld(frame, p.x, p.y), ...planeToWorld(frame, q.x, q.y)); };
     const loop = (out: number[], pts: Array<{ x: number; y: number }>) => { for (let i = 0; i < pts.length; i++) seg(out, pts[i], pts[(i + 1) % pts.length]); };
     for (const sh of shapes) {
-      if (sh.kind === 'line') seg(solid, sh.a, sh.b);
-      else if (sh.kind === 'guide') seg(dotted, sh.a, sh.b);
+      const mdl = sh.kind !== 'line' && sh.kind !== 'circle' && sh.model === true;
+      const S = mdl ? msolid : solid, D = mdl ? mdotted : dotted;
+      if (sh.kind === 'line') seg(S, sh.a, sh.b);
+      else if (sh.kind === 'guide') seg(D, sh.a, sh.b);
       else if (sh.kind === 'circle') {
         const n = 64;
         for (let i = 0; i < n; i++) {
           const a0 = (i / n) * Math.PI * 2;
           const a1 = ((i + 1) / n) * Math.PI * 2;
-          seg(solid, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+          seg(S, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
         }
       } else {
         const { x, y } = sh.at;
         const k = upp * (sh.style === 'anchor' ? 11 : 7);
-        if (sh.style === 'point') loop(solid, [{ x: x - k, y: y - k }, { x: x + k, y: y - k }, { x: x + k, y: y + k }, { x: x - k, y: y + k }]);
-        else if (sh.style === 'midpoint') loop(solid, [{ x, y: y + k }, { x: x + k, y: y - k * 0.8 }, { x: x - k, y: y - k * 0.8 }]);
-        else if (sh.style === 'align') loop(solid, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]);
-        else if (sh.style === 'quadrant') { loop(solid, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]); seg(solid, { x: x - k, y }, { x: x + k, y }); }
-        else if (sh.style === 'intersection') { seg(solid, { x: x - k, y: y - k }, { x: x + k, y: y + k }); seg(solid, { x: x - k, y: y + k }, { x: x + k, y: y - k }); }
-        else if (sh.style === 'perpendicular') { loop(solid, [{ x: x - k, y: y - k }, { x: x - k, y: y + k }]); seg(solid, { x: x - k, y: y - k }, { x: x + k, y: y - k }); seg(solid, { x: x - k, y: y }, { x, y }); seg(solid, { x, y }, { x, y: y - k }); }
+        if (sh.style === 'point') loop(S, [{ x: x - k, y: y - k }, { x: x + k, y: y - k }, { x: x + k, y: y + k }, { x: x - k, y: y + k }]);
+        else if (sh.style === 'midpoint') loop(S, [{ x, y: y + k }, { x: x + k, y: y - k * 0.8 }, { x: x - k, y: y - k * 0.8 }]);
+        else if (sh.style === 'align') loop(S, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]);
+        else if (sh.style === 'quadrant') { loop(S, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]); seg(S, { x: x - k, y }, { x: x + k, y }); }
+        else if (sh.style === 'intersection') { seg(S, { x: x - k, y: y - k }, { x: x + k, y: y + k }); seg(S, { x: x - k, y: y + k }, { x: x + k, y: y - k }); }
+        else if (sh.style === 'perpendicular') { loop(S, [{ x: x - k, y: y - k }, { x: x - k, y: y + k }]); seg(S, { x: x - k, y: y - k }, { x: x + k, y: y - k }); seg(S, { x: x - k, y: y }, { x, y }); seg(S, { x, y }, { x, y: y - k }); }
         else if (sh.style === 'tangent') {
           const n = 20;
           const r = k * 0.7;
           const ring = Array.from({ length: n }, (_, i) => ({ x: x + r * Math.cos((i / n) * Math.PI * 2), y: y + k * 0.25 + r * Math.sin((i / n) * Math.PI * 2) }));
-          loop(solid, ring);
-          seg(solid, { x: x - k * 1.3, y: y - k * 0.45 }, { x: x + k * 1.3, y: y - k * 0.45 });
+          loop(S, ring);
+          seg(S, { x: x - k * 1.3, y: y - k * 0.45 }, { x: x + k * 1.3, y: y - k * 0.45 });
         } else if (sh.style === 'center') {
           const n = 20;
-          loop(solid, Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) })));
-          seg(solid, { x: x - k * 0.3, y }, { x: x + k * 0.3, y }); seg(solid, { x, y: y - k * 0.3 }, { x, y: y + k * 0.3 });
+          loop(S, Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) })));
+          seg(S, { x: x - k * 0.3, y }, { x: x + k * 0.3, y }); seg(S, { x, y: y - k * 0.3 }, { x, y: y + k * 0.3 });
         } else if (sh.style === 'oncurve') {
-          seg(solid, { x: x - k * 0.7, y }, { x: x + k * 0.7, y }); seg(solid, { x, y: y - k * 0.7 }, { x, y: y + k * 0.7 });
-          loop(solid, [{ x: x - k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y + k * 0.5 }, { x: x - k * 0.5, y: y + k * 0.5 }]);
+          seg(S, { x: x - k * 0.7, y }, { x: x + k * 0.7, y }); seg(S, { x, y: y - k * 0.7 }, { x, y: y + k * 0.7 });
+          loop(S, [{ x: x - k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y + k * 0.5 }, { x: x - k * 0.5, y: y + k * 0.5 }]);
         } else {
           const n = 24;
           const ring = Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) }));
-          loop(solid, ring);
+          loop(S, ring);
         }
       }
     }
@@ -593,6 +597,17 @@ export class Viewport {
       const lines = new THREE.LineSegments(geo, mat);
       lines.computeLineDistances();
       lines.renderOrder = 19;
+      group.add(lines);
+    }
+    // snaps onto the model: a distinct colour, so they are not mistaken for the sketch's own
+    for (const [pts, dashed] of [[msolid, false], [mdotted, true]] as const) {
+      if (!pts.length) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+      const mat = dashed ? new THREE.LineDashedMaterial({ color: 0x30c0d8, dashSize: upp * 6, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.9 }) : new THREE.LineBasicMaterial({ color: 0x30c0d8, depthTest: false, transparent: true });
+      const lines = new THREE.LineSegments(geo, mat);
+      if (dashed) lines.computeLineDistances();
+      lines.renderOrder = 21;
       group.add(lines);
     }
     this.scene.add(group);

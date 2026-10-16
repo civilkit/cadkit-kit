@@ -256,6 +256,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .sketch-fields input { width: 64px; font: 13px ui-monospace, monospace; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }
 .sketch-fields label.locked input { border-color: var(--accent); background: var(--accent-soft); }
 .sketch-pending { position: absolute; z-index: 6; font: 600 11px system-ui; color: #e0a030; pointer-events: none; }
+.sketch-pending.model { color: #30c0d8; }
 
 /* sketch annotations: dimension labels and constraint symbols over the sketch, and the constraints panel */
 .sketch-annots { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
