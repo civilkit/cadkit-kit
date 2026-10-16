@@ -10,6 +10,7 @@
     "dev": "vite apps/cad --config vite.config.ts",
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
+    "skill:generate": "node packages/skill/tools/generate.mjs",
     "ux:shots": "node tools/ux/shots.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "i18n:check": "node tools/i18n_check.mjs",

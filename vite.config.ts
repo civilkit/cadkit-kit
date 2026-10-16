@@ -23,6 +23,7 @@ export default defineConfig(({ command }) => ({
       '@kit/fcstd': here('./packages/fcstd/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/script': here('./packages/script/src/index.ts'),
+      '@kit/skill': here('./packages/skill/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@kit/agent-tools': here('./packages/agent-tools/src/index.ts'),
       '@kit/mcp': here('./packages/mcp/src/index.ts'),

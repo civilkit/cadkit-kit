@@ -1,0 +1,3 @@
+- Fillet or chamfer the OUTSIDE edges before shelling; shelling a rounded box keeps even walls.
+- The selected face is REMOVED (the opening). To close the box again sketch a lid on the rim face and extrude it (recipe hollow-box-lid).
+- A thickness that is too big gives shellTooThick / shellFailed with maxThickness in the error.

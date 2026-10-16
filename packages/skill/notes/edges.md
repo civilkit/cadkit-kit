@@ -1,0 +1,3 @@
+- Rule keys AND together; use union / intersect / difference for combinations.
+- edges('>Z') selects edges lying in the highest plane only (after a boss, that is the boss rim). Combine with onFace or not to refine.
+- A selector that matches nothing is an error with the script line, not a silent no-op.

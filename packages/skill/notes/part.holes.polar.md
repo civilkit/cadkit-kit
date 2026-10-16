@@ -1,0 +1,2 @@
+- One feature for the whole bolt circle. center is [x, y] in the face sketch plane (usually [0, 0] for a centred disc); startAngle shifts the first hole (degrees).
+- Check that radius + diameter/2 stays inside the face and that holes do not overlap the centre bore.

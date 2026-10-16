@@ -1,0 +1,5 @@
+- Each extrude consumes the sketch before it: sketch again for the next feature.
+- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; flip reverses, mid is symmetric.
+- On the 'top' and 'right' planes the sketch axes are not x/y of the world: when an offset position matters, sketch on a face or check with a probe.
+- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.
+- draft is in degrees and tapers the sides inward for a positive angle on a boss.
