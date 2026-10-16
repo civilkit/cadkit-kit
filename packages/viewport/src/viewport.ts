@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
+import { backToFront, finishParams, hiddenSets, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
@@ -181,6 +182,10 @@ export class Viewport {
   private combLines: number[][][] = [];
   private edgeLines: LineSegments2 | null = null;
   private hull: THREE.Mesh | null = null;
+  /** Per-body appearance and visibility (see setBodyView) and the meshes of the transparent bodies, drawn back to front after the opaque ones. */
+  private bodyView: BodyViewSpec = { bodies: [], looks: {}, hidden: [] };
+  private glass: Array<{ mesh: THREE.Mesh; key: string; opacity: number; centre: THREE.Vector3 }> = [];
+  private faceLookMap = new Map<string, { color: string | null; roughness: number | null; metalness: number | null }>();
   private edgeMats: LineMaterial[] = [];
   private edgeWidth: EdgeWidth = 'thin';
   private silhouette = true;
@@ -1134,10 +1139,13 @@ export class Viewport {
     const solidShown = !this.bodyHidden && solidMesh.mesh.triFace.length > 0;
     const surfaces = (body.surfaces ?? []).filter((x) => !this.hiddenIds.has(x.id) && x.mesh.triFace.length > 0);
     this.lastScale = scale;
-    const merged = mergeBodies(solidShown ? solidMesh : null, surfaces);
+    const merged0 = mergeBodies(solidShown ? solidMesh : null, surfaces);
+    const hid = hiddenSets(this.bodyView);
+    const merged = hid.faces.size ? { ...merged0, ...withoutFaces(merged0.mesh, merged0.edges, hid.faces, hid.edges) } : merged0;
+    const tb = transparentBodies(this.bodyView);
     if (body.mesh.triFace.length > 0 || body.surfaces?.length) this.box = mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
     if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds); this.dirty = true; return; }
-    const g = groupByFace(merged.mesh);
+    const g = groupByFace(merged.mesh, tb.keys.length ? (n) => tb.rank.get(n) ?? 0 : undefined);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(g.normals, 3)); // kernel normals, not recomputed
@@ -1150,7 +1158,8 @@ export class Viewport {
     this.analysis.reset();
     this.mesh = new THREE.Mesh(geo, bodyMat);
     this.scene.add(this.mesh);
-    this.hull = new THREE.Mesh(geo, makeHullMaterial());
+    const hullGeo = this.buildGlass(geo, g, tb);
+    this.hull = new THREE.Mesh(hullGeo, makeHullMaterial());
     this.hull.raycast = () => { /* an outline is never picked */ };
     this.hull.userData.pickable = false;
     this.hull.renderOrder = -2;
@@ -1197,6 +1206,78 @@ export class Viewport {
   /** names of the faces and edges that belong to surface bodies (tinted) */
   private surfaceFaces = new Set<string>();
 
+  /** Per-body appearance (colour, opacity, finish) and visibility. A body is a connected set of faces under a stable key; `looks` are keyed
+   *  by it. Hidden bodies are left out of the drawing and of picking (nothing is rebuilt in the kernel); bodies below full opacity are drawn
+   *  in a transparent pass, farthest first, without writing depth; a click on one below PICK_OPACITY means the body behind it. */
+  setBodyView(spec: BodyViewSpec, rebuild = true): void {
+    const same = JSON.stringify(spec) === JSON.stringify(this.bodyView);
+    this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden] };
+    this.faceLookMap = new Map();
+    for (const b of spec.bodies) {
+      const l = spec.looks[b.key];
+      if (!l || (l.color === undefined && l.finish === undefined)) continue;
+      const fp = l.finish ? finishParams(l.finish) : null;
+      for (const f of b.faces) this.faceLookMap.set(f, { color: l.color ?? null, roughness: fp?.roughness ?? null, metalness: fp?.metalness ?? null });
+    }
+    if (same || !rebuild || !this.lastBody) return;
+    this.setBody(this.lastBody);
+  }
+
+  /** Transparent bodies: one mesh each over its contiguous range of the shared vertex buffer. Returns the geometry the silhouette hull uses. */
+  private buildGlass(geo: THREE.BufferGeometry, g: Grouped, tb: { keys: string[]; rank: Map<string, number> }): THREE.BufferGeometry {
+    this.glass = [];
+    if (!tb.keys.length) return geo;
+    const share = (start: number, count: number): THREE.BufferGeometry => {
+      const x = new THREE.BufferGeometry();
+      x.setAttribute('position', geo.getAttribute('position')); x.setAttribute('normal', geo.getAttribute('normal'));
+      x.setDrawRange(start, count);
+      return x;
+    };
+    const ext = tb.keys.map(() => ({ start: Infinity, end: 0 }));
+    let opaque = 0;
+    for (const r of g.ranges) {
+      const k = (tb.rank.get(r.name) ?? 0) - 1;
+      if (k < 0) { opaque = Math.max(opaque, r.start + r.count); continue; }
+      ext[k].start = Math.min(ext[k].start, r.start); ext[k].end = Math.max(ext[k].end, r.start + r.count);
+    }
+    geo.setDrawRange(0, opaque);   // the opaque mesh draws and picks only its own part of the buffer
+    tb.keys.forEach((key, k) => {
+      if (!isFinite(ext[k].start)) return;
+      const look = this.bodyView.looks[key];
+      const op = lookOpacity(look), fp = finishParams(look?.finish ?? 'glass');
+      const mat = new THREE.MeshStandardMaterial({ color: look?.color ?? '#9fb4c4', roughness: fp.roughness, metalness: fp.metalness * this.metalScale, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+      const mesh = new THREE.Mesh(share(ext[k].start, ext[k].end - ext[k].start), mat);
+      mesh.userData.bodyOpacity = op;
+      mesh.userData.bodyKey = key;
+      this.scene.add(mesh);
+      const c = rangeCentre(g.positions, ext[k].start, ext[k].end - ext[k].start);
+      this.glass.push({ mesh, key, opacity: op, centre: new THREE.Vector3(c[0], c[1], c[2]) });
+    });
+    this.applyGlassStyle();
+    return share(0, g.positions.length / 3);
+  }
+
+  /** The transparent bodies follow the display style: shaded and ghost draw them (ghost caps the opacity), hidden-line paints them white, wireframe not at all. */
+  private applyGlassStyle(): void {
+    const f = styleSpec(this.look.style).faces;
+    for (const gl of this.glass) {
+      const m = gl.mesh.material as THREE.MeshStandardMaterial;
+      gl.mesh.visible = f === 'shaded' || f === 'translucent' || f === 'white';
+      m.opacity = f === 'translucent' ? Math.min(gl.opacity, this.look.ghostOpacity) : gl.opacity * Math.min(1, this.bodyFade());
+      if (f === 'white') { m.color.set(0xffffff); m.emissive.set(0xffffff); m.emissiveIntensity = 0.55; }
+      else { m.color.set(this.bodyView.looks[gl.key]?.color ?? '#9fb4c4'); m.emissive.set(0x000000); }
+      m.needsUpdate = true;
+    }
+  }
+
+  /** Draw order of the transparent bodies: farthest from the camera first (renderOrder; depth writes are off). */
+  private sortGlass(): void {
+    if (this.glass.length < 2) return;
+    const cam = this.camera.position;
+    const order = backToFront(this.glass.map((gl) => [gl.centre.x, gl.centre.y, gl.centre.z] as const), [cam.x, cam.y, cam.z]);
+    order.forEach((i, rank) => { this.glass[i].mesh.renderOrder = rank + 1; });
+  }
+
   /** Display style, ghost opacity and the body's appearance (colour and material). Cheap; safe to call any time. */
   setLook(look: BodyLook): void {
     this.look = { style: look.style, ghostOpacity: look.ghostOpacity, appearance: { ...look.appearance } };
@@ -1227,6 +1308,7 @@ export class Viewport {
     }
     if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
     this.applyAnalysis();
+    this.applyGlassStyle();
     this.dirty = true;
   }
 
@@ -1273,7 +1355,8 @@ export class Viewport {
     if (!g) return;
     const technical = this.lightPreset === 'technical';
     const comps = !technical && this.compLooks.size > 0 && styleSpec(this.look.style).faces !== 'white';
-    if (!comps && !this.surfaceFaces.size) {
+    const perBody = !technical && this.faceLookMap.size > 0 && styleSpec(this.look.style).faces !== 'white';
+    if (!comps && !perBody && !this.surfaceFaces.size) {
       this.baseTints = null;
       if (geo.getAttribute('color')) geo.deleteAttribute('color');
       const a = geo.getAttribute('aSurf') as THREE.BufferAttribute | undefined;
@@ -1287,12 +1370,14 @@ export class Viewport {
     const c = this.tmpColor, own = this.shownLook().appearance;
     for (const r of g.ranges) {
       const app = (comps && this.compLooks.get(this.ownerFn(r.name) ?? '')) || own;
-      c.set(app.color);
+      const fl = perBody ? this.faceLookMap.get(r.name) : undefined;
+      c.set(fl?.color ?? app.color);
       if (this.surfaceFaces.has(r.name)) c.multiply(this.tintColor.setRGB(SURFACE_TINT[0], SURFACE_TINT[1], SURFACE_TINT[2]));
-      const mp = this.scaledFinish(materialParams(app.material));
+      const mp = fl && fl.roughness !== null ? this.scaledFinish({ roughness: fl.roughness, metalness: fl.metalness ?? 0 }) : this.scaledFinish(materialParams(app.material));
+      const custom = comps || (fl !== undefined && fl.roughness !== null);
       for (let v = r.start; v < r.start + r.count; v++) {
         col.setXYZ(v, c.r, c.g, c.b);
-        surf.setXY(v, comps ? mp.roughness : -1, comps ? mp.metalness : -1);
+        surf.setXY(v, custom ? mp.roughness : -1, custom ? mp.metalness : -1);
       }
     }
     col.needsUpdate = true; surf.needsUpdate = true;
@@ -1991,6 +2076,8 @@ export class Viewport {
     this.dropFat(this.edgeHighlight); this.edgeHighlight = null;
     this.dropIssueMeshes(); this.dropIssueHover();
     if (this.hiddenEdgeLines) { this.scene.remove(this.hiddenEdgeLines); (this.hiddenEdgeLines.material as THREE.Material).dispose(); this.hiddenEdgeLines = null; }
+    for (const gl of this.glass) { this.scene.remove(gl.mesh); gl.mesh.geometry.dispose(); (gl.mesh.material as THREE.Material).dispose(); }
+    this.glass = [];
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -2017,7 +2104,12 @@ export class Viewport {
   private hit(x: number, y: number): THREE.Intersection | null {
     if (!this.mesh) return null;
     this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
-    return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
+    if (!this.glass.length) return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
+    // transparent bodies are hit too, but a click on a clear one (below PICK_OPACITY) means what is behind it
+    const hits = this.raycaster.intersectObjects([this.mesh, ...this.glass.filter((gl) => gl.mesh.visible).map((gl) => gl.mesh)], false);
+    if (!hits.length) return null;
+    const op = hits.map((h) => ({ opacity: (h.object.userData.bodyOpacity as number | undefined) ?? 1 }));
+    return hits[pickThrough(op, PICK_OPACITY)];
   }
 
   private nameAt(h: THREE.Intersection | null): string | null {
@@ -2324,6 +2416,7 @@ export class Viewport {
       this.fixSpriteScale();
       this.sun.position.copy(this.sunOffset).applyQuaternion(this.camera.quaternion);   // the key light travels with the camera
       this.scene.environmentRotation.setFromQuaternion(this.camera.quaternion);   // the studio stays fixed to the screen, like a lit turntable
+      this.sortGlass();
       this.renderer.render(this.scene, this.camera);
       this.handleLayer.render(this.renderer);
       this.triball.render();

@@ -54,6 +54,8 @@ import { createAnalysisStore } from './analysisState';
 import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
+import { BodiesPanel } from './BodiesPanel';
+import { faceVolumes, hideOthers, listBodies, readBodyFields, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { runScript } from '@kit/script';
 import { scopeOf } from './variables';
@@ -148,6 +150,17 @@ let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
 const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
+/** The Bodies of what is on screen with their names, looks and visibility from the document (`volumes`: also the volume of each, for the list). */
+function bodyRowsFor(volumes: boolean): BodyRow[] {
+  const m = controller.selModel();
+  if (!m) return [];
+  const d = controller.document();
+  const feats = new Map((d?.features ?? []).map((f) => [f.id, (f as { name?: string }).name ?? null] as const));
+  return listBodies(m.bodies(), readBodyFields(d), {
+    featureName: (id) => feats.get(id) ?? null, defaultName: (n) => t('bodies.default', { n }),
+    ...(volumes ? { volumes: faceVolumes(controller.bodyFaces()) } : {}),
+  });
+}
 /** The body as it is drawn: components hidden or moved apart in the exploded view (the kernel's body is not touched). */
 const shownBody = (b: unknown): unknown => {
   const d = controller.document();
@@ -170,6 +183,7 @@ const controller = new Controller({
       }
       viewport?.setConsumedSketches([...used]);
       lastBody = b;
+      viewport?.setBodyView(viewSpec(bodyRowsFor(false)), false);
       viewport?.setBody(shownBody(b) as never);
       viewport?.setBodies(controller.selModel()?.bodies() ?? []);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
@@ -223,7 +237,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script' | 'Bodies'>('Features');
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
@@ -1729,6 +1743,24 @@ function App() {
   });
   const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
+  // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
+  const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {
+    controller.setDocExtra(key, value && typeof value === 'object' && Object.keys(value).length ? value : null);
+    viewport?.setBodyView(viewSpec(bodyRowsFor(false)));
+    redraw((n) => n + 1);
+  };
+  const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
+  const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
+  const bodyFields = readBodyFields(doc);
+  const bodiesPanel = <BodiesPanel rows={bodyRows}
+    selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
+    onSelect={(key, add) => store.select([key], add)}
+    onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden))}
+    onSolo={(key) => setHiddenBodies(solo(bodyRows, key))}
+    onShowAll={() => setHiddenBodies(showAll())}
+    onHideOthers={() => setHiddenBodies(hideOthers(bodyRows, store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k)))}
+    onRename={(key, name) => setBodyField('bodyNames', withName(bodyFields, key, name))}
+    onLook={(key, patch) => { const row = bodyRows.find((r) => r.key === key); if (row) setBodyField('appearance', withLook(bodyFields, row, patch as Partial<Record<keyof BodyLookSpec, never>>)); }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
   const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code, run) => new Promise((resolve) => {
@@ -1765,9 +1797,9 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script'] as const).map((id) => {
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies'] as const).map((id) => {
               const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script' }[id];
+              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script', Bodies: 'sel-body' }[id];
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
@@ -1775,6 +1807,7 @@ function App() {
             : leftTab === 'Catalog' ? catalogPanel
             : leftTab === 'Variables' ? variablesPanel
             : leftTab === 'Script' ? scriptPanel
+            : leftTab === 'Bodies' ? bodiesPanel
             : editor}
         </>
       ) : leftBody}

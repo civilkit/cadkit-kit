@@ -2,9 +2,12 @@ export interface BodyMesh { positions: Float32Array; normals: Float32Array; triF
 export interface FaceRange { name: string; start: number; count: number }
 export interface Grouped { positions: Float32Array; normals: Float32Array; ranges: FaceRange[]; triOrder: Int32Array }
 
-export function groupByFace(m: BodyMesh): Grouped {
+/** Triangles grouped by face. `rank` (face name -> number, default 0) is the major sort key: the transparent bodies get a rank each so
+ *  every one of them is one contiguous range of the vertex buffer (drawn by its own mesh, back to front). */
+export function groupByFace(m: BodyMesh, rank?: (face: string) => number): Grouped {
   const nTri = m.triFace.length;
-  const order = Array.from({ length: nTri }, (_, i) => i).sort((a, b) => m.triFace[a] - m.triFace[b] || a - b);
+  const rk = rank ? m.faceIds.map((n) => rank(n)) : null;
+  const order = Array.from({ length: nTri }, (_, i) => i).sort((a, b) => (rk ? rk[m.triFace[a]] - rk[m.triFace[b]] : 0) || m.triFace[a] - m.triFace[b] || a - b);
   const positions = new Float32Array(nTri * 9);
   const normals = new Float32Array(nTri * 9);
   const ranges: FaceRange[] = [];
