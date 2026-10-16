@@ -9,10 +9,11 @@ export const AUTOSAVE_DELAY = 400;
 export interface Autosave { name: string; doc: unknown; savedAt: number }
 export type WriteResult = 'saved' | 'tooBig' | 'quota' | 'unavailable';
 
-export function writeAutosave(kv: KV | null, name: string, doc: unknown, now = Date.now()): WriteResult {
+/** `docText` is the document already serialised: a 1.4 MB part is stringified once per save, not once to compare and once to store. */
+export function writeAutosave(kv: KV | null, name: string, doc: unknown, now = Date.now(), docText?: string): WriteResult {
   if (!kv) return 'unavailable';
   let text: string;
-  try { text = JSON.stringify({ name, doc, savedAt: now } satisfies Autosave); } catch { return 'unavailable'; }
+  try { text = docText !== undefined ? `{"name":${JSON.stringify(name)},"doc":${docText},"savedAt":${now}}` : JSON.stringify({ name, doc, savedAt: now } satisfies Autosave); } catch { return 'unavailable'; }
   if (text.length > AUTOSAVE_MAX) return 'tooBig';
   try { kv.setItem(AUTOSAVE_KEY, text); return 'saved'; } catch { return 'quota'; }
 }
@@ -38,30 +39,32 @@ export function worthRestoring(a: Autosave | null): a is Autosave {
  * Debounced writer. `schedule(get)` replaces any pending write; `get` runs when the timer fires and returns the
  * document and name to store (or null for nothing). `onProblem` is called once per kind of failure ("say once").
  */
-export function createAutosaver(kv: KV | null, opts: { delay?: number; onProblem?(r: Exclude<WriteResult, 'saved'>): void; timers?: { set(f: () => void, ms: number): unknown; clear(h: unknown): void }; now?: () => number } = {}) {
+export function createAutosaver(kv: KV | null, opts: { delay?: number; /** true while a rebuild runs: the write waits (a big part is not serialised in the middle of one) */ busy?(): boolean; onProblem?(r: Exclude<WriteResult, 'saved'>): void; timers?: { set(f: () => void, ms: number): unknown; clear(h: unknown): void }; now?: () => number } = {}) {
   const timers = opts.timers ?? { set: (f, ms) => setTimeout(f, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) };
   const told = new Set<string>();
   let handle: unknown = null;
   let last = '';
-  const flushWith = (get: () => { name: string; doc: unknown } | null) => {
+  const flushWith = (get: () => { name: string; doc: unknown } | null, force = false) => {
     handle = null;
+    if (!force && opts.busy?.()) { handle = timers.set(() => flushWith(get), 1000); return; }
     const v = get();
     if (!v) return;
     const key = JSON.stringify(v.doc);
     if (key === last) return;
-    const r = writeAutosave(kv, v.name, v.doc, opts.now?.());
+    const r = writeAutosave(kv, v.name, v.doc, opts.now?.(), key);
     if (r === 'saved') last = key;
     else if (!told.has(r)) { told.add(r); opts.onProblem?.(r); }
   };
   return {
-    schedule(get: () => { name: string; doc: unknown } | null) {
+    /** `delay` overrides the default: a big part is written less eagerly. */
+    schedule(get: () => { name: string; doc: unknown } | null, delay?: number) {
       if (handle !== null) timers.clear(handle);
-      handle = timers.set(() => flushWith(get), opts.delay ?? AUTOSAVE_DELAY);
+      handle = timers.set(() => flushWith(get), delay ?? opts.delay ?? AUTOSAVE_DELAY);
     },
     /** Write now (page hiding). */
     flush(get: () => { name: string; doc: unknown } | null) {
       if (handle !== null) timers.clear(handle);
-      flushWith(get);
+      flushWith(get, true);
     },
     /** Forget the stored copy (after Save): a pending write is dropped too. */
     clear() { if (handle !== null) timers.clear(handle); handle = null; last = ''; clearAutosave(kv); },

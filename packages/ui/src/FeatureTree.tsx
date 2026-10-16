@@ -10,6 +10,8 @@ export interface RefRow { id: string; label: string; icon: string; /** small mut
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
 
 const isSketch = (type: string) => type === 'sketch' || type === 'sketch3d';
+/** Lists longer than this render only the rows near the viewport; a row is at least this tall (px). */
+const VIRT_MIN = 120, ROW_H = 34, OVERSCAN = 12;
 const COLLAPSED_KEY = 'cad.treeCollapsed';
 const loadCollapsed = (): string[] => { try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]; } catch { return []; } };
 
@@ -80,7 +82,10 @@ export function FeatureTree(p: {
   for (const r of p.rows) { const o = owner.get(r.id); if (o) childrenOf.set(o, [...(childrenOf.get(o) ?? []), r]); }
   const failedCount = p.status.filter((s) => !s.ok && !s.blockedBy).length;   // the causes; the rest are only blocked by them
   const top = p.rows.filter((r) => !owner.has(r.id));
-  const indexOf = (id: string) => p.rows.findIndex((x) => x.id === id);
+  const rowIndex = new Map<string, number>(); p.rows.forEach((x, i) => { if (!rowIndex.has(x.id)) rowIndex.set(x.id, i); });
+  const statusById = new Map<string, FeatureStatus>(); for (const x of p.status) if (!statusById.has(x.id)) statusById.set(x.id, x);
+  const indexOf = (id: string) => rowIndex.get(id) ?? -1;
+  const topIndex = new Map<string, number>(); top.forEach((x, i) => topIndex.set(x.id, i));
   const upTo = p.rollback ?? p.rows.length;
   const dep = new Set(p.dependents ?? []);
   const hid = new Set(p.hiddenIds ?? []);
@@ -103,15 +108,15 @@ export function FeatureTree(p: {
   const countAt = (k: number): number | null => (k >= top.length ? null : k <= 0 ? 0 : span(top[k - 1].id) + 1);
   const moveMarker = (k: number) => p.onRollback?.(countAt(Math.max(0, Math.min(top.length, k))));
   const renderRow = (r: FeatureRow, depth: number): JSX.Element => {
-    const i = p.rows.findIndex((x) => x.id === r.id);
-    const st = p.status.find((x) => x.id === r.id);
+    const i = indexOf(r.id);
+    const st = statusById.get(r.id);
     const failed = st !== undefined && !st.ok && !st.blockedBy;
     const blocked = st !== undefined && !st.ok ? st.blockedBy : undefined;   // only follows from an earlier failure: muted, not red
     const label = r.name ?? t('feature.' + r.type, undefined, r.type);
     const kids = childrenOf.get(r.id) ?? [];
     const open = !collapsed.includes(r.id);
     const renamingThis = renaming === r.id && !!p.onRename;
-    const topOf = (id: string): number => { const o = owner.get(id) ?? id; return top.findIndex((x) => x.id === o); };
+    const topOf = (id: string): number => { const o = owner.get(id) ?? id; return topIndex.get(o) ?? -1; };
     return (
       <>
         <div
@@ -189,10 +194,55 @@ export function FeatureTree(p: {
             </button></span>
           ) : null}
         </div>
-        {open ? kids.map((k) => renderRow(k, depth + 1)) : null}
       </>
     );
   };
+
+  type Entry = { kind: 'row'; r: FeatureRow; depth: number } | { kind: 'marker' };
+  const flat: Entry[] = [];
+  const walk = (r: FeatureRow, depth: number) => {
+    flat.push({ kind: 'row', r, depth });
+    if (!collapsed.includes(r.id)) for (const k of childrenOf.get(r.id) ?? []) walk(k, depth + 1);
+  };
+  top.forEach((r, k) => { if (p.onRollback && k === slot) flat.push({ kind: 'marker' }); walk(r, 0); });
+  if (p.onRollback && slot >= top.length) flat.push({ kind: 'marker' });
+  // Only the rows near the viewport are in the DOM when the list is long (a part with 500 features is 18 000 nodes otherwise).
+  const virtual = flat.length > VIRT_MIN;
+  /** Top edge of the whole list in viewport coordinates: the lead spacer, or else the first row (the window then starts at 0). */
+  const listTop = (): number | null => root.current?.querySelector('.tree-pad, .row[data-id]')?.getBoundingClientRect().top ?? null;
+  const [win, setWin] = useState<[number, number]>([0, 60]);
+  const winRef = useRef(win); winRef.current = win;
+  const scroller = (): HTMLElement | null => root.current?.closest<HTMLElement>('.tree-wrap') ?? root.current?.parentElement ?? null;
+  const measure = () => {
+    const sc = scroller(), lt = listTop();
+    if (!sc || lt === null) return;
+    const top0 = sc.getBoundingClientRect().top - lt;
+    const h = sc.clientHeight || 800;
+    const a = Math.max(0, Math.floor(top0 / ROW_H) - OVERSCAN), b = Math.min(flatLen.current, Math.ceil((top0 + h) / ROW_H) + OVERSCAN);
+    if (Math.abs(a - winRef.current[0]) >= 4 || Math.abs(b - winRef.current[1]) >= 4 || b > winRef.current[1] && a < winRef.current[0]) setWin([a, Math.max(b, a + 1)]);
+  };
+  const flatLen = useRef(0); flatLen.current = flat.length;
+  useEffect(() => {
+    if (!virtual) return;
+    const sc = scroller();
+    if (!sc) return;
+    let raf = 0;
+    const on = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; measure(); }); };
+    sc.addEventListener('scroll', on, { passive: true });
+    window.addEventListener('resize', on);
+    measure();
+    return () => { sc.removeEventListener('scroll', on); window.removeEventListener('resize', on); if (raf) cancelAnimationFrame(raf); };
+  }, [virtual]);
+  // a row that is wanted on screen but not rendered: scroll to where it will be
+  const flatIndexOf = (id: string) => flat.findIndex((e) => e.kind === 'row' && e.r.id === id);
+  useEffect(() => {
+    if (!virtual || !p.selectedId) return;
+    const i = flatIndexOf(p.selectedId), sc = scroller(), lt = listTop();
+    if (i < 0 || !sc || lt === null) return;
+    if (i >= winRef.current[0] + OVERSCAN && i < winRef.current[1] - OVERSCAN) return;
+    sc.scrollTop += lt - sc.getBoundingClientRect().top + i * ROW_H - sc.clientHeight / 2;
+  }, [p.selectedId]);
+  const from = virtual ? Math.min(win[0], flat.length) : 0, to = virtual ? Math.min(Math.max(win[1], from + 1), flat.length) : flat.length;
 
   const marker = (
     <div
@@ -250,13 +300,11 @@ export function FeatureTree(p: {
           {r.editable ? <button type="button" class="ref-edit" aria-label={r.editLabel ?? 'Edit'} title={r.editLabel ?? 'Edit'} onClick={(e) => { e.stopPropagation(); p.onOpenRef?.(r.id); }}><Icon name="edit" size={14} /></button> : null}
         </div>
       ))}
-      {top.map((r, k) => (
-        <Fragment key={r.id}>
-          {p.onRollback && k === slot ? marker : null}
-          {renderRow(r, 0)}
-        </Fragment>
-      ))}
-      {p.onRollback && slot >= top.length ? marker : null}
+      <>
+        {virtual && from > 0 ? <div class="tree-pad" style={{ height: from * ROW_H + 'px' }} /> : null}
+        {flat.slice(from, to).map((e) => (e.kind === 'marker' ? <Fragment key="@marker">{marker}</Fragment> : <Fragment key={e.r.id}>{renderRow(e.r, e.depth)}</Fragment>))}
+        {virtual && to < flat.length ? <div class="tree-pad" style={{ height: (flat.length - to) * ROW_H + 'px' }} /> : null}
+      </>
       {p.onRollback && p.rows.length ? (
         <div class="rb-end" onDragOver={(e) => e.preventDefault()} onDrop={() => { if (dragBar.current) { dragBar.current = false; moveMarker(top.length); } }} />
       ) : null}

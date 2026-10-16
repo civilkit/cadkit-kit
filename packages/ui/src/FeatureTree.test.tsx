@@ -425,3 +425,20 @@ describe('FeatureTree: blocked rows', () => {
     expect(picked).toEqual(['F14']);
   });
 });
+
+describe('FeatureTree with a long list', () => {
+  it('puts only the rows near the viewport in the DOM and keeps the full height with spacers', () => {
+    const rows = Array.from({ length: 600 }, (_, i) => ({ id: `F${i + 1}`, type: 'extrude' }));
+    const { container } = render(
+      <FeatureTree rows={rows} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} onRollback={() => {}} />,
+    );
+    const n = container.querySelectorAll('.row[data-id]').length;
+    expect(n).toBeGreaterThan(0);
+    expect(n).toBeLessThan(120);
+    const pad = container.querySelector('.tree-pad') as HTMLElement | null;
+    expect(pad).not.toBeNull();
+    // everything below the window is a spacer of 34 px per hidden row (the marker counts as an entry)
+    expect(parseInt(pad!.style.height, 10) % 34).toBe(0);
+    expect(container.querySelector('.rb-bar')).toBeNull();   // the marker sits after row 600, outside the window
+  });
+});
