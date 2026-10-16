@@ -86,9 +86,19 @@ function swapArcs(s: Feat): void {
  * builder). `about` is the shape centre in the plane. Sketches on the placement plane (and on offset planes made from it for a
  * loft) are turned; a revolve profile on a perpendicular helper plane is only flipped (a body of revolution is turned already).
  */
-export function applyPlacement(features: Feat[], p: Placement, about: [number, number]): void {
+export function applyPlacement(features: Feat[], p: Placement, about: [number, number], on: PlaneRef = { kind: 'std', id: 'front' }): void {
   if (!p.flip && !p.rot && !p.mirror) return;
   const perp = perpendicularPlanes(features);
+  // the placement plane and the offset planes made from it (a loft's sections): only sketches on these are turned
+  const derived = new Set<string>();
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const f of features) {
+      const b = f.base as { kind?: string; id?: string } | undefined;
+      if (f.type === 'plane' && f.mode === 'offset' && b && !derived.has(String(f.id)) && ((b.kind === on.kind && b.id === on.id) || (b.kind === 'feature' && derived.has(String(b.id))))) { derived.add(String(f.id)); grew = true; }
+    }
+  }
+  const onPlacement = (pl: { kind?: string; id?: string } | undefined): boolean => !!pl && ((pl.kind === on.kind && pl.id === on.id) || (pl.kind === 'feature' && derived.has(String(pl.id))));
   const [cu, cv] = about;
   for (const f of features) {
     if (f.type === 'sketch') {
@@ -97,6 +107,7 @@ export function applyPlacement(features: Feat[], p: Placement, about: [number, n
         if (p.flip) { mapPoints(f, (x, y) => [x, -y]); swapArcs(f); }
         continue;
       }
+      if (!onPlacement(plane)) continue;     // a profile on some other plane (a revolve's) was built in its own frame already
       const turn = (x: number, y: number): [number, number] => {
         let dx = x - cu, dy = y - cv;
         if (p.mirror) dx = -dx;
@@ -105,7 +116,8 @@ export function applyPlacement(features: Feat[], p: Placement, about: [number, n
       };
       if (p.rot || p.mirror) { mapPoints(f, turn); if (p.mirror) swapArcs(f); }
     } else if (f.type === 'extrude' || f.type === 'cut') {
-      if (p.flip) f.flip = !f.flip;
+      const sk = features.find((x) => x.type === 'sketch' && x.id === f.sketch) as { plane?: { kind?: string; id?: string } } | undefined;
+      if (p.flip && (!sk || onPlacement(sk.plane))) f.flip = !f.flip;
     } else if (f.type === 'plane' && f.mode === 'offset' && p.flip) {
       f.flip = !f.flip;
     }

@@ -231,6 +231,6 @@ export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, 
   }
   ops.push({ op: 'add', feature: { type: 'sketch', id: sketchId, name: `${name} sketch`, plane, points: profile.points, entities: profile.entities, constraints: [] } });
   ops.push({ op: 'add', feature });
-  if (target.kind === 'ground' && target.place) applyPlacement(ops.map((o) => (o as { feature: Record<string, unknown> }).feature), target.place, [u, v]);
+  if (target.kind === 'ground' && target.place) applyPlacement(ops.map((o) => (o as { feature: Record<string, unknown> }).feature), target.place, [u, v], target.plane ?? { kind: 'std', id: 'front' });
   return { ops, mainId, sketchId, size, helpers };
 }

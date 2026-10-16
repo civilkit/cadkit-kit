@@ -39,6 +39,7 @@ export function placeFor(target: PlaceTarget, prefix: string | null): Place | Bo
     const uv = target.uv ?? [target.point[0], target.point[1]];
     return {
       plane: pl.kind === 'std' ? `'${pl.id}'` : `{ id: ${JSON.stringify(pl.id)} }`, ground: true, at: [Math.round(uv[0]), Math.round(uv[1])], prefix,
+      flip: !!target.place?.flip, plain: !target.place || (!target.place.flip && !target.place.rot && !target.place.mirror),
       base: JSON.stringify(pl), axis: pl.kind === 'std' ? NORMAL_AXIS[pl.id] : 'Z',
     };
   }
@@ -69,7 +70,7 @@ export async function buildBosl(host: ScriptHost, doc: PartDoc | null, item: Bos
   const r = await runScript(script, host, existing.length ? { variables: existing } : {}, { prefix: { features, seq } });
   if (r.errors.length || !r.document) return { error: 'scriptFailed', hint: r.errors.map((e) => `line ${e.line}: ${e.message}`).join('; ') };
   const made = r.ops.map((o) => o.feature as Record<string, unknown>);
-  if (target.kind === 'ground' && target.place) applyPlacement(made, target.place, pl.at);
+  if (target.kind === 'ground' && target.place) applyPlacement(made, target.place, pl.at, target.plane ?? { kind: 'std', id: 'front' });
   const main = [...made].reverse().find((f) => SHAPE_TYPES.has(String(f.type))) ?? made[made.length - 1];
   const sketchId = String(main.sketch ?? (made.find((f) => f.type === 'sketch')?.id ?? ''));
   const helpers = made.filter((f) => f.type === 'plane' || (f.type === 'sketch' && String(f.id) !== sketchId && (f.entities as Array<{ construction?: boolean }>).every((e) => e.construction))).map((f) => String(f.id));

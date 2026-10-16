@@ -30,6 +30,10 @@ export interface Place {
   base?: string;
   /** World letter of the plane normal for the ground (the shape's own side edges are parallel to it). Default Z. */
   axis?: 'X' | 'Y' | 'Z';
+  /** The placement is flipped to the far side of the plane (bodies of revolution are flipped in their own profile). */
+  flip?: boolean;
+  /** False when the placement is turned, mirrored or flipped: the BOSL2 frame (oracle orientation) then no longer applies. Absent = plain. */
+  plain?: boolean;
   /** Centre of the footprint in the sketch plane. */
   at: [number, number];
   /** Variable name prefix when parameters become document variables; null: literal numbers (previews, tests). */
@@ -137,7 +141,7 @@ const GROUND_REVOLVE: Record<StdPlane, { q: StdPlane; map: (q: Pt) => Pt; axis: 
   right: { q: 'top', map: (q) => [q[1], -q[0]], axis: [1, 0] },       // Top: sketch x is +X, the axial direction
 };
 const groundStd = (pl: Place): StdPlane | null => (pl.ground ? ((/^'(front|top|right)'$/.exec(pl.plane)?.[1] as StdPlane | undefined) ?? null) : null);
-const isFront = (pl: Place): boolean => groundStd(pl) === 'front';
+const isFront = (pl: Place): boolean => groundStd(pl) === 'front' && pl.plain !== false;
 function revolveScript(name: string, pl: Place, segsOrCircle: { segs?: Seg[]; circle?: { c: Pt; r: number } }): string {
   const std = groundStd(pl);
   if (std) {
@@ -146,8 +150,9 @@ function revolveScript(name: string, pl: Place, segsOrCircle: { segs?: Seg[]; ci
     const w = [0, 1, 2].map((i) => pl.at[0] * f.x[i] + pl.at[1] * f.y[i]);          // the shape centre in the world
     const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     const sh: Pt = [dot(w, q.x) || 0, dot(w, q.y) || 0], off = dot(w, q.n) || 0;
-    const map = (p: Pt): Pt => { const m = g.map(p); return [m[0] + sh[0], m[1] + sh[1]]; };
-    const draw = segsOrCircle.circle ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(map(segsOrCircle.circle.c))})` : `s${segCalls(segsOrCircle.segs!, map, false)}`;
+    const flipped = !!pl.flip;
+    const map = (p: Pt): Pt => { const m = g.map(flipped ? [p[0], -p[1]] : p); return [m[0] + sh[0], m[1] + sh[1]]; };
+    const draw = segsOrCircle.circle ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(map(segsOrCircle.circle.c))})` : `s${segCalls(segsOrCircle.segs!, map, flipped)}`;
     const on = off ? `at('${g.q}', ${n(off)})` : `'${g.q}'`;
     return `part('${name}')\n  .sketch(${on}, (s) => ${draw})\n  .revolve(360, { axis: { from: ${P([sh[0], sh[1]])}, to: ${P([sh[0] + g.axis[0], sh[1] + g.axis[1]])} } });\n`;
   }
