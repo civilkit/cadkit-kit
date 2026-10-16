@@ -1,12 +1,12 @@
 // Pure rules of the surface editors (loft, sweep, fill, extend, knit, trim): which sketches and surfaces a form offers and the
 // draft patches its controls make. No DOM, so they are tested without a browser. A patch value of null removes the field.
 import type { PartDoc } from '@ck/part-model';
-import { isClosedSketch, isOpenSketch, isSurfaceFeature } from './featureCreators';
+import { isClosedSketch, isOpenSketch, isPointSketch, isSurfaceFeature } from './featureCreators';
 
 type Wire = Record<string, unknown>;
 type Feat = { id: string; type: string; name?: string; [k: string]: unknown };
 
-export interface SketchInfo { id: string; name: string; closed: boolean; open: boolean }
+export interface SketchInfo { id: string; name: string; closed: boolean; open: boolean; point: boolean }
 export interface SurfaceInfo { id: string; name: string }
 
 const feats = (doc: PartDoc | null | undefined): Feat[] => ((doc?.features ?? []) as unknown as Feat[]);
@@ -14,7 +14,7 @@ const nameOf = (f: Feat): string => (f.name ? `${f.name} (${f.id})` : f.id);
 
 /** Every sketch of the document with what it holds (a closed outline or circle, an open chain). */
 export function sketchInfos(doc: PartDoc | null | undefined): SketchInfo[] {
-  return feats(doc).filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, name: nameOf(f), closed: isClosedSketch(f), open: isOpenSketch(f) }));
+  return feats(doc).filter((f) => f.type === 'sketch').map((f) => ({ id: f.id, name: nameOf(f), closed: isClosedSketch(f), open: isOpenSketch(f), point: isPointSketch(f) }));
 }
 /** The surface bodies of the document (not `except`: a Knit cannot join itself). */
 export function surfaceInfos(doc: PartDoc | null | undefined, except?: string): SurfaceInfo[] {

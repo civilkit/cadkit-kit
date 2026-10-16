@@ -112,6 +112,12 @@ whole command table (every optional command included) and fails for a command wi
   are selected; otherwise every unused closed sketch drawn since the last Loft / Extrude / Revolve / Sweep, in tree order; otherwise the
   two newest. The loft editor lists them with up / down / remove / add. If Confirm is refused the editor stays open on the same draft and
   shows the structured error and its hint (nothing is reverted).
+* **Point sections.** A sketch whose only entity is one Point (the Point tool, then Finish; it is kept, never dropped as empty) is a
+  "point profile": the first or the last section of a solid loft, where the surface converges to that point (a boat's bow). It counts
+  as a loft profile for the Loft command and the default selection, is listed as "Point: <name>" in the loft editor, and the tree shows
+  it with a point icon. The editor shows an inline rule when a point is in the middle or both ends are points (also for guides or a
+  surface loft with a point); the kernel refuses those with `loftProfiles` and the editor stays open with its error. Test:
+  `apps/cad/src/pointLoft.kernel.test.ts`.
 * **Sketch on a plane feature.** A Plane feature selected in the tree, or a datum plane clicked in the viewport (its square outline is the
   pick area, `onPlaneFeaturePick`), is a valid sketch target: S or the "Sketch on this plane" chip starts a sketch on it.
 * **Plane tool base.** Base = picked planar face, else the selected Plane feature, else the Front / Top / Right plane chosen in the tree,

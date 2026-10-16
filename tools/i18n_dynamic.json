@@ -64,6 +64,12 @@
   "opt.end.upToNext",
   "opt.end.upToPoint"
  ],
+ "opt.loft.+": [
+  "opt.loft.loftPointBoth",
+  "opt.loft.loftPointGuides",
+  "opt.loft.loftPointMiddle",
+  "opt.loft.loftPointSurface"
+ ],
  "opt.thin.side.+": [
   "opt.thin.side.both",
   "opt.thin.side.inside",
