@@ -68,19 +68,35 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /** Fields whose value is one of a few words, shown as a dropdown (the current value is always kept in the list). */
-const ENUMS: Record<string, string[]> = {
+export const ENUMS: Record<string, string[]> = {
   op: ['add', 'cut'],
   end: ['blind', 'through', 'throughBoth', 'upToNext'],
   'plane.mode': ['offset', 'angle', 'mid', 'parallel', 'threePoints'],
   'deleteBody.mode': ['delete', 'keep'],
   definedBy: ['pitchRevs', 'pitchHeight', 'revsHeight'],
-  kind: ['lip', 'groove'],
+  'lip.kind': ['lip', 'groove'],
   side: ['front', 'back', 'both'],
 };
 const UNITS: Record<string, string> = {
   depth: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
 };
-const enumLabel = (path: string, v: string) => t(`ui.editor.value.${path}.${v}`, undefined, v);
+/** 'threePoints' -> 'Three points': the last-resort label for an enum value that has no catalogue entry. */
+export const humanise = (v: string): string => {
+  const s = v.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+const warned = new Set<string>();
+/** Label for an enum value: catalogue key `ui.editor.value.<enumKey>.<value>`; never the raw value (humanised + one dev warning). */
+export function enumLabel(enumKey: string, v: string): string {
+  const key = `ui.editor.value.${enumKey}.${v}`;
+  const out = t(key, undefined, '\u0000');
+  if (out !== '\u0000') return out;
+  if (!warned.has(key)) {
+    warned.add(key);
+    if (typeof console !== 'undefined') console.warn(`[i18n] missing enum label: ${key}`);
+  }
+  return humanise(v);
+}
 
 const REFERENCE_FIELDS = new Set(['sketch', 'axis', 'path', 'neutral', 'plane']);
 /** Fields holding a list of references (edges, faces, features); filled from the viewport selection. */
@@ -262,7 +278,8 @@ export function FeatureEditor(p: {
                 const refText = isList ? listText(f.path, draft[f.path] ?? feature[f.path]) : isGeom ? geomText(draft[f.path] ?? feature[f.path]) : String(value);
                 const missing = (isRef || isList) && refText.trim() === '';
                 const isBool = !isRef && !isList && kindOf(f) === 'boolean';
-                const enumList = ENUMS[`${feature.type}.${f.path}`] ?? ENUMS[f.path];
+                const enumKey = ENUMS[`${feature.type}.${f.path}`] ? `${feature.type}.${f.path}` : f.path;
+                const enumList = ENUMS[enumKey];
                 const enums = !isRef && !isList && typeof value === 'string' && enumList
                   ? (enumList.includes(value) ? enumList : [value, ...enumList]) : null;
                 return (
@@ -301,7 +318,7 @@ export function FeatureEditor(p: {
                       </span>
                     ) : isBool ? null : enums ? (
                       <select value={String(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLSelectElement).value)}>
-                        {enums.map((v) => <option key={v} value={v}>{enumLabel(f.path, v)}</option>)}
+                        {enums.map((v) => <option key={v} value={v}>{enumLabel(enumKey, v)}</option>)}
                       </select>
                     ) : kindOf(f) === 'number' || isExprValue(value) ? (
                       <span class="fedit-num">

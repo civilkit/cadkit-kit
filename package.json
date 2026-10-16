@@ -11,7 +11,10 @@
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
     "ux:shots": "node tools/ux/shots.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "i18n:check": "node tools/i18n_check.mjs",
+    "i18n:baseline": "node tools/i18n_check.mjs --update-baseline",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.9.0",

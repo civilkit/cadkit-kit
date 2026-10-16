@@ -1,6 +1,6 @@
 export { InlineName } from './InlineName';
 export { FeatureTree, type FeatureRow, type RefRow } from './FeatureTree';
-export { FeatureEditor, sectionsOf, type Section, type OptionsArgs, type OptionsResult } from './FeatureEditor';
+export { FeatureEditor, ENUMS, humanise, sectionsOf, type Section, type OptionsArgs, type OptionsResult } from './FeatureEditor';
 export { Inspector, fieldsOf, type Field } from './Inspector';
 export { Ribbon, resolveLayout, commandToItem, type Command, type RibbonLayout, type RibbonGroup, type RibbonEntry, type RibbonNode } from './Ribbon';
 export { Slot, slotMemory, shownItem, type SlotItem, type SlotProps, type SlotSide } from './Slot';
