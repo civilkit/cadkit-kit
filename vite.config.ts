@@ -34,7 +34,7 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     environment: 'jsdom',
-    include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}']
+    include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}']
   },
   server: {
     fs: {
