@@ -15,7 +15,7 @@ type Buf = { data: Float32Array | Int32Array };
 const arr = (v: unknown) => (v as Buf).data;
 
 async function main() {
-  const kernel = await createBrowserKernel('/kernel/ck_wasm.wasm');
+  const kernel = await createBrowserKernel(new URL(`${import.meta.env.BASE_URL}kernel/ck_wasm.wasm`, document.baseURI).href);
   const vp = new Viewport($('vp'), {
     onPick: (names) => { vp.setHighlight(names); st.textContent = names.length ? `picked ${names.join(', ')}` : 'nothing picked'; },
     onHover: (n) => { hover.textContent = n ? `hover: ${n}` : ''; },
@@ -29,7 +29,7 @@ async function main() {
 
   async function load(name: string) {
     st.textContent = `regen ${name}...`;
-    const part = await (await fetch(`/spike/${name}.ckpart`)).json();
+    const part = await (await fetch(`${import.meta.env.BASE_URL}spike/${name}.ckpart`)).json();
     const t0 = performance.now();
     const r = await kernel.request({ type: 'regen', tag: 'spike', part });
     const ms = Math.round(performance.now() - t0);
