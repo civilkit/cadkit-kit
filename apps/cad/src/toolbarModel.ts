@@ -107,7 +107,7 @@ export const notOnRail = (id: string): boolean =>
 
 /** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
 export const isFileCommand = (id: string): boolean =>
-  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'samples', 'import-step'].includes(id);
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'recover-versions', 'samples', 'import-step'].includes(id);
 
 /** The contextual tab that replaces the others while a sketch is open. */
 export const SKETCH_TAB = 'Sketch';

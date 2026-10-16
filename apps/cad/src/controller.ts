@@ -1098,7 +1098,7 @@ export class Controller {
       return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
     });
     this.lastGood = this.sdoc();
-    this.lastGoodHistory = s.history().length;
+    this.lastGoodHistory = typeof s.history === 'function' ? s.history().length : 0;
   }
   private lastGoodHistory = 0;
 }

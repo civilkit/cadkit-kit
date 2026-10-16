@@ -116,7 +116,7 @@ describe('file commands', () => {
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
     expect([saveAs.mock.calls.length, save.mock.calls.length]).toEqual([1, 1]);
-    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP');
+    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / SolidWorks');
   });
   it('without file actions the commands are absent', () => {
     expect(buildCommands(base).some((c) => c.id === 'save-as')).toBe(false);
