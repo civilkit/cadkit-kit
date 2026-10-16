@@ -39,7 +39,7 @@ function setup() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     api = useTreeInteraction({
       controller: controller as never, store, viewport: () => ({ orbitBy: orbit, panBy: vi.fn() }), selectedId, setSelectedId, setRefSel, redraw: () => {},
-      edit: async (ops) => { edits.push(ops); }, startEditing: (id) => started.push(id),
+      edit: async (ops) => { edits.push(ops); }, startEditing: (id) => started.push(id), rows: () => features.map((f) => ({ id: f.id, type: f.type })),
     });
     return <FeatureTree rows={features.map((f) => ({ id: f.id, type: f.type }))} status={[]} selectedId={selectedId} onMove={() => {}} {...api.treeProps} />;
   }

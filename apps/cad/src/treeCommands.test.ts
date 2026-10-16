@@ -4,7 +4,7 @@ import { ORBIT_STEP_DEG, orbitPixels, treeCommands, treeKey, type KeyLike, type 
 
 const key = (k: string, mods: Partial<KeyLike> = {}): KeyLike => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
 const actions = (over: Partial<TreeActions> = {}): TreeActions => ({
-  isSketching: () => false, hasDocument: () => true, selected: () => ['F2'], rename: vi.fn(), deleteSelected: vi.fn(), suppressSelected: vi.fn(),
+  isSketching: () => false, hasDocument: () => true, selected: () => ['F2'], rename: vi.fn(), groupSelected: vi.fn(), deleteSelected: vi.fn(), suppressSelected: vi.fn(),
   rebuild: vi.fn(), selectAll: vi.fn(), rollForward: vi.fn(), isRolledBack: () => false, redo: vi.fn(), clearSelection: () => false, orbit: vi.fn(), pan: vi.fn(), ...over,
 });
 
@@ -13,6 +13,7 @@ describe('tree commands', () => {
     const cmds = treeCommands(actions());
     const id = (k: string, m: Partial<KeyLike> = {}) => matchShortcut(cmds, key(k, m))?.id;
     expect(id('F2')).toBe('rename');
+    expect(id('g', { ctrlKey: true })).toBe('group-selected');
     expect(id('Delete')).toBe('delete-feature');
     expect(id('b', { ctrlKey: true })).toBe('rebuild');
     expect(id('a', { metaKey: true })).toBe('select-all');
@@ -21,6 +22,8 @@ describe('tree commands', () => {
   it('delete and suppress need a selection; rename works with or without (the part then); none run while sketching', () => {
     const find = (a: TreeActions, id: string) => treeCommands(a).find((c) => c.id === id)!;
     expect(find(actions({ selected: () => [] }), 'delete-feature').enabled!()).toBe(false);
+    expect(find(actions({ selected: () => ['F2'] }), 'group-selected').enabled!()).toBe(false);
+    expect(find(actions({ selected: () => ['F2', 'F4'] }), 'group-selected').enabled!()).toBe(true);
     expect(find(actions({ selected: () => [] }), 'rename').enabled!()).toBe(true);
     expect(find(actions({ isSketching: () => true }), 'rename').enabled!()).toBe(false);
     expect(find(actions({ selected: () => ['F1', 'F2'] }), 'suppress-selected').enabled!()).toBe(true);

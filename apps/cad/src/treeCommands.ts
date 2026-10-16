@@ -10,6 +10,8 @@ export interface TreeActions {
   /** Features selected in the tree. */
   selected(): string[];
   rename(): void;
+  /** Put the selected features in a new folder (the name is then asked in place). */
+  groupSelected(): void;
   deleteSelected(): void;
   suppressSelected(): void;
   rebuild(): void;
@@ -27,6 +29,7 @@ export function treeCommands(a: TreeActions): Command[] {
   const idle = () => a.hasDocument() && !a.isSketching();
   return [
     { id: 'rename', label: t('cmd.rename'), tab: 'Home', group: 'Edit', keys: 'F2', enabled: idle, run: a.rename },
+    { id: 'group-selected', label: t('cmd.group-selected'), tab: 'Home', group: 'Edit', keys: 'Ctrl+G', enabled: () => idle() && a.selected().length > 1, run: a.groupSelected },
     { id: 'delete-feature', label: t('cmd.delete-feature'), tab: 'Home', group: 'Edit', keys: 'Delete', enabled: () => idle() && a.selected().length > 0, run: a.deleteSelected },
     { id: 'suppress-selected', label: t('cmd.suppress-selected'), tab: 'Home', group: 'Edit', keys: 'Ctrl+Shift+U', enabled: () => idle() && a.selected().length > 0, run: a.suppressSelected },
     { id: 'rebuild', label: t('cmd.rebuild'), tab: 'Home', group: 'Edit', keys: 'Ctrl+B', enabled: idle, run: a.rebuild },
