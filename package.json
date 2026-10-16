@@ -10,6 +10,7 @@
     "dev": "vite apps/cad --config vite.config.ts",
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
+    "ux:shots": "node tools/ux/shots.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
