@@ -16,7 +16,7 @@ const LENS = true;
 const P = part('Speedboat dash cluster');
 const rad = (d) => d * Math.PI / 180;
 // ---- look: a classic dash (view appearance only; the geometry is unchanged) ----
-const LOOK = { panel: '#2a2e35', chrome: '#e6e9ec', ivory: '#efe6cf', ink: '#17181a', red: '#c9231d', needle: '#d8261d', hub: '#f2f2ee', glass: '#aebfce', brass: '#b8925a', steel: '#9aa1a8' };
+const LOOK = { panel: '#2a2e35', chrome: '#e6e9ec', ivory: '#f7efd9', ink: '#17181a', red: '#c9231d', needle: '#d8261d', hub: '#f2f2ee', glass: '#aebfce', brass: '#b8925a', steel: '#9aa1a8' };
 const look = (h, name, o) => { if (name) P.bodyName(h, name); if (o) P.appearance(Object.assign({ feature: h }, o)); };
 const cap1 = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 const FIELD = T - RIM_H;                       // recessed instrument field (z)

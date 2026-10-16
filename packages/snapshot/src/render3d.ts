@@ -56,7 +56,7 @@ export function prepare(input: SnapshotInput): Prepared {
 // ---- per-body looks -----------------------------------------------------------------------------------------------
 
 /** Per triangle: colour (0..255), opacity, how metallic (0..1), how glossy (0..1), and whether the body is hidden. null when the input has no appearance. */
-export interface TriLooks { rgb: Float32Array; custom: Uint8Array; opacity: Float32Array; metal: Float32Array; gloss: Float32Array; hide: Uint8Array; transparent: number }
+export interface TriLooks { rgb: Float32Array; custom: Uint8Array; opacity: Float32Array; metal: Float32Array; gloss: Float32Array; hide: Uint8Array; transparent: number; hiddenFaces: Set<string> }
 const FINISH: Record<Finish, { metal: number; gloss: number }> = {
   matte: { metal: 0, gloss: 0 }, plastic: { metal: 0, gloss: 0.5 }, chrome: { metal: 1, gloss: 1 }, glass: { metal: 0, gloss: 1 }, brushed: { metal: 0.8, gloss: 0.35 },
 };
@@ -70,7 +70,7 @@ export function triLooks(p: Prepared): TriLooks | null {
   if (!looks.size && !hidden.size) return (p.looks = null);
   const ids = p.input.mesh.faceIds;
   const n = p.nTri;
-  const out: TriLooks = { rgb: new Float32Array(n * 3), custom: new Uint8Array(n), opacity: new Float32Array(n).fill(1), metal: new Float32Array(n), gloss: new Float32Array(n), hide: new Uint8Array(n), transparent: 0 };
+  const out: TriLooks = { rgb: new Float32Array(n * 3), custom: new Uint8Array(n), opacity: new Float32Array(n).fill(1), metal: new Float32Array(n), gloss: new Float32Array(n), hide: new Uint8Array(n), transparent: 0, hiddenFaces: hidden };
   for (let t = 0; t < n; t++) {
     const name = ids[p.triFace[t]];
     if (hidden.has(name)) { out.hide[t] = 1; continue; }
@@ -283,6 +283,7 @@ export function renderPanel(p: Prepared, o: PanelOpts): PanelResult {
     const a = xray ? 0.75 : 1;
     const A = new Float64Array(3), B = new Float64Array(3);
     for (const pass of hid ? [1, 2] : [0]) for (const e of p.input.edges ?? []) {
+      if (lk && lk.hiddenFaces.size && e.faces?.length && e.faces.every((f) => lk.hiddenFaces.has(f))) continue;   // an edge of a hidden body
       const pts = e.pts;
       let s = 0;
       let okA = pts.length > 0 && cam.project(pts[0], A);
@@ -300,6 +301,7 @@ export function renderPanel(p: Prepared, o: PanelOpts): PanelResult {
       for (let e = 0; e < topo.nE; e++) {
         const t1 = topo.t1[e];
         if (t1 < 0) continue;
+        if (lk && (lk.opacity[topo.t0[e]] < 1 || lk.hide[topo.t0[e]])) continue;   // a clear or hidden body has no outline of tessellation folds
         const ta = topo.va[e] * 3, tb = topo.vb[e] * 3;
         const va = topo.verts;
         const ev = o.persp ? eyeV((va[ta] + va[tb]) / 2, (va[ta + 1] + va[tb + 1]) / 2, (va[ta + 2] + va[tb + 2]) / 2) : cam.dir;
