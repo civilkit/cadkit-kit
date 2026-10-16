@@ -6,8 +6,35 @@ import { fileURLToPath } from 'node:url'
 const FW = process.env.CK_REBUILD ?? '/path/to/work/rebuild'
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
+// Static-site build (tools/build_pages.mjs): PAGES_BUILD=1 puts the output in PAGES_OUT, serves from PAGES_BASE (default './', which works
+// under any sub-path and at a domain root), writes no source maps and copies nothing from public/ (the script assembles kernel, samples and licences).
+const pages = process.env.PAGES_BUILD === '1'
+
+/** Pages build only: the move/rotate-ball feature is called `triball` in identifiers, i18n keys, CSS classes and storage keys throughout the source,
+ *  and the public site must not carry that word (tools/pages_leakcheck.mjs). Every kit module gets the same rename, so the bundle stays consistent. */
+const renameInternalWord = (): import('vite').Plugin => ({
+  name: 'pages-rename-ball-feature',
+  enforce: 'pre',
+  // import specifiers are rewritten too (./triball/useTriBall), so map them back to the real file names
+  resolveId(source, importer, opts) {
+    if (!/moveball/i.test(source)) return null;
+    return this.resolve(source.replace(/moveball/g, 'triball').replace(/MoveBall/g, 'TriBall'), importer, { ...opts, skipSelf: true });
+  },
+  transform(code, id) {
+    if (id.includes('node_modules')) return null;
+    if (!/\.(tsx?|css|json)(\?|$)/.test(id)) return null;
+    const out = code.replace(/(tri)(ball)/gi, (_m, a: string, b: string) => (a === 'Tri' ? 'Move' : a === 'TRI' ? 'MOVE' : 'move') + b);
+    return out === code ? null : { code: out, map: null };
+  },
+});
+
 export default defineConfig(({ command }) => ({
-  plugins: [preact()],
+  plugins: [preact(), ...(pages ? [renameInternalWord()] : [])],
+  ...(pages ? {
+    base: process.env.PAGES_BASE || './',
+    publicDir: false as const,
+    build: { outDir: process.env.PAGES_OUT || here('./dist-pages'), emptyOutDir: true, sourcemap: false },
+  } : {}),
   // several dev servers (one per worktree) share node_modules; give each its own dependency cache with VITE_CACHE_DIR
   ...(process.env.VITE_CACHE_DIR ? { cacheDir: process.env.VITE_CACHE_DIR } : {}),
   resolve: {
