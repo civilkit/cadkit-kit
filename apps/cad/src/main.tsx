@@ -1681,6 +1681,7 @@ function App() {
           ...(controller.canScratchBuild() ? {
             build: (d, view) => controller.scratchBuild(d as never, view) as never,
             release: () => controller.scratchRelease(),
+            facts: (need) => controller.scratchFacts(need),
           } : {}),
         }, {}, { ...run, ...(new URLSearchParams(location.search).has('legacyScript') ? { batched: false } : {}) });
         if (r.cancelled) { store.notify(t('script.cancelled')); resolve([]); return; }
