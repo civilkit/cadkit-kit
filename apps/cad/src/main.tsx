@@ -101,7 +101,7 @@ import './toolbar.css';
 const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
 const files = new FileManager(platform, browserKV());
-const autosaver = createAutosaver(browserKV(), { onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
@@ -1642,7 +1642,7 @@ function App() {
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
   const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
-  useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload); });
+  useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
   useEffect(() => {
     const hide = () => { if (isDirty()) autosaver.flush(autoPayload); };
     addEventListener('pagehide', hide);
