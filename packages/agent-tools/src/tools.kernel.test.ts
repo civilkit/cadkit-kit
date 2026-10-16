@@ -102,10 +102,11 @@ describe('agent tools on the real kernel', () => {
   });
 
   it('script errors carry the line number and a hint; the document is unchanged', async () => {
+    await call('run_script', { code: PLATE, mode: 'new' });
     const n = a.doc.features.length;
-    const bad = await call('run_script', { code: `const x = 1;\nconst y = 2;\npart('Bad').sketch('front', (s) => s.rect(10, 10)).extrude(5)\n  .fillet(edges('|Q'), 1);`, mode: 'attach' });
+    const bad = await call('run_script', { code: `const x = 1;\nconst p = part('Bad');\np.sketch('front', (s) => s.rect(10, 10));\np.extrude(5);\np.fillet(edges('|Q'), 1);`, mode: 'attach' });
     expect(bad.json.ok).toBe(false);
-    expect(bad.json.errors[0].line).toBe(4);
+    expect(bad.json.errors[0].line).toBe(5);
     expect(bad.json.errors[0].message.length).toBeGreaterThan(3);
     expect(a.doc.features.length).toBe(n);
     const thrown = await call('run_script', { code: `part('X');\nnothere();`, mode: 'new' });

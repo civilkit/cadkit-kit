@@ -33,6 +33,17 @@ export interface ScriptRunReport {
 }
 
 let tagSeq = 0;
+
+/** Features whose JSON mentions `id` or one of its persistent names (F2.C1, F2.S.e1|F5.B0#30): faces and edges are strings in refs. */
+export function usersOf(doc: PartDoc, id: string): string[] {
+  const hit = (v: unknown): boolean => {
+    if (typeof v === 'string') return v.split('|').some((p) => { const q = p.replace(/#\d+$/, ''); return q === id || q.startsWith(`${id}.`); });
+    if (Array.isArray(v)) return v.some(hit);
+    if (v && typeof v === 'object') return Object.values(v).some(hit);
+    return false;
+  };
+  return (doc.features as unknown as Array<Record<string, unknown>>).filter((f) => f.id !== id && Object.entries(f).some(([k, v]) => k !== 'id' && k !== 'origin' && hit(v))).map((f) => String(f.id));
+}
 const clone = <T>(x: T): T => structuredClone(x);
 
 export class AgentSession {
@@ -181,7 +192,7 @@ export class AgentSession {
       }
       // a hand-made feature that uses a feature about to be replaced would break: refuse, say which
       for (const id of drop) {
-        const hand = referencers(current, id).filter((r) => !drop.has(r));
+        const hand = [...new Set([...referencers(current, id), ...usersOf(current, id)])].filter((r) => !drop.has(r));
         if (hand.length) {
           return {
             ok: false, mode, run, created: [], removed: [], regenMs: 0, warnings: [],
