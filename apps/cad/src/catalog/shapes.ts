@@ -13,6 +13,8 @@ export type ShapeOp = 'add' | 'cut';
 export interface CatalogItem {
   /** A parts-library (BOSL2) entry with its parameter values; the shape is then built by `buildBosl`, not by `buildShape`. */
   bosl?: { entryId: string; params: Record<string, number | boolean | string> };
+  /** A part of a library (see library/): fetched when it is needed, then placed by `buildPlaced`. */
+  part?: { libId: string; partId: string; title: string };
   /** Stable id (`add-block`, `cut-slot`, `hole`...); also the end of the i18n key `catalog.item.<id>`. */
   id: string;
   kind: ShapeKind;
@@ -74,8 +76,12 @@ export interface BuiltShape {
   /** Parts library: the variables and features as one step (instead of `ops`, which then only serve the preview). */
   patch?: import('../docFields').DocPatch;
   script?: string;
+  /** Library parts: what to tell the user after the drop (e.g. why the part stayed at its own origin), already translated. */
+  notice?: string;
+  /** Library parts: run after the drop was committed (the provenance goes into the document). */
+  onCommitted?: () => void;
 }
-export type BuildResult = BuiltShape | { error: 'needsBody' | 'noFrame' | 'planarOnly' | 'invalid' | 'scriptFailed'; hint?: string };
+export type BuildResult = BuiltShape | { error: 'needsBody' | 'noFrame' | 'planarOnly' | 'invalid' | 'scriptFailed' | 'loading' | 'fetchFailed'; hint?: string };
 
 /** First number of the 1, 1.5, 2, 2.5 ... 10 series nearest to x. */
 const nice = (x: number): number => niceSize({ min: [0], max: [Math.max(x, 1e-6)] }, 1);
@@ -163,7 +169,7 @@ export const coneDraft = (r: number, height: number): number => +(Math.atan((r *
 
 const LABEL: Record<ShapeKind, string> = { block: 'Block', cylinder: 'Cylinder', sphere: 'Sphere', cone: 'Cone', boss: 'Boss', slot: 'Slot', hole: 'Hole', cbore: 'Counterbore', csink: 'Countersink' };
 /** The feature name the tree shows (not translated: it is part of the document). */
-export const shapeName = (item: CatalogItem): string => item.bosl ? (item.bosl.entryId.replace(/_/g, ' ')[0].toUpperCase() + item.bosl.entryId.replace(/_/g, ' ').slice(1)) : (item.op === 'cut' && item.kind === 'block' ? 'Pocket' : item.op === 'cut' && item.kind !== 'hole' && item.kind !== 'cbore' && item.kind !== 'csink' ? `${LABEL[item.kind]} cut` : LABEL[item.kind]);
+export const shapeName = (item: CatalogItem): string => item.part ? item.part.title : item.bosl ? (item.bosl.entryId.replace(/_/g, ' ')[0].toUpperCase() + item.bosl.entryId.replace(/_/g, ' ').slice(1)) : (item.op === 'cut' && item.kind === 'block' ? 'Pocket' : item.op === 'cut' && item.kind !== 'hole' && item.kind !== 'cbore' && item.kind !== 'csink' ? `${LABEL[item.kind]} cut` : LABEL[item.kind]);
 
 /**
  * The edit for one shape at one spot. `seq` is the document's next feature number: ids are chosen here (F<seq>...) so the

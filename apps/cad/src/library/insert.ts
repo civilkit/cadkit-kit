@@ -1,11 +1,10 @@
 // Insert a library part into the open document: the part's features are appended after the existing ones as ONE DocPatch (one undo
 // step) with the part's variables renamed under a prefix that cannot clash and its feature ids renumbered after the document's.
-// Phase 1 puts the part at its own origin. TODO (phase 2): placement on a chosen plane or face like a catalog shape. The place to
-// add it is the `place` argument of buildInsert: a function from the renumbered features to the same features moved onto the target
-// (the BOSL2 path does this with applyPlacement in catalog/placement.ts). Nothing from the part is executed; `script`, configurations
-// and viewer fields of the part are not carried over.
+// `place` (see place.ts) moves the renumbered features onto the drop target; without it the part stays at its own origin.
+// Nothing from the part is executed; `script`, configurations and viewer fields of the part are not carried over.
 import type { PartDoc } from '@ck/part-model';
 import type { DocPatch } from '../docFields';
+import { evalExpr, resolveVariables } from '@kit/ui';
 import { eachExpr } from '../variables';
 
 export interface SourceEntry {
@@ -47,6 +46,22 @@ function mapStrings(node: unknown, f: (s: string) => string): unknown {
   if (Array.isArray(node)) return node.map((x) => mapStrings(x, f));
   if (node && typeof node === 'object') return Object.fromEntries(Object.entries(node as Obj).map(([k, v]) => [k, mapStrings(v, f)]));
   return node;
+}
+
+/** The part with every expression worked out to a number and no variables: what a live preview needs (the open document does not have the part's variables yet). */
+export function inlineVariables(part: PartDoc): PartDoc {
+  const vars = ((part as unknown as { variables?: Array<{ name: string; expr: string }> }).variables ?? []);
+  if (!vars.length) return part;
+  const values = resolveVariables(vars).values;
+  const out = structuredClone(part) as unknown as { features: Obj[]; variables?: unknown[] };
+  for (const f of out.features) {
+    eachExpr(f, '', (c, k, v) => {
+      const r = evalExpr(v, values);
+      if (r.ok) (c as Record<string | number, unknown>)[k] = k === 'expr' ? String(r.value) : r.value;
+    });
+  }
+  out.variables = [];
+  return out as unknown as PartDoc;
 }
 
 export interface Inserted { patch: DocPatch; entry: SourceEntry; idMap: Record<string, string>; variableMap: Record<string, string> }
