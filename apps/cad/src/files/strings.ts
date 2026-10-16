@@ -2,7 +2,7 @@
 import { registerCatalog } from '@kit/i18n';
 
 export const filesEn = {
-  'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP', 'cmd.import-step.tip': 'Open a STEP file as a new part (view only)',
+  'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks', 'cmd.import-step.tip': 'Open a STEP or SolidWorks (.sldprt) file as a new part (view only)',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
   'files.restore.restore': 'Restore', 'files.restore.new': 'Start new',

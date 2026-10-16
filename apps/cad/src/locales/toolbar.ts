@@ -10,7 +10,7 @@ export const toolbarStrings: Record<string, string> = {
   'rb.palette': 'Search', 'rb.toggle-projection': 'Projection', 'rb.toggle-up-axis': 'Up axis', 'rb.toggle-left-panel': 'Side panel', 'rb.drawer': 'Drawer', 'rb.settings': 'Settings',
   'rb.sketch-here': 'Sketch', 'rb.sketch-on-face': 'On face', 'rb.sketch-new-front': 'Front', 'rb.sketch-new-top': 'Top', 'rb.sketch-new-right': 'Right',
   'rb.sketch-from-dxf': 'DXF sketch', 'rb.sketch-import-dxf': 'Import DXF', 'rb.export-stl': 'STL', 'rb.export-stl-ascii': 'STL text', 'rb.export-obj': 'OBJ',
-  'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP', 'rb.add-cut': 'Cut',
+  'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP / SLDPRT', 'rb.add-cut': 'Cut',
   'rb.add-lpattern': 'Linear', 'rb.add-cpattern': 'Circular', 'rb.open-catalog': 'Catalog', 'rb.suppress-selected': 'Suppress', 'rb.delete-feature': 'Delete',
   'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
   'rb.add-surface-revolve': 'Revolved', 'rb.add-surface-loft': 'Lofted', 'rb.add-fill': 'Fill', 'rb.add-extend': 'Extend', 'rb.add-delete-face': 'Del. face',
