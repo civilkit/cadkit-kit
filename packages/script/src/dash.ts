@@ -87,17 +87,18 @@ const bezelPath = (g) => {
   return [[Rb, -8], [Rt, -8], [Rt, 0], [Ro - 2, 0], ['a', rimLow(Ro - 2, 2, 2), [Ro, 2]], [Ro, 6],
     ['a', rim45(Ro - 3, 6, 3), [Ro - 3, 9]], [Rl + 1.6, 9], [Rl + 0.1, 7.9], [Rl + 0.1, 7.5], [r - 1.5, 7.5], [r - 1.5, 4], [Rb, 4]];
 };
-// ---- lettering: upright numerals on the tick circle and a caption below the hub, embossed 0.15 mm as their own black-ink bodies, floating CLR above the dial like the other parts ----
+// ---- lettering: upright numerals on the tick circle and a caption below the hub of every dial, embossed 0.15 mm in black ink. ONE sketch and ONE extrude for all four dials: the plane sits 0.1 mm INSIDE the dial plates so the
+// letters fuse with them (like the tick ridges they are told apart by the face colour; a lump floating 0.1 mm above the dial sits inside the ridge height and the kernel's boolean fails on it). Keep the letters clear of the
+// tick ridges (a glyph corner touching a ridge corner makes the boolean fail too): numerals sit inside the ticks, the caption in the gap of the sweep at the bottom ----
 const DZ0 = 2, DZ1 = 3.9;                                             // dial plate (local z)
-const lettering = (d) => P.group(cap1(d.n) + ' lettering', () => {
-  const { x: cx, y: cy, g } = d, r = g / 2, nm = cap1(d.n);
-  const ang = (v) => START - SWEEP * (v - d.lo) / (d.hi - d.lo);
-  const pt = (rr, v) => [cx + rr * Math.cos(rad(ang(v))), cy + rr * Math.sin(rad(ang(v)))];
-  const big = g > 60, hN = big ? 4 : 3, rN = r - (big ? 15.5 : 15), zT = ZB + DZ1 + CLR;
-  P.sketch(at('front', zT), (s) => { for (let v = d.lo; v <= d.hi + 1e-6; v += d.lab) { s.text(String(v), pt(rN, v), { font: 'gauge', height: hN, anchor: ['center', 'middle'] }); } }, nm + ' numerals'); P.extrude(0.15);
-  look(P.handle(), nm + ' numerals', { colour: LOOK.ink, finish: 'matte' });
-  P.sketch(at('front', zT), (s) => s.text(d.cap, [cx, cy - (big ? 0.33 : 0.27) * r], { font: 'gauge', height: big ? 3.4 : 2.4, anchor: ['center', 'middle'] }), nm + ' caption'); P.extrude(0.15);
-  look(P.handle(), nm + ' caption', { colour: LOOK.ink, finish: 'matte' });
+const lettering = () => P.group('Dial lettering', () => {
+  P.sketch(at('front', ZB + DZ1 - 0.1), (s) => G.forEach((d) => {
+    const { x: cx, y: cy, g } = d, r = g / 2, big = g > 60, rN = r - (big ? 15.5 : 12), hN = big ? 4 : 2.2;
+    const ang = (v) => START - SWEEP * (v - d.lo) / (d.hi - d.lo);
+    for (let v = d.lo; v <= d.hi + 1e-6; v += d.lab) { s.text(String(v), [cx + rN * Math.cos(rad(ang(v))), cy + rN * Math.sin(rad(ang(v)))], { font: 'gauge', height: hN, anchor: ['center', 'middle'] }); }
+    s.text(d.cap, [cx, cy - (big ? 0.38 : 0.6) * r], { font: 'gauge', height: big ? 3.4 : 2.4, anchor: ['center', 'middle'] });
+  }), 'Dial lettering'); P.extrude(0.25);
+  P.appearance({ face: P.handle(), colour: LOOK.ink, finish: 'matte' });
 });
 // ---- one gauge ----
 const gauge = (d) => P.group(cap1(d.n) + ' gauge', () => {
@@ -110,8 +111,8 @@ const gauge = (d) => P.group(cap1(d.n) + ' gauge', () => {
   look(P.handle(), nm + ' dial', { colour: LOOK.ivory, finish: 'matte' });
   // tick ridges: one sketch of thin rotated rectangles (major long, minor short)
   const quad = (v, r1, r2, hw2) => { const a = rad(ang(v)), c = Math.cos(a), sn = Math.sin(a), q = (rr, w) => [cx + rr * c - w * sn, cy + rr * sn + w * c]; return [q(r1, -hw2), q(r2, -hw2), q(r2, hw2), q(r1, hw2)]; };
-  const ticks = [];
-  for (let v = d.lo; v <= d.hi + 1e-6; v += d.minor) { const maj = Math.abs((v - d.lo) / d.major - Math.round((v - d.lo) / d.major)) < 1e-6; ticks.push(maj ? quad(v, r - 10.5, r - 5.5, 0.8) : quad(v, r - 8, r - 5.5, 0.4)); }
+  const ticks = [], tk = g > 60 ? 0 : 2;   // the small dials have shorter ridges: their numerals need the room
+  for (let v = d.lo; v <= d.hi + 1e-6; v += d.minor) { const maj = Math.abs((v - d.lo) / d.major - Math.round((v - d.lo) / d.major)) < 1e-6; ticks.push(maj ? quad(v, r - 10.5 + tk, r - 5.5, 0.8) : quad(v, r - 8 + tk / 2, r - 5.5, 0.4)); }
   P.sketch(at('front', ZB + DZ1), (s) => { ticks.forEach((q) => s.polygon(q)); }, nm + ' ticks'); P.extrude(TICK_H);
   P.appearance({ face: P.handle(), colour: LOOK.ink, finish: 'matte' });
   // red zone: a groove in the dial and a separate inlay band in it
@@ -163,7 +164,7 @@ const details = () => {
 };
 const ORDER = ['panel', 'gauges', 'details', 'lettering'];
 const DO = { profile: () => { P.sketch('front', (s) => { let cur = null; bezelPath(BIG).concat([bezelPath(BIG)[0]]).forEach((it) => { const to = it[0] === 'a' ? it[2] : it; if (cur) { if (it[0] === 'a') { s.arc3(cur, it[1], it[2]); } else { s.line(cur, it); } } cur = to; }); }); P.extrude(0.5); },
-  bezel: () => { rev(0, 0, bezelPath(BIG)); }, lettering: () => { if (LETTERS) { G.forEach(lettering); } }, panel: () => { panel(); panelHoles(); }, gauges: () => { G.forEach(gauge); }, details: () => { details(); } };
+  bezel: () => { rev(0, 0, bezelPath(BIG)); }, lettering: () => { if (LETTERS) { lettering(); } }, panel: () => { panel(); panelHoles(); }, gauges: () => { G.forEach(gauge); }, details: () => { details(); } };
 ORDER.concat(['bezel', 'profile']).forEach((k) => { if (ONLY ? ONLY.indexOf(k) >= 0 : k !== 'bezel' && k !== 'profile') { DO[k](); } });
 `;
 

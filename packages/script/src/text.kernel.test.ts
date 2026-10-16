@@ -3,6 +3,8 @@ import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory } from '../../../apps/cad/src/controller';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { diffImages, snapshotOf } from '@kit/snapshot';
 import { runScript, evaluate, type ScriptHost } from './index';
 
 const sessions: Session[] = [];
@@ -72,5 +74,22 @@ p.expectBBox({ min: [-(m.width + 8) / 2, -6, 0], max: [(m.width + 8) / 2, 6, 2] 
     expect(val.ok).toBe(true);
     const bad = await runScript(`part('P').sketch('front', (s) => s.rect(10, 10)).extrude(1).sketch(at('front', 1), (s) => s.text('   ', [0, 0])).cut(0.1);`, h);
     expect(bad.errors[0]?.message).toMatch(/nothing to draw|string is empty/);
+  }, 120000);
+  it('snapshot rendering shows the engraving (the render differs from the plain plate inside the text box only)', async () => {
+    const OUT = process.env.SNAPSHOT_OUT ?? '/path/to/work/scratch-kittext/text-snap';
+    mkdirSync(OUT, { recursive: true });
+    const { h, session } = await host();
+    await runScript(`part('Plate').sketch('front', (s) => s.rect(80, 30)).extrude(4);`, h);
+    const plain = await snapshotOf(session(), { view: 'top', up: 'z', size: 600 });
+    await runScript(`part('Plate').sketch('front', (s) => s.rect(80, 30)).extrude(4)
+  .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 8, anchor: ['center', 'middle'] })).cut(1);`, h);
+    const cut = await snapshotOf(session(), { view: 'top', up: 'z', size: 600 });
+    writeFileSync(`${OUT}/plate-plain.png`, plain.png); writeFileSync(`${OUT}/plate-engraved.png`, cut.png);
+    const d = await diffImages(plain.png, cut.png);
+    expect(d.changedPct).toBeGreaterThan(0.2);
+    expect(d.bbox).not.toBeNull();
+    const w = cut.width, hgt = cut.height;
+    expect(d.bbox!.x0).toBeGreaterThan(w * 0.1); expect(d.bbox!.x1).toBeLessThan(w * 0.9);
+    expect(d.bbox!.y0).toBeGreaterThan(hgt * 0.3); expect(d.bbox!.y1).toBeLessThan(hgt * 0.7);
   }, 120000);
 });

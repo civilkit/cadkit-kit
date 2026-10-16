@@ -2,7 +2,7 @@
 
 A 380 x 150 mm, 6 mm dash plate for a 1960s runabout with four chrome-bezelled round gauges, built as ONE script
 (`packages/script/src/dash.ts`, `dashScript(opts?)`, same pattern as `matx.ts`). It is a normal editable feature tree
-(149 features, 36 separate lumps, regenerates in about 8 to 25 s on the real kernel, `validate` ok, no boolean failures).
+(155 features, 36 separate lumps, regenerates in about 9 s batched (the app) and 25 s one edit at a time on the real kernel, `validate` ok, no boolean failures).
 Sample: `apps/cad/public/samples/speedboat-dash.ckpart`; Script-tab example `speedboat-dash`; test
 `packages/script/src/dash.kernel.test.ts` (set `CK_WASM`; `DASH_ONLY=panel,gauges,details,bezel,profile`, `DASH_NOLENS=1`,
 `DASH_OUT=file` for development).
@@ -41,6 +41,26 @@ features opens with the folders closed.
 ![front](img/dash-front.png)
 ![side](img/dash-side.png)
 ![close-up](img/dash-gauge-closeup.png)
+
+## Lettering
+
+The dial numerals (`0 10 ... 80`, `0 ... 60`, `0 20 ... 100`, `100 150 200 250`), the captions (`RPM x100`, `KNOTS`, `OIL PSI`,
+`TEMP °F`) and the nameplate (`SEA SPRITE`, `MADE IN AUSTRALIA`, serif font, engraved 0.2 mm) come from the script text API
+(`s.text`, see `docs/scripting.md` and `docs/text.md`). `dashScript({ letters: false })` leaves them out.
+
+* All four dials get their lettering in **one sketch and one extrude** (0.25 mm, starting 0.1 mm inside the dial plates so the
+  letters fuse with them and stand 0.15 mm proud) with black-ink faces, like the tick ridges. They are therefore not separate
+  bodies (the Bodies list stays at 36). A separate lump floating 0.1 mm above the dial sits inside the ridge height (0.3 mm)
+  of the dial's own bounding box and the kernel's boolean failed on it for the small dials (`booleanFailed`).
+* The numerals sit at radius r - 15.5 (big dials) and r - 12 (small dials) on the 270 degree sweep, upright, `gauge` font,
+  4 mm (big) and 2.2 mm (small) cap height; the captions are centred below the hub in the gap of the sweep. The small dials
+  have shorter ridges (3 mm major, 1.75 mm minor) so a three digit numeral clears them.
+* Kernel finding (reported, not fixed): a text boolean fused into a dial fails (`booleanFailed`) for particular positions
+  when a domed glass lens exists in the part (the same script without the lenses never fails); sketch positions that avoid it
+  were found by scanning the numeral radius (a 0.25 mm change of the radius flips the result). The numeral radius and sizes
+  above are the ones that pass; change them and run `dash.kernel.test.ts`.
+* Cost: lettering adds about 4 s to the batched build (5 s to 9.3 s: the text booleans run against all 36 lumps) and 15 s
+  to the edit-by-edit test path. Not within 1.3 x.
 
 ## Separate bodies
 

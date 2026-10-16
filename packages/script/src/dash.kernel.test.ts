@@ -45,6 +45,11 @@ describe('speedboat dash', () => {
       expect(Object.values(d.appearance ?? {}).filter((l) => l.finish === 'glass' && (l.opacity ?? 1) <= 0.2)).toHaveLength(4);   // the four gauge lenses (the lamp lenses are denser)
       expect(Object.values(d.bodyNames ?? {})).toEqual(expect.arrayContaining(['Tach lens', 'Dash panel', 'Knots bezel']));
       expect(Object.keys(d.faceAppearance ?? {}).every((k) => /^F\d+\.\*$/.test(k))).toBe(true);
+      // lettering: numerals + captions of the four dials are ONE fused emboss with black-ink faces; the nameplate is engraved
+      const feats = (r.document as { features: Array<{ name?: string; op?: string; group?: string }> }).features;
+      expect(feats.some((f) => f.group === 'Dial lettering' && f.op === 'add')).toBe(true);
+      expect(feats.some((f) => f.name === 'Cut Nameplate lettering')).toBe(true);
+      expect(Object.values(d.faceAppearance ?? {}).filter((l) => (l as { color?: string }).color === '#17181a').length).toBeGreaterThanOrEqual(5);   // 4 tick sketches + the lettering
       expect(Date.now() - t0).toBeLessThan(60000);
     }
   }, 900000);
