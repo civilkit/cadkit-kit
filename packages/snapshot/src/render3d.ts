@@ -2,6 +2,7 @@
 // depth-tested B-rep edges and mesh silhouettes, dashed hidden lines, markers, dimensions and the section overlay.
 import { Raster, hatchPolygons, type RGB } from './raster.js';
 import { cross, dot, makeCamera, norm, type Camera } from './camera.js';
+import { faceLooks, type Finish } from './appearance.js';
 import type { Dimension, Frame, Marker, SectionLike, SnapshotInput, StyleName, V3 } from './types.js';
 
 export interface Prepared {
@@ -14,6 +15,7 @@ export interface Prepared {
   center: V3;
   radius: number;
   topo?: Topo;
+  looks?: TriLooks | null;
 }
 
 const cache = new WeakMap<object, Prepared>();
@@ -49,6 +51,36 @@ export function prepare(input: SnapshotInput): Prepared {
   const p: Prepared = { input, pos, nrm, triFace: tf, nTri, bbox: { min, max }, center, radius };
   cache.set(input, p);
   return p;
+}
+
+// ---- per-body looks -----------------------------------------------------------------------------------------------
+
+/** Per triangle: colour (0..255), opacity, how metallic (0..1), how glossy (0..1), and whether the body is hidden. null when the input has no appearance. */
+export interface TriLooks { rgb: Float32Array; custom: Uint8Array; opacity: Float32Array; metal: Float32Array; gloss: Float32Array; hide: Uint8Array; transparent: number }
+const FINISH: Record<Finish, { metal: number; gloss: number }> = {
+  matte: { metal: 0, gloss: 0 }, plastic: { metal: 0, gloss: 0.5 }, chrome: { metal: 1, gloss: 1 }, glass: { metal: 0, gloss: 1 }, brushed: { metal: 0.8, gloss: 0.35 },
+};
+const hexRgb = (h: string): [number, number, number] => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+export function triLooks(p: Prepared): TriLooks | null {
+  if (p.looks !== undefined) return p.looks;
+  const a = p.input.appearance;
+  if (!a || !p.triFace || !p.input.mesh.faceIds || (!a.appearance && !a.faceAppearance && !a.view)) return (p.looks = null);
+  const { looks, hidden } = faceLooks(p.input.mesh, p.input.edges ?? [], a);
+  if (!looks.size && !hidden.size) return (p.looks = null);
+  const ids = p.input.mesh.faceIds;
+  const n = p.nTri;
+  const out: TriLooks = { rgb: new Float32Array(n * 3), custom: new Uint8Array(n), opacity: new Float32Array(n).fill(1), metal: new Float32Array(n), gloss: new Float32Array(n), hide: new Uint8Array(n), transparent: 0 };
+  for (let t = 0; t < n; t++) {
+    const name = ids[p.triFace[t]];
+    if (hidden.has(name)) { out.hide[t] = 1; continue; }
+    const l = looks.get(name);
+    if (!l) continue;
+    if (l.color) { const c = hexRgb(l.color); out.rgb[t * 3] = c[0]; out.rgb[t * 3 + 1] = c[1]; out.rgb[t * 3 + 2] = c[2]; out.custom[t] = 1; }
+    if (l.finish) { out.metal[t] = FINISH[l.finish].metal; out.gloss[t] = FINISH[l.finish].gloss; }
+    if (l.opacity !== undefined && l.opacity < 1) { out.opacity[t] = l.opacity; out.transparent++; }
+  }
+  return (p.looks = out);
 }
 
 // ---- silhouette topology ----------------------------------------------------------------------------------------
@@ -108,6 +140,8 @@ export interface PanelOpts {
   section?: SectionLike;
   dims?: boolean;
   label?: string;
+  /** draw the document's per-body appearance (default true; only the shaded and edges styles use it) */
+  looks?: boolean;
 }
 
 export interface PanelResult { raster: Raster; camera: Camera; frame: Frame; ms: number }
@@ -167,17 +201,19 @@ export function renderPanel(p: Prepared, o: PanelOpts): PanelResult {
   const xray = style === 'xray';
   const depthOnly = style === 'hidden-line';
   const base = mono ? ([188, 188, 188] as RGB) : BASE;
+  const lk = o.looks !== false && (style === 'shaded' || style === 'edges') ? triLooks(p) : null;
   const tc = new Float64Array(3);
   const pos = p.pos, nrm = p.nrm;
-  for (let t = 0; t < p.nTri; t++) {
+  const glass: number[] = [];   // transparent triangles, drawn after the opaque ones, farthest first
+  const glassDepth: number[] = [];
+  const cc: RGB = [0, 0, 0];
+  const shade = (t: number): boolean => {
     const v0 = t * 3;
-    if (!ok[v0] || !ok[v0 + 1] || !ok[v0 + 2]) continue;
-    const x0 = pv[v0 * 3], y0 = pv[v0 * 3 + 1], n0 = pv[v0 * 3 + 2];
-    const x1 = pv[v0 * 3 + 3], y1 = pv[v0 * 3 + 4], n1 = pv[v0 * 3 + 5];
-    const x2 = pv[v0 * 3 + 6], y2 = pv[v0 * 3 + 7], n2 = pv[v0 * 3 + 8];
+    if (!ok[v0] || !ok[v0 + 1] || !ok[v0 + 2]) return false;
+    const x0 = pv[v0 * 3], y0 = pv[v0 * 3 + 1], x1 = pv[v0 * 3 + 3], y1 = pv[v0 * 3 + 4], x2 = pv[v0 * 3 + 6], y2 = pv[v0 * 3 + 7];
     const area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
-    if (area > -1e-9 && area < 1e-9) continue;
-    // per-vertex intensity, two-sided
+    if (area > -1e-9 && area < 1e-9) return false;
+    const metal = lk ? lk.metal[t] : 0, gloss = lk ? lk.gloss[t] : 0;
     for (let k = 0; k < 3; k++) {
       const o9 = t * 9 + k * 3;
       let nx = nrm[o9], ny = nrm[o9 + 1], nz = nrm[o9 + 2];
@@ -188,10 +224,54 @@ export function renderPanel(p: Prepared, o: PanelOpts): PanelResult {
       const nl = nx * L[0] + ny * L[1] + nz * L[2];
       let I = 0.3 + 0.5 * (nl > 0 ? nl : 0) + 0.2 * nv_;
       if (I > 1) I = 1;
+      if (gloss > 0 || metal > 0) {
+        // mirror direction of the view ray about the normal: a sky above, a dark horizon line and a lighter ground; the key light adds a highlight
+        const rx = 2 * nv_ * nx - vx, ry = 2 * nv_ * ny - vy, rz = 2 * nv_ * nz - vz;
+        const ru = rx * cam.upv[0] + ry * cam.upv[1] + rz * cam.upv[2];
+        const sp = Math.max(0, rx * L[0] + ry * L[1] + rz * L[2]);
+        const env = 0.3 + 0.5 * Math.min(1, Math.max(0, (ru + 0.25) / 1.1)) - 0.45 * Math.exp(-ru * ru / 0.03);
+        const spec = Math.pow(sp, 6 + 40 * gloss) * (0.25 + 0.75 * gloss);
+        I = I * (1 - metal) + (env + 0.9 * spec) * metal + (1 - metal) * spec * 0.5;
+      }
       tc[k] = I;
     }
-    const c = hiTri[t] ? HILITE : base;
-    fillTri(color, z, W, H, x0, y0, n0, tc[0], x1, y1, n1, tc[1], x2, y2, n2, tc[2], c, area, depthOnly, xray);
+    return true;
+  };
+  for (let t = 0; t < p.nTri; t++) {
+    if (lk && lk.hide[t]) continue;
+    if (lk && lk.opacity[t] < 1) {
+      if (!ok[t * 3] || !ok[t * 3 + 1] || !ok[t * 3 + 2]) continue;
+      glass.push(t); glassDepth.push((pv[t * 9 + 2] + pv[t * 9 + 5] + pv[t * 9 + 8]) / 3);
+      continue;
+    }
+    if (!shade(t)) continue;
+    const v0 = t * 3;
+    const x0 = pv[v0 * 3], y0 = pv[v0 * 3 + 1], n0 = pv[v0 * 3 + 2];
+    const x1 = pv[v0 * 3 + 3], y1 = pv[v0 * 3 + 4], n1 = pv[v0 * 3 + 5];
+    const x2 = pv[v0 * 3 + 6], y2 = pv[v0 * 3 + 7], n2 = pv[v0 * 3 + 8];
+    const area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+    let c: RGB = base;
+    if (hiTri[t]) c = HILITE; else if (lk && lk.custom[t]) { cc[0] = lk.rgb[t * 3]; cc[1] = lk.rgb[t * 3 + 1]; cc[2] = lk.rgb[t * 3 + 2]; c = cc; }
+    fillTri(color, z, W, H, x0, y0, n0, tc[0], x1, y1, n1, tc[1], x2, y2, n2, tc[2], c, area, depthOnly, xray, 1);
+  }
+  if (glass.length) {
+    // the transparent pass: depth-tested against the opaque faces, no depth writes, blended farthest first; a clear body shows a rim (Fresnel)
+    const order = glass.map((_, i) => i).sort((a, b) => glassDepth[a] - glassDepth[b]);
+    for (const i of order) {
+      const t = glass[i];
+      if (!shade(t)) continue;
+      const v0 = t * 3;
+      const x0 = pv[v0 * 3], y0 = pv[v0 * 3 + 1], n0 = pv[v0 * 3 + 2];
+      const x1 = pv[v0 * 3 + 3], y1 = pv[v0 * 3 + 4], n1 = pv[v0 * 3 + 5];
+      const x2 = pv[v0 * 3 + 6], y2 = pv[v0 * 3 + 7], n2 = pv[v0 * 3 + 8];
+      const area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+      const o9 = t * 9;
+      const facing = Math.abs(nrm[o9] * cam.dir[0] + nrm[o9 + 1] * cam.dir[1] + nrm[o9 + 2] * cam.dir[2]);
+      const a0 = lk!.opacity[t];
+      const alpha = Math.min(1, a0 + (1 - a0) * 0.55 * Math.pow(1 - Math.min(1, facing), 3));
+      const c: RGB = lk!.custom[t] ? [lk!.rgb[t * 3], lk!.rgb[t * 3 + 1], lk!.rgb[t * 3 + 2]] : [190, 205, 220];
+      fillTri(color, z, W, H, x0, y0, n0, tc[0], x1, y1, n1, tc[1], x2, y2, n2, tc[2], c, area, false, false, alpha);
+    }
   }
 
   // edges: B-rep polylines then mesh silhouettes
@@ -323,7 +403,7 @@ export function rectDims(r: Raster, x0: number, y0: number, x1: number, y1: numb
 
 // ---- inner loops ---------------------------------------------------------------------------------------------------
 
-function fillTri(r: Raster, z: Float32Array, W: number, H: number, x0: number, y0: number, n0: number, i0: number, x1: number, y1: number, n1: number, i1: number, x2: number, y2: number, n2: number, i2: number, c: RGB, area: number, depthOnly: boolean, xray: boolean): void {
+function fillTri(r: Raster, z: Float32Array, W: number, H: number, x0: number, y0: number, n0: number, i0: number, x1: number, y1: number, n1: number, i1: number, x2: number, y2: number, n2: number, i2: number, c: RGB, area: number, depthOnly: boolean, xray: boolean, alpha = 1): void {
   const minX = Math.max(0, Math.floor(Math.min(x0, x1, x2))), maxX = Math.min(W - 1, Math.ceil(Math.max(x0, x1, x2)));
   const minY = Math.max(0, Math.floor(Math.min(y0, y1, y2))), maxY = Math.min(H - 1, Math.ceil(Math.max(y0, y1, y2)));
   if (minX > maxX || minY > maxY) return;
@@ -353,9 +433,14 @@ function fillTri(r: Raster, z: Float32Array, W: number, H: number, x0: number, y
         continue;
       }
       if (n <= z[idx]) continue;
+      if (alpha < 1) {
+        // blended over what is there; the depth buffer is left alone
+        d[o4] = d[o4] + (Math.min(255, cr * I) - d[o4]) * alpha + 0.5; d[o4 + 1] = d[o4 + 1] + (Math.min(255, cg * I) - d[o4 + 1]) * alpha + 0.5; d[o4 + 2] = d[o4 + 2] + (Math.min(255, cb * I) - d[o4 + 2]) * alpha + 0.5; d[o4 + 3] = 255;
+        continue;
+      }
       z[idx] = n;
       if (depthOnly) { d[o4] = 252; d[o4 + 1] = 252; d[o4 + 2] = 252; d[o4 + 3] = 255; continue; }
-      d[o4] = cr * I + 0.5; d[o4 + 1] = cg * I + 0.5; d[o4 + 2] = cb * I + 0.5; d[o4 + 3] = 255;
+      d[o4] = Math.min(255, cr * I + 0.5); d[o4 + 1] = Math.min(255, cg * I + 0.5); d[o4 + 2] = Math.min(255, cb * I + 0.5); d[o4 + 3] = 255;
     }
   }
 }

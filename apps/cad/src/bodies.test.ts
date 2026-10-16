@@ -103,3 +103,17 @@ describe('visibility', () => {
     expect(readBodyFields(null)).toEqual({});
   });
 });
+
+import { bodyKey as snapKey, bodyOrigin as snapOrigin, faceLooks as snapLooks } from '@kit/snapshot';
+describe('the app and the snapshot renderer agree on keys', () => {
+  it('same body key, same origin feature, same resolved looks', () => {
+    const m = model();
+    const fields = { appearance: { F1: { color: '#101010' }, '@body:F5.+x': { opacity: 0.3, finish: 'glass' as const } } };
+    const rows = listBodies(m.bodies(), fields, {});
+    expect(rows.map((r) => snapKey(r.faces))).toEqual(rows.map((r) => r.key));
+    expect(rows.map((r) => snapOrigin(r.faces))).toEqual(rows.map((r) => r.origin));
+    const edges = m.data.edges.map((e) => ({ faces: e.faces }));
+    const { looks } = snapLooks(m.data.mesh as never, edges, fields);
+    for (const r of rows) for (const f of r.faces) expect(looks.get(f) ?? {}).toEqual(r.look);
+  });
+});

@@ -25,17 +25,21 @@ export interface SectionLike {
   bbox2d?: [number, number, number, number];
 }
 
+import type { AppearanceFields } from './appearance.js';
+
 /** What renderSnapshot draws: the ViewBody a Session gives (mesh, edges, box), plus optional extras. */
 export interface SnapshotInput {
   mesh: MeshLike;
   /** B-rep edge polylines (Session.bodyForView().edges) */
-  edges?: Array<{ key?: string; pts: number[][] }>;
+  edges?: Array<{ key?: string; pts: number[][]; /** the two faces the edge separates (used to find the bodies) */ faces?: string[] }>;
   box?: { min: number[]; max: number[] };
   name?: string;
   /** mm^3, shown in the title block of drawing sheets */
   volume?: number;
   /** exact section loops from the kernel `section` request */
   section?: SectionLike;
+  /** per-body colour, opacity and finish and the hidden bodies, as the document stores them (see docs/bodies-appearance.md); drawn unless `opts.appearance === false` */
+  appearance?: AppearanceFields;
 }
 
 export interface Marker { p: V3; label?: string; color?: [number, number, number] }
@@ -62,6 +66,8 @@ export interface SnapshotOpts {
   supersample?: number;
   /** drawing sheets: sheet title text */
   title?: string;
+  /** false: draw every body in the default grey even when the input carries an appearance */
+  appearance?: boolean;
 }
 
 export interface SnapshotMeta {
