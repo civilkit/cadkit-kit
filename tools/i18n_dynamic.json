@@ -1131,6 +1131,11 @@
   "catalog.bosl.choice.center",
   "catalog.bosl.choice.cut"
  ],
+ "catalog.plane.+": [
+  "catalog.plane.front",
+  "catalog.plane.right",
+  "catalog.plane.top"
+ ],
  "catalog.bosl.cat.+": [
   "catalog.bosl.cat.all",
   "catalog.bosl.cat.blocks",

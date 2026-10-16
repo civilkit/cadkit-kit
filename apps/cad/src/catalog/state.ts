@@ -3,6 +3,7 @@
 // (a pointer move must not re-render the whole app).
 import { signal } from '@preact/signals';
 import type { PlaceStatus } from './placer';
+import { DEFAULT_SETTING, type PlacementSetting } from './placement';
 
 export const armedItem = signal<string | null>(null);
 export const ghost = signal<{ x: number; y: number; itemId: string } | null>(null);
@@ -31,3 +32,10 @@ export function selectShapeFeature(id: string): void {
   selector?.(id);
   for (const l of [...listeners]) l(id);
 }
+
+/** Place on / flip / rotate / mirror: how the next catalog item stands on its plane (see placement.ts). */
+export const placementSetting = signal<PlacementSetting>(DEFAULT_SETTING);
+/** The reference plane a catalog drag is over (Front / Top / Right), for the viewport highlight; null: none. */
+export const catalogPlane = signal<'front' | 'top' | 'right' | null>(null);
+/** A catalog item is armed or being dragged: the viewport shows the reference planes as drop targets. */
+export const catalogActive = signal(false);

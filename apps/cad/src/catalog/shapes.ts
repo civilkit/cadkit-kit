@@ -5,6 +5,7 @@ import type { EditOp } from '@ck/session';
 import { ISO_SIZES, ISO_TABLE, newHole, type HoleKind } from '../holeData';
 import { niceSize } from '../featureCommands';
 import type { V3 } from './geometry';
+import { applyPlacement, type Placement, type PlaneRef } from './placement';
 
 export type ShapeKind = 'block' | 'cylinder' | 'sphere' | 'cone' | 'boss' | 'slot' | 'hole' | 'cbore' | 'csink';
 export type ShapeOp = 'add' | 'cut';
@@ -53,6 +54,11 @@ export interface PlaceTarget {
   /** The two largest sides of the face in its plane, and the part's size along the face normal. */
   extent?: [number, number];
   thickness?: number;
+  /** Ground targets: the plane the first body (or a plane-feature drop) goes on (absent: the Front plane) and the point on it in its own coordinates. */
+  plane?: PlaneRef;
+  uv?: [number, number];
+  /** How the shape stands on that plane (see placement.ts). */
+  place?: Placement;
 }
 
 export interface BuiltShape {
@@ -171,8 +177,8 @@ export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, 
   let plane: Record<string, unknown>;
   let u = 0, v = 0;
   if (target.kind === 'ground') {
-    plane = { kind: 'std', id: 'front' };
-    u = Math.round(target.point[0]); v = Math.round(target.point[1]);
+    plane = target.plane ? { ...target.plane } : { kind: 'std', id: 'front' };
+    u = Math.round(target.uv ? target.uv[0] : target.point[0]); v = Math.round(target.uv ? target.uv[1] : target.point[1]);
   } else if (target.planar) {
     if (!target.frame) return { error: 'noFrame' };
     const f = target.frame;
@@ -225,5 +231,6 @@ export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, 
   }
   ops.push({ op: 'add', feature: { type: 'sketch', id: sketchId, name: `${name} sketch`, plane, points: profile.points, entities: profile.entities, constraints: [] } });
   ops.push({ op: 'add', feature });
+  if (target.kind === 'ground' && target.place) applyPlacement(ops.map((o) => (o as { feature: Record<string, unknown> }).feature), target.place, [u, v]);
   return { ops, mainId, sketchId, size, helpers };
 }

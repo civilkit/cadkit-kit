@@ -26,6 +26,10 @@ export interface Place {
   ground: boolean;
   /** Face name when placed on a face (the fillet then leaves the footprint edges alone). */
   hostFace?: string;
+  /** JSON of the plane reference a perpendicular helper plane is made from (`{ kind: 'std', id: 'top' }` / the host face). Default: the host face. */
+  base?: string;
+  /** World letter of the plane normal for the ground (the shape's own side edges are parallel to it). Default Z. */
+  axis?: 'X' | 'Y' | 'Z';
   /** Centre of the footprint in the sketch plane. */
   at: [number, number];
   /** Variable name prefix when parameters become document variables; null: literal numbers (previews, tests). */
@@ -110,22 +114,48 @@ function segCalls(segs: Seg[], map: (q: Pt) => Pt, flip: boolean): string {
 
 /** Selector of the edges a shape's own rounding or chamfer touches: all of them for the first body, the shape's own edges off the host face otherwise. */
 function ownEdges(pl: Place, extra = ''): string {
-  if (pl.ground) return extra ? `edges({ createdBy: body${extra} })` : `edges('all')`;
+  if (pl.ground) return extra ? `edges({ createdBy: body${extra} })` : `edges({ createdBy: body })`;
   return `edges({ createdBy: body, not: ${extra ? `edges({ union: [edges({ onFace: face('${pl.hostFace}') }), ${extra}] })` : `edges({ onFace: face('${pl.hostFace}') })`} })`;
 }
 const edgeOp = (kind: 'rounding' | 'chamfer', sel: string, amount: string): string => (kind === 'rounding' ? `.fillet(${sel}, ${amount})` : `.chamfer(${sel}, ${amount})`);
 
-/** Revolve about the shape axis. Ground: the Right plane (sketch x is -Z, y is the radius) with the axis along sketch x. Face: a plane perpendicular to the face through a helper line, its y is the face normal. */
+/**
+ * Revolve about the shape axis. On a standard ground plane the profile is drawn on a standard plane PERPENDICULAR to it (the kernel meshes
+ * these revolves reliably): `GROUND_REVOLVE` gives that plane, how (radius, axial) maps onto its sketch axes (axial = the placement plane's
+ * normal) and the axis line. On a face or a plane feature: a plane perpendicular to it through a helper line, its y is the plane normal.
+ */
+type StdPlane = 'front' | 'top' | 'right';
+/** Same as STD_FRAMES in placement.ts (a test keeps them equal): this file takes no runtime imports. */
+const STD_FRAMES: Record<StdPlane, { x: number[]; y: number[]; n: number[] }> = {
+  front: { x: [1, 0, 0], y: [0, 1, 0], n: [0, 0, 1] },
+  top: { x: [1, 0, 0], y: [0, 0, -1], n: [0, 1, 0] },
+  right: { x: [0, 0, -1], y: [0, 1, 0], n: [1, 0, 0] },
+};
+const GROUND_REVOLVE: Record<StdPlane, { q: StdPlane; map: (q: Pt) => Pt; axis: Pt }> = {
+  front: { q: 'right', map: (q) => [-q[1], q[0]], axis: [1, 0] },     // Right: sketch x is -Z, y is the radius
+  top: { q: 'right', map: (q) => [q[0], q[1]], axis: [0, 1] },        // Right: sketch y is +Y, the axial direction
+  right: { q: 'top', map: (q) => [q[1], -q[0]], axis: [1, 0] },       // Top: sketch x is +X, the axial direction
+};
+const groundStd = (pl: Place): StdPlane | null => (pl.ground ? ((/^'(front|top|right)'$/.exec(pl.plane)?.[1] as StdPlane | undefined) ?? null) : null);
+const isFront = (pl: Place): boolean => groundStd(pl) === 'front';
 function revolveScript(name: string, pl: Place, segsOrCircle: { segs?: Seg[]; circle?: { c: Pt; r: number } }): string {
-  const ground = pl.ground;
-  // ground: (radius, axial) -> (-z, y) on the Right plane; face: the plane through the helper line starts AT the line, its y is the face normal
-  const map = (q: Pt): Pt => (ground ? [-q[1], q[0]] : [q[0], q[1]]);
+  const std = groundStd(pl);
+  if (std) {
+    const g = GROUND_REVOLVE[std];
+    const f = STD_FRAMES[std], q = STD_FRAMES[g.q];
+    const w = [0, 1, 2].map((i) => pl.at[0] * f.x[i] + pl.at[1] * f.y[i]);          // the shape centre in the world
+    const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const sh: Pt = [dot(w, q.x) || 0, dot(w, q.y) || 0], off = dot(w, q.n) || 0;
+    const map = (p: Pt): Pt => { const m = g.map(p); return [m[0] + sh[0], m[1] + sh[1]]; };
+    const draw = segsOrCircle.circle ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(map(segsOrCircle.circle.c))})` : `s${segCalls(segsOrCircle.segs!, map, false)}`;
+    const on = off ? `at('${g.q}', ${n(off)})` : `'${g.q}'`;
+    return `part('${name}')\n  .sketch(${on}, (s) => ${draw})\n  .revolve(360, { axis: { from: ${P([sh[0], sh[1]])}, to: ${P([sh[0] + g.axis[0], sh[1] + g.axis[1]])} } });\n`;
+  }
   const draw = segsOrCircle.circle
-    ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(map(segsOrCircle.circle.c))})`
-    : `s${segCalls(segsOrCircle.segs!, map, false)}`;
-  if (ground) return `part('${name}')\n  .sketch('right', (s) => ${draw})\n  .revolve(360, { axis: { from: [0, 0], to: [1, 0] } });\n`;
+    ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(segsOrCircle.circle.c)})`
+    : `s${segCalls(segsOrCircle.segs!, (q) => q, false)}`;
   return `const base_ = part('${name}')\n  .sketchFeature(${pl.plane}, { points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: ${n(pl.at[0])}, y: ${n(pl.at[1])} }, { id: 'b', x: ${n(pl.at[0] + 1)}, y: ${n(pl.at[1])} }], entities: [{ id: 'ax', type: 'line', p1: 'a', p2: 'b', construction: true }] })\n`
-    + `  .feature({ type: 'plane', mode: 'perpendicular', base: { kind: 'face', id: '${pl.hostFace}' }, axis: { kind: 'sketchLine', sketch: '$sketch', entity: 'ax' }, visible: false });\n`
+    + `  .feature({ type: 'plane', mode: 'perpendicular', base: ${pl.base ?? `{ kind: 'face', id: '${pl.hostFace}' }`}, axis: { kind: 'sketchLine', sketch: '$sketch', entity: 'ax' }, visible: false });\n`
     + `const axisPlane = base_.handle();\nbase_.sketch(at(axisPlane, 0), (s) => ${draw})\n  .revolve(360);\n`;
 }
 
@@ -293,8 +323,8 @@ const wedge: BoslEntry = {
   check: () => null,
   script(p, pl) {
     const y = num(p, 'y'), z = num(p, 'z'), [u, v] = pl.at;
-    const pts = pl.ground ? [[0, y], [0, 0], [-z, 0]] : [[u + y, v], [u, v], [u, v + z]];
-    return header(this, p, pl) + `part('Wedge')\n  .sketch(${pl.ground ? "'right'" : pl.plane}, (s) => s.polygon(${JSON.stringify(pts)}))\n  .extrude(${val(p, 'x', pl)});\n`;
+    const pts = isFront(pl) ? [[0, y], [0, 0], [-z, 0]] : [[u + y, v], [u, v], [u, v + z]];
+    return header(this, p, pl) + `part('Wedge')\n  .sketch(${isFront(pl) ? "'right'" : pl.plane}, (s) => s.polygon(${JSON.stringify(pts)}))\n  .extrude(${val(p, 'x', pl)});\n`;
   },
   scad: (p) => `wedge([${p.x}, ${p.y}, ${p.z}]);`,
 };
@@ -318,7 +348,7 @@ const regularPrism: BoslEntry = {
     const pts = Array.from({ length: nn }, (_, i) => [+(pl.at[0] + r * Math.cos(off + 2 * Math.PI * i / nn)).toFixed(6), +(pl.at[1] + r * Math.sin(off + 2 * Math.PI * i / nn)).toFixed(6)]);
     const kind = num(p, 'rounding') > 0 ? 'rounding' : num(p, 'chamfer') > 0 ? 'chamfer' : null;
     let s = header(this, p, pl) + `const body_ = part('Prism')\n  .sketch(${pl.plane}, (s) => s.polygon(${JSON.stringify(pts)}))\n  ${sweep(p, 'h', pl, p.anchor === 'center')};\n`;
-    if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, pl.ground ? `edges({ createdBy: body, not: edges('|Z') })` : ownEdges(pl, `edges('|Z')`), val(p, kind, pl))};\n`;
+    if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, pl.ground ? `edges({ createdBy: body, not: edges('|${pl.axis ?? 'Z'}') })` : ownEdges(pl, `edges('|${pl.axis ?? 'Z'}')`), val(p, kind, pl))};\n`;
     return s;
   },
   scad: (p) => scadMode(p, `regular_prism(n=${p.n}, h=${p.h}, r=${p.r}${p.realign ? ', realign=true' : ''}${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`),
@@ -373,9 +403,9 @@ const teardrop: BoslEntry = {
   check(p) { return num(p, 'cap_h') > 0 && num(p, 'cap_h') < num(p, 'r') * Math.sin(num(p, 'ang') * Math.PI / 180) ? 'cap_h is below the circle tangent height' : null; },
   script(p, pl) {
     const segs = teardropSegs(num(p, 'r'), num(p, 'ang'), num(p, 'cap_h'));
-    // ground: the Top plane (sketch y is -Z, so z up is -y: orientation flips); face: the face plane as is
-    const map = (q: Pt): Pt => (pl.ground ? [q[0], -q[1]] : [q[0] + pl.at[0], q[1] + pl.at[1]]);
-    return header(this, p, pl) + `part('Teardrop')\n  .sketch(${pl.ground ? "'top'" : pl.plane}, (s) => s${segCalls(segs, map, pl.ground)})\n  .extrude(${val(p, 'l', pl)}, { direction: 'both' });\n`;
+    // Front (the BOSL2 frame): drawn on the Top plane, sketch y is -Z so z up is -y (orientation flips); elsewhere on the placement plane as it is
+    const map = (q: Pt): Pt => (isFront(pl) ? [q[0], -q[1]] : [q[0] + pl.at[0], q[1] + pl.at[1]]);
+    return header(this, p, pl) + `part('Teardrop')\n  .sketch(${isFront(pl) ? "'top'" : pl.plane}, (s) => s${segCalls(segs, map, isFront(pl))})\n  .extrude(${val(p, 'l', pl)}, { direction: 'both' });\n`;
   },
   scad: (p) => `teardrop(l=${p.l}, r=${p.r}, ang=${p.ang}${num(p, 'cap_h') > 0 ? `, cap_h=${p.cap_h}` : ''});`,
 };

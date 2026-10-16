@@ -815,6 +815,16 @@ export class Viewport {
     this.dom.style.cursor = hook ? 'copy' : '';
     if (hook) { this.setHover(null); this.lastHover = null; }
   }
+  /** The reference plane (Front / Top / Right) drawn under a screen position, or null (none drawn, or nothing there). */
+  refPlaneAt(x: number, y: number): RefPlaneId | null {
+    if (!this.containsClient(x, y) || !this.refPlanes.group.visible) return null;
+    this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
+    return this.refPlanes.pick(this.raycaster);
+  }
+  /** The datum-plane feature (id) drawn under a screen position, or null. */
+  planeFeatureAt(x: number, y: number): string | null {
+    return this.containsClient(x, y) && this.layerOn('planes') ? this.pickPlaneFeature(x, y) : null;
+  }
   /** Whether a screen position is over the canvas. */
   containsClient(x: number, y: number): boolean {
     const r = this.dom.getBoundingClientRect();

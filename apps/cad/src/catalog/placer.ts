@@ -5,7 +5,8 @@
 import type { EditOp } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { buildShape, defaultSize, shapeName, type BuildResult, type BuiltShape, type CatalogItem, type PlaceTarget } from './shapes';
-import { faceInfos, rayFrontPlane, raycast, snapCandidates, snapTo, type EdgeLike, type MeshArrays, type SnapKind, type V3 } from './geometry';
+import { DEFAULT_SETTING, groundPlane, describePlacement, rayStdPlane, toPlaneUV, type PlaneRef, type PlacementSetting, type StdPlane, type UpAxis } from './placement';
+import { faceInfos, raycast, snapCandidates, snapTo, type EdgeLike, type MeshArrays, type SnapKind, type V3 } from './geometry';
 
 export interface PlacerDeps {
   document(): PartDoc | null;
@@ -22,6 +23,12 @@ export interface PlacerDeps {
   commitPatch?(patch: NonNullable<BuiltShape['patch']>, reason: string): Promise<{ ok: boolean }>;
   /** Parts library: run the entry's script in attach mode (linked: parameters become document variables). */
   buildBosl?(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult>;
+  /** The up axis of the view (nav setting): the ground plane is the one whose normal it is. */
+  upAxis?(): UpAxis;
+  /** The Place-on / flip / rotate / mirror choice. */
+  placement?(): PlacementSetting;
+  /** The reference plane (Front / Top / Right) or plane feature drawn under a screen position, or null. */
+  planeAt?(x: number, y: number): PlaneRef | null;
   rayAt(x: number, y: number): { o: number[]; d: number[] } | null;
   worldPerPixel(p: number[]): number;
   /** Translucent body while previewing. */
@@ -33,7 +40,10 @@ export interface PlacerDeps {
 export type PlaceStatus =
   | { state: 'idle' }
   | { state: 'blocked'; reason: 'needsBody' | 'miss' | 'noFrame' | 'failed' | 'planarOnly' | 'invalid' | 'scriptFailed'; hint?: string }
-  | { state: 'ready'; face: string | null; snap: SnapKind | null; size: number; point: V3 };
+  | { state: 'ready'; face: string | null; snap: SnapKind | null; size: number; point: V3; /** Ground targets: the plane it lands on (Front / Top / Right, or the plane feature's id). */ plane?: PlaneRef; ground?: boolean };
+
+/** English name of a standard plane (history entries are not translated). */
+export const planeName = (id: StdPlane): string => id[0].toUpperCase() + id.slice(1);
 
 /** Pixels within which a corner, midpoint or centre catches the pointer. */
 export const SNAP_PX = 14;
@@ -52,6 +62,10 @@ export class Placer {
   /** Ids of helper features of the last drop (see BuiltShape.helpers). */
   lastHelpers: string[] = [];
   private fading = false;
+  private last: { item: CatalogItem; x: number; y: number; alt: boolean } | null = null;
+
+  /** Placement choices (R / F / the row) changed: look at the same spot again. */
+  rehover(): void { if (this.last) this.hover(this.last.item, this.last.x, this.last.y, this.last.alt); }
 
   constructor(private readonly deps: PlacerDeps, private readonly onStatus: (s: PlaceStatus) => void = () => {}) {}
 
@@ -69,13 +83,26 @@ export class Placer {
     if (!ray) return { blocked: 'miss' };
     const solid = this.deps.hasSolid();
     const mesh = this.deps.bodyFaces();
+    const setting = this.deps.placement?.() ?? DEFAULT_SETTING;
+    const onPlane = (needHit: boolean): Spot | { blocked: 'miss' } => {
+      const hit = this.deps.planeAt?.(x, y) ?? null;
+      if (needHit && !hit) return { blocked: 'miss' };
+      const ref: PlaneRef = hit ?? { kind: 'std', id: setting.plane === 'auto' ? groundPlane(this.deps.upAxis?.() ?? 'z') : setting.plane };
+      const place = { flip: setting.flip, rot: setting.rot, mirror: setting.mirror };
+      if (ref.kind === 'std') {
+        const g = rayStdPlane(ref.id, ray.o, ray.d) ?? (hit ? null : [0, 0, 0] as V3);
+        if (!g) return { blocked: 'miss' };
+        const uv = toPlaneUV(ref.id, g);
+        return { target: { kind: 'ground', point: g, plane: ref, uv, place }, snap: null };
+      }
+      return { target: { kind: 'ground', point: [0, 0, 0], plane: ref, uv: [0, 0], place }, snap: null };
+    };
     if (!solid || !mesh) {
       if (item.op === 'cut') return { blocked: 'needsBody' };
-      const g = rayFrontPlane(ray.o, ray.d);
-      return g ? { target: { kind: 'ground', point: g }, snap: null } : { blocked: 'miss' };
+      return onPlane(false);
     }
     const hit = raycast(mesh, ray.o, ray.d);
-    if (!hit) return { blocked: 'miss' };
+    if (!hit) return item.op === 'cut' ? { blocked: 'miss' } : onPlane(true);
     const info = faceInfos(mesh).get(hit.face);
     if (!info) return { blocked: 'miss' };
     let point = hit.point;
@@ -108,6 +135,7 @@ export class Placer {
 
   /** The pointer moved: re-resolve and refresh the preview (latest position wins; one kernel call at a time). */
   hover(item: CatalogItem, x: number, y: number, alt = false): void {
+    this.last = { item, x, y, alt };
     const spot = this.resolve(item, x, y, alt);
     if ('blocked' in spot) {
       this.wanted = null; this.current = null;
@@ -117,8 +145,8 @@ export class Placer {
     }
     const doc = this.deps.document();
     if (!doc) return;
-    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length, item.bosl ? JSON.stringify(item.bosl.params) : ''].join('|');
-    this.set({ state: 'ready', face: spot.target.face ?? null, snap: spot.snap, size: defaultSize(spot.target), point: spot.target.point });
+    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length, spot.target.plane ? JSON.stringify(spot.target.plane) + JSON.stringify(spot.target.place) : '', item.bosl ? JSON.stringify(item.bosl.params) : ''].join('|');
+    this.set({ state: 'ready', face: spot.target.face ?? null, snap: spot.snap, size: defaultSize(spot.target), point: spot.target.point, plane: spot.target.plane, ground: spot.target.kind === 'ground' });
     if (this.wanted?.key === key || this.current?.key === key) return;
     this.wanted = { item, target: spot.target, key };
     void this.pump();
@@ -175,7 +203,19 @@ export class Placer {
   async drop(item: CatalogItem, x: number, y: number, alt = false): Promise<string | null> {
     this.generation++;     // any preview still running is dropped
     this.wanted = null;
-    const spot = this.resolve(item, x, y, alt);
+    return this.dropSpot(item, this.resolve(item, x, y, alt));
+  }
+
+  /** Drop on a plane named directly (a plane row of the history tree): no pointer ray, the shape goes to the plane's origin. */
+  async dropOnPlane(item: CatalogItem, plane: PlaneRef): Promise<string | null> {
+    this.generation++;
+    this.wanted = null;
+    if (item.op === 'cut') { await this.end(); this.set({ state: 'blocked', reason: this.deps.hasSolid() ? 'miss' : 'needsBody' }); return null; }
+    const s = this.deps.placement?.() ?? DEFAULT_SETTING;
+    return this.dropSpot(item, { target: { kind: 'ground', point: [0, 0, 0], plane, uv: [0, 0], place: { flip: s.flip, rot: s.rot, mirror: s.mirror } }, snap: null });
+  }
+
+  private async dropSpot(item: CatalogItem, spot: Spot | { blocked: 'needsBody' | 'miss' }): Promise<string | null> {
     if ('blocked' in spot) { await this.end(); this.set({ state: 'blocked', reason: spot.blocked }); return null; }
     const doc = this.deps.document();
     if (!doc) { await this.end(); return null; }
@@ -189,7 +229,9 @@ export class Placer {
     if ('error' in built) { await this.end(); this.set({ state: 'blocked', reason: built.error, hint: (built as { hint?: string }).hint }); return null; }
     this.deps.setFade(false); this.fading = false;
     this.deps.holdView(this.deps.hasSolid());
-    const why = `Catalog: ${shapeName(item)}`;
+    const pn = target.kind === 'ground' && target.plane ? (target.plane.kind === 'std' ? planeName(target.plane.id) : target.plane.id) : null;
+    const note = pn && target.place ? describePlacement(pn, target.place) : '';
+    const why = `Catalog: ${shapeName(item)}${note ? ` (${note})` : ''}`;
     const r = await (built.patch && this.deps.commitPatch ? this.deps.commitPatch(built.patch, why) : this.deps.commit(built.ops, why)).finally(() => this.deps.holdView(false));
     this.lastHelpers = built.helpers;
     void this.end(true);
@@ -199,7 +241,7 @@ export class Placer {
   /** Stop placing: drop the preview and forget the cached frames. */
   async end(committed = false): Promise<void> {
     this.generation++;
-    this.wanted = null; this.current = null; this.frames.clear();
+    this.wanted = null; this.current = null; this.frames.clear(); this.last = null;
     const was = this.fading;
     this.fading = false;
     if (was && !committed) await this.cancelHeld();

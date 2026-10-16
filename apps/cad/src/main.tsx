@@ -88,7 +88,7 @@ import { useHandles } from './useHandles';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
 import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
 import { useCatalog } from './catalog/useCatalog';
-import { setShapeSelector } from './catalog/state';
+import { catalogActive, catalogPlane, setShapeSelector } from './catalog/state';
 import { useTriBall } from './triball/useTriBall';
 import { loadNavPrefs, saveNavPrefs, type NavPrefs } from './navPrefs';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
@@ -1724,9 +1724,10 @@ function App() {
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
+    upAxis: () => navPrefs.upAxis,
     hide: (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; },
   });
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
@@ -1794,13 +1795,14 @@ function App() {
   const planeIds = ['front', 'top', 'right'] as const;
   const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId && !controller.hasSolid() && !controller.hasImportedBody();   // an imported part has no features but is not an empty start
   const refPlane = (id: string | null) => (id === 'front' || id === 'top' || id === 'right' ? id : null);
+  const catPlane = catalogPlane.value, catActive = catalogActive.value;   // a catalog drag shows the planes as drop targets and lights the one under the pointer
   useEffect(() => {
     viewport?.setRefPlanes(
-      emptyPart1 ? [...planeIds] : [],
-      sketching ? null : refPlane(refHover) ?? refPlane(refSel),
+      emptyPart1 || catActive ? [...planeIds] : [],
+      sketching ? null : catPlane ?? refPlane(refHover) ?? refPlane(refSel),
       { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
-  }, [emptyPart1, sketching, refHover, refSel, !!doc]);
+  }, [emptyPart1, sketching, refHover, refSel, !!doc, catPlane, catActive]);
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
   useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
@@ -1999,7 +2001,7 @@ function App() {
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
         onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName })); }} /> : null}
       {dragging ? <DropOverlay /> : null}
-      <CatalogGhost />
+      <CatalogGhost hasSolid={controller.hasSolid()} />
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
         onDiscard={() => { const go = guard; setGuard(null); void go(); }}
         onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
