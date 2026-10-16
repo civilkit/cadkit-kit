@@ -1,4 +1,5 @@
 import { matxScript } from './matx';
+import { dashScript } from './dash';
 export interface Example { id: string; title: string; code: string }
 export const EXAMPLES: Example[] = [
   {
@@ -105,6 +106,7 @@ part('Motor end cap')
   .circularPattern({ count: 8, axis: 'x' });
 `,
   },
+  { id: 'speedboat-dash', title: 'Speedboat analog dash cluster (4 gauges, ~150 features, ~20 s)', code: dashScript() },
   { id: 'matx-frame', title: 'mATX case: hoops, corner blocks, strips (fast)', code: matxScript(['blocks', 'strips', 'hoops']) },
   { id: 'matx-case', title: 'mATX case: the whole tower (several minutes to regenerate)', code: matxScript() },
 ];
