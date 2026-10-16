@@ -1,0 +1,143 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Plate",
+ "variables": [
+  {
+   "name": "w",
+   "expr": "40",
+   "unit": "mm"
+  },
+  {
+   "name": "h",
+   "expr": "20",
+   "unit": "mm"
+  },
+  {
+   "name": "t",
+   "expr": "2",
+   "unit": "mm"
+  }
+ ],
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "name": "Plate outline",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p2",
+     "x": 40,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 40,
+     "y": 20
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": 20
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": [
+    {
+     "id": "c1",
+     "type": "horizontal",
+     "refs": [
+      "e1"
+     ]
+    },
+    {
+     "id": "c2",
+     "type": "vertical",
+     "refs": [
+      "e2"
+     ]
+    },
+    {
+     "id": "c3",
+     "type": "horizontal",
+     "refs": [
+      "e3"
+     ]
+    },
+    {
+     "id": "c4",
+     "type": "vertical",
+     "refs": [
+      "e4"
+     ]
+    },
+    {
+     "id": "c5",
+     "type": "distance",
+     "refs": [
+      "p1",
+      "p2"
+     ],
+     "value": 40,
+     "expr": "w"
+    },
+    {
+     "id": "c6",
+     "type": "distance",
+     "refs": [
+      "p2",
+      "p3"
+     ],
+     "value": 20,
+     "expr": "h"
+    }
+   ]
+  },
+  {
+   "type": "extrude",
+   "id": "F2",
+   "name": "Plate",
+   "op": "add",
+   "sketch": "F1",
+   "end": "blind",
+   "depth": "=t"
+  }
+ ],
+ "seq": 3,
+ "material": "steel"
+}

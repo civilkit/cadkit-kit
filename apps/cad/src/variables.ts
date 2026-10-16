@@ -24,7 +24,7 @@ export const renameIn = (expr: string, from: string, to: string): string => expr
 
 type Walk = (container: Record<string, unknown> | unknown[], key: string | number, value: string, path: string) => void;
 /** Visit every expression string in a feature: values starting with `=`, and the `expr` of a sketch constraint. */
-function eachExpr(node: unknown, path: string, fn: Walk): void {
+export function eachExpr(node: unknown, path: string, fn: Walk): void {
   if (Array.isArray(node)) { node.forEach((x, i) => { if (typeof x === 'string' && x.trim().startsWith('=')) fn(node, i, x, `${path}.${i}`); else eachExpr(x, `${path}.${i}`, fn); }); return; }
   if (node && typeof node === 'object') {
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
