@@ -102,7 +102,9 @@ import './toolbar.css';
 const base = import.meta.env.BASE_URL;
 const platform = createWebPlatform({ base });
 const files = new FileManager(platform, browserKV());
-const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+/** True while a script run builds its part: nothing is autosaved meanwhile. */
+let scriptRunning = false;
+const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
@@ -1637,19 +1639,28 @@ function App() {
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
-  const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code) => new Promise((resolve) => {
+  const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code, run) => new Promise((resolve) => {
     // a script always builds a NEW untitled part; the unsaved-changes guard decides whether the current one may be left
     guarded(async () => {
-      const r = await runScript(code, {
-        load: (d) => load(JSON.stringify({ ...emptyPart(files.names.next()), ...d })),
-        edit: async (ops, why) => (await controller.edit(ops, why)) as never,
-        geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
-      });
-      controller.setDocExtra('script', code);
-      redraw((n) => n + 1);
-      setLeftTab('Script');
-      if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));
-      resolve(r.errors);
+      // while it runs: busy (the autosave waits), and the part that is open stays as it is until the finished list is opened in one step
+      store.busy.value = true; scriptRunning = true;
+      try {
+        const r = await runScript(code, {
+          load: (d) => load(JSON.stringify({ ...emptyPart(files.names.next()), ...d })),
+          edit: async (ops, why) => (await controller.edit(ops, why)) as never,
+          geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
+          ...(controller.canScratchBuild() ? {
+            build: (d, view) => controller.scratchBuild(d as never, view) as never,
+            release: () => controller.scratchRelease(),
+          } : {}),
+        }, {}, run);
+        if (r.cancelled) { store.notify(t('script.cancelled')); resolve([]); return; }
+        controller.setDocExtra('script', code);
+        redraw((n) => n + 1);
+        setLeftTab('Script');
+        if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));
+        resolve(r.errors);
+      } finally { store.busy.value = false; scriptRunning = false; }
     });
   })} />;
   const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Catalog'); };

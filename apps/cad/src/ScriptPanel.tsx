@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { EXAMPLES, type ScriptError } from '@kit/script';
+import { EXAMPLES, createRunControl, formatElapsed, throttleProgress, type Progress, type RunOptions, type ScriptError } from '@kit/script';
 import { t } from './i18n';
 
 /** The Script tab: a code box with line numbers, Run (Ctrl/Cmd+Enter), examples and the error list. Running opens a NEW part. */
-export function ScriptPanel(p: { saved: string; onRun(code: string): Promise<ScriptError[]> }): JSX.Element {
+export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<RunOptions, 'signal' | 'onProgress'>): Promise<ScriptError[]> }): JSX.Element {
   const [code, setCode] = useState(p.saved || EXAMPLES[0].code);
   const [errors, setErrors] = useState<ScriptError[]>([]);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -13,8 +13,21 @@ export function ScriptPanel(p: { saved: string; onRun(code: string): Promise<Scr
   useEffect(() => { if (p.saved) { setCode(p.saved); setErrors([]); } }, [p.saved]);
   const lines = code.split('\n').length;
   const bad = new Set(errors.map((e) => e.line));
+  // a run in progress: the report (throttled), the time it started and the switch that cancels it
+  const [prog, setProg] = useState<Progress | null>(null);
+  const [, setTick] = useState(0);
+  const [cancelling, setCancelling] = useState(false);
+  const started = useRef(0);
+  const ctl = useRef<ReturnType<typeof createRunControl> | null>(null);
   const run = async (): Promise<void> => {
-    setErrors(await p.onRun(code));
+    if (ctl.current) return;
+    const c = createRunControl();
+    ctl.current = c; started.current = performance.now(); setCancelling(false);
+    setProg({ phase: 'building', done: 0, total: 0, elapsedMs: 0 });
+    const tick = setInterval(() => setTick((n) => n + 1), 500);
+    try {
+      setErrors(await p.onRun(code, { signal: c.signal, onProgress: throttleProgress(setProg) }));
+    } finally { clearInterval(tick); ctl.current = null; setProg(null); }
   };
   const gotoLine = (line: number): void => {
     const el = area.current;
@@ -27,12 +40,19 @@ export function ScriptPanel(p: { saved: string; onRun(code: string): Promise<Scr
   return (
     <div class="script-panel" style="display:flex;flex-direction:column;gap:6px;padding:8px;height:100%;box-sizing:border-box;min-height:0">
       <div style="display:flex;gap:6px;align-items:center">
-        <button class="btn primary" onClick={() => void run()} title="Ctrl/Cmd+Enter">{t('script.run')}</button>
+        <button class="btn primary" disabled={!!prog} onClick={() => void run()} title="Ctrl/Cmd+Enter">{t('script.run')}</button>
+        {prog ? <button class="btn" onClick={() => { ctl.current?.cancel(); setCancelling(true); }}>{t('script.cancel')}</button> : null}
         <select aria-label={t('script.examples')} value="" onChange={(e) => { const ex = EXAMPLES.find((x) => x.id === (e.currentTarget as HTMLSelectElement).value); if (ex) { setCode(ex.code); setErrors([]); } }}>
           <option value="">{t('script.examples')}</option>
           {EXAMPLES.map((x) => <option key={x.id} value={x.id}>{t('script.example.' + x.id)}</option>)}
         </select>
       </div>
+      {prog ? (
+        <div role="status" aria-live="polite" style="font-size:12px;display:flex;flex-direction:column;gap:3px">
+          <div>{cancelling ? t('script.cancelling') : prog.phase === 'loading' ? t('script.loading') : t('script.progress', { done: prog.done, total: prog.total })} · {formatElapsed(performance.now() - started.current)}</div>
+          <progress max={Math.max(1, prog.total)} value={prog.done} style="width:100%" />
+        </div>
+      ) : null}
       <div style="display:flex;flex:1;min-height:160px;border:1px solid var(--border,#888);border-radius:4px;overflow:hidden;font:12px/18px ui-monospace,Menlo,monospace">
         <pre ref={gutter} aria-hidden="true" style="margin:0;padding:4px 6px;text-align:right;overflow:hidden;opacity:.7;user-select:none;min-width:2.5em">
           {Array.from({ length: lines }, (_, i) => <div key={i} style={bad.has(i + 1) ? 'color:#e5484d;font-weight:700' : ''}>{i + 1}</div>)}
