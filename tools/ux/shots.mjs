@@ -3,8 +3,9 @@
 //   node tools/ux/shots.mjs --out <dir> [--baseline <dir>] [--url <url>] [--only a,b] [--quick] [--widths 1440,820] [--schemes light,dark]
 // Without --url it starts the vite dev server of this checkout on a free port in 5500-5549 and stops it at the end.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { launchChrome, Page } from './cdp.mjs';
 import { collectMetrics, findings, THRESHOLDS } from './metrics.mjs';
@@ -68,7 +69,7 @@ async function startVite() {
   for (let port = 5500; port < 5550; port++) {
     try { await fetch(`http://localhost:${port}/`); continue; } catch { /* free */ }
     const cache = existsSync(SCRATCH) ? join(SCRATCH, 'vite-cache') : join(ROOT, 'node_modules/.vite-ux');
-    const proc = spawn('npx', ['vite', 'apps/cad', '--config', 'vite.config.ts', '--port', String(port), '--strictPort'], { cwd: ROOT, env: { ...process.env, VITE_CACHE_DIR: cache }, stdio: 'ignore' });
+    const proc = spawn(process.execPath, [join(ROOT, 'node_modules/vite/bin/vite.js'), 'apps/cad', '--config', 'vite.config.ts', '--port', String(port), '--strictPort'], { cwd: ROOT, env: { ...process.env, VITE_CACHE_DIR: cache }, stdio: 'ignore' });
     for (let i = 0; i < 120; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) return { url: `http://localhost:${port}/`, stop: () => proc.kill('SIGTERM') }; } catch { /* booting */ } await sleep(500); }
     proc.kill('SIGTERM'); throw new Error('vite did not start');
   }
@@ -78,8 +79,9 @@ async function startVite() {
 async function main() {
   const t0 = Date.now(); mkdirSync(OUT, { recursive: true });
   const vite = args.url ? null : await startVite(); const url = args.url ?? vite.url;
-  const chrome = await launchChrome({ port: CHROME_PORT, profileDir: existsSync(SCRATCH) ? join(SCRATCH, 'chrome-profile') : undefined });
+  const chrome = await launchChrome({ port: CHROME_PORT, profileDir: join(existsSync(SCRATCH) ? SCRATCH : tmpdir(), 'chrome-profile-ux') });
   const results = []; let exit = 0;
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { chrome.close(); vite?.stop(); process.exit(130); });
   try {
     const page = await Page.open(CHROME_PORT); const ctx = makeCtx(page, url);
     await page.setViewport(WIDTHS[0].w, WIDTHS[0].h, false); await page.goto(url);
@@ -100,7 +102,8 @@ async function main() {
             try { await Promise.race([sc.run(ctx), sleep(120000).then(() => { throw new Error('scenario timed out'); })]); state = 'ran'; }
             catch (e) { if (e instanceof Skip) { state = 'skip'; why = e.message; } else { state = 'error'; why = String(e.message ?? e); } throw e; }
           } else { await page.eval(`document.documentElement.setAttribute('data-theme', ${JSON.stringify(scheme)}); 0`); await sleep(500); }
-          await sleep(200);
+          await page.mouse('mouseMoved', w - 3, Math.round(h / 2)).catch(() => {}); await page.eval(`document.activeElement && document.activeElement !== document.body && document.activeElement.tagName !== 'INPUT' && document.activeElement.blur(); 0`).catch(() => {});   // no stray hover tooltip or focus ring in the shot
+          await sleep(350);
           writeFileSync(join(OUT, name + '.png'), await page.screenshot());
           r.metrics = await collectMetrics(page); r.findings = findings(r.metrics); r.logs = page.logs.slice(0, 5);
           writeFileSync(join(OUT, name + '.json'), JSON.stringify({ scenario: sc.id, title: sc.title, width: w, scheme, consoleErrors: r.logs, findings: r.findings, ...r.metrics }, null, 1));

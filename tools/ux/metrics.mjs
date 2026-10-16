@@ -24,9 +24,9 @@ const SCAN = `(T) => {
 
   // panels: outermost fixed/absolute visible boxes that carry content, not the canvas or a full-screen stage
   const cvs = [...document.querySelectorAll('canvas')];
-  const posCand = all.filter((e) => { const s = cs(e); if (s.position !== 'fixed' && s.position !== 'absolute') return false; const r = e.getBoundingClientRect(); if (r.width < 40 || r.height < 20) return false; if (r.width * r.height > 0.7 * vw * vh) return false; if (cvs.some((c) => e.contains(c))) return false; if (!(e.querySelector(INTER) || (e.textContent || '').trim().length > 2)) return false; return true; });
-  const panels = posCand.filter((e) => !posCand.some((o) => o !== e && o.contains(e)));
   const hasBox = (e) => { const s = cs(e); return rgba(s.backgroundColor)[3] > 0.05 || s.boxShadow !== 'none' || (parseFloat(s.borderTopWidth) > 0 && rgba(s.borderTopColor)[3] > 0); };
+  const posCand = all.filter((e) => { const s = cs(e); if (s.position !== 'fixed' && s.position !== 'absolute') return false; if (s.pointerEvents === 'none' || e.getAttribute('role') === 'tooltip' || /(^|\\s)tip(\\s|$)/.test(e.className)) return false; const r = e.getBoundingClientRect(); if (r.width < 40 || r.height < 20) return false; if (r.width * r.height > 0.7 * vw * vh) return false; if (cvs.some((c) => e.contains(c))) return false; if (!hasBox(e) && !e.querySelector(INTER)) return false; if (!(e.querySelector(INTER) || (e.textContent || '').trim().length > 2)) return false; return true; });
+  const panels = posCand.filter((e) => !posCand.some((o) => o !== e && o.contains(e)));
   const boxes = panels.filter(hasBox);
   const overlaps = [];
   for (let i = 0; i < panels.length; i++) for (let j = i + 1; j < panels.length; j++) {

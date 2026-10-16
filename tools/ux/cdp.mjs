@@ -21,12 +21,13 @@ export async function launchChrome({ port, profileDir, width = 1440, height = 90
     try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); if (r.ok) break; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250));
   }
-  return { port, proc, close() { try { proc.kill('SIGTERM'); } catch { /* gone */ } } };
+  return { port, proc, close() { try { proc.kill('SIGTERM'); setTimeout(() => { try { proc.kill('SIGKILL'); } catch { /* gone */ } }, 3000).unref(); } catch { /* gone */ } } };
 }
 
 export class Page {
   constructor(ws) { this.ws = ws; this.id = 0; this.pending = new Map(); this.logs = [];
     ws.on('message', (m) => { const d = JSON.parse(m); if (d.id && this.pending.has(d.id)) { const { res, rej } = this.pending.get(d.id); this.pending.delete(d.id); d.error ? rej(new Error(d.error.message)) : res(d.result); }
+      else if (d.method === 'Page.javascriptDialogOpening') this.send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});   // beforeunload prompt of a dirty document would freeze every call
       else if (d.method === 'Runtime.consoleAPICalled' && d.params.type === 'error') this.logs.push(d.params.args.map((a) => a.value ?? a.description).join(' '));
       else if (d.method === 'Runtime.exceptionThrown') this.logs.push('exception: ' + (d.params.exceptionDetails.exception?.description ?? d.params.exceptionDetails.text)); }); }
   static async open(port) {
@@ -35,7 +36,7 @@ export class Page {
     await new Promise((r, j) => { ws.once('open', r); ws.once('error', j); });
     const p = new Page(ws); await p.send('Page.enable'); await p.send('Runtime.enable'); return p;
   }
-  send(method, params = {}) { const id = ++this.id; return new Promise((res, rej) => { this.pending.set(id, { res, rej }); this.ws.send(JSON.stringify({ id, method, params })); }); }
+  send(method, params = {}, timeout = 30000) { const id = ++this.id; return new Promise((res, rej) => { const t = setTimeout(() => { this.pending.delete(id); rej(new Error(`CDP ${method} timed out (page busy or hung)`)); }, timeout); this.pending.set(id, { res: (v) => { clearTimeout(t); res(v); }, rej: (e) => { clearTimeout(t); rej(e); } }); this.ws.send(JSON.stringify({ id, method, params })); }); }
   async eval(expr, { await: aw = true } = {}) {
     const r = await this.send('Runtime.evaluate', { expression: expr, awaitPromise: aw, returnByValue: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
