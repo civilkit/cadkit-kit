@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fast i18n checks (missing keys, locale drift, enum labels, placeholders; ~1 s). Skips the hardcoded-string and unused-key scans (run in the suite).
+# Enable once per clone: npm run hooks:install
+changed=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|json)$' | grep -E '^(apps|packages|tools)/' || true)
+[ -z "$changed" ] && exit 0
+exec node "$(git rev-parse --show-toplevel)/tools/i18n_check.mjs" --fast
