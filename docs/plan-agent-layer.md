@@ -19,6 +19,12 @@ Status: plan, written 2026-10-16 after `docs/research-classcad-ai.md`. Nothing h
 - BM25 search with a CAD synonym table (`@classcad/skill`): small, generic. Take the idea at least; the synonym list is a good seed for ours.
 - Never copy their prompts or method docs; ours describe our API.
 
+## Decisions (user, 2026-10-16)
+
+1. **MCP route first.** The in-app chat comes after the MCP route works (phases 0 to 4 first, then 5 and 6).
+2. **BYOK for the in-app chat:** session-only key by default, opt-in passphrase-encrypted storage, optional own-proxy URL. Model-written scripts run in an isolated Worker.
+3. **Hand edits are kept.** A chat turn adds to or changes only the features the script made (`origin: script#N`), leaves hand-made features alone, and lists them to the agent so it does not undo them.
+
 ## Principles
 
 1. **One executor.** `run_script` is the only tool that changes anything. All other tools read, prove, show or document.
