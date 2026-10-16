@@ -63,7 +63,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Edit', entries: [slot('surface-edit')] },
   ],
   View: [
-    { id: 'Views', entries: [slot('views'), 'fit', 'toggle-projection'] },
+    { id: 'Views', entries: [slot('views'), 'fit', 'toggle-projection', 'toggle-up-axis'] },
     { id: 'Style', entries: [slot('style', { radio: true }), 'hide-selection', 'show-all'] },
     { id: 'Appearance', entries: [slot('light', { radio: true }), slot('background', { radio: true }), slot('layers', { menu: true, keepOpen: true, icon: 'display', title: 'group.Show' })] },
     { id: 'Workspace', entries: ['palette', 'toggle-left-panel', 'drawer', 'reset-layout', 'settings'] },
@@ -101,7 +101,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-)/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'samples', 'import-step', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'fit', 'hide-selection', 'show-all'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'samples', 'import-step', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 

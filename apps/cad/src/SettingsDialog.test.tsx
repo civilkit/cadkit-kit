@@ -7,6 +7,19 @@ import { SettingsDialog } from './SettingsDialog';
 afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe('SettingsDialog', () => {
+  it('the Navigation tab sets the up axis, the orbit mode and the pivot', () => {
+    const onNavPrefs = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}}
+      navPrefs={{ upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre' }} onNavPrefs={onNavPrefs} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Navigation' }));
+    expect((screen.getByLabelText('Up axis') as HTMLSelectElement).value).toBe('y');
+    fireEvent.change(screen.getByLabelText('Up axis'), { target: { value: 'z' } });
+    expect(onNavPrefs).toHaveBeenLastCalledWith({ upAxis: 'z' });
+    fireEvent.change(screen.getByLabelText('Orbit mode'), { target: { value: 'trackball' } });
+    expect(onNavPrefs).toHaveBeenLastCalledWith({ orbitMode: 'trackball' });
+    fireEvent.change(screen.getByLabelText('Orbit around'), { target: { value: 'cursor' } });
+    expect(onNavPrefs).toHaveBeenLastCalledWith({ orbitPivot: 'cursor' });
+  });
   it('the Positioning tab edits the move ball snap increments, and only valid numbers go out', () => {
     const onTriPrefs = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} triPrefs={{ distance: 10, angle: 15 }} onTriPrefs={onTriPrefs} />);

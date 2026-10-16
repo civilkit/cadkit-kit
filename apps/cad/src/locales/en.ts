@@ -569,6 +569,11 @@ export const en: Catalog = {
   'app.creator.nothing': 'Nothing to build this feature from: pick what it needs first',
   // The move / rotate ball (triball/)
   'cmd.triball': 'Move / rotate ball', 'settings.tab.positioning': 'Positioning',
+  'settings.tab.navigation': 'Navigation', 'cmd.toggle-up-axis': 'Switch the up axis between Y and Z (camera only)',
+  'settings.nav.title': 'View navigation', 'settings.nav.upAxis': 'Up axis', 'settings.nav.upAxis.y': 'Y up (SolidWorks style)', 'settings.nav.upAxis.z': 'Z up (Onshape, Fusion, Blender style)',
+  'settings.nav.orbitMode': 'Orbit mode', 'settings.nav.orbitMode.turntable': 'Turntable (no roll)', 'settings.nav.orbitMode.trackball': 'Trackball (free rotation)',
+  'settings.nav.orbitPivot': 'Orbit around', 'settings.nav.orbitPivot.centre': 'Model centre', 'settings.nav.orbitPivot.cursor': 'Point under the cursor', 'settings.nav.orbitPivot.selection': 'Selection',
+  'settings.nav.note': 'The up axis only turns the camera, the ground grid and the view cube. Parts, sketches, planes and exported files are unchanged.',
   'settings.triball.title': 'Move / rotate ball', 'settings.triball.distance': 'Snap distance (mm)', 'settings.triball.angle': 'Snap angle (degrees)',
   'settings.triball.note': 'Hold Ctrl while dragging a handle to move in whole steps.',
   'triball.ok': 'OK', 'triball.cancel': 'Cancel',
