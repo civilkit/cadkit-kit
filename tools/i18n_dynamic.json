@@ -339,6 +339,18 @@
   "settings.sketch.onViewValues.dimensions",
   "settings.sketch.onViewValues.off"
  ],
+ "app.sketch.text.anchor.+": [
+  "app.sketch.text.anchor.baseline",
+  "app.sketch.text.anchor.center",
+  "app.sketch.text.anchor.left",
+  "app.sketch.text.anchor.middle",
+  "app.sketch.text.anchor.right",
+  "app.sketch.text.anchor.top"
+ ],
+ "app.sketch.text.font.+": [
+  "app.sketch.text.font.engrave",
+  "app.sketch.text.font.gauge"
+ ],
  "app.sketch.tool.+": [
   "app.sketch.tool.arc-centre",
   "app.sketch.tool.arc-tangent",
@@ -380,6 +392,7 @@
   "app.sketch.tool.spline",
   "app.sketch.tool.symmetric",
   "app.sketch.tool.tangent",
+  "app.sketch.tool.text",
   "app.sketch.tool.trim",
   "app.sketch.tool.vertical"
  ],

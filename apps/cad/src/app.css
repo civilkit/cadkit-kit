@@ -959,3 +959,23 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .body-look-title { font-weight: 600; }
 .body-field { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
 .bodies-hint { color: var(--text-2); font-size: 11px; }
+
+/* ---- sketch Text panel ---- */
+.text-panel { position: absolute; z-index: 7; left: 12px; top: 56px; width: 268px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--panel); outline: 1px solid var(--line); box-shadow: 0 6px 18px #0005; pointer-events: auto; font: 12px system-ui, sans-serif; color: var(--text); }
+.text-panel .tp-head { display: flex; align-items: center; justify-content: space-between; }
+.text-panel .tp-row { display: flex; gap: 8px; align-items: flex-end; }
+.text-panel .tp-col { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.text-panel .tp-field { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 11px; color: var(--text-2); }
+.text-panel .tp-wide { flex: none; }
+.text-panel .tp-field em { font-style: normal; font-size: 10px; opacity: .7; }
+.text-panel input[type=text], .text-panel select { font: 13px ui-monospace, monospace; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px; min-width: 0; width: 100%; box-sizing: border-box; }
+.text-panel .tp-check { display: flex; gap: 6px; align-items: center; }
+.text-panel .tp-grid { display: grid; grid-template-columns: repeat(3, 18px); grid-template-rows: repeat(3, 18px); gap: 3px; }
+.text-panel .tp-cell { padding: 0; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); cursor: pointer; }
+.text-panel .tp-cell.on { background: var(--accent); border-color: var(--accent); }
+.text-panel .tp-btn, .text-panel .tp-x { font: 12px system-ui, sans-serif; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.text-panel .tp-btn.on { border-color: var(--accent); background: var(--accent-soft); }
+.text-panel .tp-note { font-size: 11px; padding: 3px 6px; border-radius: 5px; }
+.text-panel .tp-note.warn { background: color-mix(in srgb, #e0a02a 22%, transparent); }
+.text-panel .tp-note.err { background: color-mix(in srgb, #d83a2e 25%, transparent); }
+.text-panel .tp-foot { justify-content: flex-end; }

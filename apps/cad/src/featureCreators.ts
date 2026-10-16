@@ -34,7 +34,7 @@ function degrees(ents: Ent[]): Map<string, number> {
   return d;
 }
 const chainEntities = (ents: Ent[]) => ents.filter((e) => e.type === 'line' || e.type === 'arc' || e.type === 'spline' || e.type === 'cvspline');
-const hasCircle = (s: Feat): boolean => entitiesOf(s).some((e) => e.type === 'circle' || e.type === 'ellipse');
+const hasCircle = (s: Feat): boolean => entitiesOf(s).some((e) => e.type === 'circle' || e.type === 'ellipse' || e.type === 'text');   // lettering is closed loops too
 /** A chain of lines / arcs with two loose ends (what a rib is drawn from). */
 export const isOpenSketch = (s: Feat): boolean => {
   const ents = entitiesOf(s);

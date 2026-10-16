@@ -5,7 +5,7 @@
 export interface SketchShape {
   /** One entity id of the shape's outline: what `regions` takes. */
   id: string;
-  kind: 'circle' | 'ellipse' | 'loop';
+  kind: 'circle' | 'ellipse' | 'loop' | 'text';
   /** Every entity that makes up the outline. */
   entityIds: string[];
   /** Circle radius, else 0. */
@@ -39,6 +39,7 @@ export function sketchShapes(feature: FeatureLike | null | undefined): SketchSha
   for (const e of chain) {
     if (e.type === 'circle') { out.push({ id: e.id, kind: 'circle', entityIds: [e.id], radius: typeof e.r === 'number' ? e.r : 0 }); continue; }
     if (e.type === 'ellipse') { out.push({ id: e.id, kind: 'ellipse', entityIds: [e.id], radius: 0 }); continue; }
+    if (e.type === 'text') { out.push({ id: e.id, kind: 'text', entityIds: [e.id], radius: 0 }); continue; }
     const ends = endpoints(e);
     if (ends.length === 2) { union(ends[0], ends[1]); segs.push({ id: e.id, ends }); }
   }
@@ -67,7 +68,7 @@ export interface SketchChain {
 /** The open chains of a sketch (construction geometry is left out; circles and closed loops are shapes, not chains). */
 export function sketchOpenChains(feature: FeatureLike | null | undefined): SketchChain[] {
   const out: SketchChain[] = [];
-  const chain = (feature?.entities ?? []).filter((e) => !e.construction && e.type !== 'circle' && e.type !== 'ellipse');
+  const chain = (feature?.entities ?? []).filter((e) => !e.construction && e.type !== 'circle' && e.type !== 'ellipse' && e.type !== 'text');
   const parent = new Map<string, string>();
   const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; return r; };
   const union = (a: string, b: string) => { if (!parent.has(a)) parent.set(a, a); if (!parent.has(b)) parent.set(b, b); parent.set(find(a), find(b)); };

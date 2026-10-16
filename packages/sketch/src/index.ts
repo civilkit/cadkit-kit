@@ -133,3 +133,4 @@ export * from './extrude';
 export * from './shapes';
 export * from './define';
 export * from './refdims';
+export * from './text';

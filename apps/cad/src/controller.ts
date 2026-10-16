@@ -20,7 +20,7 @@ import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
-import { defaultFlip, foldSolution, fromFeature, toFeature, type SketchDraft } from '@kit/sketch';
+import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
 export interface SketchEditView {
@@ -152,10 +152,15 @@ export class Controller {
     return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
   }
   /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
-  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[] }): Promise<{ volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
+  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
     const k = this.transport();
     if (!k) throw new Error('no kernel');
     const out: Awaited<ReturnType<Controller['scratchFacts']>> = {};
+    if (need.text) {
+      const r = await k.request({ type: 'textMetrics', ...need.text }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
+      if (!r.ok) throw new Error(`text(): ${typeof r.error === 'string' ? r.error : r.error?.message ?? 'the kernel could not measure the text'}`);
+      out.text = r.result as never;
+    }
     if (need.mass) {
       const r = await k.request({ type: 'massProps', tag: this.scratchTag });
       const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[] } | null;
@@ -607,8 +612,20 @@ export class Controller {
   private showSketch(v: SketchEditView): void {
     this.sketchFrameNow = v.frame;
     this.view.setSketchEdit(v);
+    // lettering: the outlines come from the kernel; draw the sketch again when they have arrived
+    void ensureTextOutlines(v.sketch as never, (spec) => this.fetchTextOutline(spec), () => { if (this.sketchOpen && this.sketchFrameNow === v.frame) this.view.setSketchEdit(v); this.onTextOutlines?.(); }).catch(() => {});
   }
 
+  /** Called when new text outlines arrived (the app redraws its panel and highlight). */
+  onTextOutlines: (() => void) | null = null;
+  /** The kernel's polylines for a text entity (docs/text.md, textOutline). Throws the kernel's message. */
+  async fetchTextOutline(spec: Record<string, unknown>): Promise<TextOutlineData> {
+    const k = this.transport();
+    if (!k) throw new Error('no kernel');
+    const r = await k.request({ type: 'textOutline', ...spec }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
+    if (!r.ok) throw new Error(typeof r.error === 'string' ? r.error : r.error?.message ?? 'textOutline failed');
+    return r.result as TextOutlineData;
+  }
   /** The plane frame of the open sketch (null when none is open). */
   sketchFrame(): ViewFrame | null {
     return this.sketchOpen ? this.sketchFrameNow : null;

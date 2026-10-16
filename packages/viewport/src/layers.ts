@@ -1,6 +1,6 @@
 // Pure conversion of sketch/curve/plane display data into world-space polylines.
 // No Three.js, no DOM: the viewport turns these into scene geometry.
-import { bsplineCurve, fitCurve } from '@kit/sketch';
+import { bsplineCurve, fitCurve, textLoops, textOutlineOf } from '@kit/sketch';
 import type { SketchEntity, SketchFeature, SketchPoint } from '@ck/part-model';
 
 export interface Frame {
@@ -141,6 +141,11 @@ export function sketchPolylines(sketches: SketchLayerItem[]): IdPolylines[] {
     const byId = new Map(sketch.points.map((p) => [p.id, p]));
     const polylines: Polyline[] = [];
     for (const e of sketch.entities) {
+      if (e.type === 'text') {
+        // lettering: the outlines the kernel gave for this entity (the sketch package caches them); nothing until they arrive
+        for (const loop of textLoops(textOutlineOf(sketch as never, e as never))) if (loop.length > 1) polylines.push([...loop, loop[0]].map((q) => toWorld(frame, q[0], q[1])));
+        continue;
+      }
       const line = entityPolyline(e, byId, frame);
       if (line) polylines.push(line);
     }

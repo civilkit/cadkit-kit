@@ -78,6 +78,8 @@ import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
+import { TextPanel } from './TextPanel';
+import { isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch } from '@kit/sketch';
 import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
 import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
@@ -293,6 +295,7 @@ function App() {
   const dwellRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; fired: boolean }>({ timer: null, fired: false });
   const sketchToolRef = useRef<string | null>(null);
   // Select mode: the picked entity and the size field shown beside it.
+  const textPickRef = useRef<string | null>(null);
   const [entityOut, setEntityOut] = useState<{ fields: FieldSpec[]; x: number; y: number } | null>(null);
   const selEntityRef = useRef<{ kind: 'entity' | 'point'; id: string; x: number; y: number } | null>(null);
   // Hover and constraint highlights, a dimension being edited in place, and a tick that re-projects labels when the camera moves.
@@ -1138,10 +1141,13 @@ function App() {
     if (out.draft !== draft) {
       if (['move', 'copy', 'rotate', 'scale'].includes(entry.id)) toolEntitiesRef.current = [];   // done: the next run picks again
       const before = new Set(draft.constraints.map((c) => c.id));
+      const placed = entry.id === 'text' && ev.type === 'click' ? (out.state as { placed?: string }).placed : undefined;
       void controller.applySketchDraft(out.draft).then((r) => {
         setSketchHint(r.ok || r.stale ? (out.hint ? t(out.hint) : null) : (r.hint ? t(r.hint) : null));
         viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
         if (r.ok && !r.stale) settleDimensions(before, r.status);
+        // a placed text is edited in its panel: back to Select mode with the new entity picked
+        if (placed && r.ok) { selectTool(null); selectEntity(placed, lastPosRef.current.x, lastPosRef.current.y); }
       });
     }
   };
@@ -1186,12 +1192,33 @@ function App() {
     if (focus) setTimeout(() => { const f = document.querySelector<HTMLInputElement>('.sketch-fields input'); f?.focus(); f?.select(); }, 30);
   };
   const selectEntity = (id: string | null, x: number, y: number, focus = false) => selectItem('entity', id, x, y, focus);
+  /** The text entity picked in Select mode (its panel is open), else null. */
+  const selectedText = (): string | null => {
+    const sel = selEntityRef.current; const d = controller.sketchDraft();
+    return sel?.kind === 'entity' && d && d.entities.some((e) => e.id === sel.id && isText(e)) ? sel.id : null;
+  };
+  const textEdit = (patch: TextPatch) => {
+    const id = selectedText(); const d = controller.sketchDraft();
+    if (!id || !d) return;
+    const next = patchText(d, id, patch);
+    if (next === d) return;
+    void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); applyHighlight(); viewTick((n) => n + 1); });
+  };
+  controller.onTextOutlines = () => { applyHighlight(); viewTick((n) => n + 1); const id = selectedText(); const d = controller.sketchDraft(); const e = id && d ? d.entities.find((x) => x.id === id) : null; const note = e && d ? textNotes(textOutlineOf(d, e))[0] : null; if (note) setSketchHint(t(note.key, note.params ?? {})); };
   sketchSelectRef.current = (ev) => {
     if (sketchToolRef.current) return;
     const draft = controller.sketchDraft();
     if (!draft) return;
     setDimEdit(null);
     setHoverTip(null);
+    if (textPickRef.current) {
+      // the next click after "Pick centre" on the Text panel: a sketch point under it, else the plain position
+      const pid = textPickRef.current; textPickRef.current = null;
+      const hit = snapAt(draft, { x: ev.u, y: ev.v }, { tolerance: ev.tol, midpoints: false, align: false });
+      const next = patchText(draft, pid, { arc: { centre: hit?.pointId ? undefined : { x: ev.u, y: ev.v }, centreId: hit?.pointId } });
+      void controller.applySketchDraft(next).then(() => { applyHighlight(); viewTick((n) => n + 1); });
+      return;
+    }
     const id = pickEntity(draft, { x: ev.u, y: ev.v }, ev.tol);
     if (ev.mods.ctrl || ev.mods.shift) {
       // add to / take from the selection; a single entity already picked joins it
@@ -2025,7 +2052,14 @@ function App() {
           <Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip>
           <Tip label={ortho ? t('app.view.parallel') : t('app.view.perspective')} side="bottom"><button aria-label={t('cmd.toggle-projection')} aria-pressed={ortho} class={ortho ? 'on' : ''} onClick={toggleProjection}><Icon name={ortho ? 'projection-ortho' : 'toggle-projection'} size={18} /></button></Tip>
         </div>
-        {sketching && !sketchToolId && entityOut ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
+        {sketching && !sketchToolId && entityOut && entityOut.fields.length ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} /> : null}
+        {sketching && !sketchToolId && selectedText() ? (() => {
+          const d = controller.sketchDraft()!; const id = selectedText()!; const f = textFields(d, id); const e = d.entities.find((x) => x.id === id)!;
+          return f ? <TextPanel fields={f} notes={textNotes(textOutlineOf(d, e))} picking={textPickRef.current === id}
+            onPatch={textEdit} onDone={() => selectEntity(null, 0, 0)}
+            onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }}
+            onPickCentre={() => { textPickRef.current = textPickRef.current === id ? null : id; viewTick((n) => n + 1); }} /> : null;
+        })() : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">

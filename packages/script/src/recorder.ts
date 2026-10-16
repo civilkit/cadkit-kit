@@ -79,7 +79,8 @@ export interface ReadRuntime {
   /** Report a failed expectation on a script line (the run goes on). */
   fail(message: string, line: number): void;
 }
-export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean }
+export interface TextMetricsFact { advance: number; bbox: [number, number, number, number]; width: number; capHeight: number; chars: number; advances: number[]; warnings: unknown[] }
+export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean; /** measure a string (the kernel's textMetrics) */ text?: { string: string; font?: string; height: number; spacing?: number } }
 export interface FaceFact {
   /** persistent face name, usable in face('F3.C1') */
   name: string;
@@ -98,6 +99,7 @@ export interface Facts {
   bbox: { min: Vec; max: Vec } | null;
   faceCount: number; edgeCount: number; faces: FaceFact[];
   edges: Array<{ key: string; mid: Vec; length: number; faces: string[] }>;
+  text?: TextMetricsFact;
 }
 export interface Step { line: number; label: string; /** feature name given by the script (`{ name }` option); a missing one is derived from the sketch it consumes */ name?: string; /** tree folder the step's features belong to (see part.group) */ group?: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder; /** a read-back step: builds what was recorded, asks the kernel, resolves a script promise or checks an expectation */ read?(rt: ReadRuntime): Promise<void> }
 export interface Recorded { name: string; variables: Array<{ name: string; expr: string }>; steps: Step[] }
@@ -175,6 +177,12 @@ export type EndSpec = Num | { through: true };
 type Pt = [number, number];
 const polarPts = (c: Pt, r: number, n: number, a0: number): Pt[] => Array.from({ length: n }, (_, i) => { const a = (a0 + (360 * i) / n) * Math.PI / 180; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)] as Pt; });
 const gridPts = (o: Pt, p: Pt, c: [number, number]): Pt[] => { const out: Pt[] = []; for (let j = 0; j < c[1]; j++) for (let i = 0; i < c[0]; i++) out.push([o[0] + i * p[0], o[1] + j * p[1]]); return out; };
+/** Options of sketch.text(). */
+export interface TextOpts {
+  font?: 'gauge' | 'engrave'; height?: Num; anchor?: [('left' | 'center' | 'right')?, ('baseline' | 'middle' | 'top')?] | string;
+  angle?: Num; spacing?: Num; mirror?: boolean; polyline?: boolean; name?: string;
+  arc?: { centre?: Pt; radius: Num; angleCentre?: Num; side?: 'outside' | 'inside' };
+}
 export class SketchBuilder {
   pointList: Array<Record<string, unknown>> = [{ id: 'O', x: 0, y: 0, fixed: true }];
   entities: Array<Record<string, unknown>> = [];
@@ -370,6 +378,65 @@ export class SketchBuilder {
    * @see part.holes.grid, sketch.polarPoints
    */
   grid(origin: Pt, pitch: Pt, count: [number, number]): this { return this.points(gridPts(origin, pitch, count)); }
+  /**
+   * Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).
+   *
+   * Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.
+   * @domain sketch
+   * @param string the text (1 to 500 characters, one line)
+   * @param at anchor [x, y] or {x, y} in the sketch plane, mm
+   * @param opts { font, height, anchor, angle, spacing, mirror, arc, polyline, name }
+   * @example
+   * // engrave a label 0.3 mm deep
+   * part('Plate').sketch('front', (s) => s.rect(60, 20)).extrude(4)
+   *   .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);
+   * @example
+   * // numerals around a dial, upright, one text per number
+   * part('Dial').sketch('front', (s) => s.circle(40)).extrude(2)
+   *   .sketch(at('front', 2), (s) => { for (let v = 0; v <= 80; v += 10) { const a = (225 - 270 * v / 80) * Math.PI / 180; s.text(String(v), [28 * Math.cos(a), 28 * Math.sin(a)], { height: 4, anchor: ['center', 'middle'] }); } }).extrude(0.15);
+   * @example
+   * // text on an arc, reading clockwise over the top of a dial
+   * s.text('RPM x100', [0, 0], { height: 3, anchor: ['center', 'baseline'], arc: { centre: [0, 0], radius: 30, angleCentre: 90, side: 'outside' } });
+   * @see part.textMetrics, part.cut, part.extrude
+   */
+  text(string: string, at: Pt | { x: number; y: number }, opts: TextOpts = {}): this {
+    if (typeof string !== 'string' || string.length === 0) throw new Error('text(): the string is empty: pass the characters to draw, e.g. s.text("RPM", [0, 0], { height: 4 })');
+    const xy: Pt = Array.isArray(at) ? [Number(at[0]), Number(at[1])] : [Number((at as { x: number }).x), Number((at as { y: number }).y)];
+    if (!xy.every(Number.isFinite)) throw new Error('text(): the position must be [x, y] numbers, got ' + JSON.stringify(at));
+    const o = opts ?? {};
+    const font = o.font ?? 'gauge';
+    if (font !== 'gauge' && font !== 'engrave') throw new Error(`text(): unknown font '${String(font)}': use 'gauge' (sans) or 'engrave' (serif)`);
+    const height = o.height === undefined ? 5 : num(o.height);
+    if (!(height > 0) || !Number.isFinite(height)) throw new Error('text(): height is the CAP height in mm and must be greater than 0 (got ' + String(o.height) + ')');
+    const e: Record<string, unknown> = { type: 'text', string, font, height, p: this.pt(xy[0], xy[1]) };
+    if (o.anchor !== undefined) {
+      const a = typeof o.anchor === 'string' ? o.anchor.trim().split(/\s+/) : o.anchor;
+      const H = ['left', 'center', 'right'], V = ['baseline', 'middle', 'top'];
+      const h = a[0] ?? 'left', v = a[1] ?? 'baseline';
+      if (!H.includes(h) || !V.includes(v)) throw new Error(`text(): anchor is [horizontal, vertical] with horizontal left|center|right and vertical baseline|middle|top, got ${JSON.stringify(o.anchor)}`);
+      e.anchor = [h, v];
+    }
+    if (o.angle !== undefined) e.angle = num(o.angle);
+    if (o.spacing !== undefined) { const sp = num(o.spacing); if (!(sp > 0 && sp < 20)) throw new Error('text(): spacing is a letter-pitch factor above 0 and below 20 (1 = the font\'s own)'); e.spacing = sp; }
+    if (o.mirror) e.mirror = true;
+    if (o.polyline) e.polyline = true;
+    if (o.arc) {
+      const r = num(o.arc.radius);
+      if (!(r > 0)) throw new Error('text(): arc.radius must be greater than 0');
+      const c = o.arc.centre ?? [0, 0];
+      const side = o.arc.side ?? 'outside';
+      if (side !== 'outside' && side !== 'inside') throw new Error("text(): arc.side is 'outside' or 'inside'");
+      e.arc = { c: this.pt(c[0], c[1]), radius: r, angleCentre: o.arc.angleCentre === undefined ? 90 : num(o.arc.angleCentre), side };
+    }
+    if (o.name !== undefined) {
+      if (!/^[A-Za-z][\w-]{0,40}$/.test(o.name)) throw new Error("text(): name must start with a letter and use letters, digits, '-' and '_'");
+      if (this.entities.some((x) => x.id === o.name)) throw new Error(`text(): the name '${o.name}' is used twice in this sketch`);
+      this.entities.push({ id: o.name, ...e });
+      return this;
+    }
+    this.ent(e);
+    return this;
+  }
   /**
    * Construction line used as the revolve axis when it is not the sketch Y axis.
    *
@@ -1032,6 +1099,26 @@ export class PartBuilder {
    * @see part.volume
    */
   area(): Promise<number> { return this.readStep('area', { mass: true }, (f) => f.area ?? NaN); }
+  /**
+   * Measure a string before drawing it: width, ink box and per-letter advances.
+   *
+   * await part.textMetrics(string, { font, height, spacing }) asks the kernel for the real layout of the text (the same one s.text() uses) and returns { width, advance, bbox: [x0, y0, x1, y1], capHeight, chars, advances, warnings }; width is the ink width in mm, bbox is relative to the pen start on the baseline. Use it to size a nameplate, centre a label or fit a font height to a space. It needs await and costs one kernel request; no build is forced.
+   * @domain utilities
+   * @param string the text
+   * @param opts { font: 'gauge'|'engrave' (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }
+   * @example
+   * const p = part('Plate');
+   * const m = await p.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });
+   * p.sketch('front', (s) => s.rect(m.width + 8, 12)).extrude(2);
+   * @see sketch.text
+   */
+  textMetrics(string: string, opts: { font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact> {
+    const line = callerLine();
+    const text = { string, font: opts.font ?? 'gauge', height: opts.height === undefined ? 5 : num(opts.height), ...(opts.spacing === undefined ? {} : { spacing: num(opts.spacing) }) };
+    return new Promise<TextMetricsFact>((resolve, reject) => {
+      this.steps.push({ line, label: 'read textMetrics', run: () => [], read: async (rt) => { try { const f = await rt.facts({ text }); if (!f.text) throw new SelectorError('textMetrics(): the kernel did not answer', 0); resolve(f.text); } catch (e) { reject(e); throw e; } } });
+    });
+  }
   /**
    * Read the bounding box of the part built so far.
    *

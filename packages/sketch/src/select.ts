@@ -13,6 +13,7 @@ import { arcPolyline } from './tools/builders-arcs';
 import { curveOf } from './tools/edit-draft';
 import { lineLine, paramEnd, sample } from './tools/edit-geom';
 import type { FieldSpec, Pt, PreviewShape } from './tools/types';
+import { textDistance, textLoops, textOutlineOf } from './text';
 
 const pointMap = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -48,6 +49,10 @@ export function pickEntity(draft: SketchDraft, at: Pt, tolerance: number): strin
       const along = ccwFrom(a0, Math.atan2(at.y - c.y, at.x - c.x));
       if (along <= sweep) consider(e.id, Math.abs(dist(at, c) - r));
       else consider(e.id, Math.min(dist(at, p1), dist(at, p2)));
+    } else if (e.type === 'text') {
+      // the ink box of the lettering (its outline arrives from the kernel); a little worse than a line at the same spot, so a curve drawn over the text still wins
+      const d = textDistance(draft, e, at);
+      consider(e.id, d === 0 ? tolerance * 0.9 : d);
     }
   }
   return best ? (best as { id: string }).id : null;
@@ -71,6 +76,12 @@ export function entityShape(draft: SketchDraft, id: string): PreviewShape[] {
     const a0 = Math.atan2(p1.y - c.y, p1.x - c.x);
     const sweep = ccwFrom(a0, Math.atan2(p2.y - c.y, p2.x - c.x)) || TAU;
     return arcPolyline({ x: c.x, y: c.y }, dist(c, p1), a0, sweep);
+  }
+  if (e.type === 'text') {
+    // the letters' outlines (a few hundred short lines at most); until they arrive, the anchor point only
+    const shapes: PreviewShape[] = [];
+    for (const loop of textLoops(textOutlineOf(draft, e))) for (let i = 0; i < loop.length; i++) { const a = loop[i], b = loop[(i + 1) % loop.length]; shapes.push({ kind: 'line', a: { x: a[0], y: a[1] }, b: { x: b[0], y: b[1] } }); }
+    return shapes;
   }
   return [];
 }

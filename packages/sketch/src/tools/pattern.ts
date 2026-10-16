@@ -36,7 +36,7 @@ import { curveOf, entityOf, entityPoints, ptOf, withConstraint, withEntity, with
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
 
 export const MAX_COUNT = 99;
-const PATTERNABLE = new Set(['line', 'circle', 'arc', 'ellipse', 'point', 'spline', 'cvspline']);
+const PATTERNABLE = new Set(['line', 'circle', 'arc', 'ellipse', 'point', 'spline', 'cvspline', 'text']);
 const hidden = { hidden: true };
 
 /** The distinct points the entities use, in order of first use. */

@@ -5,6 +5,7 @@ export { lineTool, type LineState } from './line';
 export { rectangleTool, type RectState } from './rectangle';
 export { centerRectangleTool, type CenterRectState } from './center-rectangle';
 export { pointTool, type PointState } from './point';
+export { textTool, type TextState } from './text';
 export { centerlineTool, type CenterlineState } from './centerline';
 export { ellipseTool, type EllipseState } from './ellipse';
 export { polygonTool, polygonVertices, type PolygonState, type PolygonMode } from './polygon';

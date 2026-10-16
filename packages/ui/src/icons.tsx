@@ -47,6 +47,7 @@ const ICONS: Record<string, string> = {
   polygon: P('M20 12l-4 6.9H8L4 12l4-6.9h8z') + CO(12, 12, 8) + D(12, 12),
   slot: P('M7 8h10a4 4 0 010 8H7a4 4 0 010-8z') + C('M7 12h10') + D(7, 12) + D(17, 12),
   point: C('M12 3v5M12 16v5M3 12h5M16 12h5') + D(12, 12, 2.6),
+  text: P('M6 6h12M12 6v13M9.5 19h5') + C('M4 6v13'),
   centerline: `<path d="M3.5 20.5 20.5 3.5" stroke-dasharray="7 2.5 1.5 2.5"/>`,
   spline: P('M3 16C7 4 11 4 12 12s5 8 9-4') + D(3, 16) + D(12, 12) + D(21, 8),
   cvspline: C('M4 18 8 5l8 0 4 13') + P('M4 18C8 5 16 5 20 18') + D(4, 18) + D(8, 5) + D(16, 5) + D(20, 18),

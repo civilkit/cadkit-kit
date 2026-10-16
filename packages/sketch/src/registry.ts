@@ -4,7 +4,7 @@ import {
   bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, circularPatternTool, constructionTool, coincidentTool, collinearTool,
   concentricTool, cvsplineTool, dimensionTool, ellipseTool, equalTool, extendTool, filletTool, fixTool, horizontalTool, lineTool, linearPatternTool,
   midpointTool, mirrorTool, offsetTool, parallelTool, perpendicularTool, pointTool, polygonTool, projectTool, rectangleTool, slotTool, splineTool,
-  symmetricTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
+  symmetricTool, textTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
 } from './tools/index';
 import type { Tool } from './tools/types';
 
@@ -32,7 +32,7 @@ export function sketchTools(): ToolEntry[] {
 const build = (): ToolEntry[] => [
   e('draw', lineTool, 'l'), e('draw', rectangleTool, 'r'), e('draw', centerRectangleTool), e('draw', circleTool, 'c'),
   e('draw', centreArcTool), e('draw', threePointArcTool, 'a'), e('draw', tangentArcTool), e('draw', ellipseTool),
-  e('draw', polygonTool), e('draw', slotTool), e('draw', pointTool), e('draw', centerlineTool), e('draw', splineTool),
+  e('draw', polygonTool), e('draw', slotTool), e('draw', pointTool), e('draw', textTool, 'q'), e('draw', centerlineTool), e('draw', splineTool),
   e('draw', cvsplineTool), e('draw', bridgeTool),
   e('dimension', dimensionTool, 'd'),
   e('constrain', horizontalTool, 'h'), e('constrain', verticalTool, 'v'), e('constrain', coincidentTool),

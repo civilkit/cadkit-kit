@@ -25,7 +25,7 @@ import { entityOf, entityPoints, pruneDangling, ptOf, withConstraint, withEntity
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolEnv, ToolOutput, ToolSettings } from './types';
 
 export const MAX_COPIES = 99;
-const TRANSFORMABLE = new Set(['line', 'circle', 'arc', 'ellipse', 'point', 'spline', 'cvspline']);
+const TRANSFORMABLE = new Set(['line', 'circle', 'arc', 'ellipse', 'point', 'spline', 'cvspline', 'text']);
 const DIMS = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
 const rad = (d: number) => (d * Math.PI) / 180;
 

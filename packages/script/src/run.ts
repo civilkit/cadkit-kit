@@ -1,4 +1,5 @@
 // The runner: evaluates the script text in a restricted scope, then applies the recorded steps through a host (the app's Controller or a Session).
+import type { TextMetricsFact } from './recorder';
 import { applyDecor, type PartBuilder, makeApi, setLineOffset, type Ctx, type EditOp, type FactNeed, type Facts, type ReadRuntime, type ScriptState, type Step } from './recorder';
 import { faceInfos, SelectorError, type Geometry, type Vec } from './selectors';
 
@@ -20,12 +21,14 @@ export interface ScriptHost {
    * Optional: kernel answers about the document built last (the scratch state after build(), or the open document without build()):
    * mass properties (volume, area, centre of mass) and/or the validity check. Without it the read-back methods fail with an error.
    */
-  facts?(need: { mass?: boolean; validate?: boolean; describe?: string[] }): Promise<KernelFacts>;
+  facts?(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<KernelFacts>;
 }
 export interface KernelFacts {
   volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>;
   /** per face name: the kernel's exact surface type, area and radius (the display mesh only approximates the area) */
   faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }>;
+  /** the kernel's textMetrics answer for need.text */
+  text?: TextMetricsFact;
 }
 export interface BuildReply { errors: Array<[string, { code?: string; message?: string }]>; geometry?: Geometry }
 export interface Progress { phase: 'building' | 'loading'; done: number; total: number; elapsedMs: number }
@@ -63,6 +66,21 @@ export interface ScriptResult {
 const DENIED = ['window', 'document', 'fetch', 'XMLHttpRequest', 'WebSocket', 'globalThis', 'self', 'parent', 'top', 'localStorage', 'sessionStorage', 'indexedDB', 'Worker', 'importScripts', 'Function', 'process', 'require', 'navigator', 'location', 'setTimeout', 'setInterval', 'queueMicrotask'];
 export const MAX_SOURCE = 40000;
 export const MAX_STEPS = 2000;
+
+/** Kernel text errors with a hint on what to change (the codes are docs/text.md). */
+export function friendlyKernelMessage(msg: string): string {
+  const m = /\btext(Empty|NothingToDraw|BadFont|BadHeight|BadArc|BadValue)\b/.exec(msg);
+  if (!m) return msg;
+  const hint: Record<string, string> = {
+    Empty: 'text(): the string is empty: pass the characters to draw',
+    NothingToDraw: 'text(): nothing to draw: the string is only blanks or characters the font does not have (Latin-1 only)',
+    BadFont: "text(): unknown font: use 'gauge' or 'engrave'",
+    BadHeight: 'text(): height (the cap height in mm) must be a number above 0',
+    BadArc: 'text(): arc.radius must be greater than 0',
+    BadValue: 'text(): a position, angle or spacing is not a finite number (spacing must be above 0 and below 20)',
+  };
+  return `${hint[m[1]]} [${msg}]`;
+}
 
 const AsyncFunction = Object.getPrototypeOf(async function () { /* constructor probe */ }).constructor as new (...args: string[]) => (...a: unknown[]) => Promise<unknown>;
 
@@ -176,6 +194,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const stepsOf = part.steps;
   const rt: ReadRuntime = {
     facts: async (need: FactNeed) => {
+      if (need.text) { if (!host.facts) throw new SelectorError('this host cannot measure text (it has no facts())', 0); const k = await host.facts({ text: need.text }); if (!k.text) throw new SelectorError('textMetrics(): the kernel gave no answer (is the kernel build older than text support?)', 0); return { ...EMPTY_FACTS, text: k.text }; }
       if ((need.mass || need.validate) && !host.facts) throw new SelectorError('this host cannot read volume or validity back (it has no facts())', 0);
       const k = need.mass || need.validate ? await host.facts!({ mass: need.mass, validate: need.validate }) : {};
       const g = geoFacts(host.geometry());
@@ -213,11 +232,11 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
     ops.push(...stepOps);
     const fid = (stepOps[stepOps.length - 1].feature.id as string | undefined) ?? undefined;
     if (!r.ok) {
-      errors.push({ line: step.line, feature: fid, message: r.schemaError ?? firstMessage(r) ?? 'the kernel rejected this step' });
+      errors.push({ line: step.line, feature: fid, message: friendlyKernelMessage(r.schemaError ?? firstMessage(r) ?? 'the kernel rejected this step') });
       break;
     }
     // a feature that was kept but failed to regenerate is reported on its line, the run goes on
-    for (const e of errorsOf(r)) errors.push({ line: step.line, feature: e.feature ?? fid, message: e.message });
+    for (const e of errorsOf(r)) errors.push({ line: step.line, feature: e.feature ?? fid, message: friendlyKernelMessage(e.message) });
   }
   (doc.features as unknown[]) = ops.map((o) => o.feature);
   doc.seq = n + 1;
@@ -298,7 +317,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
         const si = stepOfFeature.get(id) ?? upTo - 1;
         if (si < best) { best = si; fid = id; msg = e?.message ?? e?.code ?? ''; }
       }
-      errors.push({ line: steps[Math.max(0, best)].line, feature: fid, message: msg || 'the kernel rejected this step' });
+      errors.push({ line: steps[Math.max(0, best)].line, feature: fid, message: friendlyKernelMessage(msg || 'the kernel rejected this step') });
       keep = best; failed = true;
       return false;
     }
@@ -313,6 +332,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   let curStep = 0;
   const rt: ReadRuntime = {
     facts: async (need: FactNeed) => {
+      if (need.text) { if (!host.facts) throw new SelectorError('this host cannot measure text (it has no facts())', 0); const k = await host.facts({ text: need.text }); if (!k.text) throw new SelectorError('textMetrics(): the kernel gave no answer (is the kernel build older than text support?)', 0); return { ...EMPTY_FACTS, text: k.text }; }
       if ((need.mass || need.validate) && !host.facts) throw new SelectorError('this host cannot read volume or validity back (it has no facts())', 0);
       const wantView = !!need.geometry;
       if (lastBuilt.n !== features.length || (wantView && geoAt !== features.length)) {
