@@ -1,5 +1,5 @@
 import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
-import type { PartDoc, SketchFeature, SketchSolverStatus } from '@ck/part-model';
+import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
 import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
@@ -118,6 +118,42 @@ export class Controller {
     } finally {
       this.store.busy.value = false;
     }
+  }
+
+  /** The kernel transport the open session talks to (null for a session that has none, e.g. a test double). */
+  private transport(): { request(m: Record<string, unknown>): Promise<{ ok?: boolean; trap?: string; error?: unknown; result?: unknown }> } | null {
+    const k = (this.session as unknown as { kernel?: { request?: unknown } } | null)?.kernel;
+    return k && typeof k.request === 'function' ? (k as never) : null;
+  }
+  /** Whether `scratchBuild` can run (a script run uses it for the batched path). */
+  canScratchBuild(): boolean { return this.transport() !== null; }
+  private scratchTag = `script-${Math.random().toString(36).slice(2, 8)}`;
+  /**
+   * Build `doc` on a scratch kernel state of its own: the open document, its history, the view and the store are untouched.
+   * Without `view` the kernel skips tessellation, edge extraction and the mesh reply (`noView`), so only the errors come back;
+   * with `view` the body comes too, for a script's selectors. The kernel's regen cache is keyed by the document, so a later
+   * `load` of the same list finds it built. The document is completed with the defaults a loaded part has (the kernel's cache key
+   * covers the material and the variables), or the later load would not find what was built here.
+   */
+  async scratchBuild(doc: PartDoc, view: boolean): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
+    const k = this.transport();
+    if (!k) throw new Error('no kernel');
+    const r = await k.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
+    if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
+    const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; body?: Record<string, unknown> | null };
+    const errors = res.errors ?? [];
+    if (!view) return { errors };
+    const body = res.body ?? null;
+    if (!body) return { errors, geometry: { mesh: null, edges: [], box: null } };
+    const { meshFromBody } = await import('@ck/mesh');
+    const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as unknown as ReturnType<Controller['bodyFaces']>;
+    return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
+  }
+  /** Drop the scratch state of `scratchBuild` (the kernel keeps a body per tag): the tag goes back to an empty part. */
+  async scratchRelease(): Promise<void> {
+    const k = this.transport();
+    if (!k) return;
+    await k.request({ type: 'regen', tag: this.scratchTag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
   }
 
   async edit(ops: EditOp[], reason?: string): Promise<EditResult> {

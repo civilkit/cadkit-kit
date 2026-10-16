@@ -11,7 +11,7 @@ describe('ScriptPanel', () => {
     expect(box.value).toBe('a\nb\nc');
     fireEvent.keyDown(box, { key: 'Enter', ctrlKey: true });
     await vi.waitFor(() => expect(screen.getByText('Line 2: boom')).toBeTruthy());
-    expect(onRun).toHaveBeenCalledWith('a\nb\nc');
+    expect(onRun).toHaveBeenCalledWith('a\nb\nc', expect.anything());
   });
   it('loads an example into the box', () => {
     render(<ScriptPanel saved="" onRun={async () => []} />);
