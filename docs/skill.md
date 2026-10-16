@@ -6,7 +6,7 @@ Phase 4 of `docs/plan-agent-layer.md`: the knowledge layer an LLM agent uses to 
 
 | Part | File | Job |
 | --- | --- | --- |
-| Method registry | `packages/skill/src/registry.generated.json` | 35 methods, generated from the JSDoc of `packages/script/src/recorder.ts` by `packages/skill/tools/generate.mjs` (`npm run skill:generate`). Names, signatures, parameter names and types, option properties, summary, description, example, related methods, hand-written pitfalls from `packages/skill/notes/<id>.md`. |
+| Method registry | `packages/skill/src/registry.generated.json` | 76 methods, generated from the JSDoc of `packages/script/src/recorder.ts` by `packages/skill/tools/generate.mjs` (`npm run skill:generate`). Names, signatures, parameter names and types, option properties, summary, description, example, related methods, hand-written pitfalls from `packages/skill/notes/<id>.md`. |
 | JSDoc | `packages/script/src/recorder.ts` | Source of truth. Tags: first paragraph = one-line summary, second = description, `@domain`, `@param name text` (`o.mid text` for option properties), `@example`, `@see id, id`. The generator fails when a public method lacks any of them. |
 | Search | `src/search.ts`, `src/synonyms.ts` | BM25F (name x3, summary x2, description x1, parameter names x1), a 60-group CAD synonym table (synonym hits count half), suffix-stripping stemmer, edit distance 1 typo tolerance for words longer than 4 letters. Recipes are indexed too (title x3, intent keywords x2, description x1, code x0.3). |
 | Recipes | `src/recipes.ts` | 10 buildable recipes (executed against the kernel by `src/recipes.kernel.test.ts`: volume, validity, feature count) and 2 guides (`verification`, `common-errors`). |

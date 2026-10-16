@@ -127,6 +127,7 @@ export function nextExtrudeTarget(features: FeatureRef[], selectedId?: string | 
 }
 
 import { bsplineCurve, fitCurve } from './tools/splineMath';
+import { textInkBox, textOutlineOf } from './text';
 
 // Nesting, by polygon of the shape's own points (spline fit points, circle sample, chain end points); a mixed chain with arcs is
 // approximated by its end points, which is enough to tell an offset loop inside its outline.
@@ -138,6 +139,12 @@ function polygonOf(feature: FeatureLike, sh: SketchShape): Array<[number, number
     const c = e?.c ? pts.get(e.c) : undefined;
     if (!c || typeof e?.r !== 'number') return null;
     return Array.from({ length: 24 }, (_, i) => [c[0] + e.r! * Math.cos(i * Math.PI / 12), c[1] + e.r! * Math.sin(i * Math.PI / 12)] as [number, number]);
+  }
+  if (sh.kind === 'text') {
+    // lettering has no single outline: its ink box (from the kernel's outline, cached by the text module) stands for it when a region is picked by a click
+    const e = ents.get(sh.id);
+    const b = e ? textInkBox(textOutlineOf(feature as never, e as never)) : null;
+    return b ? [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] : null;
   }
   if (sh.kind !== 'loop') return null;
   const out: Array<[number, number]> = [];

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { addText, ensureTextOutlines, patchText, pickEntity, textCacheClear, textFields, textKey, textNotes, textOutlineOf, textSpec, deleteEntity, entityShape, sketchShapes, textTool, DEFAULT_SETTINGS, sketchTools, type TextOutlineData } from './index';
+import { addText, ensureTextOutlines, patchText, pickEntity, textCacheClear, textFields, textKey, textNotes, textOutlineOf, textSpec, deleteEntity, entityShape, sketchShapes, shapeAtPoint, applyTransform, textTool, DEFAULT_SETTINGS, sketchTools, type TextOutlineData } from './index';
 
 const M = { shift: false, ctrl: false, alt: false };
 const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [], temp: [] });
@@ -59,6 +59,17 @@ describe('editing a text entity', () => {
     expect((spec.arc as Record<string, unknown>).c).toBeUndefined();
     expect(textKey(spec)).toBe(textKey(textSpec(d, d.entities[0])!));
   });
+  it('Copy takes the text along: a second text entity on a new anchor point', () => {
+    const { draft, id } = base();
+    const r = applyTransform(draft, [id], { kind: 'move', dx: 30, dy: 0 }, 1);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const texts = r.draft.entities.filter((e) => e.type === 'text');
+    expect(texts).toHaveLength(2);
+    expect(texts[1]).toMatchObject({ string: 'RPM', height: 5 });
+    expect(texts[1].p).not.toBe(texts[0].p);
+    expect(r.draft.points.find((p) => p.id === texts[1].p)).toMatchObject({ x: 40, y: 20 });
+  });
   it('deleting the entity removes its anchor point and the constraints on it', () => {
     const { draft, id } = base();
     const d = deleteEntity(draft, id);
@@ -92,8 +103,11 @@ describe('outlines: cache, picking, highlight, notes', () => {
     const notes = textNotes({ ...outline(0, 0, 1, 1), warnings: [{ code: 'textTooSmall', detail: 'x' }, { code: 'textMissingGlyph', detail: '€' }, { code: 'other' }] });
     expect(notes.map((n) => n.key)).toEqual(['app.sketch.text.warn.TooSmall', 'app.sketch.text.warn.MissingGlyph']);
   });
-  it('a text is a shape of its own for the extrude / cut region choice', () => {
+  it('a text is a shape of its own for the extrude / cut region choice', async () => {
     const { draft, id } = addText(empty(), { x: 0, y: 0 });
     expect(sketchShapes(draft as never).map((s) => [s.id, s.kind])).toEqual([[id, 'text']]);
+    await ensureTextOutlines(draft, async () => outline(0, 0, 10, 5), () => {});
+    expect(shapeAtPoint(draft as never, sketchShapes(draft as never), 5, 2)?.id).toBe(id);
+    expect(shapeAtPoint(draft as never, sketchShapes(draft as never), 50, 2)).toBeNull();
   });
 });

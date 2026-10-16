@@ -15,6 +15,35 @@ const CH_CENTROID = (R_TOP + (R_TOP - 1.5) + (R_TOP + 1.5 * Math.sin((5 * PI) / 
 
 export const RECIPES: Recipe[] = [
   {
+    id: 'engraved-nameplate',
+    title: 'Nameplate with engraved lettering (text sized from its metrics)',
+    intent: ['text', 'lettering', 'engrave', 'engraved', 'nameplate', 'label', 'name plate', 'serial number', 'font', 'inscription', 'cut text'],
+    description: 'Lettering is a text entity in a sketch of its own on the face: s.text(string, [x, y], { font, height, anchor }) and then cut(depth) engraves it (extrude embosses it). height is the CAP height; await part.textMetrics() gives the real width so the plate is sized from the text. 0.2 to 0.5 mm deep is typical; under 0.8 mm cap height the run warns textTooSmall.',
+    kind: 'script',
+    code: `const p = part('Nameplate');
+const m = await p.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });
+p.sketch('front', (s) => s.rect(m.width + 10, 14)).extrude(3)
+  .sketch(at('front', 3), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);`,
+    expected: { volume: 0, volumeTol: 0, features: 4, valid: true, notes: 'volume = plate minus glyph area x 0.3 (checked against the kernel outline area in text.kernel.test.ts)' },
+  },
+  {
+    id: 'dial-numerals',
+    title: 'Dial with upright numerals on a 270 degree sweep and a caption on an arc',
+    intent: ['dial', 'gauge', 'numerals', 'numbers around a circle', 'text on arc', 'arc text', 'caption', 'scale', 'emboss', 'embossed text', 'lettering'],
+    description: 'One s.text() per number at the numeral radius, anchor centre middle, angle 0 (upright). The sweep starts at 225 degrees and runs clockwise 270 degrees. A caption that follows the circle uses the arc option (side outside reads clockwise over the top; inside, angleCentre 270, reads left to right below). The lettering sketch is extruded 0.15 mm (emboss) from the dial top.',
+    kind: 'script',
+    code: `const d = part('Dial');
+d.sketch('front', (s) => s.circle(40)).extrude(2);
+d.sketch(at('front', 2), (s) => {
+  for (let v = 0; v <= 80; v += 10) {
+    const a = (225 - 270 * v / 80) * Math.PI / 180;
+    s.text(String(v), [28 * Math.cos(a), 28 * Math.sin(a)], { height: 4, anchor: ['center', 'middle'] });
+  }
+  s.text('RPM x100', [0, 0], { height: 3, anchor: ['center', 'baseline'], arc: { centre: [0, 0], radius: 12, angleCentre: 270, side: 'inside' } });
+}).extrude(0.15);`,
+    expected: { volume: 0, volumeTol: 0, features: 4, valid: true },
+  },
+  {
     id: 'boss-by-feature-verified',
     title: 'Plate with a boss: pick faces by feature and verify with read-backs',
     intent: ['boss', 'face selection', 'select face', 'which face', 'handle', 'of feature', 'ambiguous', 'warning', 'verify', 'expect', 'read back', 'volume check', 'await'],

@@ -27,13 +27,12 @@ function NumField(p: { id: string; label: string; value: number; min?: number; s
   const flush = (s: string) => { const n = Number(s.trim().replace(',', '.')); if (s.trim() !== '' && Number.isFinite(n) && (p.min === undefined || n >= p.min)) p.onValue(n); };
   return (
     <label class="tp-field" data-field={p.id}>
-      <span>{p.label}</span>
+      <span>{p.label}{p.unit ? ' (' + p.unit + ')' : ''}</span>
       <input type="text" inputMode="decimal" value={text} aria-label={p.label}
         onFocus={(e) => { focused.current = true; (e.target as HTMLInputElement).select(); }}
         onInput={(e) => { const v = (e.target as HTMLInputElement).value; setText(v); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => flush(v), DEBOUNCE_MS); }}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { if (timer.current) clearTimeout(timer.current); flush((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).blur(); } }}
         onBlur={(e) => { focused.current = false; if (timer.current) clearTimeout(timer.current); flush((e.target as HTMLInputElement).value); setText(String(round(p.value))); }} />
-      {p.unit ? <em>{p.unit}</em> : null}
     </label>
   );
 }

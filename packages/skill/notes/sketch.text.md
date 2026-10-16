@@ -1,0 +1,5 @@
+- Put lettering in a sketch of ITS OWN: its loops are not intersected with the other curves of the sketch (letters inside a rect do not become holes of it). Several s.text() calls in one sketch are fine (dial numerals).
+- height is the CAP height (an H), not the font size; under 0.8 mm the run warns textTooSmall. Engrave 0.1 to 0.5 mm deep: cut(0.3). Emboss = extrude(0.15).
+- Upright numerals around a dial: one text per number, anchor ['center', 'middle'], angle 0, at the numeral radius; the arc option bends ONE string along a circle (side 'outside' reads clockwise over the top, 'inside' with angleCentre 270 reads left to right below).
+- Keep letters clear of other thin features (ridges, tick marks): a glyph corner touching a ridge corner can make the kernel boolean fail (booleanFailed); move the numeral radius by a few tenths of a mm if it does.
+- Characters outside Latin-1 are skipped with a textMissingGlyph warning; an empty or blank string is an error.

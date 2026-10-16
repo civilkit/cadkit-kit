@@ -1,0 +1,2 @@
+- Needs await (one kernel request, no build). width is the INK width: size a plate as m.width + 2 x margin and centre the text with anchor ['center', 'middle'].
+- Same layout as s.text(): pass the same font, height and spacing.

@@ -40,6 +40,13 @@ It does nothing when the sketch is already fully defined or has conflicts (it sa
 and the message says how many relations and dimensions were added, and how many degrees of freedom remain when no
 dimension could remove them (for example a spline). Tests: `define.kernel.test.ts`.
 
+## Text
+
+The **Text** tool (Draw palette, key `Q`) places a lettering entity; its panel (string, cap height, font, 3 x 3 anchor grid, angle,
+spacing, mirror, on an arc with radius, direction, centre and side) edits it with a live preview. Code: `packages/sketch/src/text.ts`
+(request, cache, editing, notes), `tools/text.ts` (the tool), `apps/cad/src/TextPanel.tsx`; the outlines come from the kernel
+(`textOutline`, `Controller.fetchTextOutline`) and are cached by the entity's fields. Guide: `docs/text.md`.
+
 ## Reference (driven) dimensions
 
 A reference dimension measures but does not constrain. The kernel has none, so they live in the sketch feature as

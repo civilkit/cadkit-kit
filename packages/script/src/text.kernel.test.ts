@@ -92,4 +92,21 @@ p.expectBBox({ min: [-(m.width + 8) / 2, -6, 0], max: [(m.width + 8) / 2, 6, 2] 
     expect(d.bbox!.x0).toBeGreaterThan(w * 0.1); expect(d.bbox!.x1).toBeLessThan(w * 0.9);
     expect(d.bbox!.y0).toBeGreaterThan(hgt * 0.3); expect(d.bbox!.y1).toBeLessThan(hgt * 0.7);
   }, 120000);
+  it('the cut takes one text of a sketch by its entity id (regions)', async () => {
+    const { h, session } = await host();
+    const r = await runScript(`const p = part('Plate').sketch('front', (s) => s.rect(80, 30)).extrude(4);
+p.sketch(at('front', 4), (s) => { s.text('AB', [-20, 0], { height: 6, anchor: ['center', 'middle'], name: 't1' }); s.text('CD', [20, 0], { height: 6, anchor: ['center', 'middle'], name: 't2' }); }).cut(0.5);`, h);
+    expect(r.errors).toEqual([]);
+    const cut = (r.document as { features: Array<Record<string, unknown>> }).features.find((f) => f.type === 'extrude' && f.op === 'cut')!;
+    const v2 = await vol(session());
+    const base = 80 * 30 * 4;
+    const t1 = (await session().textOutline({ string: 'AB', height: 6, at: [-20, 0], anchor: ['center', 'middle'] })) as { area: number };
+    const t2 = (await session().textOutline({ string: 'CD', height: 6, at: [20, 0], anchor: ['center', 'middle'] })) as { area: number };
+    expect(base - v2).toBeCloseTo((t1.area + t2.area) * 0.5, 0);
+    const only = await h.edit([{ op: 'replace', id: String(cut.id), feature: { ...cut, regions: ['t1'] } } as never], 'one text');
+    expect(only.ok).toBe(true);
+    const v1 = await vol(session());
+    expect((base - v1) / (t1.area * 0.5)).toBeGreaterThan(0.99);
+    expect((base - v1) / (t1.area * 0.5)).toBeLessThan(1.01);
+  }, 120000);
 });
