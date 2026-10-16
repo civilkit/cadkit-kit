@@ -88,3 +88,10 @@ describe('SelectionList reveal', () => {
     expect(container.querySelector('.sel-chip-name')).toBeNull();
   });
 });
+
+describe('body chips use the body name', () => {
+  it('a body with a name is called by it, one without stays Body n', () => {
+    const c = chipsOf(['@body:C+x', '@body:A+x'], model(), (n) => (n === '@body:C+x' ? 'Tach lens' : null));
+    expect(c.map((x) => x.label)).toEqual(['Tach lens', 'Body 1']);
+  });
+});

@@ -6,13 +6,15 @@ import { isBodyName, type SelModel } from './model';
 export interface Chip { name: string; label: string; kind: 'face' | 'edge' | 'corner' | 'body' }
 
 /** The chips of a selection, in selection order, with a readable label each (the full name is the tooltip). */
-export function chipsOf(sel: string[], model: SelModel | null): Chip[] {
+export function chipsOf(sel: string[], model: SelModel | null, bodyName?: (name: string) => string | null): Chip[] {
   const edges = model ? model.edgeNames : [];
   const bodies = model ? model.bodies() : [];
   return sel.map((name): Chip => {
     if (name === BODY) return { name, label: t('select.chip.part'), kind: 'body' };
     if (isBodyName(name)) {
       const i = bodies.findIndex((b) => b.name === name);
+      const own = bodyName?.(name);
+      if (own) return { name, label: own, kind: 'body' };
       return { name, label: t(bodies[i]?.surface ? 'select.chip.surface' : 'select.chip.body', { n: i + 1 }), kind: 'body' };
     }
     if (name.startsWith('v:')) return { name, label: t('select.chip.corner', { n: name.slice(2) }), kind: 'corner' };
@@ -23,10 +25,10 @@ export function chipsOf(sel: string[], model: SelModel | null): Chip[] {
 }
 
 /** A panel listing the selection: count, one chip per item with a remove button, and hover that lights the item in the view. */
-export function SelectionList(p: { selection: string[]; model: SelModel | null; onRemove(name: string): void; onClear(): void; onHover(name: string | null): void; /** Click on a chip's name: show the feature that owns it in the tree. `canReveal` says which chips have one. */ onReveal?(name: string): void; canReveal?(name: string): boolean }) {
+export function SelectionList(p: { selection: string[]; model: SelModel | null; onRemove(name: string): void; onClear(): void; onHover(name: string | null): void; /** Click on a chip's name: show the feature that owns it in the tree. `canReveal` says which chips have one. */ onBodyName?(name: string): string | null; onReveal?(name: string): void; canReveal?(name: string): boolean }) {
   const [open, setOpen] = useState(true);
   if (!p.selection.length) return null;
-  const chips = chipsOf(p.selection, p.model);
+  const chips = chipsOf(p.selection, p.model, p.onBodyName);
   return (
     <div class="sel-list" role="region" aria-label={t('select.list')}>
       <div class="sel-list-head">

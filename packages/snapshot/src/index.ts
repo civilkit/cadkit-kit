@@ -6,4 +6,5 @@ export { Raster, evenOddMask, hatchPolygons } from './raster.js';
 export { glyph, textWidth } from './font.js';
 export { resolveView, stdDirection, dirFromAzEl, azElOf, makeCamera, STD_VIEWS } from './camera.js';
 export { renderSectionPanel } from './section2d.js';
+export { faceLooks, lumps, bodyKey, bodyOrigin, type FaceLook, type Finish, type AppearanceFields } from './appearance.js';
 export type * from './types.js';

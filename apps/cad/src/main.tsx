@@ -55,6 +55,8 @@ import { createAnalysisStore } from './analysisState';
 import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
+import { BodiesPanel } from './BodiesPanel';
+import { faceVolumes, hideOthers, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { runScript } from '@kit/script';
 import { scopeOf } from './variables';
@@ -149,6 +151,22 @@ let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
 const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
+/** What the viewport is told about bodies: their looks, the hidden ones and the per-face colours. */
+function bodyViewNow(): ReturnType<typeof viewSpec> {
+  const rows = bodyRowsFor(false);
+  return viewSpec(rows, resolveFaceLooks(readBodyFields(controller.document()).faceAppearance, rows.flatMap((r) => r.faces)));
+}
+/** The Bodies of what is on screen with their names, looks and visibility from the document (`volumes`: also the volume of each, for the list). */
+function bodyRowsFor(volumes: boolean): BodyRow[] {
+  const m = controller.selModel();
+  if (!m) return [];
+  const d = controller.document();
+  const feats = new Map((d?.features ?? []).map((f) => [f.id, (f as { name?: string }).name ?? null] as const));
+  return listBodies(m.bodies(), readBodyFields(d), {
+    featureName: (id) => feats.get(id) ?? null, defaultName: (n) => t('bodies.default', { n }),
+    ...(volumes ? { volumes: faceVolumes(controller.bodyFaces()) } : {}),
+  });
+}
 /** The body as it is drawn: components hidden or moved apart in the exploded view (the kernel's body is not touched). */
 const shownBody = (b: unknown): unknown => {
   const d = controller.document();
@@ -171,6 +189,7 @@ const controller = new Controller({
       }
       viewport?.setConsumedSketches([...used]);
       lastBody = b;
+      viewport?.setBodyView(bodyViewNow(), false);
       viewport?.setBody(shownBody(b) as never);
       viewport?.setBodies(controller.selModel()?.bodies() ?? []);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
@@ -224,7 +243,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script'>('Features');
+  const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script' | 'Bodies'>('Features');
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
@@ -764,7 +783,10 @@ function App() {
     return () => removeEventListener('keydown', onKey);
   }, []);
 
-  const hoverLabel = (n: string | null) => (n && isBodyName(n) ? chipsOf([n], controller.selModel())[0].label : n);
+  // a body is called by its name from the Bodies list (a script / user name or its feature's), 'Body n' only when it has none
+  let bodyRowsCache: BodyRow[] | null = null;
+  const bodyNameOf = (n: string): string | null => { const r = rowOfName(bodyRowsCache ??= bodyRowsFor(false), n); return r?.named ? r.name : null; };
+  const hoverLabel = (n: string | null) => (n && isBodyName(n) ? chipsOf([n], controller.selModel(), bodyNameOf)[0].label : n);
   const selModelNow = store.selection.value.length ? controller.selModel() : null;
   const selText = selModelNow ? summaryText(summarize(selModelNow, store.selection.value)) : '';
   const doc = controller.document();
@@ -1743,6 +1765,24 @@ function App() {
   });
   const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
+  // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
+  const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {
+    controller.setDocExtra(key, value && typeof value === 'object' && Object.keys(value).length ? value : null);
+    viewport?.setBodyView(bodyViewNow());
+    redraw((n) => n + 1);
+  };
+  const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
+  const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
+  const bodyFields = readBodyFields(doc);
+  const bodiesPanel = <BodiesPanel rows={bodyRows}
+    selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
+    onSelect={(key, add) => store.select([key], add)}
+    onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden))}
+    onSolo={(key) => setHiddenBodies(solo(bodyRows, key))}
+    onShowAll={() => setHiddenBodies(showAll())}
+    onHideOthers={() => setHiddenBodies(hideOthers(bodyRows, store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k)))}
+    onRename={(key, name) => setBodyField('bodyNames', withName(bodyFields, key, name))}
+    onLook={(key, patch) => { const row = bodyRows.find((r) => r.key === key); if (row) setBodyField('appearance', withLook(bodyFields, row, patch as Partial<Record<keyof BodyLookSpec, never>>)); }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
   const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code, run) => new Promise((resolve) => {
@@ -1779,9 +1819,9 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script'] as const).map((id) => {
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies'] as const).map((id) => {
               const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script' }[id];
+              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script', Bodies: 'sel-body' }[id];
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
@@ -1789,6 +1829,7 @@ function App() {
             : leftTab === 'Catalog' ? catalogPanel
             : leftTab === 'Variables' ? variablesPanel
             : leftTab === 'Script' ? scriptPanel
+            : leftTab === 'Bodies' ? bodiesPanel
             : editor}
         </>
       ) : leftBody}
@@ -1926,7 +1967,7 @@ function App() {
         ) : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
-          onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
+          onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
         {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />

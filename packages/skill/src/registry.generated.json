@@ -17,6 +17,8 @@
   "Num": "number | Expr",
   "EndSpec": "Num | { through: true }",
   "Pt": "[number, number]",
+  "BodyFinish": "'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'",
+  "AppearanceTarget": "LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle }",
   "PatternSeed": "'last' | string | FeatureHandle | Array<string | FeatureHandle>",
   "ScriptApi": "ReturnType<typeof makeApi>",
   "FaceRule": "{ dir?: string; normal?: Vec; planar?: boolean; at?: Vec; kind?: SurfaceKind | 'planar'; radius?: number; createdBy?: FeatureRefLike; of?: FeatureRefLike; areaGreater?: number; areaLess?: number; near?: Vec; within?: number; not?: FaceSel | FacesSel; union?: Array<FaceSel | FacesSel>; intersect?: Array<FaceSel | FacesSel>; difference?: Array<FaceSel | FacesSel>; }",
@@ -154,7 +156,7 @@
    "kind": "method",
    "domain": "sketch",
    "signature": ".workplane(base: PlaneBase, offset: Num = 0, opts: PlaneOpts = {}): this",
-   "summary": "Add a reference plane (workplane) feature without a sketch.",
+   "summary": "/** Add a reference plane (workplane) feature without a sketch.",
    "description": "workplane(base, offset, opts) adds the plane that at() would add, as a feature of its own (visible in the tree, reusable): base is 'front' | 'top' | 'right', face(...), a plane handle, or { origin, normal, xdir? }; opts.rotate tilts it about an axis line. Take part.handle() right after it, then sketch(at(handle), ...) any number of times; at(handle, 5) offsets it further.",
    "parameters": [
     {
@@ -2489,6 +2491,28 @@
    ]
   },
   {
+   "id": "part.appearance",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".appearance(o: AppearanceTarget): this",
+   "summary": "Colour, opacity and finish of the bodies a feature made (view only, no geometry change).",
+   "description": "appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "AppearanceTarget",
+     "optional": false,
+     "description": "{ feature | body | face, colour?, opacity?, finish? }"
+    }
+   ],
+   "returns": "this",
+   "example": "p.sketch('front', (s) => s.circle([0, 0], 30)).extrude(3);\nconst lens = p.handle();\np.appearance({ feature: lens, colour: '#b9c7d6', opacity: 0.18, finish: 'glass' });",
+   "related": [
+    "part.bodyName",
+    "part.handle"
+   ]
+  },
+  {
    "id": "part.area",
    "kind": "method",
    "domain": "utilities",
@@ -2515,6 +2539,34 @@
    "related": [
     "part.volume",
     "part.expectBBox"
+   ]
+  },
+  {
+   "id": "part.bodyName",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".bodyName(target: string | FeatureHandle, name: string): this",
+   "summary": "Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).",
+   "description": "bodyName(handle, 'Tach lens') names the body the feature created; when it made several they are numbered 'Tach lens 1', 'Tach lens 2'. The target is a handle from part.handle() or an id like 'F12'.",
+   "parameters": [
+    {
+     "name": "target",
+     "type": "string | FeatureHandle",
+     "optional": false,
+     "description": "handle or feature id"
+    },
+    {
+     "name": "name",
+     "type": "string",
+     "optional": false,
+     "description": "the name shown in the Bodies list"
+    }
+   ],
+   "returns": "this",
+   "example": "p.sketch('front', (s) => s.circle(0, 0, 20)).extrude(3);\np.bodyName(p.handle(), 'Lens');",
+   "related": [
+    "part.appearance",
+    "part.handle"
    ]
   },
   {

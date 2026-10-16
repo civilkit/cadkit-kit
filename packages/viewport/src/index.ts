@@ -29,3 +29,4 @@ export { cursorFor, handleHover, ROTATE_CURSOR } from './cursorPolicy';
 export type { CursorContext, CursorTool, HoverTarget, DragState } from './cursorPolicy';
 export { adaptiveGrid, niceStep, parseSpacing, GRID_MIN_PX, GRID_MAX_PX } from './gridSpacing';
 export type { GridSpec } from './gridSpacing';
+export * from './bodyview';

@@ -45,6 +45,7 @@ The `ViewBody` a Session returns from `bodyForView()`, so `{ mesh, edges, box }`
 | `highlight` | face ids (as in `mesh.faceIds`) drawn orange | none |
 | `background` | `'#rrggbb'` | light grey-blue (white for hidden-line) |
 | `sheet` | `'single' 'orthos' 'drawing-first-angle' 'drawing-third-angle' 'ab' 'section'` | `'single'` |
+| `appearance` | `false` draws every body in the default grey even when the input carries `appearance` (per-body colour, opacity, finish, hidden bodies from the document; see docs/bodies-appearance.md) | `true` |
 | `ab` | `{ b?: SnapshotInput, bView?, labels? }` for the A\|B sheet | none |
 | `supersample` | integer 1 to 3 | 2 |
 | `title` | part name for the title block | `input.name` |
@@ -75,6 +76,8 @@ The standard view table is the viewport's (`docs/navigation.md`, `packages/viewp
 as `opts.frame` to render a later state of the same part in the same frame.
 
 ## Rendering
+
+**Per-body appearance.** With `input.appearance` (`snapshotOf` and the CLI fill it from the document's `appearance`, `faceAppearance` and `view.hiddenBodies`) the shaded and edges styles draw each body in its colour and finish; bodies below full opacity go in a second pass, sorted back to front, depth-tested against the opaque faces without writing depth, with a rim that gets denser at grazing angles (so a 0.18 lens still reads as glass). Bodies are found from the edges' `faces` pairs, the key rule is the app's. A clear body has no silhouette outline and hidden bodies lose their faces and edges. Finishes shade through a sky / horizon / ground mirror term and a highlight (chrome, brushed) or a gloss highlight (plastic, glass). Hidden-line, xray and mono ignore it.
 
 Triangle z-buffer rasteriser (barycentric, pixel centres), one fixed directional light from the viewer's upper left plus
 ambient, Gouraud from the mesh normals, two-sided. 2x supersampling with a box filter. B-rep edge polylines are

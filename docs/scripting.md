@@ -34,6 +34,8 @@ Part methods (each adds one feature, in order):
 | `.circularPattern([seed,] {count, axis, angle \| total, equalSpacing})` | pattern about a world axis through the origin |
 | `.workplane(base, offset, {rotate})` | a reference plane feature of its own (see Workplanes) |
 | `.handle()` | a handle on the feature recorded last (for `{of}` and patterns) |
+| `.appearance({ feature \| body \| face, colour, opacity, finish })` | colour (`'#rrggbb'`), opacity 0.05 to 1 and finish (`matte plastic chrome glass brushed`) of the bodies a feature made, or `face: 'F3.*'` / a handle for faces; view state, adds no feature (docs/bodies-appearance.md) |
+| `.bodyName(handle \| 'F12', name)` | the name shown in the Bodies list |
 | `await .volume() / .area() / .bbox() / .centreOfMass() / .faceCount() / .edgeCount() / .isValid() / .issues() / .faces() / .edges()` | read-back (see Reading results back) |
 | `.expectVolume(v, {tol \| abs})`, `.expectValid()`, `.expectBBox({min,max,size})`, `.expectFaceCount(n)` | assertions that add an error with the script line |
 

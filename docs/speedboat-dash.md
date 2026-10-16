@@ -9,8 +9,9 @@ Sample: `apps/cad/public/samples/speedboat-dash.ckpart`; Script-tab example `spe
 
 ![iso](img/dash-iso.png)
 
-(The snapshot renderer draws glass as opaque, so the hero renders use `dashScript({ lens: false })`; the sample and the
-section view include the lenses.)
+The renders show the document's appearance (classic look: ivory dials, black ticks, red zones, chrome bezels, dark satin plate,
+0.18 opacity glass lenses); see docs/bodies-appearance.md. In the app the Bodies tab lists the 36 bodies by name (`Tach lens`, ...) and
+the eye hides a lens without touching the revolve that made it.
 
 ## Names and folders in the tree
 

@@ -41,6 +41,10 @@ describe('speedboat dash', () => {
       expect(mp.volume).toBeGreaterThan(310000);   
       expect(mp.volume).toBeLessThan(335000);
       expect((r.document as { features: unknown[] }).features.length).toBeLessThan(200);
+      const d = r.document as { appearance?: Record<string, { opacity?: number; finish?: string }>; bodyNames?: Record<string, string>; faceAppearance?: Record<string, unknown> };
+      expect(Object.values(d.appearance ?? {}).filter((l) => l.finish === 'glass' && (l.opacity ?? 1) <= 0.2)).toHaveLength(4);   // the four gauge lenses (the lamp lenses are denser)
+      expect(Object.values(d.bodyNames ?? {})).toEqual(expect.arrayContaining(['Tach lens', 'Dash panel', 'Knots bezel']));
+      expect(Object.keys(d.faceAppearance ?? {}).every((k) => /^F\d+\.\*$/.test(k))).toBe(true);
       expect(Date.now() - t0).toBeLessThan(60000);
     }
   }, 900000);

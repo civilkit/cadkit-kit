@@ -35,7 +35,7 @@ export async function renderSnapshot(input: SnapshotInput, opts: SnapshotOpts = 
       w: size.width, h: size.height, ss, dir: v.dir, upv: v.upv, persp, style, bg,
       frame: opts.frame, markers: opts.markers, annotate: opts.annotate,
       highlight: opts.highlight ? new Set(opts.highlight) : undefined,
-      section: input.section, ...over,
+      section: input.section, looks: opts.appearance !== false, ...over,
     };
   };
   let out: Raster;

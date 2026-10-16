@@ -1,5 +1,5 @@
 // The runner: evaluates the script text in a restricted scope, then applies the recorded steps through a host (the app's Controller or a Session).
-import { makeApi, setLineOffset, type Ctx, type EditOp, type FactNeed, type Facts, type ReadRuntime, type ScriptState, type Step } from './recorder';
+import { applyDecor, type PartBuilder, makeApi, setLineOffset, type Ctx, type EditOp, type FactNeed, type Facts, type ReadRuntime, type ScriptState, type Step } from './recorder';
 import { faceInfos, SelectorError, type Geometry, type Vec } from './selectors';
 
 export interface EditResultLike { ok: boolean; errors?: Array<[string, { code?: string; message?: string }] | { feature?: string; code?: string; message?: string }>; schemaError?: string; added?: string[] }
@@ -166,7 +166,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const doc: Record<string, unknown> = { format: 'ck-part', version: 1, name: part.name, features: [], seq: 1, rollback: null, ...base, ...(state.varDefs.length ? { variables: [...(Array.isArray(base.variables) ? (base.variables as unknown[]) : []), ...state.varDefs] } : {}), script: code };
   const warnings: ScriptWarning[] = [];
   const warn = (message: string, line: number): void => { if (!warnings.some((w) => w.message === message && w.line === line)) warnings.push({ line, message }); };
-  if (host.build && opts.batched !== false) return runBatched(part.steps, doc, host, opts, { errors, warnings, warn, finished, flags });
+  if (host.build && opts.batched !== false) return runBatched(part.steps, doc, host, opts, { part, errors, warnings, warn, finished, flags });
   const t0 = performance.now();
   await host.load(structuredClone(doc));
   const ops: EditOp[] = [];
@@ -221,6 +221,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   }
   (doc.features as unknown[]) = ops.map((o) => o.feature);
   doc.seq = n + 1;
+  applyDecor(doc, part, warn);
   return { ops, document: doc, errors, warnings, stats: { batched: false, steps: stepsOf.length, builds: 0, viewBuilds: 0, buildMs: 0, loadMs: 0, totalMs: performance.now() - t0 } };
 }
 
@@ -231,7 +232,7 @@ class ReadAborted extends Error { constructor() { super('read aborted'); } }
 export const FLUSH_EVERY = 25;
 const macrotask = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
-interface Live { errors: ScriptError[]; warnings: ScriptWarning[]; warn(message: string, line: number): void; finished: Promise<void> | null; flags: { done: boolean } }
+interface Live { part: PartBuilder; errors: ScriptError[]; warnings: ScriptWarning[]; warn(message: string, line: number): void; finished: Promise<void> | null; flags: { done: boolean } }
 
 /**
  * The batched run. The features are recorded into one list; the kernel builds it in chunks on a scratch state WITHOUT the display
@@ -242,7 +243,7 @@ interface Live { errors: ScriptError[]; warnings: ScriptWarning[]; warn(message:
  */
 async function runBatched(steps: Step[], doc: Record<string, unknown>, host: ScriptHost, opts: RunOptions, live: Live): Promise<ScriptResult> {
   const t0 = performance.now();
-  const { errors, warnings, warn } = live;
+  const { errors, warnings, warn, part } = live;
   const stats: RunStats = { batched: true, steps: steps.length, builds: 0, viewBuilds: 0, buildMs: 0, loadMs: 0, totalMs: 0 };
   const every = opts.flushEvery ?? FLUSH_EVERY;
   const yieldToUi = opts.yieldToUi ?? macrotask;
@@ -382,8 +383,10 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     // what the app gets: everything up to (not including) the step the kernel refused
     const kept = keep >= 0 ? ops.filter((o) => (stepOfFeature.get(o.feature.id as string) ?? 0) < keep) : ops;
     if (opts.prefix) {
+      applyDecor(doc, part, warn);
       return { ops: kept, document: { ...doc, features: [...prefix, ...kept.map((o) => o.feature)], seq: n + 1 }, errors, warnings, stats: { ...stats, totalMs: performance.now() - t0 } };
     }
+    applyDecor(doc, part, warn);
     progress('loading');
     await yieldToUi();
     const tl = performance.now();

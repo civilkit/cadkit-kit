@@ -7,7 +7,7 @@ export interface SessionLike {
   bodyForView(): Promise<{ mesh: SnapshotInput['mesh']; edges: NonNullable<SnapshotInput['edges']>; box: NonNullable<SnapshotInput['box']> } | null>;
   section?(plane: { origin: number[]; normal: number[] }): Promise<SectionLike>;
   massProps?(): Promise<{ volume?: number | null }>;
-  document?: { name?: string };
+  document?: { name?: string; appearance?: unknown; faceAppearance?: unknown; view?: unknown };
 }
 
 export type SectionRequest = { origin: number[]; normal: number[] } | { axis: 'x' | 'y' | 'z'; at: number };
@@ -32,6 +32,8 @@ export async function inputOf(session: SessionLike, opts: SessionSnapshotOpts = 
   const body = await session.bodyForView();
   if (!body) throw new Error('snapshot: the document has no body to draw');
   const input: SnapshotInput = { mesh: body.mesh, edges: body.edges, box: body.box, name: opts.name ?? session.document?.name };
+  const d = session.document;
+  if (d && (d.appearance || d.faceAppearance || d.view)) input.appearance = { appearance: d.appearance as never, faceAppearance: d.faceAppearance as never, view: d.view as never };
   const wantsVolume = (opts.sheet ?? 'single').startsWith('drawing');
   if (wantsVolume && session.massProps) {
     try { const m = await session.massProps(); if (typeof m.volume === 'number') input.volume = m.volume; } catch { /* the title block shows N/A */ }
