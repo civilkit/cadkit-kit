@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
 
+describe('keep view when entering a sketch', () => {
+  it('is on by default, can be turned off, ignores junk', () => {
+    expect(DEFAULT_SKETCH_PREFS.keepView).toBe(true);
+    expect(sanitizeSketchPrefs({ keepView: false }).keepView).toBe(false);
+    expect(sanitizeSketchPrefs({ keepView: 0 }).keepView).toBe(true);
+  });
+});
+
 describe('auto-constrain from guides', () => {
   it('is off by default and survives sanitising', () => {
     expect(DEFAULT_SKETCH_PREFS.guideConstraints).toBe(false);

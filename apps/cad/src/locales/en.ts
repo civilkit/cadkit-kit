@@ -305,6 +305,7 @@ export const en: Catalog = {
   'settings.sketch.onViewValues': 'Values beside the pointer',
   'settings.sketch.onViewValues.dimensions': 'Dimensions', 'settings.sketch.onViewValues.both': 'Dimensions and positions', 'settings.sketch.onViewValues.off': 'Off',
   'settings.sketch.gridSnap': 'Snap to the grid',
+  'settings.sketch.keepView': 'Keep the view when entering a sketch (Look normal squares it up)',
   'app.sketch.snap.point': 'point', 'app.sketch.snap.midpoint': 'midpoint', 'app.sketch.snap.align': 'aligned', 'app.sketch.snap.grid': 'grid',
   'app.sketch.newName': 'New sketch',
   'cmd.sketch-here': 'Sketch on selected face or plane', 'app.sketch.pickFirst': 'Select a plane or a face first, then press S.',

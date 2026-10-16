@@ -956,7 +956,7 @@ function App() {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
         setSketching({ id, name: f.name ?? id });
-        viewport?.orientToSketch();
+        if (!prefsRef.current.keepView) viewport?.orientToSketch();   // the setting 'keep view when entering a sketch' (default on)
       })();
       return;
     }
@@ -1404,7 +1404,7 @@ function App() {
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
-      viewport?.orientToSketch();
+      if (!prefsRef.current.keepView) viewport?.orientToSketch();   // default: the view stays exactly as it was; Look normal squares up
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
       if (after) await after();
