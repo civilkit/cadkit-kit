@@ -113,14 +113,15 @@ const edgeOp = (kind: 'rounding' | 'chamfer', sel: string, amount: string): stri
 /** Revolve about the shape axis. Ground: the Right plane (sketch x is -Z, y is the radius) with the axis along sketch x. Face: a plane perpendicular to the face through a helper line, its y is the face normal. */
 function revolveScript(name: string, pl: Place, segsOrCircle: { segs?: Seg[]; circle?: { c: Pt; r: number } }): string {
   const ground = pl.ground;
-  const map = (q: Pt): Pt => (ground ? [-q[1], q[0]] : [q[0] + pl.at[0], q[1] + pl.at[1]]);
+  // ground: (radius, axial) -> (-z, y) on the Right plane; face: the plane through the helper line starts AT the line, its y is the face normal
+  const map = (q: Pt): Pt => (ground ? [-q[1], q[0]] : [q[0], q[1]]);
   const draw = segsOrCircle.circle
     ? `s.circle(${n(segsOrCircle.circle.r)}, ${P(map(segsOrCircle.circle.c))})`
     : `s${segCalls(segsOrCircle.segs!, map, false)}`;
   if (ground) return `part('${name}')\n  .sketch('right', (s) => ${draw})\n  .revolve(360, { axis: { from: [0, 0], to: [1, 0] } });\n`;
-  return `part('${name}')\n  .sketchFeature(${pl.plane}, { points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: ${n(pl.at[0])}, y: ${n(pl.at[1])} }, { id: 'b', x: ${n(pl.at[0] + 1)}, y: ${n(pl.at[1])} }], entities: [{ id: 'ax', type: 'line', p1: 'a', p2: 'b', construction: true }] })\n`
-    + `  .feature({ type: 'plane', mode: 'perpendicular', base: { kind: 'face', id: '${pl.hostFace}' }, axis: { kind: 'sketchLine', sketch: '$sketch', entity: 'ax' }, visible: false })\n`
-    + `  .sketch(at('$last'), (s) => ${draw})\n  .revolve(360);\n`;
+  return `const base_ = part('${name}')\n  .sketchFeature(${pl.plane}, { points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: ${n(pl.at[0])}, y: ${n(pl.at[1])} }, { id: 'b', x: ${n(pl.at[0] + 1)}, y: ${n(pl.at[1])} }], entities: [{ id: 'ax', type: 'line', p1: 'a', p2: 'b', construction: true }] })\n`
+    + `  .feature({ type: 'plane', mode: 'perpendicular', base: { kind: 'face', id: '${pl.hostFace}' }, axis: { kind: 'sketchLine', sketch: '$sketch', entity: 'ax' }, visible: false });\n`
+    + `const axisPlane = base_.handle();\nbase_.sketch(at(axisPlane, 0), (s) => ${draw})\n  .revolve(360);\n`;
 }
 
 // ---------------------------------------------------------------- entries
@@ -133,7 +134,7 @@ const cuboid: BoslEntry = {
   params: [L('x', 40, 1, 200), L('y', 30, 1, 200), L('z', 20, 1, 200, true), L('rounding', 0, 0, 50, true), L('chamfer', 0, 0, 50, true), anchorParam],
   source: { module: 'cuboid', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
   samples: { rounded: { x: 40, y: 30, z: 20, rounding: 5, chamfer: 0, anchor: 'center' }, chamfered: { x: 35, y: 25, z: 18, rounding: 0, chamfer: 3, anchor: 'bottom' } },
-  notes: 'rounding or chamfer applies to all twelve edges (BOSL2 accepts both options for edge subsets: not ported). Only one of them may be set.',
+  notes: 'rounding or chamfer applies to all twelve edges (BOSL2 accepts both options for edge subsets: not ported). Only one of them may be set. A chamfer leaves the three-chamfer corners as the kernel makes them (BOSL2 trimcorners=false); BOSL2 trims those corners by default with one more small cut.',
   onFace: true,
   check(p) {
     const m = Math.min(num(p, 'x'), num(p, 'y'), num(p, 'z')) / 2;
@@ -149,12 +150,12 @@ const cuboid: BoslEntry = {
     if (kind) s += `const body = body_.handle();\nbody_${edgeOp(kind, ownEdges(pl), val(p, kind, pl))};\n`;
     return s;
   },
-  scad: (p) => `cuboid([${p.x}, ${p.y}, ${p.z}]${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}` : ''}, anchor=${scadAnchor(p)});`,
+  scad: (p) => `cuboid([${p.x}, ${p.y}, ${p.z}]${num(p, 'rounding') > 0 ? `, rounding=${p.rounding}` : ''}${num(p, 'chamfer') > 0 ? `, chamfer=${p.chamfer}, trimcorners=false` : ''}, anchor=${scadAnchor(p)});`,
 };
 
 const prismoid: BoslEntry = {
   id: 'prismoid', name: 'Prismoid', category: 'blocks', tags: ['frustum', 'taper', 'tapered block', 'pyramid', 'loft', 'square to rectangle', 'hopper', 'wedge block'],
-  params: [L('x1', 40, 1, 200), L('y1', 30, 1, 200), L('x2', 20, 0.5, 200), L('y2', 15, 0.5, 200), L('h', 25, 1, 200), L('shiftx', 0, -50, 50), L('shifty', 0, -50, 50)],
+  params: [L('x1', 40, 1, 200), L('y1', 30, 1, 200), L('x2', 20, 0.5, 200), L('y2', 15, 0.5, 200), L('h', 25, 1, 200, true), L('shiftx', 0, -50, 50), L('shifty', 0, -50, 50)],
   source: { module: 'prismoid', file: 'shapes3d.scad', licence: 'BSD-2-Clause' },
   notes: 'Rectangle to rectangle loft with an optional shift of the top. Base on the sketch plane (BOSL2 anchor BOTTOM). Rounded / chamfered prismoids are not ported (the kernel has no exact ruled round-corner loft).',
   onFace: true,
@@ -163,7 +164,7 @@ const prismoid: BoslEntry = {
     const [u, v] = pl.at;
     const sec = (w: number, h: number, cx: number, cy: number) => `(s) => s.rect(${n(w)}, ${n(h)}, ${P([cx, cy])})`;
     return header(this, p, pl)
-      + `part('Prismoid').loft([\n  { on: ${pl.plane}, draw: ${sec(num(p, 'x1'), num(p, 'y1'), u, v)} },\n  { on: at(${pl.plane}, ${n(num(p, 'h'))}), draw: ${sec(num(p, 'x2'), num(p, 'y2'), u + num(p, 'shiftx'), v + num(p, 'shifty'))} },\n]);\n`;
+      + `part('Prismoid').loft([\n  { on: ${pl.plane}, draw: ${sec(num(p, 'x1'), num(p, 'y1'), u, v)} },\n  { on: at(${pl.plane}, ${val(p, 'h', pl)}), draw: ${sec(num(p, 'x2'), num(p, 'y2'), u + num(p, 'shiftx'), v + num(p, 'shifty'))} },\n]);\n`;
   },
   scad: (p) => `prismoid(size1=[${p.x1}, ${p.y1}], size2=[${p.x2}, ${p.y2}], h=${p.h}, shift=[${p.shiftx}, ${p.shifty}]);`,
 };
@@ -207,11 +208,11 @@ const cyl: BoslEntry = {
     let segs: Seg[];
     if (kind === 'rounding') segs = cornerPath(pts, [0, amt, amt, 0], [0, 0, 0, 0]);
     else {
-      // BOSL2 chamfer: `amt` across the end face and `amt` along the axis
-      const side = (z: number): number => r1 + (r2 - r1) * (z - z0) / h;
+      // BOSL2 chamfer: `amt` across the end face and `amt` along the slanted side
+      const L = Math.hypot(r1 - r2, h), ux = (r2 - r1) / L, uz = h / L;
       segs = [
-        { k: 'l', a: [0, z0], b: [r1 - amt, z0] }, { k: 'l', a: [r1 - amt, z0], b: [side(z0 + amt), z0 + amt] },
-        { k: 'l', a: [side(z0 + amt), z0 + amt], b: [side(z1 - amt), z1 - amt] }, { k: 'l', a: [side(z1 - amt), z1 - amt], b: [r2 - amt, z1] },
+        { k: 'l', a: [0, z0], b: [r1 - amt, z0] }, { k: 'l', a: [r1 - amt, z0], b: [r1 + ux * amt, z0 + uz * amt] },
+        { k: 'l', a: [r1 + ux * amt, z0 + uz * amt], b: [r2 - ux * amt, z1 - uz * amt] }, { k: 'l', a: [r2 - ux * amt, z1 - uz * amt], b: [r2 - amt, z1] },
         { k: 'l', a: [r2 - amt, z1], b: [0, z1] }, { k: 'l', a: [0, z1], b: [0, z0] },
       ];
     }

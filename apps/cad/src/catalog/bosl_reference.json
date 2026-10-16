@@ -1,5 +1,5 @@
 {
- "openscad": "",
+ "openscad": "OpenSCAD version 2021.01",
  "bosl2": {
   "repo": "https://github.com/BelfrySCAD/BOSL2",
   "commit": "48304c31bf4b45bc42590abe7244494dad74b15e",
@@ -134,8 +134,8 @@
      "anchor": "bottom"
     },
     "scad": "tube(h=30, od=30, id=22, anchor=BOTTOM);",
-    "volume": 9800.784654550123,
-    "area": 5554.146972782859,
+    "volume": 9800.784654550083,
+    "area": 5554.146972782862,
     "bbox": {
      "min": [
       -15,
@@ -158,8 +158,8 @@
      "anchor": "bottom"
     },
     "scad": "tube(h=44.4, od=49.8, id=1.8, anchor=BOTTOM);",
-    "volume": 86361.44722186292,
-    "area": 11087.484935579858,
+    "volume": 86361.44722186349,
+    "area": 11087.484935579865,
     "bbox": {
      "min": [
       -24.899993896484375,
@@ -182,8 +182,8 @@
      "anchor": "center"
     },
     "scad": "tube(h=17.9, od=40.8, id=33.5, anchor=CENTER);",
-    "volume": 7624.476510488235,
-    "area": 5030.013998127878,
+    "volume": 7624.476510488268,
+    "area": 5030.0139981278735,
     "bbox": {
      "min": [
       -20.399993896484375,
@@ -206,8 +206,8 @@
      "anchor": "bottom"
     },
     "scad": "tube(h=42.8, od=44.6, id=17.1, anchor=BOTTOM);",
-    "volume": 57030.53377705915,
-    "area": 10960.953928776145,
+    "volume": 57030.53377705917,
+    "area": 10960.953928776134,
     "bbox": {
      "min": [
       -22.29998779296875,
@@ -230,8 +230,8 @@
      "anchor": "center"
     },
     "scad": "tube(h=39.2, od=55, id=10.1, anchor=CENTER);",
-    "volume": 89982.80618155225,
-    "area": 12607.846521062453,
+    "volume": 89982.8061815521,
+    "area": 12607.846521062464,
     "bbox": {
      "min": [
       -27.5,
@@ -374,6 +374,58 @@
       14.600000381469727,
       24.850000381469727,
       39.79999923706055
+     ]
+    }
+   },
+   {
+    "name": "rounded",
+    "params": {
+     "x": 40,
+     "y": 30,
+     "z": 20,
+     "rounding": 5,
+     "chamfer": 0,
+     "anchor": "center"
+    },
+    "scad": "cuboid([40, 30, 20], rounding=5, anchor=CENTER);",
+    "volume": 22235.33155119164,
+    "area": 4399.007780668484,
+    "bbox": {
+     "min": [
+      -20,
+      -15,
+      -10
+     ],
+     "max": [
+      20,
+      15,
+      10
+     ]
+    }
+   },
+   {
+    "name": "chamfered",
+    "params": {
+     "x": 35,
+     "y": 25,
+     "z": 18,
+     "rounding": 0,
+     "chamfer": 3,
+     "anchor": "bottom"
+    },
+    "scad": "cuboid([35, 25, 18], chamfer=3, trimcorners=false, anchor=BOTTOM);",
+    "volume": 14508,
+    "area": 3348.6012972767758,
+    "bbox": {
+     "min": [
+      -17.5,
+      -12.5,
+      0
+     ],
+     "max": [
+      17.5,
+      12.5,
+      18
      ]
     }
    }
@@ -772,6 +824,110 @@
       20.299999237060547
      ]
     }
+   },
+   {
+    "name": "rounded_cylinder",
+    "params": {
+     "h": 30,
+     "d1": 20,
+     "d2": 20,
+     "rounding": 3,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=30, d1=20, d2=20, rounding=3, anchor=BOTTOM);",
+    "volume": 9197.34710902427,
+    "area": 2343.3490105196042,
+    "bbox": {
+     "min": [
+      -10,
+      -10,
+      0
+     ],
+     "max": [
+      10,
+      10,
+      30
+     ]
+    }
+   },
+   {
+    "name": "chamfered_cylinder",
+    "params": {
+     "h": 25,
+     "d1": 24,
+     "d2": 24,
+     "rounding": 0,
+     "chamfer": 2.5,
+     "anchor": "center"
+    },
+    "scad": "cyl(h=25, d1=24, d2=24, chamfer=2.5, anchor=CENTER);",
+    "volume": 10870.128242783154,
+    "area": 2552.5071284655382,
+    "bbox": {
+     "min": [
+      -12,
+      -12,
+      -12.5
+     ],
+     "max": [
+      12,
+      12,
+      12.5
+     ]
+    }
+   },
+   {
+    "name": "rounded_cone",
+    "params": {
+     "h": 30,
+     "d1": 30,
+     "d2": 14,
+     "rounding": 2.5,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "cyl(h=30, d1=30, d2=14, rounding=2.5, anchor=BOTTOM);",
+    "volume": 11662.809693114874,
+    "area": 2795.6574604102725,
+    "bbox": {
+     "min": [
+      -14.245953559875488,
+      -14.245953559875488,
+      0
+     ],
+     "max": [
+      14.245953559875488,
+      14.245953559875488,
+      30
+     ]
+    }
+   },
+   {
+    "name": "chamfered_cone",
+    "params": {
+     "h": 28,
+     "d1": 26,
+     "d2": 12,
+     "rounding": 0,
+     "chamfer": 3,
+     "anchor": "center"
+    },
+    "scad": "cyl(h=28, d1=26, d2=12, chamfer=3, anchor=CENTER);",
+    "volume": 7830.892833774951,
+    "area": 2109.848632086267,
+    "bbox": {
+     "min": [
+      -12.272390365600586,
+      -12.272390365600586,
+      -14
+     ],
+     "max": [
+      12.272390365600586,
+      12.272390365600586,
+      14
+     ]
+    }
    }
   ],
   "pie_slice": [
@@ -784,7 +940,7 @@
      "anchor": "bottom"
     },
     "scad": "pie_slice(h=10, d=40, ang=60, anchor=BOTTOM);",
-    "volume": 2094.1843492755465,
+    "volume": 2094.1843492755474,
     "area": 1028.2576780597792,
     "bbox": {
      "min": [
@@ -808,8 +964,8 @@
      "anchor": "bottom"
     },
     "scad": "pie_slice(h=9.6, d=73, ang=98.6, anchor=BOTTOM);",
-    "volume": 11003.671239888834,
-    "area": 3596.2072540383183,
+    "volume": 11003.67123988883,
+    "area": 3596.2072540383188,
     "bbox": {
      "min": [
       -5.457871437072754,
@@ -880,8 +1036,8 @@
      "anchor": "bottom"
     },
     "scad": "pie_slice(h=2.5, d=22.4, ang=83.2, anchor=BOTTOM);",
-    "volume": 227.66862530657596,
-    "area": 278.79191585148766,
+    "volume": 227.66862530657593,
+    "area": 278.7919158514878,
     "bbox": {
      "min": [
       0,
@@ -1029,6 +1185,60 @@
       12.399999618530273,
       12.309590339660645,
       11.399999618530273
+     ]
+    }
+   },
+   {
+    "name": "rounded",
+    "params": {
+     "n": 6,
+     "h": 20,
+     "r": 15,
+     "realign": false,
+     "rounding": 3,
+     "chamfer": 0,
+     "anchor": "bottom"
+    },
+    "scad": "regular_prism(n=6, h=20, r=15, rounding=3, anchor=BOTTOM);",
+    "volume": 11361.504708716438,
+    "area": 2728.509707321575,
+    "bbox": {
+     "min": [
+      -15,
+      -12.990381240844727,
+      1.7763568394002505e-15
+     ],
+     "max": [
+      15,
+      12.990381240844727,
+      20
+     ]
+    }
+   },
+   {
+    "name": "chamfered",
+    "params": {
+     "n": 5,
+     "h": 18,
+     "r": 14,
+     "realign": true,
+     "rounding": 0,
+     "chamfer": 2,
+     "anchor": "center"
+    },
+    "scad": "regular_prism(n=5, h=18, r=14, realign=true, chamfer=2, anchor=CENTER);",
+    "volume": 8078.533279722981,
+    "area": 2208.3991692598047,
+    "bbox": {
+     "min": [
+      -14,
+      -13.314791679382324,
+      -9
+     ],
+     "max": [
+      11.326237678527832,
+      13.314791679382324,
+      9
      ]
     }
    }
@@ -1382,6 +1592,30 @@
       5.211979389190674
      ]
     }
+   },
+   {
+    "name": "capped",
+    "params": {
+     "l": 20,
+     "r": 5,
+     "ang": 45,
+     "cap_h": 6
+    },
+    "scad": "teardrop(l=20, r=5, ang=45, cap_h=6);",
+    "volume": 1655.0352349778145,
+    "area": 818.9845593343189,
+    "bbox": {
+     "min": [
+      -5,
+      -10,
+      -5
+     ],
+     "max": [
+      5,
+      10,
+      6
+     ]
+    }
    }
   ],
   "onion": [
@@ -1497,6 +1731,29 @@
       2.29998779296875,
       2.29998779296875,
       5.7449798583984375
+     ]
+    }
+   },
+   {
+    "name": "capped",
+    "params": {
+     "r": 15,
+     "ang": 30,
+     "cap_h": 20
+    },
+    "scad": "onion(r=15, ang=30, cap_h=20);",
+    "volume": 15552.0714486822,
+    "area": 3075.8397413874745,
+    "bbox": {
+     "min": [
+      -15,
+      -15,
+      -15
+     ],
+     "max": [
+      15,
+      15,
+      20
      ]
     }
    }
