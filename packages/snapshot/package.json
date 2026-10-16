@@ -1,0 +1,6 @@
+{
+  "name": "@kit/snapshot",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}
