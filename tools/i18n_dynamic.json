@@ -7,32 +7,299 @@
   "analysis.mode.off",
   "analysis.mode.zebra"
  ],
- "app.leftTab.+": [
-  "app.leftTab.Assets",
-  "app.leftTab.Catalog",
-  "app.leftTab.Editor",
-  "app.leftTab.Features",
-  "app.leftTab.Outliner",
-  "app.leftTab.Script",
-  "app.leftTab.Variables"
+ "check.${kind}.${n === 1 ? 'one' : 'other'}": [
+  "check.afterEdit.hint",
+  "check.chip.title",
+  "check.clean.chip",
+  "check.error.one",
+  "check.error.other",
+  "check.info.one",
+  "check.info.other",
+  "check.mode.block",
+  "check.mode.info",
+  "check.mode.off",
+  "check.mode.warn",
+  "check.severity.error",
+  "check.severity.info",
+  "check.severity.warn",
+  "check.warn.one",
+  "check.warn.other"
  ],
- "app.ref.+": [
-  "app.ref.front",
-  "app.ref.material",
-  "app.ref.noMaterial",
-  "app.ref.origin",
-  "app.ref.right",
-  "app.ref.top"
+ "check.mode.+": [
+  "check.mode.block",
+  "check.mode.info",
+  "check.mode.off",
+  "check.mode.warn"
  ],
- "app.shape.+": [
-  "app.shape.chain",
-  "app.shape.circle",
-  "app.shape.ellipse",
-  "app.shape.insideOffset",
-  "app.shape.insideShape",
-  "app.shape.loop",
-  "app.shape.wall",
-  "app.shape.withHole"
+ "check.severity.+": [
+  "check.severity.error",
+  "check.severity.info",
+  "check.severity.warn"
+ ],
+ "layer.+": [
+  "layer.axes",
+  "layer.curves",
+  "layer.dimensions",
+  "layer.edges",
+  "layer.grid",
+  "layer.issues",
+  "layer.planes",
+  "layer.relations",
+  "layer.sketches",
+  "layer.threads"
+ ],
+ "light.+": [
+  "light.contrast",
+  "light.flat",
+  "light.studio",
+  "light.technical"
+ ],
+ "opt.end.+": [
+  "opt.end.blind",
+  "opt.end.mid",
+  "opt.end.offsetFromFace",
+  "opt.end.through",
+  "opt.end.throughBoth",
+  "opt.end.upToFace",
+  "opt.end.upToNext",
+  "opt.end.upToPoint"
+ ],
+ "opt.loft.+": [
+  "opt.loft.loftPointBoth",
+  "opt.loft.loftPointGuides",
+  "opt.loft.loftPointMiddle",
+  "opt.loft.loftPointSurface"
+ ],
+ "opt.thin.side.+": [
+  "opt.thin.side.both",
+  "opt.thin.side.inside",
+  "opt.thin.side.mid",
+  "opt.thin.side.outside"
+ ],
+ "opt.thin.ends.+": [
+  "opt.thin.ends.flat",
+  "opt.thin.ends.round"
+ ],
+ "opt.thin.corner.+": [
+  "opt.thin.corner.mitre",
+  "opt.thin.corner.round"
+ ],
+ "opt.chamfer.type.+": [
+  "opt.chamfer.type.angle",
+  "opt.chamfer.type.distances",
+  "opt.chamfer.type.equal"
+ ],
+ "opt.fillet.profile.+": [
+  "opt.fillet.profile.chord",
+  "opt.fillet.profile.circular",
+  "opt.fillet.profile.conic",
+  "opt.fillet.profile.curvature"
+ ],
+ "feature.+": [
+  "feature.axis",
+  "feature.chamfer",
+  "feature.cpattern",
+  "feature.curvepattern",
+  "feature.cutWithSurface",
+  "feature.deleteBody",
+  "feature.deleteFace",
+  "feature.dome",
+  "feature.draft",
+  "feature.editCurve",
+  "feature.extend",
+  "feature.extrude",
+  "feature.fill",
+  "feature.fillet",
+  "feature.fillpattern",
+  "feature.freeform",
+  "feature.gear",
+  "feature.helix",
+  "feature.hole",
+  "feature.insertPart",
+  "feature.knit",
+  "feature.lip",
+  "feature.loft",
+  "feature.lpattern",
+  "feature.mate",
+  "feature.mirror",
+  "feature.moveBody",
+  "feature.moveFace",
+  "feature.pipeCut",
+  "feature.plane",
+  "feature.projectCurve",
+  "feature.revolve",
+  "feature.rib",
+  "feature.scale",
+  "feature.shell",
+  "feature.sketch",
+  "feature.sketch3d",
+  "feature.spattern",
+  "feature.splitLine",
+  "feature.surfaceExtrude",
+  "feature.surfaceOffset",
+  "feature.surfacePlanar",
+  "feature.surfaceRevolve",
+  "feature.sweep",
+  "feature.thicken",
+  "feature.thread",
+  "feature.trimSurface"
+ ],
+ "opt.fill.continuity.+": [
+  "opt.fill.continuity.G0",
+  "opt.fill.continuity.G1",
+  "opt.fill.continuity.G2",
+  "opt.fill.continuity.G3"
+ ],
+ "opt.fill.fairing.+": [
+  "opt.fill.fairing.curvature",
+  "opt.fill.fairing.meowNURBS",
+  "opt.fill.fairing.plate",
+  "opt.fill.fairing.variation"
+ ],
+ "gear.warn.+": [
+  "gear.warn.pointed",
+  "gear.warn.ringTip",
+  "gear.warn.tight",
+  "gear.warn.tipClamped",
+  "gear.warn.undercut"
+ ],
+ "gear.type.+": [
+  "gear.type.helical",
+  "gear.type.helicalTip",
+  "gear.type.internal",
+  "gear.type.internalTip",
+  "gear.type.rack",
+  "gear.type.rackTip",
+  "gear.type.spur",
+  "gear.type.spurTip"
+ ],
+ "hole.type.+": [
+  "hole.type.cbore",
+  "hole.type.csink",
+  "hole.type.simple"
+ ],
+ "hole.fit.+": [
+  "hole.fit.close",
+  "hole.fit.loose",
+  "hole.fit.normal",
+  "hole.fit.tap"
+ ],
+ "hole.end.+": [
+  "hole.end.blind",
+  "hole.end.through",
+  "hole.end.upToNext"
+ ],
+ "thread.hand.+": [
+  "thread.hand.left",
+  "thread.hand.leftTip",
+  "thread.hand.right",
+  "thread.hand.rightTip"
+ ],
+ "material.cat.+": [
+  "material.cat.Aluminium",
+  "material.cat.Concrete",
+  "material.cat.Custom",
+  "material.cat.Glass",
+  "material.cat.Plastics",
+  "material.cat.Rubber",
+  "material.cat.Steel",
+  "material.cat.Titanium",
+  "material.cat.Wood"
+ ],
+ "script.example.+": [
+  "script.example.box",
+  "script.example.bracket",
+  "script.example.flange"
+ ],
+ "settings.+": [
+  "settings.blur",
+  "settings.drawerOpen",
+  "settings.handles",
+  "settings.label",
+  "settings.language",
+  "settings.leftPanel",
+  "settings.leftTabs",
+  "settings.lineWidth",
+  "settings.opacity",
+  "settings.preset",
+  "settings.ribbon",
+  "settings.rightPanel",
+  "settings.selectionBar",
+  "settings.sketchPalette",
+  "settings.theme",
+  "settings.toolLabels",
+  "settings.toolRail"
+ ],
+ "settings.${key}.${v}": [
+  "settings.leftPanel.docked",
+  "settings.leftPanel.floating",
+  "settings.leftPanel.hidden",
+  "settings.preset.choose",
+  "settings.preset.classic",
+  "settings.preset.custom",
+  "settings.preset.minimal",
+  "settings.preset.plasticity",
+  "settings.resetLayout.hint",
+  "settings.ribbon.compact",
+  "settings.ribbon.full",
+  "settings.ribbon.off",
+  "settings.rightPanel.docked",
+  "settings.rightPanel.floating",
+  "settings.rightPanel.off",
+  "settings.sketch.arcSwitch",
+  "settings.sketch.autoConstraints",
+  "settings.sketch.gridSnap",
+  "settings.sketch.onViewValues",
+  "settings.sketch.title",
+  "settings.tab.general",
+  "settings.tab.layout",
+  "settings.tab.positioning",
+  "settings.tab.sketching",
+  "settings.theme.auto",
+  "settings.theme.dark",
+  "settings.theme.light",
+  "settings.toolLabels.icons",
+  "settings.toolLabels.icons-and-text",
+  "settings.triball.angle",
+  "settings.triball.distance",
+  "settings.triball.note",
+  "settings.triball.title"
+ ],
+ "settings.tab.+": [
+  "settings.tab.general",
+  "settings.tab.layout",
+  "settings.tab.positioning",
+  "settings.tab.sketching"
+ ],
+ "settings.theme.+": [
+  "settings.theme.auto",
+  "settings.theme.dark",
+  "settings.theme.light"
+ ],
+ "app.sketch.snapkind.+": [
+  "app.sketch.snapkind.align",
+  "app.sketch.snapkind.center",
+  "app.sketch.snapkind.endpoint",
+  "app.sketch.snapkind.grid",
+  "app.sketch.snapkind.intersection",
+  "app.sketch.snapkind.midpoint",
+  "app.sketch.snapkind.oncurve",
+  "app.sketch.snapkind.perpendicular",
+  "app.sketch.snapkind.quadrant",
+  "app.sketch.snapkind.tangent"
+ ],
+ "app.sketch.show.+": [
+  "app.sketch.show.colours",
+  "app.sketch.show.dimensions",
+  "app.sketch.show.panel",
+  "app.sketch.show.reference",
+  "app.sketch.show.relations",
+  "app.sketch.show.tip"
+ ],
+ "app.sketch.defstate.+": [
+  "app.sketch.defstate.full",
+  "app.sketch.defstate.over",
+  "app.sketch.defstate.under"
  ],
  "app.sketch.constraint.+": [
   "app.sketch.constraint.angle",
@@ -57,50 +324,20 @@
   "app.sketch.constraint.vdist",
   "app.sketch.constraint.vertical"
  ],
- "app.sketch.defstate.+": [
-  "app.sketch.defstate.full",
-  "app.sketch.defstate.over",
-  "app.sketch.defstate.under"
+ "settings.sketch.+": [
+  "settings.sketch.arcSwitch",
+  "settings.sketch.autoConstraints",
+  "settings.sketch.gridSnap",
+  "settings.sketch.onViewValues",
+  "settings.sketch.title"
  ],
- "app.sketch.group.+": [
-  "app.sketch.group.constrain",
-  "app.sketch.group.dimension",
-  "app.sketch.group.draw",
-  "app.sketch.group.edit"
- ],
- "app.sketch.show.+": [
-  "app.sketch.show.colours",
-  "app.sketch.show.dimensions",
-  "app.sketch.show.panel",
-  "app.sketch.show.reference",
-  "app.sketch.show.relations",
-  "app.sketch.show.tip"
- ],
- "app.sketch.snap.+": [
-  "app.sketch.snap.align",
-  "app.sketch.snap.center",
-  "app.sketch.snap.endpoint",
-  "app.sketch.snap.grid",
-  "app.sketch.snap.intersection",
-  "app.sketch.snap.midpoint",
-  "app.sketch.snap.oncurve",
-  "app.sketch.snap.origin",
-  "app.sketch.snap.perpendicular",
-  "app.sketch.snap.point",
-  "app.sketch.snap.quadrant",
-  "app.sketch.snap.tangent"
- ],
- "app.sketch.snapkind.+": [
-  "app.sketch.snapkind.align",
-  "app.sketch.snapkind.center",
-  "app.sketch.snapkind.endpoint",
-  "app.sketch.snapkind.grid",
-  "app.sketch.snapkind.intersection",
-  "app.sketch.snapkind.midpoint",
-  "app.sketch.snapkind.oncurve",
-  "app.sketch.snapkind.perpendicular",
-  "app.sketch.snapkind.quadrant",
-  "app.sketch.snapkind.tangent"
+ "settings.sketch.${key}.${v}": [
+  "settings.sketch.arcSwitch.hover",
+  "settings.sketch.arcSwitch.keys",
+  "settings.sketch.arcSwitch.off",
+  "settings.sketch.onViewValues.both",
+  "settings.sketch.onViewValues.dimensions",
+  "settings.sketch.onViewValues.off"
  ],
  "app.sketch.tool.+": [
   "app.sketch.tool.arc-centre",
@@ -146,207 +383,47 @@
   "app.sketch.tool.trim",
   "app.sketch.tool.vertical"
  ],
- "asm.exp.+": [
-  "asm.exp.auto",
-  "asm.exp.axis",
-  "asm.exp.comp",
-  "asm.exp.dir",
-  "asm.exp.drag",
-  "asm.exp.note",
-  "asm.exp.offset",
-  "asm.exp.reset",
-  "asm.exp.spread",
-  "asm.exp.title",
-  "asm.exp.x",
-  "asm.exp.y",
-  "asm.exp.z"
+ "app.sketch.group.+": [
+  "app.sketch.group.constrain",
+  "app.sketch.group.dimension",
+  "app.sketch.group.draw",
+  "app.sketch.group.edit"
  ],
- "asm.mate.choice.+": [
-  "asm.mate.choice.of"
+ "thread.std.+": [
+  "thread.std.Acme",
+  "thread.std.BSP",
+  "thread.std.NPT",
+  "thread.std.Tr",
+  "thread.std.UNC",
+  "thread.std.UNF",
+  "thread.std.metric",
+  "thread.std.metric-fine"
  ],
- "asm.mate.flip.+": [
-  "asm.mate.flip.angle",
-  "asm.mate.flip.gear",
-  "asm.mate.flip.rackPinion",
-  "asm.mate.flip.screw",
-  "asm.mate.flip.tangent"
+ "thread.face.many.+": [
+  "thread.face.many.faces",
+  "thread.face.many.holes",
+  "thread.face.many.shafts"
  ],
- "asm.mate.fliptip.+": [
-  "asm.mate.fliptip.angle",
-  "asm.mate.fliptip.gear",
-  "asm.mate.fliptip.rackPinion",
-  "asm.mate.fliptip.screw",
-  "asm.mate.fliptip.tangent"
+ "thread.start.+": [
+  "thread.start.bottom",
+  "thread.start.bottomTip",
+  "thread.start.open",
+  "thread.start.openTip",
+  "thread.start.top",
+  "thread.start.topTip"
  ],
- "asm.mate.group.+": [
-  "asm.mate.group.advanced",
-  "asm.mate.group.mechanical",
-  "asm.mate.group.standard"
- ],
- "asm.mate.kind.+": [
-  "asm.mate.kind.angle",
-  "asm.mate.kind.cam",
-  "asm.mate.kind.coincident",
-  "asm.mate.kind.concentric",
-  "asm.mate.kind.distance",
-  "asm.mate.kind.gear",
-  "asm.mate.kind.hinge",
-  "asm.mate.kind.limits",
-  "asm.mate.kind.linearCoupler",
-  "asm.mate.kind.lock",
-  "asm.mate.kind.parallel",
-  "asm.mate.kind.path",
-  "asm.mate.kind.perpendicular",
-  "asm.mate.kind.profileCenter",
-  "asm.mate.kind.rackPinion",
-  "asm.mate.kind.screw",
-  "asm.mate.kind.slot",
-  "asm.mate.kind.symmetric",
-  "asm.mate.kind.tangent",
-  "asm.mate.kind.universalJoint",
-  "asm.mate.kind.unknown",
-  "asm.mate.kind.width"
- ],
- "asm.mate.pending.+": [
-  "asm.mate.pending.cam",
-  "asm.mate.pending.linearCoupler",
-  "asm.mate.pending.path",
-  "asm.mate.pending.profileCenter",
-  "asm.mate.pending.universalJoint"
- ],
- "asm.mate.ref.+": [
-  "asm.mate.ref.a",
-  "asm.mate.ref.a2",
-  "asm.mate.ref.axis",
-  "asm.mate.ref.b",
-  "asm.mate.ref.b2",
-  "asm.mate.ref.c",
-  "asm.mate.ref.face",
-  "asm.mate.ref.pin",
-  "asm.mate.ref.pinion",
-  "asm.mate.ref.plane",
-  "asm.mate.ref.rack",
-  "asm.mate.ref.slot1",
-  "asm.mate.ref.slot2",
-  "asm.mate.ref.stop",
-  "asm.mate.ref.tab1",
-  "asm.mate.ref.tab2",
-  "asm.mate.ref.wall"
- ],
- "asm.mate.tip.+": [
-  "asm.mate.tip.angle",
-  "asm.mate.tip.coincident",
-  "asm.mate.tip.concentric",
-  "asm.mate.tip.distance",
-  "asm.mate.tip.gear",
-  "asm.mate.tip.hinge",
-  "asm.mate.tip.limits",
-  "asm.mate.tip.lock",
-  "asm.mate.tip.parallel",
-  "asm.mate.tip.perpendicular",
-  "asm.mate.tip.rackPinion",
-  "asm.mate.tip.screw",
-  "asm.mate.tip.slot",
-  "asm.mate.tip.symmetric",
-  "asm.mate.tip.tangent",
-  "asm.mate.tip.width"
- ],
- "asm.place.+": [
-  "asm.place.angle",
-  "asm.place.apply",
-  "asm.place.axis",
-  "asm.place.dx",
-  "asm.place.dy",
-  "asm.place.dz",
-  "asm.place.none",
-  "asm.place.title"
- ],
- "asm.sec.+": [
-  "asm.sec.bom",
-  "asm.sec.explode",
-  "asm.sec.interference",
-  "asm.sec.mates",
-  "asm.sec.parts"
- ],
- "bg.+": [
-  "bg.dark",
-  "bg.gradient",
-  "bg.light",
-  "bg.theme"
- ],
- "catalog.blocked.+": [
-  "catalog.blocked.failed",
-  "catalog.blocked.miss",
-  "catalog.blocked.needsBody",
-  "catalog.blocked.noFrame"
- ],
- "catalog.item.+": [
-  "catalog.item.add-block",
-  "catalog.item.add-boss",
-  "catalog.item.add-cone",
-  "catalog.item.add-cylinder",
-  "catalog.item.add-slot",
-  "catalog.item.add-sphere",
-  "catalog.item.cbore",
-  "catalog.item.csink",
-  "catalog.item.cut-cone",
-  "catalog.item.cut-cylinder",
-  "catalog.item.cut-pocket",
-  "catalog.item.cut-slot",
-  "catalog.item.cut-sphere",
-  "catalog.item.hole"
- ],
- "catalog.snap.+": [
-  "catalog.snap.center",
-  "catalog.snap.circle",
-  "catalog.snap.feature",
-  "catalog.snap.midpoint",
-  "catalog.snap.vertex"
- ],
- "catalog.tip.+": [
-  "catalog.tip.add-block",
-  "catalog.tip.add-boss",
-  "catalog.tip.add-cone",
-  "catalog.tip.add-cylinder",
-  "catalog.tip.add-slot",
-  "catalog.tip.add-sphere",
-  "catalog.tip.cbore",
-  "catalog.tip.csink",
-  "catalog.tip.cut-cone",
-  "catalog.tip.cut-cylinder",
-  "catalog.tip.cut-pocket",
-  "catalog.tip.cut-slot",
-  "catalog.tip.cut-sphere",
-  "catalog.tip.hole"
- ],
- "check.${kind}.${n === 1 ? 'one' : 'other'}": [
-  "check.afterEdit.hint",
-  "check.chip.title",
-  "check.clean.chip",
-  "check.error.one",
-  "check.error.other",
-  "check.info.one",
-  "check.info.other",
-  "check.mode.block",
-  "check.mode.info",
-  "check.mode.off",
-  "check.mode.warn",
-  "check.severity.error",
-  "check.severity.info",
-  "check.severity.warn",
-  "check.warn.one",
-  "check.warn.other"
- ],
- "check.mode.+": [
-  "check.mode.block",
-  "check.mode.info",
-  "check.mode.off",
-  "check.mode.warn"
- ],
- "check.severity.+": [
-  "check.severity.error",
-  "check.severity.info",
-  "check.severity.warn"
+ "rail.+": [
+  "rail.assembly",
+  "rail.context",
+  "rail.create",
+  "rail.history",
+  "rail.inspect",
+  "rail.label",
+  "rail.modify",
+  "rail.pattern",
+  "rail.select",
+  "rail.sketch",
+  "rail.surfaces"
  ],
  "cmd.+": [
   "cmd.add-axis",
@@ -463,6 +540,191 @@
   "cmd.view-right",
   "cmd.view-top"
  ],
+ "tip.+": [
+  "tip.add-extend",
+  "tip.add-fill",
+  "tip.add-knit",
+  "tip.add-loft",
+  "tip.add-surface-extrude",
+  "tip.add-surface-loft",
+  "tip.add-surface-planar",
+  "tip.add-surface-revolve",
+  "tip.add-sweep",
+  "tip.add-thicken",
+  "tip.add-trim-surface",
+  "tip.analysis-comb",
+  "tip.analysis-draft",
+  "tip.analysis-gaussian",
+  "tip.analysis-mean",
+  "tip.analysis-zebra"
+ ],
+ "asm.mate.kind.+": [
+  "asm.mate.kind.angle",
+  "asm.mate.kind.cam",
+  "asm.mate.kind.coincident",
+  "asm.mate.kind.concentric",
+  "asm.mate.kind.distance",
+  "asm.mate.kind.gear",
+  "asm.mate.kind.hinge",
+  "asm.mate.kind.limits",
+  "asm.mate.kind.linearCoupler",
+  "asm.mate.kind.lock",
+  "asm.mate.kind.parallel",
+  "asm.mate.kind.path",
+  "asm.mate.kind.perpendicular",
+  "asm.mate.kind.profileCenter",
+  "asm.mate.kind.rackPinion",
+  "asm.mate.kind.screw",
+  "asm.mate.kind.slot",
+  "asm.mate.kind.symmetric",
+  "asm.mate.kind.tangent",
+  "asm.mate.kind.universalJoint",
+  "asm.mate.kind.unknown",
+  "asm.mate.kind.width"
+ ],
+ "asm.sec.+": [
+  "asm.sec.bom",
+  "asm.sec.explode",
+  "asm.sec.interference",
+  "asm.sec.mates",
+  "asm.sec.parts"
+ ],
+ "asm.place.+": [
+  "asm.place.angle",
+  "asm.place.apply",
+  "asm.place.axis",
+  "asm.place.dx",
+  "asm.place.dy",
+  "asm.place.dz",
+  "asm.place.none",
+  "asm.place.title"
+ ],
+ "asm.mate.group.+": [
+  "asm.mate.group.advanced",
+  "asm.mate.group.mechanical",
+  "asm.mate.group.standard"
+ ],
+ "asm.mate.pending.+": [
+  "asm.mate.pending.cam",
+  "asm.mate.pending.linearCoupler",
+  "asm.mate.pending.path",
+  "asm.mate.pending.profileCenter",
+  "asm.mate.pending.universalJoint"
+ ],
+ "asm.mate.tip.+": [
+  "asm.mate.tip.angle",
+  "asm.mate.tip.coincident",
+  "asm.mate.tip.concentric",
+  "asm.mate.tip.distance",
+  "asm.mate.tip.gear",
+  "asm.mate.tip.hinge",
+  "asm.mate.tip.limits",
+  "asm.mate.tip.lock",
+  "asm.mate.tip.parallel",
+  "asm.mate.tip.perpendicular",
+  "asm.mate.tip.rackPinion",
+  "asm.mate.tip.screw",
+  "asm.mate.tip.slot",
+  "asm.mate.tip.symmetric",
+  "asm.mate.tip.tangent",
+  "asm.mate.tip.width"
+ ],
+ "asm.mate.ref.+": [
+  "asm.mate.ref.a",
+  "asm.mate.ref.a2",
+  "asm.mate.ref.axis",
+  "asm.mate.ref.b",
+  "asm.mate.ref.b2",
+  "asm.mate.ref.c",
+  "asm.mate.ref.face",
+  "asm.mate.ref.pin",
+  "asm.mate.ref.pinion",
+  "asm.mate.ref.plane",
+  "asm.mate.ref.rack",
+  "asm.mate.ref.slot1",
+  "asm.mate.ref.slot2",
+  "asm.mate.ref.stop",
+  "asm.mate.ref.tab1",
+  "asm.mate.ref.tab2",
+  "asm.mate.ref.wall"
+ ],
+ "asm.mate.choice.+": [
+  "asm.mate.choice.of"
+ ],
+ "asm.mate.fliptip.+": [
+  "asm.mate.fliptip.angle",
+  "asm.mate.fliptip.gear",
+  "asm.mate.fliptip.rackPinion",
+  "asm.mate.fliptip.screw",
+  "asm.mate.fliptip.tangent"
+ ],
+ "asm.mate.flip.+": [
+  "asm.mate.flip.angle",
+  "asm.mate.flip.gear",
+  "asm.mate.flip.rackPinion",
+  "asm.mate.flip.screw",
+  "asm.mate.flip.tangent"
+ ],
+ "asm.exp.+": [
+  "asm.exp.auto",
+  "asm.exp.axis",
+  "asm.exp.comp",
+  "asm.exp.dir",
+  "asm.exp.drag",
+  "asm.exp.note",
+  "asm.exp.offset",
+  "asm.exp.reset",
+  "asm.exp.spread",
+  "asm.exp.title",
+  "asm.exp.x",
+  "asm.exp.y",
+  "asm.exp.z"
+ ],
+ "catalog.tip.+": [
+  "catalog.tip.add-block",
+  "catalog.tip.add-boss",
+  "catalog.tip.add-cone",
+  "catalog.tip.add-cylinder",
+  "catalog.tip.add-slot",
+  "catalog.tip.add-sphere",
+  "catalog.tip.cbore",
+  "catalog.tip.csink",
+  "catalog.tip.cut-cone",
+  "catalog.tip.cut-cylinder",
+  "catalog.tip.cut-pocket",
+  "catalog.tip.cut-slot",
+  "catalog.tip.cut-sphere",
+  "catalog.tip.hole"
+ ],
+ "catalog.item.+": [
+  "catalog.item.add-block",
+  "catalog.item.add-boss",
+  "catalog.item.add-cone",
+  "catalog.item.add-cylinder",
+  "catalog.item.add-slot",
+  "catalog.item.add-sphere",
+  "catalog.item.cbore",
+  "catalog.item.csink",
+  "catalog.item.cut-cone",
+  "catalog.item.cut-cylinder",
+  "catalog.item.cut-pocket",
+  "catalog.item.cut-slot",
+  "catalog.item.cut-sphere",
+  "catalog.item.hole"
+ ],
+ "catalog.snap.+": [
+  "catalog.snap.center",
+  "catalog.snap.circle",
+  "catalog.snap.feature",
+  "catalog.snap.midpoint",
+  "catalog.snap.vertex"
+ ],
+ "catalog.blocked.+": [
+  "catalog.blocked.failed",
+  "catalog.blocked.miss",
+  "catalog.blocked.needsBody",
+  "catalog.blocked.noFrame"
+ ],
  "cmd.export-${k}": [
   "cmd.export-dxf-sketch",
   "cmd.export-dxf-views",
@@ -470,6 +732,22 @@
   "cmd.export-step",
   "cmd.export-stl",
   "cmd.export-stl-ascii"
+ ],
+ "diag.reason.+": [
+  "diag.reason.booleanFailed",
+  "diag.reason.cutNoEffect",
+  "diag.reason.fillInvalid",
+  "diag.reason.filletChamfer",
+  "diag.reason.loftFailed",
+  "diag.reason.missingEdge",
+  "diag.reason.missingReference",
+  "diag.reason.noClosedProfile",
+  "diag.reason.nothingToCut",
+  "diag.reason.profileCrossesAxis",
+  "diag.reason.shellFailed",
+  "diag.reason.shellTooThick",
+  "diag.reason.sweepFailed",
+  "diag.reason.trimNoIntersection"
  ],
  "diag.advice.+": [
   "diag.advice.booleanFailed",
@@ -500,22 +778,6 @@
   "diag.echo.referenceLost",
   "diag.echo.ribNoContact"
  ],
- "diag.reason.+": [
-  "diag.reason.booleanFailed",
-  "diag.reason.cutNoEffect",
-  "diag.reason.fillInvalid",
-  "diag.reason.filletChamfer",
-  "diag.reason.loftFailed",
-  "diag.reason.missingEdge",
-  "diag.reason.missingReference",
-  "diag.reason.noClosedProfile",
-  "diag.reason.nothingToCut",
-  "diag.reason.profileCrossesAxis",
-  "diag.reason.shellFailed",
-  "diag.reason.shellTooThick",
-  "diag.reason.sweepFailed",
-  "diag.reason.trimNoIntersection"
- ],
  "drawing.field.+": [
   "drawing.field.author",
   "drawing.field.company",
@@ -533,187 +795,36 @@
   "drawing.kind.section",
   "drawing.kind.std"
  ],
- "expr.error.+": [
-  "expr.error.badExpression",
-  "expr.error.badName",
-  "expr.error.cyclicVariables",
-  "expr.error.duplicateName",
-  "expr.error.plain",
-  "expr.error.unknownName"
- ],
- "feature.+": [
-  "feature.axis",
-  "feature.chamfer",
-  "feature.cpattern",
-  "feature.curvepattern",
-  "feature.cutWithSurface",
-  "feature.deleteBody",
-  "feature.deleteFace",
-  "feature.dome",
-  "feature.draft",
-  "feature.editCurve",
-  "feature.extend",
-  "feature.extrude",
-  "feature.fill",
-  "feature.fillet",
-  "feature.fillpattern",
-  "feature.freeform",
-  "feature.gear",
-  "feature.helix",
-  "feature.hole",
-  "feature.insertPart",
-  "feature.knit",
-  "feature.lip",
-  "feature.loft",
-  "feature.lpattern",
-  "feature.mate",
-  "feature.mirror",
-  "feature.moveBody",
-  "feature.moveFace",
-  "feature.pipeCut",
-  "feature.plane",
-  "feature.projectCurve",
-  "feature.revolve",
-  "feature.rib",
-  "feature.scale",
-  "feature.shell",
-  "feature.sketch",
-  "feature.sketch3d",
-  "feature.spattern",
-  "feature.splitLine",
-  "feature.surfaceExtrude",
-  "feature.surfaceOffset",
-  "feature.surfacePlanar",
-  "feature.surfaceRevolve",
-  "feature.sweep",
-  "feature.thicken",
-  "feature.thread",
-  "feature.trimSurface"
- ],
- "files.autosave.${r}": [
-  "files.autosave.quota",
-  "files.autosave.tooBig",
-  "files.autosave.unavailable"
- ],
- "gear.type.+": [
-  "gear.type.helical",
-  "gear.type.helicalTip",
-  "gear.type.internal",
-  "gear.type.internalTip",
-  "gear.type.rack",
-  "gear.type.rackTip",
-  "gear.type.spur",
-  "gear.type.spurTip"
- ],
- "gear.warn.+": [
-  "gear.warn.pointed",
-  "gear.warn.ringTip",
-  "gear.warn.tight",
-  "gear.warn.tipClamped",
-  "gear.warn.undercut"
- ],
- "group.+": [
-  "group.Analyse",
-  "group.Appearance",
-  "group.Bodies",
-  "group.Components",
-  "group.Constrain",
-  "group.Create",
-  "group.Curves",
-  "group.Dimension",
-  "group.Draw",
-  "group.Edit",
-  "group.Expand",
-  "group.Export",
-  "group.File",
-  "group.Finish",
-  "group.Measure",
-  "group.Modify",
-  "group.Pattern",
-  "group.Pick",
-  "group.Position",
-  "group.Reference",
-  "group.Review",
-  "group.Section",
-  "group.Show",
-  "group.Sketch",
-  "group.SketchSelect",
-  "group.Style",
-  "group.Views",
-  "group.Workspace"
+ "sizebox.moveto.+": [
+  "sizebox.moveto.apply",
+  "sizebox.moveto.bad",
+  "sizebox.moveto.bottom",
+  "sizebox.moveto.edge",
+  "sizebox.moveto.hint",
+  "sizebox.moveto.left",
+  "sizebox.moveto.px",
+  "sizebox.moveto.py",
+  "sizebox.moveto.right",
+  "sizebox.moveto.title",
+  "sizebox.moveto.top",
+  "sizebox.moveto.world",
+  "sizebox.moveto.x",
+  "sizebox.moveto.y"
  ],
  "handles.move.+": [
   "handles.move.x",
   "handles.move.y",
   "handles.move.z"
  ],
- "handles.plane.+": [
-  "handles.plane.xy",
-  "handles.plane.yz",
-  "handles.plane.zx"
- ],
  "handles.turn.+": [
   "handles.turn.x",
   "handles.turn.y",
   "handles.turn.z"
  ],
- "hole.end.+": [
-  "hole.end.blind",
-  "hole.end.through",
-  "hole.end.upToNext"
- ],
- "hole.fit.+": [
-  "hole.fit.close",
-  "hole.fit.loose",
-  "hole.fit.normal",
-  "hole.fit.tap"
- ],
- "hole.type.+": [
-  "hole.type.cbore",
-  "hole.type.csink",
-  "hole.type.simple"
- ],
- "inspect.section.+": [
-  "inspect.section.face",
-  "inspect.section.flip",
-  "inspect.section.front",
-  "inspect.section.hint",
-  "inspect.section.off",
-  "inspect.section.offset",
-  "inspect.section.offsetValue",
-  "inspect.section.pickFace",
-  "inspect.section.plane",
-  "inspect.section.right",
-  "inspect.section.top"
- ],
- "layer.+": [
-  "layer.axes",
-  "layer.curves",
-  "layer.dimensions",
-  "layer.edges",
-  "layer.grid",
-  "layer.issues",
-  "layer.planes",
-  "layer.relations",
-  "layer.sketches",
-  "layer.threads"
- ],
- "light.+": [
-  "light.contrast",
-  "light.flat",
-  "light.studio",
-  "light.technical"
- ],
- "material.cat.+": [
-  "material.cat.Aluminium",
-  "material.cat.Concrete",
-  "material.cat.Custom",
-  "material.cat.Glass",
-  "material.cat.Plastics",
-  "material.cat.Rubber",
-  "material.cat.Steel",
-  "material.cat.Titanium",
-  "material.cat.Wood"
+ "handles.plane.+": [
+  "handles.plane.xy",
+  "handles.plane.yz",
+  "handles.plane.zx"
  ],
  "measure.+": [
   "measure.angle",
@@ -753,71 +864,77 @@
   "measure.surf.sphere",
   "measure.surf.torus"
  ],
- "opt.chamfer.type.+": [
-  "opt.chamfer.type.angle",
-  "opt.chamfer.type.distances",
-  "opt.chamfer.type.equal"
+ "inspect.section.+": [
+  "inspect.section.face",
+  "inspect.section.flip",
+  "inspect.section.front",
+  "inspect.section.hint",
+  "inspect.section.off",
+  "inspect.section.offset",
+  "inspect.section.offsetValue",
+  "inspect.section.pickFace",
+  "inspect.section.plane",
+  "inspect.section.right",
+  "inspect.section.top"
  ],
- "opt.end.+": [
-  "opt.end.blind",
-  "opt.end.mid",
-  "opt.end.offsetFromFace",
-  "opt.end.through",
-  "opt.end.throughBoth",
-  "opt.end.upToFace",
-  "opt.end.upToNext",
-  "opt.end.upToPoint"
+ "style.+": [
+  "style.ghost",
+  "style.hiddenLines",
+  "style.shaded",
+  "style.shadedEdges",
+  "style.wireframe"
  ],
- "opt.fill.continuity.+": [
-  "opt.fill.continuity.G0",
-  "opt.fill.continuity.G1",
-  "opt.fill.continuity.G2",
-  "opt.fill.continuity.G3"
+ "bg.+": [
+  "bg.dark",
+  "bg.gradient",
+  "bg.light",
+  "bg.theme"
  ],
- "opt.fill.fairing.+": [
-  "opt.fill.fairing.curvature",
-  "opt.fill.fairing.meowNURBS",
-  "opt.fill.fairing.plate",
-  "opt.fill.fairing.variation"
+ "files.autosave.${r}": [
+  "files.autosave.quota",
+  "files.autosave.tooBig",
+  "files.autosave.unavailable"
  ],
- "opt.fillet.profile.+": [
-  "opt.fillet.profile.chord",
-  "opt.fillet.profile.circular",
-  "opt.fillet.profile.conic",
-  "opt.fillet.profile.curvature"
+ "app.shape.+": [
+  "app.shape.chain",
+  "app.shape.circle",
+  "app.shape.ellipse",
+  "app.shape.insideOffset",
+  "app.shape.insideShape",
+  "app.shape.loop",
+  "app.shape.wall",
+  "app.shape.withHole"
  ],
- "opt.loft.+": [
-  "opt.loft.loftPointBoth",
-  "opt.loft.loftPointGuides",
-  "opt.loft.loftPointMiddle",
-  "opt.loft.loftPointSurface"
+ "app.sketch.snap.+": [
+  "app.sketch.snap.align",
+  "app.sketch.snap.center",
+  "app.sketch.snap.endpoint",
+  "app.sketch.snap.grid",
+  "app.sketch.snap.intersection",
+  "app.sketch.snap.midpoint",
+  "app.sketch.snap.oncurve",
+  "app.sketch.snap.origin",
+  "app.sketch.snap.perpendicular",
+  "app.sketch.snap.point",
+  "app.sketch.snap.quadrant",
+  "app.sketch.snap.tangent"
  ],
- "opt.thin.corner.+": [
-  "opt.thin.corner.mitre",
-  "opt.thin.corner.round"
+ "app.ref.+": [
+  "app.ref.front",
+  "app.ref.material",
+  "app.ref.noMaterial",
+  "app.ref.origin",
+  "app.ref.right",
+  "app.ref.top"
  ],
- "opt.thin.ends.+": [
-  "opt.thin.ends.flat",
-  "opt.thin.ends.round"
- ],
- "opt.thin.side.+": [
-  "opt.thin.side.both",
-  "opt.thin.side.inside",
-  "opt.thin.side.mid",
-  "opt.thin.side.outside"
- ],
- "rail.+": [
-  "rail.assembly",
-  "rail.context",
-  "rail.create",
-  "rail.history",
-  "rail.inspect",
-  "rail.label",
-  "rail.modify",
-  "rail.pattern",
-  "rail.select",
-  "rail.sketch",
-  "rail.surfaces"
+ "app.leftTab.+": [
+  "app.leftTab.Assets",
+  "app.leftTab.Catalog",
+  "app.leftTab.Editor",
+  "app.leftTab.Features",
+  "app.leftTab.Outliner",
+  "app.leftTab.Script",
+  "app.leftTab.Variables"
  ],
  "rb.+": [
   "rb.add-cpattern",
@@ -902,11 +1019,6 @@
   "rb.triball",
   "rb.view-iso"
  ],
- "script.example.+": [
-  "script.example.box",
-  "script.example.bracket",
-  "script.example.flange"
- ],
  "select.filter.+": [
   "select.filter.bodies",
   "select.filter.edges",
@@ -916,194 +1028,59 @@
   "select.filter.sketches",
   "select.filter.vertices"
  ],
- "settings.${key}.${v}": [
-  "settings.leftPanel.docked",
-  "settings.leftPanel.floating",
-  "settings.leftPanel.hidden",
-  "settings.preset.choose",
-  "settings.preset.classic",
-  "settings.preset.custom",
-  "settings.preset.minimal",
-  "settings.preset.plasticity",
-  "settings.resetLayout.hint",
-  "settings.ribbon.compact",
-  "settings.ribbon.full",
-  "settings.ribbon.off",
-  "settings.rightPanel.docked",
-  "settings.rightPanel.floating",
-  "settings.rightPanel.off",
-  "settings.sketch.arcSwitch",
-  "settings.sketch.autoConstraints",
-  "settings.sketch.gridSnap",
-  "settings.sketch.onViewValues",
-  "settings.sketch.title",
-  "settings.tab.general",
-  "settings.tab.layout",
-  "settings.tab.positioning",
-  "settings.tab.sketching",
-  "settings.theme.auto",
-  "settings.theme.dark",
-  "settings.theme.light",
-  "settings.toolLabels.icons",
-  "settings.toolLabels.icons-and-text",
-  "settings.triball.angle",
-  "settings.triball.distance",
-  "settings.triball.note",
-  "settings.triball.title"
- ],
- "settings.+": [
-  "settings.blur",
-  "settings.drawerOpen",
-  "settings.handles",
-  "settings.label",
-  "settings.language",
-  "settings.leftPanel",
-  "settings.leftTabs",
-  "settings.lineWidth",
-  "settings.opacity",
-  "settings.preset",
-  "settings.ribbon",
-  "settings.rightPanel",
-  "settings.selectionBar",
-  "settings.sketchPalette",
-  "settings.theme",
-  "settings.toolLabels",
-  "settings.toolRail"
- ],
- "settings.nav.${key}.${v}": [
-  "settings.nav.upAxis.y",
-  "settings.nav.upAxis.z",
-  "settings.nav.orbitMode.turntable",
-  "settings.nav.orbitMode.trackball",
-  "settings.nav.orbitPivot.centre",
-  "settings.nav.orbitPivot.cursor",
-  "settings.nav.orbitPivot.selection"
- ],
- "settings.nav.+": [
-  "settings.nav.upAxis",
-  "settings.nav.orbitMode",
-  "settings.nav.orbitPivot"
- ],
- "settings.sketch.${key}.${v}": [
-  "settings.sketch.arcSwitch.hover",
-  "settings.sketch.arcSwitch.keys",
-  "settings.sketch.arcSwitch.off",
-  "settings.sketch.onViewValues.both",
-  "settings.sketch.onViewValues.dimensions",
-  "settings.sketch.onViewValues.off"
- ],
- "settings.sketch.+": [
-  "settings.sketch.arcSwitch",
-  "settings.sketch.autoConstraints",
-  "settings.sketch.gridSnap",
-  "settings.sketch.onViewValues",
-  "settings.sketch.title"
- ],
- "settings.tab.+": [
-  "settings.tab.general",
-  "settings.tab.layout",
-  "settings.tab.positioning",
-  "settings.tab.sketching"
- ],
- "settings.theme.+": [
-  "settings.theme.auto",
-  "settings.theme.dark",
-  "settings.theme.light"
- ],
- "sizebox.about.${m}": [
-  "sizebox.about.anchor",
-  "sizebox.about.opposite",
-  "sizebox.about.symmetric"
+ "triball.need.+": [
+  "triball.need.edges",
+  "triball.need.feature",
+  "triball.need.noBody",
+  "triball.need.nothing"
  ],
  "sizebox.about.${m}.tip": [
   "sizebox.about.anchor.tip",
   "sizebox.about.opposite.tip",
   "sizebox.about.symmetric.tip"
  ],
- "sizebox.moveto.+": [
-  "sizebox.moveto.apply",
-  "sizebox.moveto.bad",
-  "sizebox.moveto.bottom",
-  "sizebox.moveto.edge",
-  "sizebox.moveto.hint",
-  "sizebox.moveto.left",
-  "sizebox.moveto.px",
-  "sizebox.moveto.py",
-  "sizebox.moveto.right",
-  "sizebox.moveto.title",
-  "sizebox.moveto.top",
-  "sizebox.moveto.world",
-  "sizebox.moveto.x",
-  "sizebox.moveto.y"
+ "sizebox.about.${m}": [
+  "sizebox.about.anchor",
+  "sizebox.about.opposite",
+  "sizebox.about.symmetric"
  ],
- "style.+": [
-  "style.ghost",
-  "style.hiddenLines",
-  "style.shaded",
-  "style.shadedEdges",
-  "style.wireframe"
+ "group.+": [
+  "group.Analyse",
+  "group.Appearance",
+  "group.Bodies",
+  "group.Components",
+  "group.Constrain",
+  "group.Create",
+  "group.Curves",
+  "group.Dimension",
+  "group.Draw",
+  "group.Edit",
+  "group.Expand",
+  "group.Export",
+  "group.File",
+  "group.Finish",
+  "group.Measure",
+  "group.Modify",
+  "group.Pattern",
+  "group.Pick",
+  "group.Position",
+  "group.Reference",
+  "group.Review",
+  "group.Section",
+  "group.Show",
+  "group.Sketch",
+  "group.SketchSelect",
+  "group.Style",
+  "group.Views",
+  "group.Workspace"
  ],
- "tab.+": [
-  "tab.Assembly",
-  "tab.Evaluate",
-  "tab.Features",
-  "tab.Home",
-  "tab.Select",
-  "tab.Surfaces",
-  "tab.View"
- ],
- "thread.face.many.+": [
-  "thread.face.many.faces",
-  "thread.face.many.holes",
-  "thread.face.many.shafts"
- ],
- "thread.hand.+": [
-  "thread.hand.left",
-  "thread.hand.leftTip",
-  "thread.hand.right",
-  "thread.hand.rightTip"
- ],
- "thread.start.+": [
-  "thread.start.bottom",
-  "thread.start.bottomTip",
-  "thread.start.open",
-  "thread.start.openTip",
-  "thread.start.top",
-  "thread.start.topTip"
- ],
- "thread.std.+": [
-  "thread.std.Acme",
-  "thread.std.BSP",
-  "thread.std.NPT",
-  "thread.std.Tr",
-  "thread.std.UNC",
-  "thread.std.UNF",
-  "thread.std.metric",
-  "thread.std.metric-fine"
- ],
- "tip.+": [
-  "tip.add-extend",
-  "tip.add-fill",
-  "tip.add-knit",
-  "tip.add-loft",
-  "tip.add-surface-extrude",
-  "tip.add-surface-loft",
-  "tip.add-surface-planar",
-  "tip.add-surface-revolve",
-  "tip.add-sweep",
-  "tip.add-thicken",
-  "tip.add-trim-surface",
-  "tip.analysis-comb",
-  "tip.analysis-draft",
-  "tip.analysis-gaussian",
-  "tip.analysis-mean",
-  "tip.analysis-zebra"
- ],
- "triball.need.+": [
-  "triball.need.edges",
-  "triball.need.feature",
-  "triball.need.noBody",
-  "triball.need.nothing"
+ "expr.error.+": [
+  "expr.error.badExpression",
+  "expr.error.badName",
+  "expr.error.cyclicVariables",
+  "expr.error.duplicateName",
+  "expr.error.plain",
+  "expr.error.unknownName"
  ],
  "ui.editor.section.+": [
   "ui.editor.section.axis",
@@ -1121,5 +1098,28 @@
   "ui.history.filter.All",
   "ui.history.filter.Failed",
   "ui.history.filter.You"
+ ],
+ "tab.+": [
+  "tab.Assembly",
+  "tab.Evaluate",
+  "tab.Features",
+  "tab.Home",
+  "tab.Select",
+  "tab.Surfaces",
+  "tab.View"
+ ],
+ "settings.nav.+": [
+  "settings.nav.upAxis",
+  "settings.nav.orbitMode",
+  "settings.nav.orbitPivot"
+ ],
+ "settings.nav.${key}.${v}": [
+  "settings.nav.upAxis.y",
+  "settings.nav.upAxis.z",
+  "settings.nav.orbitMode.turntable",
+  "settings.nav.orbitMode.trackball",
+  "settings.nav.orbitPivot.centre",
+  "settings.nav.orbitPivot.cursor",
+  "settings.nav.orbitPivot.selection"
  ]
 }
