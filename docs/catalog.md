@@ -85,3 +85,5 @@ After the drop the shape is selected and shows its size box. Move it with the ma
 shape itself, by typing an offset (Tab) or with the arrow keys; it snaps like the placement did (same code: corners, hole-rim centres, edge
 midpoints, face centres, plus centres of other shapes and alignment guides; Alt switches snapping off). See "Moving a shape" in
 `docs/size-box.md`.
+
+External parts libraries (GitHub, web address or folder) have their own section in the Catalog tab: see `docs/library-browser.md`.
