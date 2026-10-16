@@ -1,0 +1,124 @@
+{
+  "fonts": [
+    {
+      "id": "barlow",
+      "family": "Barlow",
+      "role": "sans",
+      "licence": "OFL-1.1",
+      "file": "barlow/Barlow-Regular.ttf",
+      "licenceFile": "barlow/OFL.txt",
+      "sha256": "95aa02c7c43096e0dd44d787ba6216864a67157e402adab59b35572e0c1577ea",
+      "bytes": 104068,
+      "upstream": "https://github.com/jpt/barlow",
+      "copyright": "Copyright 2017 The Barlow Project Authors"
+    },
+    {
+      "id": "source-sans-3",
+      "family": "Source Sans 3",
+      "role": "sans",
+      "licence": "OFL-1.1",
+      "file": "source-sans-3/SourceSans3-Regular.otf",
+      "licenceFile": "source-sans-3/LICENSE.md",
+      "sha256": "08df266400933d3178d081a45f94a08814c3e55b4b7dd2e0ff69cb1329f13ab6",
+      "bytes": 334924,
+      "upstream": "https://github.com/adobe-fonts/source-sans",
+      "copyright": "(c) 2023 Adobe, Reserved Font Name \"Source\""
+    },
+    {
+      "id": "barlow-condensed",
+      "family": "Barlow Condensed Medium",
+      "role": "condensed",
+      "licence": "OFL-1.1",
+      "file": "barlow-condensed/BarlowCondensed-Medium.ttf",
+      "licenceFile": "barlow-condensed/OFL.txt",
+      "sha256": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "bytes": 103360,
+      "upstream": "https://github.com/jpt/barlow",
+      "copyright": "Copyright 2017 The Barlow Project Authors"
+    },
+    {
+      "id": "bebas-neue",
+      "family": "Bebas Neue",
+      "role": "display",
+      "licence": "OFL-1.1",
+      "file": "bebas-neue/BebasNeue-Regular.ttf",
+      "licenceFile": "bebas-neue/OFL.txt",
+      "sha256": "08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73",
+      "bytes": 61400,
+      "upstream": "https://github.com/dharmatype/Bebas-Neue",
+      "copyright": "Copyright 2019 The Bebas Neue Project Authors"
+    },
+    {
+      "id": "pt-serif",
+      "family": "PT Serif",
+      "role": "serif",
+      "licence": "OFL-1.1",
+      "file": "pt-serif/PT_Serif-Web-Regular.ttf",
+      "licenceFile": "pt-serif/OFL.txt",
+      "sha256": "a4951fade06ff8f09b7673aa81ffb65a8cd409e24d3289a6dc670bc4dda2557a",
+      "bytes": 359048,
+      "upstream": "https://www.paratype.com/fonts/pt/pt-serif",
+      "copyright": "Copyright (c) 2010 ParaType Ltd., Reserved Font Names \"PT Sans\", \"PT Serif\", \"ParaType\""
+    },
+    {
+      "id": "special-elite",
+      "family": "Special Elite",
+      "role": "slab",
+      "licence": "Apache-2.0",
+      "file": "special-elite/SpecialElite-Regular.ttf",
+      "licenceFile": "special-elite/LICENSE.txt",
+      "sha256": "a776fcb4ceb8bdf03e2967688ebdad42680de5b91a7e62c17e718ae212d14bc4",
+      "bytes": 166180,
+      "upstream": "https://fonts.google.com/specimen/Special+Elite",
+      "copyright": "Copyright (c) 2010 Brian J. Bonislawsky DBA Astigmatic (AOETI)"
+    },
+    {
+      "id": "ibm-plex-mono",
+      "family": "IBM Plex Mono",
+      "role": "mono",
+      "licence": "OFL-1.1",
+      "file": "ibm-plex-mono/IBMPlexMono-Regular.ttf",
+      "licenceFile": "ibm-plex-mono/OFL.txt",
+      "sha256": "6a3412f058c7d8dfd9170c41e85ade48e5156ecb89356110ca57a0a27734af46",
+      "bytes": 135580,
+      "upstream": "https://github.com/IBM/plex",
+      "copyright": "Copyright 2017 IBM Corp., Reserved Font Name \"Plex\""
+    },
+    {
+      "id": "great-vibes",
+      "family": "Great Vibes",
+      "role": "script",
+      "licence": "OFL-1.1",
+      "file": "great-vibes/GreatVibes-Regular.ttf",
+      "licenceFile": "great-vibes/OFL.txt",
+      "sha256": "8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15",
+      "bytes": 457588,
+      "upstream": "https://github.com/googlefonts/great-vibes",
+      "copyright": "Copyright 2010 The Great Vibes Pro Project Authors"
+    },
+    {
+      "id": "satisfy",
+      "family": "Satisfy",
+      "role": "script",
+      "licence": "Apache-2.0",
+      "file": "satisfy/Satisfy-Regular.ttf",
+      "licenceFile": "satisfy/LICENSE.txt",
+      "sha256": "55bb141a0a23a32278d5fa7fd2e853824faa173b94774660ebeddb106be07c80",
+      "bytes": 47928,
+      "upstream": "https://fonts.google.com/specimen/Satisfy",
+      "copyright": "Copyright (c) 2011 Font Diner, Inc."
+    },
+    {
+      "id": "anton",
+      "family": "Anton",
+      "role": "display",
+      "licence": "OFL-1.1",
+      "file": "anton/Anton-Regular.ttf",
+      "licenceFile": "anton/OFL.txt",
+      "sha256": "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab",
+      "bytes": 170812,
+      "upstream": "https://github.com/googlefonts/AntonFont",
+      "copyright": "Copyright 2020 The Anton Project Authors"
+    }
+  ]
+}
