@@ -6,7 +6,9 @@ import type { Viewport } from '@kit/viewport';
 import type { Controller } from '../controller';
 import type { EditOp } from '@ck/session';
 import { Placer, type PlacerDeps } from './placer';
-import { catalogItem, shapeName, type CatalogItem } from './shapes';
+import { catalogItem, shapeName, type BuildResult, type CatalogItem } from './shapes';
+import { buildBosl } from './bosl/build';
+import type { ScriptHost } from '@kit/script';
 import { armedItem, ghost, placeStatus, selectShapeFeature } from './state';
 import { t } from '../i18n';
 
@@ -36,6 +38,18 @@ export function useCatalog(d: CatalogDeps) {
       preview: (ops: EditOp[]) => ref.current.controller.preview(ops, 0) as never,
       cancelPreview: () => ref.current.controller.cancelPreview(),
       commit: (ops, reason) => ref.current.controller.commit(ops, reason),
+      commitPatch: (patch, reason) => ref.current.controller.applyDocPatch(patch, reason),
+      buildBosl: async (item, target, doc, linked): Promise<BuildResult> => {
+        const c = ref.current.controller;
+        if (!item.bosl) return { error: 'invalid' };
+        // attach mode never loads or edits through the host: it only builds on the scratch kernel
+        const host: ScriptHost = {
+          load: async () => {}, edit: async () => ({ ok: true }), geometry: () => ({ mesh: null, edges: [], box: null }),
+          build: (d, view) => c.scratchBuild(d as never, view) as never, release: () => c.scratchRelease(), facts: (need) => c.scratchFacts(need),
+        };
+        const r = await buildBosl(host, doc, { entryId: item.bosl.entryId, params: item.bosl.params }, target, linked);
+        return r;
+      },
       rayAt: (x, y) => ref.current.viewport()?.rayAt(x, y) ?? null,
       worldPerPixel: (p) => ref.current.viewport()?.worldPerPixel(p) ?? 0.1,
       holdView: (on) => ref.current.viewport()?.setHoldView(on),
@@ -74,8 +88,8 @@ export function useCatalog(d: CatalogDeps) {
     armedItem.value = item.id;
     ref.current.notify(t('catalog.armed', { name: t('catalog.item.' + item.id) }), 'info');
     ref.current.viewport()?.setPlacementHook({
-      move: (x, y, m) => { ghost.value = { x, y, itemId: item.id }; placer.current!.hover(item, x, y, m.alt); },
-      tap: (x, y, m) => { void finish(item, x, y, m.alt, false); },
+      move: (x, y, m) => { ghost.value = { x, y, itemId: item.id }; placer.current!.hover(catalogItem(item.id) ?? item, x, y, m.alt); },
+      tap: (x, y, m) => { void finish(catalogItem(item.id) ?? item, x, y, m.alt, false); },
       leave: () => { ghost.value = null; void placer.current!.end(); },
     });
   };

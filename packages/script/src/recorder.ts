@@ -181,7 +181,7 @@ export class SketchBuilder {
   private np = 0;
   private ne = 0;
   axisId: string | null = null;
-  private pt(x: number, y: number): string { const id = `p${++this.np}`; this.pointList.push({ id, x: +x.toFixed(6), y: +y.toFixed(6) }); return id; }
+  private pt(x: number, y: number): string { const id = `p${++this.np}`; this.pointList.push({ id, x: +x.toFixed(10), y: +y.toFixed(10) }); return id; }
   private ent(e: Record<string, unknown>): void { this.entities.push({ id: `e${++this.ne}`, ...e }); }
   /**
    * Closed polygon through the points.
