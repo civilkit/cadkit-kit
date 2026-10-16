@@ -25,6 +25,9 @@ import { makeHullMaterial } from './hull';
 import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
 import { AnalysisLayer } from './analysisLayer';
 import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend } from './analysis';
+import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
+import { cursorFor, type CursorContext } from './cursorPolicy';
+import { adaptiveGrid } from './gridSpacing';
 import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchPointWorld } from './sketchedit';
 
 export interface ViewFrame {
@@ -104,6 +107,8 @@ export interface ViewportOptions {
   onSketchBox?(ev: SketchBoxEvent): void;
   /** The camera moved while a sketch is open: labels placed with `sketchToScreen` need repositioning. */
   onSketchView?(): void;
+  /** The pointer moved over the sketch plane (any tool, at most once per frame): plane coordinates, plane units per pixel and the grid's minor spacing; null when it left. */
+  onPlaneCursor?(c: { u: number; v: number; upp: number; grid: number } | null): void;
   /** The surface analysis on screen changed: what its colour legend shows (null when nothing is drawn). */
   onAnalysisLegend?(legend: Legend | null): void;
 }
@@ -142,7 +147,7 @@ export type SketchPreviewShape =
   | { kind: 'guide'; a: { x: number; y: number }; b: { x: number; y: number }; /** a guide through the model: drawn dashed in the model colour */ model?: boolean }
   /** A snap marker, sized in screen pixels: a square on a point, a triangle on a midpoint, a diamond on an
    *  alignment, a ring on the chain end that flips to an arc when the pointer rests on it. */
-  | { kind: 'marker'; at: { x: number; y: number }; style: 'point' | 'midpoint' | 'align' | 'anchor' | 'center' | 'quadrant' | 'intersection' | 'perpendicular' | 'tangent' | 'oncurve'; /** a snap onto the model rather than the sketch: drawn in the model colour */ model?: boolean };
+  | { kind: 'marker'; at: { x: number; y: number }; style: MarkerStyle; /** a snap onto the model rather than the sketch: drawn in the model colour */ model?: boolean };
 
 export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom';
 
@@ -226,6 +231,8 @@ export class Viewport {
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
   private sketchGridGroup: THREE.Group | null = null;
+  private gridBase = 0;
+  private gridVisible = true;
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
   private readonly handleLayer: HandleLayer;
@@ -282,6 +289,11 @@ export class Viewport {
     this.dom.addEventListener('pointerup', this.onUp);
     this.dom.addEventListener('pointermove', this.onMove);
     this.dom.addEventListener('pointerleave', this.onLeave);
+    this.dom.addEventListener('pointermove', this.onCursorMove);
+    this.dom.addEventListener('pointerdown', this.onCursorMove);
+    this.dom.addEventListener('pointerup', this.onCursorMove);
+    window.addEventListener('keydown', this.onSpace);
+    window.addEventListener('keyup', this.onSpace);
     this.dom.addEventListener('dblclick', this.onDouble);
     this.dom.addEventListener('contextmenu', this.onContext);
     this.dom.addEventListener('pointerdown', this.onRightDown);
@@ -526,6 +538,12 @@ export class Viewport {
     });
   }
 
+  /** True when the viewport background is dark (the marker colours switch shade for contrast). */
+  private darkBackground(): boolean {
+    const c = new THREE.Color(getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0');
+    return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.4;
+  }
+
   private rebuildSketchPreview(): void {
     this.disposeGroup(this.sketchPreviewGroup);
     this.sketchPreviewGroup = null;
@@ -553,32 +571,8 @@ export class Viewport {
           seg(S, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
         }
       } else {
-        const { x, y } = sh.at;
-        const k = upp * (sh.style === 'anchor' ? 11 : 7);
-        if (sh.style === 'point') loop(S, [{ x: x - k, y: y - k }, { x: x + k, y: y - k }, { x: x + k, y: y + k }, { x: x - k, y: y + k }]);
-        else if (sh.style === 'midpoint') loop(S, [{ x, y: y + k }, { x: x + k, y: y - k * 0.8 }, { x: x - k, y: y - k * 0.8 }]);
-        else if (sh.style === 'align') loop(S, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]);
-        else if (sh.style === 'quadrant') { loop(S, [{ x, y: y + k }, { x: x + k, y }, { x, y: y - k }, { x: x - k, y }]); seg(S, { x: x - k, y }, { x: x + k, y }); }
-        else if (sh.style === 'intersection') { seg(S, { x: x - k, y: y - k }, { x: x + k, y: y + k }); seg(S, { x: x - k, y: y + k }, { x: x + k, y: y - k }); }
-        else if (sh.style === 'perpendicular') { loop(S, [{ x: x - k, y: y - k }, { x: x - k, y: y + k }]); seg(S, { x: x - k, y: y - k }, { x: x + k, y: y - k }); seg(S, { x: x - k, y: y }, { x, y }); seg(S, { x, y }, { x, y: y - k }); }
-        else if (sh.style === 'tangent') {
-          const n = 20;
-          const r = k * 0.7;
-          const ring = Array.from({ length: n }, (_, i) => ({ x: x + r * Math.cos((i / n) * Math.PI * 2), y: y + k * 0.25 + r * Math.sin((i / n) * Math.PI * 2) }));
-          loop(S, ring);
-          seg(S, { x: x - k * 1.3, y: y - k * 0.45 }, { x: x + k * 1.3, y: y - k * 0.45 });
-        } else if (sh.style === 'center') {
-          const n = 20;
-          loop(S, Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) })));
-          seg(S, { x: x - k * 0.3, y }, { x: x + k * 0.3, y }); seg(S, { x, y: y - k * 0.3 }, { x, y: y + k * 0.3 });
-        } else if (sh.style === 'oncurve') {
-          seg(S, { x: x - k * 0.7, y }, { x: x + k * 0.7, y }); seg(S, { x, y: y - k * 0.7 }, { x, y: y + k * 0.7 });
-          loop(S, [{ x: x - k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y - k * 0.5 }, { x: x + k * 0.5, y: y + k * 0.5 }, { x: x - k * 0.5, y: y + k * 0.5 }]);
-        } else {
-          const n = 24;
-          const ring = Array.from({ length: n }, (_, i) => ({ x: x + k * Math.cos((i / n) * Math.PI * 2), y: y + k * Math.sin((i / n) * Math.PI * 2) }));
-          loop(S, ring);
-        }
+        const k = upp * (sh.style === 'anchor' ? ANCHOR_HALF_PX : MARKER_HALF_PX);
+        for (const [p, q] of markerSegments(sh.style, sh.at.x, sh.at.y, k)) seg(S, p, q);
       }
     }
     const group = new THREE.Group();
@@ -586,14 +580,14 @@ export class Viewport {
     if (solid.length) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(solid), 3));
-      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0xe0a030, depthTest: false, transparent: true }));
+      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: markerColor(false, this.darkBackground()), depthTest: false, transparent: true }));
       lines.renderOrder = 20;
       group.add(lines);
     }
     if (dotted.length) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dotted), 3));
-      const mat = new THREE.LineDashedMaterial({ color: 0xe0a030, dashSize: upp * 4, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.85 });
+      const mat = new THREE.LineDashedMaterial({ color: markerColor(false, this.darkBackground()), dashSize: upp * 4, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.85 });
       const lines = new THREE.LineSegments(geo, mat);
       lines.computeLineDistances();
       lines.renderOrder = 19;
@@ -604,7 +598,7 @@ export class Viewport {
       if (!pts.length) continue;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-      const mat = dashed ? new THREE.LineDashedMaterial({ color: 0x30c0d8, dashSize: upp * 6, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.9 }) : new THREE.LineBasicMaterial({ color: 0x30c0d8, depthTest: false, transparent: true });
+      const mat = dashed ? new THREE.LineDashedMaterial({ color: markerColor(true, this.darkBackground()), dashSize: upp * 6, gapSize: upp * 4, depthTest: false, transparent: true, opacity: 0.9 }) : new THREE.LineBasicMaterial({ color: markerColor(true, this.darkBackground()), depthTest: false, transparent: true });
       const lines = new THREE.LineSegments(geo, mat);
       if (dashed) lines.computeLineDistances();
       lines.renderOrder = 21;
@@ -615,12 +609,22 @@ export class Viewport {
     this.dirty = true;
   }
 
-  /** Grid step in plane units for the current zoom: 1, 2 or 5 times a power of ten, giving cells of about 20 to 50 px. */
-  private gridStep(): number {
-    const raw = this.sketchUnitsPerPixel() * 20;
-    const mag = 10 ** Math.floor(Math.log10(raw));
-    for (const m of [1, 2, 5, 10]) if (m * mag >= raw) return m * mag;
-    return 10 * mag;
+  /** The grid for the current zoom: minor spacing 8 to 80 px apart (see gridSpacing.ts), from the user's base spacing or automatic. */
+  private gridSpec() { return adaptiveGrid(this.sketchUnitsPerPixel(), this.gridBase); }
+  private gridStep(): number { return this.gridSpec().minor; }
+
+  /** The user's grid spacing in plane units (0 = automatic), and whether the grid lines are shown. */
+  setSketchGrid(opts: { base?: number; visible?: boolean }): void {
+    if (opts.base !== undefined) this.gridBase = opts.base;
+    if (opts.visible !== undefined) this.gridVisible = opts.visible;
+    this.rebuildSketchGrid();
+    this.dirty = true;
+  }
+  /** Current sketch view numbers for the status bar: plane units per pixel and the grid's minor spacing. */
+  sketchViewInfo(): { upp: number; grid: number; majorEvery: number } | null {
+    if (!this.sketchEdit) return null;
+    const g = this.gridSpec();
+    return { upp: this.sketchUnitsPerPixel(), grid: g.minor, majorEvery: g.majorEvery };
   }
 
   /** The grid on the sketch plane (finer lines, stronger every fifth), the u and v axes through the origin and an
@@ -636,7 +640,8 @@ export class Viewport {
     if (corners.some((c) => c === null)) { this.dirty = true; return; }
     const us = corners.map((c) => c![0]);
     const vs = corners.map((c) => c![1]);
-    const step = this.gridStep();
+    const spec = this.gridSpec();
+    const step = spec.minor;
     const pad = step * 2;
     const u0 = Math.floor((Math.min(...us) - pad) / step);
     const u1 = Math.ceil((Math.max(...us) + pad) / step);
@@ -649,8 +654,11 @@ export class Viewport {
     const major: number[] = [];
     const add = (out: number[], a: [number, number], b: [number, number]) => { out.push(...planeToWorld(frame, a[0], a[1]), ...planeToWorld(frame, b[0], b[1])); };
     const uMin = u0 * step, uMax = u1 * step, vMin = v0 * step, vMax = v1 * step;
-    for (let i = u0; i <= u1; i++) if (i !== 0) add(i % 5 === 0 ? major : minor, [i * step, vMin], [i * step, vMax]);
-    for (let j = v0; j <= v1; j++) if (j !== 0) add(j % 5 === 0 ? major : minor, [uMin, j * step], [uMax, j * step]);
+    const every = spec.majorEvery;
+    if (this.gridVisible) {
+    for (let i = u0; i <= u1; i++) if (i !== 0) add(i % every === 0 ? major : minor, [i * step, vMin], [i * step, vMax]);
+    for (let j = v0; j <= v1; j++) if (j !== 0) add(j % every === 0 ? major : minor, [uMin, j * step], [uMax, j * step]);
+    }
     const group = new THREE.Group();
     group.userData.pickable = false;
     const layer = (verts: number[], color: THREE.Color, opacity: number, order: number) => {
@@ -790,7 +798,47 @@ export class Viewport {
     return (2 * dist * Math.tan((this.camera.fov * Math.PI) / 360)) / Math.max(1, r.height);
   }
 
+  private spaceHeld = false;
+  private cursorRaf = 0;
+  private lastPtr: PointerEvent | null = null;
+
+  /** Space held pans in a sketch (like the middle button), and changes the cursor to a hand. */
+  private onSpace = (e: KeyboardEvent): void => {
+    if (e.code !== 'Space' || !this.sketchEdit) return;
+    const tag = (e.target as HTMLElement | null)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    const down = e.type === 'keydown';
+    if (down === this.spaceHeld) return;
+    this.spaceHeld = down;
+    this.flushCursor();
+  };
+
+  /** Pointer moved, pressed or released over the viewport: once per frame, report the plane position and set the cursor. */
+  private onCursorMove = (e: PointerEvent): void => {
+    if (!this.sketchEdit) return;
+    this.lastPtr = e;
+    if (e.type !== 'pointermove') { this.flushCursor(); return; }
+    if (this.cursorRaf) return;
+    this.cursorRaf = requestAnimationFrame(() => { this.cursorRaf = 0; this.flushCursor(); });
+  };
+
+  private flushCursor(): void {
+    const e = this.lastPtr, v = this.sketchEdit;
+    if (!e || !v) return;
+    const uv = this.planeAt(e.clientX, e.clientY);
+    if (uv) this.opts.onPlaneCursor?.({ u: uv[0], v: uv[1], upp: this.sketchUnitsPerPixel(), grid: this.gridStep() });
+    const ctx: CursorContext = { tool: this.sketchTool ? 'draw' : 'select', panHeld: this.spaceHeld };
+    if (this.modPan?.moved || (e.buttons & 4)) ctx.drag = 'pan';
+    else if (this.sketchDrag) ctx.drag = 'drag';
+    else if (!this.sketchTool && !this.rubber) {
+      const id = this.sketchPick(e.clientX, e.clientY);
+      if (id) ctx.hover = (v.sketch.points.find((p) => p.id === id) as { fixed?: boolean } | undefined)?.fixed ? 'locked' : 'point';
+    }
+    this.dom.style.cursor = cursorFor(ctx);
+  }
+
   private onLeave = (): void => {
+    this.opts.onPlaneCursor?.(null);
     this.placement?.leave?.();
     if (this.sketchEdit && this.sketchTool) this.opts.onSketchPointer?.({ type: 'leave', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } });
   };
@@ -1798,6 +1846,12 @@ export class Viewport {
     window.removeEventListener('pointerup', this.onBoxUp, true);
     this.dom.removeEventListener('pointerdown', this.onDown);
     this.dom.removeEventListener('pointerleave', this.onLeave);
+    this.dom.removeEventListener('pointermove', this.onCursorMove);
+    this.dom.removeEventListener('pointerdown', this.onCursorMove);
+    this.dom.removeEventListener('pointerup', this.onCursorMove);
+    window.removeEventListener('keydown', this.onSpace);
+    window.removeEventListener('keyup', this.onSpace);
+    cancelAnimationFrame(this.cursorRaf);
     this.dom.removeEventListener('dblclick', this.onDouble);
     this.dom.removeEventListener('contextmenu', this.onContext);
     this.dom.removeEventListener('pointerdown', this.onRightDown);
@@ -2004,7 +2058,7 @@ export class Viewport {
 
   private onDown = (e: PointerEvent): void => {
     this.down = { x: e.clientX, y: e.clientY };
-    if (this.sketchEdit && e.button === 0 && e.pointerType !== 'touch' && (e.metaKey || e.ctrlKey)) { this.modPan = { x: e.clientX, y: e.clientY, moved: false }; this.dom.setPointerCapture(e.pointerId); }
+    if (this.sketchEdit && e.button === 0 && e.pointerType !== 'touch' && (e.metaKey || e.ctrlKey || this.spaceHeld)) { this.modPan = { x: e.clientX, y: e.clientY, moved: false }; this.dom.setPointerCapture(e.pointerId); }
     if (this.sketchEdit && this.sketchTool) return; // a tool is active: clicks go to the tool on release
     if (this.sketchEdit) {
       const id = this.sketchPick(e.clientX, e.clientY);

@@ -874,3 +874,13 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 /* narrow: leave the tool column on the left and the Display button / view cube on the right free; the bar wraps instead of overlapping them */
 @media (max-width: 900px) { .sketch-bar-wrap { left: 112px; right: 210px; transform: none; width: auto; max-width: none; align-items: flex-start; } }
 @media (max-width: 640px) { .sketch-bar-wrap { left: 8px; right: 8px; top: 8px; } .sketch-bar .sb-sep { display: none; } }
+
+/* sketch readout in the status bar */
+.status .st-sketch { display: inline-flex; gap: 14px; align-items: center; }
+.status .st-coords, .status .st-delta { font: 500 12.5px ui-monospace, monospace; min-width: 0; }
+.status .st-coords { min-width: 17ch; }
+.status .st-snap { color: var(--accent); font-weight: 600; }
+.status .st-toggle { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.status .st-spacing { font: inherit; background: none; border: 1px solid transparent; border-radius: 6px; padding: 0 6px; cursor: pointer; color: inherit; }
+.status .st-spacing:hover { border-color: var(--line); }
+.status .st-spacing-input { width: 9ch; font: 500 12.5px ui-monospace, monospace; cursor: text; }

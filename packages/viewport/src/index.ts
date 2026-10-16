@@ -21,3 +21,9 @@ export { boxPick, normRect, segmentHitsRect, triangleHitsRect } from './boxselec
 export type { BoxInput, ScreenRect, Project } from './boxselect';
 export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, gaussianOf, meanOf, percentileAbs, diverging, curvatureColors, draftColors, draftAngle, combSegments, DRAFT_COLORS } from './analysis';
 export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';
+export { markerStyleFor, markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX } from './snapMarks';
+export type { MarkerStyle, MarkerHit } from './snapMarks';
+export { cursorFor } from './cursorPolicy';
+export type { CursorContext, CursorTool, HoverTarget, DragState } from './cursorPolicy';
+export { adaptiveGrid, niceStep, parseSpacing, GRID_MIN_PX, GRID_MAX_PX } from './gridSpacing';
+export type { GridSpec } from './gridSpacing';
