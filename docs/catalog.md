@@ -19,11 +19,15 @@ features in ONE undo step. Left column adds material, right column removes it.
   turns it off.
 * **Face to plane**: a flat face carries the sketch directly. A curved face (cylinder, sphere) gets a tangent plane at the
   picked point, then the shape is sketched on that.
-* **Empty part**: a shape dropped on empty space becomes the first body on the Front plane at the spot. Removing shapes are
+* **Empty part**: a shape dropped on empty space becomes the first body on the ground plane (Top for Y up, Front for Z up) at the spot, or on the reference plane under the pointer. Removing shapes are
   refused until there is a body (their tiles are dimmed).
 * **Size**: 40% of the smaller side of the face (30 mm for the first body), rounded to a nice number. Adding shapes are as
   tall as wide; removing shapes cut half that deep, never more than half the part's thickness; holes are through the part,
   ISO size picked from the face size.
+
+## Placing on a plane
+
+The first body, and any shape dropped on a drawn reference plane or its tree row, goes on a plane: by default the ground plane of the up axis (nav setting), so it rises away from the ground. The Placement row (Place on / Direction / Rotate / Mirror) and the keys R (rotate 90) and F (flip) choose how it stands; the drop hint names the plane. The Shapes items (block, cylinder, ...) use the same targeting. Details and limits: `catalog-bosl.md`, section "Placing on a plane".
 
 ## What a drop makes
 

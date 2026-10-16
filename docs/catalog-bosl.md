@@ -14,7 +14,7 @@ script API (`docs/scripting.md`), so the result is edited afterwards in the feat
   **script** it will add (a read-only preview; the same text is what runs).
 * **Drag the card onto the model**, or click it and then click a face (Alt turns snapping off, Esc cancels). While the pointer moves the real features are previewed (the
   parameters as plain numbers); the drop commits them as ONE undo step together with the variables.
-* First body: drop on the ground (Front plane, shape rises along +Z). Edge masks need a body and are placed with the cut items (they act on the edges of the picked face).
+* First body: drop on the **ground plane**, the horizontal plane of the view's up axis (Top for Y up, Front for Z up), and the shape rises away from it, base on the plane. Edge masks need a body and are placed with the cut items (they act on the edges of the picked face).
 * **`mode`** (cuboid, tube, rectangular tube, pie slice, regular prism, cylinder): `add` (default) or `cut`: the same shape removed from the part, going INTO it from the picked face (anchor `bottom`) or symmetric about the face (`center`). A cut needs a body (it is placed with the cut items), cannot be rounded or chamfered and a cone cannot be a cut. The oracle compares it with `difference() { cuboid([100, 100, 20]); up(20) mirror([0, 0, 1]) <shape>; }`.
 * The `anchor` parameter is where the shape sits relative to the sketch plane: `bottom` (the default, base on the face) or `center` (BOSL2's `CENTER`: half of it goes into the part).
 
@@ -37,7 +37,17 @@ body_.fillet(edges({ createdBy: body, not: edges({ onFace: face('F2.C1') }) }), 
   Edit those in the sketch (size box, sketch editor) or in the script. This is the main limit of "editable by variables" today.
 * **On a face** the entry's fillets and chamfers leave the footprint edges alone (`not: edges({ onFace: face(host) })`), so a rounded boss merges with the face instead of filleting its junction.
 * **Revolved entries on a face** (sphere, torus, onion, chamfered or rounded cones) build a helper line sketch on the face and a plane perpendicular to it (its y is the face normal), then
-  revolve about that normal; the helper sketch and plane are hidden in the view (still in the tree). On the ground they revolve on the Right plane about the world Z axis.
+  revolve about that normal; the helper sketch and plane are hidden in the view (still in the tree). On a standard plane they revolve on a standard plane perpendicular to it (Front: Right about Z; Top: Right about Y; Right: Top about X), about the plane normal.
+
+## Placing on a plane (ground, Front / Top / Right, plane features)
+
+BOSL2 shapes are Z-up (a prismoid's height runs along the sketch normal) and the world is Y-up with the ground the Top plane (XZ). So the first body no longer always goes on Front (which, with Y up, stood the shape on its side): with no plane named it goes on the ground plane of the up axis and rises away from it.
+
+* **Where**: while a card is dragged (or armed) the three reference planes are drawn as drop targets; the one under the pointer lights up and the drop hint names it (`First body on the Top plane`, `On the Front plane` when a body exists). Drop on a plane in the viewport, on its row in the history tree, or on a plane feature; or click the card and then click the plane. A face under the pointer wins over a plane; with a body, empty space is not a target (only a drawn plane is). Cuts and masks need a face.
+* **Placement row** (top of the Catalog tab; applies to the Shapes items too): *Place on* (Ground by default, or Front / Top / Right; a hovered plane overrides it), *Direction* (Up = away from the plane along its normal, Down = flipped to the other side), *Rotate* 0/90/180/270 about the plane normal, *Mirror*. It changes the live preview. **R** rotates 90 degrees and **F** flips while dragging or armed (hint line `R rotate  F flip  Esc cancel`).
+* **How it is built** (`catalog/placement.ts`): in the sketch-plane frame. The sketch goes on the chosen plane; rotate/mirror turn the profile points about the shape centre (a mirror swaps arc ends); flip sets the extrude's own `flip` (a loft's section planes get `flip`; a revolve profile is drawn on the far side). The features stay ordinary: the Flip toggle of the extrude in the feature editor still works, and the history entry reads e.g. `Catalog: Prismoid (Top plane, flipped, turned 90)`. Things already placed keep their old placement.
+* **Frames**: Front is x=X, y=Y, normal +Z; Top is x=X, y=-Z, normal +Y; Right is x=-Z, y=Y, normal +X (`STD_FRAMES`). Flip reverses the normal.
+* **Limits**: the BOSL2 orientation of Wedge and Teardrop (oracle frame) applies on an unmodified Front placement only; on other planes (or when turned / flipped) they are drawn in plane-local axes like on a face. Dropping on a plane feature or a tree row puts the centre at the plane's origin projection; rotate/mirror/flip do not apply to a face placement (a face has its own frame and the shape grows out of it). Revolved shapes ignore rotate and mirror (they are symmetric about the normal).
 
 ## How it is built (files)
 
@@ -56,7 +66,7 @@ body_.fillet(edges({ createdBy: body, not: edges({ onFace: face('F2.C1') }) }), 
 
 1. Add an object to `entries.ts` (copy the closest one): `id`, `name`, `category`, `tags` (search synonyms), `params` (`length | angle | integer | bool | choice` with `min`, `max`, `default`, `unit`; `linked: true` when the script uses the value through `expr(...)`), `source` (BOSL2 module and file), `notes`,
    `check(params)` (null or the reason the values are invalid), `script(params, place)` and `scad(params)`. Optional `samples` are named parameter sets the defaults leave out (rounding, caps) and become oracle cases too.
-   `place.plane` is `'front'` (ground) or `face("F2.C1")`; use `place.at` for the footprint centre, `place.prefix` (null: numbers, else the variable prefix), and `ownEdges(place)` for the edges a fillet may touch.
+   `place.plane` is `'front'` / `'top'` / `'right'` (ground, see `place.base` and `place.axis`) or `face("F2.C1")`; use `place.at` for the footprint centre, `place.prefix` (null: numbers, else the variable prefix), and `ownEdges(place)` for the edges a fillet may touch.
 2. Add the i18n keys in `apps/cad/src/locales/en.ts`: `catalog.bosl.entry.<id>` and `catalog.bosl.param.<key>` for every new parameter, and list the new keys in `tools/i18n_dynamic.json` (the section builds them dynamically).
 3. Add the card icon mapping in `BoslSection.tsx` (`KIND`) and regenerate the reference and the thumbnails:
    `node tools/bosl_reference.mjs --bosl <dir that contains BOSL2/> --scratch <work dir> --only <id>` and the thumbnail test above.
