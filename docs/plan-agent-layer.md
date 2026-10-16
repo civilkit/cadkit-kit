@@ -22,7 +22,7 @@ Status: plan, written 2026-10-16 after `docs/research-classcad-ai.md`. Nothing h
 ## Decisions (user, 2026-10-16)
 
 1. **MCP route first.** The in-app chat comes after the MCP route works (phases 0 to 4 first, then 5 and 6).
-2. **BYOK for the in-app chat:** session-only key by default, opt-in passphrase-encrypted storage, optional own-proxy URL. Model-written scripts run in an isolated Worker.
+2. **BYOK for the in-app chat (revised 2026-10-16):** the key is entered once and **remembered on this device**: encrypted with a non-extractable WebCrypto key held in IndexedDB, no passphrase to type, so new windows and restarts just work. When the MCP daemon exists, the **preferred setup** is the daemon holding the key in the OS keychain with the chat panel talking to it on loopback (no key in the browser at all). A "shared machine" toggle switches to session-only memory, shared across open windows through a BroadcastChannel while any window stays open. Never plain `localStorage`. Optional own-proxy URL. Model-written scripts run in an isolated Worker and the app loads no third-party scripts, since same-origin code could ask the browser to decrypt. Passkey/Touch ID unlock is a later option.
 3. **Hand edits are kept.** A chat turn adds to or changes only the features the script made (`origin: script#N`), leaves hand-made features alone, and lists them to the agent so it does not undo them.
 
 ## Principles
@@ -75,7 +75,7 @@ Open question: how to keep a script and hand edits in step. Recommendation: scri
 ## Providers and keys (browser app)
 
 - Provider interface: `chat({messages, tools, system, images, signal}) -> stream of events`, plus `capabilities()` (vision, tools, context size, streaming). Adapters: Anthropic (streaming and prompt caching ON, which theirs lacks), OpenAI chat, OpenAI Responses, OpenAI-compatible base URL (local models, gateways), model discovery via `/models` where available.
-- Key storage: session memory by default; opt-in passphrase-encrypted storage in IndexedDB. Never plain `localStorage`. Never logged, never in URLs.
+- Key storage: remembered on this device (non-extractable WebCrypto key + IndexedDB), the daemon-keychain route preferred, session-only for shared machines (see Decisions). Never plain `localStorage`. Never logged, never in URLs.
 - Production recommendation: users who care use the MCP route, or point the app at their own proxy.
 - Model-written scripts run in an isolated Worker or sandboxed iframe with a message-only API. Their `new Function` with shadowed globals is not a sandbox and would expose a stored key.
 - Show cost per turn from provider usage fields (they have none).
