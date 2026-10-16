@@ -1211,5 +1211,39 @@
   "catalog.bosl.param.y1",
   "catalog.bosl.param.y2",
   "catalog.bosl.param.z"
+ ],
+ "app.font.err.+": [
+  "app.font.err.Other",
+  "app.font.err.fontBadData",
+  "app.font.err.fontBadName",
+  "app.font.err.fontChecksum",
+  "app.font.err.fontFetch",
+  "app.font.err.fontNameConflict",
+  "app.font.err.fontReserved",
+  "app.font.err.fontTooLarge",
+  "app.font.err.fontTooMany",
+  "app.font.err.fontUnknown",
+  "app.font.err.noKernel"
+ ],
+ "app.font.role.+": [
+  "app.font.role.condensed",
+  "app.font.role.display",
+  "app.font.role.mono",
+  "app.font.role.sans",
+  "app.font.role.script",
+  "app.font.role.serif",
+  "app.font.role.slab"
+ ],
+ "app.font.warn.+": [
+  "app.font.warn.fontCffApproximated",
+  "app.font.warn.fontCollectionFirstFace",
+  "app.font.warn.fontEmbeddingRestricted",
+  "app.font.warn.fontKerningIgnored",
+  "app.font.warn.fontLigaturesIgnored",
+  "app.font.warn.fontNoCapHeight",
+  "app.font.warn.fontNoLatin",
+  "app.font.warn.fontNoSubsetting",
+  "app.font.warn.fontOverlappingContours",
+  "app.font.warn.fontVariableDefaultOnly"
  ]
 }

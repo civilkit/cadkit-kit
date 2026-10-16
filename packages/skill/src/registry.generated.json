@@ -703,7 +703,7 @@
    "domain": "sketch",
    "signature": "s.text(string: string, at: Pt | { x: number; y: number }, opts: TextOpts = {}): this",
    "summary": "Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).",
-   "description": "Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.",
+   "description": "Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif), or the id of a library font ('barlow', 'source-sans-3', 'barlow-condensed', 'bebas-neue', 'pt-serif', 'special-elite', 'ibm-plex-mono', 'great-vibes', 'satisfy', 'anton': the app loads it, nothing else to do; no kerning or ligatures; overlapping strokes of a font may fail to engrave); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.",
    "parameters": [
     {
      "name": "string",
@@ -722,11 +722,11 @@
      "type": "TextOpts",
      "optional": true,
      "default": "{}",
-     "description": "{ font, height, anchor, angle, spacing, mirror, arc, polyline, name }",
+     "description": "{ font: 'gauge'|'engrave'|library id (see above), height, anchor, angle, spacing, mirror, arc, polyline, name }",
      "properties": [
       {
        "name": "font",
-       "type": "'gauge' | 'engrave'",
+       "type": "string",
        "optional": true,
        "description": ""
       },
@@ -788,7 +788,7 @@
     "part.cut",
     "part.extrude"
    ],
-   "notes": "- Put lettering in a sketch of ITS OWN: its loops are not intersected with the other curves of the sketch (letters inside a rect do not become holes of it). Several s.text() calls in one sketch are fine (dial numerals).\n- height is the CAP height (an H), not the font size; under 0.8 mm the run warns textTooSmall. Engrave 0.1 to 0.5 mm deep: cut(0.3). Emboss = extrude(0.15).\n- Upright numerals around a dial: one text per number, anchor ['center', 'middle'], angle 0, at the numeral radius; the arc option bends ONE string along a circle (side 'outside' reads clockwise over the top, 'inside' with angleCentre 270 reads left to right below).\n- Keep letters clear of other thin features (ridges, tick marks): a glyph corner touching a ridge corner can make the kernel boolean fail (booleanFailed); move the numeral radius by a few tenths of a mm if it does.\n- Characters outside Latin-1 are skipped with a textMissingGlyph warning; an empty or blank string is an error."
+   "notes": "- Put lettering in a sketch of ITS OWN: its loops are not intersected with the other curves of the sketch (letters inside a rect do not become holes of it). Several s.text() calls in one sketch are fine (dial numerals).\n- height is the CAP height (an H), not the font size; under 0.8 mm the run warns textTooSmall. Engrave 0.1 to 0.5 mm deep: cut(0.3). Emboss = extrude(0.15).\n- Upright numerals around a dial: one text per number, anchor ['center', 'middle'], angle 0, at the numeral radius; the arc option bends ONE string along a circle (side 'outside' reads clockwise over the top, 'inside' with angleCentre 270 reads left to right below).\n- Keep letters clear of other thin features (ridges, tick marks): a glyph corner touching a ridge corner can make the kernel boolean fail (booleanFailed); move the numeral radius by a few tenths of a mm if it does.\n- Characters outside Latin-1 are skipped with a textMissingGlyph warning; an empty or blank string is an error.\n- Fonts: 'gauge' and 'engrave' are built in; a library font is named by its id ('barlow', 'bebas-neue', 'great-vibes' ...) and loaded by the app. Library fonts have no kerning or ligatures; connected script faces (great-vibes, satisfy) and some display faces have overlapping strokes that can make an engrave fail validation or warn textOverlappingContours; keep those strings short. An unknown id lists the valid ones."
   },
   {
    "id": "part.chamfer",
@@ -2959,7 +2959,7 @@
    "id": "part.textMetrics",
    "kind": "method",
    "domain": "utilities",
-   "signature": ".textMetrics(string: string, opts: { font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact>",
+   "signature": ".textMetrics(string: string, opts: { font?: string; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact>",
    "summary": "Measure a string before drawing it: width, ink box and per-letter advances.",
    "description": "await part.textMetrics(string, { font, height, spacing }) asks the kernel for the real layout of the text (the same one s.text() uses) and returns { width, advance, bbox: [x0, y0, x1, y1], capHeight, chars, advances, warnings }; width is the ink width in mm, bbox is relative to the pen start on the baseline. Use it to size a nameplate, centre a label or fit a font height to a space. It needs await and costs one kernel request; no build is forced.",
    "parameters": [
@@ -2971,14 +2971,14 @@
     },
     {
      "name": "opts",
-     "type": "{ font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num }",
+     "type": "{ font?: string; height?: Num; spacing?: Num }",
      "optional": true,
      "default": "{}",
-     "description": "{ font: 'gauge'|'engrave' (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }",
+     "description": "{ font: 'gauge'|'engrave'|library id (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }",
      "properties": [
       {
        "name": "font",
-       "type": "'gauge' | 'engrave'",
+       "type": "string",
        "optional": true,
        "description": ""
       },

@@ -6,6 +6,7 @@ import { buildPlane, type PlaneBase, type PlaneOpts, type PlaneRotate, type Plan
 export { Expr };
 export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
+import { CURATED_FONT_IDS, isKnownFont, unknownFontMessage } from './fonts';
 export type Plane = 'front' | 'top' | 'right';
 
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
@@ -179,7 +180,8 @@ const polarPts = (c: Pt, r: number, n: number, a0: number): Pt[] => Array.from({
 const gridPts = (o: Pt, p: Pt, c: [number, number]): Pt[] => { const out: Pt[] = []; for (let j = 0; j < c[1]; j++) for (let i = 0; i < c[0]; i++) out.push([o[0] + i * p[0], o[1] + j * p[1]]); return out; };
 /** Options of sketch.text(). */
 export interface TextOpts {
-  font?: 'gauge' | 'engrave'; height?: Num; anchor?: [('left' | 'center' | 'right')?, ('baseline' | 'middle' | 'top')?] | string;
+  /** 'gauge' | 'engrave' or a library font id (barlow, source-sans-3, barlow-condensed, bebas-neue, pt-serif, special-elite, ibm-plex-mono, great-vibes, satisfy, anton) */
+  font?: string; height?: Num; anchor?: [('left' | 'center' | 'right')?, ('baseline' | 'middle' | 'top')?] | string;
   angle?: Num; spacing?: Num; mirror?: boolean; polyline?: boolean; name?: string;
   arc?: { centre?: Pt; radius: Num; angleCentre?: Num; side?: 'outside' | 'inside' };
 }
@@ -381,11 +383,11 @@ export class SketchBuilder {
   /**
    * Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).
    *
-   * Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.
+   * Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif), or the id of a library font ('barlow', 'source-sans-3', 'barlow-condensed', 'bebas-neue', 'pt-serif', 'special-elite', 'ibm-plex-mono', 'great-vibes', 'satisfy', 'anton': the app loads it, nothing else to do; no kerning or ligatures; overlapping strokes of a font may fail to engrave); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.
    * @domain sketch
    * @param string the text (1 to 500 characters, one line)
    * @param at anchor [x, y] or {x, y} in the sketch plane, mm
-   * @param opts { font, height, anchor, angle, spacing, mirror, arc, polyline, name }
+   * @param opts { font: 'gauge'|'engrave'|library id (see above), height, anchor, angle, spacing, mirror, arc, polyline, name }
    * @example
    * part('Plate').sketch('front', (s) => s.rect(60, 20)).extrude(4)
    *   .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);
@@ -397,7 +399,7 @@ export class SketchBuilder {
     if (!xy.every(Number.isFinite)) throw new Error('text(): the position must be [x, y] numbers, got ' + JSON.stringify(at));
     const o = opts ?? {};
     const font = o.font ?? 'gauge';
-    if (font !== 'gauge' && font !== 'engrave') throw new Error(`text(): unknown font '${String(font)}': use 'gauge' (sans) or 'engrave' (serif)`);
+    if (!isKnownFont(font)) throw new Error(unknownFontMessage('text()', font));
     const height = o.height === undefined ? 5 : num(o.height);
     if (!(height > 0) || !Number.isFinite(height)) throw new Error('text(): height is the CAP height in mm and must be greater than 0 (got ' + String(o.height) + ')');
     const e: Record<string, unknown> = { type: 'text', string, font, height, p: this.pt(xy[0], xy[1]) };
@@ -1097,15 +1099,16 @@ export class PartBuilder {
    * await part.textMetrics(string, { font, height, spacing }) asks the kernel for the real layout of the text (the same one s.text() uses) and returns { width, advance, bbox: [x0, y0, x1, y1], capHeight, chars, advances, warnings }; width is the ink width in mm, bbox is relative to the pen start on the baseline. Use it to size a nameplate, centre a label or fit a font height to a space. It needs await and costs one kernel request; no build is forced.
    * @domain utilities
    * @param string the text
-   * @param opts { font: 'gauge'|'engrave' (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }
+   * @param opts { font: 'gauge'|'engrave'|library id (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }
    * @example
    * const p = part('Plate');
    * const m = await p.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });
    * p.sketch('front', (s) => s.rect(m.width + 8, 12)).extrude(2);
    * @see sketch.text
    */
-  textMetrics(string: string, opts: { font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact> {
+  textMetrics(string: string, opts: { font?: string; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact> {
     const line = callerLine();
+    if (opts.font !== undefined && !isKnownFont(opts.font)) throw new Error(unknownFontMessage('textMetrics()', opts.font));
     const text = { string, font: opts.font ?? 'gauge', height: opts.height === undefined ? 5 : num(opts.height), ...(opts.spacing === undefined ? {} : { spacing: num(opts.spacing) }) };
     return new Promise<TextMetricsFact>((resolve, reject) => {
       this.steps.push({ line, label: 'read textMetrics', run: () => [], read: async (rt) => { try { const f = await rt.facts({ text }); if (!f.text) throw new SelectorError('textMetrics(): the kernel did not answer', 0); resolve(f.text); } catch (e) { reject(e); throw e; } } });
@@ -1422,4 +1425,8 @@ export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn
   if (Object.keys(appearance).length) doc.appearance = appearance; else delete doc.appearance;
   if (Object.keys(faceAppearance).length) doc.faceAppearance = faceAppearance; else delete doc.faceAppearance;
   if (Object.keys(bodyNames).length) doc.bodyNames = bodyNames; else delete doc.bodyNames;
+  // library fonts the text entities name: the app loads them by id when it opens the document
+  const ids = new Set<string>();
+  for (const st of part.steps) for (const e of (st.sk?.entities ?? []) as Array<{ type?: string; font?: unknown }>) if (e.type === 'text' && typeof e.font === 'string' && CURATED_FONT_IDS.includes(e.font)) ids.add(e.font);
+  if (ids.size) doc.fonts = [...ids].map((id) => ({ name: id, source: 'curated', id })); else delete doc.fonts;
 }
