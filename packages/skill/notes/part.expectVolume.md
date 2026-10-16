@@ -1,0 +1,1 @@
+- tol is relative (default 1e-3); pass { abs } for mm3. A failed expectation is an error with its line; the run goes on, but an agent run with errors does not replace the document.

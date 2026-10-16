@@ -164,6 +164,26 @@ export class AgentSession {
     const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as never as { positions: ArrayLike<number> } | null;
     return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as never[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
   }
+  /** Mass properties / validity of the document `scratchBuild` built last (a script's read-back). */
+  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[] }) {
+    const out: { volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } = {};
+    if (need.mass) {
+      const r = await this.transport.request({ type: 'massProps', tag: this.scratchTag });
+      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[] } | null;
+      out.volume = m?.volume ?? null; out.area = m?.area ?? null; out.com = m?.com ?? null;
+    }
+    if (need.validate) {
+      const r = await this.transport.request({ type: 'validate', tag: this.scratchTag });
+      const v = (r.ok ? r.result : null) as { ok?: boolean; issues?: Array<{ code: string; entity: string; detail: string }> } | null;
+      out.valid = v ? v.ok === true : null; out.issues = v?.issues ?? [];
+    }
+    if (need.describe?.length) {
+      const r = await this.transport.request({ type: 'describe', tag: this.scratchTag, names: need.describe });
+      const d = (r.ok ? r.result : null) as { items?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } | null;
+      out.faces = (d?.items ?? []).map((i) => ({ name: i.name, surface: i.surface, area: i.area, radius: i.radius }));
+    }
+    return out;
+  }
   private async releaseScratch(): Promise<void> {
     await this.transport.request({ type: 'regen', tag: this.scratchTag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
   }
@@ -216,6 +236,7 @@ export class AgentSession {
         return r as never;
       },
       release: () => this.releaseScratch(),
+      facts: (need) => this.scratchFacts(need),
     };
     let res;
     try {
@@ -225,7 +246,7 @@ export class AgentSession {
     }
     const errors = res.errors.map((e: ScriptError) => this.decorate(e, raw));
     const regenMs = performance.now() - t0;
-    if (errors.length || !res.document) return { ok: false, errors, warnings: [], mode, run, created: [], removed: [], regenMs };
+    if (errors.length || !res.document) return { ok: false, errors, warnings: (res.warnings ?? []).map((w) => ({ code: 'scriptWarning', line: w.line, message: w.message })), mode, run, created: [], removed: [], regenMs };
     // stamp the origin on the script's features
     const mine = new Set(res.ops.map((o) => String(o.feature.id)));
     const feats = (res.document.features as Array<Record<string, unknown>>).map((f) => (mine.has(String(f.id)) ? { ...f, origin } : f));
@@ -236,7 +257,7 @@ export class AgentSession {
     this.scriptRuns = run;
     await this.setDocument(doc, `${origin} (${mode})`);
     const rep = await this.session.regenReport();
-    const warnings = rep.warnings;
+    const warnings = [...(res.warnings ?? []).map((w) => ({ code: 'scriptWarning', line: w.line, message: w.message })), ...rep.warnings];
     // kernel errors of the final document (should not happen after a clean scratch build)
     const late = rep.errors.map(([fid, err]) => ({ line: 0, feature: fid, message: (err as { message?: string }).message ?? err.code ?? 'error', code: err.code, hint: hintFor(fid, err.code ?? '', err.params ?? {}).hint }));
     return { ok: late.length === 0, errors: late, warnings, mode, run, created: [...mine], removed, regenMs: performance.now() - t0 };

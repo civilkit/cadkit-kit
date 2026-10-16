@@ -1,0 +1,3 @@
+- front moves along +Z, top along +Y, right along +X; a face offset goes along the face's OUTWARD normal (negative = into the body).
+- { origin, normal } with a normal along a world axis is an ordinary offset plane; any other normal adds helper points and a three-point plane (7 features at most): fine for one-off tilted sketches, prefer rotate: { axis: 'x', angle } for a tilt about an axis.
+- rotate turns the plane about the axis LINE, the plane passes through it; only world axes through the origin and straight edges are accepted.

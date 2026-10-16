@@ -10,7 +10,7 @@ const ISO = /^M\d+(\.\d+)?$/;
 /** The sketch of points and the hole feature (plus thread features for a tapped hole) for the centres `pts` on face `on`. */
 export function holeOps(ctx: Ctx, on: FaceSel, pts: Array<[number, number]>, o: HoleOpts, line: number): EditOp[] {
   const sid = ctx.nextId(), id = ctx.nextId();
-  const fc = H.resolveFace(on.sel, ctx.geo, on.line);
+  const fc = H.resolveFaceSel(on, ctx.geo, ctx.warn);
   const thread = o.thread === undefined || o.thread === false ? null : typeof o.thread === 'string' ? { size: o.thread } : o.thread === true ? { size: o.size } : o.thread;
   const kind = o.kind === 'tapped' || thread ? 'tapped' : o.kind ?? 'simple';
   if (!['simple', 'cbore', 'csk', 'tapped'].includes(kind)) throw new H.SelectorError(`hole kind must be 'simple', 'cbore', 'csk' or 'tapped', not '${kind}'`, line);

@@ -1,0 +1,1 @@
+- Frames from the kernel: front x=X y=Y normal=+Z; top x=X y=-Z normal=+Y; right x=-Z y=Y normal=+X. So on 'top', sketch y grows towards world -Z; on 'right', sketch x grows towards world -Z.

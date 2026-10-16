@@ -302,7 +302,7 @@ export const miscFeatures = {
           if (!ins) throw new H.SelectorError(`mate(): there is no inserted part number ${f.part} (insertPart calls so far: ${memOf(ctx).inserts.length})`, line);
           return `${f.face}@${ins}.1`;
         }
-        return H.resolveFace(f.sel, ctx.geo, f.line).id;
+        return H.resolveFaceSel(f, ctx.geo, ctx.warn).id;
       };
       const id = ctx.nextId();
       ctx.lastFeature = id;

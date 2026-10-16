@@ -1,2 +1,4 @@
-- Matches planar faces only, by outward normal direction; ties go to the biggest. It does not pick by position: two coplanar faces at the same height resolve to the larger.
+- A direction ('>Z') matches planar faces by outward normal, the furthest first, ties to the biggest. After a boss or a pocket several faces face the same way: the run result then carries a WARNING naming the face it resolved to and the others. Read warnings; choose on purpose with face('>Z', { of: handle }) (handle = part.handle() right after the feature) or a face name.
+- Persistent names ('F3.C1' = cap 1 of F3, 'F3.S.e2' = side of sketch entity e2, 'F8.C0@F10.1' = pattern copy) survive edits that keep the feature; list them with `await part.faces()`.
+- A rule object must match exactly ONE face; for several use faces(rule) and .nth(i) / .largest() / .smallest() / .near([x,y,z]).
 - Resolved against the body as it is just before the step: after a boss on top, face('>Z') is the boss top, not the plate top.

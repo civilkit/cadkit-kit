@@ -47,12 +47,13 @@ export function generate() {
   const selAst = parseTs(selSrc);
   for (const n of selAst.program.body) {
     const d = n.type === 'ExportNamedDeclaration' ? n.declaration : n;
-    if (d?.type === 'TSInterfaceDeclaration' && d.id.name === 'EdgeRule') {
-      types.EdgeRule = selSrc.slice(d.body.start, d.body.end).replace(/\s*\n\s*/g, ' ').replace(/\s*\/\*\*.*?\*\/\s*/g, ' ');
+    if (d?.type === 'TSInterfaceDeclaration' && (d.id.name === 'EdgeRule' || d.id.name === 'FaceRule')) {
+      types[d.id.name] = selSrc.slice(d.body.start, d.body.end).replace(/\s*\n\s*/g, ' ').replace(/\s*\/\*\*.*?\*\/\s*/g, ' ');
     }
   }
   types.SketchSpec = '{ on: \'front\' | \'top\' | \'right\' | at(plane, offset) | face(sel); draw?: (s) => void; point?: [x, y]; name?: string }';
   types.FaceSel = 'the result of face(sel)';
+  types.FacesSel = 'the result of faces(sel)';
   types.EdgeSel = 'the result of edges(sel)';
 
   const methods = [];

@@ -13,10 +13,15 @@ async function host() {
   const store = createStore();
   const kernel: KernelFactory = { async open(d) { const s = await Session.open(d); sessions.push(s); return s; } };
   const controller = new Controller({ store, view: { setBody() {}, setHighlight() {}, setSketchEdit() {} }, kernel });
+  await controller.load(emptyPart('start'));   // the app always has a part open; the scratch build needs its kernel
   const h: ScriptHost = {
     load: (d) => controller.load({ ...emptyPart('x'), ...d } as unknown as PartDoc),
     edit: (ops, why) => controller.edit(ops, why) as never,
     geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
+    // the batched path with read-backs, as the agent layer runs scripts
+    build: (d, v) => controller.scratchBuild(d as never, v) as never,
+    release: () => controller.scratchRelease(),
+    facts: (n) => controller.scratchFacts(n),
   };
   return { h, controller, session: () => sessions.at(-1)! };
 }

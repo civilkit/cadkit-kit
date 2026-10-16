@@ -1,0 +1,1 @@
+- Only the equal-distance chamfer is implemented by the kernel today. { distance, distance2 } and { distance, angle } are emitted but come back as an `unsupported` error: cut the bevel with a sketch polygon instead.

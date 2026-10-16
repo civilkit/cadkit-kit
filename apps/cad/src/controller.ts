@@ -151,6 +151,28 @@ export class Controller {
     const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as unknown as ReturnType<Controller['bodyFaces']>;
     return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
   }
+  /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
+  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[] }): Promise<{ volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
+    const k = this.transport();
+    if (!k) throw new Error('no kernel');
+    const out: Awaited<ReturnType<Controller['scratchFacts']>> = {};
+    if (need.mass) {
+      const r = await k.request({ type: 'massProps', tag: this.scratchTag });
+      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[] } | null;
+      out.volume = m?.volume ?? null; out.area = m?.area ?? null; out.com = m?.com ?? null;
+    }
+    if (need.validate) {
+      const r = await k.request({ type: 'validate', tag: this.scratchTag });
+      const v = (r.ok ? r.result : null) as { ok?: boolean; issues?: Array<{ code: string; entity: string; detail: string }> } | null;
+      out.valid = v ? v.ok === true : null; out.issues = v?.issues ?? [];
+    }
+    if (need.describe?.length) {
+      const r = await k.request({ type: 'describe', tag: this.scratchTag, names: need.describe });
+      const d = (r.ok ? r.result : null) as { items?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } | null;
+      out.faces = (d?.items ?? []).map((i) => ({ name: i.name, surface: i.surface, area: i.area, radius: i.radius }));
+    }
+    return out;
+  }
   /** Drop the scratch state of `scratchBuild` (the kernel keeps a body per tag): the tag goes back to an empty part. */
   async scratchRelease(): Promise<void> {
     const k = this.transport();

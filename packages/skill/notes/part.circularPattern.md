@@ -1,2 +1,3 @@
-- The axis passes through the world origin: centre the part on it, or the copies swing around the origin instead of the part.
-- Repeats ONLY the last feature. For a ring of drilled holes use holes.polar (one feature, simpler).
+- The axis is a WORLD axis through the origin (x, y, z, [0,0,0,dx,dy,dz] or a straight edge lying on one); an offset axis is refused with a Line N error. Centre the part on it, or use holes.polar for a bolt circle at any centre.
+- equalSpacing (default for 360) steps angle / count; set it false with a partial angle to put the last copy exactly at the end angle.
+- Several features: pass an array of handles as the first argument.

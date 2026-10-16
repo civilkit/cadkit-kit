@@ -9,6 +9,7 @@ export interface Helpers {
   num(n: number | Expr): number;
   SelectorError: new (message: string, line?: number) => Error;
   resolveFace(sel: string, geo: Geometry, line?: number): { id: string };
+  resolveFaceSel(fs: FaceSel, geo: Geometry, warn?: (message: string, line: number) => void): { id: string };
   resolveEdges(sel: EdgeSel['sel'], geo: Geometry, line?: number): Array<{ faces: string[]; at: number[] }>;
   newSketch(): SketchBuilderT;
 }
@@ -41,7 +42,7 @@ export function planeRef(ctx: Ctx, on: Plane | OffsetPlane | FaceSel, pre: EditO
     return { kind: 'feature', id: pid };
   }
   const f = on as FaceSel;
-  return { kind: 'face', id: H.resolveFace(f.sel, ctx.geo, f.line).id };
+  return { kind: 'face', id: H.resolveFaceSel(f, ctx.geo, ctx.warn).id };
 }
 
 /** Ops for one sketch spec (plane feature if offset, then the sketch) and its id. */

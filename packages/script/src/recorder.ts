@@ -1,32 +1,66 @@
 // The recorder: a fluent API whose calls are REMEMBERED (with the script line) and later compiled to EditOps by the runner.
 // Selectors (face(), edges()) are resolved at compile time against the body as it is just before that step.
-import { resolveEdges, resolveFace, SelectorError, type EdgeRule, type EdgeSel, type FaceSel, type Geometry } from './selectors';
+import { resolveEdgeInfos, resolveEdges, resolveFace, resolveFaceSel, resolveFacesSel, SelectorError, type EdgeRule, type EdgeSel, type FaceInfo, type FacePick, type FaceRule, type FaceSel, type FacesSel, type FeatureRefLike, type Geometry, type SurfaceKind, type Vec } from './selectors';
+import { Expr, num, ref } from './num';
+import { buildPlane, type PlaneBase, type PlaneOpts, type PlaneRotate, type PlaneSpec } from './planes';
+export { Expr };
+export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
+export type Plane = 'front' | 'top' | 'right';
 
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
-export type Plane = 'front' | 'top' | 'right';
-/** A standard plane moved along its normal (front: +z, top: +y, right: +x): a reference plane feature is added for it. */
-export interface OffsetPlane { kind: 'offset'; plane: Plane; offset: Num }
+/** A workplane: a base plane, face, plane feature or point+normal, moved along its normal and optionally rotated. A reference plane feature is added for it. */
+export interface OffsetPlane { kind: 'offset'; plane: PlaneBase; offset: Num; opts: PlaneOpts; line: number }
+/** A feature of the part, taken with part.handle() once it exists; its id is filled in when the script runs. */
+export class FeatureHandle { id: string | null = null; constructor(public label = 'feature') {} toString(): string { return this.id ?? ''; } }
 /**
- * A standard plane moved along its normal, for a sketch on a workplane at a distance.
+ * A workplane for a sketch: an offset plane, a face, a plane feature, a point and normal, or a tilt.
  *
- * at(plane, offset) returns a plane reference for sketch(): front moves along +Z, top along +Y, right along +X. A reference plane feature is added to the part. Use it to sketch above or below the origin without needing a face to select.
+ * at(base, offset, opts) returns a plane reference for sketch(). base is 'front' (moves along +Z), 'top' (+Y), 'right' (+X); a face(...) (the plane of that planar face, offset along its outward normal); a plane feature handle from part.workplane(...) + part.handle(); or { origin: [x,y,z], normal: [x,y,z], xdir? } for any plane (axis-aligned normals use a standard plane, others add three helper points and a three-point plane). opts.rotate = { axis: 'x'|'y'|'z' | edges(...), angle } tilts the plane about that line (the plane passes through the axis; an offset is applied before the rotation). A reference plane feature is added to the part.
  * @domain sketch
- * @param plane the standard plane: front, top or right
- * @param offset distance along the plane normal in mm (a number or expr)
+ * @param base 'front' | 'top' | 'right', face(sel), a plane feature handle, { origin, normal, xdir? }, or { between: [a, b] } (the mid plane of two planes or faces)
+ * @param offset distance along the plane normal in mm (a number or expr), default 0
+ * @param opts { rotate: { axis, angle degrees }, flip }
  * @example
  * part('Stack')
  *   .sketch('front', (s) => s.rect(40, 40)).extrude(5)
- *   .sketch(at('front', 20), (s) => s.circle(8)).extrude(5);
- * @see part.sketch
+ *   .sketch(at('front', 20), (s) => s.circle(8)).extrude(5)
+ *   .sketch(at(face('>Z'), 3), (s) => s.circle(4)).extrude(2);
+ * @see part.sketch, plane, part.workplane
  */
-export const at = (plane: Plane, offset: Num): OffsetPlane => ({ kind: 'offset', plane, offset });
+export const at = (base: PlaneBase, offset: Num = 0, opts: PlaneOpts = {}): OffsetPlane => ({ kind: 'offset', plane: base, offset, opts, line: callerLine() });
 
-/** A parameter written as an expression over the part's variables, e.g. expr('w/2'). */
-export class Expr { constructor(public text: string, public value: number) {} valueOf(): number { return this.value; } }
+/** Sketch-plane frame as the kernel reports it: sketch x / y / normal in world axes. */
+export interface PlaneInfo {
+  name: Plane;
+  origin: Vec; x: Vec; y: Vec; normal: Vec;
+  /** world point of the sketch point [u, v] on the plane moved `offset` mm along its normal */
+  toWorld(p: [number, number], offset?: number): Vec;
+}
+const FRAMES: Record<Plane, { x: Vec; y: Vec; z: Vec }> = {
+  front: { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] },
+  top: { x: [1, 0, 0], y: [0, 0, -1], z: [0, 1, 0] },
+  right: { x: [0, 0, -1], y: [0, 1, 0], z: [1, 0, 0] },
+};
+/**
+ * The frame of a standard sketch plane: which world axes its sketch x, y and normal are.
+ *
+ * plane(name) returns { origin, x, y, normal, toWorld }. front: sketch x = world X, y = world Y, normal +Z. top: x = X, y = -Z (sketch y points to world -Z, so +sketch y is towards the back), normal +Y. right: x = -Z, y = Y, normal +X. Y is up. These come from the kernel's sketch frames; use toWorld([u, v], offset) to place a sketch point in the world, e.g. to aim a face selector or an expectBBox.
+ * @domain sketch
+ * @param name 'front' | 'top' | 'right'
+ * @example
+ * // t.y is [0, 0, -1]: a point at sketch y = 10 on the top plane is at world z = -10
+ * const p = plane('top').toWorld([5, 10], 20);   // [5, 20, -10]
+ * part('Offset ring').sketch('top', (s) => s.circle(4, [5, 10])).extrude(2).expectBBox({ min: [1, 0, -14], max: [9, 2, -6] });
+ * @see at, part.sketch
+ */
+export const plane = (name: Plane): PlaneInfo => {
+  const f = FRAMES[name];
+  if (!f) throw new SelectorError(`plane('${name}'): use 'front', 'top' or 'right'`, callerLine());
+  return { name, origin: [0, 0, 0], x: f.x, y: f.y, normal: f.z, toWorld: (p, offset = 0) => [0, 1, 2].map((k) => p[0] * f.x[k] + p[1] * f.y[k] + offset * f.z[k]) as Vec };
+};
+
 export type Num = number | Expr;
-const num = (n: Num): number => (n instanceof Expr ? n.value : n);
-const ref = (n: Num): number | string => (n instanceof Expr ? `=${n.text}` : n);
 
 export interface Ctx {
   geo: Geometry;
@@ -34,8 +68,38 @@ export interface Ctx {
   /** id of the sketch recorded last / the feature added last */
   lastSketch: string | null;
   lastFeature: string | null;
+  /** Report a warning for the script line (the run result lists them). */
+  warn?(message: string, line: number): void;
+  /** Cut features whose direction may be flipped once if the kernel finds nothing to cut (cut direction 'auto'). */
+  autoFlip?: Set<string>;
 }
-export interface Step { line: number; label: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder }
+/** What a read-back step may ask of the runner: a build of everything recorded so far plus the kernel's answers. */
+export interface ReadRuntime {
+  facts(need: FactNeed): Promise<Facts>;
+  /** Report a failed expectation on a script line (the run goes on). */
+  fail(message: string, line: number): void;
+}
+export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean }
+export interface FaceFact {
+  /** persistent face name, usable in face('F3.C1') */
+  name: string;
+  kind: SurfaceKind;
+  area: number;
+  /** outward unit normal of a planar face, else null */
+  normal: Vec | null;
+  center: Vec;
+  radius?: number;
+  /** the feature that created the face */
+  feature: string;
+}
+export interface Facts {
+  volume: number | null; area: number | null; com: Vec | null;
+  valid: boolean | null; issues: Array<{ code: string; entity: string; detail: string }>;
+  bbox: { min: Vec; max: Vec } | null;
+  faceCount: number; edgeCount: number; faces: FaceFact[];
+  edges: Array<{ key: string; mid: Vec; length: number; faces: string[] }>;
+}
+export interface Step { line: number; label: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder; /** a read-back step: builds what was recorded, asks the kernel, resolves a script promise or checks an expectation */ read?(rt: ReadRuntime): Promise<void> }
 export interface Recorded { name: string; variables: Array<{ name: string; expr: string }>; steps: Step[] }
 
 /** The 1-based script line of the caller, from the stack of the evaluated function (see run.ts: sourceURL + header offset). */
@@ -47,21 +111,44 @@ export function callerLine(): number {
 }
 
 /**
- * Select one planar face of the current body by direction: >X <X >Y <Y >Z <Z.
+ * Select ONE face of the current body: by direction, by persistent name, by feature, or by a rule.
  *
- * face(sel) is resolved when the script runs, against the body as it is just before the step that uses it. '>Z' is the planar face whose outward normal is +Z and which lies furthest along +Z (ties: the biggest face). '#top' is '>Z' and '#bottom' is '<Z'. Only planar faces match; it fails with a line number when none does. Pass it to sketch(), hole(), holes.*, shell().
+ * face(sel, opts) is resolved when the script runs, against the body as it is just before the step that uses it. A direction '>X' '<X' '>Y' '<Y' '>Z' '<Z' ('#top' '#bottom') is the planar face whose outward normal is that axis and which lies furthest along it (ties: the biggest). AFTER A BOSS OR POCKET '>Z' means the boss top, and the plate top facing the same way is a different face: when other faces face the same way but belong to another feature, the run result carries a warning naming the face it resolved to; pick on purpose with face('>Z', { of: handle }) (only faces created by that feature: a handle from part.handle(), or an id like 'F2'). A persistent face name such as 'F3.C1' (cap 1 of F3) selects exactly that face; 'F3.*' is a prefix. A rule object ANDs its keys: dir, normal [x,y,z] (planar faces facing that way), planar, at [x,y,z] (planar: the point lies on its plane), kind ('plane'|'cylinder'|'sphere'|'other'), radius, createdBy / of (feature), areaGreater, areaLess, near [x,y,z] (+ within), not / union / intersect / difference (arrays of face() or faces()). It must match exactly one face (faces(rule).nth(i), .largest(), .smallest(), .near(p) choose among several); it fails with a line number otherwise. Pass it to sketch(), at(), hole(), holes.*, shell().
  * @domain selectors
- * @param sel one of '>X' '<X' '>Y' '<Y' '>Z' '<Z' '#top' '#bottom'
+ * @param sel '>X' '<X' '>Y' '<Y' '>Z' '<Z' '#top' '#bottom', a face name ('F3.C1'), or a FaceRule object
+ * @param opts { of: feature handle or id } restrict to the faces that feature created
  * @example
  * part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10)
- *   .hole(face('>Z'), [0, 0], { diameter: 8 });
- * @see edges, part.sketch, part.hole, part.shell
+ *   .sketch(face('>Z'), (s) => s.circle(12)).extrude(15)
+ *   .hole(face('>Z'), [0, 0], { diameter: 8 })
+ *   .hole(face('>Z', { of: 'F2' }), [25, 0], { diameter: 5 });
+ * @see faces, edges, part.handle, part.sketch, part.hole, part.shell
  */
-export const face = (sel: string): FaceSel => ({ kind: 'face', sel, line: callerLine() });
+export const face = (sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FaceSel => ({ kind: 'face', sel, line: callerLine(), ...(opts.of !== undefined ? { of: opts.of } : {}) });
+/**
+ * Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.
+ *
+ * faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole().
+ * @domain selectors
+ * @param sel a direction, a face name or prefix ('F3.*'), or a FaceRule (see face)
+ * @param opts { of: feature handle or id } restrict to the faces that feature created
+ * @example
+ * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)
+ *   .sketch(face('>Z'), (s) => s.circle(6)).cut(through())
+ *   .fillet(edges({ onFace: faces({ kind: 'cylinder', radius: 6 }) }), 1)
+ *   .shell(faces('<Z').largest(), 2);
+ * @see face, edges, part.shell
+ */
+export const faces = (sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FacesSel => {
+  const line = callerLine();
+  const base = { sel, line, ...(opts.of !== undefined ? { of: opts.of } : {}) };
+  const one = (pick: FacePick): FaceSel => ({ kind: 'face', ...base, pick });
+  return { kind: 'faces', ...base, nth: (i) => one({ nth: i }), largest: () => one('largest'), smallest: () => one('smallest'), first: () => one('first'), last: () => one('last'), near: (p) => one({ near: p }) };
+};
 /**
  * Select edges of the current body by direction, extreme plane, or a rule object.
  *
- * edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face()), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches.
+ * edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches.
  * @domain selectors
  * @param sel a selector string, or an EdgeRule object
  * @example
@@ -347,7 +434,7 @@ export interface HoleOpts {
   /** tapped: cut the real helical groove instead of a cosmetic thread */
   modeled?: boolean;
 }
-export interface ExtrudeOpts { mid?: boolean; flip?: boolean; draft?: number; thin?: Num }
+export interface ExtrudeOpts { mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
 export class PartBuilder {
   steps: Step[] = [];
   variables: Array<{ name: string; expr: string }> = [];
@@ -378,10 +465,10 @@ export class PartBuilder {
       let pl: Record<string, unknown>;
       if (typeof plane === 'string') pl = { kind: 'std', id: plane };
       else if (plane.kind === 'offset') {
-        const pid = ctx.nextId();
-        pre.push({ op: 'add', feature: { type: 'plane', id: pid, mode: 'offset', base: { kind: 'std', id: plane.plane }, offset: ref(plane.offset) } });
-        pl = { kind: 'feature', id: pid };
-      } else pl = { kind: 'face', id: resolveFace(plane.sel, ctx.geo, plane.line).id };
+        const b = buildPlane(plane.plane, plane.offset, plane.opts, { geo: ctx.geo, nextId: ctx.nextId, warn: ctx.warn }, plane.line);
+        pre.push(...b.ops);
+        pl = b.ref;
+      } else pl = { kind: 'face', id: resolveFaceSel(plane, ctx.geo, ctx.warn).id };
       const id = ctx.nextId();
       ctx.lastSketch = id;
       ctx.lastFeature = id;
@@ -397,8 +484,16 @@ export class PartBuilder {
       const id = ctx.nextId();
       const through = typeof end === 'object' && 'through' in end;
       const f: Record<string, unknown> = { type: 'extrude', id, op, sketch: ctx.lastSketch };
-      if (through) f.end = 'through'; else { f.end = o.mid ? 'mid' : 'blind'; f.depth = ref(end as Num); }
-      if (o.flip) f.flip = true;
+      const dir = o.direction ?? (op === 'cut' && !o.flip && !o.mid && !o.symmetric ? 'auto' : undefined);
+      if (dir !== undefined && !['into', 'away', 'both', 'auto'].includes(dir)) throw new SelectorError(`${label}(): direction must be 'into', 'away', 'both' or 'auto'`, this.line());
+      const both = dir === 'both' || !!o.mid || !!o.symmetric;
+      if (through) f.end = both ? 'throughBoth' : 'through'; else { f.end = both ? 'mid' : 'blind'; f.depth = ref(end as Num); }
+      // the kernel runs an extrude ALONG the sketch normal and a cut AGAINST it; 'into' / 'away' are relative to the normal for both
+      let flip = !!o.flip;
+      if (dir === 'into' && op === 'add') flip = !flip;
+      if (dir === 'away' && op === 'cut') flip = !flip;
+      if (flip && !both) f.flip = true;
+      if (dir === 'auto' && op === 'cut' && !flip) ctx.autoFlip?.add(id);
       if (o.draft) f.draft = o.draft;
       if (o.thin !== undefined) f.thin = { thickness: ref(o.thin), side: 'mid', ends: 'flat', cornerStyle: 'mitre' };
       ctx.lastFeature = id;
@@ -409,10 +504,11 @@ export class PartBuilder {
   /**
    * Extrude the last sketch into a solid (adds material).
    *
-   * Extrudes the last sketch along its plane normal by `depth` mm. Options: mid (symmetric about the plane), flip (opposite direction), draft (taper angle in degrees), thin (hollow wall thickness: closed profile gives a tube, open profile a thin sheet). The first extrude makes the body; later ones add to it (a boss when sketched on a face).
+   * Extrudes the last sketch along its plane normal by `depth` mm. Options: direction ('away' = along the sketch normal, the default; 'into' = against it; 'both' = symmetric about the plane, depth is the total, same as mid), flip (the old way to reverse), draft (taper angle in degrees), thin (hollow wall thickness: closed profile gives a tube, open profile a thin sheet). Sketch normals: front +Z, top +Y, right +X (see plane()); a face sketch's normal points out of the body. The first extrude makes the body; later ones add to it (a boss when sketched on a face).
    * @domain features
    * @param depth length in mm (number or expr)
-   * @param o.mid extrude half each way
+   * @param o.direction 'away' (along the sketch normal, default) | 'into' (against it) | 'both' (symmetric, depth is the total)
+   * @param o.mid extrude half each way (same as direction: 'both'; symmetric: true is the same)
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
    * @param o.thin wall thickness for a thin-walled extrude
@@ -425,9 +521,10 @@ export class PartBuilder {
   /**
    * Cut the last sketch out of the body: a depth or through().
    *
-   * Removes material. The cut runs AGAINST the sketch normal: from a face sketch (face('>Z')) that is into the body; from a standard plane whose normal points into the body (the front plane at the start of a Z extrude) it runs away from the body and reports cutNoEffect, so sketch on a face or pass flip: true. Depth is a number or through() for all the way. Same options as extrude (mid, flip, draft, thin).
+   * Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin).
    * @domain features
    * @param end depth in mm, or through()
+   * @param o.direction 'auto' (default: into, flip once if nothing is cut) | 'into' | 'away' | 'both'
    * @param o.mid cut half each way
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
@@ -522,7 +619,7 @@ export class PartBuilder {
       /**
        * Drill holes at listed coordinates: one hole feature at a list of centres.
        *
-       * All holes share diameter and depth. Centres are [x, y] in the face sketch plane.
+       * All holes share diameter and depth. Centres are [x, y] coordinates in the face sketch plane.
        * @domain holes
        * @param on face(sel) of the face to drill from
        * @param pts list of [x, y] centres
@@ -574,97 +671,444 @@ export class PartBuilder {
     return this.add(label, (ctx) => holeOps(ctx, on, pts, o, line));
   }
   /**
-   * Round edges with a constant radius.
+   * Round edges: one radius, a radius per edge, or a variable radius.
    *
-   * Rounds the edges chosen by edges() with a fillet of the given radius (mm). Fails when the radius is too big for the adjacent faces (blendOverflow): reduce it. Fillet before shelling and before adding small features; select with edges('|Z') for the vertical edges of a block.
+   * Rounds the edges chosen by edges(). radius is a number (constant), or an options object: { radius: number | number[] | {[edgeKey]: number} } where an array gives one radius per selected edge in selection order (its length must equal the edge count) and an object maps edge keys (like 'F2.C0|F2.S.l1#0', as listed by part.edges... or '*' for the rest) to radii; edges with different radii become one fillet feature per distinct radius, applied in order of increasing radius (so a sequence of fillets, not one simultaneous blend: edges that meet at a vertex can fail with blendOverflow, then give them the same radius). { variable: [near, far] } makes ONE fillet whose radius changes linearly along each selected edge from the end nearer the start to the far end. Fails when a radius is too big for the adjacent faces (blendOverflow). Fillet before shelling and before adding small features; select with edges('|Z') for the vertical edges of a block.
    * @domain features
    * @param on edges(sel) the edges to round
-   * @param radius in mm (number or expr)
+   * @param radius radius in mm (number or expr), or { radius, variable }
+   * @param radius.radius number | number[] (per edge) | object (edge key to radius, '*' default)
+   * @param radius.variable [near, far] radii of a variable-radius fillet
    * @example
-   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).fillet(edges('|Z'), 4);
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)
+   *   .fillet(edges('|Z'), 4)
+   *   .fillet(edges({ onFace: face('>Z') }), { radius: [2, 2, 1, 1, 1, 1, 1, 1] });
    * @see part.chamfer, edges, sketch.rrect
    */
-  fillet(on: EdgeSel, radius: Num): this {
-    return this.add('fillet', (ctx) => { const id = ctx.nextId(); ctx.lastFeature = id; return [{ op: 'add', feature: { type: 'fillet', id, radius: ref(radius), edges: resolveEdges(on.sel, ctx.geo, on.line) } }]; });
+  fillet(on: EdgeSel, radius: Num | { radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }): this {
+    return this.add('fillet', (ctx) => {
+      const infos = resolveEdgeInfos(on.sel, ctx.geo, on.line, ctx.warn);
+      const refs = infos.map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
+      const o = typeof radius === 'number' || radius instanceof Expr ? { radius } : radius;
+      const mk = (id: string, edges: typeof refs, extra: Record<string, unknown>): EditOp => ({ op: 'add', feature: { type: 'fillet', id, edges, ...extra } });
+      if (o.variable) {
+        const id = ctx.nextId(); ctx.lastFeature = id;
+        return [mk(id, refs, { radius: ref(o.variable[0]), filletType: 'variable', radii: o.variable.map((v) => ref(v)) })];
+      }
+      const r = o.radius;
+      if (r === undefined) throw new SelectorError('fillet(): give a radius (a number, an array, an object) or variable: [near, far]', on.line);
+      if (!Array.isArray(r) && (typeof r === 'number' || r instanceof Expr)) { const id = ctx.nextId(); ctx.lastFeature = id; return [mk(id, refs, { radius: ref(r) })]; }
+      const per: Num[] = Array.isArray(r)
+        ? (r.length === refs.length ? r : (() => { throw new SelectorError(`fillet(): ${r.length} radii for ${refs.length} selected edges (one per edge, in selection order)`, on.line); })())
+        : infos.map((e) => { const v = r[e.key ?? ''] ?? r['*']; if (v === undefined) throw new SelectorError(`fillet(): no radius for edge '${e.key}' (add it to the object or give '*')`, on.line); return v; });
+      const groups = new Map<string, { r: Num; edges: typeof refs }>();
+      per.forEach((v, i) => { const k = String(ref(v)); const g = groups.get(k) ?? { r: v, edges: [] }; g.edges.push(refs[i]); groups.set(k, g); });
+      const ops: EditOp[] = [];
+      for (const g of [...groups.values()].sort((x, y) => num(x.r) - num(y.r))) { const id = ctx.nextId(); ctx.lastFeature = id; ops.push(mk(id, g.edges, { radius: ref(g.r) })); }
+      return ops;
+    });
   }
   /**
-   * Bevel edges with an equal distance.
+   * Bevel edges: equal distance, two distances, or distance and angle.
    *
-   * Cuts a flat bevel on the chosen edges, the same distance along both faces. Good for edge breaks on bores and rims.
+   * Cuts a flat bevel on the chosen edges. A number is the equal distance on both faces. An options object: { distance, distance2 } measures distance on one face and distance2 on the other (chamferType distanceDistance); { distance, angle } a distance and an angle in degrees (angleDistance); flip swaps the two faces. NOTE: the current kernel implements only the equal-distance chamfer: the two-distance and angle forms are emitted as the kernel's features but fail with an `unsupported` error until the kernel adds them; model those bevels with a cut or a sketch polygon instead. Good for edge breaks on bores and rims.
    * @domain features
    * @param on edges(sel) the edges to bevel
-   * @param distance in mm
+   * @param distance mm (number or expr), or { distance, distance2?, angle?, flip? }
+   * @param distance.distance first distance in mm
+   * @param distance.distance2 second distance in mm (distanceDistance)
+   * @param distance.angle angle in degrees (angleDistance)
+   * @param distance.flip swap which face gets which distance
    * @example
    * part('Washer').sketch('front', (s) => s.circle(30)).extrude(5)
    *   .hole(face('>Z'), [0, 0], { diameter: 18 }).chamfer(edges('>Z'), 0.5);
    * @see part.fillet, edges
    */
-  chamfer(on: EdgeSel, distance: Num): this {
-    return this.add('chamfer', (ctx) => { const id = ctx.nextId(); ctx.lastFeature = id; return [{ op: 'add', feature: { type: 'chamfer', id, chamferType: 'equal', distance: ref(distance), edges: resolveEdges(on.sel, ctx.geo, on.line) } }]; });
+  chamfer(on: EdgeSel, distance: Num | { distance: Num; distance2?: Num; angle?: Num; flip?: boolean }): this {
+    return this.add('chamfer', (ctx) => {
+      const id = ctx.nextId(); ctx.lastFeature = id;
+      const o = typeof distance === 'number' || distance instanceof Expr ? { distance } : distance;
+      const type = o.distance2 !== undefined ? 'distanceDistance' : o.angle !== undefined ? 'angleDistance' : 'equal';
+      return [{ op: 'add', feature: { type: 'chamfer', id, chamferType: type, distance: ref(o.distance), ...(o.distance2 !== undefined ? { distance2: ref(o.distance2) } : {}), ...(o.angle !== undefined ? { angle: ref(o.angle) } : {}), ...(o.flip ? { flip: true } : {}), edges: resolveEdgeInfos(on.sel, ctx.geo, on.line, ctx.warn).map((e) => ({ faces: [...e.faces!], at: [...e.mid!] })) } }];
+    });
   }
   /**
-   * Hollow the body to a wall thickness, opening the selected face.
+   * Hollow the body to a wall thickness, opening the selected face(s).
    *
-   * Hollows out the solid leaving walls of `thickness` mm and removing the selected face to make an opening (box open at the top: shell(face('>Z'), 2)). Do fillets of the outside edges before the shell. A thickness larger than the smallest feature fails (shellTooThick).
+   * Hollows out the solid leaving walls of `thickness` mm and removing the selected face to make an opening (box open at the top: shell(face('>Z'), 2)). faces(...) opens several faces at once. Do fillets of the outside edges before the shell. A thickness larger than the smallest feature fails (shellTooThick).
    * @domain features
-   * @param open face(sel) of the face left open
+   * @param open face(sel) or faces(sel) of the face(s) left open
    * @param thickness wall thickness in mm
    * @example
    * part('Thin box').sketch('front', (s) => s.rect(50, 30)).extrude(20).shell(face('>Z'), 2);
    * @see part.thin, part.fillet
    */
-  shell(open: FaceSel, thickness: Num): this {
-    return this.add('shell', (ctx) => { const id = ctx.nextId(); ctx.lastFeature = id; return [{ op: 'add', feature: { type: 'shell', id, faces: [resolveFace(open.sel, ctx.geo, open.line).id], thickness: ref(thickness) } }]; });
+  shell(open: FaceSel | FacesSel, thickness: Num): this {
+    return this.add('shell', (ctx) => { const id = ctx.nextId(); ctx.lastFeature = id; return [{ op: 'add', feature: { type: 'shell', id, faces: resolveFacesSel(open, ctx.geo, ctx.warn).map((f) => f.id), thickness: ref(thickness) } }]; });
   }
   /**
-   * Repeat the last feature along a world axis.
+   * Repeat features along a direction, optionally as a 2D grid.
    *
-   * Repeats the feature added just before it `count` times (including the original) every `spacing` mm along the x, y or z axis. The seed is only the last feature: build the pocket or boss first, then pattern it.
+   * linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), every spacing mm, or totalLength mm from first to last (spacing = totalLength / (count - 1)). direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength } adds a second direction: the original features plus the first pattern are patterned again (a pattern of a pattern, which the kernel supports) giving count x second.count instances, a rectangular grid.
    * @domain patterns
+   * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
    * @param o.count total number of instances
    * @param o.spacing distance between instances in mm
-   * @param o.axis 'x' | 'y' | 'z', default 'x'
+   * @param o.totalLength first-to-last distance in mm instead of spacing
+   * @param o.direction 'x' | 'y' | 'z' | [x, y, z] | edges(...), default 'x'
+   * @param o.axis alias of direction ('x' | 'y' | 'z')
+   * @param o.reverse go the other way
+   * @param o.second { direction, count, spacing | totalLength, reverse? } the second grid direction
    * @example
-   * part('Slots').sketch('front', (s) => s.rect(80, 30)).extrude(10)
-   *   .sketch(face('>Z'), (s) => s.circle(3, [-30, 0])).cut(through())
-   *   .linearPattern({ count: 4, spacing: 20, axis: 'x' });
-   * @see part.circularPattern, part.holes.grid
+   * part('Grid plate').sketch('front', (s) => s.rect(80, 60)).extrude(10)
+   *   .sketch(face('>Z'), (s) => s.circle(3, [-30, -20])).cut(through())
+   *   .linearPattern({ count: 4, spacing: 20, direction: 'x', second: { direction: 'y', count: 3, totalLength: 40 } });
+   * @see part.circularPattern, part.holes.grid, part.handle
    */
-  linearPattern(o: { count: number; spacing: Num; axis?: 'x' | 'y' | 'z' }): this {
+  linearPattern(seed: PatternSeed | LinearOpts, o?: LinearOpts): this {
+    const opts = (o ?? seed) as LinearOpts;
+    const seeds = o ? (seed as PatternSeed) : 'last';
+    const line = callerLine();
     return this.add('linearPattern', (ctx) => {
-      if (!ctx.lastFeature) throw new SelectorError('linearPattern() needs a feature before it', this.line());
-      const id = ctx.nextId();
-      const seed = ctx.lastFeature;
-      ctx.lastFeature = id;
-      return [{ op: 'add', feature: { type: 'lpattern', id, seeds: [seed], dir: { kind: 'axis', axis: o.axis ?? 'x' }, count: o.count, spacing: ref(o.spacing), reverse: false } }];
+      const ids = seedIds(seeds, ctx, line, 'linearPattern');
+      const mk = (id: string, sd: string[], d: LinearOpts): EditOp => {
+        const ax = worldDir(d.direction ?? d.axis ?? 'x', ctx, line, 'linearPattern');
+        if (d.count === undefined) throw new SelectorError('linearPattern(): count is required', line);
+        const spacing = d.totalLength !== undefined ? (num(d.totalLength) / Math.max(1, d.count - 1)) : d.spacing;
+        if (spacing === undefined) throw new SelectorError('linearPattern(): give spacing or totalLength', line);
+        return { op: 'add', feature: { type: 'lpattern', id, seeds: sd, dir: { kind: 'axis', axis: ax.axis }, count: d.count, spacing: d.totalLength !== undefined ? spacing : ref(spacing as Num), reverse: ax.negative !== !!d.reverse } };
+      };
+      const id = ctx.nextId(); ctx.lastFeature = id;
+      const out = [mk(id, ids, opts)];
+      if (opts.second) { const id2 = ctx.nextId(); ctx.lastFeature = id2; out.push(mk(id2, [...ids, id], opts.second)); }
+      return out;
     });
   }
   /**
-   * Repeat the last feature about a world axis.
+   * Repeat features around an axis.
    *
-   * Repeats the last feature `count` times around the x, y or z axis over `angle` degrees (360 = equally spaced full circle). The axis passes through the world origin, so centre your part on it. For a ring of drilled holes holes.polar is simpler.
+   * circularPattern(o) repeats the feature added just before it; circularPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). Instances: count in total over angle (alias total) degrees, 360 = a full circle. axis is 'x' | 'y' | 'z', [ox, oy, oz, dx, dy, dz] or a straight edge; the kernel rotates about a WORLD axis through the origin only, so an offset or oblique axis fails with a clear error (centre the part on the axis, or use holes.polar for a bolt circle anywhere). equalSpacing (default true for 360) spaces the instances angle / count apart; false spaces them angle / (count - 1) so the last lands exactly at the end angle (use it for an arc fan). A pattern can seed another pattern.
    * @domain patterns
+   * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
    * @param o.count total instances
-   * @param o.axis 'x' | 'y' | 'z', default 'z'
-   * @param o.angle total angle in degrees, default 360
+   * @param o.axis 'x' | 'y' | 'z' | [ox,oy,oz,dx,dy,dz] | edges(...), default 'z'
+   * @param o.angle total angle in degrees, default 360 (alias total)
+   * @param o.equalSpacing angle / count apart (default when 360); false: angle / (count - 1)
+   * @param o.reverse go the other way
    * @example
    * part('Disc').sketch('front', (s) => s.circle(40)).extrude(5)
    *   .sketch(face('>Z'), (s) => s.circle(2, [30, 0])).cut(through())
    *   .circularPattern({ count: 6, axis: 'z' });
-   * @see part.holes.polar, part.linearPattern
+   * @see part.holes.polar, part.linearPattern, part.handle
    */
-  circularPattern(o: { count: number; axis?: 'x' | 'y' | 'z'; angle?: number }): this {
+  circularPattern(seed: PatternSeed | CircularOpts, o?: CircularOpts): this {
+    const opts = (o ?? seed) as CircularOpts;
+    const seeds = o ? (seed as PatternSeed) : 'last';
+    const line = callerLine();
     return this.add('circularPattern', (ctx) => {
-      if (!ctx.lastFeature) throw new SelectorError('circularPattern() needs a feature before it', this.line());
-      const id = ctx.nextId();
-      const seed = ctx.lastFeature;
-      ctx.lastFeature = id;
-      return [{ op: 'add', feature: { type: 'cpattern', id, seeds: [seed], axis: { kind: 'axis', axis: o.axis ?? 'z' }, count: o.count, angle: o.angle ?? 360, equal: (o.angle ?? 360) === 360 } }];
+      const ids = seedIds(seeds, ctx, line, 'circularPattern');
+      const angle = opts.angle ?? opts.total ?? 360;
+      const ax = worldAxis(opts.axis ?? 'z', ctx, line);
+      const id = ctx.nextId(); ctx.lastFeature = id;
+      return [{ op: 'add', feature: { type: 'cpattern', id, seeds: ids, axis: { kind: 'axis', axis: ax.axis }, count: opts.count, angle, equal: opts.equalSpacing ?? angle === 360, ...(ax.negative !== !!opts.reverse ? { reverse: true } : {}) } }];
     });
   }
+
+  /**
+   * A handle on the feature recorded last, for face({ of }) and patterns.
+   *
+   * handle() returns an object naming the feature the previous call added (its id is filled in when the script runs): const boss = part.handle() after .extrude(15). Then face('>Z', { of: boss }) selects only the faces that feature created, faces({ createdBy: boss }) all of them, edges({ createdBy: boss }) their edges, and linearPattern(boss, ...) repeats it. After a sketch it names the sketch; after a hole() the hole feature (a hole's sketch is internal). Placing a handle costs nothing.
+   * @domain utilities
+   * @param label optional name for error messages
+   * @example
+   * const p = part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10);
+   * p.sketch(face('>Z'), (s) => s.circle(12)).extrude(15);
+   * const boss = p.handle();
+   * p.hole(face('>Z', { of: boss }), [0, 0], { diameter: 8 });
+   * @see face, faces, part.linearPattern
+   */
+  handle(label = 'feature'): FeatureHandle {
+    const h = new FeatureHandle(label);
+    const line = callerLine();
+    this.steps.push({ line, label: 'handle', run: (ctx) => {
+      if (!ctx.lastFeature) throw new SelectorError('handle() needs a feature before it', line);
+      h.id = ctx.lastFeature;
+      return [];
+    } });
+    return h;
+  }
+  /**
+   * Add a reference plane (workplane) feature without a sketch.
+   *
+   * workplane(base, offset, opts) adds the plane that at() would add, as a feature of its own (visible in the tree, reusable): base is 'front' | 'top' | 'right', face(...), a plane handle, or { origin, normal, xdir? }; opts.rotate tilts it about an axis line. Take part.handle() right after it, then sketch(at(handle), ...) any number of times; at(handle, 5) offsets it further.
+   * @domain sketch
+   * @param base 'front' | 'top' | 'right', face(sel), a plane handle or { origin, normal, xdir? }
+   * @param offset distance along the normal in mm, default 0
+   * @param opts { rotate: { axis, angle }, flip }
+   * @example
+   * const p = part('Wedge').sketch('front', (s) => s.rect(40, 40)).extrude(10);
+   * p.workplane('front', 10, { rotate: { axis: 'x', angle: 30 } });
+   * const tilted = p.handle();
+   * p.sketch(at(tilted), (s) => s.circle(8)).extrude(6);
+   * @see at, part.handle, part.sketch
+   */
+  workplane(base: PlaneBase, offset: Num = 0, opts: PlaneOpts = {}): this {
+    const line = callerLine();
+    this.steps.push({ line, label: 'workplane', run: (ctx) => {
+      const b = buildPlane(base, offset, opts, { geo: ctx.geo, nextId: ctx.nextId, warn: ctx.warn }, line);
+      ctx.lastFeature = b.ref.id;
+      return b.ops;
+    } });
+    return this;
+  }
+
+  // ---- read back: the runner builds everything recorded so far on the scratch kernel, asks, and continues ----
+  private readStep<T>(label: string, need: FactNeed, pick: (f: Facts) => T): Promise<T> {
+    const line = callerLine();
+    return new Promise<T>((resolve, reject) => {
+      this.steps.push({ line, label: `read ${label}`, run: () => [], read: async (rt) => { try { resolve(pick(await rt.facts(need))); } catch (e) { reject(e); throw e; } } });
+    });
+  }
+  /**
+   * Read the volume (mm3) of the part built so far.
+   *
+   * await part.volume() makes the runner build everything recorded up to here on the scratch kernel (a full regeneration of the features so far, then a mass-properties query), returns the number and the script continues recording. Use it to compute the next dimension from a real result or to print a check. The script must use await (top level await is allowed). COST: every read forces an intermediate build; the answer is cached until the next feature is added, so read once, after a group of features, not inside a loop of features. Compare with the expect* helpers, which need no await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const v = await p.volume();   // 24000
+   * p.expectVolume(v, { tol: 1e-6 });
+   * @see part.expectVolume, part.area, part.bbox
+   */
+  volume(): Promise<number> { return this.readStep('volume', { mass: true }, (f) => f.volume ?? NaN); }
+  /**
+   * Read the total surface area (mm2) of the part built so far.
+   *
+   * Like volume(): forces a build of what is recorded so far and a mass-properties query, cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Cube').sketch('front', (s) => s.rect(10, 10)).extrude(10);
+   * const a = await p.area();   // 600
+   * @see part.volume
+   */
+  area(): Promise<number> { return this.readStep('area', { mass: true }, (f) => f.area ?? NaN); }
+  /**
+   * Read the bounding box of the part built so far.
+   *
+   * Returns { min: [x, y, z], max: [x, y, z], size: [dx, dy, dz] } in mm. Forces a view build of what is recorded so far (the display body carries the box); cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const b = await p.bbox();   // size [40, 30, 20], min [-20, -15, 0]
+   * @see part.volume, part.expectBBox
+   */
+  bbox(): Promise<{ min: Vec; max: Vec; size: Vec }> {
+    return this.readStep('bbox', { geometry: true }, (f) => { if (!f.bbox) throw new SelectorError('bbox(): there is no body yet', 0); return { ...f.bbox, size: [0, 1, 2].map((k) => f.bbox!.max[k] - f.bbox!.min[k]) as Vec }; });
+  }
+  /**
+   * Read the centre of mass of the part built so far.
+   *
+   * Returns [x, y, z] in mm (uniform density). Forces a build and a mass-properties query, cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const c = await p.centreOfMass();   // [0, 0, 10]
+   * @see part.volume
+   */
+  centreOfMass(): Promise<Vec> { return this.readStep('centre of mass', { mass: true }, (f) => f.com ?? [NaN, NaN, NaN]); }
+  /**
+   * Read the number of faces of the part built so far.
+   *
+   * Counts the faces of the display body; cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const n = await p.faceCount();   // 6
+   * @see part.faces, part.edgeCount
+   */
+  faceCount(): Promise<number> { return this.readStep('face count', { geometry: true }, (f) => f.faceCount); }
+  /**
+   * Read the number of edges of the part built so far.
+   *
+   * Counts the edges of the display body (seam-split arcs count once); cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const n = await p.edgeCount();   // 12
+   * @see part.faceCount
+   */
+  edgeCount(): Promise<number> { return this.readStep('edge count', { geometry: true }, (f) => f.edgeCount); }
+  /**
+   * Read whether the part built so far passes the kernel's validity check.
+   *
+   * true when the validator finds no issue; the issues come from part.issues(). Forces a build and a validate query, cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const ok = await p.isValid();   // true
+   * @see part.expectValid
+   */
+  isValid(): Promise<boolean> { return this.readStep('validity', { validate: true }, (f) => f.valid === true); }
+  /**
+   * Read the validator's issues for the part built so far.
+   *
+   * Returns a list of { code, entity, detail }, empty when the part is valid. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const issues = await p.issues();   // []
+   * @see part.isValid
+   */
+  issues(): Promise<Array<{ code: string; entity: string; detail: string }>> { return this.readStep('issues', { validate: true }, (f) => f.issues); }
+  /**
+   * Read the faces of the part built so far: persistent name, kind, area, normal, centre, radius, feature.
+   *
+   * Returns a list of { name, kind ('plane' | 'cylinder' | 'sphere' | 'other'), area, normal (planar faces), center, radius (round faces), feature }. The name works in face('F3.C1'). Use it to find the face you mean before selecting it; the surface kind and radius are fitted from the display mesh. Forces a view build of what is recorded so far, cached until the next feature. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(10).hole(face('>Z'), [0, 0], { diameter: 8 });
+   * const bores = (await p.faces()).filter((f) => f.kind === 'cylinder');   // one R4 bore
+   * @see face, faces, part.faceCount
+   */
+  faces(): Promise<FaceFact[]> { return this.readStep('faces', { geometry: true }, (f) => f.faces); }
+  /**
+   * Read the edges of the part built so far: key, midpoint, length, adjacent faces.
+   *
+   * Returns { key, mid, length, faces } per edge. The key (like 'F2.C0|F2.S.l1#0') is what the object form of fillet({ radius: { [key]: r } }) takes. Needs await.
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const es = await p.edges();   // 12 edges
+   * @see part.fillet, edges
+   */
+  edges(): Promise<Array<{ key: string; mid: Vec; length: number; faces: string[] }>> { return this.readStep('edges', { geometry: true }, (f) => f.edges); }
+
+  private expectStep(label: string, need: FactNeed, check: (f: Facts) => string | null): this {
+    const line = callerLine();
+    this.steps.push({ line, label: `expect ${label}`, run: () => [], read: async (rt) => { const msg = check(await rt.facts(need)); if (msg) rt.fail(msg, line); } });
+    return this;
+  }
+  /**
+   * Check the volume of the part built so far; a mismatch is reported as an error with this line.
+   *
+   * expectVolume(v, { tol }) compares with relative tolerance tol (default 1e-3), or { abs } in mm3. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors as 'Line N: expected volume V, got W' and the run goes on. The volume is the kernel's exact value, so analytic references (boxes, cylinders) match to 1e-6.
+   * @domain utilities
+   * @param v expected volume in mm3
+   * @param o.tol relative tolerance, default 1e-3
+   * @param o.abs absolute tolerance in mm3 (instead of tol)
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectVolume(24000, { tol: 1e-6 });
+   * @see part.volume, part.expectValid, part.expectBBox
+   */
+  expectVolume(v: number, o: { tol?: number; abs?: number } = {}): this {
+    return this.expectStep('volume', { mass: true }, (f) => {
+      const got = f.volume ?? NaN;
+      const tol = o.abs !== undefined ? o.abs : Math.abs(v) * (o.tol ?? 1e-3);
+      return Math.abs(got - v) <= tol ? null : `expected volume ${v} (tolerance ${+tol.toPrecision(3)}), got ${+got.toPrecision(8)}`;
+    });
+  }
+  /**
+   * Check that the part built so far passes the kernel's validity check.
+   *
+   * expectValid() fails with the validator's first issue (code and entity) as an error with this line. No await needed.
+   * @domain utilities
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectValid();
+   * @see part.isValid, part.expectVolume
+   */
+  expectValid(): this {
+    return this.expectStep('valid', { validate: true }, (f) => (f.valid === true ? null : `the part is not valid: ${f.issues.slice(0, 3).map((i) => `${i.code} on ${i.entity}`).join('; ') || 'no answer from the validator'}`));
+  }
+  /**
+   * Check the bounding box of the part built so far.
+   *
+   * expectBBox({ min, max, size }, { tol }) checks the keys you give (each [x, y, z]) to an absolute tol in mm (default 1e-3). Use size to check the extents without caring where the part sits. No await needed.
+   * @domain utilities
+   * @param box { min?, max?, size? } each [x, y, z]
+   * @param o.tol absolute tolerance in mm, default 1e-3
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectBBox({ size: [40, 30, 20], min: [-20, -15, 0] });
+   * @see part.bbox, plane
+   */
+  expectBBox(box: { min?: Vec; max?: Vec; size?: Vec }, o: { tol?: number } = {}): this {
+    const tol = o.tol ?? 1e-3;
+    return this.expectStep('bbox', { geometry: true }, (f) => {
+      if (!f.bbox) return 'there is no body to measure';
+      const got: Record<string, Vec> = { min: f.bbox.min, max: f.bbox.max, size: [0, 1, 2].map((k) => f.bbox!.max[k] - f.bbox!.min[k]) as Vec };
+      for (const key of ['min', 'max', 'size'] as const) {
+        const want = box[key];
+        if (want && want.some((w, k) => Math.abs(w - got[key][k]) > tol)) return `expected bbox ${key} [${want.join(', ')}] (tolerance ${tol}), got [${got[key].map((x) => +x.toFixed(4)).join(', ')}]`;
+      }
+      return null;
+    });
+  }
+  /**
+   * Check the number of faces of the part built so far.
+   *
+   * expectFaceCount(n) fails with the actual count when it differs. A cheap regression check after patterns and fillets. No await needed.
+   * @domain utilities
+   * @param n expected face count
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectFaceCount(6);
+   * @see part.faceCount
+   */
+  expectFaceCount(n: number): this { return this.expectStep('face count', { geometry: true }, (f) => (f.faceCount === n ? null : `expected ${n} faces, got ${f.faceCount}`)); }
 }
 
-installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
+export type PatternSeed = 'last' | string | FeatureHandle | Array<string | FeatureHandle>;
+export interface LinearOpts {
+  count: number; spacing?: Num; totalLength?: Num;
+  direction?: 'x' | 'y' | 'z' | Vec | EdgeSel; axis?: 'x' | 'y' | 'z';
+  reverse?: boolean;
+  second?: { direction?: 'x' | 'y' | 'z' | Vec | EdgeSel; axis?: 'x' | 'y' | 'z'; count: number; spacing?: Num; totalLength?: Num; reverse?: boolean };
+}
+export interface CircularOpts { count: number; axis?: 'x' | 'y' | 'z' | number[] | EdgeSel; angle?: number; total?: number; equalSpacing?: boolean; reverse?: boolean }
+
+function seedIds(seed: PatternSeed, ctx: Ctx, line: number, who: string): string[] {
+  const list = Array.isArray(seed) ? seed : [seed];
+  return list.map((x) => {
+    if (x === 'last') { if (!ctx.lastFeature) throw new SelectorError(`${who}() needs a feature before it`, line); return ctx.lastFeature; }
+    const id = typeof x === 'string' ? x : x.id;
+    if (!id) throw new SelectorError(`${who}(): the feature handle is not resolved yet (take part.handle() after the feature)`, line);
+    return id;
+  });
+}
+const WORLD = ['x', 'y', 'z'] as const;
+/** A direction as a world axis plus a sign: the kernel patterns along x, y, z only. */
+function worldDir(d: 'x' | 'y' | 'z' | Vec | EdgeSel | number[], ctx: Ctx, line: number, who: string): { axis: 'x' | 'y' | 'z'; negative: boolean } {
+  if (typeof d === 'string') { if (!WORLD.includes(d)) throw new SelectorError(`${who}(): direction must be 'x', 'y', 'z', a vector or an edge`, line); return { axis: d, negative: false }; }
+  let v: number[];
+  if (Array.isArray(d)) v = d;
+  else {
+    const e = resolveEdgeInfos(d.sel, ctx.geo, d.line, ctx.warn)[0];
+    const pts = e.pts ?? [];
+    if (pts.length < 2) throw new SelectorError(`${who}(): the edge has no direction`, line);
+    v = [pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1], pts[pts.length - 1][2] - pts[0][2]];
+  }
+  const l = Math.hypot(v[0], v[1], v[2]);
+  const k = l < 1e-12 ? -1 : [0, 1, 2].find((i) => Math.abs(v[i]) / l > 1 - 1e-6);
+  if (k === undefined || k < 0) throw new SelectorError(`${who}(): the kernel patterns along the world x, y or z axis only; [${v.map((x) => +x.toFixed(3)).join(', ')}] is oblique (build the repeats with holes.points / separate sketches, or rotate the part so the direction is an axis)`, line);
+  return { axis: WORLD[k], negative: v[k] < 0 };
+}
+function worldAxis(a: 'x' | 'y' | 'z' | number[] | EdgeSel, ctx: Ctx, line: number): { axis: 'x' | 'y' | 'z'; negative: boolean } {
+  if (typeof a === 'string') return worldDir(a, ctx, line, 'circularPattern');
+  if (Array.isArray(a)) {
+    if (a.length === 3) return worldDir(a, ctx, line, 'circularPattern');
+    if (a.length !== 6) throw new SelectorError('circularPattern(): axis as [ox, oy, oz, dx, dy, dz]', line);
+    const d = worldDir([a[3], a[4], a[5]], ctx, line, 'circularPattern');
+    const k = WORLD.indexOf(d.axis);
+    if ([0, 1, 2].some((i) => i !== k && Math.abs(a[i]) > 1e-6)) throw new SelectorError('circularPattern(): the kernel rotates about a world axis through the origin; this axis is offset (centre the part on it, or use holes.polar)', line);
+    return d;
+  }
+  const e = resolveEdgeInfos(a.sel, ctx.geo, a.line, ctx.warn)[0];
+  const d = worldDir(a, ctx, line, 'circularPattern');
+  const k = WORLD.indexOf(d.axis);
+  const p = e.pts?.[0] ?? e.mid!;
+  if ([0, 1, 2].some((i) => i !== k && Math.abs(p[i]) > 1e-6)) throw new SelectorError('circularPattern(): the edge is not on a world axis through the origin; the kernel cannot rotate about it', line);
+  return d;
+}
+
+installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveFaceSel, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
 
 // ---- script-level state: the runner collects what the script built ----
 export interface ScriptState { parts: PartBuilder[]; vars: Record<string, number>; varDefs: Array<{ name: string; expr: string }> }
@@ -723,7 +1167,7 @@ export function makeApi(state: ScriptState) {
      * @see variables
      */
     expr: (text: string): Expr => new Expr(text, evalExpr(text)),
-    face, edges, through, at,
+    face, faces, edges, through, at, plane,
   };
 }
 export type ScriptApi = ReturnType<typeof makeApi>;

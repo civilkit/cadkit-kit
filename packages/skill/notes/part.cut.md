@@ -1,4 +1,5 @@
-- A cut runs AGAINST the sketch normal. On face('>Z') that is into the body. On the front plane at z = 0 with the body above it, it runs away: the run reports `cutNoEffect`; sketch on the face instead, or pass `{ flip: true }`.
-- A cut sketch must overlap the material in plan; a circle outside the body also gives `cutNoEffect`.
+- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.
+- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.
+- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).
 - Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).
 - Depth beyond the body is fine; through() is clearer when you mean all the way.

@@ -1,0 +1,2 @@
+- Needs `await`. Every read forces an intermediate regeneration of everything recorded so far (a full build on the scratch kernel, a view build for bbox/faces/counts); the answer is cached until the next feature is added. Read once after a group of features, never inside a loop that adds features.
+- Use the expect* helpers (expectVolume, expectValid, expectBBox, expectFaceCount) when you only want to assert: no await, errors carry the script line.

@@ -1,0 +1,1 @@
+- Take the handle right AFTER the feature it names. A handle used before it is resolved gives a Line N error. The handle names a hole() feature, not the internal sketch of it.
