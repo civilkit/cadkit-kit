@@ -1,3 +1,4 @@
+import type { ComponentChildren } from 'preact';
 import { Slot, commandToItem, type Command, type RibbonEntry, type SlotItem } from '@kit/ui';
 import { t } from './i18n';
 import { RAIL_SECTIONS } from './toolbarModel';
@@ -11,7 +12,11 @@ export function contextIds(kind: SelectionKind): string[] {
 
 /** The tool palette: the main way to reach every modelling command. Sections of slots; a slot shows the tool used last
  *  and opens the rest of its family on a long press, a flick to the right, a right click or the corner triangle. */
-export function ToolRail(p: { commands: Command[]; kind: SelectionKind; labels?: boolean; caption?(c: SlotItem): string }) {
+export function ToolRail(p: {
+  commands: Command[]; kind: SelectionKind; labels?: boolean; caption?(c: SlotItem): string;
+  /** While a sketch is open: only these sections (the model groups are hidden, not greyed), no selection context, and `after` follows them. */
+  only?: string[]; after?: ComponentChildren;
+}) {
   const byId = new Map(p.commands.map((c) => [c.id, c]));
   const cell = (e: RibbonEntry, key: string) => {
     if (typeof e === 'string') {
@@ -23,8 +28,8 @@ export function ToolRail(p: { commands: Command[]; kind: SelectionKind; labels?:
   };
   const ctx: SlotItem[] = contextIds(p.kind).map((id) => byId.get(id)).filter((c): c is Command => !!c).map(commandToItem);
   return (
-    <div class={'tool-rail' + (p.labels ? ' labels' : '')} role="toolbar" aria-label={t('rail.label')} aria-orientation="vertical">
-      {ctx.length && p.kind !== 'none' ? (
+    <div class={'tool-rail' + (p.labels ? ' labels' : '')} role="toolbar" aria-label={p.only ? t('app.sketch.tools') : t('rail.label')} aria-orientation="vertical">
+      {!p.only && ctx.length && p.kind !== 'none' ? (
         <div class="rail-sec rail-context" role="group" aria-label={t('rail.context')}>
           <span class="rail-title rail-sel-title">{t('rail.context')}</span>
           <div class="rail-grid">
@@ -33,7 +38,7 @@ export function ToolRail(p: { commands: Command[]; kind: SelectionKind; labels?:
           </div>
         </div>
       ) : null}
-      {RAIL_SECTIONS.map((s) => {
+      {RAIL_SECTIONS.filter((s) => !p.only || p.only.includes(s.id)).map((s) => {
         const cells = s.entries.map((e, i) => cell(e, s.id + i)).filter(Boolean);
         if (!cells.length) return null;
         return (
@@ -43,6 +48,7 @@ export function ToolRail(p: { commands: Command[]; kind: SelectionKind; labels?:
           </div>
         );
       })}
+      {p.after}
     </div>
   );
 }

@@ -27,6 +27,14 @@ During a drag only CSS variables on `#app` change (`--lw`, `--rw`, `--dh`, `--fw
 
 The stylesheet clamps stored sizes to the current window (`clamp(200px, var(--lw-user), 60vw ...)`), so a size saved on a large monitor cannot swamp a smaller window.
 
+## Sketch mode
+
+While a sketch is open the chrome rearranges once, by `sketchChrome(workspace, sketching)` (`toolbarModel.ts`): one sketch bar at the
+top centre of the viewport (`SketchBar.tsx`, `.sketch-bar-wrap` in app.css; it keeps 400 px free on the right for the Display button and
+view cube, and under 900 px sits between the left column and the right-hand controls), the sketch tools in exactly one place (the
+Sketch ribbon tab, or the left column in the Plasticity preset, or the floating palette in Minimal), and the constraint list as a
+popover. See `docs/toolbar.md`.
+
 ## Reset
 
 `Reset layout` (command search, and the Layout tab of Settings) restores `DEFAULT_SIZES` and unfolds the left panel. Applying a layout preset keeps the stored sizes.

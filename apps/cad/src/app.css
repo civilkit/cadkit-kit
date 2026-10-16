@@ -29,13 +29,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .selmodes button { display: flex; gap: 6px; align-items: center; border: 0; border-radius: 8px; padding: 5px 10px; background: none; color: var(--text); cursor: pointer; font: inherit; }
 .selmodes button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .selmodes kbd { background: transparent; border-color: currentColor; opacity: .7; }
-.sketch-banner { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 12px;
-  background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
-.sketch-banner .sketch-name { font-weight: 600; }
-.sketch-banner .sketch-hint { color: var(--warn, #b8860b); font-size: 12px; }
-.sketch-banner .rb-btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
-.sketch-banner .rb-btn.ok { color: #16a34a; }
-.sketch-banner .rb-btn.no { color: #dc2626; }
 .empty { color: var(--text-2); padding: 12px; }
 /* left panel tabs */
 .ptabs { display: flex; gap: 2px; padding: 8px; justify-content: space-between; }
@@ -231,17 +224,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .display-row { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .display-row:hover { background: var(--accent-soft); }
 
-/* sketch-edit banner over the viewport — lets drags pass through to the canvas
-   except on the buttons themselves */
-.sketch-banner { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;
-  padding: 7px 12px; border-radius: 10px; z-index: 6; white-space: nowrap; pointer-events: none;
-  background: rgba(var(--glass-rgb), max(var(--alpha), .85)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
-  outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 10px 30px #0003; }
-.sketch-banner .rb-btn { pointer-events: auto; }
-.sketch-banner .sketch-name { font-weight: 600; }
-.sketch-banner .sketch-hint { color: var(--err); }
-.sketch-banner .rb-btn.ok { color: var(--ok); font-weight: 700; }
-.sketch-banner .rb-btn.no { color: var(--err); font-weight: 700; }
 
 /* sketch tool strip, on-view fields */
 .sketch-tools { position: absolute; left: 76px; right: 12px; top: 54px; z-index: 5; display: flex; gap: 10px; overflow-x: auto; padding: 4px 6px; border-radius: 10px;
@@ -281,7 +263,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .annot.dimension { background: var(--panel); color: var(--accent); outline: 1px solid var(--accent); cursor: text; }
 .annot.mark { background: var(--panel-2); color: var(--text-2); outline: 1px solid var(--line); min-width: 15px; text-align: center; pointer-events: none; }   /* never covers what you click on */
 .annot.hot { background: var(--accent); color: #fff; outline-color: var(--accent); z-index: 1; }
-.sketch-cons { position: absolute; right: 116px; top: 60px; z-index: 5; width: 236px; max-height: calc(100% - 200px); overflow: auto; border-radius: 10px; padding: 8px;
+.sketch-cons { width: 236px; max-height: min(60vh, 420px); overflow: auto; border-radius: 10px; padding: 8px;
   background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; font-size: 12px; }
 .sketch-cons header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
 .sketch-cons ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -648,25 +630,6 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sel-chip button:hover { background: #0003; }
 .box-select { z-index: 5; }
 /* ---- sketch: the aux bar (definition, snaps, display), box select, definition colours */
-.sketch-aux { position: absolute; left: 50%; transform: translateX(-50%); top: 56px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; max-width: min(900px, calc(100% - 140px));
-  padding: 5px 10px; border-radius: 12px; background: var(--panel, #fffffff0); border: 1px solid var(--line, #0002); box-shadow: 0 2px 10px #0002; font-size: 12px; }
-.sketch-aux .rb-btn { display: inline-flex; gap: 5px; align-items: center; }
-.sketch-aux .rb-btn[disabled] { opacity: .5; }
-.dof-chip { font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; }
-.dof-chip.under { color: #0b74dc; background: #0b74dc14; }
-.dof-chip.full { color: var(--text, #151515); background: #1515150f; }
-.dof-chip.over { color: #e03131; background: #e0313114; }
-.aux-pop { position: relative; }
-.aux-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; min-width: 200px; padding: 8px 10px; border-radius: 10px; background: var(--panel, #fff); border: 1px solid var(--line, #0003); box-shadow: 0 6px 22px #0004; display: flex; flex-direction: column; gap: 4px; }
-.aux-menu hr { border: 0; border-top: 1px solid var(--line, #0002); margin: 4px 0; width: 100%; }
-.aux-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
-.aux-row { display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap; }
-.aux-sel { display: inline-flex; gap: 6px; align-items: center; }
-.aux-conflicts { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.aux-conflicts .conf { display: inline-flex; gap: 3px; align-items: center; padding: 1px 6px; border-radius: 6px; }
-.aux-conflicts .conf.bad { background: #e0313122; color: #e03131; }
-.aux-conflicts .conf.warn { background: #b8860b22; color: #b8860b; }
-.aux-conflicts .conf button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; }
 .sketch-box { position: absolute; z-index: 6; pointer-events: none; border: 1px solid #0b74dc; background: #0b74dc18; }
 .sketch-box.crossing { border-style: dashed; border-color: #1c9a4a; background: #1c9a4a18; }
 .sketch-annots .annot.dimension.driven { font-style: italic; opacity: .75; }
@@ -674,9 +637,6 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sketch-cons li.warn { background: #b8860b18; }
 .sketch-cons .cdrv { border: 0; background: none; cursor: pointer; opacity: .7; font-size: 12px; }
 .sketch-cons .cdrv:hover { opacity: 1; }
-.sketch-cons { top: 112px; max-height: calc(100% - 250px); }
-.sketch-aux { width: max-content; }
-.sketch-aux { z-index: 7; }
 
 /* ---- assembly panel ---- */
 .asm { display: flex; flex-direction: column; min-height: 0; }
@@ -882,3 +842,34 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .sizebox-moveto-btns, .sizebox-ask-btns { display: flex; gap: 6px; justify-content: flex-end; }
 .sizebox-moveto-btns button, .sizebox-ask-btns button { font: inherit; padding: 3px 10px; border-radius: 5px; border: 1px solid var(--line); background: var(--panel); color: inherit; cursor: pointer; }
 .sizebox-moveto-btns button:first-child, .sizebox-ask-btns button:first-child { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ---- THE sketch bar: one pill, top centre, owner of name / OK / Cancel / modes / definition badge / Fully define / Snaps / Display.
+   Leaves room (220 px) on the right for the view cube and the Display button. */
+.pill { border-radius: 12px; font-size: 12px; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
+  outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 6px 22px #0003; }
+.sketch-bar-wrap { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: max-content; z-index: 6; max-width: calc(100% - 400px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.sketch-bar-wrap > * { pointer-events: auto; }
+.sketch-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; align-items: center; padding: 5px 10px; }
+.sketch-bar .sb-name { font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sketch-bar .sb-sep { width: 1px; align-self: stretch; background: var(--line); margin: 2px 2px; }
+.sketch-bar .rb-btn { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; }
+.sketch-bar .rb-btn[disabled] { opacity: .5; }
+.sketch-bar .rb-btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sketch-bar .rb-btn.ok { color: var(--ok); font-weight: 700; font-size: 15px; }
+.sketch-bar .rb-btn.no { color: var(--err); font-weight: 700; font-size: 15px; }
+.sketch-bar-wrap .sketch-hint { color: var(--warn, #b8860b); font-size: 12px; background: var(--panel); border-radius: 8px; padding: 1px 8px; outline: 1px solid var(--line); }
+.sb-list { align-self: center; box-shadow: 0 6px 22px #0004; border-radius: 10px; }
+.dof-chip { font: inherit; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid currentColor; cursor: pointer; background: none; }
+.dof-chip.under { color: var(--warn, #b8860b); background: #b8860b14; }
+.dof-chip.full { color: var(--ok, #1c9a4a); background: #1c9a4a14; }
+.dof-chip.over { color: var(--err, #e03131); background: #e0313114; }
+.dof-chip.none { color: var(--text-2); }
+.aux-pop { position: relative; }
+.aux-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 8; min-width: 200px; padding: 8px 10px; border-radius: 10px; background: var(--panel, #fff); border: 1px solid var(--line, #0003); box-shadow: 0 6px 22px #0004; display: flex; flex-direction: column; gap: 4px; }
+.aux-menu hr { border: 0; border-top: 1px solid var(--line, #0002); margin: 4px 0; width: 100%; }
+.aux-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+.aux-row { display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap; }
+.aux-sel { display: inline-flex; gap: 6px; align-items: center; }
+/* narrow: leave the tool column on the left and the Display button / view cube on the right free; the bar wraps instead of overlapping them */
+@media (max-width: 900px) { .sketch-bar-wrap { left: 112px; right: 210px; transform: none; width: auto; max-width: none; align-items: flex-start; } }
+@media (max-width: 640px) { .sketch-bar-wrap { left: 8px; right: 8px; top: 8px; } .sketch-bar .sb-sep { display: none; } }

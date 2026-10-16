@@ -2,16 +2,16 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
 import type { SketchSolverStatus } from '@ck/part-model';
 import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
-import { SketchAuxBar, defLevel } from './SketchAuxBar';
+import { SketchBar, defLevel } from './SketchBar';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchConstraintList } from './SketchConstraintList';
 import './i18n';
 
 afterEach(cleanup);
 const st = (over: Partial<SketchSolverStatus>): SketchSolverStatus => ({ dof: 3, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under', ...over } as SketchSolverStatus);
-const bar = (status: SketchSolverStatus | null, extra: Partial<Parameters<typeof SketchAuxBar>[0]> = {}) => {
-  const props = { status, busy: false, prefs: DEFAULT_SKETCH_PREFS, onPrefs: vi.fn(), onFullyDefine: vi.fn(), selected: 0, onClearSelection: vi.fn(), conflicts: [], redundant: [], onHover: vi.fn(), onDelete: vi.fn(), ...extra };
-  return { props, ...render(<SketchAuxBar {...props} />) };
+const bar = (status: SketchSolverStatus | null, extra: Partial<Parameters<typeof SketchBar>[0]> = {}) => {
+  const props = { name: 'Sketch1', plane: 'Front', onOk: vi.fn(), onCancel: vi.fn(), construction: false, onConstruction: vi.fn(), onLookNormal: vi.fn(), status, busy: false, prefs: DEFAULT_SKETCH_PREFS, onPrefs: vi.fn(), onFullyDefine: vi.fn(), selected: 0, onClearSelection: vi.fn(), list: <div class="the-list">list</div>, ...extra };
+  return { props, ...render(<SketchBar {...props} />) };
 };
 
 describe('definition level', () => {
@@ -24,11 +24,11 @@ describe('definition level', () => {
   });
 });
 
-describe('SketchAuxBar', () => {
+describe('SketchBar', () => {
   it('shows the chip with its level and the degrees of freedom, and Fully define is live until fully defined', () => {
     const { container, props } = bar(st({ dof: 4 }));
     expect(container.querySelector('.dof-chip')!.getAttribute('data-level')).toBe('under');
-    expect(container.querySelector('.dof-chip')!.textContent).toContain('4 degrees of freedom');
+    expect(container.querySelector('.dof-chip')!.textContent).toContain('4 DOF');
     fireEvent.click(container.querySelector('[data-action="fully-define"]')!);
     expect(props.onFullyDefine).toHaveBeenCalled();
     cleanup();
@@ -36,15 +36,44 @@ describe('SketchAuxBar', () => {
     expect(full.container.querySelector('.dof-chip')!.getAttribute('data-level')).toBe('full');
     expect((full.container.querySelector('[data-action="fully-define"]') as HTMLButtonElement).disabled).toBe(true);
   });
-  it('lists the conflicting constraints with a delete button and hover', () => {
-    const { container, props } = bar(st({ state: 'over', conflicts: ['k8'] }), { conflicts: [{ id: 'k8', name: 'Distance 25 (k8)' }] });
+  it('the badge reads Fully defined or N DOF, and the list is a popover: closed by default, opened by the badge', () => {
+    const { container } = bar(st({ dof: 4 }));
+    expect(container.querySelector('.dof-chip')!.textContent).toBe('4 DOF');
+    expect(container.querySelector('.the-list')).toBeNull();
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    expect(container.querySelector('.the-list')).not.toBeNull();
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    expect(container.querySelector('.the-list')).toBeNull();
+    cleanup();
+    expect(bar(st({ dof: 0, state: 'full', fullyDefined: true })).container.querySelector('.dof-chip')!.textContent).toBe('Fully defined');
+  });
+  it('a conflict opens the list by itself', () => {
+    const { container } = bar(st({ state: 'over', conflicts: ['k8'] }));
     expect(container.querySelector('.dof-chip')!.getAttribute('data-level')).toBe('over');
-    const item = container.querySelector('.conf.bad')!;
-    expect(item.textContent).toContain('Distance 25');
-    fireEvent.pointerEnter(item);
-    expect(props.onHover).toHaveBeenCalledWith('k8');
-    fireEvent.click(item.querySelector('button')!);
-    expect(props.onDelete).toHaveBeenCalledWith('k8');
+    expect(container.querySelector('.the-list')).not.toBeNull();
+  });
+  it('the one bar holds name, OK, Cancel, Construction, Look normal and the plane as the name tooltip', () => {
+    const { container, props } = bar(st({}));
+    expect(container.querySelector('.sb-name')!.textContent).toBe('Sketch1');
+    expect(container.querySelector('.sb-name')!.getAttribute('title')).toContain('Front');
+    fireEvent.click(container.querySelector('[aria-label="Confirm sketch"]')!);
+    fireEvent.click(container.querySelector('[aria-label="Cancel sketch"]')!);
+    fireEvent.click(screen.getByRole('button', { name: 'Construction' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Look normal' }));
+    expect([props.onOk, props.onCancel, props.onConstruction, props.onLookNormal].map((f) => (f as ReturnType<typeof vi.fn>).mock.calls.length)).toEqual([1, 1, 1, 1]);
+    expect(container.querySelectorAll('.sketch-bar').length).toBe(1);
+  });
+  it('folds Snaps and Display into one View menu on narrow windows', () => {
+    const mm = vi.fn((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal('matchMedia', mm); (window as unknown as { matchMedia: unknown }).matchMedia = mm;
+    try {
+      const { props } = bar(st({}));
+      expect(screen.queryByRole('button', { name: /Snaps/ })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /View/ }));
+      expect(screen.getByLabelText('Quadrants')).toBeTruthy();
+      fireEvent.click(screen.getByLabelText('Relation glyphs'));
+      expect(props.onPrefs).toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); delete (window as unknown as { matchMedia?: unknown }).matchMedia; }
   });
   it('the snaps popover lists every kind and reports a toggle (grid goes to gridSnap, the rest into snaps)', () => {
     const { props } = bar(st({}));
