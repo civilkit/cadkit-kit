@@ -256,9 +256,11 @@ function App() {
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const editingIdRef = useRef<string | null>(null);   // read by the viewport callbacks, which are created once
   // a feature (a new Plane after OK, a clicked plane) and a Front / Top / Right row are never both selected: the Plane tool reads ONE base from the tree
   useEffect(() => { if (selectedId) setRefSel(null); }, [selectedId]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  editingIdRef.current = editingId;
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
@@ -346,7 +348,12 @@ function App() {
 
   useEffect(() => {
     const vp = new Viewport(host.current!, {
-      onPick: (names, additive) => store.select(names, additive || measureRef.current),
+      onPick: (names, additive) => {
+        store.select(names, additive || measureRef.current);
+        // a click on empty space also lets go of the selected feature: the properties panel and the handles close.
+        // An open editor (editingId) keeps its feature, and a measuring click never deselects.
+        if (!names.length && !additive && !measureRef.current && !editingIdRef.current) { setSelectedId(null); setRefSel(null); }
+      },
       onHover: (n) => { store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
       onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
