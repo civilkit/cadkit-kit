@@ -20,14 +20,14 @@ export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<R
   const started = useRef(0);
   const ctl = useRef<ReturnType<typeof createRunControl> | null>(null);
   const run = async (): Promise<void> => {
-    if (ctl.current) return;
+    ctl.current?.cancel();   // a run still waiting on the unsaved-changes question is dropped for this one
     const c = createRunControl();
     ctl.current = c; started.current = performance.now(); setCancelling(false);
-    setProg({ phase: 'building', done: 0, total: 0, elapsedMs: 0 });
     const tick = setInterval(() => setTick((n) => n + 1), 500);
     try {
-      setErrors(await p.onRun(code, { signal: c.signal, onProgress: throttleProgress(setProg) }));
-    } finally { clearInterval(tick); ctl.current = null; setProg(null); }
+      // the report starts with the run itself (after the unsaved-changes question, if there was one)
+      setErrors(await p.onRun(code, { signal: c.signal, onProgress: throttleProgress((x) => { if (ctl.current === c) { setProg(x); } }) }));
+    } finally { clearInterval(tick); if (ctl.current === c) { ctl.current = null; setProg(null); } }
   };
   const gotoLine = (line: number): void => {
     const el = area.current;

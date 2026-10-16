@@ -11,7 +11,7 @@ import { findChrome, Page } from './ux/cdp.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRATCH = process.env.PERF_SCRATCH ?? '/path/to/work/scratch-script0';
 const a = process.argv.slice(2); const arg = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; };
-const LEGACY = a.includes('--legacy');
+const LEGACY = a.includes('--legacy'), PROFILE = a.includes('--profile');
 const EXAMPLE = arg('example', 'matx-frame'), RUNS = +arg('runs', 3), PORT = +arg('port', 9900), VPORT = +arg('vite-port', 5600), OUT = arg('out', null);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rssMb = (marker) => { try { return Math.round(execSync(`ps -axo rss,command | grep -F -- "${marker}" | grep -v grep | awk '{s+=$1} END {print s/1024}'`).toString().trim()); } catch { return null; } };
@@ -29,9 +29,12 @@ try {
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await page.send('Page.navigate', { url: `http://localhost:${VPORT}/${LEGACY ? '?legacyScript=1' : ''}` });
   for (let i = 0; i < 200 && !(await page.eval(`!!document.querySelector('.status, .rb-btn')`).catch(() => false)); i++) await sleep(300);
+  await page.eval(`localStorage.clear(); 0`); await page.send('Page.reload');
+  for (let i = 0; i < 200 && !(await page.eval(`!!document.querySelector('.status, .rb-btn')`).catch(() => false)); i++) await sleep(300);
   await sleep(1500);
   const click = async (sel, text) => { const p = await page.eval(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find((e) => ${JSON.stringify(text)} === '' || (e.getAttribute('aria-label') || e.textContent || '').trim() === ${JSON.stringify(text)}); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`); if (!p) throw new Error('no ' + text); await page.click(p.x, p.y); await sleep(200); };
-  await click('button', 'Script');
+  for (let i = 0; i < 40 && !(await page.eval(`!!document.querySelector('.script-panel select')`)); i++) { await click('button', 'Script').catch(() => {}); await sleep(500); }
+  if (!(await page.eval(`!!document.querySelector('.script-panel select')`))) { writeFileSync(join(SCRATCH, 'perf-fail.png'), await page.screenshot()); throw new Error('Script panel not found; see perf-fail.png'); }
   await page.eval(`(() => { const s = document.querySelector('.script-panel select'); s.value = ${JSON.stringify(EXAMPLE)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   await sleep(300);
   // main-thread stall monitor
@@ -41,7 +44,11 @@ try {
   for (let run = 1; run <= RUNS; run++) {
     await page.eval(`window.__stall = { max: 0, n: 0 }; 0`);
     const t0 = Date.now(); const samples = []; let seenProgress = null;
+    if (PROFILE) { await page.send('Profiler.enable'); await page.send('Profiler.setSamplingInterval', { interval: 1000 }); await page.send('Profiler.start'); }
     await click('.script-panel button.primary', '');
+    await sleep(500);
+    // the unsaved-changes question of a part that counts as modified: Don't save
+    await page.eval(`(() => { const b = document.querySelectorAll('.discard-dlg button')[1]; if (b) b.click(); })()`);
     for (;;) {
       await sleep(1000);
       const st = await page.eval(`(() => ({ status: document.querySelector('.script-panel [role=status]')?.innerText ?? null, heap: Math.round(performance.memory.usedJSHeapSize / 1048576), busy: !!document.querySelector('.status .busy') }))()`).catch(() => null);
@@ -51,6 +58,12 @@ try {
       if (Date.now() - t0 > 900000) break;
     }
     const wall = Date.now() - t0;
+    if (PROFILE) {
+      const { profile } = await page.send('Profiler.stop', {}, 120000);
+      const self = new Map(); const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+      profile.samples.forEach((id, i) => { const n = byId.get(id); const k = `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.split('/').slice(-2).join('/')}:${n.callFrame.lineNumber}`; self.set(k, (self.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000); });
+      console.log('PROFILE run ' + run + ' top self ms:\n' + [...self].sort((x, y) => y[1] - x[1]).slice(0, 14).map(([k, v]) => `${Math.round(v)}\t${k}`).join('\n'));
+    }
     const info = await page.eval(`(() => { const c = window.__cad?.controller; return { features: c?.document()?.features.length ?? null, history: c?.session?.history().length ?? null, triangles: c?.lastView?.mesh?.triFace?.length ?? null, facts: window.__cad?.store?.facts?.value ?? null }; })()`);
     const stall = await page.eval(`window.__stall`);
     await sleep(2000);
