@@ -8,8 +8,10 @@
   ],
   "scripts": {
     "dev": "vite apps/cad --config vite.config.ts",
+    "build:pages": "node tools/build_pages.mjs",
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
+    "pages:leakcheck": "node tools/pages_leakcheck.mjs dist-pages",
     "skill:generate": "node packages/skill/tools/generate.mjs",
     "ux:shots": "node tools/ux/shots.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",

@@ -55,7 +55,12 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
     readHandle: readHandleWith,
     handleStore: () => { try { return idbHandleStore(globalThis.indexedDB); } catch { return null; } },
     wasmUrl(): string {
-      return `${base}kernel/ck_wasm.wasm`;
+      const path = `${base}kernel/ck_wasm.wasm`;
+      // The kernel worker fetches this from its own script URL (assets/...), so a relative base (a static site that may sit
+      // under any sub-path) must be made absolute against the page first.
+      if (/^(\/|[a-z][a-z0-9+.-]*:)/i.test(path)) return path;
+      const doc = (globalThis as { document?: { baseURI?: string } }).document;
+      return doc?.baseURI ? new URL(path, doc.baseURI).href : path;
     },
   };
 }

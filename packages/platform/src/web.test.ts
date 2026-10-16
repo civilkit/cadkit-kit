@@ -37,6 +37,9 @@ describe('createWebPlatform wasmUrl', () => {
     expect(createWebPlatform({ base: '/app/' }).wasmUrl()).toBe('/app/kernel/ck_wasm.wasm');
     expect(createWebPlatform({}).wasmUrl()).toBe('/kernel/ck_wasm.wasm');
   });
+  it('resolves a relative base against the page, so the worker (which lives under assets/) finds it', () => {
+    expect(createWebPlatform({ base: './' }).wasmUrl()).toBe(new URL('./kernel/ck_wasm.wasm', document.baseURI).href);
+  });
 });
 
 describe('createWebPlatform saveFile', () => {
