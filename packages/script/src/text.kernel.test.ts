@@ -76,15 +76,15 @@ p.expectBBox({ min: [-(m.width + 8) / 2, -6, 0], max: [(m.width + 8) / 2, 6, 2] 
     expect(bad.errors[0]?.message).toMatch(/nothing to draw|string is empty/);
   }, 120000);
   it('snapshot rendering shows the engraving (the render differs from the plain plate inside the text box only)', async () => {
-    const OUT = process.env.SNAPSHOT_OUT ?? '/path/to/work/scratch-kittext/text-snap';
-    mkdirSync(OUT, { recursive: true });
+    const OUT = process.env.SNAPSHOT_OUT;   // set it to look at the PNGs
+    if (OUT) mkdirSync(OUT, { recursive: true });
     const { h, session } = await host();
     await runScript(`part('Plate').sketch('front', (s) => s.rect(80, 30)).extrude(4);`, h);
     const plain = await snapshotOf(session(), { view: 'top', up: 'z', size: 600 });
     await runScript(`part('Plate').sketch('front', (s) => s.rect(80, 30)).extrude(4)
   .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 8, anchor: ['center', 'middle'] })).cut(1);`, h);
     const cut = await snapshotOf(session(), { view: 'top', up: 'z', size: 600 });
-    writeFileSync(`${OUT}/plate-plain.png`, plain.png); writeFileSync(`${OUT}/plate-engraved.png`, cut.png);
+    if (OUT) { writeFileSync(`${OUT}/plate-plain.png`, plain.png); writeFileSync(`${OUT}/plate-engraved.png`, cut.png); }
     const d = await diffImages(plain.png, cut.png);
     expect(d.changedPct).toBeGreaterThan(0.2);
     expect(d.bbox).not.toBeNull();
