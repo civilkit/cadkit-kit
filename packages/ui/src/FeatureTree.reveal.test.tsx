@@ -16,7 +16,7 @@ const rows: FeatureRow[] = [
   { id: 'F9', type: 'fillet' },
 ];
 const big = (n: number): FeatureRow[] => Array.from({ length: n }, (_, i) => ({ id: `F${i + 1}`, type: i % 2 ? 'revolve' : 'sketch', name: `Part ${i + 1}`, group: `G${Math.floor(i / 10)}` }));
-const ids = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('.row[data-id]')].map((e) => e.dataset.id);
+const ids = (c: Element) => [...c.querySelectorAll<HTMLElement>('.row[data-id]')].map((e) => e.dataset.id);
 
 beforeEach(() => { localStorage.clear(); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -33,14 +33,14 @@ describe('FeatureTree folders', () => {
     expect(f[0].textContent).toContain('Tach gauge');
     expect(f[0].textContent).toContain('4');
     expect(ids(r2.container)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9']);   // short list: folders start open
-    expect(f[0].getAttribute('aria-expanded')).toBe('true');
+    expect(f[0].querySelector('.folder-toggle')!.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('collapses and expands on click, and remembers the choice for the document', () => {
     const a = render(<FeatureTree {...base} rows={rows} partName="Dash" />);
     fireEvent.click(a.container.querySelector('.row.folder[data-group="Tach gauge"]')!);
     expect(ids(a.container)).toEqual(['F1', 'F2', 'F7', 'F8', 'F9']);
-    expect(a.container.querySelector('.row.folder[data-group="Tach gauge"]')!.getAttribute('aria-expanded')).toBe('false');
+    expect(a.container.querySelector('.row.folder[data-group="Tach gauge"] .folder-toggle')!.getAttribute('aria-expanded')).toBe('false');
     cleanup();
     const b = render(<FeatureTree {...base} rows={rows} partName="Dash" />);
     expect(ids(b.container)).toEqual(['F1', 'F2', 'F7', 'F8', 'F9']);
@@ -60,12 +60,16 @@ describe('FeatureTree folders', () => {
     expect(ids(b.container).length).toBe(10);
   });
 
-  it('opens with the keyboard (Enter / Space on the folder row)', () => {
+  it('the folder is a real button (focusable, Enter / Space click it) named with the folder and its count', () => {
     const a = render(<FeatureTree {...base} rows={big(60)} partName="Heavy" />);
-    const f = a.container.querySelector<HTMLElement>('.row.folder[data-group="G0"]')!;
-    fireEvent.keyDown(f, { key: 'Enter' });
+    const b = a.container.querySelector<HTMLButtonElement>('.row.folder[data-group="G0"] .folder-toggle')!;
+    expect(b.tagName).toBe('BUTTON');
+    expect(b.getAttribute('aria-label')).toBe('G0, 10 features');
+    expect(b.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(b);
     expect(ids(a.container).length).toBe(10);
-    fireEvent.keyDown(a.container.querySelector<HTMLElement>('.row.folder[data-group="G0"]')!, { key: ' ' });
+    expect(a.container.querySelector('.row.folder[data-group="G0"] .folder-toggle')!.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(a.container.querySelector('.row.folder[data-group="G0"] .folder-toggle')!);
     expect(ids(a.container).length).toBe(0);
   });
 
@@ -95,10 +99,28 @@ describe('FeatureTree folders', () => {
   it('has a "select all faces" button on a folder', () => {
     const calls: Array<[string[], string]> = [];
     const { container } = render(<FeatureTree {...base} rows={rows} partName="Dash" onSelectGroup={(i, n) => calls.push([i, n])} />);
-    const b = container.querySelector<HTMLElement>('.row.folder[data-group="Oil gauge"] button')!;
+    const b = container.querySelector<HTMLElement>('.row.folder[data-group="Oil gauge"] .row-act')!;
     expect(b.getAttribute('aria-label')).toBe('Select all faces of this group');
     fireEvent.click(b);
     expect(calls).toEqual([[['F7', 'F8'], 'Oil gauge']]);
+  });
+});
+
+describe('FeatureTree select in viewport', () => {
+  it('has a button on solid rows (not sketches or planes) that asks for the faces of that feature', () => {
+    const calls: string[] = [];
+    const { container } = render(<FeatureTree {...base} rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'revolve', name: 'Revolve Tach lens' }, { id: 'F3', type: 'plane' }]} partName="Dash" onSelectFaces={(id) => calls.push(id)} />);
+    expect(container.querySelector('.row[data-id="F1"] .row-selfaces')).toBeNull();
+    expect(container.querySelector('.row[data-id="F3"] .row-selfaces')).toBeNull();
+    const b = container.querySelector<HTMLElement>('.row[data-id="F2"] .row-selfaces')!;
+    expect(b.getAttribute('aria-label')).toBe('Select in viewport');
+    fireEvent.click(b);
+    expect(calls).toEqual(['F2']);
+  });
+  it('names that start with the kind do not repeat it at the right', () => {
+    const { container } = render(<FeatureTree {...base} rows={[{ id: 'F2', type: 'revolve', name: 'Revolve Tach lens' }, { id: 'F3', type: 'revolve', name: 'Tach cap' }]} partName="Dash" />);
+    expect(container.querySelector('.row[data-id="F2"] .row-type')).toBeNull();
+    expect(container.querySelector('.row[data-id="F3"] .row-type')!.textContent).toBe('Revolve');
   });
 });
 
@@ -138,7 +160,7 @@ describe('FeatureTree reveal', () => {
     expect(ids(r.container)).not.toContain('F6');
     r.rerender(<FeatureTree {...base} rows={rows} partName="Dash" reveal={{ id: 'F6', n: 1 }} />);
     expect(ids(r.container)).toContain('F6');
-    expect(r.container.querySelector('.row.folder[data-group="Tach gauge"]')!.getAttribute('aria-expanded')).toBe('true');
+    expect(r.container.querySelector('.row.folder[data-group="Tach gauge"] .folder-toggle')!.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('opens a sketch parent that was collapsed to show a feature tucked under it', () => {
@@ -206,7 +228,7 @@ describe('FeatureTree reveal', () => {
 });
 
 describe('FeatureTree search', () => {
-  const open = (c: HTMLElement) => { fireEvent.keyDown(c.querySelector('.tree')!, { key: 'f', ctrlKey: true }); return c.querySelector<HTMLInputElement>('.tree-search-input')!; };
+  const open = (c: Element) => { fireEvent.keyDown(c.querySelector('.tree')!, { key: 'f', ctrlKey: true }); return c.querySelector<HTMLInputElement>('.tree-search-input')!; };
   const type = (i: HTMLInputElement, v: string) => { i.value = v; fireEvent.input(i); };
 
   it('opens with Ctrl+F or Cmd+F on the tree and from the magnifier button, and focuses the field', () => {

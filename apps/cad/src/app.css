@@ -926,7 +926,10 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .tree-search-clear:hover { background: var(--chip); color: var(--text); }
 .tree .row mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .tree .row.folder { font-weight: 600; }
-.tree .row.folder:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.folder-toggle { flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 8px; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; text-align: left; }
+.folder-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.folder-toggle[aria-expanded="false"] .row-chev svg { transform: none; }
+.tree .row.folder .row-chev { pointer-events: none; }
 .tree .row.folder .row-type { font-weight: 400; }
 .tree .row.ingroup { padding-left: 22px; }
 .tree .row.ingroup.child { padding-left: 44px; }

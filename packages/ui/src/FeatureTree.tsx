@@ -96,6 +96,8 @@ export function FeatureTree(p: {
   reveal?: { id: string; also?: string[]; n: number; force?: boolean } | null;
   /** A folder's "select all faces of this group" button; leave out to hide it. Gets the ids of the folder's features (and the sketches tucked under them). */
   onSelectGroup?(ids: string[], name: string): void;
+  /** A row's "select in viewport" button: pick the faces the feature made (not offered on sketches and planes). */
+  onSelectFaces?(id: string): void;
 }): JSX.Element {
   const dragId = useRef<string | null>(null);
   const dragBar = useRef(false);
@@ -249,11 +251,15 @@ export function FeatureTree(p: {
           {renamingThis
             ? <InlineName class="row-name" value={r.name ?? label} onCommit={(n) => { setRenaming(null); p.onRename!(r.id, n); }} onCancel={() => setRenaming(null)} />
             : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{hl(label)}</span>}
-          {r.name && !renamingThis ? <span class="row-type">{hl(t('feature.' + r.type, undefined, r.type))}</span> : null}
+          {r.name && !renamingThis && !r.name.toLowerCase().startsWith(kindLabel(r.type).toLowerCase()) ? <span class="row-type">{hl(t('feature.' + r.type, undefined, r.type))}</span> : null}
           {r.note && !renamingThis ? <span class="row-note" data-note={r.note}>{r.note}</span> : null}
           {!failed && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code}>!</span> : null}
           <span class="row-id">{hl(r.id)}</span>
           <span class="row-actions">
+            {p.onSelectFaces && !isSketch(r.type) && r.type !== 'plane' ? (
+              <button class="row-selfaces row-act" title={t('ui.tree.selectFaces', undefined, 'Select in viewport')} aria-label={t('ui.tree.selectFaces', undefined, 'Select in viewport')}
+                onClick={(e) => { e.stopPropagation(); p.onSelectFaces!(r.id); }}><Icon name="sel-box" size={15} /></button>
+            ) : null}
             {p.onEdit ? (
               <button class="row-edit row-act" title={t('ui.tree.edit', undefined, 'Edit')} aria-label={t('ui.tree.edit', undefined, 'Edit')}
                 onClick={(e) => { e.stopPropagation(); p.onEdit!(r.id); }}><Icon name="edit" size={15} /></button>
@@ -368,15 +374,14 @@ export function FeatureTree(p: {
       <div
         class={'row folder' + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
         data-group={e.name}
-        role="button" tabIndex={0} aria-expanded={e.open}
-        aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}
         onClick={() => { if (!filtering) setFolder(e.name, !e.open); }}
-        onKeyDown={(ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === ev.currentTarget) { ev.preventDefault(); if (!filtering) setFolder(e.name, !e.open); } }}
       >
-        <span class="row-chev" aria-expanded={e.open}><Icon name="chevron" size={12} /></span>
-        <Icon name={e.open ? 'folder-open' : 'folder'} size={18} class="row-icon" />
-        <span class="row-name">{hl(e.name)}</span>
-        <span class="row-type">{t('ui.tree.folderCount', { n: e.count }, String(e.count))}</span>
+        <button type="button" class="folder-toggle" aria-expanded={e.open} aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}>
+          <span class="row-chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
+          <Icon name={e.open ? 'folder-open' : 'folder'} size={18} class="row-icon" />
+          <span class="row-name">{hl(e.name)}</span>
+          <span class="row-type">{t('ui.tree.folderCount', { n: e.count }, String(e.count))}</span>
+        </button>
         {p.onSelectGroup ? (
           <span class="row-actions">
             <button class="row-act" title={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')} aria-label={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')}

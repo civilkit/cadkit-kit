@@ -1628,7 +1628,7 @@ function App() {
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
       hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
       {...ti.treeProps}
-      reveal={rev.reveal} onSelectGroup={selectGroupFaces}
+      reveal={rev.reveal} onSelectGroup={selectGroupFaces} onSelectFaces={(id) => selectGroupFaces([id])}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])} />
   );

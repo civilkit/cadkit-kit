@@ -35,6 +35,7 @@ export const en: Catalog = {
   'ui.tree.searchAt': '{i} of {n}',
   'ui.tree.folderCount': '{n} features',
   'ui.tree.selectGroup': 'Select all faces of this group',
+  'ui.tree.selectFaces': 'Select in viewport',
   'ui.history.filter.All': 'All',
   'ui.history.filter.You': 'You',
   'ui.history.filter.Agent': 'Agent',
