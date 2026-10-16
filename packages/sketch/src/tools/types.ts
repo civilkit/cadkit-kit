@@ -9,7 +9,8 @@ import type { SketchDraft } from '../index';
 export interface Pt { x: number; y: number }
 export interface Modifiers { shift: boolean; ctrl: boolean; alt: boolean }
 
-export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve';
+export type SnapKind = 'point' | 'midpoint' | 'center' | 'grid' | 'axis' | 'align' | 'intersection' | 'quadrant' | 'perpendicular' | 'tangent' | 'oncurve'
+  | 'modelEndpoint' | 'modelMidpoint' | 'modelCenter' | 'modelExtent';
 /** What the snap engine found under the pointer. `pointId` is set when the hit is an existing sketch point. */
 export interface SnapHit {
   kind: SnapKind;
@@ -22,6 +23,10 @@ export interface SnapHit {
   role?: 'endpoint' | 'center' | 'origin';
   /** For `align`: the point whose x (vertical alignment) and/or y (horizontal alignment) the pointer matches. */
   alignTo?: { x?: string; y?: string };
+  /** For the model snaps: what was found (an i18n suffix: modelEndpoint, midExtent, bodyCentre, midExtrusion, ...). */
+  model?: string;
+  /** For a model guide line: its two ends, drawn dashed. */
+  guide?: { a: Pt; b: Pt };
 }
 
 /** User settings that change how tools behave (see the sketch editor spec, input techniques). */

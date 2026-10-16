@@ -11,15 +11,17 @@
  * `entityId`, which the edit and constraint tools use to pick a line, circle or arc by clicking it.
  */
 import type { SketchDraft } from './index';
-import { angleOf, dist, dot, intersect, len, onArc, pointAt, sub, wrap, type CurveG } from './tools/edit-geom';
+import { nearestOn, angleOf, dist, dot, intersect, len, onArc, pointAt, sub, wrap, type CurveG } from './tools/edit-geom';
 import { curveOf } from './tools/edit-draft';
 import type { Pt, SnapHit, SnapKind } from './tools/types';
+export { nearestOn };
+import { MODEL_SNAP_KINDS, modelCrossingAt, modelLineAt, modelPointAt, type ModelSnaps } from './modelSnaps';
 
 /** The switchable snap kinds, in the order the popover lists them. */
-export const SNAP_KINDS = ['endpoint', 'center', 'midpoint', 'quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve', 'align', 'grid'] as const;
+export const SNAP_KINDS = ['endpoint', 'center', 'midpoint', 'quadrant', 'intersection', 'perpendicular', 'tangent', 'oncurve', 'align', 'grid', ...MODEL_SNAP_KINDS] as const;
 export type SnapToggle = (typeof SNAP_KINDS)[number];
 export type SnapToggles = Record<SnapToggle, boolean>;
-export const ALL_SNAPS: SnapToggles = { endpoint: true, center: true, midpoint: true, quadrant: true, intersection: true, perpendicular: true, tangent: true, oncurve: true, align: true, grid: true };
+export const ALL_SNAPS: SnapToggles = { endpoint: true, center: true, midpoint: true, quadrant: true, intersection: true, perpendicular: true, tangent: true, oncurve: true, align: true, grid: true, modelEndpoint: true, modelMidpoint: true, modelCenter: true, modelExtent: true };
 
 export interface SnapOptions {
   /** Plane units within which a snap applies. */
@@ -34,6 +36,8 @@ export interface SnapOptions {
   kinds?: Partial<SnapToggles>;
   /** The point the shape being drawn started from (the chain end): enables the perpendicular and tangent snaps. */
   from?: Pt;
+  /** The body's edges and extents projected into the sketch plane (see modelSnaps.ts): they snap after the sketch's own points, crossings, quadrants and midpoints. */
+  model?: ModelSnaps;
 }
 
 type Cand = { d: number; at: Pt } & Partial<SnapHit>;
@@ -116,6 +120,13 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     if (bm) return hit('midpoint', bm);
   }
 
+  // 4b. places on the body: its ends, midpoints, centres, and where its edges cross the sketch
+  const mq = opts.model ? { tolerance: tol, on: (k: (typeof MODEL_SNAP_KINDS)[number]) => on(k), sketchCurves: curves } : undefined;
+  if (opts.model && mq) {
+    const mp = modelPointAt(opts.model, at, mq) ?? modelCrossingAt(opts.model, at, mq);
+    if (mp) return mp;
+  }
+
   // 5. perpendicular foot and tangent point from the reference point
   if (opts.from) {
     const from = opts.from;
@@ -152,6 +163,12 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     if (bc) return hit('oncurve', bc);
   }
 
+  // 6b. the middle of the body (dashed guide lines)
+  if (opts.model && mq) {
+    const ml = modelLineAt(opts.model, at, mq);
+    if (ml) return ml;
+  }
+
   // 7. alignment with other points
   if (opts.align !== false && on('align')) {
     let x: { id: string; x: number } | undefined;
@@ -171,22 +188,6 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     if (Math.abs(gx - at.x) <= tol && Math.abs(gy - at.y) <= tol) return { kind: 'grid', at: { x: gx, y: gy } };
   }
   return undefined;
-}
-
-/** The nearest point of a line segment, or of a circle / arc (the arc's ends when the pointer is off its span). */
-export function nearestOn(g: CurveG, p: Pt): Pt | null {
-  if (g.kind === 'line') {
-    const d = sub(g.b, g.a), l2 = dot(d, d);
-    if (l2 < 1e-18) return null;
-    const t = Math.max(0, Math.min(1, dot(sub(p, g.a), d) / l2));
-    return { x: g.a.x + d.x * t, y: g.a.y + d.y * t };
-  }
-  const v = sub(p, g.c);
-  const l = len(v);
-  if (l < 1e-12) return null;
-  const t = angleOf(v);
-  if (g.kind === 'arc' && !onArc(g, t)) return dist(p, g.p1) <= dist(p, g.p2) ? { ...g.p1 } : { ...g.p2 };
-  return { x: g.c.x + (v.x / l) * g.r, y: g.c.y + (v.y / l) * g.r };
 }
 
 /** The foot of the perpendicular from `from` onto the curve, when it lies on the curve (a line's span, an arc's sweep). */
