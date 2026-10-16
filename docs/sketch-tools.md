@@ -123,3 +123,28 @@ definition, the constraint panel. Each is remembered. (The 3D view's Display men
   separate colour for "defined but for its size".
 * Constraint glyph toggles are per kind of display (dimensions / relations / reference), not per constraint type.
 * Move / Rotate / Scale keep relations to geometry that did not move; there is no "break relations" option yet.
+
+## Model snaps
+
+While a sketch is open the existing body offers places to land on, drawn in a cyan model colour (the sketch's own snaps stay amber) with a tag beside the cursor.
+The body's edges are projected into the sketch plane (`packages/sketch/src/modelSnaps.ts`): an edge that crosses the plane contributes the point where it pierces it,
+an edge parallel to the plane keeps its projection, an edge seen end-on is one point.
+
+| Tag | What | Snaps menu entry |
+| --- | --- | --- |
+| model endpoint / model crossing | ends of projected edges, piercing points, crossings of edges with each other and with sketch entities | Model ends and crossings |
+| model midpoint | midpoint of a projected line or arc | Model midpoints |
+| model centre / model quadrant | centres and quadrant points of projected circles and arcs | Model centres and quadrants |
+| mid-extent | dashed guide half way between the two outermost parallel edges of the body (the middle of its thickness or height), the middle of its extent in u and v | Mid-extent and body centre |
+| body centre | the centre of the body's extent in the plane (and where the two mid-extent guides meet) | Mid-extent and body centre |
+| mid of extrusion | for an Extrude selected or being edited: the plane half its depth along its normal, as a dashed line in a sketch plane that cuts it (a symmetric extrude: the sketch plane itself) | Mid-extent and body centre |
+
+All four entries are on by default and persist with the other snap preferences. Priority: the sketch's own points, crossings, quadrants and midpoints first, then the model points, then the sketch's perpendicular / tangent / on-curve, then the model guide lines, then alignment and grid.
+
+A model snap only positions the point. Hold Shift while clicking to attach it to the model: a fixed reference point is added at that place and the new point is made coincident with it.
+The candidate list is built once per sketch session and again when the body, the plane or the picked extrusion changes (not per pointer move), capped at 4000 candidates.
+
+## Choosing regions to extrude
+
+With an Extrude or Revolve editor open on a sketch with two or more closed shapes, click a region of the sketch in the viewport to switch it on or off (the same toggle as the Shapes list); pointing at a region lights its outline.
+A click on the ring between an outer and an inner loop is the outer shape, a click inside the inner loop is the inner one. Outer alone is the filled disc, inner alone the inner disc, both the ring (the inner loop is a hole).
