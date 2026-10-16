@@ -24,7 +24,7 @@ export const RECIPES: Recipe[] = [
 const m = await p.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });
 p.sketch('front', (s) => s.rect(m.width + 10, 14)).extrude(3)
   .sketch(at('front', 3), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);`,
-    expected: { volume: 0, volumeTol: 0, features: 4, valid: true, notes: 'volume = plate minus glyph area x 0.3 (checked against the kernel outline area in text.kernel.test.ts)' },
+    expected: { volume: 0, volumeTol: 0, features: 5, valid: true, notes: 'volume = plate minus glyph area x 0.3 (checked against the kernel outline area in text.kernel.test.ts)' },
   },
   {
     id: 'dial-numerals',
@@ -41,7 +41,7 @@ d.sketch(at('front', 2), (s) => {
   }
   s.text('RPM x100', [0, 0], { height: 3, anchor: ['center', 'baseline'], arc: { centre: [0, 0], radius: 12, angleCentre: 270, side: 'inside' } });
 }).extrude(0.15);`,
-    expected: { volume: 0, volumeTol: 0, features: 4, valid: true },
+    expected: { volume: 0, volumeTol: 0, features: 5, valid: true },
   },
   {
     id: 'boss-by-feature-verified',
