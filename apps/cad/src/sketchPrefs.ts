@@ -9,6 +9,8 @@ export interface SketchPrefs {
   guideConstraints: boolean;
   /** Entering a sketch leaves the camera exactly where it is (Look normal turns it square to the plane). Off: the view squares up to the sketch plane on entry. */
   keepView: boolean;
+  /** Squares the view up to the sketch plane when a NEW sketch starts, even with keepView on. Off by default (the sketch bar offers a one-click `Look normal (N)` instead). */
+  autoLookNormal: boolean;
   /** How a line becomes a tangent arc: rest the pointer on the end (`hover`), keys and drag only (`keys`), or never (`off`). */
   arcSwitch: 'hover' | 'keys' | 'off';
   /** Typed values beside the pointer: for dimensions and positions, dimensions only, or none. */
@@ -39,7 +41,7 @@ export interface SketchShow {
 }
 export const DEFAULT_SHOW: SketchShow = { dimensions: true, relations: true, reference: true, colours: true, panel: true };
 
-export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW };
+export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: false, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
 
@@ -57,6 +59,7 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     autoConstraints: typeof r.autoConstraints === 'boolean' ? r.autoConstraints : DEFAULT_SKETCH_PREFS.autoConstraints,
     guideConstraints: typeof r.guideConstraints === 'boolean' ? r.guideConstraints : DEFAULT_SKETCH_PREFS.guideConstraints,
     keepView: typeof r.keepView === 'boolean' ? r.keepView : DEFAULT_SKETCH_PREFS.keepView,
+    autoLookNormal: typeof r.autoLookNormal === 'boolean' ? r.autoLookNormal : DEFAULT_SKETCH_PREFS.autoLookNormal,
     arcSwitch: pick(r.arcSwitch, ['hover', 'keys', 'off'] as const, DEFAULT_SKETCH_PREFS.arcSwitch),
     onViewValues: pick(r.onViewValues, ['both', 'dimensions', 'off'] as const, DEFAULT_SKETCH_PREFS.onViewValues),
     gridSnap: typeof r.gridSnap === 'boolean' ? r.gridSnap : DEFAULT_SKETCH_PREFS.gridSnap,
@@ -66,6 +69,13 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     show: flags(r.show, DEFAULT_SHOW, Object.keys(DEFAULT_SHOW) as Array<keyof SketchShow>),
   };
 }
+
+/** Does a click that snapped to a guide (midpoint, alignment, on-curve ...) also add that constraint? Only with Auto constraints AND Auto-constrain from guides on (default off), and not while Shift is held. The guides themselves are drawn either way. */
+export const constrainsFromGuides = (p: Pick<SketchPrefs, 'autoConstraints' | 'guideConstraints'>, shift: boolean): boolean => p.autoConstraints && p.guideConstraints && !shift;
+
+/** Offer the Look normal chip when the camera is more than this many degrees off the sketch plane's normal. */
+export const LOOK_CHIP_DEG = 5;
+export const lookChipNeeded = (angleDeg: number | null): boolean => angleDeg !== null && angleDeg > LOOK_CHIP_DEG;
 
 export const toToolSettings = (p: SketchPrefs): ToolSettings => ({ autoConstraints: p.autoConstraints, arcSwitch: p.arcSwitch, onViewValues: p.onViewValues });
 

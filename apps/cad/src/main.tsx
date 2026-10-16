@@ -74,7 +74,7 @@ import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
-import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
+import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchBar } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
@@ -244,6 +244,7 @@ function App() {
     if (!r.ok && r.diagnosis?.roots.length) setPreviewDiag({ d: r.diagnosis, fresh: newBreakage(r.diagnosis, controller.diagnosis()) });
   };
   const [sketching, setSketching] = useState<{ id: string; name: string; plane?: string } | null>(null);
+  const [lookChip, setLookChip] = useState(false);   // the 'Look normal (N)' chip of the sketch bar: shown when a sketch is entered with the view angled to its plane
   const [sketchHint, setSketchHint] = useState<string | null>(null);
   // Per-sketch mode: new geometry from the draw tools is made as construction (dashed, never extruded). UI state, not saved.
   const [constructionMode, setConstructionMode] = useState(false);
@@ -955,6 +956,13 @@ function App() {
     if (controller.setMaterial(c.name)) store.notify(t('material.changed', { name: c.name }));
     closeMaterial(); redraw((n) => n + 1);
   };
+  /** The camera on entering a sketch: squared up when the view is not kept, or for a NEW sketch with 'Auto look normal'; otherwise left alone, with a Look normal chip when it is angled to the plane (more than 5 degrees). */
+  const enteredSketch = (isNew: boolean) => {
+    const p = prefsRef.current;
+    if (!p.keepView || (isNew && p.autoLookNormal)) { viewport?.orientToSketch(); setLookChip(false); return; }
+    setLookChip(lookChipNeeded(viewport?.sketchLookAngle() ?? null));
+  };
+  const lookNormal = () => { viewport?.orientToSketch(); setLookChip(false); };
   const startEditing = (id: string) => {
     // a thread copy made by a pattern is read-only: its source thread is the one to edit, and every copy follows
     const copy = id.includes('@') ? (controller.threadsNow() as ThreadEntry[]).find((x) => x.id === id) : undefined;
@@ -976,7 +984,7 @@ function App() {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
         setSketching({ id, name: featureLabel(controller.document(), f as never) || id });
-        if (!prefsRef.current.keepView) viewport?.orientToSketch();   // the setting 'keep view when entering a sketch' (default on)
+        enteredSketch(false);
       })();
       return;
     }
@@ -1054,7 +1062,7 @@ function App() {
     const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current, entities: toolEntitiesRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
-    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && prefsRef.current.guideConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    if (ev.type === 'click' && out.draft !== draft && constrainsFromGuides(prefsRef.current, ev.mods.shift)) out.draft = applySnapConstraints(draft, out.draft, snap);
     // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
     if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
@@ -1394,6 +1402,7 @@ function App() {
       return true;
     }
     if (e.key === 'Escape' && sketchToolRef.current) { e.preventDefault(); selectTool(null); return true; }
+    if ((e.key === 'n' || e.key === 'N') && !e.shiftKey) { e.preventDefault(); lookNormal(); return true; }   // Look normal
     const hit = SKETCH_TOOL_KEYS.get(e.key.toLowerCase());
     if (hit && e.key.length === 1) { e.preventDefault(); selectTool(hit); return true; }
     return false;
@@ -1426,7 +1435,7 @@ function App() {
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
-      if (!prefsRef.current.keepView) viewport?.orientToSketch();   // default: the view stays exactly as it was; Look normal squares up
+      enteredSketch(true);
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
       if (after) await after();
@@ -1551,7 +1560,7 @@ function App() {
       onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()}
       construction={constructionMode} onConstruction={() => setConstructionMode(!constructionMode)}
       {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
-      onLookNormal={() => viewport?.orientToSketch()} hint={sketchHint}
+      onLookNormal={lookNormal} lookChip={lookChip} hint={sketchHint}
       status={stNow} busy={defining} prefs={sketchPrefs}
       onPrefs={updatePrefs}
       onFullyDefine={() => void fullyDefineNow()}
@@ -1809,7 +1818,7 @@ function App() {
     { id: 'sketch-cancel', label: t('app.sketch.cancel'), tab: 'Sketch', group: 'Finish', run: () => void cancelSketch() },
     { id: 'sketch-fully-define', label: t('app.sketch.fullyDefine'), tip: t('app.sketch.fullyDefine.tip'), tab: 'Sketch', group: 'Sketch', run: () => void fullyDefineNow() },
     { id: 'sketch-construction', label: t('app.sketch.constructionMode'), tip: t('app.sketch.constructionMode.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => constructionMode, run: () => setConstructionMode(!constructionMode) },
-    { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', run: () => viewport?.orientToSketch() },
+    { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', keys: 'N', run: () => lookNormal() },
     { id: 'sketch-show-dimensions', label: t('app.sketch.show.dimensions'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.dimensions, run: () => sketchSetShow('dimensions') },
     { id: 'sketch-show-relations', label: t('app.sketch.show.relations'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.relations, run: () => sketchSetShow('relations') },
     { id: 'sketch-select', label: t('app.sketch.select'), tab: 'Sketch', group: 'Sketch', run: () => selectTool(null) },

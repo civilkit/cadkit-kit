@@ -44,7 +44,7 @@ describe('point sections go to the ends of a loft', () => {
   it('the Loft tool is offered the reordered profiles', () => {
     const f = [...base.slice(0, 4), plane('P9', 60), dot('S9', 'P9'), ...base.slice(4)];
     const ops = loftOps(ctx(f))!;
-    expect((ops[0] as { feature: { sketches: string[] } }).feature.sketches).toEqual(['S1', 'S2', 'S3', 'S9']);
+    expect((ops[0] as unknown as { feature: { sketches: string[] } }).feature.sketches).toEqual(['S1', 'S2', 'S3', 'S9']);
   });
 });
 

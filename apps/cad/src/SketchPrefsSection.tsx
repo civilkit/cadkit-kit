@@ -11,7 +11,7 @@ export function SketchPrefsSection(p: { prefs: SketchPrefs; onChange(patch: Part
       </select>
     </label>
   );
-  const chk = (key: 'autoConstraints' | 'gridSnap' | 'keepView') => (
+  const chk = (key: 'autoConstraints' | 'gridSnap' | 'keepView' | 'autoLookNormal') => (
     <label class="set-row">
       <input type="checkbox" checked={p.prefs[key]} onChange={(e) => p.onChange({ [key]: (e.currentTarget as HTMLInputElement).checked })} />
       <span>{t('settings.sketch.' + key)}</span>
@@ -25,6 +25,7 @@ export function SketchPrefsSection(p: { prefs: SketchPrefs; onChange(patch: Part
       {sel('onViewValues', ['dimensions', 'both', 'off'])}
       {chk('gridSnap')}
       {chk('keepView')}
+      {chk('autoLookNormal')}
     </div>
   );
 }

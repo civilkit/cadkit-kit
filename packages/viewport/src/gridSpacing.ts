@@ -23,7 +23,8 @@ export function niceStep(upp: number, targetPx = 20): number {
 export function adaptiveGrid(upp: number, base = 0): GridSpec {
   const u = Math.max(upp, 1e-9);
   let minor: number;
-  if (!(base > 0)) minor = niceStep(u);
+  // automatic: whole millimetres as soon as 1 mm is at least 8 px (and still under 80 px), so the snap step is 1 mm without setting it by hand
+  if (!(base > 0)) minor = 1 / u >= GRID_MIN_PX && 1 / u <= GRID_MAX_PX ? 1 : niceStep(u);
   else {
     // candidates: base * (1|2|5) * 10^n, keep the ones within range, pick the closest to 20 px
     const cands: number[] = [];

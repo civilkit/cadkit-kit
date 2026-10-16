@@ -80,3 +80,32 @@ export function viewSide(frame: Frame, bodyCenter: number[] | null): 1 | -1 {
   const d = (bodyCenter[0] - frame.o[0]) * frame.z[0] + (bodyCenter[1] - frame.o[1]) * frame.z[1] + (bodyCenter[2] - frame.o[2]) * frame.z[2];
   return d > 1e-6 ? -1 : 1;
 }
+
+/** The view `Fit` frames in sketch mode: the sketch's own content (entities and its points, not the fixed origin point and not the body or the reference planes), else a 100 mm view around the plane origin. */
+export const DEFAULT_SKETCH_VIEW_MM = 100;
+export function sketchFitView(
+  sketch: SketchEditShape,
+  frame: Frame,
+): { center: [number, number, number]; radius: number; empty: boolean } {
+  const xs: number[] = [], ys: number[] = [];
+  const take = (u: number, v: number) => { if (Number.isFinite(u) && Number.isFinite(v)) { xs.push(u); ys.push(v); } };
+  for (const line of sketchEditPolylines(sketch, frame)) for (const p of line) { const uv = planeCoords(frame, p as [number, number, number]); take(uv[0], uv[1]); }
+  for (const p of sketch.points as Array<{ x: number; y: number; fixed?: boolean }>) {
+    if (p.fixed && p.x === 0 && p.y === 0) continue;   // the origin point every sketch has
+    take(p.x, p.y);
+  }
+  if (!xs.length) return { center: planeToWorld(frame, 0, 0), radius: DEFAULT_SKETCH_VIEW_MM / 2, empty: true };
+  const u0 = Math.min(...xs), u1 = Math.max(...xs), v0 = Math.min(...ys), v1 = Math.max(...ys);
+  const radius = Math.max(Math.hypot(u1 - u0, v1 - v0) / 2, 2);   // one lone point still gets a few mm of room
+  return { center: planeToWorld(frame, (u0 + u1) / 2, (v0 + v1) / 2), radius, empty: false };
+}
+
+/** The angle in degrees between the camera's line of sight and the sketch plane's normal (0 = looking straight at the sketch, from either side). */
+export function lookAngleDeg(sight: number[], normal: number[]): number {
+  const dot = sight[0] * normal[0] + sight[1] * normal[1] + sight[2] * normal[2];
+  const m = Math.hypot(sight[0], sight[1], sight[2]) * Math.hypot(normal[0], normal[1], normal[2]);
+  if (m < 1e-12) return 0;
+  return (Math.acos(Math.min(1, Math.abs(dot) / m)) * 180) / Math.PI;
+}
+/** Off the normal by more than this and entering a sketch offers `Look normal`. */
+export const LOOK_NORMAL_TOLERANCE_DEG = 5;

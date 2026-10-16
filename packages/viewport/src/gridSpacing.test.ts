@@ -16,6 +16,12 @@ describe('adaptive grid', () => {
     expect(adaptiveGrid(0.005).minor).toBeCloseTo(0.1);
     expect(adaptiveGrid(5).minor).toBe(100);
   });
+  it('automatic spacing is 1 mm (the snap step) whenever 1 mm is 8 to 80 px wide', () => {
+    for (const upp of [0.125, 0.1, 0.05, 0.02, 0.0125]) expect(adaptiveGrid(upp).minor).toBe(1);
+    expect(adaptiveGrid(0.2).minor).toBe(5);       // 1 mm would be 5 px: the coarser step
+    expect(adaptiveGrid(0.01).minor).toBeCloseTo(0.2);   // 1 mm would be 100 px: finer lines again
+    expect(adaptiveGrid(0.1, 2.5).minor).not.toBe(1);   // a typed spacing is never overridden
+  });
   it('strong lines every 5th or 10th', () => {
     for (const upp of [0.05, 0.1, 0.2, 0.5, 1, 3]) { const g = adaptiveGrid(upp); expect([5, 10]).toContain(g.majorEvery); expect(g.major).toBeCloseTo(g.minor * g.majorEvery); }
     expect(adaptiveGrid(0.05).majorEvery).toBe(10);
