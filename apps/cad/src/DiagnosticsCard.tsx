@@ -16,6 +16,10 @@ export interface DiagnosticsCardProps {
   onCancel?(): void;
   /** Why this is shown: the edit was refused and the model is unchanged. */
   note?: string;
+  /** Replaces the root cause's advice line (an editor that knows a better sentence, e.g. for a cut that misses the body). */
+  message?: string;
+  /** One-click fixes shown as buttons (`Use suggested thickness`, `Flip direction`). */
+  fixes?: Array<{ key: string; label: string; run(): void }>;
 }
 
 async function copyText(text: string): Promise<boolean> {
@@ -42,10 +46,11 @@ export function DiagnosticsCard(p: DiagnosticsCardProps) {
       {variant === 'drawer' ? (
         <div class="diag-root">
           <div class="diag-root-head"><b>{featureTag(root)}</b><code class="diag-code">{root.code}</code></div>
-          <p class="diag-advice"><span class="diag-label">{t('diag.try')}</span> {adviceOf(root)}</p>
+          <p class="diag-advice"><span class="diag-label">{t('diag.try')}</span> {p.message ?? adviceOf(root)}</p>
         </div>
-      ) : <p class="diag-advice">{adviceOf(root)}</p>}
+      ) : <p class="diag-advice">{p.message ?? adviceOf(root)}</p>}
       <div class="diag-actions">
+        {(p.fixes ?? []).map((f) => <button key={f.key} type="button" class="btn diag-fix" data-fix={f.key} onClick={f.run}>{f.label}</button>)}
         {p.onCancel ? <button type="button" class="btn diag-cancel" onClick={p.onCancel}>{t('diag.cancel')}</button> : null}
         {!p.onCancel && p.onUndo ? <button type="button" class="btn diag-undo" onClick={p.onUndo}>{t('diag.undo')}</button> : null}
         <button type="button" class="btn diag-select" onClick={() => p.onSelect(root.id)}>{t('diag.select', { id: root.id })}</button>

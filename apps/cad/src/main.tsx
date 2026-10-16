@@ -13,6 +13,7 @@ import { SelectionList, chipsOf } from './select/SelectionList';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
+import { autoCutFlip, editorFixes } from './editorFixes';
 import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
@@ -233,7 +234,8 @@ function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
-  const [picked, setPicked] = useState<{ path: string; value: unknown } | null>(null);
+  const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
+  useEffect(() => { if (picked?.once) setPicked(null); }, [picked]);   // a one-click fix lands in the draft once; later typing in that field is not overridden
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
   // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
@@ -893,6 +895,13 @@ function App() {
     setLeftTab('Features');   // back to the history tree, with the feature you just edited selected
     redraw((n) => n + 1);
   };
+  /** The refused edit's one-click fixes (suggested shell thickness, flip a cut that misses the body): they patch the draft, which previews again. */
+  const diagFixes = () => {
+    const root = previewDiag?.d.roots[0];
+    if (!root || !editingFeature) return {};
+    const r = editorFixes(root, editingFeature as never, draft);
+    return { ...(r.message ? { message: r.message } : {}), fixes: r.fixes.map((f) => ({ key: f.key, label: f.label, run: () => setPicked({ path: f.path, value: f.value, once: true }) })) };
+  };
   const selectFailed = (id: string) => { setSelectedId(id); if (!editingId) setLeftTab('Features'); };
   const onCancel = async () => {
     viewport?.highlightSketchEntities(null, []);
@@ -1447,15 +1456,24 @@ function App() {
     if (!d) return;
     const target = nextExtrudeTarget(d.features as never, selectedId);
     if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
-    const before = d.features.length;
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
-    await edit([{ op: 'add', feature: { type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(controller.extrudeFlip(target.sketchId, op) ? { flip: true } : {}) } }]);
-    const now = controller.document();
-    const added = now && now.features.length > before ? now.features[now.features.length - 1] : null;
-    if (added) startEditing(added.id);
+    const make = (flip: boolean) => ({ type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
+    // a cut's direction is 'auto': the side the body lies on first, then the other, and the one that really touches the body is kept
+    let flip = controller.extrudeFlip(target.sketchId, op);
+    if (op === 'cut') {
+      const pick = await autoCutFlip(flip, async (f) => {
+        const r = await controller.preview([{ op: 'add', feature: make(f) as never }], 0);
+        return { ok: r.ok, codes: (r.errors ?? []).map((e) => String((e as unknown as [string, { code?: string }])[1]?.code ?? '')) };
+      });
+      await controller.cancelPreview();
+      flip = pick.flip;
+    }
+    await createFeature([{ op: 'add', feature: make(flip) as never }]);
   };
   // Add the feature the ops describe as one edit, clear the selection that fed it, and open the Editor on it.
+  // features whose first try is kept as a draft in their editor when the kernel refuses it (the toast alone left nothing to fix)
+  const DRAFTABLE = new Set(['loft', 'shell', 'extrude', 'revolve', 'fillet', 'chamfer', 'sweep']);
   const createFeature = async (ops: EditOp[]) => {
     const before = controller.document()?.features.length ?? 0;
     // the picked edges, faces or corners are consumed by the feature: clear them first so the rebuild does not report them as lost
@@ -1467,12 +1485,18 @@ function App() {
       // a Loft refused on its first try still opens its editor, on the draft, with the problem shown inline (the editor's Cancel removes the draft)
       const op0 = ops[0];
       const f0 = ops.length === 1 && op0.op === 'add' ? (op0.feature as Record<string, unknown>) : null;
-      if (f0?.type === 'loft') {
-        const text = controller.rejection()?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || '');
+      if (f0 && DRAFTABLE.has(String(f0.type))) {
+        const rej = controller.rejection();
+        const text = rej?.summary ?? (r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || '');
         const made = await controller.edit([{ op: 'add', feature: { ...f0, suppressed: true, draftNew: true } as never }]);
         redraw((n) => n + 1);
-        const id = (controller.document()?.features ?? []).find((x) => (x as { draftNew?: boolean }).draftNew)?.id;
-        if (made.ok && id) { startEditing(id); setPreviewHint(text || null); return; }
+        const added = (controller.document()?.features ?? []).find((x) => (x as { draftNew?: boolean }).draftNew) as unknown as Record<string, unknown> | undefined;
+        if (made.ok && added) {
+          startEditing(String(added.id));
+          setPreviewHint(text || null);
+          if (rej) setPreviewDiag({ d: rej.diagnosis, fresh: [] });   // the structured error stays in the editor (with its fixes) until the draft builds
+          return;
+        }
       }
       store.select(picked); return;
     }
@@ -1671,7 +1695,7 @@ function App() {
       key={`${editingId}:${String(editingFeature?.type)}`}
       options={(a) => optionsFor(a, doc, thinActions)}
       hint={openCard ? null : previewHint}
-      diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} /> : null}
+      diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} {...diagFixes()} /> : null}
       okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
       shapes={editShapes}
       onShapeHover={(id) => {
