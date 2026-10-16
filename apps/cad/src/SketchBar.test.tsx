@@ -84,6 +84,14 @@ describe('SketchBar', () => {
     fireEvent.click(screen.getByLabelText('Grid'));
     expect(props.onPrefs).toHaveBeenCalledWith({ gridSnap: false });
   });
+  it('the snaps popover has Auto-constrain from guides, off by default, and reports the toggle', () => {
+    const { props } = bar(st({}));
+    fireEvent.click(screen.getByRole('button', { name: /Snaps/ }));
+    const box = screen.getByLabelText('Auto-constrain from guides') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    expect(props.onPrefs).toHaveBeenCalledWith({ guideConstraints: true });
+  });
   it('the display popover toggles what is shown', () => {
     const { props } = bar(st({}));
     fireEvent.click(screen.getByRole('button', { name: /Display/ }));

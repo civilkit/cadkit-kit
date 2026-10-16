@@ -79,6 +79,7 @@ import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
+import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
@@ -1034,7 +1035,7 @@ function App() {
     const env: ToolEnv = { ...(frame ? { body: { frame, edges } } : {}), tol: toolTolRef.current, selection: projectSelRef.current, entities: toolEntitiesRef.current };
     const out = entry.tool.step(toolStateRef.current, ev, draft, toToolSettings(prefsRef.current), env);
     // a click that snapped to a midpoint or an alignment makes that a real constraint, so it survives later edits
-    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
+    if (ev.type === 'click' && out.draft !== draft && prefsRef.current.autoConstraints && prefsRef.current.guideConstraints && !ev.mods.shift) out.draft = applySnapConstraints(draft, out.draft, snap);
     // Shift+click on a model point attaches the new point to the model (a fixed reference point there); without Shift it only positions it
     if (ev.type === 'click' && out.draft !== draft && ev.mods.shift && snap?.model) out.draft = attachModelSnap(draft, out.draft, snap);
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
@@ -1722,6 +1723,7 @@ function App() {
     );
   }, [emptyPart1, sketching, refHover, refSel, !!doc]);
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
+  useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
   const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
   useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });

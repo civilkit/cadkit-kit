@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
 
+describe('auto-constrain from guides', () => {
+  it('is off by default and survives sanitising', () => {
+    expect(DEFAULT_SKETCH_PREFS.guideConstraints).toBe(false);
+    expect(sanitizeSketchPrefs({}).guideConstraints).toBe(false);
+    expect(sanitizeSketchPrefs({ guideConstraints: true }).guideConstraints).toBe(true);
+    expect(sanitizeSketchPrefs({ guideConstraints: 'yes' }).guideConstraints).toBe(false);
+  });
+});
+
 describe('sketch preferences', () => {
   it('defaults match the design: auto constraints on, arc switch on hover, dimensions only, grid snap on', () => {
     expect(DEFAULT_SKETCH_PREFS).toMatchObject({ autoConstraints: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true });

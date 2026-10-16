@@ -607,7 +607,7 @@ export const en: Catalog = {
   'app.sketch.fullyDefined.nothing': 'Nothing could be added',
   'app.sketch.dof.conflicts': 'Conflicting', 'app.sketch.dof.redundant': 'Redundant', 'app.sketch.dof.conflictsTip': 'These constraints cannot hold together with the ones before them. Delete one.',
   'app.sketch.snaps': 'Snaps', 'app.sketch.snaps.tip': 'Choose what the pointer snaps to',
-  'app.sketch.snaps.title': 'Snap to', 'app.sketch.snaps.auto': 'Add constraints from snaps',
+  'app.sketch.snaps.title': 'Snap to', 'app.sketch.snaps.auto': 'Add constraints from snaps', 'app.sketch.snaps.guide': 'Auto-constrain from guides', 'app.sketch.snaps.guideTip': 'Off: a snap or alignment guide only places the point. On: clicking on a guide also adds its constraint (aligned, midpoint, on curve ...).',
   'app.sketch.snapkind.endpoint': 'End points', 'app.sketch.snapkind.center': 'Centres', 'app.sketch.snapkind.midpoint': 'Midpoints', 'app.sketch.snapkind.quadrant': 'Quadrants',
   'app.sketch.snapkind.intersection': 'Intersections', 'app.sketch.snapkind.perpendicular': 'Perpendicular', 'app.sketch.snapkind.tangent': 'Tangent', 'app.sketch.snapkind.oncurve': 'On curve',
   'app.sketch.snapkind.modelEndpoint': 'Model ends and crossings', 'app.sketch.snapkind.modelMidpoint': 'Model midpoints', 'app.sketch.snapkind.modelCenter': 'Model centres and quadrants', 'app.sketch.snapkind.modelExtent': 'Mid-extent and body centre',
