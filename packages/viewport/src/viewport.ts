@@ -1211,13 +1211,18 @@ export class Viewport {
    *  in a transparent pass, farthest first, without writing depth; a click on one below PICK_OPACITY means the body behind it. */
   setBodyView(spec: BodyViewSpec, rebuild = true): void {
     const same = JSON.stringify(spec) === JSON.stringify(this.bodyView);
-    this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden] };
+    this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden], ...(spec.faces ? { faces: { ...spec.faces } } : {}) };
     this.faceLookMap = new Map();
     for (const b of spec.bodies) {
       const l = spec.looks[b.key];
       if (!l || (l.color === undefined && l.finish === undefined)) continue;
       const fp = l.finish ? finishParams(l.finish) : null;
       for (const f of b.faces) this.faceLookMap.set(f, { color: l.color ?? null, roughness: fp?.roughness ?? null, metalness: fp?.metalness ?? null });
+    }
+    for (const [f, l] of Object.entries(spec.faces ?? {})) {
+      if (l.color === undefined && l.finish === undefined) continue;
+      const fp = l.finish ? finishParams(l.finish) : null, prev = this.faceLookMap.get(f);
+      this.faceLookMap.set(f, { color: l.color ?? prev?.color ?? null, roughness: fp?.roughness ?? prev?.roughness ?? null, metalness: fp?.metalness ?? prev?.metalness ?? null });
     }
     if (same || !rebuild || !this.lastBody) return;
     this.setBody(this.lastBody);

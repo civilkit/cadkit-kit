@@ -9,7 +9,11 @@ export const FINISHES: readonly Finish[] = ['matte', 'plastic', 'chrome', 'glass
 export interface BodyLookSpec { color?: string; opacity?: number; finish?: Finish }
 export interface ViewBodyDef { key: string; faces: string[]; edges?: string[] }
 /** What the viewport needs to draw bodies individually: the bodies, the look of those that have one (keyed by body key), the hidden keys. */
-export interface BodyViewSpec { bodies: ViewBodyDef[]; looks: Record<string, BodyLookSpec>; hidden: string[] }
+export interface BodyViewSpec {
+  bodies: ViewBodyDef[]; looks: Record<string, BodyLookSpec>; hidden: string[];
+  /** colour and finish of single faces by face name (they win over their body's; the opacity of a face is ignored) */
+  faces?: Record<string, BodyLookSpec>;
+}
 
 /** Faces of a body whose opacity is below this are skipped by a click when something lies behind them. */
 export const PICK_OPACITY = 0.35;

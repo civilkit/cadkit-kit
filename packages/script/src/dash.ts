@@ -15,6 +15,10 @@ const ONLY = null;
 const LENS = true;
 const P = part('Speedboat dash cluster');
 const rad = (d) => d * Math.PI / 180;
+// ---- look: a classic dash (view appearance only; the geometry is unchanged) ----
+const LOOK = { panel: '#2a2e35', chrome: '#e6e9ec', ivory: '#efe6cf', ink: '#17181a', red: '#c9231d', needle: '#d8261d', hub: '#f2f2ee', glass: '#aebfce', brass: '#b8925a', steel: '#9aa1a8' };
+const look = (h, name, o) => { if (name) P.bodyName(h, name); if (o) P.appearance(Object.assign({ feature: h }, o)); };
+const cap1 = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 const FIELD = T - RIM_H;                       // recessed instrument field (z)
 const ZB = FIELD + CLR;                        // underside of every bezel flange
 const hw = W / 2, hh = H / 2;
@@ -52,6 +56,7 @@ const TUBE = (g) => g / 2 + 3.5;
 // ---- panel ----
 const panel = () => {
   P.sketch('front', (s) => outline(s, 0, R_CORNER)).extrude(T);
+  look(P.handle(), 'Dash panel', { colour: LOOK.panel, finish: 'plastic' });
   P.sketch(at('front', T), (s) => outline(s, RIM_W, Math.max(R_CORNER - RIM_W, 2))).cut(RIM_H, { direction: 'into' });
   P.fillet(edges({ onFace: face({ normal: [0, 0, 1], at: [0, 0, T] }), outside: [[-hw + 2, -hh + 2, -1], [hw - 2, hh - 2, T + 1]] }), RIM_ROLL);
 };
@@ -66,6 +71,7 @@ const rev = (cx, cy, items, z0 = ZB) => {
     });
   });
   P.revolve(360, { axis: { from: [cx, 0], to: [cx, -1] } });
+  return P.handle();
 };
 // midpoint of the dome arc from (rb, z0) up to the apex (0, z0 + h)
 const dome = (rb, z0, h) => {
@@ -86,13 +92,16 @@ const gauge = (d) => {
   const DZ0 = 2, DZ1 = 3.9;                                             // dial plate (local z)
   const ang = (v) => START - SWEEP * (v - d.lo) / (d.hi - d.lo);        // degrees, 0 = +X, counter-clockwise
   const pt = (rr, v) => [cx + rr * Math.cos(rad(ang(v))), cy + rr * Math.sin(rad(ang(v)))];
-  rev(cx, cy, bezelPath(g));
+  const nm = cap1(d.n);
+  look(rev(cx, cy, bezelPath(g)), nm + ' bezel', { colour: LOOK.chrome, finish: 'chrome' });
   P.sketch(at('front', ZB + DZ0), (s) => s.circle(r, [cx, cy])); P.extrude(DZ1 - DZ0);
+  look(P.handle(), nm + ' dial', { colour: LOOK.ivory, finish: 'matte' });
   // tick ridges: one sketch of thin rotated rectangles (major long, minor short)
   const quad = (v, r1, r2, hw2) => { const a = rad(ang(v)), c = Math.cos(a), sn = Math.sin(a), q = (rr, w) => [cx + rr * c - w * sn, cy + rr * sn + w * c]; return [q(r1, -hw2), q(r2, -hw2), q(r2, hw2), q(r1, hw2)]; };
   const ticks = [];
   for (let v = d.lo; v <= d.hi + 1e-6; v += d.minor) { const maj = Math.abs((v - d.lo) / d.major - Math.round((v - d.lo) / d.major)) < 1e-6; ticks.push(maj ? quad(v, r - 10.5, r - 5.5, 0.8) : quad(v, r - 8, r - 5.5, 0.4)); }
   P.sketch(at('front', ZB + DZ1), (s) => { ticks.forEach((q) => s.polygon(q)); }); P.extrude(TICK_H);
+  P.appearance({ face: P.handle(), colour: LOOK.ink, finish: 'matte' });
   // red zone: a groove in the dial and a separate inlay band in it
   if (d.red) {
     const sector = (a0, a1, ri, ro) => (s) => { const am = (a0 + a1) / 2, p = (rr, a) => [cx + rr * Math.cos(rad(a)), cy + rr * Math.sin(rad(a))];
@@ -100,19 +109,22 @@ const gauge = (d) => {
     const a0 = ang(d.red), a1 = ang(d.hi), ri = r - 4.5, ro = r - 2.5, da = (0.12 / ro) * 180 / Math.PI;
     P.sketch(at('front', ZB + DZ1), sector(a0, a1, ri, ro)); P.cut(0.5, { direction: 'into' });
     P.sketch(at('front', ZB + DZ1 - 0.4), sector(a0 - da, a1 + da, ri + CLR, ro - CLR)); P.extrude(0.45);
+    look(P.handle(), nm + ' red zone', { colour: LOOK.red, finish: 'plastic' });
   }
   // needle: tapered blade with a counterweight tail, hub boss on top
   const a = rad(ang(d.v)), c = Math.cos(a), sn = Math.sin(a), L = r - 7, nz = ZB + DZ1 + 0.5;
   const nd = [[L, -0.25], [L, 0.25], [0, 1.6], [-4, 1.2], [-7, 2.6], [-11, 2.6], [-12.5, 1.6], [-12.5, -1.6], [-11, -2.6], [-7, -2.6], [-4, -1.2], [0, -1.6]].map((q) => [cx + q[0] * c - q[1] * sn, cy + q[0] * sn + q[1] * c]);
   P.sketch(at('front', nz), (s) => s.polygon(nd)); P.extrude(NEEDLE_T);
+  look(P.handle(), nm + ' needle', { colour: LOOK.needle, finish: 'plastic' });
   P.sketch(at('front', nz + NEEDLE_T), (s) => s.circle(3.2, [cx, cy])); P.extrude(0.5);
+  P.appearance({ face: P.handle(), colour: LOOK.hub, finish: 'plastic' });
   // domed centre cap
   const cz = DZ1 + 0.5 + NEEDLE_T + 0.5 + CLR;
-  rev(cx, cy, [[0, cz], [5, cz], ['a', dome(5, cz, 2.2), [0, cz + 2.2]]]);
+  look(rev(cx, cy, [[0, cz], [5, cz], ['a', dome(5, cz, 2.2), [0, cz + 2.2]]]), nm + ' cap', { colour: LOOK.steel, finish: 'brushed' });
   // thin domed glass: concentric inner / outer spheres, 1.5 mm thick, proud of the bezel
   const zi = 7.5 + CLR, hi = 1.2, Rsi = (Rl * Rl + hi * hi) / (2 * hi), zc = zi + hi - Rsi, Rso = Rsi + 1.5, za = zc + Math.sqrt(Rso * Rso - Rl * Rl);
   const mid = (Rs, zz) => { const a0 = Math.atan2(zz - zc, Rl), am = (a0 + Math.PI / 2) / 2; return [Rs * Math.cos(am), zc + Rs * Math.sin(am)]; };
-  if (LENS) { rev(cx, cy, [[0, zi + hi], ['a', mid(Rsi, zi), [Rl, zi]], [Rl, za], ['a', mid(Rso, za), [0, zc + Rso]]]); }
+  if (LENS) { look(rev(cx, cy, [[0, zi + hi], ['a', mid(Rsi, zi), [Rl, zi]], [Rl, za], ['a', mid(Rso, za), [0, zc + Rso]]]), nm + ' lens', { colour: LOOK.glass, opacity: 0.18, finish: 'glass' }); }
 };
 const panelHoles = () => {
   P.sketch(at('front', T), (s) => { G.forEach((d) => s.circle(TUBE(d.g) + 0.2, [d.x, d.y])); LAMPS.forEach((l) => s.circle(LAMP_D / 2 - 1.8 + 0.2, l)); }); P.cut(through(), { direction: 'into' });
@@ -121,14 +133,15 @@ const panelHoles = () => {
 };
 // ---- details: countersunk screws, nameplate with two rivets, two warning lamps ----
 const details = () => {
-  SCREWS.forEach((q) => { rev(q[0], q[1], [[0, FIELD + 0.2], [3, FIELD + 0.2], [1.5, FIELD - 1.3], [1.5, 0.6], [0, 0.6]], 0); });
+  SCREWS.forEach((q, i) => { look(rev(q[0], q[1], [[0, FIELD + 0.2], [3, FIELD + 0.2], [1.5, FIELD - 1.3], [1.5, 0.6], [0, 0.6]], 0), 'Screw ' + (i + 1), { colour: LOOK.steel, finish: 'brushed' }); });
   const pz = FIELD - PLATE_RECESS + CLR;
   P.sketch(at('front', pz), (s) => s.rrect(PLATE_W - 0.4, PLATE_H - 0.4, 1.8, [0, PLATE_Y])); P.extrude(PLATE_RECESS - CLR + 0.2);
-  [-1, 1].forEach((sg) => { rev(sg * (PLATE_W / 2 - 5), PLATE_Y, [[0, FIELD + 0.2 + CLR], [1.8, FIELD + 0.2 + CLR], ['a', dome(1.8, FIELD + 0.2 + CLR, 1), [0, FIELD + 1.2 + CLR]]], 0); });
+  look(P.handle(), 'Nameplate', { colour: LOOK.brass, finish: 'brushed' });
+  [-1, 1].forEach((sg, i) => { look(rev(sg * (PLATE_W / 2 - 5), PLATE_Y, [[0, FIELD + 0.2 + CLR], [1.8, FIELD + 0.2 + CLR], ['a', dome(1.8, FIELD + 0.2 + CLR, 1), [0, FIELD + 1.2 + CLR]]], 0), 'Rivet ' + (i + 1), { colour: LOOK.chrome, finish: 'chrome' }); });
   LAMPS.forEach((l, i) => {
     const Ro = LAMP_D / 2, Ri = Ro - 4.2;
-    rev(l[0], l[1], [[Ri, -6], [Ro - 1.8, -6], [Ro - 1.8, 0], [Ro - 1, 0], ['a', rimLow(Ro - 1, 1, 1), [Ro, 1]], [Ro, 2], ['a', rim45(Ro - 1.5, 2, 1.5), [Ro - 1.5, 3.5]], [Ri, 3.5]]);
-    rev(l[0], l[1], [[0, 0.5], [Ri - 0.2, 0.5], [Ri - 0.2, 1.8], ['a', dome(Ri - 0.2, 1.8, 1.8), [0, 3.6]]]);
+    look(rev(l[0], l[1], [[Ri, -6], [Ro - 1.8, -6], [Ro - 1.8, 0], [Ro - 1, 0], ['a', rimLow(Ro - 1, 1, 1), [Ro, 1]], [Ro, 2], ['a', rim45(Ro - 1.5, 2, 1.5), [Ro - 1.5, 3.5]], [Ri, 3.5]]), 'Lamp ' + (i + 1) + ' bezel', { colour: LOOK.chrome, finish: 'chrome' });
+    look(rev(l[0], l[1], [[0, 0.5], [Ri - 0.2, 0.5], [Ri - 0.2, 1.8], ['a', dome(Ri - 0.2, 1.8, 1.8), [0, 3.6]]]), 'Lamp ' + (i + 1) + ' lens', { colour: i === 0 ? '#d83a2e' : '#e0a02a', opacity: 0.7, finish: 'glass' });
   });
 };
 const ORDER = ['panel', 'gauges', 'details'];

@@ -435,8 +435,22 @@ export interface HoleOpts {
   modeled?: boolean;
 }
 export interface ExtrudeOpts { mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
+export type BodyFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
+export const BODY_FINISHES: readonly BodyFinish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
+/** Colour, opacity and finish of a body. `colour` is the same as `color`: '#rrggbb' or '#rgb'. */
+export interface LookOpts { colour?: string; color?: string; opacity?: number; finish?: BodyFinish }
+export type AppearanceTarget = LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle };
+/** What appearance() and bodyName() recorded; applied to the document once the feature ids are known (see applyDecor). */
+export interface Decor { line: number; ref?: string | FeatureHandle; face?: string; /** every face the feature `ref` created */ allFaces?: boolean; look?: { color?: string; opacity?: number; finish?: BodyFinish }; name?: string }
+function hex6(c: unknown, line: number): string {
+  const m = typeof c === 'string' ? /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim()) : null;
+  if (!m) throw new SelectorError(`appearance(): colour must be '#rrggbb' or '#rgb', got ${JSON.stringify(c)}`, line);
+  const h = m[1].length === 3 ? m[1].split('').map((x) => x + x).join('') : m[1];
+  return '#' + h.toLowerCase();
+}
 export class PartBuilder {
   steps: Step[] = [];
+  decor: Decor[] = [];
   variables: Array<{ name: string; expr: string }> = [];
   constructor(public name: string) {}
   private add(label: string, run: Step['run']): this { this.steps.push({ line: callerLine(), label, run }); return this; }
@@ -838,6 +852,59 @@ export class PartBuilder {
     return h;
   }
   /**
+   * Colour, opacity and finish of the bodies a feature made (view appearance only: it changes no geometry and no feature).
+   *
+   * appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.
+   * @domain utilities
+   * @param o { feature | body | face, colour?, opacity?, finish? }
+   * @example
+   * p.sketch('front', (s) => s.circle([0, 0], 30)).extrude(3);
+   * const lens = p.handle();
+   * p.appearance({ feature: lens, colour: '#b9c7d6', opacity: 0.18, finish: 'glass' });
+   * @see part.bodyName, part.handle
+   */
+  appearance(o: AppearanceTarget): this {
+    const line = callerLine();
+    const targets = [o.feature, o.body, o.face].filter((x) => x !== undefined);
+    if (targets.length !== 1) throw new SelectorError('appearance(): give exactly one of feature, body or face', line);
+    const look: Decor['look'] = {};
+    const c = o.colour ?? o.color;
+    if (c !== undefined) look.color = hex6(c, line);
+    if (o.opacity !== undefined) {
+      if (typeof o.opacity !== 'number' || !isFinite(o.opacity) || o.opacity < 0.05 || o.opacity > 1) throw new SelectorError(`appearance(): opacity must be between 0.05 and 1, got ${String(o.opacity)}`, line);
+      if (o.opacity < 1) look.opacity = o.opacity;
+    }
+    if (o.finish !== undefined) {
+      if (!BODY_FINISHES.includes(o.finish)) throw new SelectorError(`appearance(): finish must be one of ${BODY_FINISHES.join(', ')}, got ${JSON.stringify(o.finish)}`, line);
+      look.finish = o.finish;
+    }
+    if (!Object.keys(look).length) throw new SelectorError('appearance(): give a colour, an opacity or a finish', line);
+    if (o.face instanceof FeatureHandle) this.decor.push({ line, ref: o.face, allFaces: true, look });
+    else if (o.face !== undefined) {
+      if (typeof o.face !== 'string' || !/^F\d+[.:|#*]/.test(o.face)) throw new SelectorError(`appearance(): face must be a persistent face name like 'F3.C1' or a prefix like 'F3.*', got ${JSON.stringify(o.face)}`, line);
+      this.decor.push({ line, face: o.face, look });
+    } else this.decor.push({ line, ref: (o.feature ?? o.body) as string | FeatureHandle, look });
+    return this;
+  }
+
+  /**
+   * Name the bodies a feature made (shown in the Bodies list; the default is the feature's name or Body 1, 2, ...).
+   *
+   * bodyName(handle, 'Tach lens') names the body the feature created; when it made several they are numbered 'Tach lens 1', 'Tach lens 2'. The target is a handle from part.handle() or an id like 'F12'.
+   * @domain utilities
+   * @param target handle or feature id
+   * @param name the name shown in the Bodies list
+   * @see part.appearance, part.handle
+   */
+  bodyName(target: string | FeatureHandle, name: string): this {
+    const line = callerLine();
+    if (typeof name !== 'string' || !name.trim()) throw new SelectorError('bodyName(): the name must be a non-empty string', line);
+    this.decor.push({ line, ref: target, name: name.trim() });
+    return this;
+  }
+
+  /**
+   *   /**
    * Add a reference plane (workplane) feature without a sketch.
    *
    * workplane(base, offset, opts) adds the plane that at() would add, as a feature of its own (visible in the tree, reusable): base is 'front' | 'top' | 'right', face(...), a plane handle, or { origin, normal, xdir? }; opts.rotate tilts it about an axis line. Take part.handle() right after it, then sketch(at(handle), ...) any number of times; at(handle, 5) offsets it further.
@@ -1171,3 +1238,19 @@ export function makeApi(state: ScriptState) {
   };
 }
 export type ScriptApi = ReturnType<typeof makeApi>;
+
+/** Write what appearance() and bodyName() recorded into the document fields `appearance`, `faceAppearance` and `bodyNames`, now that handles have ids. Later calls win field by field. */
+export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn?: (message: string, line: number) => void): void {
+  const appearance: Record<string, Record<string, unknown>> = {}, faceAppearance: Record<string, Record<string, unknown>> = {}, bodyNames: Record<string, string> = {};
+  for (const d of part.decor) {
+    if (d.face !== undefined) { faceAppearance[d.face] = { ...faceAppearance[d.face], ...d.look }; continue; }
+    const id = typeof d.ref === 'string' ? d.ref : d.ref?.id ?? null;
+    if (id && d.allFaces) { faceAppearance[id + '.*'] = { ...faceAppearance[id + '.*'], ...d.look }; continue; }
+    if (!id) { warn?.('appearance / bodyName: the feature handle is not resolved (take part.handle() after the feature)', d.line); continue; }
+    if (d.look) appearance[id] = { ...appearance[id], ...d.look };
+    if (d.name) bodyNames[id] = d.name;
+  }
+  if (Object.keys(appearance).length) doc.appearance = appearance; else delete doc.appearance;
+  if (Object.keys(faceAppearance).length) doc.faceAppearance = faceAppearance; else delete doc.faceAppearance;
+  if (Object.keys(bodyNames).length) doc.bodyNames = bodyNames; else delete doc.bodyNames;
+}

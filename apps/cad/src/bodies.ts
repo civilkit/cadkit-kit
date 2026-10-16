@@ -37,6 +37,8 @@ export interface BodyRow {
 
 export interface BodyFields {
   appearance?: Record<string, BodyLookSpec>;
+  /** colour / finish of single faces: a persistent face name ('F3.C1') or a prefix ('F3.*') */
+  faceAppearance?: Record<string, BodyLookSpec>;
   bodyNames?: Record<string, string>;
   view?: { hiddenBodies?: string[] };
 }
@@ -111,11 +113,26 @@ export function listBodies(
   });
 }
 
+/** faceAppearance entries (exact names and 'F3.*' prefixes) resolved to the faces that exist; a longer (more specific) entry wins. */
+export function resolveFaceLooks(entries: Record<string, BodyLookSpec> | undefined, faceNames: readonly string[]): Record<string, BodyLookSpec> {
+  const out: Record<string, BodyLookSpec> = {};
+  if (!entries) return out;
+  const keys = Object.keys(entries).sort((a, b) => a.length - b.length);
+  for (const k of keys) {
+    const l = cleanLook(entries[k]);
+    if (l.color === undefined && l.finish === undefined) continue;
+    const pre = k.endsWith('*') ? k.slice(0, -1) : null;
+    for (const f of faceNames) if (pre !== null ? f.startsWith(pre) : f === k) out[f] = { ...out[f], color: l.color ?? out[f]?.color, finish: l.finish ?? out[f]?.finish };
+  }
+  for (const f of Object.keys(out)) { const o = out[f]; if (o.color === undefined) delete o.color; if (o.finish === undefined) delete o.finish; }
+  return out;
+}
+
 /** What the viewport is given. */
-export function viewSpec(rows: readonly BodyRow[]): BodyViewSpec {
+export function viewSpec(rows: readonly BodyRow[], faces?: Record<string, BodyLookSpec>): BodyViewSpec {
   const looks: Record<string, BodyLookSpec> = {};
   for (const r of rows) if (r.look.color !== undefined || r.look.opacity !== undefined || r.look.finish !== undefined) looks[r.key] = r.look;
-  return { bodies: rows.map((r) => ({ key: r.key, faces: r.faces, edges: r.edges })), looks, hidden: rows.filter((r) => r.hidden).map((r) => r.key) };
+  return { bodies: rows.map((r) => ({ key: r.key, faces: r.faces, edges: r.edges })), looks, hidden: rows.filter((r) => r.hidden).map((r) => r.key), ...(faces && Object.keys(faces).length ? { faces } : {}) };
 }
 
 // ---- edits: each returns the new value of one document field (undefined = remove the field) ----
@@ -171,6 +188,11 @@ export function readBodyFields(doc: unknown): BodyFields {
     const a: Record<string, BodyLookSpec> = {};
     for (const [k, v] of Object.entries(d.appearance as Record<string, unknown>)) { const l = cleanLook(v); if (Object.keys(l).length) a[k] = l; }
     if (Object.keys(a).length) out.appearance = a;
+  }
+  if (d.faceAppearance && typeof d.faceAppearance === 'object') {
+    const a: Record<string, BodyLookSpec> = {};
+    for (const [k, v] of Object.entries(d.faceAppearance as Record<string, unknown>)) { const l = cleanLook(v); delete l.opacity; if (Object.keys(l).length) a[k] = l; }
+    if (Object.keys(a).length) out.faceAppearance = a;
   }
   if (d.bodyNames && typeof d.bodyNames === 'object') {
     const n: Record<string, string> = {};

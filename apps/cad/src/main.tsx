@@ -55,7 +55,7 @@ import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
-import { faceVolumes, hideOthers, listBodies, readBodyFields, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
+import { faceVolumes, hideOthers, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { runScript } from '@kit/script';
 import { scopeOf } from './variables';
@@ -150,6 +150,11 @@ let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
 const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
+/** What the viewport is told about bodies: their looks, the hidden ones and the per-face colours. */
+function bodyViewNow(): ReturnType<typeof viewSpec> {
+  const rows = bodyRowsFor(false);
+  return viewSpec(rows, resolveFaceLooks(readBodyFields(controller.document()).faceAppearance, rows.flatMap((r) => r.faces)));
+}
 /** The Bodies of what is on screen with their names, looks and visibility from the document (`volumes`: also the volume of each, for the list). */
 function bodyRowsFor(volumes: boolean): BodyRow[] {
   const m = controller.selModel();
@@ -183,7 +188,7 @@ const controller = new Controller({
       }
       viewport?.setConsumedSketches([...used]);
       lastBody = b;
-      viewport?.setBodyView(viewSpec(bodyRowsFor(false)), false);
+      viewport?.setBodyView(bodyViewNow(), false);
       viewport?.setBody(shownBody(b) as never);
       viewport?.setBodies(controller.selModel()?.bodies() ?? []);
       const body = b as { mesh?: { faceIds: string[]; triFace: ArrayLike<number> }; surfaces?: Array<{ mesh: { faceIds: string[]; triFace: ArrayLike<number> } }> } | null;
@@ -1746,7 +1751,7 @@ function App() {
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {
     controller.setDocExtra(key, value && typeof value === 'object' && Object.keys(value).length ? value : null);
-    viewport?.setBodyView(viewSpec(bodyRowsFor(false)));
+    viewport?.setBodyView(bodyViewNow());
     redraw((n) => n + 1);
   };
   const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
