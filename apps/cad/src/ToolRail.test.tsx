@@ -4,6 +4,7 @@ import { slotMemory } from '@kit/ui';
 import { buildCommands } from './commands';
 import { fullActions } from './testActions';
 import { ToolRail } from './ToolRail';
+import { SketchRailSections } from './SketchToolStrip';
 import './i18n';
 
 afterEach(cleanup);
@@ -34,5 +35,19 @@ describe('ToolRail', () => {
     const names = [...document.querySelectorAll('.slot-row .slot-name')].map((x) => x.textContent);
     expect(names).toContain('Hole');
     expect(names).toContain('Shell');
+  });
+});
+
+describe('ToolRail while a sketch is open (Plasticity preset)', () => {
+  it('shows undo / redo / rebuild then the sketch groups; the model groups are not rendered at all', () => {
+    const picked: Array<string | null> = [];
+    const { container } = render(<ToolRail commands={commands} kind="face" only={['history']} after={<SketchRailSections active={null} onPick={(id) => picked.push(id)} labels />} />);
+    const titles = [...container.querySelectorAll('.rail-title')].map((x) => x.textContent);
+    expect(titles).toEqual(['Edit', 'Select', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference']);
+    expect(container.querySelector('.rail-context')).toBeNull();
+    for (const model of ['Create', 'Surfaces', 'Pattern', 'Inspect']) expect(titles).not.toContain(model);
+    expect(container.querySelector('[aria-label="Undo"], [aria-label^="Undo"]') ?? screen.queryByRole('button', { name: /Undo/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Line' }));
+    expect(picked).toEqual(['line']);
   });
 });
