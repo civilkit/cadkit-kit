@@ -73,7 +73,7 @@ import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields } from './SketchFields';
 import { SketchReadout, readout, clearReadout } from './sketchReadout';
-import { loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
+import { DEFAULT_SKETCH_PREFS, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchBar } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
