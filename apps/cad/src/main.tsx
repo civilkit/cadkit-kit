@@ -13,7 +13,7 @@ import { SelectionList, chipsOf } from './select/SelectionList';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
-import { isPointSketch } from './featureCreators';
+import { isPointSketch, featureLabel } from './featureCreators';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
@@ -228,6 +228,8 @@ function App() {
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // a feature (a new Plane after OK, a clicked plane) and a Front / Top / Right row are never both selected: the Plane tool reads ONE base from the tree
+  useEffect(() => { if (selectedId) setRefSel(null); }, [selectedId]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
@@ -475,7 +477,7 @@ function App() {
   };
   /** The Plane feature (an offset or tangent reference plane) selected in the tree or clicked in the viewport. */
   const selectedPlaneFeature = () => (selectedId ? controller.document()?.features.find((x) => x.id === selectedId && x.type === 'plane') ?? null : null);
-  const planeLabel = (id: string) => { const f = controller.document()?.features.find((x) => x.id === id) as { name?: string } | undefined; return f?.name ?? id; };
+  const planeLabel = (id: string) => { const d = controller.document(); const f = d?.features.find((x) => x.id === id); return f ? featureLabel(d, f as never) : id; };
   const sketchHere = () => {
     const face = selectedFace();
     const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
@@ -755,7 +757,7 @@ function App() {
   const wireFeatures = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
   const threadUnder = doc ? threadParents(wireFeatures) : {};
   const patterned = doc ? patternedBy(wireFeatures) : {};
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.type === 'plane' || f.type === 'sketch' ? featureLabel(doc, f as never) : f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
@@ -966,7 +968,7 @@ function App() {
       void (async () => {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
-        setSketching({ id, name: f.name ?? id });
+        setSketching({ id, name: featureLabel(controller.document(), f as never) || id });
         if (!prefsRef.current.keepView) viewport?.orientToSketch();   // the setting 'keep view when entering a sketch' (default on)
       })();
       return;

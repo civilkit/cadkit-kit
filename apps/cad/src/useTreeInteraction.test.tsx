@@ -34,20 +34,27 @@ function setup() {
   };
   let api!: ReturnType<typeof useTreeInteraction>;
   const orbit = vi.fn();
+  const setRefSel = vi.fn();
   function Harness() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     api = useTreeInteraction({
-      controller: controller as never, store, viewport: () => ({ orbitBy: orbit, panBy: vi.fn() }), selectedId, setSelectedId, setRefSel: () => {}, redraw: () => {},
+      controller: controller as never, store, viewport: () => ({ orbitBy: orbit, panBy: vi.fn() }), selectedId, setSelectedId, setRefSel, redraw: () => {},
       edit: async (ops) => { edits.push(ops); }, startEditing: (id) => started.push(id),
     });
     return <FeatureTree rows={features.map((f) => ({ id: f.id, type: f.type }))} status={[]} selectedId={selectedId} onMove={() => {}} {...api.treeProps} />;
   }
   const r = render(<Harness />);
   const row = (id: string) => r.container.querySelector(`.row[data-id="${id}"]`) as HTMLElement;
-  return { store, edits, started, controller, orbit, row, r, act: () => api.actions as TreeActions, api: () => api };
+  return { setRefSel, store, edits, started, controller, orbit, row, r, act: () => api.actions as TreeActions, api: () => api };
 }
 
 describe('tree interaction in the app', () => {
+  it('selecting a feature row drops the chosen Front / Top / Right row', () => {
+    const t = setup();
+    fireEvent.click(t.row('F2'));
+    expect(t.setRefSel).toHaveBeenCalledWith(null);
+  });
+
   it('Ctrl-click adds to the selection, Shift-click takes a range, and dependents are marked', () => {
     const w = setup();
     fireEvent.click(w.row('F1'));
@@ -90,7 +97,7 @@ describe('tree interaction in the app', () => {
     const input = w.r.container.querySelector('input.inline-name') as HTMLInputElement;
     input.value = 'Base';
     await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }); });
-    expect(w.edits).toEqual([[{ op: 'set', id: 'F2', path: 'name', value: 'Base' }]]);
+    expect(w.edits).toEqual([[{ op: 'set', id: 'F2', path: 'name', value: 'Base' }, { op: 'set', id: 'F2', path: 'autoName', value: false }]]);
   });
 
   it('F2 with nothing selected renames the part in the top bar', async () => {

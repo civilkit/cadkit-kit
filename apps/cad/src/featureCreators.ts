@@ -89,15 +89,38 @@ const planeFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'pla
 
 // ---- the edits (each is ONE edit) ----
 
-/** What a reference counts as in a default name: Front / Top / Right, a plane feature's own name, or the face id. */
-export function refLabel(doc: { features?: unknown[] } | null | undefined, ref: { kind?: string; id?: string } | null | undefined): string {
+type RefIn = { kind?: string; id?: string } | null | undefined;
+type DocIn = { features?: unknown[] } | null | undefined;
+const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** A regex for a default-name template such as `Plane {offset} from {base}`: the old documents carry no autoName flag, so their names are recognised by shape. */
+const templateRe = (key: string) => new RegExp('^' + t(key).split(/\{\w+\}/).map(escRe).join('.+') + '$');
+/** True when a Plane or Sketch still carries a generated name (autoName true, or an old document whose name has the generated shape and was not renamed by the user). */
+export function hasAutoName(f: { type?: string; name?: unknown; autoName?: unknown } | null | undefined): boolean {
+  if (!f) return false;
+  if (f.autoName === true) return true;
+  if (f.autoName === false) return false;
+  const n = typeof f.name === 'string' ? f.name : '';
+  if (f.type === 'plane') return !n || templateRe('app.plane.defaultName').test(n) || templateRe('app.plane.midName').test(n);
+  if (f.type === 'sketch') return templateRe('app.sketch.defaultName').test(n);
+  return false;
+}
+/** The name a feature is shown under: a generated Plane / Sketch name is derived live from its current offset, base and plane (so `Plane -60 from Right` stays true when the offset is edited); a user's name is kept. */
+export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
+  if (!f) return '';
+  const name = typeof f.name === 'string' ? f.name : '';
+  if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
+  if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
+  return name || String(f.id ?? '');
+}
+/** What a reference counts as in a default name: Front / Top / Right, a plane feature's displayed label (never a stale stored one), or the face id. */
+export function refLabel(doc: DocIn, ref: RefIn): string {
   if (!ref?.id) return t('app.ref.front');
   if (ref.kind === 'std') return t('app.ref.' + ref.id).replace(/ Plane$/, '');
   const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
-  return typeof f?.name === 'string' && f.name ? f.name : ref.id;
+  return f ? featureLabel(doc, f) : ref.id;
 }
 /** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
-export function planeDefaultName(doc: { features?: unknown[] } | null | undefined, f: { mode?: string; base?: { kind?: string; id?: string }; base2?: { kind?: string; id?: string }; offset?: number }): string {
+export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number }): string {
   if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
   return t('app.plane.defaultName', { offset: String(f.offset ?? 0), base: refLabel(doc, f.base) });
 }
@@ -115,10 +138,10 @@ export function planeOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
   if (faces.length >= 2) {
     const f = { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } };
-    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f), autoName: true } }];
   }
   const f = { type: 'plane', mode: 'offset', base: planeBase(c), offset: 10 };
-  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f), autoName: true } }];
 }
 /** A reference axis: along the cylinder of one face, or where two faces' planes meet. Nothing picked: the line where the front and top planes meet. */
 export function axisOps(c: Ctx): EditOp[] | null {

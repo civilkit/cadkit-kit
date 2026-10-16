@@ -44,6 +44,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
     anchor.current = r.anchor;
     setMulti(r.selection);
     d.setSelectedId(r.selection.includes(id) ? id : r.selection.at(-1) ?? null);
+    d.setRefSel(null);   // a feature row and a Front / Top / Right row are never both 'the' selection (the Plane tool reads one base)
     // a shape row selects the SHAPE: the faces picked before no longer stand in front of its size box
     if (r.selection.includes(id) && isShapeFeature(doc, id)) d.store.select([]);
   };

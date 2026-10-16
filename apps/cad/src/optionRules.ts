@@ -4,6 +4,7 @@
 // A patch value of null means "remove this field" (the same protocol as holeData.ts and main.tsx opsFromDraft).
 
 import { t } from './i18n';
+import { featureLabel } from './featureCreators';
 
 type Wire = Record<string, unknown>;
 
@@ -135,7 +136,7 @@ export function planeBaseChoices(doc: { features?: unknown[] } | null | undefine
   const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
   for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; name?: string }>) {
     if (f.id === selfId) break;
-    if (f.type === 'plane') out.push([`feature:${f.id}`, f.name ? `${f.name}` : f.id]);
+    if (f.type === 'plane') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);
   }
   const cur = current as RefLike;
   if (cur?.kind === 'face' && cur.id) out.push([`face:${cur.id}`, t('opt.plane.face', { id: cur.id })]);
