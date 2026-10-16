@@ -80,6 +80,8 @@ export interface Ctx {
   selectedId?: string | null;
   /** Every feature selected in the tree, in selection order (the Loft takes the sketches among them). */
   selectedIds?: string[];
+  /** The standard plane (front / top / right) chosen in the tree or the viewport, if any. */
+  refPlane?: string | null;
 }
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];

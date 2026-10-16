@@ -317,6 +317,7 @@ function App() {
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
       onBoxSelect: (names, additive) => { if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
+      onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
     });
     viewport = vp;
@@ -461,11 +462,16 @@ function App() {
     setOrthoState(next);
     try { localStorage.setItem('cad.ortho', next ? '1' : '0'); } catch { /* private window */ }
   };
+  /** The Plane feature (an offset or tangent reference plane) selected in the tree or clicked in the viewport. */
+  const selectedPlaneFeature = () => (selectedId ? controller.document()?.features.find((x) => x.id === selectedId && x.type === 'plane') ?? null : null);
+  const planeLabel = (id: string) => { const f = controller.document()?.features.find((x) => x.id === id) as { name?: string } | undefined; return f?.name ?? id; };
   const sketchHere = () => {
     const face = selectedFace();
     const plane = refSel === 'front' || refSel === 'top' || refSel === 'right' ? refSel : null;
+    const pf = selectedPlaneFeature();
     if (face) startNewSketch({ kind: 'face', id: face });
     else if (plane) startNewSketch(plane);
+    else if (pf) startNewSketch({ kind: 'feature', id: pf.id });
     else store.notify(t('app.sketch.pickFirst'), 'error');
   };
   const toggleDrawer = () => store.setWorkspace({ drawerOpen: !store.workspace.value.drawerOpen });
@@ -621,7 +627,7 @@ function App() {
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
-    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected() }),
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
@@ -1375,7 +1381,7 @@ function App() {
     const sel = store.selection.value;
     return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
   };
-  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face'; id: string }, after?: () => Promise<void>) => {
+  const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
     void (async () => {
       setSketchHint(null);
@@ -1396,7 +1402,7 @@ function App() {
       if (!view) { store.notify(t('app.sketch.failedCurved'), 'error'); return; }
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
-      setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : t('app.sketch.dialog.onFace') });
+      setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
       viewport?.orientToSketch();
       selectTool(holeSketchRef.current ? 'point' : 'line');
       if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
@@ -1823,6 +1829,7 @@ function App() {
         ) : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)} /> : null}
+        {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{

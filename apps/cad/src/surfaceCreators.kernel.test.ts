@@ -150,3 +150,32 @@ describe('fill and extend creators', () => {
     expect(s.errors).toEqual([]);
   });
 });
+
+describe('sketching on a reference-plane feature and lofting closed splines', () => {
+  const plane = (id: string, offset: number, name?: string): Wire => ({ type: 'plane', id, mode: 'offset', base: { kind: 'std', id: 'front' }, offset, ...(name ? { name } : {}) });
+  const closedSpline = (id: string, r: number, pl: Wire): Wire => ({
+    type: 'sketch', id, plane: pl,
+    points: Array.from({ length: 10 }, (_, i) => i).map((i) => ({ id: 'p' + i, x: r * Math.cos((i * Math.PI) / 5), y: r * Math.sin((i * Math.PI) / 5) })),
+    entities: [{ id: 's', type: 'spline', pts: Array.from({ length: 10 }, (_, i) => 'p' + i), closed: true }], constraints: [],
+  });
+  it('a new sketch on a Plane feature is named after the plane and lands on it', async () => {
+    const w = await world(partOf([plane('P', -60, 'Plane -60 from Front')]));
+    const view = await w.controller.beginNewSketch({ kind: 'feature', id: 'P' });
+    expect(view).not.toBeNull();
+    await w.controller.commitSketch();
+    expect(last(w)).toMatchObject({ type: 'sketch', name: 'Sketch on Plane -60 from Front', plane: { kind: 'feature', id: 'P' } });
+    await w.controller.beginNewSketch('top');
+    await w.controller.commitSketch();
+    expect(last(w)).toMatchObject({ name: 'Sketch on Top' });
+  });
+  it('Loft through three closed splines is enabled, takes all of them in tree order and builds', async () => {
+    const w = await world(partOf([closedSpline('A', 10, front), plane('P', 30), closedSpline('B', 14, fp('P')), plane('Q', 60), closedSpline('C', 8, fp('Q'))]));
+    expect(w.cmd('add-loft').enabled!()).toBe(true);
+    const r = await w.run('add-loft');
+    console.log(JSON.stringify(r).slice(0, 600));
+    expect(last(w)).toMatchObject({ type: 'loft', sketches: ['A', 'B', 'C'] });
+    const s = await w.stats();
+    expect(s.errors).toEqual([]);
+    expect(s.volume).toBeGreaterThan(1000);
+  });
+});

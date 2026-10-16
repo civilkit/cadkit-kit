@@ -3,6 +3,8 @@
 // tested without a browser (optionRules.test.ts) and against the kernel (optionRules.kernel.test.ts).
 // A patch value of null means "remove this field" (the same protocol as holeData.ts and main.tsx opsFromDraft).
 
+import { t } from './i18n';
+
 type Wire = Record<string, unknown>;
 
 /**
@@ -47,6 +49,7 @@ export function managedPaths(type: string): Set<string> {
     case 'lpattern': case 'cpattern': case 'mirror': return new Set(['carryThreads']);
     case 'knit': return new Set(['surfaces', 'solid']);
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
+    case 'plane': return new Set(['base']);
     default: return new Set();
   }
 }
@@ -112,4 +115,29 @@ export function patchFilletProfile(eff: Wire, profile: FilletProfile): Wire {
     rho: profile === 'conic' ? (typeof eff.rho === 'number' ? eff.rho : 0.5) : null,
     shape: profile === 'curvature' ? (typeof eff.shape === 'number' ? eff.shape : 0.5) : null,
   };
+}
+
+// ---- the base of a reference plane ----
+
+type RefLike = { kind?: string; id?: string } | null | undefined;
+/** The selector value of a plane's base: `std:front`, `feature:F3` or `face:F2.S.f1` (Front when it has none). */
+export const planeBaseValue = (base: unknown): string => {
+  const b = base as RefLike;
+  return b?.kind && b.id ? `${b.kind}:${b.id}` : 'std:front';
+};
+/** The edit that sets the base from a selector value. */
+export function planeBasePatch(value: string): Wire {
+  const i = value.indexOf(':');
+  return { base: { kind: value.slice(0, i), id: value.slice(i + 1) } };
+}
+/** What a plane may hang on: the three standard planes, the Plane features before it, and the face it is on now. */
+export function planeBaseChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
+  const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; name?: string }>) {
+    if (f.id === selfId) break;
+    if (f.type === 'plane') out.push([`feature:${f.id}`, f.name ? `${f.name}` : f.id]);
+  }
+  const cur = current as RefLike;
+  if (cur?.kind === 'face' && cur.id) out.push([`face:${cur.id}`, t('opt.plane.face', { id: cur.id })]);
+  return out;
 }

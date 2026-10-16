@@ -83,6 +83,8 @@ export interface ViewportOptions {
   onHover(name: string | null): void;
   /** A click landed on a reference plane (shown for an empty part or by the tree) and on no body face. */
   onRefPlanePick?(id: RefPlaneId): void;
+  /** A click on a reference-plane FEATURE (a datum plane drawn in the viewport) that hit nothing else. */
+  onPlaneFeaturePick?(id: string, additive: boolean): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
   onSketchMove?(pointId: string, u: number, v: number): void;
   /** A sketch tool is active: the pointer in plane coordinates (and in host pixels, for placing fields). */
@@ -196,6 +198,7 @@ export class Viewport {
   /** Sketches a feature already uses are drawn thin and quiet; the rest (still to be used) stay bright and thick. */
   setConsumedSketches(ids: string[]): void { this.consumedSketches = new Set(ids); }
   private planeLines: THREE.LineSegments | null = null;
+  private planeQuads: Array<{ id: string; quad: number[][] }> = [];
   private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
   private edges: Array<{ key?: string; pts: number[][] }> = [];
@@ -965,6 +968,7 @@ export class Viewport {
       (o.material as THREE.Material).dispose();
     }
     this.sketchLines = this.sketchQuiet = this.curveLines = this.planeLines = this.axisLines = null;
+    this.planeQuads = [];
     if (this.dimGroup) {
       this.scene.remove(this.dimGroup);
       this.dimGroup.traverse((o) => {
@@ -1008,7 +1012,9 @@ export class Viewport {
       this.curveLines = this.addFatLines(polys, 0x1f8f86, 2.2, this.layerOn('curves'));
     }
     if (body.planes?.length) {
-      const quads = planeOutlines(shown(body.planes) as never, scale).map((q) => q.quad);
+      const outlines = planeOutlines(shown(body.planes) as never, scale);
+      this.planeQuads = outlines.map((q) => ({ id: q.id, quad: q.quad as number[][] }));
+      const quads = outlines.map((q) => q.quad);
       this.planeLines = this.addLayerLines(quads, 0x6f7f99, this.layerOn('planes'));
       const axes = axisLines(body.planes as never, scale * 0.4);
       this.axisLines = this.addLayerLines(axes, 0x2d3a4a, this.layerOn('axes'));
@@ -2082,6 +2088,10 @@ export class Viewport {
       const plane = this.refPlanes.pick(this.raycaster);
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
+    if (!hit0 && this.layerOn('planes') && !this.pickIntercept) {
+      const pid = this.pickPlaneFeature(e.clientX, e.clientY);
+      if (pid) { this.opts.onPlaneFeaturePick?.(pid, e.shiftKey || e.ctrlKey || e.metaKey); return; }
+    }
     this.lastPick = hit0 ? [hit0.point.x, hit0.point.y, hit0.point.z] : null;
     if (this.pickIntercept) { this.pickIntercept(this.pickName(e.clientX, e.clientY), this.lastPick as [number, number, number] | null); return; }
     // Alt+click on the part selects the whole body (the placement gizmo's target); empty space still deselects
@@ -2089,6 +2099,26 @@ export class Viewport {
     const name = this.pickName(e.clientX, e.clientY);
     this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
   };
+
+  /** The nearest drawn datum-plane feature under the pointer (its square outline is the pick area). */
+  private pickPlaneFeature(cx: number, cy: number): string | null {
+    if (!this.planeQuads.length) return null;
+    this.raycaster.setFromCamera(this.ndc(cx, cy), this.camera);
+    const ray = this.raycaster.ray;
+    const V = (p: number[]) => new THREE.Vector3(p[0], p[1], p[2]);
+    const out = new THREE.Vector3();
+    let best: string | null = null, bt = Infinity;
+    for (const { id, quad } of this.planeQuads) {
+      const [a, b, c, d] = [V(quad[0]), V(quad[1]), V(quad[2]), V(quad[3])];
+      for (const tri of [[a, b, c], [a, c, d]]) {
+        if (ray.intersectTriangle(tri[0], tri[1], tri[2], false, out)) {
+          const t = out.distanceTo(ray.origin);
+          if (t < bt) { bt = t; best = id; }
+        }
+      }
+    }
+    return best;
+  }
 
   private onMove = (e: PointerEvent): void => {
     if (this.modPan) {

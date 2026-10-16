@@ -84,12 +84,36 @@ const planeFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'pla
 
 // ---- the edits (each is ONE edit) ----
 
-/** A reference plane. Two faces: the plane midway between them. One face: offset 10 from it. Nothing picked: offset 10 from the front plane. */
+/** What a reference counts as in a default name: Front / Top / Right, a plane feature's own name, or the face id. */
+export function refLabel(doc: { features?: unknown[] } | null | undefined, ref: { kind?: string; id?: string } | null | undefined): string {
+  if (!ref?.id) return t('app.ref.front');
+  if (ref.kind === 'std') return t('app.ref.' + ref.id).replace(/ Plane$/, '');
+  const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
+  return typeof f?.name === 'string' && f.name ? f.name : ref.id;
+}
+/** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
+export function planeDefaultName(doc: { features?: unknown[] } | null | undefined, f: { mode?: string; base?: { kind?: string; id?: string }; base2?: { kind?: string; id?: string }; offset?: number }): string {
+  if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
+  return t('app.plane.defaultName', { offset: String(f.offset ?? 0), base: refLabel(doc, f.base) });
+}
+/** The base a new plane offsets from: a picked planar face, else a Plane feature selected in the tree, else the Front / Top / Right plane chosen, else Front. */
+export function planeBase(c: Ctx): { kind: string; id: string } {
+  const faces = faceMode(c);
+  if (faces.length) return { kind: 'face', id: faces[0] };
+  const pf = planeFeatures(c).find((f) => f.id === c.selectedId);
+  if (pf) return { kind: 'feature', id: pf.id };
+  if (c.refPlane === 'front' || c.refPlane === 'top' || c.refPlane === 'right') return { kind: 'std', id: c.refPlane };
+  return { kind: 'std', id: 'front' };
+}
+/** A reference plane. Two faces: the plane midway between them. Otherwise offset 10 from the base the selection names (a face, a Plane feature, a standard plane; Front when nothing is picked). */
 export function planeOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
-  if (faces.length >= 2) return [{ op: 'add', feature: { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } } }];
-  const base = faces.length ? { kind: 'face', id: faces[0] } : { kind: 'std', id: 'front' };
-  return [{ op: 'add', feature: { type: 'plane', mode: 'offset', base, offset: 10 } }];
+  if (faces.length >= 2) {
+    const f = { type: 'plane', mode: 'mid', base: { kind: 'face', id: faces[0] }, base2: { kind: 'face', id: faces[1] } };
+    return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
+  }
+  const f = { type: 'plane', mode: 'offset', base: planeBase(c), offset: 10 };
+  return [{ op: 'add', feature: { ...f, name: planeDefaultName(c.doc, f) } }];
 }
 /** A reference axis: along the cylinder of one face, or where two faces' planes meet. Nothing picked: the line where the front and top planes meet. */
 export function axisOps(c: Ctx): EditOp[] | null {
