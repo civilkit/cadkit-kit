@@ -83,10 +83,10 @@ export const miscFeatures = {
   },
 
   /**
-   * Add a thread (cosmetic or modeled) to a hole or a cylindrical face.
+   * Add a cosmetic or modeled screw thread to a bore or cylinder.
    *
-   * Threads the wall of the hole drilled last (default), or a cylinder named by a persistent face name ('F2.S.c1') or 'last:c1' (the c1 face of the last feature, e.g. an extruded circle shaft). Give the designation as size ('M6', 'M12x1.5', '1/4-20') or diameter (+ pitch). Cosmetic by default: no geometry change, the thread is reported in the regen threads list. modeled: true cuts the real helical groove (slow, falls back to cosmetic with a warning when it cannot). For a hole the hole diameter should be the tap drill of the size: use hole() with thread instead, which sets it.
-   * @domain holes
+   * Threads the wall of the bore drilled last (default 'hole'), or a cylinder named by a persistent face name ('F2.S.c1') or 'last:c1' (the c1 face of the last feature, e.g. an extruded circle shaft). Give the designation as size ('M6', 'M12x1.5', '1/4-20') or diameter (+ pitch). Cosmetic by default: no geometry change, the thread is reported in the regen threads list. modeled: true cuts the real helical groove (slow, falls back to cosmetic with a warning). The bore should be the tap drill of the size: the tapped kind of hole() sets that for you.
+   * @domain features
    * @param on "hole" for the last hole drilled; a face name string; or 'last:<tag>'
    * @param o.size designation, e.g. 'M6' or 'M12x1.5'
    * @param o.diameter major diameter in mm (alternative to size)

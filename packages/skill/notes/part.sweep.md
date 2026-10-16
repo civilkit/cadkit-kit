@@ -1,0 +1,4 @@
+- The profile plane must be perpendicular to the path where the path starts: a circle on 'front' (normal Z) with a path on 'right' starting along -Z (sketch x of 'right' is -Z), or a path on 'top'. Otherwise sweepProfileNotNormal.
+- Profile and path are { on, draw } objects (the sketches are built for you); the profile is closed, the path an open chain starting at the profile plane. Two nested circles make a pipe wall.
+- A bend made of lines has sharp corners: for a smooth elbow use arc3 / spline in the path (volume = area x length, Pappus for arcs).
+- There is no keep-normal option; twist is the total angle in degrees.

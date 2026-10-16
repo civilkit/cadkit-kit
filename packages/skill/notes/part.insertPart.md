@@ -1,0 +1,2 @@
+- Takes a part DOCUMENT (the .document of a finished run), not script text: run the component's script first. Assemblies live in the part document as insertPart + mate features.
+- The n-th insertPart() call is component n in mate(): { part: n, face: 'F2.C1' } names face F2.C1 of the inserted part (suffix @F<insert id>.1 is added for you). fixed: true on the component that must not move.

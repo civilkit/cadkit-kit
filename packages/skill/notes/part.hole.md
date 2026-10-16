@@ -1,3 +1,6 @@
 - diameter, not radius (circle() is radius). Centres are in the face sketch plane relative to the world origin projected on the face, NOT a corner of the face: a hole at [0, 0] on a plate centred on the origin is in the middle.
 - face('>Z') must exist as a planar face at that step. After a shell or fillet on the top, the top face may be a different face: select again.
 - Through unless depth is given. Many holes: use holes.points / polar / grid (one feature).
+- kind: 'cbore' (counterbore), 'csk' (countersink) and 'tapped' are cut by the kernel only for a STANDARD size: give size: 'M6' (hole diameter 6.6 at the normal fit, ISO 4762 counterbore 11 x 6.4, ISO 10642 countersink 12.4) or a diameter that is a standard clearance hole (6.6 -> M6). A plain 7.3 with kind: 'cbore' is an error that lists the sizes. Override the head with cboreDiameter and cboreDepth TOGETHER, or cskDiameter / cskAngle (default 90).
+- kind: 'tapped' with thread: 'M6' drills the tap drill (5.0 for M6) and adds a thread feature on the wall (cosmetic; modeled: true cuts the helix, slow, falls back with a warning). Only metric ISO sizes M2..M24; for other standards drill with diameter and call .thread('hole', { size: '1/4-20' }).
+- end: 'upTo' drills to the next face; a blind end needs depth.

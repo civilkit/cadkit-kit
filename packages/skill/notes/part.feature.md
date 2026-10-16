@@ -1,0 +1,3 @@
+- Escape hatch for kernel types without a helper (draft, helix, lip, dome, moveFace, ...). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.
+- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.
+- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call.

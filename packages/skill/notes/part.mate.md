@@ -1,0 +1,2 @@
+- Faces are of different components: mating two faces of one body is mateSameBody. The unfixed component moves; mateConflict / mateFixed when two fixed components or contradicting mates meet.
+- A coincident mate puts the faces together with outward normals opposed; flip: true aligns them instead.

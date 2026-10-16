@@ -1,0 +1,2 @@
+- Needs a surface feature before it (surfaceExtrude, surfacePlanar, surfaceLoft, knit). Planar and cylindrical sheets work; a doubly curved lofted sheet answers offsetUnsupported and a sheet with a pole thickenPointedPole.
+- A surface body has no volume: facts report area only until it is thickened or knitted into a solid.

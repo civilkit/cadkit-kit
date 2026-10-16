@@ -1,0 +1,2 @@
+- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).
+- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z).

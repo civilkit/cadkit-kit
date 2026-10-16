@@ -1,0 +1,1 @@
+- Sews all earlier surface features. solid: true needs a CLOSED set (a tube sheet plus its two planar caps): gaps give knitNotClosed. Check the end sketches are at the sheet ends (at('front', depth)).

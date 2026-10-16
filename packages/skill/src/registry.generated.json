@@ -618,7 +618,8 @@
    "related": [
     "sketch.cvspline",
     "part.sweep"
-   ]
+   ],
+   "notes": "- Fit-point spline: the curve passes through the points. closed: true makes a loop (extrudable and a loft section), open splines are sweep paths. Many points on a tight turn can overshoot; cvspline gives a fairer curve from control points."
   },
   {
    "id": "part.chamfer",
@@ -782,7 +783,8 @@
     "part.sketchFeature",
     "face",
     "edges"
-   ]
+   ],
+   "notes": "- Escape hatch for kernel types without a helper (draft, helix, lip, dome, moveFace, ...). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.\n- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.\n- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call."
   },
   {
    "id": "part.fillet",
@@ -874,7 +876,7 @@
        "name": "plane",
        "type": "Plane",
        "optional": true,
-       "description": "'front' (default) | 'top' | 'right' or at(plane, offset) (offset planes are not supported: use a standard plane)"
+       "description": "standard plane the gear lies on: \"front\" (default, axis +Z), \"top\" or \"right\""
       },
       {
        "name": "center",
@@ -889,7 +891,8 @@
    "related": [
     "part.extrude",
     "part.hole"
-   ]
+   ],
+   "notes": "- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).\n- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z)."
   },
   {
    "id": "part.loft",
@@ -956,7 +959,8 @@
     "at",
     "sketch.circle",
     "part.sweep"
-   ]
+   ],
+   "notes": "- Sections are { on, draw } objects, not previously recorded sketches: loft() builds the sketches itself. Put the sections on parallel planes with at('right', x) (stations along X), at('front', z) (along Z) or at('top', y). On 'right' the sketch x axis points to -Z and y is up.\n- Same outline kind in every section (all splines, or all arc+line pieces); a closed spline per station is the robust hull recipe (boat-hull-loft).\n- A point end is { on, point: [x, y] } with ends: { last: 'point' }: first OR last, never both and never in the middle; no guides with a point end. A point in the middle is a script error with the line number.\n- The result is checked by the kernel: a self-crossing section is loftProfileSelfIntersect, a degenerate result loftInvalidResult. Fix the section, not the loft.\n- No closed (ring) loft in the kernel. Guides must touch every section (loftGuideMiss); a centre line must run through the sections (loftCentreLineReach: it runs along the loft axis, mind the direction of the plane axes)."
   },
   {
    "id": "part.revolve",
@@ -1015,7 +1019,7 @@
    "domain": "features",
    "signature": ".rib(thickness: Num, o: { flip?: boolean } = {})",
    "summary": "Rib: a web of a given thickness from an open sketch line, grown to the body.",
-   "description": "Takes the LAST sketch, which must be an open line or chain (not closed) lying across the body, and adds a rib of this thickness that extends from the line to the existing material. Use it for gussets and webs between a plate and a wall. flip reverses the growth side.",
+   "description": "Takes the LAST sketch, an open line or chain (not closed), and adds a web of this total thickness centred on the sketch plane. The web fills the space between the chain and the body on the side the body encloses: a gusset across the inside corner of an L, a web inside a box. A line in open air, or one that does not have material around it, fails with ribNoContact. The chain ends may touch or lie inside the material. flip tries the other side first.",
    "parameters": [
     {
      "name": "thickness",
@@ -1034,16 +1038,17 @@
        "name": "flip",
        "type": "boolean",
        "optional": true,
-       "description": "reverse the growth direction"
+       "description": "try the other side of the chain first"
       }
      ]
     }
    ],
-   "example": "part('Gusset').sketch('front', (s) => s.rect(40, 30)).extrude(10)\n  .sketch(at('right', 0), (s) => s.line([-10, 10], [10, 10])).rib(3);",
+   "example": "part('Gusset').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40)\n  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3);",
    "related": [
     "part.extrude",
     "part.mirror"
-   ]
+   ],
+   "notes": "- The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.\n- The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z))."
   },
   {
    "id": "part.shell",
@@ -1121,7 +1126,8 @@
     "part.loft",
     "sketch.polyline",
     "sketch.spline"
-   ]
+   ],
+   "notes": "- The profile plane must be perpendicular to the path where the path starts: a circle on 'front' (normal Z) with a path on 'right' starting along -Z (sketch x of 'right' is -Z), or a path on 'top'. Otherwise sweepProfileNotNormal.\n- Profile and path are { on, draw } objects (the sketches are built for you); the profile is closed, the path an open chain starting at the profile plane. Two nested circles make a pipe wall.\n- A bend made of lines has sharp corners: for a smooth elbow use arc3 / spline in the path (volume = area x length, Pappus for arcs).\n- There is no keep-normal option; twist is the total angle in degrees."
   },
   {
    "id": "part.thin",
@@ -1144,6 +1150,78 @@
     "part.extrude",
     "part.shell"
    ]
+  },
+  {
+   "id": "part.thread",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".thread(on: string, o: { size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean })",
+   "summary": "Add a cosmetic or modeled screw thread to a bore or cylinder.",
+   "description": "Threads the wall of the bore drilled last (default 'hole'), or a cylinder named by a persistent face name ('F2.S.c1') or 'last:c1' (the c1 face of the last feature, e.g. an extruded circle shaft). Give the designation as size ('M6', 'M12x1.5', '1/4-20') or diameter (+ pitch). Cosmetic by default: no geometry change, the thread is reported in the regen threads list. modeled: true cuts the real helical groove (slow, falls back to cosmetic with a warning). The bore should be the tap drill of the size: the tapped kind of hole() sets that for you.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "string",
+     "optional": false,
+     "description": "\"hole\" for the last hole drilled; a face name string; or 'last:<tag>'"
+    },
+    {
+     "name": "o",
+     "type": "{ size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": "designation, e.g. 'M6' or 'M12x1.5'"
+      },
+      {
+       "name": "diameter",
+       "type": "number",
+       "optional": true,
+       "description": "major diameter in mm (alternative to size)"
+      },
+      {
+       "name": "pitch",
+       "type": "number",
+       "optional": true,
+       "description": "pitch in mm with diameter (fine pitch)"
+      },
+      {
+       "name": "length",
+       "type": "Num",
+       "optional": true,
+       "description": "thread length in mm, default the whole face"
+      },
+      {
+       "name": "standard",
+       "type": "string",
+       "optional": true,
+       "description": "'metric' (default), 'metric-fine', 'UNC', ... (inferred from the size when omitted)"
+      },
+      {
+       "name": "hand",
+       "type": "'right' | 'left'",
+       "optional": true,
+       "description": "'right' (default) | 'left'"
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": "cut the helical groove"
+      }
+     ]
+    }
+   ],
+   "example": "part('Tapped block').sketch('front', (s) => s.rect(30, 30)).extrude(20)\n  .hole(face('>Z'), [0, 0], { diameter: 5, depth: 12 })\n  .thread('hole', { size: 'M6', length: 10 });",
+   "related": [
+    "part.hole",
+    "part.holes.points"
+   ],
+   "notes": "- Cosmetic by default: the geometry does not change, the thread appears in the regen threads list and drawings. modeled: true cuts the helix; it may fall back to cosmetic with a threadModelFallback warning.\n- The hole should be the tap drill of the thread (M6 -> 5.0): hole(..., { kind: 'tapped', thread: 'M6' }) does both. A mismatch is the warning threadDiameterMismatch with the diameter to drill.\n- on: 'hole' means the last hole feature (all its positions); a face name must be the persistent name of a cylindrical face."
   },
   {
    "id": "through",
@@ -1323,7 +1401,7 @@
     "part.holes.points",
     "part.cut"
    ],
-   "notes": "- diameter, not radius (circle() is radius). Centres are in the face sketch plane relative to the world origin projected on the face, NOT a corner of the face: a hole at [0, 0] on a plate centred on the origin is in the middle.\n- face('>Z') must exist as a planar face at that step. After a shell or fillet on the top, the top face may be a different face: select again.\n- Through unless depth is given. Many holes: use holes.points / polar / grid (one feature)."
+   "notes": "- diameter, not radius (circle() is radius). Centres are in the face sketch plane relative to the world origin projected on the face, NOT a corner of the face: a hole at [0, 0] on a plate centred on the origin is in the middle.\n- face('>Z') must exist as a planar face at that step. After a shell or fillet on the top, the top face may be a different face: select again.\n- Through unless depth is given. Many holes: use holes.points / polar / grid (one feature).\n- kind: 'cbore' (counterbore), 'csk' (countersink) and 'tapped' are cut by the kernel only for a STANDARD size: give size: 'M6' (hole diameter 6.6 at the normal fit, ISO 4762 counterbore 11 x 6.4, ISO 10642 countersink 12.4) or a diameter that is a standard clearance hole (6.6 -> M6). A plain 7.3 with kind: 'cbore' is an error that lists the sizes. Override the head with cboreDiameter and cboreDepth TOGETHER, or cskDiameter / cskAngle (default 90).\n- kind: 'tapped' with thread: 'M6' drills the tap drill (5.0 for M6) and adds a thread feature on the wall (cosmetic; modeled: true cuts the helix, slow, falls back with a warning). Only metric ISO sizes M2..M24; for other standards drill with diameter and call .thread('hole', { size: '1/4-20' }).\n- end: 'upTo' drills to the next face; a blind end needs depth."
   },
   {
    "id": "part.holes.grid",
@@ -1464,7 +1542,7 @@
    "kind": "method",
    "domain": "holes",
    "signature": ".holes.points(on: FaceSel, pts: Pt[], o: HoleOpts): this",
-   "summary": "One hole feature at a list of centres.",
+   "summary": "Drill holes at listed coordinates: one hole feature at a list of centres.",
    "description": "All holes share diameter and depth. Centres are [x, y] in the face sketch plane.",
    "parameters": [
     {
@@ -1715,77 +1793,6 @@
    "notes": "- One feature for the whole bolt circle. center is [x, y] in the face sketch plane (usually [0, 0] for a centred disc); startAngle shifts the first hole (degrees).\n- Check that radius + diameter/2 stays inside the face and that holes do not overlap the centre bore."
   },
   {
-   "id": "part.thread",
-   "kind": "method",
-   "domain": "holes",
-   "signature": ".thread(on: string | undefined, o: { size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean })",
-   "summary": "Add a thread (cosmetic or modeled) to a hole or a cylindrical face.",
-   "description": "Threads the wall of the hole drilled last (default), or a cylinder named by a persistent face name ('F2.S.c1') or 'last:c1' (the c1 face of the last feature, e.g. an extruded circle shaft). Give the designation as size ('M6', 'M12x1.5', '1/4-20') or diameter (+ pitch). Cosmetic by default: no geometry change, the thread is reported in the regen threads list. modeled: true cuts the real helical groove (slow, falls back to cosmetic with a warning when it cannot). For a hole the hole diameter should be the tap drill of the size: use hole() with thread instead, which sets it.",
-   "parameters": [
-    {
-     "name": "on",
-     "type": "string | undefined",
-     "optional": false,
-     "description": "omitted or 'hole' for the last hole; a face name string; or 'last:<tag>'"
-    },
-    {
-     "name": "o",
-     "type": "{ size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean }",
-     "optional": false,
-     "description": "options object, see properties",
-     "properties": [
-      {
-       "name": "size",
-       "type": "string",
-       "optional": true,
-       "description": "designation, e.g. 'M6' or 'M12x1.5'"
-      },
-      {
-       "name": "diameter",
-       "type": "number",
-       "optional": true,
-       "description": "major diameter in mm (alternative to size)"
-      },
-      {
-       "name": "pitch",
-       "type": "number",
-       "optional": true,
-       "description": "pitch in mm with diameter (fine pitch)"
-      },
-      {
-       "name": "length",
-       "type": "Num",
-       "optional": true,
-       "description": "thread length in mm, default the whole face"
-      },
-      {
-       "name": "standard",
-       "type": "string",
-       "optional": true,
-       "description": "'metric' (default), 'metric-fine', 'UNC', ... (inferred from the size when omitted)"
-      },
-      {
-       "name": "hand",
-       "type": "'right' | 'left'",
-       "optional": true,
-       "description": "'right' (default) | 'left'"
-      },
-      {
-       "name": "modeled",
-       "type": "boolean",
-       "optional": true,
-       "description": "cut the helical groove"
-      }
-     ]
-    }
-   ],
-   "example": "part('Tapped block').sketch('front', (s) => s.rect(30, 30)).extrude(20)\n  .hole(face('>Z'), [0, 0], { diameter: 5, depth: 12 })\n  .thread('hole', { size: 'M6', length: 10 });",
-   "related": [
-    "part.hole",
-    "part.holes.points"
-   ]
-  },
-  {
    "id": "part.circularPattern",
    "kind": "method",
    "domain": "patterns",
@@ -1905,7 +1912,8 @@
    "related": [
     "part.linearPattern",
     "part.circularPattern"
-   ]
+   ],
+   "notes": "- Without body: true only the feature added just before is mirrored (a boss, pocket, hole); with body: true the whole body is reflected and united with the original.\n- The kernel always keeps the original: keepOriginal: false is an error, not a silent no-op.\n- The plane is the symmetry plane through the world origin ('right' = YZ, 'top' = XZ, 'front' = XY) or at(plane, offset). Design the half on one side of that plane so the copy lands on the other."
   },
   {
    "id": "part.knit",
@@ -1936,7 +1944,8 @@
     "part.surfaceExtrude",
     "part.surfacePlanar",
     "part.thicken"
-   ]
+   ],
+   "notes": "- Sews all earlier surface features. solid: true needs a CLOSED set (a tube sheet plus its two planar caps): gaps give knitNotClosed. Check the end sketches are at the sheet ends (at('front', depth))."
   },
   {
    "id": "part.surfaceExtrude",
@@ -1981,7 +1990,7 @@
    "domain": "surfaces",
    "signature": ".surfaceLoft(sections: SketchSpec[])",
    "summary": "Surface: loft a sheet through section sketches (open or closed curves).",
-   "description": "Like loft() but the result is a surface body, so open curves (arcs, splines) work as sections. All sections should be the same kind (all open or all closed). Thicken it for a shell-like panel.",
+   "description": "Like loft() but the result is a surface body, so open curves (arcs, splines) work as sections. All sections should be the same kind (all open or all closed). The sheet is a surface body: thicken() works on planar and cylindrical sheets (a thicken of a doubly curved lofted sheet answers offsetUnsupported).",
    "parameters": [
     {
      "name": "sections",
@@ -1990,7 +1999,7 @@
      "description": "list of { on, draw } section sketches, at least two"
     }
    ],
-   "example": "part('Panel').surfaceLoft([\n  { on: 'front', draw: (s) => s.arc3([-20, 0], [0, 6], [20, 0]) },\n  { on: at('front', 30), draw: (s) => s.arc3([-20, 0], [0, 12], [20, 0]) },\n]).thicken(2);",
+   "example": "part('Panel').surfaceLoft([\n  { on: 'front', draw: (s) => s.arc3([-20, 0], [0, 6], [20, 0]) },\n  { on: at('front', 30), draw: (s) => s.arc3([-20, 0], [0, 12], [20, 0]) },\n]);",
    "related": [
     "part.loft",
     "part.thicken"
@@ -2044,7 +2053,8 @@
    "related": [
     "part.surfaceExtrude",
     "part.knit"
-   ]
+   ],
+   "notes": "- Needs a surface feature before it (surfaceExtrude, surfacePlanar, surfaceLoft, knit). Planar and cylindrical sheets work; a doubly curved lofted sheet answers offsetUnsupported and a sheet with a pole thickenPointedPole.\n- A surface body has no volume: facts report area only until it is thickened or knitted into a solid."
   },
   {
    "id": "part.insertPart",
@@ -2091,19 +2101,20 @@
    "example": "const pin = { format: 'ck-part', version: 1, name: 'Pin', features: [], seq: 1, rollback: null };\npart('Asm').insertPart(pin, { at: [10, 0, 0] });",
    "related": [
     "part.mate"
-   ]
+   ],
+   "notes": "- Takes a part DOCUMENT (the .document of a finished run), not script text: run the component's script first. Assemblies live in the part document as insertPart + mate features.\n- The n-th insertPart() call is component n in mate(): { part: n, face: 'F2.C1' } names face F2.C1 of the inserted part (suffix @F<insert id>.1 is added for you). fixed: true on the component that must not move."
   },
   {
    "id": "part.mate",
    "kind": "method",
    "domain": "assembly",
-   "signature": ".mate(o: { kind: string; a: FaceSel | string; b: FaceSel | string; distance?: Num; angle?: Num; flip?: boolean })",
+   "signature": ".mate(o: { kind: string; a: FaceSel | string | { part: number; face: string }; b: FaceSel | string | { part: number; face: string }; distance?: Num; angle?: Num; flip?: boolean })",
    "summary": "Assembly: constrain two faces of different components.",
-   "description": "Adds a mate of the given kind between faces a and b: coincident, parallel, perpendicular, concentric (round faces), distance (needs distance), angle (needs angle), tangent, lock. a and b are face(sel) of the current body or a persistent face name string ('F2.S.e1@F6.1' where @F6.1 names the inserted component). flip reverses the alignment. The component that is not fixed moves.",
+   "description": "Adds a mate of the given kind between faces a and b: coincident, parallel, perpendicular, concentric (round faces), distance (needs distance), angle (needs angle), tangent, lock. A face is { part: n, face: 'F2.C1' }: the face named F2.C1 inside the n-th insertPart() call (1-based), or a persistent name string with the @component suffix, or face(sel) of the current body. flip reverses the alignment. The component that is not fixed moves, so insert the stationary one with fixed: true.",
    "parameters": [
     {
      "name": "o",
-     "type": "{ kind: string; a: FaceSel | string; b: FaceSel | string; distance?: Num; angle?: Num; flip?: boolean }",
+     "type": "{ kind: string; a: FaceSel | string | { part: number; face: string }; b: FaceSel | string | { part: number; face: string }; distance?: Num; angle?: Num; flip?: boolean }",
      "optional": false,
      "description": "options object, see properties",
      "properties": [
@@ -2115,15 +2126,15 @@
       },
       {
        "name": "a",
-       "type": "FaceSel | string",
+       "type": "FaceSel | string | { part: number; face: string }",
        "optional": false,
-       "description": "first face: face(sel) or persistent name"
+       "description": "first face: { part, face } | persistent name | face(sel)"
       },
       {
        "name": "b",
-       "type": "FaceSel | string",
+       "type": "FaceSel | string | { part: number; face: string }",
        "optional": false,
-       "description": "second face: face(sel) or persistent name"
+       "description": "second face: { part, face } | persistent name | face(sel)"
       },
       {
        "name": "distance",
@@ -2146,11 +2157,12 @@
      ]
     }
    ],
-   "example": "part('Stack').sketch('front', (s) => s.rect(20, 20)).extrude(5)\n  .mate({ kind: 'coincident', a: face('>Z'), b: face('<Z') });",
+   "example": "const doc = { format: 'ck-part', version: 1, name: 'Plate', features: [], seq: 1, rollback: null };\npart('Stack').insertPart(doc, { fixed: true }).insertPart(doc, { at: [0, 0, 30] })\n  .mate({ kind: 'coincident', a: { part: 1, face: 'F2.C1' }, b: { part: 2, face: 'F2.C0' } });",
    "related": [
     "part.insertPart",
     "face"
-   ]
+   ],
+   "notes": "- Faces are of different components: mating two faces of one body is mateSameBody. The unfixed component moves; mateConflict / mateFixed when two fixed components or contradicting mates meet.\n- A coincident mate puts the faces together with outward normals opposed; flip: true aligns them instead."
   },
   {
    "id": "expr",

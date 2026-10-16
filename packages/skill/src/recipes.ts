@@ -154,27 +154,58 @@ part('Pocket grid')
   },
   {
     id: 'boat-hull-loft',
-    title: 'Boat hull: loft through four spline stations',
-    intent: ['loft', 'hull', 'boat', 'sections', 'stations', 'spline', 'blend sections', 'organic', 'transition'],
-    description: 'The script API has NO loft or spline helper yet, so this recipe is a raw feature list (the document format the kernel reads): a plane per station, a closed-spline sketch on each, then one loft feature through the sketches. The code evaluates to the feature array; see docs/spec-agent-interface.md (loft point sections) to end on a bow point.',
-    kind: 'features',
-    code: `(() => {
-  const STATIONS = [[-60, 6, 5, 3], [-35, 15, 9, 4], [0, 18, 12, 5], [30, 13, 9, 5.5]];   // [x, half beam, depth, deck height]
-  const feats = []; let n = 0; const id = () => 'F' + (++n);
-  const sketches = [];
-  for (const [x, w, d, h] of STATIONS) {
-    const pl = { type: 'plane', id: id(), name: 'Station ' + x, mode: 'offset', base: { kind: 'std', id: 'right' }, offset: x };
-    const P = [[0, h], [0.55 * w, h + 0.4], [w, h - 1], [0.97 * w, -0.3 * d], [0.6 * w, -0.8 * d], [0, -d], [-0.6 * w, -0.8 * d], [-0.97 * w, -0.3 * d], [-w, h - 1], [-0.55 * w, h + 0.4]];
-    const sk = { type: 'sketch', id: id(), name: 'Section ' + x, plane: { kind: 'feature', id: pl.id },
-      points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...P.map(([u, v], i) => ({ id: 'p' + (i + 1), x: u, y: v }))],
-      entities: [{ id: 'e1', type: 'spline', pts: P.map((_, i) => 'p' + (i + 1)), closed: true }], constraints: [] };
-    feats.push(pl, sk); sketches.push(sk.id);
-  }
-  feats.push({ type: 'loft', id: id(), op: 'add', sketches });
-  return feats;
-})()`,
-    expected: { volume: 35529.2859, volumeTol: 1e-4, features: 9, valid: true, notes: 'regression value, cross-checked with the integrated sections volume' },
-    gap: 'no loft, sweep or spline entity in the script API: write the raw feature list',
+    title: 'Boat hull: loft through four spline stations to a point bow',
+    intent: ['loft', 'hull', 'boat', 'sections', 'stations', 'spline', 'blend sections', 'organic', 'transition', 'point', 'bow', 'apex'],
+    description: 'One closed-spline section per station on an offset "right" plane (at(\'right\', x): the sketch x axis points to -Z, y is up), then loft(). The last section is a single point, so the bow tapers to a true point (ends.last: "point"). Only the first or last section can be a point; sections need the same outline kind. Stations are [x, half beam, depth, deck height].',
+    kind: 'script',
+    code: `const STATIONS = [[-60, 6, 5, 3], [-35, 15, 9, 4], [0, 18, 12, 5], [30, 13, 9, 5.5]];   // [x, half beam, depth, deck height]
+const section = ([x, w, d, h]) => ({
+  on: at('right', x),
+  draw: (s) => s.spline([[0, h], [0.55 * w, h + 0.4], [w, h - 1], [0.97 * w, -0.3 * d], [0.6 * w, -0.8 * d], [0, -d], [-0.6 * w, -0.8 * d], [-0.97 * w, -0.3 * d], [-w, h - 1], [-0.55 * w, h + 0.4]], { closed: true }),
+});
+part('Boat hull').loft([...STATIONS.map(section), { on: at('right', 62), point: [0, 2] }], { ends: { last: 'point' } });`,
+    expected: { volume: 40107.43494071, volumeTol: 1e-4, features: 11, valid: true, notes: 'regression value, cross-checked with the integrated sections volume' },
+  },
+  {
+    id: 'swept-pipe',
+    title: 'Swept pipe along an arc path',
+    intent: ['sweep', 'pipe', 'tube', 'hose', 'bend', 'elbow', 'rail', 'path', 'profile along a curve'],
+    description: 'A ring profile (two circles) on the plane the path starts on, swept along an open path sketch. The path must leave the profile plane perpendicular to it: here the profile is on front (normal Z) and the path on right starts along -Z. Volume = ring area x path length (Pappus for the quarter-circle bend).',
+    kind: 'script',
+    code: `// outer radius 8, wall 2, a quarter circle bend of radius 30
+part('Bent pipe').sweep(
+  { on: 'front', draw: (s) => { s.circle(8); s.circle(6); } },
+  { on: 'right', draw: (s) => s.arc3([0, 0], [30 * Math.sin(Math.PI / 4), 30 * (1 - Math.cos(Math.PI / 4))], [30, 30]) },
+);`,
+    expected: { volume: 28 * PI * 30 * (PI / 2), volumeTol: 1e-4, features: 3, valid: true },
+  },
+  {
+    id: 'counterbored-plate',
+    title: 'Plate with a centre bore and four counterbored screw holes',
+    intent: ['counterbore', 'cbore', 'socket head', 'screw holes', 'countersink', 'mounting plate', 'tapped', 'thread', 'hole kinds'],
+    description: 'ONE holes.grid feature with kind: "cbore" and an ISO size M6: the kernel takes the clearance diameter 6.6 and the ISO 4762 counterbore (11 x 6.4). The kernel cuts counterbores and countersinks only for standard sizes (give size, or a diameter that is a standard clearance hole); override the head with cboreDiameter and cboreDepth together. For a tapped hole use kind: "tapped", thread: "M6" instead.',
+    kind: 'script',
+    code: `const { w, d, t } = variables({ w: 80, d: 50, t: 12 });
+part('Counterbored plate')
+  .sketch('front', (s) => s.rect(w, d))
+  .extrude(expr('t'))
+  .hole(face('>Z'), [0, 0], { diameter: 20 })
+  .holes.grid(face('>Z'), { origin: [-30, -15], pitch: [60, 30], count: [2, 2] }, { kind: 'cbore', size: 'M6' });`,
+    expected: { volume: 80 * 50 * 12 - PI * 100 * 12 - 4 * (PI * 3.3 ** 2 * 12 + PI * (5.5 ** 2 - 3.3 ** 2) * 6.4), volumeTol: 1e-4, features: 6, valid: true },
+  },
+  {
+    id: 'mirrored-bracket',
+    title: 'Channel bracket: build half, mirror the body',
+    intent: ['mirror', 'symmetric', 'symmetry', 'channel', 'u bracket', 'copy', 'half', 'reflect'],
+    description: 'Model one half including its hole, then mirror(\'right\', { body: true }) reflects the whole body about the YZ plane and unites the copy: the halves share the face on the plane. Without body: true only the last feature is mirrored. The kernel always keeps the original. On the <Y face the sketch x runs along X and y along +Z.',
+    kind: 'script',
+    code: `// half of a U channel: base 40 x 6, wall 6 x 24 above it, 25 long (Z); one 6 mm hole in the base
+part('Channel bracket')
+  .sketch('front', (s) => s.polygon([[0, 0], [40, 0], [40, 6], [6, 6], [6, 30], [0, 30]]))
+  .extrude(25)
+  .holes.points(face('<Y'), [[28, 12.5]], { diameter: 6 })
+  .mirror('right', { body: true });`,
+    expected: { volume: 2 * (9600 - PI * 9 * 6), volumeTol: 1e-4, features: 5, valid: true },
   },
   {
     id: 'verification',

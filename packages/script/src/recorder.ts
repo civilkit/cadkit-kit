@@ -520,7 +520,7 @@ export class PartBuilder {
     type HO = HoleOpts;
     return {
       /**
-       * One hole feature at a list of centres.
+       * Drill holes at listed coordinates: one hole feature at a list of centres.
        *
        * All holes share diameter and depth. Centres are [x, y] in the face sketch plane.
        * @domain holes

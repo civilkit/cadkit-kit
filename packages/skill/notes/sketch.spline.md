@@ -1,0 +1,1 @@
+- Fit-point spline: the curve passes through the points. closed: true makes a loop (extrudable and a loft section), open splines are sweep paths. Many points on a tight turn can overshoot; cvspline gives a fairer curve from control points.

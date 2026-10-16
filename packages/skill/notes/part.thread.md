@@ -1,0 +1,3 @@
+- Cosmetic by default: the geometry does not change, the thread appears in the regen threads list and drawings. modeled: true cuts the helix; it may fall back to cosmetic with a threadModelFallback warning.
+- The hole should be the tap drill of the thread (M6 -> 5.0): hole(..., { kind: 'tapped', thread: 'M6' }) does both. A mismatch is the warning threadDiameterMismatch with the diameter to drill.
+- on: 'hole' means the last hole feature (all its positions); a face name must be the persistent name of a cylindrical face.

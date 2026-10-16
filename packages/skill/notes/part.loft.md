@@ -1,0 +1,5 @@
+- Sections are { on, draw } objects, not previously recorded sketches: loft() builds the sketches itself. Put the sections on parallel planes with at('right', x) (stations along X), at('front', z) (along Z) or at('top', y). On 'right' the sketch x axis points to -Z and y is up.
+- Same outline kind in every section (all splines, or all arc+line pieces); a closed spline per station is the robust hull recipe (boat-hull-loft).
+- A point end is { on, point: [x, y] } with ends: { last: 'point' }: first OR last, never both and never in the middle; no guides with a point end. A point in the middle is a script error with the line number.
+- The result is checked by the kernel: a self-crossing section is loftProfileSelfIntersect, a degenerate result loftInvalidResult. Fix the section, not the loft.
+- No closed (ring) loft in the kernel. Guides must touch every section (loftGuideMiss); a centre line must run through the sections (loftCentreLineReach: it runs along the loft axis, mind the direction of the plane axes).

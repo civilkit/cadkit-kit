@@ -1,0 +1,2 @@
+- The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.
+- The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z)).

@@ -1,0 +1,3 @@
+- Without body: true only the feature added just before is mirrored (a boss, pocket, hole); with body: true the whole body is reflected and united with the original.
+- The kernel always keeps the original: keepOriginal: false is an error, not a silent no-op.
+- The plane is the symmetry plane through the world origin ('right' = YZ, 'top' = XZ, 'front' = XY) or at(plane, offset). Design the half on one side of that plane so the copy lands on the other.

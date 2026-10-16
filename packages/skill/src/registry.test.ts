@@ -77,18 +77,18 @@ describe('listMethods and docs', () => {
     expect(docs(['s.rect']).entries[0].id).toBe('sketch.rect');
     expect(docs(['holes.polar']).entries[0].id).toBe('part.holes.polar');
     expect(docs(['points']).entries.map((e) => e.id).sort()).toEqual(['part.holes.points', 'sketch.points']);
-    const r = docs(['fillt', 'loft']);
+    const r = docs(['fillt', 'helix']);
     expect(r.entries).toEqual([]);
     expect(r.unknown[0]).toEqual({ name: 'fillt', didYouMean: expect.arrayContaining(['part.fillet']) });
-    expect(r.unknown[1].name).toBe('loft');
+    expect(r.unknown[1].name).toBe('helix');
   });
 });
 
 describe('recipes', () => {
-  it('has the ten buildable recipes and two guides, each with id, title, intent keywords and code', () => {
+  it('has the thirteen buildable recipes and two guides, each with id, title, intent keywords and code', () => {
     const all = recipes();
-    expect(all.length).toBe(12);
-    expect(all.filter((r) => r.kind !== 'guide').length).toBe(10);
+    expect(all.length).toBe(15);
+    expect(all.filter((r) => r.kind !== 'guide').length).toBe(13);
     expect(new Set(all.map((r) => r.id)).size).toBe(all.length);
     for (const r of all) { expect(r.intent.length, r.id).toBeGreaterThan(3); expect(getRecipe(r.id)!.code.length, r.id).toBeGreaterThan(100); }
   });
