@@ -1,0 +1,83 @@
+# Builds the static site and deploys it to GitHub Pages. Manual only (no push or schedule trigger).
+# The kernel wasm is not committed, and the kit imports the kernel's TypeScript packages from the kernel repository, so both come from
+# URLs you supply and are checked against the sha256 you supply. See docs/pages-deploy.md. No secrets are used.
+name: pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      wasm_url:
+        description: 'https URL of the kernel wasm (for example a release asset)'
+        required: true
+        type: string
+      wasm_sha256:
+        description: 'sha256 (hex) of that wasm file'
+        required: true
+        type: string
+      kernel_src_url:
+        description: 'https URL of the kernel source bundle (.tar.gz made by tools/pages_kernel_bundle.sh)'
+        required: true
+        type: string
+      kernel_src_sha256:
+        description: 'sha256 (hex) of that bundle'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install wabt (wasm-strip)
+        run: sudo apt-get update && sudo apt-get install -y wabt
+      - run: npm ci
+      - name: Fetch and verify the kernel inputs
+        env:
+          WASM_URL: ${{ inputs.wasm_url }}
+          WASM_SHA256: ${{ inputs.wasm_sha256 }}
+          KSRC_URL: ${{ inputs.kernel_src_url }}
+          KSRC_SHA256: ${{ inputs.kernel_src_sha256 }}
+        run: |
+          set -euo pipefail
+          fetch() {  # url sha256 dest
+            case "$1" in https://*) ;; *) echo "only https URLs are accepted: $1" >&2; exit 1;; esac
+            curl -fsSL --retry 3 -o "$3" "$1"
+            echo "$2  $3" | sha256sum -c -
+          }
+          mkdir -p apps/cad/public/kernel "$RUNNER_TEMP/fw"
+          fetch "$WASM_URL" "$WASM_SHA256" apps/cad/public/kernel/ck_wasm.wasm
+          fetch "$KSRC_URL" "$KSRC_SHA256" "$RUNNER_TEMP/kernel-src.tar.gz"
+          tar -xzf "$RUNNER_TEMP/kernel-src.tar.gz" -C "$RUNNER_TEMP/fw"
+      - id: pages
+        uses: actions/configure-pages@v5
+      - name: Build (includes the leak check)
+        env:
+          PAGES_BASE: ${{ steps.pages.outputs.base_path }}/
+          CK_REBUILD: ${{ runner.temp }}/fw
+        run: npm run build:pages
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
