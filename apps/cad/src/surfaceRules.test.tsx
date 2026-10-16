@@ -89,6 +89,17 @@ describe('surface editors', () => {
     const both = mount({ type: 'loft', id: 'L9', sketches: ['P', 'A', 'P'] }, doc);
     expect(both.q('[data-note="loftPointBoth"]')).not.toBeNull();
   });
+  it('loft: profiles out of order along the axis show a warning with Auto-order, which sorts them', () => {
+    const on = (id: string, off: number, pl: string): Wire[] => [{ type: 'plane', id: pl, mode: 'offset', base: { kind: 'std', id: 'right' }, offset: off }, { ...sk(id, true), plane: { kind: 'feature', id: pl } }];
+    const doc = { features: [...on('A', 0, 'PA'), ...on('B', 10, 'PB'), ...on('C', 20, 'PC')] } as unknown as PartDoc;
+    const bad = mount({ type: 'loft', id: 'L9', sketches: ['A', 'C', 'B'] }, doc);
+    expect(bad.q('[data-note="loftOrder"]')).not.toBeNull();
+    fireEvent.click(bad.q('[data-note="loftOrder"] [data-act="auto-order"]')!);
+    expect(bad.drafts.at(-1)).toMatchObject({ sketches: ['A', 'B', 'C'] });
+    bad.unmount();
+    const ok = mount({ type: 'loft', id: 'L9', sketches: ['A', 'B', 'C'] }, doc);
+    expect(ok.q('[data-note="loftOrder"]')).toBeNull();
+  });
   it('loft: the last two profiles cannot be removed, a third can', () => {
     const m = mount({ type: 'loft', id: 'L9', sketches: ['A', 'B', 'C'] });
     const rm = () => [...m.container.querySelectorAll<HTMLButtonElement>('[data-path="sketches"] [data-act="remove"]')];

@@ -12,7 +12,7 @@ import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
 import type { MassRaw } from './inspect/mass';
 import { t } from './i18n';
-import { refLabel } from './featureCreators';
+import { refLabel, syncNameOps } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import type { ViewSurface } from '@kit/viewport';
@@ -205,6 +205,7 @@ export class Controller {
     const at = this.rollbackCount();
     const adds = ops.filter((o) => o.op === 'add' && o.index === undefined).length;
     ops = withRollbackInsert(ops, at);
+    ops = syncNameOps(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops, applyOpsLocal as never);
     this.store.busy.value = true;
     try {
       let result: EditResult;

@@ -112,6 +112,36 @@ export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
   if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
   return name || String(f.id ?? '');
 }
+/**
+ * The ops that keep the STORED name of a generated Plane / Sketch true after an edit of an offset, base or plane (the tree shows
+ * the live name already; the stored one is what a saved file, a script and an agent read). Only runs for edits that touch those fields.
+ */
+export function syncNameOps(features: Array<Record<string, unknown>>, ops: EditOp[], apply: (f: Array<Record<string, unknown>>, o: never) => Array<Record<string, unknown>> | null): EditOp[] {
+  const rec = (o: EditOp) => o as unknown as Record<string, unknown>;
+  const touched = (o: EditOp) => (rec(o).op === 'set' && ['offset', 'base', 'base2', 'mode', 'plane'].includes(String(rec(o).path))) || rec(o).op === 'replace' || rec(o).op === 'add';
+  if (!ops.some(touched)) return ops;
+  const cand = apply(features, ops as never);
+  if (!cand) return ops;
+  const doc = { features: cand };
+  const named = (f: Feat) => (f.type === 'plane' || f.type === 'sketch') && hasAutoName(f as never);
+  // a feature added by this edit has no id yet (the kernel gives it one): its name goes into the op itself
+  const added = ops.map((o) => (rec(o).op === 'add' ? o : null));
+  let k = features.length;
+  const out = ops.map((o, i) => {
+    if (!added[i]) return o;
+    const f = rec(o).feature as Feat, c = cand[k++] as unknown as Feat;
+    if (!c || !named(f)) return o;
+    const want = featureLabel(doc, c);
+    return want && want !== f.name ? ({ ...rec(o), feature: { ...f, name: want } } as unknown as EditOp) : o;
+  });
+  for (const f of features as unknown as Feat[]) {
+    const c = (cand as unknown as Feat[]).find((x) => x.id === f.id);
+    if (!c || typeof c.id !== 'string' || !named(c)) continue;
+    const want = featureLabel(doc, c);
+    if (want && want !== c.name) out.push({ op: 'set', id: c.id, path: 'name', value: want } as EditOp);
+  }
+  return out;
+}
 /** What a reference counts as in a default name: Front / Top / Right, a plane feature's displayed label (never a stale stored one), or the face id. */
 export function refLabel(doc: DocIn, ref: RefIn): string {
   if (!ref?.id) return t('app.ref.front');
@@ -304,20 +334,41 @@ export function orderPointSections(c: Ctx, ids: string[]): string[] {
   return [...head, ...others, ...tail];
 }
 /**
+ * Whether the profiles of a loft follow each other along the loft axis. Positions come from the sketch planes (standard planes
+ * and chains of offset planes); the order is fine when the positions only rise or only fall. Returns the order sorted along the
+ * axis (kept in the direction the list already runs, a point section moved to its nearer end) when it is not, else null; null
+ * too when a position cannot be read (a face, a tilted plane) or the sections lie on different axes.
+ */
+export function loftAutoOrder(doc: Ctx['doc'], ids: string[]): string[] | null {
+  const c = { doc } as Ctx;
+  const sk = (id: string) => feats(c).find((f) => f.id === id);
+  const pos = ids.map((id) => planePosition(c, sk(id)?.plane as never));
+  if (ids.length < 3 || pos.some((p) => !p) || new Set(pos.map((p) => p!.axis)).size !== 1) return null;
+  const v = new Map(ids.map((id, i) => [id, pos[i]!.v] as const));
+  const run = ids.map((id) => v.get(id)!);
+  const rising = run.every((x, i) => i === 0 || x >= run[i - 1]), falling = run.every((x, i) => i === 0 || x <= run[i - 1]);
+  if (rising || falling) return null;
+  const dir = run[run.length - 1] < run[0] ? -1 : 1;
+  const sorted = [...ids].sort((a, b) => (v.get(a)! - v.get(b)!) * dir);
+  const fixed = orderPointSections(c, sorted);
+  return fixed.every((id, i) => id === ids[i]) ? null : fixed;
+}
+/**
  * A loft's profiles: the sketches selected in the tree (in selection order) when two or more fit; else every unused fitting
  * sketch drawn since the last loft / extrude / revolve / sweep, in tree order; else the two newest unused ones.
  */
 export function loftProfileIds(c: Ctx, surface = false): string[] {
   const fits = surface ? hasCurves : (s: Feat) => isClosedSketch(s) || isPointSketch(s);
   const picked = (c.selectedIds ?? []).map((id) => feats(c).find((f) => f.id === id)).filter((f): f is Feat => !!f && f.type === 'sketch' && fits(f));
-  if (picked.length >= 2) return orderPointSections(c, picked.map((s) => s.id));
+  const ordered = (ids: string[]) => { const o = orderPointSections(c, ids); return surface ? o : loftAutoOrder(c.doc, o) ?? o; };
+  if (picked.length >= 2) return ordered(picked.map((s) => s.id));
   let list = freeSketches(c, fits);
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
   if (list.length < 2) return [];
   const all = feats(c);
   const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
   const since = list.filter((s) => all.indexOf(s) > lastBody);
-  return orderPointSections(c, (since.length >= 2 ? since : list.slice(-2)).map((s) => s.id));
+  return ordered((since.length >= 2 ? since : list.slice(-2)).map((s) => s.id));
 }
 /**
  * The rule for point sections of a solid loft: a point may only be the first or the last section, and not both. Returns the
