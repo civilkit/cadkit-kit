@@ -1,5 +1,5 @@
 export { InlineName } from './InlineName';
-export { FeatureTree, sketchOwners, type FeatureRow, type RefRow } from './FeatureTree';
+export { FeatureTree, sketchOwners, type FeatureRow, type RefRow, type TreeDrop } from './FeatureTree';
 export { FeatureEditor, ENUMS, humanise, sectionsOf, type Section, type OptionsArgs, type OptionsResult } from './FeatureEditor';
 export { Inspector, fieldsOf, type Field } from './Inspector';
 export { Ribbon, resolveLayout, commandToItem, type Command, type RibbonLayout, type RibbonGroup, type RibbonEntry, type RibbonNode } from './Ribbon';

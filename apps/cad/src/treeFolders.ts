@@ -10,12 +10,15 @@ type Feat = { id: string; group?: string; [k: string]: unknown };
 
 /** Why a folder action was refused; the app turns each into a short message (`app.folder.refuse.<reason>`). */
 export type Refusal = 'needTwo' | 'notContiguous' | 'order' | 'nameTaken' | 'nameEmpty' | 'splits' | 'noFolder';
-export type Plan = { ok: true; ops: EditOp[]; /** the folder a grouping made */ name?: string } | { ok: false; reason: Refusal; detail?: string };
+/** A folder action. `ops` only ever set or remove `group` (`set` / `replace`), so they go through the controller's edit as they are.
+ *  A plan that also changes the feature order carries it in `order` (every id once): those go through `patchOf` and the controller's
+ *  document patch, as one step. */
+export type Plan = { ok: true; ops: EditOp[]; order?: string[]; /** the folder a grouping made */ name?: string } | { ok: false; reason: Refusal; detail?: string };
 
 export type DragSource = { kind: 'row'; id: string } | { kind: 'folder'; name: string };
 export type DropTarget = DragSource;
 
-const ok = (ops: EditOp[], name?: string): Plan => ({ ok: true, ops, ...(name !== undefined ? { name } : {}) });
+const ok = (ops: EditOp[], name?: string, order?: string[]): Plan => ({ ok: true, ops, ...(order ? { order } : {}), ...(name !== undefined ? { name } : {}) });
 const no = (reason: Refusal, detail?: string): Plan => ({ ok: false, reason, ...(detail ? { detail } : {}) });
 
 /** The first of `Folder`, `Folder 2`, `Folder 3` ... that no feature uses as its group. */
@@ -73,18 +76,6 @@ export function folderOf(rows: FeatureRow[], features: Feat[], id: string): stri
   return folderRuns(rows, features).find((r) => r.ids.includes(top))?.name;
 }
 
-/** `moves` that turn the current order into `target` (each id goes to its place, front to back). Pairs that are in the
- *  same order before and after never swap on the way, so a result that keeps every feature after what it uses is valid at each step. */
-function movesTo(cur: string[], target: string[]): EditOp[] {
-  const c = [...cur], ops: EditOp[] = [];
-  for (let i = 0; i < target.length; i++) {
-    if (c[i] === target[i]) continue;
-    ops.push({ op: 'move', id: target[i], to: i });
-    c.splice(c.indexOf(target[i]), 1); c.splice(i, 0, target[i]);
-  }
-  return ops;
-}
-
 /** The common end of every action: given the order and groups wanted, tidy folders that fell to one row, refuse a result
  *  that splits a folder or puts a feature before one it uses, and build the ops. */
 function finish(c: Ctx, order: string[], groupOf: Map<string, string | undefined>, touched: Set<string>, name?: string): Plan {
@@ -101,14 +92,24 @@ function finish(c: Ctx, order: string[], groupOf: Map<string, string | undefined
       if ((pos.get(dep) ?? 0) > (pos.get(u) ?? 0) && (was.get(dep) ?? 0) < (was.get(u) ?? 0)) return no('order', `${u} uses ${dep}`);
     }
   }
-  const ops: EditOp[] = movesTo(c.order, order);
+  const ops: EditOp[] = [];
   for (const f of c.features) {
     const before = c.groupOf.get(f.id), after = g.get(f.id);
     if (before === after) continue;
     if (after !== undefined) ops.push({ op: 'set', id: f.id, path: 'group', value: after });
     else { const { group: _drop, ...rest } = f; ops.push({ op: 'replace', id: f.id, feature: rest }); }   // `set` cannot remove a key
   }
-  return ok(ops, name);
+  return ok(ops, name, order.some((id, i) => id !== c.order[i]) ? order : undefined);
+}
+
+/** The document patch for a plan that changes the order: the new order plus the features whose group changed, whole. */
+export function patchOf(features: Feat[], plan: Extract<Plan, { ok: true }>): { order: string[]; features: Record<string, Record<string, unknown>> } {
+  const next: Record<string, Record<string, unknown>> = {};
+  for (const o of plan.ops) {
+    if (o.op === 'set') next[o.id] = { ...(features.find((f) => f.id === o.id) as Record<string, unknown>), [o.path]: o.value };
+    else if (o.op === 'replace') next[o.id] = o.feature;
+  }
+  return { order: plan.order ?? features.map((f) => f.id), features: next };
 }
 
 const assign = (c: Ctx, tops: string[], name: string | undefined): Map<string, string | undefined> => {
@@ -159,7 +160,7 @@ export function ungroupPlan(features: Feat[], name: string): Plan {
 }
 
 /** A drag and drop in the tree.
- *  - row onto a row: the feature takes that row's place (as before); it joins the folder the row is in, or leaves its own when the row is outside any folder.
+ *  - row onto a row: the feature, with the sketches under it, goes before that row when it was below, after when above; it joins the folder the row is in, or leaves its own when the row is outside any folder.
  *  - row onto a folder: the feature goes to the end of the folder and joins it.
  *  - folder onto a row or folder: the folder (its rows and their sketches) goes before that row or folder when it was below, after when above. A row inside another folder stands for that folder; folders never nest. */
 export function dropPlan(rows: FeatureRow[], features: Feat[], drag: DragSource, target: DropTarget): Plan {
@@ -170,21 +171,24 @@ export function dropPlan(rows: FeatureRow[], features: Feat[], drag: DragSource,
 
   if (drag.kind === 'row') {
     if (!c.groupOf.has(drag.id)) return ok([]);
-    let dest: number, group: string | undefined;
+    // the row travels with the sketches tucked under it
+    const block = c.isTop(drag.id) ? c.family(drag.id) : [drag.id];
+    const inBlock = new Set(block);
+    const rest = c.order.filter((i) => !inBlock.has(i));
     const mine = runOfTop(c.topOf(drag.id))?.name;
+    let at: number, group: string | undefined;
     if (target.kind === 'folder') {
       const run = runNamed(target.name);
       if (!run) return no('noFolder');
-      const last = Math.max(...run.ids.map((i) => c.order.indexOf(i)));
-      dest = c.order.indexOf(drag.id) < last ? last : last + 1; group = target.name;
+      at = Math.max(...run.ids.filter((i) => !inBlock.has(i)).map((i) => rest.indexOf(i))) + 1; group = target.name;
     } else {
-      if (!c.groupOf.has(target.id)) return ok([]);
-      dest = c.order.indexOf(target.id);
-      const theirs = runOfTop(c.topOf(target.id))?.name;
-      group = theirs ?? (mine !== undefined ? undefined : c.groupOf.get(drag.id));
+      if (!c.groupOf.has(target.id) || inBlock.has(target.id)) return ok([]);
+      const top = c.topOf(target.id), fam = c.family(top).map((i) => rest.indexOf(i)).filter((i) => i >= 0);
+      const down = c.order.indexOf(drag.id) < c.order.indexOf(target.id);
+      at = down ? Math.max(...fam) + 1 : Math.min(...fam);
+      group = runOfTop(top)?.name ?? (mine !== undefined ? undefined : c.groupOf.get(drag.id));
     }
-    const order = c.order.filter((i) => i !== drag.id);
-    order.splice(Math.min(dest, order.length), 0, drag.id);
+    const order = [...rest.slice(0, at), ...block, ...rest.slice(at)];
     const g = c.isTop(drag.id) ? assign(c, [drag.id], group) : new Map(c.groupOf).set(drag.id, group);
     const touched = new Set([mine, group].filter((x): x is string => x !== undefined));
     if (order.every((i, k) => i === c.order[k]) && [...g].every(([i, v]) => v === c.groupOf.get(i))) return ok([]);

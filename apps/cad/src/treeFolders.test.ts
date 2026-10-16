@@ -23,7 +23,11 @@ function apply(fs: F[], ops: EditOp[]): F[] {
   }
   return out;
 }
-const run = (fs: F[], p: Plan): F[] => { if (!p.ok) throw new Error('refused: ' + p.reason); return apply(fs, p.ops); };
+const run = (fs: F[], p: Plan): F[] => {
+  if (!p.ok) throw new Error('refused: ' + p.reason);
+  const out = apply(fs, p.ops);
+  return p.order ? p.order.map((id) => out.find((f) => f.id === id)!) : out;
+};
 const grouped = (fs: F[], name: string) => fs.filter((f) => f.group === name).map((f) => f.id);
 const order = (fs: F[]) => fs.map((f) => f.id).join(' ');
 /** Four independent sketch + extrude pairs. */
@@ -122,13 +126,21 @@ describe('moves', () => {
 
   it('a row from further away moves next to the folder', () => {
     const fs = run(base(), groupPlan(rowsOf(base()), base(), ['F2', 'F4'], 'Folder'));
-    // F7 uses F6, which stays behind: F7 cannot go before it
-    expect(dropPlan(rowsOf(fs), fs, { kind: 'row', id: 'F7' }, { kind: 'folder', name: 'Folder' })).toMatchObject({ ok: false, reason: 'order' });
+    // F7 brings the sketch F6 along
+    expect(order(run(fs, dropPlan(rowsOf(fs), fs, { kind: 'row', id: 'F7' }, { kind: 'folder', name: 'Folder' })))).toBe('F1 F2 F3 F4 F6 F7 F5');
     const free = [...fs, { id: 'F8', type: 'hole' } as F];
     const after = run(free, dropPlan(rowsOf(free), free, { kind: 'row', id: 'F8' }, { kind: 'folder', name: 'Folder' }));
     expect(order(after)).toBe('F1 F2 F3 F4 F8 F5 F6 F7');
     expect(after.find((f) => f.id === 'F8')!.group).toBe('Folder');
     expect(after).toBeDefined();
+  });
+
+  it('a row travels with the sketch under it', () => {
+    const ind = indep();
+    const g = run(ind, groupPlan(rowsOf(ind), ind, ['F2', 'F4'], 'Folder'));
+    const after = run(g, dropPlan(rowsOf(g), g, { kind: 'row', id: 'F8' }, { kind: 'folder', name: 'Folder' }));
+    expect(order(after)).toBe('F1 F2 F3 F4 F7 F8 F5 F6');
+    expect(grouped(after, 'Folder')).toEqual(['F1', 'F2', 'F3', 'F4', 'F7', 'F8']);
   });
 
   it('a row dropped on a folder member takes its place in the folder', () => {
@@ -149,7 +161,8 @@ describe('moves', () => {
 
   it('refuses a move that puts a feature before what it uses', () => {
     const fs = base();
-    const p = dropPlan(rowsOf(fs), fs, { kind: 'row', id: 'F4' }, { kind: 'row', id: 'F1' });
+    // F5 fillets F4: it cannot go above it
+    const p = dropPlan(rowsOf(fs), fs, { kind: 'row', id: 'F5' }, { kind: 'row', id: 'F3' });
     expect(p).toMatchObject({ ok: false, reason: 'order' });
     // the folder cannot be moved below the feature that uses it, either
     const g = withFolder();
