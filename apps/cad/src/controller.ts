@@ -4,7 +4,7 @@ import { vertexName, BODY, type Store } from '@kit/store';
 import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
-import { importStepView, type StepImportResult } from './files/stepImport';
+import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import { drawingQuery } from './drawing/kernel';
@@ -749,6 +749,17 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importStepView(this.session, text, name);
+      if (r.ok) { this.view.setBody(r.view); this.importedOnScreen = true; }
+      return r;
+    } finally { this.store.busy.value = false; }
+  }
+
+  /** Show the solid of a SolidWorks .SLDPRT file in the viewport (view only, like STEP). */
+  async importSldprt(bytes: Uint8Array, name: string): Promise<StepImportResult> {
+    if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
+    this.store.busy.value = true;
+    try {
+      const r = await importSldprtView(this.session, bytes, name);
       if (r.ok) { this.view.setBody(r.view); this.importedOnScreen = true; }
       return r;
     } finally { this.store.busy.value = false; }

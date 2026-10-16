@@ -582,6 +582,13 @@ function App() {
     if (r.ok) { viewport?.fit(); store.notify(t('files.step.done', { name: file, faces: r.faces })); }
     else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
   });
+  /** A SolidWorks part into a new part named after the file (view only, like STEP). */
+  const importSldprtBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
+    await load(JSON.stringify(emptyPart(partNameOf(file))), { file: null });
+    const r = await controller.importSldprt(bytes, partNameOf(file));
+    if (r.ok) { viewport?.fit(); store.notify(t('files.sldprt.done', { name: file, faces: r.faces })); }
+    else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
+  });
   /** A FreeCAD file becomes a new part with the mapped features; what could not be mapped is listed in a notice (see packages/fcstd). */
   const importFcstdBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const r = await resolveEdges(await importFcstd(bytes, partNameOf(file)));   // no kernel resolver here yet: fillets / chamfers are left out and listed
@@ -595,6 +602,7 @@ function App() {
   /** Open a file by what it is: a part, STEP, DXF or FreeCAD; anything else gets a notice. `bytes` reads binary files. */
   const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>) => {
     if (kind === 'fcstd') { if (bytes) void bytes().then((b) => importFcstdBytes(b, name)); return; }
+    if (kind === 'sldprt') { if (bytes) void bytes().then((b) => importSldprtBytes(b, name)); return; }
     if (kind === 'part') guarded(async () => { await load(await read(), { file: name }); });
     else if (kind === 'step') void read().then((text) => importStepText(text, name));
     else if (kind === 'dxf') void read().then((text) => { if (controller.sketchDraft()) void importDxfIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromDxfText(text); });
@@ -650,11 +658,11 @@ function App() {
     catalog: () => showCatalog(),
     variables: () => showVariables(),
     script: () => showScript(),
-    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),
-      importStep: () => void (async () => { const f = await platform.openFile({ accept: ['.step', '.stp'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : 'unknown'); })(),
+      importStep: () => void (async () => { const f = await platform.openFile({ accept: ['.step', '.stp', '.sldprt'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : dropKind(f.name) === 'sldprt' ? 'sldprt' : 'unknown', async () => f.bytes ?? new TextEncoder().encode(f.text)); })(),
     },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
