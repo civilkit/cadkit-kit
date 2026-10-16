@@ -130,11 +130,14 @@ describe('layers: sketch entities to polylines', () => {
     expect(Math.min(...ys)).toBeCloseTo(-4, 6);
   });
 
-  it('a spline draws its control polyline and honours closed', () => {
+  it('a spline draws its curve through the points and honours closed', () => {
     const open = sketchPolylines(asSketches([
       sketch([{ type: 'spline', id: 'e1', pts: ['a', 'b', 'c'] }], pts2),
     ]));
-    expectPolylineClose(open[0].polylines[0], [[0, 0, 0], [10, 0, 0], [10, 5, 0]]);
+    const o = open[0].polylines[0];
+    expect(o.length).toBeGreaterThan(3);
+    expectPointClose(o[0], [0, 0, 0]);
+    expectPointClose(o[o.length - 1], [10, 5, 0]);
 
     const closed = sketchPolylines(asSketches([
       sketch([{ type: 'spline', id: 'e1', pts: ['a', 'b', 'c'], closed: true }], pts2),
@@ -238,4 +241,24 @@ describe('layers: flangeBolt fixture', { skip: !(wasm && existsSync(fixture)) },
       await s.close();
     }
   }, 60_000);
+});
+
+describe('splines draw as curves, not control polygons', () => {
+  const ring = (n: number, r: number) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, x: r * Math.cos((2 * Math.PI * i) / n), y: r * Math.sin((2 * Math.PI * i) / n) }));
+  const frame = { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] } as never;
+  for (const type of ['spline', 'cvspline'] as const) {
+    it(`a closed ${type} is sampled densely and closes on itself`, () => {
+      const points = ring(6, 10);
+      const sketch = { points, entities: [{ id: 'e', type, pts: points.map((p) => p.id), closed: true }] } as never;
+      const line = sketchPolylines([{ id: 's', frame, sketch }])[0].polylines[0];
+      expect(line.length).toBeGreaterThan(points.length + 1);   // not the 7-point polygon
+      expect(Math.hypot(line[0][0] - line.at(-1)![0], line[0][1] - line.at(-1)![1])).toBeLessThan(1e-6);
+    });
+  }
+  it('an interpolating spline passes through its points', () => {
+    const points = ring(6, 10);
+    const sketch = { points, entities: [{ id: 'e', type: 'spline', pts: points.map((p) => p.id), closed: true }] } as never;
+    const line = sketchPolylines([{ id: 's', frame, sketch }])[0].polylines[0];
+    for (const p of points) expect(line.some((q) => Math.hypot(q[0] - p.x, q[1] - p.y) < 1e-6)).toBe(true);
+  });
 });

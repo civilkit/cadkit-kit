@@ -1,5 +1,6 @@
 // Pure conversion of sketch/curve/plane display data into world-space polylines.
 // No Three.js, no DOM: the viewport turns these into scene geometry.
+import { bsplineCurve, fitCurve } from '@kit/sketch';
 import type { SketchEntity, SketchFeature, SketchPoint } from '@ck/part-model';
 
 export interface Frame {
@@ -114,13 +115,19 @@ function entityPolyline(e: SketchEntity, byId: Map<string, SketchPoint>, f: Fram
     }
     case 'spline':
     case 'cvspline': {
-      const out: Polyline = [];
+      // the real curve (the kernel's interpolating spline, or its B-spline with the stored degree), not the point polygon
+      const ps: Array<{ x: number; y: number }> = [];
       for (const id of e.pts) {
         const p = pt(id);
         if (!p) return null;
-        out.push(toWorld(f, p.x, p.y));
+        ps.push({ x: p.x, y: p.y });
       }
-      if (e.closed && out.length) out.push([...out[0]]);
+      const closed = (e as { closed?: boolean }).closed === true;
+      const degree = Number((e as { degree?: number }).degree ?? 3);
+      const dense = ps.length >= 2 ? (e.type === 'spline' ? fitCurve(ps, closed, 12) : bsplineCurve(ps, degree, closed, 48)) : [];
+      if (dense.length >= 2) return dense.map((q) => toWorld(f, q.x, q.y));
+      const out: Polyline = ps.map((q) => toWorld(f, q.x, q.y));
+      if (closed && out.length) out.push([...out[0]]);
       return out.length >= 2 ? out : null;
     }
     default:
