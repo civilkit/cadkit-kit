@@ -32,7 +32,7 @@ export interface RegistryDeps {
   allowLocalhost?: boolean;
   now?: () => number;
 }
-export interface Preview { record: LibraryRecord; manifest: LibraryManifest; licence: string | undefined; needsConfirm: boolean; source: Source; bytes: Uint8Array; local?: LocalFiles }
+export interface Preview { record: LibraryRecord; manifest: LibraryManifest; /** how many parts list no thumbnail (a warning, not an error) */ missingThumbs: number; licence: string | undefined; needsConfirm: boolean; source: Source; bytes: Uint8Array; local?: LocalFiles }
 export interface ManifestState { manifest: LibraryManifest; offline: boolean }
 export interface PartData { part: LibraryPart; doc: PartDoc; bytes: Uint8Array; sha256: string; licence: string | undefined; fromCache: boolean }
 
@@ -52,6 +52,8 @@ export class LibraryRegistry {
   }
 
   subscribe(f: () => void): () => void { this.listeners.add(f); return () => { this.listeners.delete(f); }; }
+  /** Tell the subscribers something changed that is not in the saved list (a part was installed, a thumbnail made). */
+  private notify(): void { this.rev++; for (const f of this.listeners) f(); }
   private save(): void {
     this.rev++;
     try { this.d.kv?.setItem(KEY, JSON.stringify(this.st)); } catch { /* storage full or blocked: the list lasts for this session */ }
@@ -95,7 +97,7 @@ export class LibraryRegistry {
     const bytes = await makeTransport(source, { fetch: this.d.fetch, allowLocalhost: this.d.allowLocalhost, localFiles: local }).manifest();
     const manifest = this.decode(null, bytes, source.kind === 'local');
     const record: LibraryRecord = { id, source: id, name: manifest.name, description: manifest.description, homepage: manifest.homepage, licence: manifest.licence, parts: manifest.parts.length, addedAt: (this.d.now ?? Date.now)() };
-    return { record, manifest, licence: manifest.licence, needsConfirm: this.needsConfirm(id, manifest.licence, record), source, bytes, local };
+    return { record, manifest, missingThumbs: manifest.parts.filter((p) => !p.thumb).length, licence: manifest.licence, needsConfirm: this.needsConfirm(id, manifest.licence, record), source, bytes, local };
   }
 
   /** Add a previewed library. A licence outside the allow-list needs `confirm: true` (that is the confirmation, remembered). */
@@ -162,6 +164,7 @@ export class LibraryRegistry {
     if (!rec.builtin) {
       await this.d.cache.put({ key: this.manifestKey(rec), lib: id, kind: 'manifest', bytes, at: (this.d.now ?? Date.now)() });
       await this.d.cache.prune(id, 'part', new Set(m.parts.map((p) => this.partKey(rec, p))));
+      await this.d.cache.prune(id, 'gen', new Set(m.parts.map((p) => this.genKey(rec, p))));
       await this.d.cache.prune(id, 'thumb', new Set(m.parts.filter((p) => p.thumb).map((p) => `${rec.id}/${p.thumb}#thumb`)));
       const stored = this.st.libs.find((l) => l.id === id);
       if (stored) { stored.name = m.name; stored.description = m.description; stored.homepage = m.homepage; stored.licence = m.licence; stored.parts = m.parts.length; this.save(); }
@@ -202,7 +205,7 @@ export class LibraryRegistry {
     const sha = await sha256Hex(bytes);
     if (part.sha256 && sha !== part.sha256) throw new LibraryError('sha', part.id);
     const doc = parsePart(bytes);
-    if (!fromCache && !rec.builtin) await this.d.cache.put({ key, lib: id, kind: 'part', bytes, at: (this.d.now ?? Date.now)() });
+    if (!fromCache && !rec.builtin) { await this.d.cache.put({ key, lib: id, kind: 'part', bytes, at: (this.d.now ?? Date.now)() }); this.notify(); }
     return { part, doc, bytes, sha256: sha, licence, fromCache };
   }
 
@@ -222,6 +225,39 @@ export class LibraryRegistry {
       if (!c && !rec.builtin) await this.d.cache.put({ key, lib: id, kind: 'thumb', bytes, at: (this.d.now ?? Date.now)() });
       return { bytes, type };
     } catch { return null; }
+  }
+
+  // ---- install state and thumbnails made on this device ----
+  private genKey(rec: LibraryRecord, p: LibraryPart): string { return `${rec.id}/gen#${p.sha256 ?? 'local-' + p.id}`; }
+  /** Whether the part's file is saved on this device. Included (bundled) parts are part of the app and count as installed. */
+  async isInstalled(id: string, partId: string): Promise<boolean> { return (await this.installedIds(id)).has(partId); }
+  /** The ids of the parts of a library that are saved on this device (all of them for an Included library). */
+  async installedIds(id: string): Promise<Set<string>> {
+    const rec = this.get(id);
+    if (!rec) return new Set();
+    const { manifest } = await this.manifest(id);
+    if (rec.builtin) return new Set(manifest.parts.map((p) => p.id));
+    const keys = new Set(await this.d.cache.keys(id));
+    return new Set(manifest.parts.filter((p) => keys.has(this.partKey(rec, p))).map((p) => p.id));
+  }
+  /** Download, verify and save one part for offline use (the same checks as Insert). */
+  async install(id: string, partId: string): Promise<PartData> { return this.part(id, partId); }
+  /** The thumbnail rendered here for a part, if there is one (keyed by the part's sha256 so a changed part is rendered again). */
+  async generatedThumb(id: string, partId: string): Promise<Uint8Array | null> {
+    const rec = this.get(id);
+    if (!rec) return null;
+    try {
+      const part = (await this.manifest(id)).manifest.parts.find((p) => p.id === partId);
+      return part ? (await this.d.cache.get(this.genKey(rec, part)))?.bytes ?? null : null;
+    } catch { return null; }
+  }
+  async putGeneratedThumb(id: string, partId: string, bytes: Uint8Array): Promise<void> {
+    const rec = this.get(id);
+    if (!rec || imageType(bytes) !== 'image/png') return;
+    const part = (await this.manifest(id)).manifest.parts.find((p) => p.id === partId);
+    if (!part) return;
+    await this.d.cache.put({ key: this.genKey(rec, part), lib: id, kind: 'gen', bytes, at: (this.d.now ?? Date.now)() });
+    this.notify();
   }
 
   /** Bytes the cache holds for a library. */

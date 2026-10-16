@@ -1,7 +1,7 @@
 # Parts library (BOSL2)
 
 An editable, parametric catalog ported from [BOSL2](https://github.com/BelfrySCAD/BOSL2) (BelfrySCAD/BOSL2, BSD-2-Clause; attribution and licence text in `THIRD_PARTY.md`).
-It is the **Parts library (BOSL2)** section at the bottom of the Catalog tab (see `docs/catalog.md` for the shape catalog above it).
+It is an **Included** library in the **Libraries** tab of the Catalog, in the same list as the bundled samples and the add-on libraries (`docs/library-browser.md`); the **Primitives** tab holds the plain shapes (`docs/catalog.md`).
 
 Placing an entry does not drop a mesh or an opaque block: it adds REAL features (sketches, extrudes, lofts, revolves, fillets, chamfers) to the open part through the
 script API (`docs/scripting.md`), so the result is edited afterwards in the feature tree, the Variables tab and the size box like anything else. Curved faces are exact
@@ -9,8 +9,8 @@ script API (`docs/scripting.md`), so the result is edited afterwards in the feat
 
 ## Using it
 
-* **Search** (BM25 with the skill package's CAD synonym table: "pipe" finds Tube, "hexagon" Regular prism, "ramp" Wedge, "donut" Torus, "printable hole" Teardrop) and **category** chips.
-* Click a card to select it: its **parameter form** (typed fields with units; `*` marks a value that becomes a document variable), the BOSL2 module it comes from and the
+* **Search** (one box for every library; BOSL2 matches use BM25 with the skill package's CAD synonym table: "pipe" finds Tube, "hexagon" Regular prism, "ramp" Wedge, "donut" Torus, "printable hole" Teardrop, and come first), the **Included / Add-ons** chips and the **category** menu (Blocks, Cylinders, Round, Profiles, Edge masks).
+* Click a card to select it (it looks like every other card: picture, name, *Included*): its **parameter form** (typed fields with units; `*` marks a value that becomes a document variable), the BOSL2 module it comes from and the
   **script** it will add (a read-only preview; the same text is what runs).
 * **Drag the card onto the model**, or click it and then click a face (Alt turns snapping off, Esc cancels). While the pointer moves the real features are previewed (the
   parameters as plain numbers); the drop commits them as ONE undo step together with the variables.
@@ -57,7 +57,7 @@ BOSL2 shapes are Z-up (a prismoid's height runs along the sketch normal) and the
 | `apps/cad/src/catalog/bosl/build.ts` | `buildBosl`: runs the entry's script in ATTACH mode (`runScript(..., { prefix })`) against the open document without touching it; returns ops (preview) or a `DocPatch` (variables + features, one step). |
 | `apps/cad/src/docFields.ts` | `DocPatch.append` / `seq`: the new features go in with the variables as one history record (redo replays the patch). |
 | `apps/cad/src/catalog/placer.ts`, `useCatalog.ts`, `shapes.ts` | The existing placement engine; a catalog item with `bosl: { entryId, params }` is built by `buildBosl` instead of `buildShape`. |
-| `apps/cad/src/catalog/BoslSection.tsx`, `bosl/search.ts`, `bosl/state.ts` | The panel section, the search, the form state. |
+| `apps/cad/src/catalog/bosl/BoslForm.tsx`, `bosl/search.ts`, `bosl/state.ts` | The parameter form (and `boslItem`, the catalog item of an entry), the search, the edited values. The cards, filters and detail panel are the unified list: `apps/cad/src/library/LibraryBrowser.tsx`, `library/entries.ts`. |
 | `apps/cad/src/catalog/bosl/thumbs.generated.ts` | Thumbnails (PNG data URLs) rendered with `@kit/snapshot` from the kernel body of each entry; regenerate with `BOSL_THUMBS=1 CK_WASM=... npx vitest run apps/cad/src/catalog/bosl.thumbs.kernel.test.ts`. |
 | `apps/cad/src/catalog/bosl_reference.json` | OpenSCAD reference values (see below). |
 | `apps/cad/src/catalog/bosl.kernel.test.ts`, `bosl.place.kernel.test.ts`, `BoslSection.test.tsx` | The oracle test, the placement tests, the panel / search / parameter tests. |
@@ -68,7 +68,7 @@ BOSL2 shapes are Z-up (a prismoid's height runs along the sketch normal) and the
    `check(params)` (null or the reason the values are invalid), `script(params, place)` and `scad(params)`. Optional `samples` are named parameter sets the defaults leave out (rounding, caps) and become oracle cases too.
    `place.plane` is `'front'` / `'top'` / `'right'` (ground, see `place.base` and `place.axis`) or `face("F2.C1")`; use `place.at` for the footprint centre, `place.prefix` (null: numbers, else the variable prefix), and `ownEdges(place)` for the edges a fillet may touch.
 2. Add the i18n keys in `apps/cad/src/locales/en.ts`: `catalog.bosl.entry.<id>` and `catalog.bosl.param.<key>` for every new parameter, and list the new keys in `tools/i18n_dynamic.json` (the section builds them dynamically).
-3. Add the card icon mapping in `BoslSection.tsx` (`KIND`) and regenerate the reference and the thumbnails:
+3. Add the card icon mapping in `bosl/BoslForm.tsx` (`KIND`) and regenerate the reference and the thumbnails:
    `node tools/bosl_reference.mjs --bosl <dir that contains BOSL2/> --scratch <work dir> --only <id>` and the thumbnail test above.
 4. `npx vitest run apps/cad/src/catalog` (with `CK_WASM` set) must be green: the oracle test picks the new entry up from the JSON.
 

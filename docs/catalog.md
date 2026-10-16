@@ -1,6 +1,6 @@
 # Catalog: shapes dragged onto the model
 
-The **Catalog** tab of the left panel (also: command `Catalog`, key Shift+K) holds ready-made shapes. Pick one up and drop
+The **Catalog** tab of the left panel (also: command `Catalog`, key Shift+K) has two tabs: **Primitives** (the shapes below, ready-made and built from kernel features) and **Libraries** (everything else, in one searchable list: BOSL2's parametric parts, the bundled samples and the libraries you add; see `docs/library-browser.md`). The Place on / Direction row applies to both. Pick a primitive up and drop
 it on the part: it lands on the face under the pointer, sits flat on that face, snaps to useful spots and is created as real
 features in ONE undo step. Left column adds material, right column removes it.
 
@@ -67,7 +67,7 @@ meshes. A whole sphere on a face needs that kernel fix.
   committed body, so the preview on screen never changes where the next pointer position lands.
 * `catalog/placer.ts` - hover / drop / end with the preview loop; caches the sketch frame of a face (found by previewing a
   probe sketch and reading it back) for the length of one drag.
-* `catalog/useCatalog.ts`, `CatalogPanel.tsx` - pointer handling, ghost, armed state, Esc.
+* `catalog/useCatalog.ts`, `CatalogPanel.tsx` - pointer handling, ghost, armed state, Esc, the Primitives | Libraries switch.
 * Viewport additions: `rayAt`, `worldPerPixel`, `containsClient`, `setPlacementHook` (hover and click while armed),
   `setPreviewFade`, `setHoldView` (the camera no longer re-frames on every preview or drop on an existing part).
 
@@ -86,4 +86,4 @@ shape itself, by typing an offset (Tab) or with the arrow keys; it snaps like th
 midpoints, face centres, plus centres of other shapes and alignment guides; Alt switches snapping off). See "Moving a shape" in
 `docs/size-box.md`.
 
-External parts libraries (GitHub, web address or folder) have their own section in the Catalog tab: see `docs/library-browser.md`.
+Library parts (BOSL2, samples, add-ons) use the same machinery: the drag with its ghost and live preview, click-to-place, `placer.ts` and `useCatalog.ts`. A catalog item with `part: { libId, partId }` is built by `library/buildPlaced.ts` (the part fetched first, with a spinner, if it is not on the device). Details in `docs/library-browser.md`.

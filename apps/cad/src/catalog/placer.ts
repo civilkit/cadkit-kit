@@ -23,6 +23,8 @@ export interface PlacerDeps {
   commitPatch?(patch: NonNullable<BuiltShape['patch']>, reason: string): Promise<{ ok: boolean }>;
   /** Parts library: run the entry's script in attach mode (linked: parameters become document variables). */
   buildBosl?(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult>;
+  /** Library part: the part moved onto the target. Not linked (a hover): `{error: 'loading'}` while it is being fetched; linked (the drop): waits for it. */
+  buildPart?(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult>;
   /** The up axis of the view (nav setting): the ground plane is the one whose normal it is. */
   upAxis?(): UpAxis;
   /** The Place-on / flip / rotate / mirror choice. */
@@ -39,7 +41,7 @@ export interface PlacerDeps {
 
 export type PlaceStatus =
   | { state: 'idle' }
-  | { state: 'blocked'; reason: 'needsBody' | 'miss' | 'noFrame' | 'failed' | 'planarOnly' | 'invalid' | 'scriptFailed'; hint?: string }
+  | { state: 'blocked'; reason: 'needsBody' | 'miss' | 'noFrame' | 'failed' | 'planarOnly' | 'invalid' | 'scriptFailed' | 'loading' | 'fetchFailed'; hint?: string }
   | { state: 'ready'; face: string | null; snap: SnapKind | null; size: number; point: V3; /** Ground targets: the plane it lands on (Front / Top / Right, or the plane feature's id). */ plane?: PlaneRef; ground?: boolean };
 
 /** English name of a standard plane (history entries are not translated). */
@@ -61,6 +63,8 @@ export class Placer {
   private generation = 0;
   /** Ids of helper features of the last drop (see BuiltShape.helpers). */
   lastHelpers: string[] = [];
+  /** What the last drop wants the user told (a library part that could not be moved), or ''. */
+  lastNotice = '';
   private fading = false;
   private last: { item: CatalogItem; x: number; y: number; alt: boolean } | null = null;
 
@@ -71,6 +75,7 @@ export class Placer {
 
   /** The shape for this spot: the built-in ones are plain data, a parts-library entry runs its script. */
   private async make(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult> {
+    if (item.part) return this.deps.buildPart ? this.deps.buildPart(item, target, doc, linked) : { error: 'scriptFailed', hint: 'no library' };
     if (item.bosl) return this.deps.buildBosl ? this.deps.buildBosl(item, target, doc, linked) : { error: 'scriptFailed', hint: 'no script host' };
     return buildShape(item, target, doc.seq);
   }
@@ -234,6 +239,8 @@ export class Placer {
     const why = `Catalog: ${shapeName(item)}${note ? ` (${note})` : ''}`;
     const r = await (built.patch && this.deps.commitPatch ? this.deps.commitPatch(built.patch, why) : this.deps.commit(built.ops, why)).finally(() => this.deps.holdView(false));
     this.lastHelpers = built.helpers;
+    this.lastNotice = built.notice ?? '';
+    if (r.ok) built.onCommitted?.();
     void this.end(true);
     return r.ok ? built.mainId : null;
   }

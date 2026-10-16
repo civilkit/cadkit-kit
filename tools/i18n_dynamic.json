@@ -1158,7 +1158,6 @@
   "catalog.plane.top"
  ],
  "catalog.bosl.cat.+": [
-  "catalog.bosl.cat.all",
   "catalog.bosl.cat.blocks",
   "catalog.bosl.cat.cylinders",
   "catalog.bosl.cat.masks",
@@ -1264,5 +1263,35 @@
   "app.font.warn.fontNoSubsetting",
   "app.font.warn.fontOverlappingContours",
   "app.font.warn.fontVariableDefaultOnly"
+ ],
+ "catalog.tab.+": [
+  "catalog.tab.primitives",
+  "catalog.tab.libraries"
+ ],
+ "library.origin.+": [
+  "library.origin.included",
+  "library.origin.addon"
+ ],
+ "library.state.+": [
+  "library.state.cloud",
+  "library.state.cloud.tip",
+  "library.state.installed",
+  "library.state.installed.tip",
+  "library.state.installing",
+  "library.state.installing.tip"
+ ],
+ "library.source.+": [
+  "library.source.all",
+  "library.source.included",
+  "library.source.addon"
+ ],
+ "library.place.fallback.+": [
+  "library.place.fallback.assembly",
+  "library.place.fallback.curved",
+  "library.place.fallback.edges",
+  "library.place.fallback.global",
+  "library.place.fallback.noFrame",
+  "library.place.fallback.noStdRoot",
+  "library.place.fallback.otherPlanes"
  ]
 }

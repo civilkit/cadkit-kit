@@ -1,10 +1,7 @@
-// State of the parts-library section of the Catalog panel (signals: only the section redraws on typing).
+// Edited parameter values of the BOSL2 entries (signals: only the form and the armed item redraw on typing).
 import { signal } from '@preact/signals';
-import { boslEntry, defaultParams, type Category, type Params } from './entries';
+import { boslEntry, defaultParams, type Params } from './entries';
 
-export const boslQuery = signal('');
-export const boslCategory = signal<Category | 'all'>('all');
-export const boslSelected = signal<string | null>(null);
 /** Edited parameter values per entry (an entry that was never edited has its defaults). */
 export const boslValues = signal<Record<string, Params>>({});
 

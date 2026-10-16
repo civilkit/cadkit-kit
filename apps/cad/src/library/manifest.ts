@@ -32,9 +32,12 @@ export interface LibraryManifest {
 
 export interface ManifestIssue { path: string; code: ManifestIssueCode }
 export type ManifestIssueCode = 'notObject' | 'format' | 'version' | 'name' | 'description' | 'homepage' | 'licence' | 'parts' | 'tooManyParts'
-  | 'partShape' | 'partId' | 'duplicateId' | 'title' | 'category' | 'tags' | 'file' | 'thumb' | 'source' | 'bytes' | 'sha256' | 'sha256Missing';
+  | 'partShape' | 'partId' | 'duplicateId' | 'title' | 'category' | 'tags' | 'file' | 'thumb' | 'source' | 'bytes' | 'sha256' | 'sha256Missing'
+  /** warning only: the part lists no thumbnail */
+  | 'thumbMissing';
 
-export type ManifestResult = { ok: true; manifest: LibraryManifest } | { ok: false; issues: ManifestIssue[] };
+/** `warnings` do not fail a manifest: a part without a `thumb` is shown with a thumbnail made on this device, or a placeholder. */
+export type ManifestResult = { ok: true; manifest: LibraryManifest; warnings: ManifestIssue[] } | { ok: false; issues: ManifestIssue[] };
 
 /** Licences that need no confirmation (SPDX ids, compared case-insensitively; a version suffix of the families is accepted). */
 const PERMISSIVE = [/^MIT(-0)?$/, /^BSD-[23]-Clause(-Clear)?$/, /^0BSD$/, /^Apache-2\.0$/, /^ISC$/, /^CC0-1\.0$/, /^CC-BY-(\d\.\d)$/, /^OFL-1\.1$/, /^Unlicense$/, /^Zlib$/];
@@ -80,6 +83,7 @@ export interface ValidateOptions {
 
 export function validateManifest(raw: unknown, opts: ValidateOptions = {}): ManifestResult {
   const issues: ManifestIssue[] = [];
+  const warnings: ManifestIssue[] = [];
   const bad = (path: string, code: ManifestIssueCode) => { issues.push({ path, code }); };
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, issues: [{ path: '', code: 'notObject' }] };
   const m = raw as Record<string, unknown>;
@@ -115,6 +119,7 @@ export function validateManifest(raw: unknown, opts: ValidateOptions = {}): Mani
       }
       if (!relativePathOk(p.file) || !/\.(ckpart|json)$/i.test(p.file as string)) bad(`${at}.file`, 'file');
       let thumb: string | undefined;
+      if (p.thumb === undefined) warnings.push({ path: `${at}.thumb`, code: 'thumbMissing' });
       if (p.thumb !== undefined) { if (relativePathOk(p.thumb) && /\.(png|webp|jpe?g)$/i.test(p.thumb as string)) thumb = p.thumb as string; else bad(`${at}.thumb`, 'thumb'); }
       const plicence = readLicence(p.licence, `${at}.licence`, bad);
       let source: string | undefined;
@@ -128,7 +133,7 @@ export function validateManifest(raw: unknown, opts: ValidateOptions = {}): Mani
     });
   }
   if (issues.length) return { ok: false, issues };
-  return { ok: true, manifest: { format: 'fwlib', version: 1, name, ...(description ? { description } : {}), ...(homepage ? { homepage } : {}), ...(licence ? { licence } : {}), parts } };
+  return { ok: true, warnings, manifest: { format: 'fwlib', version: 1, name, ...(description ? { description } : {}), ...(homepage ? { homepage } : {}), ...(licence ? { licence } : {}), parts } };
 }
 
 function readLicence(v: unknown, path: string, bad: (p: string, c: ManifestIssueCode) => void): string | undefined {

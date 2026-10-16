@@ -9,10 +9,14 @@ import { Placer, type PlacerDeps } from './placer';
 import { catalogItem, shapeName, type BuildResult, type CatalogItem } from './shapes';
 import { buildBosl } from './bosl/build';
 import type { ScriptHost } from '@kit/script';
-import { armedItem, catalogActive, catalogPlane, ghost, placeStatus, placementSetting, selectShapeFeature } from './state';
+import { armedItem, catalogActive, catalogPlane, ghost, libFetching, placeStatus, placementSetting, selectShapeFeature } from './state';
 import type { PlaneRef, UpAxis } from './placement';
 import { t } from '../i18n';
 import { itemLabel } from './labels';
+import type { LibraryRegistry, PartData } from '../library/registry';
+import { withSource, type SourceEntry } from '../library/insert';
+import { buildPlaced } from '../library/buildPlaced';
+import { errText } from '../library/AddLibrary';
 
 export interface CatalogDeps {
   controller: Controller;
@@ -24,6 +28,8 @@ export interface CatalogDeps {
   hide(ids: string[]): void;
   /** The view's up axis (nav setting): decides the ground plane. */
   upAxis(): UpAxis;
+  /** The libraries: a dragged library part is fetched (and verified) through it. */
+  library?: LibraryRegistry;
 }
 
 const DRAG_PX = 4;
@@ -42,6 +48,33 @@ export function useCatalog(d: CatalogDeps) {
   const ref = useRef(d);
   ref.current = d;
   const placer = useRef<Placer | null>(null);
+  // library parts fetched for the drag in progress: one fetch per part, the answer kept for the next pointer move
+  const parts = useRef({ data: new Map<string, PartData>(), flight: new Map<string, Promise<PartData | null>>(), failed: new Set<string>() });
+  const fetchPart = (pr: NonNullable<CatalogItem['part']>): Promise<PartData | null> => {
+    const key = pr.libId + '::' + pr.partId, P = parts.current;
+    const have = P.data.get(key);
+    if (have) return Promise.resolve(have);
+    const going = P.flight.get(key);
+    if (going) return going;
+    libFetching.value = pr.title;
+    const job = (async () => {
+      try {
+        const data = await ref.current.library!.part(pr.libId, pr.partId);
+        P.data.set(key, data);
+        return data;
+      } catch (e) {
+        P.failed.add(key);
+        ref.current.notify(t('library.fetchFailed', { title: pr.title, reason: errText(e) }), 'error');
+        return null;
+      } finally {
+        P.flight.delete(key);
+        if (!P.flight.size) libFetching.value = null;
+        placer.current?.rehover();
+      }
+    })();
+    P.flight.set(key, job);
+    return job;
+  };
   if (!placer.current) {
     const deps: PlacerDeps = {
       document: () => ref.current.controller.document(),
@@ -63,6 +96,24 @@ export function useCatalog(d: CatalogDeps) {
         };
         const r = await buildBosl(host, doc, { entryId: item.bosl.entryId, params: item.bosl.params }, target, linked);
         return r;
+      },
+      buildPart: async (item, target, doc, linked): Promise<BuildResult> => {
+        const c = ref.current, reg = c.library, pr = item.part;
+        if (!reg || !pr) return { error: 'invalid' };
+        const key = pr.libId + '::' + pr.partId;
+        let data = parts.current.data.get(key);
+        if (!data) {
+          if (!linked) {
+            if (parts.current.failed.has(key)) return { error: 'fetchFailed' };
+            void fetchPart(pr);
+            return { error: 'loading' };
+          }
+          data = (await fetchPart(pr)) ?? undefined;     // the drop: wait for it, a spinner shows meanwhile
+          if (!data) return { error: 'fetchFailed' };
+        }
+        const lib = reg.get(pr.libId);
+        if (!lib) return { error: 'invalid' };
+        return buildPlaced(doc, data, lib, target, { linked, flip: placementSetting.value.flip, commitSource: (entry: SourceEntry) => c.controller.setDocExtra('sources', withSource(c.controller.document()!, entry)) });
       },
       upAxis: () => ref.current.upAxis(),
       placement: () => placementSetting.value,
@@ -97,10 +148,11 @@ export function useCatalog(d: CatalogDeps) {
       ref.current.placed();
       selectShapeFeature(id);
       ref.current.notify(t('catalog.placed', { name: shapeName(item) }), 'info');
+      if (placer.current!.lastNotice) ref.current.notify(placer.current!.lastNotice, 'warn');
       if (!keepArmed) disarm();
     } else {
       const s = placer.current!.status;
-      if (s.state === 'blocked') ref.current.notify(t('catalog.blocked.' + s.reason), 'warn');
+      if (s.state === 'blocked' && s.reason !== 'fetchFailed') ref.current.notify(t('catalog.blocked.' + s.reason), 'warn');     // a failed fetch was reported with its reason already
     }
   };
 
@@ -146,10 +198,11 @@ export function useCatalog(d: CatalogDeps) {
   }, []);
   useEffect(() => () => { ref.current.viewport()?.setPlacementHook(null); ghost.value = null; armedItem.value = null; }, []);
 
-  const onItemDown = (item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLButtonElement>): void => {
+  const onItemDown = (item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLElement>): void => {
     if (e.button !== 0) return;
     if (item.op === 'cut' && !ref.current.controller.hasSolid()) { ref.current.notify(t('catalog.blocked.needsBody'), 'warn'); return; }
     const el = e.currentTarget;
+    parts.current.failed.clear();
     el.setPointerCapture(e.pointerId);
     drag.current = { item, sx: e.clientX, sy: e.clientY, moved: false, pid: e.pointerId, el };
     const move = (ev: PointerEvent) => {

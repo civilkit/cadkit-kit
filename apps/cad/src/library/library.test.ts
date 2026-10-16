@@ -301,3 +301,63 @@ describe('buildInsert', () => {
     expect(withSource(full, { ...e, features: ['F4'] })).toHaveLength(2);
   });
 });
+
+describe('parts without an image, and what is installed', () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  const setup = async () => {
+    const net = fakeNet([GH_BASE]);
+    const made = makeRegistry(net);
+    const id = 'github:example/parts';
+    await made.registry.add(await made.registry.preview(id));
+    return { net, id, ...made };
+  };
+
+  it('a part without a thumb is a warning, not an error', () => {
+    const r = validateManifest(manifest(), { requireSha: true });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.warnings.map((w) => `${w.path}:${w.code}`)).toEqual(['parts.0.thumb:thumbMissing', 'parts.1.thumb:thumbMissing', 'parts.2.thumb:thumbMissing']);
+    const m = manifest(); (m.parts as Array<Record<string, unknown>>)[0].thumb = 'thumbs/a.png';
+    const r2 = validateManifest(m, { requireSha: true });
+    expect(r2.ok && r2.warnings).toHaveLength(2);
+  });
+
+  it('the preview counts the parts that have no image', async () => {
+    const net = fakeNet([GH_BASE]);
+    const { registry } = makeRegistry(net);
+    expect((await registry.preview('github:example/parts')).missingThumbs).toBe(3);
+  });
+
+  it('install saves a verified part for offline use and installedIds lists it', async () => {
+    const { registry, id, net } = await setup();
+    expect([...await registry.installedIds(id)]).toEqual([]);
+    let changes = 0;
+    registry.subscribe(() => { changes++; });
+    await registry.install(id, 'block-small');
+    expect(changes).toBeGreaterThan(0);
+    expect([...await registry.installedIds(id)]).toEqual(['block-small']);
+    expect(await registry.isInstalled(id, 'block-small')).toBe(true);
+    expect(await registry.isInstalled(id, 'block-wide')).toBe(false);
+    net.offline = true;
+    expect((await registry.part(id, 'block-small')).fromCache).toBe(true);
+    // a checksum mismatch is refused and nothing is saved
+    net.offline = false;
+    net.override('parts/block-wide.ckpart', readFileSync(join(FIXTURE_DIR, 'parts/block-small.ckpart')));
+    await expect(registry.install(id, 'block-wide')).rejects.toBeInstanceOf(LibraryError);
+    expect(await registry.isInstalled(id, 'block-wide')).toBe(false);
+  });
+
+  it('a thumbnail rendered here is kept with the part (keyed by its sha256), only if it is a png, and goes when the library does', async () => {
+    const { registry, id, cache } = await setup();
+    expect(await registry.generatedThumb(id, 'block-small')).toBeNull();
+    await registry.putGeneratedThumb(id, 'block-small', new Uint8Array([1, 2, 3, 4]));     // not an image: refused
+    expect(await registry.generatedThumb(id, 'block-small')).toBeNull();
+    await registry.putGeneratedThumb(id, 'block-small', PNG);
+    expect(await registry.generatedThumb(id, 'block-small')).toEqual(PNG);
+    const keys = await cache.keys(id);
+    expect(keys.some((k) => k.includes('/gen#c81caef756e3419231d039a76a21b2740650a039d277ac080211c99c94aa31c2'))).toBe(true);
+    await registry.refresh(id);
+    expect(await registry.generatedThumb(id, 'block-small')).toEqual(PNG);                   // a refresh keeps it while the part is unchanged
+    await registry.remove(id);
+    expect(await cache.keys(id)).toEqual([]);
+  });
+});

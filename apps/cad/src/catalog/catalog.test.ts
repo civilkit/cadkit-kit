@@ -159,6 +159,47 @@ describe('Placer', () => {
   });
 });
 
+describe('Placer with a library part', () => {
+  const item = { id: 'lib:x::p', kind: 'block' as const, op: 'add' as const, part: { libId: 'x', partId: 'p', title: 'Part P' } };
+  const ops = [{ op: 'add', feature: { type: 'extrude', id: 'F9' } }] as never;
+  it('while the part is still being fetched the hover says so; once it is there the preview shows it; the drop waits for it and commits the patch + provenance', async () => {
+    let have = false;
+    const committed: unknown[] = [];
+    let recorded = 0;
+    const { deps, calls } = fakeDeps({
+      buildPart: async (_i, _t, _d, linked) => {
+        if (!have && !linked) return { error: 'loading' };
+        have = true;                                           // the drop fetches it
+        return { ops, mainId: 'F9', sketchId: '', helpers: [], size: 0, patch: { append: [{ id: 'F9' }], seq: 10 } as never, notice: 'moved nothing', onCommitted: () => { recorded++; } };
+      },
+      commitPatch: async (patch, reason) => { committed.push([patch, reason]); return { ok: true }; },
+    });
+    const p = new Placer(deps);
+    p.hover(item, 0.2, 0.1, false);
+    await flush();
+    expect(p.status).toMatchObject({ state: 'blocked', reason: 'loading' });
+    expect(calls.preview.length).toBe(1);                      // only the face probe: nothing of the part yet
+    have = true;
+    p.rehover();
+    await flush();
+    expect(p.status).toMatchObject({ state: 'ready', face: 'T' });
+    expect(calls.preview.length).toBe(2);                      // the face frame was kept; now the part itself is previewed
+    expect(await p.drop(item, 5.1, 4.9, false)).toBe('F9');
+    expect(committed).toHaveLength(1);
+    expect(String((committed[0] as [unknown, string])[1])).toContain('Part P');
+    expect(recorded).toBe(1);
+    expect(p.lastNotice).toBe('moved nothing');
+    expect(calls.commit.length).toBe(0);                       // the patch path, not a plain edit
+  });
+  it('a part that cannot be fetched blocks the drop and writes nothing', async () => {
+    const { deps, calls } = fakeDeps({ buildPart: async () => ({ error: 'fetchFailed' }) });
+    const p = new Placer(deps);
+    expect(await p.drop(item, 5, 5, false)).toBeNull();
+    expect(p.status).toMatchObject({ state: 'blocked', reason: 'fetchFailed' });
+    expect(calls.commit.length).toBe(0);
+  });
+});
+
 describe('selectShapeFeature hook', () => {
   it('calls the registered selector and every listener with the feature id', () => {
     const sel = vi.fn(), l = vi.fn();
