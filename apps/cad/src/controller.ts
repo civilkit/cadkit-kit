@@ -1,4 +1,4 @@
-import { type Session, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
+import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
 import { SelModel } from './select/model';
@@ -180,7 +180,21 @@ export class Controller {
     await k.request({ type: 'regen', tag: this.scratchTag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
   }
 
-  async edit(ops: EditOp[], reason?: string): Promise<EditResult> {
+  /** Changes to the document (edit, undo, redo, document patches) run one after the other: an undo pressed while an edit is
+   *  still building waits for it instead of racing it in the session. `cancel` is deliberately not queued. */
+  private chain: Promise<unknown> = Promise.resolve();
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.chain.then(fn, fn);
+    this.chain = run.catch(() => undefined);
+    return run;
+  }
+
+  /** The session's edit records, oldest first (empty with no document). */
+  history(): EditRecord[] { return this.session?.history() ?? []; }
+
+  edit(ops: EditOp[], reason?: string): Promise<EditResult> { return this.serial(() => this.editNow(ops, reason)); }
+
+  private async editNow(ops: EditOp[], reason?: string): Promise<EditResult> {
     const s = this.session;
     if (!s) throw new Error('no document loaded');
     const guarded = !this.unguarded;
@@ -391,14 +405,42 @@ export class Controller {
     return this.edit(ops, reason);
   }
 
-  async undo(): Promise<void> {
+  undo(): Promise<void> { return this.serial(() => this.undoNow()); }
+
+  /** The session's undo stack (its private `before` documents), when it has one: the guard below and `cancel` read it. */
+  private stackOf(s: Session | null): Array<{ record: EditRecord; before: PartDoc }> | null {
+    const st = (s as unknown as { stack?: unknown } | null)?.stack;
+    return Array.isArray(st) ? (st as Array<{ record: EditRecord; before: PartDoc }>) : null;
+  }
+
+  /** Diagnostics of the last refused undo (history lengths, feature counts), for the diagnostics card. */
+  lastUndoProblem: string | null = null;
+  /** Called with the document just before every undo takes effect (the app keeps a snapshot of it: the safety net). */
+  beforeUndo: ((doc: PartDoc) => void) | null = null;
+
+  private async undoNow(): Promise<void> {
     const s = this.session;
     if (!s) return;
+    // a sketch is open: Undo takes back its last tool step, it never changes the part under the open sketch
+    if (this.sketchOpen) { await this.undoSketch(); return; }
     const last = this.materialSteps[this.materialSteps.length - 1];
     if (last && last.at === s.history().length) {   // the newest change is a material change: it is the one step undone
       this.materialSteps.pop(); this.material = last.before; this.redoStack.push(last);
       return;
     }
+    // An undo takes back exactly one step. If the step it would restore has far fewer features than the part has now (more
+    // than that step's own adds), the history and the part disagree: leave the part alone and say so.
+    const st = this.stackOf(s);
+    const top = st?.[st.length - 1];
+    if (top) {
+      const now = this.sdoc().features.length, then = top.before.features.length;
+      if (then < now - Math.max(top.record.ops.length, 1)) {
+        this.lastUndoProblem = `undo refused: part has ${now} features, the step before ${top.record.id} has ${then}; ${top.record.ops.length} ops; history ${st!.length}; redo ${this.redoStack.length}; material steps ${this.materialSteps.length}`;
+        this.store.notify(t('app.notice.undoFailed'), 'error');
+        return;
+      }
+    }
+    try { this.beforeUndo?.(this.sdoc()); } catch { /* a failing snapshot never blocks the undo */ }
     this.store.busy.value = true;
     try {
       const { records } = await s.undo();
@@ -411,15 +453,17 @@ export class Controller {
     }
   }
 
-  async redo(): Promise<void> {
+  redo(): Promise<void> { return this.serial(() => this.redoNow()); }
+
+  private async redoNow(): Promise<void> {
     const ops = this.redoStack.pop();
     if (!ops || !this.session) return;
-    if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatch(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
+    if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatchNow(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
     if (!Array.isArray(ops)) { this.materialSteps.push({ ...ops, at: this.session.history().length }); this.material = ops.after; return; }
     // edit() clears the redo stack on success; keep the remaining entries.
     const rest = this.redoStack;
     try {
-      await this.edit(ops, 'redo');
+      await this.editNow(ops, 'redo');
     } finally {
       this.redoStack = rest;
     }
@@ -623,7 +667,8 @@ export class Controller {
 
   /** Change the variables, the configurations or both (with the features a rename rewrites) as one undo step. The kernel rebuilds the
    *  candidate first; on failure nothing changes and the features that failed are returned. */
-  async applyDocPatch(patch: DocPatch, reason: string): Promise<{ ok: true } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
+  applyDocPatch(patch: DocPatch, reason: string): Promise<{ ok: true } | { ok: false; errors: Array<{ feature: string; code: string }> }> { return this.serial(() => this.applyDocPatchNow(patch, reason)); }
+  private async applyDocPatchNow(patch: DocPatch, reason: string): Promise<{ ok: true } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
     const s = this.session;
     if (!s) return { ok: false, errors: [] };
     this.store.busy.value = true;
@@ -874,7 +919,21 @@ export class Controller {
     if (!this.session) return;
     this.store.busy.value = true;
     try {
-      this.session = await this.kernel.open(this.lastGood ?? this.sdoc());
+      // The new session starts with no history: carry the old one's undo stack over, cut back to the state that is shown
+      // (a cancelled undo has already taken its step off the old stack, so then the old session's own document is the one).
+      const old = this.session;
+      const oldStack = this.stackOf(old);
+      const keep = this.lastGoodHistory;
+      const stale = oldStack !== null && oldStack.length < keep;
+      const doc = stale ? old.document : this.lastGood ?? this.sdoc();
+      const fresh = await this.kernel.open(doc);
+      const freshStack = this.stackOf(fresh);
+      if (oldStack && freshStack) {
+        freshStack.push(...oldStack.slice(0, stale ? oldStack.length : keep));
+        const seq = (old as unknown as { editSeq?: number }).editSeq;
+        if (typeof seq === 'number') (fresh as unknown as { editSeq: number }).editSeq = seq;
+      }
+      this.session = fresh;
       this.snap = null;
       await this.refresh();
     } finally {
@@ -1039,5 +1098,7 @@ export class Controller {
       return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
     });
     this.lastGood = this.sdoc();
+    this.lastGoodHistory = typeof s.history === 'function' ? s.history().length : 0;
   }
+  private lastGoodHistory = 0;
 }

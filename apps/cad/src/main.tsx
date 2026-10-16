@@ -45,7 +45,8 @@ import { FileManager } from './files/fileManager';
 import { browserKV } from './files/storage';
 import { withCacheCap } from './kernelCaps';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
-import { RestoreDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
+import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
+import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
@@ -113,6 +114,8 @@ const files = new FileManager(platform, browserKV());
 /** True while a script run builds its part: nothing is autosaved meanwhile. */
 let scriptRunning = false;
 const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+/** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
+const snapshots = createSnapshots(idbBackend());
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
@@ -210,6 +213,7 @@ const controller = new Controller({
     cancel() { void kernelP.then((k) => k.close()); kernelP = createBrowserKernel(platform.wasmUrl()); },
   },
 });
+controller.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   // every undo first keeps the state it leaves
 // Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
 const rejections = signal<Rejection[]>([]);
 const rawEdit = controller.edit.bind(controller);
@@ -326,6 +330,7 @@ function App() {
   const sketchUndoRef = useRef<(() => void) | null>(null);
   const [samples, setSamples] = useState<SampleEntry[] | null>(null);
   const [restore, setRestore] = useState<Autosave | null>(startupAutosave);
+  const [recoverOpen, setRecoverOpen] = useState(false);
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [palette, setPalette] = useState(false);
@@ -449,6 +454,7 @@ function App() {
   /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
     const prevSig = cleanSig.current;
+    { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
       const doc = JSON.parse(text) as PartDoc;
       asmState.reset(doc);
@@ -688,6 +694,7 @@ function App() {
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),
+      recover: () => setRecoverOpen(true),
       importStep: () => void (async () => { const f = await platform.openFile({ accept: ['.step', '.stp', '.sldprt'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name) === 'step' ? 'step' : dropKind(f.name) === 'sldprt' ? 'sldprt' : 'unknown', async () => f.bytes ?? new TextEncoder().encode(f.text)); })(),
     },
     samples: async () => setSamples(await platform.listSamples()),
@@ -823,6 +830,16 @@ function App() {
     }), ...chains];
   })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
+  // An Undo (or a delete) can remove the very feature whose editor is open. The editor then has nothing to show ("No feature
+  // selected.") and must not stand in for the feature tree: close it once the feature that was there is gone.
+  const editorSeen = useRef<string | null>(null);
+  if (editingFeature) editorSeen.current = editingId; else if (!editingId) editorSeen.current = null;
+  const editorGone = !!editingId && !!doc && !editingFeature && editorSeen.current === editingId;
+  useEffect(() => {
+    if (!editorGone) return;
+    editorSeen.current = null;
+    setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');
+  }, [editorGone]);
   // An Extrude / Cut / Revolve of an open sketch (no thin wall): the editor shows a hint card with three ways out instead of the kernel's dead-end error.
   const openCard = editingFeature && (editingFeature.type === 'extrude' || editingFeature.type === 'revolve') && !thinOf({ ...editingFeature, ...draft })
     ? openProfile(doc, editingFeature.sketch) : null;
@@ -1756,7 +1773,7 @@ function App() {
   ) : null;
   const editor = materialEditor ?? featureEditor;
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
-    : editingId || editingMaterial ? editor : tree;
+    : (editingId && !editorGone && editingFeature) || editingMaterial ? editor : tree;
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
@@ -1861,7 +1878,14 @@ function App() {
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
   useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
-  const autoPayload = () => { const d = controller.document(); return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null; };
+  const autoPayload = () => {
+    const d = controller.document();
+    // the stored copy is about to be replaced by a part with far fewer features: keep the stored one first
+    const prev = d ? readAutosave(browserKV()) : null;
+    if (d && prev && featureCount(prev.doc) >= 4 && d.features.length < featureCount(prev.doc) / 2) void snapshots.note(prev.doc, prev.name, 'drop');
+    if (d) void snapshots.note(d, files.partName ?? d.name, 'auto');
+    return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null;
+  };
   useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
   useEffect(() => {
     const hide = () => { if (isDirty()) autosaver.flush(autoPayload); };
@@ -1922,7 +1946,7 @@ function App() {
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
-        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'import-step'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
+        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'recover-versions', 'import-step'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
@@ -2051,7 +2075,9 @@ function App() {
       {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
       {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
+      {recoverOpen ? <RecoverDialog load={() => snapshots.list()} onClose={() => setRecoverOpen(false)} onRestore={(sn) => { setRecoverOpen(false); void load(JSON.stringify(sn.doc), { restored: true }); }} /> : null}
       {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
+        onVersions={() => { setRestore(null); setRecoverOpen(true); }}
         onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
         onRestore={() => { const a = restore; setRestore(null); void load(JSON.stringify(a.doc), { restored: true }); }} /> : null}
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}

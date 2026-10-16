@@ -893,6 +893,12 @@
   "bg.light",
   "bg.theme"
  ],
+ "files.recover.reason.+": [
+  "files.recover.reason.auto",
+  "files.recover.reason.drop",
+  "files.recover.reason.load",
+  "files.recover.reason.undo"
+ ],
  "files.autosave.${r}": [
   "files.autosave.quota",
   "files.autosave.tooBig",

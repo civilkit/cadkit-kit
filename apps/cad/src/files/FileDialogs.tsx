@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { t } from '../i18n';
 import { ago } from './strings';
 import { fileNameFor } from './names';
+import type { Snapshot } from './snapshots';
 import './files.css';
 
 const useEscape = (f: () => void) => useEffect(() => {
@@ -11,7 +12,7 @@ const useEscape = (f: () => void) => useEffect(() => {
 }, []);
 
 /** On start: a session was left that was never saved to a file. */
-export function RestoreDialog(p: { name: string; savedAt: number; now?: number; onRestore(): void; onNew(): void }) {
+export function RestoreDialog(p: { name: string; savedAt: number; now?: number; onRestore(): void; onNew(): void; onVersions?(): void }) {
   // no Escape here: dismissing must not throw the stored session away by accident
   return (
     <div class="dlg-back">
@@ -19,9 +20,34 @@ export function RestoreDialog(p: { name: string; savedAt: number; now?: number; 
         <div class="dlg-head"><b>{t('files.restore.title')}</b></div>
         <div class="discard-body">{t('files.restore.text', { name: p.name, when: ago(p.savedAt, p.now ?? Date.now(), t) })}</div>
         <div class="discard-actions">
+          {p.onVersions ? <button class="rb-btn" onClick={p.onVersions}>{t('files.restore.versions')}</button> : null}
           <button class="rb-btn" onClick={p.onNew}>{t('files.restore.new')}</button>
           <button class="rb-btn ok" autofocus onClick={p.onRestore}>{t('files.restore.restore')}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** The snapshots kept of the open part, newest first: restore any of them. */
+export function RecoverDialog(p: { load(): Promise<Snapshot[]>; now?: number; onRestore(s: Snapshot): void; onClose(): void }) {
+  const [list, setList] = useState<Snapshot[] | null>(null);
+  useEffect(() => { void p.load().then(setList); }, []);
+  useEscape(p.onClose);
+  const now = p.now ?? Date.now();
+  return (
+    <div class="dlg-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
+      <div class="dlg discard-dlg" role="dialog" aria-label={t('files.recover.title')}>
+        <div class="dlg-head"><b>{t('files.recover.title')}</b></div>
+        <div class="discard-body recover-list">
+          {list === null ? null : list.length === 0 ? t('files.recover.empty') : list.map((s) => (
+            <div class="recover-row" key={s.id}>
+              <span>{t('files.recover.row', { name: s.name || '-', features: s.features, when: ago(s.time, now, t) })} <small>({t('files.recover.reason.' + s.reason)})</small></span>
+              <button class="rb-btn ok" onClick={() => p.onRestore(s)}>{t('files.recover.restore')}</button>
+            </div>
+          ))}
+        </div>
+        <div class="discard-actions"><button class="rb-btn" autofocus onClick={p.onClose}>{t('files.recover.close')}</button></div>
       </div>
     </div>
   );
