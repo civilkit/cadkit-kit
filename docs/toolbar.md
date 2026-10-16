@@ -64,7 +64,7 @@ each icon in the text mode, icons only in the icons-only mode).
 
 ## The sketch palette (`SketchToolStrip.tsx`)
 
-The right-edge palette shown while sketching uses the same slots: sections Select, Draw, Dimension, Constrain, Edit; the
+The right-edge palette (only when nothing else carries the sketch tools or the Tool palette setting is on; see `sketchChrome`) uses the same slots: sections Select, Draw, Dimension, Constrain, Edit; the
 active tool is drawn pressed; text mode shows a name under each icon; the list shows names and keys. Slot families are
 `PALETTE_SLOTS`; a tool in no family still gets a cell.
 
@@ -82,13 +82,25 @@ whole command table (every optional command included) and fails for a command wi
 - **Home** holds the model commands: Sketch, Create (extrude, thin, revolve, loft / sweep, hole, catalog), Modify (fillet, chamfer,
   shell), Pattern, Edit (undo, redo, history / rebuild).
 - **Sketch tab**: while a sketch is open the tab strip is replaced by one tab named after the sketch ("Editing <name>"), with the
-  groups Select, Draw, Dimension, Constrain, Modify, Reference and Finish (OK / Cancel). It uses the palette's slots
-  (`sketchRibbonGroups` in SketchToolStrip.tsx), so the last-used memory, icons, names and keys are the same. Closing the sketch
-  restores the tab the user was on (the user's tab is never overwritten: `activeRibbonTab`). The Sketch tab is not a command tab, so
-  the command search (F) lists the same commands as before.
-- **Sketch dialog** (left of the viewport): name, plane, Show constraints, Show dimensions, OK and Cancel (`SketchDialog.tsx`).
-- **Tool palette in sketches** (Settings, `sketchPalette`, default off): the right-hand floating sketch palette. It is also shown when
-  the ribbon is off (the Plasticity preset), as then nothing else carries the sketch tools. Flick / long press stay in the slot.
+  groups Select, Draw, Dimension, Constrain, Modify and Reference. It uses the palette's slots (`sketchRibbonGroups` in
+  SketchToolStrip.tsx), so the last-used memory, icons, names and keys are the same. OK / Cancel are not on the tab: they are in the
+  sketch bar. Closing the sketch restores the tab the user was on (the user's tab is never overwritten: `activeRibbonTab`).
+- **The sketch bar** (`SketchBar.tsx`) is the single top-centre pill in every preset: the sketch name (the plane is its tooltip)
+  with OK and Cancel at its left, then Construction (and "Make construction" when geometry is selected) and Look normal, the
+  definition badge ("Fully defined" green, "N DOF" amber, red when over-defined), Fully define, Snaps and Display (the Display menu
+  holds the dimension / relation / reference / colour switches). Under 900 px Snaps and Display fold into one View menu and the bar
+  keeps clear of the tool column, the Display button and the view cube. The old floating Sketch dialog, the second aux row and the
+  "Editing" banner are gone.
+- **Constraint list**: a popover under the bar, not a permanent card. It opens when the badge is clicked and by itself when a
+  conflict or an over-defined sketch appears; Esc or a click outside closes it.
+- **Who owns the sketch tools** (`sketchChrome` in toolbarModel.ts, tested per preset): ribbon on: the Sketch tab (the right-hand
+  palette only with the `sketchPalette` setting, and a left tool column, if on, shrinks to undo / redo / rebuild). Ribbon off with the
+  left column (Plasticity): the column swaps to Select, Draw, Dimension, Constrain, Modify, Reference under undo / redo / rebuild,
+  the model groups (Create, Modify, Surfaces, Pattern, Inspect) are hidden, and no right palette is shown; it swaps back when the
+  sketch closes. Ribbon off and no column (Minimal): the floating right palette is the only home of the tools.
+- **Keyboard and F search**: Enter confirms, Esc cancels, tool letters pick tools; while a sketch is open the F search also lists
+  OK, Cancel, Fully define, Construction, Look normal, Show dimensions / relations, Select and every sketch tool (`sketch-*` commands,
+  search only: they are not placed on the ribbon).
 - **Feature editors**: while one is open the ribbon greys the model commands (`idleDuringEdit` / `MODEL_COMMANDS`); undo, redo,
   views, selection and inspection stay. Keyboard shortcuts are not affected.
 - **Assemblies**: a document with inserted components (`docKindOf`) selects the Assembly tab when it becomes one (`tabForKindChange`).

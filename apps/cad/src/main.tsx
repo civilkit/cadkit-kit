@@ -17,7 +17,7 @@ import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions }
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  BusyOverlay, CommandPalette, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext,
+  BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext,
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
@@ -1678,6 +1678,19 @@ function App() {
     if (next !== tab) setTab(next);
   }, [kindNow]);
   const chrome = sketchChrome(ws, !!sketching);
+  // Every action of the sketch bar and every sketch tool is also a command in the F search while a sketch is open (not on the ribbon: the bar and the Sketch tab carry them there)
+  const sketchSetShow = (k: 'dimensions' | 'relations') => { const next = { ...sketchPrefs, show: { ...sketchPrefs.show, [k]: !sketchPrefs.show[k] } }; setSketchPrefs(next); saveSketchPrefs(next); };
+  const sketchCommands: Command[] = sketching ? [
+    { id: 'sketch-ok', label: t('app.sketch.confirm'), tab: 'Sketch', group: 'Finish', run: () => void confirmSketch() },
+    { id: 'sketch-cancel', label: t('app.sketch.cancel'), tab: 'Sketch', group: 'Finish', run: () => void cancelSketch() },
+    { id: 'sketch-fully-define', label: t('app.sketch.fullyDefine'), tip: t('app.sketch.fullyDefine.tip'), tab: 'Sketch', group: 'Sketch', run: () => void fullyDefineNow() },
+    { id: 'sketch-construction', label: t('app.sketch.constructionMode'), tip: t('app.sketch.constructionMode.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => constructionMode, run: () => setConstructionMode(!constructionMode) },
+    { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', run: () => viewport?.orientToSketch() },
+    { id: 'sketch-show-dimensions', label: t('app.sketch.show.dimensions'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.dimensions, run: () => sketchSetShow('dimensions') },
+    { id: 'sketch-show-relations', label: t('app.sketch.show.relations'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.relations, run: () => sketchSetShow('relations') },
+    { id: 'sketch-select', label: t('app.sketch.select'), tab: 'Sketch', group: 'Sketch', run: () => selectTool(null) },
+    ...sketchTools().map((x) => ({ id: 'sketch-tool-' + x.id, label: t('app.sketch.tool.' + x.id), ...(x.key ? { keys: x.key.toUpperCase() } : {}), tab: 'Sketch', group: t('app.sketch.group.' + x.group), run: () => selectTool(x.id) })),
+  ] : [];
   const lay = layoutHandles(store, ws);
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
@@ -1809,7 +1822,7 @@ function App() {
           ]}
           drawerOpen={ws.drawerOpen} onToggleDrawer={toggleDrawer} />
       </div>
-      {palette ? <CommandPalette commands={commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
+      {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
       {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
       {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
