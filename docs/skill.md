@@ -55,7 +55,7 @@ Edit JSDoc in `packages/script/src/recorder.ts` (comments only), add pitfalls in
 
 * 35 methods in 6 domains; full compact index (id + summary) about 600 tokens; system prompt fragment about 1.0k tokens (4 characters per token). The 5k budget has room for about 250 methods at this density.
 * 34 natural-language search queries, each with its expected method in the top 3 (`src/search.test.ts`); 12 recipe queries put the right recipe first.
-* Recipes executed on the kernel, all valid: flanged bushing 19320.79 mm3, bolt-circle plate 36341.94, L-bracket 14892.41, closed hollow box 18432.00, pulley with holes 311353.36, gear blank 29403.28, ribbed plate 34200.00, tapered boss with chamfer 41262.08, pocket grid 44160.00, boat hull loft 35529.29 (cross-checked with the integrated `sections` volume to 0.5 percent). Every analytic volume matches to 1e-4.
+* Recipes executed on the kernel, all valid: flanged bushing 19320.79 mm3, bolt-circle plate 36341.94, L-bracket 14892.41, closed hollow box 18432.00, pulley with holes 311353.36, gear blank 29403.28, ribbed plate 34200.00, tapered boss with chamfer 41262.08, pocket grid 44160.00, boat hull loft 35529.29 (cross-checked with the integrated `sections` volume to 6e-5). Every analytic volume matches to 1e-4.
 
 ## Gaps in the script API found while writing this
 
