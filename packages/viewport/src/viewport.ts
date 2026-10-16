@@ -227,7 +227,7 @@ export class Viewport {
   private rubber: { cx: number; cy: number; x: number; y: number; moved: boolean } | null = null;
   /** How defined each entity of the open sketch is (blue under, dark fully, red over); entities not listed stay blue. */
   private sketchDef: Record<string, 'under' | 'full' | 'over'> | null = null;
-  private sketchDefLines: THREE.LineSegments[] = [];
+  private sketchDefLines: Array<THREE.LineSegments | LineSegments2> = [];
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
@@ -479,9 +479,8 @@ export class Viewport {
     const polys = sketchEditPolylines(v.sketch, v.frame as never, 'solid');
     const seg = this.segmentsOf(polys);
     if (seg.length) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
-      group.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x0b74dc })));
+      const solved = this.fatSketchLines(seg, 0x0b74dc, 2.2);
+      group.add(solved);
     }
     // Construction geometry: dashed and lighter (it is never extruded)
     const cons = this.segmentsOf(sketchEditPolylines(v.sketch, v.frame as never, 'construction'));
@@ -520,7 +519,7 @@ export class Viewport {
   }
 
   private rebuildSketchDef(): void {
-    for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); (l.material as THREE.Material).dispose(); }
+    for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); const m = l.material as THREE.Material; this.fatMaterials = this.fatMaterials.filter((x) => x !== (m as unknown)); m.dispose(); }
     this.sketchDefLines = [];
     const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef;
     this.dirty = true;
@@ -534,9 +533,7 @@ export class Viewport {
       if (!ents.length) continue;
       const seg = this.segmentsOf(sketchEditPolylines({ ...v.sketch, entities: ents }, v.frame as never, 'solid'));
       if (!seg.length) continue;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(seg, 3));
-      const lines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: colours[state], depthTest: false, transparent: true }));
+      const lines = this.fatSketchLines(seg, colours[state], 2.2);
       lines.renderOrder = 10;
       group.add(lines);
       this.sketchDefLines.push(lines);
@@ -1037,6 +1034,18 @@ export class Viewport {
     lines.visible = visible;
     lines.userData.pickable = false;
     this.scene.add(lines);
+    return lines;
+  }
+
+  /** Sketch lines a couple of pixels wide, drawn over the body (WebGL's own lines are one pixel and vanish on a light background). */
+  private fatSketchLines(seg: Float32Array, color: number, width: number): LineSegments2 {
+    const geo = new LineSegmentsGeometry();
+    geo.setPositions(seg);
+    const mat = new LineMaterial({ color, linewidth: width, worldUnits: false, depthTest: false, transparent: true });
+    mat.resolution.set(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+    this.fatMaterials.push(mat);
+    const lines = new LineSegments2(geo, mat);
+    lines.userData.pickable = false;
     return lines;
   }
 
