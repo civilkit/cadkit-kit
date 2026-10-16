@@ -86,6 +86,8 @@ export interface Camera {
   bias: number;
   /** Project: out = [sx, sy, nearness]. Returns false when behind the eye. */
   project(p: ArrayLike<number>, out: Float64Array): boolean;
+  /** same with the coordinates as numbers (no allocation) */
+  projectXYZ(x: number, y: number, z: number, out: Float64Array): boolean;
 }
 
 export function makeCamera(o: { dir: V3; upv: V3; center: V3; radius: number; persp: boolean; scale: number; px: number; py: number }): Camera {
@@ -100,8 +102,9 @@ export function makeCamera(o: { dir: V3; upv: V3; center: V3; radius: number; pe
   const cam: Camera = {
     dir, right, upv, center, radius: R, persp, dist, scale, px, py,
     bias: persp ? 0.006 * (R / dist) : 0.006,
-    project(p, out) {
-      const dx = p[0] - center[0], dy = p[1] - center[1], dz = p[2] - center[2];
+    project(p, out) { return cam.projectXYZ(p[0], p[1], p[2], out); },
+    projectXYZ(px_, py_, pz_, out) {
+      const dx = px_ - center[0], dy = py_ - center[1], dz = pz_ - center[2];
       const x = dx * right[0] + dy * right[1] + dz * right[2];
       const y = dx * upv[0] + dy * upv[1] + dz * upv[2];
       const z = dx * dir[0] + dy * dir[1] + dz * dir[2];

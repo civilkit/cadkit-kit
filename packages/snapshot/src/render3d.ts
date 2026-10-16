@@ -38,7 +38,7 @@ export function prepare(input: SnapshotInput): Prepared {
   }
   const tf = m.triFace && m.triFace.length >= nTri ? (m.triFace instanceof Int32Array ? m.triFace : Int32Array.from(m.triFace)) : null;
   let min: V3, max: V3;
-  if (input.box && nTri === 0) { min = input.box.min as V3; max = input.box.max as V3; }
+  if (input.box && input.box.min.every(isFinite) && input.box.max.every(isFinite) && (nTri === 0 || input.box.max[0] >= input.box.min[0])) { min = [...input.box.min] as V3; max = [...input.box.max] as V3; }
   else {
     min = [Infinity, Infinity, Infinity]; max = [-Infinity, -Infinity, -Infinity];
     for (let i = 0; i + 2 < pos.length; i += 3) for (let a = 0; a < 3; a++) { const v = pos[i + a]; if (v < min[a]) min[a] = v; if (v > max[a]) max[a] = v; }
@@ -154,7 +154,7 @@ export function renderPanel(p: Prepared, o: PanelOpts): PanelResult {
   const ok = new Uint8Array(nv);
   const tmp = new Float64Array(3);
   for (let i = 0; i < nv; i++) {
-    if (cam.project([p.pos[i * 3], p.pos[i * 3 + 1], p.pos[i * 3 + 2]], tmp)) { ok[i] = 1; pv[i * 3] = tmp[0]; pv[i * 3 + 1] = tmp[1]; pv[i * 3 + 2] = tmp[2]; }
+    if (cam.projectXYZ(p.pos[i * 3], p.pos[i * 3 + 1], p.pos[i * 3 + 2], tmp)) { ok[i] = 1; pv[i * 3] = tmp[0]; pv[i * 3 + 1] = tmp[1]; pv[i * 3 + 2] = tmp[2]; }
   }
   // fixed light, in camera space: from the viewer's upper left, a little in front
   const L = norm([cam.right[0] * -0.4 + cam.upv[0] * 0.6 + cam.dir[0] * 0.7, cam.right[1] * -0.4 + cam.upv[1] * 0.6 + cam.dir[1] * 0.7, cam.right[2] * -0.4 + cam.upv[2] * 0.6 + cam.dir[2] * 0.7]);
@@ -330,29 +330,32 @@ function fillTri(r: Raster, z: Float32Array, W: number, H: number, x0: number, y
   const inv = 1 / area;
   const d = r.data;
   const eps = -1e-7;
+  // barycentrics, depth and intensity are linear in screen space: step them along the row
+  const dw0 = (y1 - y2) * inv, dw1 = (y2 - y0) * inv;
+  const dn = dw0 * (n0 - n2) + dw1 * (n1 - n2), di = dw0 * (i0 - i2) + dw1 * (i1 - i2);
+  const px0 = minX + 0.5;
+  const cr = c[0], cg = c[1], cb = c[2];
   for (let y = minY; y <= maxY; y++) {
     const py = y + 0.5;
-    for (let x = minX; x <= maxX; x++) {
-      const px = x + 0.5;
-      const w0 = ((x1 - px) * (y2 - py) - (x2 - px) * (y1 - py)) * inv;
-      if (w0 < eps) continue;
-      const w1 = ((x2 - px) * (y0 - py) - (x0 - px) * (y2 - py)) * inv;
-      if (w1 < eps) continue;
-      const w2 = 1 - w0 - w1;
-      if (w2 < eps) continue;
-      const idx = y * W + x;
-      const n = w0 * n0 + w1 * n1 + w2 * n2;
+    let w0 = ((x1 - px0) * (y2 - py) - (x2 - px0) * (y1 - py)) * inv;
+    let w1 = ((x2 - px0) * (y0 - py) - (x0 - px0) * (y2 - py)) * inv;
+    let n = n2 + w0 * (n0 - n2) + w1 * (n1 - n2);
+    let I = i2 + w0 * (i0 - i2) + w1 * (i1 - i2);
+    let entered = false;
+    let idx = y * W + minX;
+    for (let x = minX; x <= maxX; x++, idx++, w0 += dw0, w1 += dw1, n += dn, I += di) {
+      if (w0 < eps || w1 < eps || 1 - w0 - w1 < eps) { if (entered) break; continue; }
+      entered = true;
       const o4 = idx * 4;
       if (xray) {
-        const I = w0 * i0 + w1 * i1 + w2 * i2, a = 0.14;
-        d[o4] = d[o4] + (c[0] * I - d[o4]) * a + 0.5; d[o4 + 1] = d[o4 + 1] + (c[1] * I - d[o4 + 1]) * a + 0.5; d[o4 + 2] = d[o4 + 2] + (c[2] * I - d[o4 + 2]) * a + 0.5;
+        const a = 0.14;
+        d[o4] = d[o4] + (cr * I - d[o4]) * a + 0.5; d[o4 + 1] = d[o4 + 1] + (cg * I - d[o4 + 1]) * a + 0.5; d[o4 + 2] = d[o4 + 2] + (cb * I - d[o4 + 2]) * a + 0.5;
         continue;
       }
       if (n <= z[idx]) continue;
       z[idx] = n;
       if (depthOnly) { d[o4] = 252; d[o4 + 1] = 252; d[o4 + 2] = 252; d[o4 + 3] = 255; continue; }
-      const I = w0 * i0 + w1 * i1 + w2 * i2;
-      d[o4] = c[0] * I + 0.5; d[o4 + 1] = c[1] * I + 0.5; d[o4 + 2] = c[2] * I + 0.5; d[o4 + 3] = 255;
+      d[o4] = cr * I + 0.5; d[o4 + 1] = cg * I + 0.5; d[o4 + 2] = cb * I + 0.5; d[o4 + 3] = 255;
     }
   }
 }
@@ -361,10 +364,19 @@ function fillTri(r: Raster, z: Float32Array, W: number, H: number, x0: number, y
 function zLine(r: Raster, z: Float32Array, W: number, H: number, x0: number, y0: number, n0: number, x1: number, y1: number, n1: number, w: number, vis: RGB, hid: RGB | null, dOn: number, dOff: number, s0: number, bias: number, alpha: number, test: boolean, pass = 0): number {
   const dx = x1 - x0, dy = y1 - y0, len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
   const hw = w / 2 + 0.5;
-  const xa = Math.max(0, Math.floor(Math.min(x0, x1) - hw)), xb = Math.min(W - 1, Math.ceil(Math.max(x0, x1) + hw));
   const ya = Math.max(0, Math.floor(Math.min(y0, y1) - hw)), yb = Math.min(H - 1, Math.ceil(Math.max(y0, y1) + hw));
   const d = r.data;
-  for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+  for (let y = ya; y <= yb; y++) {
+    // x extent of the segment inside this row's band (long diagonal edges must not scan their whole bounding box)
+    let xl: number, xr: number;
+    if (Math.abs(dy) < 1e-9) { xl = Math.min(x0, x1); xr = Math.max(x0, x1); }
+    else {
+      const ta = Math.min(1, Math.max(0, (y - hw - y0) / dy)), tb = Math.min(1, Math.max(0, (y + 1 + hw - y0) / dy));
+      const xa_ = x0 + ta * dx, xb_ = x0 + tb * dx;
+      xl = Math.min(xa_, xb_); xr = Math.max(xa_, xb_);
+    }
+    const xa = Math.max(0, Math.floor(xl - hw)), xb = Math.min(W - 1, Math.ceil(xr + hw));
+    for (let x = xa; x <= xb; x++) {
     const px = x + 0.5, py = y + 0.5;
     let t = len2 > 0 ? ((px - x0) * dx + (py - y0) * dy) / len2 : 0;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -384,6 +396,7 @@ function zLine(r: Raster, z: Float32Array, W: number, H: number, x0: number, y0:
     }
     const a = cov * alpha, o4 = idx * 4;
     d[o4] = d[o4] + (c[0] - d[o4]) * a + 0.5; d[o4 + 1] = d[o4 + 1] + (c[1] - d[o4 + 1]) * a + 0.5; d[o4 + 2] = d[o4 + 2] + (c[2] - d[o4 + 2]) * a + 0.5; d[o4 + 3] = 255;
+    }
   }
   return len;
 }

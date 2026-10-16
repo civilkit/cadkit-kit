@@ -9,7 +9,9 @@ export class Raster {
   constructor(readonly width: number, readonly height: number, fill: RGB | readonly [number, number, number, number] = [255, 255, 255]) {
     this.data = new Uint8Array(width * height * 4);
     const a = fill.length === 4 ? fill[3] : 255;
-    for (let i = 0; i < this.data.length; i += 4) { this.data[i] = fill[0]; this.data[i + 1] = fill[1]; this.data[i + 2] = fill[2]; this.data[i + 3] = a; }
+    const px = new Uint8Array([fill[0], fill[1], fill[2], a]);
+    const u32 = new Uint32Array(this.data.buffer);
+    u32.fill(new Uint32Array(px.buffer)[0]); // same byte order in and out, so endianness does not matter
   }
 
   /** Blend colour `c` over pixel (x, y) with coverage `a` in 0..1. */
@@ -110,6 +112,17 @@ export class Raster {
     if (f === 1) return this;
     const w = Math.floor(this.width / f), h = Math.floor(this.height / f);
     const out = new Raster(w, h);
+    if (f === 2) {
+      const d2 = this.data, o2 = out.data, sw = this.width * 4;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const k = y * 2 * sw + x * 8, o = (y * w + x) * 4;
+        o2[o] = (d2[k] + d2[k + 4] + d2[k + sw] + d2[k + sw + 4] + 2) >> 2;
+        o2[o + 1] = (d2[k + 1] + d2[k + 5] + d2[k + sw + 1] + d2[k + sw + 5] + 2) >> 2;
+        o2[o + 2] = (d2[k + 2] + d2[k + 6] + d2[k + sw + 2] + d2[k + sw + 6] + 2) >> 2;
+        o2[o + 3] = (d2[k + 3] + d2[k + 7] + d2[k + sw + 3] + d2[k + sw + 7] + 2) >> 2;
+      }
+      return out;
+    }
     const n = f * f, d = this.data, od = out.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       let r = 0, g = 0, b = 0, a = 0;
