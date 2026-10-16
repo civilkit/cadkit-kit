@@ -1,6 +1,7 @@
 // The recorder: a fluent API whose calls are REMEMBERED (with the script line) and later compiled to EditOps by the runner.
 // Selectors (face(), edges()) are resolved at compile time against the body as it is just before that step.
 import { resolveEdges, resolveFace, SelectorError, type EdgeRule, type EdgeSel, type FaceSel, type Geometry } from './selectors';
+import { holeOps, installFeatures } from './features';
 
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
 export type Plane = 'front' | 'top' | 'right';
@@ -317,6 +318,35 @@ export class SketchBuilder {
 }
 
 // ---- the part ----
+/** Hole options. diameter or an ISO size is required; the kind picks the head shape (counterbore, countersink) or the thread (tapped). */
+export interface HoleOpts {
+  /** hole diameter in mm (not radius); optional when size is given */
+  diameter?: Num;
+  /** ISO metric size 'M2'..'M24': the kernel picks the hole diameter for the fit */
+  size?: string;
+  /** with size: 'normal' (default) | 'close' | 'loose' */
+  fit?: 'normal' | 'close' | 'loose';
+  /** 'simple' (default) | 'cbore' | 'csk' | 'tapped' */
+  kind?: 'simple' | 'cbore' | 'csk' | 'tapped';
+  /** 'through' (default without depth) | 'blind' (default with depth) | 'upTo' (up to the next face) */
+  end?: 'through' | 'blind' | 'upTo';
+  /** blind depth in mm */
+  depth?: Num;
+  /** reverse the drilling direction */
+  flip?: boolean;
+  /** counterbore diameter in mm (cbore); give with cboreDepth, else the ISO 4762 table values of size */
+  cboreDiameter?: Num;
+  /** counterbore depth in mm (cbore) */
+  cboreDepth?: Num;
+  /** countersink head diameter in mm (csk), default the ISO 10642 value of size */
+  cskDiameter?: Num;
+  /** countersink included angle in degrees (csk), default 90 */
+  cskAngle?: Num;
+  /** tapped: thread designation 'M6' (sets the tap-drill hole and adds the thread feature), or { size, length, hand, modeled } */
+  thread?: string | boolean | { size?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string };
+  /** tapped: cut the real helical groove instead of a cosmetic thread */
+  modeled?: boolean;
+}
 export interface ExtrudeOpts { mid?: boolean; flip?: boolean; draft?: number; thin?: Num }
 export class PartBuilder {
   steps: Step[] = [];
@@ -461,19 +491,21 @@ export class PartBuilder {
   /**
    * A simple drilled hole on a planar face at [x, y].
    *
-   * Drills a round hole into the material from the face. [x, y] are coordinates in the sketch plane of that face, measured from the part origin projected onto it (not from a corner). Through unless depth is given. Use flip: true if it cuts the wrong way on an unusual face. Diameter, not radius.
+   * Drills a round hole into the material from the face. kind selects the shape: 'simple' (default), 'cbore' (counterbore: cboreDiameter and cboreDepth), 'csk' (countersink: cskDiameter, cskAngle default 90) or 'tapped' (thread: 'M6' drills the tap drill and adds the thread; modeled: true for the real helix). size: 'M6' + fit instead of diameter uses the ISO table. end: 'upTo' drills to the next face. [x, y] are coordinates in the sketch plane of that face, measured from the part origin projected onto it (not from a corner). Through unless depth is given. Use flip: true if it cuts the wrong way on an unusual face. Diameter, not radius.
    * @domain holes
    * @param on face(sel) of the planar face to drill from
    * @param at [x, y] hole centre in the face sketch plane
    * @param o.diameter hole diameter in mm
    * @param o.depth blind depth in mm, omit for through
    * @param o.flip reverse the drilling direction
+   * @param o.kind 'cbore' counterbore (cboreDiameter, cboreDepth), 'csk' countersink (cskDiameter, cskAngle) or 'tapped' (thread: 'M6')
    * @example
    * part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(12)
-   *   .hole(face('>Z'), [-15, 0], { diameter: 8 });
+   *   .hole(face('>Z'), [-15, 0], { diameter: 8 })
+   *   .hole(face('>Z'), [15, 0], { kind: 'cbore', diameter: 6.6, cboreDiameter: 11, cboreDepth: 6 });
    * @see part.holes.polar, part.holes.grid, part.holes.points, part.cut
    */
-  hole(on: FaceSel, at: Pt, o: { diameter: Num; depth?: Num; flip?: boolean }): this { return this.holePoints('hole', on, [at], o); }
+  hole(on: FaceSel, at: Pt, o: HoleOpts): this { return this.holePoints('hole', on, [at], o); }
   /**
    * Hole arrays: ONE hole feature for many centres.
    *
@@ -485,7 +517,7 @@ export class PartBuilder {
    * @see part.hole
    */
   get holes() {
-    type HO = { diameter: Num; depth?: Num; flip?: boolean };
+    type HO = HoleOpts;
     return {
       /**
        * One hole feature at a list of centres.
@@ -537,18 +569,9 @@ export class PartBuilder {
       grid: (on: FaceSel, g: { origin: Pt; pitch: Pt; count: [number, number] }, o: HO): this => this.holePoints('holes.grid', on, gridPts(g.origin, g.pitch, g.count), o),
     };
   }
-  private holePoints(label: string, on: FaceSel, pts: Pt[], o: { diameter: Num; depth?: Num; flip?: boolean }): this {
-    return this.add(label, (ctx) => {
-      const sid = ctx.nextId(), id = ctx.nextId();
-      const fc = resolveFace(on.sel, ctx.geo, on.line);
-      ctx.lastFeature = id;
-      const hole: Record<string, unknown> = { type: 'hole', id, sketch: sid, kind: 'simple', diameter: ref(o.diameter), end: o.depth === undefined ? 'through' : 'blind', flip: o.flip ?? false };
-      if (o.depth !== undefined) hole.depth = ref(o.depth);
-      return [
-        { op: 'add', feature: { type: 'sketch', id: sid, plane: { kind: 'face', id: fc.id }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...pts.map((p, i) => ({ id: `p${i + 1}`, x: +p[0].toFixed(6), y: +p[1].toFixed(6) }))], entities: pts.map((_, i) => ({ id: `e${i + 1}`, type: 'point', p: `p${i + 1}` })), constraints: [] } },
-        { op: 'add', feature: hole },
-      ];
-    });
+  private holePoints(label: string, on: FaceSel, pts: Pt[], o: HoleOpts): this {
+    const line = callerLine();
+    return this.add(label, (ctx) => holeOps(ctx, on, pts, o, line));
   }
   /**
    * Round edges with a constant radius.
@@ -640,6 +663,8 @@ export class PartBuilder {
     });
   }
 }
+
+installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
 
 // ---- script-level state: the runner collects what the script built ----
 export interface ScriptState { parts: PartBuilder[]; vars: Record<string, number>; varDefs: Array<{ name: string; expr: string }> }

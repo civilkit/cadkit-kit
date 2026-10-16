@@ -34,7 +34,9 @@ export function generate() {
   const src = fs.readFileSync(path.join(scriptSrc, 'recorder.ts'), 'utf8');
   const selSrc = fs.readFileSync(path.join(scriptSrc, 'selectors.ts'), 'utf8');
   const ast = parseTs(src);
-  const slice = (n) => src.slice(n.start, n.end);
+  let curSrc = src;
+  const withSource = (text, fn) => { const prev = curSrc; curSrc = text; try { fn(); } finally { curSrc = prev; } };
+  const slice = (n) => curSrc.slice(n.start, n.end);
   const types = {}; const ifaces = {};
   for (const n of ast.program.body) {
     const d = n.type === 'ExportNamedDeclaration' ? n.declaration : n;
@@ -49,6 +51,7 @@ export function generate() {
       types.EdgeRule = selSrc.slice(d.body.start, d.body.end).replace(/\s*\n\s*/g, ' ').replace(/\s*\/\*\*.*?\*\/\s*/g, ' ');
     }
   }
+  types.SketchSpec = '{ on: \'front\' | \'top\' | \'right\' | at(plane, offset) | face(sel); draw?: (s) => void; point?: [x, y]; name?: string }';
   types.FaceSel = 'the result of face(sel)';
   types.EdgeSel = 'the result of edges(sel)';
 
@@ -126,6 +129,26 @@ export function generate() {
       }
     }
   }
+  // feature mixins: documented object methods exported from features/*.ts (partFeatures spread of shapeFeatures, miscFeatures; sketchCurves for the sketch builder)
+  const featDir = path.join(scriptSrc, 'features');
+  const MIXINS = { shapeFeatures: 'part', miscFeatures: 'part', sketchCurves: 'sketch' };
+  for (const file of fs.existsSync(featDir) ? fs.readdirSync(featDir).filter((f) => f.endsWith('.ts')).sort() : []) {
+    const fsrc = fs.readFileSync(path.join(featDir, file), 'utf8');
+    for (const n of parseTs(fsrc).program.body) {
+      if (n.type !== 'ExportNamedDeclaration' || n.declaration?.type !== 'VariableDeclaration') continue;
+      for (const v of n.declaration.declarations) {
+        const owner = MIXINS[v.id.name];
+        if (!owner || v.init?.type !== 'ObjectExpression') continue;
+        for (const m of v.init.properties) {
+          if (m.type !== 'ObjectMethod') continue;
+          if (!lastDoc(m)) throw new Error(`${file}: ${m.key.name}: public method without JSDoc`);
+          // the `this: X` parameter is not part of the call
+          const fn = { params: m.params.filter((p) => !(p.type === 'Identifier' && p.name === 'this')), returnType: null };
+          withSource(fsrc, () => addMethod({ id: `${owner}.${m.key.name}`, kind: 'method', call: owner === 'sketch' ? `s.${m.key.name}` : `.${m.key.name}`, fn, doc: lastDoc(m) }));
+        }
+      }
+    }
+  }
   const ids = new Set(methods.map((m) => m.id));
   const resolveId = (r) => (ids.has(r) ? r : methods.find((m) => m.id.endsWith('.' + r))?.id);
   for (const m of methods) m.related = m.related.map((r) => { const id = resolveId(r); if (!id) throw new Error(`${m.id}: @see ${r} does not exist`); return id; });
@@ -140,7 +163,7 @@ export function generate() {
   }
   const order = (m) => DOMAINS.indexOf(m.domain);
   methods.sort((a, b) => order(a) - order(b) || a.id.localeCompare(b.id));
-  return { version: 1, source: 'packages/script/src/recorder.ts', domains: DOMAINS.filter((d) => methods.some((m) => m.domain === d)), types, methods };
+  return { version: 1, source: 'packages/script/src/recorder.ts, packages/script/src/features/*.ts', domains: DOMAINS.filter((d) => methods.some((m) => m.domain === d)), types, methods };
 }
 
 export const render = (reg) => JSON.stringify(reg, null, 1) + '\n';

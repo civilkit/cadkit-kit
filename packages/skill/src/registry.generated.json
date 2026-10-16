@@ -1,12 +1,14 @@
 {
  "version": 1,
- "source": "packages/script/src/recorder.ts",
+ "source": "packages/script/src/recorder.ts, packages/script/src/features/*.ts",
  "domains": [
   "sketch",
   "features",
   "selectors",
   "holes",
   "patterns",
+  "surfaces",
+  "assembly",
   "utilities"
  ],
  "types": {
@@ -17,6 +19,7 @@
   "Pt": "[number, number]",
   "ScriptApi": "ReturnType<typeof makeApi>",
   "EdgeRule": "{ parallel?: 'X' | 'Y' | 'Z'; outside?: [Vec, Vec]; inside?: [Vec, Vec]; not?: EdgeSel; onFace?: FaceSel; lengthGreater?: number; lengthLess?: number; near?: Vec; within?: number; union?: EdgeSel[]; intersect?: EdgeSel[]; difference?: EdgeSel[]; }",
+  "SketchSpec": "{ on: 'front' | 'top' | 'right' | at(plane, offset) | face(sel); draw?: (s) => void; point?: [x, y]; name?: string }",
   "FaceSel": "the result of face(sel)",
   "EdgeSel": "the result of edges(sel)"
  },
@@ -84,6 +87,53 @@
     "part.extrude"
    ],
    "notes": "- A sketch on a face(): the sketch origin is the world origin projected on that face; coordinates are in mm.\n- Feature order matters: sketch, then the feature that uses it. Two sketches in a row without a feature between them: only the last is used.\n- Units mm, Y up. front = XY (normal +Z), top = XZ (normal +Y), right = ZY (normal +X)."
+  },
+  {
+   "id": "part.sketchFeature",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": ".sketchFeature(on: Plane | OffsetPlane | FaceSel, json: { points: Array<Record<string, unknown>>; entities: Array<Record<string, unknown>>; constraints?: Array<Record<string, unknown>> })",
+   "summary": "Append a raw sketch (points, entities, constraints) on a plane.",
+   "description": "For sketches the builder cannot draw: pass the kernel's sketch JSON { points, entities, constraints? } and the plane ('front' | 'top' | 'right', at(plane, offset) or face(sel)). The next extrude, cut, revolve or rib consumes it. Point ids and entity ids are yours; remember the origin point O exists only if you declare it.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "Plane | OffsetPlane | FaceSel",
+     "optional": false,
+     "description": "'front' | 'top' | 'right', at(plane, offset) or face(sel)"
+    },
+    {
+     "name": "json",
+     "type": "{ points: Array<Record<string, unknown>>; entities: Array<Record<string, unknown>>; constraints?: Array<Record<string, unknown>> }",
+     "optional": false,
+     "description": "{ points: [{ id, x, y }], entities: [{ id, type, ... }], constraints?: [] }",
+     "properties": [
+      {
+       "name": "points",
+       "type": "Array<Record<string, unknown>>",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "entities",
+       "type": "Array<Record<string, unknown>>",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "constraints",
+       "type": "Array<Record<string, unknown>>",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Tri').sketchFeature('front', { points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 20, y: 0 }, { id: 'c', x: 0, y: 20 }],\n  entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' }, { id: 'e3', type: 'line', p1: 'c', p2: 'a' }] }).extrude(5);",
+   "related": [
+    "part.feature",
+    "part.sketch"
+   ]
   },
   {
    "id": "sketch.arc",
@@ -223,6 +273,47 @@
     "part.cut"
    ],
    "notes": "- RADIUS, not diameter: a 10 mm bore is circle(5).\n- To drill, prefer part.hole / holes.* over a circle + cut: they carry the hole kind and are one feature."
+  },
+  {
+   "id": "sketch.cvspline",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.cvspline(pts: Pt[], o: { closed?: boolean; degree?: number } = {})",
+   "summary": "Control-vertex spline: the points are the control polygon, not on the curve.",
+   "description": "Adds a B-spline whose control vertices are the points (the curve is pulled towards them but does not pass through). Degree 3 by default. Use it for fair, smooth outlines where overshoot of an interpolating spline is a problem. closed: true makes a periodic loop.",
+   "parameters": [
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "control points [x, y], at least degree + 1"
+    },
+    {
+     "name": "o",
+     "type": "{ closed?: boolean; degree?: number }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "closed",
+       "type": "boolean",
+       "optional": true,
+       "description": "close the curve into a loop"
+      },
+      {
+       "name": "degree",
+       "type": "number",
+       "optional": true,
+       "description": "curve degree, default 3"
+      }
+     ]
+    }
+   ],
+   "example": "part('Fair').sketch('front', (s) => s.cvspline([[0, 0], [30, 0], [40, 20], [20, 40], [-10, 30]], { closed: true })).extrude(5);",
+   "related": [
+    "sketch.spline"
+   ]
   },
   {
    "id": "sketch.grid",
@@ -494,6 +585,42 @@
    ]
   },
   {
+   "id": "sketch.spline",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.spline(pts: Pt[], o: { closed?: boolean } = {})",
+   "summary": "Interpolating spline: a smooth curve through the points.",
+   "description": "Adds a spline that passes through every point (a fit-point spline). closed: true makes it a closed loop through the points (a profile you can extrude); open splines are paths for sweep or lofts guides, or edges of an outline with other entities.",
+   "parameters": [
+    {
+     "name": "pts",
+     "type": "Pt[]",
+     "optional": false,
+     "description": "list of [x, y] points the curve passes through, at least 3 (2 for an open one)"
+    },
+    {
+     "name": "o",
+     "type": "{ closed?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "closed",
+       "type": "boolean",
+       "optional": true,
+       "description": "close the curve into a loop"
+      }
+     ]
+    }
+   ],
+   "example": "part('Blob').sketch('front', (s) => s.spline([[0, 0], [20, 10], [30, 30], [10, 40], [-10, 20]], { closed: true })).extrude(6);",
+   "related": [
+    "sketch.cvspline",
+    "part.sweep"
+   ]
+  },
+  {
    "id": "part.chamfer",
    "kind": "method",
    "domain": "features",
@@ -636,6 +763,28 @@
    "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; flip reverses, mid is symmetric.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world: when an offset position matters, sketch on a face or check with a probe.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss."
   },
   {
+   "id": "part.feature",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".feature(json: Record<string, unknown>)",
+   "summary": "Append any kernel feature as raw JSON (escape hatch for features without a helper).",
+   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for types like draft, helix, lip, dome or moveFace; prefer the typed helpers when one exists. Field names are the kernel's (docs/spec-agent-interface.md).",
+   "parameters": [
+    {
+     "name": "json",
+     "type": "Record<string, unknown>",
+     "optional": false,
+     "description": "the feature object, e.g. { type: 'shell', faces: [face('>Z')], thickness: 2 }"
+    }
+   ],
+   "example": "part('Cup').sketch('front', (s) => s.rect(40, 40)).extrude(20)\n  .feature({ type: 'shell', faces: [face('>Z')], thickness: 2 });",
+   "related": [
+    "part.sketchFeature",
+    "face",
+    "edges"
+   ]
+  },
+  {
    "id": "part.fillet",
    "kind": "method",
    "domain": "features",
@@ -664,6 +813,150 @@
     "sketch.rrect"
    ],
    "notes": "- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.\n- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.\n- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists."
+  },
+  {
+   "id": "part.gear",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".gear(o: { module: number; teeth: number; thickness: number; bore?: number; pressureAngle?: number; type?: 'spur' | 'helical' | 'internal'; helixAngle?: number; plane?: Plane; center?: [number, number] })",
+   "summary": "Involute spur or helical gear (profile, body extrude, bore) from module and teeth.",
+   "description": "Adds the app's gear generator output: a profile sketch with true involute teeth, the body extrude and a through bore. The gear is centred on `center` on the 'front' plane (axis +Z) unless plane says otherwise. Pitch diameter = module * teeth; outside diameter = module * (teeth + 2). Use it as the first feature of a part (it makes the body), or on its own plane for a second gear.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ module: number; teeth: number; thickness: number; bore?: number; pressureAngle?: number; type?: 'spur' | 'helical' | 'internal'; helixAngle?: number; plane?: Plane; center?: [number, number] }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "module",
+       "type": "number",
+       "optional": false,
+       "description": "normal module in mm"
+      },
+      {
+       "name": "teeth",
+       "type": "number",
+       "optional": false,
+       "description": "number of teeth"
+      },
+      {
+       "name": "thickness",
+       "type": "number",
+       "optional": false,
+       "description": "face width (extrusion) in mm"
+      },
+      {
+       "name": "bore",
+       "type": "number",
+       "optional": true,
+       "description": "bore diameter in mm, 0 for none, default 8"
+      },
+      {
+       "name": "pressureAngle",
+       "type": "number",
+       "optional": true,
+       "description": "pressure angle in degrees, default 20"
+      },
+      {
+       "name": "type",
+       "type": "'spur' | 'helical' | 'internal'",
+       "optional": true,
+       "description": "'spur' (default), 'helical' or 'internal'"
+      },
+      {
+       "name": "helixAngle",
+       "type": "number",
+       "optional": true,
+       "description": "helix angle in degrees for a helical gear, default 15"
+      },
+      {
+       "name": "plane",
+       "type": "Plane",
+       "optional": true,
+       "description": "'front' (default) | 'top' | 'right' or at(plane, offset) (offset planes are not supported: use a standard plane)"
+      },
+      {
+       "name": "center",
+       "type": "[number, number]",
+       "optional": true,
+       "description": "[x, y] of the gear centre in the plane, default [0, 0]"
+      }
+     ]
+    }
+   ],
+   "example": "part('Gear').gear({ module: 2, teeth: 20, thickness: 8, bore: 6 });",
+   "related": [
+    "part.extrude",
+    "part.hole"
+   ]
+  },
+  {
+   "id": "part.loft",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".loft(sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut' } = {})",
+   "summary": "Loft a solid through two or more section sketches, optionally ending in a point.",
+   "description": "Builds one sketch per section (on a standard plane, an at(plane, offset) plane or a face) and a loft feature through them in order. Sections are { on, draw } where draw(s) draws a closed outline with the sketch builder, or { on, point: [x, y] } for a single-point section. Only the FIRST and the LAST section may be a point (a bow, a cone tip); ends.first / ends.last say 'cap' (flat end, default) or 'point' and are checked against the sections. Optional guides are sketches the loft follows, centre is a straight centre-line sketch, startNormal / endNormal (true or a tension number) make the loft leave the end sections along their normals. Closed (ring) lofts are not supported by the kernel. Section outlines should have the same number of pieces and be simple closed curves; a hull is a row of arcs or polygons with growing size.",
+   "parameters": [
+    {
+     "name": "sections",
+     "type": "SketchSpec[]",
+     "optional": false,
+     "description": "list of section sketches, at least two, in order"
+    },
+    {
+     "name": "o",
+     "type": "{ ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut' }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "ends",
+       "type": "{ first?: End; last?: End }",
+       "optional": true,
+       "description": "{ first?: 'cap' | 'point', last?: 'cap' | 'point' }"
+      },
+      {
+       "name": "guides",
+       "type": "SketchSpec[]",
+       "optional": true,
+       "description": "guide curve sketches ({ on, draw }) that touch every section"
+      },
+      {
+       "name": "centre",
+       "type": "SketchSpec",
+       "optional": true,
+       "description": "centre-line sketch ({ on, draw }) with a straight line"
+      },
+      {
+       "name": "startNormal",
+       "type": "boolean | Num",
+       "optional": true,
+       "description": "true or a tension: leave the first section along its normal"
+      },
+      {
+       "name": "endNormal",
+       "type": "boolean | Num",
+       "optional": true,
+       "description": "true or a tension: arrive at the last section along its normal"
+      },
+      {
+       "name": "op",
+       "type": "'add' | 'cut'",
+       "optional": true,
+       "description": "'add' (default) or 'cut'"
+      }
+     ]
+    }
+   ],
+   "example": "part('Cone').loft([\n  { on: 'front', draw: (s) => s.circle(10) },\n  { on: at('front', 30), point: [0, 0] },\n], { ends: { last: 'point' } });",
+   "related": [
+    "at",
+    "sketch.circle",
+    "part.sweep"
+   ]
   },
   {
    "id": "part.revolve",
@@ -717,6 +1010,42 @@
    "notes": "- Draw the half profile on ONE side of the axis: x is the distance from the axis, y the height. Keep the profile from crossing the axis (no negative x).\n- The sketch plane decides the world axis: on 'front' and 'right' the sketch Y axis is world Y or world Z accordingly; for a pulley on 'right' the axis is world Y and the end faces are face('>Y') / face('<Y').\n- 360 is a full solid of revolution; a smaller angle leaves two planar end faces."
   },
   {
+   "id": "part.rib",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".rib(thickness: Num, o: { flip?: boolean } = {})",
+   "summary": "Rib: a web of a given thickness from an open sketch line, grown to the body.",
+   "description": "Takes the LAST sketch, which must be an open line or chain (not closed) lying across the body, and adds a rib of this thickness that extends from the line to the existing material. Use it for gussets and webs between a plate and a wall. flip reverses the growth side.",
+   "parameters": [
+    {
+     "name": "thickness",
+     "type": "Num",
+     "optional": false,
+     "description": "rib thickness in mm"
+    },
+    {
+     "name": "o",
+     "type": "{ flip?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse the growth direction"
+      }
+     ]
+    }
+   ],
+   "example": "part('Gusset').sketch('front', (s) => s.rect(40, 30)).extrude(10)\n  .sketch(at('right', 0), (s) => s.line([-10, 10], [10, 10])).rib(3);",
+   "related": [
+    "part.extrude",
+    "part.mirror"
+   ]
+  },
+  {
    "id": "part.shell",
    "kind": "method",
    "domain": "features",
@@ -744,6 +1073,55 @@
     "part.fillet"
    ],
    "notes": "- Fillet or chamfer the OUTSIDE edges before shelling; shelling a rounded box keeps even walls.\n- The selected face is REMOVED (the opening). To close the box again sketch a lid on the rim face and extrude it (recipe hollow-box-lid).\n- A thickness that is too big gives shellTooThick / shellFailed with maxThickness in the error."
+  },
+  {
+   "id": "part.sweep",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sweep(profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut' } = {})",
+   "summary": "Sweep a closed profile along a path sketch (pipes, rails, handles).",
+   "description": "Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The kernel has no keep-normal option: the profile follows the path frame.",
+   "parameters": [
+    {
+     "name": "profile",
+     "type": "SketchSpec",
+     "optional": false,
+     "description": "closed profile sketch { on, draw }"
+    },
+    {
+     "name": "path",
+     "type": "SketchSpec",
+     "optional": false,
+     "description": "path sketch { on, draw } (open chain starting on the profile plane)"
+    },
+    {
+     "name": "o",
+     "type": "{ twist?: Num; op?: 'add' | 'cut' }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "twist",
+       "type": "Num",
+       "optional": true,
+       "description": "total twist in degrees over the path"
+      },
+      {
+       "name": "op",
+       "type": "'add' | 'cut'",
+       "optional": true,
+       "description": "'add' (default) or 'cut'"
+      }
+     ]
+    }
+   ],
+   "example": "part('Pipe').sweep(\n  { on: 'front', draw: (s) => { s.circle(5); s.circle(4); } },\n  { on: 'right', draw: (s) => s.polyline([[0, 0], [0, 40], [20, 60]]) },\n);",
+   "related": [
+    "part.loft",
+    "sketch.polyline",
+    "sketch.spline"
+   ]
   },
   {
    "id": "part.thin",
@@ -834,9 +1212,9 @@
    "id": "part.hole",
    "kind": "method",
    "domain": "holes",
-   "signature": ".hole(on: FaceSel, at: Pt, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "signature": ".hole(on: FaceSel, at: Pt, o: HoleOpts): this",
    "summary": "A simple drilled hole on a planar face at [x, y].",
-   "description": "Drills a round hole into the material from the face. [x, y] are coordinates in the sketch plane of that face, measured from the part origin projected onto it (not from a corner). Through unless depth is given. Use flip: true if it cuts the wrong way on an unusual face. Diameter, not radius.",
+   "description": "Drills a round hole into the material from the face. kind selects the shape: 'simple' (default), 'cbore' (counterbore: cboreDiameter and cboreDepth), 'csk' (countersink: cskDiameter, cskAngle default 90) or 'tapped' (thread: 'M6' drills the tap drill and adds the thread; modeled: true for the real helix). size: 'M6' + fit instead of diameter uses the ISO table. end: 'upTo' drills to the next face. [x, y] are coordinates in the sketch plane of that face, measured from the part origin projected onto it (not from a corner). Through unless depth is given. Use flip: true if it cuts the wrong way on an unusual face. Diameter, not radius.",
    "parameters": [
     {
      "name": "on",
@@ -852,15 +1230,39 @@
     },
     {
      "name": "o",
-     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "type": "HoleOpts",
      "optional": false,
      "description": "options object, see properties",
      "properties": [
       {
        "name": "diameter",
        "type": "Num",
-       "optional": false,
+       "optional": true,
        "description": "hole diameter in mm"
+      },
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "fit",
+       "type": "'normal' | 'close' | 'loose'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "kind",
+       "type": "'simple' | 'cbore' | 'csk' | 'tapped'",
+       "optional": true,
+       "description": "'cbore' counterbore (cboreDiameter, cboreDepth), 'csk' countersink (cskDiameter, cskAngle) or 'tapped' (thread: 'M6')"
+      },
+      {
+       "name": "end",
+       "type": "'through' | 'blind' | 'upTo'",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "depth",
@@ -873,12 +1275,48 @@
        "type": "boolean",
        "optional": true,
        "description": "reverse the drilling direction"
+      },
+      {
+       "name": "cboreDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cboreDepth",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskAngle",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "thread",
+       "type": "string | boolean | { size?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string }",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       }
      ]
     }
    ],
    "returns": "this",
-   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(12)\n  .hole(face('>Z'), [-15, 0], { diameter: 8 });",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 40)).extrude(12)\n  .hole(face('>Z'), [-15, 0], { diameter: 8 })\n  .hole(face('>Z'), [15, 0], { kind: 'cbore', diameter: 6.6, cboreDiameter: 11, cboreDepth: 6 });",
    "related": [
     "part.holes.polar",
     "part.holes.grid",
@@ -891,7 +1329,7 @@
    "id": "part.holes.grid",
    "kind": "method",
    "domain": "holes",
-   "signature": ".holes.grid(on: FaceSel, g: { origin: Pt; pitch: Pt; count: [number, number] }, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "signature": ".holes.grid(on: FaceSel, g: { origin: Pt; pitch: Pt; count: [number, number] }, o: HoleOpts): this",
    "summary": "A rectangular grid of holes.",
    "description": "Drills nx by ny holes from `origin` at `pitch` spacing, as one feature.",
    "parameters": [
@@ -929,15 +1367,39 @@
     },
     {
      "name": "o",
-     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "type": "HoleOpts",
      "optional": false,
      "description": "options object, see properties",
      "properties": [
       {
        "name": "diameter",
        "type": "Num",
-       "optional": false,
+       "optional": true,
        "description": "hole diameter in mm"
+      },
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "fit",
+       "type": "'normal' | 'close' | 'loose'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "kind",
+       "type": "'simple' | 'cbore' | 'csk' | 'tapped'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "end",
+       "type": "'through' | 'blind' | 'upTo'",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "depth",
@@ -950,6 +1412,42 @@
        "type": "boolean",
        "optional": true,
        "description": "reverse direction"
+      },
+      {
+       "name": "cboreDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cboreDepth",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskAngle",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "thread",
+       "type": "string | boolean | { size?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string }",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       }
      ]
     }
@@ -965,7 +1463,7 @@
    "id": "part.holes.points",
    "kind": "method",
    "domain": "holes",
-   "signature": ".holes.points(on: FaceSel, pts: Pt[], o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "signature": ".holes.points(on: FaceSel, pts: Pt[], o: HoleOpts): this",
    "summary": "One hole feature at a list of centres.",
    "description": "All holes share diameter and depth. Centres are [x, y] in the face sketch plane.",
    "parameters": [
@@ -983,15 +1481,39 @@
     },
     {
      "name": "o",
-     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "type": "HoleOpts",
      "optional": false,
      "description": "options object, see properties",
      "properties": [
       {
        "name": "diameter",
        "type": "Num",
-       "optional": false,
+       "optional": true,
        "description": "hole diameter in mm"
+      },
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "fit",
+       "type": "'normal' | 'close' | 'loose'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "kind",
+       "type": "'simple' | 'cbore' | 'csk' | 'tapped'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "end",
+       "type": "'through' | 'blind' | 'upTo'",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "depth",
@@ -1004,6 +1526,42 @@
        "type": "boolean",
        "optional": true,
        "description": "reverse direction"
+      },
+      {
+       "name": "cboreDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cboreDepth",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskAngle",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "thread",
+       "type": "string | boolean | { size?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string }",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       }
      ]
     }
@@ -1019,7 +1577,7 @@
    "id": "part.holes.polar",
    "kind": "method",
    "domain": "holes",
-   "signature": ".holes.polar(on: FaceSel, c: { center: Pt; radius: number; count: number; startAngle?: number }, o: { diameter: Num; depth?: Num; flip?: boolean }): this",
+   "signature": ".holes.polar(on: FaceSel, c: { center: Pt; radius: number; count: number; startAngle?: number }, o: HoleOpts): this",
    "summary": "A bolt circle: count holes equally spaced on a circle.",
    "description": "Drills `count` holes on a circle of `radius` about `center` (sketch-plane coordinates, usually [0, 0]), the first at startAngle degrees. All holes are one feature.",
    "parameters": [
@@ -1063,15 +1621,39 @@
     },
     {
      "name": "o",
-     "type": "{ diameter: Num; depth?: Num; flip?: boolean }",
+     "type": "HoleOpts",
      "optional": false,
      "description": "options object, see properties",
      "properties": [
       {
        "name": "diameter",
        "type": "Num",
-       "optional": false,
+       "optional": true,
        "description": "hole diameter in mm"
+      },
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "fit",
+       "type": "'normal' | 'close' | 'loose'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "kind",
+       "type": "'simple' | 'cbore' | 'csk' | 'tapped'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "end",
+       "type": "'through' | 'blind' | 'upTo'",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "depth",
@@ -1084,6 +1666,42 @@
        "type": "boolean",
        "optional": true,
        "description": "reverse direction"
+      },
+      {
+       "name": "cboreDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cboreDepth",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskDiameter",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "cskAngle",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "thread",
+       "type": "string | boolean | { size?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string }",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       }
      ]
     }
@@ -1095,6 +1713,77 @@
     "part.circularPattern"
    ],
    "notes": "- One feature for the whole bolt circle. center is [x, y] in the face sketch plane (usually [0, 0] for a centred disc); startAngle shifts the first hole (degrees).\n- Check that radius + diameter/2 stays inside the face and that holes do not overlap the centre bore."
+  },
+  {
+   "id": "part.thread",
+   "kind": "method",
+   "domain": "holes",
+   "signature": ".thread(on: string | undefined, o: { size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean })",
+   "summary": "Add a thread (cosmetic or modeled) to a hole or a cylindrical face.",
+   "description": "Threads the wall of the hole drilled last (default), or a cylinder named by a persistent face name ('F2.S.c1') or 'last:c1' (the c1 face of the last feature, e.g. an extruded circle shaft). Give the designation as size ('M6', 'M12x1.5', '1/4-20') or diameter (+ pitch). Cosmetic by default: no geometry change, the thread is reported in the regen threads list. modeled: true cuts the real helical groove (slow, falls back to cosmetic with a warning when it cannot). For a hole the hole diameter should be the tap drill of the size: use hole() with thread instead, which sets it.",
+   "parameters": [
+    {
+     "name": "on",
+     "type": "string | undefined",
+     "optional": false,
+     "description": "omitted or 'hole' for the last hole; a face name string; or 'last:<tag>'"
+    },
+    {
+     "name": "o",
+     "type": "{ size?: string; diameter?: number; pitch?: number; length?: Num; standard?: string; hand?: 'right' | 'left'; modeled?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "size",
+       "type": "string",
+       "optional": true,
+       "description": "designation, e.g. 'M6' or 'M12x1.5'"
+      },
+      {
+       "name": "diameter",
+       "type": "number",
+       "optional": true,
+       "description": "major diameter in mm (alternative to size)"
+      },
+      {
+       "name": "pitch",
+       "type": "number",
+       "optional": true,
+       "description": "pitch in mm with diameter (fine pitch)"
+      },
+      {
+       "name": "length",
+       "type": "Num",
+       "optional": true,
+       "description": "thread length in mm, default the whole face"
+      },
+      {
+       "name": "standard",
+       "type": "string",
+       "optional": true,
+       "description": "'metric' (default), 'metric-fine', 'UNC', ... (inferred from the size when omitted)"
+      },
+      {
+       "name": "hand",
+       "type": "'right' | 'left'",
+       "optional": true,
+       "description": "'right' (default) | 'left'"
+      },
+      {
+       "name": "modeled",
+       "type": "boolean",
+       "optional": true,
+       "description": "cut the helical groove"
+      }
+     ]
+    }
+   ],
+   "example": "part('Tapped block').sketch('front', (s) => s.rect(30, 30)).extrude(20)\n  .hole(face('>Z'), [0, 0], { diameter: 5, depth: 12 })\n  .thread('hole', { size: 'M6', length: 10 });",
+   "related": [
+    "part.hole",
+    "part.holes.points"
+   ]
   },
   {
    "id": "part.circularPattern",
@@ -1181,6 +1870,287 @@
     "part.holes.grid"
    ],
    "notes": "- Repeats ONLY the last feature (one seed), count includes the original, spacing is between instances in mm.\n- axis is a WORLD axis ('x' | 'y' | 'z'), not a sketch axis.\n- Patterning twice (rows then columns) is not supported by the helper: draw the whole grid in one sketch with a loop, or use holes.grid."
+  },
+  {
+   "id": "part.mirror",
+   "kind": "method",
+   "domain": "patterns",
+   "signature": ".mirror(plane: Plane | OffsetPlane | FaceSel, o: { body?: boolean } = {})",
+   "summary": "Mirror the last feature (or the whole body) about a plane.",
+   "description": "Adds a mirrored copy about 'front' | 'top' | 'right', at(plane, offset) or a planar face(sel). By default the feature added just before (a boss, pocket, hole) is mirrored; with body: true the whole body is reflected and united with the original. The kernel always keeps the original, there is no move-only mirror. Mirror about a face only when the face is the symmetry plane (a face you sketch on is usually not).",
+   "parameters": [
+    {
+     "name": "plane",
+     "type": "Plane | OffsetPlane | FaceSel",
+     "optional": false,
+     "description": "'front' | 'top' | 'right', at(plane, offset) or face(sel)"
+    },
+    {
+     "name": "o",
+     "type": "{ body?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "body",
+       "type": "boolean",
+       "optional": true,
+       "description": "mirror the whole body instead of the last feature"
+      }
+     ]
+    }
+   ],
+   "example": "part('Bracket').sketch('front', (s) => s.polygon([[0, 0], [30, 0], [30, 10], [0, 10]])).extrude(8)\n  .mirror('right', { body: true });",
+   "related": [
+    "part.linearPattern",
+    "part.circularPattern"
+   ]
+  },
+  {
+   "id": "part.knit",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".knit(o: { solid?: boolean } = {})",
+   "summary": "Surface: sew all surfaces so far into one body (a solid when they close).",
+   "description": "Knits every surface feature made earlier in the script. With solid: true a closed set becomes a solid body (knitNotClosed when there are gaps); with solid: false (default) the result stays a sheet.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ solid?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "solid",
+       "type": "boolean",
+       "optional": true,
+       "description": "make a solid from a closed shell"
+      }
+     ]
+    }
+   ],
+   "example": "part('Box from sheets')\n  .sketch('front', (s) => s.rect(20, 20)).surfaceExtrude(10)\n  .sketch('front', (s) => s.rect(20, 20)).surfacePlanar()\n  .sketch(at('front', 10), (s) => s.rect(20, 20)).surfacePlanar()\n  .knit({ solid: true });",
+   "related": [
+    "part.surfaceExtrude",
+    "part.surfacePlanar",
+    "part.thicken"
+   ]
+  },
+  {
+   "id": "part.surfaceExtrude",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".surfaceExtrude(depth: Num, o: { flip?: boolean } = {})",
+   "summary": "Surface: extrude the last sketch into a sheet (no end caps, not a solid).",
+   "description": "Like extrude but the result is a surface body (open sheet). Use thicken() to give it a wall, or knit() a closed set of sheets into a solid. A closed profile gives a tube sheet open at both ends; an open sketch gives a ribbon.",
+   "parameters": [
+    {
+     "name": "depth",
+     "type": "Num",
+     "optional": false,
+     "description": "length in mm"
+    },
+    {
+     "name": "o",
+     "type": "{ flip?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse direction"
+      }
+     ]
+    }
+   ],
+   "example": "part('Ribbon').sketch('front', (s) => s.polyline([[0, 0], [20, 10], [40, 0]])).surfaceExtrude(30).thicken(2);",
+   "related": [
+    "part.thicken",
+    "part.knit",
+    "part.surfaceLoft"
+   ]
+  },
+  {
+   "id": "part.surfaceLoft",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".surfaceLoft(sections: SketchSpec[])",
+   "summary": "Surface: loft a sheet through section sketches (open or closed curves).",
+   "description": "Like loft() but the result is a surface body, so open curves (arcs, splines) work as sections. All sections should be the same kind (all open or all closed). Thicken it for a shell-like panel.",
+   "parameters": [
+    {
+     "name": "sections",
+     "type": "SketchSpec[]",
+     "optional": false,
+     "description": "list of { on, draw } section sketches, at least two"
+    }
+   ],
+   "example": "part('Panel').surfaceLoft([\n  { on: 'front', draw: (s) => s.arc3([-20, 0], [0, 6], [20, 0]) },\n  { on: at('front', 30), draw: (s) => s.arc3([-20, 0], [0, 12], [20, 0]) },\n]).thicken(2);",
+   "related": [
+    "part.loft",
+    "part.thicken"
+   ]
+  },
+  {
+   "id": "part.surfacePlanar",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".surfacePlanar()",
+   "summary": "Surface: a flat sheet filling the last closed sketch.",
+   "description": "Makes a planar surface body from a closed profile. Use it to cap surface tubes before knit(solid: true).",
+   "parameters": [],
+   "example": "part('Lid sheet').sketch('front', (s) => s.rect(30, 20)).surfacePlanar();",
+   "related": [
+    "part.knit",
+    "part.surfaceExtrude"
+   ]
+  },
+  {
+   "id": "part.thicken",
+   "kind": "method",
+   "domain": "surfaces",
+   "signature": ".thicken(thickness: Num, o: { op?: 'add' | 'cut' } = {})",
+   "summary": "Surface: give the last surface a wall thickness and make it a solid.",
+   "description": "Thickens the most recent surface feature (surfaceExtrude, surfacePlanar, surfaceLoft or knit) into a solid wall of this thickness. It fails on a surface that folds or has a pole (thickenFailed).",
+   "parameters": [
+    {
+     "name": "thickness",
+     "type": "Num",
+     "optional": false,
+     "description": "wall thickness in mm"
+    },
+    {
+     "name": "o",
+     "type": "{ op?: 'add' | 'cut' }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "op",
+       "type": "'add' | 'cut'",
+       "optional": true,
+       "description": "'add' (default) or 'cut'"
+      }
+     ]
+    }
+   ],
+   "example": "part('Wall').sketch('front', (s) => s.arc3([-20, 0], [0, 10], [20, 0])).surfaceExtrude(30).thicken(2);",
+   "related": [
+    "part.surfaceExtrude",
+    "part.knit"
+   ]
+  },
+  {
+   "id": "part.insertPart",
+   "kind": "method",
+   "domain": "assembly",
+   "signature": ".insertPart(doc: Record<string, unknown>, o: { at?: [number, number, number]; fixed?: boolean; name?: string } = {})",
+   "summary": "Assembly: insert another part (its document) as a component, optionally moved.",
+   "description": "Adds an insertPart feature that carries the whole part document (the .document of a runScript result, or a saved part). The component is its own body in the model, so a later mate() can position it. at moves it by [x, y, z] mm; fixed keeps mates from moving it. A part document is needed, not code: run the other script first. Assemblies live inside one part document; there is no separate assembly document in the script API.",
+   "parameters": [
+    {
+     "name": "doc",
+     "type": "Record<string, unknown>",
+     "optional": false,
+     "description": "the inserted part's document object"
+    },
+    {
+     "name": "o",
+     "type": "{ at?: [number, number, number]; fixed?: boolean; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "at",
+       "type": "[number, number, number]",
+       "optional": true,
+       "description": "[x, y, z] placement in mm, default [0, 0, 0]"
+      },
+      {
+       "name": "fixed",
+       "type": "boolean",
+       "optional": true,
+       "description": "true to anchor the component"
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": "label for the component"
+      }
+     ]
+    }
+   ],
+   "example": "const pin = { format: 'ck-part', version: 1, name: 'Pin', features: [], seq: 1, rollback: null };\npart('Asm').insertPart(pin, { at: [10, 0, 0] });",
+   "related": [
+    "part.mate"
+   ]
+  },
+  {
+   "id": "part.mate",
+   "kind": "method",
+   "domain": "assembly",
+   "signature": ".mate(o: { kind: string; a: FaceSel | string; b: FaceSel | string; distance?: Num; angle?: Num; flip?: boolean })",
+   "summary": "Assembly: constrain two faces of different components.",
+   "description": "Adds a mate of the given kind between faces a and b: coincident, parallel, perpendicular, concentric (round faces), distance (needs distance), angle (needs angle), tangent, lock. a and b are face(sel) of the current body or a persistent face name string ('F2.S.e1@F6.1' where @F6.1 names the inserted component). flip reverses the alignment. The component that is not fixed moves.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ kind: string; a: FaceSel | string; b: FaceSel | string; distance?: Num; angle?: Num; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "kind",
+       "type": "string",
+       "optional": false,
+       "description": "mate kind, e.g. 'coincident'"
+      },
+      {
+       "name": "a",
+       "type": "FaceSel | string",
+       "optional": false,
+       "description": "first face: face(sel) or persistent name"
+      },
+      {
+       "name": "b",
+       "type": "FaceSel | string",
+       "optional": false,
+       "description": "second face: face(sel) or persistent name"
+      },
+      {
+       "name": "distance",
+       "type": "Num",
+       "optional": true,
+       "description": "distance in mm for kind 'distance'"
+      },
+      {
+       "name": "angle",
+       "type": "Num",
+       "optional": true,
+       "description": "degrees for kind 'angle'"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse the alignment"
+      }
+     ]
+    }
+   ],
+   "example": "part('Stack').sketch('front', (s) => s.rect(20, 20)).extrude(5)\n  .mate({ kind: 'coincident', a: face('>Z'), b: face('<Z') });",
+   "related": [
+    "part.insertPart",
+    "face"
+   ]
   },
   {
    "id": "expr",
