@@ -852,7 +852,7 @@ export class PartBuilder {
     return h;
   }
   /**
-   * Colour, opacity and finish of the bodies a feature made (view appearance only: it changes no geometry and no feature).
+   * Colour, opacity and finish of the bodies a feature made (view only, no geometry change).
    *
    * appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.
    * @domain utilities
@@ -888,12 +888,15 @@ export class PartBuilder {
   }
 
   /**
-   * Name the bodies a feature made (shown in the Bodies list; the default is the feature's name or Body 1, 2, ...).
+   * Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).
    *
    * bodyName(handle, 'Tach lens') names the body the feature created; when it made several they are numbered 'Tach lens 1', 'Tach lens 2'. The target is a handle from part.handle() or an id like 'F12'.
    * @domain utilities
    * @param target handle or feature id
    * @param name the name shown in the Bodies list
+   * @example
+   * p.sketch('front', (s) => s.circle(0, 0, 20)).extrude(3);
+   * p.bodyName(p.handle(), 'Lens');
    * @see part.appearance, part.handle
    */
   bodyName(target: string | FeatureHandle, name: string): this {

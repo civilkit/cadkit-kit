@@ -2426,7 +2426,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".appearance(o: AppearanceTarget): this",
-   "summary": "Colour, opacity and finish of the bodies a feature made (view appearance only: it changes no geometry and no feature).",
+   "summary": "Colour, opacity and finish of the bodies a feature made (view only, no geometry change).",
    "description": "appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.",
    "parameters": [
     {
@@ -2477,7 +2477,7 @@
    "kind": "method",
    "domain": "utilities",
    "signature": ".bodyName(target: string | FeatureHandle, name: string): this",
-   "summary": "Name the bodies a feature made (shown in the Bodies list; the default is the feature's name or Body 1, 2, ...).",
+   "summary": "Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).",
    "description": "bodyName(handle, 'Tach lens') names the body the feature created; when it made several they are numbered 'Tach lens 1', 'Tach lens 2'. The target is a handle from part.handle() or an id like 'F12'.",
    "parameters": [
     {
@@ -2494,7 +2494,7 @@
     }
    ],
    "returns": "this",
-   "example": "",
+   "example": "p.sketch('front', (s) => s.circle(0, 0, 20)).extrude(3);\np.bodyName(p.handle(), 'Lens');",
    "related": [
     "part.appearance",
     "part.handle"
