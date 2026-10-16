@@ -11,3 +11,6 @@
 .recent-row .rk { opacity: .6; font-size: 11px; min-width: 52px; }
 .recent-row .rn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .recent-row .rt { opacity: .6; font-size: 11px; }
+
+.recover-list { max-height: 50vh; overflow: auto; display: grid; gap: 6px; }
+.recover-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

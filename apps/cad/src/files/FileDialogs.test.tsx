@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
-import { RestoreDialog, SaveAsDialog, DropOverlay } from './FileDialogs';
+import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './FileDialogs';
 import { SamplesDialog } from '../SamplesDialog';
 import { buildCommands, matchShortcut, type Actions } from '../commands';
 import { dragHasFiles, planDrop } from './drop';
@@ -18,6 +18,29 @@ describe('RestoreDialog', () => {
     fireEvent.click(screen.getByText('Restore'));
     fireEvent.click(screen.getByText('Start new'));
     expect([on.onRestore.mock.calls.length, on.onNew.mock.calls.length]).toEqual([1, 1]);
+  });
+});
+
+describe('RecoverDialog', () => {
+  const snap = (id: string, features: number, time: number) => ({ id, time, name: 'Bracket', features, reason: 'undo' as const, doc: { features: [] } });
+  it('lists the kept versions with name, feature count and age, and restores the one clicked', async () => {
+    const on = { onRestore: vi.fn(), onClose: vi.fn() };
+    render(<RecoverDialog load={async () => [snap('b', 24, 60_000), snap('a', 3, 0)]} now={5 * 60_000} {...on} />);
+    await screen.findByText(/24 features/);
+    expect(screen.getByRole('dialog').textContent).toContain('Bracket: 24 features, 4 min ago');
+    fireEvent.click(screen.getAllByText('Restore')[0]);
+    expect(on.onRestore.mock.calls[0][0].id).toBe('b');
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(on.onClose).toHaveBeenCalled();
+  });
+  it('says so when nothing is kept; the session dialog offers the versions', async () => {
+    render(<RecoverDialog load={async () => []} onRestore={() => {}} onClose={() => {}} />);
+    await screen.findByText('No earlier versions are kept yet.');
+    cleanup();
+    const onVersions = vi.fn();
+    render(<RestoreDialog name="X" savedAt={0} now={1} onRestore={() => {}} onNew={() => {}} onVersions={onVersions} />);
+    fireEvent.click(screen.getByText('Earlier versions…'));
+    expect(onVersions).toHaveBeenCalled();
   });
 });
 
@@ -88,7 +111,7 @@ describe('file commands', () => {
   };
   it('Ctrl+Shift+S is Save as and Ctrl+S stays Save', () => {
     const saveAs = vi.fn(); const save = vi.fn();
-    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {} } });
+    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, recover() {} } });
     const ev = (o: Partial<KeyboardEvent>) => ({ key: 's', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...o });
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
