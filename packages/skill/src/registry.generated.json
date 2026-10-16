@@ -699,7 +699,7 @@
    "id": "part.chamfer",
    "kind": "method",
    "domain": "features",
-   "signature": ".chamfer(on: EdgeSel, distance: Num | { distance: Num; distance2?: Num; angle?: Num; flip?: boolean }): this",
+   "signature": ".chamfer(on: EdgeSel, distance: Num | { name?: string; distance: Num; distance2?: Num; angle?: Num; flip?: boolean }): this",
    "summary": "Bevel edges: equal distance, two distances, or distance and angle.",
    "description": "Cuts a flat bevel on the chosen edges. A number is the equal distance on both faces. An options object: { distance, distance2 } measures distance on one face and distance2 on the other (chamferType distanceDistance); { distance, angle } a distance and an angle in degrees (angleDistance); flip swaps the two faces. NOTE: the current kernel implements only the equal-distance chamfer: the two-distance and angle forms are emitted as the kernel's features but fail with an `unsupported` error until the kernel adds them; model those bevels with a cut or a sketch polygon instead. Good for edge breaks on bores and rims.",
    "parameters": [
@@ -711,7 +711,7 @@
     },
     {
      "name": "distance",
-     "type": "Num | { distance: Num; distance2?: Num; angle?: Num; flip?: boolean }",
+     "type": "Num | { name?: string; distance: Num; distance2?: Num; angle?: Num; flip?: boolean }",
      "optional": false,
      "description": "mm (number or expr), or { distance, distance2?, angle?, flip? }"
     }
@@ -745,6 +745,12 @@
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "mid",
        "type": "boolean",
@@ -814,6 +820,12 @@
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "mid",
        "type": "boolean",
@@ -889,7 +901,7 @@
    "id": "part.fillet",
    "kind": "method",
    "domain": "features",
-   "signature": ".fillet(on: EdgeSel, radius: Num | { radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }): this",
+   "signature": ".fillet(on: EdgeSel, radius: Num | { name?: string; radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }): this",
    "summary": "Round edges: one radius, a radius per edge, or a variable radius.",
    "description": "Rounds the edges chosen by edges(). radius is a number (constant), or an options object: { radius: number | number[] | {[edgeKey]: number} } where an array gives one radius per selected edge in selection order (its length must equal the edge count) and an object maps edge keys (like 'F2.C0|F2.S.l1#0', as listed by part.edges... or '*' for the rest) to radii; edges with different radii become one fillet feature per distinct radius, applied in order of increasing radius (so a sequence of fillets, not one simultaneous blend: edges that meet at a vertex can fail with blendOverflow, then give them the same radius). { variable: [near, far] } makes ONE fillet whose radius changes linearly along each selected edge from the end nearer the start to the far end. Fails when a radius is too big for the adjacent faces (blendOverflow). Fillet before shelling and before adding small features; select with edges('|Z') for the vertical edges of a block.",
    "parameters": [
@@ -901,7 +913,7 @@
     },
     {
      "name": "radius",
-     "type": "Num | { radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }",
+     "type": "Num | { name?: string; radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }",
      "optional": false,
      "description": "radius in mm (number or expr), or { radius, variable }"
     }
@@ -1065,7 +1077,7 @@
    "id": "part.revolve",
    "kind": "method",
    "domain": "features",
-   "signature": ".revolve(angle: Num = 360, o: { op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this",
+   "signature": ".revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this",
    "summary": "Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).",
    "description": "Revolves the last sketch `angle` degrees (default 360). The axis is the sketch Y axis unless axis: { from, to } gives a line in the sketch plane. Profile x is the radius, y the height along the axis, so draw a half cross-section on one side of the axis. op: 'cut' removes the revolved volume instead. thin makes a revolved shell.",
    "parameters": [
@@ -1078,11 +1090,17 @@
     },
     {
      "name": "o",
-     "type": "{ op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } }",
+     "type": "{ name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "op",
        "type": "'add' | 'cut'",
@@ -1468,6 +1486,12 @@
      "description": "options object, see properties",
      "properties": [
       {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
        "name": "diameter",
        "type": "Num",
        "optional": true,
@@ -1605,6 +1629,12 @@
      "description": "options object, see properties",
      "properties": [
       {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
        "name": "diameter",
        "type": "Num",
        "optional": true,
@@ -1718,6 +1748,12 @@
      "optional": false,
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "diameter",
        "type": "Num",
@@ -1858,6 +1894,12 @@
      "optional": false,
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "diameter",
        "type": "Num",
@@ -2397,6 +2439,33 @@
    ]
   },
   {
+   "id": "group",
+   "kind": "function",
+   "domain": "utilities",
+   "signature": "group(name: string, build: () => void): void",
+   "summary": "Put the features recorded inside `build` in a named folder of the feature tree.",
+   "description": "The free-function form of part.group: group('Tach gauge', () => { ... }) applies to the part started last with part().",
+   "parameters": [
+    {
+     "name": "name",
+     "type": "string",
+     "optional": false,
+     "description": "folder name"
+    },
+    {
+     "name": "build",
+     "type": "() => void",
+     "optional": false,
+     "description": "callback that records the features"
+    }
+   ],
+   "returns": "void",
+   "example": "const p = part('Dash');\ngroup('Panel', () => { p.sketch('front', (s) => s.rect(100, 50), 'Panel').extrude(5); });",
+   "related": [
+    "part.group"
+   ]
+  },
+  {
    "id": "part",
    "kind": "function",
    "domain": "utilities",
@@ -2658,6 +2727,34 @@
     "face",
     "faces",
     "part.faceCount"
+   ]
+  },
+  {
+   "id": "part.group",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".group(name: string, build: () => void): this",
+   "summary": "Put the features recorded inside `build` in a named folder of the feature tree.",
+   "description": "group('Tach gauge', () => { ... }) tags every feature added by the calls inside (sketches, planes, solids, holes) with group: 'Tach gauge'; the tree shows consecutive features with the same group under one collapsible folder. Groups do not nest: an inner group replaces the outer one until it ends. Also available as the free function group(name, build).",
+   "parameters": [
+    {
+     "name": "name",
+     "type": "string",
+     "optional": false,
+     "description": "folder name"
+    },
+    {
+     "name": "build",
+     "type": "() => void",
+     "optional": false,
+     "description": "callback that records the features"
+    }
+   ],
+   "returns": "this",
+   "example": "const p = part('Dash');\np.group('Panel', () => { p.sketch('front', (s) => s.rect(100, 50), 'Panel').extrude(5); });",
+   "related": [
+    "part.sketch",
+    "part.extrude"
    ]
   },
   {

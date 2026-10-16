@@ -34,7 +34,7 @@ export const SLOTS: Record<string, string[]> = {
   layers: ['layer-edges', 'layer-sketches', 'layer-curves', 'layer-planes', 'layer-axes', 'layer-grid', 'layer-relations', 'layer-dimensions', 'layer-threads'],
   'pick-mode': ['sel-face', 'sel-edge', 'sel-vertex', 'sel-body'],
   'pick-grow': ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-same-size'],
-  'pick-set': ['select-all', 'select-invert', 'select-none', 'select-box', 'select-body'],
+  'pick-set': ['select-all', 'select-invert', 'select-none', 'select-box', 'select-body', 'show-in-tree'],
   measure: ['measure', 'mass-props', 'interference', 'section-view'],
   'surface-check': ['analysis-zebra', 'analysis-gaussian', 'analysis-mean', 'analysis-draft', 'analysis-comb'],
   'asm-parts': ['insert-part', 'mate'],

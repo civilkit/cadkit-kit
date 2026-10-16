@@ -67,3 +67,19 @@ describe('select commands', () => {
     expect(s.notify).toHaveBeenCalledWith('Nothing more to select', 'warn');
   });
 });
+
+describe('show in tree', () => {
+  it('is only a command when the app can reveal, enabled while the pick has an owner, and runs the reveal', () => {
+    const run = vi.fn();
+    let can = true;
+    const base = { model: () => null, selection: () => ['F62.S.e3'], mode: () => 'face' as SelectionMode, hasDocument: () => true, apply: vi.fn(), clear: vi.fn(), setMode: vi.fn(), box: { isOn: () => false, toggle: vi.fn() }, notify: vi.fn() };
+    expect(selectCommands(base).find((c) => c.id === 'show-in-tree')).toBeUndefined();
+    const cmd = selectCommands({ ...base, revealInTree: { can: () => can, run } }).find((c) => c.id === 'show-in-tree')!;
+    expect(cmd.label).toBe('Show in tree');
+    expect(cmd.enabled!()).toBe(true);
+    cmd.run();
+    expect(run).toHaveBeenCalledOnce();
+    can = false;
+    expect(cmd.enabled!()).toBe(false);
+  });
+});

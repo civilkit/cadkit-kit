@@ -10,6 +10,7 @@ import { toBodyMode } from './select/actions';
 import { summarize } from './select/actions';
 import { summaryText } from './select/summary';
 import { SelectionList, chipsOf } from './select/SelectionList';
+import { useRevealInTree } from './useRevealInTree';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
@@ -99,7 +100,7 @@ import { layoutHandles, layoutStyle, resetLayout } from './useLayout';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
-import { viewOwner } from './treeActions';
+import { faceOwner, viewOwner } from './treeActions';
 import './tokens.css';
 import './app.css';
 import './toolbar.css';
@@ -659,6 +660,7 @@ function App() {
     select: (names) => store.select(names),
     notify: (text, level) => store.notify(text, level),
   };
+  const revealRef = useRef<{ canShow(): boolean; show(): void }>({ canShow: () => false, show: () => {} });   // filled by useRevealInTree below (the commands are built before the tree rows exist)
   const commands = buildCommands({
     catalog: () => showCatalog(),
     variables: () => showVariables(),
@@ -705,6 +707,7 @@ function App() {
       model: () => controller.selModel(), selection: () => store.selection.value, mode: () => store.mode.value, hasDocument: () => controller.document() !== null,
       apply: applySelection, clear: () => store.select([]), setMode: (m) => setMode(m), box: { isOn: () => boxOn, toggle: toggleBox },
       notify: (text, level) => store.notify(text, level ?? 'info'),
+      revealInTree: { can: () => revealRef.current.canShow(), run: () => revealRef.current.show() },
     },
     selectBody: () => { store.mode.value = 'face'; viewport?.setPickMode('face'); store.select([BODY]); },
     triball: { toggle: () => triRef.current?.toggle(), isOn: () => triRef.current?.on ?? false, canToggle: () => triRef.current?.canToggle() ?? false },
@@ -768,7 +771,9 @@ function App() {
   const wireFeatures = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
   const threadUnder = doc ? threadParents(wireFeatures) : {};
   const patterned = doc ? patternedBy(wireFeatures) : {};
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.type === 'plane' || f.type === 'sketch' ? featureLabel(doc, f as never) : f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
+  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.type === 'plane' || f.type === 'sketch' ? featureLabel(doc, f as never) : f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], group: (f as { group?: string }).group, note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
+  const rev = useRevealInTree(store.selection.value, rows.map((r) => r.id), doc ? insertIds(doc as never) : new Set<string>(), !sketching);
+  revealRef.current = rev;
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
   const records = session?.history() ?? [];
@@ -1601,6 +1606,14 @@ function App() {
       list={<SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />}
     />
   ) : null;
+  /** A folder's button: pick every face the folder's features made. */
+  const selectGroupFaces = (ids: string[]) => {
+    const set = new Set(ids);
+    const names = controller.pickableNames('face').filter((n) => { const o = faceOwner(n); return !!o && set.has(o); });
+    if (!names.length) { store.notify(t('select.group.none'), 'warn'); return; }
+    store.mode.value = 'face'; viewport?.setPickMode('face');
+    store.select(names);
+  };
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
       refs={doc ? [
@@ -1615,6 +1628,7 @@ function App() {
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
       hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
       {...ti.treeProps}
+      reveal={rev.reveal} onSelectGroup={selectGroupFaces}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])} />
   );
@@ -1911,7 +1925,8 @@ function App() {
           </div>
         ) : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
-          onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)} /> : null}
+          onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
+          onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
         {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />

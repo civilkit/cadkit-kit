@@ -16,6 +16,8 @@ export interface SelectActions {
   setMode(m: SelectionMode): void;
   box: { isOn(): boolean; toggle(): void };
   notify(text: string, level?: 'info' | 'warn'): void;
+  /** Show the feature that owns the selected face / edge in the tree (the row scrolls into view and is marked). */
+  revealInTree?: { can(): boolean; run(): void };
 }
 
 type Op = (m: SelModel, sel: string[], mode: SelectionMode) => Result | null;
@@ -53,6 +55,7 @@ export function selectCommands(a: SelectActions): Command[] {
       id: 'select-invert', label: t('cmd.select-invert'), tab: 'Select', group: 'Pick', keys: 'Ctrl+I', enabled: () => a.hasDocument() && !!a.model(),
       run: () => { const m = a.model(); if (m) a.apply(invertSelection(m, a.selection(), a.mode())); },
     },
+    ...(a.revealInTree ? [{ id: 'show-in-tree', label: t('cmd.show-in-tree'), tab: 'Select', group: 'Pick', enabled: () => a.hasDocument() && a.revealInTree!.can(), run: () => a.revealInTree!.run() } as Command] : []),
     { id: 'select-none', label: t('cmd.select-none'), tab: 'Select', group: 'Pick', keys: 'Ctrl+Shift+A', enabled: () => a.selection().length > 0, run: a.clear },
   ];
 }

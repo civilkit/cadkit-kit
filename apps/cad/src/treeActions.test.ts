@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { viewOwner, faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
+import { revealTargets, viewOwner, faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
 
 const feats = [
   { id: 'F1', type: 'sketch', name: 'F2' },
@@ -97,4 +97,26 @@ describe('viewOwner', () => {
     expect(viewOwner('F3.C1', inserts)).toBe('F3');
     expect(viewOwner('F2.C1@F9.1', inserts)).toBeNull();
   });
+});
+
+describe('revealTargets', () => {
+  const rows = new Set(['F4', 'F9', 'F62', 'F83']);
+  it('is the feature before the first dot', () => {
+    expect(revealTargets('F62.S.e3', rows)).toEqual({ id: 'F62', also: [] });
+    expect(revealTargets('F62.C0', rows)).toEqual({ id: 'F62', also: [] });
+    expect(revealTargets('F83', rows)).toEqual({ id: 'F83', also: [] });
+    expect(revealTargets('F62.C1|F62.C2#0', rows)).toEqual({ id: 'F62', also: [] });
+  });
+  it('shows the seed first and the pattern that repeated it with it', () => {
+    expect(revealTargets('F4.S.h1@F9.2', rows)).toEqual({ id: 'F4', also: ['F9'] });
+    expect(revealTargets('F4.C0@F9.1@F9.3', rows)).toEqual({ id: 'F4', also: ['F9'] });
+  });
+  it('falls back to the pattern when the seed row is not there, and null for names no row owns', () => {
+    expect(revealTargets('F77.C0@F9.1', rows)).toEqual({ id: 'F9', also: [] });
+    expect(revealTargets('F77.C0', rows)).toBeNull();
+    expect(revealTargets('v:12', rows)).toBeNull();
+    expect(revealTargets('Fx.C0', rows)).toBeNull();
+    expect(revealTargets('F620.C0', rows)).toBeNull();
+  });
+  it('takes an array of ids as well', () => expect(revealTargets('F4.C0', ['F4'])).toEqual({ id: 'F4', also: [] }));
 });

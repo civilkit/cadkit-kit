@@ -156,6 +156,7 @@ const ICONS: Record<string, string> = {
   'select-connected': cubeDim + A('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z', 2),
   'select-invert': cubeDim + A(FACE.top, 2) + P('M12 12l7.8-4.5v9L12 21z'),
   'select-none': cubeDim + P('M8 8l8 8M16 8l-8 8'),
+  'show-in-tree': cubeDim + P('M14 6h6M14 12h6M14 18h6') + A('M6 12h5M9 9l3 3-3 3', 2),
   'design-check': P(HEX) + T(Y) + A('M8.5 11.5l2.5 2.5 5-5', 2),
   // ---- display layers
   'layer-edges': P(HEX) + P(Y),
@@ -177,6 +178,9 @@ const ICONS: Record<string, string> = {
   'check': P('M5 12.5l4.5 4.5L19 7'),
   'close': P('M6 6l12 12M18 6 6 18'),
   'chevron': P('M9 6l6 6-6 6'),
+  'search': O(10.5, 10.5, 5.5) + P('M14.6 14.6 20 20'),
+  'folder': P('M3.5 7.5V18h17V9H11L9.5 7z'),
+  'folder-open': P('M3.5 7.5V18h15.5l2-8H8.5L6.8 13.6M3.5 7.5H9l1.5 2'),
   'ref-origin': D(12, 16, 2) + A('M12 16V5') + P('M12 16l8 3.5') + T('M12 16l-6 3'),
   'ref-material': O(12, 12, 8) + T('M12 4a8 8 0 0 1 0 16') + T('M7 12h10'),
   'feature-part': P(HEX) + T(Y),

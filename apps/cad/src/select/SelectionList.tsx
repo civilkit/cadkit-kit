@@ -23,7 +23,7 @@ export function chipsOf(sel: string[], model: SelModel | null): Chip[] {
 }
 
 /** A panel listing the selection: count, one chip per item with a remove button, and hover that lights the item in the view. */
-export function SelectionList(p: { selection: string[]; model: SelModel | null; onRemove(name: string): void; onClear(): void; onHover(name: string | null): void }) {
+export function SelectionList(p: { selection: string[]; model: SelModel | null; onRemove(name: string): void; onClear(): void; onHover(name: string | null): void; /** Click on a chip's name: show the feature that owns it in the tree. `canReveal` says which chips have one. */ onReveal?(name: string): void; canReveal?(name: string): boolean }) {
   const [open, setOpen] = useState(true);
   if (!p.selection.length) return null;
   const chips = chipsOf(p.selection, p.model);
@@ -39,7 +39,9 @@ export function SelectionList(p: { selection: string[]; model: SelModel | null; 
         <ul class="sel-chips" onMouseLeave={() => p.onHover(null)}>
           {chips.map((c) => (
             <li key={c.name} class={'sel-chip ' + c.kind} title={c.name} onMouseEnter={() => p.onHover(c.name)}>
-              <span>{c.label}</span>
+              {p.onReveal && (p.canReveal?.(c.name) ?? true) ? (
+                <button type="button" class="sel-chip-name" title={t('select.chip.reveal')} aria-label={`${t('select.chip.reveal')}: ${c.label}`} onClick={() => p.onReveal!(c.name)}>{c.label}</button>
+              ) : <span>{c.label}</span>}
               <button type="button" aria-label={t('select.list.remove') + ': ' + c.label} title={t('select.list.remove')} onClick={() => { p.onHover(null); p.onRemove(c.name); }}>{'×'}</button>
             </li>
           ))}

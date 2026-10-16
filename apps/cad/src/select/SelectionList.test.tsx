@@ -71,3 +71,20 @@ describe('FilterMenu', () => {
     expect(screen.queryByLabelText('Faces')).toBeNull();
   });
 });
+
+describe('SelectionList reveal', () => {
+  it('a chip name is a button that shows the feature in the tree; chips without an owner stay plain', () => {
+    const onReveal = vi.fn();
+    const { container } = render(<SelectionList selection={['F62.S.e3', 'v:1,2,3']} model={model()} onRemove={vi.fn()} onClear={vi.fn()} onHover={vi.fn()} onReveal={onReveal} canReveal={(n) => n.startsWith('F')} />);
+    const btns = container.querySelectorAll<HTMLButtonElement>('.sel-chip-name');
+    expect(btns.length).toBe(1);
+    expect(btns[0].textContent).toBe('Face F62.S.e3');
+    expect(btns[0].getAttribute('aria-label')).toBe('Show in tree: Face F62.S.e3');
+    fireEvent.click(btns[0]);
+    expect(onReveal).toHaveBeenCalledWith('F62.S.e3');
+  });
+  it('without onReveal the chip is as before', () => {
+    const { container } = render(<SelectionList selection={['F62.S.e3']} model={model()} onRemove={vi.fn()} onClear={vi.fn()} onHover={vi.fn()} />);
+    expect(container.querySelector('.sel-chip-name')).toBeNull();
+  });
+});

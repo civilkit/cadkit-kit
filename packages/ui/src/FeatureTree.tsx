@@ -7,13 +7,36 @@ import { InlineName } from './InlineName';
 
 export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string }
 
-export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
+export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** folder name: consecutive rows with the same group are shown under one collapsible folder row */ group?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
 
 const isSketch = (type: string) => type === 'sketch' || type === 'sketch3d';
 /** Lists longer than this render only the rows near the viewport; a row is at least this tall (px). */
 const VIRT_MIN = 120, ROW_H = 34, OVERSCAN = 12;
 const COLLAPSED_KEY = 'cad.treeCollapsed';
 const loadCollapsed = (): string[] => { try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]; } catch { return []; } };
+/** Folder open / closed choices per document (the part name), remembered between sessions. A folder the user never touched is closed in a list longer than FOLDER_AUTO_CLOSE rows. */
+const FOLDERS_KEY = 'cad.treeFolders';
+export const FOLDER_AUTO_CLOSE = 40;
+const loadFolders = (doc: string): Record<string, boolean> => { try { return (JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? '{}') as Record<string, Record<string, boolean>>)[doc] ?? {}; } catch { return {}; } };
+const saveFolders = (doc: string, map: Record<string, boolean>): void => {
+  try {
+    const all = JSON.parse(localStorage.getItem(FOLDERS_KEY) ?? '{}') as Record<string, Record<string, boolean>>;
+    delete all[doc]; all[doc] = map;
+    for (const k of Object.keys(all).slice(0, Math.max(0, Object.keys(all).length - 40))) delete all[k];   // keep the 40 documents used last
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(all));
+  } catch { /* private window */ }
+};
+const escapeRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The rows whose name, kind, id or folder contains every word of `query` (case-insensitive); all rows when the query is blank. */
+export function matchRows(rows: FeatureRow[], query: string, kindLabel: (type: string) => string): string[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return rows.map((r) => r.id);
+  return rows.filter((r) => {
+    const hay = [r.name ?? '', kindLabel(r.type), r.type, r.id, r.group ?? ''].join('\n').toLowerCase();
+    return words.every((w) => hay.includes(w));
+  }).map((r) => r.id);
+}
 
 /** Which feature owns each sketch: the first later feature that uses it. A sketch nobody uses stays at the top level. */
 export function sketchOwners(rows: FeatureRow[]): Map<string, string> {
@@ -69,6 +92,10 @@ export function FeatureTree(p: {
   onSelectRef?(id: string | null): void;
   onHoverRef?(id: string | null): void;
   onOpenRef?(id: string): void;
+  /** Show a feature: the app asks for it when a face / edge / corner is picked in the view (or the chip's name is clicked, `force`). The row, and `also` (a pattern that repeats it), get a calm marker and a short pulse; the tree opens what hides them and scrolls only if the row is out of view and the pointer is not on the tree. `n` changes with every request. */
+  reveal?: { id: string; also?: string[]; n: number; force?: boolean } | null;
+  /** A folder's "select all faces of this group" button; leave out to hide it. Gets the ids of the folder's features (and the sketches tucked under them). */
+  onSelectGroup?(ids: string[], name: string): void;
 }): JSX.Element {
   const dragId = useRef<string | null>(null);
   const dragBar = useRef(false);
@@ -76,7 +103,8 @@ export function FeatureTree(p: {
   const renaming = p.renaming !== undefined ? p.renaming : ownRenaming;
   const setRenaming = (v: string | null) => { setOwnRenaming(v); p.onRenamingChange?.(v); };
   const [collapsed, setCollapsed] = useState<string[]>(loadCollapsed);
-  const toggle = (id: string) => setCollapsed((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(n)); } catch { /* private window */ } return n; });
+  const persist = (n: string[]) => { try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(n)); } catch { /* private window */ } };
+  const toggle = (id: string) => setCollapsed((c) => { const n = c.includes(id) ? c.filter((x) => x !== id) : [...c, id]; persist(n); return n; });
   const owner = sketchOwners(p.rows);
   const childrenOf = new Map<string, FeatureRow[]>();
   for (const r of p.rows) { const o = owner.get(r.id); if (o) childrenOf.set(o, [...(childrenOf.get(o) ?? []), r]); }
@@ -86,6 +114,50 @@ export function FeatureTree(p: {
   const statusById = new Map<string, FeatureStatus>(); for (const x of p.status) if (!statusById.has(x.id)) statusById.set(x.id, x);
   const indexOf = (id: string) => rowIndex.get(id) ?? -1;
   const topIndex = new Map<string, number>(); top.forEach((x, i) => topIndex.set(x.id, i));
+  // folders: consecutive top-level rows with the same group (two or more) sit under one collapsible row; the choice is remembered per document
+  const docKey = p.partName ?? '';
+  const [folderSt, setFolderSt] = useState<{ key: string; map: Record<string, boolean> }>(() => ({ key: docKey, map: loadFolders(docKey) }));
+  const folderMap = folderSt.key === docKey ? folderSt.map : loadFolders(docKey);
+  const defaultOpen = p.rows.length <= FOLDER_AUTO_CLOSE;
+  const setFolder = (name: string, open: boolean) => { const map = { ...folderMap, [name]: open }; saveFolders(docKey, map); setFolderSt({ key: docKey, map }); };
+  type Run = { group?: string; rows: FeatureRow[]; start: number };
+  const runs: Run[] = [];
+  top.forEach((r, k) => { const last = runs.at(-1); if (last && last.group !== undefined && last.group === r.group) last.rows.push(r); else runs.push({ group: r.group, rows: [r], start: k }); });
+  const folderOfTop = new Map<string, string>();
+  for (const run of runs) if (run.group !== undefined && run.rows.length >= 2) for (const r of run.rows) folderOfTop.set(r.id, run.group);
+  /** Open whatever hides a row: the sketch parents it is tucked under, and its folder. */
+  const expandFor = (id: string) => {
+    const chain: string[] = [];
+    for (let o = owner.get(id), g = 0; o && g < 8; o = owner.get(o), g++) chain.push(o);
+    const topId = chain.at(-1) ?? id;
+    if (chain.some((c) => collapsed.includes(c))) setCollapsed((c) => { const n = c.filter((x) => !chain.includes(x)); persist(n); return n; });
+    const fo = folderOfTop.get(topId);
+    if (fo !== undefined && !(folderMap[fo] ?? defaultOpen)) setFolder(fo, true);
+  };
+  // search: rows matching every word of the query (and the parents that hold them) are all that is listed
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [matchPos, setMatchPos] = useState(-1);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const filtering = query.trim() !== '';
+  const kindLabel = (ty: string) => t('feature.' + ty, undefined, ty);
+  const matchIds = filtering ? matchRows(p.rows, query, kindLabel) : [];
+  const matchSet = new Set(matchIds);
+  const shown = new Set<string>();
+  for (const id of matchIds) { shown.add(id); for (let o = owner.get(id), g = 0; o && g < 8; o = owner.get(o), g++) shown.add(o); }
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const hl = (text: string): JSX.Element | string => {
+    if (!words.length) return text;
+    const parts = text.split(new RegExp('(' + words.map(escapeRe).join('|') + ')', 'ig'));
+    return parts.length === 1 ? text : <>{parts.map((x, i) => (i % 2 ? <mark key={i}>{x}</mark> : x))}</>;
+  };
+  // reveal: the rows a picked face belongs to carry a calm marker for as long as the pick lasts, and pulse once when it changes
+  const revealIds = new Set(p.reveal ? [p.reveal.id, ...(p.reveal.also ?? [])] : []);
+  const [pulse, setPulse] = useState<string[]>([]);
+  const pulseTimer = useRef(0);
+  const pointerIn = useRef(false);
+  const lastUser = useRef(0);
+  const pendingReveal = useRef<{ id: string; force: boolean; tries: number } | null>(null);
   const upTo = p.rollback ?? p.rows.length;
   const dep = new Set(p.dependents ?? []);
   const hid = new Set(p.hiddenIds ?? []);
@@ -97,9 +169,21 @@ export function FeatureTree(p: {
   }, [p.hoverId]);
   useEffect(() => {
     if (!p.selectedId) return;
+    expandFor(p.selectedId);
     const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === p.selectedId);
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [p.selectedId]);
+  useEffect(() => {
+    const rv = p.reveal;
+    if (!rv || !p.rows.some((r) => r.id === rv.id)) return;
+    const busy = !rv.force && (pointerIn.current || Date.now() - lastUser.current < 1500);
+    if (!busy) expandFor(rv.id);
+    setPulse([rv.id, ...(rv.also ?? [])]);
+    window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(() => setPulse([]), 1500);
+    if (!busy) pendingReveal.current = { id: rv.id, force: !!rv.force, tries: 0 };
+    return () => window.clearTimeout(pulseTimer.current);
+  }, [p.reveal?.n, p.reveal?.id]);
   const picked = new Set([...(p.selectedIds ?? []), ...(p.selectedId ? [p.selectedId] : [])]);
   /** Marker position as a number of top-level rows above it, and the feature count that position means. */
   const slot = top.filter((r) => indexOf(r.id) < upTo).length;
@@ -107,7 +191,7 @@ export function FeatureTree(p: {
   const span = (id: string): number => Math.max(indexOf(id), ...(childrenOf.get(id) ?? []).map((c) => span(c.id)));
   const countAt = (k: number): number | null => (k >= top.length ? null : k <= 0 ? 0 : span(top[k - 1].id) + 1);
   const moveMarker = (k: number) => p.onRollback?.(countAt(Math.max(0, Math.min(top.length, k))));
-  const renderRow = (r: FeatureRow, depth: number): JSX.Element => {
+  const renderRow = (r: FeatureRow, depth: number, grp = false): JSX.Element => {
     const i = indexOf(r.id);
     const st = statusById.get(r.id);
     const failed = st !== undefined && !st.ok && !st.blockedBy;
@@ -124,6 +208,10 @@ export function FeatureTree(p: {
           class={
             'row' +
             (depth ? ' child' : '') +
+            (grp ? ' ingroup' : '') +
+            (revealIds.has(r.id) ? ' owns' : '') +
+            (pulse.includes(r.id) ? ' pulse' : '') +
+            (filtering && matchSet.has(r.id) ? ' match' : '') +
             (failed ? ' err' : '') +
             (blocked ? ' blocked' : '') +
             (r.suppressed ? ' suppressed' : '') +
@@ -160,11 +248,11 @@ export function FeatureTree(p: {
           <Icon name={featureIconName(r.type, r.op)} size={18} class="row-icon" />
           {renamingThis
             ? <InlineName class="row-name" value={r.name ?? label} onCommit={(n) => { setRenaming(null); p.onRename!(r.id, n); }} onCancel={() => setRenaming(null)} />
-            : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{label}</span>}
-          {r.name && !renamingThis ? <span class="row-type">{t('feature.' + r.type, undefined, r.type)}</span> : null}
+            : <span class="row-name" title={t('feature.' + r.type, undefined, r.type)}>{hl(label)}</span>}
+          {r.name && !renamingThis ? <span class="row-type">{hl(t('feature.' + r.type, undefined, r.type))}</span> : null}
           {r.note && !renamingThis ? <span class="row-note" data-note={r.note}>{r.note}</span> : null}
           {!failed && p.warnings?.[r.id] ? <span class="row-warn" data-warning={p.warnings[r.id].code} title={p.warnings[r.id].hint ?? p.warnings[r.id].code} aria-label={p.warnings[r.id].hint ?? p.warnings[r.id].code}>!</span> : null}
-          <span class="row-id">{r.id}</span>
+          <span class="row-id">{hl(r.id)}</span>
           <span class="row-actions">
             {p.onEdit ? (
               <button class="row-edit row-act" title={t('ui.tree.edit', undefined, 'Edit')} aria-label={t('ui.tree.edit', undefined, 'Edit')}
@@ -198,14 +286,26 @@ export function FeatureTree(p: {
     );
   };
 
-  type Entry = { kind: 'row'; r: FeatureRow; depth: number } | { kind: 'marker' };
+  type Entry = { kind: 'row'; r: FeatureRow; depth: number; grp: boolean } | { kind: 'folder'; name: string; ids: string[]; count: number; open: boolean } | { kind: 'marker' };
   const flat: Entry[] = [];
-  const walk = (r: FeatureRow, depth: number) => {
-    flat.push({ kind: 'row', r, depth });
-    if (!collapsed.includes(r.id)) for (const k of childrenOf.get(r.id) ?? []) walk(k, depth + 1);
+  const walk = (r: FeatureRow, depth: number, grp: boolean) => {
+    flat.push({ kind: 'row', r, depth, grp });
+    if (filtering || !collapsed.includes(r.id)) for (const k of childrenOf.get(r.id) ?? []) if (!filtering || shown.has(k.id)) walk(k, depth + 1, grp);
   };
-  top.forEach((r, k) => { if (p.onRollback && k === slot) flat.push({ kind: 'marker' }); walk(r, 0); });
-  if (p.onRollback && slot >= top.length) flat.push({ kind: 'marker' });
+  const marks = !!p.onRollback && !filtering;   // while searching the rollback marker is not shown
+  for (const run of runs) {
+    const rows = filtering ? run.rows.filter((r) => shown.has(r.id)) : run.rows;
+    if (!rows.length) continue;
+    if (marks && slot === run.start) flat.push({ kind: 'marker' });
+    if (run.group !== undefined && run.rows.length >= 2) {
+      // a folder holding the rollback marker stays open so the marker is never hidden in it
+      const holdsMarker = marks && slot > run.start && slot < run.start + run.rows.length;
+      const open = filtering || holdsMarker || (folderMap[run.group] ?? defaultOpen);
+      flat.push({ kind: 'folder', name: run.group, count: run.rows.length, open, ids: run.rows.flatMap((r) => [r.id, ...(childrenOf.get(r.id) ?? []).map((c) => c.id)]) });
+      if (open) rows.forEach((r) => { if (marks && r !== run.rows[0] && slot === run.start + run.rows.indexOf(r)) flat.push({ kind: 'marker' }); walk(r, 0, true); });
+    } else rows.forEach((r) => walk(r, 0, false));
+  }
+  if (marks && slot >= top.length) flat.push({ kind: 'marker' });
   // Only the rows near the viewport are in the DOM when the list is long (a part with 500 features is 18 000 nodes otherwise).
   const virtual = flat.length > VIRT_MIN;
   /** Top edge of the whole list in viewport coordinates: the lead spacer, or else the first row (the window then starts at 0). */
@@ -242,7 +342,62 @@ export function FeatureTree(p: {
     if (i >= winRef.current[0] + OVERSCAN && i < winRef.current[1] - OVERSCAN) return;
     sc.scrollTop += lt - sc.getBoundingClientRect().top + i * ROW_H - sc.clientHeight / 2;
   }, [p.selectedId]);
+  // a requested reveal: once the row is in the DOM, scroll it to the middle if it is out of view (or when forced); a row the window has not rendered is brought near first
+  useEffect(() => {
+    const pr = pendingReveal.current;
+    if (!pr) return;
+    const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === pr.id);
+    const sc = scroller();
+    if (el) {
+      pendingReveal.current = null;
+      const a = el.getBoundingClientRect(), b = sc?.getBoundingClientRect();
+      const inView = !b || (a.top >= b.top && a.bottom <= b.bottom);
+      if (pr.force || !inView) el.scrollIntoView?.({ block: 'center' });
+      return;
+    }
+    if (pr.tries++ > 4) { pendingReveal.current = null; return; }
+    const i = flatIndexOf(pr.id), lt = listTop();
+    if (i < 0 || !sc || lt === null) return;   // still hidden by a parent that is opening: the next render tries again
+    sc.scrollTop += lt - sc.getBoundingClientRect().top + i * ROW_H - sc.clientHeight / 2;
+  });
   const from = virtual ? Math.min(win[0], flat.length) : 0, to = virtual ? Math.min(Math.max(win[1], from + 1), flat.length) : flat.length;
+
+  const renderFolder = (e: Extract<Entry, { kind: 'folder' }>): JSX.Element => {
+    const holdsReveal = e.ids.some((id) => revealIds.has(id));
+    return (
+      <div
+        class={'row folder' + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
+        data-group={e.name}
+        role="button" tabIndex={0} aria-expanded={e.open}
+        aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}
+        onClick={() => { if (!filtering) setFolder(e.name, !e.open); }}
+        onKeyDown={(ev) => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === ev.currentTarget) { ev.preventDefault(); if (!filtering) setFolder(e.name, !e.open); } }}
+      >
+        <span class="row-chev" aria-expanded={e.open}><Icon name="chevron" size={12} /></span>
+        <Icon name={e.open ? 'folder-open' : 'folder'} size={18} class="row-icon" />
+        <span class="row-name">{hl(e.name)}</span>
+        <span class="row-type">{t('ui.tree.folderCount', { n: e.count }, String(e.count))}</span>
+        {p.onSelectGroup ? (
+          <span class="row-actions">
+            <button class="row-act" title={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')} aria-label={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')}
+              onClick={(ev) => { ev.stopPropagation(); p.onSelectGroup!(e.ids, e.name); }}><Icon name="sel-box" size={15} /></button>
+          </span>
+        ) : null}
+      </div>
+    );
+  };
+
+  /** Next / previous match (Enter / Down, Shift+Enter / Up): selects the row and brings it to the middle. */
+  const jump = (dir: 1 | -1) => {
+    const ids = flat.flatMap((e) => (e.kind === 'row' && matchSet.has(e.r.id) ? [e.r.id] : []));
+    if (!ids.length) return;
+    const k = matchPos < 0 ? (dir === 1 ? 0 : ids.length - 1) : (matchPos + dir + ids.length) % ids.length;
+    setMatchPos(k);
+    p.onSelect(ids[k]);
+    pendingReveal.current = { id: ids[k], force: true, tries: 0 };
+  };
+  const closeSearch = () => { setQuery(''); setMatchPos(-1); setSearchOpen(false); root.current?.focus(); };
+  const openSearch = () => { setSearchOpen(true); queueMicrotask(() => { searchInput.current?.focus(); searchInput.current?.select(); }); };
 
   const marker = (
     <div
@@ -272,15 +427,53 @@ export function FeatureTree(p: {
   );
 
   return (
-    <div class="tree" ref={root}>
-      {p.partName !== undefined ? (
+    <div
+      class="tree" ref={root} tabIndex={-1}
+      onMouseEnter={() => { pointerIn.current = true; }}
+      onMouseLeave={() => { pointerIn.current = false; }}
+      onWheel={() => { lastUser.current = Date.now(); }}
+      onTouchMove={() => { lastUser.current = Date.now(); }}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f' && p.rows.length) { e.preventDefault(); e.stopPropagation(); openSearch(); }
+      }}
+    >
+      {p.partName !== undefined || searchOpen ? (
         <div class="tree-head">
-          <Icon name="feature-part" size={18} />
-          {renaming === '@part' && p.onRenamePart
-            ? <InlineName class="tree-part" value={p.partName} onCommit={(n) => { setRenaming(null); p.onRenamePart!(n); }} onCancel={() => setRenaming(null)} />
-            : <b class="tree-part" onDblClick={() => { if (p.onRenamePart) setRenaming('@part'); }} title={p.onRenamePart ? t('ui.tree.rename', undefined, 'Rename') + ' (F2)' : undefined}>{p.partName}</b>}
-          <span class="tree-count">{t('ui.tree.count', { n: p.rows.length }, String(p.rows.length))}</span>
-          {failedCount ? <span class="tree-bad" title={t('ui.tree.failed', { n: failedCount }, String(failedCount))}>{failedCount}</span> : null}
+          {p.partName !== undefined ? <>
+            <Icon name="feature-part" size={18} />
+            {renaming === '@part' && p.onRenamePart
+              ? <InlineName class="tree-part" value={p.partName} onCommit={(n) => { setRenaming(null); p.onRenamePart!(n); }} onCancel={() => setRenaming(null)} />
+              : <b class="tree-part" onDblClick={() => { if (p.onRenamePart) setRenaming('@part'); }} title={p.onRenamePart ? t('ui.tree.rename', undefined, 'Rename') + ' (F2)' : undefined}>{p.partName}</b>}
+            <span class="tree-count">{t('ui.tree.count', { n: p.rows.length }, String(p.rows.length))}</span>
+            {failedCount ? <span class="tree-bad" title={t('ui.tree.failed', { n: failedCount }, String(failedCount))}>{failedCount}</span> : null}
+            <button type="button" class={'tree-search-btn' + (searchOpen ? ' on' : '')} aria-pressed={searchOpen}
+              title={t('ui.tree.search', undefined, 'Search features') + ' (Ctrl+F)'} aria-label={t('ui.tree.search', undefined, 'Search features')}
+              onClick={() => { if (searchOpen) closeSearch(); else openSearch(); }}><Icon name="search" size={15} /></button>
+          </> : null}
+          {searchOpen ? (
+            <div class="tree-search" role="search">
+              <input
+                ref={searchInput} type="text" class="tree-search-input" value={query} autoComplete="off" spellcheck={false}
+                placeholder={t('ui.tree.searchPlaceholder', undefined, 'Name, type or id (F62, revolve, lens)')}
+                aria-label={t('ui.tree.search', undefined, 'Search features')}
+                onInput={(e) => { setQuery((e.currentTarget as HTMLInputElement).value); setMatchPos(-1); }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
+                  else if (e.key === 'Enter') { e.preventDefault(); jump(e.shiftKey ? -1 : 1); }
+                  else if (e.key === 'ArrowDown') { e.preventDefault(); jump(1); }
+                  else if (e.key === 'ArrowUp') { e.preventDefault(); jump(-1); }
+                  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); searchInput.current?.select(); }
+                }}
+              />
+              <span class="tree-search-count" aria-live="polite">
+                {!filtering ? '' : !matchIds.length ? t('ui.tree.searchNone', undefined, 'No matches')
+                  : matchPos >= 0 ? t('ui.tree.searchAt', { i: matchPos + 1, n: matchIds.length }, `${matchPos + 1} of ${matchIds.length}`)
+                  : t('ui.tree.searchCount', { n: matchIds.length }, `${matchIds.length} matches`)}
+              </span>
+              <button type="button" class="tree-search-clear" title={t('ui.tree.searchClear', undefined, 'Clear search (Esc)')} aria-label={t('ui.tree.searchClear', undefined, 'Clear search (Esc)')} onClick={closeSearch}><Icon name="close" size={14} /></button>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {(p.refs ?? []).map((r) => (
@@ -302,7 +495,7 @@ export function FeatureTree(p: {
       ))}
       <>
         {virtual && from > 0 ? <div class="tree-pad" style={{ height: from * ROW_H + 'px' }} /> : null}
-        {flat.slice(from, to).map((e) => (e.kind === 'marker' ? <Fragment key="@marker">{marker}</Fragment> : <Fragment key={e.r.id}>{renderRow(e.r, e.depth)}</Fragment>))}
+        {flat.slice(from, to).map((e) => (e.kind === 'marker' ? <Fragment key="@marker">{marker}</Fragment> : e.kind === 'folder' ? <Fragment key={'@g:' + e.ids[0]}>{renderFolder(e)}</Fragment> : <Fragment key={e.r.id}>{renderRow(e.r, e.depth, e.grp)}</Fragment>))}
         {virtual && to < flat.length ? <div class="tree-pad" style={{ height: (flat.length - to) * ROW_H + 'px' }} /> : null}
       </>
       {p.onRollback && p.rows.length ? (

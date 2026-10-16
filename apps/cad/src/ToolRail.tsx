@@ -7,7 +7,7 @@ import { MENU_COMMANDS, type SelectionKind } from './menuModel';
 /** The commands that apply to the current selection, most relevant first (the right-click menu's list without the
  *  selection helpers). Empty when nothing is selected. */
 export function contextIds(kind: SelectionKind): string[] {
-  return (MENU_COMMANDS[kind] ?? []).filter((id) => id !== '-' && !id.startsWith('select-') && id !== 'move-body' && id !== 'fit');
+  return (MENU_COMMANDS[kind] ?? []).filter((id) => id !== '-' && !id.startsWith('select-') && id !== 'move-body' && id !== 'show-in-tree' && id !== 'fit');
 }
 
 /** The tool palette: the main way to reach every modelling command. Sections of slots; a slot shows the tool used last

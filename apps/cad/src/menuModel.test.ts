@@ -52,14 +52,19 @@ describe('menuItems', () => {
 });
 
 describe('selection entries', () => {
-  const sel = ['select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-invert', 'select-none', 'select-all'].map((id) => cmd(id, id));
+  const sel = ['show-in-tree', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', 'select-invert', 'select-none', 'select-all'].map((id) => cmd(id, id));
   const all = [...registry, ...sel];
   it('faces and edges offer the select-more family; a body only invert and deselect', () => {
-    expect(menuItems('edge', all, false).map((x) => x.id)).toEqual(['add-fillet', 'add-chamfer', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none']);
+    expect(menuItems('edge', all, false).map((x) => x.id)).toEqual(['add-fillet', 'add-chamfer', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none']);
     expect(menuItems('face', all, false).map((x) => x.id)).toContain('select-similar');
     const body = menuItems('body', all, true).map((x) => x.id);
     expect(body).toContain('select-invert');
     expect(body).not.toContain('select-tangent');
+  });
+  it('faces and edges offer Show in tree; a body or empty space do not', () => {
+    expect(menuItems('face', all, false).map((x) => x.id)).toContain('show-in-tree');
+    expect(menuItems('body', all, true).map((x) => x.id)).not.toContain('show-in-tree');
+    expect(menuItems('none', all, false).map((x) => x.id)).not.toContain('show-in-tree');
   });
   it('empty space offers select all and invert', () => {
     const ids = menuItems('none', all, false).map((x) => x.id);

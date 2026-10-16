@@ -12,6 +12,15 @@ Sample: `apps/cad/public/samples/speedboat-dash.ckpart`; Script-tab example `spe
 (The snapshot renderer draws glass as opaque, so the hero renders use `dashScript({ lens: false })`; the sample and the
 section view include the lenses.)
 
+## Names and folders in the tree
+
+Every sketch carries a name ('Tach bezel', 'Tach lens', 'Panel', 'Nameplate', ...) and the solid made from it is called
+`Revolve Tach bezel` / `Extrude Panel` / `Cut Rim recess` by the script runner. The features of one gauge sit in a
+folder ('Tach gauge', 'Knots gauge', ...), the rest in 'Panel', 'Screws', 'Nameplate' and 'Warning lamps'
+(`part.group(name, () => { ... })` or the free `group(name, () => { ... })` tags the enclosed features with `group`).
+The tree shows consecutive features with the same group under one collapsible folder; a document with more than 40
+features opens with the folders closed.
+
 ## Design intent
 
 * Layout: the two 85 mm gauges (tach left, knots right) sit side by side at the centre, the two 52 mm gauges (oil left,

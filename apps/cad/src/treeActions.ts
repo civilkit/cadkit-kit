@@ -20,6 +20,19 @@ export function viewOwner(name: string, inserts: ReadonlySet<string>): string | 
   return faceOwner(name);
 }
 
+/** The tree rows to show for a picked face / edge / corner name. The owning feature is the id before the first dot (`F62.S.e3`, `F62.C0`);
+ *  a patterned or mirrored name carries the feature that repeated it after an `@` (`F4.S.h1@F9.2`): the seed `F4` is the primary row and
+ *  `F9` comes with it. A corner name `v:...` or a body name has no owner. Only ids in `rows` count; null when none of them is. */
+export function revealTargets(name: string, rows: ReadonlySet<string> | readonly string[]): { id: string; also: string[] } | null {
+  const has = rows instanceof Set ? (x: string) => rows.has(x) : (x: string) => (rows as readonly string[]).includes(x);
+  const first = name.split('|')[0];
+  const base = /^(F\d+)(?=[.:@#]|$)/.exec(first)?.[1] ?? null;
+  const via = [...first.matchAll(/@(F\d+)(?=[.:@#]|$)/g)].map((m) => m[1]).filter((x, i, a) => a.indexOf(x) === i);
+  const all = [...(base ? [base] : []), ...via].filter(has);
+  if (!all.length) return null;
+  return { id: all[0], also: all.slice(1) };
+}
+
 type Feat = { id: string; [k: string]: unknown };
 
 /** String leaves of a feature that can refer to another feature (everything but its own id and display name). */

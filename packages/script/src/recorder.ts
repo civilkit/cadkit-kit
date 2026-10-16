@@ -99,7 +99,7 @@ export interface Facts {
   faceCount: number; edgeCount: number; faces: FaceFact[];
   edges: Array<{ key: string; mid: Vec; length: number; faces: string[] }>;
 }
-export interface Step { line: number; label: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder; /** a read-back step: builds what was recorded, asks the kernel, resolves a script promise or checks an expectation */ read?(rt: ReadRuntime): Promise<void> }
+export interface Step { line: number; label: string; /** feature name given by the script (`{ name }` option); a missing one is derived from the sketch it consumes */ name?: string; /** tree folder the step's features belong to (see part.group) */ group?: string; run(ctx: Ctx): EditOp[]; sk?: SketchBuilder; /** a read-back step: builds what was recorded, asks the kernel, resolves a script promise or checks an expectation */ read?(rt: ReadRuntime): Promise<void> }
 export interface Recorded { name: string; variables: Array<{ name: string; expr: string }>; steps: Step[] }
 
 /** The 1-based script line of the caller, from the stack of the evaluated function (see run.ts: sourceURL + header offset). */
@@ -407,6 +407,8 @@ export class SketchBuilder {
 // ---- the part ----
 /** Hole options. diameter or an ISO size is required; the kind picks the head shape (counterbore, countersink) or the thread (tapped). */
 export interface HoleOpts {
+  /** name shown in the feature tree */
+  name?: string;
   /** hole diameter in mm (not radius); optional when size is given */
   diameter?: Num;
   /** ISO metric size 'M2'..'M24': the kernel picks the hole diameter for the fit */
@@ -434,11 +436,79 @@ export interface HoleOpts {
   /** tapped: cut the real helical groove instead of a cosmetic thread */
   modeled?: boolean;
 }
-export interface ExtrudeOpts { mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
+export interface ExtrudeOpts { /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
 export class PartBuilder {
   steps: Step[] = [];
   variables: Array<{ name: string; expr: string }> = [];
-  constructor(public name: string) {}
+  /** the folder name set by an enclosing group(); every feature added inside carries it */
+  private curGroup: string | undefined;
+  /** names of the sketches seen so far, by feature id: a solid made from one is called `Extrude <sketch name>` */
+  private sketchNames = new Map<string, string>();
+  constructor(public name: string) {
+    // every step gets the current group and decorates the features it adds with the names / group (applied when the step runs)
+    const push = this.steps.push.bind(this.steps);
+    this.steps.push = (...ss: Step[]) => push(...ss.map((s) => this.decorate(s)));
+    // every method that records steps takes an optional `name` in its last options object: it names the feature(s) added by that call
+    const proto = Object.getPrototypeOf(this) as Record<string, unknown>;
+    const skip = new Set(['constructor', 'group', 'handle', 'workplane', 'thin']);
+    for (const k of Object.getOwnPropertyNames(proto)) {
+      const fn = proto[k];
+      if (skip.has(k) || typeof fn !== 'function' || k.startsWith('_')) continue;
+      const own = (...a: unknown[]): unknown => {
+        const n0 = this.steps.length;
+        const r = (fn as (...x: unknown[]) => unknown).apply(this, a);
+        const last = a[a.length - 1];
+        const nm = last && typeof last === 'object' && !Array.isArray(last) && typeof (last as { name?: unknown }).name === 'string' ? (last as { name: string }).name : null;
+        if (nm) for (let i = n0; i < this.steps.length; i++) this.steps[i].name ??= nm;
+        return r;
+      };
+      Object.defineProperty(this, k, { value: own, writable: true, configurable: true });
+    }
+  }
+  /**
+   * Put the features recorded inside `build` in a named folder of the feature tree.
+   *
+   * group('Tach gauge', () => { ... }) tags every feature added by the calls inside (sketches, planes, solids, holes) with group: 'Tach gauge'; the tree shows consecutive features with the same group under one collapsible folder. Groups do not nest: an inner group replaces the outer one until it ends. Also available as the free function group(name, build).
+   * @domain utilities
+   * @param name folder name
+   * @param build callback that records the features
+   * @example
+   * const p = part('Dash');
+   * p.group('Panel', () => { p.sketch('front', (s) => s.rect(100, 50), 'Panel').extrude(5); });
+   * @see part.sketch, part.extrude
+   */
+  group(name: string, build: () => void): this {
+    const prev = this.curGroup;
+    this.curGroup = name;
+    try { build(); } finally { this.curGroup = prev; }
+    return this;
+  }
+  private decorate(s: Step): Step {
+    const grp = this.curGroup;
+    if (grp !== undefined) s.group ??= grp;
+    const run = s.run;
+    const part = this;
+    s.run = function (this: unknown, ctx) {
+      const ops = run.call(this, ctx);
+      const adds = ops.filter((o) => o.op === 'add' && o.feature);
+      for (const o of adds) {
+        const f = o.feature;
+        if (f.type === 'sketch' && typeof f.name === 'string') part.sketchNames.set(f.id as string, f.name);
+        if (s.group !== undefined && f.group === undefined) f.group = s.group;
+      }
+      // the step's main feature: the sketch of a sketch step, else the last feature that is not a helper sketch or a thread
+      const main = s.label === 'sketch' ? adds.find((o) => o.feature.type === 'sketch') : [...adds].reverse().find((o) => o.feature.type !== 'sketch' && o.feature.type !== 'thread') ?? adds.at(-1);
+      const f = main?.feature;
+      if (f && f.name === undefined) {
+        if (s.name) f.name = s.name;
+        else if ((f.type === 'extrude' || f.type === 'revolve') && typeof f.sketch === 'string' && part.sketchNames.has(f.sketch)) {
+          f.name = `${f.type === 'revolve' ? 'Revolve' : f.op === 'cut' ? 'Cut' : 'Extrude'} ${part.sketchNames.get(f.sketch)}`;
+        }
+      }
+      return ops;
+    };
+    return s;
+  }
   private add(label: string, run: Step['run']): this { this.steps.push({ line: callerLine(), label, run }); return this; }
   /** The feature a step adds is reported to the context once the runner has applied it; steps record their own ids through ctx.nextId. */
   private line = (): number => this.steps[this.steps.length - 1]?.line ?? 0;
@@ -549,7 +619,7 @@ export class PartBuilder {
    *   .revolve(360);
    * @see sketch.polygon, sketch.axisAt
    */
-  revolve(angle: Num = 360, o: { op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this {
+  revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this {
     const sk = [...this.steps].reverse().find((x) => x.sk)?.sk;
     if (sk && o.axis) sk.axisAt(o.axis.from, o.axis.to);
     else if (sk && !sk.axisId) sk.axis();
@@ -576,7 +646,7 @@ export class PartBuilder {
     const prev = this.steps.pop();
     if (!prev) throw new SelectorError('thin() needs an extrude or revolve before it', callerLine());
     const line = callerLine();
-    this.steps.push({ line: prev.line, label: prev.label, run: (ctx) => {
+    this.steps.push({ line: prev.line, label: prev.label, ...(prev.name ? { name: prev.name } : {}), ...(prev.group ? { group: prev.group } : {}), run: (ctx) => {
       const ops = prev.run(ctx);
       const f = ops[0]?.feature;
       if (!f || (f.type !== 'extrude' && f.type !== 'revolve')) throw new SelectorError('thin() applies to an extrude or revolve', line);
@@ -685,7 +755,7 @@ export class PartBuilder {
    *   .fillet(edges({ onFace: face('>Z') }), { radius: [2, 2, 1, 1, 1, 1, 1, 1] });
    * @see part.chamfer, edges, sketch.rrect
    */
-  fillet(on: EdgeSel, radius: Num | { radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }): this {
+  fillet(on: EdgeSel, radius: Num | { name?: string; radius?: Num | Num[] | Record<string, Num>; variable?: [Num, Num] }): this {
     return this.add('fillet', (ctx) => {
       const infos = resolveEdgeInfos(on.sel, ctx.geo, on.line, ctx.warn);
       const refs = infos.map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
@@ -724,7 +794,7 @@ export class PartBuilder {
    *   .hole(face('>Z'), [0, 0], { diameter: 18 }).chamfer(edges('>Z'), 0.5);
    * @see part.fillet, edges
    */
-  chamfer(on: EdgeSel, distance: Num | { distance: Num; distance2?: Num; angle?: Num; flip?: boolean }): this {
+  chamfer(on: EdgeSel, distance: Num | { name?: string; distance: Num; distance2?: Num; angle?: Num; flip?: boolean }): this {
     return this.add('chamfer', (ctx) => {
       const id = ctx.nextId(); ctx.lastFeature = id;
       const o = typeof distance === 'number' || distance instanceof Expr ? { distance } : distance;
@@ -1167,6 +1237,23 @@ export function makeApi(state: ScriptState) {
      * @see variables
      */
     expr: (text: string): Expr => new Expr(text, evalExpr(text)),
+    /**
+     * Put the features recorded inside `build` in a named folder of the feature tree.
+     *
+     * The free-function form of part.group: group('Tach gauge', () => { ... }) applies to the part started last with part().
+     * @domain utilities
+     * @param name folder name
+     * @param build callback that records the features
+     * @example
+     * const p = part('Dash');
+     * group('Panel', () => { p.sketch('front', (s) => s.rect(100, 50), 'Panel').extrude(5); });
+     * @see part.group
+     */
+    group: (name: string, build: () => void): void => {
+      const p = state.parts.at(-1);
+      if (!p) throw new SelectorError('group() needs a part() before it', callerLine());
+      p.group(name, build);
+    },
     face, faces, edges, through, at, plane,
   };
 }
