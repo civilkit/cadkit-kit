@@ -43,6 +43,7 @@ try {
   result.heapStartMb = await heap(); result.rssStartMb = rssMb(profile);
   for (let run = 1; run <= RUNS; run++) {
     await page.eval(`window.__stall = { max: 0, n: 0 }; 0`);
+    await page.eval(`(() => { window.__done = 0; const st = window.__cad.store; if (!st.__patched) { const n = st.notify; st.notify = (t, l) => { if (/Script ran|cancelled/i.test(String(t))) window.__done = Date.now(); return n.call(st, t, l); }; st.__patched = true; } })()`);
     const t0 = Date.now(); const samples = []; let seenProgress = null;
     if (PROFILE) { await page.send('Profiler.enable'); await page.send('Profiler.setSamplingInterval', { interval: 1000 }); await page.send('Profiler.start'); }
     await click('.script-panel button.primary', '');
@@ -54,10 +55,10 @@ try {
       const st = await page.eval(`(() => ({ status: document.querySelector('.script-panel [role=status]')?.innerText ?? null, heap: Math.round(performance.memory.usedJSHeapSize / 1048576), busy: !!document.querySelector('.status .busy') }))()`).catch(() => null);
       if (!st) { samples.push({ t: Date.now() - t0, hung: true }); if (Date.now() - t0 > 900000) break; continue; }
       samples.push({ t: Date.now() - t0, ...st }); if (st.status) seenProgress = st.status;
-      if (!st.status && Date.now() - t0 > 1500) break;
+      if (await page.eval(`window.__done`).catch(() => 0)) break;
       if (Date.now() - t0 > 900000) break;
     }
-    const wall = Date.now() - t0;
+    const wall = (await page.eval(`window.__done`).catch(() => 0)) - t0 || Date.now() - t0;
     if (PROFILE) {
       const { profile } = await page.send('Profiler.stop', {}, 120000);
       const self = new Map(); const byId = new Map(profile.nodes.map((n) => [n.id, n]));
@@ -66,6 +67,8 @@ try {
     }
     const info = await page.eval(`(() => { const c = window.__cad?.controller; return { features: c?.document()?.features.length ?? null, history: c?.session?.history().length ?? null, triangles: c?.lastView?.mesh?.triFace?.length ?? null, facts: window.__cad?.store?.facts?.value ?? null }; })()`);
     const stall = await page.eval(`window.__stall`);
+    result.lastErrors = await page.eval(`document.querySelector('.script-errors')?.innerText ?? ''`);
+    if (result.lastErrors) console.log('script errors:', result.lastErrors.slice(0, 300));
     await sleep(2000);
     const run_ = { run, wallMs: wall, lastProgress: seenProgress, maxStallMs: Math.round(stall.max), stallsOver200ms: stall.n, heapAfterMb: await heap(), rssAfterMb: rssMb(profile), ...info, heapPeakMb: Math.max(...samples.map((s) => s.heap ?? 0)), polls: samples.length };
     result.runs.push(run_); console.log(JSON.stringify(run_));

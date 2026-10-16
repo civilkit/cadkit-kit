@@ -91,7 +91,9 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const ops: EditOp[] = [];
   let n = 0;
   const ctx: Ctx = { geo: host.geometry(), nextId: () => `F${++n}`, lastSketch: null, lastFeature: null };
+  let stepNo = 0;
   for (const step of part.steps) {
+    opts.onProgress?.({ phase: 'building', done: stepNo++, total: part.steps.length, elapsedMs: performance.now() - t0 });
     ctx.geo = host.geometry();
     let stepOps: EditOp[];
     try { stepOps = step.run(ctx); } catch (e) {
