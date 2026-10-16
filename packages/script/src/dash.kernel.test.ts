@@ -26,7 +26,7 @@ describe('speedboat dash', () => {
     const only = (process.env.DASH_ONLY ?? '').split(',').filter(Boolean);
     const { h, session } = await host();
     const t0 = Date.now();
-    const r = await runScript(dashScript({ ...(only.length ? { only } : {}), lens: !process.env.DASH_NOLENS }), h);
+    const r = await runScript(dashScript({ ...(only.length ? { only } : {}), lens: !process.env.DASH_NOLENS, letters: !process.env.DASH_NOLETTERS }), h);
     expect(r.errors).toEqual([]);
     const mp = (await session().massProps()) as { volume: number };
     const mb = (await session().massProps({ bodies: true })) as { bodies?: { volume: number }[] };

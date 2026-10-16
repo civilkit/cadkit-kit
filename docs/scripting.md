@@ -117,6 +117,64 @@ So on `'top'` a point at sketch y = 10 is at world z = -10 (toward the back); Y 
 
 `flip: true` and `mid: true` still work and switch auto off. State the direction yourself in hot paths: the automatic retry costs an extra build.
 
+## Lettering (engrave and emboss)
+
+`s.text(string, at, opts)` inside a sketch callback adds a text entity: the letters of a built-in font become closed loops that
+`extrude` / `cut` use like any other profile. So **engrave = sketch on the face + `cut(depth)`**, **emboss = sketch + `extrude(height)`**
+(an emboss is a body of its own, so it can have its own name and colour; a cut has no body). Details and limits: `docs/text.md`.
+
+```js
+s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })
+```
+
+| Option | Meaning |
+|---|---|
+| `at` | `[x, y]` or `{x, y}`: the anchor in the sketch plane (it becomes a normal sketch point) |
+| `font` | `'gauge'` (condensed sans, default) or `'engrave'` (serif) |
+| `height` | CAP height in mm (the height of an H), default 5. Under 0.8 mm the run warns `textTooSmall` |
+| `anchor` | `['left'\|'center'\|'right', 'baseline'\|'middle'\|'top']` or `'center middle'`; horizontal refers to the ink, default `['left','baseline']` |
+| `angle` | degrees, counter-clockwise about the anchor |
+| `spacing` | letter pitch factor, above 0 and below 20 (default 1) |
+| `mirror` | flip left to right (lettering on the back of a clear part) |
+| `arc` | `{ centre: [x, y], radius, angleCentre: 90, side: 'outside' \| 'inside' }` lays the letters along a circle; `radius` is the baseline radius |
+| `polyline` | straight segments instead of B-spline edges |
+| `name` | entity id (letters, digits, `-`, `_`), shown in the sketch's inspect `texts` |
+
+Keep lettering in a sketch of **its own**: its loops are not intersected with other curves of the same sketch. Several `s.text()` calls
+in one sketch are fine (a dial). Characters outside Latin-1 are skipped (`textMissingGlyph`, a warning); an empty or blank string
+fails with `text(): the string is empty` or `text(): nothing to draw` on the script line.
+
+`await part.textMetrics(string, { font, height, spacing })` measures a string with the kernel's own layout:
+`{ width, advance, bbox: [x0, y0, x1, y1], capHeight, chars, advances, warnings }` (`width` is the ink width in mm).
+
+Engrave a label 0.3 mm deep, sizing the plate from the text:
+
+```js
+const plate = part('Plate');
+const m = await plate.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });
+plate.sketch('front', (s) => s.rect(m.width + 10, 14)).extrude(3)
+  .sketch(at('front', 3), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);
+```
+
+Numerals around a dial, upright, one `text` per number (a 270 degree sweep from 225 degrees, `r` the numeral radius):
+
+```js
+const d = part('Dial');
+d.sketch('front', (s) => s.circle(40)).extrude(2);
+d.sketch(at('front', 2), (s) => {
+  for (let v = 0; v <= 80; v += 10) {
+    const a = (225 - 270 * v / 80) * Math.PI / 180;
+    s.text(String(v), [28 * Math.cos(a), 28 * Math.sin(a)], { height: 4, anchor: ['center', 'middle'] });
+  }
+}).extrude(0.15);   // emboss: its own body
+```
+
+Text on an arc, reading clockwise over the top of a dial (`side: 'inside'` and `angleCentre: 270` for a title below it):
+
+```js
+s.text('RPM x100', [0, 0], { height: 3, anchor: ['center', 'baseline'], arc: { centre: [0, 0], radius: 30, angleCentre: 90, side: 'outside' } });
+```
+
 ## Reading results back
 
 A script can read the part as built so far and assert on it:

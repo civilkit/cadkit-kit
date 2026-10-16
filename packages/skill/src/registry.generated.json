@@ -698,6 +698,98 @@
    "notes": "- Fit-point spline: the curve passes through the points. closed: true makes a loop (extrudable and a loft section), open splines are sweep paths. Many points on a tight turn can overshoot; cvspline gives a fairer curve from control points."
   },
   {
+   "id": "sketch.text",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.text(string: string, at: Pt | { x: number; y: number }, opts: TextOpts = {}): this",
+   "summary": "Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).",
+   "description": "Adds a `text` entity: the letters of a built-in font become closed loops that extrude and cut like any sketch profile, so ENGRAVE = sketch on the face + cut(0.3), EMBOSS = sketch + extrude(0.3). `at` is the anchor [x, y] (or {x, y}); `height` is the CAP height in mm (the height of an H, default 5); fonts: 'gauge' (condensed sans, default) and 'engrave' (serif); anchor is [horizontal, vertical] = 'left'|'center'|'right' x 'baseline'|'middle'|'top' (or one string 'center middle'), default left baseline, measured on the ink box; angle in degrees counter-clockwise about the anchor; spacing scales the letter pitch (default 1); mirror flips the text (for the back of a clear part); arc: { centre: [x, y], radius, angleCentre (deg, default 90), side: 'outside' (tops away from the centre, reads clockwise) | 'inside' (tops toward the centre, reads counter-clockwise) } lays the letters along a circle (radius is the baseline). KEEP LETTERING IN A SKETCH OF ITS OWN (its loops are not intersected with other curves of the sketch); several text() calls in one sketch are fine (dial numerals). Text under 0.8 mm cap height warns textTooSmall; characters outside Latin-1 are skipped (textMissingGlyph). `name` sets the entity id (letters, digits, - and _), which shows in the sketch's inspect `texts`. Use await part.textMetrics(string, opts) to size a plate or centre by the real width.",
+   "parameters": [
+    {
+     "name": "string",
+     "type": "string",
+     "optional": false,
+     "description": "the text (1 to 500 characters, one line)"
+    },
+    {
+     "name": "at",
+     "type": "Pt | { x: number; y: number }",
+     "optional": false,
+     "description": "anchor [x, y] or {x, y} in the sketch plane, mm"
+    },
+    {
+     "name": "opts",
+     "type": "TextOpts",
+     "optional": true,
+     "default": "{}",
+     "description": "{ font, height, anchor, angle, spacing, mirror, arc, polyline, name }",
+     "properties": [
+      {
+       "name": "font",
+       "type": "'gauge' | 'engrave'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "anchor",
+       "type": "[('left' | 'center' | 'right')?, ('baseline' | 'middle' | 'top')?] | string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "angle",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "spacing",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "mirror",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "polyline",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "arc",
+       "type": "{ centre?: Pt; radius: Num; angleCentre?: Num; side?: 'outside' | 'inside' }",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Plate').sketch('front', (s) => s.rect(60, 20)).extrude(4)\n  .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);",
+   "related": [
+    "part.textMetrics",
+    "part.cut",
+    "part.extrude"
+   ]
+  },
+  {
    "id": "part.chamfer",
    "kind": "method",
    "domain": "features",
@@ -2860,6 +2952,54 @@
    "example": "const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);\nconst ok = await p.isValid();   // true",
    "related": [
     "part.expectValid"
+   ]
+  },
+  {
+   "id": "part.textMetrics",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".textMetrics(string: string, opts: { font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num } = {}): Promise<TextMetricsFact>",
+   "summary": "Measure a string before drawing it: width, ink box and per-letter advances.",
+   "description": "await part.textMetrics(string, { font, height, spacing }) asks the kernel for the real layout of the text (the same one s.text() uses) and returns { width, advance, bbox: [x0, y0, x1, y1], capHeight, chars, advances, warnings }; width is the ink width in mm, bbox is relative to the pen start on the baseline. Use it to size a nameplate, centre a label or fit a font height to a space. It needs await and costs one kernel request; no build is forced.",
+   "parameters": [
+    {
+     "name": "string",
+     "type": "string",
+     "optional": false,
+     "description": "the text"
+    },
+    {
+     "name": "opts",
+     "type": "{ font?: 'gauge' | 'engrave'; height?: Num; spacing?: Num }",
+     "optional": true,
+     "default": "{}",
+     "description": "{ font: 'gauge'|'engrave' (default gauge), height: cap height mm (default 5), spacing: pitch factor (default 1) }",
+     "properties": [
+      {
+       "name": "font",
+       "type": "'gauge' | 'engrave'",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "spacing",
+       "type": "Num",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "returns": "Promise<TextMetricsFact>",
+   "example": "const p = part('Plate');\nconst m = await p.textMetrics('SEA SPRITE', { font: 'engrave', height: 5 });\np.sketch('front', (s) => s.rect(m.width + 8, 12)).extrude(2);",
+   "related": [
+    "sketch.text"
    ]
   },
   {

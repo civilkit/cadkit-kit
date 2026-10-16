@@ -4,7 +4,7 @@
 // part (0.1 mm clearances stand for the adhesive / press fit), so a viewer can colour them. All dimensions are variables().
 // Frame: X across, Y up, Z out of the panel (the panel's back is z = 0). dashScript(opts) keeps the listed groups for
 // development (see DASH_GROUPS); no argument builds everything.
-export const DASH_GROUPS = ['panel', 'gauges', 'details', 'bezel', 'profile'];   // 'bezel' alone: one bare bezel; 'profile': the bezel's rolled section as a thin extruded plate (for drawings)
+export const DASH_GROUPS = ['panel', 'gauges', 'details', 'lettering', 'bezel', 'profile'];   // 'bezel' alone: one bare bezel; 'profile': the bezel's rolled section as a thin extruded plate (for drawings)
 
 const BODY = `
 const V = variables({ W: 380, H: 150, T: 6, CROWN: 8, R_CORNER: 12, RIM_W: 6, RIM_H: 1.5, RIM_ROLL: 2,
@@ -13,6 +13,7 @@ const V = variables({ W: 380, H: 150, T: 6, CROWN: 8, R_CORNER: 12, RIM_W: 6, RI
 const { W, H, T, CROWN, R_CORNER, RIM_W, RIM_H, RIM_ROLL, BIG, SMALL, GAP, GY, CLR, TICK_H, NEEDLE_T, SWEEP, START, PLATE_W, PLATE_H, LAMP_D, LAMP_X, SCREW_D } = V;
 const ONLY = null;
 const LENS = true;
+const LETTERS = true;
 const P = part('Speedboat dash cluster');
 const rad = (d) => d * Math.PI / 180;
 // ---- look: a classic dash (view appearance only; the geometry is unchanged) ----
@@ -44,10 +45,10 @@ const topY = (x) => CCY + Math.sqrt(RTOP * RTOP - x * x);   // top edge height a
 const RB = BIG / 2 + 8, RS = SMALL / 2 + 8;
 const XB = RB + GAP / 2, XS = XB + RB + GAP + RS;
 const G = [
-  { n: 'tach', x: -XB, y: GY, g: BIG, lo: 0, hi: 80, major: 10, minor: 2, red: 60, v: 32 },
-  { n: 'knots', x: XB, y: GY, g: BIG, lo: 0, hi: 60, major: 10, minor: 2, red: 0, v: 28 },
-  { n: 'oil', x: -XS, y: GY, g: SMALL, lo: 0, hi: 100, major: 20, minor: 5, red: 0, v: 55 },
-  { n: 'temp', x: XS, y: GY, g: SMALL, lo: 100, hi: 250, major: 30, minor: 5, red: 210, v: 180 },
+  { n: 'tach', x: -XB, y: GY, g: BIG, lo: 0, hi: 80, major: 10, minor: 2, red: 60, v: 32, lab: 10, cap: 'RPM x100' },
+  { n: 'knots', x: XB, y: GY, g: BIG, lo: 0, hi: 60, major: 10, minor: 2, red: 0, v: 28, lab: 10, cap: 'KNOTS' },
+  { n: 'oil', x: -XS, y: GY, g: SMALL, lo: 0, hi: 100, major: 20, minor: 5, red: 0, v: 55, lab: 20, cap: 'OIL PSI' },
+  { n: 'temp', x: XS, y: GY, g: SMALL, lo: 100, hi: 250, major: 30, minor: 5, red: 210, v: 180, lab: 50, cap: 'TEMP \u00b0F' },
 ];
 const PLATE_Y = -hh + 22, PLATE_RECESS = 1.2;
 const LAMPS = [[-LAMP_X, PLATE_Y], [LAMP_X, PLATE_Y]];
@@ -86,10 +87,21 @@ const bezelPath = (g) => {
   return [[Rb, -8], [Rt, -8], [Rt, 0], [Ro - 2, 0], ['a', rimLow(Ro - 2, 2, 2), [Ro, 2]], [Ro, 6],
     ['a', rim45(Ro - 3, 6, 3), [Ro - 3, 9]], [Rl + 1.6, 9], [Rl + 0.1, 7.9], [Rl + 0.1, 7.5], [r - 1.5, 7.5], [r - 1.5, 4], [Rb, 4]];
 };
+// ---- lettering: upright numerals on the tick circle and a caption below the hub, embossed 0.15 mm as their own black-ink bodies, floating CLR above the dial like the other parts ----
+const DZ0 = 2, DZ1 = 3.9;                                             // dial plate (local z)
+const lettering = (d) => P.group(cap1(d.n) + ' lettering', () => {
+  const { x: cx, y: cy, g } = d, r = g / 2, nm = cap1(d.n);
+  const ang = (v) => START - SWEEP * (v - d.lo) / (d.hi - d.lo);
+  const pt = (rr, v) => [cx + rr * Math.cos(rad(ang(v))), cy + rr * Math.sin(rad(ang(v)))];
+  const big = g > 60, hN = big ? 4 : 3, rN = r - (big ? 15.5 : 15), zT = ZB + DZ1 + CLR;
+  P.sketch(at('front', zT), (s) => { for (let v = d.lo; v <= d.hi + 1e-6; v += d.lab) { s.text(String(v), pt(rN, v), { font: 'gauge', height: hN, anchor: ['center', 'middle'] }); } }, nm + ' numerals'); P.extrude(0.15);
+  look(P.handle(), nm + ' numerals', { colour: LOOK.ink, finish: 'matte' });
+  P.sketch(at('front', zT), (s) => s.text(d.cap, [cx, cy - (big ? 0.33 : 0.27) * r], { font: 'gauge', height: big ? 3.4 : 2.4, anchor: ['center', 'middle'] }), nm + ' caption'); P.extrude(0.15);
+  look(P.handle(), nm + ' caption', { colour: LOOK.ink, finish: 'matte' });
+});
 // ---- one gauge ----
 const gauge = (d) => P.group(cap1(d.n) + ' gauge', () => {
   const { x: cx, y: cy, g } = d, r = g / 2, Ro = r + 8, Rt = TUBE(g), Rb = r + 0.2, Rl = r + 1;
-  const DZ0 = 2, DZ1 = 3.9;                                             // dial plate (local z)
   const ang = (v) => START - SWEEP * (v - d.lo) / (d.hi - d.lo);        // degrees, 0 = +X, counter-clockwise
   const pt = (rr, v) => [cx + rr * Math.cos(rad(ang(v))), cy + rr * Math.sin(rad(ang(v)))];
   const nm = cap1(d.n);
@@ -138,6 +150,9 @@ const details = () => {
   P.group('Nameplate', () => {
   P.sketch(at('front', pz), (s) => s.rrect(PLATE_W - 0.4, PLATE_H - 0.4, 1.8, [0, PLATE_Y]), 'Nameplate'); P.extrude(PLATE_RECESS - CLR + 0.2);
   look(P.handle(), 'Nameplate', { colour: LOOK.brass, finish: 'brushed' });
+  if (LETTERS) {   // engraved into the brass with the serif face: the boat's name and a small line under it
+    P.sketch(at('front', pz + PLATE_RECESS - CLR + 0.2), (s) => { s.text('SEA SPRITE', [0, PLATE_Y + 2.6], { font: 'engrave', height: 5, anchor: ['center', 'middle'] }); s.text('MADE IN AUSTRALIA', [0, PLATE_Y - 4.6], { font: 'engrave', height: 1.8, anchor: ['center', 'middle'] }); }, 'Nameplate lettering'); P.cut(0.2, { direction: 'into' });
+  }
   [-1, 1].forEach((sg, i) => { look(rev(sg * (PLATE_W / 2 - 5), PLATE_Y, [[0, FIELD + 0.2 + CLR], [1.8, FIELD + 0.2 + CLR], ['a', dome(1.8, FIELD + 0.2 + CLR, 1), [0, FIELD + 1.2 + CLR]]], 0, 'Rivet ' + (i + 1)), 'Rivet ' + (i + 1), { colour: LOOK.chrome, finish: 'chrome' }); });
   });
   P.group('Warning lamps', () => { LAMPS.forEach((l, i) => {
@@ -146,14 +161,14 @@ const details = () => {
     look(rev(l[0], l[1], [[0, 0.5], [Ri - 0.2, 0.5], [Ri - 0.2, 1.8], ['a', dome(Ri - 0.2, 1.8, 1.8), [0, 3.6]]], ZB, 'Lamp ' + (i + 1) + ' lens'), 'Lamp ' + (i + 1) + ' lens', { colour: i === 0 ? '#d83a2e' : '#e0a02a', opacity: 0.7, finish: 'glass' });
   }); });
 };
-const ORDER = ['panel', 'gauges', 'details'];
+const ORDER = ['panel', 'gauges', 'details', 'lettering'];
 const DO = { profile: () => { P.sketch('front', (s) => { let cur = null; bezelPath(BIG).concat([bezelPath(BIG)[0]]).forEach((it) => { const to = it[0] === 'a' ? it[2] : it; if (cur) { if (it[0] === 'a') { s.arc3(cur, it[1], it[2]); } else { s.line(cur, it); } } cur = to; }); }); P.extrude(0.5); },
-  bezel: () => { rev(0, 0, bezelPath(BIG)); }, panel: () => { panel(); panelHoles(); }, gauges: () => { G.forEach(gauge); }, details: () => { details(); } };
+  bezel: () => { rev(0, 0, bezelPath(BIG)); }, lettering: () => { if (LETTERS) { G.forEach(lettering); } }, panel: () => { panel(); panelHoles(); }, gauges: () => { G.forEach(gauge); }, details: () => { details(); } };
 ORDER.concat(['bezel', 'profile']).forEach((k) => { if (ONLY ? ONLY.indexOf(k) >= 0 : k !== 'bezel' && k !== 'profile') { DO[k](); } });
 `;
 
 /** The script text; `only` keeps just the listed groups (see DASH_GROUPS). */
-export function dashScript(opts: { only?: string[]; lens?: boolean } = {}): string {
-  const code = BODY.replace('const ONLY = null;', `const ONLY = ${opts.only ? JSON.stringify(opts.only) : 'null'};`).replace('const LENS = true;', `const LENS = ${opts.lens === false ? 'false' : 'true'};`);
+export function dashScript(opts: { only?: string[]; lens?: boolean; letters?: boolean } = {}): string {
+  const code = BODY.replace('const ONLY = null;', `const ONLY = ${opts.only ? JSON.stringify(opts.only) : 'null'};`).replace('const LENS = true;', `const LENS = ${opts.lens === false ? 'false' : 'true'};`).replace('const LETTERS = true;', `const LETTERS = ${opts.letters === false ? 'false' : 'true'};`);
   return `// Speedboat analog dash cluster: 4 gauges, curved plate, all dimensions are variables\n${code.trim()}\n`;
 }

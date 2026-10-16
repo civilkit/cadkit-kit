@@ -35,7 +35,7 @@ describe('script text', () => {
     const bad = (src: string, re: RegExp) => { const r = evaluate(src); expect(r.errors[0]?.message).toMatch(re); expect(r.errors[0]?.line).toBe(1); };
     bad(`part('P').sketch('front', (s) => s.text('', [0, 0]));`, /string is empty/);
     bad(`part('P').sketch('front', (s) => s.text('A', [0, 0], { font: 'comic' }));`, /unknown font/);
-    bad(`part('P').sketch('front', (s) => s.text('A', [0, 0], { height: -2 }));`, /cap height/);
+    bad(`part('P').sketch('front', (s) => s.text('A', [0, 0], { height: -2 }));`, /CAP height/);
     bad(`part('P').sketch('front', (s) => s.text('A', [0, 0], { anchor: ['middle', 'left'] }));`, /anchor is/);
   });
   it('engraves a label: volume removed = glyph area x depth within 1%', async () => {

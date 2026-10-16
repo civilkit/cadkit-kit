@@ -387,16 +387,8 @@ export class SketchBuilder {
    * @param at anchor [x, y] or {x, y} in the sketch plane, mm
    * @param opts { font, height, anchor, angle, spacing, mirror, arc, polyline, name }
    * @example
-   * // engrave a label 0.3 mm deep
    * part('Plate').sketch('front', (s) => s.rect(60, 20)).extrude(4)
    *   .sketch(at('front', 4), (s) => s.text('SEA SPRITE', [0, 0], { font: 'engrave', height: 5, anchor: ['center', 'middle'] })).cut(0.3);
-   * @example
-   * // numerals around a dial, upright, one text per number
-   * part('Dial').sketch('front', (s) => s.circle(40)).extrude(2)
-   *   .sketch(at('front', 2), (s) => { for (let v = 0; v <= 80; v += 10) { const a = (225 - 270 * v / 80) * Math.PI / 180; s.text(String(v), [28 * Math.cos(a), 28 * Math.sin(a)], { height: 4, anchor: ['center', 'middle'] }); } }).extrude(0.15);
-   * @example
-   * // text on an arc, reading clockwise over the top of a dial
-   * s.text('RPM x100', [0, 0], { height: 3, anchor: ['center', 'baseline'], arc: { centre: [0, 0], radius: 30, angleCentre: 90, side: 'outside' } });
    * @see part.textMetrics, part.cut, part.extrude
    */
   text(string: string, at: Pt | { x: number; y: number }, opts: TextOpts = {}): this {

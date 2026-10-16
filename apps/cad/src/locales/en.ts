@@ -344,7 +344,7 @@ export const en: Catalog = {
   'app.sketch.tool.text': 'Text',
   'app.sketch.hint.textPlace': 'Click to place the text',
   'app.sketch.text.title': 'Text', 'app.sketch.text.done': 'Done', 'app.sketch.text.delete': 'Delete text',
-  'app.sketch.text.string': 'Text', 'app.sketch.text.height': 'Cap height', 'app.sketch.text.font': 'Font',
+  'app.sketch.text.string': 'Characters', 'app.sketch.text.height': 'Cap height', 'app.sketch.text.font': 'Font',
   'app.sketch.text.font.gauge': 'Gauge (sans)', 'app.sketch.text.font.engrave': 'Engrave (serif)',
   'app.sketch.text.anchor': 'Anchor', 'app.sketch.text.anchor.left': 'left', 'app.sketch.text.anchor.center': 'centre', 'app.sketch.text.anchor.right': 'right',
   'app.sketch.text.anchor.top': 'top', 'app.sketch.text.anchor.middle': 'middle', 'app.sketch.text.anchor.baseline': 'baseline',
