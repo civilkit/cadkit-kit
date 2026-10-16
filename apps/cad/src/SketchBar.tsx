@@ -124,7 +124,7 @@ export function SketchBar(p: {
             title={t('app.sketch.defstate.' + (level === 'none' ? 'under' : level)) + ' - ' + t('app.sketch.constraints')}>{badgeText(p.status)}</button>
         ) : null}
         <Tip label={t('app.sketch.fullyDefine.tip')}>
-          <button class="rb-btn" disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define"><Icon name="fully-define" size={16} />{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
+          <button class="rb-btn" disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define">{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
         </Tip>
         {narrow ? (
           <Popover label={t('app.sketch.view')} tip={t('app.sketch.view.tip')}>{snaps}{display}</Popover>

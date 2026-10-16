@@ -847,9 +847,9 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
    Leaves room (220 px) on the right for the view cube and the Display button. */
 .pill { border-radius: 12px; font-size: 12px; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur));
   outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 6px 22px #0003; }
-.sketch-bar-wrap { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6; max-width: calc(100% - 440px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+.sketch-bar-wrap { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: max-content; z-index: 6; max-width: calc(100% - 400px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .sketch-bar-wrap > * { pointer-events: auto; }
-.sketch-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; align-items: center; padding: 5px 10px; }
+.sketch-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; align-items: center; padding: 5px 10px; }
 .sketch-bar .sb-name { font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sketch-bar .sb-sep { width: 1px; align-self: stretch; background: var(--line); margin: 2px 2px; }
 .sketch-bar .rb-btn { display: inline-flex; gap: 5px; align-items: center; font-size: 12px; }
@@ -870,5 +870,6 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .aux-head { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
 .aux-row { display: flex; gap: 8px; align-items: center; cursor: pointer; white-space: nowrap; }
 .aux-sel { display: inline-flex; gap: 6px; align-items: center; }
-@media (max-width: 900px) { .sketch-bar-wrap { max-width: calc(100% - 150px); } }
-@media (max-width: 640px) { .sketch-bar-wrap { max-width: calc(100% - 16px); top: 8px; } .sketch-bar .sb-sep { display: none; } }
+/* narrow: leave the tool column on the left and the Display button / view cube on the right free; the bar wraps instead of overlapping them */
+@media (max-width: 900px) { .sketch-bar-wrap { left: 112px; right: 210px; transform: none; width: auto; max-width: none; align-items: flex-start; } }
+@media (max-width: 640px) { .sketch-bar-wrap { left: 8px; right: 8px; top: 8px; } .sketch-bar .sb-sep { display: none; } }
