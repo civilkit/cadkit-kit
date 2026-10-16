@@ -3,6 +3,8 @@
 // typed arrays (nothing here is reactive).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { OrbitRig } from './orbitrig';
+import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
@@ -149,15 +151,6 @@ export type SketchPreviewShape =
 
 export type StdView = 'iso' | 'front' | 'top' | 'right' | 'back' | 'left' | 'bottom';
 
-const VIEW_DIRS: Record<StdView, [number, number, number]> = {
-  iso: [1, 0.8, 1],
-  front: [0, 0, 1],
-  top: [0, 1, 0.0001],
-  right: [1, 0, 0],
-  back: [0, 0, -1],
-  left: [-1, 0, 0],
-  bottom: [0, -1, 0.0001],
-};
 
 import { SectionView } from './sectionView';
 import type { SectionSpec } from './section';
@@ -168,6 +161,8 @@ export class Viewport {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly scene = new THREE.Scene();
   private readonly controls: OrbitControls;
+  private readonly rig: OrbitRig;
+  private upAxis: UpAxis = 'y';
   private readonly raycaster = new THREE.Raycaster();
   private readonly dom: HTMLCanvasElement;
 
@@ -265,6 +260,10 @@ export class Viewport {
     this.handleLayer = new HandleLayer(this.dom, host, this.camera, () => { this.dirty = true; });
     this.triball = new TriBallLayer(this.dom, host, this.camera, () => { this.dirty = true; });
     this.controls = new OrbitControls(this.camera, this.dom);
+    this.rig = new OrbitRig(this.camera, this.controls, this.dom, {
+      pickPoint: (x, y) => this.hit(x, y)?.point.clone() ?? null,
+      selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
+    });
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
 
     this.scene.add(this.hemi);
@@ -912,10 +911,8 @@ export class Viewport {
       (this.groundGrid.material as THREE.Material).dispose();
       this.groundGrid = null;
     }
-    const cx = box ? (box.min[0] + box.max[0]) / 2 : 0;
-    const cz = box ? (box.min[2] + box.max[2]) / 2 : 0;
-    const y = box ? box.min[1] : 0;
-    const size = box ? Math.max(box.max[0] - box.min[0], box.max[2] - box.min[2], 20) : 100;
+    const gp = groundPlane(this.upAxis, box);
+    const cx = gp.ca, cz = gp.cb, y = gp.level, size = gp.size;
     const half = size * 1.6;
     const raw = (half * 2) / 24;
     const mag = 10 ** Math.floor(Math.log10(raw));
@@ -932,7 +929,8 @@ export class Viewport {
       const c = i % 5 === 0 ? major : minor;
       const x = ox + i * step;
       const z = oz + i * step;
-      pos.push(x, y, oz - n * step, x, y, oz + n * step, ox - n * step, y, z, ox + n * step, y, z);
+      const seg = [x, oz - n * step, x, oz + n * step, ox - n * step, z, ox + n * step, z];
+      for (let k = 0; k < 4; k++) { const v: number[] = [0, 0, 0]; v[gp.ax] = seg[k * 2]; v[gp.bx] = seg[k * 2 + 1]; v[(3 - gp.ax - gp.bx)] = y; pos.push(v[0], v[1], v[2]); }
       for (let k = 0; k < 4; k++) col.push(c.r, c.g, c.b);
     }
     const geo = new THREE.BufferGeometry();
@@ -1021,7 +1019,7 @@ export class Viewport {
     this.buildGroundGrid(body.box ?? null);
     this.buildThreads();
     if (body.box && body.mesh.triFace.length > 0) {
-      this.dimGroup = buildBoxDimensions(body.box);
+      this.dimGroup = buildBoxDimensions(body.box, this.upAxis);
       if (this.dimGroup) { this.dimGroup.visible = this.layers.dimensions === true; this.scene.add(this.dimGroup); }
     }
 
@@ -1659,31 +1657,57 @@ export class Viewport {
   /** Look at the target from this direction (an axis or a diagonal), keeping the distance. The up vector is Y, with a
    *  tiny tilt for the straight-down and straight-up views so the camera never flips. */
   setViewDir(dir: [number, number, number]): void {
-    const d = new THREE.Vector3(dir[0], dir[1], dir[2]);
-    if (d.lengthSq() === 0) return;
-    if (d.x === 0 && d.z === 0) d.z = 0.0001;
-    d.normalize();
+    if (dir[0] === 0 && dir[1] === 0 && dir[2] === 0) return;
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
-    this.camera.up.set(0, 1, 0);
-    this.camera.position.copy(this.controls.target).add(d.multiplyScalar(dist));
+    const t = this.controls.target;
+    const pose = poseForDirection([t.x, t.y, t.z], dir, dist, this.upAxis);
+    this.camera.up.copy(pose.up);
+    this.camera.position.copy(pose.position);
     this.camera.lookAt(this.controls.target);
     this.controls.update();
     if (this.sketchEdit) this.rebuildSketchGrid();
     this.dirty = true;
   }
 
-  /** Orbit about the target by a drag of dx, dy pixels (about world Y and the camera's own right axis). */
+  /** Orbit about the target by a drag of dx, dy pixels, in the current orbit mode (turntable about the up axis, or trackball). */
   orbitBy(dx: number, dy: number): void {
-    const off = this.camera.position.clone().sub(this.controls.target);
-    const sph = new THREE.Spherical().setFromVector3(off);
-    sph.theta -= dx * 0.012;
-    sph.phi = Math.max(0.001, Math.min(Math.PI - 0.001, sph.phi - dy * 0.012));
-    off.setFromSpherical(sph);
-    this.camera.position.copy(this.controls.target).add(off);
+    this.rig.orbitBy(dx, dy);
     this.camera.lookAt(this.controls.target);
-    this.controls.update();
     this.dirty = true;
   }
+
+  /** The camera conventions: which axis is up on screen, how a drag orbits and what it orbits around. Only the camera
+   *  changes; the model, its sketches and planes stay where they are. Switching the up axis keeps the target, the
+   *  distance and the side of the model the camera is on, and only turns the screen so the new axis is up. */
+  setNavigation(n: { upAxis?: UpAxis; orbitMode?: OrbitMode; orbitPivot?: OrbitPivot }): void {
+    if (n.orbitMode) this.rig.mode = n.orbitMode;
+    if (n.orbitPivot) this.rig.pivot = n.orbitPivot;
+    if (n.upAxis && n.upAxis !== this.upAxis) {
+      this.upAxis = n.upAxis;
+      this.rig.upAxis = n.upAxis;
+      if (!this.sketchEdit) {                       // an open sketch keeps looking normal to its plane
+        const pose = switchUpAxis({ position: this.camera.position, target: this.controls.target }, n.upAxis);
+        this.camera.up.copy(pose.up);
+        this.camera.position.copy(pose.position);
+        this.camera.lookAt(this.controls.target);
+      }
+      this.hemi.position.set(...upVector(n.upAxis));
+      this.viewCube?.setUpAxis(n.upAxis);
+      this.buildGroundGrid(this.box);
+      if (this.dimGroup && this.lastBody?.box) {
+        const vis = this.dimGroup.visible;
+        this.scene.remove(this.dimGroup);
+        this.dimGroup.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); const mat = m.material as THREE.SpriteMaterial | undefined; mat?.map?.dispose?.(); mat?.dispose?.(); });
+        this.dimGroup = buildBoxDimensions(this.lastBody.box, n.upAxis);
+        if (this.dimGroup) { this.dimGroup.visible = vis; this.scene.add(this.dimGroup); }
+      }
+      this.controls.update();
+      if (this.sketchEdit) this.rebuildSketchGrid();
+    }
+    this.rig.syncControls();
+    this.dirty = true;
+  }
+  getUpAxis(): UpAxis { return this.upAxis; }
 
   /** Move the view sideways / up by a number of pixels on screen (the camera and its target move together). */
   panBy(dx: number, dy: number): void {
@@ -1701,12 +1725,11 @@ export class Viewport {
 
   setView(v: StdView): void {
     const c = this.center();
-    const d = VIEW_DIRS[v];
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
-    const dir = new THREE.Vector3(...d).normalize().multiplyScalar(dist);
+    const pose = poseForDirection([c.x, c.y, c.z], viewDirection(v, this.upAxis), dist, this.upAxis);
     this.controls.target.copy(c);
-    this.camera.position.copy(c).add(dir);
-    this.camera.up.set(0, 1, 0);
+    this.camera.position.copy(pose.position);
+    this.camera.up.copy(pose.up);
     this.camera.lookAt(c);
     this.controls.update();
     this.dirty = true;

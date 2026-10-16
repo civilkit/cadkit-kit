@@ -1101,5 +1101,19 @@
   "tab.Select",
   "tab.Surfaces",
   "tab.View"
+ ],
+ "settings.nav.+": [
+  "settings.nav.upAxis",
+  "settings.nav.orbitMode",
+  "settings.nav.orbitPivot"
+ ],
+ "settings.nav.${key}.${v}": [
+  "settings.nav.upAxis.y",
+  "settings.nav.upAxis.z",
+  "settings.nav.orbitMode.turntable",
+  "settings.nav.orbitMode.trackball",
+  "settings.nav.orbitPivot.centre",
+  "settings.nav.orbitPivot.cursor",
+  "settings.nav.orbitPivot.selection"
  ]
 }

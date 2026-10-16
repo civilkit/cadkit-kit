@@ -37,7 +37,13 @@ export function label(text: string): THREE.Sprite {
 }
 
 /** The three overall dimensions of a box, offset from it so they do not sit on the part. Null for a degenerate box. */
-export function buildBoxDimensions(box: Box): THREE.Group | null {
+export function buildBoxDimensions(box: Box, up: 'y' | 'z' = 'y'): THREE.Group | null {
+  if (up === 'z') {
+    // lay the dimensions out as for Y up in a frame turned a quarter turn about X, then turn the group back
+    const g = buildBoxDimensions({ min: [box.min[0], box.min[2], -box.max[1]], max: [box.max[0], box.max[2], -box.min[1]] });
+    if (g) g.rotation.x = Math.PI / 2;
+    return g;
+  }
   const [x0, y0, z0] = box.min, [x1, y1, z1] = box.max;
   const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
   const diag = Math.hypot(dx, dy, dz);

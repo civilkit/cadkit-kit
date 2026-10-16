@@ -21,3 +21,5 @@ export { boxPick, normRect, segmentHitsRect, triangleHitsRect } from './boxselec
 export type { BoxInput, ScreenRect, Project } from './boxselect';
 export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, gaussianOf, meanOf, percentileAbs, diverging, curvatureColors, draftColors, draftAngle, combSegments, DRAFT_COLORS } from './analysis';
 export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';
+export * from './camerarig';
+export { OrbitRig } from './orbitrig';

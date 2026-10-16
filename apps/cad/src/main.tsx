@@ -87,6 +87,7 @@ import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
 import { useCatalog } from './catalog/useCatalog';
 import { setShapeSelector } from './catalog/state';
 import { useTriBall } from './triball/useTriBall';
+import { loadNavPrefs, saveNavPrefs, type NavPrefs } from './navPrefs';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
 import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
 import { createAssemblyState } from './assembly/state';
@@ -266,6 +267,8 @@ function App() {
   const hoverRef = useRef<{ entity?: string; point?: string; constraint?: string }>({});
   const [sketchPrefs, setSketchPrefs] = useState<SketchPrefs>(loadSketchPrefs);
   const [triPrefs, setTriPrefs] = useState<TriPrefs>(loadTriPrefs);
+  const [navPrefs, setNavPrefs] = useState<NavPrefs>(loadNavPrefs);
+  const changeNav = (patch: Partial<NavPrefs>) => { const next = { ...navPrefs, ...patch }; setNavPrefs(next); saveNavPrefs(next); viewport?.setNavigation(next); };
   const triRef = useRef<ReturnType<typeof useTriBall> | null>(null);
   const prefsRef = useRef(sketchPrefs);
   prefsRef.current = sketchPrefs;
@@ -329,6 +332,7 @@ function App() {
       return viewOwner(n, ownerInserts);
     });
     try { if (localStorage.getItem('cad.ortho') === '1') vp.setOrtho(true); } catch { /* private window */ }
+    vp.setNavigation(loadNavPrefs());
     const ro = new ResizeObserver(() => vp.resize());
     ro.observe(host.current!);
     return () => { ro.disconnect(); vp.dispose(); viewport = null; };
@@ -654,6 +658,7 @@ function App() {
     resetLayout: () => resetLayout(store),
     sketchHere,
     toggleProjection,
+    toggleUpAxis: () => changeNav({ upAxis: navPrefs.upAxis === 'y' ? 'z' : 'y' }),
     toggleLeftPanel,
     settings: () => setSettings(true),
     hasDocument: () => controller.document() !== null,
@@ -1925,6 +1930,7 @@ function App() {
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
+        navPrefs={navPrefs} onNavPrefs={changeNav}
         triPrefs={triPrefs} onTriPrefs={(patch) => { const next = { ...triPrefs, ...patch }; setTriPrefs(next); saveTriPrefs(next); }}
         sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}

@@ -2,12 +2,13 @@
  * Orientation view cube: a small cube in the corner of the viewport that follows the camera. Drag it to orbit the
  * main view, click a face, edge or corner to snap to that view; the +X, +Y and +Z axis arms are labelled and coloured.
  *
- * Ported from CivilKit's `viewcube.js` / `viewcubeui.js` (the same owner's code), adapted to this viewport: Y is up
- * (front looks along -Z from +Z), the colours come from the app's theme, and the cube owns its own canvas so the host
+ * Ported from CivilKit's `viewcube.js` / `viewcubeui.js` (the same owner's code), adapted to this viewport: Y is up by default
+ * (front looks along -Z from +Z; with Z up the faces are relabelled, see camerarig.ts), the colours come from the app's theme, and the cube owns its own canvas so the host
  * only supplies the camera, an orbit step and a way to snap. The face labels read RIGHT, LEFT, TOP, BOT, FRONT, BACK
  * in the order of BoxGeometry's materials (+x, -x, +y, -y, +z, -z).
  */
 import * as THREE from 'three';
+import { cubeFaceLabels, type UpAxis } from './camerarig';
 
 export type Dir = [number, number, number];
 
@@ -31,7 +32,6 @@ export interface ViewCubeOptions {
   onChange(): void;
 }
 
-const LABELS = ['RIGHT', 'LEFT', 'TOP', 'BOT', 'FRONT', 'BACK'];
 
 export class ViewCube {
   readonly canvas: HTMLCanvasElement;
@@ -41,6 +41,7 @@ export class ViewCube {
   private readonly cube: THREE.Mesh;
   private readonly hoverDot: THREE.Mesh;
   private readonly raycaster = new THREE.Raycaster();
+  private upAxis: UpAxis = 'y';
   private dragging = false;
   private moved = false;
   private last = { x: 0, y: 0 };
@@ -94,7 +95,7 @@ export class ViewCube {
 
   private faceMaterials(): THREE.MeshBasicMaterial[] {
     const { face, edge, text } = this.themeColours();
-    return LABELS.map((label) => {
+    return cubeFaceLabels(this.upAxis).map((label) => {
       const c = document.createElement('canvas');
       c.width = c.height = 128;
       const g = c.getContext('2d')!;
@@ -126,6 +127,13 @@ export class ViewCube {
     sprite.scale.set(0.5, 0.5, 0.5);
     sprite.renderOrder = 3;
     return sprite;
+  }
+
+  /** Z up relabels the faces (TOP on +Z, FRONT on -Y); the camera's own up vector orients the cube. */
+  setUpAxis(up: UpAxis): void {
+    if (up === this.upAxis) return;
+    this.upAxis = up;
+    this.refreshTheme();
   }
 
   /** Re-read the page colours (after a theme change): the face textures are drawn in them. */
