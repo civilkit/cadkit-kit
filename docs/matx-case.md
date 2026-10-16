@@ -38,7 +38,7 @@ Frame: the design uses X depth, Y width, Z height; the app has Y up and the fron
 | PANEL_front | 85779.0 | 85764.9 | -0.016% | 400+ honeycomb cells in one cut |
 | PANEL_top | 117103.0 | 117103.0 | 0 | exact |
 | BASE_plate | 76548.7 | 76548.7 | 0 | exact (honeycomb cell for cell) |
-| BLOCK x8 | 207042.8 | 209709.2 | +1.29% | no edge fillets (can't select the outside edges by a rule) |
+| BLOCK x8 | 207042.8 | 209709.2 (alone, with its own peg-hole drill) | +1.29% | no edge fillets (can't select the outside edges by a rule) |
 | PSU + BOARD + FAN refs | 2026180.9 | 2026180.9 | 0 | exact |
 | RIVET x8 | 3004.5 | 3461.8 | +15% | no barb cone; the top rivets' shank is 2 mm longer (a boolean fails on some lengths in that hole) |
 | SLAT x8 | 400896.0 | 400896.0 | 0 | exact |
@@ -63,4 +63,8 @@ No assembly version, no screenshot, no exact block fillets, no barb cones. Origi
 
 ## Whole case result
 
-`matx-case` (sample and example): 618 features, one part with 129 separate lumps' worth of components, volume 3,488,975.7 mm3 against 3,488,799.7 for the sum of the 51 FreeCAD shapes (+0.005%: the missing rivets, 3,000 mm3, are offset by the missing block fillets, 2,700 mm3 too much material). Bounding box matches the original apart from the missing rivets. Regeneration of the 618 features takes about 200 s on the kernel test host (the sample file is stored with its features; opening it does not regenerate every step by script, only the normal document regeneration).
+`matx-case` (sample and example): 612 features, one part with 129 separate lumps' worth of components, volume 3,488,435.4 mm3 against 3,488,799.7 for the sum of the 51 FreeCAD shapes (-0.010%; was +0.005% with 618 features before the peg holes were drilled once instead of twice, see docs/matx-corner-bug.md: the missing rivets, 3,000 mm3, are offset by the missing block fillets, 2,700 mm3 too much material). Bounding box matches the original apart from the missing rivets. Regeneration of the 612 features takes about 200 s on the kernel test host (the sample file is stored with its features; opening it does not regenerate every step by script, only the normal document regeneration).
+
+## Corner artefacts (user report) and the fix
+
+Mesh check of the whole case (`MATX_ALL`, part of `matx.kernel.test.ts`): the kernel said valid, but the display mesh had 270 open edges and 10 faces without triangles, all at the peg holes (rear base feet, the four top shelves). Cause: a kernel boolean defect when a cut's cylinder coincides with an existing hole wall (docs/matx-corner-bug.md). The script now drills each peg hole once (base and blocks, blocks and top): open edges 0, faces without triangles 0, `validate` ok. The flat ends of the block arms next to the hoop (the "step" and the quarter-round cross-section) are the missing r=2 fillets of the design, not a boolean artefact: the kernel cannot fillet that edge chain (same document).

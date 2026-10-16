@@ -69,6 +69,7 @@ const blockX = (x0) => (x0 === REAR_X ? [x0 - BLK_FLOOR, x0 + BAR_W + CLR] : [x0
 const blockBody = (x0, sy, sz, op) => {
   const [xa, xb] = blockX(x0), cy = sy * (hy - R_OUT);
   P.sketch(at('front', xa), (s) => blockProfile(s, sy, sz)); run(op, xb - xa);
+  // (the design also rounds the band's and the arms' edges with r = 2: not done, the kernel cannot fillet a closed chain of tangent edges and the arm-end corners alone fail inside the whole case: docs/matx-corner-bug.md)
   if (sz < 0) {
     if (op === 'add') bx(xa, sy > 0 ? cy - 30 : cy, -hz - W_OUT - 4, xb - xa, 30, 4, op);   // (as a cutter only the parts that reach the panel)
     const yin = sy * (hy - BAR_T - CLR - W_IN), ylen = ARM + (R_OUT - BAR_T - CLR - W_IN), ys = Math.min(yin, yin - sy * ylen);
@@ -83,6 +84,8 @@ const blockBody = (x0, sy, sz, op) => {
   }
 };
 const pegs = [], topPegs = [];
+// which component groups the run builds (a hole drilled twice through the same cylinder makes the kernel's boolean drop the wall: see docs/matx-corner-bug.md, so each peg hole is drilled ONCE, by the last group that has material there)
+const has = (k) => !ONLY || ONLY.indexOf(k) >= 0;
 [REAR_X, FRONT_X].forEach((x0) => { [-1, 1].forEach((sy) => {
   const [xa] = blockX(x0), cy = sy * (hy - R_OUT);
   pegs.push([xa + RIV_HEAD / 2 + 1, cy - sy * ARM / 2]);
@@ -113,7 +116,7 @@ C.base = () => {
     [X0 + PSU_D - PAD, -PSU_W / 2, X0 + PSU_D, -PSU_W / 2 + PAD], [X0 + PSU_D - PAD, PSU_W / 2 - PAD, X0 + PSU_D, PSU_W / 2]];
   const cs = cells(HEX_AF, HEX_WALL, PLATE_X0 + RIM, -PLATE_HY + RIM, PLATE_X1 - RIM, PLATE_HY - RIM, keep), rc = HEX_AF / Math.sqrt(3);
   P.sketch(at('top', FLOOR_Z - 1), (s) => { cs.forEach((c) => hexAt(s, c, rc, (x, y) => [y, -x])); }); CUT(BASE_T + 2);
-  cylZ(pegs, FLOOR_Z - 1, RIV_D / 2 + 0.15, BASE_T + 2, 'cut');
+  if (!has('blocks')) cylZ(pegs, FLOOR_Z - 1, RIV_D / 2 + 0.15, BASE_T + 2, 'cut');   // (with the blocks, their drill goes through pad and plate in one cut)
 };
 C.top = () => {
   const TP_X0 = REAR_X + BAR_W + BLK_FLOOR + 0.3, TP_X1 = FRONT_X - CLR - 0.3, cy = hy - R_OUT, cz = hz - R_OUT, k = Math.SQRT1_2;
@@ -124,7 +127,7 @@ C.top = () => {
     s.arc3([-cy - Ri, cz], [-cy - Ri * k, cz + Ri * k], [-cy, cz + Ri]); s.line([-cy, cz + Ri], [cy, cz + Ri]);
     s.arc3([cy, cz + Ri], [cy + Ri * k, cz + Ri * k], [cy + Ri, cz]); s.line([cy + Ri, cz], [cy + Ro, cz]);
   }).extrude(TP_X1 - TP_X0);
-  cylZ(topPegs, TOP_Z - 1, RIV_D / 2 + 0.15, TOP_T + 2, 'cut');
+  cylZ(topPegs, TOP_Z - 6, RIV_D / 2 + 0.15, TOP_T + 8, 'cut');   // through the blocks' shelf and the panel in one cut
   const keep = topPegs.map((p) => [p[0] - 8, p[1] - 8, p[0] + 8, p[1] + 8]);
   const cs = cells(FRONT_HEX_AF, FRONT_HEX_WALL, TP_X0 + RIM, -cy + 4, TP_X1 - RIM, cy - 4, keep), rc = FRONT_HEX_AF / Math.sqrt(3);
   P.sketch(at('top', TOP_Z - 1), (s) => { cs.forEach((c) => hexAt(s, c, rc, (x, y) => [y, -x])); }); CUT(TOP_T + 2);
@@ -160,7 +163,7 @@ C.blocks = () => {
     bx(xa - 1, ty0, tz0, xb - xa + 2, STRIP_W + 2 * TUN_CLR, STRIP_T + 2 * TUN_CLR, 'cut');
   }); }); });
   cylZ(pegs, FLOOR_Z - 6, RIV_D / 2 + 0.15, 10, 'cut');
-  cylZ(topPegs, TOP_Z - 6, RIV_D / 2 + 0.15, 10, 'cut');
+  if (!has('top')) cylZ(topPegs, TOP_Z - 6, RIV_D / 2 + 0.15, 10, 'cut');
 };
 C.strips = () => { stripBoxes.forEach((q) => bx(STRIP_X0, q[0], q[1], STRIP_X1 - STRIP_X0, STRIP_W - 0.02, STRIP_T)); };
 C.hoops = () => { [REAR_X, FRONT_X].forEach((x0) => { P.sketch(at('front', x0), (s) => { rr(s, 0); rr(s, -BAR_T); }).extrude(BAR_W); }); };
