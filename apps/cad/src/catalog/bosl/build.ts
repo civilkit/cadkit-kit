@@ -56,7 +56,9 @@ export async function buildBosl(host: ScriptHost, doc: PartDoc | null, item: Bos
   const script = entry.script(item.params, pl);
   const features = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
   const seq = doc?.seq ?? 1;
-  const r = await runScript(script, host, {}, { prefix: { features, seq } });
+  // the document's own variables stay defined while the script builds (its features may use them); the script adds its own to them
+  const existing = ((doc as unknown as { variables?: unknown[] } | null)?.variables ?? []) as unknown[];
+  const r = await runScript(script, host, existing.length ? { variables: existing } : {}, { prefix: { features, seq } });
   if (r.errors.length || !r.document) return { error: 'scriptFailed', hint: r.errors.map((e) => `line ${e.line}: ${e.message}`).join('; ') };
   const made = r.ops.map((o) => o.feature as Record<string, unknown>);
   const main = [...made].reverse().find((f) => SHAPE_TYPES.has(String(f.type))) ?? made[made.length - 1];
@@ -64,8 +66,7 @@ export async function buildBosl(host: ScriptHost, doc: PartDoc | null, item: Bos
   const helpers = made.filter((f) => f.type === 'plane' || (f.type === 'sketch' && String(f.id) !== sketchId && (f.entities as Array<{ construction?: boolean }>).every((e) => e.construction))).map((f) => String(f.id));
   const built: BoslBuilt = { ops: r.ops, mainId: String(main.id), sketchId, helpers, size: 0, script };
   if (linked) {
-    const vars = [...(((doc as unknown as { variables?: unknown[] })?.variables) ?? []), ...(((r.document as { variables?: unknown[] }).variables) ?? [])];
-    built.patch = { variables: vars, append: made, seq: Number(r.document.seq) };
+    built.patch = { variables: ((r.document as { variables?: unknown[] }).variables ?? existing), append: made, seq: Number(r.document.seq) };
   }
   return built;
 }

@@ -6,7 +6,8 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import type { ScriptHost } from '@kit/script';
 import { Controller, type KernelFactory, type ViewSink } from '../controller';
-import { buildShape, catalogItem, type PlaceTarget } from './shapes';
+import { buildShape, catalogItem, registerDynamicItem, type PlaceTarget } from './shapes';
+import { Placer, type PlacerDeps } from './placer';
 import { BOSL_ENTRIES, defaultParams } from './bosl/entries';
 import { buildBosl } from './bosl/build';
 import reference from './bosl_reference.json';
@@ -103,5 +104,38 @@ describe('parts library placement', { skip: !process.env.CK_WASM, timeout: 24000
     expect(JSON.stringify(b.ops)).not.toContain('"=');
     const p = await w.controller.preview(b.ops, 0);
     expect(p.ok).toBe(true);
+  });
+
+  it('through the Placer (hover preview, then drop): the same code path as the app, one undo step, variables and a selectable main feature', async () => {
+    const w = await world(slab());
+    const c = w.controller;
+    const deps: PlacerDeps = {
+      document: () => c.document(), hasSolid: () => c.hasSolid(), bodyFaces: () => c.bodyFaces() as never, bodyEdges: () => c.bodyEdges(), bodyBox: () => c.bodyBox(),
+      preview: (ops) => c.preview(ops, 0) as never, cancelPreview: () => c.cancelPreview(), commit: (ops, why) => c.commit(ops, why), commitPatch: (patch, why) => c.applyDocPatch(patch, why),
+      buildBosl: async (item, target, doc, linked) => (await buildBosl(w.host, doc, { entryId: item.bosl!.entryId, params: item.bosl!.params }, target, linked)) as never,
+      rayAt: (x, y) => ({ o: [x, y, 100], d: [0, 0, -1] }), worldPerPixel: () => 0.05, setFade() {}, holdView() {},
+    };
+    const placer = new Placer(deps);
+    const e = BOSL_ENTRIES.find((x) => x.id === 'cyl')!;
+    const item = registerDynamicItem({ id: 'bosl:cyl', kind: 'cylinder', op: 'add', bosl: { entryId: 'cyl', params: { ...defaultParams(e), rounding: 2 } } });
+    placer.hover(item, 20, 10);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(placer.status.state).toBe('ready');
+    const before = w.session().history().length;
+    const id = await placer.drop(item, 20, 10);
+    expect(id).toBeTruthy();
+    expect(w.session().history().length - before).toBe(1);
+    const doc = c.document() as unknown as { variables: Array<{ name: string }>; features: Array<{ id: string; type: string }> };
+    expect(doc.variables.map((v) => v.name)).toEqual(['cyl1_h', 'cyl1_rounding', 'cyl1_chamfer']);
+    expect(doc.features.find((f) => f.id === id)!.type).toBe('extrude');
+    expect(await w.valid()).toBe(true);
+    // a rounded cylinder on a face: only the free (top) ring is rounded, the base ring is the footprint on the host face
+    const added = (await w.volume()) - SLAB;
+    expect(added).toBeGreaterThan(9360);
+    expect(added).toBeLessThan(9390);
+    // a second drop gets its own variable names
+    const id2 = await placer.drop(item, -20, -10);
+    expect(id2, JSON.stringify(placer.status)).toBeTruthy();
+    expect((c.document() as unknown as { variables: Array<{ name: string }> }).variables.map((v) => v.name)).toContain('cyl2_h');
   });
 });
