@@ -7,13 +7,16 @@ import { resolveEdgeInfos, resolveFaceSel, SelectorError, type EdgeSel, type Fac
 export type Plane = 'front' | 'top' | 'right';
 /** A plane given by a point and a normal (and optionally the x direction of the sketch). */
 export interface PlaneSpec { origin: Vec; normal: Vec; xdir?: Vec }
-export type PlaneBase = Plane | FaceSel | { id: string | null } | PlaneSpec;
+/** The mid plane of two planes or faces. */
+export interface PlaneBetween { between: [Plane | FaceSel | { id: string | null }, Plane | FaceSel | { id: string | null }] }
+export type PlaneBase = Plane | FaceSel | { id: string | null } | PlaneSpec | PlaneBetween;
 /** Rotate the plane about an axis line: a world axis, [ox,oy,oz,dx,dy,dz], or a straight edge. */
 export interface PlaneRotate { axis: 'x' | 'y' | 'z' | number[] | EdgeSel; angle: Num }
 export interface PlaneOpts { rotate?: PlaneRotate; flip?: boolean }
 export interface PlaneCtx { geo: Geometry; nextId(): string; warn?: WarnFn }
 type Op = { op: 'add'; feature: Record<string, unknown> };
 
+const isBetween = (b: PlaneBase): b is PlaneBetween => typeof b === 'object' && b !== null && 'between' in b;
 const isSpec = (b: PlaneBase): b is PlaneSpec => typeof b === 'object' && b !== null && 'origin' in b && 'normal' in b;
 const isFace = (b: PlaneBase): b is FaceSel => typeof b === 'object' && b !== null && (b as FaceSel).kind === 'face';
 const nrm = (v: Vec): Vec => { const l = Math.hypot(v[0], v[1], v[2]); if (l < 1e-12) throw new SelectorError('workplane: a zero vector cannot be a normal or direction', 0); return [v[0] / l, v[1] / l, v[2] / l]; };
@@ -26,6 +29,17 @@ export function buildPlane(base: PlaneBase, offset: Num, opts: PlaneOpts, ctx: P
   const add = (f: Record<string, unknown>): string => { const id = ctx.nextId(); ops.push({ op: 'add', feature: { type: 'plane', id, ...f } }); return id; };
   let baseRef: Record<string, unknown>;
   let off: Num = offset;
+  const simple = (b: Plane | FaceSel | { id: string | null }): Record<string, unknown> => {
+    if (typeof b === 'string') return { kind: 'std', id: b };
+    if ((b as FaceSel).kind === 'face') return { kind: 'face', id: resolveFaceSel(b as FaceSel, ctx.geo, ctx.warn).id };
+    const id = (b as { id: string | null }).id;
+    if (!id) throw new SelectorError('at(): the plane feature handle is not resolved yet (take it with part.handle() right after part.workplane(...))', line);
+    return { kind: 'feature', id };
+  };
+  if (isBetween(base)) {
+    const id = add({ mode: 'mid', base: simple(base.between[0]), base2: simple(base.between[1]) });
+    return finish(ops, id, opts, ctx, line, add);
+  }
   if (isSpec(base)) {
     const n = nrm(base.normal), o = base.origin;
     const ax = (i: number) => Math.abs(n[i]) > 1 - 1e-9;

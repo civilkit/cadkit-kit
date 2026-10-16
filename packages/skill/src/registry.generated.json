@@ -36,7 +36,7 @@
      "name": "base",
      "type": "PlaneBase",
      "optional": false,
-     "description": "'front' | 'top' | 'right', face(sel), a plane feature handle, or { origin, normal, xdir? }"
+     "description": "'front' | 'top' | 'right', face(sel), a plane feature handle, { origin, normal, xdir? }, or { between: [a, b] } (the mid plane of two planes or faces)"
     },
     {
      "name": "offset",
@@ -59,7 +59,8 @@
     "part.sketch",
     "plane",
     "part.workplane"
-   ]
+   ],
+   "notes": "- front moves along +Z, top along +Y, right along +X; a face offset goes along the face's OUTWARD normal (negative = into the body).\n- { origin, normal } with a normal along a world axis is an ordinary offset plane; any other normal adds helper points and a three-point plane (7 features at most): fine for one-off tilted sketches, prefer rotate: { axis: 'x', angle } for a tilt about an axis.\n- rotate turns the plane about the axis LINE, the plane passes through it; only world axes through the origin and straight edges are accepted."
   },
   {
    "id": "part.sketch",
@@ -155,7 +156,8 @@
    "related": [
     "at",
     "part.sketch"
-   ]
+   ],
+   "notes": "- Frames from the kernel: front x=X y=Y normal=+Z; top x=X y=-Z normal=+Y; right x=-Z y=Y normal=+X. So on 'top', sketch y grows towards world -Z; on 'right', sketch x grows towards world -Z."
   },
   {
    "id": "sketch.arc",
@@ -591,7 +593,8 @@
    "related": [
     "part.fillet",
     "edges"
-   ]
+   ],
+   "notes": "- Only the equal-distance chamfer is implemented by the kernel today. { distance, distance2 } and { distance, angle } are emitted but come back as an `unsupported` error: cut the bevel with a sketch polygon instead."
   },
   {
    "id": "part.cut",
@@ -619,6 +622,12 @@
        "type": "boolean",
        "optional": true,
        "description": "cut half each way"
+      },
+      {
+       "name": "symmetric",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "flip",
@@ -654,7 +663,7 @@
     "part.extrude",
     "part.hole"
    ],
-   "notes": "- A cut runs AGAINST the sketch normal. On face('>Z') that is into the body. On the front plane at z = 0 with the body above it, it runs away: the run reports `cutNoEffect`; sketch on the face instead, or pass `{ flip: true }`.\n- A cut sketch must overlap the material in plan; a circle outside the body also gives `cutNoEffect`.\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way."
+   "notes": "- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.\n- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.\n- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way."
   },
   {
    "id": "part.extrude",
@@ -681,7 +690,13 @@
        "name": "mid",
        "type": "boolean",
        "optional": true,
-       "description": "extrude half each way (same as direction: 'both')"
+       "description": "extrude half each way (same as direction: 'both'; symmetric: true is the same)"
+      },
+      {
+       "name": "symmetric",
+       "type": "boolean",
+       "optional": true,
+       "description": ""
       },
       {
        "name": "flip",
@@ -717,7 +732,7 @@
     "part.thin",
     "part.revolve"
    ],
-   "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; flip reverses, mid is symmetric.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world: when an offset position matters, sketch on a face or check with a probe.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss."
+   "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; direction 'into' reverses, 'both' (or mid) is symmetric with depth as the total.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world (top: sketch y = world -Z; right: sketch x = world -Z); see plane() for the table.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss."
   },
   {
    "id": "part.fillet",
@@ -747,7 +762,7 @@
     "edges",
     "sketch.rrect"
    ],
-   "notes": "- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.\n- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.\n- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists."
+   "notes": "- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.\n- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.\n- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists.\n- Different radii on edges that meet at a corner are applied as SEQUENTIAL fillets (one per distinct radius, increasing) and can fail with blendFailed where a simultaneous blend would not; use one radius there, or fillet the corners in a sketch (rrect).\n- { variable: [near, far] } works on isolated edges; edge junctions (all four edges of a face) fail with blendFailed."
   },
   {
    "id": "part.revolve",
@@ -929,7 +944,7 @@
     "part.hole",
     "part.shell"
    ],
-   "notes": "- Matches planar faces only, by outward normal direction; ties go to the biggest. It does not pick by position: two coplanar faces at the same height resolve to the larger.\n- Resolved against the body as it is just before the step: after a boss on top, face('>Z') is the boss top, not the plate top."
+   "notes": "- A direction ('>Z') matches planar faces by outward normal, the furthest first, ties to the biggest. After a boss or a pocket several faces face the same way: the run result then carries a WARNING naming the face it resolved to and the others. Read warnings; choose on purpose with face('>Z', { of: handle }) (handle = part.handle() right after the feature) or a face name.\n- Persistent names ('F3.C1' = cap 1 of F3, 'F3.S.e2' = side of sketch entity e2, 'F8.C0@F10.1' = pattern copy) survive edits that keep the feature; list them with `await part.faces()`.\n- A rule object must match exactly ONE face; for several use faces(rule) and .nth(i) / .largest() / .smallest() / .near([x,y,z]).\n- Resolved against the body as it is just before the step: after a boss on top, face('>Z') is the boss top, not the plate top."
   },
   {
    "id": "faces",
@@ -967,7 +982,8 @@
     "face",
     "edges",
     "part.shell"
-   ]
+   ],
+   "notes": "- .nth(i) counts in the body's face list order (stable for one script, not geometric). Prefer .largest(), .smallest(), .near(point) or a rule that pins the face.\n- kind and radius come from the display mesh (radius within 0.2 percent); cone and torus faces are kind 'other' for selection (part.faces() read-back reports the kernel's exact surface type).\n- shell(faces(...), t) opens several faces at once; edges({ onFace: faces(...) }) takes the edges of any of them."
   },
   {
    "id": "part.hole",
@@ -1301,7 +1317,7 @@
     "part.linearPattern",
     "part.handle"
    ],
-   "notes": "- The axis passes through the world origin: centre the part on it, or the copies swing around the origin instead of the part.\n- Repeats ONLY the last feature. For a ring of drilled holes use holes.polar (one feature, simpler)."
+   "notes": "- The axis is a WORLD axis through the origin (x, y, z, [0,0,0,dx,dy,dz] or a straight edge lying on one); an offset axis is refused with a Line N error. Centre the part on it, or use holes.polar for a bolt circle at any centre.\n- equalSpacing (default for 360) steps angle / count; set it false with a partial angle to put the last copy exactly at the end angle.\n- Several features: pass an array of handles as the first argument."
   },
   {
    "id": "part.linearPattern",
@@ -1375,7 +1391,7 @@
     "part.holes.grid",
     "part.handle"
    ],
-   "notes": "- Repeats ONLY the last feature (one seed), count includes the original, spacing is between instances in mm.\n- axis is a WORLD axis ('x' | 'y' | 'z'), not a sketch axis.\n- Patterning twice (rows then columns) is not supported by the helper: draw the whole grid in one sketch with a loop, or use holes.grid."
+   "notes": "- count includes the original; spacing is between instances in mm (or totalLength from first to last).\n- The kernel patterns along WORLD x, y or z only: a vector or an edge must be parallel to an axis. Oblique directions are refused with a Line N error.\n- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing }`.\n- A pattern can seed another pattern; the grid helper seeds the second pattern with the originals plus the first pattern (a pattern alone omits its own original).\n- Prefer holes.grid when the repeated thing is only drilled holes."
   },
   {
    "id": "expr",
@@ -1628,7 +1644,8 @@
     "part.volume",
     "part.expectValid",
     "part.expectBBox"
-   ]
+   ],
+   "notes": "- tol is relative (default 1e-3); pass { abs } for mm3. A failed expectation is an error with its line; the run goes on, but an agent run with errors does not replace the document."
   },
   {
    "id": "part.faceCount",
@@ -1683,7 +1700,8 @@
     "face",
     "faces",
     "part.linearPattern"
-   ]
+   ],
+   "notes": "- Take the handle right AFTER the feature it names. A handle used before it is resolved gives a Line N error. The handle names a hole() feature, not the internal sketch of it."
   },
   {
    "id": "part.issues",
@@ -1727,7 +1745,8 @@
     "part.expectVolume",
     "part.area",
     "part.bbox"
-   ]
+   ],
+   "notes": "- Needs `await`. Every read forces an intermediate regeneration of everything recorded so far (a full build on the scratch kernel, a view build for bbox/faces/counts); the answer is cached until the next feature is added. Read once after a group of features, never inside a loop that adds features.\n- Use the expect* helpers (expectVolume, expectValid, expectBBox, expectFaceCount) when you only want to assert: no await, errors carry the script line."
   },
   {
    "id": "variables",

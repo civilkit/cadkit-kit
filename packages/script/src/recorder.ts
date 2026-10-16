@@ -17,7 +17,7 @@ export class FeatureHandle { id: string | null = null; constructor(public label 
  *
  * at(base, offset, opts) returns a plane reference for sketch(). base is 'front' (moves along +Z), 'top' (+Y), 'right' (+X); a face(...) (the plane of that planar face, offset along its outward normal); a plane feature handle from part.workplane(...) + part.handle(); or { origin: [x,y,z], normal: [x,y,z], xdir? } for any plane (axis-aligned normals use a standard plane, others add three helper points and a three-point plane). opts.rotate = { axis: 'x'|'y'|'z' | edges(...), angle } tilts the plane about that line (the plane passes through the axis; an offset is applied before the rotation). A reference plane feature is added to the part.
  * @domain sketch
- * @param base 'front' | 'top' | 'right', face(sel), a plane feature handle, or { origin, normal, xdir? }
+ * @param base 'front' | 'top' | 'right', face(sel), a plane feature handle, { origin, normal, xdir? }, or { between: [a, b] } (the mid plane of two planes or faces)
  * @param offset distance along the plane normal in mm (a number or expr), default 0
  * @param opts { rotate: { axis, angle degrees }, flip }
  * @example
@@ -404,7 +404,7 @@ export class SketchBuilder {
 }
 
 // ---- the part ----
-export interface ExtrudeOpts { mid?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
+export interface ExtrudeOpts { mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
 export class PartBuilder {
   steps: Step[] = [];
   variables: Array<{ name: string; expr: string }> = [];
@@ -454,9 +454,9 @@ export class PartBuilder {
       const id = ctx.nextId();
       const through = typeof end === 'object' && 'through' in end;
       const f: Record<string, unknown> = { type: 'extrude', id, op, sketch: ctx.lastSketch };
-      const dir = o.direction ?? (op === 'cut' && !o.flip && !o.mid ? 'auto' : undefined);
+      const dir = o.direction ?? (op === 'cut' && !o.flip && !o.mid && !o.symmetric ? 'auto' : undefined);
       if (dir !== undefined && !['into', 'away', 'both', 'auto'].includes(dir)) throw new SelectorError(`${label}(): direction must be 'into', 'away', 'both' or 'auto'`, this.line());
-      const both = dir === 'both' || !!o.mid;
+      const both = dir === 'both' || !!o.mid || !!o.symmetric;
       if (through) f.end = both ? 'throughBoth' : 'through'; else { f.end = both ? 'mid' : 'blind'; f.depth = ref(end as Num); }
       // the kernel runs an extrude ALONG the sketch normal and a cut AGAINST it; 'into' / 'away' are relative to the normal for both
       let flip = !!o.flip;
@@ -478,7 +478,7 @@ export class PartBuilder {
    * @domain features
    * @param depth length in mm (number or expr)
    * @param o.direction 'away' (along the sketch normal, default) | 'into' (against it) | 'both' (symmetric, depth is the total)
-   * @param o.mid extrude half each way (same as direction: 'both')
+   * @param o.mid extrude half each way (same as direction: 'both'; symmetric: true is the same)
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
    * @param o.thin wall thickness for a thin-walled extrude

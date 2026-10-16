@@ -1,3 +1,5 @@
-- Repeats ONLY the last feature (one seed), count includes the original, spacing is between instances in mm.
-- axis is a WORLD axis ('x' | 'y' | 'z'), not a sketch axis.
-- Patterning twice (rows then columns) is not supported by the helper: draw the whole grid in one sketch with a loop, or use holes.grid.
+- count includes the original; spacing is between instances in mm (or totalLength from first to last).
+- The kernel patterns along WORLD x, y or z only: a vector or an edge must be parallel to an axis. Oblique directions are refused with a Line N error.
+- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing }`.
+- A pattern can seed another pattern; the grid helper seeds the second pattern with the originals plus the first pattern (a pattern alone omits its own original).
+- Prefer holes.grid when the repeated thing is only drilled holes.

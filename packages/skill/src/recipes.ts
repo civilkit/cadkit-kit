@@ -15,6 +15,27 @@ const CH_CENTROID = (R_TOP + (R_TOP - 1.5) + (R_TOP + 1.5 * Math.sin((5 * PI) / 
 
 export const RECIPES: Recipe[] = [
   {
+    id: 'boss-by-feature-verified',
+    title: 'Plate with a boss: pick faces by feature and verify with read-backs',
+    intent: ['boss', 'face selection', 'select face', 'which face', 'handle', 'of feature', 'ambiguous', 'warning', 'verify', 'expect', 'read back', 'volume check', 'await'],
+    description: 'After a boss, face(">Z") is the boss top and the plate top faces the same way; the run warns about that. Take a handle right after each feature and pass { of: handle } to choose the face on purpose. The script then reads the bore faces back and asserts the volume with expectVolume, so a wrong face or a missing cut shows up as an error with a line number.',
+    kind: 'script',
+    code: `// 60 x 40 x 10 plate, a 24 mm boss 15 tall on top of it, a bore through everything, a blind hole on the PLATE top
+const p = part('Plate with boss')
+  .sketch('front', (s) => s.rect(60, 40)).extrude(10);
+const plate = p.handle();
+p.sketch(face('>Z'), (s) => s.circle(12)).extrude(15);
+const boss = p.handle();
+p.hole(face('>Z', { of: boss }), [0, 0], { diameter: 8 })          // the boss top, on purpose (no warning)
+  .hole(face('>Z', { of: plate }), [22, 0], { diameter: 6, depth: 6 });   // the plate top, beside the boss
+
+const bores = (await p.faces()).filter((f) => f.kind === 'cylinder' && Math.abs(f.radius - 4) < 1e-3);
+if (bores.length !== 1) throw new Error('expected one R4 bore, found ' + bores.length);
+p.expectVolume(60 * 40 * 10 + Math.PI * 144 * 15 - Math.PI * 16 * 25 - Math.PI * 9 * 6, { tol: 1e-6 })
+  .expectValid();`,
+    expected: { volume: 24000 + pi(144 * 15 - 16 * 25 - 9 * 6), volumeTol: 1e-6, features: 8, valid: true },
+  },
+  {
     id: 'flanged-bushing',
     title: 'Flanged bushing (revolved profile)',
     intent: ['bushing', 'bush', 'sleeve', 'flange', 'revolve', 'lathe', 'turned part', 'spacer'],
@@ -196,7 +217,7 @@ part('Pocket grid')
     description: 'Kernel error codes you will see in run_script errors, with the fix that works. Codes come from docs/spec-agent-interface.md; most carry a hint field, read it first.',
     kind: 'guide',
     code: `booleanFailed        The union / cut could not be assembled. The report has faces, at (a point on the bad edge) and a hint. Fix: move the tool by about 0.01 mm so faces are not exactly coincident (or make near-coincident faces exactly coincident); unite bodies that touch each other first; avoid a cut whose wall is tangent to the host wall.
-cutNoEffect          The cut sketch removed nothing (script error message "cutNoEffect"). A cut runs AGAINST the sketch normal: sketch on the face you cut from (face('>Z')) so it goes into the body; a sketch on the front plane at z = 0 of a body that extends to +Z cuts away from it, so pass flip: true. Also check the plane offset and that the sketch overlaps the body.
+cutNoEffect          The cut sketch removed nothing (script error message "cutNoEffect"). A cut left on direction 'auto' is flipped once automatically (warning 'cut direction flipped automatically'); if it still reports this the sketch does not overlap the material. A cut runs AGAINST the sketch normal: sketch on the face you cut from (face('>Z')) so it goes into the body; a sketch on the front plane at z = 0 of a body that extends to +Z cuts away from it, so pass flip: true. Also check the plane offset and that the sketch overlaps the body.
 nothingToCut         There is no solid yet to cut (the first feature was a cut).
 missingReference     A face / edge the feature used no longer exists (you changed an earlier feature). Re-run the whole script; select by direction (face('>Z')) rather than by remembered names.
 noClosedProfile      The sketch is open. Use polygon() or rect() / circle(), or close the chain; for a thin wall use the thin option.

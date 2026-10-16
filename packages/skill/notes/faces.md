@@ -1,0 +1,3 @@
+- .nth(i) counts in the body's face list order (stable for one script, not geometric). Prefer .largest(), .smallest(), .near(point) or a rule that pins the face.
+- kind and radius come from the display mesh (radius within 0.2 percent); cone and torus faces are kind 'other' for selection (part.faces() read-back reports the kernel's exact surface type).
+- shell(faces(...), t) opens several faces at once; edges({ onFace: faces(...) }) takes the edges of any of them.

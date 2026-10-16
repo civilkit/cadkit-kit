@@ -158,6 +158,8 @@ async function awaitScript(finished: Promise<void> | null, flags: { done: boolea
 /** Compile the steps to ops against `geo` supplied per step; used by the runner and by tests that have no kernel. */
 export async function runScript(code: string, host: ScriptHost, base: Record<string, unknown> = {}, opts: RunOptions = {}): Promise<ScriptResult> {
   const { state, errors, finished, flags } = launch(code);
+  // an async script that threw before its first await reports through its promise: let it settle first
+  if (finished) await macrotask();
   if (errors.length) return { ops: [], document: null, errors };
   const part = state.parts[state.parts.length - 1];
   if (part.steps.length > MAX_STEPS) return { ops: [], document: null, errors: [{ line: 1, message: `more than ${MAX_STEPS} steps` }] };

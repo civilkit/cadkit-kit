@@ -192,6 +192,12 @@ const b = p.handle();
 p.linearPattern([a, b], { count: 3, spacing: 10, direction: [1, 0, 0] });`, m.host);
     expect(res.errors).toEqual([]);
     expect(await m.volume()).toBeCloseTo(4800 * 10 - 3 * PI * 4 * 10 - 3 * PI * 1 * 10, 2);
+    // a direction given by a straight edge, symmetric cut
+    const eg = await rig();
+    res = await runScript(`part('E').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [-30, 0])).cut(through())
+  .linearPattern({ count: 3, spacing: 25, direction: edges({ parallel: 'X', onFace: face('<Z'), near: [0, -30, 0], within: 1 }) });`, eg.host);
+    expect(res.errors).toEqual([]);
+    expect(await eg.volume()).toBeCloseTo(4800 * 10 - 3 * PI * 4 * 10, 2);
     // oblique directions and offset axes are refused with a clear message
     const o = await rig();
     res = await runScript(`part('X').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2)).cut(through()).linearPattern({ count: 3, spacing: 5, direction: [1, 1, 0] });`, o.host);
@@ -245,6 +251,12 @@ p.chamfer(edges('|Z'), { distance: 2, distance2: 1 });`, ch.host);
     res = await runScript(`part('D').sketch('front', (s) => s.rect(40, 30)).extrude(20)
   .sketch(at('front', 20, { rotate: { axis: 'x', angle: 30 } }), (s) => s.rect(10, 10)).extrude(5);`, rot.host);
     expect(res.errors).toEqual([]);
+    // the mid plane of two faces
+    const mid = await rig();
+    res = await runScript(`part('M').sketch('front', (s) => s.rect(40, 30)).extrude(20)
+  .sketch(at({ between: [face('<Z'), face('>Z')] }), (s) => s.circle(5)).extrude(2).expectBBox({ max: [20, 15, 20] });`, mid.host);
+    expect(res.errors).toEqual([]);
+    expect(await mid.volume()).toBeCloseTo(40 * 30 * 20, 1);   // the disc lies inside the block: nothing added
     const wp = await rig();
     res = await runScript(`const p = part('E').sketch('front', (s) => s.rect(40, 30)).extrude(20);
 p.workplane(face('>Z'), 4);

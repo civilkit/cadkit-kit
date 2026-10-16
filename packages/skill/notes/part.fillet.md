@@ -1,3 +1,5 @@
 - A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.
 - Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.
 - A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists.
+- Different radii on edges that meet at a corner are applied as SEQUENTIAL fillets (one per distinct radius, increasing) and can fail with blendFailed where a simultaneous blend would not; use one radius there, or fillet the corners in a sketch (rrect).
+- { variable: [near, far] } works on isolated edges; edge junctions (all four edges of a face) fail with blendFailed.

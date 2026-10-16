@@ -1689,6 +1689,7 @@ function App() {
         redraw((n) => n + 1);
         setLeftTab('Script');
         if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));
+        for (const w of r.warnings ?? []) store.notify(`${w.line ? `Line ${w.line}: ` : ''}${w.message}`, 'warn');
         resolve(r.errors);
       } finally { store.busy.value = false; scriptRunning = false; }
     });
