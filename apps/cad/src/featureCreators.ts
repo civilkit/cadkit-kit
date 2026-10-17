@@ -273,7 +273,7 @@ export function knitOps(c: Ctx): EditOp[] | null {
 }
 export function thickenOps(c: Ctx): EditOp[] | null {
   const s = surfaceTarget(c);
-  return s ? [{ op: 'add', feature: { type: 'thicken', surface: s.id, thickness: niceSize(c.box, 0.1) } }] : null;
+  return s ? [{ op: 'add', feature: { type: 'thicken', surface: s.id, thickness: niceSize(c.box, 0.1), side: 'front' } }] : null;
 }
 
 // ---- loft, sweep, fill, extend ----
