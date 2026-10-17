@@ -207,6 +207,8 @@ export class Viewport {
   /** Sketches a feature already uses are drawn thin and quiet; the rest (still to be used) stay bright and thick. */
   setConsumedSketches(ids: string[]): void { this.consumedSketches = new Set(ids); }
   private planeLines: THREE.LineSegments | null = null;
+  private activePlaneId: string | null = null;
+  private activePlaneObj: THREE.Group | null = null;
   private planeQuads: Array<{ id: string; quad: number[][] }> = [];
   private axisLines: THREE.LineSegments | null = null;
   private grouped: Grouped | null = null;
@@ -1074,6 +1076,35 @@ export class Viewport {
     return lines;
   }
 
+  /** The Plane feature being edited or selected: drawn as a translucent sheet with a bright outline, even when the planes layer is off. */
+  setActivePlane(id: string | null): void {
+    if (id === this.activePlaneId) return;
+    this.activePlaneId = id;
+    this.buildActivePlane();
+  }
+  private disposeActivePlane(): void {
+    const g = this.activePlaneObj;
+    if (!g) return;
+    this.scene.remove(g);
+    g.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose?.(); (m.material as THREE.Material | undefined)?.dispose?.(); });
+    this.activePlaneObj = null;
+  }
+  private buildActivePlane(): void {
+    this.disposeActivePlane();
+    const q = this.activePlaneId ? this.planeQuads.find((p) => p.id === this.activePlaneId) : undefined;
+    this.dirty = true;
+    if (!q || q.quad.length < 4) return;
+    const v = q.quad.slice(0, 4).map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    const fill = new THREE.BufferGeometry().setFromPoints([v[0], v[1], v[2], v[0], v[2], v[3]]);
+    const sheet = new THREE.Mesh(fill, new THREE.MeshBasicMaterial({ color: 0x4aa3ff, opacity: 0.22, transparent: true, side: THREE.DoubleSide, depthWrite: false }));
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(v), new THREE.LineBasicMaterial({ color: 0x4aa3ff }));
+    const g = new THREE.Group();
+    g.add(sheet, edge);
+    g.renderOrder = 5;
+    this.scene.add(g);
+    this.activePlaneObj = g;
+  }
+
   private clearLayers(): void {
     this.fatMaterials = [];
     for (const o of [this.sketchLines, this.sketchQuiet, this.curveLines, this.planeLines, this.axisLines]) {
@@ -1084,6 +1115,7 @@ export class Viewport {
     }
     this.sketchLines = this.sketchQuiet = this.curveLines = this.planeLines = this.axisLines = null;
     this.planeQuads = [];
+    this.disposeActivePlane();
     if (this.dimGroup) {
       this.scene.remove(this.dimGroup);
       this.dimGroup.traverse((o) => {
@@ -1129,6 +1161,7 @@ export class Viewport {
     if (body.planes?.length) {
       const outlines = planeOutlines(shown(body.planes) as never, scale);
       this.planeQuads = outlines.map((q) => ({ id: q.id, quad: q.quad as number[][] }));
+      this.buildActivePlane();
       const quads = outlines.map((q) => q.quad);
       this.planeLines = this.addLayerLines(quads, 0x6f7f99, this.layerOn('planes'));
       const axes = axisLines(body.planes as never, scale * 0.4);

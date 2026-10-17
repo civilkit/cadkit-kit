@@ -398,6 +398,12 @@ function App() {
     return () => { ro.disconnect(); vp.dispose(); viewport = null; };
   }, []);
   useEffect(() => { viewport?.setHighlight(store.selection.value); }, [store.selection.value]);
+  // The Plane being edited (or selected in the tree) is drawn as a sheet so its offset can be seen.
+  useEffect(() => {
+    const id = editingId ?? selectedId;
+    const f = id ? controller.document()?.features.find((x) => x.id === id) : undefined;
+    viewport?.setActivePlane(f?.type === 'plane' ? f.id : null);
+  }, [viewport, editingId, selectedId]);
   // A selection made while a reference field is in the picking state lands in that field's draft.
   useEffect(() => {
     if (!pickingPath) return;
