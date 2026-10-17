@@ -37,7 +37,8 @@ shared edges, so touching parts fuse into one body and lose their identity.
 - `massProps` takes a density per body: mass is the sum of density x volume per body, the centre of gravity is mass
   weighted, and inertia is summed about the common origin.
 - Reply lists per-body mass, volume and CG, plus totals.
-- Unknown today: whether the request can address one body at a time (check `ck-server` and `ck-ops` before sizing).
+- Addressing a single body at a time is deferred to piece C (real body ids); today `massProps` always covers every
+  lump of the tag, and `densities` is a per-lump array (one entry per body in wire order).
 - Size: S to M.
 
 ### C. First-class bodies and "New body" (the main change)
