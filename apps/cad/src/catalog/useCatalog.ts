@@ -181,7 +181,9 @@ export function useCatalog(d: CatalogDeps) {
     const key = (e: KeyboardEvent) => {
       if (!drag.current && !armedItem.value) return;
       const k = e.key.toLowerCase();
-      if ((k === 'r' || k === 'f') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // library parts cannot be turned yet (only their placement-plane sketches would move; needs a kernel transform): R is left alone for them
+      const partInHand = !!(drag.current?.item ?? catalogItem(armedItem.value ?? ''))?.part;
+      if ((k === 'f' || (k === 'r' && !partInHand)) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         // R turns the shape 90 degrees about the plane normal, F flips it to the other side; the preview follows
         const s = placementSetting.value;
         placementSetting.value = k === 'r' ? { ...s, rot: ((s.rot + 1) % 4) as 0 | 1 | 2 | 3 } : { ...s, flip: !s.flip };

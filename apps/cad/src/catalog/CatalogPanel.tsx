@@ -27,6 +27,7 @@ const PLANES: StdPlane[] = ['front', 'top', 'right'];
 /** Place on / Direction / Rotate / Mirror: how the next shape stands on its plane (changes the live preview; R and F do the same while placing). */
 export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
   const s = placementSetting.value;
+  const partArmed = !!catalogItem(armedItem.value ?? '')?.part;
   const set = (patch: Partial<typeof s>) => { placementSetting.value = { ...s, ...patch }; };
   return (
     <div class="place-row" data-testid="place-row" role="group" aria-label={t('catalog.place.title')} title={t('catalog.place.tip')}>
@@ -42,8 +43,8 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
           <option value="down">{t('catalog.place.down')}</option>
         </select>
       </label>
-      <label>{t('catalog.place.rotate')}
-        <select value={String(s.rot)} onChange={(e) => set({ rot: Number((e.currentTarget as HTMLSelectElement).value) as typeof s.rot })}>
+      <label title={partArmed ? t('catalog.place.rotate.parts') : undefined}>{t('catalog.place.rotate')}
+        <select disabled={partArmed} value={String(s.rot)} onChange={(e) => set({ rot: Number((e.currentTarget as HTMLSelectElement).value) as typeof s.rot })}>
           {[0, 1, 2, 3].map((r) => <option key={r} value={String(r)}>{r * 90}&deg;</option>)}
         </select>
       </label>
@@ -128,7 +129,7 @@ export function CatalogGhost({ hasSolid = false }: { hasSolid?: boolean }) {
     <>
       <div class={'cat-ghost' + (s.state === 'blocked' && s.reason !== 'loading' ? ' blocked' : '')} style={{ left: g.x + 16 + 'px', top: g.y + 14 + 'px' }} role="status">
         <CatalogIcon kind={item.kind} op={item.op} />
-        <span class="cat-ghost-t"><b>{itemLabel(item)}</b>{line ? <span>{line}</span> : null}<span class="cat-keys">{t('catalog.keys')}</span></span>
+        <span class="cat-ghost-t"><b>{itemLabel(item)}</b>{line ? <span>{line}</span> : null}<span class="cat-keys">{t(item.part ? 'catalog.keys.part' : 'catalog.keys')}</span></span>
       </div>
       <LibraryFetching />
     </>
