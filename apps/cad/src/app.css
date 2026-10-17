@@ -1035,3 +1035,7 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 @keyframes cat-spin { to { transform: rotate(360deg); } }
 .cat-placement { border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; font: 12px system-ui; }
 .cat-placement > summary { cursor: pointer; color: var(--text-2); }
+/* library cards: 2 to 3 per row, name clamped to two lines (the full text is the hover title) */
+[data-testid=lib-grid].cat-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.lib-card > .lib-item { height: 100%; }
+.lib-item .cat-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; min-height: 2.3em; width: 100%; }
