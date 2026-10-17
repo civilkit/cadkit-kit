@@ -478,50 +478,5 @@
   "id": "speedboat-dash",
   "title": "Speedboat analog dash cluster (script-built)",
   "file": "speedboat-dash.ckpart"
- },
- {
-  "id": "bldc-0603",
-  "title": "BLDC motor 0603 (Ø9 x 8 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-0603.ckpart"
- },
- {
-  "id": "bldc-0802",
-  "title": "BLDC motor 0802 (Ø11.5 x 9.5 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-0802.ckpart"
- },
- {
-  "id": "bldc-1105",
-  "title": "BLDC motor 1105 (Ø14 x 11.75 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-1105.ckpart"
- },
- {
-  "id": "bldc-1306",
-  "title": "BLDC motor 1306 (Ø17.75 x 14.5 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-1306.ckpart"
- },
- {
-  "id": "bldc-1804",
-  "title": "BLDC motor 1804 (Ø23 x 12 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-1804.ckpart"
- },
- {
-  "id": "bldc-2205",
-  "title": "BLDC motor 2205 (Ø28 x 17.25 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-2205.ckpart"
- },
- {
-  "id": "bldc-2212",
-  "title": "BLDC motor 2212 (Ø28 x 27 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-2212.ckpart"
- },
- {
-  "id": "bldc-3548",
-  "title": "BLDC motor 3548 (Ø35 x 45 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-3548.ckpart"
- },
- {
-  "id": "bldc-4250",
-  "title": "BLDC motor 4250 (Ø42.5 x 48 mm, hollow bell with vents, threaded prop shaft)",
-  "file": "bldc-4250.ckpart"
  }
 ]
