@@ -123,7 +123,7 @@ export function CatalogGhost({ hasSolid = false }: { hasSolid?: boolean }) {
   const s = placeStatus.value;
   let line = '';
   if (s.state === 'ready') line = s.face ? t('catalog.status.face', { face: s.face }) + (s.snap ? ' - ' + t('catalog.snap.' + s.snap) : '') : planeLine(s, hasSolid);
-  else if (s.state === 'blocked') line = t('catalog.blocked.' + s.reason);
+  else if (s.state === 'blocked') line = t('catalog.blocked.' + s.reason) + (s.hint ? ': ' + s.hint : '');
   return (
     <>
       <div class={'cat-ghost' + (s.state === 'blocked' && s.reason !== 'loading' ? ' blocked' : '')} style={{ left: g.x + 16 + 'px', top: g.y + 14 + 'px' }} role="status">
