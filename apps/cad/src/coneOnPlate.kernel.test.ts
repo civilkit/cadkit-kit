@@ -10,9 +10,11 @@ import filletFoot from './fixtures/coneOnPlate/fillet_foot.json';
 import thickenA21 from './fixtures/coneOnPlate/thicken_a21.json';
 
 // A cone standing on a 55 x 55 x 3 plate (hand testing, 2026-10-18; kernel brief "Task 7" in docs/mimo-briefs-5-6.md).
-// The `it.fails` cases are KNOWN kernel failures: they pass (as failing) today and start to report "expected to fail"
-// the moment the kernel is fixed, so remove the `.fails` then. The original kernel does all of these; its foot fillet
-// is wrong (it rounds the concave corner over and removes material), so the foot test asks for MORE material.
+// The fuses (solid lofts and thickened sheets, narrow and wide base) all pass: the wide-base failures were a
+// boolean classification bug — a plate cap far outside the tool was read as In because one spline ray crossing
+// (the inner cone wall's second hit) was missed, so the cap was dropped and the result left open edges. The two
+// fillets remain `it.fails`: the original kernel does them but its foot fillet is wrong (it rounds the concave
+// corner over and removes material), so the foot test asks for MORE material.
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 
@@ -31,12 +33,12 @@ describe('cone on a plate', { skip: !process.env.CK_WASM }, () => {
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 8000);
   });
-  it.fails('a gently tapered solid loft (R22 to R17, 10 high) fuses onto the plate', async () => {
+  it('a gently tapered solid loft (R22 to R17, 10 high) fuses onto the plate', async () => {
     const r = await build(loft2217);
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 8000);
   });
-  it.fails('a gently tapered solid loft (R25 to R20, 10 high) fuses onto the plate', async () => {
+  it('a gently tapered solid loft (R25 to R20, 10 high) fuses onto the plate', async () => {
     const r = await build(loft2520);
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 8000);
@@ -46,8 +48,8 @@ describe('cone on a plate', { skip: !process.env.CK_WASM }, () => {
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 3000);
   });
-  // tools/sweep.mjs --templates coneThicken --n 60 --seed 3: ours fails 24 of 60 (the original: 0), mostly when the bottom radius is 15 or more
-  it.fails('a thickened cone with a wide base (R21.5 to R13.5, 27 high, 1 thick) fuses onto the plate', async () => {
+  // tools/sweep.mjs --templates coneThicken --n 60 --seed 3: 0 of 60 fail now (was 24; the classification fix)
+  it('a thickened cone with a wide base (R21.5 to R13.5, 27 high, 1 thick) fuses onto the plate', async () => {
     const r = await build(thickenA21);
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 3000);
