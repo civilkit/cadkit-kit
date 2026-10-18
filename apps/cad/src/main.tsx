@@ -186,7 +186,7 @@ function bodyRowsFor(volumes: boolean): BodyRow[] {
 const shownBody = (b: unknown): unknown => {
   const d = controller.document();
   if (!b || !d) return b;
-  return displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value }) as unknown;
+  return displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, doc: d as never }) as unknown;
 };
 const controller = new Controller({
   store,

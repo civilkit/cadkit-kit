@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bomCsv, bomItems, bomTotal, componentOfName, componentRows, deleteComponentOps, explodeOffsets, instanceOfName, insertFeature, insertIds, placementOps, readExplode, suffixIds,
+  bomCsv, bomItems, bomTotal, componentOfName, componentRows, copyTurner, deleteComponentOps, explodeOffsets, instanceOfName, insertFeature, insertIds, placementOps, readExplode, suffixIds,
 } from './model';
 
 const part = (name: string, material = 'steel') => ({ format: 'ck-part', version: 1, name, material, features: [{ type: 'sketch', id: 'F1' }] });
@@ -94,5 +94,18 @@ describe('exploded view', () => {
   it('reads a saved value defensively', () => {
     expect(readExplode(undefined)).toEqual({ spread: 0, dir: 'auto', manual: {} });
     expect(readExplode({ spread: 99, dir: 'q', manual: { F2: [1, 2, 3], F3: [1] } })).toEqual({ spread: 5, dir: 'auto', manual: { F2: [1, 2, 3] } });
+  });
+});
+
+describe('copyTurner', () => {
+  const feats = [{ id: 'F34', type: 'cpattern', axis: { kind: 'axis', axis: 'z' }, count: 4, angle: 360, equal: true }, { id: 'F35', type: 'cpattern', axis: { kind: 'axis', axis: 'z' }, count: 4, angle: 360, equal: true, reverse: true }] as never;
+  const near = (a: number[], b: number[]) => a.forEach((x, i) => expect(x).toBeCloseTo(b[i], 9));
+  it('turns a drag offset with a copy of a circular pattern', () => {
+    const t = copyTurner(feats);
+    near(t('F30', [0, 10, 1]), [0, 10, 1]);
+    near(t('F30@F34.1', [0, 10, 1]), [-10, 0, 1]);
+    near(t('F30@F34.2', [0, 10, 1]), [0, -10, 1]);
+    near(t('F30@F35.1', [0, 10, 1]), [10, 0, 1]);
+    near(t('F30@F99.1', [0, 10, 1]), [0, 10, 1]);
   });
 });

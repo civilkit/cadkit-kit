@@ -185,13 +185,36 @@ export const isExploded = (e: ExplodeState): boolean => e.spread > 0 || Object.v
 
 /** Where each component moves: away from the middle of all of them, `spread` times its distance from it (along the chosen axis only when
  *  the direction is x, y or z), plus the component's own drag. `centres` are component centres; `middle` the centre of them all. */
-export function explodeOffsets(centres: ReadonlyMap<string, V3>, middle: V3, e: ExplodeState): Map<string, V3> {
+export function explodeOffsets(centres: ReadonlyMap<string, V3>, middle: V3, e: ExplodeState, turn?: (key: string, v: V3) => V3): Map<string, V3> {
   const out = new Map<string, V3>();
   for (const [id, c] of centres) {
     const d: V3 = [c[0] - middle[0], c[1] - middle[1], c[2] - middle[2]];
     const keep: V3 = e.dir === 'auto' ? [1, 1, 1] : [e.dir === 'x' ? 1 : 0, e.dir === 'y' ? 1 : 0, e.dir === 'z' ? 1 : 0];
-    const m = e.manual[id.split('@')[0]] ?? [0, 0, 0];
+    const m0 = e.manual[id.split('@')[0]] ?? [0, 0, 0];
+    const m = turn ? turn(id, m0) : m0;
     out.set(id, [d[0] * keep[0] * e.spread + m[0], d[1] * keep[1] * e.spread + m[1], d[2] * keep[2] * e.spread + m[2]]);
   }
   return out;
+}
+
+/** A drag offset is set on the component itself; a copy a circular component pattern makes carries it turned with the copy (a coil pulled
+ *  outwards stays pulled outwards in every copy). `key` is an instance key (`F30@F34.2`): the offset is turned about the pattern's axis by that
+ *  copy's angle (equal spacing: angle / count per copy, otherwise angle / (count - 1); `reverse` turns the other way). Linear copies and
+ *  keys without a pattern keep the offset as it is. */
+export function copyTurner(features: readonly Feat[]): (key: string, v: V3) => V3 {
+  const pats = new Map(features.filter((f) => f.type === 'cpattern' && f.suppressed !== true).map((f) => [f.id, f]));
+  return (key, v) => {
+    let out = v;
+    for (const m of key.matchAll(/@(F\d+)\.(\d+)/g)) {
+      const f = pats.get(m[1]);
+      const ax = (f?.axis as { axis?: string } | undefined)?.axis;
+      if (!f || (ax !== 'x' && ax !== 'y' && ax !== 'z')) continue;
+      const count = Math.max(1, Math.round(num(f.count, 1))), angle = num(f.angle, 360);
+      const step = f.equal === true ? angle / count : count > 1 ? angle / (count - 1) : 0;
+      const a = (+m[2] * step * (f.reverse === true ? -1 : 1)) * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+      const [x, y, z] = out;
+      out = ax === 'z' ? [c * x - sn * y, sn * x + c * y, z] : ax === 'x' ? [x, c * y - sn * z, sn * y + c * z] : [c * x + sn * z, y, -sn * x + c * z];
+    }
+    return out;
+  };
 }

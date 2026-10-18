@@ -1,6 +1,6 @@
 // Display-only changes to the body the viewer draws: hidden components are left out, exploded components are moved. The kernel's
 // body, the document and the measure / section / mass queries are untouched; picks keep the kernel's face and edge names.
-import { instanceOfName, explodeOffsets, isExploded, type ExplodeState, type V3 } from './model';
+import { instanceOfName, explodeOffsets, copyTurner, isExploded, type DocLike, type ExplodeState, type V3 } from './model';
 
 interface ViewEdge { key?: string; pts: number[][]; mid?: number[] }
 export interface ShowBody {
@@ -10,7 +10,7 @@ export interface ShowBody {
   [k: string]: unknown;
 }
 
-export interface DisplayOpts { inserts: ReadonlySet<string>; hidden: ReadonlySet<string>; explode: ExplodeState }
+export interface DisplayOpts { inserts: ReadonlySet<string>; hidden: ReadonlySet<string>; explode: ExplodeState; /** the document, so a pattern's copies turn a component's drag offset with them */ doc?: DocLike | null }
 
 /** Centre of each component instance's bounding box (a pattern copy is an instance of its own, keyed `F6@F12.1`), and the centre of the box around all of them. Components with no triangles are absent. */
 export function componentCentres(body: ShowBody, inserts: ReadonlySet<string>): { centres: Map<string, V3>; middle: V3 } {
@@ -43,7 +43,7 @@ export function displayBody<B extends ShowBody>(body: B, o: DisplayOpts): B {
   if (!o.hidden.size && !moving) return body;
   if (!o.inserts.size) return body;
   const { centres, middle } = componentCentres(body, o.inserts);
-  const off = moving ? explodeOffsets(centres, middle, o.explode) : new Map<string, V3>();
+  const off = moving ? explodeOffsets(centres, middle, o.explode, o.doc ? copyTurner(o.doc.features) : undefined) : new Map<string, V3>();
   const { positions, normals, triFace, faceIds } = body.mesh;
   const inst = faceIds.map((n) => instanceOfName(n, o.inserts));
   const owner = inst.map((i) => i?.key ?? null);
