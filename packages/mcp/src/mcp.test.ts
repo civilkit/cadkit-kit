@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, readdirSync, rmdirSync, rmSync, statSync } from 'node:fs';
 import { request } from 'node:http';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
 import { AgentSession, createTools } from '@kit/agent-tools';
@@ -11,7 +12,7 @@ import { runShim } from './shim';
 import { readState } from './state';
 
 const WASM = process.env.CK_WASM!;
-const SCRATCH = '/path/to/work/scratch-mcp';
+const SCRATCH = tmpdir();
 const BIN = join(process.cwd(), 'packages/mcp/bin/ck-mcp.mjs');
 const dirs: string[] = [];
 const tmp = () => { const d = mkdtempSync(join(SCRATCH, 'mcp-')); dirs.push(d); return d; };

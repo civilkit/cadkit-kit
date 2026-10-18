@@ -19,10 +19,11 @@ async function host() {
   const mp = async () => (await sessions.at(-1)!.massProps()) as { volume: number };
   return { h, mp, controller };
 }
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { matxScript } from './matx';
 
-const FC = JSON.parse(readFileSync('/path/to/work/scratch-matx/fc/vols2.json', 'utf8')) as Record<string, number>;
+const FC_FILE = '/path/to/work/scratch-matx/fc/vols2.json';   // scratch reference volumes: the tests below skip when it is absent
+const FC = (existsSync(FC_FILE) ? JSON.parse(readFileSync(FC_FILE, 'utf8')) : {}) as Record<string, number>;
 const sum = (re: RegExp) => Object.entries(FC).filter(([k]) => re.test(k)).reduce((a, [, v]) => a + v, 0);
 const GROUPS: Record<string, RegExp> = {
   hoops: /^HOOP/, strips: /^STRIP/, rear: /^PANEL_rear/, base: /^BASE/, top: /^PANEL_top/, front: /^PANEL_front/,
@@ -48,7 +49,7 @@ function meshStats(m: { positions: ArrayLike<number>; triFace: ArrayLike<number>
   const noTri = m.faceIds.filter((_, i) => !seen.has(i));
   return { open, noTri };
 }
-describe('matx components', () => {
+describe('matx components', { skip: !existsSync(FC_FILE) }, () => {
   for (const g of Object.keys(GROUPS)) {
     it.skipIf(only.length > 0 && !only.includes(g))('component ' + g, async () => {
       const { h, mp, controller } = await host();

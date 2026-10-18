@@ -182,6 +182,7 @@ const ICONS: Record<string, string> = {
   'chevron': P('M9 6l6 6-6 6'),
   'search': O(10.5, 10.5, 5.5) + P('M14.6 14.6 20 20'),
   'folder': P('M3.5 7.5V18h17V9H11L9.5 7z'),
+  'group-selected': P('M3.5 7.5V18h17V9H11L9.5 7z') + T('M12 11v5M9.5 13.5h5'),
   'folder-open': P('M3.5 7.5V18h15.5l2-8H8.5L6.8 13.6M3.5 7.5H9l1.5 2'),
   'ref-origin': D(12, 16, 2) + A('M12 16V5') + P('M12 16l8 3.5') + T('M12 16l-6 3'),
   'ref-material': O(12, 12, 8) + T('M12 4a8 8 0 0 1 0 16') + T('M7 12h10'),

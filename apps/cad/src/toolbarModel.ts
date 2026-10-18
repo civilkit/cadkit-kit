@@ -50,7 +50,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
-    { id: 'Edit', entries: ['undo', 'redo', slot('history')] },
+    { id: 'Edit', entries: ['undo', 'redo', slot('history'), 'group-selected'] },
   ],
   Features: [
     { id: 'Reference', entries: [slot('reference')] },
@@ -101,7 +101,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-)/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'recover-versions', 'samples', 'import-step', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'recover-versions', 'samples', 'import-step', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 
