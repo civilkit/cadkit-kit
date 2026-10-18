@@ -16,6 +16,7 @@
     "ux:shots": "node tools/ux/shots.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "i18n:check": "node tools/i18n_check.mjs",
+    "samples:thumbs:check": "node tools/library_thumbs.mjs apps/cad/public/samples --check",
     "i18n:baseline": "node tools/i18n_check.mjs --update-baseline",
     "hooks:install": "git config core.hooksPath .githooks"
   },

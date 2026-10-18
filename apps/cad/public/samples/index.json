@@ -478,5 +478,10 @@
   "id": "speedboat-dash",
   "title": "Speedboat analog dash cluster (script-built)",
   "file": "speedboat-dash.ckpart"
+ },
+ {
+  "id": "tinnie-hull",
+  "title": "Tinnie hull (lofted, 3 mm wall, bench)",
+  "file": "tinnie-hull.ckpart"
  }
 ]
