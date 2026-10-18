@@ -529,227 +529,89 @@
    ]
   },
   {
-   "type": "plane",
+   "type": "shell",
    "id": "F16",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 3
+   "faces": [
+    "F15.S.e3"
+   ],
+   "thickness": 3
   },
   {
-   "type": "sketch",
+   "type": "plane",
    "id": "F17",
-   "plane": {
-    "kind": "feature",
-    "id": "F16"
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "right"
    },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -597,
-     "y": 3
-    },
-    {
-     "id": "p2",
-     "x": 597,
-     "y": 3
-    },
-    {
-     "id": "p3",
-     "x": 753.6666666667,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -753.6666666667,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
+   "offset": 1500
   },
   {
-   "type": "plane",
+   "type": "sketch",
    "id": "F18",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
+   "plane": {
+    "kind": "feature",
+    "id": "F17"
    },
-   "offset": 600
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": -651.4111111111,
+     "y": 250
+    },
+    {
+     "id": "p2",
+     "x": 651.4111111111,
+     "y": 250
+    },
+    {
+     "id": "p3",
+     "x": 651.4111111111,
+     "y": 290
+    },
+    {
+     "id": "p4",
+     "x": -651.4111111111,
+     "y": 290
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
   },
   {
-   "type": "sketch",
+   "type": "plane",
    "id": "F19",
-   "plane": {
-    "kind": "feature",
-    "id": "F18"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -597,
-     "y": 3
-    },
-    {
-     "id": "p2",
-     "x": 597,
-     "y": 3
-    },
-    {
-     "id": "p3",
-     "x": 753.6666666667,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -753.6666666667,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "plane",
-   "id": "F20",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1200
-  },
-  {
-   "type": "sketch",
-   "id": "F21",
-   "plane": {
-    "kind": "feature",
-    "id": "F20"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -592,
-     "y": 3
-    },
-    {
-     "id": "p2",
-     "x": 592,
-     "y": 3
-    },
-    {
-     "id": "p3",
-     "x": 748.6666666667,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -748.6666666667,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "plane",
-   "id": "F22",
    "mode": "offset",
    "base": {
     "kind": "std",
@@ -759,10 +621,10 @@
   },
   {
    "type": "sketch",
-   "id": "F23",
+   "id": "F20",
    "plane": {
     "kind": "feature",
-    "id": "F22"
+    "id": "F19"
    },
    "points": [
     {
@@ -773,242 +635,23 @@
     },
     {
      "id": "p1",
-     "x": -537,
-     "y": 3
+     "x": -626.6888888889,
+     "y": 250
     },
     {
      "id": "p2",
-     "x": 537,
-     "y": 3
+     "x": 626.6888888889,
+     "y": 250
     },
     {
      "id": "p3",
-     "x": 704.1111111111,
-     "y": 470
+     "x": 626.6888888889,
+     "y": 290
     },
     {
      "id": "p4",
-     "x": -704.1111111111,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "plane",
-   "id": "F24",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 2400
-  },
-  {
-   "type": "sketch",
-   "id": "F25",
-   "plane": {
-    "kind": "feature",
-    "id": "F24"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -387,
-     "y": 43
-    },
-    {
-     "id": "p2",
-     "x": 387,
-     "y": 43
-    },
-    {
-     "id": "p3",
-     "x": 565.2926829268,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -565.2926829268,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "plane",
-   "id": "F26",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 3000
-  },
-  {
-   "type": "sketch",
-   "id": "F27",
-   "plane": {
-    "kind": "feature",
-    "id": "F26"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -187,
-     "y": 113
-    },
-    {
-     "id": "p2",
-     "x": 187,
-     "y": 113
-    },
-    {
-     "id": "p3",
-     "x": 335.2352941176,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -335.2352941176,
-     "y": 470
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "plane",
-   "id": "F28",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 3497
-  },
-  {
-   "type": "sketch",
-   "id": "F29",
-   "plane": {
-    "kind": "feature",
-    "id": "F28"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -17,
-     "y": 263
-    },
-    {
-     "id": "p2",
-     "x": 17,
-     "y": 263
-    },
-    {
-     "id": "p3",
-     "x": 61.2105263158,
-     "y": 470
-    },
-    {
-     "id": "p4",
-     "x": -61.2105263158,
-     "y": 470
+     "x": -626.6888888889,
+     "y": 290
     }
    ],
    "entities": [
@@ -1041,830 +684,15 @@
   },
   {
    "type": "loft",
-   "id": "F30",
-   "op": "cut",
+   "id": "F21",
+   "op": "add",
    "sketches": [
-    "F17",
-    "F19",
-    "F21",
-    "F23",
-    "F25",
-    "F27",
-    "F29"
+    "F18",
+    "F20"
    ]
-  },
-  {
-   "type": "plane",
-   "id": "F31",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1500
-  },
-  {
-   "type": "sketch",
-   "id": "F32",
-   "plane": {
-    "kind": "feature",
-    "id": "F31"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -648.3388888889,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 648.3388888889,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 648.3388888889,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -648.3388888889,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F33",
-   "op": "add",
-   "sketch": "F32",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F34",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1530
-  },
-  {
-   "type": "sketch",
-   "id": "F35",
-   "plane": {
-    "kind": "feature",
-    "id": "F34"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -645.8666666667,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 645.8666666667,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 645.8666666667,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -645.8666666667,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F36",
-   "op": "add",
-   "sketch": "F35",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F37",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1560
-  },
-  {
-   "type": "sketch",
-   "id": "F38",
-   "plane": {
-    "kind": "feature",
-    "id": "F37"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -643.3944444444,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 643.3944444444,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 643.3944444444,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -643.3944444444,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F39",
-   "op": "add",
-   "sketch": "F38",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F40",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1590
-  },
-  {
-   "type": "sketch",
-   "id": "F41",
-   "plane": {
-    "kind": "feature",
-    "id": "F40"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -640.9222222222,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 640.9222222222,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 640.9222222222,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -640.9222222222,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F42",
-   "op": "add",
-   "sketch": "F41",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F43",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1620
-  },
-  {
-   "type": "sketch",
-   "id": "F44",
-   "plane": {
-    "kind": "feature",
-    "id": "F43"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -638.45,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 638.45,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 638.45,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -638.45,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F45",
-   "op": "add",
-   "sketch": "F44",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F46",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1650
-  },
-  {
-   "type": "sketch",
-   "id": "F47",
-   "plane": {
-    "kind": "feature",
-    "id": "F46"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -635.9777777778,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 635.9777777778,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 635.9777777778,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -635.9777777778,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F48",
-   "op": "add",
-   "sketch": "F47",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F49",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1680
-  },
-  {
-   "type": "sketch",
-   "id": "F50",
-   "plane": {
-    "kind": "feature",
-    "id": "F49"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -633.5055555556,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 633.5055555556,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 633.5055555556,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -633.5055555556,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F51",
-   "op": "add",
-   "sketch": "F50",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F52",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1710
-  },
-  {
-   "type": "sketch",
-   "id": "F53",
-   "plane": {
-    "kind": "feature",
-    "id": "F52"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -631.0333333333,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 631.0333333333,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 631.0333333333,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -631.0333333333,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F54",
-   "op": "add",
-   "sketch": "F53",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F55",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1740
-  },
-  {
-   "type": "sketch",
-   "id": "F56",
-   "plane": {
-    "kind": "feature",
-    "id": "F55"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -628.5611111111,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 628.5611111111,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 628.5611111111,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -628.5611111111,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F57",
-   "op": "add",
-   "sketch": "F56",
-   "end": "blind",
-   "depth": 30
-  },
-  {
-   "type": "plane",
-   "id": "F58",
-   "mode": "offset",
-   "base": {
-    "kind": "std",
-    "id": "right"
-   },
-   "offset": 1770
-  },
-  {
-   "type": "sketch",
-   "id": "F59",
-   "plane": {
-    "kind": "feature",
-    "id": "F58"
-   },
-   "points": [
-    {
-     "id": "O",
-     "x": 0,
-     "y": 0,
-     "fixed": true
-    },
-    {
-     "id": "p1",
-     "x": -626.0888888889,
-     "y": 250
-    },
-    {
-     "id": "p2",
-     "x": 626.0888888889,
-     "y": 250
-    },
-    {
-     "id": "p3",
-     "x": 626.0888888889,
-     "y": 290
-    },
-    {
-     "id": "p4",
-     "x": -626.0888888889,
-     "y": 290
-    }
-   ],
-   "entities": [
-    {
-     "id": "e1",
-     "type": "line",
-     "p1": "p1",
-     "p2": "p2"
-    },
-    {
-     "id": "e2",
-     "type": "line",
-     "p1": "p2",
-     "p2": "p3"
-    },
-    {
-     "id": "e3",
-     "type": "line",
-     "p1": "p3",
-     "p2": "p4"
-    },
-    {
-     "id": "e4",
-     "type": "line",
-     "p1": "p4",
-     "p2": "p1"
-    }
-   ],
-   "constraints": []
-  },
-  {
-   "type": "extrude",
-   "id": "F60",
-   "op": "add",
-   "sketch": "F59",
-   "end": "blind",
-   "depth": 30
   }
  ],
- "seq": 61,
+ "seq": 22,
  "rollback": null,
- "script": "const st = [[0,750,600,0],[600,750,600,0],[1200,745,595,0],[1800,700,540,0],[2400,560,390,40],[3000,330,190,110],[3500,60,20,260]];\nconst H = 450, T = 3, X = 20;\nconst outer = st.map(([x, wt, wb, yb]) => ({ on: at('right', x), draw: (s) => s.polygon([[-wb, yb], [wb, yb], [wt, H], [-wt, H]]) }));\n// inner cavity: every wall moved in by T, top extended X above the gunwale along the same flare\nconst inner = st.map(([x, wt, wb, yb], i) => {\n  const ix = i === 0 ? T : (i === st.length - 1 ? x - T : x);\n  const k = (wt - wb) / (H - yb);\n  const ib = wb - T, it = wt - T + k * X, yt = H + X, yy = yb + T;\n  return { on: at('right', ix), draw: (s) => s.polygon([[-ib, yy], [ib, yy], [it, yt], [-it, yt]]) };\n});\nlet h = part('Tinnie hull').loft(outer, {}).loft(inner, { op: 'cut' });\nconst half = (x, y) => { let k = 0; while (k < st.length - 2 && x > st[k + 1][0]) k++; const a = st[k], b = st[k + 1], f = (x - a[0]) / (b[0] - a[0]);\n  const g = (r) => r[2] + (r[1] - r[2]) * (y - r[3]) / (H - r[3]); return g(a) + (g(b) - g(a)) * f; };\n// middle bench seat: short slabs, each as wide as the hull skin there (mid-wall), so the seat fuses to the walls without poking through\nfor (let x0 = 1500; x0 < 1800; x0 += 30) {\n  const w = Math.min(half(x0, 250), half(x0 + 30, 250)) - 2.8;\n  h = h.sketch(at('right', x0), (s) => s.rect(2 * w, 40, [0, 270])).extrude(30);\n}\n"
+ "script": "const st = [[0,750,600,0],[600,750,600,0],[1200,745,595,0],[1800,700,540,0],[2400,560,390,40],[3000,330,190,110],[3500,60,20,260]];\nconst H = 450, T = 3, X = 20;\nconst outer = st.map(([x, wt, wb, yb]) => ({ on: at('right', x), draw: (s) => s.polygon([[-wb, yb], [wb, yb], [wt, H], [-wt, H]]) }));\nconst half = (x, y) => { let k = 0; while (k < st.length - 2 && x > st[k + 1][0]) k++; const a = st[k], b = st[k + 1], f = (x - a[0]) / (b[0] - a[0]);\n  const g = (r) => r[2] + (r[1] - r[2]) * (y - r[3]) / (H - r[3]); return g(a) + (g(b) - g(a)) * f; };\n// the seat: a short tapered plank (loft of two rectangles) as wide as the hull skin at its two ends, inset 2.2 mm so it fuses into the wall without poking through\nconst seat = (x) => ({ on: at('right', x), draw: (s) => { const w = half(x, 250) - 2.2; s.polygon([[-w, 250], [w, 250], [w, 290], [-w, 290]]); } });\npart('Tinnie hull')\n  .loft(outer, {})                    // outer skin through 7 stations\n  .shell(face('>Y'), T)               // open the top, 3 mm walls (one step)\n  .loft([seat(1500), seat(1800)]);    // seat across the boat\n"
 }
