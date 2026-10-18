@@ -54,14 +54,14 @@ describe('cone on a plate', { skip: !process.env.CK_WASM }, () => {
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 3000);
   });
-  it.fails('R1 fillet on the top rim of the thickened cone (convex: removes material)', async () => {
+  it('R1 fillet on the top rim of the thickened cone (convex: removes material)', async () => {
     const base = (await build(thickenCone)).volume;
     const r = await build(filletRim);
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeLessThan(base);
     expect(r.volume).toBeGreaterThan(base - 100);
   });
-  it.fails('R3 fillet where the cone meets the plate (concave: adds material)', async () => {
+  it('R3 fillet where the cone meets the plate (concave: adds material)', async () => {
     const base = (await build(thickenCone)).volume;
     const r = await build(filletFoot);
     expect(r.errors).toEqual([]);
