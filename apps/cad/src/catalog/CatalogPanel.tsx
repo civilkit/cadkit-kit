@@ -44,7 +44,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
         </select>
       </label>
       <label title={partArmed ? t('catalog.place.rotate.parts') : undefined}>{t('catalog.place.rotate')}
-        <select disabled={partArmed} value={String(s.rot)} onChange={(e) => set({ rot: Number((e.currentTarget as HTMLSelectElement).value) as typeof s.rot })}>
+        <select value={String(s.rot)} onChange={(e) => set({ rot: Number((e.currentTarget as HTMLSelectElement).value) as typeof s.rot })}>
           {[0, 1, 2, 3].map((r) => <option key={r} value={String(r)}>{r * 90}&deg;</option>)}
         </select>
       </label>

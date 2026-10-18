@@ -15,12 +15,12 @@ const SHAPE_TYPES = new Set(['extrude', 'revolve', 'loft', 'sweep']);
 
 export function buildPlaced(doc: PartDoc, data: PartData, lib: LibraryRecord, target: PlaceTarget, o: { linked: boolean; flip?: boolean; commitSource?(entry: SourceEntry): void }): BuiltShape {
   let placed: Placed | null = null;
-  const ins = buildInsert(doc, o.linked ? data.doc : inlineVariables(data.doc), metaOf(lib, data), (features) => { placed = placeFeatures(features, target, o.flip); return placed.features; });
+  const ins = buildInsert(doc, o.linked ? data.doc : inlineVariables(data.doc), metaOf(lib, data), (features) => { placed = placeFeatures(features, target, o.flip, (target.place?.rot ?? 0) as 0 | 1 | 2 | 3); return placed.features; });
   const made = ins.patch.append ?? [];
   const main = [...made].reverse().find((f) => SHAPE_TYPES.has(String(f.type))) ?? made[made.length - 1];
   const ops: EditOp[] = made.map((feature) => ({ op: 'add', feature }) as unknown as EditOp);
   const p = placed as Placed | null;
-  const notice = p && !p.moved ? t('library.place.fallback.' + p.why, { title: data.part.title }) : undefined;
+  const notice = p && !p.moved ? t('library.place.fallback.' + p.why, { title: data.part.title }) : p && p.moved && p.rotIgnored ? t('library.place.rotIgnored') : undefined;
   return {
     ops, mainId: String(main?.id ?? ''), sketchId: '', helpers: [], size: 0,
     ...(o.linked ? { patch: ins.patch } : {}),

@@ -80,6 +80,34 @@ describe('moving a part', () => {
   });
 });
 
+describe('Rotate: one moveBody after the part, ground drops only', () => {
+  it('a ground drop turns the part about the plane normal through the drop point, selecting its own solids by feature id', () => {
+    const f = [sk('F1', front), ext('F2', 'F1'), ext('F3', 'F1', { op: 'cut' })];
+    const r = placeFeatures(f, groundTop, false, 1);
+    expect(r).toMatchObject({ moved: true, rotated: true });
+    const m = f[f.length - 1];
+    expect(m).toMatchObject({ type: 'moveBody', id: 'F4', bodies: [{ feature: 'F2' }], rotate: { axis: [0, 1, 0], origin: [3, 0, -4], angle: 90 } });
+    expect(f.slice(0, 3).map((x) => x.id)).toEqual(['F1', 'F2', 'F3']);          // the part's own features are untouched
+  });
+  it('quarter turns: 2 is 180 degrees, 3 is 270', () => {
+    for (const [rot, angle] of [[2, 180], [3, 270]] as const) {
+      const f = [sk('F1', front), ext('F2', 'F1')];
+      placeFeatures(f, groundTop, false, rot);
+      expect((f[f.length - 1].rotate as { angle: number }).angle).toBe(angle);
+    }
+  });
+  it('no rotation adds nothing', () => {
+    const f = [sk('F1', front), ext('F2', 'F1')];
+    placeFeatures(f, groundTop, false, 0);
+    expect(f).toHaveLength(2);
+  });
+  it('on a face the part fuses into the body: no moveBody, and the result says the rotation was ignored', () => {
+    const f = [sk('F1', front), ext('F2', 'F1')];
+    expect(placeFeatures(f, topFace, false, 1)).toMatchObject({ moved: true, rotIgnored: true });
+    expect(f).toHaveLength(2);
+  });
+});
+
 describe('inlineVariables (the live preview works with numbers: the open document does not have the part\'s variables yet)', () => {
   it('works every expression out and drops the variables', () => {
     const part = { features: [{ type: 'extrude', id: 'F1', depth: '=t*2' }, { type: 'sketch', id: 'F2', constraints: [{ id: 'c1', type: 'distance', value: 10, expr: 'w+1' }] }], variables: [{ name: 'w', expr: '9' }, { name: 't', expr: 'w/3' }] } as unknown as PartDoc;

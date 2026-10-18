@@ -12,7 +12,8 @@ type Obj = Record<string, unknown>;
 
 /** Why a part could not be moved: shown as `library.place.fallback.<reason>`. */
 export type PlaceFallback = 'curved' | 'noFrame' | 'noStdRoot' | 'otherPlanes' | 'global' | 'edges' | 'assembly';
-export type Placed = { features: Obj[]; moved: true } | { features: Obj[]; moved: false; why: PlaceFallback };
+export type Placed = { features: Obj[]; moved: true; rotated?: boolean; rotIgnored?: boolean } | { features: Obj[]; moved: false; why: PlaceFallback };
+const ADD_SHAPES = new Set(['extrude', 'revolve', 'loft', 'sweep']);
 
 const FIXED_TYPES = new Set(['insertPart', 'mate', 'moveBody', 'sketch3d', 'freeform', 'editCurve']);
 const isNum3 = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number');
@@ -98,7 +99,7 @@ const r6 = (x: number): number => +x.toFixed(6);
  * part's origin is at the drop point of `target`, its up along the target's normal, standing ON the target plane.
  * `flip` stands it on the other side of a plane (the Direction choice); only a ground target honours it, like the BOSL entries.
  */
-export function placeFeatures(features: Obj[], target: PlaceTarget, flip = false): Placed {
+export function placeFeatures(features: Obj[], target: PlaceTarget, flip = false, rot: 0 | 1 | 2 | 3 = 0): Placed {
   const keep = (why: PlaceFallback): Placed => ({ features, moved: false, why });
   if (target.kind === 'face' && !target.planar) return keep('curved');
   if (target.kind === 'face' && !target.frame) return keep('noFrame');
@@ -134,7 +135,19 @@ export function placeFeatures(features: Obj[], target: PlaceTarget, flip = false
     });
   }
   if (flipped) applyPlacement(features, { flip: true, rot: 0, mirror: false }, [u, v], target.plane ?? { kind: 'std', id: 'front' });
-  return { features, moved: true };
+  // Rotate: one `moveBody` after the part turns everything it made about the plane normal through the drop point. It selects the part's own
+  // lumps by feature id, so other solids in the document stay where they are. On a face the part fuses into the body it stands on: a
+  // rotation would turn that body too, so it is not applied there (the caller says so).
+  if (rot && target.kind === 'ground' && T) {
+    const shapes = features.filter((f) => ADD_SHAPES.has(String(f.type)) && f.op !== 'cut').map((f) => ({ feature: String(f.id) }));
+    if (shapes.length) {
+      const last = features.reduce((m, f) => Math.max(m, /^F(\d+)$/.test(String(f.id)) ? Number(String(f.id).slice(1)) : 0), 0);
+      const origin = [0, 1, 2].map((i) => r6(T.o[i] + u * T.x[i] + v * T.y[i]));
+      features.push({ type: 'moveBody', id: `F${last + 1}`, name: 'Rotate', bodies: shapes, rotate: { axis: [...T.n], origin, angle: rot * 90 } });
+      return { features, moved: true, rotated: true };
+    }
+  }
+  return { features, moved: true, ...(rot ? { rotIgnored: true } : {}) };
 }
 
 function moveEdgeAts(n: unknown, f: (p: V3) => V3): void {

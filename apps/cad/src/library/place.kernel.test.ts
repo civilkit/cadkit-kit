@@ -182,4 +182,21 @@ describe('library parts dropped on a target (against the real kernel)', { skip: 
     expect(r.r, JSON.stringify(r.r)).toEqual({ ok: true });
     expect((await w.stats()).errors).toEqual([]);
   });
+  it('Rotate on a ground drop turns only the dropped part (moveBody by feature id): the slab already in the document stays put', async () => {
+    const w = await world(slab());
+    const target: PlaceTarget = { kind: 'ground', point: [200, 0, 0], plane: { kind: 'std', id: 'front' }, uv: [200, 0], place: { flip: false, rot: 1, mirror: false } };
+    const a = await w.drop(partData(slab(), 'slab-part'), target);
+    expect(a.r.ok).toBe(true);
+    expect(a.steps).toBe(1);
+    expect(a.built.notice).toBeUndefined();
+    const s = await w.stats();
+    expect(s.errors).toEqual([]);
+    expect(s.volume!).toBeCloseTo(2 * BOX, 3);
+    // the new slab (80 x 60 at the drop point (200, 0)) turned 90 degrees counter-clockwise about it: x 140..200, y 0..80; the old one is untouched: x 0..80, y 0..60
+    const box = w.controller.bodyBox()!;
+    expect(box.min).toEqual([0, 0, 0]);
+    expect(box.max[0]).toBeCloseTo(200, 6);
+    expect(box.max[1]).toBeCloseTo(80, 6);
+    expect(box.max[2]).toBeCloseTo(20, 6);
+  });
 });
