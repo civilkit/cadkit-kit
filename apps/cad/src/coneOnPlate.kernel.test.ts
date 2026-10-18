@@ -7,6 +7,7 @@ import loft2211 from './fixtures/coneOnPlate/loft_r22_11.json';
 import thickenCone from './fixtures/coneOnPlate/thicken_cone.json';
 import filletRim from './fixtures/coneOnPlate/fillet_rim.json';
 import filletFoot from './fixtures/coneOnPlate/fillet_foot.json';
+import thickenA21 from './fixtures/coneOnPlate/thicken_a21.json';
 
 // A cone standing on a 55 x 55 x 3 plate (hand testing, 2026-10-18; kernel brief "Task 7" in docs/mimo-briefs-5-6.md).
 // The `it.fails` cases are KNOWN kernel failures: they pass (as failing) today and start to report "expected to fail"
@@ -42,6 +43,12 @@ describe('cone on a plate', { skip: !process.env.CK_WASM }, () => {
   });
   it('a thickened cone sheet (R18.5 to R11.5, 20 high, 2 thick) fuses onto the plate', async () => {
     const r = await build(thickenCone);
+    expect(r.errors).toEqual([]);
+    expect(r.volume).toBeGreaterThan(PLATE + 3000);
+  });
+  // tools/sweep.mjs --templates coneThicken --n 60 --seed 3: ours fails 24 of 60 (the original: 0), mostly when the bottom radius is 15 or more
+  it.fails('a thickened cone with a wide base (R21.5 to R13.5, 27 high, 1 thick) fuses onto the plate', async () => {
+    const r = await build(thickenA21);
     expect(r.errors).toEqual([]);
     expect(r.volume).toBeGreaterThan(PLATE + 3000);
   });
