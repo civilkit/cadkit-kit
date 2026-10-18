@@ -41,257 +41,257 @@
  },
  {
   "id": "bench-ball_knob",
-  "title": "Bench Ball Knob",
+  "title": "Ball Knob",
   "file": "bench-ball_knob.ckpart"
  },
  {
   "id": "bench-bellows",
-  "title": "Bench Bellows",
+  "title": "Bellows",
   "file": "bench-bellows.ckpart"
  },
  {
   "id": "bench-bevel_gear",
-  "title": "Bench Bevel Gear",
+  "title": "Bevel Gear",
   "file": "bench-bevel_gear.ckpart"
  },
  {
   "id": "bench-bolt",
-  "title": "Bench Bolt",
+  "title": "Bolt",
   "file": "bench-bolt.ckpart"
  },
  {
   "id": "bench-bucket",
-  "title": "Bench Bucket",
+  "title": "Bucket",
   "file": "bench-bucket.ckpart"
  },
  {
   "id": "bench-cable_routing_panel",
-  "title": "Bench Cable Routing Panel",
+  "title": "Cable Routing Panel",
   "file": "bench-cable_routing_panel.ckpart"
  },
  {
   "id": "bench-cam",
-  "title": "Bench Cam",
+  "title": "Cam",
   "file": "bench-cam.ckpart"
  },
  {
   "id": "bench-clevis",
-  "title": "Bench Clevis",
+  "title": "Clevis",
   "file": "bench-clevis.ckpart"
  },
  {
   "id": "bench-coil_spring",
-  "title": "Bench Coil Spring",
+  "title": "Coil Spring",
   "file": "bench-coil_spring.ckpart"
  },
  {
   "id": "bench-dome_cap",
-  "title": "Bench Dome Cap",
+  "title": "Dome Cap",
   "file": "bench-dome_cap.ckpart"
  },
  {
   "id": "bench-dovetail_slide",
-  "title": "Bench Dovetail Slide",
+  "title": "Dovetail Slide",
   "file": "bench-dovetail_slide.ckpart"
  },
  {
   "id": "bench-duct_elbow",
-  "title": "Bench Duct Elbow",
+  "title": "Duct Elbow",
   "file": "bench-duct_elbow.ckpart"
  },
  {
   "id": "bench-enclosure",
-  "title": "Bench Enclosure",
+  "title": "Enclosure",
   "file": "bench-enclosure.ckpart"
  },
  {
   "id": "bench-eyebolt",
-  "title": "Bench Eyebolt",
+  "title": "Eyebolt",
   "file": "bench-eyebolt.ckpart"
  },
  {
   "id": "bench-fan_shroud",
-  "title": "Bench Fan Shroud",
+  "title": "Fan Shroud",
   "file": "bench-fan_shroud.ckpart"
  },
  {
   "id": "bench-gridfinity_bin",
-  "title": "Bench Gridfinity Bin",
+  "title": "Gridfinity Bin",
   "file": "bench-gridfinity_bin.ckpart"
  },
  {
   "id": "bench-heat_sink",
-  "title": "Bench Heat Sink",
+  "title": "Heat Sink",
   "file": "bench-heat_sink.ckpart"
  },
  {
   "id": "bench-helical_gear",
-  "title": "Bench Helical Gear",
+  "title": "Helical Gear",
   "file": "bench-helical_gear.ckpart"
  },
  {
   "id": "bench-hex_nut",
-  "title": "Bench Hex Nut",
+  "title": "Hex Nut",
   "file": "bench-hex_nut.ckpart"
  },
  {
   "id": "bench-hinge",
-  "title": "Bench Hinge",
+  "title": "Hinge",
   "file": "bench-hinge.ckpart"
  },
  {
   "id": "bench-i_beam",
-  "title": "Bench I Beam",
+  "title": "I Beam",
   "file": "bench-i_beam.ckpart"
  },
  {
   "id": "bench-j_hook",
-  "title": "Bench J Hook",
+  "title": "J Hook",
   "file": "bench-j_hook.ckpart"
  },
  {
   "id": "bench-motor_end_cap",
-  "title": "Bench Motor End Cap",
+  "title": "Motor End Cap",
   "file": "bench-motor_end_cap.ckpart"
  },
  {
   "id": "bench-nozzle",
-  "title": "Bench Nozzle",
+  "title": "Nozzle",
   "file": "bench-nozzle.ckpart"
  },
  {
   "id": "bench-pan_head_screw",
-  "title": "Bench Pan Head Screw",
+  "title": "Pan Head Screw",
   "file": "bench-pan_head_screw.ckpart"
  },
  {
   "id": "bench-pan_head_screw_top_slot",
-  "title": "Bench Pan Head Screw Top Slot",
+  "title": "Pan Head Screw Top Slot",
   "file": "bench-pan_head_screw_top_slot.ckpart"
  },
  {
   "id": "bench-pipe_elbow",
-  "title": "Bench Pipe Elbow",
+  "title": "Pipe Elbow",
   "file": "bench-pipe_elbow.ckpart"
  },
  {
   "id": "bench-pulley",
-  "title": "Bench Pulley",
+  "title": "Pulley",
   "file": "bench-pulley.ckpart"
  },
  {
   "id": "bench-round_flange",
-  "title": "Bench Round Flange",
+  "title": "Round Flange",
   "file": "bench-round_flange.ckpart"
  },
  {
   "id": "bench-sheet_metal_tray",
-  "title": "Bench Sheet Metal Tray",
+  "title": "Sheet Metal Tray",
   "file": "bench-sheet_metal_tray.ckpart"
  },
  {
   "id": "bench-spline_hub",
-  "title": "Bench Spline Hub",
+  "title": "Spline Hub",
   "file": "bench-spline_hub.ckpart"
  },
  {
   "id": "bench-spur_gear",
-  "title": "Bench Spur Gear",
+  "title": "Spur Gear",
   "file": "bench-spur_gear.ckpart"
  },
  {
   "id": "bench-t_pipe_fitting",
-  "title": "Bench T Pipe Fitting",
+  "title": "T Pipe Fitting",
   "file": "bench-t_pipe_fitting.ckpart"
  },
  {
   "id": "bench-tapered_boss",
-  "title": "Bench Tapered Boss",
+  "title": "Tapered Boss",
   "file": "bench-tapered_boss.ckpart"
  },
  {
   "id": "bench-torsion_spring",
-  "title": "Bench Torsion Spring",
+  "title": "Torsion Spring",
   "file": "bench-torsion_spring.ckpart"
  },
  {
   "id": "bench-torus_link",
-  "title": "Bench Torus Link",
+  "title": "Torus Link",
   "file": "bench-torus_link.ckpart"
  },
  {
   "id": "bench-twisted_drill",
-  "title": "Bench Twisted Drill",
+  "title": "Twisted Drill",
   "file": "bench-twisted_drill.ckpart"
  },
  {
   "id": "bench-u_channel",
-  "title": "Bench U Channel",
+  "title": "U Channel",
   "file": "bench-u_channel.ckpart"
  },
  {
   "id": "bench-venturi_tube",
-  "title": "Bench Venturi Tube",
+  "title": "Venturi Tube",
   "file": "bench-venturi_tube.ckpart"
  },
  {
   "id": "bench-washer",
-  "title": "Bench Washer",
+  "title": "Washer",
   "file": "bench-washer.ckpart"
  },
  {
   "id": "bench-worm_screw",
-  "title": "Bench Worm Screw",
+  "title": "Worm Screw",
   "file": "bench-worm_screw.ckpart"
  },
  {
   "id": "bench-propeller",
-  "title": "Bench Propeller (4 twisted blades)",
+  "title": "Propeller (4 twisted blades)",
   "file": "bench-propeller.ckpart"
  },
  {
   "id": "bench-ratchet_sector",
-  "title": "Bench Ratchet Sector",
+  "title": "Ratchet Sector",
   "file": "bench-ratchet_sector.ckpart"
  },
  {
   "id": "bench-shaft_collar",
-  "title": "Bench Shaft Collar",
+  "title": "Shaft Collar",
   "file": "bench-shaft_collar.ckpart"
  },
  {
   "id": "bench-pipe_flange",
-  "title": "Bench Pipe Flange",
+  "title": "Pipe Flange",
   "file": "bench-pipe_flange.ckpart"
  },
  {
   "id": "bench-piston",
-  "title": "Bench Piston",
+  "title": "Piston",
   "file": "bench-piston.ckpart"
  },
  {
   "id": "bench-pull_handle",
-  "title": "Bench Pull Handle",
+  "title": "Pull Handle",
   "file": "bench-pull_handle.ckpart"
  },
  {
   "id": "bench-vented_panel",
-  "title": "Bench Vented Panel",
+  "title": "Vented Panel",
   "file": "bench-vented_panel.ckpart"
  },
  {
   "id": "bench-waffle_plate",
-  "title": "Bench Waffle Plate",
+  "title": "Waffle Plate",
   "file": "bench-waffle_plate.ckpart"
  },
  {
   "id": "bench-rect_frame",
-  "title": "Bench Rect Frame",
+  "title": "Rect Frame",
   "file": "bench-rect_frame.ckpart"
  },
  {
   "id": "bench-snap_clip",
-  "title": "Bench Snap Clip",
+  "title": "Snap Clip",
   "file": "bench-snap_clip.ckpart"
  },
  {
