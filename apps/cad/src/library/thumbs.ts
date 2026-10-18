@@ -9,6 +9,11 @@ import type { LibraryRegistry } from './registry';
 export type ThumbRenderer = (doc: PartDoc) => Promise<Uint8Array | null>;
 
 const idle = (): Promise<void> => new Promise((res) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(() => res(), { timeout: 2000 }) : setTimeout(res, 30)));
+/** Resolves when the browser is idle and no catalog part is being dragged (the shared gate of every background picture job). */
+export async function whenIdle(): Promise<void> {
+  await idle();
+  while (catalogActive.value) await new Promise((r) => setTimeout(r, 250));
+}
 let chain: Promise<unknown> = Promise.resolve();
 const flight = new Map<string, Promise<Uint8Array | null>>();
 const failed = new Set<string>();
@@ -20,8 +25,7 @@ export function generateThumb(registry: LibraryRegistry, libId: string, partId: 
   const have = flight.get(key);
   if (have) return have;
   const job = chain.then(async () => {
-    await idle();
-    while (catalogActive.value) await new Promise((r) => setTimeout(r, 250));
+    await whenIdle();
     const cached = await registry.generatedThumb(libId, partId);
     if (cached) return cached;
     const data = await registry.part(libId, partId);

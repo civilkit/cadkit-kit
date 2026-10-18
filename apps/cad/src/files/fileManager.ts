@@ -1,9 +1,10 @@
 // The state behind Save, Save As and Recent: the current file name and handle, the part name chosen by Save As, and the
 // recent list. No DOM and no kernel; the platform and storage come in through the constructor, so tests use fakes.
 import type { HandleStore, SavedDocument } from '@kit/platform';
-import { addRecent, dropped, readRecent, type RecentEntry } from './recent';
+import { addRecent, dropped, readRecent, readRecentThumbs, setRecentThumb, type RecentEntry } from './recent';
 import { createNameCounter, partNameOf, PART_EXT } from './names';
 import type { KV } from './storage';
+import { thumbnailUrl, type DocThumbnail } from './docThumb';
 
 export interface FilePlatform {
   saveDocument?(name: string, data: string, opts?: { handle?: unknown; pick?: boolean }): Promise<SavedDocument | null>;
@@ -31,6 +32,14 @@ export class FileManager {
 
   recent(): RecentEntry[] { return readRecent(this.kv); }
 
+  /** Pictures of the recent files (data URLs by file name), kept beside the recent list. */
+  recentThumbs(): Record<string, string> { return readRecentThumbs(this.kv); }
+  /** Remember the picture of a file just saved or opened (only if it is in the recent list). */
+  noteThumb(file: string, t: DocThumbnail | null): void {
+    if (!t || !this.recent().some((e) => e.kind === 'file' && e.id === file)) return;
+    setRecentThumb(this.kv, file, thumbnailUrl(t), this.recent());
+  }
+
   /** A part was loaded: forget the previous file and name. `file` is set when it came from a file the user chose. */
   opened(file: string | null, handle: unknown | null = null): void {
     this.fileName = file; this.handle = handle; this.partName = null;
@@ -49,16 +58,18 @@ export class FileManager {
     const before = this.recent();
     const after = addRecent(this.kv, e);
     for (const d of dropped(before, after)) void this.store?.delete(d.id).catch(() => {});
+    setRecentThumb(this.kv, null, '', after);   // forget the pictures of entries that left the list
   }
 
   /**
    * Write the document. `saveAs` asks for a new file (the browser's picker, or the `name` the Save As dialog gave).
    * The document's name inside the file is the part name chosen (or the document's own).
    */
-  async save(doc: { name: string }, opts: { saveAs?: boolean; fileName?: string } = {}): Promise<SaveOutcome> {
+  async save(doc: { name: string }, opts: { saveAs?: boolean; fileName?: string; /** written as the file's `thumbnail` field */ thumbnail?: DocThumbnail | null } = {}): Promise<SaveOutcome> {
     const part = opts.fileName ? partNameOf(opts.fileName) : this.partName ?? doc.name ?? 'Part1';
     const file = opts.fileName ?? this.fileName ?? `${part || 'part'}${PART_EXT}`;
-    const data = JSON.stringify({ ...doc, name: part }, null, 1);
+    const { thumbnail: _old, ...body } = doc as { name: string; thumbnail?: unknown };
+    const data = JSON.stringify(opts.thumbnail ? { ...body, name: part, thumbnail: opts.thumbnail } : { ...body, name: part }, null, 1);
     try {
       let saved: SavedDocument | null;
       if (this.platform.saveDocument) {
@@ -75,6 +86,7 @@ export class FileManager {
       // a picker may have chosen a different name than asked for: it wins
       this.partName = opts.fileName || opts.saveAs ? partNameOf(saved.name) : this.partName;
       this.record({ kind: 'file', id: saved.name, name: saved.name, at: this.now(), handle: saved.handle !== null });
+      this.noteThumb(saved.name, opts.thumbnail ?? null);
       if (saved.handle !== null) await this.store?.set(saved.name, saved.handle).catch(() => {});
       return { ok: true, file: saved.name, partName: this.partName ?? part };
     } catch (e) {

@@ -40,3 +40,21 @@ export function addRecent(kv: KV | null, e: RecentEntry): RecentEntry[] {
 export function dropped(before: RecentEntry[], after: RecentEntry[]): RecentEntry[] {
   return before.filter((b) => b.handle && !after.some((a) => a.kind === b.kind && a.id === b.id));
 }
+
+export const RECENT_THUMBS_KEY = 'cad.recent.thumbs.v1';
+/** Pictures of recent files, data URLs by file name. */
+export function readRecentThumbs(kv: KV | null): Record<string, string> {
+  try {
+    const v = JSON.parse(kv?.getItem(RECENT_THUMBS_KEY) ?? '{}') as unknown;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([, u]) => typeof u === 'string' && u.startsWith('data:image/png;base64,')) as Array<[string, string]>);
+  } catch { return {}; }
+}
+/** Set (or with `id` null just prune) the pictures: only files that are in `list` keep one. */
+export function setRecentThumb(kv: KV | null, id: string | null, url: string, list: RecentEntry[]): void {
+  if (!kv) return;
+  const have = readRecentThumbs(kv);
+  if (id !== null) have[id] = url;
+  const keep = Object.fromEntries(Object.entries(have).filter(([k]) => list.some((e) => e.kind === 'file' && e.id === k)));
+  try { kv.setItem(RECENT_THUMBS_KEY, JSON.stringify(keep)); } catch { /* quota: pictures are a convenience */ }
+}

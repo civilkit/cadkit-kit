@@ -29,7 +29,7 @@ export const filesEn = {
   'files.fcstd.clean': 'Imported {name} from FreeCAD: all {total} features mapped.',
   'files.fcstd.failed': 'Could not import {name}: {message}',
   'files.step.noKernel': 'Open or create a part first, then import the STEP file.',
-  'files.recent.title': 'Recent', 'files.recent.sample': 'Sample', 'files.recent.file': 'File',
+  'files.recent.title': 'Recent', 'files.recent.sample': 'Sample', 'files.recent.file': 'File', 'files.recent.noPreview': 'No preview yet',
   'files.recent.noHandle': '"{name}" can only be reopened with Open: the browser did not keep access to the file.',
   'files.recent.denied': 'The browser did not give access to "{name}" again. Use Open to pick it.',
   'files.recent.gone': 'Could not read "{name}" any more. Use Open to pick it.',

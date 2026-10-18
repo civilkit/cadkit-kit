@@ -43,6 +43,9 @@ import { useInspect } from './inspect/useInspect';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { FileManager } from './files/fileManager';
+import { stripThumbnail } from './files/docThumb';
+import { createSaveThumbs } from './files/saveThumb';
+import { whenIdle } from './library/thumbs';
 import { browserKV } from './files/storage';
 import { withCacheCap } from './kernelCaps';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
@@ -260,6 +263,8 @@ function App() {
   const [guard, setGuard] = useState<(() => void) | null>(null);
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
+  /** The picture written into a file on Save: kept outside the document, so it never counts as a change or a history step. */
+  const saveThumbs = useMemo(() => createSaveThumbs({ render: makeThumbRenderer(controller), hasSolid: () => controller.hasSolid(), idle: whenIdle }), []);
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
@@ -486,7 +491,8 @@ function App() {
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
-      const doc = JSON.parse(text) as PartDoc;
+      const { doc, thumbnail } = stripThumbnail(JSON.parse(text) as PartDoc);   // the file's picture is not part of the document
+      saveThumbs.remember(thumbnail);
       asmState.reset(doc);
       // While the part loads, controller.document() already changes (and a render can land in between) but the clean
       // signature is still the old part's: that read as "modified". null means "not tracked", so nothing is dirty until markClean.
@@ -495,7 +501,7 @@ function App() {
       await timed(() => controller.load(doc));
       if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
       else { markClean(); autosaver.clear(); }
-      if (!o.keep) { files.opened(o.file ?? null); if (o.file) files.noteFile(o.file); }
+      if (!o.keep) { files.opened(o.file ?? null); if (o.file) { files.noteFile(o.file); files.noteThumb(o.file, thumbnail); } }
       files.names.seen(doc.name);
       setEditingId(null); setEditingMaterial(false); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
@@ -634,7 +640,7 @@ function App() {
     const d = controller.document();
     if (!d) return;
     if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
-    finishSave(await files.save(d, { saveAs }));
+    finishSave(await files.save(d, { saveAs, thumbnail: await saveThumbs.forSave(d) }));
   };
   /** STEP text into a new part named after the file (view only, see files/stepImport.ts). */
   const importStepText = (text: string, file: string) => guarded(async () => {
@@ -2154,7 +2160,7 @@ function App() {
           drawerOpen={ws.drawerOpen} onToggleDrawer={toggleDrawer} />
       </div>
       {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
-      {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} onPickRecent={openRecent}
+      {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
       {recoverOpen ? <RecoverDialog load={() => snapshots.list()} onClose={() => setRecoverOpen(false)} onRestore={(sn) => { setRecoverOpen(false); void load(JSON.stringify(sn.doc), { restored: true }); }} /> : null}
       {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
@@ -2162,7 +2168,7 @@ function App() {
         onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
         onRestore={() => { const a = restore; setRestore(null); void load(JSON.stringify(a.doc), { restored: true }); }} /> : null}
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
-        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName })); }} /> : null}
+        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d) })); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}

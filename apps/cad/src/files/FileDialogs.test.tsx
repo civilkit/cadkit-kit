@@ -98,6 +98,26 @@ describe('Recent section of the Samples dialog', () => {
     fireEvent.input(screen.getByPlaceholderText('Filter samples'), { target: { value: 'bol' } });
     expect(screen.queryByLabelText('Recent')).toBeNull();
   });
+  it('shows a small lazy picture on each recent card (sample file, saved picture), and the category icon when there is none or it fails', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    const recent = [
+      { kind: 'file' as const, id: 'a.ckpart', name: 'a.ckpart', at: Date.now() },
+      { kind: 'file' as const, id: 'gear.ckpart', name: 'gear.ckpart', at: Date.now() },
+      { kind: 'sample' as const, id: 'bolt', name: 'Bolt', at: Date.now(), url: '/s/bolt' },
+      { kind: 'sample' as const, id: 'gone', name: 'Gone', at: Date.now(), url: '/s/gone' },
+    ];
+    render(<SamplesDialog samples={samples} thumbBase="/app/" onPick={() => {}} onClose={() => {}} recent={recent} recentThumbs={{ 'a.ckpart': png }} />);
+    fireEvent.input(screen.getByPlaceholderText('Filter samples'), { target: { value: '' } });   // the filter text outlives a close
+    const block = screen.getByLabelText('Recent');
+    const imgs = Array.from(block.querySelectorAll('img'));
+    expect(imgs.map((i) => i.getAttribute('src'))).toEqual([png, '/app/samples/thumbs/bolt.webp', '/app/samples/thumbs/gone.webp']);
+    expect(imgs.every((i) => i.getAttribute('loading') === 'lazy')).toBe(true);
+    expect(block.querySelectorAll('[data-fallback]').length).toBe(1);   // gear.ckpart has no picture
+    expect(block.querySelector('[data-fallback] svg[data-glyph="gear"]')).not.toBeNull();
+    expect(block.querySelector('[data-fallback]')?.getAttribute('title')).toBe('No preview yet');
+    fireEvent.error(imgs[2]);   // a sample thumbnail that does not load
+    expect(block.querySelectorAll('[data-fallback]').length).toBe(2);
+  });
   it('has no Recent section when there is nothing recent', () => {
     render(<SamplesDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={[]} />);
     expect(screen.queryByLabelText('Recent')).toBeNull();
