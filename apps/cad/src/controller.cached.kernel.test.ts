@@ -143,4 +143,32 @@ describe('cached open', { skip: !process.env.CK_WASM }, () => {
     await c.setRollback(null);
     expect(c.viewData()).not.toBeNull();
   }, 120_000);
+
+  // CACHE_MEASURE=1 CK_WASM=... npx vitest run apps/cad/src/controller.cached.kernel.test.ts -t measure
+  it.skipIf(!process.env.CACHE_MEASURE)('measure: open time with and without the stored view', async () => {
+    for (const name of ['bench-fan_shroud', 'heavy/matx-case']) {
+      const doc = sample(name);
+      const ms = (t0: number) => Math.round(performance.now() - t0);
+      let g = gated(false); let s = sink();
+      let c = new Controller({ store: createStore(), view: s.view, kernel: g.kernel });
+      let t0 = performance.now();
+      await c.load(doc);
+      const cold = ms(t0);
+      const data = c.viewData()!;
+      const tri = (data.body as { mesh: { triFace: ArrayLike<number> } }).mesh.triFace.length;
+      t0 = performance.now(); const bytes = await encodeSnapshot({ key: 'k', build: 'b', savedAt: 1, data }); const enc = ms(t0);
+      const { recipeKey } = await import('./files/viewCache');
+      t0 = performance.now(); const key = await recipeKey(doc); const hashMs = ms(t0);
+      t0 = performance.now(); const back = await decodeSnapshot(bytes); const dec = ms(t0);
+      g = gated(true); s = sink();
+      c = new Controller({ store: createStore(), view: s.view, kernel: g.kernel });
+      t0 = performance.now();
+      await c.load(doc, { cached: back!.data });
+      const show = ms(t0);
+      g.release(); await c.settled();
+      const rawMesh = (data.body as { mesh: { positions: Float32Array; normals: Float32Array } }).mesh;
+      console.log(`measure ${name}: ${doc.features.length} features, ${tri} triangles; cold load ${cold} ms (native node wasm, kernel already warm); stored view ${Math.round(bytes.length / 1024)} KB `
+        + `(raw mesh ${Math.round((rawMesh.positions.byteLength + rawMesh.normals.byteLength) / 1024)} KB); encode ${enc} ms; recipe hash ${hashMs} ms (${key.slice(0, 8)}); decode ${dec} ms; cached view on screen after ${show} ms`);
+    }
+  }, 900_000);
 });
