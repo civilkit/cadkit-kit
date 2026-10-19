@@ -10,6 +10,7 @@ import { defaultShellThickness } from './editorFixes';
 import { t } from './i18n';
 import { newHole, type HolePrefs } from './holeData';
 import { cylindersOfFaces, sameSizeFaces } from './threadData';
+import { chainSelection, rememberRoundPick } from './roundChain';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
@@ -52,6 +53,15 @@ export function edgeRefs(selection: string[], edges: ViewEdge[]): EdgeRef[] {
   return out;
 }
 
+/** The selected edges as references, with the edges that continue them tangentially when `chain` is on (what the Fillet and Chamfer commands round). */
+export function chainedEdgeRefs(selection: string[], edges: ViewEdge[], chain: boolean): EdgeRef[] {
+  const seeds = edgeRefs(selection, edges);
+  if (!chain || !seeds.length) return seeds;
+  const all = edgeRefs(chainSelection(selection, edges).keys, edges);
+  rememberRoundPick(seeds, all);
+  return all;
+}
+
 /** The selected faces, by name. */
 export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:') && !n.startsWith('v:'));
 
@@ -74,17 +84,17 @@ export function faceEdgeRefs(faces: string[], edges: ViewEdge[]): EdgeRef[] {
 
 /** What a fillet or chamfer rounds for this selection: the selected edges (edge mode), else the edges shared by the selected faces (two or more). */
 export function roundTargets(c: Ctx): { edges: EdgeRef[]; viaFaces: boolean } {
-  const direct = c.mode === 'edge' || c.mode === 'vertex' ? edgeRefs(c.selection, c.edges) : [];
+  const direct = c.mode === 'edge' || c.mode === 'vertex' ? chainedEdgeRefs(c.selection, c.edges, !!c.tangentChain) : [];
   if (direct.length) return { edges: direct, viaFaces: false };
   const faces = faceNames(c.selection);
   return faces.length >= 2 ? { edges: faceEdgeRefs(faces, c.edges), viaFaces: true } : { edges: [], viaFaces: false };
 }
 
 /** What a reference field takes from the current selection: the edge references, the face names, or the first name. Null when nothing fits. */
-export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {
+export function pickValue(path: string, selection: string[], edges: ViewEdge[], chain = false): unknown {
   if (path === 'edges') {
     // an open border edge of a surface body has one face; surface edits (fill, extend) take those, fillets take the two-face edges
-    const r = edgeRefs(selection, edges);
+    const r = chainedEdgeRefs(selection, edges, chain);
     const keys = new Set(edges.filter((e) => e.faces?.length === 1).map((e) => e.key));
     const faces = faceNames(selection);
     if (!r.length && faces.length >= 2) { const f = faceEdgeRefs(faces, edges); if (f.length) return f; }
@@ -110,6 +120,8 @@ export interface Ctx {
   selectedIds?: string[];
   /** The standard plane (front / top / right) chosen in the tree or the viewport, if any. */
   refPlane?: string | null;
+  /** Fillet and chamfer also round the edges that continue the selected ones tangentially (the "Tangent chain" choice). */
+  tangentChain?: boolean;
 }
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];

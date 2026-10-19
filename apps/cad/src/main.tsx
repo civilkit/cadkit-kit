@@ -16,6 +16,7 @@ import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, editorFixes } from './editorFixes';
 import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
+import { tangentChainOn, chainSelection } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
@@ -402,7 +403,12 @@ function App() {
     ro.observe(host.current!);
     return () => { ro.disconnect(); vp.dispose(); viewport = null; };
   }, []);
-  useEffect(() => { viewport?.setHighlight(store.selection.value); }, [store.selection.value]);
+  // With edges picked and no editor open, the edges a Fillet or Chamfer would add through the tangent chain are lit as well, so they show before the command runs
+  useEffect(() => {
+    const sel = store.selection.value;
+    const chain = store.mode.value === 'edge' && (!editingId || pickingPath === 'edges') && !sketching && sel.length && tangentChainOn() ? chainSelection(sel, controller.bodyEdges()).extras : [];
+    viewport?.setHighlight(chain.length ? [...sel, ...chain] : sel);
+  }, [store.selection.value, store.mode.value, editingId, pickingPath, sketching]);
   // The Plane being edited (or selected in the tree) is drawn as a sheet so its offset can be seen.
   useEffect(() => {
     const id = editingId ?? selectedId;
@@ -413,7 +419,7 @@ function App() {
   useEffect(() => {
     if (!pickingPath) return;
     const list = LIST_PATHS.has(pickingPath);
-    const value = pickValue(pickingPath, store.selection.value, controller.bodyEdges());
+    const value = pickValue(pickingPath, store.selection.value, controller.bodyEdges(), tangentChainOn());
     if (value !== null) { setPicked({ path: pickingPath, value }); if (!list) setPickingPath(null); }
   }, [store.selection.value, pickingPath]);
   useEffect(() => {
@@ -713,7 +719,7 @@ function App() {
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
-    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel }),
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel, tangentChain: tangentChainOn() }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
@@ -1809,7 +1815,7 @@ function App() {
       onPickRequest={(path) => {
         if (LIST_PATHS.has(path)) {   // edge and face lists: fill from the selection now, keep following it until Done
           if (pickingPath === path) { setPickingPath(null); return; }
-          const value = pickValue(path, store.selection.value, controller.bodyEdges());
+          const value = pickValue(path, store.selection.value, controller.bodyEdges(), tangentChainOn());
           if (value !== null) setPicked({ path, value });
           setPickingPath(path);
           return;

@@ -20,6 +20,17 @@ const box = (centred = false): PartDoc => ({
   seq: 3,
 }) as unknown as PartDoc;
 
+/** The 40 x 25 rectangle with 4 mm rounded corners (4 lines and 4 arcs, e1..e8), extruded 10. */
+const rounded = (): PartDoc => {
+  const pt = (id: string, x: number, y: number) => ({ id, x, y });
+  const points = [{ id: 'O', x: 0, y: 0, fixed: true }, pt('a1', 4, 0), pt('a2', 36, 0), pt('a3', 40, 4), pt('a4', 40, 21), pt('a5', 36, 25), pt('a6', 4, 25), pt('a7', 0, 21), pt('a8', 0, 4), pt('c1', 36, 4), pt('c2', 36, 21), pt('c3', 4, 21), pt('c4', 4, 4)];
+  const entities = [
+    { id: 'e1', type: 'line', p1: 'a1', p2: 'a2' }, { id: 'e2', type: 'arc', c: 'c1', p1: 'a2', p2: 'a3' }, { id: 'e3', type: 'line', p1: 'a3', p2: 'a4' }, { id: 'e4', type: 'arc', c: 'c2', p1: 'a4', p2: 'a5' },
+    { id: 'e5', type: 'line', p1: 'a5', p2: 'a6' }, { id: 'e6', type: 'arc', c: 'c3', p1: 'a6', p2: 'a7' }, { id: 'e7', type: 'line', p1: 'a7', p2: 'a8' }, { id: 'e8', type: 'arc', c: 'c4', p1: 'a8', p2: 'a1' },
+  ];
+  return { ...emptyPart('Plate'), features: [{ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points, entities, constraints: [] }, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 10 }], seq: 3 } as unknown as PartDoc;
+};
+
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 
@@ -35,8 +46,9 @@ async function world(doc: PartDoc) {
   const pending: Promise<unknown>[] = [];
   const notices: string[] = [];
   let selectedId: string | null = null;
+  let chain = false;
   const actions: FeatureActions = {
-    context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
+    context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, tangentChain: chain }),
     create: (ops) => { pending.push(controller.edit(ops)); },
     holeOnFace: () => {},
     addThread: () => {},
@@ -53,7 +65,7 @@ async function world(doc: PartDoc) {
     const mass = (await s.massProps()) as { volume: number };
     return { errors: report.regen.errors.map(([id, e]) => `${id}:${e.code}`), volume: mass.volume, faces: new Set(body?.mesh.faceIds).size, box: body?.box ?? null };
   };
-  return { store, controller, cmd, run, stats, notices, select: (names: string[], mode: 'face' | 'edge') => { store.mode.value = mode; store.select(names); }, setSelected: (id: string | null) => { selectedId = id; }, doc: () => controller.document()! };
+  return { store, controller, cmd, run, stats, notices, select: (names: string[], mode: 'face' | 'edge') => { store.mode.value = mode; store.select(names); }, setSelected: (id: string | null) => { selectedId = id; }, setChain: (on: boolean) => { chain = on; }, doc: () => controller.document()! };
 }
 
 const lastFeature = (w: Awaited<ReturnType<typeof world>>) => w.doc().features.at(-1) as unknown as Record<string, unknown>;
@@ -96,6 +108,34 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.errors).toEqual([]);
     expect(after.faces).toBe(7);
     expect(after.volume).toBeLessThan(base.volume);
+  });
+
+  it('tangent chain: one edge of a rounded plate outline brings the other seven; off, it is just the one', async () => {
+    const off = await world(rounded());
+    off.select([edgeKey(off, 'F2.C1', 'F2.S.e1')], 'edge');
+    await off.run('add-fillet');
+    expect((lastFeature(off).edges as unknown[]).length).toBe(1);
+
+    const w = await world(rounded());
+    w.setChain(true);
+    w.select([edgeKey(w, 'F2.C1', 'F2.S.e1')], 'edge');
+    await w.run('add-fillet');
+    const edges = lastFeature(w).edges as Array<{ faces: string[] }>;
+    expect(edges.length).toBe(8);
+    expect(new Set(edges.map((e) => e.faces[1])).size).toBe(8);   // one per wall segment
+  });
+
+  it('a circular boss: one edge of the top ring is enough to get the whole ring with the chain on', async () => {
+    const disc: PartDoc = { ...emptyPart('Disc'), features: [{ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'c', x: 0, y: 0, fixed: true }], entities: [{ id: 'k1', type: 'circle', c: 'c', r: 10 }], constraints: [] }, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 5 }], seq: 3 } as unknown as PartDoc;
+    const w = await world(disc);
+    w.setChain(true);
+    const ring = w.controller.bodyEdges().filter((e) => e.faces?.includes('F2.C1'));
+    expect(ring.length).toBeGreaterThan(0);
+    w.select([ring[0].key!], 'edge');
+    await w.run('add-fillet');
+    expect((lastFeature(w).edges as unknown[]).length).toBe(ring.length);
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
   });
 
   it('chamfer: same rule, adds a chamfer face', async () => {

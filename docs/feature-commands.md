@@ -21,6 +21,15 @@ Default size: about 5% of the smallest bounding-box dimension of the body on scr
 
 The pattern repeats the feature selected in the tree, else the last feature that is not a sketch or pattern.
 
+## Tangent chain (fillet, chamfer)
+
+With "Tangent chain" on (default; Fillet and Chamfer editor panels, remembered per browser as `cad.tangentChain`), picking an edge also
+rounds the edges that continue it tangentially: they meet at an end vertex, share a face, and leave it in opposite directions within
+1 degree (tangents of arcs are the exact circle tangent, so coarse tessellation does not matter); and the other arcs of a ring split
+into arcs (same two faces, same circle). Logic: `tangentChain.ts` (pure, tested on synthetic polylines); `roundChain.ts` (preference,
+selection expansion, remembered picks). While edges are selected, the edges the chain would add are lit as well, before the command
+runs. The panel toggle re-applies the choice to the feature's own edge list when it came from a known pick. Face fillets do not chain.
+
 ## Disabled buttons say why
 
 A command may carry `why()` (a sentence); the ribbon, palette and flyout tooltips show it while the command is disabled, and the

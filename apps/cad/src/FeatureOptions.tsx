@@ -16,6 +16,7 @@ import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
 } from './thinRules';
 import { sketchOpenChains } from '@kit/sketch';
+import { roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
 import { loftAutoOrder, loftPointIssue } from './featureCreators';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
@@ -183,6 +184,19 @@ function ThinSection(p: { eff: Wire; change: Change; doc: PartDoc | null; action
   );
 }
 
+/** "Tangent chain" (fillet and chamfer): on, the edges that continue the picked ones tangentially are rounded too. Switching it re-applies the choice to the feature's own edge list when it came from a known pick. */
+function TangentChain(p: { eff: Wire; change: Change }): JSX.Element {
+  const [on, setOn] = useState(tangentChainOn());
+  const pick = roundPickOf(p.eff.edges);
+  const added = pick && Array.isArray(p.eff.edges) ? Math.max(0, p.eff.edges.length - pick.seeds.length) : 0;
+  return (
+    <>
+      <Check name="tangentChain" label={t('opt.round.chain')} value={on} onChange={(v) => { setTangentChain(v); setOn(v); if (pick) p.change({ edges: v ? pick.all : pick.seeds }); }} />
+      {added > 0 ? <div class="fedit-note" data-path="tangentChainNote">{t('opt.round.chain.added', { n: String(added) })}</div> : null}
+    </>
+  );
+}
+
 function ChamferOptions(p: { eff: Wire; change: Change }): JSX.Element {
   const { eff, change } = p;
   const type = chamferTypeOf(eff);
@@ -193,6 +207,7 @@ function ChamferOptions(p: { eff: Wire; change: Change }): JSX.Element {
       <Num name="distance" label={first} value={eff.distance} unit="mm" onChange={(v) => change({ distance: v })} />
       {type === 'distances' ? <Num name="distance2" label={t('opt.chamfer.distance2')} value={eff.distance2} unit="mm" onChange={(v) => change({ distance2: v })} /> : null}
       {type === 'angle' ? <Num name="angle" label={t('opt.chamfer.angle')} value={eff.angle} unit="°" onChange={(v) => change({ angle: v })} /> : null}
+      <TangentChain eff={eff} change={change} />
     </Section>
   );
 }
@@ -213,6 +228,7 @@ function FilletOptions(p: { eff: Wire; change: Change }): JSX.Element {
       <Select name="profile" label={t('opt.fillet.profile')} value={profile} options={FILLET_PROFILES.map((f): [string, string] => [f, t('opt.fillet.profile.' + f)])} onChange={(v) => change(patchFilletProfile(eff, v as FilletProfile))} />
       {profile === 'conic' ? <Num name="rho" label={t('opt.fillet.rho')} value={eff.rho ?? 0.5} unit="" onChange={(v) => change({ rho: v })} /> : null}
       {profile === 'curvature' ? <Num name="shape" label={t('opt.fillet.shape')} value={eff.shape ?? 0.5} unit="" onChange={(v) => change({ shape: v })} /> : null}
+      <TangentChain eff={eff} change={change} />
     </Section>
   );
 }

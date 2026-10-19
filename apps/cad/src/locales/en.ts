@@ -627,6 +627,7 @@ export const en: Catalog = {
   'opt.flip': 'Flip direction', 'opt.draft': 'Draft angle', 'opt.draftOut': 'Draft outward',
   'opt.chamfer.type': 'Chamfer type', 'opt.chamfer.type.equal': 'Equal distance', 'opt.chamfer.type.distances': 'Two distances', 'opt.chamfer.type.angle': 'Distance and angle',
   'opt.chamfer.distance': 'Distance', 'opt.chamfer.distance1': 'Distance 1', 'opt.chamfer.distance2': 'Distance 2', 'opt.chamfer.angle': 'Angle',
+  'opt.round.chain': 'Tangent chain', 'opt.round.chain.added': '{n} more edge(s) added through the tangent chain',
   'opt.fillet.variable': 'Variable radius', 'opt.fillet.radius': 'Radius', 'opt.fillet.chord': 'Chord width', 'opt.fillet.radius0': 'Start radius', 'opt.fillet.radius1': 'End radius', 'opt.fillet.chord0': 'Start chord width', 'opt.fillet.chord1': 'End chord width',
   'opt.fillet.profile': 'Profile', 'opt.fillet.profile.circular': 'Circular', 'opt.fillet.profile.conic': 'Conic', 'opt.fillet.profile.chord': 'Chordal', 'opt.fillet.profile.curvature': 'Curvature continuous (G2)',
   'opt.fillet.rho': 'Conic ratio (0 to 1)', 'opt.fillet.shape': 'Shape (0.1 to 1)',

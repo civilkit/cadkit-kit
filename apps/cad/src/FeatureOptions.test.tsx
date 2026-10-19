@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
 import { FeatureEditor } from '@kit/ui';
 import { optionsFor } from './FeatureOptions';
+import { rememberRoundPick, tangentChainOn } from './roundChain';
 import './i18n';
 
 afterEach(cleanup);
@@ -158,5 +159,31 @@ describe('other features', () => {
   it('a hole or rib keeps the plain editor', () => {
     const m = mount({ type: 'rib', id: 'F4', sketch: 'F1', thickness: 2 });
     expect(m.container.querySelector('[data-section]')).toBeNull();
+  });
+});
+
+describe('tangent chain toggle (fillet and chamfer)', () => {
+  const seeds = [{ faces: ['T', 'A'], at: [1, 0, 0] }];
+  const all = [...seeds, { faces: ['T', 'B'], at: [2, 0, 0] }, { faces: ['T', 'C'], at: [3, 0, 0] }];
+  it('is on by default, and switching it re-applies the choice to the feature\'s edges', () => {
+    try { localStorage.removeItem('cad.tangentChain'); } catch { /* */ }
+    rememberRoundPick(seeds, all);
+    const m = mount({ type: 'fillet', id: 'F3', radius: 2, edges: all });
+    expect(m.box('tangentChain').checked).toBe(true);
+    expect(m.q('tangentChainNote')!.textContent).toContain('2');
+    fireEvent.click(m.box('tangentChain'));
+    expect(m.drafts.at(-1)).toMatchObject({ edges: seeds });
+    expect(tangentChainOn()).toBe(false);
+    fireEvent.click(m.box('tangentChain'));
+    expect(m.drafts.at(-1)).toMatchObject({ edges: all });
+    expect(tangentChainOn()).toBe(true);
+  });
+  it('chamfer has it too; an edge list of unknown origin is left alone', () => {
+    const m = mount({ type: 'chamfer', id: 'F4', chamferType: 'equal', distance: 1, edges: [{ faces: ['X', 'Y'], at: [9, 9, 9] }] });
+    expect(m.q('tangentChain')).not.toBeNull();
+    const before = m.drafts.length;
+    fireEvent.click(m.box('tangentChain'));
+    expect(m.drafts.slice(before).some((d) => 'edges' in d)).toBe(false);
+    fireEvent.click(m.box('tangentChain'));
   });
 });

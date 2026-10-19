@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PSEUDO, setLocale } from '@kit/i18n';
 import { buildCommands, type Actions } from './commands';
-import { canFillet, faceEdgeRefs, filletOps, filletWhy, chamferOps, featureCommands, roundTargets, canHole, canPattern, canRevolve, canShell, edgeRefs, niceSize, pickValue, type Ctx } from './featureCommands';
+import { chainedEdgeRefs, canFillet, faceEdgeRefs, filletOps, filletWhy, chamferOps, featureCommands, roundTargets, canHole, canPattern, canRevolve, canShell, edgeRefs, niceSize, pickValue, type Ctx } from './featureCommands';
 import { en } from './locales/en';
 import './i18n';
 
@@ -135,5 +135,27 @@ describe('fillet and chamfer from faces', () => {
     const c = ctx({ doc: { features: [] } as never, selection: [], box: null });
     const cmds = featureCommands({ context: () => c, create() {}, holeOnFace() {}, holeFlip: () => false, addThread() {}, notify() {} });
     for (const id of ['add-fillet', 'add-chamfer', 'add-shell']) { const x = cmds.find((k) => k.id === id)!; expect(x.enabled!()).toBe(false); expect(x.why!()).toBeTruthy(); }
+  });
+});
+
+describe('tangent chain in the commands', () => {
+  // an L of two collinear edges on faces T/A and T/B, plus one at a right angle on T/C
+  const e = (key: string, faces: string[], a: number[], b: number[]) => ({ key, faces, mid: a.map((x, i) => (x + b[i]) / 2), pts: [a, b] });
+  const el = [e('T|A#1', ['T', 'A'], [0, 0, 0], [10, 0, 0]), e('T|B#2', ['T', 'B'], [10, 0, 0], [20, 0, 0]), e('T|C#3', ['T', 'C'], [20, 0, 0], [20, 10, 0])];
+  const cctx = (over: Partial<Ctx>) => ctx({ mode: 'edge', selection: ['T|A#1'], edges: el, ...over });
+  it('off: only the picked edge; on: the edge that continues it, not the one at a corner', () => {
+    expect(edgeRefs(['T|A#1'], el)).toHaveLength(1);
+    const off = filletOps(cctx({ tangentChain: false }))![0] as unknown as { feature: { edges: unknown[] } };
+    expect(off.feature.edges).toHaveLength(1);
+    const on = filletOps(cctx({ tangentChain: true }))![0] as unknown as { feature: { edges: Array<{ faces: string[] }> } };
+    expect(on.feature.edges.map((x) => x.faces[1])).toEqual(['A', 'B']);
+    expect(chamferOps(cctx({ tangentChain: true }))![0]).toMatchObject({ feature: { type: 'chamfer' } });
+  });
+  it('the Editor\'s edge field follows the same rule', () => {
+    expect(pickValue('edges', ['T|A#1'], el, true)).toHaveLength(2);
+    expect(pickValue('edges', ['T|A#1'], el)).toHaveLength(1);
+  });
+  it('picking a middle edge also finds both neighbours', () => {
+    expect(chainedEdgeRefs(['T|B#2'], el, true)).toHaveLength(2);   // B continues A; C is a corner
   });
 });
