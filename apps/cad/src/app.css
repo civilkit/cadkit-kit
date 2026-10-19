@@ -31,7 +31,9 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .selmodes kbd { background: transparent; border-color: currentColor; opacity: .7; }
 .empty { color: var(--text-2); padding: 12px; }
 /* left panel tabs */
-.ptabs { display: flex; gap: 2px; padding: 8px; justify-content: space-between; }
+.tree-wrap.tabbed { display: flex; flex-direction: column; overflow: hidden; }
+.ptab-body { flex: 1 1 0; min-height: 0; overflow: auto; }
+.ptabs { flex: none; background: var(--panel); display: flex; gap: 2px; padding: 8px; justify-content: space-between; }
 .ptabs .pt { flex: 1; border: 0; border-radius: 8px; padding: 7px 5px; min-width: 0; flex: 0 1 auto; background: none; color: var(--text-2); cursor: pointer; font: 600 10px system-ui; text-transform: uppercase; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ptabs .pt[aria-selected="true"] { background: var(--chip); color: var(--text); }
 .ptabs .pt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }

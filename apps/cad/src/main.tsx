@@ -1928,7 +1928,7 @@ function App() {
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
   const left = ws.leftPanel === 'hidden' ? null : (
-    <div class={'tree-wrap ' + ws.leftPanel}>
+    <div class={'tree-wrap ' + ws.leftPanel + (ws.leftTabs ? ' tabbed' : '')}>
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
@@ -1938,12 +1938,14 @@ function App() {
               return <button key={id} class="pt" aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
+          <div class="ptab-body">
           {leftTab === 'Outliner' ? outliner : leftTab === 'Features' ? leftBody
             : leftTab === 'Catalog' ? catalogPanel
             : leftTab === 'Variables' ? variablesPanel
             : leftTab === 'Script' ? scriptPanel
             : leftTab === 'Bodies' ? bodiesPanel
             : editor}
+          </div>
         </>
       ) : leftBody}
     </div>
