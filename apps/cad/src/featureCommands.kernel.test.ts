@@ -5,6 +5,8 @@ import { createStore } from '@kit/store';
 import { DEFAULT_SETTINGS, pointTool } from '@kit/sketch';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { DEFAULT_PREFS } from './holeData';
+import { adviceOf } from './diagnosticsText';
+import './locales/en';
 import { circularPatternOps, featureCommands, holeOps, linearPatternOps, patternSeed, pickValue, revolveOps, revolveSketch, type Ctx, type FeatureActions } from './featureCommands';
 
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
@@ -136,6 +138,18 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect((lastFeature(w).edges as unknown[]).length).toBe(ring.length);
     const after = await w.stats();
     expect(after.errors).toEqual([]);
+  });
+
+  it('a refused fillet leaves the structured reason for the editor: plain words, the kernel detail, advice that is not generic', async () => {
+    const w = await world(box());
+    w.select([edgeKey(w, 'F2.C1', 'F2.S.e1')], 'edge');
+    w.cmd('add-fillet').run();
+    await w.controller.edit([{ op: 'set', id: 'F3', path: 'radius', value: 50 }]);
+    const rej = w.controller.rejection()!;
+    expect(rej).not.toBeNull();
+    expect(rej.diagnosis.roots[0]).toMatchObject({ id: 'F3', code: 'blendOverflow' });
+    expect(rej.summary).toMatch(/F3 .*the rounding runs off the faces beside it \(F3\.B0: /);
+    expect(adviceOf(rej.diagnosis.roots[0])).toMatch(/smaller radius/);
   });
 
   it('chamfer: same rule, adds a chamfer face', async () => {

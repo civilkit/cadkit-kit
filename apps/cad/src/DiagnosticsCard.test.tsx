@@ -66,3 +66,18 @@ describe('DiagnosticsCard', () => {
     expect(copied).toContain('F14: trimNoIntersection');
   });
 });
+
+describe('rounding refusals', () => {
+  const fil: DiagFeature[] = [{ id: 'F2', type: 'extrude' }, { id: 'F3', type: 'fillet', name: 'Fillet', edges: [] }];
+  const dd = diagnose([{ id: 'F3', code: 'blendOverflow', params: { detail: 'F3.B0: spring leaves its face away from its edges' } }], fil);
+  it('the summary leads with plain words and keeps the kernel detail', () => {
+    expect(summaryLine(dd)).toBe('The edit broke the model at F3 Fillet: the rounding runs off the faces beside it (F3.B0: spring leaves its face away from its edges).');
+  });
+  it('every blend code has its own advice, and the editor card shows it', () => {
+    const generic = en['diag.advice.generic'];
+    for (const code of ['blendOverflow', 'blendTooLarge', 'blendFailed', 'blendUnsupported', 'chamferVertexEdges']) expect(adviceOf(diagnose([{ id: 'F3', code }], fil).roots[0])).not.toBe(generic);
+    const { container } = render(<DiagnosticsCard diagnosis={dd} variant="editor" onSelect={() => {}} />);
+    expect(container.querySelector('.diag-summary')!.textContent).toContain('spring leaves its face');
+    expect(container.querySelector('.diag-advice')!.textContent).toContain('smaller radius');
+  });
+});

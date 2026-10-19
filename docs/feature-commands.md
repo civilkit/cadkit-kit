@@ -30,6 +30,13 @@ into arcs (same two faces, same circle). Logic: `tangentChain.ts` (pure, tested 
 selection expansion, remembered picks). While edges are selected, the edges the chain would add are lit as well, before the command
 runs. The panel toggle re-applies the choice to the feature's own edge list when it came from a known pick. Face fillets do not chain.
 
+## When the kernel refuses a fillet or chamfer
+
+A refused new fillet or chamfer still opens its editor (as a draft; Cancel removes it) with the structured error: the summary names the
+feature and the reason in plain words followed by the kernel's detail, e.g. "F3 Fillet: the rounding runs off the faces beside it
+(F3.B0: spring leaves its face away from its edges)", and the advice for the code (`blendOverflow`, `blendTooLarge`, `blendFailed`,
+`blendUnsupported`, `chamferVertexEdges`; texts in `diag.reason.*` / `diag.advice.*`). The same summary is the toast. Text: `diagnosticsText.ts`.
+
 ## Disabled buttons say why
 
 A command may carry `why()` (a sentence); the ribbon, palette and flyout tooltips show it while the command is disabled, and the

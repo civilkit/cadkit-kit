@@ -5,10 +5,14 @@ import type { DiagConsequence, DiagRoot, Diagnosis } from './errorSummary';
 const trimDot = (s: string): string => s.trim().replace(/[.\s]+$/, '');
 
 /** Why the root failed, as a clause: the kernel's own detail when it gave one, else a short phrase for the code. */
+/** Fillet and chamfer refusals: the kernel's detail ("F3.B0: spring leaves its face away from its edges") is jargon alone, so the plain phrase leads and the detail follows. */
+const ROUNDING = /^(blend|chamfer)|^filletChamfer$/;
+
 export function reasonOf(r: DiagRoot): string {
   const detail = typeof r.params?.detail === 'string' ? r.params.detail : '';
-  if (detail) return trimDot(detail);
   const known = t('diag.reason.' + r.code, undefined, '');
+  if (detail && known && ROUNDING.test(r.code)) return `${known} (${trimDot(detail)})`;
+  if (detail) return trimDot(detail);
   if (known) return known;
   return r.code.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
