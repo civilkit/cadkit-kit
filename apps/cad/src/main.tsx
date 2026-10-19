@@ -54,6 +54,8 @@ import { createKernelRouter, chipOf } from './kernelService';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
+import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend } from './files/viewCache';
+import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
@@ -132,6 +134,14 @@ let scriptRunning = false;
 const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
 const snapshots = createSnapshots(idbBackend());
+/** Stored views of parts (IndexedDB): a part opens on its stored view while the kernel rebuilds it. Keyed by the recipe and the kernel's wasm hash. */
+const viewCache = createViewCache(idbViewBackend());
+let wasmBuild: (() => Promise<string | null>) | null = null;
+/** The build id of the kernel the next session talks to; null (no cache) for a local service, whose build the app does not hash. */
+const kernelBuild = (): Promise<string | null> => {
+  if (kernelRouter.prefs.value.mode !== 'builtin') return Promise.resolve(null);
+  return (wasmBuild ??= createBuildId(() => fetch(platform.wasmUrl()).then((r) => { if (!r.ok) throw new Error('wasm'); return r.arrayBuffer(); }))) ();
+};
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
@@ -249,7 +259,8 @@ controller.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   //
 const rejections = signal<Rejection[]>([]);
 const rawEdit = controller.edit.bind(controller);
 controller.edit = async (ops, reason) => {
-  const at = session?.history().length ?? 0;
+  await controller.settled();   // after a cached open the edit waits for the rebuild, and the history is the real session's
+  const at = controller.history().length;
   const r = await rawEdit(ops, reason);
   if (!r.ok) {
     const hint = controller.rejection()?.summary || r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'edit failed';
@@ -263,6 +274,13 @@ if (import.meta.env.DEV) {
   Object.assign(window, { __cad: hook });
 }
 
+/** While the view on screen is a stored one, nothing can be picked (the kernel has no state to answer for it yet): say so, once in a while. */
+let lastPickHint = 0;
+const pickBlocked = (): boolean => {
+  if (!store.cached.value) return false;
+  if (Date.now() - lastPickHint > 4000) { lastPickHint = Date.now(); store.notify(t('files.cache.pickWait'), 'info'); }
+  return true;
+};
 const timed = async <T,>(f: () => Promise<T>): Promise<T> => {
   const t0 = performance.now();
   try { return await f(); } finally { store.facts.value = { ...store.facts.value, rebuildMs: Math.round(performance.now() - t0) }; }
@@ -373,18 +391,19 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
     const vp = new Viewport(host.current!, {
       onPick: (names, additive) => {
+        if (pickBlocked()) return;
         store.select(names, additive || measureRef.current);
         // a click on empty space also lets go of the selected feature: the properties panel and the handles close.
         // An open editor (editingId) keeps its feature, and a measuring click never deselects.
         if (!names.length && !additive && !measureRef.current && !editingIdRef.current) { setSelectedId(null); setRefSel(null); }
       },
-      onHover: (n) => { store.hover.value = n; },
+      onHover: (n) => { if (!store.cached.value) store.hover.value = n; },
       onSketchMove: (pointId, u, v) => sketchMoveRef.current?.(pointId, u, v),
       onSketchPointer: (ev) => sketchPointerRef.current?.(ev),
       onSketchSelect: (ev) => sketchSelectRef.current?.(ev),
@@ -397,7 +416,7 @@ function App() {
       onAnalysisLegend: (l) => { analysisStore.legend.value = l; },
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
-      onBoxSelect: (names, additive) => { if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
+      onBoxSelect: (names, additive) => { if (pickBlocked()) return; if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
       onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
     });
@@ -504,6 +523,8 @@ function App() {
   /** Run `go` now, or after the user decides what to do with unsaved changes. */
   const guarded = (go: () => void | Promise<void>) => { if (isDirty()) setGuard(() => go); else void go(); };
   /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
+  /** Keep the stored view of the part just built (a file opened without one, so the next open is instant). Same tick: the document and its view. */
+  const rememberView = () => { const d = controller.document(), v = controller.viewData(); if (d && v) void keepSnapshot(viewCache, kernelBuild, d, v); };
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
@@ -515,7 +536,12 @@ function App() {
       // signature is still the old part's: that read as "modified". null means "not tracked", so nothing is dirty until markClean.
       cleanSig.current = null;
       viewport?.requestFit();
-      await timed(() => controller.load(doc));
+      // a stored view of exactly this recipe and kernel build is shown at once; the kernel rebuilds behind it
+      const stored = o.restored ? null : await findSnapshot(viewCache, kernelBuild, doc);
+      const t0 = performance.now();
+      await timed(() => controller.load(doc, stored ? { cached: stored.data } : undefined));
+      if (stored) void controller.settled().then(() => { store.facts.value = { ...store.facts.value, rebuildMs: Math.round(performance.now() - t0) }; redraw((n) => n + 1); });
+      else if (!o.restored) rememberView();
       if (o.restored) cleanSig.current = '';   // a restored session was never saved to a file: it counts as changed
       else { markClean(); autosaver.clear(); }
       if (!o.keep) { files.opened(o.file ?? null); if (o.file) { files.noteFile(o.file); files.noteThumb(o.file, thumbnail); } }
@@ -531,7 +557,7 @@ function App() {
   };
   const gotoStep = async (count: number) => {
     // a material change made on the way is undone with the steps (it is not in the session's history)
-    for (let i = 0; i < 1000 && (session?.history().length ?? 0) > count; i++) await controller.undo();
+    for (let i = 0; i < 1000 && controller.history().length > count; i++) await controller.undo();
     redraw((n) => n + 1);
   };
   const setMode = (m: SelectionMode) => {
@@ -627,6 +653,7 @@ function App() {
     return controller.bodyMesh() !== null;
   };
   const exportAs = async (kind: ExportKind) => {
+    await controller.settled();   // an export is never made from a stored view
     const d = controller.document();
     if (!d) return;
     try {
@@ -649,15 +676,20 @@ function App() {
   };
 
   // ---- files: save, save as, open by type, STEP, drop ----
-  const finishSave = (r: Awaited<ReturnType<FileManager['save']>>) => {
-    if (r.ok) { markClean(); autosaver.clear(); store.notify(t('files.saved', { file: r.file })); redraw((n) => n + 1); }
+  const finishSave = (r: Awaited<ReturnType<FileManager['save']>>, saved: PartDoc | null) => {
+    if (r.ok) {
+      markClean(); autosaver.clear(); store.notify(t('files.saved', { file: r.file })); redraw((n) => n + 1);
+      // the view stored beside the file is keyed by the recipe as written (the part name chosen); only when nothing changed meanwhile
+      const d = controller.document(), v = controller.viewData();
+      if (d && v && d === saved) void keepSnapshot(viewCache, kernelBuild, { ...d, name: r.partName }, v);
+    }
     else if (!r.cancelled) store.notify(t('files.saveFailed', { message: r.message ?? '' }), 'error');
   };
   const doSave = async (saveAs: boolean) => {
     const d = controller.document();
     if (!d) return;
     if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
-    finishSave(await files.save(d, { saveAs, thumbnail: await saveThumbs.forSave(d) }));
+    finishSave(await files.save(d, { saveAs, thumbnail: await saveThumbs.forSave(d) }), d);
   };
   /** STEP text into a new part named after the file (view only, see files/stepImport.ts). */
   const importStepText = (text: string, file: string) => guarded(async () => {
@@ -858,7 +890,7 @@ function App() {
   revealRef.current = rev;
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   let pending: ReturnType<typeof setTimeout> | undefined;
-  const records = session?.history() ?? [];
+  const records = controller.history();
   const entries = toEntries(records, rejections.value);
   const failures = store.featureStatus.value.filter((s) => !s.ok);
   const facts = store.facts.value;
@@ -2188,6 +2220,7 @@ function App() {
             { label: t('app.status.features'), value: String(rows.length) },
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },
+            ...(cachedChip(store.cached.value) ? [cachedChip(store.cached.value)!] : []),
             ...(check.chip ? [check.chip] : []),
             ...(kernelRouter.prefs.value.mode === 'local' ? [{ label: t('app.status.kernel'), ...chipOf(kernelRouter.status.value), title: t('app.status.kernel.tip'),
               onClick: () => { try { localStorage.setItem('cad.settingsTab', 'kernel'); } catch { /* private window */ } setSettings(true); } }] : []),
@@ -2205,7 +2238,7 @@ function App() {
         onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
         onRestore={() => { const a = restore; setRestore(null); void load(JSON.stringify(a.doc), { restored: true }); }} /> : null}
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
-        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d) })); }} /> : null}
+        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
