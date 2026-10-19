@@ -21,6 +21,7 @@ import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
+import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
 import { planeTouchesBox } from './extrudeOp';
@@ -99,8 +100,10 @@ export class Controller {
    *  One copy is kept until the session changes; callers get the same object and must not mutate it. */
   private snap: PartDoc | null = null;
   private sdoc(): PartDoc {
-    return (this.snap ??= this.session!.document);
+    if (!this.session) return this.cachedDoc!;   // the cached view is up and the kernel is still building the session
+    return (this.snap ??= this.session.document);
   }
+  private hasDoc(): boolean { return !!(this.session || this.cachedDoc); }
 
   constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory; /** where curated fonts come from (default: none, so a document with a curated font opens without it) */ fonts?: FontSource; /** size above which a user font travels as a subset (tests) */ fontEmbedMax?: number }) {
     this.store = deps.store;
@@ -139,11 +142,32 @@ export class Controller {
     if (ps.length) this.reportFontProblems(ps);
   }
 
-  async load(doc: PartDoc): Promise<void> {
+  /**
+   * Open a part. With `opts.cached` (a view snapshot whose key and kernel build the caller has already matched to this document)
+   * the stored view is shown at once and the real build runs in the background: `document()` answers from the recipe, every
+   * change waits for the build (`whenReal`), and `store.cached` is true until it is done. Without it, this returns when the
+   * part is built.
+   */
+  async load(doc: PartDoc, opts: { cached?: ViewData } = {}): Promise<void> {
     this.store.busy.value = true;
     try {
+      if (this.realLoad) await this.whenReal();   // an earlier part is still being built in the background: it finishes first
       // the fonts travel in the file, not in the session's document (they would be copied with every edit and sent with every regen)
       const { fonts: docFonts, ...forKernel } = doc as PartDoc & { fonts?: unknown };
+      const reset = () => {
+        // viewer-state fields kept in the file: the exploded view and the drawing sheet
+        this.docExtra = {}; this.extraRev++;
+        for (const k of ['explode', 'drawing', 'script', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
+        this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
+        this.tipNoteV = null; this.limits = new Map();
+      };
+      if (opts.cached && this.showCached(doc, opts.cached, reset)) {
+        const mine = ++this.loadSeq;
+        const job = this.openReal(doc, forKernel as PartDoc, docFonts, mine).finally(() => { if (this.realLoad === job) this.realLoad = null; });
+        this.realLoad = job;
+        return;   // the caller gets the part on screen; `settled()` is the real one
+      }
+      this.cachedDoc = null; this.store.cached.value = false;
       this.session = await this.kernel.open(forKernel as PartDoc);
       this.snap = null;
       // a kernel instance starts with no fonts: the document's go in before anything is built (a kernel the pool has not seen: all again)
@@ -152,16 +176,93 @@ export class Controller {
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
-      // viewer-state fields kept in the file: the exploded view and the drawing sheet
-      this.docExtra = {}; this.extraRev++;
-      for (const k of ['explode', 'drawing', 'script', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
-      this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
-      this.tipNoteV = null; this.limits = new Map();
+      reset();
       await this.refresh();
     } finally {
       this.store.busy.value = false;
     }
     await this.repairTip();   // a document saved past the tip opens with the height at the tip (once; an edit that still fails is left alone)
+  }
+
+  // ---- the cached view: a stored snapshot on screen while the kernel builds the real state ----
+  /** The document while only the cached view is up (no session yet). */
+  private cachedDoc: PartDoc | null = null;
+  /** The background build that follows a cached open; null when there is none. */
+  private realLoad: Promise<void> | null = null;
+  private loadSeq = 0;
+  /** True while the view on screen is a stored snapshot and the kernel has not finished building the real state. */
+  isCached(): boolean { return this.store.cached.value; }
+  /** Resolves when the real state is there (immediately when it already is). Never rejects: a failed build is reported by `load`'s notice. */
+  settled(): Promise<void> { return this.realLoad ? this.whenReal() : Promise.resolve(); }
+  private whenReal(): Promise<void> { return (this.realLoad ?? Promise.resolve()).then(() => {}, () => {}); }
+
+  /** Put the snapshot on screen. False (nothing shown) when it does not fit the document. */
+  private showCached(doc: PartDoc, v: ViewData, reset: () => void): boolean {
+    try {
+      const body = (v.body ?? null) as ShownBody | null;
+      const ids = new Set(doc.features.map((f) => f.id));
+      if (v.status.some((x) => !ids.has(x.id)) || !Array.isArray((v.diag as Diagnosis | null)?.roots)) return false;   // a status for a feature the recipe does not have: not this document's
+      this.session = null; this.snap = null;
+      this.cachedDoc = doc;
+      reset();
+      this.lastIds = doc.features.map((f) => f.id);
+      this.revision++;
+      this.shown = body;
+      this.lastView = body ? mergedView(body) : null;
+      this.importedOnScreen = false;
+      this.asmComponents = (v.components ?? []) as AsmComponent[]; this.asmExtra = { report: null, errors: new Map() };
+      this.committedExtras = v.extras as { threads: unknown[]; warnings: unknown[] };
+      this.lastErrors = v.errors as never;
+      this.committedDiag = v.diag as Diagnosis;
+      this.limits = new Map(v.limits);
+      this.store.cached.value = true;
+      this.view.setBody(body);
+      this.applyExtras(this.committedExtras);
+      this.store.featureStatus.value = v.status;
+      return true;
+    } catch {
+      this.cachedDoc = null; this.store.cached.value = false;
+      return false;
+    }
+  }
+
+  /** The real build behind a cached open. Any failure leaves the cached view and says so. */
+  private async openReal(doc: PartDoc, forKernel: PartDoc, docFonts: unknown, mine: number): Promise<void> {
+    try {
+      const s = await this.kernel.open(forKernel);
+      this.session = s;
+      this.cachedDoc = null;
+      this.snap = null;
+      this.noteKernel();
+      this.reportFontProblems(await this.fontPool.loadAll(readDocFonts(docFonts)));
+      this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
+      watchComponents(s, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
+      s.forgetReplies?.();
+      await this.refresh();
+      if (mine === this.loadSeq) this.store.cached.value = false;
+      await this.repairTip();
+    } catch (e) {
+      this.store.cached.value = false;
+      this.store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error');
+      throw e;
+    }
+  }
+
+  /** What the viewer shows now, for the snapshot a save keeps; null unless it is exactly the built state of the document
+   *  (not a preview, not rolled back, not a cached view, no sketch open, nothing imported on top). */
+  viewData(): ViewData | null {
+    if (!this.session || this.isCached() || this.realLoad || this.store.busy.value) return null;
+    if (this.rollbackCount() !== null || this.sketchOpen || this.importedOnScreen) return null;
+    if (this.store.featureStatus.value.length !== this.sdoc().features.length) return null;
+    return {
+      body: this.shown,
+      status: this.store.featureStatus.value,
+      extras: this.committedExtras,
+      errors: this.lastErrors,
+      diag: this.committedDiag,
+      limits: [...this.limits],
+      components: this.asmComponents,
+    };
   }
 
   /** The kernel transport the open session talks to (null for a session that has none, e.g. a test double). */
@@ -180,6 +281,7 @@ export class Controller {
    * covers the material and the variables), or the later load would not find what was built here.
    */
   async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
+    if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
     await this.ensureFontsFor(doc.features);
@@ -197,6 +299,7 @@ export class Controller {
   }
   /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
   async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
+    if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
     const out: Awaited<ReturnType<Controller['scratchFacts']>> = {};
@@ -234,7 +337,8 @@ export class Controller {
    *  still building waits for it instead of racing it in the session. `cancel` is deliberately not queued. */
   private chain: Promise<unknown> = Promise.resolve();
   private serial<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.chain.then(fn, fn);
+    const gated = async () => { if (this.realLoad) await this.whenReal(); return fn(); };
+    const run = this.chain.then(gated, gated);
     this.chain = run.catch(() => undefined);
     return run;
   }
@@ -376,6 +480,7 @@ export class Controller {
   /** Speculative edit: shows the candidate body, leaves document and history untouched.
    *  Debounced ~150 ms; a newer preview supersedes an older one (stale:true, body dropped). */
   async preview(ops: EditOp[], delayMs = 150): Promise<PreviewResult & { hint?: string; diagnosis?: Diagnosis | null; tip?: Tip }> {
+    if (this.realLoad) await this.whenReal();
     const seq = ++this.previewSeq;
     if (this.previewTimer) clearTimeout(this.previewTimer);
     this.previewWake?.();
@@ -507,6 +612,7 @@ export class Controller {
 
   /** Commit the editor draft as exactly one edit record (one batch). */
   async commit(ops: EditOp[], reason?: string): Promise<EditResult> {
+    if (this.realLoad) await this.whenReal();
     this.previewSeq++;
     if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
     this.previewWake?.();
@@ -593,6 +699,7 @@ export class Controller {
    *  sketch and its plane frame. Returns null when the feature is missing or not a
    *  sketch. The document, the edit stack and the displayed body are untouched. */
   async beginSketch(featureId: string): Promise<SketchEditView | null> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return null;
     const features = this.sdoc().features;
@@ -614,6 +721,7 @@ export class Controller {
   /** Start a new, empty sketch on a standard plane at the end of the tree. Nothing is written until
    *  commitSketch: cancelling leaves the document exactly as it was. */
   async beginNewSketch(plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string } = 'front'): Promise<SketchEditView | null> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return null;
     const id = `F${this.sdoc().seq}`;
@@ -635,6 +743,7 @@ export class Controller {
   /** A sketch tool produced a new draft: it becomes the draft at once (so the next tool step builds on it),
    *  the previous one goes on the sketch's own undo stack, and the kernel solves and previews it. */
   async applySketchDraft(draft: SketchDraft): Promise<SketchPreview> {
+    if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return { ok: false, hint: 'no sketch open' };
     open.undo.push(open.draft);
@@ -656,6 +765,7 @@ export class Controller {
    *  Debounced ~100 ms; a newer drag supersedes an older one (stale:true, no view).
    *  On failure the previous good sketch stays on screen and `hint` says why. */
   async updateSketch(draft: SketchDraft, delayMs = 100): Promise<SketchPreview> {
+    if (this.realLoad) await this.whenReal();
     const seq = ++this.sketchSeq;
     if (this.sketchTimer) clearTimeout(this.sketchTimer);
     this.sketchWake?.();
@@ -701,6 +811,7 @@ export class Controller {
   /** Commit the open sketch as exactly one replace edit (the temporary drag fix is
    *  dropped) and close the sketch overlay. Null when no sketch is open. */
   async commitSketch(): Promise<EditResult | null> {
+    if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return null;
     this.sketchOpen = null;
@@ -723,6 +834,7 @@ export class Controller {
   onTextOutlines: (() => void) | null = null;
   /** The kernel's polylines for a text entity (docs/text.md, textOutline). Throws the kernel's message. */
   async fetchTextOutline(spec: Record<string, unknown>): Promise<TextOutlineData> {
+    if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
     const r = await k.request({ type: 'textOutline', ...spec }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
@@ -743,6 +855,7 @@ export class Controller {
    *  suggest constraints (Fully Define) and to find out how defined each entity is. Null when no sketch is open or the
    *  regen gave no verdict. */
   async probeSketch(draft: SketchDraft): Promise<SketchSolverStatus | null> {
+    if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return null;
     const r = await this.previewSketch(draft, open.upTo, open.isNew);
@@ -806,11 +919,11 @@ export class Controller {
   }
 
   document(): PartDoc | null {
-    const d = this.session ? this.sdoc() : null;
+    const d = this.hasDoc() ? this.sdoc() : null;
     if (!d) return d;
     const m = this.merged;
     if (m && m.base === d && m.name === this.docName && m.material === this.material && m.extraRev === this.extraRev && m.fontRev === this.fontPool.rev) return m.out;
-    const fonts = this.fontPool.fieldsFor(d);
+    const fonts = this.session ? this.fontPool.fieldsFor(d) : [];   // before the session exists the document's own fonts field stands
     const extra = Object.keys(this.docExtra).length || fonts.length ? { ...this.docExtra, ...(fonts.length ? { fonts } : {}) } : null;
     if (this.docName === null && this.material === null && !extra) return d;
     const out = { ...d, ...(this.docName !== null ? { name: this.docName } : {}), ...(this.material !== null ? { material: this.material } : {}), ...(extra ? structuredClone(extra) : {}) } as PartDoc;
@@ -839,6 +952,7 @@ export class Controller {
 
   /** Volume (mm3, unit density) and solid count of a part document, asked of the kernel under a tag of its own so the open document is untouched. */
   async partMass(part: unknown): Promise<{ volume: number | null; error?: string }> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     return s ? partMassProps(s, part) : { volume: null, error: 'no document loaded' };
   }
@@ -849,10 +963,10 @@ export class Controller {
   setMaterial(name: string): boolean {
     const s = this.session;
     const n = name.trim();
-    if (!s || !n) return false;
+    if (!this.hasDoc() || !n) return false;
     const before = this.document()?.material ?? null;
     if (before === n) return false;
-    this.materialSteps.push({ at: s.history().length, before: this.material, after: n });
+    this.materialSteps.push({ at: s?.history().length ?? 0, before: this.material, after: n });
     this.material = n;
     this.redoStack = [];
     return true;
@@ -862,17 +976,18 @@ export class Controller {
    *  (so Save and the top bar see it); it is not an undo step. */
   setPartName(name: string): void {
     const n = name.trim();
-    if (this.session && n) this.docName = n;
+    if (this.hasDoc() && n) this.docName = n;
   }
 
   /** How many features the rollback marker lets through (null = the whole model). */
   rollbackCount(): number | null {
-    return countOf(this.rollbackAnchor, (this.session ? this.sdoc().features : []).map((f) => f.id));
+    return countOf(this.rollbackAnchor, (this.hasDoc() ? this.sdoc().features : []).map((f) => f.id));
   }
 
   /** Move the rollback marker: show the model as it was after the first `count` features (null = roll forward to the end).
    *  The document and history are untouched; features after the marker are not built. */
   async setRollback(count: number | null): Promise<void> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return;
     const ids = this.sdoc().features.map((f) => f.id);
@@ -884,6 +999,7 @@ export class Controller {
   /** Delete these features (those that depend on one of them go too only when they are selected as well; otherwise the
    *  session refuses and says what still uses it). */
   async deleteFeatures(ids: string[]): Promise<EditResult | null> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s || !ids.length) return null;
     const ops = deleteOps(this.sdoc().features as unknown as Array<{ id: string }>, ids);
@@ -892,6 +1008,7 @@ export class Controller {
 
   /** Build everything again from the document. (The kernel keeps no regen cache, so every build is already a full one.) */
   async rebuild(): Promise<void> {
+    if (this.realLoad) await this.whenReal();
     if (!this.session) return;
     this.store.busy.value = true;
     try { await this.refresh(); } finally { this.store.busy.value = false; }
@@ -912,6 +1029,7 @@ export class Controller {
 
   /** Show the solid of a STEP file in the viewport (view only: it is not a feature of the part and the next edit replaces it). */
   async importStep(text: string, name: string): Promise<StepImportResult> {
+    if (this.realLoad) await this.whenReal();
     if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
     this.store.busy.value = true;
     try {
@@ -923,6 +1041,7 @@ export class Controller {
 
   /** Show the solid of a SolidWorks .SLDPRT file in the viewport (view only, like STEP). */
   async importSldprt(bytes: Uint8Array, name: string): Promise<StepImportResult> {
+    if (this.realLoad) await this.whenReal();
     if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
     this.store.busy.value = true;
     try {
@@ -933,7 +1052,7 @@ export class Controller {
   }
 
   features(): Array<{ id: string; type: string; name?: string }> {
-    return this.session
+    return this.hasDoc()
       ? this.sdoc().features.map((f) => ({ id: f.id, type: f.type, name: f.name }))
       : [];
   }
@@ -1005,6 +1124,7 @@ export class Controller {
 
   /** The built-in design-rule profiles and their rule parameters (asked once, then kept). Null without a document or on a kernel error. */
   async profiles(): Promise<ProfileList | null> {
+    if (this.realLoad) await this.whenReal();
     if (this.profileList) return this.profileList;
     const s = this.session;
     if (!s) return null;
@@ -1015,6 +1135,7 @@ export class Controller {
   /** Run a design-rule profile (built-in id or inline rules) on the part. Only when asked: never part of a rebuild.
    *  Shows the busy state and can be cancelled like a rebuild. `null` when cancelled, without a document or on a kernel error. */
   async checkProfile(profile: string | Record<string, unknown>, opts?: { samples?: number; maxIssues?: number }): Promise<{ report: ProfileReport; revision: number } | null> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return null;
     const revision = this.revision;
@@ -1113,6 +1234,7 @@ export class Controller {
 
   // ---- Inspect tools: read-only kernel queries on the current state. They never edit the document; null on a kernel error or no document. ----
   private async inspect<T>(go: (s: Session) => Promise<T | null>): Promise<T | null> {
+    if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return null;
     try { return await go(s); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
@@ -1126,6 +1248,7 @@ export class Controller {
 
   /** STEP text of the current document, from the kernel (null when nothing is loaded). */
   async exportStep(): Promise<string | null> {
+    if (this.realLoad) await this.whenReal();
     return this.session ? this.session.step() : null;
   }
 

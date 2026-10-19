@@ -39,6 +39,14 @@ describe('recipe key', () => {
   });
 });
 
+/** Encode as a platform without CompressionStream would. */
+async function encodePlain(s: ViewSnapshot): Promise<Uint8Array> {
+  const g = globalThis as { CompressionStream?: unknown };
+  const saved = g.CompressionStream;
+  delete g.CompressionStream;
+  try { return await encodeSnapshot(s); } finally { g.CompressionStream = saved; }
+}
+
 describe('codec', () => {
   it('round trips the view bit for bit, welded and compressed', async () => {
     const bytes = await encodeSnapshot(snap());
@@ -65,18 +73,10 @@ describe('codec', () => {
     const back = (await decodeSnapshot(bytes))!.data.body as { mesh: { positions: Float32Array } };
     expect([...back.mesh.positions]).toEqual([...pos]);
   });
-  it('reads an uncompressed record too (no CompressionStream on the platform that wrote it)', async () => {
-    const bytes = await encodeSnapshot(snap());
-    const saved = globalThis.CompressionStream;
-    // @ts-expect-error simulate a platform without streams
-    delete globalThis.CompressionStream;
-    try {
-      const plain = await encodeSnapshot(snap());
-      expect(plain[5]).toBe(0);
-      expect(bytes[5]).toBe(1);
-    } finally { globalThis.CompressionStream = saved; }
-    // the plain one decodes where streams exist, and a gzip one is refused (null) where they do not
-    const plain = await (async () => { const s = globalThis.CompressionStream; /* @ts-expect-error */ delete globalThis.CompressionStream; try { return await encodeSnapshot(snap()); } finally { globalThis.CompressionStream = s; } })();
+  it('writes a plain record where the platform has no CompressionStream, and reads it', async () => {
+    const plain = await encodePlain(snap());
+    expect(plain[5]).toBe(0);
+    expect((await encodeSnapshot(snap()))[5]).toBe(1);
     expect((await decodeSnapshot(plain))?.key).toBe('k');
   });
   it('returns null, never throws, for corrupt input', async () => {
@@ -97,8 +97,8 @@ describe('codec', () => {
     };
     expect(await mk((d) => { (d.body as { mesh: { triFace: Int32Array } }).mesh.triFace = new Int32Array([0, 5]); })).toBeNull();
     expect(await mk(() => {})).not.toBeNull();
-    // a plain record whose header lies about a section length
-    const plain = await (async () => { const s = globalThis.CompressionStream; /* @ts-expect-error */ delete globalThis.CompressionStream; try { return await encodeSnapshot(snap()); } finally { globalThis.CompressionStream = s; } })();
+    // a plain record cut short: a section runs past the end
+    const plain = await encodePlain(snap());
     expect(await decodeSnapshot(plain.subarray(0, plain.length - 8))).toBeNull();
   });
 });

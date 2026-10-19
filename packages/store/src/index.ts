@@ -79,6 +79,8 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const filters = signal<PickFilters>({ ...ALL_PICKABLE });
   const tool = signal<string | null>(null);
   const busy = signal(false);
+  /** True while the view on screen is a stored snapshot and the kernel has not finished building the real state. */
+  const cached = signal(false);
   const notices = signal<Notice[]>([]);
   const featureStatus = signal<FeatureStatus[]>([]);
   const featureWarnings = signal<Record<string, FeatureWarning>>({});
@@ -90,7 +92,7 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
     notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now(), ...(action ? { action } : {}) }].slice(-20);
   };
   return {
-    selection, mode, hover, filters, tool, busy, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
+    selection, mode, hover, filters, tool, busy, cached, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) { workspace.value = sanitizeWorkspace({ ...workspace.value, ...patch }, workspace.value); },
     resetLayout() { workspace.value = sanitizeWorkspace({ ...workspace.value, ...DEFAULT_SIZES, leftCollapsed: false }, workspace.value); },
     applyPreset(name: WorkspacePreset) { const w = workspace.value; workspace.value = { ...WORKSPACE_PRESETS[name], leftWidth: w.leftWidth, rightWidth: w.rightWidth, drawerHeight: w.drawerHeight, floatWidth: w.floatWidth, floatHeight: w.floatHeight }; },
