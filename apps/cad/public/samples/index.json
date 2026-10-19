@@ -488,5 +488,10 @@
   "id": "grab-handle",
   "title": "Grab handle (swept U loop, inserted twice in the Tinnie boat)",
   "file": "grab-handle.ckpart"
+ },
+ {
+  "id": "fan-shroud-filleted",
+  "title": "Fan shroud (cone on plate, rim and notch fillets)",
+  "file": "fan-shroud-filleted.ckpart"
  }
 ]
