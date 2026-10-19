@@ -17,7 +17,7 @@ const sketch = (extra: Wire[] = []): Wire => ({
 const doc = (...f: Wire[]): PartDoc => ({ format: 'ck-part', version: 1, name: 't', features: f, seq: 9 }) as unknown as PartDoc;
 const EXTRUDE = { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 5 };
 
-function mount(feature: Wire, d: PartDoc, actions?: { closeWithLine(id: string): void; asSurface(): void }) {
+function mount(feature: Wire, d: PartDoc, actions?: { closeWithLine(id: string): void; asSurface(): void; cutProblem?: 'nothing' | 'miss' | null }) {
   const drafts: Wire[] = [];
   const r = render(<FeatureEditor feature={feature} onDraft={(x) => drafts.push(x)} onConfirm={() => {}} onCancel={() => {}} options={(a) => optionsFor(a, d, actions)} />);
   const q = (sel: string) => r.container.querySelector(sel) as HTMLElement | null;
@@ -87,5 +87,28 @@ describe('thin wall section', () => {
     expect((m.drafts.at(-1) as { thin: Wire }).thin.thickness).toBe('=2*3');
     fireEvent.click(m.q('[data-path="thin"] input[type="checkbox"]')!);
     expect(m.drafts.at(-1)).toEqual({ thin: null });
+  });
+});
+
+describe('operation row', () => {
+  const closed = (): Wire => ({ ...sketch(), entities: [{ type: 'line', id: 'e1', p1: 'a', p2: 'b' }, { type: 'line', id: 'e2', p1: 'b', p2: 'c' }, { type: 'line', id: 'e3', p1: 'c', p2: 'd' }, { type: 'line', id: 'e4', p1: 'd', p2: 'a' }] });
+  const CUT = { ...EXTRUDE, op: 'cut' };
+  it('offers Add and Cut (the kernel has no New body) and switches between them', () => {
+    const m = mount(CUT, doc(closed(), CUT));
+    const btns = [...m.container.querySelectorAll('[data-path="op"] button')];
+    expect(btns.map((b) => b.textContent)).toEqual(['Add', 'Cut']);
+    expect(m.q('[data-path="op"] [data-value="cut"]')!.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(m.q('[data-path="op"] [data-value="add"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'add', flip: null });
+  });
+  it('a cut with no body shows the message and a one-click switch to Add', () => {
+    const m = mount(CUT, doc(closed(), CUT), { closeWithLine() {}, asSurface() {}, cutProblem: 'nothing' });
+    expect(m.q('[data-note="cut-nothing"]')!.textContent).toContain('Nothing to cut: no body under this sketch');
+    fireEvent.click(m.q('[data-act="switch-add"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'add' });
+  });
+  it('no message for an add, or when the cut works', () => {
+    expect(mount(EXTRUDE, doc(closed(), EXTRUDE), { closeWithLine() {}, asSurface() {}, cutProblem: 'nothing' }).q('[data-note="cut-nothing"]')).toBeNull();
+    expect(mount(CUT, doc(closed(), CUT)).q('[data-note="cut-nothing"]')).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/preact';
-import { autoCutFlip, defaultShellThickness, editorFixes, suggestedThickness } from './editorFixes';
+import { autoCutFlip, cutProblem, defaultShellThickness, editorFixes, suggestedThickness } from './editorFixes';
 import { shellOps } from './featureCommands';
 import { DiagnosticsCard } from './DiagnosticsCard';
 import { diagnose } from './errorSummary';
@@ -73,5 +73,19 @@ describe('auto cut direction', () => {
     const p = vi.fn(async () => ({ ok: false, codes: ['noClosedProfile'] }));
     expect(await autoCutFlip(false, p)).toEqual({ flip: false, ok: false });
     expect(p).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cutProblem', () => {
+  const cut = { type: 'extrude', op: 'cut' };
+  it('names a cut with no body, and a cut that misses the body', () => {
+    expect(cutProblem(cut, [{ code: 'nothingToCut' }])).toBe('nothing');
+    expect(cutProblem(cut, [{ code: 'cutNoEffect' }])).toBe('miss');
+  });
+  it('is silent for an add, other errors, and no error', () => {
+    expect(cutProblem({ type: 'extrude', op: 'add' }, [{ code: 'nothingToCut' }])).toBeNull();
+    expect(cutProblem(cut, [{ code: 'noClosedProfile' }])).toBeNull();
+    expect(cutProblem(cut, null)).toBeNull();
+    expect(cutProblem(null, [{ code: 'nothingToCut' }])).toBeNull();
   });
 });

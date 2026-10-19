@@ -54,6 +54,11 @@
   "light.studio",
   "light.technical"
  ],
+ "opt.op.+": [
+  "opt.op.add",
+  "opt.op.cut",
+  "opt.op.new"
+ ],
  "opt.end.+": [
   "opt.end.blind",
   "opt.end.mid",

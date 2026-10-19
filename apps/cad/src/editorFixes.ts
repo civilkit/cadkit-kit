@@ -46,3 +46,10 @@ export async function autoCutFlip(first: boolean, probe: (flip: boolean) => Prom
   const b = await probe(!first);
   return b.ok ? { flip: !first, ok: true } : { flip: first, ok: false };
 }
+
+/** A cut that removed nothing: `nothing` when there is no body under the sketch at all, `miss` when a body exists but this cut does not reach it. */
+export function cutProblem(feature: Record<string, unknown> | null | undefined, roots: Array<{ code: string }> | null | undefined): 'nothing' | 'miss' | null {
+  if (!feature || (feature.type !== 'extrude' && feature.type !== 'revolve') || feature.op !== 'cut' || !roots) return null;
+  if (roots.some((r) => r.code === 'nothingToCut')) return 'nothing';
+  return roots.some((r) => r.code === 'cutNoEffect') ? 'miss' : null;
+}

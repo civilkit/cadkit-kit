@@ -2,6 +2,7 @@
 // fillet profile with the dependent fields shown and hidden as the kernel reads them (rules in featureOptions.ts). It plugs
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
+import { opChoices } from './extrudeOp';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
@@ -91,6 +92,15 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
         {end === 'offsetFromFace' ? <Num name="endOffset" label={t('opt.endOffset')} value={eff.endOffset ?? 0} unit="mm" onChange={(v) => change({ endOffset: v })} /> : null}
         {endNeedsPoint(end) ? <PickField name="endPoint" label={t('opt.endPoint')} value={eff.endPoint} picking={p.pickingPath === 'endPoint'} onPick={p.onPick} /> : null}
       </Section>
+      <Section id="op" title={t('opt.op')}>
+        <Segmented<string> name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} choices={opChoices()} text={(c) => t('opt.op.' + c)} onChange={(v) => change(v === 'cut' ? { op: 'cut' } : { op: v, flip: null })} />
+        {p.actions?.cutProblem && eff.op === 'cut' ? (
+          <div class="fedit-note fedit-warn" role="alert" data-note={'cut-' + p.actions.cutProblem}>
+            {t(p.actions.cutProblem === 'nothing' ? 'opt.cut.nothing' : 'opt.cut.miss')}
+            <button type="button" data-act="switch-add" onClick={() => change({ op: 'add', flip: null })}>{t('opt.cut.switchAdd')}</button>
+          </div>
+        ) : null}
+      </Section>
       <Section id="options" title={t('opt.section.options')}>
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
         {!p.revolve && endAllowsDraft(end) ? <>
@@ -112,6 +122,8 @@ export interface ThinActions {
   closeWithLine(sketchId: string): void;
   /** Turn the extrude into a surface extrude. */
   asSurface(): void;
+  /** The cut in the editor removed nothing: no body under the sketch (`nothing`) or a body it does not reach (`miss`). */
+  cutProblem?: 'nothing' | 'miss' | null;
 }
 
 const ARCH = 'M3 14 Q12 0 21 14';
