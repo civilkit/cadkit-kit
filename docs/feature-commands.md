@@ -11,7 +11,7 @@ Default size: about 5% of the smallest bounding-box dimension of the body on scr
 
 | Command | Enabled when | Defaults | Kernel fields |
 |---|---|---|---|
-| Fillet (`add-fillet`) | edge mode and at least one selected edge | radius = default size | `fillet {radius, edges:[{faces:[a,b], at:[x,y,z]}]}` |
+| Fillet (`add-fillet`) | at least one selected edge (edge mode), or two or more selected faces (then the edges the faces share; with none, the command shows "These faces do not share an edge" and adds nothing) | radius = default size | `fillet {radius, edges:[{faces:[a,b], at:[x,y,z]}]}` |
 | Chamfer (`add-chamfer`) | same | `chamferType:'equal'`, distance = default size | `chamfer {chamferType, distance, edges}` |
 | Shell (`add-shell`) | face mode and at least one selected face | thickness = default size; selected faces are the open faces | `shell {faces:[...], thickness}` |
 | Hole (`add-hole`) | a body exists and (exactly one face selected, or the document has a sketch with point entities) | kind `simple`, diameter = 10% of smallest dimension (nice), `end:'through'` | `hole {sketch, kind, diameter, end, flip?}` |
@@ -20,6 +20,11 @@ Default size: about 5% of the smallest bounding-box dimension of the body on scr
 | Circular pattern (`add-cpattern`) | same | count 3, 360 degrees, equal spacing, axis = the world axis along the body's shortest dimension | `cpattern {seeds:[id], axis:{kind:'axis',axis}, count, angle, equal}` |
 
 The pattern repeats the feature selected in the tree, else the last feature that is not a sketch or pattern.
+
+## Disabled buttons say why
+
+A command may carry `why()` (a sentence); the ribbon, palette and flyout tooltips show it while the command is disabled, and the
+right-click menu uses it as the row's reason. Without one the tooltip says "Not available right now".
 
 ## Edge and face references
 

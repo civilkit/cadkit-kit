@@ -42,7 +42,7 @@ describe('toolbar model', () => {
     expect(onRail.filter((id, i) => onRail.indexOf(id) !== i)).toEqual([]);
   });
   it('the For selection list is the right-click list without the selection helpers, and empty for nothing selected', () => {
-    expect(contextIds('face')).toEqual(['sketch-on-face', 'add-hole', 'add-shell', 'add-lpattern', 'add-cpattern']);
+    expect(contextIds('face')).toEqual(['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', 'add-lpattern', 'add-cpattern']);
     expect(contextIds('edge')).toEqual(['add-fillet', 'add-chamfer']);
     for (const k of ['face', 'edge', 'corner', 'body'] as const) for (const id of contextIds(k)) expect(MENU_COMMANDS[k]).toContain(id);
   });

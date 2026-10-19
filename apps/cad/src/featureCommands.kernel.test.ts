@@ -82,6 +82,22 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.box).toEqual(base.box);
   });
 
+  it('fillet from two selected faces rounds the edge they share', async () => {
+    const w = await world(box());
+    const base = await w.stats();
+    w.select(['F2.C1', 'F2.S.e1'], 'face');
+    expect(w.cmd('add-fillet').enabled!()).toBe(true);
+    expect(w.cmd('add-chamfer').enabled!()).toBe(true);
+    await w.run('add-fillet');
+    const f = lastFeature(w);
+    expect(f.type).toBe('fillet');
+    expect((f.edges as unknown[]).length).toBe(1);
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    expect(after.faces).toBe(7);
+    expect(after.volume).toBeLessThan(base.volume);
+  });
+
   it('chamfer: same rule, adds a chamfer face', async () => {
     const w = await world(box());
     const base = await w.stats();

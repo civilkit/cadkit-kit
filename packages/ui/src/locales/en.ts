@@ -116,6 +116,7 @@ export const en: Catalog = {
   'feature.chamfer': 'Chamfer',
   'feature.draft': 'Draft',
   'feature.shell': 'Shell',
+  'ui.slot.unavailable': 'Not available right now',
   'ui.slot.more': 'More tools like {name}',
   'ui.ribbon.more': 'More',
 };

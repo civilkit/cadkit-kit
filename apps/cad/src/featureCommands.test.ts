@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PSEUDO, setLocale } from '@kit/i18n';
 import { buildCommands, type Actions } from './commands';
-import { canFillet, canHole, canPattern, canRevolve, canShell, edgeRefs, niceSize, pickValue, type Ctx } from './featureCommands';
+import { canFillet, faceEdgeRefs, filletOps, filletWhy, chamferOps, featureCommands, roundTargets, canHole, canPattern, canRevolve, canShell, edgeRefs, niceSize, pickValue, type Ctx } from './featureCommands';
 import { en } from './locales/en';
 import './i18n';
 
@@ -85,5 +85,55 @@ describe('edgeRefs: a corner stands for its edges', () => {
     expect(refs.length).toBe(3);
     expect(edgeRefsForVertex(['v:0,0,0', 'x'], edges).length).toBe(3);        // the edge picked as well is not doubled
     expect(edgeRefsForVertex(['v:5,5,5'], edges)).toEqual([]);
+  });
+});
+
+describe('fillet and chamfer from faces', () => {
+  const fe = [
+    { key: 'F10.W0|F9.S.e1~1#49', faces: ['F10.W0', 'F9.S.e1~1'], mid: [1, 0, 0] },
+    { key: 'F10.W0|F9.S.e1~1#50', faces: ['F10.W0', 'F9.S.e1~1'], mid: [-1, 0, 0] },   // a ring split in two arcs: both are shared
+    { key: 'F10.W0|F11#51', faces: ['F10.W0', 'F11'], mid: [0, 1, 0] },
+    { key: 'F9.S.e1~1|F11#52', faces: ['F9.S.e1~1', 'F11'], mid: [0, 0, 1] },
+  ];
+  const fctx = (selection: string[], over: Partial<Ctx> = {}) => ctx({ mode: 'face', selection, edges: fe, ...over });
+  it('two faces: every edge they share', () => {
+    expect(faceEdgeRefs(['F10.W0', 'F9.S.e1~1'], fe)).toEqual([{ faces: ['F10.W0', 'F9.S.e1~1'], at: [1, 0, 0] }, { faces: ['F10.W0', 'F9.S.e1~1'], at: [-1, 0, 0] }]);
+  });
+  it('three faces: all shared edges between selected pairs', () => {
+    expect(faceEdgeRefs(['F10.W0', 'F9.S.e1~1', 'F11'], fe)).toHaveLength(4);
+  });
+  it('is enabled for two or more faces and builds the same edges shape as the edge route', () => {
+    const c = fctx(['F10.W0', 'F11']);
+    expect(canFillet(c)).toBe(true);
+    expect(filletOps(c)).toEqual([{ op: 'add', feature: { type: 'fillet', radius: 0.5, edges: [{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }] } }]);
+    expect(chamferOps(c)![0]).toMatchObject({ feature: { type: 'chamfer', edges: [{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }] } });
+    expect(pickValue('edges', ['F10.W0', 'F11'], fe)).toEqual([{ faces: ['F10.W0', 'F11'], at: [0, 1, 0] }]);
+  });
+  it('one face stays disabled with a reason; no selection says what to select', () => {
+    expect(canFillet(fctx(['F11']))).toBe(false);
+    expect(filletWhy(fctx(['F11']))).toMatch(/second face/);
+    expect(filletWhy(fctx([]))).toMatch(/two or more faces/);
+    expect(filletWhy(fctx(['F10.W0', 'F11']))).toBeUndefined();
+    expect(filletWhy(ctx({ doc: null }))).toMatch(/part/);
+    expect(filletWhy(fctx(['F10.W0|F11#51']))).toMatch(/edge selection/);
+  });
+  it('faces that share no edge: the button is enabled and running it shows a notice instead of a feature', () => {
+    const lone = [{ key: 'A|B#0', faces: ['A', 'B'], mid: [0, 0, 0] }];
+    const c = fctx(['X', 'Y'], { edges: lone });
+    expect(canFillet(c)).toBe(true);
+    expect(roundTargets(c)).toEqual({ edges: [], viaFaces: true });
+    const notices: string[] = [];
+    const created: unknown[] = [];
+    const cmds = featureCommands({ context: () => c, create: (o) => created.push(o), holeOnFace() {}, holeFlip: () => false, addThread() {}, notify: (m) => notices.push(m) });
+    const fillet = cmds.find((x) => x.id === 'add-fillet')!;
+    expect(fillet.enabled!()).toBe(true);
+    fillet.run();
+    expect(created).toEqual([]);
+    expect(notices).toEqual(['These faces do not share an edge']);
+  });
+  it('every disabled feature command carries a reason', () => {
+    const c = ctx({ doc: { features: [] } as never, selection: [], box: null });
+    const cmds = featureCommands({ context: () => c, create() {}, holeOnFace() {}, holeFlip: () => false, addThread() {}, notify() {} });
+    for (const id of ['add-fillet', 'add-chamfer', 'add-shell']) { const x = cmds.find((k) => k.id === id)!; expect(x.enabled!()).toBe(false); expect(x.why!()).toBeTruthy(); }
   });
 });

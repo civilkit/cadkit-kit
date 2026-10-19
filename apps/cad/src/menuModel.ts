@@ -21,7 +21,7 @@ export function selectionKind(selection: string[], mode: string): SelectionKind 
 export const MENU_COMMANDS: Record<SelectionKind, string[]> = {
   edge: ['add-fillet', 'add-chamfer', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   corner: ['add-fillet', 'add-chamfer', '-', 'select-invert', 'select-none'],
-  face: ['sketch-on-face', 'add-hole', 'add-shell', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
+  face: ['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   body: ['select-body', '-', 'move-body', '-', 'add-lpattern', 'add-cpattern', 'add-shell', '-', 'select-invert', 'select-none'],
   none: ['sketch-new-front', 'sketch-new-top', 'sketch-new-right', '-', 'add-extrude', 'add-cut', '-', 'select-body', 'select-all', 'select-invert', '-', 'fit'],
 };
@@ -58,7 +58,7 @@ export function menuItems(kind: SelectionKind, commands: Command[], placementOn:
     const c = byId.get(id);
     if (!c) continue;
     const enabled = c.enabled?.() ?? true;
-    out.push({ id, label: c.label, keys: c.keys, enabled, ...(!enabled && why?.(id) ? { reason: why(id)! } : {}) });
+    out.push({ id, label: c.label, keys: c.keys, enabled, ...(!enabled && (why?.(id) ?? c.why?.()) ? { reason: (why?.(id) ?? c.why?.())! } : {}) });
   }
   while (out.length && out[out.length - 1].separator) out.pop();
   return out;

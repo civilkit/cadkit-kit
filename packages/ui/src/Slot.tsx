@@ -6,7 +6,7 @@ import { Tip } from './Tip';
 import { t } from './i18n';
 
 /** One entry of a slot: a command or a sketch tool, reduced to what a button needs. */
-export interface SlotItem { id: string; label: string; keys?: string; tip?: string; icon?: string; enabled?(): boolean; pressed?(): boolean; run(): void }
+export interface SlotItem { id: string; label: string; keys?: string; tip?: string; icon?: string; /** Why the item is disabled right now; the tooltip says so while it is. */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
 
 export type SlotSide = 'bottom' | 'right' | 'left';
 
@@ -151,7 +151,7 @@ function SlotCell(p: SlotProps): JSX.Element {
 
   return (
     <div class={'slot ' + p.variant + (multi ? ' multi' : '') + (p.class ? ' ' + p.class : '')} data-side={side} data-slot={p.id} ref={box}>
-      <Tip label={name} keys={p.menu ? undefined : shown.keys} hint={p.menu ? undefined : shown.tip} side={side === 'bottom' ? 'bottom' : side === 'right' ? 'right' : 'left'}>
+      <Tip label={name} keys={p.menu ? undefined : shown.keys} hint={p.menu ? undefined : on ? shown.tip : shown.why?.() ?? t('ui.slot.unavailable')} side={side === 'bottom' ? 'bottom' : side === 'right' ? 'right' : 'left'}>
         <button
           class={'slot-btn' + (p.variant === 'ribbon' ? ' rb-btn' : ' stool') + (p.labels ? ' has-label' : ' icon-only')}
           disabled={!on}

@@ -53,7 +53,32 @@ export function edgeRefs(selection: string[], edges: ViewEdge[]): EdgeRef[] {
 }
 
 /** The selected faces, by name. */
-export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:'));
+export const faceNames = (selection: string[]): string[] => selection.filter((n) => !isEdgeName(n) && n !== BODY && !n.startsWith('@body:') && !n.startsWith('v:'));
+
+/** The edges to round when faces are picked (SolidWorks "face fillet"): every edge two of the faces share. For exactly two faces that is their common edges
+ *  (a ring split into arcs gives every arc); for more faces, all shared edges between selected pairs. */
+export function faceEdgeRefs(faces: string[], edges: ViewEdge[]): EdgeRef[] {
+  const picked = new Set(faces);
+  const out: EdgeRef[] = [];
+  const seen = new Set<string>();
+  for (const e of edges) {
+    if (!e.faces || e.faces.length !== 2 || !e.mid || e.faces[0] === e.faces[1]) continue;
+    if (!picked.has(e.faces[0]) || !picked.has(e.faces[1])) continue;
+    const id = e.key ?? e.faces.join('|') + '@' + e.mid.join(',');
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ faces: [...e.faces], at: [...e.mid] });
+  }
+  return out;
+}
+
+/** What a fillet or chamfer rounds for this selection: the selected edges (edge mode), else the edges shared by the selected faces (two or more). */
+export function roundTargets(c: Ctx): { edges: EdgeRef[]; viaFaces: boolean } {
+  const direct = c.mode === 'edge' || c.mode === 'vertex' ? edgeRefs(c.selection, c.edges) : [];
+  if (direct.length) return { edges: direct, viaFaces: false };
+  const faces = faceNames(c.selection);
+  return faces.length >= 2 ? { edges: faceEdgeRefs(faces, c.edges), viaFaces: true } : { edges: [], viaFaces: false };
+}
 
 /** What a reference field takes from the current selection: the edge references, the face names, or the first name. Null when nothing fits. */
 export function pickValue(path: string, selection: string[], edges: ViewEdge[]): unknown {
@@ -61,6 +86,8 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[]):
     // an open border edge of a surface body has one face; surface edits (fill, extend) take those, fillets take the two-face edges
     const r = edgeRefs(selection, edges);
     const keys = new Set(edges.filter((e) => e.faces?.length === 1).map((e) => e.key));
+    const faces = faceNames(selection);
+    if (!r.length && faces.length >= 2) { const f = faceEdgeRefs(faces, edges); if (f.length) return f; }
     const border = selection.filter((k) => keys.has(k)).map((k) => edges.find((e) => e.key === k)!).filter((e) => e.mid).map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
     const all = [...r, ...border];
     return all.length ? all : null;
@@ -87,7 +114,16 @@ export interface Ctx {
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];
 
-export const canFillet = (c: Ctx): boolean => !!c.doc && (c.mode === 'edge' || c.mode === 'vertex') && edgeRefs(c.selection, c.edges).length > 0;
+/** Fillet and chamfer take selected edges, or two or more selected faces (then the edges they share; if there are none the command says so). */
+export const canFillet = (c: Ctx): boolean => !!c.doc && (roundTargets(c).edges.length > 0 || faceNames(c.selection).length >= 2);
+/** Why Fillet / Chamfer is disabled (a sentence for the tooltip), or undefined when it is enabled. */
+export function filletWhy(c: Ctx): string | undefined {
+  if (canFillet(c)) return undefined;
+  if (!c.doc) return t('why.noDocument');
+  if (faceNames(c.selection).length === 1) return t('why.round.oneFace');
+  if (c.selection.some((n) => n.includes('|')) && c.mode !== 'edge' && c.mode !== 'vertex') return t('why.round.edgeMode');
+  return t('why.round.none');
+}
 export const canShell = (c: Ctx): boolean => !!c.doc && c.mode === 'face' && faceNames(c.selection).length > 0;
 
 export const hasPointEntities = (f: { type: string; entities?: unknown }): boolean => f.type === 'sketch' && ((f.entities as Array<{ type: string }> | undefined) ?? []).some((e) => e.type === 'point');
@@ -126,12 +162,12 @@ export const canPattern = (c: Ctx): boolean => !!c.doc && patternSeed(c) !== nul
 // ---- the edits (each is ONE edit) ----
 
 export function filletOps(c: Ctx): EditOp[] | null {
-  const edges = edgeRefs(c.selection, c.edges);
+  const { edges } = roundTargets(c);
   if (!edges.length) return null;
   return [{ op: 'add', feature: { type: 'fillet', radius: niceSize(c.box), edges } }];
 }
 export function chamferOps(c: Ctx): EditOp[] | null {
-  const edges = edgeRefs(c.selection, c.edges);
+  const { edges } = roundTargets(c);
   if (!edges.length) return null;
   return [{ op: 'add', feature: { type: 'chamfer', chamferType: 'equal', distance: niceSize(c.box), edges } }];
 }
@@ -186,11 +222,13 @@ export interface FeatureActions {
 export function featureCommands(a: FeatureActions): Command[] {
   const c = () => a.context();
   const run = (f: (c: Ctx) => EditOp[] | null) => () => { const ops = f(c()); if (ops) a.create(ops); };
-  const cmd = (id: string, enabled: (c: Ctx) => boolean, go: () => void): Command => ({ id, label: t('cmd.' + id), tab: 'Home', group: 'Features', enabled: () => enabled(c()), run: go });
+  const cmd = (id: string, enabled: (c: Ctx) => boolean, go: () => void, why?: (c: Ctx) => string | undefined): Command => ({ id, label: t('cmd.' + id), tab: 'Home', group: 'Features', enabled: () => enabled(c()), why: () => (enabled(c()) ? undefined : why?.(c())), run: go });
+  // two or more faces whose shared edges are none: the button stays enabled and says so
+  const round = (f: (c: Ctx) => EditOp[] | null) => () => { const ops = f(c()); if (ops) a.create(ops); else if (roundTargets(c()).viaFaces) a.notify(t('app.round.noSharedEdge'), 'warn'); };
   return [
-    cmd('add-fillet', canFillet, run(filletOps)),
-    cmd('add-chamfer', canFillet, run(chamferOps)),
-    cmd('add-shell', canShell, run(shellOps)),
+    cmd('add-fillet', canFillet, round(filletOps), filletWhy),
+    cmd('add-chamfer', canFillet, round(chamferOps), filletWhy),
+    cmd('add-shell', canShell, run(shellOps), (x) => (x.doc ? t('why.shell') : t('why.noDocument'))),
     cmd('add-hole', canHole, () => {
       const ctx = c();
       const face = ctx.mode === 'face' ? faceNames(ctx.selection) : [];

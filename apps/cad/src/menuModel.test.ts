@@ -29,9 +29,9 @@ describe('menuItems', () => {
     expect(m[0]).toMatchObject({ label: 'Fillet', keys: 'Shift+F', enabled: true });
     expect(m[1].enabled).toBe(false);
   });
-  it('a face offers sketch, hole, shell and the patterns, separated', () => {
+  it('a face offers sketch, hole, shell, fillet, chamfer and the patterns, separated', () => {
     const m = menuItems('face', registry, false);
-    expect(m.map((x) => (x.separator ? '-' : x.id))).toEqual(['sketch-on-face', 'add-hole', 'add-shell', '-', 'add-lpattern', 'add-cpattern']);
+    expect(m.map((x) => (x.separator ? '-' : x.id))).toEqual(['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern']);
   });
   it('a body lists Move body, disabled with the reason while the kernel cannot', () => {
     const off = menuItems('body', registry, false).find((x) => x.id === 'move-body')!;

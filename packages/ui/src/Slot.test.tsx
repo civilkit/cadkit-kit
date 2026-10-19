@@ -94,3 +94,19 @@ describe('Slot', () => {
     expect(container.querySelector('.slot-lab')!.textContent).toBe('Dis');
   });
 });
+
+describe('Slot: a disabled button says why', () => {
+  const hover = (name: string) => { fireEvent.pointerEnter(screen.getByRole('button', { name }), { pointerType: 'mouse' }); return document.querySelector('.tip')?.textContent ?? ''; };
+  it('shows the item\'s reason, else a generic one, in the tooltip', () => {
+    const { unmount } = render(<Slot id="w1" items={[{ id: 'x', label: 'Round', enabled: () => false, why: () => 'Select two faces', run: vi.fn() }]} variant="ribbon" />);
+    expect(hover('Round')).toContain('Select two faces');
+    unmount();
+    render(<Slot id="w2" items={[{ id: 'y', label: 'Shell', enabled: () => false, run: vi.fn() }]} variant="ribbon" />);
+    expect(hover('Shell')).toContain('Not available right now');
+  });
+  it('an enabled button shows its tip, not a reason', () => {
+    render(<Slot id="w3" items={[{ id: 'z', label: 'Hole', tip: 'Drill', why: () => 'nope', run: vi.fn() }]} variant="ribbon" />);
+    const t = hover('Hole');
+    expect(t).toContain('Drill'); expect(t).not.toContain('nope');
+  });
+});

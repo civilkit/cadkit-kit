@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { t } from './i18n';
 import { Slot, type SlotItem } from './Slot';
 
-export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; enabled?(): boolean; pressed?(): boolean; run(): void }
+export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; /** Why the command is disabled right now (shown in the tooltip while it is). */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
 
 /** One place in a ribbon group: a command id (a plain button) or a slot (a split button holding several commands). */
 export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; icon?: string; title?: string };
@@ -42,7 +42,7 @@ export function resolveLayout(commands: Command[], layout?: RibbonLayout, hidden
   return out;
 }
 
-export const commandToItem = (c: Command): SlotItem => ({ id: c.id, label: c.label.replace(/^✓ /, ''), keys: c.keys, tip: c.tip, enabled: c.enabled, pressed: c.pressed, run: c.run });
+export const commandToItem = (c: Command): SlotItem => ({ id: c.id, label: c.label.replace(/^✓ /, ''), keys: c.keys, tip: c.tip, why: c.why, enabled: c.enabled, pressed: c.pressed, run: c.run });
 
 export function Ribbon(p: {
   commands: Command[]; activeTab: string; onTab(t: string): void; labels?: 'icons' | 'icons-and-text';
