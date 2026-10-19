@@ -150,3 +150,24 @@ describe('reference dimensions on the canvas and in the list', () => {
     fireEvent.click(rows[0].querySelector('.cdrv')!); expect(onToggleDriven).toHaveBeenCalledWith('k1', false);
   });
 });
+
+describe('Extrude and Revolve buttons', () => {
+  it('sit before the sketch name and call their handlers', () => {
+    const onExtrude = vi.fn(), onRevolve = vi.fn();
+    const { container } = bar(st({}), { onExtrude, onRevolve });
+    const ex = container.querySelector('[data-action="sketch-extrude"]') as HTMLElement;
+    const rv = container.querySelector('[data-action="sketch-revolve"]') as HTMLElement;
+    expect(ex.textContent).toContain('Extrude');
+    expect(rv.textContent).toContain('Revolve');
+    expect(ex.compareDocumentPosition(container.querySelector('.sb-name')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(ex); fireEvent.click(rv);
+    expect(onExtrude).toHaveBeenCalledTimes(1);
+    expect(onRevolve).toHaveBeenCalledTimes(1);
+  });
+  it('are absent without handlers, and OK still works', () => {
+    const { container, props } = bar(st({}));
+    expect(container.querySelector('[data-action="sketch-extrude"]')).toBeNull();
+    fireEvent.click(container.querySelector('.rb-btn.ok')!);
+    expect(props.onOk).toHaveBeenCalled();
+  });
+});

@@ -52,6 +52,10 @@ export function SketchBar(p: {
   plane: string;
   onOk(): void;
   onCancel(): void;
+  /** Finish the sketch (as OK does) and open the Extrude card on it. */
+  onExtrude?: () => void;
+  /** Finish the sketch and open the Revolve card on it. */
+  onRevolve?: () => void;
   construction: boolean;
   onConstruction(): void;
   /** Shown when geometry is selected: turn the selection into / out of construction. */
@@ -115,6 +119,9 @@ export function SketchBar(p: {
   return (
     <div class="sketch-bar-wrap" ref={wrap}>
       <div class="sketch-bar pill" role="toolbar" aria-label={t('app.sketch.editing', { name: p.name })}>
+        {p.onExtrude ? <button class="rb-btn" data-action="sketch-extrude" title={t('app.sketch.extrude.tip')} onClick={p.onExtrude}><Icon name="add-extrude" size={16} />{t('cmd.add-extrude')}</button> : null}
+        {p.onRevolve ? <button class="rb-btn" data-action="sketch-revolve" title={t('app.sketch.revolve.tip')} onClick={p.onRevolve}><Icon name="add-revolve" size={16} />{t('cmd.add-revolve')}</button> : null}
+        {p.onExtrude || p.onRevolve ? <span class="sb-sep" /> : null}
         <span class="sb-name" title={p.plane ? `${t('app.sketch.dialog.plane')}: ${p.plane}` : undefined}>{p.name}</span>
         <button class="rb-btn ok" aria-label={t('app.sketch.confirm')} title={t('app.sketch.confirm')} onClick={p.onOk}>✓</button>
         <button class="rb-btn no" aria-label={t('app.sketch.cancel')} title={t('app.sketch.cancel')} onClick={p.onCancel}>✗</button>

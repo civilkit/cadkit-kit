@@ -14,10 +14,11 @@ import { useRevealInTree } from './useRevealInTree';
 import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
-import { autoCutFlip, editorFixes } from './editorFixes';
+import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
+import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
 import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
 import { tangentChainOn, chainSelection } from './roundChain';
-import { pickValue, LIST_PATHS, hasPointEntities, holeOps, type FeatureActions } from './featureCommands';
+import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, removeRefDim, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
@@ -930,7 +931,9 @@ function App() {
     viewport?.setRegionPicker({ frame: regionFrame as never, move: (u, v) => regionRef.current?.move(u, v), tap: (u, v) => regionRef.current?.tap(u, v) ?? false });
     return () => { viewport?.setRegionPicker(null); viewport?.highlightSketchEntities(null, []); };
   }, [viewport, editingId, !!regionFrame]);
+  const cutProblemNow = cutProblem(editingFeature ? { ...editingFeature, ...draft } : null, previewDiag?.d.roots ?? null);
   const thinActions = {
+    cutProblem: cutProblemNow,
     closeWithLine: (sketchId: string) => {
       const op = closeWithLineOp(doc, sketchId);
       if (op) void timed(() => controller.commit([op], 'closeProfile')).then(() => { redraw((n) => n + 1); if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops).then((r) => setPreviewHint(r.ok ? null : (r.hint ?? null))); } });
@@ -1584,11 +1587,14 @@ function App() {
     })();
   };
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
-  const addExtrude = async (op: 'add' | 'cut', thin = false) => {
+  // `cut` is only passed by the Cut commands (an explicit choice); `add` means "the default": nothing is remembered from the last extrude.
+  const addExtrude = async (opArg: 'add' | 'cut', thin = false, sketchId?: string) => {
     const d = controller.document();
     if (!d) return;
-    const target = nextExtrudeTarget(d.features as never, selectedId);
+    const target = sketchId ? { sketchId, regions: null } : nextExtrudeTarget(d.features as never, selectedId);
     if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
+    const dflt = defaultExtrudeOp({ explicitCut: opArg === 'cut', touchesBody: controller.sketchTouchesBody(target.sketchId), supportsNew: KERNEL_SUPPORTS_NEW_BODY });
+    const op: 'add' | 'cut' = dflt === 'cut' ? 'cut' : 'add';   // 'new' needs kernel support (none yet): a sketch in empty space adds too
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
     const make = (flip: boolean) => ({ type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
@@ -1638,8 +1644,8 @@ function App() {
     if (added) startEditing(added.id);
   };
   const fieldEvent = (id: string, value: number | null, commit: boolean) => runTool({ type: 'field', id, value, commit });
-  const confirmSketch = async () => {
-    if (!sketching) return;
+  const confirmSketch = async (): Promise<string | null> => {
+    if (!sketching) return null;
     selectTool(null);
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
@@ -1654,6 +1660,16 @@ function App() {
     if (wasHole && made && hasPointEntities(made as never)) void createFeature(holeOps(sketchId, controller.extrudeFlip(sketchId, 'cut')));
     else if (wasHole) store.notify(t('app.hole.hint'), 'error');
     redraw((n) => n + 1);
+    return wasHole ? null : sketchId;
+  };
+  /** Finish the sketch (as the check does) and open the Extrude or Revolve card on it in one action. */
+  const finishAnd = async (kind: 'extrude' | 'revolve') => {
+    const id = await confirmSketch();
+    if (!id) return;
+    if (kind === 'extrude') { await addExtrude('add', false, id); return; }
+    const sk = controller.document()?.features.find((f) => f.id === id);
+    const ops = sk ? revolveOps(sk as never) : null;
+    if (ops) await createFeature(ops); else store.notify(t('app.noAxis'), 'error');
   };
   const cancelSketch = async () => {
     if (!sketching) return;
@@ -1714,7 +1730,8 @@ function App() {
   const sketchBar = sketching ? (
     <SketchBar
       name={sketching.name} plane={sketching.plane ?? sketchPlaneLabel}
-      onOk={() => void confirmSketch()} onCancel={() => void cancelSketch()}
+      onOk={() => void confirmSketch()}
+      {...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') })} onCancel={() => void cancelSketch()}
       construction={constructionMode} onConstruction={() => setConstructionMode(!constructionMode)}
       {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
       onLookNormal={lookNormal} lookChip={lookChip} hint={sketchHint}

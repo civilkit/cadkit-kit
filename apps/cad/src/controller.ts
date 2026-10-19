@@ -23,6 +23,7 @@ import { setDocFields, type DocPatch } from './docFields';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
+import { planeTouchesBox } from './extrudeOp';
 import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
@@ -1138,6 +1139,12 @@ export class Controller {
     const v = this.lastView;
     const frame = v?.sketches.find((x) => x.id === sketchId)?.frame ?? null;
     return defaultFlip(op, frame, v?.box ?? null);
+  }
+
+  /** Whether this sketch's plane meets the body on screen (a new extrude of it should then add to the body). */
+  sketchTouchesBody(sketchId: string): boolean {
+    const v = this.lastView;
+    return planeTouchesBox(v?.sketches.find((x) => x.id === sketchId)?.frame ?? null, v?.box ?? null);
   }
 
   /** The body to show: the whole model, or the first `rollbackCount()` features while rolled back. */
