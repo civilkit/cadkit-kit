@@ -611,6 +611,7 @@ export const en: Catalog = {
   'handles.radius.label': 'Drag to change the fillet radius', 'handles.radius': 'Radius {v} mm',
   'handles.distance.label': 'Drag to change the chamfer distance', 'handles.distance': 'Distance {v} mm',
   'handles.depth.label': 'Drag to change the extrude depth', 'handles.depth': 'Depth {v} mm', 'handles.depth.tip': 'Depth {v} mm (tip)', 'tip.limited': 'Limited to the tip ({h} mm)', 'tip.angle': 'The taper closes to a tip at {h} mm, below the current height: lower the angle or the height',
+  'handles.depthArrow.label': 'Drag to set the depth (hold Ctrl to snap; type in the card to be exact)',
   'handles.thickness.label': 'Drag to change the shell thickness', 'handles.thickness': 'Thickness {v} mm',
   'handles.threadLength.label': 'Drag to change the thread length', 'handles.threadLength': 'Thread length {v} mm',
   'handles.diameter.label': 'Drag to change the hole diameter', 'handles.diameter': 'Diameter {v} mm',

@@ -9,6 +9,7 @@ import type { Controller } from './controller';
 import { planHandles, type PlanCtx } from './handles/plan';
 import { HandleRunner } from './handles/runner';
 import { ABOUT_MODES, DEFAULT_ABOUT, ownerShape, planSizeBox, shapeSelection, type AboutMode } from './handles/sizeBox';
+import { depthArrowKey, type DepthArrowCtx } from './handles/depthArrow';
 import { MoveFields } from './handles/MoveFields';
 import { scopeOf } from './variables';
 import type { ThreadHandleCtx } from './handles/threadHandle';
@@ -35,6 +36,8 @@ export interface HandlesDeps {
   enabled: boolean;
   /** The Thread editor is open on this thread: the length handle at its far end (see handles/threadHandle.ts). */
   thread?: ThreadHandleCtx | null;
+  /** An Extrude / Cut card is open on a blind or mid-plane extrude: the depth arrow (see handles/depthArrow.ts). */
+  depthArrow?: DepthArrowCtx | null;
   /** A handle gesture that edits the open editor's draft (the thread length) hands its patch here instead of committing. */
   onDraftPatch?(patch: Record<string, unknown>): void;
   /** After a handle drag was cancelled: show the editor's own draft again (cancelPreview dropped it). */
@@ -82,6 +85,7 @@ export function useHandles(p: HandlesDeps) {
       editingId: ref.current.editingId, sketching: ref.current.sketching, enabled: ref.current.enabled,
       placement: null,   // the kernel has no moveBody yet: the placement gizmo stays off
       thread: ref.current.thread ?? null,
+      depthArrow: ref.current.depthArrow ?? null,
       tipLimit: (id) => controller.tipLimit(id),
     };
     // a shape (extrude / cut / revolve / hole, picked in the tree or by its faces) shows its size box; edges keep the fillet dot
@@ -102,6 +106,7 @@ export function useHandles(p: HandlesDeps) {
   const sel = p.store.selection.value;
   const th = p.thread;
   const threadKey = th ? [th.id, th.entry.start, th.entry.dir, th.entry.length, th.maxLength].join('|') : '';
+  const arrowKey = depthArrowKey(p.depthArrow);
   useEffect(() => {
     const vp = p.viewport();
     if (!vp || dragging.current) return;
@@ -112,7 +117,7 @@ export function useHandles(p: HandlesDeps) {
     const doc = p.controller.document();
     const onShape = s?.kind === 'size-box' && s.target ? (face: string) => ownerShape(doc, face) === s.target : null;
     vp.setHandles(s ? s.specs : null, s ? runner.current!.sink(s) : null, onShape);
-  }, [sel, p.store.mode.value, p.controller.revision, p.editingId, p.selectedId, p.sketching, p.enabled, threadKey, tick, about]);
+  }, [sel, p.store.mode.value, p.controller.revision, p.editingId, p.selectedId, p.sketching, p.enabled, threadKey, arrowKey, tick, about]);
   useEffect(() => () => { p.viewport()?.setHandles(null, null); }, []);
 
   // Keyboard: Tab opens the typed move; arrow keys nudge the shape by the grid step (Shift 10x, Alt 0.1x). A burst of presses is one edit.

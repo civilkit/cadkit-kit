@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { loadCollapsed, rememberCollapsed } from './EditorSection';
 import type { JSX } from 'preact';
 import { t } from './i18n';
@@ -174,6 +174,8 @@ export function FeatureEditor(p: {
   onPickRequest?(path: string): void;
   pickingPath?: string | null;
   picked?: { path: string; value: unknown } | null;
+  /** A patch the app applies to the draft once per `seq` (the depth arrow in the viewport sets `depth` and maybe `flip`). */
+  inject?: { seq: number; patch: Record<string, unknown> } | null;
   /** Preview failure hint; the viewport keeps the last good mesh while it shows. */
   hint?: string | null;
   /** Replaces the plain hint when the app has something richer to show (the failure card). */
@@ -189,6 +191,7 @@ export function FeatureEditor(p: {
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const seenInject = useRef(p.inject?.seq ?? 0);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
 
   if (!feature) {
@@ -234,6 +237,10 @@ export function FeatureEditor(p: {
     p.onDraft(next);
   };
 
+  if (p.inject && p.inject.seq !== seenInject.current) {
+    seenInject.current = p.inject.seq;
+    apply2(p.inject.patch);
+  }
   if (p.picked && draft[p.picked.path] !== p.picked.value) {
     // A picked value arriving through props lands in the draft.
     applyPicked(p.picked.path, p.picked.value);

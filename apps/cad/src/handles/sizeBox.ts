@@ -118,6 +118,12 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
   return { pointIds, entityIds, box: { u0, u1, v0, v1 }, round };
 }
 
+/** The centre of the footprint of the chosen regions (all of them when `regions` is absent) in the sketch plane, or null when there is no closed profile. */
+export function profileCentre(sk: Wire, regions: unknown): { u: number; v: number; hu: number; hv: number } | null {
+  const p = profileOf(sk, regions);
+  return p ? { u: (p.box.u0 + p.box.u1) / 2, v: (p.box.v0 + p.box.v1) / 2, hu: (p.box.u1 - p.box.u0) / 2, hv: (p.box.v1 - p.box.v0) / 2 } : null;
+}
+
 // ---- the shape ----
 
 export interface Shape {

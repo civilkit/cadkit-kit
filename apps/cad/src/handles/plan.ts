@@ -6,6 +6,7 @@
 //   end cap (Fn.C1) of a blind extrude: arrow along the normal edits `depth` (a cut deepens when the cap moves into the part)
 //   inner wall of a shell: arrow edits the shell `thickness`
 //   wall of a plain hole: dot edits the hole `diameter`
+//   Extrude / Cut card open (blind or mid-plane): one red arrow at the profile centre sets `depth` in the card's draft (depthArrow.ts)
 //   Thread editor open: dot at the end of the thread edits `length` in the editor's draft (threadHandle.ts)
 //   whole body (Alt+click): the placement gizmo, only when the kernel has moveBody (it does not yet)
 import type { EditOp } from '@ck/session';
@@ -19,6 +20,7 @@ import { bisectorAt, faceInfo, onHull, surfaceNear, type MeshLike } from './geom
 import { MIN_SIZE, type HandleSession } from './session';
 import { placementSession, type Placement } from './placement';
 import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
+import { depthArrowSession, type DepthArrowCtx } from './depthArrow';
 import { thinOf } from '../thinRules';
 import { clampToTip } from '../taperLimit';
 
@@ -40,6 +42,8 @@ export interface PlanCtx {
   placement?: Placement | null;
   /** The Thread editor is open on a thread: its length handle (the only handle shown while an editor is open). */
   thread?: ThreadHandleCtx | null;
+  /** An Extrude / Cut card is open on a blind or mid-plane extrude: the depth arrow on its preview (depthArrow.ts). */
+  depthArrow?: DepthArrowCtx | null;
   /** The depth at which a tapered extrude closes to a tip (the kernel's `limits`), when it has one. */
   tipLimit?(featureId: string): number | undefined;
 }
@@ -204,6 +208,7 @@ const fmt = (v: number): string => String(Math.round(v * 100) / 100);
 /** The handle session for the selection, or null (nothing selected, a sketch or the Editor open, handles off, or no gesture for this selection). */
 export function planHandles(c: PlanCtx): HandleSession | null {
   if (c.enabled && !c.sketching && c.editingId && c.thread && c.thread.id === c.editingId) return threadLengthSession(c.thread);
+  if (c.enabled && !c.sketching && c.editingId && c.depthArrow && c.depthArrow.id === c.editingId) return depthArrowSession(c.depthArrow);
   if (!c.enabled || c.sketching || c.editingId || !c.doc || !c.mesh || !c.selection.length) return null;
   if (c.selection.includes(BODY)) return c.placement ? placementSession(c.placement, c.box) : null;
 

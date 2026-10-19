@@ -102,6 +102,8 @@ import { t } from './i18n';
 import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
+import type { DepthArrowCtx } from './handles/depthArrow';
+import { profileCentre } from './handles/sizeBox';
 import { registerShapeSelect, selectShapeFeature } from './shapeSelect';
 import { CatalogPanel, CatalogGhost } from './catalog/CatalogPanel';
 import type { LibraryActions } from './library/LibraryBrowser';
@@ -1078,6 +1080,21 @@ function App() {
     editingId, sketching: !!sketching, prefs: triPrefs, onPrefs: setTriPrefs,
   });
   triRef.current = tri;
+  // The Extrude / Cut card is open: one arrow on the preview sets the depth in the card's draft (handles/depthArrow.ts).
+  const depthArrow: DepthArrowCtx | null = (() => {
+    if (!editingFeature || editingFeature.type !== 'extrude' || !editingId || openCard) return null;
+    const eff: Record<string, unknown> = { ...editingFeature, ...draft };
+    for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
+    const sk = doc?.features.find((f) => f.id === eff.sketch) as unknown as Record<string, unknown> | undefined;
+    const frame = typeof eff.sketch === 'string' ? controller.sketchFrameOf(eff.sketch) : null;
+    const centre = sk ? profileCentre(sk, eff.regions) : null;
+    if (!frame || !centre) return null;
+    return {
+      id: editingId, op: eff.op === 'cut' ? 'cut' : 'add', end: typeof eff.end === 'string' ? eff.end : 'blind',
+      depth: typeof eff.depth === 'number' ? eff.depth : null, flip: eff.flip === true, frame, centre, tipLimit: controller.tipLimit(editingId),
+      ops: (patch) => opsFromDraft({ ...draft, ...patch }),
+    };
+  })();
   // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
   const handles = useHandles({
     controller, store, viewport: () => viewport, commands,
@@ -1085,6 +1102,7 @@ function App() {
     commitInPlace: async (ops) => { const r = await timed(() => controller.commit(ops)); if (r && !r.ok) await controller.cancelPreview(); redraw((n) => n + 1); },
     editingId, selectedId, sketching: !!sketching, enabled: ws.handles && !tri.on,
     thread: threadEntry && editingId ? { id: editingId, entry: threadEntry, maxLength: threadExtent?.length ?? null, ops: (length) => opsFromDraft({ ...draft, length }) } : null,
+    depthArrow,
     onDraftPatch: (patch) => setHandleInject((x) => ({ seq: (x?.seq ?? 0) + 1, patch })),
     restorePreview: () => { if (editingId) { const ops = opsFromDraft(draft); if (ops.length) void controller.preview(ops); } },
   });
@@ -1883,6 +1901,7 @@ function App() {
       }}
       pickingPath={pickingPath}
       picked={picked}
+      inject={handleInject}
       key={`${editingId}:${String(editingFeature?.type)}`}
       options={(a) => optionsFor(a, doc, thinActions)}
       hint={openCard ? null : previewHint}

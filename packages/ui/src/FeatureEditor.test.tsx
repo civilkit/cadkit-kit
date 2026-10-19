@@ -229,3 +229,21 @@ describe('FeatureEditor: a draft that breaks the model', () => {
     expect(container.querySelector('.fedit-hint')).toBeNull();
   });
 });
+
+describe('inject (the depth arrow in the viewport)', () => {
+  it('a patch lands in the draft once per seq and is confirmed with it; mounting with an old seq does nothing', () => {
+    const drafts: Array<Record<string, unknown>> = [];
+    const confirmed: Array<Record<string, unknown>> = [];
+    const props = { feature: EXTRUDE, onDraft: (d: Record<string, unknown>) => { drafts.push(d); }, onConfirm: (d: Record<string, unknown>) => { confirmed.push(d); }, onCancel: () => {} };
+    const { container, rerender } = render(<FeatureEditor {...props} inject={{ seq: 3, patch: { depth: 99 } }} />);
+    expect(drafts).toEqual([]);
+    rerender(<FeatureEditor {...props} inject={{ seq: 4, patch: { depth: 12.5, flip: true } }} />);
+    expect(drafts.at(-1)).toEqual({ depth: 12.5, flip: true });
+    expect((container.querySelector('[data-path="depth"] input') as HTMLInputElement).value).toBe('12.5');
+    const n = drafts.length;
+    rerender(<FeatureEditor {...props} inject={{ seq: 4, patch: { depth: 12.5, flip: true } }} />);
+    expect(drafts.length).toBe(n);
+    fireEvent.click(container.querySelector('.fedit-confirm')!);
+    expect(confirmed.at(-1)).toEqual({ depth: 12.5, flip: true });
+  });
+});
