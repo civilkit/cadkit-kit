@@ -615,6 +615,7 @@ export const en: Catalog = {
   'handles.thickness.label': 'Drag to change the shell thickness', 'handles.thickness': 'Thickness {v} mm',
   'handles.threadLength.label': 'Drag to change the thread length', 'handles.threadLength': 'Thread length {v} mm',
   'handles.diameter.label': 'Drag to change the hole diameter', 'handles.diameter': 'Diameter {v} mm',
+  'sizebox.diameter': 'Diameter {v} mm', 'sizebox.diameter.tip': 'Drag to change the diameter',
   'sizebox.width': 'Width {v} mm', 'sizebox.length': 'Length {v} mm', 'sizebox.height': 'Height {v} mm', 'sizebox.height.tipped': 'Height {v} mm (tip)', 'sizebox.both': 'Width {w} x Length {l} mm', 'sizebox.move': 'Anchor at {u}, {v} mm',
   'sizebox.width.tip': 'Drag to change the width (Shift snaps to a round value)', 'sizebox.length.tip': 'Drag to change the length (Shift snaps to a round value)', 'sizebox.height.tip': 'Drag to change the height (Shift snaps to a round value)',
   'sizebox.corner.tip': 'Drag to change width and length together', 'sizebox.anchor.tip': 'Anchor (orange diamond): the shape\'s reference point, the centre Anchor mode resizes about. It moves with the shape; drag it to move the shape', 'sizebox.label.tip': 'Click to type an exact value',

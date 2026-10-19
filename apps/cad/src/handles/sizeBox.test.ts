@@ -132,3 +132,38 @@ describe('size box selection and layout', () => {
     expect(a.find((x) => x.id === 'anchor')!.origin).toEqual([3, 0, 0]);   // the shape's anchor (its centre) is at the origin here
   });
 });
+
+describe('a round shape shows one diameter', () => {
+  const labels = (id: string) => { const sh = shape(id); return layout(sh, sh.box, { mode: 'opposite' }).filter((x) => x.kind === 'label').map((x) => [x.id, x.text, x.forId]); };
+  const handles = (id: string) => { const sh = shape(id); return layout(sh, sh.box, { mode: 'opposite' }).filter((x) => x.kind === 'cube' || x.kind === 'pad').map((x) => x.id); };
+  it('a circle profile (mid-plane boss): Ø20 and the depth, one resize handle, no corners', () => {
+    expect(shape('F4').diameter).toBe(true);
+    expect(labels('F4')).toEqual([['ld', '\u00d820', 'u1'], ['lh', '8', 'd1']]);
+    expect(handles('F4')).toEqual(['u1', 'd1', 'd0', 'move', 'anchor']);
+  });
+  it('a hole: Ø6 and its depth, one handle', () => {
+    expect(shape('H1').diameter).toBe(true);
+    expect(labels('H1').map((l) => l[0])).toEqual(['ld', 'lh']);
+    expect(labels('H1')[0][1]).toBe('\u00d86');
+    expect(handles('H1')).toEqual(['u1', 'df', 'move', 'anchor']);
+  });
+  it('a rectangle keeps width and length and all four face handles and corners', () => {
+    expect(shape('F2').diameter).toBe(false);
+    expect(labels('F2').map((l) => l[0])).toEqual(['lw', 'll', 'lh']);
+    expect(handles('F2')).toEqual(['u1', 'u0', 'v1', 'v0', 'df', 'c++', 'c+-', 'c-+', 'c--', 'move', 'anchor']);
+  });
+  it('typing a diameter on the label (the handle it names) resizes the circle uniformly; the readout says Diameter', () => {
+    const s = planSizeBox({ doc: doc(), shapeId: 'F4', frameOf: () => frame, bodyBox: null, mode: 'opposite' })!;
+    const ops = s.commit('u1', 30, [0, 0, 0])!.ops;
+    const sk = (ops[0] as { feature: any }).feature;
+    expect(sk.entities.find((e: any) => e.id === 'k1').r).toBe(15);
+    expect(s.format!('u1', 30)).toBe('Diameter 30 mm');
+    expect(s.live!('u1', 30, [0, 0, 0])!.find((x) => x.id === 'ld')!.text).toBe('\u00d830');
+  });
+  it('a half disc (arc and a line) is round but not a full circle: it keeps width and length', () => {
+    const arcSk = { type: 'sketch', id: 'S5', plane: { kind: 'std', id: 'front' }, points: [{ id: 'c', x: 0, y: 0 }, { id: 'a', x: 10, y: 0 }, { id: 'b', x: -10, y: 0 }], entities: [{ id: 'k1', type: 'arc', c: 'c', p1: 'a', p2: 'b' }, { id: 'k2', type: 'line', p1: 'b', p2: 'a' }], constraints: [] };
+    const d = { ...doc(), features: [arcSk, { type: 'extrude', id: 'F9', op: 'add', sketch: 'S5', end: 'blind', depth: 3 }] } as unknown as PartDoc;
+    const sh = shapeModel(d, 'F9', () => frame, null)!;
+    expect(sh.diameter).toBe(false);
+  });
+});

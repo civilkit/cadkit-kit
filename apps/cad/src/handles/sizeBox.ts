@@ -75,6 +75,8 @@ interface Profile {
   box: { u0: number; u1: number; v0: number; v1: number };
   /** The outline has circles, arcs or ellipses: only a uniform scale keeps it what it is. */
   round: boolean;
+  /** Every outline is a full circle (not an arc or ellipse). */
+  circles: boolean;
 }
 
 function profileOf(sk: Wire, regions: unknown): Profile | null {
@@ -86,11 +88,12 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
   const pts = new Map<string, { x: number; y: number }>((sk.points ?? []).map((p: Wire) => [p.id, p]));
   const pointIds = new Set<string>();
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-  let round = false;
+  let round = false, circles = true;
   const add = (x: number, y: number) => { u0 = Math.min(u0, x); u1 = Math.max(u1, x); v0 = Math.min(v0, y); v1 = Math.max(v1, y); };
   const addPt = (id: unknown): { x: number; y: number } | null => { const p = pts.get(String(id)); if (!p) return null; pointIds.add(String(id)); add(p.x, p.y); return p; };
   for (const e of sk.entities ?? []) {
     if (!entityIds.has(e.id)) continue;
+    if (e.type !== 'circle') circles = false;
     if (e.type === 'circle') {
       round = true;
       const c = addPt(e.c); const r = num(e.r);
@@ -115,7 +118,7 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
     else { addPt(e.p1); addPt(e.p2); addPt(e.p); }
   }
   if (!Number.isFinite(u0)) return null;
-  return { pointIds, entityIds, box: { u0, u1, v0, v1 }, round };
+  return { pointIds, entityIds, box: { u0, u1, v0, v1 }, round, circles };
 }
 
 /** The centre of the footprint of the chosen regions (all of them when `regions` is absent) in the sketch plane, or null when there is no closed profile. */
@@ -143,6 +146,8 @@ export interface Shape {
   hole?: { pointId: string; editable: boolean };
   /** Resizing keeps width and length equal (a circle, an arc profile, a hole). */
   uniform: boolean;
+  /** A full circle (a hole, or an extrude whose outlines are all circles and square in extent): one diameter label and one resize handle instead of width and length. Arcs and ellipses keep width and length. */
+  diameter: boolean;
   /** The sketch has no editable profile: width and length are shown only. */
   sizeEditable: boolean;
   /** Other features that use the same sketch (moving it moves them too). */
@@ -177,7 +182,7 @@ export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: 
     return {
       id, kind: 'hole', frame, sketch, profile: null,
       box: { u0: p.x - d / 2, u1: p.x + d / 2, v0: p.y - d / 2, v1: p.y + d / 2, d0: Math.min(0, dir * len), d1: Math.max(0, dir * len) },
-      anchor: { u: p.x, v: p.y }, dir, depth: blind ? 'blind' : null, hole: { pointId: p.id, editable }, uniform: true, sizeEditable: editable, sharedWith: usersOf(doc, sketch.id, id),
+      anchor: { u: p.x, v: p.y }, dir, depth: blind ? 'blind' : null, hole: { pointId: p.id, editable }, uniform: true, diameter: true, sizeEditable: editable, sharedWith: usersOf(doc, sketch.id, id),
     };
   }
   const profile = profileOf(sketch, f.regions);
@@ -194,7 +199,7 @@ export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: 
   return {
     id, kind: f.type, frame, sketch, profile,
     // the anchor is the profile's own reference point (its footprint centre): it moves with the profile, not the fixed sketch origin
-    box: { ...profile.box, d0, d1 }, anchor: { u: (profile.box.u0 + profile.box.u1) / 2, v: (profile.box.v0 + profile.box.v1) / 2 }, dir, depth, uniform: profile.round, sizeEditable: true, sharedWith: usersOf(doc, sketch.id, id),
+    box: { ...profile.box, d0, d1 }, anchor: { u: (profile.box.u0 + profile.box.u1) / 2, v: (profile.box.v0 + profile.box.v1) / 2 }, dir, depth, uniform: profile.round, diameter: f.type === 'extrude' && profile.circles && Math.abs((profile.box.u1 - profile.box.u0) - (profile.box.v1 - profile.box.v0)) < 1e-6, sizeEditable: true, sharedWith: usersOf(doc, sketch.id, id),
   };
 }
 
@@ -460,7 +465,10 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
   const edit = shape.sizeEditable;
   const face = (id: string, at: Vec3, axis: Vec3, base: number, sc: number, colour: string, label: string, span = Infinity): HandleSpec =>
     ({ id, kind: 'cube', origin: at, axis, base, scale: sc, sizePx: 5, color: colour, unit: 'mm', label, follow: true, shiftSnaps: true, hoverReadout: true, ...(Number.isFinite(span) ? { spanWorld: span, showMinPx: FACE_MIN_PX } : {}) });
-  if (edit) {
+  if (edit && shape.diameter) {
+    // a round shape: one handle on the +u side, it scales the circle uniformly (boxFor); the same number is width and length
+    out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.diameter.tip'), width));
+  } else if (edit) {
     out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
     out.push(face('u0', W(u0, vm, dm), neg(f.x), width, faceScale(u0, u1, 'lo', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
     out.push(face('v1', W(um, v1, dm), f.y, length, faceScale(v0, v1, 'hi', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
@@ -474,7 +482,7 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
   }
   // corners of the cap (the end face away from the sketch plane)
   const cap = shape.depth === 'mid' ? d1 : far;
-  if (edit) {
+  if (edit && !shape.diameter) {
     for (const [id, su, sv] of [['c++', 1, 1], ['c+-', 1, -1], ['c-+', -1, 1], ['c--', -1, -1]] as Array<[string, 1 | -1, 1 | -1]>) {
       out.push({ id, kind: 'cube', origin: W(su > 0 ? u1 : u0, sv > 0 ? v1 : v0, cap), axis: f.z, u: f.x, drag: 'plane', sizePx: 4, color: '#c8d6e5', unit: 'mm', label: t('sizebox.corner.tip'), follow: true, shiftSnaps: true, spanWorld: Math.min(width, length), showMinPx: CORNER_MIN_PX });
     }
@@ -493,8 +501,13 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
   // the numbers
   const lab = (id: string, at: Vec3, value: number, forId: string | undefined, colour: string, tip: string): HandleSpec =>
     ({ id, kind: 'label', origin: at, axis: f.z, text: fmt(value), forId, color: colour, label: tip });
-  out.push(lab('lw', W(um, v0, d0), width, edit ? 'u1' : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')));
-  out.push(lab('ll', W(u1, vm, d0), length, edit ? 'v1' : undefined, AXIS_COLOUR.v, t('sizebox.label.tip')));
+  if (shape.diameter) {
+    // one number for a round shape: the diameter (not the radius), typed into it sets the diameter
+    out.push({ ...lab('ld', W(um, v0, d0), width, edit ? 'u1' : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')), text: '\u00d8' + fmt(width) });
+  } else {
+    out.push(lab('lw', W(um, v0, d0), width, edit ? 'u1' : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')));
+    out.push(lab('ll', W(u1, vm, d0), length, edit ? 'v1' : undefined, AXIS_COLOUR.v, t('sizebox.label.tip')));
+  }
   if (depth > EPS) out.push(lab('lh', W(u1, v0, dm), depth, shape.depth === 'blind' ? 'df' : shape.depth === 'mid' ? 'd1' : undefined, AXIS_COLOUR.d, t('sizebox.label.tip')));
   return out;
 }
@@ -615,7 +628,7 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   /** The box a handle reading stands for. `q` is the new dimension (faces) or the drag length (corner / anchor, which read `vec`). */
   const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult; tip?: number } | null => {
     const f = shape.frame;
-    if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.width', { v: fmt(q) }) };
+    if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode), text: t(shape.diameter ? 'sizebox.diameter' : 'sizebox.width', { v: fmt(q) }) };
     if (id === 'v1' || id === 'v0') return q < MIN_SIZE ? null : { box: boxFor(shape, { v: { side: id === 'v1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.length', { v: fmt(q) }) };
     if (id === 'df') {
       // a tapered extrude that closes to a tip: the height stops there however far the pointer goes
@@ -660,7 +673,7 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
       return e ? { ops: e.ops, create: false, ...(notice ? { notice } : {}) } : null;
     },
     live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
-    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t('sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : id === 'df' ? (() => { const k = clampToTip(q, c.tipLimit?.(shape.id)); return t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }); })() : t('sizebox.height', { v: fmt(q) })),
+    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t(shape.diameter ? 'sizebox.diameter' : 'sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : id === 'df' ? (() => { const k = clampToTip(q, c.tipLimit?.(shape.id)); return t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }); })() : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
     move: {
       box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv),
