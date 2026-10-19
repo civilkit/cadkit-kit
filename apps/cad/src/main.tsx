@@ -1,6 +1,6 @@
 import { render } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { createBrowserKernel, type BrowserKernel } from '@ck/kernel-client/browser';
+import { createBrowserKernel } from '@ck/kernel-client/browser';
 import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
@@ -49,6 +49,7 @@ import { createSaveThumbs } from './files/saveThumb';
 import { whenIdle } from './library/thumbs';
 import { browserKV } from './files/storage';
 import { withCacheCap } from './kernelCaps';
+import { createKernelRouter, chipOf } from './kernelService';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
@@ -161,10 +162,19 @@ if (typeof savedLocale === 'string') setLocale(savedLocale);
 const lookStore = createLookStore(read(LOOK_KEY));
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
 
-// One kernel worker for the app; cancel() restarts it.
+// One kernel for the app (the built-in wasm worker, or a local native service chosen in Settings); cancel() restarts it.
 /** Curated fonts are fetched from /fonts when picked (or when a document names one). */
 const fontSource = webFontSource(base);
-let kernelP: Promise<BrowserKernel> = createBrowserKernel(platform.wasmUrl());
+const kernelRouter = createKernelRouter({
+  kv: browserKV(),
+  makeBuiltin: () => createBrowserKernel(platform.wasmUrl()),
+  wrap: withCacheCap,
+  notify: (text, level) => store.notify(text, level),
+  // the kernel under the open document changed (a new choice in Settings, or the service failed): reopen it there, keeping the undo history
+  reopen: () => { void controller.cancel(); },
+});
+void kernelRouter.transport();   // start connecting at launch, as the built-in worker always did
+window.addEventListener('pagehide', () => kernelRouter.dispose());
 let session: Session | null = null;
 let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
@@ -225,8 +235,8 @@ const controller = new Controller({
     setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
   },
   kernel: {
-    async open(doc: PartDoc) { session = new Session(doc, withCacheCap(await kernelP), 'user'); return session; },
-    cancel() { void kernelP.then((k) => k.close()); kernelP = createBrowserKernel(platform.wasmUrl()); },
+    async open(doc: PartDoc) { session = new Session(doc, await kernelRouter.transport(), 'user'); return session; },
+    cancel() { kernelRouter.cancel(); },
   },
   fonts: fontSource,
 });
@@ -362,7 +372,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -2160,6 +2170,8 @@ function App() {
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },
             ...(check.chip ? [check.chip] : []),
+            ...(kernelRouter.prefs.value.mode === 'local' ? [{ label: t('app.status.kernel'), ...chipOf(kernelRouter.status.value), title: t('app.status.kernel.tip'),
+              onClick: () => { try { localStorage.setItem('cad.settingsTab', 'kernel'); } catch { /* private window */ } setSettings(true); } }] : []),
             ...(facts.rebuildMs !== null ? [{ label: t('app.status.lastRebuild'), value: t('app.status.secondsUnit', { value: (facts.rebuildMs / 1000).toFixed(1) }) }] : []),
             { label: t('app.status.errors'), value: String(failures.filter((f) => !f.blockedBy).length) + (failures.some((f) => f.blockedBy) ? ' ' + t('app.status.blocked', { n: failures.filter((f) => f.blockedBy).length }) : ''), tone: failures.length ? ('err' as const) : ('ok' as const) },
           ]}
@@ -2184,6 +2196,7 @@ function App() {
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         navPrefs={navPrefs} onNavPrefs={changeNav}
+        kernel={{ prefs: kernelRouter.prefs.value, status: kernelRouter.status.value, onChange: (patch) => kernelRouter.setPrefs(patch), onTest: (v) => kernelRouter.test(v), onRetry: () => kernelRouter.retry() }}
         triPrefs={triPrefs} onTriPrefs={(patch) => { const next = { ...triPrefs, ...patch }; setTriPrefs(next); saveTriPrefs(next); }}
         sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}

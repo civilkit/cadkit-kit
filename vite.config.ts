@@ -61,12 +61,16 @@ export default defineConfig(({ command }) => ({
       '@ck/part-model': FW + '/packages/part-model/src/index.ts',
       '@ck/kernel-client/browser': FW + '/packages/kernel-client/src/browser.ts',
       '@ck/kernel-client/node': FW + '/packages/kernel-client/src/worker.ts',
+      '@ck/kernel-client/native': FW + '/packages/kernel-client/src/native.ts',
+      '@ck/kernel-client/mock': FW + '/packages/kernel-client/src/mock-service.ts',
       }).map(([find, replacement]) => ({ find, replacement })),
     ],
   },
   test: {
     environment: 'jsdom',
-    include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}']
+    include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}'],
+    // CK_KERNEL_URL (+ CK_KERNEL_TOKEN) runs the kernel suites against a local native service instead of CK_WASM (docs/local-kernel-service.md)
+    setupFiles: ['./tools/vitest.kernel-env.ts']
   },
   server: {
     fs: {

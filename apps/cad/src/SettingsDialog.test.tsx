@@ -6,6 +6,67 @@ import { SettingsDialog } from './SettingsDialog';
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 
+describe('SettingsDialog, Kernel tab', () => {
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  const prefs = { mode: 'local' as const, url: 'http://127.0.0.1:7461', token: '' };
+  const kernel = (over: Record<string, unknown> = {}) => ({ prefs, status: { state: 'builtin' as const }, onChange: vi.fn(), onTest: vi.fn(), onRetry: vi.fn(), ...over });
+
+  it('is there only when the app passes it, offers Built-in or Local service, and sends the choice', () => {
+    const { unmount } = render(<SettingsDialog {...base} />);
+    expect(screen.queryByRole('tab', { name: 'Kernel' })).toBeNull();
+    unmount();
+    const k = kernel({ prefs: { ...prefs, mode: 'builtin' } });
+    render(<SettingsDialog {...base} kernel={k} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Kernel' }));
+    expect(screen.queryByLabelText('Service address')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Kernel to use'), { target: { value: 'local' } });
+    expect(k.onChange).toHaveBeenCalledWith({ mode: 'local' });
+  });
+  it('the token is a password field that is committed on change, never shown as text', () => {
+    const k = kernel();
+    render(<SettingsDialog {...base} kernel={k} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Kernel' }));
+    const tok = screen.getByLabelText('Access token') as HTMLInputElement;
+    expect(tok.type).toBe('password');
+    fireEvent.input(tok, { target: { value: 's3cret' } });
+    fireEvent.change(tok, { target: { value: 's3cret' } });
+    expect(k.onChange).toHaveBeenLastCalledWith({ token: 's3cret' });
+    const addr = screen.getByLabelText('Service address') as HTMLInputElement;
+    expect(addr.value).toBe('http://127.0.0.1:7461');
+    fireEvent.input(addr, { target: { value: 'http://127.0.0.1:9000' } });
+    fireEvent.change(addr, { target: { value: 'http://127.0.0.1:9000' } });
+    expect(k.onChange).toHaveBeenLastCalledWith({ url: 'http://127.0.0.1:9000' });
+    expect(document.body.textContent).not.toContain('s3cret');
+  });
+  it('Test connection tests the typed values and shows the version or the reason', async () => {
+    const onTest = vi.fn()
+      .mockResolvedValueOnce({ ok: true, version: { kernel: '0.4.1', protocol: 1, git: 'a', build: 'b', cores: 8 } })
+      .mockResolvedValueOnce({ ok: false, kind: 'unauthorized', detail: 'x' });
+    render(<SettingsDialog {...base} kernel={kernel({ onTest })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Kernel' }));
+    fireEvent.input(screen.getByLabelText('Access token'), { target: { value: 'tok' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect(onTest).toHaveBeenCalledWith({ url: 'http://127.0.0.1:7461', token: 'tok' });
+    expect((await screen.findByText(/Connected: kernel 0\.4\.1, protocol 1, 8 cores/)).textContent).toMatch(/matches this app/);
+    fireEvent.click(screen.getByRole('button', { name: 'Test connection' }));
+    expect((await screen.findByText(/Not usable: the token is missing or was refused/)).textContent).toBeTruthy();
+  });
+  it('shows the status, and offers a retry only after the service failed', () => {
+    const connected = { state: 'connected' as const, version: { kernel: '0.4.1', protocol: 1, git: '', build: '', cores: 8 } };
+    const { unmount } = render(<SettingsDialog {...base} kernel={kernel({ status: connected })} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Kernel' }));
+    expect(screen.getByText(/Connected to the local service: kernel 0\.4\.1/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try the service again' })).toBeNull();
+    unmount();
+    const k = kernel({ status: { state: 'failed', kind: 'mismatch', detail: 'protocol 2 (this app speaks 1)', midSession: false } });
+    render(<SettingsDialog {...base} kernel={k} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Kernel' }));
+    expect(screen.getByText(/not used: it is a different kernel build than this app \(protocol 2/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try the service again' }));
+    expect(k.onRetry).toHaveBeenCalled();
+  });
+});
+
 describe('SettingsDialog', () => {
   it('the Navigation tab sets the up axis, the orbit mode and the pivot', () => {
     const onNavPrefs = vi.fn();

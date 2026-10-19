@@ -1,4 +1,5 @@
 import { useState } from 'preact/hooks';
+import { statusText, failText, type KernelPrefs, type KernelStatus, type TestOutcome } from './kernelService';
 import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
 import { SketchPrefsSection } from './SketchPrefsSection';
@@ -9,9 +10,9 @@ import type { TriPrefs } from './triball/triballPrefs';
 import { THEMES, type Theme } from './theme';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
-type Tab = 'general' | 'layout' | 'sketching' | 'positioning' | 'navigation';
+type Tab = 'general' | 'layout' | 'sketching' | 'positioning' | 'navigation' | 'kernel';
 const TAB_KEY = 'cad.settingsTab';
-const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' || v === 'positioning' || v === 'navigation' ? v : 'layout'; } catch { return 'layout'; } };
+const loadTab = (): Tab => { try { const v = localStorage.getItem(TAB_KEY); return v === 'general' || v === 'sketching' || v === 'layout' || v === 'positioning' || v === 'navigation' || v === 'kernel' ? v : 'layout'; } catch { return 'layout'; } };
 const saveTab = (tab: Tab) => { try { localStorage.setItem(TAB_KEY, tab); } catch { /* private window */ } };
 
 const languageName = (code: string, pseudo: string) => {
@@ -26,6 +27,7 @@ export function SettingsDialog(p: {
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
   navPrefs?: NavPrefs; onNavPrefs?(patch: Partial<NavPrefs>): void;
   triPrefs?: TriPrefs; onTriPrefs?(patch: Partial<TriPrefs>): void;
+  kernel?: { prefs: KernelPrefs; status: KernelStatus; onChange(patch: Partial<KernelPrefs>): void; onTest(v: { url: string; token: string }): Promise<TestOutcome>; onRetry(): void };
 }) {
   const w = p.workspace;
   // a tab appears only when it has something to show; the last one used is remembered
@@ -35,6 +37,7 @@ export function SettingsDialog(p: {
     ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
     ...(p.navPrefs && p.onNavPrefs ? (['navigation'] as Tab[]) : []),
     ...(p.triPrefs && p.onTriPrefs ? (['positioning'] as Tab[]) : []),
+    ...(p.kernel ? (['kernel'] as Tab[]) : []),
   ];
   const [saved] = useState(loadTab);
   const [chosen, setChosen] = useState<Tab>(saved);
@@ -144,8 +147,51 @@ export function SettingsDialog(p: {
             <div class="tb-note">{t('settings.triball.note')}</div>
           </div>
           ) : null}
+          {tab === 'kernel' && p.kernel ? <KernelSection {...p.kernel} /> : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Kernel choice: built-in (wasm) or a local service, its address and token, a connection test and the current status. */
+function KernelSection(k: NonNullable<Parameters<typeof SettingsDialog>[0]['kernel']>) {
+  const [url, setUrl] = useState(k.prefs.url);
+  const [token, setToken] = useState(k.prefs.token);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<TestOutcome | null>(null);
+  const local = k.prefs.mode === 'local';
+  const test = async () => {
+    setBusy(true); setResult(null);
+    try { setResult(await k.onTest({ url, token })); } finally { setBusy(false); }
+  };
+  const tone = k.status.state === 'connected' ? 'ok' : k.status.state === 'failed' ? 'err' : k.status.state === 'connecting' ? 'warn' : 'ok';
+  return (
+    <div class="set-section" role="group" aria-label={t('settings.kernel.title')}>
+      <b class="set-head">{t('settings.kernel.title')}</b>
+      <label class="set-row"><span>{t('settings.kernel.mode')}</span>
+        <select aria-label={t('settings.kernel.mode')} value={k.prefs.mode} onChange={(e) => k.onChange({ mode: (e.currentTarget as HTMLSelectElement).value === 'local' ? 'local' : 'builtin' })}>
+          <option value="builtin">{t('settings.kernel.mode.builtin')}</option>
+          <option value="local">{t('settings.kernel.mode.local')}</option>
+        </select></label>
+      {local ? (<>
+        <label class="set-row"><span>{t('settings.kernel.url')}</span>
+          <input type="text" spellcheck={false} autocomplete="off" aria-label={t('settings.kernel.url')} value={url}
+            onInput={(e) => setUrl((e.currentTarget as HTMLInputElement).value)} onChange={() => k.onChange({ url })} /></label>
+        <label class="set-row"><span>{t('settings.kernel.token')}</span>
+          <input type="password" spellcheck={false} autocomplete="off" aria-label={t('settings.kernel.token')} value={token}
+            onInput={(e) => setToken((e.currentTarget as HTMLInputElement).value)} onChange={() => k.onChange({ token })} /></label>
+        <div class="tb-note">{t('settings.kernel.token.hint')}</div>
+        <div class="set-row">
+          <button class="rb-btn" disabled={busy} onClick={() => void test()}>{busy ? t('settings.kernel.testing') : t('settings.kernel.test')}</button>
+          {k.status.state === 'failed' ? <button class="rb-btn" onClick={k.onRetry}>{t('settings.kernel.retry')}</button> : null}
+        </div>
+        {result ? <div class="tb-note" role="status" data-tone={result.ok ? 'ok' : 'err'}>
+          {result.ok ? t('settings.kernel.test.ok', { version: result.version.kernel || '?', protocol: result.version.protocol, cores: result.version.cores })
+            : t('settings.kernel.test.failed', { reason: failText(result.kind, result.detail) })}</div> : null}
+      </>) : null}
+      <div class="set-row" role="status"><span class={'st-item'}><b class={tone}>{'\u25CF'}</b> {statusText(k.status)}</span></div>
+      <div class="tb-note">{t('settings.kernel.note')}</div>
     </div>
   );
 }
