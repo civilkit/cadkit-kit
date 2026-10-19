@@ -1,0 +1,127 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Grab handle",
+ "features": [
+  {
+   "type": "plane",
+   "id": "F1",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "right"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F2",
+   "plane": {
+    "kind": "feature",
+    "id": "F1"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 20,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "F3",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F4",
+   "plane": {
+    "kind": "feature",
+    "id": "F3"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 20
+    },
+    {
+     "id": "p2",
+     "x": -45,
+     "y": 20
+    },
+    {
+     "id": "p3",
+     "x": -45,
+     "y": -20
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": -20
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "id": "F5",
+   "op": "add",
+   "sketch": "F2",
+   "path": {
+    "kind": "sketch",
+    "id": "F4"
+   }
+  }
+ ],
+ "seq": 6,
+ "rollback": null,
+ "script": "// Transom grab handle: 8 mm round bar bent into a flat U loop, 45 mm out and 40 mm wide, lying in the XZ plane (local origin = centre of the open side).\npart('Grab handle').sweep(\n  { on: at('right', 0), draw: (s) => s.circle(4, [20, 0]) },\n  { on: at('top', 0), draw: (s) => s.polyline([[0, 20], [-45, 20], [-45, -20], [0, -20]]) });\n"
+}

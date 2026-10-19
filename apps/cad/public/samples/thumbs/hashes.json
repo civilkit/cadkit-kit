@@ -80,6 +80,7 @@
  "brepjs-wall_mount_flanged_junction_box": "1909534c6f765b1a72d177fe0c3a",
  "coupling-sample": "19155bce1b6b52050f20b2aacdf5",
  "gear-pair": "14f3b0db660e4c17f92478f730b6",
+ "grab-handle": "1d1cdaef34a6800df8b5363d0b4c",
  "large-sample": "1dd72203be83e20cac9aedfa7e6a",
  "loft-bottle": "152ec878504e441298f3b5af4386",
  "matx-case": "0ce96f1f4fbbe611d69b983c929d",
@@ -95,5 +96,5 @@
  "thin-wall-bracket": "1f9536835331ba0a2de9302ed37c",
  "threaded-bolt": "17cbe04e13e8aa17f3969df956ee",
  "threaded-bolt-helix": "196e472d0b3eb80f26722e5a368a",
- "tinnie-hull": "069f08598b101412b607013e5417"
+ "tinnie-hull": "1e96d39d11f561066808ee704df4"
 }

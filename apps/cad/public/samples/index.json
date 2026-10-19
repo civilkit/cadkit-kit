@@ -481,7 +481,12 @@
  },
  {
   "id": "tinnie-hull",
-  "title": "Tinnie hull (lofted, 3 mm wall, bench)",
+  "title": "Tinnie boat (3.5 m aluminium)",
   "file": "tinnie-hull.ckpart"
+ },
+ {
+  "id": "grab-handle",
+  "title": "Grab handle (swept U loop, inserted twice in the Tinnie boat)",
+  "file": "grab-handle.ckpart"
  }
 ]
