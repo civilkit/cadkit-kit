@@ -6,7 +6,7 @@ import { Slot, type SlotItem } from './Slot';
 export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; /** Why the command is disabled right now (shown in the tooltip while it is). */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
 
 /** One place in a ribbon group: a command id (a plain button) or a slot (a split button holding several commands). */
-export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; icon?: string; title?: string };
+export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; /** The button always runs the first command (the list's other commands are not remembered). */ fixed?: boolean; icon?: string; title?: string };
 /** A ready-made element in a group (the contextual Sketch tab draws its tools this way). */
 export interface RibbonNode { node: JSX.Element; key: string }
 export interface RibbonGroup { id: string; entries: Array<RibbonEntry | RibbonNode> }
@@ -104,7 +104,7 @@ export function Ribbon(p: {
       return <Slot key={e} id={c.id} items={[commandToItem(c)]} variant="ribbon" labels={!iconsOnly} caption={p.caption} side="bottom" />;
     }
     const items = e.ids.map((id) => commandToItem(byId.get(id)!));
-    return <Slot key={e.slot + gi + ei} id={e.slot} items={items} variant="ribbon" labels={!iconsOnly} caption={p.caption} side="bottom" menu={e.menu} keepOpen={e.keepOpen} radio={e.radio} icon={e.icon} title={e.title ? t(e.title, undefined, e.title) : undefined} />;
+    return <Slot key={e.slot + gi + ei} id={e.slot} items={items} variant="ribbon" labels={!iconsOnly} caption={p.caption} side="bottom" menu={e.menu} keepOpen={e.keepOpen} radio={e.radio} fixed={e.fixed} icon={e.icon} title={e.title ? t(e.title, undefined, e.title) : undefined} />;
   };
 
   return (

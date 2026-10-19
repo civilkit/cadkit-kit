@@ -104,3 +104,13 @@ describe('sketch-mode chrome per preset', () => {
     expect(sketchChrome(ws('off', true), false)).toEqual({ ribbonTab: false, leftColumn: 'model', rightPalette: false, bar: false });
   });
 });
+
+describe('extrude button', () => {
+  it('does not remember the last extrude: the Create tab and the rail always show Extrude', () => {
+    const find = (entries: unknown[]) => entries.find((x) => typeof x === 'object' && x && (x as { slot?: string }).slot === 'extrude') as { fixed?: boolean } | undefined;
+    const ribbon = find(RIBBON_LAYOUT.Home.flatMap((g) => g.entries));
+    const rail = find(RAIL_SECTIONS.flatMap((g) => g.entries));
+    expect(ribbon?.fixed).toBe(true);
+    expect(rail?.fixed).toBe(true);
+  });
+});

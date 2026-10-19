@@ -54,6 +54,8 @@ export interface SlotProps {
   radio?: boolean;
   /** Keep the list open after an item runs (toggles). */
   keepOpen?: boolean;
+  /** The button always shows and runs the first item: the others are one-off picks from the list and are not remembered. */
+  fixed?: boolean;
   /** In a menu slot, the icon and name of the button itself. */
   icon?: string;
   title?: string;
@@ -81,7 +83,7 @@ function SlotCell(p: SlotProps): JSX.Element {
   const side = p.side ?? 'bottom';
   const items = p.items;
   const multi = items.length > 1 || !!p.menu;
-  const shown = shownItem(items, slotMemory.get(p.id), p.menu);
+  const shown = shownItem(items, p.fixed ? undefined : slotMemory.get(p.id), p.menu);
   const on = p.menu ? items.some(isOn) : isOn(shown);
   const pressed = p.menu || p.radio ? undefined : shown.pressed?.();
 
@@ -101,7 +103,7 @@ function SlotCell(p: SlotProps): JSX.Element {
 
   const run = (x: SlotItem) => {
     if (!p.keepOpen) setOpen(false);
-    if (!p.menu) slotMemory.set(p.id, x.id);
+    if (!p.menu && !p.fixed) slotMemory.set(p.id, x.id);
     x.run();
     if (p.keepOpen) bump();
   };

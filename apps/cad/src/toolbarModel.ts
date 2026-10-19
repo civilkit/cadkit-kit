@@ -47,7 +47,7 @@ const slot = (id: string, extra: Partial<Extract<RibbonEntry, object>> = {}): Ri
 export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEntry[] }>> = {
   Home: [
     { id: 'Sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
-    { id: 'Create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
+    { id: 'Create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
     { id: 'Edit', entries: ['undo', 'redo', slot('history'), 'group-selected'] },
@@ -88,7 +88,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
-  { id: 'create', entries: [slot('extrude'), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
+  { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'surfaces', entries: [slot('surface-new'), slot('surface-reshape'), slot('surface-edit')] },
   { id: 'pattern', entries: [slot('pattern')] },

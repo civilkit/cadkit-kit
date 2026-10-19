@@ -110,3 +110,15 @@ describe('Slot: a disabled button says why', () => {
     expect(t).toContain('Drill'); expect(t).not.toContain('nope');
   });
 });
+
+describe('Slot fixed', () => {
+  it('keeps showing the first item after another is picked from the list', () => {
+    const items = mk();
+    render(<Slot id="sfix" items={items} variant="rail" side="right" fixed />);
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Alpha' }));
+    fireEvent.click([...document.querySelectorAll('.slot-row')][1]);
+    expect(items[1].run).toHaveBeenCalledOnce();
+    expect(slotMemory.get('sfix')).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'Alpha' })).toBeTruthy();
+  });
+});

@@ -24,7 +24,7 @@ export function ToolRail(p: {
       return c ? <Slot key={key} id={c.id} items={[commandToItem(c)]} variant="rail" side="right" /> : null;
     }
     const items = e.ids.map((id) => byId.get(id)).filter((c): c is Command => !!c).map(commandToItem);
-    return items.length ? <Slot key={key} id={e.slot} items={items} variant="rail" side="right" radio={e.radio} labels={p.labels} caption={p.caption} /> : null;
+    return items.length ? <Slot key={key} id={e.slot} items={items} variant="rail" side="right" radio={e.radio} fixed={e.fixed} labels={p.labels} caption={p.caption} /> : null;
   };
   const ctx: SlotItem[] = contextIds(p.kind).map((id) => byId.get(id)).filter((c): c is Command => !!c).map(commandToItem);
   return (
