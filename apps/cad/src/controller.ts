@@ -20,6 +20,7 @@ import type { ViewSurface } from '@kit/viewport';
 import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
+import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
@@ -398,7 +399,7 @@ export class Controller {
     const adds = ops.filter((o) => o.op === 'add' && o.index === undefined).length;
     ops = withRollbackInsert(ops, at);
     ops = syncNameOps(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops, applyOpsLocal as never);
-    this.store.busy.value = true;
+    const idle = this.busyFor(cosmeticOnly(this.sdoc().features as never, ops));
     try {
       await this.ensureFontsFor(featuresOf(ops));
       let result: EditResult;
@@ -473,8 +474,16 @@ export class Controller {
       void result.refWarningsLater?.then(warn).catch(() => {});
       return result;
     } finally {
-      this.store.busy.value = false;
+      idle();
     }
+  }
+
+  /** Raise the busy state for a piece of work and return what ends it. A label-only edit (folders, names) is answered from the
+   *  kernel's cache, so its busy state is raised only if it turns out slow, and the quick case never shows "Rebuilding model". */
+  private busyFor(labelOnly: boolean): () => void {
+    if (!labelOnly) { this.store.busy.value = true; return () => { this.store.busy.value = false; }; }
+    const timer = setTimeout(() => { this.store.busy.value = true; }, LABEL_BUSY_MS);
+    return () => { clearTimeout(timer); this.store.busy.value = false; };
   }
 
   /** Speculative edit: shows the candidate body, leaves document and history untouched.
@@ -656,7 +665,7 @@ export class Controller {
       }
     }
     try { this.beforeUndo?.(this.sdoc()); } catch { /* a failing snapshot never blocks the undo */ }
-    this.store.busy.value = true;
+    const idle = this.busyFor(!!top && !this.docSteps.has(top.record.id) && cosmeticOnly(top.before.features as never, top.record.ops));
     try {
       const { records } = await s.undo();
       this.snap = null;
@@ -664,7 +673,7 @@ export class Controller {
       for (const rec of records) this.redoStack.push(this.docSteps.get(rec.id) ?? rec.ops);
       await this.refresh();
     } finally {
-      this.store.busy.value = false;
+      idle();
     }
   }
 
