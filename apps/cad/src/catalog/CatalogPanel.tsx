@@ -1,5 +1,6 @@
 // The Catalog side-panel tab and the ghost that follows the pointer while a shape is dragged or armed.
 import type { JSX } from 'preact';
+import { Icon } from '@kit/ui';
 import { t } from '../i18n';
 import { CATALOG, catalogItem, type CatalogItem } from './shapes';
 import { CatalogIcon } from './CatalogIcon';
@@ -18,6 +19,8 @@ export interface CatalogPanelProps {
   onItemDown(item: CatalogItem, e: JSX.TargetedPointerEvent<HTMLElement>): void;
   onItemKey(item: CatalogItem): void;
   upAxis?: UpAxis;
+  /** Opens the Propeller wizard (omitted: the Generators block is not offered). */
+  onPropeller?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
   library?: { registry: LibraryRegistry; actions: LibraryActions; notify?(text: string, level?: 'error' | 'warn' | 'info'): void; renderThumb?: ThumbRenderer };
 }
@@ -56,7 +59,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -94,6 +97,17 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
         <>
           {column('add', t('catalog.add'))}
           {column('cut', t('catalog.remove'))}
+          {onPropeller ? (
+            <div class="cat-col cat-gen" data-testid="catalog-generators">
+              <div class="cat-h">{t('catalog.generators')}</div>
+              <div class="cat-grid">
+                <button class="cat-item" data-item="propeller" title={t('tip.add-propeller')} onClick={onPropeller}>
+                  <Icon name="add-propeller" size={26} />
+                  <span class="cat-name">{t('cmd.add-propeller')}</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : library ? <LibraryBrowser registry={library.registry} hasDoc={hasDoc} actions={library.actions} onItemDown={onItemDown} onItemKey={onItemKey} notify={library.notify} renderThumb={library.renderThumb} /> : null}
     </div>

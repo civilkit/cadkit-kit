@@ -158,7 +158,7 @@ export const propErrors = (p: PropParams): PropIssue[] => validateProp(p).filter
 // ---- distributions ----
 
 /** Value at fraction s (0 root, 1 tip) of the three-point curve root / mid / tip: a parabola through them in s^exp, so mid sits at s^exp = 0.5. Safe for any s. */
-function threePoint(a: number, b: number, c: number, s: number, exp: number): number {
+export function threePoint(a: number, b: number, c: number, s: number, exp: number): number {
   const u = Math.pow(clamp(fin(s), 0, 1), clamp(fin(exp, 1), 0.2, 5));
   // Lagrange through (0, a) (0.5, b) (1, c)
   return a * (1 - u) * (1 - 2 * u) + b * 4 * u * (1 - u) + c * u * (2 * u - 1);
@@ -367,9 +367,9 @@ export function propVariables(p: PropParams): PropVar[] {
 /** Variable names a record uses (to find a free prefix). */
 export const propVariableNames = (prefix: string): string[] => ['hub_d', 'hub_len', 'bore_d', 'blades'].map((k) => `${prefix}_${k}`);
 
-const circleSketch = (id: string, name: string, plane: unknown, diaVar: string, dia: number): Feat => ({
+const circleSketch = (id: string, name: string, plane: unknown, diaVar: string | null, dia: number): Feat => ({
   type: 'sketch', id, name, plane, points: [{ id: 'p1', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'e1', c: 'p1', r: round(dia / 2) }],
-  constraints: [{ id: 'k1', type: 'diameter', refs: ['e1'], value: round(dia), expr: diaVar }],
+  constraints: [{ id: 'k1', type: 'diameter', refs: ['e1'], value: round(dia), ...(diaVar ? { expr: diaVar } : {}) }],
 });
 
 /** The sketch of one blade section: two splines (suction side, pressure side) that share the leading and trailing edge points. */
@@ -387,25 +387,26 @@ function sectionSketch(id: string, planeId: string, s: BladeSection, idx: number
   };
 }
 
-/** All features of the propeller with the given ids by role. The hub sketch carries the parameter record and the role map. */
-export function propFeatures(p: PropParams, ids: Record<string, string>): Feat[] {
+/** All features of the propeller with the given ids by role. The hub sketch carries the parameter record and the role map. With `linked` false the hub,
+ *  bore and pattern carry plain numbers instead of variable references (for a preview in a document that does not have the variables yet). */
+export function propFeatures(p: PropParams, ids: Record<string, string>, linked = true): Feat[] {
   const record = { ...p, roles: Object.fromEntries(Object.entries(ids).map(([k, v]) => [k, Number(v.slice(1))])) };
   const v = (k: string): string => `${p.varPrefix}_${k}`;
   const secs = bladeSections(p);
   const out: Feat[] = [];
-  const hubSketch = circleSketch(ids.hubSketch, 'Propeller hub sketch', { kind: 'std', id: 'front' }, v('hub_d'), p.hubDia);
+  const hubSketch = circleSketch(ids.hubSketch, 'Propeller hub sketch', { kind: 'std', id: 'front' }, linked ? v('hub_d') : null, p.hubDia);
   hubSketch.prop = record;
   out.push(hubSketch);
   // the hub is centred on z = 0 (a mid-plane extrude along the sketch normal)
-  out.push({ type: 'extrude', id: ids.hub, name: 'Propeller hub', op: 'add', sketch: ids.hubSketch, end: 'mid', depth: `=${v('hub_len')}` });
+  out.push({ type: 'extrude', id: ids.hub, name: 'Propeller hub', op: 'add', sketch: ids.hubSketch, end: 'mid', depth: linked ? `=${v('hub_len')}` : round(p.hubLength) });
   secs.forEach((s, i) => {
     out.push({ type: 'plane', id: ids['plane' + i], name: `Blade plane ${i + 1}`, mode: 'offset', base: { kind: 'std', id: 'right' }, offset: round(s.r) });
     out.push(sectionSketch(ids['sec' + i], ids['plane' + i], s, i));
   });
   out.push({ type: 'loft', id: ids.blade, name: 'Propeller blade', op: 'add', sketches: secs.map((_s, i) => ids['sec' + i]) });
-  out.push({ type: 'cpattern', id: ids.pattern, name: 'Propeller blades', seeds: [ids.blade], axis: { kind: 'axis', axis: 'z' }, count: `=${v('blades')}`, angle: 360, equal: true });
+  out.push({ type: 'cpattern', id: ids.pattern, name: 'Propeller blades', seeds: [ids.blade], axis: { kind: 'axis', axis: 'z' }, count: linked ? `=${v('blades')}` : p.blades, angle: 360, equal: true });
   if (p.boreDia > 0) {
-    out.push(circleSketch(ids.boreSketch, 'Propeller bore sketch', { kind: 'std', id: 'front' }, v('bore_d'), p.boreDia));
+    out.push(circleSketch(ids.boreSketch, 'Propeller bore sketch', { kind: 'std', id: 'front' }, linked ? v('bore_d') : null, p.boreDia));
     out.push({ type: 'extrude', id: ids.bore, name: 'Propeller bore', op: 'cut', sketch: ids.boreSketch, end: 'throughBoth', depth: 10 });
   }
   return out;
@@ -439,7 +440,8 @@ export class PropError extends Error {
   constructor(public issues: PropIssue[]) { super(issues.map((i) => i.message).join('; ')); }
 }
 
-/** Ops that create (no `existing`) or regenerate a propeller as ONE edit. Features keep their ids across edits; extra section roles are added after the
+/** Ops that create (no `existing`) or regenerate a propeller as ONE edit, with plain numbers where the real features use variables: the wizard's live
+ *  preview and the tests use these (the document need not have the variables yet); `propPlan` is what gets committed. Features keep their ids across edits; extra section roles are added after the
  *  last section, vanished ones removed (the sketch goes with its plane). Throws PropError when the parameters have errors. */
 export function propOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: PropParams, existing?: Record<string, string>): EditOp[] {
   const errs = propErrors(p);
@@ -448,7 +450,7 @@ export function propOps(doc: { features: Array<{ id?: string }>; seq?: number },
   let seq = nextSeq(doc);
   const ids: Record<string, string> = {};
   for (const r of wanted) ids[r] = existing?.[r] ?? `F${seq++}`;
-  const feats = propFeatures(p, ids);
+  const feats = propFeatures(p, ids, false);
   const ops: EditOp[] = [];
   const list = doc.features.map((f) => f.id as string);
   if (existing) {
@@ -477,20 +479,66 @@ export function propOps(doc: { features: Array<{ id?: string }>; seq?: number },
   return ops;
 }
 
+/** The ids a propeller's features use, one per role, numbered from `seq`. */
+function idsFor(p: PropParams, seq: number): Record<string, string> {
+  const ids: Record<string, string> = {};
+  for (const r of rolesFor(p)) ids[r] = `F${seq++}`;
+  return ids;
+}
+
+export interface PropPatch {
+  variables: unknown[];
+  /** whole replacement features by id */
+  features?: Record<string, Record<string, unknown>>;
+  /** features appended at the end, and the document's next feature number after them */
+  append?: Array<Record<string, unknown>>;
+  seq?: number;
+}
+export interface PropPlan {
+  /** Removals to apply first (as one edit): only when a regeneration changes the feature structure (section count, bore on or off). */
+  before: EditOp[];
+  /** The document patch (variables and features) that is ONE undo step. */
+  patch: PropPatch;
+}
+
+/** What to commit: a new propeller appended with its variables, or the regeneration of `existing`. Same structure: one patch replacing the features in place.
+ *  Different structure (section count, bore added or removed): the old features are removed first (`before`), then the new ones are appended, so two undo steps.
+ *  Throws PropError for parameters with errors. */
+export function propPlan(doc: { features: Array<{ id?: string }>; seq?: number; variables?: Array<{ name: string }> }, p: PropParams, existing?: Record<string, string>): PropPlan {
+  const errs = propErrors(p);
+  if (errs.length) throw new PropError(errs);
+  const wanted = rolesFor(p);
+  const vars = mergeVariables((doc.variables ?? []) as Array<{ name: string }>, p);
+  const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
+  if (existing && same) {
+    const feats = propFeatures(p, existing, true);
+    return { before: [], patch: { variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) } };
+  }
+  const before: EditOp[] = [];
+  let features = doc.features;
+  if (existing) {
+    const gone = new Set(Object.values(existing));
+    for (const id of [...doc.features.map((f) => f.id as string)].reverse()) if (gone.has(id)) before.push({ op: 'remove', id, cascade: true });   // the session checks every op against the document as it is, so each removal cascades
+    features = doc.features.filter((f) => !gone.has(f.id as string));
+  }
+  const start = nextSeq({ features, seq: doc.seq });
+  const ids = idsFor(p, start);
+  const feats = propFeatures(p, ids, true);
+  return { before, patch: { variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length } };
+}
+
 /** The whole part document of a propeller (features and variables), for tests, samples and the script panel. */
 export function propDocument(p: PropParams, name = 'Propeller'): Record<string, unknown> {
   const errs = propErrors(p);
   if (errs.length) throw new PropError(errs);
-  const ids: Record<string, string> = {};
-  let seq = 1;
-  for (const r of rolesFor(p)) ids[r] = `F${seq++}`;
-  return { format: 'ck-part', version: 1, name, variables: propVariables(p), features: propFeatures(p, ids), seq, rollback: null, material: 'aluminum', counters: {} };
+  const ids = idsFor(p, 1);
+  return { format: 'ck-part', version: 1, name, variables: propVariables(p), features: propFeatures(p, ids), seq: rolesFor(p).length + 1, rollback: null, material: 'aluminum', counters: {} };
 }
 
-/** Variables for a document that already has some: ours replace those with the same names, the rest stay. */
+/** Variables for a document that already has some: ours replace the propeller's own names (with this prefix), the rest stay. */
 export function mergeVariables(existing: Array<{ name: string }>, p: PropParams): unknown[] {
   const ours = propVariables(p);
-  const names = new Set(ours.map((x) => x.name));
+  const names = new Set(propVariableNames(p.varPrefix));   // all four, so dropping the bore also drops its variable
   return [...existing.filter((x) => !names.has(x.name)), ...ours];
 }
 

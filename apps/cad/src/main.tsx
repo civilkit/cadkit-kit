@@ -79,6 +79,9 @@ import { ThreadEditor } from './ThreadEditor';
 import { followedFaces, patternedBy, threadParents, type ThreadEntry } from './patternThreads';
 import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
+import { PropellerWizard } from './PropellerWizard';
+import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
+import { readVars } from './variables';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
 import { holeThreadEditOps, linkedThreads, type HoleThread } from './holeThread';
 import type { ThreadEntryLike } from './handles/threadHandle';
@@ -314,6 +317,8 @@ function App() {
   useEffect(() => { if (selectedId) setRefSel(null); }, [selectedId]);
   const [editingId, setEditingId] = useState<string | null>(null);
   editingIdRef.current = editingId;
+  // The Propeller wizard: a new propeller (roles null) or a built one being edited (its role map and the name of its hub sketch)
+  const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string } | null>(null);
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
@@ -551,7 +556,7 @@ function App() {
       else { markClean(); autosaver.clear(); }
       if (!o.keep) { files.opened(o.file ?? null); if (o.file) { files.noteFile(o.file); files.noteThumb(o.file, thumbnail); } }
       files.names.seen(doc.name);
-      setEditingId(null); setEditingMaterial(false); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
+      setEditingId(null); setEditingMaterial(false); setPropWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
@@ -793,6 +798,7 @@ function App() {
     catalog: () => showCatalog(),
     variables: () => showVariables(),
     script: () => showScript(),
+    propeller: () => openPropeller(),
     open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
@@ -1157,6 +1163,13 @@ function App() {
     setEditingMaterial(false);
     setSelectedId(id);
     const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;
+    const prop = propOwner((controller.document()?.features ?? []) as unknown[], id);
+    if (prop) {   // any feature a propeller made opens the wizard on its parameters
+      setSelectedId(prop.hubId); setEditingId(null); setPropWiz({ params: prop.params, roles: prop.roles, hubId: prop.hubId });
+      setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+      setLeftTab('Editor');
+      return;
+    }
     const gear = gearOwner((controller.document()?.features ?? []) as unknown[], id);
     if (gear) {   // any feature a gear made opens the Gear editor on its parameters
       setSelectedId(gear.profileId); setEditingId(gear.profileId);
@@ -1877,6 +1890,40 @@ function App() {
     const entry = (controller.threadsNow() as Array<{ id?: string; internal?: boolean }>).find((x) => x.id === id);
     return { id, face, dia: cyl ? cyl.radius * 2 : null, internal: entry?.internal ?? (isHoleWall(face) ? true : cyl?.internal) };
   }) : null;
+  // The Propeller wizard: every change previews the regenerated features (plain numbers, so a new propeller needs no variables yet); Create / Apply commits the
+  // variables and the features as one document patch (one undo step; a changed section count or bore removes the old features first, a second step).
+  const onPropDraft = (next: PropParams) => {
+    if (!doc || propErrors(next).length) return;
+    void controller.preview(propOps(doc as never, next, propWiz?.roles ?? undefined)).then(onPreviewResult);
+  };
+  const onPropCancel = async () => {
+    await controller.cancelPreview();
+    setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const onPropCreate = async (next: PropParams) => {
+    if (!doc) return;
+    let plan;
+    try { plan = propPlan(doc as never, next, propWiz?.roles ?? undefined); } catch (e) { setPreviewHint(e instanceof PropError ? e.message : (e as Error).message); return; }
+    await controller.cancelPreview();
+    if (plan.before.length) {
+      const r = await timed(() => controller.commit(plan.before, 'propeller'));
+      if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
+    }
+    const r = await timed(() => controller.applyDocPatch(plan.patch as never, 'propeller'));
+    if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') })); return; }
+    store.notify(t(propWiz?.roles ? 'prop.updated' : 'prop.created'));
+    setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const openPropeller = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null);
+    setPropWiz({ params: { ...DEFAULT_PROP, varPrefix: freePrefix(readVars(doc)) }, roles: null });
+    setLeftTab('Editor');
+  };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
   const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
   const gearEditOps = (next: GearParams): EditOp[] => gearOps(doc as never, next, gearRec?.roles);
@@ -1887,7 +1934,11 @@ function App() {
     setLeftTab('Features');
     redraw((n) => n + 1);
   };
-  const featureEditor = gearRec ? (
+  const propEditor = propWiz && doc ? (
+    <PropellerWizard key={propWiz.hubId ?? 'new'} params={propWiz.params} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
+      onDraft={onPropDraft} onCreate={onPropCreate} onCancel={onPropCancel} hint={previewHint} />
+  ) : null;
+  const featureEditor = propEditor ? propEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -1939,7 +1990,7 @@ function App() {
   ) : null;
   const editor = materialEditor ?? featureEditor;
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
-    : (editingId && !editorGone && editingFeature) || editingMaterial ? editor : tree;
+    : (editingId && !editorGone && editingFeature) || editingMaterial || propWiz ? editor : tree;
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
@@ -1961,7 +2012,7 @@ function App() {
     download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
     sources: () => liveSources(doc),
   };
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
   const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {

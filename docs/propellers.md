@@ -35,9 +35,22 @@ in the wizard, which moves the roots with it.
 
 `validateProp` returns errors (the build is refused with a `PropError`) and warnings (root deeper than the hub, blades overlapping at the hub, a razor tip, clamped root angle).
 
+## The wizard
+
+Features tab, Create group, Propeller (shares the Gear button's flyout), or Catalog, Primitives, Generators. A panel opens in the left column with three steps:
+
+1. **Size**: family (Airfoil loft; Marine helicoid is shown but disabled, "coming soon"), presets (Drone 5 inch, Desk fan, RC plane), diameter, hub, bore, blade count, rotation.
+2. **Blade**: twist mode and pitch, chord and thickness curves (three draggable points each, arrow keys when focused, plus numbers and a shape exponent), airfoil with a section outline, camber, pivot, rake, skew, root embed, sections.
+3. **Review**: readout (pitch, angles, blade area ratio), the checks (errors block Create, warnings do not), the notes (no root fillet, the variables, geometry only).
+
+Every change previews live in the viewport (the controller debounces and cancels stale previews); Create adds everything as ONE document patch (variables and features, one undo step). The preview uses plain numbers,
+the committed features use the variables. Double-click any propeller feature (or select it and edit) to reopen the wizard on its record. Apply regenerates the features in place (ids kept, one step); a changed section
+count or a bore added or removed removes the old features first and appends the new ones (two undo steps).
+
 ## Checks (see the tests)
 
-* `propData.test.ts`: distributions, airfoils, validation, features, ops (no kernel).
+* `propData.test.ts`: distributions, airfoils, validation, features, ops, hostile random parameters (no kernel).
+* `PropellerWizard.test.tsx`: the panel (steps, drafts, curve handles, validation, keys); `propWizard.kernel.test.ts`: the commit path through the Controller.
 * `propData.kernel.test.ts` (needs `CK_WASM`): built section angle against atan(P / 2 pi r), CoG on the axis for N = 2..6, volume against the integral of the section areas, validity, STEP round trip,
   a seeded random sweep, the root chord at radii inside the hub.
 
