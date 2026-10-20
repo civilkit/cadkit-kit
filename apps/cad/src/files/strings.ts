@@ -4,6 +4,7 @@ import { registerCatalog } from '@kit/i18n';
 export const filesEn = {
   'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only)',
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
+  'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
   'files.restore.restore': 'Restore', 'files.restore.new': 'Start new',
@@ -30,6 +31,8 @@ export const filesEn = {
   'files.skp.done': 'Imported {name} (SketchUp): {faces} faces in {pieces} pieces, {materials} materials. Imported bodies are view only and are not saved with the part.',
   'files.skp.open': 'SketchUp surface model: {open} open edges; solids operations may not apply. Convert to CAD is planned.',
   'files.skp.hidden': '{n} hidden faces were left out.', 'files.skp.showHidden': 'Show hidden geometry',
+  'files.skp.flip': 'Flip orientation',
+  'files.skp.orient.y': 'Shown upright (SketchUp Z up becomes Y up).', 'files.skp.orient.z': 'Shown with the axes of the file (Z up, so the model lies on its side here).', 'files.skp.orient.yFlip': 'Shown upside down.',
   'files.skp.failed': 'Could not import {name}: {message} ({code})',
   'files.step.done': 'Imported {name}: {faces} faces. Imported bodies are view only and are not saved with the part.',
   'files.step.failed': 'Could not import {name}: {message}',

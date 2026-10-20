@@ -243,6 +243,7 @@ const ICONS: Record<string, string> = {
   'save-as': P('M5 4h9l4 4v12H5z') + P('M8 4v4h5V4') + A('M15.5 21.5l1-3.5 5-5 2.5 2.5-5 5z', 1.5),
   'recover-versions': P('M4 12a8 8 0 1 0 2.4-5.7') + A('M12 8v4l3 2', 1.75) + A('M3.5 4.5v4h4', 1.75),
   'import-step': P(HEX) + T(Y) + A('M12 1.8v7M9 6l3 3 3-3', 2),
+  'rotate-skp': P(HEX) + T(Y) + A('M19 5.5a8 8 0 0 0-13 1M5 18.5a8 8 0 0 0 13-1M5.5 3.5v4h4M18.5 20.5v-4h-4', 1.75),
   'import-skp-hidden': P(HEX) + T(Y) + A('M12 1.8v7M9 6l3 3 3-3', 2),
   rename: P('M4 8h12v8H4z') + A('M19 5v14M17 5h4M17 19h4', 1.75) + D(7, 12, 1.2) + D(10, 12, 1.2) + D(13, 12, 1.2),
   'delete-feature': P('M5 5h14v14H5z') + T('M9 9h6M9 12h6M9 15h3') + A('M14 14l6 6M20 14l-6 6', 2),

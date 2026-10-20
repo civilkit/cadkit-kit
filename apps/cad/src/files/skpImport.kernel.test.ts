@@ -4,7 +4,7 @@ import { Session } from '@ck/session';
 import { emptyPart } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from '../controller';
-import { importSkpView } from './skpImport';
+import { importSkpView, skpImportOpts } from './skpImport';
 
 // needs a kernel built with the `skp` feature; CK_WASM points at it, CK_REBUILD at the kernel checkout (fixtures)
 const FIX = process.env.CK_REBUILD ? `${process.env.CK_REBUILD}/crates/ck-skp/tests/fixtures` : '';
@@ -34,6 +34,22 @@ describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM
     expect(r.view.mesh.faceIds.length).toBe(r.faces);
     expect(Object.keys(r.look.faces).length + r.look.bodies.reduce((m, b) => m + b.faces.length, 0)).toBe(r.faces);
     expect(r.view.box.max[0]).toBeGreaterThan(r.view.box.min[0]);
+  });
+  it('orientation: y stands the model up (z extent becomes y extent), z keeps the file, the kernel echoes the choice', async () => {
+    const bytes = fixture('chair_and_table.skp');
+    const z = await importSkpView(await open(), bytes, 'chair', skpImportOpts('z'));
+    const y = await importSkpView(await open(), bytes, 'chair', skpImportOpts('y'));
+    const f = await importSkpView(await open(), bytes, 'chair', skpImportOpts('yFlip'));
+    expect(z.ok && y.ok && f.ok).toBe(true);
+    if (!z.ok || !y.ok || !f.ok) return;
+    expect([z.up, y.up, f.up]).toEqual(['z', 'y', 'yFlip']);
+    const ext = (b: { min: number[]; max: number[] }) => b.max.map((v, k) => v - b.min[k]);
+    const [zx, zy, zz] = ext(z.view.box), [yx, yy, yz] = ext(y.view.box), [fx, fy, fz] = ext(f.view.box);
+    expect(zz).toBeGreaterThan(zy);   // the file is Z up (taller than deep)
+    expect(yy).toBeCloseTo(zz, 3); expect(yz).toBeCloseTo(zy, 3); expect(yx).toBeCloseTo(zx, 3);
+    expect([fx, fy, fz].map((v) => +v.toFixed(3))).toEqual([yx, yy, yz].map((v) => +v.toFixed(3)));
+    expect(y.faces).toBe(z.faces);
+    expect(y.summary).toEqual(z.summary);
   });
   it('a model with no visible faces is refused with body.empty and the kernel message', async () => {
     const r = await importSkpView(await open(), fixture('blank_v17.skp'), 'blank');

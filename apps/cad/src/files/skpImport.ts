@@ -6,6 +6,33 @@ import { meshFromBody } from '@ck/mesh';
 import type { BodyLookSpec, ViewBodyDef } from '@kit/viewport';
 import { base64Of, type StepImportResult } from './stepImport';
 
+/** Which way up an imported SketchUp model is placed. SketchUp is Z up, the kit is Y up. 'y' stands the model upright ((x,y,z) -> (x,z,-y)),
+ *  'z' keeps the file's own axes (the model lies on its side in the kit), 'yFlip' is 'y' turned upside down ((x,y,z) -> (-x,-z,-y)). */
+export type SkpOrient = 'z' | 'y' | 'yFlip';
+/** A SketchUp file opens upright. */
+export const SKP_DEFAULT_ORIENT: SkpOrient = 'y';
+/** The order "Flip orientation" cycles through: upright, as in the file, upside down. */
+export const SKP_ORIENTS: readonly SkpOrient[] = ['y', 'z', 'yFlip'];
+export const nextSkpOrient = (o: SkpOrient): SkpOrient => SKP_ORIENTS[(SKP_ORIENTS.indexOf(o) + 1) % SKP_ORIENTS.length];
+/** The importSkp options for an orientation and the hidden-geometry choice. `up` is always sent: the kernel's own default is 'z'. */
+export const skpImportOpts = (orient: SkpOrient, hidden = false): { hidden?: boolean; up: SkpOrient } => (hidden ? { hidden: true, up: orient } : { up: orient });
+
+export interface SkpNotice { text: string; level: 'info' | 'warn'; action?: { label: string; run(): void } }
+type Tr = (key: string, params?: Record<string, string | number>) => string;
+
+/** The notices after a SketchUp import, in order: what came in and how it is oriented (with the "Flip orientation" button), the hidden
+ *  faces left out (with "Show hidden geometry", only when they were left out), and the open-surface warning. */
+export function skpNotices(s: SkpSummary, o: { file: string; up: SkpOrient; hidden: boolean }, tr: Tr, act: { flip(): void; showHidden(): void }): SkpNotice[] {
+  const out: SkpNotice[] = [{
+    text: tr('files.skp.done', { name: o.file, faces: s.faces, pieces: s.pieces, materials: s.materials }) + ' ' + tr(`files.skp.orient.${o.up}`),
+    level: s.closed ? 'info' : 'warn',
+    action: { label: tr('files.skp.flip'), run: act.flip },
+  }];
+  if (!o.hidden && s.hiddenSkipped > 0) out.push({ text: tr('files.skp.hidden', { n: s.hiddenSkipped }), level: 'info', action: { label: tr('files.skp.showHidden'), run: act.showHidden } });
+  if (!s.closed) out.push({ text: tr('files.skp.open', { open: s.openEdges + s.nonManifoldEdges }), level: 'warn' });
+  return out;
+}
+
 export interface SkpMaterial { color: [number, number, number]; opacity: number; doubleSided?: boolean; textured?: boolean }
 
 /** The `import` object of an importSkp reply, as far as the app reads it. */
@@ -26,7 +53,7 @@ export interface SkpLook {
 export interface SkpSummary { faces: number; pieces: number; openEdges: number; nonManifoldEdges: number; materials: number; hiddenSkipped: number; closed: boolean }
 
 export type SkpImportResult =
-  | (Extract<StepImportResult, { ok: true }> & { look: SkpLook; summary: SkpSummary })
+  | (Extract<StepImportResult, { ok: true }> & { look: SkpLook; summary: SkpSummary; /** the orientation the kernel applied */ up: SkpOrient })
   | Extract<StepImportResult, { ok: false }>;
 
 const hex2 = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
@@ -70,12 +97,12 @@ export function skpRefusal(errors: Array<[string, { code: string; params?: Recor
   return { code: err.code, message: typeof m === 'string' && m ? m : `${where}: ${err.code}` };
 }
 
-export async function importSkpView(session: Pick<Session, 'importSkp'>, bytes: Uint8Array, name: string, opts: { hidden?: boolean; maxFaces?: number } = {}): Promise<SkpImportResult> {
+export async function importSkpView(session: Pick<Session, 'importSkp'>, bytes: Uint8Array, name: string, opts: { hidden?: boolean; maxFaces?: number; up?: SkpOrient } = {}): Promise<SkpImportResult> {
   let rep;
   try { rep = await session.importSkp(base64Of(bytes), name, opts); } catch (e) { return { ok: false, code: 'trap', message: (e as Error).message }; }
   if (rep.errors.length) return { ok: false, ...skpRefusal(rep.errors) };
   const body = rep.body as { faces?: Array<{ id: string }>; edges?: Array<{ key?: string; pts: number[][] }>; box?: { min: number[]; max: number[] } } | null | undefined;
-  const im = rep.import as Partial<SkpFacts> | undefined;
+  const im = rep.import as (Partial<SkpFacts> & { up?: SkpOrient }) | undefined;
   if (!body || !body.faces?.length) return { ok: false, code: 'body.empty', message: 'no faces in the file' };
   const materials = im?.materials ?? [];
   const view = {
@@ -86,5 +113,5 @@ export async function importSkpView(session: Pick<Session, 'importSkp'>, bytes: 
   };
   const look = skpLook(body.faces.map((f) => f.id), materials, im?.faceMaterials ?? []);
   const summary = skpSummary({ faces: body.faces.length, lumps: im?.lumps ?? 1, openEdges: im?.openEdges ?? 0, nonManifoldEdges: im?.nonManifoldEdges ?? 0, materials, hiddenSkipped: im?.hiddenSkipped ?? 0 });
-  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, look, summary };
+  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, look, summary, up: im?.up ?? opts.up ?? 'z' };
 }

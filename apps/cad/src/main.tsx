@@ -45,6 +45,7 @@ import { useInspect } from './inspect/useInspect';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
 import { FileManager } from './files/fileManager';
+import { SKP_DEFAULT_ORIENT, nextSkpOrient, skpImportOpts, skpNotices, type SkpOrient } from './files/skpImport';
 import { stripThumbnail } from './files/docThumb';
 import { createSaveThumbs } from './files/saveThumb';
 import { whenIdle } from './library/thumbs';
@@ -309,6 +310,8 @@ function App() {
   const [leftTab, setLeftTab] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script' | 'Bodies'>('Features');
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
+  const skpOrient = useRef<SkpOrient>(SKP_DEFAULT_ORIENT);   // the last SketchUp orientation chosen this session
+  const skpShown = useRef<{ bytes: Uint8Array; file: string; hidden: boolean } | null>(null);   // the SketchUp file on screen, for Flip orientation
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -716,17 +719,21 @@ function App() {
     else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
   });
   /** A SketchUp file into a new part named after the file (view only). The notice says what came in and, for a surface model that is not closed, that solid operations may not apply. */
-  const importSkpBytes = (bytes: Uint8Array, file: string, hidden = false) => guarded(async () => {
+  const importSkpBytes = (bytes: Uint8Array, file: string, hidden = false, orient: SkpOrient = skpOrient.current) => guarded(async () => {
     const name = partNameOf(file).replace(/\.skp$/i, '');
     await load(JSON.stringify(emptyPart(name)), { file: null });
-    const r = await controller.importSkp(bytes, name, hidden ? { hidden: true } : {});
+    const r = await controller.importSkp(bytes, name, skpImportOpts(orient, hidden));
     if (!r.ok) { store.notify(t('files.skp.failed', { name: file, code: r.code, message: r.message }), 'error'); return; }
     viewport?.fit();
-    const s = r.summary;
-    const more = !hidden && s.hiddenSkipped > 0 ? { label: t('files.skp.showHidden'), run: () => importSkpBytes(bytes, file, true) } : undefined;
-    store.notify(t('files.skp.done', { name: file, faces: s.faces, pieces: s.pieces, materials: s.materials }) + (s.hiddenSkipped > 0 ? ' ' + t('files.skp.hidden', { n: s.hiddenSkipped }) : ''), s.closed ? 'info' : 'warn', more);
-    if (!s.closed) store.notify(t('files.skp.open', { open: s.openEdges + s.nonManifoldEdges }), 'warn');
+    skpOrient.current = r.up;   // the last choice stays for the next file of this session
+    const shown = { bytes, file, hidden };
+    skpShown.current = shown;
+    // "Flip orientation" re-imports this file with the next orientation (same hidden-geometry choice); a stale notice does nothing once another model is shown
+    const flip = () => { if (skpShown.current === shown && controller.importedLook()) importSkpBytes(bytes, file, hidden, nextSkpOrient(skpOrient.current)); };
+    for (const n of skpNotices(r.summary, { file, up: r.up, hidden }, t, { flip, showHidden: () => importSkpBytes(bytes, file, true, skpOrient.current) })) store.notify(n.text, n.level, n.action);
   });
+  /** File menu "Rotate imported model": the shown SketchUp model again, in the next orientation. */
+  const rotateSkp = () => { const k = skpShown.current; if (k && controller.importedLook()) importSkpBytes(k.bytes, k.file, k.hidden, nextSkpOrient(skpOrient.current)); };
   /** A FreeCAD file becomes a new part with the mapped features; what could not be mapped is listed in a notice (see packages/fcstd). */
   const importFcstdBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const r = await resolveEdges(await importFcstd(bytes, partNameOf(file)));   // no kernel resolver here yet: fillets / chamfers are left out and listed
@@ -804,6 +811,8 @@ function App() {
     files: {
       saveAs: () => void doSave(true),
       recover: () => setRecoverOpen(true),
+      rotateSkp: () => rotateSkp(),
+      hasSkp: () => !!skpShown.current && !!controller.importedLook(),
       importSkpHidden: () => void (async () => { const f = await platform.openFile({ accept: ['.skp'] }); if (f && dropKind(f.name) === 'skp') importSkpBytes(f.bytes ?? new Uint8Array(), f.name, true); })(),
       importStep: () => void (async () => { const f = await platform.openFile({ accept: ['.step', '.stp', '.sldprt', '.skp'] }); if (f) openByKind(f.name, async () => f.text, ['step', 'sldprt', 'skp'].includes(dropKind(f.name)) ? dropKind(f.name) : 'unknown', async () => f.bytes ?? new TextEncoder().encode(f.text)); })(),
     },
@@ -2180,7 +2189,7 @@ function App() {
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
-        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'recover-versions', 'import-step', 'import-skp-hidden'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
+        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />

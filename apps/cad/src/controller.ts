@@ -5,7 +5,7 @@ import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
-import { importSkpView, type SkpImportResult, type SkpLook } from './files/skpImport';
+import { importSkpView, type SkpImportResult, type SkpLook, type SkpOrient } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import { drawingQuery } from './drawing/kernel';
@@ -1062,7 +1062,7 @@ export class Controller {
   }
 
   /** Show a SketchUp .skp file in the viewport (view only, like STEP): faces coloured by their SketchUp materials. `opts.hidden` also brings in hidden geometry. */
-  async importSkp(bytes: Uint8Array, name: string, opts: { hidden?: boolean; maxFaces?: number } = {}): Promise<SkpImportResult> {
+  async importSkp(bytes: Uint8Array, name: string, opts: { hidden?: boolean; maxFaces?: number; up?: SkpOrient } = {}): Promise<SkpImportResult> {
     if (this.realLoad) await this.whenReal();
     if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
     this.store.busy.value = true;
