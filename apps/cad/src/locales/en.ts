@@ -381,6 +381,7 @@ export const en: Catalog = {
   'app.sketch.newName': 'New sketch',
   'cmd.sketch-here': 'Sketch on selected face or plane', 'app.sketch.pickFirst': 'Select a plane or a face first, then press S.',
   'app.sketch.tangentPlane': 'Tangent plane',
+  'app.sketch.failedImported': 'This body was imported (STEP, SolidWorks or SketchUp) and is view-only for now, so a sketch cannot be started on its faces. Sketch on a reference plane instead.',
   'app.sketch.failedCurved': 'Could not open a sketch on that face. Flat faces, cylinders and spheres work; for other curved faces make a plane first.',
   'app.shape.circle': 'Shape {n}: circle, diameter {d}', 'app.shape.ellipse': 'Shape {n}: ellipse', 'app.shape.insideOffset': 'Inside the offset (pocket)', 'app.shape.wall': 'Wall between outline and offset', 'app.shape.insideShape': 'Inside shape {m}', 'app.shape.withHole': 'Shape {n}: wall around shape {m}', 'app.shape.loop': 'Shape {n}: outline of {count} segments',
   'app.allSketchesUsed': 'Every sketch is already used by a feature. Select a sketch in the tree to use it again, or draw a new one (S).',

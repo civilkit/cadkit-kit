@@ -1656,7 +1656,7 @@ function App() {
           else if (pl) await timed(() => controller.edit([{ op: 'remove', id: pl.id }]));    // not a cylinder or sphere: undo the plane
         }
       }
-      if (!view) { store.notify(t('app.sketch.failedCurved'), 'error'); return; }
+      if (!view) { store.notify(t(controller.hasImportedBody() ? 'app.sketch.failedImported' : 'app.sketch.failedCurved'), 'error'); return; }
       projectSelRef.current = [...store.selection.value];   // kept for the Project tool
       store.select([], false);   // the picked face's highlight would cover the sketch
       setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
