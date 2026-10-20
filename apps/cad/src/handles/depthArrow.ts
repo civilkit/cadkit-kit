@@ -46,7 +46,7 @@ export function depthArrowSession(c: DepthArrowCtx): HandleSession | null {
   const axis: Vec3 = V.mul(c.frame.z, sign).map((x) => x + 0) as Vec3;   // + 0: no negative zeros
   const k = mid ? 2 : 1;                 // a mid-plane total moves twice as far as the far face does
   const capAt = (q: number): Vec3 => worldOf(c.frame, c.centre.u, c.centre.v, sign * (mid ? q / 2 : q));
-  const arrow: HandleSpec = { id: 'depth', kind: 'arrow', origin: capAt(c.depth), axis, base: c.depth, scale: k, sizePx: 90, unit: 'mm', color: ACCENT, hoverReadout: true, label: t('handles.depthArrow.label') };
+  const arrow: HandleSpec = { id: 'depth', kind: 'arrow', origin: capAt(c.depth), axis, base: c.depth, scale: k, sizePx: 90, unit: 'mm', color: ACCENT, label: t('handles.depthArrow.label') };
   // the number sits at the profile's edge on the end cap, off the arrow it belongs to
   const labelAt = (q: number): Vec3 => worldOf(c.frame, c.centre.u + (c.centre.hu ?? 0), c.centre.v, sign * (mid ? q / 2 : q));
   const label = (q: number): HandleSpec => ({ id: 'depthLabel', kind: 'label', origin: labelAt(q), axis, text: t('handles.depth', { v: fmt(Math.abs(q)) }), forId: 'depth', color: ACCENT, label: t('sizebox.label.tip') });

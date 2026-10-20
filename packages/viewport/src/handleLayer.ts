@@ -274,6 +274,8 @@ export class HandleLayer {
       if (hp) { this.readout!.style.left = `${hp[0] - hr.left + 14}px`; this.readout!.style.top = `${hp[1] - hr.top - 30}px`; }
       return;
     }
+    // a floating number label already follows this handle (live): a second readout would show the same value twice
+    if (!d.entry.active && this.specs.some((x) => x.kind === 'label' && x.forId === d.st.spec.id)) { this.hideReadout(); return; }
     this.showReadout();
     const el = this.readout!;
     el.textContent = this.readoutText();
