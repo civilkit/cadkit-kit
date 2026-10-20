@@ -5,6 +5,7 @@ import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
+import { importSkpView, type SkpImportResult, type SkpLook } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import { drawingQuery } from './drawing/kernel';
@@ -1043,7 +1044,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importStepView(this.session, text, name);
-      if (r.ok) { this.view.setBody(r.view); this.importedOnScreen = true; }
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -1055,7 +1056,19 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importSldprtView(this.session, bytes, name);
-      if (r.ok) { this.view.setBody(r.view); this.importedOnScreen = true; }
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; }
+      return r;
+    } finally { this.store.busy.value = false; }
+  }
+
+  /** Show a SketchUp .skp file in the viewport (view only, like STEP): faces coloured by their SketchUp materials. `opts.hidden` also brings in hidden geometry. */
+  async importSkp(bytes: Uint8Array, name: string, opts: { hidden?: boolean; maxFaces?: number } = {}): Promise<SkpImportResult> {
+    if (this.realLoad) await this.whenReal();
+    if (!this.session) return { ok: false, code: 'noSession', message: 'no document loaded' };
+    this.store.busy.value = true;
+    try {
+      const r = await importSkpView(this.session, bytes, name, opts);
+      if (r.ok) { this.importedLookNow = r.look; this.importedOnScreen = true; this.view.setBody(r.view); }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -1318,6 +1331,9 @@ export class Controller {
   /** True while the viewport shows an imported STEP body (view only) that no edit has replaced yet. */
   private importedOnScreen = false;
   hasImportedBody(): boolean { return this.importedOnScreen; }
+  /** Colours of the imported body on screen (SketchUp materials), or null. Cleared with the body by the next edit. */
+  private importedLookNow: SkpLook | null = null;
+  importedLook(): SkpLook | null { return this.importedOnScreen ? this.importedLookNow : null; }
   /** Whether the part has a solid on screen (a part of surfaces only has none: no volume, no mass). */
   hasSolid(): boolean {
     return (this.shown?.mesh.triFace.length ?? 0) > 0;
