@@ -2,7 +2,8 @@
 import { registerCatalog } from '@kit/i18n';
 
 export const filesEn = {
-  'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks', 'cmd.import-step.tip': 'Open a STEP or SolidWorks (.sldprt) file as a new part (view only)',
+  'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only)',
+  'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
   'files.restore.restore': 'Restore', 'files.restore.new': 'Start new',
@@ -20,12 +21,16 @@ export const filesEn = {
   'files.cache.tip': 'Showing the view stored with this part while the model rebuilds. Edits wait for the rebuild.',
   'files.cache.pickWait': 'Rebuilding the part: picking is available in a moment.',
   'files.restored': 'Restored "{name}"',
-  'files.drop.title': 'Drop a file to open it', 'files.drop.hint': '.ckpart  .json  .step  .stp  .sldprt  .dxf  .fcstd',
-  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .sldprt, .dxf and .FCStd files are supported.',
+  'files.drop.title': 'Drop a file to open it', 'files.drop.hint': '.ckpart  .json  .step  .stp  .sldprt  .skp  .dxf  .fcstd',
+  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf and .FCStd files are supported.',
   'files.drop.stl': 'STL files cannot be imported yet (mesh import is not available). Use a STEP file instead.',
   'files.drop.one': 'Drop one file at a time.',
   'files.dxf.target': 'DXF opens in a sketch: a new sketch on the front plane was started.',
   'files.sldprt.done': 'Imported {name} (SolidWorks): {faces} faces. Imported bodies are view only and are not saved with the part.',
+  'files.skp.done': 'Imported {name} (SketchUp): {faces} faces in {pieces} pieces, {materials} materials. Imported bodies are view only and are not saved with the part.',
+  'files.skp.open': 'SketchUp surface model: {open} open edges; solids operations may not apply. Convert to CAD is planned.',
+  'files.skp.hidden': '{n} hidden faces were left out.', 'files.skp.showHidden': 'Show hidden geometry',
+  'files.skp.failed': 'Could not import {name}: {message} ({code})',
   'files.step.done': 'Imported {name}: {faces} faces. Imported bodies are view only and are not saved with the part.',
   'files.step.failed': 'Could not import {name}: {message}',
   'files.fcstd.done': 'Imported {name} from FreeCAD: {features} of {total} features mapped. {warnings} warning(s): {first}',

@@ -131,12 +131,12 @@ describe('file commands', () => {
   };
   it('Ctrl+Shift+S is Save as and Ctrl+S stays Save', () => {
     const saveAs = vi.fn(); const save = vi.fn();
-    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, recover() {} } });
+    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, importSkpHidden() {}, recover() {} } });
     const ev = (o: Partial<KeyboardEvent>) => ({ key: 's', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...o });
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
     expect([saveAs.mock.calls.length, save.mock.calls.length]).toEqual([1, 1]);
-    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / SolidWorks');
+    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / SolidWorks / SketchUp');
   });
   it('without file actions the commands are absent', () => {
     expect(buildCommands(base).some((c) => c.id === 'save-as')).toBe(false);

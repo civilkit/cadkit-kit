@@ -5,6 +5,8 @@ import './strings';
 export interface FileActions {
   saveAs(): void;
   importStep(): void;
+  /** pick a SketchUp file and import it with its hidden geometry */
+  importSkpHidden(): void;
   recover(): void;
 }
 
@@ -13,6 +15,7 @@ export function fileCommands(f: FileActions, hasDocument: () => boolean): Comman
   return [
     { id: 'save-as', label: t('cmd.save-as'), tab: 'Home', group: 'File', keys: 'Ctrl+Shift+S', enabled: hasDocument, run: f.saveAs },
     { id: 'recover-versions', label: t('cmd.recover-versions'), tab: 'Home', group: 'File', run: f.recover },
+    { id: 'import-skp-hidden', label: t('cmd.import-skp-hidden'), tab: 'Home', group: 'File', run: f.importSkpHidden },
     { id: 'import-step', label: t('cmd.import-step'), tab: 'Home', group: 'File', run: f.importStep },
   ];
 }
