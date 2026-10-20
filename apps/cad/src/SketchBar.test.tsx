@@ -24,15 +24,19 @@ describe('definition level', () => {
   });
 });
 
-describe('Look normal chip', () => {
-  it('shows only when asked, with the shortcut in its label, and calls Look normal', () => {
+describe('Look normal', () => {
+  it('is ONE button, labelled with its shortcut, accented only while the view is angled, and calls Look normal', () => {
     const none = bar(st({}));
+    expect(none.container.querySelectorAll('[data-action="look-normal"]').length).toBe(1);
     expect(none.container.querySelector('[data-action="look-normal-chip"]')).toBeNull();
+    expect(none.container.querySelector('.look-hint')).toBeNull();
     cleanup();
     const { container, props } = bar(st({}), { lookChip: true });
-    const chip = container.querySelector('[data-action="look-normal-chip"]')!;
-    expect(chip.textContent).toBe('Look normal (N)');
-    fireEvent.click(chip);
+    const btns = container.querySelectorAll('[data-action="look-normal"]');
+    expect(btns.length).toBe(1);
+    expect(btns[0].textContent).toBe('Look normal (N)');
+    expect(btns[0].classList.contains('look-hint')).toBe(true);
+    fireEvent.click(btns[0]);
     expect(props.onLookNormal).toHaveBeenCalled();
   });
   it('the option Auto look normal for new sketches is off by default and toggles', () => {
@@ -81,21 +85,9 @@ describe('SketchBar', () => {
     fireEvent.click(container.querySelector('[aria-label="Confirm sketch"]')!);
     fireEvent.click(container.querySelector('[aria-label="Cancel sketch"]')!);
     fireEvent.click(screen.getByRole('button', { name: 'Construction' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Look normal' }));
+    fireEvent.click(screen.getByRole('button', { name: /Look normal/ }));
     expect([props.onOk, props.onCancel, props.onConstruction, props.onLookNormal].map((f) => (f as ReturnType<typeof vi.fn>).mock.calls.length)).toEqual([1, 1, 1, 1]);
     expect(container.querySelectorAll('.sketch-bar').length).toBe(1);
-  });
-  it('folds Snaps and Display into one View menu on narrow windows', () => {
-    const mm = vi.fn((q: string) => ({ matches: true, media: q, addEventListener: () => {}, removeEventListener: () => {} }));
-    vi.stubGlobal('matchMedia', mm); (window as unknown as { matchMedia: unknown }).matchMedia = mm;
-    try {
-      const { props } = bar(st({}));
-      expect(screen.queryByRole('button', { name: /Snaps/ })).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: /View/ }));
-      expect(screen.getByLabelText('Quadrants')).toBeTruthy();
-      fireEvent.click(screen.getByLabelText('Relation glyphs'));
-      expect(props.onPrefs).toHaveBeenCalled();
-    } finally { vi.unstubAllGlobals(); delete (window as unknown as { matchMedia?: unknown }).matchMedia; }
   });
   it('the snaps popover lists every kind and reports a toggle (grid goes to gridSnap, the rest into snaps)', () => {
     const { props } = bar(st({}));
@@ -114,11 +106,10 @@ describe('SketchBar', () => {
     fireEvent.click(box);
     expect(props.onPrefs).toHaveBeenCalledWith({ guideConstraints: true });
   });
-  it('the display popover toggles what is shown', () => {
-    const { props } = bar(st({}));
-    fireEvent.click(screen.getByRole('button', { name: /Display/ }));
-    fireEvent.click(screen.getByLabelText('Relation glyphs'));
-    expect(props.onPrefs).toHaveBeenCalledWith({ show: { ...DEFAULT_SKETCH_PREFS.show, relations: false } });
+  it('has no Display popover: the viewport Display menu owns the sketch show toggles', () => {
+    bar(st({}));
+    expect(screen.queryByRole('button', { name: /Display/ })).toBeNull();
+    expect(screen.queryByLabelText('Relation glyphs')).toBeNull();
   });
   it('shows the selection count with a Clear button', () => {
     const { container, props } = bar(st({}), { selected: 5 });

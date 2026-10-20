@@ -138,8 +138,8 @@ export const idleDuringEdit = (id: string): boolean => MODEL_COMMANDS.has(id);
 
 // ---- the sketch-mode UI: who owns what ------------------------------------------------------------------------------------
 
-/** What the chrome shows while a sketch is open, from the workspace settings. Always: ONE sketch bar at the top centre (name, OK /
- *  Cancel, modes, definition badge, Fully define, Snaps, Display). The sketch tools have exactly one home:
+/** What the chrome shows while a sketch is open, from the workspace settings. With the ribbon on, the Sketch tab carries everything (Select, Finish, Make,
+ *  the tool groups, Construction, Status) and nothing floats over the canvas; the floating sketch bar (`bar`) is the fallback for ribbon off. The sketch tools have exactly one home:
  *  - ribbon on: the contextual Sketch tab; the right-hand palette only if the Tool palette (`sketchPalette`) setting is on; a left
  *    tool column, if enabled, shrinks to undo / redo / rebuild (the tools are on the tab, the model groups are hidden);
  *  - ribbon off with the left column on (Plasticity): the left column swaps to the sketch tool groups (undo / redo / rebuild stay
@@ -154,6 +154,6 @@ export function sketchChrome(ws: { ribbon: string; toolRail: boolean; sketchPale
     ribbonTab: ribbon,
     leftColumn: ws.toolRail ? (ribbon ? 'history' : 'sketch') : 'none',
     rightPalette: ribbon ? ws.sketchPalette : !column,
-    bar: true,
+    bar: !ribbon,
   };
 }

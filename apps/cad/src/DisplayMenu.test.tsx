@@ -92,3 +92,20 @@ describe('DisplayMenu look sections', () => {
     expect(look.onShowAll).toHaveBeenCalled();
   });
 });
+
+describe('DisplayMenu sketch section', () => {
+  const show = { dimensions: true, relations: false, reference: true, colours: true, panel: false } as never;
+  it('has the four sketch toggles only while sketching, and reports a change', () => {
+    const { unmount } = render(<DisplayMenu display={DEFAULT_DISPLAY} onToggle={() => {}} />);
+    fireEvent.click(screen.getByText('Display'));
+    expect(document.querySelector('[data-sketch-show]')).toBeNull();
+    unmount();
+    const onToggle = vi.fn();
+    render(<DisplayMenu display={DEFAULT_DISPLAY} onToggle={() => {}} sketch={{ show, onToggle }} />);
+    fireEvent.click(screen.getByText('Display'));
+    expect([...document.querySelectorAll('[data-sketch-show]')].map((x) => x.getAttribute('data-sketch-show'))).toEqual(['dimensions', 'relations', 'reference', 'colours']);
+    expect((document.querySelector('[data-sketch-show="relations"]') as HTMLInputElement).checked).toBe(false);
+    fireEvent.click(document.querySelector('[data-sketch-show="relations"]')!);
+    expect(onToggle).toHaveBeenCalledWith('relations', true);
+  });
+});

@@ -1,6 +1,7 @@
 import { sketchTools, type ToolEntry, type ToolGroup } from '@kit/sketch';
 import { Icon, Slot, Tip, type SlotItem, type RibbonGroup } from '@kit/ui';
 import { t } from './i18n';
+import { SketchConstruction, SketchFinish, SketchMake, SketchStatus, type SketchControls } from './SketchBar';
 
 const GROUPS: ToolGroup[] = ['draw', 'dimension', 'constrain', 'edit'];
 
@@ -129,21 +130,28 @@ export function SketchToolStrip(p: { active: string | null; onPick(id: string | 
 }
 
 /** The groups of the ribbon's contextual Sketch tab: the same slots, tools and memory as the palette, drawn as ribbon buttons.
- *  Select, Draw, Dimension, Constrain, Modify (trim, fillet, offset, mirror, patterns, move), and Reference (project, construction). OK / Cancel live in the sketch bar, not here. */
+ *  Left to right: Select, Finish (OK / Cancel), Make (Extrude, Revolve), Draw, Dimension, Constrain, Modify, Reference (project, construction
+ *  tools plus the Construction toggle), Status (definition badge, Fully define, Snaps, Look normal). The last four need `controls`; without it
+ *  only the tool groups are drawn (the floating bar carries the rest). */
 export function sketchRibbonGroups(p: {
-  tools?: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean;
+  tools?: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean; controls?: SketchControls;
 }): RibbonGroup[] {
   const tools = p.tools ?? sketchTools();
+  const c = p.controls;
   const cell = (sl: PaletteSlot) => ({ key: 'sk-' + sl.id, node: <Slot id={sl.id} variant="ribbon" side="bottom" labels={p.labels} items={sl.tools.map((x) => toItem(x, p.active, p.onPick))} /> });
   const edit = slotsFor('edit', tools);
   const isRef = (sl: PaletteSlot) => sl.tools.some((x) => x.id === 'project' || x.id === 'construction');
+  const node = (key: string, el: preact.JSX.Element) => ({ key, node: el });
   const groups: RibbonGroup[] = [
     { id: 'SketchSelect', entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> }] },
+    { id: 'Finish', entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
+    { id: 'Make', entries: c && (c.onExtrude || c.onRevolve) ? [node('sk-make', <SketchMake onExtrude={c.onExtrude} onRevolve={c.onRevolve} />)] : [] },
     { id: 'Draw', entries: slotsFor('draw', tools).map(cell) },
     { id: 'Dimension', entries: slotsFor('dimension', tools).map(cell) },
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
     { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
-    { id: 'Reference', entries: edit.filter(isRef).map(cell) },
+    { id: 'Reference', entries: [...edit.filter(isRef).map(cell), ...(c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [])] },
+    { id: 'Status', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} onLookNormal={c.onLookNormal} lookChip={c.lookChip} />)] : [] },
   ];
   return groups.filter((g) => g.entries.length);
 }

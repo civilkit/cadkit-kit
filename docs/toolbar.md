@@ -82,15 +82,16 @@ whole command table (every optional command included) and fails for a command wi
 - **Home** holds the model commands: Sketch, Create (extrude, thin, revolve, loft / sweep, hole, catalog), Modify (fillet, chamfer,
   shell), Pattern, Edit (undo, redo, history / rebuild).
 - **Sketch tab**: while a sketch is open the tab strip is replaced by one tab named after the sketch ("Editing <name>"), with the
-  groups Select, Draw, Dimension, Constrain, Modify and Reference. It uses the palette's slots (`sketchRibbonGroups` in
-  SketchToolStrip.tsx), so the last-used memory, icons, names and keys are the same. OK / Cancel are not on the tab: they are in the
-  sketch bar. Closing the sketch restores the tab the user was on (the user's tab is never overwritten: `activeRibbonTab`).
-- **The sketch bar** (`SketchBar.tsx`) is the single top-centre pill in every preset: the sketch name (the plane is its tooltip)
-  with OK and Cancel at its left, then Construction (and "Make construction" when geometry is selected) and Look normal, the
-  definition badge ("Fully defined" green, "N DOF" amber, red when over-defined), Fully define, Snaps and Display (the Display menu
-  holds the dimension / relation / reference / colour switches). Under 900 px Snaps and Display fold into one View menu and the bar
-  keeps clear of the tool column, the Display button and the view cube. The old floating Sketch dialog, the second aux row and the
-  "Editing" banner are gone.
+  groups Select, Finish (OK / Cancel), Make (Extrude, Revolve; absent for a hole sketch), Draw, Dimension, Constrain, Modify,
+  Reference (project, the Construction toggle, and "Make construction" when geometry is selected) and Status (definition badge
+  "Fully defined" / "N DOF" / red when over-defined, Fully define, Snaps, and the single "Look normal (N)" button, accented while the
+  view is angled to the plane). The tool groups use the palette's slots (`sketchRibbonGroups` in SketchToolStrip.tsx), so the
+  last-used memory, icons, names and keys are the same. Nothing floats over the canvas. The hint line and the selection count
+  (with Clear) sit in the status bar. Closing the sketch restores the tab the user was on (`activeRibbonTab`).
+- **Display toggles**: the sketch's dimension / relation / reference / colour switches are a "Sketch" section of the viewport's
+  Display menu, shown only while sketching (one Display menu, no copy in the sketch controls).
+- **The sketch bar** (`SketchBar.tsx`) is only the fallback when the ribbon is off (`sketchChrome(...).bar`): the same controls
+  (Make, name, OK / Cancel, Construction, Status) as one top-centre pill, built from the same components as the ribbon groups.
 - **Constraint list**: a popover under the bar, not a permanent card. It opens when the badge is clicked and by itself when a
   conflict or an over-defined sketch appears; Esc or a click outside closes it.
 - **Who owns the sketch tools** (`sketchChrome` in toolbarModel.ts, tested per preset): ribbon on: the Sketch tab (the right-hand

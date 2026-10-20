@@ -88,7 +88,7 @@ describe('contextual ribbon', () => {
 describe('sketch-mode chrome per preset', () => {
   const ws = (ribbon: string, toolRail: boolean, sketchPalette = false) => ({ ribbon, toolRail, sketchPalette });
   it('ribbon preset: the Sketch tab carries the tools, no right palette, the left column (if on) keeps only undo / redo / rebuild', () => {
-    expect(sketchChrome(ws('full', false), true)).toEqual({ ribbonTab: true, leftColumn: 'none', rightPalette: false, bar: true });
+    expect(sketchChrome(ws('full', false), true)).toEqual({ ribbonTab: true, leftColumn: 'none', rightPalette: false, bar: false });
     expect(sketchChrome(ws('full', true), true).leftColumn).toBe('history');
   });
   it('the Tool palette setting brings the right palette back in a ribbon preset', () => {
@@ -96,6 +96,10 @@ describe('sketch-mode chrome per preset', () => {
   });
   it('Plasticity (ribbon off, left column on): the column swaps to the sketch tools, no right palette, no ribbon tab', () => {
     expect(sketchChrome(ws('off', true), true)).toEqual({ ribbonTab: false, leftColumn: 'sketch', rightPalette: false, bar: true });
+  });
+  it('the floating bar is drawn only when the ribbon is off', () => {
+    for (const r of ['full', 'compact']) for (const rail of [true, false]) expect(sketchChrome(ws(r, rail), true).bar, r).toBe(false);
+    for (const rail of [true, false]) expect(sketchChrome(ws('off', rail), true).bar).toBe(true);
   });
   it('Minimal (ribbon off, no column): the floating palette is the only home of the tools', () => {
     expect(sketchChrome(ws('off', false), true)).toEqual({ ribbonTab: false, leftColumn: 'none', rightPalette: true, bar: true });

@@ -4,6 +4,7 @@ import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE
 import type { AnalysisOptions } from '@kit/viewport';
 import { AnalysisSection } from './AnalysisControls';
 import { t } from './i18n';
+import { SKETCH_SHOW_KEYS, type SketchShow } from './sketchPrefs';
 
 /** The look half of the popover: display style, appearance of the part, lighting and background (see look.ts). */
 export interface LookControls {
@@ -21,7 +22,7 @@ export interface LookControls {
 export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
-export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
+export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -44,6 +45,17 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
         <div class="display-pop" role="group" aria-label={t('display.label')}>
           {p.look ? <LookSections look={p.look} /> : null}
           {p.analysis ? <AnalysisSection opts={p.analysis.opts} onChange={p.analysis.onChange} /> : null}
+          {p.sketch ? (
+            <div class="display-sketch" role="group" aria-label={t('display.sketch')}>
+              <div class="display-head">{t('display.sketch')}</div>
+              {SKETCH_SHOW_KEYS.map((k) => (
+                <label key={k} class="display-row">
+                  <input type="checkbox" data-sketch-show={k} checked={p.sketch!.show[k]} onChange={(e) => p.sketch!.onToggle(k, (e.currentTarget as HTMLInputElement).checked)} />
+                  <span>{t('app.sketch.show.' + k)}</span>
+                </label>
+              ))}
+            </div>
+          ) : null}
           {p.look || p.analysis ? <div class="display-head">{t('display.layers')}</div> : null}
           {DISPLAY_LAYERS.map((layer) => (
             <label key={layer} class="display-row">

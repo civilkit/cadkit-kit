@@ -20,6 +20,8 @@ export const en: Catalog = {
   'group.SketchSelect': 'Select', 'group.Draw': 'Draw', 'group.Dimension': 'Dimension', 'group.Constrain': 'Constrain', 'group.Finish': 'Finish',
   'app.sketch.cancel': 'Cancel sketch',
   'app.sketch.lookNormal': 'Look normal',
+  'app.sketch.lookNormal.tip': 'Turn the view square to the sketch plane (N)',
+  'group.Make': 'Make', 'group.Status': 'Status', 'display.sketch': 'Sketch',
   'app.sketch.failed': 'Could not open the sketch for editing',
   'app.sketch.fullyDefined': 'Sketch is fully defined: remove a constraint to move this point',
   'app.sketch.conflict': 'This move conflicts with the constraints',

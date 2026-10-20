@@ -27,6 +27,9 @@ export interface SketchPrefs {
   show: SketchShow;
 }
 
+/** The four show toggles the viewport Display menu offers while sketching. */
+export const SKETCH_SHOW_KEYS = ['dimensions', 'relations', 'reference', 'colours'] as const;
+
 export interface SketchShow {
   /** Driving dimension labels. */
   dimensions: boolean;

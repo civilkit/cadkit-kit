@@ -98,7 +98,7 @@ import { isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch
 import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
 import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
 import { SketchAnnotations } from './SketchAnnotations';
-import { SketchBar } from './SketchBar';
+import { SketchBar, SketchNotes, type SketchControls } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
@@ -1816,22 +1816,24 @@ function App() {
     if (pl === 'front' || pl === 'top' || pl === 'right') return t('app.ref.' + pl);
     return pl && typeof pl === 'object' ? t('app.sketch.dialog.onFace') : '';
   })();
-  const sketchBar = sketching ? (
-    <SketchBar
-      name={sketching.name} plane={sketching.plane ?? sketchPlaneLabel}
-      onOk={() => void confirmSketch()}
-      {...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') })} onCancel={() => void cancelSketch()}
-      construction={constructionMode} onConstruction={() => setConstructionMode(!constructionMode)}
-      {...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {})}
-      onLookNormal={lookNormal} lookChip={lookChip} hint={sketchHint}
-      status={stNow} busy={defining} prefs={sketchPrefs}
-      onPrefs={updatePrefs}
-      onFullyDefine={() => void fullyDefineNow()}
-      selected={selectedEntityIds().length > 1 ? selectedEntityIds().length : 0}
-      onClearSelection={() => setMultiSelection([])}
-      list={<SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />}
-    />
-  ) : null;
+  const sketchControls: SketchControls | null = sketching ? {
+    name: sketching.name, plane: sketching.plane ?? sketchPlaneLabel,
+    onOk: () => void confirmSketch(),
+    ...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') }),
+    onCancel: () => void cancelSketch(),
+    construction: constructionMode, onConstruction: () => setConstructionMode(!constructionMode),
+    ...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {}),
+    onLookNormal: lookNormal, lookChip, hint: sketchHint,
+    status: stNow, busy: defining, prefs: sketchPrefs,
+    onPrefs: updatePrefs,
+    onFullyDefine: () => void fullyDefineNow(),
+    selected: selectedEntityIds().length > 1 ? selectedEntityIds().length : 0,
+    onClearSelection: () => setMultiSelection([]),
+    list: <SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />,
+  } : null;
+  const chrome = sketchChrome(ws, !!sketching);
+  // the floating pill is the fallback for ribbon off; with the ribbon on the Sketch tab carries every control and nothing covers the canvas
+  const sketchBar = sketchControls && chrome.bar ? <SketchBar {...sketchControls} /> : null;
   /** A folder's button: pick every face the folder's features made. */
   const selectGroupFaces = (ids: string[]) => {
     const set = new Set(ids);
@@ -2157,7 +2159,7 @@ function App() {
   const fileIds = new Set(commands.filter((c) => isFileCommand(c.id)).map((c) => c.id));
   const ribbonCommands = editingId ? commands.map((c) => (idleDuringEdit(c.id) ? { ...c, enabled: () => false } : c)) : commands;
   const ribbonLayout = sketching
-    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: ws.toolLabels !== 'icons', }) }
+    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: ws.toolLabels !== 'icons', ...(sketchControls ? { controls: sketchControls } : {}) }) }
     : RIBBON_LAYOUT;
   const kindRef = useRef<DocKind | null>(null);
   const kindNow = docKindOf(doc as never);
@@ -2166,7 +2168,6 @@ function App() {
     kindRef.current = kindNow;
     if (next !== tab) setTab(next);
   }, [kindNow]);
-  const chrome = sketchChrome(ws, !!sketching);
   // Every action of the sketch bar and every sketch tool is also a command in the F search while a sketch is open (not on the ribbon: the bar and the Sketch tab carry them there)
   const sketchSetShow = (k: 'dimensions' | 'relations') => { const next = { ...sketchPrefs, show: { ...sketchPrefs.show, [k]: !sketchPrefs.show[k] } }; setSketchPrefs(next); saveSketchPrefs(next); };
   const sketchCommands: Command[] = sketching ? [
@@ -2238,7 +2239,7 @@ function App() {
         {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
         {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
-        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
+        <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} {...(sketching ? { sketch: { show: sketchPrefs.show, onToggle: (k, on) => updatePrefs({ show: { ...sketchPrefs.show, [k]: on } }) } } : {})} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
           onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
           componentName: selComp?.name,
@@ -2309,8 +2310,9 @@ function App() {
       })() : null}
       <div class="status-wrap">
         <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
-          sketch={sketching ? <SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
-            onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} /> : <ModelReadout />}
+          sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
+            onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} />
+            {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} /> : null}</> : <ModelReadout />}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             { label: t('app.status.features'), value: String(rows.length) },

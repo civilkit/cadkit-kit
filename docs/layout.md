@@ -29,9 +29,9 @@ The stylesheet clamps stored sizes to the current window (`clamp(200px, var(--lw
 
 ## Sketch mode
 
-While a sketch is open the chrome rearranges once, by `sketchChrome(workspace, sketching)` (`toolbarModel.ts`): one sketch bar at the
-top centre of the viewport (`SketchBar.tsx`, `.sketch-bar-wrap` in app.css; it keeps 400 px free on the right for the Display button and
-view cube, and under 900 px sits between the left column and the right-hand controls), the sketch tools in exactly one place (the
+While a sketch is open the chrome rearranges once, by `sketchChrome(workspace, sketching)` (`toolbarModel.ts`): the sketch controls
+in the Sketch ribbon tab (Finish, Make, Construction, Status; nothing floats over the canvas), with a floating sketch bar
+(`SketchBar.tsx`, `.sketch-bar-wrap` in app.css) only as the fallback when the ribbon is off, the sketch tools in exactly one place (the
 Sketch ribbon tab, or the left column in the Plasticity preset, or the floating palette in Minimal), and the constraint list as a
 popover. See `docs/toolbar.md`.
 

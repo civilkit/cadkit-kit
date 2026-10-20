@@ -4,6 +4,7 @@ import { sketchTools } from '@kit/sketch';
 import { ICON_NAMES, slotMemory } from '@kit/ui';
 import { SketchToolStrip, slotsFor, PALETTE_SLOTS } from './SketchToolStrip';
 import { buildCommands, type Actions } from './commands';
+import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
 import './i18n';
 
 afterEach(cleanup);
@@ -151,18 +152,57 @@ describe('palette slots on touch', () => {
 });
 
 describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
-  it('carries the palette tools in Select, Draw, Dimension, Constrain, Modify, Reference groups and no Finish group (OK / Cancel live in the sketch bar)', async () => {
+  const controls = () => ({
+    name: 'S1', plane: 'Front', onOk: vi.fn(), onCancel: vi.fn(), onExtrude: vi.fn(), onRevolve: vi.fn(), construction: false, onConstruction: vi.fn(),
+    onToggleSelected: vi.fn(), onLookNormal: vi.fn(), lookChip: true, hint: null, status: { dof: 3, fullyDefined: false, conflicts: [], redundant: [], solved: true, state: 'under' } as never,
+    busy: false, prefs: DEFAULT_SKETCH_PREFS, onPrefs: vi.fn(), onFullyDefine: vi.fn(), selected: 0, onClearSelection: vi.fn(), list: <div class="the-list">list</div>,
+  });
+  const draw = async (c = controls()) => {
     const { sketchRibbonGroups } = await import('./SketchToolStrip');
     const { Ribbon } = await import('@kit/ui');
-    const picked: Array<string | null> = [];
-    const groups = sketchRibbonGroups({ active: null, onPick: (id) => picked.push(id), labels: true });
+    const groups = sketchRibbonGroups({ active: null, onPick: () => {}, labels: true, controls: c });
+    const r = render(<Ribbon commands={[]} activeTab="Sketch" onTab={() => {}} layout={{ Sketch: groups }} onlyTab="Sketch" tabLabel={() => 'Editing S1'} />);
+    return { groups, c, ...r };
+  };
+  it('without controls it carries only the palette tools (Select, Draw, Dimension, Constrain, Modify, Reference)', async () => {
+    const { sketchRibbonGroups } = await import('./SketchToolStrip');
+    const groups = sketchRibbonGroups({ active: null, onPick: () => {}, labels: true });
     expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference']);
-    const { container } = render(<Ribbon commands={[]} activeTab="Sketch" onTab={() => {}} layout={{ Sketch: groups }} onlyTab="Sketch" tabLabel={() => 'Editing S1'} />);
+  });
+  it('with controls: Select, Finish, Make, tools, Construction in Reference, then Status', async () => {
+    const { groups, container } = await draw();
+    expect(groups.map((g) => g.id)).toEqual(['SketchSelect', 'Finish', 'Make', 'Draw', 'Dimension', 'Constrain', 'Modify', 'Reference', 'Status']);
     expect(container.querySelectorAll('.rb-tab').length).toBe(1);
     expect(container.querySelector('.rb-tab')?.textContent).toBe('Editing S1');
-    expect(container.querySelector('[aria-label="Confirm sketch"]')).toBeNull();
-    // every palette tool is reachable from the ribbon groups
-    const rendered = container.querySelectorAll('.slot, [data-slot]').length;
-    expect(rendered).toBeGreaterThan(10);
+    expect(container.querySelector('[aria-label="Confirm sketch"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Cancel sketch"]')).not.toBeNull();
+    expect(container.querySelectorAll('.slot, [data-slot]').length).toBeGreaterThan(10);
+  });
+  it('Extrude, Revolve, Construction and Look normal each appear exactly once, and work', async () => {
+    const { c, container } = await draw();
+    for (const a of ['sketch-extrude', 'sketch-revolve', 'sketch-construction', 'look-normal']) expect(container.querySelectorAll(`[data-action="${a}"]`).length, a).toBe(1);
+    expect(container.querySelectorAll('[data-action="look-normal-chip"]').length).toBe(0);
+    expect(container.querySelector('[data-action="look-normal"]')!.textContent).toBe('Look normal (N)');
+    expect(container.querySelector('.look-hint')).not.toBeNull();
+    fireEvent.click(container.querySelector('[data-action="sketch-extrude"]')!); expect(c.onExtrude).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-action="sketch-revolve"]')!); expect(c.onRevolve).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-action="sketch-construction"]')!); expect(c.onConstruction).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-action="sketch-make-construction"]')!); expect(c.onToggleSelected).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-action="look-normal"]')!); expect(c.onLookNormal).toHaveBeenCalled();
+  });
+  it('a hole sketch (no Extrude / Revolve handlers) has no Make group', async () => {
+    const c = controls(); delete (c as { onExtrude?: unknown }).onExtrude; delete (c as { onRevolve?: unknown }).onRevolve;
+    const { groups, container } = await draw(c);
+    expect(groups.map((g) => g.id)).not.toContain('Make');
+    expect(container.querySelector('[data-action="sketch-extrude"]')).toBeNull();
+  });
+  it('the Status group: badge opens the constraint list, Fully define, Snaps', async () => {
+    const { c, container } = await draw();
+    expect(container.querySelector('.dof-chip')!.textContent).toBe('3 DOF');
+    expect(container.querySelector('.the-list')).toBeNull();
+    fireEvent.click(container.querySelector('.dof-chip')!);
+    expect(container.querySelector('.the-list')).not.toBeNull();
+    fireEvent.click(container.querySelector('[data-action="fully-define"]')!); expect(c.onFullyDefine).toHaveBeenCalled();
+    expect([...container.querySelectorAll('.aux-pop button')].some((b) => /Snaps/.test(b.textContent ?? ''))).toBe(true);
   });
 });
