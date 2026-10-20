@@ -32,6 +32,8 @@ describe('leak patterns', () => {
   it('flags localhost URLs with a port', () => {
     expect(ids('http://localhost:5173/')).toContain('localhost-url');
     expect(ids('localhost')).not.toContain('localhost-url');
+    expect(ids('url:"http://127.0.0.1:7461"')).not.toContain('localhost-url');   // the local kernel service default
+    expect(ids('http://127.0.0.1:7462/')).toContain('localhost-url');
   });
   it('flags key-looking strings', () => {
     expect(ids('k="sk-' + 'a1B2c3D4e5F6g7H8i9J0k1L2"')).toContain('api-key');

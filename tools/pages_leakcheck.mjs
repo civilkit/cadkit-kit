@@ -20,7 +20,8 @@ export const PATTERNS = [
   { id: 'ipv4', re: /(?<![\w.-])(?:\d{1,3}\.){3}\d{1,3}(?![\w.]|[ ,-]-?\.?\d)/g, accept: ipv4Ok },
   { id: 'abs-path', re: /(?:\/Users\/|\/Volumes\/|\/private\/tmp|[A-Za-z]:\\\\?(?:Users|Documents and Settings)\\)[\w.-]*/g },
   { id: 'email', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g, accept: (m) => !/\.(png|jpe?g|webp|gif|svg|css|js|mjs|json|wasm|html?)$/i.test(m) },   // icon@2x.png is a file name
-  { id: 'localhost-url', re: /(?:localhost|127\.0\.0\.1):\d{2,5}/g },
+  // 127.0.0.1:7461 is the documented default address of the optional local kernel service (Settings > Kernel); any other local address is a dev leftover
+  { id: 'localhost-url', re: /(?:localhost|127\.0\.0\.1):\d{2,5}/g, accept: (m) => m !== '127.0.0.1:7461' },
   { id: 'api-key', re: /\b(?:sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{30,}|xox[abp]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})/g },
   { id: 'secret-near-word', re: /(?:key|token|secret|passw(?:or)?d|credential)s?["']?\s*[:=]\s*["'][A-Za-z0-9+/_=-]{24,}["']/gi },
   { id: 'product-name', re: /ironcad|tri-?ball/gi },
