@@ -117,9 +117,16 @@ export function editorEnums() {
   return out;
 }
 
+/** The kernel checkout: CK_REBUILD, else the sibling of the kit. jsdom tests have no file module URL and run from the kit root. */
+function kernelDir() {
+  if (process.env.CK_REBUILD) return process.env.CK_REBUILD;
+  const here = import.meta.url.startsWith('file:') ? dirname(fileURLToPath(import.meta.url)) : join(process.cwd(), 'tools');
+  return join(here, '../../rebuild');
+}
+
 /** String-union fields of the kernel's feature schema (part-model/features.ts): field -> values. Best effort; [] when the kernel checkout is absent. */
 export function schemaUnions() {
-  const fw = process.env.CK_REBUILD ?? fileURLToPath(new URL('../../rebuild', import.meta.url));
+  const fw = kernelDir();
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
   const src = readFileSync(f, 'utf8'); const out = {};
@@ -132,7 +139,7 @@ export function schemaUnions() {
 
 /** Per feature type: { field: [union values] } from the kernel's interfaces. {} when the kernel checkout is absent. */
 export function schemaFeatures() {
-  const fw = process.env.CK_REBUILD ?? fileURLToPath(new URL('../../rebuild', import.meta.url));
+  const fw = kernelDir();
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
   const src = readFileSync(f, 'utf8'); const out = {};

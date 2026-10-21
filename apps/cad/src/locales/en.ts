@@ -192,6 +192,7 @@ export const en: Catalog = {
   'app.status.gridSpacing': 'Grid spacing', 'app.status.spacing': 'Spacing', 'app.status.gridSpacing.tip': 'Click to type a grid spacing (0 or empty for automatic)', 'app.status.gridAuto': 'auto',
   'app.status.model.cursor': 'Point',
   'app.notice.opened': 'Opened “{name}”',
+  'app.notice.newerPart': 'This part was made by a newer version (file version {version}). Some features may be missing or wrong.',
   'app.notice.openFailed': 'Could not open the part: {message}',
   'app.part.unnamed': 'part',
 

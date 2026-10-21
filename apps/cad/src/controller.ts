@@ -1,3 +1,4 @@
+import { isNewerPart } from './partVersion';
 import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
@@ -159,6 +160,7 @@ export class Controller {
   async load(doc: PartDoc, opts: { cached?: ViewData } = {}): Promise<void> {
     this.store.busy.value = true;
     try {
+      if (isNewerPart(doc)) this.store.notify(t('app.notice.newerPart', { version: String((doc as { version?: unknown }).version) }), 'warn');
       if (this.realLoad) await this.whenReal();   // an earlier part is still being built in the background: it finishes first
       // the fonts travel in the file, not in the session's document (they would be copied with every edit and sent with every regen)
       const { fonts: docFonts, ...forKernel } = doc as PartDoc & { fonts?: unknown };
