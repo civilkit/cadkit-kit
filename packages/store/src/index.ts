@@ -46,7 +46,7 @@ export const SIZE_KEYS = ['leftWidth', 'rightWidth', 'drawerHeight', 'floatWidth
 export type WorkspacePreset = 'plasticity' | 'classic' | 'minimal';
 export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
   plasticity: { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
-  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: false, leftCollapsed: false, rightPanel: 'docked', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
+  classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'docked', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
   minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
 };
 /** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */

@@ -315,6 +315,9 @@ function App() {
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [autoPick, setAutoPickState] = useState(() => { try { return localStorage.getItem('cad.autopick') !== '0'; } catch { return true; } });   // hover and click take the corner, edge or face nearest the pointer
+  const autoPickRef = useRef(autoPick);
+  autoPickRef.current = autoPick;
   const startSketchRef = useRef<(plane: 'front' | 'top' | 'right') => void>(() => {});   // the viewport callbacks are created once
   const editingIdRef = useRef<string | null>(null);   // read by the viewport callbacks, which are created once
   // a feature (a new Plane after OK, a clicked plane) and a Front / Top / Right row are never both selected: the Plane tool reads ONE base from the tree
@@ -410,8 +413,10 @@ function App() {
 
   useEffect(() => {
     const vp = new Viewport(host.current!, {
-      onPick: (names, additive) => {
+      onPick: (names, additive, mode) => {
         if (pickBlocked()) return;
+        // auto pick: the selection takes the kind of what was clicked, and does not mix kinds
+        if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
         store.select(names, additive || measureRef.current);
         // a click on empty space also lets go of the selected feature: the properties panel and the handles close.
         // An open editor (editingId) keeps its feature, and a measuring click never deselects.
@@ -430,7 +435,12 @@ function App() {
       onAnalysisLegend: (l) => { analysisStore.legend.value = l; },
       onContextMenu: (n, x, y, m) => ctxMenuRef.current?.(n, x, y, m),
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
-      onBoxSelect: (names, additive) => { if (pickBlocked()) return; if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
+      onBoxSelect: (names, additive, mode) => {
+        if (pickBlocked()) return;
+        if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
+        if (!store.filters.value[MODE_FILTER[store.mode.value]]) return;
+        store.select(names, additive);
+      },
       onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       // hovering lights a plane up; a plain click on it starts the sketch (while something else is being edited or measured, it only selects)
       onRefPlaneHover: (id) => setRefHover(id),
@@ -441,6 +451,7 @@ function App() {
       },
     });
     viewport = vp;
+    vp.setAutoPick(autoPickRef.current);
     let ownerDoc: unknown = null, ownerInserts: ReadonlySet<string> = new Set();
     vp.setOwnerFn((n) => {
       const d = controller.document();
@@ -580,11 +591,14 @@ function App() {
     for (let i = 0; i < 1000 && controller.history().length > count; i++) await controller.undo();
     redraw((n) => n + 1);
   };
+  const chooseAutoPick = (on: boolean) => { setAutoPickState(on); viewport?.setAutoPick(on); try { localStorage.setItem('cad.autopick', on ? '1' : '0'); } catch { /* private window */ } };
+  useEffect(() => { const f = store.filters.value; viewport?.setPickKinds({ face: f.faces, edge: f.edges, vertex: f.vertices, body: f.bodies }); }, [store.filters.value]);
   const setMode = (m: SelectionMode) => {
     if (!store.filters.value[MODE_FILTER[m]]) { store.notify(t('select.filter.off'), 'warn'); return; }
     // entering Body mode keeps the bodies that hold what was selected
     if (m === 'body' && store.mode.value !== 'body') { const mdl = controller.selModel(); if (mdl && store.selection.value.length) store.select(toBodyMode(mdl, store.selection.value)); }
     store.mode.value = m; viewport?.setPickMode(m);
+    chooseAutoPick(false);   // choosing a kind by hand is the filter
   };
   const [boxOn, setBoxOn] = useState(false);
   const toggleBox = () => { const on = !boxOn; setBoxOn(on); viewport?.setBoxMode(on); if (on) store.notify(t('select.box.on')); };
@@ -2226,9 +2240,12 @@ function App() {
         ) : null}
         {ws.selectionBar && !sketching ? (
           <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
+            <Tip label={t('cmd.sel-auto-tip')}>
+              <button aria-pressed={autoPick} onClick={() => chooseAutoPick(!autoPick)}>{t('cmd.sel-auto')}</button>
+            </Tip>
             {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
               <Tip key={m} label={t(l)} keys={k}>
-                <button aria-pressed={store.mode.value === m} disabled={!store.filters.value[MODE_FILTER[m]]} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
+                <button aria-pressed={!autoPick && store.mode.value === m} disabled={!store.filters.value[MODE_FILTER[m]]} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
                   <Icon name={'sel-' + m} size={ws.toolLabels === 'icons' ? 20 : 16} />
                   {ws.toolLabels === 'icons' ? null : <><kbd>{k}</kbd>{t(l)}</>}
                 </button>

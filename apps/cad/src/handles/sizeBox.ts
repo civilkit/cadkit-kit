@@ -274,7 +274,7 @@ const mapper = (oldLo: number, oldHi: number, newLo: number, newHi: number) => {
   return (c: number) => newLo + (c - oldLo) * k;
 };
 
-export interface SketchEdit { sketch: Wire; dropped: string[] }
+export interface SketchEdit { sketch: Wire; dropped: string[]; detached: string[] }
 
 /**
  * The sketch with the profile's points mapped from the old box to the new one, circle radii scaled, and its dimension
@@ -321,6 +321,8 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
     return c && a ? Math.hypot(a.x - c.x, a.y - c.y) : null;
   };
   const dropped: string[] = [];
+  const detached: string[] = [];   // dimensions that were bound to a variable or expression: the new size is a plain number, or a rebuild would restore the old one
+  const setValue = (c: Wire, v: number): void => { if (c.expr && Math.abs(v - (c.value as number)) > 1e-6) { delete c.expr; detached.push(c.id); } c.value = v; };
   const keep: Wire[] = [];
   for (const c of out.constraints ?? []) {
     const refs: string[] = c.refs ?? [];
@@ -329,13 +331,13 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
     let ok = true;
     if (c.type === 'distance' || c.type === 'hdist' || c.type === 'vdist') {
       const a = at(refs[0]), b = at(refs[1]);
-      if (a && b) c.value = round3(c.type === 'distance' ? Math.hypot(b.x - a.x, b.y - a.y) : c.type === 'hdist' ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y));
+      if (a && b) setValue(c, round3(c.type === 'distance' ? Math.hypot(b.x - a.x, b.y - a.y) : c.type === 'hdist' ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)));
     } else if (c.type === 'radius' || c.type === 'diameter') {
       const r = radiusOf(refs[0]);
-      if (r !== null) c.value = round3(c.type === 'radius' ? r : 2 * r);
+      if (r !== null) setValue(c, round3(c.type === 'radius' ? r : 2 * r));
     } else if (c.type === 'pldist') {
       const a = at(refs[0]), l = ends(refs[1]);
-      if (a && l) { const dx = l[1].x - l[0].x, dy = l[1].y - l[0].y, n = Math.hypot(dx, dy); if (n > EPS) c.value = round3(Math.abs((a.x - l[0].x) * dy - (a.y - l[0].y) * dx) / n); }
+      if (a && l) { const dx = l[1].x - l[0].x, dy = l[1].y - l[0].y, n = Math.hypot(dx, dy); if (n > EPS) setValue(c, round3(Math.abs((a.x - l[0].x) * dy - (a.y - l[0].y) * dx) / n)); }
     } else if (c.type === 'fix') {
       const a = at(refs[0]);
       if (a) c.value = [a.x, a.y];
@@ -363,7 +365,7 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
     if (ok) keep.push(c); else dropped.push(c.id);
   }
   out.constraints = keep;
-  return { sketch: out, dropped };
+  return { sketch: out, dropped, detached };
 }
 
 /**
@@ -393,10 +395,11 @@ export function translateSketch(shape: Shape, du: number, dv: number): SketchEdi
 const same = (a: number, b: number): boolean => Math.abs(a - b) < EPS;
 
 /** The edit that takes the shape from its box to `to`: the sketch and the depth / diameter. Null when nothing changes or it cannot be done. */
-export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[] } | null {
+export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[]; detached: string[] } | null {
   const from = shape.box;
   const ops: EditOp[] = [];
   let dropped: string[] = [];
+  let detached: string[] = [];
   const uv = !same(from.u0, to.u0) || !same(from.u1, to.u1) || !same(from.v0, to.v0) || !same(from.v1, to.v1);
   const set = (path: string, value: unknown): void => { ops.push({ op: 'set', id: shape.id, path, value } as EditOp); };
   if (shape.kind === 'hole') {
@@ -418,11 +421,12 @@ export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[
     const r = pure ? translateSketch(shape, to.u0 - from.u0, to.v0 - from.v0) : transformSketch(shape.sketch, shape.profile, from, to);
     if (!r) return null;
     dropped = r.dropped;
+    detached = r.detached;
     ops.push({ op: 'replace', id: shape.sketch.id, feature: r.sketch } as EditOp);
   }
   const dFrom = from.d1 - from.d0, dTo = to.d1 - to.d0;
   if (shape.depth && Math.abs(dTo - dFrom) > EPS) set('depth', round3(dTo));
-  return ops.length ? { ops, dropped } : null;
+  return ops.length ? { ops, dropped, detached } : null;
 }
 
 // ---- drawing: the specs for a box ----
@@ -545,11 +549,17 @@ function othersOn(doc: PartDoc | null, shape: Shape, frameOf: SizeBoxCtx['frameO
   return out;
 }
 
+/** What to tell the user about constraints a resize removed and dimensions it detached from their variables. */
+function noticeFor(o: { dropped: string[]; detached: string[] }): string | undefined {
+  const parts = [o.dropped.length ? t('sizebox.dropped', { ids: o.dropped.join(', ') }) : '', o.detached.length ? t('sizebox.detached', { ids: o.detached.join(', ') }) : ''].filter(Boolean);
+  return parts.length ? parts.join('. ') : undefined;
+}
+
 /** The edit that moves the shape by (du, dv) in its sketch plane, with the shared-sketch choice when other features use the sketch. */
 export function moveCommit(doc: PartDoc | null, shape: Shape, du: number, dv: number): HandleCommit | null {
   const o = opsFor(shape, shiftBox(shape.box, du, dv));
   if (!o) return null;
-  const notice = o.dropped.length ? t('sizebox.dropped', { ids: o.dropped.join(', ') }) : undefined;
+  const notice = noticeFor(o);
   if (!shape.sharedWith.length) return { ops: o.ops, create: false, ...(notice ? { notice } : {}) };
   const all = o.ops;
   // "Duplicate sketch": the moved copy goes in front of this shape and only this shape reads it
@@ -669,7 +679,7 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
         return r?.moved ? moveCommit(c.doc, shape, r.moved.du, r.moved.dv) : null;
       }
       const e = edit(id, q, vec, mods);
-      const notice = e?.r.tip !== undefined ? t('tip.limited', { h: fmt(e.r.tip) }) : e?.dropped.length ? t('sizebox.dropped', { ids: e.dropped.join(', ') }) : undefined;
+      const notice = e?.r.tip !== undefined ? t('tip.limited', { h: fmt(e.r.tip) }) : e ? noticeFor(e) : undefined;
       return e ? { ops: e.ops, create: false, ...(notice ? { notice } : {}) } : null;
     },
     live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },

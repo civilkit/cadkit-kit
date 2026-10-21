@@ -227,6 +227,9 @@ export class Viewport {
   private hoverPending: { x: number; y: number } | null = null;
   private lastHover: string | null = null;
   private lastRefHover: RefPlaneId | null = null;
+  /** Auto pick: the corner, edge or face nearest the pointer is what hovers and clicks, instead of one kind chosen up front. */
+  private auto = false;
+  private kinds: Record<PickMode, boolean> = { face: true, edge: true, vertex: true, body: true };
 
   // Sketch-edit mode: overlay of the solved sketch, faded body, point dragging.
   private sketchEdit: SketchEditShape | null = null;
@@ -329,6 +332,10 @@ export class Viewport {
   }
 
   setPickMode(mode: PickMode): void { this.mode = mode; }
+  /** Auto pick on or off. It gives way to the chosen mode while a command is picking with its own (the pick intercept). */
+  setAutoPick(on: boolean): void { this.auto = on; this.lastHover = null; this.hoverPending = null; this.setHover(null); }
+  /** Which kinds the selection filter lets through (auto pick skips the others). */
+  setPickKinds(k: Record<PickMode, boolean>): void { this.kinds = { ...k }; }
 
   private bodyList: Array<{ name: string; faces: string[] }> = [];
   private faceBody = new Map<string, string>();
@@ -422,14 +429,16 @@ export class Viewport {
     this.boxEl = null;
     if (!had) {
       // no drag: a plain click in Box select mode is an ordinary pick
-      if (this.boxMode) this.opts.onPick(((n) => (n ? [n] : []))(this.pickName(e.clientX, e.clientY)), e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
+      if (this.boxMode) { const at = this.pickAt(e.clientX, e.clientY); this.opts.onPick(at.name ? [at.name] : [], e.shiftKey || e.ctrlKey || e.metaKey, at.mode); }
       this.suppressUp = true;
       return;
     }
     this.suppressUp = true;
-    this.opts.onBoxSelect?.(this.pickBox({ x0: d.x0, y0: d.y0, x1: e.clientX, y1: e.clientY }), d.add || e.shiftKey, this.mode);
+    this.opts.onBoxSelect?.(this.pickBox({ x0: d.x0, y0: d.y0, x1: e.clientX, y1: e.clientY }), d.add || e.shiftKey, this.boxKind());
   };
   private suppressUp = false;
+  /** A box selects faces in auto pick, else the chosen kind. */
+  private boxKind(): PickMode { return this.auto && !this.pickIntercept ? (this.kinds.face ? 'face' : this.kinds.edge ? 'edge' : this.kinds.vertex ? 'vertex' : 'body') : this.mode; }
 
   /** The names a screen-space box (client pixels) picks in the current mode; dragging right is a window, dragging left a crossing box. */
   pickBox(r: ScreenRect): string[] {
@@ -440,7 +449,7 @@ export class Viewport {
       if (v.z > 1 || v.z < -1) return null;
       return [hostR.left + ((v.x + 1) / 2) * hostR.width, hostR.top + ((1 - v.y) / 2) * hostR.height];
     };
-    return boxPick({ rect: r, crossing: r.x1 < r.x0, project, mode: this.mode, grouped: this.grouped, edges: this.edges, bodies: this.bodyList, vertexName });
+    return boxPick({ rect: r, crossing: r.x1 < r.x0, project, mode: this.boxKind(), grouped: this.grouped, edges: this.edges, bodies: this.bodyList, vertexName });
   }
 
   /** Direct-manipulation handles drawn over the model (arrows, dots, rings, plane squares). Null removes them. A drag is
@@ -2184,14 +2193,25 @@ export class Viewport {
 
   /** What a click or hover at this screen position picks: an edge within a few pixels in edge mode (hidden edges are skipped),
    *  else the face under the pointer. */
-  private pickName(x: number, y: number): string | null {
-    if (this.mode === 'vertex') return this.vertexAtScreen(x, y, 12);
-    if (this.mode === 'edge') {
+  private pickName(x: number, y: number): string | null { return this.pickAt(x, y).name; }
+
+  /** What a click or hover picks, and of which kind. In auto pick that is the nearest corner, else edge, else face. */
+  private pickAt(x: number, y: number): { name: string | null; mode: PickMode } {
+    if (this.auto && !this.pickIntercept) {
+      if (this.kinds.vertex) { const v = this.vertexAtScreen(x, y, 10); if (v) return { name: v, mode: 'vertex' }; }
+      if (this.kinds.edge) { const i = this.edgeAtScreen(x, y, 7); if (i !== null) return { name: this.edges[i].key ?? `edge#${i}`, mode: 'edge' }; }
+      const f = this.kinds.face || this.kinds.body ? this.nameAt(this.hit(x, y)) : null;
+      if (f && !this.kinds.face) return { name: this.faceBody.get(f) ?? f, mode: 'body' };
+      return { name: f, mode: 'face' };
+    }
+    const m = this.mode;
+    if (m === 'vertex') return { name: this.vertexAtScreen(x, y, 12), mode: m };
+    if (m === 'edge') {
       const i = this.edgeAtScreen(x, y, 8);
-      return i === null ? null : this.edges[i].key ?? `edge#${i}`;
+      return { name: i === null ? null : this.edges[i].key ?? `edge#${i}`, mode: m };
     }
     const f = this.nameAt(this.hit(x, y));
-    return this.mode === 'body' && f ? this.faceBody.get(f) ?? f : f;
+    return { name: m === 'body' && f ? this.faceBody.get(f) ?? f : f, mode: m };
   }
 
   /** The corner (end of an edge) within a few pixels of the pointer, not hidden behind the body. */
@@ -2298,7 +2318,8 @@ export class Viewport {
   };
   private showContext(x: number, y: number): void {
     if (this.sketchEdit || !this.opts.onContextMenu) return;
-    this.opts.onContextMenu(this.pickName(x, y), x, y, this.mode);
+    const at = this.pickAt(x, y);
+    this.opts.onContextMenu(at.name, x, y, at.mode);
   }
   /** The canvas context menu: only for a right click that did not pan, and not while a sketch is open (the sketch has its own).
    *  Some platforms send `contextmenu` on the press, so while the button is still down the menu waits for the release. */
@@ -2402,7 +2423,7 @@ export class Viewport {
     if (e.button !== 0) return; // a right click only opens the context menu: it keeps a multi-selection
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
-    if (!hit0 && this.mode !== 'edge' && this.refPlanes.group.visible) {
+    if (!hit0 && (this.auto || this.mode !== 'edge') && this.refPlanes.group.visible) {
       this.raycaster.setFromCamera(this.ndc(e.clientX, e.clientY), this.camera);
       const plane = this.refPlanes.pick(this.raycaster);
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
@@ -2415,8 +2436,8 @@ export class Viewport {
     if (this.pickIntercept) { this.pickIntercept(this.pickName(e.clientX, e.clientY), this.lastPick as [number, number, number] | null); return; }
     // Alt+click on the part selects the whole body (the placement gizmo's target); empty space still deselects
     if (e.altKey && hit0) { this.opts.onPick([BODY], false, this.mode); return; }
-    const name = this.pickName(e.clientX, e.clientY);
-    this.opts.onPick(name ? [name] : [], e.shiftKey || e.ctrlKey || e.metaKey, this.mode);
+    const at = this.pickAt(e.clientX, e.clientY);
+    this.opts.onPick(at.name ? [at.name] : [], e.shiftKey || e.ctrlKey || e.metaKey, at.mode);
   };
 
   /** The nearest drawn datum-plane feature under the pointer (its square outline is the pick area). */
@@ -2477,7 +2498,7 @@ export class Viewport {
       if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); this.setHover(name); }
       if (this.opts.onRefPlaneHover) {
         let rp: RefPlaneId | null = null;
-        if (this.mode !== 'edge' && this.refPlanes.group.visible && !this.pickIntercept && !this.hit(p.x, p.y)) { this.raycaster.setFromCamera(this.ndc(p.x, p.y), this.camera); rp = this.refPlanes.pick(this.raycaster); }
+        if ((this.auto || this.mode !== 'edge') && this.refPlanes.group.visible && !this.pickIntercept && !this.hit(p.x, p.y)) { this.raycaster.setFromCamera(this.ndc(p.x, p.y), this.camera); rp = this.refPlanes.pick(this.raycaster); }
         this.emitRefPlaneHover(rp);
       }
     }

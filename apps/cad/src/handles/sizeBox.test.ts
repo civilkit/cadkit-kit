@@ -42,6 +42,18 @@ describe('size box numbers', () => {
     expect(sk.constraints.some((c: any) => c.id === 'c1')).toBe(true);
     expect(sk.points.find((p: any) => p.id === 'O')).toMatchObject({ x: 0, y: 0 });
   });
+  it('a dimension bound to a variable is detached when the handle resizes it, so a rebuild does not put the old value back', () => {
+    const bound = { ...rect, constraints: rect.constraints.map((c: any) => (c.id === 'c3' ? { ...c, expr: 'w' } : c.id === 'c4' ? { ...c, expr: 'h' } : c)) };
+    const d = doc(); (d.features as unknown[])[0] = bound;
+    const s = shapeModel(d, 'F2', () => frame, null)!;
+    const r = opsFor(s, boxFor(s, { u: { side: 'hi', dim: 50 } }, 'anchor'))!;
+    const sk = (r.ops[0] as { feature: any }).feature;
+    const c3 = sk.constraints.find((c: any) => c.id === 'c3'), c4 = sk.constraints.find((c: any) => c.id === 'c4');
+    expect(c3.value).toBe(50);
+    expect(c3.expr).toBeUndefined();   // 40 -> 50: no longer w
+    expect(c4.expr).toBe('h');         // untouched dimension keeps its variable
+    expect(r.detached).toEqual(['c3']);
+  });
   it('symmetric about moves both faces; a fixed point that would have to move refuses', () => {
     const s = shape('F2');
     const sk = (opsFor(s, boxFor(s, { v: { side: 'hi', dim: 40 } }, 'symmetric'))!.ops[0] as { feature: any }).feature;

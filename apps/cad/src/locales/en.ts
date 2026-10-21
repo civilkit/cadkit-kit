@@ -240,6 +240,8 @@ export const en: Catalog = {
   'app.folder.refuse.noFolder': 'Not in a folder',
   'app.notice.deleted': 'Deleted {names}', 'app.notice.undo': 'Undo', 'app.notice.rebuilt': 'Rebuilt',
   'app.notice.undoFailed': 'Undo failed, nothing changed',
+  'cmd.sel-auto': 'Auto',
+  'cmd.sel-auto-tip': 'Pick the corner, edge or face nearest the pointer. Turn off to pick one kind (Q, E, V, B).',
   'cmd.sel-face': 'Face', 'cmd.sel-edge': 'Edge', 'cmd.sel-vertex': 'Corner',
   'layer.dimensions': 'Overall size', 'layer.threads': 'Threads', 'layer.edges': 'Edges', 'layer.sketches': 'Sketches', 'layer.curves': 'Curves', 'layer.planes': 'Planes', 'layer.axes': 'Axes', 'layer.grid': 'Grid', 'layer.relations': 'Relations',
 
@@ -635,6 +637,7 @@ export const en: Catalog = {
   'sizebox.moveto.px': 'Position X', 'sizebox.moveto.py': 'Position Y', 'sizebox.moveto.world': 'Centre in the model: X {x}, Y {y}, Z {z} mm',
   'sizebox.lock': 'Lock to', 'sizebox.lock.pick': 'Nearby point...', 'sizebox.lock.done': 'Locked: the shape stays {dx} mm across and {dy} mm up from that point (edit the sketch dimensions to change it)',
   'sizebox.shared.applied': 'moved with every feature that uses it (undo to revert)',
+  'sizebox.detached': 'The dimensions {ids} were driven by a variable and are now plain numbers',
   'sizebox.dropped': 'The sketch constraints {ids} no longer held and were removed',
   'handles.move.x': 'Move along X', 'handles.move.y': 'Move along Y', 'handles.move.z': 'Move along Z',
   'handles.turn.x': 'Rotate about X', 'handles.turn.y': 'Rotate about Y', 'handles.turn.z': 'Rotate about Z',
