@@ -4,7 +4,11 @@
 // they are tested with synthetic data and no kernel.
 type V = number[];
 
-export interface ChainEdge { key: string; faces: string[]; pts: V[] }
+export interface ChainEdge {
+  key: string; faces: string[]; pts: V[];
+  /** The two faces meet smoothly (no crease): there is nothing to round, so the chain never adds this edge (a picked one stays). */
+  smooth?: boolean;
+}
 export interface ChainOptions {
   /** Largest angle (degrees) between one edge's direction and the reverse of the next one's at a shared vertex. Default 1. */
   tolDeg?: number;
@@ -106,7 +110,7 @@ export function tangentChain(seeds: string[], edges: ChainEdge[], opts: ChainOpt
       if (!a) continue;
       for (const [j, t] of meeting(i, s)) {
         const b = ends[j][t].dir;
-        if (!b || seen.has(j) || !shares(usable[i].faces, usable[j].faces)) continue;
+        if (!b || seen.has(j) || usable[j].smooth || !shares(usable[i].faces, usable[j].faces)) continue;
         if (-dot(a, b) >= cosTol) take(j);
       }
     }
@@ -114,7 +118,7 @@ export function tangentChain(seeds: string[], edges: ChainEdge[], opts: ChainOpt
     const ci = circles[i];
     if (ci) usable.forEach((e, j) => {
       const cj = circles[j];
-      if (j === i || seen.has(j) || !cj || !samePair(usable[i].faces, e.faces)) return;
+      if (j === i || seen.has(j) || e.smooth || !cj || !samePair(usable[i].faces, e.faces)) return;
       if (len(sub(ci.o, cj.o)) <= 1e-3 * ci.r + tol && Math.abs(ci.r - cj.r) <= 1e-3 * ci.r + tol && Math.abs(dot(ci.n, cj.n)) > 1 - 1e-6) take(j);
     });
   }

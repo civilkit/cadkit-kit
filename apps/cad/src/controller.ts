@@ -17,7 +17,8 @@ import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors,
 import { refLabel, syncNameOps } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
-import type { ViewSurface } from '@kit/viewport';
+import { markSmoothEdges } from './smoothEdges';
+import type { BodyMesh, ViewSurface } from '@kit/viewport';
 import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
 import { adviceOf, summaryLine } from './diagnosticsText';
 import { setDocFields, type DocPatch } from './docFields';
@@ -46,8 +47,13 @@ export interface SketchPreview {
   status?: SketchSolverStatus;
 }
 
+/** The view with `smooth` set on its edges that have no crease (the Tangent chain skips those). */
+function withSmoothEdges<B extends { mesh: BodyMesh; edges?: ViewEdge[] }>(b: B): B {
+  return b.edges?.length ? { ...b, edges: markSmoothEdges(b.mesh, b.edges) } : b;
+}
+
 /** One edge as the kernel reports it: `key` is the persistent name the viewport selects by. */
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][] }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean }
 
 export interface ViewSink {
   setBody(b: unknown | null): void;
@@ -210,7 +216,7 @@ export class Controller {
       this.lastIds = doc.features.map((f) => f.id);
       this.revision++;
       this.shown = body;
-      this.lastView = body ? mergedView(body) : null;
+      this.lastView = body ? withSmoothEdges(mergedView(body)) : null;
       this.importedOnScreen = false;
       this.asmComponents = (v.components ?? []) as AsmComponent[]; this.asmExtra = { report: null, errors: new Map() };
       this.committedExtras = v.extras as { threads: unknown[]; warnings: unknown[] };
@@ -1350,7 +1356,7 @@ export class Controller {
     const body = await this.bodyNow(s);
     this.revision++;
     this.shown = body;
-    this.lastView = body ? mergedView(body) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
+    this.lastView = body ? withSmoothEdges(mergedView(body)) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
     this.view.setBody(body);
     // everything that can be selected now: faces, edges and the corners at the ends of edges
     const existing = new Set<string>(this.lastView?.mesh?.faceIds ?? []);

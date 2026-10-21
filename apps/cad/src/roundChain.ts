@@ -13,11 +13,11 @@ export function setTangentChain(on: boolean): void {
   try { localStorage.setItem(KEY, on ? '1' : '0'); } catch { /* private window */ }
 }
 
-interface Edgeish { key?: string; faces?: string[]; pts?: number[][] }
+interface Edgeish { key?: string; faces?: string[]; pts?: number[][]; smooth?: boolean }
 
 /** The selected edge keys and, with the chain on, the keys that continue them. `extras` are only the added ones. */
 export function chainSelection(selection: string[], edges: Edgeish[]): { keys: string[]; extras: string[] } {
-  const cand: ChainEdge[] = edges.flatMap((e) => (e.key && e.faces && e.pts ? [{ key: e.key, faces: e.faces, pts: e.pts }] : []));
+  const cand: ChainEdge[] = edges.flatMap((e) => (e.key && e.faces && e.pts ? [{ key: e.key, faces: e.faces, pts: e.pts, smooth: e.smooth }] : []));
   const known = new Set(cand.map((e) => e.key));
   const picked = selection.filter((n) => known.has(n));
   if (!picked.length) return { keys: selection, extras: [] };

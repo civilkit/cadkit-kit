@@ -14,7 +14,7 @@ import { chainSelection, rememberRoundPick } from './roundChain';
 
 export interface Box { min: number[]; max: number[] }
 export interface EdgeRef { faces: string[]; at: number[] }
-export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][] }
+export interface ViewEdge { key?: string; faces?: string[]; mid?: number[]; /** world-space polyline of the edge */ pts?: number[][]; /** its two faces meet without a crease (see smoothEdges.ts) */ smooth?: boolean }
 type Feat = { id: string; type: string; [k: string]: unknown };
 
 /** A size for a new feature: about 5% of the smallest box dimension, rounded to 1, 2, 2.5 or 5 times a power of ten. */

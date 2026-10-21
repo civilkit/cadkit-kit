@@ -94,3 +94,17 @@ describe('tangentChain', () => {
     expect(tangentChain(['e1'], [e1, border])).toEqual(['e1']);
   });
 });
+
+describe('tangentChain and smooth edges', () => {
+  it('does not walk onto an edge with no crease, and does not go on past it; a picked smooth edge stays', () => {
+    const top = ['top', 'slot'], seam = ['top', 'round'];
+    const slot = line('slot', top, [3.5, 0, 0], [9.5, 0, 0]);
+    const left = { ...line('left', seam, [0, 0, 0], [3.5, 0, 0]), smooth: true };
+    const right = { ...line('right', seam, [9.5, 0, 0], [14, 0, 0]), smooth: true };
+    const beyond = line('beyond', seam, [-4, 0, 0], [0, 0, 0]);
+    expect(tangentChain(['slot'], [slot, left, right, beyond])).toEqual(['slot']);
+    expect(tangentChain(['slot'], [slot, { ...left, smooth: false }, right])).toEqual(['slot', 'left']);
+    expect(tangentChain(['left'], [slot, left, right])).toEqual(['left', 'slot']);
+  });
+});
+
