@@ -1,0 +1,2067 @@
+{
+  "bodies": [
+    {
+      "area_mm2": 23630.303482474388,
+      "bbox": {
+        "max": [
+          90.00000000000001,
+          25.000000003156078,
+          15.000000000000446
+        ],
+        "min": [
+          -2.892353023753458e-12,
+          -25.000000000000007,
+          -92.50000000000006
+        ]
+      },
+      "center_of_mass": [
+        13.87522892405925,
+        -0.0847747584337158,
+        -53.7814099437155
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 102,
+      "face_types": {
+        "cone": 4,
+        "cylinder": 12,
+        "plane": 24
+      },
+      "faces": 40,
+      "kernel": {
+        "edges": 149,
+        "faces": 52,
+        "shells": 1,
+        "vertices": 98
+      },
+      "mass_g": 72.70881891298379,
+      "material": "Default",
+      "name": "LeftBracket",
+      "vertices": 73,
+      "volume_mm3": 56363.42551394092
+    },
+    {
+      "area_mm2": 31334.27060058628,
+      "bbox": {
+        "max": [
+          89.9999999999999,
+          28.900901257470085,
+          30.000000000000377
+        ],
+        "min": [
+          -8.883222542620181e-14,
+          -25.000000000000014,
+          -64.99999999999866
+        ]
+      },
+      "center_of_mass": [
+        63.26784314000886,
+        -0.9133084467105933,
+        -9.591926445823225
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 182,
+      "face_types": {
+        "cone": 10,
+        "cylinder": 21,
+        "plane": 46
+      },
+      "faces": 77,
+      "kernel": {
+        "edges": 290,
+        "faces": 106,
+        "shells": 1,
+        "vertices": 191
+      },
+      "mass_g": 70.27194759265676,
+      "material": "Default",
+      "name": "RightBracket",
+      "vertices": 131,
+      "volume_mm3": 54474.377978803685
+    },
+    {
+      "area_mm2": 22988.136938208525,
+      "bbox": {
+        "max": [
+          67.00000000000004,
+          61.81495457622365,
+          37.0
+        ],
+        "min": [
+          0.0,
+          -0.00009905152828532573,
+          -5.728521889019327e-14
+        ]
+      },
+      "center_of_mass": [
+        34.90847849059545,
+        29.622259311098475,
+        17.6705156434084
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 76,
+      "face_types": {
+        "cone": 4,
+        "cylinder": 7,
+        "plane": 23
+      },
+      "faces": 34,
+      "kernel": {
+        "edges": 124,
+        "faces": 45,
+        "shells": 1,
+        "vertices": 82
+      },
+      "mass_g": 46.12424858703195,
+      "material": "Default",
+      "name": "GimbalTray",
+      "vertices": 56,
+      "volume_mm3": 35755.23146281546
+    }
+  ],
+  "body_count": 3,
+  "params": [
+    {
+      "comment": "",
+      "error": null,
+      "expression": "16",
+      "model": false,
+      "name": "BearingInnerCutout",
+      "unit": "mm",
+      "value": 16.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "23",
+      "model": false,
+      "name": "BearingInnerDiameter",
+      "unit": "mm",
+      "value": 23.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "20",
+      "model": false,
+      "name": "BearingOuterCutout",
+      "unit": "mm",
+      "value": 20.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "27.2",
+      "model": false,
+      "name": "BearingOuterDiamter",
+      "unit": "mm",
+      "value": 27.2
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "4",
+      "model": false,
+      "name": "BearingThickness",
+      "unit": "mm",
+      "value": 4.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "50",
+      "model": false,
+      "name": "BracketDepth",
+      "unit": "mm",
+      "value": 50.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "1",
+      "model": false,
+      "name": "BracketSpacing",
+      "unit": "mm",
+      "value": 1.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "65",
+      "model": false,
+      "name": "BracketHeight",
+      "unit": "mm",
+      "value": 65.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "27.5",
+      "model": false,
+      "name": "BracketStandPart",
+      "unit": "mm",
+      "value": 27.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "8",
+      "model": false,
+      "name": "BracketThicknessBearingSide",
+      "unit": "mm",
+      "value": 8.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "13",
+      "model": false,
+      "name": "BracketThicknessMotorSide",
+      "unit": "mm",
+      "value": 13.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "90",
+      "model": false,
+      "name": "BracketWidth",
+      "unit": "mm",
+      "value": 90.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "30",
+      "model": false,
+      "name": "ControlBoxHeight",
+      "unit": "mm",
+      "value": 30.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "15",
+      "model": false,
+      "name": "ControlBoxOverhang",
+      "unit": "mm",
+      "value": 15.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "2",
+      "model": false,
+      "name": "ControlBoxThickness",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "1.5",
+      "model": false,
+      "name": "ControlWireDia",
+      "unit": "mm",
+      "value": 1.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "11",
+      "model": false,
+      "name": "EncoderBoltSpreadLength",
+      "unit": "mm",
+      "value": 11.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "11",
+      "model": false,
+      "name": "EncoderBoltSpreadWidth",
+      "unit": "mm",
+      "value": 11.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "23.8",
+      "model": false,
+      "name": "EncoderLength",
+      "unit": "mm",
+      "value": 23.8
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "23.8",
+      "model": false,
+      "name": "EncoderWidth",
+      "unit": "mm",
+      "value": 23.8
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BearingThickness+MotorBearingRetainerThickness",
+      "model": false,
+      "name": "GimbalBearingMountThickness",
+      "unit": "mm",
+      "value": 6.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "25",
+      "model": false,
+      "name": "GimbalCentreFromBottom",
+      "unit": "mm",
+      "value": 25.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "52",
+      "model": false,
+      "name": "GimbalDepth",
+      "unit": "mm",
+      "value": 52.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "37",
+      "model": false,
+      "name": "GimbalHeight",
+      "unit": "mm",
+      "value": 37.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "MotorThickness-MotorOuterSinkDepth-BracketSpacing+MotorBearingRetainerThickness",
+      "model": false,
+      "name": "GimbalMotorMountThickness",
+      "unit": "mm",
+      "value": 9.25
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "32",
+      "model": false,
+      "name": "GimbalSupportWidth",
+      "unit": "mm",
+      "value": 32.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "2.5",
+      "model": false,
+      "name": "GimbalThickness",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "TOFBoardHeight+4",
+      "model": false,
+      "name": "GimbalTrayHeight",
+      "unit": "mm",
+      "value": 17.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "2",
+      "model": false,
+      "name": "MotorBearingRetainerThickness",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "10 mm",
+      "model": false,
+      "name": "MotorHubDia",
+      "unit": "mm",
+      "value": 10.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "6",
+      "model": false,
+      "name": "MotorMountInnerBoltSpread",
+      "unit": "mm",
+      "value": 6.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "2.5mm",
+      "model": false,
+      "name": "MotorMountOuterBoltDia",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "9.5mm",
+      "model": false,
+      "name": "MotorMountOuterBoltSpread",
+      "unit": "mm",
+      "value": 9.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "35.2",
+      "model": false,
+      "name": "MotorOuterDiameter",
+      "unit": "mm",
+      "value": 35.2
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "6",
+      "model": false,
+      "name": "MotorOuterSinkDepth",
+      "unit": "mm",
+      "value": 6.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "13",
+      "model": false,
+      "name": "TOFBoardHeight",
+      "unit": "mm",
+      "value": 13.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "30",
+      "model": false,
+      "name": "TOFDownAngle",
+      "unit": "deg",
+      "value": 0.5235987755982988
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "14.25",
+      "model": false,
+      "name": "MotorThickness",
+      "unit": "mm",
+      "value": 14.25
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "15mm",
+      "model": false,
+      "name": "MotorWireHoleDia",
+      "unit": "mm",
+      "value": 15.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxHeight-ControlBoxOverhang",
+      "model": true,
+      "name": "d1",
+      "unit": "mm",
+      "value": 15.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketThicknessBearingSide",
+      "model": true,
+      "name": "d3",
+      "unit": "mm",
+      "value": 8.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "10",
+      "model": true,
+      "name": "d5",
+      "unit": "mm",
+      "value": 10.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "6",
+      "model": true,
+      "name": "d11",
+      "unit": "mm",
+      "value": 6.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "1",
+      "model": true,
+      "name": "d12",
+      "unit": "mm",
+      "value": 1.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "135",
+      "model": true,
+      "name": "d15",
+      "unit": "deg",
+      "value": 2.356194490192345
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalThickness",
+      "model": true,
+      "name": "d16",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalCentreFromBottom/2",
+      "model": true,
+      "name": "d19",
+      "unit": "mm",
+      "value": 12.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketWidth",
+      "model": true,
+      "name": "d20",
+      "unit": "mm",
+      "value": 90.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketHeight+BracketStandPart",
+      "model": true,
+      "name": "d2",
+      "unit": "mm",
+      "value": 92.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalThickness",
+      "model": true,
+      "name": "d7",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalMotorMountThickness",
+      "model": true,
+      "name": "d8",
+      "unit": "mm",
+      "value": 9.25
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketHeight+BracketStandPart+ControlBoxOverhang",
+      "model": true,
+      "name": "d9",
+      "unit": "mm",
+      "value": 107.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalCentreFromBottom+BracketStandPart",
+      "model": true,
+      "name": "d10",
+      "unit": "mm",
+      "value": 52.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BearingInnerCutout",
+      "model": true,
+      "name": "d23",
+      "unit": "mm",
+      "value": 16.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BearingOuterCutout",
+      "model": true,
+      "name": "d24",
+      "unit": "mm",
+      "value": 20.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalCentreFromBottom+BracketStandPart",
+      "model": true,
+      "name": "d6",
+      "unit": "mm",
+      "value": 52.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "4",
+      "model": true,
+      "name": "d26",
+      "unit": "mm",
+      "value": 4.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "5",
+      "model": true,
+      "name": "d27",
+      "unit": "mm",
+      "value": 5.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "5",
+      "model": true,
+      "name": "d28",
+      "unit": "mm",
+      "value": 5.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "5",
+      "model": true,
+      "name": "d29",
+      "unit": "mm",
+      "value": 5.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketThicknessMotorSide",
+      "model": true,
+      "name": "d32",
+      "unit": "mm",
+      "value": 13.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxOverhang",
+      "model": true,
+      "name": "d33",
+      "unit": "mm",
+      "value": 15.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketWidth",
+      "model": true,
+      "name": "d34",
+      "unit": "mm",
+      "value": 90.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketHeight",
+      "model": true,
+      "name": "d35",
+      "unit": "mm",
+      "value": 65.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxHeight",
+      "model": true,
+      "name": "d36",
+      "unit": "mm",
+      "value": 30.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "MotorOuterDiameter",
+      "model": true,
+      "name": "d39",
+      "unit": "mm",
+      "value": 35.2
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "12",
+      "model": true,
+      "name": "d40",
+      "unit": "mm",
+      "value": 12.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "EncoderLength",
+      "model": true,
+      "name": "d43",
+      "unit": "mm",
+      "value": 23.8
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "EncoderWidth",
+      "model": true,
+      "name": "d44",
+      "unit": "mm",
+      "value": 23.8
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "MotorMountOuterBoltSpread",
+      "model": true,
+      "name": "d47",
+      "unit": "mm",
+      "value": 9.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "EncoderBoltSpreadLength",
+      "model": true,
+      "name": "d48",
+      "unit": "mm",
+      "value": 11.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "EncoderBoltSpreadWidth",
+      "model": true,
+      "name": "d49",
+      "unit": "mm",
+      "value": 11.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "2.5",
+      "model": true,
+      "name": "d51",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d55",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d56",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d57",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d58",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketThicknessBearingSide+8mm",
+      "model": true,
+      "name": "d59",
+      "unit": "mm",
+      "value": 16.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "4.4",
+      "model": true,
+      "name": "d65",
+      "unit": "mm",
+      "value": 4.4
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d64",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "10",
+      "model": true,
+      "name": "d68",
+      "unit": "mm",
+      "value": 10.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "5",
+      "model": true,
+      "name": "d69",
+      "unit": "mm",
+      "value": 5.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "ControlBoxThickness",
+      "model": true,
+      "name": "d71",
+      "unit": "mm",
+      "value": 2.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalDepth",
+      "model": true,
+      "name": "d73",
+      "unit": "mm",
+      "value": 52.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BracketWidth - BracketThicknessBearingSide - BracketThicknessMotorSide - 2 * BracketSpacing",
+      "model": true,
+      "name": "d74",
+      "unit": "mm",
+      "value": 67.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalBearingMountThickness",
+      "model": true,
+      "name": "d75",
+      "unit": "mm",
+      "value": 6.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalMotorMountThickness",
+      "model": true,
+      "name": "d76",
+      "unit": "mm",
+      "value": 9.25
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalThickness",
+      "model": true,
+      "name": "d77",
+      "unit": "mm",
+      "value": 2.5
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "GimbalTrayHeight",
+      "model": true,
+      "name": "d79",
+      "unit": "mm",
+      "value": 17.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BearingInnerDiameter",
+      "model": true,
+      "name": "d84",
+      "unit": "mm",
+      "value": 23.0
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "BearingOuterDiamter",
+      "model": true,
+      "name": "d85",
+      "unit": "mm",
+      "value": 27.2
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "MotorOuterDiameter",
+      "model": true,
+      "name": "d88",
+      "unit": "mm",
+      "value": 35.2
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "45",
+      "model": true,
+      "name": "d90",
+      "unit": "deg",
+      "value": 0.7853981633974483
+    },
+    {
+      "comment": "",
+      "error": null,
+      "expression": "MotorMountInnerBoltSpread",
+      "model": true,
+      "name": "d91",
+      "unit": "mm",
+      "value": 6.0
+    }
+  ],
+  "sketches": [
+    {
+      "curves": 7,
+      "dof": 0,
+      "id": 1,
+      "name": "BaseShape",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 0,
+      "id": 20,
+      "name": "Rib",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 6,
+      "dof": 0,
+      "id": 3,
+      "name": "WireChannel",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 6,
+      "dof": 0,
+      "id": 15,
+      "name": "ShapeAndWirehole",
+      "profiles": 4,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 14,
+      "dof": 0,
+      "id": 26,
+      "name": "BearingRetainer",
+      "profiles": 7,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 9,
+      "dof": 0,
+      "id": 28,
+      "name": "WireEntries",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 10,
+      "dof": 0,
+      "id": 32,
+      "name": "RightSideShape",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 0,
+      "id": 34,
+      "name": "RoundOffEnd",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 7,
+      "dof": 0,
+      "id": 36,
+      "name": "MotorCutoutBracket",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 12,
+      "dof": 0,
+      "id": 39,
+      "name": "EncoderCutout",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 16,
+      "dof": 0,
+      "id": 41,
+      "name": "Motor/EncoderMountHoles",
+      "profiles": 6,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 9,
+      "dof": 0,
+      "id": 48,
+      "name": "ControlBoxShell",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 16,
+      "dof": 0,
+      "id": 51,
+      "name": "SensorAndMountingHoles",
+      "profiles": 5,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 10,
+      "dof": 0,
+      "id": 55,
+      "name": "LeftSideCableEntry",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 9,
+      "dof": 10,
+      "id": 71,
+      "name": "EncoderCableEntry",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 17,
+      "dof": 0,
+      "id": 74,
+      "name": "MotorCableSlot",
+      "profiles": 4,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 10,
+      "dof": 0,
+      "id": 76,
+      "name": "GimbalTrayOutline",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 9,
+      "dof": 0,
+      "id": 78,
+      "name": "TrayCutout",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 7,
+      "dof": 0,
+      "id": 82,
+      "name": "RemoveWings",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 11,
+      "dof": 0,
+      "id": 84,
+      "name": "BearingCutout",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 7,
+      "dof": 0,
+      "id": 87,
+      "name": "MotorCutout",
+      "profiles": 2,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 13,
+      "dof": 0,
+      "id": 89,
+      "name": "TrayMotorMountBolts",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 12,
+      "dof": 0,
+      "id": 91,
+      "name": "GimbalTray",
+      "profiles": 3,
+      "status": "solved",
+      "visible": false
+    }
+  ],
+  "timeline": [
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.403153,
+      "name": "BaseShape",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 3.188222,
+      "name": "Extrude1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 20,
+      "ms": 1.6138210000000002,
+      "name": "Rib",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 21,
+      "ms": 19.050713000000002,
+      "name": "Extrude2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 1.241597,
+      "name": "WireChannel",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 22,
+      "ms": 119.179391,
+      "name": "Extrude3",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 15,
+      "ms": 3.3026739999999997,
+      "name": "ShapeAndWirehole",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0014884975646604196,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0014884975646604196,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0014884975646604196,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 23,
+      "ms": 7294.093028,
+      "name": "Hole1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 26,
+      "ms": 11.308271999999999,
+      "name": "BearingRetainer",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 27,
+      "ms": 505.39513300000004,
+      "name": "Extrude4",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 28,
+      "ms": 13.926291,
+      "name": "WireEntries",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 29,
+      "ms": 3078.946612,
+      "name": "Extrude5",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 30,
+      "ms": 1212.9632159999999,
+      "name": "Fillet1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "FilletFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 32,
+      "ms": 12.91381,
+      "name": "RightSideShape",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 33,
+      "ms": 1.0914309999999998,
+      "name": "Extrude6",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 34,
+      "ms": 1.157616,
+      "name": "RoundOffEnd",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 35,
+      "ms": 190.756437,
+      "name": "Extrude7",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 36,
+      "ms": 3.282502,
+      "name": "MotorCutoutBracket",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 37,
+      "ms": 216.483567,
+      "name": "Extrude8",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 38,
+      "ms": 217.35189,
+      "name": "Extrude9",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 39,
+      "ms": 4.704961,
+      "name": "EncoderCutout",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 40,
+      "ms": 172.55794899999998,
+      "name": "Extrude10",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 41,
+      "ms": 5.006336,
+      "name": "Motor/EncoderMountHoles",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 46,
+      "ms": 338.201635,
+      "name": "Extrude11",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.001400892572612183,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.001400892572612183,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.001400892572612183,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 47,
+      "ms": 29776.241997,
+      "name": "Hole2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 48,
+      "ms": 269.418199,
+      "name": "ControlBoxShell",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 49,
+      "ms": 1065.8266370000001,
+      "name": "Extrude12",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "planar_fallback",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 50,
+      "ms": 2342.54401,
+      "name": "Extrude13",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 51,
+      "ms": 271.734561,
+      "name": "SensorAndMountingHoles",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 3.208043991281899,
+            "rotation_rad": 0.0,
+            "strategy": "coplanar_separation",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 54,
+      "ms": 3683.127854,
+      "name": "Extrude15",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 55,
+      "ms": 268.66636,
+      "name": "LeftSideCableEntry",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "planar_fallback",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 56,
+      "ms": 2935.850619,
+      "name": "Extrude14",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 71,
+      "ms": 282.628345,
+      "name": "EncoderCableEntry",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "planar_fallback",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 73,
+      "ms": 3391.507031,
+      "name": "Extrude16",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 74,
+      "ms": 269.824397,
+      "name": "MotorCableSlot",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "planar_fallback",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 75,
+      "ms": 3024.518405,
+      "name": "Extrude17",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 76,
+      "ms": 0.460464,
+      "name": "GimbalTrayOutline",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 77,
+      "ms": 1.183561,
+      "name": "Extrude18",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 78,
+      "ms": 1.18597,
+      "name": "TrayCutout",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "planar_fallback",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 79,
+      "ms": 2505.250105,
+      "name": "Extrude19",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 80,
+      "ms": 271.70275,
+      "name": "Draft1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "DraftFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 81,
+      "ms": 5.936605,
+      "name": "Draft2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "DraftFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 82,
+      "ms": 1.772218,
+      "name": "RemoveWings",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 83,
+      "ms": 123.272571,
+      "name": "Extrude20",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 84,
+      "ms": 1.67962,
+      "name": "BearingCutout",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 85,
+      "ms": 3984.4198669999996,
+      "name": "Extrude21",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 86,
+      "ms": 1007.8229860000001,
+      "name": "Extrude22",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 87,
+      "ms": 5.142883,
+      "name": "MotorCutout",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 89,
+      "ms": 4.803229,
+      "name": "TrayMotorMountBolts",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 88,
+      "ms": 1468.0522520000002,
+      "name": "Extrude23",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0014008925726121866,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0014008925726121866,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0009838235923813068,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0009838235923813068,
+            "translation_mm": 0.0
+          },
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 0.0,
+            "strategy": "refined_tolerance",
+            "tolerance_mm": 0.0009838235923813068,
+            "translation_mm": 0.0
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 90,
+      "ms": 39470.005307,
+      "name": "Hole3",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "HoleFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 91,
+      "ms": 11.353215,
+      "name": "GimbalTray",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [
+          {
+            "face_shift_mm": 0.0,
+            "rotation_rad": 2e-6,
+            "strategy": "tool_nudge",
+            "tolerance_mm": 0.0,
+            "translation_mm": 0.0001980493339553749
+          }
+        ],
+        "truncated": false
+      },
+      "error": null,
+      "id": 94,
+      "ms": 3863.715826,
+      "name": "Extrude24",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": "Boolean retry: tool displacement 1.980493e-4 mm, rotation 2.000000e-6 rad"
+    }
+  ],
+  "total": {
+    "area_mm2": 77952.71102126919,
+    "edges": 360,
+    "faces": 151,
+    "mass_g": 189.1050150926725,
+    "vertices": 260,
+    "volume_mm3": 146593.03495556006
+  }
+}

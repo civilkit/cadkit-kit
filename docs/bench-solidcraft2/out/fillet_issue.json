@@ -1,0 +1,298 @@
+{
+ "description": "fillet_issue.ckpart converted; Z-up, sketch coords unchanged, our +Y is SolidCraft +Z",
+ "commands": [
+  {
+   "command": "sketch.create",
+   "params": {
+    "plane": "XY",
+    "name": "Plate"
+   }
+  },
+  {
+   "command": "sketch.rectangle.rounded",
+   "params": {
+    "p0": [
+     -27.5,
+     -27.5
+    ],
+    "p1": [
+     27.5,
+     27.5
+    ],
+    "radius": 5.0
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     -22.5,
+     -22.5
+    ],
+    "radius": 2
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     -22.5,
+     22.5
+    ],
+    "radius": 2
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     22.5,
+     22.5
+    ],
+    "radius": 2
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     22.5,
+     -22.5
+    ],
+    "radius": 2.0
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     0,
+     0
+    ],
+    "radius": 8
+   }
+  },
+  {
+   "command": "sketch.finish",
+   "params": {}
+  },
+  {
+   "command": "solid.extrude",
+   "params": {
+    "distance": 5,
+    "body_name": "Plate",
+    "name": "PlateExtrude"
+   }
+  },
+  {
+   "command": "sketch.create",
+   "params": {
+    "plane": "XY",
+    "offset": 5,
+    "name": "HolePoints"
+   }
+  },
+  {
+   "command": "sketch.point",
+   "params": {
+    "point": [
+     -22.5,
+     22.5
+    ]
+   }
+  },
+  {
+   "command": "sketch.point",
+   "params": {
+    "point": [
+     22.5,
+     22.5
+    ]
+   }
+  },
+  {
+   "command": "sketch.point",
+   "params": {
+    "point": [
+     22.5,
+     -22.5
+    ]
+   }
+  },
+  {
+   "command": "sketch.point",
+   "params": {
+    "point": [
+     -22.5,
+     -22.5
+    ]
+   }
+  },
+  {
+   "command": "sketch.finish",
+   "params": {}
+  },
+  {
+   "command": "solid.hole",
+   "params": {
+    "sketch": "HolePoints",
+    "clearance": "M4",
+    "fit": "normal",
+    "type": "counterbore",
+    "cb_diameter": 6,
+    "cb_depth": 3,
+    "name": "Hole"
+   }
+  },
+  {
+   "command": "sketch.create",
+   "params": {
+    "plane": "XY",
+    "offset": 5,
+    "name": "LoftBase"
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     0,
+     0
+    ],
+    "radius": 12
+   }
+  },
+  {
+   "command": "sketch.finish",
+   "params": {}
+  },
+  {
+   "command": "sketch.create",
+   "params": {
+    "plane": "XY",
+    "offset": 35,
+    "name": "LoftTop"
+   }
+  },
+  {
+   "command": "sketch.circle.center",
+   "params": {
+    "center": [
+     0,
+     0
+    ],
+    "radius": 8
+   }
+  },
+  {
+   "command": "sketch.finish",
+   "params": {}
+  },
+  {
+   "command": "surface.loft",
+   "params": {
+    "sections": [
+     {
+      "sketch": "LoftBase"
+     },
+     {
+      "sketch": "LoftTop"
+     }
+    ],
+    "body_name": "ConeSurface",
+    "name": "ConeLoft"
+   }
+  },
+  {
+   "command": "surface.thicken",
+   "params": {
+    "bodies": [
+     "ConeSurface"
+    ],
+    "thickness": 3.0,
+    "operation": "join",
+    "targets": [
+     "Plate"
+    ],
+    "name": "ConeThicken"
+   }
+  },
+  {
+   "command": "solid.fillet",
+   "params": {
+    "edges": [
+     [
+      -10.973683702,
+      0.0,
+      35.39649116
+     ]
+    ],
+    "radius": 1,
+    "name": "Fillet F11"
+   }
+  },
+  {
+   "command": "solid.fillet",
+   "params": {
+    "edges": [
+     [
+      -8,
+      0.0,
+      35
+     ]
+    ],
+    "radius": 1,
+    "name": "Fillet F12"
+   }
+  },
+  {
+   "command": "solid.fillet",
+   "params": {
+    "edges": [
+     [
+      -27.5,
+      0.0,
+      5
+     ],
+     [
+      -26.035533906,
+      26.035533906,
+      5
+     ],
+     [
+      -26.035533906,
+      -26.035533906,
+      5
+     ],
+     [
+      0,
+      -27.5,
+      5
+     ],
+     [
+      26.035533906,
+      -26.035533906,
+      5
+     ],
+     [
+      27.5,
+      0.0,
+      5
+     ],
+     [
+      26.035533906,
+      26.035533906,
+      5
+     ],
+     [
+      0,
+      27.5,
+      5
+     ]
+    ],
+    "radius": 1,
+    "name": "Fillet F13 (plate top edges)"
+   }
+  }
+ ]
+}

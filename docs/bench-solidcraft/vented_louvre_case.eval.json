@@ -1,0 +1,427 @@
+{
+  "bodies": [
+    {
+      "area_mm2": 45196.108736301634,
+      "bbox": {
+        "max": [
+          62.40000000000012,
+          42.400000000000006,
+          33.00000000000036
+        ],
+        "min": [
+          -62.400000000000006,
+          -42.40000000000192,
+          -6.336728365245462e-12
+        ]
+      },
+      "center_of_mass": [
+        1.8519740770509696,
+        -4.128647206772599e-12,
+        11.578411392853074
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 1074,
+      "face_types": {
+        "cylinder": 54,
+        "plane": 322
+      },
+      "faces": 376,
+      "kernel": {
+        "edges": 1242,
+        "faces": 418,
+        "shells": 1,
+        "vertices": 828
+      },
+      "mass_g": 58.37808836859638,
+      "material": "Default",
+      "name": "Case",
+      "vertices": 744,
+      "volume_mm3": 45254.33206867936
+    },
+    {
+      "area_mm2": 27835.695249122855,
+      "bbox": {
+        "max": [
+          62.40000000000004,
+          139.20000000000002,
+          12.0
+        ],
+        "min": [
+          -62.400000000000034,
+          54.39999999999997,
+          -4.368624878440504e-16
+        ]
+      },
+      "center_of_mass": [
+        -3.695878257542198e-14,
+        96.80000005026568,
+        10.072430076798423
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 216,
+      "face_types": {
+        "cylinder": 36,
+        "plane": 40
+      },
+      "faces": 76,
+      "kernel": {
+        "edges": 216,
+        "faces": 76,
+        "shells": 1,
+        "vertices": 144
+      },
+      "mass_g": 28.868895022062848,
+      "material": "Default",
+      "name": "Lid",
+      "vertices": 144,
+      "volume_mm3": 22378.988389196005
+    }
+  ],
+  "body_count": 2,
+  "params": [],
+  "sketches": [
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 1,
+      "name": "F1",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 3,
+      "name": "F3",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 5,
+      "name": "F6",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 7,
+      "name": "F9",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 348,
+      "dof": 738,
+      "id": 9,
+      "name": "F12",
+      "profiles": 93,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 11,
+      "name": "F15",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 13,
+      "name": "F17",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 8,
+      "dof": 20,
+      "id": 15,
+      "name": "F19",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 48,
+      "dof": 120,
+      "id": 17,
+      "name": "F21",
+      "profiles": 6,
+      "status": "solved",
+      "visible": false
+    }
+  ],
+  "timeline": [
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.5371,
+      "name": "F1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 5.100135000000001,
+      "name": "F2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 0.238238,
+      "name": "F3",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 4,
+      "ms": 46.926950000000005,
+      "name": "F5",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 5,
+      "ms": 0.352227,
+      "name": "F6",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 6,
+      "ms": 1664.490212,
+      "name": "F8",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 7,
+      "ms": 0.256957,
+      "name": "F9",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 8,
+      "ms": 88.47708,
+      "name": "F11",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 9,
+      "ms": 4.468094,
+      "name": "F12",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 10,
+      "ms": 1677.817395,
+      "name": "F14",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 11,
+      "ms": 0.271045,
+      "name": "F15",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 12,
+      "ms": 2.460982,
+      "name": "F16",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 13,
+      "ms": 0.274867,
+      "name": "F17",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 14,
+      "ms": 249.74153900000002,
+      "name": "F18",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 15,
+      "ms": 0.385623,
+      "name": "F19",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 16,
+      "ms": 296.734448,
+      "name": "F20",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 17,
+      "ms": 1.099595,
+      "name": "F21",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 18,
+      "ms": 607.43574,
+      "name": "F23",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    }
+  ],
+  "total": {
+    "area_mm2": 73031.80398542449,
+    "edges": 1290,
+    "faces": 452,
+    "mass_g": 87.24698339065922,
+    "vertices": 888,
+    "volume_mm3": 67633.32045787536
+  }
+}

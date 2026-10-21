@@ -3,3 +3,4 @@ dist
 apps/cad/public/kernel/
 dist-pages
 sweep-report.json
+docs/solidcraft-issues/

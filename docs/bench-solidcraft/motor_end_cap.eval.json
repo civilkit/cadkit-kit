@@ -1,0 +1,299 @@
+{
+  "bodies": [
+    {
+      "area_mm2": 43117.162650210754,
+      "bbox": {
+        "max": [
+          13.365000000000023,
+          69.86000000000001,
+          69.85999999999999
+        ],
+        "min": [
+          -8.08500000000004,
+          -69.86000000000007,
+          -69.86000000000004
+        ]
+      },
+      "center_of_mass": [
+        0.9597480548132165,
+        -2.3575009918571914e-7,
+        -2.3604781246263518e-7
+      ],
+      "density_g_cm3": 1.29,
+      "edges": 41,
+      "face_types": {
+        "cone": 1,
+        "cylinder": 19,
+        "other": 2,
+        "plane": 4
+      },
+      "faces": 26,
+      "kernel": {
+        "edges": 126,
+        "faces": 48,
+        "shells": 1,
+        "vertices": 82
+      },
+      "mass_g": 317.17597751639266,
+      "material": "Default",
+      "name": "Cap",
+      "vertices": 41,
+      "volume_mm3": 245872.8507879013
+    }
+  ],
+  "body_count": 1,
+  "params": [],
+  "sketches": [
+    {
+      "curves": 1,
+      "dof": 1,
+      "id": 1,
+      "name": "Disc",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 1,
+      "dof": 1,
+      "id": 3,
+      "name": "Bore",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 1,
+      "dof": 1,
+      "id": 5,
+      "name": "Boss",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 1,
+      "dof": 3,
+      "id": 9,
+      "name": "Holes44",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    },
+    {
+      "curves": 1,
+      "dof": 3,
+      "id": 12,
+      "name": "Holes64",
+      "profiles": 1,
+      "status": "solved",
+      "visible": false
+    }
+  ],
+  "timeline": [
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 1,
+      "ms": 0.325556,
+      "name": "Disc",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 2,
+      "ms": 4.949763,
+      "name": "DiscExtrude",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 3,
+      "ms": 0.132536,
+      "name": "Bore",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 4,
+      "ms": 49.673691,
+      "name": "BoreCut",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 5,
+      "ms": 0.19053599999999998,
+      "name": "Boss",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 6,
+      "ms": 143.133217,
+      "name": "BossExtrude",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 7,
+      "ms": 103.365938,
+      "name": "Chamfer1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ChamferFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 8,
+      "ms": 170.295222,
+      "name": "Fillet1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "FilletFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 9,
+      "ms": 0.086971,
+      "name": "Holes44",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 10,
+      "ms": 936.3362400000001,
+      "name": "Hole44",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 11,
+      "ms": 7054.591178,
+      "name": "CircularPattern1",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "CircularPatternFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 12,
+      "ms": 0.9014150000000001,
+      "name": "Holes64",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "Sketch",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 13,
+      "ms": 1121.8167509999998,
+      "name": "Hole64",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "ExtrudeFeature",
+      "warning": null
+    },
+    {
+      "boolean_diagnostics": {
+        "events": [],
+        "truncated": false
+      },
+      "error": null,
+      "id": 14,
+      "ms": 8177.749819000001,
+      "name": "CircularPattern2",
+      "rolled_back": false,
+      "suppressed": false,
+      "type": "CircularPatternFeature",
+      "warning": null
+    }
+  ],
+  "total": {
+    "area_mm2": 43117.162650210754,
+    "edges": 41,
+    "faces": 26,
+    "mass_g": 317.17597751639266,
+    "vertices": 41,
+    "volume_mm3": 245872.8507879013
+  }
+}

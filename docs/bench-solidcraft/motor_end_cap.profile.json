@@ -1,0 +1,245 @@
+{
+  "timings": [
+    {
+      "command": "sketch.create",
+      "index": 0,
+      "ms": 0.735,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.735,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "index": 1,
+      "ms": 0.51,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.51,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "index": 2,
+      "ms": 0.005,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.005,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "index": 3,
+      "ms": 6.256,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 6.256,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.create",
+      "index": 4,
+      "ms": 0.182,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.182,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "index": 5,
+      "ms": 0.339,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.339,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "index": 6,
+      "ms": 0.005,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.005,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "index": 7,
+      "ms": 60.671,
+      "profile": {
+        "boolean_ms": 32.59,
+        "other_ms": 9.333,
+        "tessellate_ms": 18.748
+      }
+    },
+    {
+      "command": "sketch.create",
+      "index": 8,
+      "ms": 0.202,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.202,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "index": 9,
+      "ms": 0.304,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.304,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "index": 10,
+      "ms": 0.004,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.004,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "index": 11,
+      "ms": 124.248,
+      "profile": {
+        "boolean_ms": 80.87,
+        "other_ms": 9.636,
+        "tessellate_ms": 33.742
+      }
+    },
+    {
+      "command": "solid.chamfer",
+      "index": 12,
+      "ms": 114.093,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 44.621,
+        "tessellate_ms": 69.472
+      }
+    },
+    {
+      "command": "solid.fillet",
+      "index": 13,
+      "ms": 162.698,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 106.782,
+        "tessellate_ms": 55.917
+      }
+    },
+    {
+      "command": "sketch.create",
+      "index": 14,
+      "ms": 0.216,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.216,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "index": 15,
+      "ms": 0.275,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.275,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "index": 16,
+      "ms": 0.005,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.005,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "index": 17,
+      "ms": 968.57,
+      "profile": {
+        "boolean_ms": 769.181,
+        "other_ms": 35.219,
+        "tessellate_ms": 164.171
+      }
+    },
+    {
+      "command": "solid.pattern.circular",
+      "index": 18,
+      "ms": 6892.853,
+      "profile": {
+        "boolean_ms": 6688.162,
+        "other_ms": 54.902,
+        "tessellate_ms": 149.789
+      }
+    },
+    {
+      "command": "sketch.create",
+      "index": 19,
+      "ms": 0.257,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.257,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.circle.center",
+      "index": 20,
+      "ms": 0.289,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.289,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "sketch.finish",
+      "index": 21,
+      "ms": 0.006,
+      "profile": {
+        "boolean_ms": 0.0,
+        "other_ms": 0.006,
+        "tessellate_ms": 0.0
+      }
+    },
+    {
+      "command": "solid.extrude",
+      "index": 22,
+      "ms": 1198.71,
+      "profile": {
+        "boolean_ms": 980.498,
+        "other_ms": 55.016,
+        "tessellate_ms": 163.195
+      }
+    },
+    {
+      "command": "solid.pattern.circular",
+      "index": 23,
+      "ms": 8118.218,
+      "profile": {
+        "boolean_ms": 7875.706,
+        "other_ms": 72.298,
+        "tessellate_ms": 170.214
+      }
+    }
+  ],
+  "total_ms": 17649.909
+}

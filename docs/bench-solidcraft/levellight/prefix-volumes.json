@@ -1,0 +1,125 @@
+{
+ "2": {
+  "LeftBracket": 57156.25
+ },
+ "21": {
+  "LeftBracket": 58386.0156
+ },
+ "22": {
+  "LeftBracket": 57502.1205
+ },
+ "23": {
+  "LeftBracket": 57210.9513
+ },
+ "27": {
+  "LeftBracket": 57776.427
+ },
+ "29": {
+  "LeftBracket": 56940.9758
+ },
+ "30": {
+  "LeftBracket": 56900.7231
+ },
+ "33": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 171250.0
+ },
+ "35": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 167761.0605
+ },
+ "37": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 166292.2083
+ },
+ "38": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 161132.2104
+ },
+ "40": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 158865.4031
+ },
+ "46": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 158826.0968
+ },
+ "47": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 158765.5963
+ },
+ "49": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 68605.5963
+ },
+ "50": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 59037.5963
+ },
+ "54": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 58520.7098
+ },
+ "56": {
+  "LeftBracket": 56900.7231,
+  "RightBracket": 58400.7098
+ },
+ "73": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 57782.5678
+ },
+ "75": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 56572.3162
+ },
+ "77": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 56572.3162,
+  "GimbalTray": 38914.75
+ },
+ "79": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 55226.8162,
+  "GimbalTray": 33739.75
+ },
+ "80": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 55226.8162,
+  "GimbalTray": 44083.8461
+ },
+ "81": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 55226.8162,
+  "GimbalTray": 39766.493
+ },
+ "83": {
+  "LeftBracket": 56575.7231,
+  "RightBracket": 55226.8162,
+  "GimbalTray": 38005.5746
+ },
+ "85": {
+  "LeftBracket": 56363.4255,
+  "RightBracket": 54876.9955,
+  "GimbalTray": 34519.7399
+ },
+ "86": {
+  "LeftBracket": 56363.4255,
+  "RightBracket": 54876.9955,
+  "GimbalTray": 34850.8148
+ },
+ "88": {
+  "LeftBracket": 56363.4255,
+  "RightBracket": 54475.7038,
+  "GimbalTray": 27796.4071
+ },
+ "90": {
+  "LeftBracket": 56363.4255,
+  "RightBracket": 54474.378,
+  "GimbalTray": 27757.9162
+ },
+ "94": {
+  "LeftBracket": 56363.4255,
+  "RightBracket": 54474.378,
+  "GimbalTray": 35755.2315
+ }
+}

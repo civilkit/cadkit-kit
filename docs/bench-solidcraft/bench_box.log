@@ -1,0 +1,26 @@
+host load: 0.97 5.64 8.57  nproc=16  date=2026-10-20T02:20:12Z
+solidcraft motor_end_cap rep1: real=17.414 user=44.213 sys=1.049
+   rc=0 stepbytes=100268
+solidcraft motor_end_cap rep2: real=17.429 user=43.827 sys=1.146
+   rc=0 stepbytes=100268
+solidcraft motor_end_cap rep3: real=17.732 user=41.857 sys=1.167
+   rc=0 stepbytes=100268
+solidcraft vented_louvre_case rep1: real=5.650 user=11.685 sys=1.483
+   rc=0 stepbytes=726435
+solidcraft vented_louvre_case rep2: real=5.918 user=11.931 sys=1.592
+   rc=0 stepbytes=726435
+solidcraft vented_louvre_case rep3: real=5.614 user=11.729 sys=1.336
+   rc=0 stepbytes=726435
+ours bench-motor_end_cap proc rep1: real=1.955 user=3.980 sys=0.152
+   inner: regen wall=0.611 cpu=2.301 vol=245873.66139676678 faces=26 valid=True
+ours bench-motor_end_cap proc rep2: real=1.923 user=3.916 sys=0.163
+   inner: regen wall=0.602 cpu=2.276 vol=245873.66139676678 faces=26 valid=True
+ours bench-motor_end_cap proc rep3: real=1.965 user=3.905 sys=0.192
+   inner: regen wall=0.623 cpu=2.306 vol=245873.66139676678 faces=26 valid=True
+ours brepjs-vented_louvre_case proc rep1: real=6.214 user=9.170 sys=0.193
+   inner: regen wall=1.592 cpu=4.190 vol=67633.08248804702 faces=452 valid=True
+ours brepjs-vented_louvre_case proc rep2: real=7.396 user=9.900 sys=0.184
+   inner: regen wall=1.618 cpu=3.840 vol=67633.08248804702 faces=452 valid=True
+ours brepjs-vented_louvre_case proc rep3: real=6.072 user=8.682 sys=0.208
+   inner: regen wall=1.578 cpu=3.915 vol=67633.08248804702 faces=452 valid=True
+load after: 5.61 5.83 8.34

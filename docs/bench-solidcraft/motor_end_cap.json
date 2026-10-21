@@ -1,0 +1,32 @@
+{"description": "BenchCAD motor_end_cap_000242, same dimensions and construction order as kit packages/script examples 'Motor end cap'. Axis = world X. Sketches on YZ (normal +X).",
+ "commands": [
+  {"command": "sketch.create", "params": {"plane": "YZ", "name": "Disc"}},
+  {"command": "sketch.circle.center", "params": {"center": [0, 0], "radius": 69.86}},
+  {"command": "sketch.finish", "params": {}},
+  {"command": "solid.extrude", "params": {"distance": 16.17, "direction": "symmetric", "body_name": "Cap", "name": "DiscExtrude"}},
+
+  {"command": "sketch.create", "params": {"plane": "YZ", "name": "Bore"}},
+  {"command": "sketch.circle.center", "params": {"center": [0, 0], "radius": 20.62}},
+  {"command": "sketch.finish", "params": {}},
+  {"command": "solid.extrude", "params": {"distance": 16.17, "direction": "symmetric", "operation": "cut", "name": "BoreCut"}},
+
+  {"command": "sketch.create", "params": {"plane": "YZ", "offset": 8.085, "name": "Boss"}},
+  {"command": "sketch.circle.center", "params": {"center": [0, 0], "radius": 36.58}},
+  {"command": "sketch.finish", "params": {}},
+  {"command": "solid.extrude", "params": {"distance": 5.28, "operation": "join", "name": "BossExtrude"}},
+
+  {"command": "solid.chamfer", "params": {"edges": [[13.365, 36.58, 0]], "distance": 1.4}},
+  {"command": "solid.fillet", "params": {"edges": [[-8.085, 69.86, 0], [-8.085, 20.62, 0]], "radius": 0.91}},
+
+  {"command": "sketch.create", "params": {"plane": "YZ", "name": "Holes44"}},
+  {"command": "sketch.circle.center", "params": {"center": [44.32, 0], "radius": 1.65}},
+  {"command": "sketch.finish", "params": {}},
+  {"command": "solid.extrude", "params": {"distance": 16.17, "direction": "symmetric", "operation": "cut", "name": "Hole44"}},
+  {"command": "solid.pattern.circular", "params": {"features": ["Hole44"], "axis": "X", "count": 8}},
+
+  {"command": "sketch.create", "params": {"plane": "YZ", "name": "Holes64"}},
+  {"command": "sketch.circle.center", "params": {"center": [64.75, 0], "radius": 1.73}},
+  {"command": "sketch.finish", "params": {}},
+  {"command": "solid.extrude", "params": {"distance": 16.17, "direction": "symmetric", "operation": "cut", "name": "Hole64"}},
+  {"command": "solid.pattern.circular", "params": {"features": ["Hole64"], "axis": "X", "count": 8}}
+]}

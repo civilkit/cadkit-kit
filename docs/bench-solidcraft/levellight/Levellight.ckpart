@@ -1,0 +1,8478 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Levellight",
+ "features": [
+  {
+   "type": "insertPart",
+   "id": "F1",
+   "name": "LeftBracket",
+   "part": {
+    "format": "ck-part",
+    "version": 1,
+    "name": "LeftBracket",
+    "features": [
+     {
+      "type": "sketch",
+      "name": "BaseShape",
+      "plane": {
+       "kind": "std",
+       "id": "top"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": -15
+       },
+       {
+        "id": "p2",
+        "x": 8,
+        "y": -15
+       },
+       {
+        "id": "p3",
+        "x": 8,
+        "y": 77.5
+       },
+       {
+        "id": "p4",
+        "x": 0,
+        "y": 92.5
+       },
+       {
+        "id": "l5.end",
+        "x": 90,
+        "y": 92.5
+       },
+       {
+        "id": "l6.end",
+        "x": 90,
+        "y": 90
+       },
+       {
+        "id": "l7.end",
+        "x": 20.5,
+        "y": 90
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p4",
+        "p2": "l5.end"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "l5.end",
+        "p2": "l6.end"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "l7.end",
+        "p2": "p3"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "l6.end",
+        "p2": "l7.end"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l1"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l2"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l4"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "distance",
+        "refs": [
+         "p1",
+         "O"
+        ],
+        "value": 15,
+        "expr": "ControlBoxHeight-ControlBoxOverhang"
+       },
+       {
+        "id": "k7",
+        "type": "distance",
+        "refs": [
+         "p2",
+         "p1"
+        ],
+        "value": 8,
+        "expr": "BracketThicknessBearingSide"
+       },
+       {
+        "id": "k8",
+        "type": "pointOnLine",
+        "refs": [
+         "O",
+         "l4"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k11",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k14",
+        "type": "horizontal",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k15",
+        "type": "angle",
+        "refs": [
+         "l2",
+         "l8"
+        ],
+        "value": 135,
+        "s1": 1,
+        "s2": 1
+       },
+       {
+        "id": "k16",
+        "type": "distance",
+        "refs": [
+         "l5.end",
+         "l6.end"
+        ],
+        "value": 2.5,
+        "expr": "GimbalThickness"
+       },
+       {
+        "id": "k17",
+        "type": "vdist",
+        "refs": [
+         "l7.end",
+         "p3"
+        ],
+        "value": 12.5,
+        "expr": "GimbalCentreFromBottom/2"
+       },
+       {
+        "id": "k18",
+        "type": "distance",
+        "refs": [
+         "p4",
+         "l5.end"
+        ],
+        "value": 90,
+        "expr": "BracketWidth"
+       },
+       {
+        "id": "k19",
+        "type": "distance",
+        "refs": [
+         "O",
+         "p4"
+        ],
+        "value": 92.5,
+        "expr": "BracketHeight+BracketStandPart"
+       }
+      ],
+      "visible": false,
+      "id": "F1"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F1",
+      "name": "Extrude1",
+      "end": "mid",
+      "depth": "=BracketDepth",
+      "regions": [
+       "l1"
+      ],
+      "id": "F2"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 0,
+      "flip": true,
+      "name": "Plane right flipped 0",
+      "visible": false,
+      "id": "F3"
+     },
+     {
+      "type": "sketch",
+      "name": "Rib",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 15,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -92.5,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -92.5,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 15,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -92.5,
+        "y": 1.25
+       },
+       {
+        "id": "p6",
+        "x": -92.5,
+        "y": -1.25
+       },
+       {
+        "id": "p7",
+        "x": -83.25,
+        "y": -1.25
+       },
+       {
+        "id": "p8",
+        "x": -83.25,
+        "y": 1.25
+       },
+       {
+        "id": "p9",
+        "x": -92.5,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p5"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "vertical",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "horizontal",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "horizontal",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "horizontal",
+        "refs": [
+         "p9",
+         "O"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "midpoint",
+        "refs": [
+         "p9",
+         "l5"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "distance",
+        "refs": [
+         "p7",
+         "p8"
+        ],
+        "value": 2.5,
+        "expr": "GimbalThickness"
+       },
+       {
+        "id": "k9",
+        "type": "distance",
+        "refs": [
+         "p8",
+         "p5"
+        ],
+        "value": 9.25,
+        "expr": "GimbalMotorMountThickness"
+       },
+       {
+        "id": "k10",
+        "type": "midpoint",
+        "refs": [
+         "p9",
+         "l2"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F4"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude2 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": -92.5,
+        "y": -1.25
+       },
+       {
+        "id": "q2",
+        "x": -92.5,
+        "y": 1.25
+       },
+       {
+        "id": "q3",
+        "x": -83.25,
+        "y": -1.25
+       },
+       {
+        "id": "q4",
+        "x": -83.25,
+        "y": 1.25
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q2"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F5"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F5",
+      "name": "Extrude2",
+      "end": "blind",
+      "depth": 90,
+      "flip": true,
+      "id": "F6"
+     },
+     {
+      "type": "sketch",
+      "name": "WireChannel",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "l5.start",
+        "x": -40,
+        "y": 5
+       },
+       {
+        "id": "p5",
+        "x": 15,
+        "y": 5
+       },
+       {
+        "id": "p6",
+        "x": 15,
+        "y": -5
+       },
+       {
+        "id": "l7.end",
+        "x": -40,
+        "y": -5
+       },
+       {
+        "id": "a1.center",
+        "x": -40,
+        "y": 0
+       },
+       {
+        "id": "p11",
+        "x": -92.5,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p12",
+        "x": -92.5,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p13",
+        "x": 15,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p14",
+        "x": 15,
+        "y": 25,
+        "fixed": true
+       }
+      ],
+      "entities": [
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "l5.start",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p6",
+        "p2": "l7.end"
+       },
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "a1.center",
+        "p1": "l5.start",
+        "p2": "l7.end"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p11",
+        "p2": "p12"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p13",
+        "p2": "p14"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "tangent",
+        "refs": [
+         "a1",
+         "l7"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "vertical",
+        "refs": [
+         "a1.center",
+         "l5.start"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "distance",
+        "refs": [
+         "p5",
+         "p6"
+        ],
+        "value": 10
+       },
+       {
+        "id": "k16",
+        "type": "horizontal",
+        "refs": [
+         "a1.center",
+         "O"
+        ]
+       },
+       {
+        "id": "k17",
+        "type": "vertical",
+        "refs": [
+         "p5",
+         "p14"
+        ]
+       },
+       {
+        "id": "k18",
+        "type": "hdist",
+        "refs": [
+         "a1.center",
+         "p12"
+        ],
+        "value": 52.5,
+        "expr": "GimbalCentreFromBottom+BracketStandPart"
+       }
+      ],
+      "visible": false,
+      "id": "F7"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F7",
+      "name": "Extrude3",
+      "end": "blind",
+      "depth": 1.5,
+      "flip": false,
+      "regions": [
+       "l5"
+      ],
+      "id": "F8"
+     },
+     {
+      "type": "sketch",
+      "name": "ShapeAndWirehole hole points",
+      "plane": {
+       "kind": "std",
+       "id": "right"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c4.center",
+        "x": -11,
+        "y": 20
+       },
+       {
+        "id": "c5.center",
+        "x": -5,
+        "y": 20
+       },
+       {
+        "id": "c2.center",
+        "x": -11,
+        "y": -20
+       },
+       {
+        "id": "c3.center",
+        "x": -5,
+        "y": -20
+       }
+      ],
+      "entities": [
+       {
+        "id": "pt1",
+        "type": "point",
+        "p": "c4.center"
+       },
+       {
+        "id": "pt2",
+        "type": "point",
+        "p": "c5.center"
+       },
+       {
+        "id": "pt3",
+        "type": "point",
+        "p": "c2.center"
+       },
+       {
+        "id": "pt4",
+        "type": "point",
+        "p": "c3.center"
+       },
+       {
+        "id": "csk1",
+        "type": "circle",
+        "c": "c4.center",
+        "r": 2.5
+       },
+       {
+        "id": "csk2",
+        "type": "circle",
+        "c": "c5.center",
+        "r": 2.5
+       },
+       {
+        "id": "csk3",
+        "type": "circle",
+        "c": "c2.center",
+        "r": 2.5
+       },
+       {
+        "id": "csk4",
+        "type": "circle",
+        "c": "c3.center",
+        "r": 2.5
+       }
+      ],
+      "constraints": [
+       {
+        "id": "kcsk1",
+        "type": "diameter",
+        "refs": [
+         "csk1"
+        ],
+        "value": 5
+       },
+       {
+        "id": "kcsk2",
+        "type": "diameter",
+        "refs": [
+         "csk2"
+        ],
+        "value": 5
+       },
+       {
+        "id": "kcsk3",
+        "type": "diameter",
+        "refs": [
+         "csk3"
+        ],
+        "value": 5
+       },
+       {
+        "id": "kcsk4",
+        "type": "diameter",
+        "refs": [
+         "csk4"
+        ],
+        "value": 5
+       }
+      ],
+      "visible": false,
+      "id": "F9"
+     },
+     {
+      "type": "hole",
+      "sketch": "F9",
+      "name": "Hole1",
+      "kind": "simple",
+      "diameter": 3.3,
+      "end": "blind",
+      "depth": 10,
+      "flip": true,
+      "id": "F10"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F9",
+      "name": "Hole1 countersink",
+      "end": "blind",
+      "depth": "=(5 - 3.3) / 2 / tan(45)",
+      "flip": true,
+      "draft": 45,
+      "regions": [
+       "csk1",
+       "csk2",
+       "csk3",
+       "csk4"
+      ],
+      "id": "F11"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 8,
+      "flip": false,
+      "name": "Plane right 8",
+      "visible": false,
+      "id": "F12"
+     },
+     {
+      "type": "sketch",
+      "name": "BearingRetainer",
+      "plane": {
+       "kind": "feature",
+       "id": "F12"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p33",
+        "x": -15,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p34",
+        "x": 77.5,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p35",
+        "x": 77.5,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p36",
+        "x": -15,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p37",
+        "x": -5,
+        "y": -20,
+        "fixed": true
+       },
+       {
+        "id": "p38",
+        "x": -6.552888121,
+        "y": -20.557708243,
+        "fixed": true
+       },
+       {
+        "id": "p39",
+        "x": -3.447111887,
+        "y": -19.442291734,
+        "fixed": true
+       },
+       {
+        "id": "p40",
+        "x": -11,
+        "y": -20,
+        "fixed": true
+       },
+       {
+        "id": "p41",
+        "x": -12.552888121,
+        "y": -20.557708243,
+        "fixed": true
+       },
+       {
+        "id": "p42",
+        "x": -9.447111887,
+        "y": -19.442291734,
+        "fixed": true
+       },
+       {
+        "id": "p43",
+        "x": -5,
+        "y": 20,
+        "fixed": true
+       },
+       {
+        "id": "p44",
+        "x": -6.552888121,
+        "y": 19.442291757,
+        "fixed": true
+       },
+       {
+        "id": "p45",
+        "x": -3.447111887,
+        "y": 20.557708266,
+        "fixed": true
+       },
+       {
+        "id": "p46",
+        "x": -11,
+        "y": 20,
+        "fixed": true
+       },
+       {
+        "id": "p47",
+        "x": -12.552888121,
+        "y": 19.442291757,
+        "fixed": true
+       },
+       {
+        "id": "p48",
+        "x": -9.447111887,
+        "y": 20.557708266,
+        "fixed": true
+       },
+       {
+        "id": "c1.center",
+        "x": 40,
+        "y": 0
+       },
+       {
+        "id": "p49",
+        "x": 92.5,
+        "y": -25
+       }
+      ],
+      "entities": [
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p33",
+        "p2": "p34"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p34",
+        "p2": "p35"
+       },
+       {
+        "id": "l11",
+        "type": "line",
+        "p1": "p33",
+        "p2": "p36"
+       },
+       {
+        "id": "l12",
+        "type": "line",
+        "p1": "p35",
+        "p2": "p36"
+       },
+       {
+        "id": "a17",
+        "type": "arc",
+        "c": "p37",
+        "p1": "p38",
+        "p2": "p39"
+       },
+       {
+        "id": "a18",
+        "type": "arc",
+        "c": "p37",
+        "p1": "p39",
+        "p2": "p38"
+       },
+       {
+        "id": "a19",
+        "type": "arc",
+        "c": "p40",
+        "p1": "p41",
+        "p2": "p42"
+       },
+       {
+        "id": "a20",
+        "type": "arc",
+        "c": "p40",
+        "p1": "p42",
+        "p2": "p41"
+       },
+       {
+        "id": "a21",
+        "type": "arc",
+        "c": "p43",
+        "p1": "p44",
+        "p2": "p45"
+       },
+       {
+        "id": "a22",
+        "type": "arc",
+        "c": "p43",
+        "p1": "p45",
+        "p2": "p44"
+       },
+       {
+        "id": "a23",
+        "type": "arc",
+        "c": "p46",
+        "p1": "p47",
+        "p2": "p48"
+       },
+       {
+        "id": "a24",
+        "type": "arc",
+        "c": "p46",
+        "p1": "p48",
+        "p2": "p47"
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "c1.center",
+        "r": 8
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "c1.center",
+        "r": 10
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "distance",
+        "refs": [
+         "p49",
+         "p33"
+        ],
+        "value": 107.5,
+        "expr": "BracketHeight+BracketStandPart+ControlBoxOverhang"
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "p49",
+         "p33"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "horizontal",
+        "refs": [
+         "O",
+         "c1.center"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "hdist",
+        "refs": [
+         "c1.center",
+         "p49"
+        ],
+        "value": 52.5,
+        "expr": "GimbalCentreFromBottom+BracketStandPart"
+       },
+       {
+        "id": "k5",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 16,
+        "expr": "BearingInnerCutout"
+       },
+       {
+        "id": "k6",
+        "type": "diameter",
+        "refs": [
+         "c2"
+        ],
+        "value": 20,
+        "expr": "BearingOuterCutout"
+       }
+      ],
+      "visible": false,
+      "id": "F13"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude4 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F12"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": 40,
+        "y": 0
+       },
+       {
+        "id": "c2",
+        "x": 40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 10
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 8
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F14"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F14",
+      "name": "Extrude4",
+      "end": "blind",
+      "depth": 5,
+      "flip": false,
+      "id": "F15"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": -1.5,
+      "flip": true,
+      "name": "Plane right flipped -1.5",
+      "visible": false,
+      "id": "F16"
+     },
+     {
+      "type": "sketch",
+      "name": "WireEntries",
+      "plane": {
+       "kind": "feature",
+       "id": "F16"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -40,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -40,
+        "y": 5,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -40,
+        "y": -5,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 15,
+        "y": -5,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 15,
+        "y": 5,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 10,
+        "y": 5
+       },
+       {
+        "id": "p7",
+        "x": 10,
+        "y": -5
+       },
+       {
+        "id": "p8",
+        "x": 15,
+        "y": -5
+       },
+       {
+        "id": "p9",
+        "x": 15,
+        "y": 5
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p4"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p2"
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p1",
+        "r": 5
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p9"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p6"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l4"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "p4",
+         "p8"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "coincident",
+        "refs": [
+         "p5",
+         "p9"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "distance",
+        "refs": [
+         "p6",
+         "p5"
+        ],
+        "value": 5
+       },
+       {
+        "id": "k8",
+        "type": "equal",
+        "refs": [
+         "c1",
+         "a1"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F17"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude5 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F16"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 5
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F18"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F17",
+      "name": "Extrude5 (1)",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "l2"
+      ],
+      "id": "F19"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F18",
+      "name": "Extrude5 (2)",
+      "end": "through",
+      "flip": false,
+      "id": "F20"
+     },
+     {
+      "type": "fillet",
+      "name": "Fillet1",
+      "radius": 5,
+      "edges": [
+       {
+        "faces": [
+         "F2.C0",
+         "F2.S.l6"
+        ],
+        "at": [
+         90,
+         -25,
+         -91.25
+        ]
+       },
+       {
+        "faces": [
+         "F2.C1",
+         "F2.S.l6"
+        ],
+        "at": [
+         90,
+         25,
+         -91.25
+        ]
+       },
+       {
+        "faces": [
+         "F2.S.l6",
+         "F6.S.e3"
+        ],
+        "at": [
+         90,
+         0,
+         -83.25
+        ]
+       }
+      ],
+      "id": "F21"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 90,
+      "flip": false,
+      "name": "Plane right 90",
+      "visible": false,
+      "id": "F22"
+     },
+     {
+      "type": "sketch",
+      "name": "EncoderCableEntry",
+      "plane": {
+       "kind": "feature",
+       "id": "F22"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 40,
+        "y": 0
+       },
+       {
+        "id": "p2",
+        "x": 40,
+        "y": -25
+       },
+       {
+        "id": "p3",
+        "x": 65,
+        "y": 0
+       },
+       {
+        "id": "p4",
+        "x": -30,
+        "y": -25
+       },
+       {
+        "id": "p5",
+        "x": -30,
+        "y": 25
+       },
+       {
+        "id": "p6",
+        "x": 40,
+        "y": 25
+       },
+       {
+        "id": "l10.start",
+        "x": 23.170858608,
+        "y": -5
+       },
+       {
+        "id": "l10.end",
+        "x": 23.170858608,
+        "y": 5
+       },
+       {
+        "id": "p15",
+        "x": 18.170858608,
+        "y": -5
+       },
+       {
+        "id": "p16",
+        "x": 18.170858608,
+        "y": 5
+       },
+       {
+        "id": "p17",
+        "x": 23.170858608,
+        "y": 0,
+        "fixed": true
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p4"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p3",
+        "p2": "p6"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "l10.start",
+        "p2": "l10.end"
+       },
+       {
+        "id": "l12",
+        "type": "line",
+        "p1": "p15",
+        "p2": "p16"
+       },
+       {
+        "id": "l13",
+        "type": "line",
+        "p1": "p16",
+        "p2": "l10.end"
+       },
+       {
+        "id": "l14",
+        "type": "line",
+        "p1": "p15",
+        "p2": "l10.start"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "vertical",
+        "refs": [
+         "l12"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "distance",
+        "refs": [
+         "p15",
+         "p16"
+        ],
+        "value": 10
+       },
+       {
+        "id": "k9",
+        "type": "distance",
+        "refs": [
+         "p15",
+         "l10.start"
+        ],
+        "value": 5
+       },
+       {
+        "id": "k10",
+        "type": "horizontal",
+        "refs": [
+         "l13"
+        ]
+       },
+       {
+        "id": "k11",
+        "type": "horizontal",
+        "refs": [
+         "l14"
+        ]
+       },
+       {
+        "id": "k12",
+        "type": "midpoint",
+        "refs": [
+         "p17",
+         "l10"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F23"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F23",
+      "name": "Extrude16",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "l10"
+      ],
+      "id": "F24"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 6,
+      "flip": false,
+      "name": "Plane right 6",
+      "visible": false,
+      "id": "F25"
+     },
+     {
+      "type": "sketch",
+      "name": "BearingCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F25"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -17,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -17,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -37,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 0,
+        "y": 49.5,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -17,
+        "y": 59.314954576,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": -17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p6"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p7"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p8"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p4",
+        "p2": "O",
+        "construction": true
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p9",
+        "r": 11.5
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "p9",
+        "r": 13.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "midpoint",
+        "refs": [
+         "p9",
+         "l9"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 23,
+        "expr": "BearingInnerDiameter"
+       },
+       {
+        "id": "k3",
+        "type": "diameter",
+        "refs": [
+         "c2"
+        ],
+        "value": 27.2,
+        "expr": "BearingOuterDiamter"
+       }
+      ],
+      "visible": false,
+      "id": "F26"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude21 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F25"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -18.5,
+        "y": 30.907477288
+       },
+       {
+        "id": "c2",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 13.6
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 11.5
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F27"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F26",
+      "name": "Extrude21 (1)",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F28"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F27",
+      "name": "Extrude21 (2)",
+      "end": "through",
+      "flip": false,
+      "id": "F29"
+     }
+    ],
+    "seq": 30,
+    "rollback": null,
+    "material": "steel",
+    "counters": {},
+    "variables": [
+     {
+      "name": "BearingInnerCutout",
+      "expr": "16"
+     },
+     {
+      "name": "BearingInnerDiameter",
+      "expr": "23"
+     },
+     {
+      "name": "BearingOuterCutout",
+      "expr": "20"
+     },
+     {
+      "name": "BearingOuterDiamter",
+      "expr": "27.2"
+     },
+     {
+      "name": "BearingThickness",
+      "expr": "4"
+     },
+     {
+      "name": "BracketDepth",
+      "expr": "50"
+     },
+     {
+      "name": "BracketSpacing",
+      "expr": "1"
+     },
+     {
+      "name": "BracketHeight",
+      "expr": "65"
+     },
+     {
+      "name": "BracketStandPart",
+      "expr": "27.5"
+     },
+     {
+      "name": "BracketThicknessBearingSide",
+      "expr": "8"
+     },
+     {
+      "name": "BracketThicknessMotorSide",
+      "expr": "13"
+     },
+     {
+      "name": "BracketWidth",
+      "expr": "90"
+     },
+     {
+      "name": "ControlBoxHeight",
+      "expr": "30"
+     },
+     {
+      "name": "ControlBoxOverhang",
+      "expr": "15"
+     },
+     {
+      "name": "ControlBoxThickness",
+      "expr": "2"
+     },
+     {
+      "name": "ControlWireDia",
+      "expr": "1.5"
+     },
+     {
+      "name": "EncoderBoltSpreadLength",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderBoltSpreadWidth",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderLength",
+      "expr": "23.8"
+     },
+     {
+      "name": "EncoderWidth",
+      "expr": "23.8"
+     },
+     {
+      "name": "GimbalBearingMountThickness",
+      "expr": "BearingThickness+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalCentreFromBottom",
+      "expr": "25"
+     },
+     {
+      "name": "GimbalDepth",
+      "expr": "52"
+     },
+     {
+      "name": "GimbalHeight",
+      "expr": "37"
+     },
+     {
+      "name": "GimbalMotorMountThickness",
+      "expr": "MotorThickness-MotorOuterSinkDepth-BracketSpacing+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalSupportWidth",
+      "expr": "32"
+     },
+     {
+      "name": "GimbalThickness",
+      "expr": "2.5"
+     },
+     {
+      "name": "GimbalTrayHeight",
+      "expr": "TOFBoardHeight+4"
+     },
+     {
+      "name": "MotorBearingRetainerThickness",
+      "expr": "2"
+     },
+     {
+      "name": "MotorHubDia",
+      "expr": "10 mm"
+     },
+     {
+      "name": "MotorMountInnerBoltSpread",
+      "expr": "6"
+     },
+     {
+      "name": "MotorMountOuterBoltDia",
+      "expr": "2.5mm"
+     },
+     {
+      "name": "MotorMountOuterBoltSpread",
+      "expr": "9.5mm"
+     },
+     {
+      "name": "MotorOuterDiameter",
+      "expr": "35.2"
+     },
+     {
+      "name": "MotorOuterSinkDepth",
+      "expr": "6"
+     },
+     {
+      "name": "TOFBoardHeight",
+      "expr": "13"
+     },
+     {
+      "name": "TOFDownAngle",
+      "expr": "30"
+     },
+     {
+      "name": "MotorThickness",
+      "expr": "14.25"
+     },
+     {
+      "name": "MotorWireHoleDia",
+      "expr": "15mm"
+     }
+    ]
+   },
+   "fixed": true
+  },
+  {
+   "type": "insertPart",
+   "id": "F2",
+   "name": "RightBracket",
+   "part": {
+    "format": "ck-part",
+    "version": 1,
+    "name": "RightBracket",
+    "features": [
+     {
+      "type": "sketch",
+      "name": "RightSideShape",
+      "plane": {
+       "kind": "std",
+       "id": "top"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": -15,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 8,
+        "y": -15,
+        "fixed": true
+       },
+       {
+        "id": "l2.end",
+        "x": 0,
+        "y": -30
+       },
+       {
+        "id": "l3.end",
+        "x": 90,
+        "y": -30
+       },
+       {
+        "id": "l4.end",
+        "x": 90,
+        "y": 65
+       },
+       {
+        "id": "l5.end",
+        "x": 77,
+        "y": 65
+       },
+       {
+        "id": "l6.end",
+        "x": 77,
+        "y": 0
+       },
+       {
+        "id": "l7.end",
+        "x": 8,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p1",
+        "p2": "l2.end"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "l2.end",
+        "p2": "l3.end"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "l3.end",
+        "p2": "l4.end"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "l4.end",
+        "p2": "l5.end"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "l5.end",
+        "p2": "l6.end"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "l6.end",
+        "p2": "l7.end"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "l7.end",
+        "p2": "p2"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p1"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "l4.end",
+        "p2": "l5.end"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l2"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l3"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l4"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "vertical",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "horizontal",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "distance",
+        "refs": [
+         "l4.end",
+         "l5.end"
+        ],
+        "value": 13,
+        "expr": "BracketThicknessMotorSide"
+       },
+       {
+        "id": "k11",
+        "type": "distance",
+        "refs": [
+         "p1",
+         "l2.end"
+        ],
+        "value": 15,
+        "expr": "ControlBoxOverhang"
+       },
+       {
+        "id": "k12",
+        "type": "distance",
+        "refs": [
+         "l2.end",
+         "l3.end"
+        ],
+        "value": 90,
+        "expr": "BracketWidth"
+       },
+       {
+        "id": "k13",
+        "type": "distance",
+        "refs": [
+         "l5.end",
+         "l6.end"
+        ],
+        "value": 65,
+        "expr": "BracketHeight"
+       },
+       {
+        "id": "k14",
+        "type": "vdist",
+        "refs": [
+         "l6.end",
+         "l3.end"
+        ],
+        "value": 30,
+        "expr": "ControlBoxHeight"
+       }
+      ],
+      "visible": false,
+      "id": "F1"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F1",
+      "name": "Extrude6",
+      "end": "mid",
+      "depth": "=BracketDepth",
+      "regions": [
+       "l1"
+      ],
+      "id": "F2"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 90,
+      "flip": false,
+      "name": "Plane right 90",
+      "visible": false,
+      "id": "F3"
+     },
+     {
+      "type": "sketch",
+      "name": "RoundOffEnd",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 65,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -30,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 65,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -30,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "a1.center",
+        "x": 40,
+        "y": 0
+       },
+       {
+        "id": "p5",
+        "x": 40,
+        "y": -25
+       },
+       {
+        "id": "a1.end",
+        "x": 40,
+        "y": 25
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "a1.center",
+        "p1": "p5",
+        "p2": "a1.end"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p1"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p3"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p3",
+        "p2": "a1.end"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "pointOnLine",
+        "refs": [
+         "p5",
+         "l1"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "a1.center",
+         "O"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "a1.end",
+         "a1.center"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "pointOnLine",
+        "refs": [
+         "p5",
+         "l1"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "tangent",
+        "refs": [
+         "a1",
+         "l1"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "tangent",
+        "refs": [
+         "a1",
+         "l5"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k9",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "tangent",
+        "refs": [
+         "a1",
+         "l2"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F4"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude7 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 65,
+        "y": 0
+       },
+       {
+        "id": "q2",
+        "x": 65,
+        "y": 25
+       },
+       {
+        "id": "q3",
+        "x": 40,
+        "y": 25
+       },
+       {
+        "id": "c1",
+        "x": 40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "arc",
+        "c": "c1",
+        "p1": "q1",
+        "p2": "q3"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F5"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude7 profile 2",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 65,
+        "y": -25
+       },
+       {
+        "id": "q2",
+        "x": 40,
+        "y": -25
+       },
+       {
+        "id": "q3",
+        "x": 65,
+        "y": 0
+       },
+       {
+        "id": "c1",
+        "x": 40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "arc",
+        "c": "c1",
+        "p1": "q2",
+        "p2": "q3"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F6"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F5",
+      "name": "Extrude7 (1)",
+      "end": "upToFace",
+      "depth": 13,
+      "flip": false,
+      "endRef": {
+       "kind": "face",
+       "id": "F2.S.l6",
+       "at": [
+        77,
+        -14.126388728,
+        -30.037894535
+       ]
+      },
+      "id": "F7"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F6",
+      "name": "Extrude7 (2)",
+      "end": "upToFace",
+      "depth": 13,
+      "flip": false,
+      "endRef": {
+       "kind": "face",
+       "id": "F2.S.l6",
+       "at": [
+        77,
+        -14.126388728,
+        -30.037894535
+       ]
+      },
+      "id": "F8"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": -77,
+      "flip": true,
+      "name": "Plane right flipped -77",
+      "visible": false,
+      "id": "F9"
+     },
+     {
+      "type": "sketch",
+      "name": "MotorCutoutBracket",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -40,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -65,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -40,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -40,
+        "y": 25,
+        "fixed": true
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p3"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p4"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p6",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p5"
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p1",
+        "r": 6
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "p1",
+        "r": 17.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "diameter",
+        "refs": [
+         "c2"
+        ],
+        "value": 35.2,
+        "expr": "MotorOuterDiameter"
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 12
+       }
+      ],
+      "visible": false,
+      "id": "F10"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F10",
+      "name": "Extrude8",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F11"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude9 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -40,
+        "y": 0
+       },
+       {
+        "id": "c2",
+        "x": -40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 17.6
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 6
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F12"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F12",
+      "name": "Extrude9",
+      "end": "blind",
+      "depth": "=MotorOuterSinkDepth",
+      "flip": false,
+      "id": "F13"
+     },
+     {
+      "type": "sketch",
+      "name": "EncoderCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 40,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 40,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 65,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -30,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -30,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 40,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": 40,
+        "y": -6,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": 40,
+        "y": 6,
+        "fixed": true
+       },
+       {
+        "id": "l4.start",
+        "x": 40,
+        "y": -16.829141392
+       },
+       {
+        "id": "l4.end",
+        "x": 23.170858608,
+        "y": 0
+       },
+       {
+        "id": "l5.end",
+        "x": 40,
+        "y": 16.829141392
+       },
+       {
+        "id": "l6.end",
+        "x": 56.829141392,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p5"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p3",
+        "p2": "p6"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "a3",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "a4",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p8",
+        "p2": "p7"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "l4.start",
+        "p2": "l4.end"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "l4.end",
+        "p2": "l5.end"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "l5.end",
+        "p2": "l6.end"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "l6.end",
+        "p2": "l4.start"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "l6.end",
+        "p2": "l4.end",
+        "construction": true
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "perpendicular",
+        "refs": [
+         "l4",
+         "l5"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "perpendicular",
+        "refs": [
+         "l5",
+         "l6"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "parallel",
+        "refs": [
+         "l7",
+         "l5"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "parallel",
+        "refs": [
+         "l6",
+         "l4"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "perpendicular",
+        "refs": [
+         "l7",
+         "l6"
+        ]
+       },
+       {
+        "id": "k9",
+        "type": "midpoint",
+        "refs": [
+         "p1",
+         "l8"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "horizontal",
+        "refs": [
+         "O",
+         "l4.end"
+        ]
+       },
+       {
+        "id": "k11",
+        "type": "equal",
+        "refs": [
+         "l6",
+         "l4"
+        ]
+       },
+       {
+        "id": "k12",
+        "type": "equal",
+        "refs": [
+         "l5",
+         "l7"
+        ]
+       },
+       {
+        "id": "k13",
+        "type": "distance",
+        "refs": [
+         "l6.end",
+         "l4.start"
+        ],
+        "value": 23.8,
+        "expr": "EncoderLength"
+       },
+       {
+        "id": "k14",
+        "type": "distance",
+        "refs": [
+         "l5.end",
+         "l6.end"
+        ],
+        "value": 23.8,
+        "expr": "EncoderWidth"
+       }
+      ],
+      "visible": false,
+      "id": "F14"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude10 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 40,
+        "y": -16.829141392
+       },
+       {
+        "id": "q2",
+        "x": 23.170858608,
+        "y": 0
+       },
+       {
+        "id": "q3",
+        "x": 56.829141392,
+        "y": 0
+       },
+       {
+        "id": "q4",
+        "x": 40,
+        "y": 16.829141392
+       },
+       {
+        "id": "c1",
+        "x": 40,
+        "y": 0
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q1"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q3"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q4"
+       },
+       {
+        "id": "e5",
+        "type": "circle",
+        "c": "c1",
+        "r": 6
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F15"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F15",
+      "name": "Extrude10",
+      "end": "blind",
+      "depth": "=BracketThicknessMotorSide-MotorBearingRetainerThickness-MotorOuterSinkDepth",
+      "flip": false,
+      "id": "F16"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 85,
+      "flip": false,
+      "name": "Plane right 85",
+      "visible": false,
+      "id": "F17"
+     },
+     {
+      "type": "sketch",
+      "name": "Motor/EncoderMountHoles",
+      "plane": {
+       "kind": "feature",
+       "id": "F17"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 56.829141392,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 40,
+        "y": -16.829141392,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 23.170858608,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 40,
+        "y": 16.829141392,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 40,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 40,
+        "y": -6,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": 40,
+        "y": 6,
+        "fixed": true
+       },
+       {
+        "id": "l5.end",
+        "x": 33.282485579,
+        "y": -6.717514421
+       },
+       {
+        "id": "l6.end",
+        "x": 46.717514421,
+        "y": -6.717514421
+       },
+       {
+        "id": "c3.center",
+        "x": 29,
+        "y": 0
+       },
+       {
+        "id": "c5.center",
+        "x": 40,
+        "y": -11
+       },
+       {
+        "id": "p9",
+        "x": 34,
+        "y": 0
+       },
+       {
+        "id": "p11",
+        "x": 40,
+        "y": 11
+       },
+       {
+        "id": "p13",
+        "x": 51,
+        "y": 0
+       },
+       {
+        "id": "p18",
+        "x": 33.282485579,
+        "y": 6.717514421
+       },
+       {
+        "id": "p19",
+        "x": 46.717514421,
+        "y": 6.717514421
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p5",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p5",
+        "p1": "p7",
+        "p2": "p6"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "l5.end",
+        "construction": true
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p5",
+        "p2": "l6.end",
+        "construction": true
+       },
+       {
+        "id": "c3",
+        "type": "circle",
+        "c": "c3.center",
+        "r": 1.25
+       },
+       {
+        "id": "c5",
+        "type": "circle",
+        "c": "c5.center",
+        "r": 1.25
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p9",
+        "construction": true
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6",
+        "construction": true
+       },
+       {
+        "id": "c7",
+        "type": "circle",
+        "c": "p11",
+        "r": 1.25
+       },
+       {
+        "id": "c9",
+        "type": "circle",
+        "c": "p13",
+        "r": 1.25
+       },
+       {
+        "id": "l16",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p18",
+        "construction": true
+       },
+       {
+        "id": "l17",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p19",
+        "construction": true
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "parallel",
+        "refs": [
+         "l4",
+         "l5"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "parallel",
+        "refs": [
+         "l3",
+         "l6"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "equal",
+        "refs": [
+         "l6",
+         "l5"
+        ]
+       },
+       {
+        "id": "k9",
+        "type": "distance",
+        "refs": [
+         "p5",
+         "l5.end"
+        ],
+        "value": 9.5,
+        "expr": "MotorMountOuterBoltSpread"
+       },
+       {
+        "id": "k10",
+        "type": "distance",
+        "refs": [
+         "p5",
+         "c5.center"
+        ],
+        "value": 11,
+        "expr": "EncoderBoltSpreadLength"
+       },
+       {
+        "id": "k11",
+        "type": "distance",
+        "refs": [
+         "p5",
+         "c3.center"
+        ],
+        "value": 11,
+        "expr": "EncoderBoltSpreadWidth"
+       },
+       {
+        "id": "k12",
+        "type": "horizontal",
+        "refs": [
+         "c3.center",
+         "p3"
+        ]
+       },
+       {
+        "id": "k13",
+        "type": "vertical",
+        "refs": [
+         "c5.center",
+         "p5"
+        ]
+       },
+       {
+        "id": "k14",
+        "type": "pointOnCircle",
+        "refs": [
+         "p9",
+         "a2"
+        ]
+       },
+       {
+        "id": "k15",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k16",
+        "type": "vertical",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k18",
+        "type": "symmetric",
+        "refs": [
+         "c5.center",
+         "p11",
+         "l7"
+        ]
+       },
+       {
+        "id": "k21",
+        "type": "equal",
+        "refs": [
+         "c5",
+         "c7"
+        ]
+       },
+       {
+        "id": "k23",
+        "type": "symmetric",
+        "refs": [
+         "c3.center",
+         "p13",
+         "l8"
+        ]
+       },
+       {
+        "id": "k24",
+        "type": "equal",
+        "refs": [
+         "c3",
+         "c9"
+        ]
+       },
+       {
+        "id": "k25",
+        "type": "diameter",
+        "refs": [
+         "c3"
+        ],
+        "value": 2.5
+       },
+       {
+        "id": "k27",
+        "type": "equal",
+        "refs": [
+         "c5",
+         "c3"
+        ]
+       },
+       {
+        "id": "k39",
+        "type": "symmetric",
+        "refs": [
+         "l5.end",
+         "p18",
+         "l7"
+        ]
+       },
+       {
+        "id": "k40",
+        "type": "symmetric",
+        "refs": [
+         "l6.end",
+         "p19",
+         "l7"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F18"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F18",
+      "name": "Extrude11",
+      "end": "blind",
+      "depth": 8,
+      "flip": false,
+      "regions": [
+       "c5",
+       "c3",
+       "c7",
+       "c9"
+      ],
+      "id": "F19"
+     },
+     {
+      "type": "sketch",
+      "name": "Motor/EncoderMountHoles hole points",
+      "plane": {
+       "kind": "feature",
+       "id": "F17"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "l5.end",
+        "x": 33.282485579,
+        "y": -6.717514421
+       },
+       {
+        "id": "p18",
+        "x": 33.282485579,
+        "y": 6.717514421
+       },
+       {
+        "id": "p19",
+        "x": 46.717514421,
+        "y": 6.717514421
+       },
+       {
+        "id": "l6.end",
+        "x": 46.717514421,
+        "y": -6.717514421
+       }
+      ],
+      "entities": [
+       {
+        "id": "pt1",
+        "type": "point",
+        "p": "l5.end"
+       },
+       {
+        "id": "pt2",
+        "type": "point",
+        "p": "p18"
+       },
+       {
+        "id": "pt3",
+        "type": "point",
+        "p": "p19"
+       },
+       {
+        "id": "pt4",
+        "type": "point",
+        "p": "l6.end"
+       },
+       {
+        "id": "csk1",
+        "type": "circle",
+        "c": "l5.end",
+        "r": 2
+       },
+       {
+        "id": "csk2",
+        "type": "circle",
+        "c": "p18",
+        "r": 2
+       },
+       {
+        "id": "csk3",
+        "type": "circle",
+        "c": "p19",
+        "r": 2
+       },
+       {
+        "id": "csk4",
+        "type": "circle",
+        "c": "l6.end",
+        "r": 2
+       }
+      ],
+      "constraints": [
+       {
+        "id": "kcsk1",
+        "type": "diameter",
+        "refs": [
+         "csk1"
+        ],
+        "value": 4
+       },
+       {
+        "id": "kcsk2",
+        "type": "diameter",
+        "refs": [
+         "csk2"
+        ],
+        "value": 4
+       },
+       {
+        "id": "kcsk3",
+        "type": "diameter",
+        "refs": [
+         "csk3"
+        ],
+        "value": 4
+       },
+       {
+        "id": "kcsk4",
+        "type": "diameter",
+        "refs": [
+         "csk4"
+        ],
+        "value": 4
+       }
+      ],
+      "visible": false,
+      "id": "F20"
+     },
+     {
+      "type": "hole",
+      "sketch": "F20",
+      "name": "Hole2",
+      "kind": "simple",
+      "diameter": 2.7,
+      "end": "blind",
+      "depth": 10,
+      "flip": false,
+      "id": "F21"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F20",
+      "name": "Hole2 countersink",
+      "end": "blind",
+      "depth": "=(4 - 2.7) / 2 / tan(45)",
+      "flip": false,
+      "draft": 45,
+      "regions": [
+       "csk1",
+       "csk2",
+       "csk3",
+       "csk4"
+      ],
+      "id": "F22"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F20",
+      "name": "Hole2 countersink reach",
+      "end": "blind",
+      "depth": 1.488497565,
+      "flip": true,
+      "draft": 45,
+      "draftOut": true,
+      "regions": [
+       "csk1",
+       "csk2",
+       "csk3",
+       "csk4"
+      ],
+      "id": "F23"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "front"
+      },
+      "offset": 30,
+      "flip": false,
+      "name": "Plane front 30",
+      "visible": false,
+      "id": "F24"
+     },
+     {
+      "type": "sketch",
+      "name": "ControlBoxShell",
+      "plane": {
+       "kind": "feature",
+       "id": "F24"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 90,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 90,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 2,
+        "y": -23
+       },
+       {
+        "id": "p6",
+        "x": 88,
+        "y": -23
+       },
+       {
+        "id": "p7",
+        "x": 88,
+        "y": 23
+       },
+       {
+        "id": "p8",
+        "x": 2,
+        "y": 23
+       },
+       {
+        "id": "p9",
+        "x": 18,
+        "y": 23
+       },
+       {
+        "id": "p10",
+        "x": 18,
+        "y": -23
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p5"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p10"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "pointOnLine",
+        "refs": [
+         "p9",
+         "l7"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "pointOnLine",
+        "refs": [
+         "p10",
+         "l5"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "vertical",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "hdist",
+        "refs": [
+         "p8",
+         "p1"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       },
+       {
+        "id": "k9",
+        "type": "vdist",
+        "refs": [
+         "p8",
+         "p1"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       },
+       {
+        "id": "k10",
+        "type": "vdist",
+        "refs": [
+         "p6",
+         "p3"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       },
+       {
+        "id": "k11",
+        "type": "hdist",
+        "refs": [
+         "p6",
+         "p3"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       },
+       {
+        "id": "k12",
+        "type": "distance",
+        "refs": [
+         "p5",
+         "p10"
+        ],
+        "value": 16,
+        "expr": "BracketThicknessBearingSide+8mm"
+       }
+      ],
+      "visible": false,
+      "id": "F25"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude12 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F24"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 18,
+        "y": -23
+       },
+       {
+        "id": "q2",
+        "x": 88,
+        "y": -23
+       },
+       {
+        "id": "q3",
+        "x": 88,
+        "y": 23
+       },
+       {
+        "id": "q4",
+        "x": 18,
+        "y": 23
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F26"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F26",
+      "name": "Extrude12",
+      "end": "offsetFromFace",
+      "depth": "=30+(-ControlBoxThickness)",
+      "flip": false,
+      "endRef": {
+       "kind": "face",
+       "id": "F2.S.l7",
+       "at": [
+        53.737665666,
+        -8.417547983,
+        0
+       ]
+      },
+      "offset": "=(-ControlBoxThickness)",
+      "id": "F27"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude13 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F24"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 2,
+        "y": -23
+       },
+       {
+        "id": "q2",
+        "x": 18,
+        "y": -23
+       },
+       {
+        "id": "q3",
+        "x": 18,
+        "y": 23
+       },
+       {
+        "id": "q4",
+        "x": 2,
+        "y": 23
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q2"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F28"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F28",
+      "name": "Extrude13",
+      "end": "offsetFromFace",
+      "depth": "=15+(-ControlBoxThickness)",
+      "flip": false,
+      "endRef": {
+       "kind": "face",
+       "id": "F2.S.l1",
+       "at": [
+        2.600469085,
+        -19.750541881,
+        15
+       ]
+      },
+      "offset": "=(-ControlBoxThickness)",
+      "id": "F29"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": -8,
+      "flip": true,
+      "name": "Plane right flipped -8",
+      "visible": false,
+      "id": "F30"
+     },
+     {
+      "type": "sketch",
+      "name": "SensorAndMountingHoles",
+      "plane": {
+       "kind": "feature",
+       "id": "F30"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 15,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 15,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 15,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": 15,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": 11,
+        "y": 20,
+        "fixed": true
+       },
+       {
+        "id": "p10",
+        "x": 9.447111887,
+        "y": 20.557708266,
+        "fixed": true
+       },
+       {
+        "id": "p11",
+        "x": 12.552888121,
+        "y": 19.442291757,
+        "fixed": true
+       },
+       {
+        "id": "p14",
+        "x": 5,
+        "y": 20,
+        "fixed": true
+       },
+       {
+        "id": "p15",
+        "x": 3.447111887,
+        "y": 20.557708266,
+        "fixed": true
+       },
+       {
+        "id": "p16",
+        "x": 6.552888121,
+        "y": 19.442291757,
+        "fixed": true
+       },
+       {
+        "id": "p17",
+        "x": 5,
+        "y": -20,
+        "fixed": true
+       },
+       {
+        "id": "p18",
+        "x": 3.447111887,
+        "y": -19.442291734,
+        "fixed": true
+       },
+       {
+        "id": "p19",
+        "x": 6.552888121,
+        "y": -20.557708243,
+        "fixed": true
+       },
+       {
+        "id": "p20",
+        "x": 11,
+        "y": -20,
+        "fixed": true
+       },
+       {
+        "id": "p21",
+        "x": 9.447111887,
+        "y": -19.442291734,
+        "fixed": true
+       },
+       {
+        "id": "p22",
+        "x": 12.552888121,
+        "y": -20.557708243,
+        "fixed": true
+       },
+       {
+        "id": "p13",
+        "x": 6.552888119,
+        "y": 19.442291753,
+        "fixed": true
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p5"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p9",
+        "p1": "p10",
+        "p2": "p11"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p14",
+        "p1": "p15",
+        "p2": "p16"
+       },
+       {
+        "id": "a3",
+        "type": "arc",
+        "c": "p17",
+        "p1": "p18",
+        "p2": "p19"
+       },
+       {
+        "id": "a4",
+        "type": "arc",
+        "c": "p20",
+        "p1": "p21",
+        "p2": "p22"
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p9",
+        "r": 2.2
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "p14",
+        "r": 2.2
+       },
+       {
+        "id": "c3",
+        "type": "circle",
+        "c": "p20",
+        "r": 2.2
+       },
+       {
+        "id": "c4",
+        "type": "circle",
+        "c": "p17",
+        "r": 2.2
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k9",
+        "type": "equal",
+        "refs": [
+         "c2",
+         "c1"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "equal",
+        "refs": [
+         "c1",
+         "c3"
+        ]
+       },
+       {
+        "id": "k11",
+        "type": "equal",
+        "refs": [
+         "c3",
+         "c4"
+        ]
+       },
+       {
+        "id": "k12",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 4.4
+       }
+      ],
+      "visible": false,
+      "id": "F31"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F31",
+      "name": "Extrude15",
+      "end": "blind",
+      "depth": 8.5,
+      "flip": false,
+      "regions": [
+       "c1",
+       "c2",
+       "c4",
+       "c3"
+      ],
+      "id": "F32"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "front"
+      },
+      "offset": -15,
+      "flip": true,
+      "name": "Plane front flipped -15",
+      "visible": false,
+      "id": "F33"
+     },
+     {
+      "type": "sketch",
+      "name": "LeftSideCableEntry",
+      "plane": {
+       "kind": "feature",
+       "id": "F33"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -8,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -8,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 0,
+        "y": -5,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": 0,
+        "y": 5,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": -2,
+        "y": 5
+       },
+       {
+        "id": "p10",
+        "x": -8,
+        "y": 5
+       },
+       {
+        "id": "p11",
+        "x": -8,
+        "y": -5
+       },
+       {
+        "id": "p12",
+        "x": -2,
+        "y": -5
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p2"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p10"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p10",
+        "p2": "p11"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p11",
+        "p2": "p12"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p12",
+        "p2": "p9"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "pointOnLine",
+        "refs": [
+         "p11",
+         "l4"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "horizontal",
+        "refs": [
+         "p6",
+         "p12"
+        ]
+       },
+       {
+        "id": "k9",
+        "type": "horizontal",
+        "refs": [
+         "p7",
+         "p9"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "distance",
+        "refs": [
+         "p9",
+         "p7"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       }
+      ],
+      "visible": false,
+      "id": "F34"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude14 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F33"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": -8,
+        "y": 5
+       },
+       {
+        "id": "q2",
+        "x": -8,
+        "y": -5
+       },
+       {
+        "id": "q3",
+        "x": -2,
+        "y": -5
+       },
+       {
+        "id": "q4",
+        "x": -2,
+        "y": 5
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F35"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F35",
+      "name": "Extrude14",
+      "end": "through",
+      "flip": false,
+      "id": "F36"
+     },
+     {
+      "type": "sketch",
+      "name": "EncoderCableEntry",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 40,
+        "y": 0
+       },
+       {
+        "id": "p2",
+        "x": 40,
+        "y": -25
+       },
+       {
+        "id": "p3",
+        "x": 65,
+        "y": 0
+       },
+       {
+        "id": "p4",
+        "x": -30,
+        "y": -25
+       },
+       {
+        "id": "p5",
+        "x": -30,
+        "y": 25
+       },
+       {
+        "id": "p6",
+        "x": 40,
+        "y": 25
+       },
+       {
+        "id": "l10.start",
+        "x": 23.170858608,
+        "y": -5
+       },
+       {
+        "id": "l10.end",
+        "x": 23.170858608,
+        "y": 5
+       },
+       {
+        "id": "p15",
+        "x": 18.170858608,
+        "y": -5
+       },
+       {
+        "id": "p16",
+        "x": 18.170858608,
+        "y": 5
+       },
+       {
+        "id": "p17",
+        "x": 23.170858608,
+        "y": 0,
+        "fixed": true
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p4"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p3",
+        "p2": "p6"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "l10.start",
+        "p2": "l10.end"
+       },
+       {
+        "id": "l12",
+        "type": "line",
+        "p1": "p15",
+        "p2": "p16"
+       },
+       {
+        "id": "l13",
+        "type": "line",
+        "p1": "p16",
+        "p2": "l10.end"
+       },
+       {
+        "id": "l14",
+        "type": "line",
+        "p1": "p15",
+        "p2": "l10.start"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "vertical",
+        "refs": [
+         "l12"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "distance",
+        "refs": [
+         "p15",
+         "p16"
+        ],
+        "value": 10
+       },
+       {
+        "id": "k9",
+        "type": "distance",
+        "refs": [
+         "p15",
+         "l10.start"
+        ],
+        "value": 5
+       },
+       {
+        "id": "k10",
+        "type": "horizontal",
+        "refs": [
+         "l13"
+        ]
+       },
+       {
+        "id": "k11",
+        "type": "horizontal",
+        "refs": [
+         "l14"
+        ]
+       },
+       {
+        "id": "k12",
+        "type": "midpoint",
+        "refs": [
+         "p17",
+         "l10"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F37"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F37",
+      "name": "Extrude16",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "l10"
+      ],
+      "id": "F38"
+     },
+     {
+      "type": "sketch",
+      "name": "MotorCableSlot",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -40,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -65,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -40,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 0,
+        "y": -25,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -40,
+        "y": 25,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -40,
+        "y": 17.6,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": -40,
+        "y": -17.6,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": -26.490050095,
+        "y": -11.280126488,
+        "fixed": true
+       },
+       {
+        "id": "p10",
+        "x": -23.125166667,
+        "y": -5,
+        "fixed": true
+       },
+       {
+        "id": "p11",
+        "x": -18.170858608,
+        "y": -5,
+        "fixed": true
+       },
+       {
+        "id": "p12",
+        "x": -18.170858608,
+        "y": 5,
+        "fixed": true
+       },
+       {
+        "id": "p13",
+        "x": -23.125166667,
+        "y": 5,
+        "fixed": true
+       },
+       {
+        "id": "p14",
+        "x": -26.490050095,
+        "y": 11.280126488,
+        "fixed": true
+       },
+       {
+        "id": "p15",
+        "x": -18.170858608,
+        "y": 5
+       },
+       {
+        "id": "p16",
+        "x": -18.170858608,
+        "y": -5
+       },
+       {
+        "id": "p17",
+        "x": 2,
+        "y": -5
+       },
+       {
+        "id": "p18",
+        "x": 2,
+        "y": 5
+       }
+      ],
+      "entities": [
+       {
+        "id": "a1",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p3"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p5"
+       },
+       {
+        "id": "a2",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p6",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p5"
+       },
+       {
+        "id": "a3",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "a4",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p8",
+        "p2": "p9"
+       },
+       {
+        "id": "a5",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p9",
+        "p2": "p10"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p11",
+        "p2": "p10"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p12",
+        "p2": "p11"
+       },
+       {
+        "id": "a6",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p13",
+        "p2": "p14"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p13",
+        "p2": "p12"
+       },
+       {
+        "id": "a7",
+        "type": "arc",
+        "c": "p1",
+        "p1": "p14",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p15",
+        "p2": "p16"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p16",
+        "p2": "p17"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p17",
+        "p2": "p18"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p18",
+        "p2": "p15"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "vertical",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "vertical",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "horizontal",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "horizontal",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "p12",
+         "p15"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "coincident",
+        "refs": [
+         "p16",
+         "p11"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "hdist",
+        "refs": [
+         "p4",
+         "p17"
+        ],
+        "value": 2,
+        "expr": "ControlBoxThickness"
+       }
+      ],
+      "visible": false,
+      "id": "F39"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude17 profile 2",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 0,
+        "y": -5
+       },
+       {
+        "id": "q2",
+        "x": 0,
+        "y": 5
+       },
+       {
+        "id": "q3",
+        "x": -15.505102572,
+        "y": 5
+       },
+       {
+        "id": "q4",
+        "x": -18.170858608,
+        "y": 5
+       },
+       {
+        "id": "q5",
+        "x": -18.170858608,
+        "y": -5
+       },
+       {
+        "id": "q6",
+        "x": -15.505102572,
+        "y": -5
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q5"
+       },
+       {
+        "id": "e5",
+        "type": "line",
+        "p1": "q5",
+        "p2": "q6"
+       },
+       {
+        "id": "e6",
+        "type": "line",
+        "p1": "q6",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F40"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F39",
+      "name": "Extrude17 (1)",
+      "end": "blind",
+      "depth": 6,
+      "flip": false,
+      "regions": [
+       "l9"
+      ],
+      "id": "F41"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F40",
+      "name": "Extrude17 (2)",
+      "end": "blind",
+      "depth": 6,
+      "flip": false,
+      "id": "F42"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "top"
+      },
+      "offset": 0,
+      "flip": true,
+      "name": "Plane top flipped 0",
+      "visible": false,
+      "id": "F43"
+     },
+     {
+      "type": "sketch",
+      "name": "TrayCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F43"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -67,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -67,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -6,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -57.75,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -6,
+        "y": -17
+       },
+       {
+        "id": "p8",
+        "x": -57.75,
+        "y": -17
+       },
+       {
+        "id": "p9",
+        "x": -57.75,
+        "y": -37
+       },
+       {
+        "id": "p10",
+        "x": -6,
+        "y": -37
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p9"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p10"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p10",
+        "p2": "p7"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "p5",
+         "p10"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "vdist",
+        "refs": [
+         "p8",
+         "p3"
+        ],
+        "value": 17,
+        "expr": "GimbalTrayHeight"
+       },
+       {
+        "id": "k7",
+        "type": "pointOnLine",
+        "refs": [
+         "p9",
+         "l3"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "coincident",
+        "refs": [
+         "p6",
+         "p9"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F44"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude19 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F43"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": -57.75,
+        "y": -37
+       },
+       {
+        "id": "q2",
+        "x": -6,
+        "y": -37
+       },
+       {
+        "id": "q3",
+        "x": -6,
+        "y": -17
+       },
+       {
+        "id": "q4",
+        "x": -57.75,
+        "y": -17
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F45"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F45",
+      "name": "Extrude19",
+      "end": "through",
+      "flip": false,
+      "id": "F46"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 6,
+      "flip": false,
+      "name": "Plane right 6",
+      "visible": false,
+      "id": "F47"
+     },
+     {
+      "type": "sketch",
+      "name": "BearingCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F47"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -17,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -17,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -37,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 0,
+        "y": 49.5,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -17,
+        "y": 59.314954576,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": -17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p6"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p7"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p8"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p4",
+        "p2": "O",
+        "construction": true
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p9",
+        "r": 11.5
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "p9",
+        "r": 13.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "midpoint",
+        "refs": [
+         "p9",
+         "l9"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 23,
+        "expr": "BearingInnerDiameter"
+       },
+       {
+        "id": "k3",
+        "type": "diameter",
+        "refs": [
+         "c2"
+        ],
+        "value": 27.2,
+        "expr": "BearingOuterDiamter"
+       }
+      ],
+      "visible": false,
+      "id": "F48"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude21 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F47"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -18.5,
+        "y": 30.907477288
+       },
+       {
+        "id": "c2",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 13.6
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 11.5
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F49"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F48",
+      "name": "Extrude21 (1)",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F50"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F49",
+      "name": "Extrude21 (2)",
+      "end": "through",
+      "flip": false,
+      "id": "F51"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 67,
+      "flip": false,
+      "name": "Plane right 67",
+      "visible": false,
+      "id": "F52"
+     },
+     {
+      "type": "sketch",
+      "name": "MotorCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F52"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 0,
+        "y": 52,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -37,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p4",
+        "p2": "O",
+        "construction": true
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p6",
+        "r": 17.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "midpoint",
+        "refs": [
+         "p6",
+         "l6"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 35.2,
+        "expr": "MotorOuterDiameter"
+       }
+      ],
+      "visible": false,
+      "id": "F53"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F53",
+      "name": "Extrude23",
+      "end": "blind",
+      "depth": "=GimbalMotorMountThickness-MotorBearingRetainerThickness",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F54"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": -57.75,
+      "flip": true,
+      "name": "Plane right flipped -57.75",
+      "visible": false,
+      "id": "F55"
+     },
+     {
+      "type": "sketch",
+      "name": "TrayMotorMountBolts hole points",
+      "plane": {
+       "kind": "feature",
+       "id": "F55"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "l10.end",
+        "x": 22.742640687,
+        "y": 26.664836601
+       },
+       {
+        "id": "p13",
+        "x": 14.257359313,
+        "y": 35.150117975
+       },
+       {
+        "id": "p11",
+        "x": 22.742640687,
+        "y": 35.150117975
+       },
+       {
+        "id": "p15",
+        "x": 14.257359313,
+        "y": 26.664836601
+       }
+      ],
+      "entities": [
+       {
+        "id": "pt1",
+        "type": "point",
+        "p": "l10.end"
+       },
+       {
+        "id": "pt2",
+        "type": "point",
+        "p": "p13"
+       },
+       {
+        "id": "pt3",
+        "type": "point",
+        "p": "p11"
+       },
+       {
+        "id": "pt4",
+        "type": "point",
+        "p": "p15"
+       },
+       {
+        "id": "csk1",
+        "type": "circle",
+        "c": "l10.end",
+        "r": 1.75
+       },
+       {
+        "id": "csk2",
+        "type": "circle",
+        "c": "p13",
+        "r": 1.75
+       },
+       {
+        "id": "csk3",
+        "type": "circle",
+        "c": "p11",
+        "r": 1.75
+       },
+       {
+        "id": "csk4",
+        "type": "circle",
+        "c": "p15",
+        "r": 1.75
+       }
+      ],
+      "constraints": [
+       {
+        "id": "kcsk1",
+        "type": "diameter",
+        "refs": [
+         "csk1"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk2",
+        "type": "diameter",
+        "refs": [
+         "csk2"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk3",
+        "type": "diameter",
+        "refs": [
+         "csk3"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk4",
+        "type": "diameter",
+        "refs": [
+         "csk4"
+        ],
+        "value": 3.5
+       }
+      ],
+      "visible": false,
+      "id": "F56"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F56",
+      "name": "Hole3 countersink reach",
+      "end": "blind",
+      "depth": 0.983823592,
+      "flip": true,
+      "draft": 45,
+      "draftOut": true,
+      "regions": [
+       "csk1",
+       "csk2",
+       "csk3",
+       "csk4"
+      ],
+      "id": "F57"
+     }
+    ],
+    "seq": 58,
+    "rollback": null,
+    "material": "steel",
+    "counters": {},
+    "variables": [
+     {
+      "name": "BearingInnerCutout",
+      "expr": "16"
+     },
+     {
+      "name": "BearingInnerDiameter",
+      "expr": "23"
+     },
+     {
+      "name": "BearingOuterCutout",
+      "expr": "20"
+     },
+     {
+      "name": "BearingOuterDiamter",
+      "expr": "27.2"
+     },
+     {
+      "name": "BearingThickness",
+      "expr": "4"
+     },
+     {
+      "name": "BracketDepth",
+      "expr": "50"
+     },
+     {
+      "name": "BracketSpacing",
+      "expr": "1"
+     },
+     {
+      "name": "BracketHeight",
+      "expr": "65"
+     },
+     {
+      "name": "BracketStandPart",
+      "expr": "27.5"
+     },
+     {
+      "name": "BracketThicknessBearingSide",
+      "expr": "8"
+     },
+     {
+      "name": "BracketThicknessMotorSide",
+      "expr": "13"
+     },
+     {
+      "name": "BracketWidth",
+      "expr": "90"
+     },
+     {
+      "name": "ControlBoxHeight",
+      "expr": "30"
+     },
+     {
+      "name": "ControlBoxOverhang",
+      "expr": "15"
+     },
+     {
+      "name": "ControlBoxThickness",
+      "expr": "2"
+     },
+     {
+      "name": "ControlWireDia",
+      "expr": "1.5"
+     },
+     {
+      "name": "EncoderBoltSpreadLength",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderBoltSpreadWidth",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderLength",
+      "expr": "23.8"
+     },
+     {
+      "name": "EncoderWidth",
+      "expr": "23.8"
+     },
+     {
+      "name": "GimbalBearingMountThickness",
+      "expr": "BearingThickness+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalCentreFromBottom",
+      "expr": "25"
+     },
+     {
+      "name": "GimbalDepth",
+      "expr": "52"
+     },
+     {
+      "name": "GimbalHeight",
+      "expr": "37"
+     },
+     {
+      "name": "GimbalMotorMountThickness",
+      "expr": "MotorThickness-MotorOuterSinkDepth-BracketSpacing+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalSupportWidth",
+      "expr": "32"
+     },
+     {
+      "name": "GimbalThickness",
+      "expr": "2.5"
+     },
+     {
+      "name": "GimbalTrayHeight",
+      "expr": "TOFBoardHeight+4"
+     },
+     {
+      "name": "MotorBearingRetainerThickness",
+      "expr": "2"
+     },
+     {
+      "name": "MotorHubDia",
+      "expr": "10 mm"
+     },
+     {
+      "name": "MotorMountInnerBoltSpread",
+      "expr": "6"
+     },
+     {
+      "name": "MotorMountOuterBoltDia",
+      "expr": "2.5mm"
+     },
+     {
+      "name": "MotorMountOuterBoltSpread",
+      "expr": "9.5mm"
+     },
+     {
+      "name": "MotorOuterDiameter",
+      "expr": "35.2"
+     },
+     {
+      "name": "MotorOuterSinkDepth",
+      "expr": "6"
+     },
+     {
+      "name": "TOFBoardHeight",
+      "expr": "13"
+     },
+     {
+      "name": "TOFDownAngle",
+      "expr": "30"
+     },
+     {
+      "name": "MotorThickness",
+      "expr": "14.25"
+     },
+     {
+      "name": "MotorWireHoleDia",
+      "expr": "15mm"
+     }
+    ]
+   },
+   "fixed": true
+  },
+  {
+   "type": "insertPart",
+   "id": "F3",
+   "name": "GimbalTray",
+   "part": {
+    "format": "ck-part",
+    "version": 1,
+    "name": "GimbalTray",
+    "features": [
+     {
+      "type": "sketch",
+      "name": "GimbalTrayOutline",
+      "plane": {
+       "kind": "std",
+       "id": "front"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": 0
+       },
+       {
+        "id": "p2",
+        "x": 67,
+        "y": 0
+       },
+       {
+        "id": "p3",
+        "x": 67,
+        "y": 52
+       },
+       {
+        "id": "p4",
+        "x": 0,
+        "y": 52
+       },
+       {
+        "id": "p5",
+        "x": 6,
+        "y": 2.5
+       },
+       {
+        "id": "p6",
+        "x": 57.75,
+        "y": 2.5
+       },
+       {
+        "id": "p7",
+        "x": 57.75,
+        "y": 49.5
+       },
+       {
+        "id": "p8",
+        "x": 6,
+        "y": 49.5
+       },
+       {
+        "id": "p9",
+        "x": 6,
+        "y": 0
+       },
+       {
+        "id": "p10",
+        "x": 57.75,
+        "y": 52
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p3"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p5"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p9",
+        "construction": true
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p10",
+        "construction": true
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l1"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l3"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l2"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l4"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "O",
+         "p1"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "horizontal",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k9",
+        "type": "vertical",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k10",
+        "type": "distance",
+        "refs": [
+         "p4",
+         "p1"
+        ],
+        "value": 52,
+        "expr": "GimbalDepth"
+       },
+       {
+        "id": "k11",
+        "type": "distance",
+        "refs": [
+         "p3",
+         "p4"
+        ],
+        "value": 67,
+        "expr": "BracketWidth - BracketThicknessBearingSide - BracketThicknessMotorSide - 2 * BracketSpacing"
+       },
+       {
+        "id": "k12",
+        "type": "hdist",
+        "refs": [
+         "p8",
+         "p4"
+        ],
+        "value": 6,
+        "expr": "GimbalBearingMountThickness"
+       },
+       {
+        "id": "k13",
+        "type": "hdist",
+        "refs": [
+         "p7",
+         "p3"
+        ],
+        "value": 9.25,
+        "expr": "GimbalMotorMountThickness"
+       },
+       {
+        "id": "k14",
+        "type": "vdist",
+        "refs": [
+         "O",
+         "p5"
+        ],
+        "value": 2.5,
+        "expr": "GimbalThickness"
+       },
+       {
+        "id": "k15",
+        "type": "pointOnLine",
+        "refs": [
+         "p9",
+         "l1"
+        ]
+       },
+       {
+        "id": "k16",
+        "type": "pointOnLine",
+        "refs": [
+         "p10",
+         "l3"
+        ]
+       },
+       {
+        "id": "k17",
+        "type": "vertical",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k18",
+        "type": "vertical",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k19",
+        "type": "equal",
+        "refs": [
+         "l9",
+         "l10"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F1"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F1",
+      "name": "Extrude18",
+      "end": "blind",
+      "depth": "=GimbalHeight",
+      "flip": false,
+      "regions": [
+       "l1"
+      ],
+      "id": "F2"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "top"
+      },
+      "offset": 0,
+      "flip": true,
+      "name": "Plane top flipped 0",
+      "visible": false,
+      "id": "F3"
+     },
+     {
+      "type": "sketch",
+      "name": "TrayCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -67,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -67,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -6,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -57.75,
+        "y": -37,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -6,
+        "y": -17
+       },
+       {
+        "id": "p8",
+        "x": -57.75,
+        "y": -17
+       },
+       {
+        "id": "p9",
+        "x": -57.75,
+        "y": -37
+       },
+       {
+        "id": "p10",
+        "x": -6,
+        "y": -37
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p1"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p9"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p10"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p10",
+        "p2": "p7"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l6"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l8"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l7"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "p5",
+         "p10"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "vdist",
+        "refs": [
+         "p8",
+         "p3"
+        ],
+        "value": 17,
+        "expr": "GimbalTrayHeight"
+       },
+       {
+        "id": "k7",
+        "type": "pointOnLine",
+        "refs": [
+         "p9",
+         "l3"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "coincident",
+        "refs": [
+         "p6",
+         "p9"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F4"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude19 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F3"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": -57.75,
+        "y": -37
+       },
+       {
+        "id": "q2",
+        "x": -6,
+        "y": -37
+       },
+       {
+        "id": "q3",
+        "x": -6,
+        "y": -17
+       },
+       {
+        "id": "q4",
+        "x": -57.75,
+        "y": -17
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q4"
+       },
+       {
+        "id": "e4",
+        "type": "line",
+        "p1": "q4",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F5"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F5",
+      "name": "Extrude19",
+      "end": "through",
+      "flip": false,
+      "id": "F6"
+     },
+     {
+      "type": "draft",
+      "name": "Draft1",
+      "neutral": {
+       "kind": "std",
+       "id": "front"
+      },
+      "faces": [
+       "F2.S.l3"
+      ],
+      "angle": "=-TOFDownAngle",
+      "flip": false,
+      "id": "F7"
+     },
+     {
+      "type": "draft",
+      "name": "Draft2",
+      "neutral": {
+       "kind": "std",
+       "id": "front"
+      },
+      "faces": [
+       "F2.S.l7"
+      ],
+      "angle": "=TOFDownAngle",
+      "flip": false,
+      "id": "F8"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 0,
+      "flip": true,
+      "name": "Plane right flipped 0",
+      "visible": false,
+      "id": "F9"
+     },
+     {
+      "type": "sketch",
+      "name": "RemoveWings",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 0,
+        "y": 52,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 37,
+        "y": 73.36195996,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 37,
+        "y": 61.814954576
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p4"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p5"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "pointOnLine",
+        "refs": [
+         "p6",
+         "l3"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l5"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l6"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F10"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude20 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F9"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "q1",
+        "x": 37,
+        "y": 61.814954576
+       },
+       {
+        "id": "q2",
+        "x": 37,
+        "y": 73.36195996
+       },
+       {
+        "id": "q3",
+        "x": 17,
+        "y": 61.814954576
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "line",
+        "p1": "q1",
+        "p2": "q2"
+       },
+       {
+        "id": "e2",
+        "type": "line",
+        "p1": "q2",
+        "p2": "q3"
+       },
+       {
+        "id": "e3",
+        "type": "line",
+        "p1": "q3",
+        "p2": "q1"
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F11"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F11",
+      "name": "Extrude20",
+      "end": "through",
+      "flip": false,
+      "id": "F12"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 6,
+      "flip": false,
+      "name": "Plane right 6",
+      "visible": false,
+      "id": "F13"
+     },
+     {
+      "type": "sketch",
+      "name": "BearingCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F13"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": -17,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": -17,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -37,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 0,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 0,
+        "y": 49.5,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": -17,
+        "y": 59.314954576,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": -17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p6"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p8",
+        "p2": "p7"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p8"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p4",
+        "p2": "O",
+        "construction": true
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p9",
+        "r": 11.5
+       },
+       {
+        "id": "c2",
+        "type": "circle",
+        "c": "p9",
+        "r": 13.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "midpoint",
+        "refs": [
+         "p9",
+         "l9"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 23,
+        "expr": "BearingInnerDiameter"
+       },
+       {
+        "id": "k3",
+        "type": "diameter",
+        "refs": [
+         "c2"
+        ],
+        "value": 27.2,
+        "expr": "BearingOuterDiamter"
+       }
+      ],
+      "visible": false,
+      "id": "F14"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude21 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F13"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -18.5,
+        "y": 30.907477288
+       },
+       {
+        "id": "c2",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 13.6
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 11.5
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F15"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F14",
+      "name": "Extrude21 (1)",
+      "end": "through",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F16"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F15",
+      "name": "Extrude21 (2)",
+      "end": "through",
+      "flip": false,
+      "id": "F17"
+     },
+     {
+      "type": "sketch",
+      "name": "Extrude22 profile 1",
+      "plane": {
+       "kind": "feature",
+       "id": "F13"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "c1",
+        "x": -18.5,
+        "y": 30.907477288
+       },
+       {
+        "id": "c2",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "e1",
+        "type": "circle",
+        "c": "c1",
+        "r": 13.6
+       },
+       {
+        "id": "e2",
+        "type": "circle",
+        "c": "c2",
+        "r": 11.5
+       }
+      ],
+      "constraints": [],
+      "visible": false,
+      "id": "F18"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F18",
+      "name": "Extrude22",
+      "end": "blind",
+      "depth": "=MotorBearingRetainerThickness",
+      "flip": true,
+      "id": "F19"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": 67,
+      "flip": false,
+      "name": "Plane right 67",
+      "visible": false,
+      "id": "F20"
+     },
+     {
+      "type": "sketch",
+      "name": "MotorCutout",
+      "plane": {
+       "kind": "feature",
+       "id": "F20"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": -37,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 0,
+        "y": 52,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": -37,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": -17,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": -18.5,
+        "y": 30.907477288
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p1"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p2",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p3"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p4",
+        "p2": "p5"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p4",
+        "p2": "O",
+        "construction": true
+       },
+       {
+        "id": "c1",
+        "type": "circle",
+        "c": "p6",
+        "r": 17.6
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "midpoint",
+        "refs": [
+         "p6",
+         "l6"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "diameter",
+        "refs": [
+         "c1"
+        ],
+        "value": 35.2,
+        "expr": "MotorOuterDiameter"
+       }
+      ],
+      "visible": false,
+      "id": "F21"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F21",
+      "name": "Extrude23",
+      "end": "blind",
+      "depth": "=GimbalMotorMountThickness-MotorBearingRetainerThickness",
+      "flip": false,
+      "regions": [
+       "c1"
+      ],
+      "id": "F22"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "right"
+      },
+      "offset": -57.75,
+      "flip": true,
+      "name": "Plane right flipped -57.75",
+      "visible": false,
+      "id": "F23"
+     },
+     {
+      "type": "sketch",
+      "name": "TrayMotorMountBolts hole points",
+      "plane": {
+       "kind": "feature",
+       "id": "F23"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "l10.end",
+        "x": 22.742640687,
+        "y": 26.664836601
+       },
+       {
+        "id": "p13",
+        "x": 14.257359313,
+        "y": 35.150117975
+       },
+       {
+        "id": "p11",
+        "x": 22.742640687,
+        "y": 35.150117975
+       },
+       {
+        "id": "p15",
+        "x": 14.257359313,
+        "y": 26.664836601
+       }
+      ],
+      "entities": [
+       {
+        "id": "pt1",
+        "type": "point",
+        "p": "l10.end"
+       },
+       {
+        "id": "pt2",
+        "type": "point",
+        "p": "p13"
+       },
+       {
+        "id": "pt3",
+        "type": "point",
+        "p": "p11"
+       },
+       {
+        "id": "pt4",
+        "type": "point",
+        "p": "p15"
+       },
+       {
+        "id": "csk1",
+        "type": "circle",
+        "c": "l10.end",
+        "r": 1.75
+       },
+       {
+        "id": "csk2",
+        "type": "circle",
+        "c": "p13",
+        "r": 1.75
+       },
+       {
+        "id": "csk3",
+        "type": "circle",
+        "c": "p11",
+        "r": 1.75
+       },
+       {
+        "id": "csk4",
+        "type": "circle",
+        "c": "p15",
+        "r": 1.75
+       }
+      ],
+      "constraints": [
+       {
+        "id": "kcsk1",
+        "type": "diameter",
+        "refs": [
+         "csk1"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk2",
+        "type": "diameter",
+        "refs": [
+         "csk2"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk3",
+        "type": "diameter",
+        "refs": [
+         "csk3"
+        ],
+        "value": 3.5
+       },
+       {
+        "id": "kcsk4",
+        "type": "diameter",
+        "refs": [
+         "csk4"
+        ],
+        "value": 3.5
+       }
+      ],
+      "visible": false,
+      "id": "F24"
+     },
+     {
+      "type": "hole",
+      "sketch": "F24",
+      "name": "Hole3",
+      "kind": "simple",
+      "diameter": 2.2,
+      "end": "blind",
+      "depth": 10,
+      "flip": false,
+      "id": "F25"
+     },
+     {
+      "type": "extrude",
+      "op": "cut",
+      "sketch": "F24",
+      "name": "Hole3 countersink",
+      "end": "blind",
+      "depth": "=(3.5 - 2.2) / 2 / tan(45)",
+      "flip": false,
+      "draft": 45,
+      "regions": [
+       "csk1",
+       "csk2",
+       "csk3",
+       "csk4"
+      ],
+      "id": "F26"
+     },
+     {
+      "type": "plane",
+      "mode": "offset",
+      "base": {
+       "kind": "std",
+       "id": "front"
+      },
+      "offset": 17,
+      "flip": false,
+      "name": "Plane front 17",
+      "visible": false,
+      "id": "F27"
+     },
+     {
+      "type": "sketch",
+      "name": "GimbalTray",
+      "plane": {
+       "kind": "feature",
+       "id": "F27"
+      },
+      "points": [
+       {
+        "id": "O",
+        "x": 0,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p1",
+        "x": 6,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p2",
+        "x": 6,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p3",
+        "x": 57.75,
+        "y": 0,
+        "fixed": true
+       },
+       {
+        "id": "p4",
+        "x": 57.75,
+        "y": 2.5,
+        "fixed": true
+       },
+       {
+        "id": "p5",
+        "x": 6,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p6",
+        "x": 6,
+        "y": 59.314954576,
+        "fixed": true
+       },
+       {
+        "id": "p7",
+        "x": 57.75,
+        "y": 59.314954576,
+        "fixed": true
+       },
+       {
+        "id": "p8",
+        "x": 57.75,
+        "y": 61.814954576,
+        "fixed": true
+       },
+       {
+        "id": "p9",
+        "x": 6,
+        "y": 0
+       },
+       {
+        "id": "p10",
+        "x": 57.75,
+        "y": 0
+       },
+       {
+        "id": "p11",
+        "x": 57.75,
+        "y": 61.814954576
+       },
+       {
+        "id": "p12",
+        "x": 6,
+        "y": 61.814954576
+       }
+      ],
+      "entities": [
+       {
+        "id": "l1",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p2"
+       },
+       {
+        "id": "l2",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p2"
+       },
+       {
+        "id": "l3",
+        "type": "line",
+        "p1": "p1",
+        "p2": "p4"
+       },
+       {
+        "id": "l4",
+        "type": "line",
+        "p1": "p3",
+        "p2": "p4"
+       },
+       {
+        "id": "l5",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p6"
+       },
+       {
+        "id": "l6",
+        "type": "line",
+        "p1": "p6",
+        "p2": "p7"
+       },
+       {
+        "id": "l7",
+        "type": "line",
+        "p1": "p5",
+        "p2": "p8"
+       },
+       {
+        "id": "l8",
+        "type": "line",
+        "p1": "p7",
+        "p2": "p8"
+       },
+       {
+        "id": "l9",
+        "type": "line",
+        "p1": "p9",
+        "p2": "p10"
+       },
+       {
+        "id": "l10",
+        "type": "line",
+        "p1": "p10",
+        "p2": "p11"
+       },
+       {
+        "id": "l11",
+        "type": "line",
+        "p1": "p11",
+        "p2": "p12"
+       },
+       {
+        "id": "l12",
+        "type": "line",
+        "p1": "p12",
+        "p2": "p9"
+       }
+      ],
+      "constraints": [
+       {
+        "id": "k1",
+        "type": "horizontal",
+        "refs": [
+         "l9"
+        ]
+       },
+       {
+        "id": "k2",
+        "type": "horizontal",
+        "refs": [
+         "l11"
+        ]
+       },
+       {
+        "id": "k3",
+        "type": "vertical",
+        "refs": [
+         "l10"
+        ]
+       },
+       {
+        "id": "k4",
+        "type": "vertical",
+        "refs": [
+         "l12"
+        ]
+       },
+       {
+        "id": "k5",
+        "type": "coincident",
+        "refs": [
+         "p2",
+         "p9"
+        ]
+       },
+       {
+        "id": "k6",
+        "type": "coincident",
+        "refs": [
+         "p3",
+         "p10"
+        ]
+       },
+       {
+        "id": "k7",
+        "type": "coincident",
+        "refs": [
+         "p8",
+         "p11"
+        ]
+       },
+       {
+        "id": "k8",
+        "type": "coincident",
+        "refs": [
+         "p5",
+         "p12"
+        ]
+       }
+      ],
+      "visible": false,
+      "id": "F28"
+     },
+     {
+      "type": "extrude",
+      "op": "add",
+      "sketch": "F28",
+      "name": "Extrude24",
+      "end": "blind",
+      "depth": "=GimbalThickness",
+      "flip": false,
+      "regions": [
+       "l5",
+       "l10",
+       "l1"
+      ],
+      "id": "F29"
+     }
+    ],
+    "seq": 30,
+    "rollback": null,
+    "material": "steel",
+    "counters": {},
+    "variables": [
+     {
+      "name": "BearingInnerCutout",
+      "expr": "16"
+     },
+     {
+      "name": "BearingInnerDiameter",
+      "expr": "23"
+     },
+     {
+      "name": "BearingOuterCutout",
+      "expr": "20"
+     },
+     {
+      "name": "BearingOuterDiamter",
+      "expr": "27.2"
+     },
+     {
+      "name": "BearingThickness",
+      "expr": "4"
+     },
+     {
+      "name": "BracketDepth",
+      "expr": "50"
+     },
+     {
+      "name": "BracketSpacing",
+      "expr": "1"
+     },
+     {
+      "name": "BracketHeight",
+      "expr": "65"
+     },
+     {
+      "name": "BracketStandPart",
+      "expr": "27.5"
+     },
+     {
+      "name": "BracketThicknessBearingSide",
+      "expr": "8"
+     },
+     {
+      "name": "BracketThicknessMotorSide",
+      "expr": "13"
+     },
+     {
+      "name": "BracketWidth",
+      "expr": "90"
+     },
+     {
+      "name": "ControlBoxHeight",
+      "expr": "30"
+     },
+     {
+      "name": "ControlBoxOverhang",
+      "expr": "15"
+     },
+     {
+      "name": "ControlBoxThickness",
+      "expr": "2"
+     },
+     {
+      "name": "ControlWireDia",
+      "expr": "1.5"
+     },
+     {
+      "name": "EncoderBoltSpreadLength",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderBoltSpreadWidth",
+      "expr": "11"
+     },
+     {
+      "name": "EncoderLength",
+      "expr": "23.8"
+     },
+     {
+      "name": "EncoderWidth",
+      "expr": "23.8"
+     },
+     {
+      "name": "GimbalBearingMountThickness",
+      "expr": "BearingThickness+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalCentreFromBottom",
+      "expr": "25"
+     },
+     {
+      "name": "GimbalDepth",
+      "expr": "52"
+     },
+     {
+      "name": "GimbalHeight",
+      "expr": "37"
+     },
+     {
+      "name": "GimbalMotorMountThickness",
+      "expr": "MotorThickness-MotorOuterSinkDepth-BracketSpacing+MotorBearingRetainerThickness"
+     },
+     {
+      "name": "GimbalSupportWidth",
+      "expr": "32"
+     },
+     {
+      "name": "GimbalThickness",
+      "expr": "2.5"
+     },
+     {
+      "name": "GimbalTrayHeight",
+      "expr": "TOFBoardHeight+4"
+     },
+     {
+      "name": "MotorBearingRetainerThickness",
+      "expr": "2"
+     },
+     {
+      "name": "MotorHubDia",
+      "expr": "10 mm"
+     },
+     {
+      "name": "MotorMountInnerBoltSpread",
+      "expr": "6"
+     },
+     {
+      "name": "MotorMountOuterBoltDia",
+      "expr": "2.5mm"
+     },
+     {
+      "name": "MotorMountOuterBoltSpread",
+      "expr": "9.5mm"
+     },
+     {
+      "name": "MotorOuterDiameter",
+      "expr": "35.2"
+     },
+     {
+      "name": "MotorOuterSinkDepth",
+      "expr": "6"
+     },
+     {
+      "name": "TOFBoardHeight",
+      "expr": "13"
+     },
+     {
+      "name": "TOFDownAngle",
+      "expr": "30"
+     },
+     {
+      "name": "MotorThickness",
+      "expr": "14.25"
+     },
+     {
+      "name": "MotorWireHoleDia",
+      "expr": "15mm"
+     }
+    ]
+   },
+   "fixed": true
+  }
+ ],
+ "seq": 4,
+ "rollback": null,
+ "material": "steel",
+ "counters": {},
+ "variables": [
+  {
+   "name": "BearingInnerCutout",
+   "expr": "16",
+   "unit": "mm"
+  },
+  {
+   "name": "BearingInnerDiameter",
+   "expr": "23",
+   "unit": "mm"
+  },
+  {
+   "name": "BearingOuterCutout",
+   "expr": "20",
+   "unit": "mm"
+  },
+  {
+   "name": "BearingOuterDiamter",
+   "expr": "27.2",
+   "unit": "mm"
+  },
+  {
+   "name": "BearingThickness",
+   "expr": "4",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketDepth",
+   "expr": "50",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketSpacing",
+   "expr": "1",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketHeight",
+   "expr": "65",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketStandPart",
+   "expr": "27.5",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketThicknessBearingSide",
+   "expr": "8",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketThicknessMotorSide",
+   "expr": "13",
+   "unit": "mm"
+  },
+  {
+   "name": "BracketWidth",
+   "expr": "90",
+   "unit": "mm"
+  },
+  {
+   "name": "ControlBoxHeight",
+   "expr": "30",
+   "unit": "mm"
+  },
+  {
+   "name": "ControlBoxOverhang",
+   "expr": "15",
+   "unit": "mm"
+  },
+  {
+   "name": "ControlBoxThickness",
+   "expr": "2",
+   "unit": "mm"
+  },
+  {
+   "name": "ControlWireDia",
+   "expr": "1.5",
+   "unit": "mm"
+  },
+  {
+   "name": "EncoderBoltSpreadLength",
+   "expr": "11",
+   "unit": "mm"
+  },
+  {
+   "name": "EncoderBoltSpreadWidth",
+   "expr": "11",
+   "unit": "mm"
+  },
+  {
+   "name": "EncoderLength",
+   "expr": "23.8",
+   "unit": "mm"
+  },
+  {
+   "name": "EncoderWidth",
+   "expr": "23.8",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalBearingMountThickness",
+   "expr": "BearingThickness+MotorBearingRetainerThickness",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalCentreFromBottom",
+   "expr": "25",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalDepth",
+   "expr": "52",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalHeight",
+   "expr": "37",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalMotorMountThickness",
+   "expr": "MotorThickness-MotorOuterSinkDepth-BracketSpacing+MotorBearingRetainerThickness",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalSupportWidth",
+   "expr": "32",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalThickness",
+   "expr": "2.5",
+   "unit": "mm"
+  },
+  {
+   "name": "GimbalTrayHeight",
+   "expr": "TOFBoardHeight+4",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorBearingRetainerThickness",
+   "expr": "2",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorHubDia",
+   "expr": "10 mm",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorMountInnerBoltSpread",
+   "expr": "6",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorMountOuterBoltDia",
+   "expr": "2.5mm",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorMountOuterBoltSpread",
+   "expr": "9.5mm",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorOuterDiameter",
+   "expr": "35.2",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorOuterSinkDepth",
+   "expr": "6",
+   "unit": "mm"
+  },
+  {
+   "name": "TOFBoardHeight",
+   "expr": "13",
+   "unit": "mm"
+  },
+  {
+   "name": "TOFDownAngle",
+   "expr": "30",
+   "unit": "deg"
+  },
+  {
+   "name": "MotorThickness",
+   "expr": "14.25",
+   "unit": "mm"
+  },
+  {
+   "name": "MotorWireHoleDia",
+   "expr": "15mm",
+   "unit": "mm"
+  }
+ ]
+}
