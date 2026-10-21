@@ -315,6 +315,7 @@ function App() {
   const measureRef = useRef(false);   // the Measure tool is on: picks add up instead of replacing
   const [histFilter, setHistFilter] = useState<HistoryFilter>('All');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const startSketchRef = useRef<(plane: 'front' | 'top' | 'right') => void>(() => {});   // the viewport callbacks are created once
   const editingIdRef = useRef<string | null>(null);   // read by the viewport callbacks, which are created once
   // a feature (a new Plane after OK, a clicked plane) and a Front / Top / Right row are never both selected: the Plane tool reads ONE base from the tree
   useEffect(() => { if (selectedId) setRefSel(null); }, [selectedId]);
@@ -431,7 +432,13 @@ function App() {
       onBodyDouble: (face) => bodyDoubleRef.current?.(face),
       onBoxSelect: (names, additive) => { if (pickBlocked()) return; if (!store.filters.value[MODE_FILTER[store.mode.value]]) return; store.select(names, additive); },
       onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
-      onRefPlanePick: (id) => { if (!store.filters.value.planes) return; setRefSel(id); setSelectedId(null); store.select([]); },
+      // hovering lights a plane up; a plain click on it starts the sketch (while something else is being edited or measured, it only selects)
+      onRefPlaneHover: (id) => setRefHover(id),
+      onRefPlanePick: (id) => {
+        if (!store.filters.value.planes) return;
+        if (!editingIdRef.current && !measureRef.current) { setSelectedId(null); store.select([]); startSketchRef.current(id); return; }
+        setRefSel(id); setSelectedId(null); store.select([]);
+      },
     });
     viewport = vp;
     let ownerDoc: unknown = null, ownerInserts: ReadonlySet<string> = new Set();
@@ -1675,6 +1682,7 @@ function App() {
       if (after) await after();
     })();
   };
+  startSketchRef.current = (plane) => startNewSketch(plane);
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
   // `cut` is only passed by the Cut commands (an explicit choice); `add` means "the default": nothing is remembered from the last extrude.
   const addExtrude = async (opArg: 'add' | 'cut', thin = false, sketchId?: string) => {

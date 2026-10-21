@@ -90,6 +90,8 @@ export interface ViewportOptions {
   onHover(name: string | null): void;
   /** A click landed on a reference plane (shown for an empty part or by the tree) and on no body face. */
   onRefPlanePick?(id: RefPlaneId): void;
+  /** The pointer is over a reference plane (and no body face), or left it (null): the plane lights up under the pointer. */
+  onRefPlaneHover?(id: RefPlaneId | null): void;
   /** A click on a reference-plane FEATURE (a datum plane drawn in the viewport) that hit nothing else. */
   onPlaneFeaturePick?(id: string, additive: boolean): void;
   /** A sketch point is being dragged: plane coordinates of the pointer. */
@@ -224,6 +226,7 @@ export class Viewport {
   private modPan: { x: number; y: number; moved: boolean } | null = null;
   private hoverPending: { x: number; y: number } | null = null;
   private lastHover: string | null = null;
+  private lastRefHover: RefPlaneId | null = null;
 
   // Sketch-edit mode: overlay of the solved sketch, faded body, point dragging.
   private sketchEdit: SketchEditShape | null = null;
@@ -903,7 +906,12 @@ export class Viewport {
     this.dom.style.cursor = cursorFor(ctx);
   }
 
+  private emitRefPlaneHover(id: RefPlaneId | null): void {
+    if (id !== this.lastRefHover) { this.lastRefHover = id; this.opts.onRefPlaneHover?.(id); }
+  }
+
   private onLeave = (): void => {
+    this.emitRefPlaneHover(null);
     this.opts.onPlaneCursor?.(null);
     this.opts.onHoverPoint?.(null);
     this.placement?.leave?.();
@@ -2467,6 +2475,11 @@ export class Viewport {
       if (this.opts.onHoverPoint) { const h = this.hit(p.x, p.y); this.opts.onHoverPoint(h ? [h.point.x, h.point.y, h.point.z] : null); }
       const name = this.pickName(p.x, p.y);
       if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); this.setHover(name); }
+      if (this.opts.onRefPlaneHover) {
+        let rp: RefPlaneId | null = null;
+        if (this.mode !== 'edge' && this.refPlanes.group.visible && !this.pickIntercept && !this.hit(p.x, p.y)) { this.raycaster.setFromCamera(this.ndc(p.x, p.y), this.camera); rp = this.refPlanes.pick(this.raycaster); }
+        this.emitRefPlaneHover(rp);
+      }
     }
     if (this.dirty) {
       this.dirty = false;
