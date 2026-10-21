@@ -543,6 +543,8 @@ export const en: Catalog = {
   'catalog.place.rotate.parts': 'A part turns about the plane normal when dropped on the ground or a plane; dropped on a face it keeps its orientation',
   'library.place.rotIgnored': 'Rotate has no effect when a part is dropped on a face (it would turn the body it stands on): the part keeps its orientation',
   'catalog.place.mirror': 'Mirror',
+  'catalog.place.wall': 'Sphere wall (mm)',
+  'catalog.place.wall.tip': 'Wall thickness of the next Sphere: 0 makes it solid, more makes it hollow.',
   'catalog.place.tip': 'Where the next shape stands. Dropping on a drawn plane (or its row in the tree) overrides Place on.',
   'catalog.status.face': 'On {face}',
   'catalog.snap.center': 'face centre', 'catalog.snap.midpoint': 'edge midpoint', 'catalog.snap.vertex': 'corner', 'catalog.snap.circle': 'circle centre', 'catalog.snap.feature': 'feature centre',

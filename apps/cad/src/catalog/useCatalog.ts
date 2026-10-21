@@ -9,7 +9,7 @@ import { Placer, type PlacerDeps } from './placer';
 import { catalogItem, shapeName, type BuildResult, type CatalogItem } from './shapes';
 import { buildBosl } from './bosl/build';
 import type { ScriptHost } from '@kit/script';
-import { armedItem, catalogActive, catalogPlane, ghost, libFetching, placeStatus, placementSetting, selectShapeFeature } from './state';
+import { armedItem, catalogActive, catalogPlane, ghost, libFetching, placeStatus, placementSetting, selectShapeFeature, sphereWall } from './state';
 import type { PlaneRef, UpAxis } from './placement';
 import { t } from '../i18n';
 import { itemLabel } from './labels';
@@ -117,6 +117,7 @@ export function useCatalog(d: CatalogDeps) {
       },
       upAxis: () => ref.current.upAxis(),
       placement: () => placementSetting.value,
+      sphereWall: () => sphereWall.value,
       planeAt: (x, y) => {
         const vp = ref.current.viewport();
         const std = vp?.refPlaneAt(x, y);

@@ -29,6 +29,8 @@ export interface PlacerDeps {
   upAxis?(): UpAxis;
   /** The Place-on / flip / rotate / mirror choice. */
   placement?(): PlacementSetting;
+  /** Wall thickness of an added sphere (0 or absent: solid). */
+  sphereWall?(): number;
   /** The reference plane (Front / Top / Right) or plane feature drawn under a screen position, or null. */
   planeAt?(x: number, y: number): PlaneRef | null;
   rayAt(x: number, y: number): { o: number[]; d: number[] } | null;
@@ -77,7 +79,7 @@ export class Placer {
   private async make(item: CatalogItem, target: PlaceTarget, doc: PartDoc, linked: boolean): Promise<BuildResult> {
     if (item.part) return this.deps.buildPart ? this.deps.buildPart(item, target, doc, linked) : { error: 'scriptFailed', hint: 'no library' };
     if (item.bosl) return this.deps.buildBosl ? this.deps.buildBosl(item, target, doc, linked) : { error: 'scriptFailed', hint: 'no script host' };
-    return buildShape(item, target, doc.seq);
+    return buildShape(item, target, doc.seq, undefined, this.deps.sphereWall?.() ?? 0);
   }
 
   private set(s: PlaceStatus): void { this.status = s; this.onStatus(s); }
@@ -150,7 +152,7 @@ export class Placer {
     }
     const doc = this.deps.document();
     if (!doc) return;
-    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length, spot.target.plane ? JSON.stringify(spot.target.plane) + JSON.stringify(spot.target.place) : '', item.bosl ? JSON.stringify(item.bosl.params) : ''].join('|');
+    const key = [item.id, spot.target.kind, spot.target.face ?? '', spot.target.point.map((v) => v.toFixed(2)).join(','), doc.seq, doc.features.length, spot.target.plane ? JSON.stringify(spot.target.plane) + JSON.stringify(spot.target.place) : '', item.bosl ? JSON.stringify(item.bosl.params) : '', item.kind === 'sphere' ? this.deps.sphereWall?.() ?? 0 : ''].join('|');
     this.set({ state: 'ready', face: spot.target.face ?? null, snap: spot.snap, size: defaultSize(spot.target), point: spot.target.point, plane: spot.target.plane, ground: spot.target.kind === 'ground' });
     if (this.wanted?.key === key || this.current?.key === key) return;
     this.wanted = { item, target: spot.target, key };

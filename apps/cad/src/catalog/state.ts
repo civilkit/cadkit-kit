@@ -44,3 +44,6 @@ export const catalogActive = signal(false);
 export const libFetching = signal<string | null>(null);
 /** The tab of the Catalog panel. */
 export const catalogTab = signal<'primitives' | 'libraries'>('primitives');
+
+/** Wall thickness of the next Sphere dropped from the Catalog (mm); 0: solid. */
+export const sphereWall = signal(0);

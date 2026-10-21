@@ -4,7 +4,7 @@ import { Icon } from '@kit/ui';
 import { t } from '../i18n';
 import { CATALOG, catalogItem, type CatalogItem } from './shapes';
 import { CatalogIcon } from './CatalogIcon';
-import { armedItem, catalogTab, ghost, libFetching, placeStatus, placementSetting } from './state';
+import { armedItem, catalogTab, ghost, libFetching, placeStatus, placementSetting, sphereWall } from './state';
 import { groundPlane, type StdPlane, type UpAxis } from './placement';
 import type { PlaceStatus } from './placer';
 import { itemLabel } from './labels';
@@ -50,6 +50,9 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
         <select value={String(s.rot)} onChange={(e) => set({ rot: Number((e.currentTarget as HTMLSelectElement).value) as typeof s.rot })}>
           {[0, 1, 2, 3].map((r) => <option key={r} value={String(r)}>{r * 90}&deg;</option>)}
         </select>
+      </label>
+      <label title={t('catalog.place.wall.tip')}>{t('catalog.place.wall')}
+        <input type="number" min="0" step="0.5" value={sphereWall.value} onInput={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); sphereWall.value = n > 0 ? n : 0; }} />
       </label>
       <label class="place-mirror"><input type="checkbox" checked={s.mirror} onChange={(e) => set({ mirror: (e.currentTarget as HTMLInputElement).checked })} />{t('catalog.place.mirror')}</label>
     </div>

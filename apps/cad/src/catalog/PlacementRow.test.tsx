@@ -50,3 +50,16 @@ describe('plane rows of the history tree', () => {
     at('c'); expect(planeRowAt(1, 1, (id) => id === 'P1')).toBeNull();
   });
 });
+
+describe('sphere wall field', () => {
+  it('writes the wall thickness to the sphereWall signal (negative or empty means solid)', async () => {
+    const { sphereWall } = await import('./state');
+    render(<PlacementRow upAxis="y" />);
+    const input = screen.getByLabelText('Sphere wall (mm)') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: '2' } });
+    expect(sphereWall.value).toBe(2);
+    fireEvent.input(input, { target: { value: '-1' } });
+    expect(sphereWall.value).toBe(0);
+    sphereWall.value = 0;
+  });
+});

@@ -124,7 +124,21 @@ export function slotProfile(u: number, v: number, l: number, w: number): Profile
   };
 }
 /** Half a disc on a diameter along x, with that diameter as the revolve axis: turned 360 degrees it is a sphere. */
-export function halfDiscProfile(u: number, v: number, r: number): Profile {
+export function halfDiscProfile(u: number, v: number, r: number, wall = 0): Profile {
+  if (wall > 0 && wall < r) {
+    // hollow: one closed half ring (outer arc e1 keeps its name), the inner arc runs the same way round
+    const i = r - wall;
+    return {
+      points: [O, { id: 'c', x: u, y: v }, { id: 'pa', x: u + r, y: v }, { id: 'pb', x: u - r, y: v }, { id: 'ia', x: u + i, y: v }, { id: 'ib', x: u - i, y: v }],
+      entities: [
+        { id: 'e1', type: 'arc', c: 'c', p1: 'pa', p2: 'pb' },
+        { id: 'e2', type: 'line', p1: 'pb', p2: 'ib' },
+        { id: 'e3', type: 'arc', c: 'c', p1: 'ia', p2: 'ib' },
+        { id: 'e4', type: 'line', p1: 'ia', p2: 'pa' },
+        { id: 'ax', type: 'line', p1: 'pb', p2: 'pa', construction: true },
+      ],
+    };
+  }
   return {
     points: [O, { id: 'c', x: u, y: v }, { id: 'pa', x: u + r, y: v }, { id: 'pb', x: u - r, y: v }],
     entities: [
@@ -139,8 +153,21 @@ export function halfDiscProfile(u: number, v: number, r: number): Profile {
  * that rises out of the face (`up`) or sinks into it. A whole sphere cannot be used: the kernel does not mesh the sphere face
  * once a boolean trims it with the face plane (volume is right, the surface is missing), but a hemisphere on the plane is fine.
  */
-export function domeProfile(r: number, up: boolean): Profile {
+export function domeProfile(r: number, up: boolean, wall = 0): Profile {
   const s = up ? 1 : -1;
+  if (wall > 0 && wall < r) {
+    const i = r - wall;
+    return {
+      points: [O, { id: 'c', x: 0, y: 0 }, { id: 'pa', x: r, y: 0 }, { id: 'pb', x: 0, y: s * r }, { id: 'ia', x: i, y: 0 }, { id: 'ib', x: 0, y: s * i }],
+      entities: [
+        up ? { id: 'e1', type: 'arc', c: 'c', p1: 'pa', p2: 'pb' } : { id: 'e1', type: 'arc', c: 'c', p1: 'pb', p2: 'pa' },
+        { id: 'e2', type: 'line', p1: 'pb', p2: 'ib' },
+        up ? { id: 'e3', type: 'arc', c: 'c', p1: 'ia', p2: 'ib' } : { id: 'e3', type: 'arc', c: 'c', p1: 'ib', p2: 'ia' },
+        { id: 'e4', type: 'line', p1: 'ia', p2: 'pa' },
+        { id: 'ax', type: 'line', p1: 'c', p2: 'pb', construction: true },
+      ],
+    };
+  }
   return {
     points: [O, { id: 'c', x: 0, y: 0 }, { id: 'pa', x: r, y: 0 }, { id: 'pb', x: 0, y: s * r }],
     entities: [
@@ -174,8 +201,9 @@ export const shapeName = (item: CatalogItem): string => item.part ? item.part.ti
 /**
  * The edit for one shape at one spot. `seq` is the document's next feature number: ids are chosen here (F<seq>...) so the
  * preview, the committed edit and the selection afterwards all name the same features. All ops go in one `edit` = one undo step.
+ * `wall` > 0 makes an added sphere hollow with that wall thickness (0: solid).
  */
-export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, sizeOverride?: number): BuildResult {
+export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, sizeOverride?: number, wall = 0): BuildResult {
   if (target.kind === 'ground' && item.op === 'cut') return { error: 'needsBody' };
   const size = sizeOverride ?? defaultSize(target);
   const ops: EditOp[] = [];
@@ -225,7 +253,8 @@ export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, 
     case 'slot': profile = slotProfile(u, v, size * 1.5, size * 0.5); feature = extrude({}, item.op === 'add' ? size * 0.5 : depth); break;
     case 'cone': profile = circleProfile(u, v, size / 2); feature = extrude({ draft: coneDraft(size / 2, depth) }); break;
     case 'sphere':
-      profile = dome ? domeProfile(size / 2, item.op === 'add') : halfDiscProfile(u, v, size / 2);
+      const w = item.op === 'add' ? wall : 0;     // only a sphere that adds can be hollow
+      profile = dome ? domeProfile(size / 2, item.op === 'add', w) : halfDiscProfile(u, v, size / 2, w);
       feature = { type: 'revolve', id: mainId, name, op: item.op, sketch: sketchId, axis: 'ax', end: 'blind', angle: 360 };
       break;
     default: {
