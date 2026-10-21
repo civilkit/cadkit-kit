@@ -6,8 +6,8 @@ import {
   type SketchDraft,
 } from './index';
 
-const BOLT = resolve(__dirname, '../../../../rebuild/tools/cases/flangeBolt.ckpart');
-const TRIM = resolve(__dirname, '../../../../rebuild/bench/parts/largeSampleTrim.ckpart');
+const BOLT = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'tools/cases/flangeBolt.ckpart');
+const TRIM = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'bench/parts/largeSampleTrim.ckpart');
 
 function boltSketch(id: string): Record<string, unknown> {
   const doc = JSON.parse(readFileSync(BOLT, 'utf8')) as { features: Array<Record<string, unknown>> };
