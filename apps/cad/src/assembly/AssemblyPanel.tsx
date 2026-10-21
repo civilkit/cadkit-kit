@@ -1,5 +1,6 @@
 // The Assembly panel (left tab "Outliner"): parts, mates, interference, bill of materials and exploded view in one place. All kernel and
 // viewer access comes in through `AsmHost`, so the panel is tested with a fake host.
+import { isPartFormat } from '../partVersion';
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { EditOp } from '@ck/session';
@@ -126,7 +127,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
   const accept = (name: string, text: string, source: string): boolean => {
     try {
       const d = JSON.parse(text) as Record<string, unknown>;
-      if (d.format !== 'ck-part' || !Array.isArray(d.features)) { host.notify(t('asm.insert.notPart'), 'error'); return false; }
+      if (!isPartFormat(d.format) || !Array.isArray(d.features)) { host.notify(t('asm.insert.notPart'), 'error'); return false; }
       setChosen({ title: name, part: d, source }); return true;
     } catch (e) { host.notify(t('asm.insert.failed', { message: (e as Error).message }), 'error'); return false; }
   };

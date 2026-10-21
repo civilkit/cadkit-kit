@@ -2,6 +2,7 @@
 // list; the kernel validates the features when the part is opened or inserted. Nothing in it is ever executed.
 import type { PartDoc } from '@ck/part-model';
 import { LibraryError } from './source';
+import { isPartFormat } from '../partVersion';
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
@@ -20,7 +21,7 @@ export function parsePart(bytes: Uint8Array): PartDoc {
   try { doc = JSON.parse(text); } catch { throw new LibraryError('part', 'json'); }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new LibraryError('part', 'notObject');
   const d = doc as Record<string, unknown>;
-  if (d.format !== undefined && d.format !== 'ck-part') throw new LibraryError('part', 'format');
+  if (d.format !== undefined && !isPartFormat(d.format)) throw new LibraryError('part', 'format');
   if (!Array.isArray(d.features) || d.features.length === 0) throw new LibraryError('part', 'features');
   const ids = new Set<string>();
   for (const f of d.features) {

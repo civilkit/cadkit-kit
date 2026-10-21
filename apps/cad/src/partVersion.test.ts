@@ -12,3 +12,15 @@ describe('isNewerPart', () => {
     expect(isNewerPart({ version: PART_VERSION + 1 })).toBe(true);
   });
 });
+
+describe('legacy format name', () => {
+  it('is recognised, and normalised in place', async () => {
+    const { isPartFormat, normalizePartFormat } = await import('./partVersion');
+    expect(isPartFormat('ck-part')).toBe(true);
+    expect(isPartFormat('ck-part')).toBe(true);
+    expect(isPartFormat('other')).toBe(false);
+    const d = { format: 'ck-part' };
+    normalizePartFormat(d);
+    expect(d.format).toBe('ck-part');
+  });
+});
