@@ -180,12 +180,13 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
   });
   it('Extrude, Revolve, Construction and Look normal each appear exactly once, and work', async () => {
     const { c, container } = await draw();
-    for (const a of ['sketch-extrude', 'sketch-revolve', 'sketch-construction', 'look-normal']) expect(container.querySelectorAll(`[data-action="${a}"]`).length, a).toBe(1);
+    for (const a of ['sketch-construction', 'look-normal']) expect(container.querySelectorAll(`[data-action="${a}"]`).length, a).toBe(1);
+    for (const a of ['sketch-extrude', 'sketch-revolve']) expect(container.querySelectorAll(`[data-slot="${a}"] button`).length, a).toBe(1);
     expect(container.querySelectorAll('[data-action="look-normal-chip"]').length).toBe(0);
     expect(container.querySelector('[data-action="look-normal"]')!.textContent).toBe('Look normal (N)');
     expect(container.querySelector('.look-hint')).not.toBeNull();
-    fireEvent.click(container.querySelector('[data-action="sketch-extrude"]')!); expect(c.onExtrude).toHaveBeenCalled();
-    fireEvent.click(container.querySelector('[data-action="sketch-revolve"]')!); expect(c.onRevolve).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-slot="sketch-extrude"] button')!); expect(c.onExtrude).toHaveBeenCalled();
+    fireEvent.click(container.querySelector('[data-slot="sketch-revolve"] button')!); expect(c.onRevolve).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-action="sketch-construction"]')!); expect(c.onConstruction).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-action="sketch-make-construction"]')!); expect(c.onToggleSelected).toHaveBeenCalled();
     fireEvent.click(container.querySelector('[data-action="look-normal"]')!); expect(c.onLookNormal).toHaveBeenCalled();
@@ -194,7 +195,7 @@ describe('sketchRibbonGroups (the contextual Sketch tab)', () => {
     const c = controls(); delete (c as { onExtrude?: unknown }).onExtrude; delete (c as { onRevolve?: unknown }).onRevolve;
     const { groups, container } = await draw(c);
     expect(groups.map((g) => g.id)).not.toContain('Make');
-    expect(container.querySelector('[data-action="sketch-extrude"]')).toBeNull();
+    expect(container.querySelector('[data-slot="sketch-extrude"] button')).toBeNull();
   });
   it('the Status group: badge opens the constraint list, Fully define, Snaps', async () => {
     const { c, container } = await draw();
