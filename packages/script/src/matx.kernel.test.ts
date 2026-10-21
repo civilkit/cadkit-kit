@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
 import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
@@ -22,7 +23,7 @@ async function host() {
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { matxScript } from './matx';
 
-const FC_FILE = '/path/to/work/scratch-matx/fc/vols2.json';   // scratch reference volumes: the tests below skip when it is absent
+const FC_FILE = resolve(__dirname, '../../../../scratch-matx/fc/vols2.json');   // scratch reference volumes: the tests below skip when it is absent
 const FC = (existsSync(FC_FILE) ? JSON.parse(readFileSync(FC_FILE, 'utf8')) : {}) as Record<string, number>;
 const sum = (re: RegExp) => Object.entries(FC).filter(([k]) => re.test(k)).reduce((a, [, v]) => a + v, 0);
 const GROUPS: Record<string, RegExp> = {
@@ -58,7 +59,7 @@ describe('matx components', { skip: !existsSync(FC_FILE) }, () => {
       const v = (await mp()).volume, ref = sum(GROUPS[g]);
       const row = `${g}\t${ref.toFixed(1)}\t${v.toFixed(1)}\t${((v - ref) / ref * 100).toFixed(3)}%\t${Date.now() - t0}ms\terrors=${JSON.stringify(r.errors).slice(0, 300)}`;
       console.log('ROW ' + row);
-      writeFileSync('/path/to/work/scratch-matxfix/rows.txt', row + '\n', { flag: 'a' });
+      writeFileSync(resolve(__dirname, '../../../../scratch-matxfix/rows.txt'), row + '\n', { flag: 'a' });
       expect(r.errors).toEqual([]);
     }, 300000);
   }
@@ -77,12 +78,12 @@ describe('matx whole case', () => {
     const r = await runScript(matxScript(), h);
     const v = (await mp()).volume, ref = Object.values(FC).reduce((a, b) => a + b, 0);
     console.log('ALL', JSON.stringify(r.errors).slice(0, 600), 'steps', (r.document as { features: unknown[] }).features.length, 'vol', v.toFixed(1), 'fc', ref.toFixed(1), ((v - ref) / ref * 100).toFixed(3) + '%', Date.now() - t0, 'ms', JSON.stringify(controller.bodyBox()));
-    writeFileSync(process.env.MATX_OUT ?? '/path/to/work/scratch-matxfix/case.json', JSON.stringify(r.document));
+    writeFileSync(process.env.MATX_OUT ?? resolve(__dirname, '../../../../scratch-matxfix/case.json'), JSON.stringify(r.document));
     expect(r.errors).toEqual([]);
     const m = controller.bodyFaces()!, st = meshStats(m);
     const val = await sessions.at(-1)!.validate();
     console.log('MESH', JSON.stringify({ tris: m.triFace.length, openEdges: st.open.length, noTri: st.noTri, valid: val.ok, issues: val.issues.length }));
-    writeFileSync('/path/to/work/scratch-matxfix/mesh.json', JSON.stringify({ positions: Array.from(m.positions), triFace: Array.from(m.triFace), faceIds: m.faceIds, open: st.open, issues: val.issues }));
+    writeFileSync(resolve(__dirname, '../../../../scratch-matxfix/mesh.json'), JSON.stringify({ positions: Array.from(m.positions), triFace: Array.from(m.triFace), faceIds: m.faceIds, open: st.open, issues: val.issues }));
     expect(val.issues).toEqual([]);
     expect(st.open).toEqual([]);
   }, 900000);

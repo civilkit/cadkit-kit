@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { findChrome, Page } from './ux/cdp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SCRATCH = process.env.PERF_SCRATCH ?? '/path/to/work/scratch-script0';
+const SCRATCH = process.env.PERF_SCRATCH ?? fileURLToPath(new URL('../../scratch-script0', import.meta.url));
 const a = process.argv.slice(2); const arg = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; };
 const LEGACY = a.includes('--legacy'), PROFILE = a.includes('--profile');
 const EXAMPLE = arg('example', 'matx-frame'), RUNS = +arg('runs', 3), PORT = +arg('port', 9900), VPORT = +arg('vite-port', 5600), OUT = arg('out', null);

@@ -13,7 +13,7 @@ import { SCENARIOS, WS } from './scenarios.mjs';
 import { diffPng } from './png.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const SCRATCH = '/path/to/work/scratch-uxreview';
+const SCRATCH = fileURLToPath(new URL('../../../scratch-uxreview', import.meta.url));
 const args = (() => { const o = {}; const a = process.argv.slice(2); for (let i = 0; i < a.length; i++) if (a[i].startsWith('--')) { const k = a[i].slice(2); o[k] = a[i + 1] && !a[i + 1].startsWith('--') ? a[++i] : true; } return o; })();
 const OUT = resolve(args.out ?? join(existsSync(SCRATCH) ? SCRATCH : ROOT, 'ux-shots'));
 const WIDTHS = String(args.widths ?? (args.quick ? '1440' : '1440,820')).split(',').map((w) => ({ w: +w, h: +w >= 1200 ? 900 : 1000 }));

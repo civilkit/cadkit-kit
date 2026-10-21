@@ -119,7 +119,7 @@ export function editorEnums() {
 
 /** String-union fields of the kernel's feature schema (part-model/features.ts): field -> values. Best effort; [] when the kernel checkout is absent. */
 export function schemaUnions() {
-  const fw = process.env.CK_REBUILD ?? '/path/to/work/rebuild';
+  const fw = process.env.CK_REBUILD ?? fileURLToPath(new URL('../../rebuild', import.meta.url));
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
   const src = readFileSync(f, 'utf8'); const out = {};
@@ -132,7 +132,7 @@ export function schemaUnions() {
 
 /** Per feature type: { field: [union values] } from the kernel's interfaces. {} when the kernel checkout is absent. */
 export function schemaFeatures() {
-  const fw = process.env.CK_REBUILD ?? '/path/to/work/rebuild';
+  const fw = process.env.CK_REBUILD ?? fileURLToPath(new URL('../../rebuild', import.meta.url));
   const f = join(fw, 'packages/part-model/src/features.ts');
   if (!existsSync(f)) return {};
   const src = readFileSync(f, 'utf8'); const out = {};

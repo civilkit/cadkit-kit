@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import {
   CUSTOM, DEFAULT_PREFS, ISO_SIZES, ISO_TABLE, defaultDepth, effectiveFit, holeDiameter, loadHolePrefs, newHole, patchEnd, patchFit, patchKind, patchSize, saveHolePrefs, sizeChoice,
 } from './holeData';
 
-const HOLE_RS = '/path/to/work/rebuild/crates/ck-model/src/features/hole.rs';
+const HOLE_RS = resolve(__dirname, '../../../../rebuild/crates/ck-model/src/features/hole.rs');
 
 describe('ISO table', () => {
   // The kernel-backed comparison is in holeData.kernel.test.ts; this one needs only the source file.

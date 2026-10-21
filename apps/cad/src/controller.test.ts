@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { Controller, type ViewSink, type KernelFactory, type SketchEditView } from './controller';
 import { createStore } from '@kit/store';
@@ -450,7 +451,7 @@ describe('controller preview and commit', { skip: !process.env.CK_WASM }, () => 
 
 // ---- sketch session (S1): open, drag with the solver, confirm/cancel ----
 
-const BOLT = '/path/to/work/rebuild/tools/cases/flangeBolt.ckpart';
+const BOLT = resolve(__dirname, '../../../../rebuild/tools/cases/flangeBolt.ckpart');
 const boltDoc = (): PartDoc => JSON.parse(readFileSync(BOLT, 'utf8')) as PartDoc;
 const R = 7.505553499465135; // head construction-circle radius in the fixture
 

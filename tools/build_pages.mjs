@@ -14,7 +14,7 @@ import { scanDir } from './pages_leakcheck.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
-const FW = process.env.CK_REBUILD || '/path/to/work/rebuild';
+const FW = process.env.CK_REBUILD || fileURLToPath(new URL('../../rebuild', import.meta.url));
 const die = (m) => { console.error(`build:pages: ${m}`); process.exit(1); };
 const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
 const fmt = (n) => `${n} bytes (${kb(n)})`;

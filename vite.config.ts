@@ -3,7 +3,7 @@ import preact from '@preact/preset-vite'
 import { fileURLToPath } from 'node:url'
 
 // the kernel repo checkout whose packages (session, part-model, kernel-client) the kit uses; CK_REBUILD overrides it
-const FW = process.env.CK_REBUILD ?? '/path/to/work/rebuild'
+const FW = process.env.CK_REBUILD ?? fileURLToPath(new URL('../rebuild', import.meta.url))
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 // Static-site build (tools/build_pages.mjs): PAGES_BUILD=1 puts the output in PAGES_OUT, serves from PAGES_BASE (default './', which works

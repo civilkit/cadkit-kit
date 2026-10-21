@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { scanText, scanDir, extractStrings } from './pages_leakcheck.mjs';
 
 const ids = (t: string) => scanText(t).map((h) => h.id);
@@ -66,7 +66,7 @@ describe('extractStrings', () => {
 });
 
 describe('scanDir', () => {
-  const mk = () => mkdtempSync(join('/path/to/work/scratch-qa-pages', 'leak-'));
+  const mk = () => mkdtempSync(join(resolve(__dirname, '../../scratch-qa-pages'), 'leak-'));
   it('reads text files and wasm strings, rejects .map files, and honours allow entries that have a reason', () => {
     const d = mk();
     try {

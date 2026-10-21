@@ -1,6 +1,7 @@
 // @vitest-environment node
 // Kernel-backed: build parts through a Session, render them, check what a reader would see. PNGs go to SNAPSHOT_OUT
 // (default: the scratch directory) so they can be opened and eyeballed.
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { Session } from '@ck/session';
@@ -10,7 +11,7 @@ import { renderSnapshot } from './render';
 import { diffImages } from './diff';
 import { decodePng } from './png';
 
-const OUT = process.env.SNAPSHOT_OUT ?? '/path/to/work/scratch-snapshot';
+const OUT = process.env.SNAPSHOT_OUT ?? fileURLToPath(new URL('../../../../scratch-snapshot', import.meta.url));
 const circle = (id: string, r: number) => ({
   type: 'sketch', id, plane: { kind: 'std', id: 'front' },
   points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 0, y: 0, fixed: true }],

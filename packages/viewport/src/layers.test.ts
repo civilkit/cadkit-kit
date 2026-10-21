@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import {
   sketchPolylines, curvePolylines, planeOutlines, axisLines,
@@ -203,7 +204,7 @@ describe('layers: curves, planes, axes', () => {
 
 // ---- kernel fixture: flangeBolt has a circle, a hex-head sketch, a helix curve and a datum plane ----
 const wasm = process.env.CK_WASM;
-const fixture = '/path/to/work/rebuild/tools/cases/flangeBolt.ckpart';
+const fixture = resolve(__dirname, '../../../../rebuild/tools/cases/flangeBolt.ckpart');
 
 describe('layers: flangeBolt fixture', { skip: !(wasm && existsSync(fixture)) }, () => {
   it('bodyForView sketch/curve/plane data converts to polylines', async () => {

@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
+import { resolve } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import {
   fromFeature, toFeature, movePoint, addConstraint, removeConstraint,
   type SketchDraft,
 } from './index';
 
-const BOLT = '/path/to/work/rebuild/tools/cases/flangeBolt.ckpart';
-const TRIM = '/path/to/work/rebuild/bench/parts/largeSampleTrim.ckpart';
+const BOLT = resolve(__dirname, '../../../../rebuild/tools/cases/flangeBolt.ckpart');
+const TRIM = resolve(__dirname, '../../../../rebuild/bench/parts/largeSampleTrim.ckpart');
 
 function boltSketch(id: string): Record<string, unknown> {
   const doc = JSON.parse(readFileSync(BOLT, 'utf8')) as { features: Array<Record<string, unknown>> };

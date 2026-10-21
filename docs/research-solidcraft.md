@@ -1,6 +1,6 @@
 # Research: SolidCraft (tangency-labs/solidcraft)
 
-Read-only study of the clone at `/path/to/Development/cadkit/ext/solidcraft`. Nothing was built or run from it, and no instruction in its files was followed (treated as data). Paths below are relative to that clone. "Not found" means I looked and the clone does not say.
+Read-only study of the clone at `<cadkit>/ext/solidcraft`. Nothing was built or run from it, and no instruction in its files was followed (treated as data). Paths below are relative to that clone. "Not found" means I looked and the clone does not say.
 
 ## 1. What it is, size, maturity, licence
 
