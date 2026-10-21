@@ -774,6 +774,7 @@ export const en: Catalog = {
   'opt.loft.surface': 'Make a surface (not a solid)', 'opt.loft.startTension': 'Start tension (0 = free)', 'opt.loft.endTension': 'End tension (0 = free)',
   'opt.sweep.profile': 'Profile and path', 'opt.sweep.profileSketch': 'Profile (closed)', 'opt.sweep.pathSketch': 'Path (open)',
   'opt.sweep.guides': 'Guide curves', 'opt.sweep.guidesNote': 'Curves the profile scales to follow', 'opt.sweep.addGuide': 'Add guide', 'opt.sweep.twist': 'Twist over the path',
+  'opt.pattern.axis': 'Axis', 'opt.pattern.axis.x': 'X axis', 'opt.pattern.axis.y': 'Y axis', 'opt.pattern.axis.z': 'Z axis',
   'opt.pattern.threads': 'Threads', 'opt.pattern.carry': 'Carry threads', 'opt.pattern.carryOn': 'The threads of the repeated features are copied onto every instance. Edit the source thread and the copies follow.', 'opt.pattern.carryOff': 'The copies are plain holes and shafts; list a thread feature under the features to repeat to copy just that one.',
   'opt.section.fill': 'Patch', 'opt.fill.continuity': 'Continuity', 'opt.fill.fairing': 'Fairing', 'opt.fill.merge': 'Merge with the surface',
   'opt.fill.continuity.G0': 'G0 (touching)', 'opt.fill.continuity.G1': 'G1 (tangent)', 'opt.fill.continuity.G2': 'G2 (curvature)', 'opt.fill.continuity.G3': 'G3',

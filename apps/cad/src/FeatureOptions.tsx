@@ -373,8 +373,18 @@ function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): 
   const carry = carriesThreads(p.eff);
   const name = (type: string) => t('feature.' + type, undefined, type);
   const anyThread = features.some((f) => f.type === 'thread' && !f.suppressed);
-  if (!infos.length && !anyThread) return null;
+  // The kernel turns a circular pattern about a world axis through the origin only (x, y or z); other references are an error.
+  const ax = p.eff.axis as { kind?: string; axis?: string } | undefined;
+  const axisNode = p.eff.type === 'cpattern' ? (
+    <Section id="patternAxis" title={t('opt.pattern.axis')}>
+      <Select name="axis" label={t('opt.pattern.axis')} value={ax?.kind === 'axis' && ax.axis ? ax.axis : 'z'} options={[['x', t('opt.pattern.axis.x')], ['y', t('opt.pattern.axis.y')], ['z', t('opt.pattern.axis.z')]]}
+        onChange={(v) => p.change({ axis: { kind: 'axis', axis: v } })} />
+    </Section>
+  ) : null;
+  if (!infos.length && !anyThread) return axisNode;
   return (
+    <>
+    {axisNode}
     <Section id="patternThreads" title={t('opt.pattern.threads')}>
       <div class="fedit-seeds" data-testid="pattern-seeds">
         {infos.map((i) => <div key={i.id} class="fedit-seed" data-seed={i.id}>{seedLabel(i, name)}</div>)}
@@ -382,6 +392,7 @@ function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): 
       <Check name="carryThreads" label={t('opt.pattern.carry')} value={carry} onChange={(v) => p.change(carryPatch(v))} />
       <div class="fedit-hint-line">{t(carry ? 'opt.pattern.carryOn' : 'opt.pattern.carryOff')}</div>
     </Section>
+    </>
   );
 }
 

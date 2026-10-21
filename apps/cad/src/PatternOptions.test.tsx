@@ -47,3 +47,20 @@ describe('pattern and mirror: threads', () => {
     expect([...mi.container.querySelectorAll('[data-seed]')].map((e) => e.textContent)).toEqual(['Hole F4 + Thread F5', 'Thread F5']);
   });
 });
+
+describe('circular pattern: axis', () => {
+  const cp = { type: 'cpattern', id: 'F7', seeds: ['F4'], count: 4, angle: 360, equal: true, axis: { kind: 'axis', axis: 'x' } };
+  const sel = (m: ReturnType<typeof mount>) => m.container.querySelector('[data-path="axis"] select') as HTMLSelectElement;
+  it('shows the stored world axis and writes a new one as {kind:"axis"}', () => {
+    const m = mount(cp);
+    expect(sel(m).value).toBe('x');
+    fireEvent.change(sel(m), { target: { value: 'y' } });
+    expect(m.drafts.at(-1)).toMatchObject({ axis: { kind: 'axis', axis: 'y' } });
+  });
+  it('a pattern without a stored axis shows z; a linear pattern has no axis picker', () => {
+    const { axis: _a, ...bare } = cp;
+    expect(sel(mount(bare)).value).toBe('z');
+    cleanup();
+    expect(mount({ type: 'lpattern', id: 'F8', seeds: ['F4'], count: 3, spacing: 10 }).container.querySelector('[data-path="axis"]')).toBeNull();
+  });
+});
