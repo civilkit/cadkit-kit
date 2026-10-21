@@ -1333,7 +1333,9 @@ function worldAxis(a: 'x' | 'y' | 'z' | number[] | EdgeSel, ctx: Ctx, line: numb
 installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveFaceSel, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
 
 // ---- script-level state: the runner collects what the script built ----
-export interface ScriptState { parts: PartBuilder[]; vars: Record<string, number>; varDefs: Array<{ name: string; expr: string }> }
+export interface ScriptState { parts: PartBuilder[]; vars: Record<string, number>; varDefs: Array<{ name: string; expr: string }>;
+  /** Variable values that win over the ones written in `variables({...})`: what the Variables tab holds after an edit. */
+  overrides?: Record<string, string> }
 export function makeApi(state: ScriptState) {
   const evalExpr = (text: string): number => {
     const names = Object.keys(state.vars);
@@ -1371,8 +1373,9 @@ export function makeApi(state: ScriptState) {
      */
     variables: (defs: Record<string, number | string>): Record<string, number> => {
       for (const [name, v] of Object.entries(defs)) {
-        const text = String(v).replace(/^=/, '');
-        state.vars[name] = typeof v === 'number' ? v : evalExpr(text);
+        const given = state.overrides?.[name];
+        const text = given !== undefined ? given.replace(/^=/, '') : String(v).replace(/^=/, '');
+        state.vars[name] = typeof v === 'number' && given === undefined ? v : evalExpr(text);
         state.varDefs.push({ name, expr: text });
       }
       return { ...state.vars };

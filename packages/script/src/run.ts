@@ -33,6 +33,8 @@ export interface KernelFacts {
 export interface BuildReply { errors: Array<[string, { code?: string; message?: string }]>; geometry?: Geometry }
 export interface Progress { phase: 'building' | 'loading'; done: number; total: number; elapsedMs: number }
 export interface RunOptions {
+  /** Variable expressions that replace the defaults written in `variables({...})` (the Variables tab after an edit). */
+  vars?: Record<string, string>;
   /** Force the old path (one edit per step, a view per step) for comparison. Default: batched when the host can build. */
   batched?: boolean;
   /** Steps compiled between two headless builds (progress, early errors, cancel points). Infinity: one build for everything. */
@@ -89,8 +91,8 @@ const AsyncFunction = Object.getPrototypeOf(async function () { /* constructor p
  * awaits a read-back (`await part.volume()`) runs as an async function: it records up to the first read and suspends;
  * `finished` settles when it ends, and the runner resolves each read in turn (see runScript).
  */
-export function launch(code: string): { state: ScriptState; errors: ScriptError[]; finished: Promise<void> | null; flags: { done: boolean } } {
-  const state: ScriptState = { parts: [], vars: {}, varDefs: [] };
+export function launch(code: string, overrides?: Record<string, string>): { state: ScriptState; errors: ScriptError[]; finished: Promise<void> | null; flags: { done: boolean } } {
+  const state: ScriptState = { parts: [], vars: {}, varDefs: [], ...(overrides ? { overrides } : {}) };
   const errors: ScriptError[] = [];
   const flags = { done: false };
   if (code.length > MAX_SOURCE) return { state, errors: [{ line: 1, message: `script is longer than ${MAX_SOURCE} characters` }], finished: null, flags };
@@ -120,8 +122,8 @@ export function launch(code: string): { state: ScriptState; errors: ScriptError[
 }
 
 /** Evaluate only: the recorded steps, variables and the part name. Never touches a kernel; a script that awaits a read-back records only up to the first read. */
-export function evaluate(code: string): { state: ScriptState; errors: ScriptError[] } {
-  const { state, errors } = launch(code);
+export function evaluate(code: string, overrides?: Record<string, string>): { state: ScriptState; errors: ScriptError[] } {
+  const { state, errors } = launch(code, overrides);
   return { state, errors };
 }
 
@@ -175,7 +177,7 @@ async function awaitScript(finished: Promise<void> | null, flags: { done: boolea
 
 /** Compile the steps to ops against `geo` supplied per step; used by the runner and by tests that have no kernel. */
 export async function runScript(code: string, host: ScriptHost, base: Record<string, unknown> = {}, opts: RunOptions = {}): Promise<ScriptResult> {
-  const { state, errors, finished, flags } = launch(code);
+  const { state, errors, finished, flags } = launch(code, opts.vars);
   // an async script that threw before its first await reports through its promise: let it settle first
   if (finished) await macrotask();
   if (errors.length) return { ops: [], document: null, errors };

@@ -69,7 +69,7 @@ import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
 import { faceVolumes, hideOthers, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
-import { runScript } from '@kit/script';
+import { evaluate as evaluateScript, runScript } from '@kit/script';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
 import { findMaterial, loadUseColour, appearanceOfMaterial } from './materials';
@@ -2046,7 +2046,41 @@ function App() {
     sources: () => liveSources(doc),
   };
   const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
-  const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); redraw((n) => n + 1); return r; }} />;
+  // what the script host needs from the app: build into the open document, or scratch builds when the kernel can
+  const scriptHostFor = (loadDoc: (d: Record<string, unknown>) => Promise<unknown>) => ({
+    load: loadDoc as never,
+    edit: async (ops: never, why?: string) => (await controller.edit(ops, why)) as never,
+    geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
+    ...(controller.canScratchBuild() ? {
+      build: (d: unknown, view?: unknown) => controller.scratchBuild(d as never, view as never) as never,
+      release: () => controller.scratchRelease(),
+      facts: (need: never) => controller.scratchFacts(need),
+    } : {}),
+  });
+  /** A short fingerprint of the feature list, kept with the script so a later variable edit can tell the model is still exactly what the script built. */
+  const featureSig = (features: unknown): string => { const j = JSON.stringify(features ?? []); let h = 5381; for (let i = 0; i < j.length; i++) h = ((h * 33) ^ j.charCodeAt(i)) >>> 0; return h.toString(36) + ':' + j.length; };
+  /** After a Variables-tab edit: a document made by a script is rebuilt from that script with the edited values, if nothing was changed by hand since. */
+  const rerunScriptForVariables = async (): Promise<void> => {
+    const d = controller.document() as unknown as { script?: string; scriptSig?: string; name?: string; features?: unknown[]; variables?: Array<{ name: string; expr: string }> } | null;
+    const code = d?.script;
+    if (!d || typeof code !== 'string' || !code) return;
+    const declared = new Set(evaluateScript(code).state.varDefs.map((v) => v.name));
+    if (!declared.size) return;   // this script has no variables to follow
+    if (d.scriptSig !== featureSig(d.features)) { store.notify(t('script.varsStale'), 'warn'); return; }
+    const all = d.variables ?? [];
+    const vars = Object.fromEntries(all.filter((v) => declared.has(v.name)).map((v) => [v.name, v.expr]));
+    const extras = all.filter((v) => !declared.has(v.name));   // variables added by hand are kept
+    store.busy.value = true; scriptRunning = true;
+    try {
+      const r = await runScript(code, scriptHostFor((dd) => load(JSON.stringify({ ...emptyPart(d.name ?? 'Part'), ...dd, name: d.name }))), extras.length ? { variables: extras } : {}, { vars });
+      if (r.errors.length) { store.notify(r.errors[0].message, 'error'); return; }
+      controller.setDocExtra('script', code);
+      controller.setDocExtra('scriptSig', featureSig(controller.document()?.features));
+      store.notify(t('script.rebuilt'));
+      setLeftTab('Variables');   // the load put the panel back on the feature tree: stay where the edit was made
+    } finally { store.busy.value = false; scriptRunning = false; }
+  };
+  const variablesPanel = <VariablesPanel doc={doc} onApply={async (patch, reason) => { const r = await controller.applyDocPatch(patch, reason); if (r.ok && patch.variables) await rerunScriptForVariables(); redraw((n) => n + 1); return r; }} />;
   // Bodies: view state kept in the document (no feature, no undo step); the viewport is told at once
   const setBodyField = (key: 'appearance' | 'bodyNames' | 'view', value: unknown | null): void => {
     controller.setDocExtra(key, value && typeof value === 'object' && Object.keys(value).length ? value : null);
@@ -2073,18 +2107,10 @@ function App() {
       // while it runs: busy (the autosave waits), and the part that is open stays as it is until the finished list is opened in one step
       store.busy.value = true; scriptRunning = true;
       try {
-        const r = await runScript(code, {
-          load: (d) => load(JSON.stringify({ ...emptyPart(files.names.next()), ...d })),
-          edit: async (ops, why) => (await controller.edit(ops, why)) as never,
-          geometry: () => ({ mesh: controller.bodyFaces(), edges: controller.bodyEdges(), box: controller.bodyBox() }),
-          ...(controller.canScratchBuild() ? {
-            build: (d, view) => controller.scratchBuild(d as never, view) as never,
-            release: () => controller.scratchRelease(),
-            facts: (need) => controller.scratchFacts(need),
-          } : {}),
-        }, {}, { ...run, ...(new URLSearchParams(location.search).has('legacyScript') ? { batched: false } : {}) });
+        const r = await runScript(code, scriptHostFor((d) => load(JSON.stringify({ ...emptyPart(files.names.next()), ...d }))), {}, { ...run, ...(new URLSearchParams(location.search).has('legacyScript') ? { batched: false } : {}) });
         if (r.cancelled) { store.notify(t('script.cancelled')); resolve([]); return; }
         controller.setDocExtra('script', code);
+        controller.setDocExtra('scriptSig', featureSig(controller.document()?.features));
         redraw((n) => n + 1);
         setLeftTab('Script');
         if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));

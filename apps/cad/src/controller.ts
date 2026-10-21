@@ -168,7 +168,7 @@ export class Controller {
       const reset = () => {
         // viewer-state fields kept in the file: the exploded view and the drawing sheet
         this.docExtra = {}; this.extraRev++;
-        for (const k of ['explode', 'drawing', 'script', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
+        for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
         this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
         this.tipNoteV = null; this.limits = new Map();
       };

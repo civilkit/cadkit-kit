@@ -51,6 +51,8 @@ export const en: Catalog = {
   'bodies.preset.glass': 'Glass', 'bodies.preset.chrome': 'Chrome', 'bodies.reset': 'Reset',
   'bodies.default': 'Body {n}',
   'script.title': 'Script',
+  'script.rebuilt': 'Rebuilt from the script with your variable values',
+  'script.varsStale': 'The model was changed after the script ran, so the script was not rerun. Press Run in the Script tab to rebuild from the script (this replaces those changes).',
   'script.run': 'Run',
   'script.cancel': 'Cancel',
   'script.cancelling': 'Cancelling...',
