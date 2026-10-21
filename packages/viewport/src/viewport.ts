@@ -575,7 +575,7 @@ export class Viewport {
     if (!g) return;
     this.scene.remove(g);
     g.traverse((o) => {
-      if (o instanceof THREE.LineSegments || o instanceof THREE.Line) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
+      if (o instanceof THREE.LineSegments || o instanceof THREE.Line || o instanceof LineSegments2) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); }
     });
   }
 
@@ -594,6 +594,7 @@ export class Viewport {
     const frame = v.frame as never;
     const upp = this.sketchUnitsPerPixel();
     const solid: number[] = [];
+    const strokes: number[] = [];   // the lines and circles being drawn: thick, with a dark casing, so they read over the grid and a pale face
     const dotted: number[] = [];
     const msolid: number[] = [];
     const mdotted: number[] = [];
@@ -602,14 +603,14 @@ export class Viewport {
     for (const sh of shapes) {
       const mdl = sh.kind !== 'line' && sh.kind !== 'circle' && sh.model === true;
       const S = mdl ? msolid : solid, D = mdl ? mdotted : dotted;
-      if (sh.kind === 'line') seg(S, sh.a, sh.b);
+      if (sh.kind === 'line') seg(strokes, sh.a, sh.b);
       else if (sh.kind === 'guide') seg(D, sh.a, sh.b);
       else if (sh.kind === 'circle') {
         const n = 64;
         for (let i = 0; i < n; i++) {
           const a0 = (i / n) * Math.PI * 2;
           const a1 = ((i + 1) / n) * Math.PI * 2;
-          seg(S, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
+          seg(strokes, { x: sh.c.x + sh.r * Math.cos(a0), y: sh.c.y + sh.r * Math.sin(a0) }, { x: sh.c.x + sh.r * Math.cos(a1), y: sh.c.y + sh.r * Math.sin(a1) });
         }
       } else {
         const k = upp * (sh.style === 'anchor' ? ANCHOR_HALF_PX : MARKER_HALF_PX);
@@ -619,6 +620,19 @@ export class Viewport {
     }
     const group = new THREE.Group();
     group.userData.pickable = false;
+    if (strokes.length) {
+      // a wide dark casing under the sketch-orange stroke: the 1 px line was lost between the grid lines on a pale face
+      for (const [width, color, opacity, order] of [[5, 0x0d1117, 0.55, 18], [2.6, 0xe8730c, 1, 20]] as const) {
+        const geo = new LineSegmentsGeometry();
+        geo.setPositions(strokes);
+        const mat = new LineMaterial({ color, linewidth: width, worldUnits: false, depthTest: false, transparent: true, opacity });
+        mat.resolution.set(Math.max(1, this.host.clientWidth), Math.max(1, this.host.clientHeight));
+        const fat = new LineSegments2(geo, mat);
+        fat.renderOrder = order;
+        fat.userData.pickable = false;
+        group.add(fat);
+      }
+    }
     if (solid.length) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(solid), 3));
