@@ -106,7 +106,7 @@ Validation: `rake` and `pitchProgress` are errors outside their ranges; `rootPit
 
 Features tab, Create group, Propeller (or Catalog, Generators), then **Family: Marine helicoid** on the Size step (a new propeller only; an edit opens the family that made it). Same three steps as the
 airfoil family: Size (presets outboard 3-blade, inboard 4-blade, quiet 5-blade skewed; diameter, hub, bore, blades 2..6, right / left hand), Blade (pitch / diameter at the tip, progressive pitch, rake, expanded area ratio, chord shape,
-skew, thickness at root and tip, root embed, section spacing) and Review (readout, checks, notes). The record lives on the hub sketch as `prop` with `family: "marine"`; the airfoil reader
+skew, thickness at root and tip, where the foil is thickest, edge thickness, tip rounding, root embed, section spacing) and Review (readout, checks, notes). The record lives on the hub sketch as `prop` with `family: "marine"`; the airfoil reader
 (`readProp`) leaves such a record alone and `readMarine` leaves an airfoil one alone, so double-clicking any feature of a marine propeller opens the marine panel.
 
 * Marine hub, bore and blade count are plain numbers, not document variables (the section count changes with almost every edit of the blade, so a variable cannot drive the pattern alone).
@@ -185,3 +185,17 @@ Open kernel items from this probe: thicken of a trimmed free-form sheet; the hub
 The hub boolean sometimes leaves an open edge where a blade edge meets the hub cylinder, depending on where the section planes fall: pitch / diameter 0.8 fails at 4 and 5 degrees and builds at 6 and 7;
 0.7 fails at 4, 5 and 6 and builds at 7; 0.75 fails at 5. The refusal is a structured `booleanFailed` with a hint (`marineData.kernel.test.ts` pins this). Ray ends within 0.6 mm of the hub surface
 are moved off it (a tangent contact), which removed some failures but not these. The wizard retries with another spacing (7, 6, 4, 3) before telling the user (see "The marine wizard").
+
+Two causes of that sensitivity were found and removed (marine v3), which is why pitch 0.8 now builds at 4, 5, 6 and 7 degrees and the presets build at 5:
+
+* A section plane through the hub cylinder's seam (angle 0): an odd number of rays puts one at the blade's middle, which is about 0. The ray grid is shifted (up to 0.4 step) until every ray is at least 1.2 degrees off the seam, and no extra ray is inserted there.
+* A sliver section: the first or last ray of a blade sometimes clears the hub by under a millimetre. Rays that end less than 4 mm outside the hub surface are dropped.
+
+Extra rays are also refused where an end falls within 6 mm of the hub surface (except in the middle of the embedded stretch): refining the root-side corner there makes the fuse fail again.
+
+### Blade foil and outline (marine v3)
+
+* Normal thickness is t(r) x f(s), f = e + (1 - e) g(s): g is an ellipse from the nose to the maximum (`maxThickAt`, default 0.45) and a parabola behind it; `edgeThick` is e (default 0.06); the absolute edge is never below 0.3 mm (e is raised where the blade is thin, near the tip). `tipRounding` (default 0.15 of the span) closes the chord along an ellipse with a 5 % floor, so the tip is round.
+* Outline: the section lines are radial, so the rim is a polyline through their ends. Extra rays are inserted where the tip-side end jumps by more than 5 % of the tip radius (corners), and on the outer blade (ends beyond 0.6 R) where the rim turns by more than a kink measure (turn x shorter piece, 0.8 mm at a 150 mm tip radius), down to 1 degree between rays. A 5-blade 300 mm propeller goes from 25 rays to about 43 at the default 5 degree spacing; the build takes roughly twice as long (about 10 to 25 s for 3 blades, up to about 55 s for 5 blades). The root-side corners (where the outline leaves the hub) are not smoothed and stay as straight pieces.
+* Known limits: near the root at s 0.7 to 0.85 the measured thickness is 19 to 38 % above the foil value (the first-order axial offset ignores the chordwise slope of the back on the steep face; not corrected); the round tip reads 3 to 5 % thick above r = 108 mm (about 0.1 mm); a faint dash or line can show on a blade face where two sections meet (display only). `rake 12 / progress 0.2` is refused at 5 and 6 degrees and builds at 7 (the wizard retries).
+
