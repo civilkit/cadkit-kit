@@ -2272,7 +2272,7 @@ function App() {
 
   // reference planes: all three for an empty part, otherwise the one chosen or hovered in the tree
   const planeIds = ['front', 'top', 'right'] as const;
-  const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId && !controller.hasSolid() && !controller.hasImportedBody();   // an imported part has no features but is not an empty start
+  const emptyPart1 = !!doc && doc.features.length === 0 && !sketching && !editingId && !propWiz && !impWiz && !controller.hasSolid() && !controller.hasImportedBody();   // an imported part has no features but is not an empty start; a wizard that is open (propeller, impeller) is the start
   const refPlane = (id: string | null) => (id === 'front' || id === 'top' || id === 'right' ? id : null);
   const catPlane = catalogPlane.value, catActive = catalogActive.value;   // a catalog drag shows the planes as drop targets and lights the one under the pointer
   useEffect(() => {
