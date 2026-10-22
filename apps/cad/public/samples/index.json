@@ -45,6 +45,11 @@
   "file": "herringbone-pair.ckpart"
  },
  {
+  "id": "turbo-impeller",
+  "title": "Turbo impeller: 7 + 7 blades, 45 mm exducer, 75 degree wrap (Impeller command)",
+  "file": "turbo-impeller.ckpart"
+ },
+ {
   "id": "bench-ball_knob",
   "title": "Ball Knob",
   "file": "bench-ball_knob.ckpart"

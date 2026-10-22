@@ -19,7 +19,7 @@ export const SLOTS: Record<string, string[]> = {
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern'],
   'loft-sweep': ['add-loft', 'add-sweep'],
-  gear: ['add-gear', 'add-gear-pair', 'add-propeller'],
+  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller'],
   reference: ['add-plane', 'add-axis', 'add-helix'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],
   'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft'],

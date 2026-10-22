@@ -46,6 +46,8 @@ export interface Actions {
   script?(): void;
   /** Open the Propeller wizard (see PropellerWizard.tsx). */
   propeller?(): void;
+  /** Open the turbo-impeller wizard (see ImpellerWizard.tsx). */
+  impeller?(): void;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
@@ -155,6 +157,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
   if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.propeller) cmds.push({ id: 'add-propeller', label: t('cmd.add-propeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.propeller });
+  if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });
   if (a.script) cmds.push({ id: 'open-script', label: t('cmd.open-script'), tab: 'Home', group: 'Features', run: a.script });
   if (a.variables) cmds.push({ id: 'open-variables', label: t('cmd.open-variables'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: a.variables });
   if (a.triball) { const tb = a.triball; cmds.push({ id: 'triball', label: t('cmd.triball'), tab: 'Select', group: 'Position', keys: 'F10', enabled: tb.canToggle, pressed: tb.isOn, run: tb.toggle }); }
