@@ -5,8 +5,8 @@
 // editor regenerates the same features from it. See docs/gears.md.
 import type { EditOp } from '@ck/session';
 
-export type GearType = 'spur' | 'internal' | 'helical' | 'rack';
-export const GEAR_TYPES: GearType[] = ['spur', 'internal', 'helical', 'rack'];
+export type GearType = 'spur' | 'internal' | 'helical' | 'herringbone' | 'rack';
+export const GEAR_TYPES: GearType[] = ['spur', 'internal', 'helical', 'herringbone', 'rack'];
 
 /** The second gear of a pair: it takes the module, pressure angle, width, shift and backlash from the first, and is placed at the centre distance. */
 export interface GearMate { teeth: number; boreDia: number; hubDia: number; hubLength: number }
@@ -42,6 +42,8 @@ export interface GearParams {
   shift: number;
   helixAngle: number;
   hand: 'right' | 'left';
+  /** Herringbone only: centre groove width g in mm (0 = none); the chevrons carry (faceWidth - grooveWidth) / 2 each. */
+  grooveWidth: number;
   /** Ring gear: radial thickness of the rim beyond the tooth roots in mm, 0 = 2.5 m. */
   rimThickness: number;
   center: [number, number];
@@ -54,7 +56,7 @@ export interface GearParams {
 export const DEFAULT_GEAR: GearParams = {
   type: 'spur', sizing: 'module', module: 2, dp: 12.7, teeth: 20, pressureAngle: 20, faceWidth: 10,
   boreDia: 8, keyway: false, keyWidth: 0, keyDepth: 0, hubDia: 0, hubLength: 0,
-  addendum: 1, dedendum: 1.25, rootFillet: 0.3, backlash: 0, shift: 0, helixAngle: 15, hand: 'right', rimThickness: 0,
+  addendum: 1, dedendum: 1.25, rootFillet: 0.3, backlash: 0, shift: 0, helixAngle: 15, hand: 'right', grooveWidth: 0, rimThickness: 0,
   center: [0, 0], phase: 0, plane: { kind: 'std', id: 'top' },
 };
 
@@ -68,13 +70,14 @@ export interface GearGeom {
   z: number; r: number; rb: number; ra: number; rf: number;
   /** Tooth thickness at the pitch circle (transverse, after shift and backlash). For an internal gear the width of the gap. */
   s: number;
-  /** Total twist over the face width, degrees (helical only), signed by hand. */
+  /** Total twist over the face width, degrees (helical and herringbone), signed by hand; a herringbone extrudes each half with twist / 2. */
   twist: number;
   pitch: number;
 }
 export function gearGeom(p: GearParams): GearGeom {
   const mn = gearModule(p);
-  const beta = p.type === 'helical' ? rad(p.helixAngle) : 0;
+  const hel = p.type === 'helical' || p.type === 'herringbone';
+  const beta = hel ? rad(p.helixAngle) : 0;
   const alphaN = rad(p.pressureAngle);
   const alphaT = Math.atan(Math.tan(alphaN) / Math.cos(beta));
   const mt = mn / Math.cos(beta);
@@ -88,7 +91,7 @@ export function gearGeom(p: GearParams): GearGeom {
   const s = internal ? s0 + jt : s0 - jt;
   const ra = internal ? r - (p.addendum - x) * mn : r + (p.addendum + x) * mn;
   const rf = internal ? r + (p.dedendum + x) * mn : r - (p.dedendum - x) * mn;
-  const twist = p.type === 'helical' ? ((p.faceWidth * Math.tan(beta)) / r) * (180 / Math.PI) * (p.hand === 'left' ? -1 : 1) : 0;
+  const twist = hel ? ((p.faceWidth * Math.tan(beta)) / r) * (180 / Math.PI) * (p.hand === 'left' ? -1 : 1) : 0;
   return { mn, mt, beta, alphaN, alphaT, z, r, rb, ra, rf, s, twist, pitch: Math.PI * mt };
 }
 
@@ -99,6 +102,8 @@ export interface GearReadout {
   pitchDia: number; outsideDia: number; rootDia: number; baseDia: number;
   /** Transverse contact ratio against a gear of `mateTeeth` (default the same tooth count), and the total including the overlap of helical teeth. */
   contactRatio: number; totalContactRatio: number;
+  /** Herringbone only: one half's overlap ratio, (w/2 - g/2) sin(beta) / (pi mn); 0 otherwise. */
+  overlapHalf: number;
   minTeeth: number;
   undercut: boolean;
   /** Smallest profile shift that avoids undercut at this tooth count (0 when none is needed). */
@@ -126,14 +131,24 @@ export function gearReadout(p: GearParams): GearReadout {
     const a = g.r + r2;
     eps = (Math.sqrt(Math.max(0, g.ra * g.ra - g.rb * g.rb)) + Math.sqrt(Math.max(0, ra2 * ra2 - rb2 * rb2)) - a * Math.sin(g.alphaT)) / (Math.PI * g.mt * Math.cos(g.alphaT));
   }
-  const epsBeta = p.type === 'helical' ? (p.faceWidth * Math.sin(g.beta)) / (Math.PI * g.mn) : 0;
+  // helical: overlap over the whole face width. Herringbone: the active width is the face width minus the centre groove; each half adds half of that.
+  const gw = p.type === 'herringbone' ? Math.max(0, p.grooveWidth) : 0;
+  const epsBeta = p.type === 'helical' ? (p.faceWidth * Math.sin(g.beta)) / (Math.PI * g.mn)
+    : p.type === 'herringbone' ? (Math.max(0, p.faceWidth - gw) * Math.sin(g.beta)) / (Math.PI * g.mn) : 0;
+  const overlapHalf = p.type === 'herringbone'
+    ? (Math.max(0, p.faceWidth / 2 - gw / 2) * Math.sin(g.beta)) / (Math.PI * g.mn) : 0;
   const warnings: string[] = [];
   if (undercut) warnings.push('undercut');
   const o = outline(p);
   warnings.push(...o.warnings);
+  if (p.type === 'herringbone') {
+    if (p.helixAngle < 15 || p.helixAngle > 45) warnings.push('helixRange');
+    if ((p.faceWidth / 2) * Math.tan(g.beta) > (Math.PI * g.r) / 2) warnings.push('sillyTwist');
+    if (gw >= p.faceWidth) warnings.push('grooveWide');
+  }
   return {
     pitchDia: 2 * g.r, outsideDia: 2 * Math.max(g.ra, g.rf), rootDia: 2 * Math.min(g.ra, g.rf), baseDia: 2 * g.rb,
-    contactRatio: Math.max(0, eps), totalContactRatio: Math.max(0, eps) + epsBeta, minTeeth, undercut, minShift, warnings,
+    contactRatio: Math.max(0, eps), totalContactRatio: Math.max(0, eps) + epsBeta, overlapHalf, minTeeth, undercut, minShift, warnings,
   };
 }
 
@@ -333,20 +348,21 @@ export function keySize(boreDia: number): { width: number; depth: number } {
 // ---- features ----
 
 type Feat = { id: string; type: string; [k: string]: unknown };
-export type Role = 'profile' | 'body' | 'hubSketch' | 'hub' | 'boreSketch' | 'bore' | 'keySketch' | 'key';
-export const ROLES: Role[] = ['profile', 'body', 'hubSketch', 'hub', 'boreSketch', 'bore', 'keySketch', 'key'];
+export type Role = 'profile' | 'body' | 'bodyDown' | 'hubSketch' | 'hub' | 'grooveSketch' | 'groove' | 'boreSketch' | 'bore' | 'keySketch' | 'key';
+export const ROLES: Role[] = ['profile', 'body', 'bodyDown', 'hubSketch', 'hub', 'grooveSketch', 'groove', 'boreSketch', 'bore', 'keySketch', 'key'];
 const MATE = 'm.';
 /** The roles the parameters need, in feature order: the first gear's, then the second gear's (prefixed 'm.'). */
 export function rolesFor(p: GearParams): string[] {
-  const one = (q: { type: GearType; hubDia: number; hubLength: number; boreDia: number; keyway: boolean }): Role[] => {
-    const out: Role[] = ['profile', 'body'];
+  const one = (q: { type: GearType; hubDia: number; hubLength: number; boreDia: number; keyway: boolean; grooveWidth: number }): Role[] => {
+    const out: Role[] = q.type === 'herringbone' ? ['profile', 'body', 'bodyDown'] : ['profile', 'body'];
     const solid = q.type !== 'rack' && q.type !== 'internal';   // a rack has no axis, a ring is empty in the middle
     if (solid && q.hubLength > 0 && q.hubDia > 0) out.push('hubSketch', 'hub');
+    if (q.type === 'herringbone' && solid && q.grooveWidth > 0) out.push('grooveSketch', 'groove');
     if (solid && q.boreDia > 0) { out.push('boreSketch', 'bore'); if (q.keyway) out.push('keySketch', 'key'); }
     return out;
   };
   const roles: string[] = one(p);
-  if (p.mate && p.type !== 'rack' && p.type !== 'internal') roles.push(...one({ type: p.type, hubDia: p.mate.hubDia, hubLength: p.mate.hubLength, boreDia: p.mate.boreDia, keyway: p.keyway }).map((r) => MATE + r));
+  if (p.mate && p.type !== 'rack' && p.type !== 'internal') roles.push(...one({ type: p.type, hubDia: p.mate.hubDia, hubLength: p.mate.hubLength, boreDia: p.mate.boreDia, keyway: p.keyway, grooveWidth: p.grooveWidth }).map((r) => MATE + r));
   return roles;
 }
 
@@ -369,7 +385,7 @@ const planeOf = (p: GearParams): { kind: string; id: string } => p.plane;
 /** The features of ONE gear (no mate), by role. */
 function oneGear(p: GearParams, ids: Record<string, string>, pre: string, record: unknown | null): Feat[] {
   const roles = rolesFor({ ...p, mate: undefined });
-  const label = `${p.type === 'rack' ? 'Rack' : p.type === 'internal' ? 'Ring gear' : p.type === 'helical' ? 'Helical gear' : 'Gear'} ${Math.round(p.teeth)}T`;
+  const label = `${p.type === 'rack' ? 'Rack' : p.type === 'internal' ? 'Ring gear' : p.type === 'helical' ? 'Helical gear' : p.type === 'herringbone' ? 'Herringbone gear' : 'Gear'} ${Math.round(p.teeth)}T`;
   const id = (r: string): string => ids[pre + r];
   const out: Feat[] = [];
   const g = gearGeom(p);
@@ -394,13 +410,29 @@ function oneGear(p: GearParams, ids: Record<string, string>, pre: string, record
         break;
       }
       case 'body': {
-        const f: Feat = { type: 'extrude', id: id('body'), name: label, op: 'add', sketch: id('profile'), end: 'blind', depth: p.faceWidth };
-        if (g.twist) { f.twist = round(g.twist); f.twistCentre = [round(cx), round(cy)]; }
+        const hb = p.type === 'herringbone';
+        const f: Feat = { type: 'extrude', id: id('body'), name: label, op: 'add', sketch: id('profile'), end: 'blind', depth: hb ? p.faceWidth / 2 : p.faceWidth };
+        const tw = hb ? g.twist / 2 : g.twist;
+        if (tw) { f.twist = round(tw); f.twistCentre = [round(cx), round(cy)]; }
+        out.push(f);
+        break;
+      }
+      case 'bodyDown': {
+        const f: Feat = { type: 'extrude', id: id('bodyDown'), name: `${label} lower`, op: 'add', sketch: id('profile'), end: 'blind', depth: p.faceWidth / 2, flip: true };
+        const tw = -g.twist / 2;
+        if (tw) { f.twist = round(tw); f.twistCentre = [round(cx), round(cy)]; }
         out.push(f);
         break;
       }
       case 'hubSketch': out.push(circle(id('hubSketch'), p.hubDia, `${label} hub sketch`)); break;
-      case 'hub': out.push({ type: 'extrude', id: id('hub'), name: `${label} hub`, op: 'add', sketch: id('hubSketch'), end: 'blind', depth: p.hubLength }); break;
+      case 'hub': out.push({ type: 'extrude', id: id('hub'), name: `${label} hub`, op: 'add', sketch: id('hubSketch'), end: p.type === 'herringbone' ? 'mid' : 'blind', depth: p.hubLength }); break;
+      case 'grooveSketch': {
+        // the root circle as the inner radius grazes the root/fillet faces tangentially and the boolean fails (openEdge); half a module below clears it
+        const inner = Math.max(0.05, g.rf - 0.5 * g.mn), outer = g.ra + g.mn;
+        out.push({ type: 'sketch', id: id('grooveSketch'), name: `${label} groove sketch`, plane, points: [{ id: 'p1', x: round(cx), y: round(cy) }], entities: [{ type: 'circle', id: 'e1', c: 'p1', r: round(inner) }, { type: 'circle', id: 'e2', c: 'p1', r: round(outer) }], constraints: [] });
+        break;
+      }
+      case 'groove': out.push({ type: 'extrude', id: id('groove'), name: `${label} groove`, op: 'cut', sketch: id('grooveSketch'), end: 'mid', depth: p.grooveWidth }); break;
       case 'boreSketch': out.push(circle(id('boreSketch'), p.boreDia, `${label} bore sketch`)); break;
       case 'bore': out.push({ type: 'extrude', id: id('bore'), name: `${label} bore`, op: 'cut', sketch: id('boreSketch'), end: 'throughBoth', depth: 10 }); break;
       case 'keySketch': {
