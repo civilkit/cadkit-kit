@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { fileURLToPath } from 'node:url'
 
@@ -68,6 +69,8 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     environment: 'jsdom',
+    // without a kernel (no CK_WASM, no CK_KERNEL_URL) the suites that need one are left out instead of failing: `*.kernel.test.*` and the MCP server test (it starts the kernel)
+    exclude: [...configDefaults.exclude, ...(process.env.CK_WASM || process.env.CK_KERNEL_URL ? [] : ['**/*.kernel.test.{ts,tsx}', 'packages/mcp/src/mcp.test.ts'])],
     include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}'],
     // CK_KERNEL_URL (+ CK_KERNEL_TOKEN) runs the kernel suites against a local native service instead of CK_WASM (docs/local-kernel-service.md)
     setupFiles: ['./tools/vitest.kernel-env.ts']
