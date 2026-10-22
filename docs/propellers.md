@@ -1,7 +1,7 @@
 # Propellers
 
 The airfoil-loft propeller generator (`apps/cad/src/propData.ts`) makes a hub with 2 to 8 lofted blades from a parameter record. It is the first of the two families in
-`plan-propellers.md` (fans, drones, aircraft). The marine helicoid family is not built yet. Geometry only, no aerodynamic or hydrodynamic performance.
+`plan-propellers.md` (fans, drones, aircraft). The marine helicoid family has its generator (`marineData.ts`, see "Marine family" below) but not yet its wizard. Geometry only, no aerodynamic or hydrodynamic performance.
 
 ## What is built
 
@@ -55,3 +55,54 @@ count or a bore added or removed removes the old features first and appends the 
   a seeded random sweep, the root chord at radii inside the hub.
 
 Known: the kernel's default validation tolerance flags a 2.6e-4 mm pcurve deviation on the blade / hub intersection edges (the solid is valid at 1e-3 mm).
+
+## Marine family (helicoid blades): generator and kernel probe
+
+`apps/cad/src/marineData.ts` makes a hub with 2 to 6 blades whose pressure face lies on a true constant-pitch helicoid. Pure functions like `propData.ts`: parameters, validation,
+readout, feature list, `marineDocument`. The wizard is not wired yet.
+
+### How the blade is built
+
+For each of N angles phi_k (at most `raySpacing` degrees apart, default 5) one plane through the shaft axis (`plane` mode `angle` about Z, angle phi_k + 90 degrees), and on it a closed
+section: the **face line** from radius rA to rB at height z = P phi_k / 2 pi (the helicoid), the **tip end**, a **back spline** an axial thickness above the face, the **root end**. rA and rB are where
+that ray enters and leaves the expanded blade outline, so the loft's side edges are the leading and trailing edge. One `loft` (add) through the sections is the blade; it is fused to the hub,
+`cpattern`-ed and bored like the airfoil family.
+
+* Axial thickness is the normal thickness over cos(pitch angle). It is **not linear in radius** (it grows toward the root), so the back is a spline through 7 points; a straight back line
+  made the blade 1.4 to 1.6 times too thick in the middle (found by sectioning the built blade in a ray plane).
+* Outline: the widest chord comes from the expanded area ratio (EAR) and the chord shape (root ratio, peak position, tip ratio, cosine blends); the angular width at radius r is c cos(theta) / r;
+  skew moves the mid-chord line by `skew` degrees at the tip, quadratic in span.
+* The pressure face is the helicoid, all the thickness is on the +Z side. A left-hand propeller is the mirror image (volume and axial centre of gravity equal to 1e-6).
+
+Parameters: diameter, hub diameter and length, bore, blades 2..6, pitch / diameter, EAR 0.25..1.2, chord peak / root ratio / tip ratio, skew, thickness at root and tip as fractions of D,
+root embed, section spacing, direction. Constant pitch only; rake and progressive pitch are not built (they move the face off constant-z section lines).
+`validateMarine` refuses what cannot be built (including a hub too short for the root, with the length needed) and warns on a razor tip and on blades overlapping at the hub.
+
+### Measured (kernel, default 250 mm, 3 blades; `marineData.kernel.test.ts`)
+
+| check | result |
+|---|---|
+| build | no errors, one solid, about 3 s (2 to 5 s for 2..6 blades); valid at 1e-3 mm (the usual 2.6e-4 to 7e-4 mm pcurve deviation on the blade / hub edges at the default tolerance) |
+| face on the helicoid | worst of 12 sampled points 9e-3 mm from the solid |
+| thickness normal to the face | 7.53 / 5.00 / 2.37 mm at r = 40 / 75 / 110 against 7.63 / 5.00 / 2.38 asked |
+| volume against hub + N x integral of thickness x chord | +0.3 to +0.6 % for N = 2, 3, 4 |
+| N = 2..6 centre of gravity off axis | at most 2e-4 mm |
+| STEP round trip | volume 1.5e-4 relative, one body |
+
+### Kernel probe: what did not work (so the next person does not repeat it)
+
+| route | result |
+|---|---|
+| helicoid sheet (loft of radial lines), trim with an outline prism (`surfaceExtrude` + `trimSurface`) | builds, but `thicken` of the trimmed sheet fails: `thickenFailed` "the thickened body is not closed", also on a plain rectangle outline, and on the kernel's own `cap6` case (empty result). Thicken of the untrimmed sheet works |
+| thicken the whole sheet, then cut it to the outline (extrude `intersect`, or a cut of everything outside the outline) | `booleanFailed` `openEdge` at the root corner of the outline |
+| sheet with the outline as its boundary (rays end on the outline), then `thicken` | builds with `side: "back"`, but the rim walls cannot be fused with the hub cylinder (`booleanFailed openEdge`, every hub size and root ratio tried); `side: "front"` is `offsetTooLarge` (curvature) |
+| thicken with `thicknessAt` ramp on the whole sheet | works (needs stops covering the whole sheet along the direction) but the same hub fuse fails |
+| **closed sections in planes through the axis, one loft solid** | **works** (this is what is built) |
+
+Open kernel items from this probe: thicken of a trimmed free-form sheet; the hub fuse of a thickened sheet's rim walls; the sensitivity below.
+
+### Known sensitivity: section spacing
+
+The hub boolean sometimes leaves an open edge where a blade edge meets the hub cylinder, depending on where the section planes fall: pitch / diameter 0.8 fails at 4 and 5 degrees and builds at 6 and 7;
+0.7 fails at 4, 5 and 6 and builds at 7; 0.75 fails at 5. The refusal is a structured `booleanFailed` with a hint (`marineData.kernel.test.ts` pins this). Ray ends within 0.6 mm of the hub surface
+are moved off it (a tangent contact), which removed some failures but not these. The wizard should retry the commit with another spacing (7, 6, 4) before telling the user.
