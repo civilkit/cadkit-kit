@@ -8,8 +8,9 @@ The Gear command (Features tab, Create group, Shift+Y, or search "gear") makes a
 | Role | Feature |
 |---|---|
 | profile | sketch on the chosen plane (top plane, a picked planar face, or a selected reference plane): the closed tooth outline |
-| body | extrude (add) by the face width; helical gears use the extrude `twist` (a real twisted extrude, not slices) |
-| hubSketch, hub | circle sketch and extrude (add) of the hub, when a hub length and diameter are set |
+| body | extrude (add) by the face width; helical gears use the extrude `twist` (a real twisted extrude, not slices). A herringbone makes two: `body` goes up half the face width with half the twist, `bodyDown` goes down (flipped) with the opposite twist, both from the same profile sketch on the mid plane |
+| hubSketch, hub | circle sketch and extrude (add) of the hub, when a hub length and diameter are set (a herringbone hub is centred on the mid plane) |
+| grooveSketch, groove | herringbone only, when the groove width is above 0: two circles (root circle less half a module, tip circle plus one module) and a mid-plane cut of the groove width, leaving the core web that joins the two chevrons |
 | boreSketch, bore | circle sketch and through cut |
 | keySketch, key | keyway rectangle (DIN 6885 width and depth by bore size, or custom) and through cut |
 
@@ -29,7 +30,7 @@ piece is a span of the spline instead.
 
 ## Parameters
 
-Type (spur, ring = internal, helical, rack), module (mm) or diametral pitch (module = 25.4 / DP), teeth, pressure angle (20), face width, bore, keyway,
+Type (spur, ring = internal, helical, herringbone, rack), module (mm) or diametral pitch (module = 25.4 / DP), teeth, pressure angle (20), face width, bore, keyway,
 hub diameter and length, addendum and dedendum (multiples of the module, 1 and 1.25), root fillet (multiple of the module, 0.3), backlash, profile shift x,
 helix angle and hand, ring rim thickness, and an optional mating gear (teeth, bore, hub).
 
@@ -38,6 +39,7 @@ helix angle and hand, ring rim thickness, and an optional mating gear (teeth, bo
 * Helical gears: the module and pressure angle are normal; the profile is the transverse one (module m / cos beta, alpha_t = atan(tan alpha / cos beta)); the twist over the face width is w tan(beta) / r_pitch. The mate of a helical gear has the opposite hand.
 * Ring gear: the sketch is the rim circle plus the outline of the tooth spaces (a ring's space is shaped like a spur tooth). Root fillet is not applied to rings.
 * Rack: a polygon of straight flanks (pressure angle), `teeth` teeth long.
+* Herringbone (double helical): the helix angle (default 30, warned outside 15 to 45), hand and face width are those of a helical gear, face width is the total. `hand` means the chevron orientation (apex leading or trailing). The centre groove (`grooveWidth`, default about 3 x module in the editor, 0 = none) is cut through the tooth zone and leaves a web at the root circle less half a module (the root circle itself grazes the root fillet faces and the boolean fails). A mate is the same gear with the chevron reversed, placed like a helical mate.
 * Bevel gears are not built (the bench sample `bench-bevel_gear` shows the loft approach).
 
 ## Readout
@@ -46,6 +48,7 @@ Pitch, outside, root and base diameter; the transverse contact ratio against the
 teeth for a ring; a pinion of the same tooth count for a rack), plus the overlap ratio w sin(beta) / (pi m) for helical gears; the minimum tooth count
 without undercut, 2 ha cos(beta) / sin^2(alpha_t), rounded up (18 at 20 degrees). Below it the editor warns and offers the profile shift that avoids undercut.
 Other warnings: pointed teeth (tip clamped to keep a land), teeth touching at the root, ring tip circle below the base circle.
+Herringbone: the readout adds the total face width, the groove and the overlap ratio of one half, (w/2 - g/2) sin(beta) / (pi m); the total contact ratio adds the overlap of the face width less the groove (the chevron halves cancel axial thrust, the overlap is not simply doubled). Warnings: helix angle outside 15 to 45, half the face width twisting more than a quarter turn round the gear, groove at least the face width.
 
 ## Where the parameters live
 
@@ -58,7 +61,7 @@ features of other gears or later features that reference a gear's faces keep wor
 ## Timings
 
 Measured edit time (sketch regions, extrude, bore cut) in the kernel on a machine with a load average of 30 to 60 (other jobs running), so read these as upper bounds:
-8 teeth 1.3 s, 20 teeth 3.3 s, 40 teeth 12 s, helical 20 teeth 6.7 s, the 20 / 40 pair 37 s. Cost grows about linearly with the tooth count (one spline and one arc per tooth).
+8 teeth 1.3 s, 20 teeth 3.3 s, 40 teeth 12 s, helical 20 teeth 6.7 s, the 20 / 40 pair 37 s. A herringbone costs about twice a helical gear (two extrudes and a cut): in the kernel test run, 20 teeth about 14 s, 40 teeth 26 s and the 20 / 40 pair 26 s of regeneration, on a machine under similar load. Cost grows about linearly with the tooth count (one spline and one arc per tooth).
 The first version, with a line, arc and spline per flank piece, took 51 s for 60 teeth and produced invalid solids at some tooth counts; one spline per gap fixed both.
 The live preview debounces, so typing in a field regenerates once it settles.
 
@@ -66,6 +69,6 @@ The live preview debounces, so typing in a field regenerates once it settles.
 
 `gearData.test.ts` (readout, profile on the involute, feature roles and ops, samples match the generator), `GearEditor.test.tsx`, and
 `gearData.kernel.test.ts` (run with `CK_WASM=apps/cad/public/kernel/ck_wasm.wasm`): validity, tooth count, volume against the profile area, one undo step, id
-stability across edits, helical twist volume, ring and rack volumes, a 20 / 40 tooth pair at 60 mm with two separate bodies and the phase.
+stability across edits, helical twist volume, ring and rack volumes, a 20 / 40 tooth pair at 60 mm with two separate bodies and the phase. Herringbone: 20 and 40 teeth valid as one body, mirror-even about the mid plane, the groove cut, one undo step, ids stable across edits; a 20 / 40 pair with two bodies, no interference, opposite hand and both chevrons centred; helix 0, helix 60 and a zero groove still valid.
 
-Samples: `spur-gear` (24 teeth, bore with keyway, hub) and `gear-pair` (20 / 40 teeth, module 2), generated by `npx vite-node apps/cad/scripts/genGearSamples.ts`.
+Samples: `spur-gear` (24 teeth, bore with keyway, hub), `gear-pair` (20 / 40 teeth, module 2) and `herringbone-pair` (20 / 40 teeth, 30 degree helix, 6 mm groove), generated by `npx vite-node apps/cad/scripts/genGearSamples.ts`.

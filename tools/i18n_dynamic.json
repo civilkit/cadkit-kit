@@ -54,6 +54,29 @@
   "light.studio",
   "light.technical"
  ],
+ "marine.issue.+": [
+  "marine.issue.blades",
+  "marine.issue.bore",
+  "marine.issue.chord",
+  "marine.issue.diameter",
+  "marine.issue.ear",
+  "marine.issue.hubDia",
+  "marine.issue.hubLength",
+  "marine.issue.notNumber",
+  "marine.issue.overlap",
+  "marine.issue.pitch",
+  "marine.issue.raySpacing",
+  "marine.issue.rootEmbed",
+  "marine.issue.skew",
+  "marine.issue.thick",
+  "marine.issue.thickTip",
+  "marine.issue.thinTip"
+ ],
+ "marine.preset.+": [
+  "marine.preset.inboard4",
+  "marine.preset.outboard3",
+  "marine.preset.quiet5"
+ ],
  "opt.op.+": [
   "opt.op.add",
   "opt.op.cut",

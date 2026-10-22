@@ -1,4 +1,4 @@
-// The Gear editor: type (spur, ring, helical, rack), size (module or diametral pitch, teeth, pressure angle, face width), shaft and hub, tooth form
+// The Gear editor: type (spur, ring, helical, herringbone, rack), size (module or diametral pitch, teeth, pressure angle, face width), shaft and hub, tooth form
 // (addendum, dedendum, root fillet, backlash, profile shift), an optional mating gear and the readout (diameters, contact ratio, minimum teeth). Same
 // draft protocol as the other editors: every change goes to onDraft with the whole parameter record, Enter / the tick confirm, Escape / the cross cancel.
 // The features are regenerated from the record by gearData.gearOps (see docs/gears.md).
@@ -76,7 +76,9 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
   const rack = draft.type === 'rack';
   const ring = draft.type === 'internal';
   const helical = draft.type === 'helical';
-  const canMate = draft.type === 'spur' || helical;
+  const hb = draft.type === 'herringbone';
+  const helish = helical || hb;
+  const canMate = draft.type === 'spur' || helical || hb;
   const mate = canMate ? draft.mate : undefined;
   const setType = (type: GearType): void => {
     const patch: Partial<GearParams> = { type };
@@ -84,9 +86,14 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
     if (type === 'rack' && draft.teeth > 30) patch.teeth = 10;
     if (type === 'internal' && draft.teeth < 24) patch.teeth = 40;
     if (type === 'helical' && !(draft.helixAngle > 0)) patch.helixAngle = 15;
+    if (type === 'herringbone') {
+      // the catalogue default for a herringbone is 30 degrees (the helical default of 15 counts as untouched), and the groove starts at about 3 modules
+      if (!(draft.helixAngle > 15 && draft.helixAngle <= 45)) patch.helixAngle = 30;
+      if (!(draft.grooveWidth > 0)) patch.grooveWidth = Math.round(3 * gearModule(draft) * 1000) / 1000;
+    }
     change(patch);
   };
-  const warn = (code: string): string => t('gear.warn.' + code, { z: String(ro.minTeeth), x: fmt(ro.minShift, 2) });
+  const warn = (code: string): string => t('gear.warn.' + code, { z: String(ro.minTeeth), x: fmt(ro.minShift, 2), a: fmt(draft.helixAngle) });
   const key = keySize(draft.boreDia);
   const title = t('gear.title') + (p.name ? ` — ${p.name}` : '');
   const hasBore = !rack;
@@ -112,11 +119,16 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
         <Num name="teeth" label={rack ? t('gear.teethRack') : t('gear.teeth')} min={rack ? 1 : 6} step={1} value={draft.teeth} onChange={(v) => change({ teeth: Math.max(rack ? 1 : 6, Math.round(v)) })} />
         <Num name="pressureAngle" label={t('gear.pressureAngle')} unit="deg" min={10} max={30} step={0.5} value={draft.pressureAngle} onChange={(v) => change({ pressureAngle: Math.min(30, Math.max(10, v)) })} />
         <Num name="faceWidth" label={t('gear.faceWidth')} unit="mm" min={0.1} value={draft.faceWidth} onChange={(v) => change({ faceWidth: Math.max(0.1, v) })} />
-        {helical ? <Num name="helixAngle" label={t('gear.helixAngle')} unit="deg" min={1} max={45} step={1} value={draft.helixAngle} onChange={(v) => change({ helixAngle: Math.min(45, Math.max(1, v)) })} /> : null}
+        {helish ? <Num name="helixAngle" label={t('gear.helixAngle')} unit="deg" min={1} max={45} step={1} value={draft.helixAngle} onChange={(v) => change({ helixAngle: Math.min(45, Math.max(1, v)) })} /> : null}
         {helical ? (
           <Seg name="hand" label={t('gear.hand')} value={draft.hand}
             options={[{ value: 'right', text: t('gear.hand.right'), icon: 'helix-right' }, { value: 'left', text: t('gear.hand.left'), icon: 'helix-left' }]} onChange={(v) => change({ hand: v })} />
         ) : null}
+        {hb ? (
+          <Seg name="hand" label={t('gear.handV')} value={draft.hand}
+            options={[{ value: 'right', text: t('gear.hand.vLeading'), icon: 'helix-right', tip: t('gear.hand.vLeadingTip') }, { value: 'left', text: t('gear.hand.vTrailing'), icon: 'helix-left', tip: t('gear.hand.vTrailingTip') }]} onChange={(v) => change({ hand: v })} />
+        ) : null}
+        {hb ? <Num name="grooveWidth" label={t('gear.groove')} unit="mm" min={0} value={draft.grooveWidth} hintText={t('gear.grooveTip')} onChange={(v) => change({ grooveWidth: Math.max(0, v) })} /> : null}
         {helical ? <div class="thread-hint" data-testid="gear-twist">{t('gear.twistNote', { a: fmt(Math.abs(g.twist), 2) })}</div> : null}
         {ring ? <Num name="rimThickness" label={t('gear.rim')} unit="mm" min={0} value={draft.rimThickness} hintText={t('gear.rimTip')} onChange={(v) => change({ rimThickness: Math.max(0, v) })} /> : null}
       </Section>
@@ -128,7 +140,7 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
           {draft.keyway && draft.boreDia > 0 && !ring ? <Num name="keyWidth" label={t('gear.keyWidth')} unit="mm" min={0} value={draft.keyWidth || key.width} onChange={(v) => change({ keyWidth: Math.max(0, v) })} /> : null}
           {draft.keyway && draft.boreDia > 0 && !ring ? <Num name="keyDepth" label={t('gear.keyDepth')} unit="mm" min={0} value={draft.keyDepth || key.depth} onChange={(v) => change({ keyDepth: Math.max(0, v) })} /> : null}
           {!ring ? <Num name="hubDia" label={t('gear.hubDia')} unit="mm" min={0} value={draft.hubDia} onChange={(v) => change({ hubDia: Math.max(0, v) })} /> : null}
-          {!ring ? <Num name="hubLength" label={t('gear.hubLength')} unit="mm" min={0} value={draft.hubLength} hintText={t('gear.hubLengthTip')} onChange={(v) => change({ hubLength: Math.max(0, v) })} /> : null}
+          {!ring ? <Num name="hubLength" label={t('gear.hubLength')} unit="mm" min={0} value={draft.hubLength} hintText={t(hb ? 'gear.hubLengthTipHb' : 'gear.hubLengthTip')} onChange={(v) => change({ hubLength: Math.max(0, v) })} /> : null}
         </Section>
       ) : null}
 
@@ -167,10 +179,18 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
               <dt>{t('gear.r.baseDia')}</dt><dd data-k="baseDia">{fmt(ro.baseDia)} mm</dd>
             </>
           )}
-          <dt>{t('gear.r.contact')}</dt><dd data-k="contact">{fmt(helical ? ro.totalContactRatio : ro.contactRatio, 2)}</dd>
+          <dt>{t('gear.r.contact')}</dt><dd data-k="contact">{fmt(helish ? ro.totalContactRatio : ro.contactRatio, 2)}</dd>
+          {hb ? (
+            <>
+              <dt>{t('gear.r.faceWidth')}</dt><dd data-k="faceWidth">{fmt(draft.faceWidth)} mm</dd>
+              <dt>{t('gear.r.groove')}</dt><dd data-k="groove">{fmt(Math.max(0, draft.grooveWidth))} mm</dd>
+              <dt>{t('gear.r.overlapHalf')}</dt><dd data-k="overlapHalf">{fmt(ro.overlapHalf)}</dd>
+            </>
+          ) : null}
           {rack ? null : <><dt>{t('gear.r.minTeeth')}</dt><dd data-k="minTeeth">{ro.minTeeth}</dd></>}
         </dl>
         <div class="thread-hint">{t(mate ? 'gear.r.contactNotePair' : 'gear.r.contactNote')}</div>
+        {hb ? <div class="thread-hint" data-testid="gear-hb-note">{t('gear.r.contactNoteHb')}</div> : null}
         {ro.warnings.map((w) => <div key={w} class="thread-fit warn" role="status" data-warning={w}>
           <span>{warn(w)}</span>
           {w === 'undercut' && ro.minShift > 0 ? <button type="button" data-testid="gear-use-shift" onClick={() => change({ shift: ro.minShift })}>{t('gear.useShift', { x: fmt(ro.minShift, 2) })}</button> : null}

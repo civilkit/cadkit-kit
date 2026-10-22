@@ -5,6 +5,7 @@ import { drawingStrings } from './drawing';
 import { toolbarStrings } from './toolbar';
 import { libraryStrings } from './library';
 import { propStrings } from './prop';
+import { marineStrings } from './marine';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -741,17 +742,27 @@ export const en: Catalog = {
   'gear.title': 'Gear', 'gear.section.gear': 'Gear', 'gear.section.shaft': 'Bore and hub', 'gear.section.tooth': 'Tooth form', 'gear.section.pair': 'Mating gear', 'gear.section.readout': 'Readout',
   'gear.type': 'Type', 'gear.type.spur': 'Spur', 'gear.type.spurTip': 'External spur gear', 'gear.type.internal': 'Ring', 'gear.type.internalTip': 'Internal (ring) gear',
   'gear.type.helical': 'Helical', 'gear.type.helicalTip': 'External helical gear (a twisted extrude)', 'gear.type.rack': 'Rack', 'gear.type.rackTip': 'Linear rack',
+  'gear.type.herringbone': 'Herringbone', 'gear.type.herringboneTip': 'Double-helical gear: two opposed helices with an optional centre groove',
   'gear.sizing': 'Sizing', 'gear.sizing.module': 'Module', 'gear.sizing.dp': 'Diametral pitch', 'gear.module': 'Module', 'gear.dp': 'Diametral pitch',
   'gear.teeth': 'Teeth', 'gear.teethRack': 'Number of teeth', 'gear.pressureAngle': 'Pressure angle', 'gear.faceWidth': 'Face width', 'gear.helixAngle': 'Helix angle', 'gear.hand': 'Hand',
   'gear.hand.right': 'Right', 'gear.hand.left': 'Left', 'gear.twistNote': 'Twisted extrude: the profile turns {a} degrees over the face width.',
+  'gear.handV': 'Chevron', 'gear.hand.vLeading': 'Apex leading', 'gear.hand.vLeadingTip': 'The chevron apex points the way the gear travels (the upper half is a right-hand helix)',
+  'gear.hand.vTrailing': 'Apex trailing', 'gear.hand.vTrailingTip': 'The chevron apex points against the travel (the upper half is a left-hand helix)',
+  'gear.groove': 'Centre groove', 'gear.grooveTip': 'Width of the groove between the two chevrons (0 = none); about 3 x module for a new herringbone',
   'gear.rim': 'Rim thickness', 'gear.rimTip': 'Radial thickness of the ring beyond the tooth roots (0 = 2.5 module)',
   'gear.bore': 'Bore diameter', 'gear.keyway': 'Keyway', 'gear.keyWidth': 'Key width', 'gear.keyDepth': 'Key depth', 'gear.hubDia': 'Hub diameter', 'gear.hubLength': 'Hub length', 'gear.hubLengthTip': 'Overall length from the front face (0 = no hub)',
+  'gear.hubLengthTipHb': 'Overall length, centred on the gear mid plane (0 = no hub)',
   'gear.addendum': 'Addendum', 'gear.dedendum': 'Dedendum', 'gear.rootFillet': 'Root fillet', 'gear.shift': 'Profile shift', 'gear.backlash': 'Backlash', 'gear.backlashTip': 'Tooth thickness removed at the pitch circle by this gear; a pair of two gears with 0.1 each has 0.2 of backlash',
   'gear.mate': 'Add a mating gear', 'gear.mateTeeth': 'Mate teeth', 'gear.mateBore': 'Mate bore', 'gear.mateHubDia': 'Mate hub diameter', 'gear.mateHubLength': 'Mate hub length', 'gear.centre': 'Centre distance {a} mm, ratio {ratio}',
   'gear.r.pitchDia': 'Pitch diameter', 'gear.r.outsideDia': 'Outside diameter', 'gear.r.rootDia': 'Root diameter', 'gear.r.baseDia': 'Base diameter', 'gear.r.contact': 'Contact ratio', 'gear.r.minTeeth': 'Min teeth (no undercut)',
   'gear.r.pitch': 'Circular pitch', 'gear.r.length': 'Rack length', 'gear.r.contactNote': 'Against a gear with the same teeth; 1.2 or more runs smoothly.', 'gear.r.contactNotePair': 'Against the mating gear (total, with overlap, for helical); 1.2 or more runs smoothly.',
+  'gear.r.faceWidth': 'Total face width', 'gear.r.groove': 'Groove width', 'gear.r.overlapHalf': 'Overlap per half',
+  'gear.r.contactNoteHb': 'The chevron halves cancel axial thrust; only each half adds its overlap to the contact ratio — the total is not simply doubled.',
   'gear.warn.undercut': 'Fewer than {z} teeth: the tooth root is undercut in a generated gear. A profile shift of {x} avoids it.', 'gear.warn.pointed': 'The teeth come to a point: raise the module or the tooth count, or lower the addendum or profile shift.',
   'gear.warn.tipClamped': 'The tooth tip was lowered to keep a land.', 'gear.warn.tight': 'The teeth touch at the root: reduce the backlash, profile shift or dedendum.', 'gear.warn.ringTip': 'The ring tip circle is below the base circle: its teeth were shortened.',
+  'gear.warn.helixRange': 'The helix angle {a} degrees is outside the usual 15 to 45 for a herringbone.',
+  'gear.warn.sillyTwist': 'Half the face width twists more than a quarter turn around the gear: lower the helix angle or the face width.',
+  'gear.warn.grooveWide': 'The centre groove is at least the face width: lower the groove or widen the face.',
   'gear.useShift': 'Use shift {x}',
   'cmd.add-pipe-cut': 'Pipe cut', 'cmd.add-delete-body': 'Delete body', 'cmd.add-delete-face': 'Delete face',
   'cmd.add-surface-planar': 'Planar surface', 'cmd.add-surface-extrude': 'Extruded surface', 'cmd.add-surface-revolve': 'Revolved surface',
@@ -869,4 +880,5 @@ export const en: Catalog = {
   ...toolbarStrings,
   ...libraryStrings,
   ...propStrings,
+  ...marineStrings,
 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_GEAR, centreDistance, defaultPair, gearGeom, gearModule, gearOps, gearOwner, gearReadout, keySize, mateParams, outline, readGear, rolesFor } from './gearData';
-import { PAIR_SAMPLE, SPUR_SAMPLE, samplePart } from './gearSamples';
+import { HERRINGBONE_PAIR_SAMPLE, PAIR_SAMPLE, SPUR_SAMPLE, samplePart } from './gearSamples';
 
 describe('gear readout', () => {
   it('20 teeth, module 2, 20 degrees: the textbook diameters and ratios', () => {
@@ -28,6 +28,22 @@ describe('gear readout', () => {
     const h = gearReadout({ ...DEFAULT_GEAR, type: 'helical', helixAngle: 20 });
     expect(h.pitchDia).toBeCloseTo(40 / Math.cos((20 * Math.PI) / 180), 6);
     expect(h.totalContactRatio).toBeGreaterThan(h.contactRatio);
+  });
+  it('herringbone: the overlap of one half, the contact on the active width, none of the range warnings at 30 degrees', () => {
+    const r = gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 30, faceWidth: 12, grooveWidth: 3 });
+    expect(r.overlapHalf).toBeCloseTo(((6 - 1.5) * Math.sin(Math.PI / 6)) / (Math.PI * 2), 9);
+    expect(r.totalContactRatio).toBeCloseTo(r.contactRatio + 2 * r.overlapHalf, 9);
+    expect(r.totalContactRatio).toBeGreaterThan(r.contactRatio);
+    for (const w of ['helixRange', 'grooveWide', 'sillyTwist']) expect(r.warnings).not.toContain(w);
+  });
+  it('herringbone hostiles: helix 0 and 60, a groove as wide as the face, a twist around a quarter turn', () => {
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 0 }).warnings).toContain('helixRange');
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 60 }).warnings).toContain('helixRange');
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 0 }).overlapHalf).toBe(0);
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 30 }).overlapHalf).toBeGreaterThan(0);
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 30, grooveWidth: 10 }).warnings).toContain('grooveWide');
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 30, grooveWidth: 0 }).warnings).not.toContain('grooveWide');
+    expect(gearReadout({ ...DEFAULT_GEAR, type: 'herringbone', helixAngle: 30, faceWidth: 400 }).warnings).toContain('sillyTwist');
   });
   it('centre distance of a pair is (z1 + z2) m / 2', () => {
     expect(centreDistance(PAIR_SAMPLE)).toBeCloseTo(60, 9);
@@ -92,15 +108,59 @@ describe('gear features', () => {
     expect(l.twist).toBeCloseTo(-r.twist, 9);
     expect(r.twistCentre).toEqual([0, 0]);
   });
+  it('herringbone: two opposed half extrudes of half the twist each, a hub on the mid plane, the groove cut below the root circle', () => {
+    const p = { ...DEFAULT_GEAR, type: 'herringbone' as const, helixAngle: 30, grooveWidth: 3, hubDia: 16, hubLength: 14, boreDia: 8 };
+    const feats = (gearOps(doc, p) as unknown as Array<{ feature: Record<string, unknown> }>).map((o) => o.feature);
+    expect(feats.map((f) => `${f.id}:${f.type}`)).toEqual(['F1:sketch', 'F2:extrude', 'F3:extrude', 'F4:sketch', 'F5:extrude', 'F6:sketch', 'F7:extrude', 'F8:sketch', 'F9:extrude']);
+    const up = feats[1] as { depth: number; twist: number; twistCentre: number[]; sketch: string };
+    const down = feats[2] as { depth: number; twist: number; flip: boolean; sketch: string };
+    expect(up.depth).toBeCloseTo(5, 9);
+    expect(down.depth).toBeCloseTo(5, 9);
+    expect(down.flip).toBe(true);
+    expect('flip' in up).toBe(false);
+    expect(up.sketch).toBe('F1');
+    expect(down.sketch).toBe('F1');
+    expect(up.twist).toBeCloseTo(gearGeom(p).twist / 2, 9);
+    expect(down.twist).toBeCloseTo(-up.twist, 9);
+    expect(Math.abs(up.twist)).toBeGreaterThan(1);
+    expect(up.twistCentre).toEqual([0, 0]);
+    expect((feats[4] as { end: string; sketch: string })).toMatchObject({ end: 'mid', sketch: 'F4' });
+    expect((feats[6] as { op: string; end: string; depth: number; sketch: string })).toMatchObject({ op: 'cut', end: 'mid', depth: 3, sketch: 'F6' });
+    const gm = gearGeom(p), rings = (feats[5] as { entities: Array<{ r: number }> }).entities;
+    expect(rings.length).toBe(2);
+    expect(rings[0].r).toBeCloseTo(gm.rf - 0.5 * gm.mn, 6);
+    expect(rings[0].r).toBeLessThan(gm.rf);
+    expect(rings[1].r).toBeCloseTo(gm.ra + gm.mn, 6);
+    expect((feats[8] as { sketch: string }).sketch).toBe('F8');
+  });
+  it('regenerating a herringbone adds the groove after the hub and removes it with its sketch', () => {
+    const p0 = { ...DEFAULT_GEAR, type: 'herringbone' as const, boreDia: 8 };
+    const first = gearOps(doc, p0) as unknown as Array<{ feature: Record<string, unknown> }>;
+    expect(first.length).toBe(5);
+    const roles = readGear(first[0].feature)!.roles;
+    const d2 = { features: first.map((o) => o.feature as { id?: string }), seq: 6 };
+    const adds = gearOps(d2, { ...p0, grooveWidth: 3 }, roles) as unknown as Array<{ op: string; id?: string; index?: number; feature?: { id: string } }>;
+    expect(adds.filter((o) => o.op === 'add').map((o) => o.feature!.id)).toEqual(['F6', 'F7']);
+    expect(adds.filter((o) => o.op === 'add').map((o) => o.index)).toEqual([3, 4]);
+    const back = gearOps({ features: d2.features, seq: 8 }, p0, { ...roles, grooveSketch: 'F6', groove: 'F7' }) as unknown as Array<{ op: string; id?: string }>;
+    expect(back.filter((o) => o.op === 'remove').map((o) => o.id)).toEqual(['F6']);
+  });
   it('the role list follows the options; a pair has the mate roles with an opposite hand when helical', () => {
     expect(rolesFor({ ...DEFAULT_GEAR, boreDia: 0 })).toEqual(['profile', 'body']);
     expect(rolesFor({ ...DEFAULT_GEAR, type: 'internal', hubDia: 20, hubLength: 5 })).toEqual(['profile', 'body']);
     expect(rolesFor({ ...DEFAULT_GEAR, type: 'rack' })).toEqual(['profile', 'body']);
     expect(rolesFor({ ...DEFAULT_GEAR, hubDia: 20, hubLength: 12, keyway: true })).toEqual(['profile', 'body', 'hubSketch', 'hub', 'boreSketch', 'bore', 'keySketch', 'key']);
+    expect(rolesFor({ ...DEFAULT_GEAR, type: 'herringbone', boreDia: 0, grooveWidth: 0 })).toEqual(['profile', 'body', 'bodyDown']);
+    expect(rolesFor({ ...DEFAULT_GEAR, type: 'herringbone', grooveWidth: 3, hubDia: 20, hubLength: 12, keyway: true }))
+      .toEqual(['profile', 'body', 'bodyDown', 'hubSketch', 'hub', 'grooveSketch', 'groove', 'boreSketch', 'bore', 'keySketch', 'key']);
+    expect(rolesFor(defaultPair({ type: 'herringbone', grooveWidth: 3 })).filter((r) => r.startsWith('m.')).length).toBe(7);
     expect(rolesFor(defaultPair()).filter((r) => r.startsWith('m.')).length).toBe(4);
-    const m = mateParams({ ...defaultPair(), type: 'helical', hand: 'right' });
+    const m = mateParams({ ...defaultPair({ type: 'herringbone', hand: 'right' }), hand: 'right' });
     expect(m.hand).toBe('left');
     expect(m.teeth).toBe(40);
+    const mh = mateParams({ ...defaultPair(), type: 'helical', hand: 'right' });
+    expect(mh.hand).toBe('left');
+    expect(mh.teeth).toBe(40);
   });
   it('regenerating with existing roles replaces in place, adds optional roles after their predecessor and removes dropped ones with their dependents', () => {
     const first = gearOps(doc, DEFAULT_GEAR) as unknown as Array<{ feature: { id: string } }>;
@@ -121,6 +181,7 @@ describe('gear samples', () => {
   it('the committed samples are what the generator makes', () => {
     expect(read('spur-gear')).toEqual(JSON.parse(JSON.stringify(samplePart('Spur gear', SPUR_SAMPLE))));
     expect(read('gear-pair')).toEqual(JSON.parse(JSON.stringify(samplePart('Gear pair', PAIR_SAMPLE))));
+    expect(read('herringbone-pair')).toEqual(JSON.parse(JSON.stringify(samplePart('Herringbone pair', HERRINGBONE_PAIR_SAMPLE))));
   });
   it('are listed', () => {
     const idx = read('index', 'json') as unknown as Array<{ id: string }>;

@@ -6,10 +6,12 @@ import './i18n';
 
 afterEach(() => cleanup());
 
+const families: string[] = [];
 function mount(params: PropParams = DEFAULT_PROP, o: { edit?: boolean; name?: string; step?: WizardStep; hint?: string } = {}) {
   const drafts: PropParams[] = [], creates: PropParams[] = [];
   let cancelled = 0;
-  const r = render(<PropellerWizard params={params} edit={o.edit} name={o.name} step={o.step} hint={o.hint} onDraft={(d) => drafts.push(d)} onCreate={(d) => creates.push(d)} onCancel={() => { cancelled++; }} />);
+  families.length = 0;
+  const r = render(<PropellerWizard params={params} edit={o.edit} name={o.name} step={o.step} hint={o.hint} onDraft={(d) => drafts.push(d)} onCreate={(d) => creates.push(d)} onCancel={() => { cancelled++; }} onFamily={(f) => families.push(f)} />);
   const q = (sel: string) => r.container.querySelector(sel) as HTMLElement;
   const input = (path: string) => r.container.querySelector(`[data-path="${path}"] input`) as HTMLInputElement;
   const set = (path: string, v: string) => fireEvent.change(input(path), { target: { value: v } });
@@ -41,15 +43,17 @@ describe('PropellerWizard', () => {
     expect(m.q('[data-testid="prop-create"]').textContent).toBe('Apply');
   });
 
-  it('size step: a change sends the WHOLE record as a draft; blade count rounds to a whole number; the marine family is offered but disabled', () => {
+  it('size step: a change sends the WHOLE record as a draft; blade count rounds to a whole number; the marine family is offered and switches the wizard', () => {
     const m = mount();
     m.set('diameter', '150');
     expect(m.drafts.at(-1)).toMatchObject({ diameter: 150, hubDia: 24, blades: 3 });
     m.set('blades', '4.6');
     expect(m.drafts.at(-1)!.blades).toBe(5);
     const marine = m.q('[data-value="marine"]') as HTMLButtonElement;
-    expect(marine.disabled).toBe(true);
-    expect(marine.textContent).toMatch(/coming soon/);
+    expect(marine.disabled).toBe(false);
+    expect(m.q('[data-value="airfoil"]').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(marine);
+    expect(families).toEqual(['marine']);
     fireEvent.click(m.q('[data-value="ccw"]'));
     fireEvent.click(m.q('[data-value="cw"]'));
     expect(m.drafts.at(-1)!.direction).toBe('cw');

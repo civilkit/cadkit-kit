@@ -55,4 +55,25 @@ describe('GearEditor', () => {
     expect(m.drafts.at(-1)!.mate?.teeth).toBe(24);
     expect(m.r.container.querySelector('[data-testid="gear-centre"]')!.textContent).toMatch(/36 mm/);
   });
+  it('herringbone: chevron toggle and groove field instead of the helical hand, defaults 30 degrees and 3 modules, warns on a wide groove', () => {
+    const m = mount();
+    fireEvent.click(m.r.container.querySelector('[data-value="herringbone"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ type: 'herringbone', helixAngle: 30, grooveWidth: 6 });
+    expect(m.input('helixAngle').value).toBe('30');
+    expect(m.input('grooveWidth')).toBeTruthy();
+    expect(m.r.container.querySelector('[data-path="hand"] [data-value="right"]')!.textContent).toMatch(/Apex leading/);
+    expect(m.r.container.querySelector('[data-testid="gear-twist"]')).toBeNull();
+    expect(m.r.container.querySelector('[data-path="mate"]')).toBeTruthy();
+    expect(m.ro('groove')).toBe('6 mm');
+    expect(m.ro('faceWidth')).toBe('10 mm');
+    expect(m.ro('overlapHalf')).toBeTruthy();
+    expect(m.r.container.querySelector('[data-testid="gear-hb-note"]')).toBeTruthy();
+    expect(m.r.container.querySelector('[data-warning="grooveWide"]')).toBeNull();
+    m.set('grooveWidth', '10');
+    expect(m.drafts.at(-1)!.grooveWidth).toBe(10);
+    expect(m.r.container.querySelector('[data-warning="grooveWide"]')).toBeTruthy();
+    fireEvent.click(m.r.container.querySelector('[data-value="spur"]')!);
+    expect(m.r.container.querySelector('[data-path="grooveWidth"]')).toBeNull();
+    expect(m.r.container.querySelector('[data-path="helixAngle"]')).toBeNull();
+  });
 });
