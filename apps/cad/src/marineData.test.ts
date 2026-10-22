@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MARINE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
+  DEFAULT_MARINE, MARINE_SAMPLE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
   marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
 } from './marineData';
 import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
@@ -437,5 +438,22 @@ describe('marine propeller: rake and progressive pitch', () => {
       built++;
     }
     expect(built).toBeGreaterThan(5);
+  });
+});
+
+describe('marine sample', () => {
+  it('the shipped marine-propeller.ckpart is what the generator makes from MARINE_SAMPLE (3 blades, mild rake and progressive pitch), valid, with no private paths', () => {
+    expect(MARINE_SAMPLE.blades).toBe(3);
+    expect(MARINE_SAMPLE.rake).toBeGreaterThan(0); expect(MARINE_SAMPLE.rake).toBeLessThanOrEqual(15);
+    expect(MARINE_SAMPLE.pitchProgress).toBeGreaterThan(0); expect(MARINE_SAMPLE.pitchProgress).toBeLessThanOrEqual(0.25);
+    expect(marineErrors(MARINE_SAMPLE)).toEqual([]);
+    const text = readFileSync('apps/cad/public/samples/marine-propeller.ckpart', 'utf8');
+    expect(text).toBe(JSON.stringify(marineDocument(MARINE_SAMPLE, 'Marine propeller')));
+    expect(text).not.toMatch(/\/Users\/|\/Volumes\/|\.com|\.au/);
+    const idx = JSON.parse(readFileSync('apps/cad/public/samples/index.json', 'utf8')) as Array<{ id: string; file: string }> | { samples: Array<{ id: string; file: string }> };
+    const list = Array.isArray(idx) ? idx : idx.samples;
+    expect(list.find((x) => x.id === 'marine-propeller')?.file).toBe('marine-propeller.ckpart');
+    const allow = JSON.parse(readFileSync('apps/cad/pages-samples.allow.json', 'utf8')) as { samples: string[] };
+    expect(allow.samples).toContain('marine-propeller');
   });
 });

@@ -343,6 +343,9 @@ export const MARINE_PRESETS: Record<string, Partial<MarineParams>> = {
   quiet5: { diameter: 300, hubDia: 60, hubLength: 150, boreDia: 25, blades: 5, pitchRatio: 1.3, ear: 0.8, rootRatio: 0.4, skew: 25 },
 };
 
+/** The shipped sample (`marine-propeller`): three blades, mild rake (10 degrees) and progressive pitch (15 % more pitch at the hub than at the tip); the hub is as long as the root needs. */
+export const MARINE_SAMPLE: MarineParams = (() => { const p = { ...DEFAULT_MARINE, rake: 10, pitchProgress: 0.15 }; return { ...p, hubLength: Math.max(p.hubLength, Math.ceil(hubLengthNeeded(p)) + 1) }; })();
+
 /** Reads a marine propeller record off a feature (the parameters with defaults filled in, and the role map), or null. */
 export function readMarine(f: unknown): { params: MarineParams; roles: Record<string, string> } | null {
   const rec = (f as { prop?: Record<string, unknown> } | null)?.prop;
