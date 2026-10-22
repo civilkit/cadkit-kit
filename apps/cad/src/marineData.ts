@@ -277,19 +277,44 @@ export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): Helic
   type Ray = { phi: number; a: number; b: number };
   let rays: Array<Ray | null> = [];
   const make = (phi: number): Ray | null => { const iv = rayInterval(p, phi); return iv && iv[1] - iv[0] >= 1e-3 ? { phi, a: iv[0], b: iv[1] } : null; };
-  for (let k = 0; k < count; k++) rays.push(make(lo + step * (k + 0.5)));
+  // a section plane through the hub cylinder's seam (angle 0) makes the kernel's hub fuse fail (an odd number of rays puts one at the blade's middle, which is about 0): shift the grid by up to
+  // 0.4 step until every ray is SEAM_DEG off the seam
+  let shift = 0;
+  for (const d of [0, 0.3, -0.3, 0.15, -0.15, 0.4, -0.4]) {
+    if (Array.from({ length: count }, (_x, k) => Math.abs(lo + step * (k + 0.5 + d))).every((a) => a > rad(SEAM_DEG))) { shift = d; break; }
+  }
+  for (let k = 0; k < count; k++) rays.push(make(lo + step * (k + 0.5 + shift)));
   // smoother outline: where the end radius of a ray jumps by more than `OUTLINE_JUMP` of the tip radius against its neighbour (the corners where the outline switches between the root or tip arc and
   // the leading or trailing edge) a ray is inserted halfway, down to `OUTLINE_MIN_DEG` between rays; the loft's rim then follows the outline through the corner instead of cutting it
   const jump = OUTLINE_JUMP * R, minGap = rad(OUTLINE_MIN_DEG);
-  for (let level = 0; level < 3 && stepDeg >= OUTLINE_MIN_DEG * 2; level++) {
+  // the turn the outline makes at a ray's end between its neighbours' ends: a rim made of straight pieces shows a kink of this size at each ray; both intervals next to a kinked ray are split
+  const tol = OUTLINE_KINK_MM * R / 150;
+  const pt = (ph: number, r: number): [number, number] => [r * Math.cos(ph), r * Math.sin(ph)];
+  const turnAt = (a: Ray, b: Ray, c: Ray, key: 'a' | 'b'): number => {
+    const [x1, y1] = pt(a.phi, a[key]), [x0, y0] = pt(b.phi, b[key]), [x2, y2] = pt(c.phi, c[key]);
+    const turn = Math.abs(Math.atan2((x0 - x1) * (y2 - y0) - (y0 - y1) * (x2 - x0), (x0 - x1) * (x2 - x0) + (y0 - y1) * (y2 - y0)));
+    return turn * Math.min(Math.hypot(x0 - x1, y0 - y1), Math.hypot(x2 - x0, y2 - y0));
+  };
+  for (let level = 0; level < 4 && stepDeg >= OUTLINE_MIN_DEG * 2; level++) {
+    const split = new Array<boolean>(rays.length).fill(false);
+    for (let k = 0; k + 1 < rays.length; k++) {
+      const u = rays[k], v = rays[k + 1];
+      if (!u || !v) continue;
+      if (level < 3 && (Math.abs(u.b - v.b) > jump || Math.abs(u.a - v.a) > jump)) split[k] = true;
+    }
+    for (let k = 1; k + 1 < rays.length; k++) {
+      const u = rays[k - 1], c = rays[k], v = rays[k + 1];
+      if (!u || !c || !v) continue;
+      if (c.b > OUTER_ZONE * R && turnAt(u, c, v, 'b') > tol) split[k - 1] = split[k] = true;
+    }
     const nxt: Array<Ray | null> = [];
     for (let k = 0; k < rays.length; k++) {
       nxt.push(rays[k]);
       const u = rays[k], v = rays[k + 1];
-      if (u && v && v.phi - u.phi > 2 * minGap && Math.abs(u.b - v.b) > jump) {
-        // an extra ray whose end falls close to the hub surface is not added: the kernel's hub fuse fails on ends that skim the hub cylinder
+      if (split[k] && u && v && v.phi - u.phi > 2 * minGap) {
+        // an extra ray whose end falls close to the hub surface or the hub seam is not added: the kernel's hub fuse fails on those
         const m = make(0.5 * (u.phi + v.phi));
-        if (m && Math.abs(m.a - hubR) > HUB_KEEPOUT && Math.abs(m.b - hubR) > HUB_KEEPOUT) nxt.push(m);
+        if (m && Math.abs(m.phi) > rad(SEAM_DEG) && ((m.a <= r0 + 1e-6 && u.a <= r0 + 1e-6 && v.a <= r0 + 1e-6) || Math.abs(m.a - hubR) > HUB_KEEPOUT) && Math.abs(m.b - hubR) > HUB_KEEPOUT) nxt.push(m);
       }
     }
     if (nxt.length === rays.length) break;
@@ -303,7 +328,8 @@ export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): Helic
     let a = ray.a, b = ray.b;
     if (Math.abs(a - hubR) < 0.6) a = hubR - 0.6;
     if (Math.abs(b - hubR) < 0.6) b = hubR + 0.6;
-    if (b - a < 1e-3) continue;
+    // a ray that only just clears the hub (a sliver of a section, which only happens at the first or last ray of a blade) leaves the kernel a near tangent to fuse: dropped
+    if (b - a < 1e-3 || b < hubR + SLIVER) continue;
     psi.push(s * phi); z.push(faceZ(p, phi, hubR)); rA.push(a); rB.push(b); phis.push(phi);
   }
   return { psi, z, rA, rB, phi: phis };
@@ -317,8 +343,13 @@ export function helicoidPoint(p: MarineParams, phi: number, r: number): [number,
 
 /** Outline refinement of `helicoidStations`: the end radius jump (fraction of the tip radius) that triggers an extra ray, and the smallest angle between rays, degrees. */
 export const OUTLINE_JUMP = 0.05;
+/** The kink the rim may show at a ray's end, as the turn of the outline (radians) times the shorter piece next to it (mm, for a 150 mm tip radius; it scales with the radius): the outline is refined until every ray is below it (or the rays are OUTLINE_MIN_DEG apart). */
+export const OUTLINE_KINK_MM = 0.8;
 export const OUTLINE_MIN_DEG = 1;
-const HUB_KEEPOUT = 3;
+const OUTER_ZONE = 0.6;
+const SEAM_DEG = 1.2;
+const SLIVER = 4;
+const HUB_KEEPOUT = 6;
 
 /** Section spacings the build tries, in order: the requested one, then 7, 6 and 4 degrees, and 3 as the last resort (it builds the lowest root pitches, in about 15 s). */
 export const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4, 3].filter((x) => x !== sp)];
