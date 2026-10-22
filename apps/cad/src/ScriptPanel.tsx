@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { EXAMPLES, createRunControl, formatElapsed, throttleProgress, type Progress, type RunOptions, type ScriptError } from '@kit/script';
+import { EXAMPLES, formatScript, createRunControl, formatElapsed, throttleProgress, type Progress, type RunOptions, type ScriptError } from '@kit/script';
 import { t } from './i18n';
 
 /** The Script tab: a code box with line numbers, Run (Ctrl/Cmd+Enter), examples and the error list. Running opens a NEW part. */
-export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<RunOptions, 'signal' | 'onProgress'>): Promise<ScriptError[]> }): JSX.Element {
+export function ScriptPanel(p: { saved: string; name?: string; onRun(code: string, run?: Pick<RunOptions, 'signal' | 'onProgress'>): Promise<ScriptError[]> }): JSX.Element {
   const [code, setCode] = useState(p.saved || EXAMPLES[0].code);
   const [errors, setErrors] = useState<ScriptError[]>([]);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -29,6 +29,28 @@ export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<R
       setErrors(await p.onRun(code, { signal: c.signal, onProgress: throttleProgress((x) => { if (ctl.current === c) { setProg(x); } }) }));
     } finally { clearInterval(tick); if (ctl.current === c) { ctl.current = null; setProg(null); } }
   };
+  const fileIn = useRef<HTMLInputElement>(null);
+  const openFile = async (f: File | undefined): Promise<void> => {
+    if (!f) return;
+    setCode(await f.text()); setErrors([]);
+    if (fileIn.current) fileIn.current.value = '';   // the same file can be opened again
+  };
+  const save = (): void => {
+    const blob = new Blob([code], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (p.name ?? '').trim().replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').concat('.script.js').replace(/^\.script/, 'script.script');
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const format = (): void => {
+    const next = formatScript(code);
+    if (next === code) return;
+    const el = area.current;
+    // through the editing command, so the browser's own Undo (Ctrl/Cmd+Z) can take the formatting back
+    if (el) { el.focus(); el.select(); if (document.execCommand('insertText', false, next)) return; }
+    setCode(next);
+  };
   const gotoLine = (line: number): void => {
     const el = area.current;
     if (!el || line < 1) return;
@@ -42,6 +64,10 @@ export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<R
       <div style="display:flex;gap:6px;align-items:center">
         <button class="btn primary" disabled={!!prog} onClick={() => void run()} title="Ctrl/Cmd+Enter">{t('script.run')}</button>
         {prog ? <button class="btn" onClick={() => { ctl.current?.cancel(); setCancelling(true); }}>{t('script.cancel')}</button> : null}
+        <button class="btn" onClick={() => fileIn.current?.click()} title={t('script.open.tip')}>{t('script.open')}</button>
+        <button class="btn" onClick={save} title={t('script.save.tip')}>{t('script.save')}</button>
+        <button class="btn" onClick={format} title={t('script.format.tip')}>{t('script.format')}</button>
+        <input ref={fileIn} type="file" accept=".js,.ts,.mjs,.txt,text/plain,text/javascript" style="display:none" onChange={(e) => void openFile((e.currentTarget as HTMLInputElement).files?.[0])} />
         <select aria-label={t('script.examples')} value="" onChange={(e) => { const ex = EXAMPLES.find((x) => x.id === (e.currentTarget as HTMLSelectElement).value); if (ex) { setCode(ex.code); setErrors([]); } }}>
           <option value="">{t('script.examples')}</option>
           {EXAMPLES.map((x) => <option key={x.id} value={x.id}>{t('script.example.' + x.id)}</option>)}
@@ -62,7 +88,7 @@ export function ScriptPanel(p: { saved: string; onRun(code: string, run?: Pick<R
           style="flex:1;border:0;outline:0;resize:none;padding:4px;font:inherit;background:transparent;color:inherit;white-space:pre;overflow:auto"
           onInput={(e) => setCode((e.currentTarget as HTMLTextAreaElement).value)}
           onScroll={(e) => { if (gutter.current) gutter.current.scrollTop = (e.currentTarget as HTMLTextAreaElement).scrollTop; }}
-          onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void run(); } }}
+          onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void run(); } else if (e.shiftKey && e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); format(); } }}
         />
       </div>
       <ul class="script-errors" aria-live="polite" style="margin:0;padding:0;list-style:none;font-size:12px;max-height:30%;overflow:auto">

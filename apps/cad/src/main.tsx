@@ -2112,7 +2112,7 @@ function App() {
     onLook={(key, patch) => { const row = bodyRows.find((r) => r.key === key); if (row) setBodyField('appearance', withLook(bodyFields, row, patch as Partial<Record<keyof BodyLookSpec, never>>)); }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };
-  const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} onRun={(code, run) => new Promise((resolve) => {
+  const scriptPanel = <ScriptPanel saved={String((doc as unknown as { script?: string } | null)?.script ?? '')} name={doc?.name} onRun={(code, run) => new Promise((resolve) => {
     // a script always builds a NEW untitled part; the unsaved-changes guard decides whether the current one may be left
     guarded(async () => {
       // while it runs: busy (the autosave waits), and the part that is open stays as it is until the finished list is opened in one step
