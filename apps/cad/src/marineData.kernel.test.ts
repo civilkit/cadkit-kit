@@ -247,7 +247,7 @@ describe('marine propeller with rake and progressive pitch against the real kern
   }, 600000);
 
   it('sweep: every rake x progressive pitch combination either builds or is refused with a structured booleanFailed and a hint; the section spacings the wizard retries are tried in order; the table is logged', async () => {
-    const rakes = [-20, 0, 15, 30], progs = [-0.3, -0.15, 0, 0.25, 0.5];
+    const rakes = [-20, 0, 15, 30], progs = [-0.15, 0, 0.25, 0.5];
     const bases: Array<[string, Partial<MarineParams>]> = [['outboard3', {}], ['inboard4', MARINE_PRESETS.inboard4], ['quiet5', MARINE_PRESETS.quiet5]];
     const cases: Array<{ base: string; o: Partial<MarineParams> }> = [];
     for (const rake of rakes) for (const pitchProgress of progs) cases.push({ base: 'outboard3', o: { rake, pitchProgress } });

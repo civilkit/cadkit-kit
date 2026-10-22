@@ -117,7 +117,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
       {step === 'blade' ? (
         <div class="fedit-sec-fields prop-body" data-section="blade">
           {field('pitchRatio', t('marine.pitchRatio'), { min: 0.4, max: 2, step: 0.05, tip: t('marine.pitchRatioTip') })}
-          {field('pitchProgress', t('marine.pitchProgress'), { min: -0.3, max: 0.5, step: 0.05, tip: t('marine.pitchProgressTip') })}
+          {field('pitchProgress', t('marine.pitchProgress'), { min: -0.15, max: 0.5, step: 0.05, tip: t('marine.pitchProgressTip') })}
           {field('rake', t('marine.rake'), { unit: 'deg', min: -20, max: 30, step: 1, tip: t('marine.rakeTip') })}
           {field('ear', t('marine.ear'), { min: 0.25, max: 1.2, step: 0.05, tip: t('marine.earTip') })}
           {field('peak', t('marine.peak'), { min: 0.05, max: 0.95, step: 0.05, tip: t('marine.peakTip') })}

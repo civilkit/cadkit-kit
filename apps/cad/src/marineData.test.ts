@@ -261,7 +261,7 @@ describe('marine propeller edit path', () => {
 
 describe('marine propeller: rake and progressive pitch', () => {
   const R0 = (o: Partial<MarineParams>): MarineParams => P(o);
-  const combos: Array<Partial<MarineParams>> = [{}, { rake: 15 }, { rake: -12 }, { pitchProgress: 0.3 }, { pitchProgress: -0.2 }, { rake: 20, pitchProgress: 0.3 }, { rake: 30, pitchProgress: 0.5 }, { rake: -20, pitchProgress: -0.3, direction: 'lh' }];
+  const combos: Array<Partial<MarineParams>> = [{}, { rake: 15 }, { rake: -12 }, { pitchProgress: 0.3 }, { pitchProgress: -0.15 }, { rake: 20, pitchProgress: 0.3 }, { rake: 30, pitchProgress: 0.5 }, { rake: -20, pitchProgress: -0.15, direction: 'lh' }];
 
   it('defaults are 0 and 0, and with them the face is the old constant-pitch helicoid exactly', () => {
     expect(DEFAULT_MARINE.rake).toBe(0); expect(DEFAULT_MARINE.pitchProgress).toBe(0);
@@ -275,7 +275,7 @@ describe('marine propeller: rake and progressive pitch', () => {
   });
   it('pitch is linear in the span fraction: the tip pitch at the tip, more (positive progress) or less at the root, by the fraction asked', () => {
     const { R, hubR } = marineSpan(P());
-    for (const pp of [-0.3, -0.1, 0.25, 0.5]) {
+    for (const pp of [-0.15, -0.1, 0.25, 0.5]) {
       const p = P({ pitchProgress: pp });
       expect(pitchAt(p, R)).toBeCloseTo(250, 9);
       expect(pitchAt(p, hubR)).toBeCloseTo(250 * (1 + pp), 9);
@@ -369,17 +369,17 @@ describe('marine propeller: rake and progressive pitch', () => {
     expect(hubLengthNeeded(P({ pitchProgress: 0.5 }))).toBeGreaterThan(hubLengthNeeded(P()));
     expect(hubLengthNeeded(P({ rake: 30 }))).not.toBeCloseTo(hubLengthNeeded(P()), 3);
   });
-  it('validation: rake -20..30 and progressive pitch -0.3..0.5, each its own error code; the edges are accepted', () => {
+  it('validation: rake -20..30 and progressive pitch -0.15..0.5, each its own error code; the edges are accepted', () => {
     expect(codes(P({ rake: 31 }))).toContain('rake');
     expect(codes(P({ rake: -21 }))).toContain('rake');
     expect(codes(P({ pitchProgress: 0.51 }))).toContain('pitchProgress');
-    expect(codes(P({ pitchProgress: -0.31 }))).toContain('pitchProgress');
+    expect(codes(P({ pitchProgress: -0.16 }))).toContain('pitchProgress');
     expect(codes(P({ rake: NaN }))).toContain('notNumber');
     expect(codes(P({ pitchProgress: Infinity }))).toContain('notNumber');
-    for (const o of [{ rake: -20 }, { rake: 30 }, { pitchProgress: -0.3 }, { pitchProgress: 0.5 }, { rake: 30, pitchProgress: 0.5, hubLength: 140 }]) expect(codes(P(o)).filter((c) => c !== 'hubShort'), JSON.stringify(o)).toEqual([]);
+    for (const o of [{ rake: -20 }, { rake: 30 }, { pitchProgress: -0.15 }, { pitchProgress: 0.5 }, { rake: 30, pitchProgress: 0.5, hubLength: 140 }]) expect(codes(P(o)).filter((c) => c !== 'hubShort'), JSON.stringify(o)).toEqual([]);
   });
   it('warns on a low pitch at the hub (the hub fuse is touchy there) and on the razor tip, without refusing', () => {
-    expect(validateMarine(P({ pitchProgress: -0.3 })).find((i) => i.code === 'rootPitch')?.level).toBe('warning');
+    expect(validateMarine(P({ pitchRatio: 0.9, pitchProgress: -0.15 })).find((i) => i.code === 'rootPitch')?.level).toBe('warning');
     expect(validateMarine(P({ pitchRatio: 0.7 })).some((i) => i.code === 'rootPitch')).toBe(true);
     expect(validateMarine(P()).some((i) => i.code === 'rootPitch')).toBe(false);
     expect(validateMarine(P({ pitchProgress: 0.5 })).some((i) => i.code === 'rootPitch')).toBe(false);

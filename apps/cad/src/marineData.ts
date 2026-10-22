@@ -40,7 +40,7 @@ export interface MarineParams {
   raySpacing: number;
   /** Rake, degrees (-20..30): the blade leans aft, the face height gains tan(rake) (r - hubR). 0 = none. */
   rake: number;
-  /** Progressive pitch (-0.3..0.5): fractional change of the local pitch from the tip to the root, linear in the span fraction: P(r) = P_tip (1 + pitchProgress (1 - x)). Positive = more pitch at the root. 0 = constant pitch. */
+  /** Progressive pitch (-0.15..0.5; further negative values are refused by the kernel's hub fuse for most rake values, see docs/propellers.md): fractional change of the local pitch from the tip to the root, linear in the span fraction: P(r) = P_tip (1 + pitchProgress (1 - x)). Positive = more pitch at the root. 0 = constant pitch. */
   pitchProgress: number;
 }
 
@@ -159,7 +159,7 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   if (p.thickRoot <= 0 || p.thickTip <= 0) err('thick', 'The thickness must be above 0');
   if (p.raySpacing < 3 || p.raySpacing > 10) err('raySpacing', 'The section spacing must be between 3 and 10 degrees');
   if (p.rake < -20 || p.rake > 30) err('rake', 'The rake must be between -20 and 30 degrees');
-  if (p.pitchProgress < -0.3 || p.pitchProgress > 0.5) err('pitchProgress', 'The progressive pitch must be between -0.3 and 0.5');
+  if (p.pitchProgress < -0.15 || p.pitchProgress > 0.5) err('pitchProgress', 'The progressive pitch must be between -0.15 and 0.5');
   if (p.rootEmbed <= 0.3 || p.rootEmbed >= 1) err('rootEmbed', 'The root embed must be between 0.3 and 1 of the hub radius');
   if (out.length) return out;
   if (p.thickTip * p.diameter < 0.3) warn('thinTip', 'The blade tip is thinner than 0.3 mm');
@@ -169,8 +169,8 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   if ((p.blades * (te - le)) > 2 * Math.PI * 0.95) warn('overlap', 'The blades overlap at the hub: lower the area ratio or the root chord ratio');
   const need = hubLengthNeeded(p);
   if (p.hubLength < need) err('hubShort', `The hub is too short for the root: the blade root spans ${round(need, 1)} mm along the shaft (hub length at least that)`);
-  // the hub fuse is the touchy step: a low pitch near the hub (constant 0.7 to 0.8, or a falling pitch toward the root) is refused for most section spacings (docs/propellers.md)
-  if ((pitchAt(p, hubR) / p.diameter) < 0.75) warn('rootPitch', 'The pitch at the hub is below 0.75 D: the hub fuse often fails; the build then retries finer section spacings');
+  // the hub fuse is the touchy step: a low pitch near the hub (constant 0.7 to 0.8, or a pitch falling toward the root) is refused for most section spacings (docs/propellers.md)
+  if ((pitchAt(p, hubR) / p.diameter) <= 0.8 + 1e-9) warn('rootPitch', 'The pitch at the hub is 0.8 D or lower: the hub fuse often fails; the build then retries finer section spacings');
   if (Math.abs(p.skew) > 45) warn('skew', 'A skew above 45 degrees is unusual');
   void r0;
   return out;

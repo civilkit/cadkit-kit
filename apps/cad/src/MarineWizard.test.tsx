@@ -102,7 +102,7 @@ describe('MarineWizard', () => {
     expect(bad.q('[data-issue="rake"]').textContent).toMatch(/rake must be between/i);
     expect((bad.q('[data-testid="marine-create"]') as HTMLButtonElement).disabled).toBe(true);
     cleanup();
-    const low = mount({ ...DEFAULT_MARINE, pitchProgress: -0.3 }, { step: 'review' });
+    const low = mount({ ...DEFAULT_MARINE, pitchRatio: 0.75 }, { step: 'review' });
     expect(low.q('[data-issue="rootPitch"]').getAttribute('data-severity')).toBe('warning');
     expect((low.q('[data-testid="marine-create"]') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -134,7 +134,7 @@ describe('MarineWizard', () => {
   });
 
   it('every issue code has a catalogue text (the hub length is the generator message)', () => {
-    for (const o of [{ blades: 1 }, { pitchRatio: 0.2 }, { ear: 3 }, { thickTip: 0.001 }, { thickTip: 0.05, thickRoot: 0.01 }, { raySpacing: 1 }, { rootEmbed: 2 }, { diameter: 0 }, { hubLength: 10 }, { rake: 40 }, { pitchProgress: 0.9 }, { pitchProgress: -0.3 }]) {
+    for (const o of [{ blades: 1 }, { pitchRatio: 0.2 }, { ear: 3 }, { thickTip: 0.001 }, { thickTip: 0.05, thickRoot: 0.01 }, { raySpacing: 1 }, { rootEmbed: 2 }, { diameter: 0 }, { hubLength: 10 }, { rake: 40 }, { pitchProgress: 0.9 }, { pitchRatio: 0.7 }]) {
       for (const i of validateMarine({ ...DEFAULT_MARINE, ...o })) {
         const txt = marineIssueText(i);
         expect(txt.length, i.code).toBeGreaterThan(5);
