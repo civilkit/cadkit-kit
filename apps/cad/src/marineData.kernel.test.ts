@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import { sessionQuery } from './inspect/kernel';
 import type { PartDoc } from '@ck/part-model';
-import { DEFAULT_MARINE, chordAt, helicoidPoint, marineDocument, marineSpan, midAngleAt, thicknessAt, type MarineParams } from './marineData';
+import { DEFAULT_MARINE, MARINE_PRESETS, chordAt, faceSlopeR, helicoidPoint, hubLengthNeeded, marineDocument, marineErrors, marineSpacings, marineSpan, midAngleAt, pitchAngleAt, thicknessAt, type MarineParams } from './marineData';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -132,4 +132,149 @@ describe('marine propeller against the real kernel', { skip: !process.env.CK_WAS
       expect(b.solids).toBe(1);
     }
   }, 600000);
+});
+
+/** Rake and progressive pitch. The hub is made long enough for the root of each (hubLengthNeeded). */
+const fit = (o: Partial<MarineParams>): MarineParams => { const p = P(o); return { ...p, hubLength: Math.max(p.hubLength, Math.ceil(hubLengthNeeded(p)) + 1) }; };
+const MILD = { rake: 12, pitchProgress: 0.2 } as const;
+const STRONG = { rake: 20, pitchProgress: 0.3 } as const;
+const FORWARD = { rake: -15, pitchProgress: -0.15 } as const;
+
+/** hub + N x integral of thickness x developed area: the surface element of a strip of the blade is chord x sqrt(1 + (cos(pitch angle) dz/dr)^2) dr (the face also slopes along r). */
+function expectedVolumeSloped(p: MarineParams, steps = 400): { naive: number; sloped: number } {
+  const { R, hubR } = marineSpan(p);
+  const hub = Math.PI * (hubR * hubR - (p.boreDia / 2) ** 2) * p.hubLength;
+  let naive = 0, sloped = 0;
+  for (let i = 0; i < steps; i++) {
+    const r = hubR + ((R - hubR) * (i + 0.5)) / steps, dr = (R - hubR) / steps;
+    const base = thicknessAt(p, r) * chordAt(p, r) * dr, c = Math.cos(pitchAngleAt(p, r)), fr = faceSlopeR(p, midAngleAt(p, r));
+    naive += base; sloped += base * Math.sqrt(1 + (c * fr) ** 2);
+  }
+  return { naive: hub + p.blades * naive, sloped: hub + p.blades * sloped };
+}
+
+describe('marine propeller with rake and progressive pitch against the real kernel', { skip: !process.env.CK_WASM }, () => {
+  it('mild, strong and forward combinations build with no errors as one solid, valid at 1e-3 mm', async () => {
+    const rows: string[] = [];
+    for (const [name, o] of [['mild', MILD], ['strong', STRONG], ['forward', FORWARD], ['rake only', { rake: 25 }], ['progress only', { pitchProgress: 0.5 }]] as const) {
+      const p = fit(o);
+      const b = await build(p);
+      expect(b.rep.regen.errors, name).toEqual([]);
+      expect(b.solids, name).toBe(1);
+      const v = await b.s.validate(1e-3);
+      expect(v.ok, `${name} ${JSON.stringify(v.issues)}`).toBe(true);
+      rows.push(`${name} ${b.ms} ms hub ${p.hubLength}`);
+    }
+    console.log('MARINE rake/progress builds:', rows.join(' | '));
+  }, 900000);
+
+  it('the face lies on the intended surface: sampled points of z = P(r) phi / 2 pi + tan(rake) (r - hubR) are within 0.05 mm of the built solid', async () => {
+    const rows: string[] = [];
+    for (const [name, o] of [['strong', STRONG], ['forward', FORWARD]] as const) {
+      const p = fit(o);
+      const b = await build(p);
+      const pts: number[][] = [];
+      for (const r of [35, 60, 90, 115]) for (const f of [-0.3, 0, 0.3]) pts.push(helicoidPoint(p, midAngleAt(p, r) + f * 0.1, r));
+      const rep = await b.s.closestPoint(pts) as { results: Array<{ nearest: { distance: number } }> };
+      const worst = Math.max(...rep.results.map((x) => x.nearest.distance));
+      rows.push(`${name} worst of ${pts.length}: ${worst.toExponential(2)} mm`);
+      expect(worst, name).toBeLessThan(0.05);
+    }
+    console.log('MARINE rake/progress face deviation:', rows.join(' | '));
+  }, 900000);
+
+  it('the thickness normal to the face is the one asked for at three radii within 3 %', async () => {
+    const rows: string[] = [];
+    for (const [name, o] of [['mild', MILD], ['strong', STRONG], ['forward', FORWARD]] as const) {
+      const p = fit(o);
+      const b = await build(p);
+      for (const r of [40, 75, 110]) {
+        const q = helicoidPoint(p, midAngleAt(p, r), r);
+        const a = await b.s.thicknessAt({ point: [q[0], q[1], q[2]] }) as { result: { thickness: number } };
+        const want = thicknessAt(p, r);
+        rows.push(`${name} r${r} ${a.result.thickness.toFixed(2)}/${want.toFixed(2)}`);
+        expect(Math.abs(a.result.thickness - want) / want, `${name} r ${r}`).toBeLessThan(0.03);
+      }
+    }
+    console.log('MARINE rake/progress thickness got/want:', rows.join(' | '));
+  }, 900000);
+
+  it('the volume matches hub + N x the integral of thickness x developed area within 2 % (the plain thickness x chord integral is logged too)', async () => {
+    const rows: string[] = [];
+    for (const [name, o] of [['mild', MILD], ['strong', STRONG], ['forward', FORWARD], ['4 blades strong', { ...STRONG, blades: 4, ear: 0.7, hubLength: 130 }]] as const) {
+      const p = fit(o);
+      const b = await build(p);
+      expect(b.rep.regen.errors, name).toEqual([]);
+      const w = expectedVolumeSloped(p);
+      const rs = (b.vol - w.sloped) / w.sloped, rn = (b.vol - w.naive) / w.naive;
+      rows.push(`${name} built ${b.vol.toFixed(0)} area-corrected ${(100 * rs).toFixed(2)}% plain ${(100 * rn).toFixed(2)}%`);
+      expect(Math.abs(rs), name).toBeLessThan(0.02);
+    }
+    console.log('MARINE rake/progress volume:', rows.join(' | '));
+  }, 900000);
+
+  it('centre of gravity on the axis within 0.01 mm for 3 and 5 blades', async () => {
+    const rows: string[] = [];
+    for (const o of [{ ...STRONG }, { ...FORWARD, blades: 5, ear: 0.8, rootRatio: 0.4, skew: 25, hubLength: 140 }]) {
+      const p = fit(o);
+      const b = await build(p);
+      expect(b.rep.regen.errors, `N=${p.blades}`).toEqual([]);
+      const off = Math.hypot(b.com[0], b.com[1]);
+      rows.push(`N=${p.blades} CoG off axis ${off.toExponential(2)} mm`);
+      expect(off).toBeLessThan(0.01);
+    }
+    console.log('MARINE rake/progress CoG:', rows.join(' | '));
+  }, 900000);
+
+  it('a left-hand propeller with rake and progressive pitch is the mirror image: same volume and axial centre of gravity', async () => {
+    const rh = await build(fit(STRONG)), lh = await build(fit({ ...STRONG, direction: 'lh' }));
+    expect(lh.rep.regen.errors).toEqual([]);
+    expect(Math.abs(lh.vol - rh.vol) / rh.vol).toBeLessThan(1e-6);
+    expect(Math.abs(lh.com[2] - rh.com[2])).toBeLessThan(1e-6);
+  }, 600000);
+
+  it('STEP round trip keeps the volume and the solid count', async () => {
+    const b = await build(fit(STRONG));
+    const step = await b.s.step('prop');
+    const s2 = await Session.open(); sessions.push(s2);
+    const rep = await s2.importStep(step, 'prop');
+    expect(JSON.stringify(rep)).not.toMatch(/"ok":false/);
+    const m2 = (await sessionQuery<{ volume: number; bodies?: unknown[] }>(s2, { type: 'massProps', tag: 'imp', bodies: true }))!;
+    const rel = Math.abs(m2.volume - b.vol) / b.vol;
+    console.log('MARINE rake/progress STEP round trip', b.vol.toFixed(2), '->', m2.volume.toFixed(2), 'rel', rel.toExponential(2));
+    expect(rel).toBeLessThan(1e-3);
+    expect(m2.bodies?.length).toBe(1);
+  }, 600000);
+
+  it('sweep: every rake x progressive pitch combination either builds or is refused with a structured booleanFailed and a hint; the section spacings the wizard retries are tried in order; the table is logged', async () => {
+    const rakes = [-20, 0, 15, 30], progs = [-0.3, -0.15, 0, 0.25, 0.5];
+    const bases: Array<[string, Partial<MarineParams>]> = [['outboard3', {}], ['inboard4', MARINE_PRESETS.inboard4], ['quiet5', MARINE_PRESETS.quiet5]];
+    const cases: Array<{ base: string; o: Partial<MarineParams> }> = [];
+    for (const rake of rakes) for (const pitchProgress of progs) cases.push({ base: 'outboard3', o: { rake, pitchProgress } });
+    for (const [base, bo] of bases.slice(1)) for (const o of [{ rake: 12, pitchProgress: 0.2 }, { rake: -8, pitchProgress: -0.1 }, { rake: 25, pitchProgress: 0.4 }]) cases.push({ base, o: { ...bo, ...o } });
+    const rows: string[] = [];
+    let built = 0, firstTry = 0, refused = 0;
+    for (const c of cases) {
+      const p = fit(c.o);
+      expect(marineErrors(p), JSON.stringify(c)).toEqual([]);
+      const tries: string[] = [];
+      let ok = false, ms = 0;
+      for (const sp of marineSpacings(p.raySpacing)) {
+        const t0 = Date.now();
+        const b = await build({ ...p, raySpacing: sp });
+        ms += Date.now() - t0;
+        const errs = b.rep.regen.errors as Array<[string, { code: string; params?: { hint?: string } }]>;
+        if (!errs.length) { expect(b.solids).toBe(1); tries.push(`${sp}:ok`); ok = true; break; }
+        // a refusal is structured: booleanFailed with a hint, never a trap
+        expect(errs[0][1].code, JSON.stringify(c)).toBe('booleanFailed');
+        expect(errs[0][1].params?.hint, JSON.stringify(c)).toBeTruthy();
+        tries.push(`${sp}:booleanFailed`);
+      }
+      if (ok) { built++; if (tries.length === 1) firstTry++; } else refused++;
+      rows.push(`${c.base} rake ${c.o.rake} pp ${c.o.pitchProgress}: ${tries.join(' ')} (${ms} ms)`);
+    }
+    console.log(`MARINE sweep ${cases.length} cases: built ${built} (first spacing ${firstTry}), refused at every spacing ${refused}\n` + rows.join('\n'));
+    expect(built + refused).toBe(cases.length);
+    expect(built / cases.length).toBeGreaterThan(0.8);
+  }, 3000000);
 });
