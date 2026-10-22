@@ -17,7 +17,7 @@ export const DEFAULT_CORNER: CornerRecord = { inset: 10, matchFillet: false, nx:
 /** The least wall left between a hole and the plate's edge (or the fillet) before a warning, in mm. */
 export const MIN_WALL = 1;
 
-export type IssueCode = 'inset' | 'insetTooLarge' | 'count' | 'wall' | 'size' | 'outline' | 'noFillet';
+export type IssueCode = 'inset' | 'insetTooLarge' | 'count' | 'wall' | 'size' | 'outline' | 'noFillet' | 'noFace';
 export interface Issue {
   code: IssueCode;
   /** error: nothing can be placed; warn: placed, but check it */
@@ -33,7 +33,8 @@ const MSG: Record<IssueCode, string> = {
   wall: 'A {dia} mm hole at {inset} mm leaves only {wall} mm of material at the edge: use an inset of at least {min} mm or a smaller hole',
   size: 'The plate outline has no size',
   outline: 'The face is not a rectangle with equal corners: using its bounding box',
-  noFillet: 'The face has no rounded corners: the inset is typed',
+  noFillet: 'The face has no rounded corners: type the inset',
+  noFace: 'The face outline could not be read: using the plate size the holes were placed with',
 };
 export function issue(code: IssueCode, level: 'error' | 'warn', params: Record<string, string | number> = {}): Issue {
   return { code, level, params, message: MSG[code].replace(/\{(\w+)\}/g, (_, k: string) => String(params[k] ?? '')) };
@@ -77,6 +78,7 @@ export function placeCornerHoles(rect: Rect, o: PlaceOptions): Placement {
   ys.forEach((y, j) => xs.forEach((x, i) => { if (i === 0 || j === 0 || i === o.nx - 1 || j === o.ny - 1) points.push({ x: round6(x) + 0, y: round6(y) + 0 }); }));
   return { points, issues };
 }
+const roundRect = (r: Rect): Rect => ({ minX: round6(r.minX), minY: round6(r.minY), maxX: round6(r.maxX), maxY: round6(r.maxY) });
 const round6 = (v: number) => Math.round(v * 1e6) / 1e6 + 0;
 
 /** The inset to use: the fillet radius when asked and the plate has one, else the typed inset. */
@@ -94,7 +96,7 @@ export interface Outline {
   rectangle: boolean;
   issues: Issue[];
 }
-export interface FaceEdge { faces?: string[]; pts: number[][] }
+export interface FaceEdge { faces?: string[]; pts?: number[][] }
 
 /**
  * Reads the outline of face `face` from the body's edges: the edges that border it, flattened into the sketch plane. Straight edges
@@ -110,7 +112,7 @@ export function faceOutline(frame: PlaneFrame3, edges: FaceEdge[], face: string)
   let other = 0;
   const all: Pt[] = [];
   for (const e of mine) {
-    const flat = flatten(frame, e.pts).pts;
+    const flat = flatten(frame, e.pts!).pts;
     const c = classifyCurve(flat);
     if (!c) continue;
     if (c.kind === 'circle') continue;
@@ -133,7 +135,7 @@ export function faceOutline(frame: PlaneFrame3, edges: FaceEdge[], face: string)
   if (!arcs.length) {
     // sharp rectangle: exactly four sides, each on the bounding box
     const onBox = lines.every((l) => (near(l.a.x, l.b.x) && (near(l.a.x, rect.minX) || near(l.a.x, rect.maxX))) || (near(l.a.y, l.b.y) && (near(l.a.y, rect.minY) || near(l.a.y, rect.maxY))));
-    return lines.length === 4 && onBox ? { rect, radius: null, rectangle: true, issues: [] } : fallback;
+    return lines.length === 4 && onBox ? { rect: roundRect(rect), radius: null, rectangle: true, issues: [] } : fallback;
   }
   if (arcs.length !== 4 || lines.length !== 4) return fallback;
   const r = arcs[0].r;
@@ -148,7 +150,7 @@ export function faceOutline(frame: PlaneFrame3, edges: FaceEdge[], face: string)
     if (!near(quarter, r * Math.SQRT2)) return fallback;
     corners.add(cx + cy);
   }
-  return corners.size === 4 ? { rect, radius: r, rectangle: true, issues: [] } : fallback;
+  return corners.size === 4 ? { rect: roundRect(rect), radius: round6(r), rectangle: true, issues: [] } : fallback;
 }
 
 // ---- the record on the sketch ----
