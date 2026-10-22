@@ -3,6 +3,7 @@ import { DEFAULT_GEAR, defaultPair, gearOps, type GearParams } from './gearData'
 
 export const SPUR_SAMPLE: GearParams = { ...DEFAULT_GEAR, teeth: 24, faceWidth: 12, boreDia: 10, keyway: true, hubDia: 24, hubLength: 20 };
 export const PAIR_SAMPLE: GearParams = defaultPair({ faceWidth: 10, boreDia: 8, mate: { teeth: 40, boreDia: 10, hubDia: 0, hubLength: 0 } });
+export const HERRINGBONE_PAIR_SAMPLE: GearParams = defaultPair({ type: 'herringbone', helixAngle: 30, faceWidth: 20, grooveWidth: 6, boreDia: 8, mate: { teeth: 40, boreDia: 10, hubDia: 0, hubLength: 0 } });
 
 export function samplePart(name: string, p: GearParams): Record<string, unknown> {
   const doc = { format: 'ck-part', version: 1, name, features: [] as Array<Record<string, unknown>>, seq: 1, rollback: null, material: 'steel', counters: {} };

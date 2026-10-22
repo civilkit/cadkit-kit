@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_GEAR, centreDistance, defaultPair, gearGeom, gearModule, gearOps, gearOwner, gearReadout, keySize, mateParams, outline, readGear, rolesFor } from './gearData';
-import { PAIR_SAMPLE, SPUR_SAMPLE, samplePart } from './gearSamples';
+import { HERRINGBONE_PAIR_SAMPLE, PAIR_SAMPLE, SPUR_SAMPLE, samplePart } from './gearSamples';
 
 describe('gear readout', () => {
   it('20 teeth, module 2, 20 degrees: the textbook diameters and ratios', () => {
@@ -181,6 +181,7 @@ describe('gear samples', () => {
   it('the committed samples are what the generator makes', () => {
     expect(read('spur-gear')).toEqual(JSON.parse(JSON.stringify(samplePart('Spur gear', SPUR_SAMPLE))));
     expect(read('gear-pair')).toEqual(JSON.parse(JSON.stringify(samplePart('Gear pair', PAIR_SAMPLE))));
+    expect(read('herringbone-pair')).toEqual(JSON.parse(JSON.stringify(samplePart('Herringbone pair', HERRINGBONE_PAIR_SAMPLE))));
   });
   it('are listed', () => {
     const idx = read('index', 'json') as unknown as Array<{ id: string }>;

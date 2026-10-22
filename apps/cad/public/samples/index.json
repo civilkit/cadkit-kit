@@ -40,6 +40,11 @@
   "file": "gear-pair.ckpart"
  },
  {
+  "id": "herringbone-pair",
+  "title": "Herringbone pair: 20 and 40 teeth, module 2, 30 degree helix, 6 mm centre groove (Gear pair command)",
+  "file": "herringbone-pair.ckpart"
+ },
+ {
   "id": "bench-ball_knob",
   "title": "Ball Knob",
   "file": "bench-ball_knob.ckpart"
