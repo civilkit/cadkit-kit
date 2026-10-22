@@ -42,11 +42,17 @@ export interface MarineParams {
   rake: number;
   /** Progressive pitch (-0.15..0.5; further negative values are refused by the kernel's hub fuse for most rake values, see docs/propellers.md): fractional change of the local pitch from the tip to the root, linear in the span fraction: P(r) = P_tip (1 + pitchProgress (1 - x)). Positive = more pitch at the root. 0 = constant pitch. */
   pitchProgress: number;
+  /** Chord position of the maximum thickness (0 = leading edge, 1 = trailing edge), 0.2..0.7. */
+  maxThickAt: number;
+  /** Thickness at the leading and trailing edge as a fraction of the maximum thickness at that radius (0.02..0.5). The absolute edge thickness is never below 0.3 mm (`EDGE_MIN_MM`). */
+  edgeThick: number;
+  /** Rounding of the blade tip: the outer fraction of the span (0..0.4) over which the chord closes off along an ellipse. 0 = the square-cut tip of the earlier generator. */
+  tipRounding: number;
 }
 
 export const DEFAULT_MARINE: MarineParams = {
   diameter: 250, hubDia: 50, hubLength: 110, boreDia: 20, blades: 3, pitchRatio: 1, ear: 0.5, peak: 0.45, rootRatio: 0.55, tipRatio: 0.3,
-  skew: 15, thickRoot: 0.035, thickTip: 0.005, direction: 'rh', rootEmbed: 0.85, raySpacing: 5, rake: 0, pitchProgress: 0,
+  skew: 15, thickRoot: 0.035, thickTip: 0.005, direction: 'rh', rootEmbed: 0.85, raySpacing: 5, rake: 0, pitchProgress: 0, maxThickAt: 0.45, edgeThick: 0.06, tipRounding: 0.15,
 };
 
 export interface MarineIssue { level: 'error' | 'warning'; code: string; message: string }
@@ -66,7 +72,11 @@ export const spanFraction = (p: MarineParams, r: number): number => { const { R,
 /** Chord of the widest section as a fraction shape: root ratio at the hub, 1 at the peak, tip ratio at the tip (cosine blends, no kinks). */
 function chordShape(p: MarineParams, x: number): number {
   const xc = Math.max(0, x), pk = Math.min(0.95, Math.max(0.05, p.peak));
-  return xc <= pk ? p.rootRatio + (1 - p.rootRatio) * smooth(xc / pk) : 1 + (p.tipRatio - 1) * smooth((xc - pk) / (1 - pk));
+  const c = xc <= pk ? p.rootRatio + (1 - p.rootRatio) * smooth(xc / pk) : 1 + (p.tipRatio - 1) * smooth((xc - pk) / (1 - pk));
+  // tip rounding: over the outer `tipRounding` of the span the chord closes along an ellipse (vertical tangent at the tip; a 5 % floor keeps the outline from pinching to a point)
+  const tr = Math.min(0.4, Math.max(0, p.tipRounding ?? 0));
+  if (tr > 0 && xc > 1 - tr) { const q = (xc - (1 - tr)) / tr; return c * Math.sqrt(Math.max(1 - q * q, 0.0025)); }
+  return c;
 }
 /** Widest chord (mm) that gives the expanded area ratio. */
 export function chordMax(p: MarineParams): number {
@@ -91,22 +101,25 @@ export const faceSlopeR = (p: MarineParams, phi: number): number => (pitchSlope(
 /** Pitch angle of the helix on the face at radius r (radians from the plane of rotation): atan(P(r) / 2 pi r). Rake does not change it (the helix runs at constant r); it tilts the face radially (faceSlopeR). */
 export const pitchAngleAt = (p: MarineParams, r: number): number => Math.atan(pitchAt(p, r) / (2 * Math.PI * r));
 /** First-order axial offset t / n_z, n_z = 1 / sqrt(1 + (dz/dr)^2 + (dz / r dphi)^2): exact where the back is parallel to the face. */
-const axial0 = (p: MarineParams, phi: number, r: number): number => {
+const axial0 = (p: MarineParams, phi: number, r: number, foil = true): number => {
   const fr = faceSlopeR(p, phi), ft = pitchAt(p, r) / (2 * Math.PI * r);
-  return thicknessAt(p, r) * Math.sqrt(1 + fr * fr + ft * ft);
+  return (foil ? thicknessLocal(p, phi, r) : thicknessAt(p, r)) * Math.sqrt(1 + fr * fr + ft * ft);
 };
 /** Axial offset (mm) from the face to the back that gives the thickness t NORMAL to the face at (phi, r). The first-order t / n_z is exact only where the back is parallel to the
  *  face; the offset changes with r and phi, and the normal leaves the face sideways by several mm near the root, so one Newton correction follows: march along the exact normal to the
  *  first-order back (bisection), and move the offset by the distance error over n_z. The residual against a numeric march through the corrected back is under 1 % (marineData.test.ts). */
-export function axialThickness(p: MarineParams, phi: number, r: number): number {
-  const a0 = axial0(p, phi, r), t = thicknessAt(p, r);
-  if (p.rake === 0 && p.pitchProgress === 0) return a0;   // the constant-pitch helicoid keeps its original first-order offset (0.7 % thin at the root, see docs) so existing models are unchanged
+export function axialThickness(p: MarineParams, phi: number, r: number, foil = true): number {
+  const a0 = axial0(p, phi, r, foil), t = foil ? thicknessLocal(p, phi, r) : thicknessAt(p, r);
+  if (p.rake === 0 && p.pitchProgress === 0) return a0;
+  // with the foil the thickness varies along the chord and the march along the normal is ill-conditioned there (it went negative near the trailing edge): the Newton factor of the flat back of
+  // the MAXIMUM thickness (the one that is exact where the back is parallel to the face) scales the local first-order offset instead, so the offset stays positive and thin where the foil is thin
+  if (foil) return a0 * (axialThickness(p, phi, r, false) / axial0(p, phi, r, false));   // the constant-pitch helicoid keeps the first-order offset (0.7 % thin at the root, see docs)
   const fr = faceSlopeR(p, phi), ft = pitchAt(p, r) / (2 * Math.PI * r);
   const nz = 1 / Math.sqrt(1 + fr * fr + ft * ft), nr = -fr * nz, nt = -ft * nz;
   const zp = faceZ(p, phi, r);
   const gap = (sd: number): number => {
     const x = r + sd * nr, y = sd * nt, rq = Math.hypot(x, y), pq = phi + Math.atan2(y, x);
-    return zp + sd * nz - (faceZ(p, pq, rq) + axial0(p, pq, rq));
+    return zp + sd * nz - (faceZ(p, pq, rq) + axial0(p, pq, rq, foil));
   };
   let lo = 0, hi = 3 * a0;
   if (gap(hi) < 0) return a0;   // the normal never meets the back (cannot happen for a sane blade): keep the first-order value
@@ -119,11 +132,35 @@ export const midAngleAt = (p: MarineParams, r: number): number => rad(p.skew) * 
 export const halfWidthAt = (p: MarineParams, r: number): number => (0.5 * chordAt(p, r) * Math.cos(pitchAngleAt(p, r))) / r;
 /** Leading and trailing edge angles at radius r (radians, before the direction sign): the leading edge is the lower angle. */
 export const edgeAngles = (p: MarineParams, r: number): [number, number] => [midAngleAt(p, r) - halfWidthAt(p, r), midAngleAt(p, r) + halfWidthAt(p, r)];
-/** The back thickness (mm) at radius r: root to tip, linear. */
+/** The MAXIMUM back thickness (mm) at radius r (normal to the face, at the chord position `maxThickAt`): root to tip, linear. */
 export function thicknessAt(p: MarineParams, r: number): number {
   const x = Math.min(1, Math.max(0, spanFraction(p, r)));
   return p.diameter * (p.thickRoot + (p.thickTip - p.thickRoot) * x);
 }
+/** Smallest thickness at the leading and trailing edge, mm: a zero-thickness sliver is refused by the kernel. */
+export const EDGE_MIN_MM = 0.3;
+/** Edge thickness as a fraction of the maximum thickness at radius r: `edgeThick`, raised so that the absolute edge thickness stays at `EDGE_MIN_MM` (at most 1: no foil). */
+export const edgeFraction = (p: MarineParams, r: number): number => Math.min(1, Math.max(p.edgeThick, EDGE_MIN_MM / Math.max(thicknessAt(p, r), 1e-9)));
+/** The chordwise thickness profile f(s) of a section, s the chord fraction (0 leading edge, 1 trailing edge), e the edge fraction: f = e + (1 - e) g(s) with g an ELLIPSE
+ *  from the nose to the maximum (g = sqrt(1 - ((m - s) / m)^2), vertical tangent at s = 0: a rounded nose) and a PARABOLA from the maximum to the trailing edge (g = 1 - ((s - m) / (1 - m))^2:
+ *  a thin wedge). f(m) = 1, f(0) = f(1) = e, and the slope is continuous at the maximum. */
+export function foilProfile(m: number, e: number, s: number): number {
+  const x = Math.min(1, Math.max(0, s));
+  const g = x <= m ? Math.sqrt(Math.max(0, 1 - ((m - x) / m) ** 2)) : 1 - ((x - m) / (1 - m)) ** 2;
+  return e + (1 - e) * g;
+}
+/** Mean of f over s in [0, 1]: e + (1 - e) (pi m / 4 + 2 (1 - m) / 3). The blade volume per unit planform area is the maximum thickness times this. */
+export const foilMean = (m: number, e: number): number => e + (1 - e) * ((Math.PI * m) / 4 + (2 * (1 - m)) / 3);
+/** Chord fraction s (0 at the leading edge, 1 at the trailing edge) of the point at angle `phi` (before the direction sign) and radius r, clamped to [0, 1]. */
+export function chordFraction(p: MarineParams, phi: number, r: number): number {
+  const [le, te] = edgeAngles(p, r);
+  return te - le < 1e-12 ? 0.5 : Math.min(1, Math.max(0, (phi - le) / (te - le)));
+}
+/** Angle (before the direction sign) of the chord fraction s at radius r: the inverse of `chordFraction`. */
+export function chordAngle(p: MarineParams, s: number, r: number): number { const [le, te] = edgeAngles(p, r); return le + s * (te - le); }
+/** The normal thickness (mm) at angle `phi` and radius r: the maximum thickness there times the foil profile at the chord position of the point. */
+export const thicknessLocal = (p: MarineParams, phi: number, r: number): number =>
+  thicknessAt(p, r) * foilProfile(p.maxThickAt, edgeFraction(p, r), chordFraction(p, phi, r));
 
 /** Hub length that keeps the root of the blade (the part of the sections inside the hub radius, plus the axial thickness at the embed radius and 2 mm) between the hub's end faces. */
 export function hubLengthNeeded(p: MarineParams): number {
@@ -135,7 +172,7 @@ export function hubLengthNeeded(p: MarineParams): number {
     // the face height is linear in r, so its extremes inside the hub are at the two ends of that part
     let zmax = 0;
     for (const r of [st.rA[i], Math.min(st.rB[i], hubR)]) zmax = Math.max(zmax, Math.abs(faceZ(p, st.phi[i], r)));
-    need = Math.max(need, zmax + axialThickness(p, st.phi[i], r0));
+    need = Math.max(need, zmax + axialThickness(p, st.phi[i], r0, false));
   });
   return 2 * (need + 2);
 }
@@ -144,7 +181,7 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   const out: MarineIssue[] = [];
   const err = (code: string, message: string): void => { out.push({ level: 'error', code, message }); };
   const warn = (code: string, message: string): void => { out.push({ level: 'warning', code, message }); };
-  const nums: Array<keyof MarineParams> = ['diameter', 'hubDia', 'hubLength', 'boreDia', 'blades', 'pitchRatio', 'ear', 'peak', 'rootRatio', 'tipRatio', 'skew', 'thickRoot', 'thickTip', 'rootEmbed', 'raySpacing', 'rake', 'pitchProgress'];
+  const nums: Array<keyof MarineParams> = ['diameter', 'hubDia', 'hubLength', 'boreDia', 'blades', 'pitchRatio', 'ear', 'peak', 'rootRatio', 'tipRatio', 'skew', 'thickRoot', 'thickTip', 'rootEmbed', 'raySpacing', 'rake', 'pitchProgress', 'maxThickAt', 'edgeThick', 'tipRounding'];
   for (const k of nums) if (!Number.isFinite(p[k] as number)) err('notNumber', `${k} is not a number`);
   if (out.length) return out;
   const { R, hubR, r0 } = marineSpan(p);
@@ -160,6 +197,9 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   if (p.raySpacing < 3 || p.raySpacing > 10) err('raySpacing', 'The section spacing must be between 3 and 10 degrees');
   if (p.rake < -20 || p.rake > 30) err('rake', 'The rake must be between -20 and 30 degrees');
   if (p.pitchProgress < -0.15 || p.pitchProgress > 0.5) err('pitchProgress', 'The progressive pitch must be between -0.15 and 0.5');
+  if (p.maxThickAt < 0.2 || p.maxThickAt > 0.7) err('maxThickAt', 'The position of the maximum thickness must be between 0.2 and 0.7 of the chord');
+  if (p.edgeThick < 0.02 || p.edgeThick > 0.5) err('edgeThick', 'The edge thickness must be between 0.02 and 0.5 of the maximum thickness');
+  if (p.tipRounding < 0 || p.tipRounding > 0.4) err('tipRounding', 'The tip rounding must be between 0 and 0.4 of the span');
   if (p.rootEmbed <= 0.3 || p.rootEmbed >= 1) err('rootEmbed', 'The root embed must be between 0.3 and 1 of the hub radius');
   if (out.length) return out;
   if (p.thickTip * p.diameter < 0.3) warn('thinTip', 'The blade tip is thinner than 0.3 mm');
@@ -234,13 +274,33 @@ export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): Helic
   const count = Math.max(8, Math.ceil((hi - lo) / rad(stepDeg)) + 1);
   const step = (hi - lo) / count;
   const s = sgn(p);
+  type Ray = { phi: number; a: number; b: number };
+  let rays: Array<Ray | null> = [];
+  const make = (phi: number): Ray | null => { const iv = rayInterval(p, phi); return iv && iv[1] - iv[0] >= 1e-3 ? { phi, a: iv[0], b: iv[1] } : null; };
+  for (let k = 0; k < count; k++) rays.push(make(lo + step * (k + 0.5)));
+  // smoother outline: where the end radius of a ray jumps by more than `OUTLINE_JUMP` of the tip radius against its neighbour (the corners where the outline switches between the root or tip arc and
+  // the leading or trailing edge) a ray is inserted halfway, down to `OUTLINE_MIN_DEG` between rays; the loft's rim then follows the outline through the corner instead of cutting it
+  const jump = OUTLINE_JUMP * R, minGap = rad(OUTLINE_MIN_DEG);
+  for (let level = 0; level < 3 && stepDeg >= OUTLINE_MIN_DEG * 2; level++) {
+    const nxt: Array<Ray | null> = [];
+    for (let k = 0; k < rays.length; k++) {
+      nxt.push(rays[k]);
+      const u = rays[k], v = rays[k + 1];
+      if (u && v && v.phi - u.phi > 2 * minGap && Math.abs(u.b - v.b) > jump) {
+        // an extra ray whose end falls close to the hub surface is not added: the kernel's hub fuse fails on ends that skim the hub cylinder
+        const m = make(0.5 * (u.phi + v.phi));
+        if (m && Math.abs(m.a - hubR) > HUB_KEEPOUT && Math.abs(m.b - hubR) > HUB_KEEPOUT) nxt.push(m);
+      }
+    }
+    if (nxt.length === rays.length) break;
+    rays = nxt;
+  }
   const psi: number[] = [], z: number[] = [], rA: number[] = [], rB: number[] = [], phis: number[] = [];
-  for (let k = 0; k < count; k++) {
-    const phi = lo + step * (k + 0.5);
-    const iv = rayInterval(p, phi);
-    if (!iv || iv[1] - iv[0] < 1e-3) continue;
+  for (const ray of rays) {
+    if (!ray) continue;
+    const phi = ray.phi;
     // an end of a ray lying on the hub surface touches the hub cylinder tangentially and the kernel's boolean fails there: move it 0.6 mm off
-    let [a, b] = iv;
+    let a = ray.a, b = ray.b;
     if (Math.abs(a - hubR) < 0.6) a = hubR - 0.6;
     if (Math.abs(b - hubR) < 0.6) b = hubR + 0.6;
     if (b - a < 1e-3) continue;
@@ -254,6 +314,11 @@ export function helicoidPoint(p: MarineParams, phi: number, r: number): [number,
   const s = sgn(p);
   return [r * Math.cos(s * phi), r * Math.sin(s * phi), faceZ(p, phi, r)];
 }
+
+/** Outline refinement of `helicoidStations`: the end radius jump (fraction of the tip radius) that triggers an extra ray, and the smallest angle between rays, degrees. */
+export const OUTLINE_JUMP = 0.05;
+export const OUTLINE_MIN_DEG = 1;
+const HUB_KEEPOUT = 3;
 
 /** Section spacings the build tries, in order: the requested one, then 7, 6 and 4 degrees, and 3 as the last resort (it builds the lowest root pitches, in about 15 s). */
 export const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4, 3].filter((x) => x !== sp)];
@@ -270,6 +335,29 @@ export function marineRoles(p: MarineParams): string[] {
   if (p.boreDia > 0) roles.push('boreSketch', 'bore');
   return roles;
 }
+
+/** Points of the back spline of a section: the foil thickness varies along the ray (nose, maximum, thin tail), so there are many, and they cluster toward both ends of the ray where the profile bends fastest. */
+export const BACK_POINTS = 11;
+export const backFractions = (n: number): number[] => Array.from({ length: n }, (_x, k) => { const u = k / (n - 1); return 0.5 * u + 0.5 * (0.5 - 0.5 * Math.cos(Math.PI * u)); });
+
+/** Rays that graze the leading or trailing edge (the first and last of a blade, or a ray crossing a notch of the outline) see the thickness jump between the nose and the maximum within a few points,
+ *  and a spline through such a jump overshoots below the face (the kernel refuses the profile, `loftProfile`). Where the second difference of the offsets is large against the largest offset the
+ *  interior points are relaxed with [1 2 1] / 4 passes; the end points (the edges) and every smooth section are left exactly as they are. */
+export function calmOffsets(a: number[]): number[] {
+  let cur = a.slice();
+  const big = Math.max(...a);
+  for (let pass = 0; pass < 8; pass++) {
+    let changed = false;
+    const next = cur.slice();
+    for (let k = 1; k < cur.length - 1; k++) {
+      if (Math.abs(cur[k - 1] - 2 * cur[k] + cur[k + 1]) > CALM_LIMIT * big) { next[k] = 0.25 * cur[k - 1] + 0.5 * cur[k] + 0.25 * cur[k + 1]; changed = true; }
+    }
+    cur = next;
+    if (!changed) break;
+  }
+  return cur;
+}
+const CALM_LIMIT = 0.3;
 
 const circleSketch = (id: string, name: string, dia: number): Feat => ({
   type: 'sketch', id, name, plane: { kind: 'std', id: 'front' }, points: [{ id: 'p1', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'e1', c: 'p1', r: round(dia / 2) }],
@@ -292,9 +380,11 @@ export function marineFeatures(p: MarineParams, ids: Record<string, string>): Fe
     // face (a line when it is straight in this plane, which it is for the linear pitch law: z(r) = P(r) phi / 2 pi + tan(rake) (r - hubR) is linear in r; a spline through
     // points when it is not), tip end, back spline (face + the axial thickness that makes the thickness NORMAL to the face, not linear in radius), root end
     const zf = (r: number): number => faceZ(p, phi, r);
-    const K = 7;
+    const K = BACK_POINTS;
     const back: Array<[number, number]> = [];
-    for (let k = 0; k < K; k++) { const r = rb + ((ra - rb) * k) / (K - 1); back.push([zf(r) + axialThickness(p, phi, r), r]); }
+    const rs = backFractions(K).map((u) => rb + (ra - rb) * u);
+    const ax = calmOffsets(rs.map((r) => axialThickness(p, phi, r)));
+    rs.forEach((r, k) => back.push([zf(r) + ax[k], r]));
     const KF = 9;
     const face: Array<[number, number]> = [];
     for (let k = 0; k < KF; k++) { const r = ra + ((rb - ra) * k) / (KF - 1); face.push([zf(r), r]); }

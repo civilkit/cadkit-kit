@@ -2,11 +2,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MARINE, MARINE_SAMPLE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
-  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
+  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, BACK_POINTS, EDGE_MIN_MM, backFractions, calmOffsets, chordAngle, chordFraction, edgeFraction, foilMean, foilProfile, thicknessLocal, OUTLINE_MIN_DEG, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
 } from './marineData';
 import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
 
 const P = (o: Partial<MarineParams> = {}): MarineParams => ({ ...DEFAULT_MARINE, ...o });
+const zf = faceZ;
 const codes = (p: MarineParams): string[] => marineErrors(p).map((i) => i.code);
 
 /** mulberry32, so the random parameter sets are the same every run */
@@ -30,7 +31,60 @@ describe('marine propeller distributions', () => {
     for (const r of [0, 1, 10, 20, 25, 60, 124.9, 125, 140, 1e5]) { const c = chordAt(p, r); expect(Number.isFinite(c) && c > 0, `chord ${c} at ${r}`).toBe(true); }
     expect(chordAt(p, 10)).toBeCloseTo(chordAt(p, 25), 9);
     expect(chordAt(p, 25)).toBeCloseTo(chordMax(p) * p.rootRatio, 9);
-    expect(chordAt(p, 125)).toBeCloseTo(chordMax(p) * p.tipRatio, 9);
+    expect(chordAt(P({ tipRounding: 0 }), 125)).toBeCloseTo(chordMax(P({ tipRounding: 0 })) * p.tipRatio, 9);
+  });
+  it('tip rounding closes the chord along an ellipse over the outer fraction of the span; 0 is the square-cut tip; the area ratio still comes out as asked', () => {
+    const sq = P({ tipRounding: 0 }), rd = P({ tipRounding: 0.2 });
+    const { R, hubR } = marineSpan(rd);
+    const at = (x: number): number => hubR + x * (R - hubR);
+    // unchanged below the rounded part (the chord max differs a little: same ear, less area to spread), ellipse above it
+    expect(chordAt(rd, at(0.7)) / chordMax(rd)).toBeCloseTo(chordAt(sq, at(0.7)) / chordMax(sq), 9);
+    const q = (x: number): number => (x - 0.8) / 0.2;
+    expect(chordAt(rd, at(0.9)) / chordMax(rd)).toBeCloseTo((chordAt(sq, at(0.9)) / chordMax(sq)) * Math.sqrt(1 - q(0.9) ** 2), 9);
+    expect(chordAt(rd, R) / chordMax(rd)).toBeCloseTo(0.05 * (chordAt(sq, R) / chordMax(sq)), 9);   // the 5 % floor
+    let prev = Infinity;
+    for (let k = 0; k <= 10; k++) { const c = chordAt(rd, at(0.8 + 0.02 * k)); expect(c).toBeLessThanOrEqual(prev + 1e-9); prev = c; }
+    for (const tr of [0, 0.1, 0.4]) expect(marineReadout(P({ tipRounding: tr })).ear).toBeCloseTo(0.5, 2);
+  });
+  it('the foil profile: 1 at the maximum position, the edge fraction at both edges, rising along an ellipse at the nose and falling along a parabola behind the maximum, continuous in value and slope at the maximum', () => {
+    for (const m of [0.2, 0.45, 0.7]) for (const e of [0.02, 0.06, 0.3]) {
+      expect(foilProfile(m, e, m)).toBeCloseTo(1, 12);
+      expect(foilProfile(m, e, 0)).toBeCloseTo(e, 12);
+      expect(foilProfile(m, e, 1)).toBeCloseTo(e, 12);
+      // nose: e + (1 - e) sqrt(1 - ((m - s) / m)^2); tail: e + (1 - e) (1 - ((s - m) / (1 - m))^2)
+      expect(foilProfile(m, e, 0.5 * m)).toBeCloseTo(e + (1 - e) * Math.sqrt(1 - 0.25), 12);
+      expect(foilProfile(m, e, m + 0.5 * (1 - m))).toBeCloseTo(e + (1 - e) * 0.75, 12);
+      let prev = foilProfile(m, e, 0);
+      for (let k = 1; k <= 100; k++) { const v = foilProfile(m, e, (m * k) / 100); expect(v).toBeGreaterThanOrEqual(prev - 1e-12); prev = v; }   // rises to the maximum
+      for (let k = 1; k <= 100; k++) { const v = foilProfile(m, e, m + ((1 - m) * k) / 100); expect(v).toBeLessThanOrEqual(prev + 1e-12); prev = v; }   // then falls
+      const h = 1e-6;   // equal slopes at the maximum (both ends are flat there)
+      expect(Math.abs((foilProfile(m, e, m + h) - 1) / h)).toBeLessThan(1e-3);
+      expect(Math.abs((foilProfile(m, e, m - h) - 1) / h)).toBeLessThan(0.2);
+      // the mean is the integral of the profile
+      let sum = 0; const n = 20000; for (let k = 0; k < n; k++) sum += foilProfile(m, e, (k + 0.5) / n) / n;
+      expect(foilMean(m, e)).toBeCloseTo(sum, 4);
+    }
+    expect(foilProfile(0.45, 0.06, -3)).toBeCloseTo(0.06, 12);   // clamped outside the chord
+    expect(foilProfile(0.45, 0.06, 7)).toBeCloseTo(0.06, 12);
+  });
+  it('the maximum thickness keeps its meaning: thicknessAt is the value at the maximum-thickness position, the edges are thinner by the edge fraction, and the absolute edge thickness is at least 0.3 mm', () => {
+    const p = P(), { R, hubR } = marineSpan(p);
+    for (const r of [hubR + 5, 0.5 * (R + hubR), R - 2]) {
+      const phiMax = chordAngle(p, p.maxThickAt, r);
+      expect(chordFraction(p, phiMax, r)).toBeCloseTo(p.maxThickAt, 12);
+      expect(thicknessLocal(p, phiMax, r)).toBeCloseTo(thicknessAt(p, r), 9);
+      const [le, te] = edgeAngles(p, r);
+      expect(thicknessLocal(p, le, r)).toBeCloseTo(edgeFraction(p, r) * thicknessAt(p, r), 9);
+      expect(thicknessLocal(p, te, r)).toBeCloseTo(edgeFraction(p, r) * thicknessAt(p, r), 9);
+      expect(thicknessLocal(p, le, r)).toBeGreaterThanOrEqual(EDGE_MIN_MM - 1e-9);
+      expect(thicknessLocal(p, le - 1, r)).toBeCloseTo(thicknessLocal(p, le, r), 12);   // clamped outside the outline
+    }
+    // the fraction asked holds where the thickness allows it (root: 8.75 mm x 0.06 = 0.53 mm), and the floor takes over at the thin tip (1.25 mm x 0.06 = 0.075 mm < 0.3 mm)
+    expect(edgeFraction(p, hubR)).toBeCloseTo(0.06, 12);
+    expect(edgeFraction(p, R)).toBeCloseTo(EDGE_MIN_MM / thicknessAt(p, R), 12);
+    expect(edgeFraction(P({ thickTip: 0.0005, thickRoot: 0.0005 }), R)).toBe(1);   // thinner than the floor everywhere: no foil
+    // edgeThick 0.5 and a very thin foil are still ordered: thickness at the edge never exceeds the maximum
+    expect(edgeFraction(P({ edgeThick: 0.5 }), hubR)).toBeLessThanOrEqual(1);
   });
   it('thickness runs linearly from the root value at the hub to the tip value at the tip, held outside', () => {
     const p = P();
@@ -163,9 +217,13 @@ describe('marine propeller features', () => {
       const a = s.points.find((q: { id: string }) => q.id === 'a'), b = s.points.find((q: { id: string }) => q.id === 'b');
       expect(a.x).toBeCloseTo(st.z[i], 5); expect(b.x).toBeCloseTo(st.z[i], 5);
       expect(a.y).toBeCloseTo(st.rA[i], 5); expect(b.y).toBeCloseTo(st.rB[i], 5);
-      // the back is above the face by the axial thickness at the ends
-      const h0 = s.points.find((q: { id: string }) => q.id === 'h0');
-      expect(h0.x - b.x).toBeCloseTo(thicknessAt(p, st.rB[i]) / Math.cos(pitchAngleAt(p, st.rB[i])), 4);
+      // the back spline has BACK_POINTS points from the tip end to the root end, an axial offset above the face that is the foil thickness at the two ends (the edges of the blade are thin)
+      expect(s.entities[2].pts.length).toBe(BACK_POINTS);
+      const h0 = s.points.find((q: { id: string }) => q.id === 'h0'), hl = s.points.find((q: { id: string }) => q.id === 'h' + (BACK_POINTS - 1));
+      expect(h0.x - b.x).toBeCloseTo(axialThickness(p, st.phi[i], st.rB[i]), 4);
+      expect(hl.x - a.x).toBeCloseTo(axialThickness(p, st.phi[i], st.rA[i]), 4);
+      expect(hl.y).toBeCloseTo(st.rA[i], 5); expect(h0.y).toBeCloseTo(st.rB[i], 5);
+      for (const q of s.entities[2].pts as string[]) { const h = s.points.find((x: { id: string }) => x.id === q); expect(h.x - zf(p, st.phi[i], h.y)).toBeGreaterThan(0.25); }   // the back never meets the face
     });
   });
   it('the planes go round the shaft axis by the section angle plus 90 degrees', () => {
@@ -271,7 +329,7 @@ describe('marine propeller: rake and progressive pitch', () => {
       expect(pitchAt(p, r)).toBe(250);
       expect(faceZ(p, phi, r)).toBeCloseTo((250 * phi) / (2 * Math.PI), 12);
       expect(faceSlopeR(p, phi)).toBe(0);
-      expect(axialThickness(p, phi, r)).toBeCloseTo(thicknessAt(p, r) / Math.cos(pitchAngleAt(p, r)), 12);
+      expect(axialThickness(p, phi, r, false)).toBeCloseTo(thicknessAt(p, r) / Math.cos(pitchAngleAt(p, r)), 12);
     }
   });
   it('pitch is linear in the span fraction: the tip pitch at the tip, more (positive progress) or less at the root, by the fraction asked', () => {
@@ -324,8 +382,8 @@ describe('marine propeller: rake and progressive pitch', () => {
         expect(0.5 * (pt('a').x + pt('b').x)).toBeCloseTo(faceZ(p, st.phi[i], rm), 5);
         // the right sign of the direction: the section angle is s x phi
         expect(st.psi[i]).toBeCloseTo((p.direction === 'lh' ? -1 : 1) * st.phi[i], 12);
-        // the back sits an axial thickness above the face at the ends and all 7 spline points
-        s.entities[2].pts.forEach((id: string) => { const h = pt(id); expect(h.x - faceZ(p, st.phi[i], h.y)).toBeCloseTo(axialThickness(p, st.phi[i], h.y), 4); });
+        // the back sits above the face along all the spline points, by the foil's axial thickness at the ends and never above the full-thickness offset
+        s.entities[2].pts.forEach((id: string) => { const h = pt(id); const d = h.x - faceZ(p, st.phi[i], h.y); expect(d).toBeGreaterThan(0); expect(d).toBeLessThan(axialThickness(p, st.phi[i], h.y, false) * 1.2 + 1e-6); });
       });
     }
   });
@@ -335,7 +393,7 @@ describe('marine propeller: rake and progressive pitch', () => {
       for (const r of [35, 60, 90, 120]) for (const phi of [-0.4, 0, 0.4]) {
         // right-hand cartesian field; the left-hand one is its mirror
         const f = (x: number, y: number): number => faceZ(p, Math.atan2(y, x), Math.hypot(x, y));
-        const back = (x: number, y: number): number => f(x, y) + axialThickness(p, Math.atan2(y, x), Math.hypot(x, y));
+        const back = (x: number, y: number): number => f(x, y) + axialThickness(p, Math.atan2(y, x), Math.hypot(x, y), false);
         const h = 1e-5, x0 = r * Math.cos(phi), y0 = r * Math.sin(phi), z0 = f(x0, y0);
         const fx = (f(x0 + h, y0) - f(x0 - h, y0)) / (2 * h), fy = (f(x0, y0 + h) - f(x0, y0 - h)) / (2 * h);
         const nn = Math.hypot(fx, fy, 1), n = [-fx / nn, -fy / nn, 1 / nn];
@@ -440,6 +498,94 @@ describe('marine propeller: rake and progressive pitch', () => {
     expect(built).toBeGreaterThan(5);
   });
 });
+
+describe('marine propeller: foil sections, tip rounding, smoother outline', () => {
+  it('validation: maxThickAt 0.2..0.7, edgeThick 0.02..0.5, tipRounding 0..0.4, each its own code; the limits are accepted', () => {
+    expect(codes(P({ maxThickAt: 0.19 }))).toContain('maxThickAt');
+    expect(codes(P({ maxThickAt: 0.71 }))).toContain('maxThickAt');
+    expect(codes(P({ edgeThick: 0.01 }))).toContain('edgeThick');
+    expect(codes(P({ edgeThick: 0 }))).toContain('edgeThick');
+    expect(codes(P({ edgeThick: 0.6 }))).toContain('edgeThick');
+    expect(codes(P({ tipRounding: -0.01 }))).toContain('tipRounding');
+    expect(codes(P({ tipRounding: 0.41 }))).toContain('tipRounding');
+    expect(codes(P({ edgeThick: NaN }))).toContain('notNumber');
+    expect(codes(P({ maxThickAt: Infinity }))).toContain('notNumber');
+    for (const o of [{ maxThickAt: 0.2 }, { maxThickAt: 0.7 }, { edgeThick: 0.02 }, { edgeThick: 0.5 }, { tipRounding: 0 }, { tipRounding: 0.4 }]) expect(codes(P(o)), JSON.stringify(o)).toEqual([]);
+  });
+  it('defaults: the maximum at 45 % of the chord, edges at 6 % of the maximum, tip rounded over 15 % of the span', () => {
+    expect(DEFAULT_MARINE.maxThickAt).toBe(0.45); expect(DEFAULT_MARINE.edgeThick).toBe(0.06); expect(DEFAULT_MARINE.tipRounding).toBe(0.15);
+  });
+  it('back points are spread over the ray, clustering toward both ends, from 0 to 1', () => {
+    const u = backFractions(BACK_POINTS);
+    expect(BACK_POINTS).toBeGreaterThanOrEqual(9); expect(BACK_POINTS).toBeLessThanOrEqual(13);
+    expect(u[0]).toBe(0); expect(u[u.length - 1]).toBeCloseTo(1, 12);
+    for (let k = 1; k < u.length; k++) expect(u[k]).toBeGreaterThan(u[k - 1]);
+    expect(u[1] - u[0]).toBeLessThan(1 / (BACK_POINTS - 1));
+    expect(u[u.length - 1] - u[u.length - 2]).toBeLessThan(1 / (BACK_POINTS - 1));
+  });
+  it('the thickness of a section is thin at the edges and fullest at maxThickAt: the offsets of the back spline along a ray that crosses the whole chord rise, peak and fall', () => {
+    const p = P(), { hubR, R } = marineSpan(p), r = 0.5 * (hubR + R);
+    const [le, te] = edgeAngles(p, r);
+    const t = [0, 0.02, 0.1, 0.3, p.maxThickAt, 0.7, 0.9, 0.98, 1].map((s) => thicknessLocal(p, le + s * (te - le), r));
+    expect(t[4]).toBe(Math.max(...t));
+    for (let k = 1; k <= 4; k++) expect(t[k]).toBeGreaterThan(t[k - 1]);
+    for (let k = 5; k < t.length; k++) expect(t[k]).toBeLessThan(t[k - 1]);
+    expect(t[0] / t[4]).toBeCloseTo(0.06, 6);
+    expect(t[1] / t[4]).toBeGreaterThan(0.2);   // the nose is round: it is 2 % of the chord behind the edge and already more than 20 % thick
+  });
+  it('calmOffsets leaves a smooth sequence and its end points alone and relaxes a spike', () => {
+    const smooth = [1, 1.5, 2.2, 2.9, 3.4, 3.7, 3.8, 3.7, 3.3, 2.6, 1.7];
+    expect(calmOffsets(smooth)).toEqual(smooth);
+    const spiky = [0.3, 2.4, 0.5, 0.5, 0.5, 2.0, 0.4];
+    const c = calmOffsets(spiky);
+    expect(c[0]).toBe(0.3); expect(c[c.length - 1]).toBe(0.4);
+    expect(Math.max(...c)).toBeLessThan(Math.max(...spiky));
+    expect(Math.min(...c)).toBeGreaterThan(0.29);
+  });
+  it('the outline refinement inserts rays where the tip-side end radius jumps (the tip corners) but keeps the spacing at least 1 degree and the hub ends clear; the stations stay ordered', () => {
+    for (const o of [{}, { tipRounding: 0 }, { tipRounding: 0.4 }, { blades: 5, ear: 0.8, rootRatio: 0.4, skew: 25 }]) {
+      const p = P(o), st = helicoidStations(p);
+      for (let i = 1; i < st.phi.length; i++) { expect(st.phi[i]).toBeGreaterThan(st.phi[i - 1]); expect(st.phi[i] - st.phi[i - 1]).toBeLessThanOrEqual(rad5(p.raySpacing) + 1e-9); }
+      const gaps = st.phi.slice(1).map((x, i) => x - st.phi[i]);
+      expect(Math.min(...gaps)).toBeGreaterThanOrEqual((OUTLINE_MIN_DEG * Math.PI) / 180 / 2 - 1e-9);
+    }
+    // some outline needs the extra rays: a section count above the uniform grid's (range / spacing + 1) for at least one of the shapes
+    const extra = [{}, { tipRounding: 0.4 }, { skew: 35 }].map((o) => { const p = P(o), st = helicoidStations(p); return st.psi.length - (Math.ceil((st.phi[st.phi.length - 1] - st.phi[0]) / rad5(5)) + 1); });
+    expect(Math.max(...extra)).toBeGreaterThanOrEqual(0);
+  });
+  it('the record round-trips with the new fields; an old record without them reads with the new defaults', () => {
+    const p = P({ maxThickAt: 0.5, edgeThick: 0.1, tipRounding: 0.25, hubLength: 120 });
+    const d = marineDocument(p) as { features: Array<Record<string, any>> };
+    expect(readMarine(d.features[0])!.params).toEqual(p);
+    expect(d.features[0].prop.maxThickAt).toBe(0.5);
+    const old = JSON.parse(JSON.stringify(marineDocument(P()))) as { features: Array<Record<string, any>> };
+    delete old.features[0].prop.maxThickAt; delete old.features[0].prop.edgeThick; delete old.features[0].prop.tipRounding;
+    const got = readMarine(old.features[0])!;
+    expect([got.params.maxThickAt, got.params.edgeThick, got.params.tipRounding]).toEqual([0.45, 0.06, 0.15]);
+    expect(marineErrors(got.params)).toEqual([]);
+    expect(JSON.stringify(marineFeatures(got.params, got.roles).slice(1))).toBe(JSON.stringify((marineDocument(P()) as { features: unknown[] }).features.slice(1)));
+  });
+  it('seeded hostile parameters including the new ones: never NaN, refused or finite; the back always above the face', () => {
+    const rand = rng(31);
+    let built = 0;
+    for (let k = 0; k < 80; k++) {
+      const p = P({ maxThickAt: 0.1 + 0.7 * rand(), edgeThick: 0.5 * rand(), tipRounding: -0.1 + 0.6 * rand(), rake: -25 + 50 * rand(), pitchProgress: -0.2 + 0.7 * rand(), thickRoot: 0.002 + 0.06 * rand(), thickTip: 0.0005 + 0.02 * rand(), hubLength: 80 + 200 * rand() });
+      if (marineErrors(p).length) { expect(() => marineDocument(p)).toThrow(MarineError); continue; }
+      const feats = marineFeatures(p, Object.fromEntries(marineRoles(p).map((r, i) => [r, `F${i + 1}`])));
+      expect(JSON.stringify(feats)).not.toMatch(/NaN|Infinity|null/);
+      for (const f of feats as Array<Record<string, any>>) if (f.type === 'sketch' && String(f.name).startsWith('Blade section')) expect(f.points.filter((q: { id: string }) => /^h\d+$/.test(q.id)).length).toBe(BACK_POINTS);
+      built++;
+    }
+    expect(built).toBeGreaterThan(5);
+  });
+  it('the axial offset of the foil is positive on every ray of every combination (the Newton factor of the full thickness scales the local offset)', () => {
+    for (const o of [{}, { rake: 20, pitchProgress: 0.3 }, { rake: -20, pitchProgress: -0.15 }, { rake: 30, pitchProgress: 0.5, tipRounding: 0.4 }]) {
+      const p = P(o), st = helicoidStations(p);
+      st.phi.forEach((phi, i) => { for (const u of backFractions(BACK_POINTS)) { const r = st.rB[i] + (st.rA[i] - st.rB[i]) * u; expect(axialThickness(p, phi, r), JSON.stringify(o)).toBeGreaterThan(0.2); } });
+    }
+  });
+});
+const rad5 = (d: number): number => (d * Math.PI) / 180;
 
 describe('marine sample', () => {
   it('the shipped marine-propeller.ckpart is what the generator makes from MARINE_SAMPLE (3 blades, mild rake and progressive pitch), valid, with no private paths', () => {

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import { sessionQuery } from './inspect/kernel';
 import type { PartDoc } from '@ck/part-model';
-import { DEFAULT_MARINE, MARINE_PRESETS, chordAt, faceSlopeR, helicoidPoint, hubLengthNeeded, marineDocument, marineErrors, marineSpacings, marineSpan, midAngleAt, pitchAngleAt, thicknessAt, type MarineParams } from './marineData';
+import { DEFAULT_MARINE, MARINE_PRESETS, chordAngle, chordFraction, chordAt, helicoidStations, edgeFraction, foilMean, foilProfile, faceSlopeR, helicoidPoint, hubLengthNeeded, marineDocument, marineErrors, marineSpacings, marineSpan, midAngleAt, pitchAngleAt, thicknessAt, type MarineParams } from './marineData';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -21,13 +21,24 @@ async function build(p: MarineParams) {
   return { s, rep, ms, mass, vol: mass.volume as number, com: mass.com as number[], facts, solids: (facts as { solids: number }).solids };
 }
 
-/** Volume the geometry should have: the hub minus the bore, plus N blades: thickness x developed chord integrated outward from the hub surface. */
+/** Volume the geometry should have: the hub minus the bore, plus N blades: maximum thickness x developed chord x the mean of the foil profile over the chord, integrated outward from the hub surface. */
 function expectedVolume(p: MarineParams, steps = 400): number {
   const { R, hubR } = marineSpan(p);
   const hub = Math.PI * (hubR * hubR - (p.boreDia / 2) ** 2) * p.hubLength;
   let blade = 0;
-  for (let i = 0; i < steps; i++) { const r = hubR + ((R - hubR) * (i + 0.5)) / steps; blade += thicknessAt(p, r) * chordAt(p, r) * ((R - hubR) / steps); }
+  for (let i = 0; i < steps; i++) { const r = hubR + ((R - hubR) * (i + 0.5)) / steps; blade += thicknessAt(p, r) * chordAt(p, r) * foilMean(p.maxThickAt, edgeFraction(p, r)) * ((R - hubR) / steps); }
   return hub + p.blades * blade;
+}
+
+/** A point of the face at the maximum-thickness chord position near radius r, IN the plane of the nearest section (the blade is the loft through the sections, so it is exactly the sketched profile in
+ *  those planes; between planes the loft blends them): the ray whose angle is closest to the maximum-thickness line at r, and the radius along that ray where the chord fraction is `maxThickAt`. */
+function maxPoint(p: MarineParams, r: number): { point: number[]; r: number; s: number } {
+  const st = helicoidStations(p), want = chordAngle(p, p.maxThickAt, r);
+  let k = 0; st.phi.forEach((x, i) => { if (Math.abs(x - want) < Math.abs(st.phi[k] - want)) k = i; });
+  const phi = st.phi[k];
+  let best = r, bd = Infinity;
+  for (let i = 0; i <= 400; i++) { const rr = Math.max(st.rA[k] + 1, Math.min(st.rB[k] - 1, r - 12 + (24 * i) / 400)); const d = Math.abs(chordFraction(p, phi, rr) - p.maxThickAt); if (d < bd) { bd = d; best = rr; } }
+  return { point: helicoidPoint(p, phi, best), r: best, s: chordFraction(p, phi, best) };
 }
 
 /** One configuration per blade count that the kernel builds (the hub length grows with the root chord). */
@@ -58,11 +69,12 @@ describe('marine propeller against the real kernel', { skip: !process.env.CK_WAS
     expect(worst).toBeLessThan(0.05);
   }, 600000);
 
-  it('the thickness normal to the face is the one asked for at root, middle and tip within 3 %', async () => {
+  it('the maximum thickness normal to the face, probed at the maximum-thickness chord position, is the one asked for at root, middle and tip within 3 %', async () => {
     const p = P();
     const b = await build(p);
-    for (const r of [40, 75, 110]) {
-      const q = helicoidPoint(p, midAngleAt(p, r), r);
+    for (const r0 of [40, 75, 110]) {
+      const m = maxPoint(p, r0), q = m.point, r = m.r;
+      expect(Math.abs(m.s - p.maxThickAt)).toBeLessThan(0.02);
       const a = await b.s.thicknessAt({ point: [q[0], q[1], q[2]] }) as { result: { thickness: number } };
       const want = thicknessAt(p, r);
       console.log(`MARINE thickness r ${r}: want ${want.toFixed(2)} got ${a.result.thickness.toFixed(2)}`);
@@ -70,7 +82,30 @@ describe('marine propeller against the real kernel', { skip: !process.env.CK_WAS
     }
   }, 600000);
 
-  it('the volume matches hub + N x the integral of thickness x chord within 2 %', async () => {
+  it('the thickness follows the foil profile along the chord (in the planes of the sections, where the blade is exactly the sketched profile): within 15 % (or 0.1 mm) of the profile times the maximum thickness, also 0.3 mm from the leading and trailing edge ends of the rays; the edges stay thicker than 0.25 mm', async () => {
+    const p = P();
+    const b = await build(p);
+    const st = helicoidStations(p);
+    const rows: string[] = [];
+    const bad: string[] = [];
+    for (const k of [Math.floor(st.phi.length * 0.3), Math.floor(st.phi.length * 0.5), Math.floor(st.phi.length * 0.7)]) {
+      const phi = st.phi[k], ra = st.rA[k], rb = st.rB[k];
+      const rs = [0.15, 0.3, 0.5, 0.7, 0.85].map((u) => ra + (rb - ra) * u);
+      // the ends that lie on the leading or trailing edge (chord fraction 0 or 1): 0.3 mm inside the end
+      for (const [re, dir] of [[ra, 1], [rb, -1]] as const) { const sE = chordFraction(p, phi, re); if (sE < 0.01 || sE > 0.99) rs.push(re + dir * 0.3); }
+      for (const r of rs) {
+        const q = helicoidPoint(p, phi, r);
+        const a = await b.s.thicknessAt({ point: [q[0], q[1], q[2]] }) as { result: { thickness: number } };
+        const sr = chordFraction(p, phi, r), want = thicknessAt(p, r) * foilProfile(p.maxThickAt, edgeFraction(p, r), sr);
+        rows.push(`ray${k} r${r.toFixed(1)} s${sr.toFixed(2)} ${a.result.thickness.toFixed(2)}/${want.toFixed(2)}`);
+        if (Math.abs(a.result.thickness - want) >= Math.max(0.15 * want, 0.1) || a.result.thickness <= 0.25) bad.push(rows[rows.length - 1]);
+      }
+    }
+    console.log('MARINE foil thickness got/want:', rows.join(' | '));
+    expect(bad).toEqual([]);
+  }, 600000);
+
+  it('the volume matches hub + N x the integral of maximum thickness x chord x mean foil profile within 2 %', async () => {
     const rows: string[] = [];
     for (const [n, o] of COUNTS.slice(0, 3)) {
       const p = P({ blades: n, ...o });
@@ -147,7 +182,7 @@ function expectedVolumeSloped(p: MarineParams, steps = 400): { naive: number; sl
   let naive = 0, sloped = 0;
   for (let i = 0; i < steps; i++) {
     const r = hubR + ((R - hubR) * (i + 0.5)) / steps, dr = (R - hubR) / steps;
-    const base = thicknessAt(p, r) * chordAt(p, r) * dr, c = Math.cos(pitchAngleAt(p, r)), fr = faceSlopeR(p, midAngleAt(p, r));
+    const base = thicknessAt(p, r) * chordAt(p, r) * foilMean(p.maxThickAt, edgeFraction(p, r)) * dr, c = Math.cos(pitchAngleAt(p, r)), fr = faceSlopeR(p, midAngleAt(p, r));
     naive += base; sloped += base * Math.sqrt(1 + (c * fr) ** 2);
   }
   return { naive: hub + p.blades * naive, sloped: hub + p.blades * sloped };
@@ -183,13 +218,13 @@ describe('marine propeller with rake and progressive pitch against the real kern
     console.log('MARINE rake/progress face deviation:', rows.join(' | '));
   }, 900000);
 
-  it('the thickness normal to the face is the one asked for at three radii within 3 %', async () => {
+  it('the maximum thickness (probed at the maximum-thickness position) is the one asked for at three radii within 3 %', async () => {
     const rows: string[] = [];
     for (const [name, o] of [['mild', MILD], ['strong', STRONG], ['forward', FORWARD]] as const) {
       const p = fit(o);
       const b = await build(p);
-      for (const r of [40, 75, 110]) {
-        const q = helicoidPoint(p, midAngleAt(p, r), r);
+      for (const r0 of [40, 75, 110]) {
+        const m = maxPoint(p, r0), q = m.point, r = m.r;
         const a = await b.s.thicknessAt({ point: [q[0], q[1], q[2]] }) as { result: { thickness: number } };
         const want = thicknessAt(p, r);
         rows.push(`${name} r${r} ${a.result.thickness.toFixed(2)}/${want.toFixed(2)}`);
@@ -199,7 +234,7 @@ describe('marine propeller with rake and progressive pitch against the real kern
     console.log('MARINE rake/progress thickness got/want:', rows.join(' | '));
   }, 900000);
 
-  it('the volume matches hub + N x the integral of thickness x developed area within 2 % (the plain thickness x chord integral is logged too)', async () => {
+  it('the volume matches hub + N x the integral of maximum thickness x developed area x mean foil profile within 2 % (the plain integral is logged too)', async () => {
     const rows: string[] = [];
     for (const [name, o] of [['mild', MILD], ['strong', STRONG], ['forward', FORWARD], ['4 blades strong', { ...STRONG, blades: 4, ear: 0.7, hubLength: 130 }]] as const) {
       const p = fit(o);
