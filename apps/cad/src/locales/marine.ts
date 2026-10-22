@@ -33,7 +33,7 @@ export const marineStrings: Record<string, string | Record<string, string>> = {
   'marine.r.pitchRoot': 'Pitch at the hub',
   'marine.r.ear': 'Expanded area ratio',
   'marine.r.chordMax': 'Widest chord',
-  'marine.help.build': 'The blade face is a true constant-pitch helicoid with the thickness on the back (a lofted blade through sections in planes through the shaft). Blades are fused to the hub without a root fillet.',
+  'marine.help.build': 'The blade face is a helicoid (true constant pitch while rake and progressive pitch are 0) with the thickness, normal to the face, on the back (a lofted blade through sections in planes through the shaft). Blades are fused to the hub without a root fillet.',
   'marine.help.limits': 'Pitch is linear in span and rake is a straight lean; there is no cupping, no section camber shape and no root fillet. The kernel sometimes cannot fuse a blade with the hub for one section spacing; the preview then says so: try a spacing of 6 or 7 degrees.',
   'marine.issue.notNumber': 'A value is not a number.',
   'marine.issue.diameter': 'The diameter must be above 0.',
