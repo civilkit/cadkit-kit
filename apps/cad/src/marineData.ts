@@ -6,6 +6,8 @@
 //      from where its ray enters the expanded blade outline to where it leaves, so the loft's side edges ARE the leading and trailing edge;
 //   2. the sheet thickened toward the back with a root-to-tip taper (`thicknessAt`) into a closed blade, fused to the hub, patterned, bored.
 // Frame: shaft axis Z; the pressure face is the helicoid itself, all the thickness is on the back. Geometry only: no hydrodynamics.
+import type { EditOp } from '@ck/session';
+
 const round = (v: number, d = 6): number => { const k = 10 ** d; return Math.round(v * k) / k; };
 
 export type MarineDirection = 'rh' | 'lh';
@@ -271,4 +273,97 @@ export function marineDocument(p: MarineParams, name = 'Marine propeller'): Reco
   let n = 1;
   for (const r of marineRoles(p)) ids[r] = `F${n++}`;
   return { format: 'ck-part', version: 1, name, features: marineFeatures(p, ids), seq: n, rollback: null, material: 'bronze', counters: {} };
+}
+
+// ---- the wizard's edit path: record, owner, ops (live preview), plan (commit) ----
+
+/** Presets (illustrative sizes, not tied to any product). The hub is long enough for the root of each. */
+export const MARINE_PRESETS: Record<string, Partial<MarineParams>> = {
+  outboard3: { diameter: 250, hubDia: 50, hubLength: 110, boreDia: 20, blades: 3, pitchRatio: 1, ear: 0.5, skew: 15 },
+  inboard4: { diameter: 400, hubDia: 80, hubLength: 200, boreDia: 30, blades: 4, pitchRatio: 1.1, ear: 0.7, rootRatio: 0.45, skew: 20, thickRoot: 0.04 },
+  quiet5: { diameter: 300, hubDia: 60, hubLength: 150, boreDia: 25, blades: 5, pitchRatio: 1.3, ear: 0.8, rootRatio: 0.4, skew: 25 },
+};
+
+/** Reads a marine propeller record off a feature (the parameters with defaults filled in, and the role map), or null. */
+export function readMarine(f: unknown): { params: MarineParams; roles: Record<string, string> } | null {
+  const rec = (f as { prop?: Record<string, unknown> } | null)?.prop;
+  if (!rec || typeof rec !== 'object' || rec.family !== 'marine') return null;
+  const { roles, family: _family, ...rest } = rec as { roles?: Record<string, number | string>; family?: string } & Partial<MarineParams>;
+  void _family;
+  return { params: { ...DEFAULT_MARINE, ...rest }, roles: Object.fromEntries(Object.entries((roles ?? {}) as Record<string, number | string>).map(([k, x]) => [k, typeof x === 'number' ? `F${x}` : x])) };
+}
+/** The marine propeller that owns this feature id (its hub sketch id and roles), or null. */
+export function marineOwner(features: unknown[], id: string): { hubId: string; params: MarineParams; roles: Record<string, string> } | null {
+  for (const f of features as Array<{ id: string }>) {
+    const g = readMarine(f);
+    if (g && Object.values(g.roles).includes(id)) return { hubId: f.id, params: g.params, roles: g.roles };
+  }
+  return null;
+}
+
+function nextSeq(doc: { features: Array<{ id?: string }>; seq?: number }): number {
+  let n = doc.seq ?? 1;
+  for (const f of doc.features) { const m = /^F(\d+)$/.exec(String(f.id ?? '')); if (m) n = Math.max(n, Number(m[1]) + 1); }
+  return n;
+}
+
+/** Ops that create (no `existing`) or regenerate a marine propeller as ONE edit: the wizard's live preview and the tests use these. When the structure is the same (same section
+ *  count and bore) every feature is replaced in place and keeps its id. When it is not (the section count changes with almost every edit of the blade shape) all the old features are
+ *  removed, in reverse document order, and the new ones appended: removing single sections would cascade into the loft. Throws MarineError when the parameters have errors. */
+export function marineOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: MarineParams, existing?: Record<string, string>): EditOp[] {
+  const errs = marineErrors(p);
+  if (errs.length) throw new MarineError(errs);
+  const wanted = marineRoles(p);
+  const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
+  const ops: EditOp[] = [];
+  const ids: Record<string, string> = {};
+  if (existing && same) {
+    for (const r of wanted) ids[r] = existing[r];
+    marineFeatures(p, ids).forEach((f) => ops.push({ op: 'replace', id: f.id, feature: f as unknown as Record<string, unknown> } as EditOp));
+    // the hub sketch first: the other features read the record it carries
+    const at = ops.findIndex((o) => (o as { id?: string }).id === ids.hubSketch);
+    if (at > 0) ops.unshift(ops.splice(at, 1)[0]);
+    return ops;
+  }
+  if (existing) {
+    const gone = new Set(Object.values(existing));
+    for (const id of [...doc.features.map((f) => f.id as string)].reverse()) if (gone.has(id)) ops.push({ op: 'remove', id, cascade: true });
+  }
+  let seq = nextSeq(doc);
+  for (const r of wanted) ids[r] = `F${seq++}`;
+  marineFeatures(p, ids).forEach((f) => ops.push({ op: 'add', feature: f as unknown as Record<string, unknown> } as EditOp));
+  return ops;
+}
+
+export interface MarinePlan {
+  /** Removals to apply first (as one edit): only when a regeneration changes the feature structure (the section count changed, the bore went on or off). */
+  before: EditOp[];
+  /** The document patch that is ONE undo step. */
+  patch: { variables: unknown[]; features?: Record<string, Record<string, unknown>>; append?: Array<Record<string, unknown>>; seq?: number };
+}
+/** What to commit: a new marine propeller appended, or the regeneration of `existing` (same structure: one patch replacing the features in place; a different structure: the old
+ *  features are removed first, then the new ones appended, so two undo steps). Throws MarineError for parameters with errors. */
+export function marinePlan(doc: { features: Array<{ id?: string }>; seq?: number; variables?: unknown[] }, p: MarineParams, existing?: Record<string, string>): MarinePlan {
+  const errs = marineErrors(p);
+  if (errs.length) throw new MarineError(errs);
+  const wanted = marineRoles(p);
+  const vars = (doc.variables ?? []) as unknown[];
+  const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
+  if (existing && same) {
+    const feats = marineFeatures(p, existing);
+    return { before: [], patch: { variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) } };
+  }
+  const before: EditOp[] = [];
+  let features = doc.features;
+  if (existing) {
+    const gone = new Set(Object.values(existing));
+    for (const id of [...doc.features.map((f) => f.id as string)].reverse()) if (gone.has(id)) before.push({ op: 'remove', id, cascade: true });
+    features = doc.features.filter((f) => !gone.has(f.id as string));
+  }
+  const start = nextSeq({ features, seq: doc.seq });
+  const ids: Record<string, string> = {};
+  let n = start;
+  for (const r of wanted) ids[r] = `F${n++}`;
+  const feats = marineFeatures(p, ids);
+  return { before, patch: { variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length } };
 }

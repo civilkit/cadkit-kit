@@ -5,6 +5,7 @@ import { drawingStrings } from './drawing';
 import { toolbarStrings } from './toolbar';
 import { libraryStrings } from './library';
 import { propStrings } from './prop';
+import { marineStrings } from './marine';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -866,4 +867,5 @@ export const en: Catalog = {
   ...toolbarStrings,
   ...libraryStrings,
   ...propStrings,
+  ...marineStrings,
 };

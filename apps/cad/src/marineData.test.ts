@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MARINE, MarineError, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
-  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, type MarineParams,
+  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
 } from './marineData';
+import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
 
 const P = (o: Partial<MarineParams> = {}): MarineParams => ({ ...DEFAULT_MARINE, ...o });
 const codes = (p: MarineParams): string[] => marineErrors(p).map((i) => i.code);
@@ -193,5 +194,67 @@ describe('marine propeller features', () => {
       built++;
     }
     expect(built).toBeGreaterThan(5);
+  });
+});
+
+describe('marine propeller edit path', () => {
+  const idsOf = (p: MarineParams, from = 1): Record<string, string> => Object.fromEntries(marineRoles(p).map((r, i) => [r, `F${from + i}`]));
+  const docOf = (p: MarineParams) => { const d = marineDocument(p) as { features: Array<{ id: string }>; seq: number }; return d; };
+  it('the record round-trips; readMarine and readProp each leave the other family alone', () => {
+    const p = P({ blades: 4, skew: 22, direction: 'lh' });
+    const d = docOf(p);
+    const got = readMarine(d.features[0])!;
+    expect(got.params).toEqual(p);
+    expect(Object.keys(got.roles)).toEqual(marineRoles(p));
+    expect(readProp(d.features[0])).toBeNull();
+    const airfoil = propFeatures(DEFAULT_PROP, Object.fromEntries(rolesFor(DEFAULT_PROP).map((r, i) => [r, `F${i + 1}`])))[0];
+    expect(readMarine(airfoil)).toBeNull();
+    expect(readProp(airfoil)).not.toBeNull();
+    expect(marineOwner(d.features as unknown[], idsOf(p)['sec3'])?.hubId).toBe('F1');
+    expect(marineOwner(d.features as unknown[], 'F9999')).toBeNull();
+  });
+  it('new propeller: ops add every feature at the end with fresh ids; plan appends them with the next sequence number and no removals', () => {
+    const doc = { features: [{ id: 'F1' }, { id: 'F2' }], seq: 3 };
+    const ops = marineOps(doc, P());
+    expect(ops.every((o) => o.op === 'add')).toBe(true);
+    expect(ops.length).toBe(marineRoles(P()).length);
+    const plan = marinePlan(doc, P());
+    expect(plan.before).toEqual([]);
+    expect(plan.patch.append!.length).toBe(ops.length);
+    expect((plan.patch.append![0] as { id: string }).id).toBe('F3');
+    expect(plan.patch.seq).toBe(3 + ops.length);
+  });
+  it('same structure: every feature is replaced in place, hub sketch first, ids kept; the plan is one in-place patch', () => {
+    const p = P(), d = docOf(p), roles = readMarine(d.features[0])!.roles;
+    const next = P({ thickTip: 0.007 });
+    expect(helicoidStations(next).psi.length).toBe(helicoidStations(p).psi.length);
+    const ops = marineOps(d, next, roles);
+    expect(ops.every((o) => o.op === 'replace')).toBe(true);
+    expect((ops[0] as { id: string }).id).toBe('F1');
+    expect(ops.map((o) => (o as { id: string }).id).sort()).toEqual(d.features.map((f) => f.id).sort());
+    const plan = marinePlan(d, next, roles);
+    expect(plan.before).toEqual([]);
+    expect(plan.patch.append).toBeUndefined();
+    expect(Object.keys(plan.patch.features!).length).toBe(d.features.length);
+  });
+  it('different structure: all old features are removed in reverse document order, then the new ones appended', () => {
+    const p = P(), d = docOf(p), roles = readMarine(d.features[0])!.roles;
+    const next = P({ ear: 0.7, hubLength: 140 });
+    expect(helicoidStations(next).psi.length).not.toBe(helicoidStations(p).psi.length);
+    const ops = marineOps(d, next, roles);
+    const removes = ops.filter((o) => o.op === 'remove') as Array<{ id: string; cascade?: boolean }>;
+    expect(removes.map((o) => o.id)).toEqual(d.features.map((f) => f.id).reverse());
+    expect(removes.every((o) => o.cascade)).toBe(true);
+    expect(ops.slice(0, removes.length).every((o) => o.op === 'remove')).toBe(true);
+    expect(ops.slice(removes.length).every((o) => o.op === 'add')).toBe(true);
+    const plan = marinePlan(d, next, roles);
+    expect(plan.before.length).toBe(d.features.length);
+    expect(plan.patch.append!.length).toBe(marineRoles(next).length);
+    // dropping the bore changes the structure too
+    expect(marinePlan(d, P({ boreDia: 0 }), roles).before.length).toBe(d.features.length);
+  });
+  it('refused parameters throw MarineError from both', () => {
+    expect(() => marineOps({ features: [] }, P({ blades: 1 }))).toThrow(MarineError);
+    expect(() => marinePlan({ features: [] }, P({ blades: 1 }))).toThrow(MarineError);
   });
 });

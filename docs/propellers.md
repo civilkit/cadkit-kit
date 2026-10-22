@@ -1,7 +1,7 @@
 # Propellers
 
 The airfoil-loft propeller generator (`apps/cad/src/propData.ts`) makes a hub with 2 to 8 lofted blades from a parameter record. It is the first of the two families in
-`plan-propellers.md` (fans, drones, aircraft). The marine helicoid family has its generator (`marineData.ts`, see "Marine family" below) but not yet its wizard. Geometry only, no aerodynamic or hydrodynamic performance.
+`plan-propellers.md` (fans, drones, aircraft). The marine helicoid family is in the same wizard (the Family control on the Size step; generator `marineData.ts`, panel `MarineWizard.tsx`, see "Marine family" below). Geometry only, no aerodynamic or hydrodynamic performance.
 
 ## What is built
 
@@ -59,7 +59,7 @@ Known: the kernel's default validation tolerance flags a 2.6e-4 mm pcurve deviat
 ## Marine family (helicoid blades): generator and kernel probe
 
 `apps/cad/src/marineData.ts` makes a hub with 2 to 6 blades whose pressure face lies on a true constant-pitch helicoid. Pure functions like `propData.ts`: parameters, validation,
-readout, feature list, `marineDocument`. The wizard is not wired yet.
+readout, feature list, `marineDocument`, and the edit path (`marineOps` for the live preview, `marinePlan` for the commit, `readMarine` / `marineOwner` to reopen).
 
 ### How the blade is built
 
@@ -77,6 +77,19 @@ that ray enters and leaves the expanded blade outline, so the loft's side edges 
 Parameters: diameter, hub diameter and length, bore, blades 2..6, pitch / diameter, EAR 0.25..1.2, chord peak / root ratio / tip ratio, skew, thickness at root and tip as fractions of D,
 root embed, section spacing, direction. Constant pitch only; rake and progressive pitch are not built (they move the face off constant-z section lines).
 `validateMarine` refuses what cannot be built (including a hub too short for the root, with the length needed) and warns on a razor tip and on blades overlapping at the hub.
+
+### The marine wizard
+
+Features tab, Create group, Propeller (or Catalog, Generators), then **Family: Marine helicoid** on the Size step (a new propeller only; an edit opens the family that made it). Same three steps as the
+airfoil family: Size (presets outboard 3-blade, inboard 4-blade, quiet 5-blade skewed; diameter, hub, bore, blades 2..6, right / left hand), Blade (pitch / diameter, expanded area ratio, chord shape,
+skew, thickness at root and tip, root embed, section spacing) and Review (readout, checks, notes). The record lives on the hub sketch as `prop` with `family: "marine"`; the airfoil reader
+(`readProp`) leaves such a record alone and `readMarine` leaves an airfoil one alone, so double-clicking any feature of a marine propeller opens the marine panel.
+
+* Marine hub, bore and blade count are plain numbers, not document variables (the section count changes with almost every edit of the blade, so a variable cannot drive the pattern alone).
+* The section count changes with the blade shape, so most edits change the structure: the live preview and the commit remove all the old features (reverse document order, cascade) and append the new
+  ones (two undo steps for an Apply; one patch for a Create). An edit that keeps the section count (a thickness change, say) replaces the features in place (one step, ids kept).
+* **Spacing retry.** If the preview fails (typically `booleanFailed` where a blade edge meets the hub, see below), the panel retries the same propeller with a section spacing of 7, 6 and 4 degrees; the first
+  that builds is kept and the panel says so. The commit does the same before it touches the document, so a Create never leaves a half-built propeller.
 
 ### Measured (kernel, default 250 mm, 3 blades; `marineData.kernel.test.ts`)
 
@@ -105,4 +118,4 @@ Open kernel items from this probe: thicken of a trimmed free-form sheet; the hub
 
 The hub boolean sometimes leaves an open edge where a blade edge meets the hub cylinder, depending on where the section planes fall: pitch / diameter 0.8 fails at 4 and 5 degrees and builds at 6 and 7;
 0.7 fails at 4, 5 and 6 and builds at 7; 0.75 fails at 5. The refusal is a structured `booleanFailed` with a hint (`marineData.kernel.test.ts` pins this). Ray ends within 0.6 mm of the hub surface
-are moved off it (a tangent contact), which removed some failures but not these. The wizard should retry the commit with another spacing (7, 6, 4) before telling the user.
+are moved off it (a tangent contact), which removed some failures but not these. The wizard retries with another spacing (7, 6, 4) before telling the user (see "The marine wizard").

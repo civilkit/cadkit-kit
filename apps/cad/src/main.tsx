@@ -81,6 +81,8 @@ import { followedFaces, patternedBy, threadParents, type ThreadEntry } from './p
 import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
+import { MarineWizard } from './MarineWizard';
+import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, type MarineParams } from './marineData';
 import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
 import { readVars } from './variables';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
@@ -321,7 +323,7 @@ function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   editingIdRef.current = editingId;
   // The Propeller wizard: a new propeller (roles null) or a built one being edited (its role map and the name of its hub sketch)
-  const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string } | null>(null);
+  const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string; marine?: MarineParams } | null>(null);   // `marine` set: the marine family
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
@@ -1172,6 +1174,13 @@ function App() {
     setEditingMaterial(false);
     setSelectedId(id);
     const f = doc?.features.find((x) => x.id === id) as { type?: string; name?: string } | undefined;
+    const marine = marineOwner((controller.document()?.features ?? []) as unknown[], id);
+    if (marine) {   // any feature a marine propeller made opens the marine wizard on its parameters
+      setSelectedId(marine.hubId); setEditingId(null); setPropWiz({ params: DEFAULT_PROP, marine: marine.params, roles: marine.roles, hubId: marine.hubId });
+      setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+      setLeftTab('Editor');
+      return;
+    }
     const prop = propOwner((controller.document()?.features ?? []) as unknown[], id);
     if (prop) {   // any feature a propeller made opens the wizard on its parameters
       setSelectedId(prop.hubId); setEditingId(null); setPropWiz({ params: prop.params, roles: prop.roles, hubId: prop.hubId });
@@ -1907,6 +1916,47 @@ function App() {
     if (!doc || propErrors(next).length) return;
     void controller.preview(propOps(doc as never, next, propWiz?.roles ?? undefined)).then(onPreviewResult);
   };
+  // The marine family: the same live preview and commit, with one addition. The kernel sometimes cannot fuse a blade with the hub for one section spacing and builds it
+  // for another (docs/propellers.md), so a failed preview retries with 7, 6 and 4 degrees; the spacing that built is the one kept (and said so).
+  const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4].filter((x) => x !== sp)];
+  const buildMarine = async (next: MarineParams, delay: number): Promise<{ params: MarineParams; stale: boolean; last: Awaited<ReturnType<typeof controller.preview>> | null }> => {
+    let last: Awaited<ReturnType<typeof controller.preview>> | null = null;
+    for (const sp of marineSpacings(next.raySpacing)) {
+      const cand = { ...next, raySpacing: sp };
+      if (marineErrors(cand).length) continue;
+      const r = await controller.preview(marineOps(doc as never, cand, propWiz?.roles ?? undefined), delay);
+      if ((r as { stale?: boolean }).stale) return { params: next, stale: true, last: null };
+      if (r.ok) return { params: cand, stale: false, last: r };
+      last = r;
+      delay = 0;
+    }
+    return { params: next, stale: false, last };
+  };
+  const onMarineDraft = (next: MarineParams) => {
+    if (!doc || marineErrors(next).length) return;
+    void buildMarine(next, 150).then((b) => {
+      if (b.stale) return;
+      if (b.last && b.params === next) { onPreviewResult(b.last); return; }
+      setPreviewHint(b.params.raySpacing !== next.raySpacing ? t('marine.respaced', { from: String(next.raySpacing), to: String(b.params.raySpacing) }) : null);
+    });
+  };
+  const onMarineCreate = async (next: MarineParams) => {
+    if (!doc) return;
+    const b = await buildMarine(next, 0);
+    if (!b.last?.ok) { onPreviewResult(b.last ?? { ok: false }); return; }   // no spacing built it: the preview's own diagnosis is the answer
+    let plan;
+    try { plan = marinePlan(doc as never, b.params, propWiz?.roles ?? undefined); } catch (e) { setPreviewHint(e instanceof MarineError ? e.message : (e as Error).message); return; }
+    await controller.cancelPreview();
+    if (plan.before.length) {
+      const r = await timed(() => controller.commit(plan.before, 'propeller'));
+      if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
+    }
+    const r = await timed(() => controller.applyDocPatch(plan.patch as never, 'propeller'));
+    if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') })); return; }
+    store.notify(t(propWiz?.roles ? 'prop.updated' : 'marine.created'));
+    setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
   const onPropCancel = async () => {
     await controller.cancelPreview();
     setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
@@ -1945,9 +1995,17 @@ function App() {
     setLeftTab('Features');
     redraw((n) => n + 1);
   };
-  const propEditor = propWiz && doc ? (
+  const switchFamily = async (marine: boolean) => {
+    await controller.cancelPreview();
+    setPreviewHint(null);
+    setPropWiz((w) => (w ? { params: w.params, roles: null, ...(marine ? { marine: { ...DEFAULT_MARINE } } : {}) } : w));
+  };
+  const propEditor = propWiz && doc && propWiz.marine ? (
+    <MarineWizard key={'marine-' + (propWiz.hubId ?? 'new')} params={propWiz.marine} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
+      onDraft={onMarineDraft} onCreate={onMarineCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(false); }} hint={previewHint} />
+  ) : propWiz && doc ? (
     <PropellerWizard key={propWiz.hubId ?? 'new'} params={propWiz.params} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
-      onDraft={onPropDraft} onCreate={onPropCreate} onCancel={onPropCancel} hint={previewHint} />
+      onDraft={onPropDraft} onCreate={onPropCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(true); }} hint={previewHint} />
   ) : null;
   const featureEditor = propEditor ? propEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
