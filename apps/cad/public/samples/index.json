@@ -503,5 +503,10 @@
   "id": "fan-shroud-filleted",
   "title": "Fan shroud (cone on plate, rim and notch fillets)",
   "file": "fan-shroud-filleted.ckpart"
+ },
+ {
+  "id": "corner-holes-plate",
+  "title": "Plate with rounded corners and 4 corner holes (inset = fillet radius)",
+  "file": "corner-holes-plate.ckpart"
  }
 ]

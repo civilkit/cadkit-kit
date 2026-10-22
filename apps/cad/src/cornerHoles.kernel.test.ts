@@ -1,6 +1,7 @@
 // Corner holes against the real kernel: a filleted plate (rounded sketch, or a box with its vertical edges filleted) gets four holes
 // at an inset equal to the fillet radius in one flow (face -> outline -> placement -> point sketch -> hole), and changing the inset
 // moves them. Skipped without a kernel (CK_WASM).
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
@@ -166,5 +167,16 @@ describe('corner holes against the real kernel', { skip: !process.env.CK_WASM },
     const back = holeCentres(w, face, r.frame);
     expect(back).toHaveLength(4);
     expect(sameSet(back, r.points)).toBe(true);
+  });
+
+  it('the corner-holes-plate sample builds: 80 x 50 x 8 plate, R10 corners, four holes at the fillet centres, record on its sketch', async () => {
+    const doc = JSON.parse(readFileSync('apps/cad/public/samples/corner-holes-plate.ckpart', 'utf8')) as PartDoc;
+    const w = await world(doc);
+    expect(await w.errors()).toEqual([]);
+    const plateVol = (80 * 50 - (4 - Math.PI) * 100) * 8;
+    const dia = holeDiameter({ kind: 'simple', size: 'M6', fit: 'normal' })!;
+    expect(Math.abs((await w.volume()) / (plateVol - 4 * Math.PI * (dia / 2) ** 2 * 8) - 1)).toBeLessThan(0.005);
+    const sk = (doc.features as unknown as Array<Record<string, unknown>>).find((f) => f.id === 'F3');
+    expect(readCornerHoles(sk)).toMatchObject({ inset: 10, matchFillet: true, nx: 2, ny: 2, radius: 10 });
   });
 });
