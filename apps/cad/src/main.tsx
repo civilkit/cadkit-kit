@@ -82,7 +82,7 @@ import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
 import { MarineWizard } from './MarineWizard';
-import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, type MarineParams } from './marineData';
+import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, marineSpacings, type MarineParams } from './marineData';
 import { ImpellerWizard } from './ImpellerWizard';
 import { DEFAULT_IMPELLER, ImpellerError, impellerErrors, impellerOps, impellerOwner, impellerPlan, impellerStationsTried, type ImpellerParams } from './impellerData';
 import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
@@ -1928,8 +1928,7 @@ function App() {
     void controller.preview(propOps(doc as never, next, propWiz?.roles ?? undefined)).then(onPreviewResult);
   };
   // The marine family: the same live preview and commit, with one addition. The kernel sometimes cannot fuse a blade with the hub for one section spacing and builds it
-  // for another (docs/propellers.md), so a failed preview retries with 7, 6 and 4 degrees; the spacing that built is the one kept (and said so).
-  const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4].filter((x) => x !== sp)];
+  // for another (docs/propellers.md), so a failed preview retries with 7, 6, 4 and 3 degrees (marineSpacings); the spacing that built is the one kept (and said so).
   const buildMarine = async (next: MarineParams, delay: number): Promise<{ params: MarineParams; stale: boolean; last: Awaited<ReturnType<typeof controller.preview>> | null }> => {
     let last: Awaited<ReturnType<typeof controller.preview>> | null = null;
     for (const sp of marineSpacings(next.raySpacing)) {
