@@ -6,6 +6,7 @@ import { toolbarStrings } from './toolbar';
 import { libraryStrings } from './library';
 import { propStrings } from './prop';
 import { marineStrings } from './marine';
+import { cornerHolesStrings } from './cornerHoles';
 import { impellerStrings } from './impeller';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
@@ -735,7 +736,7 @@ export const en: Catalog = {
   'hole.thread.tapNote': '{size} tap drill', 'hole.thread.depthCap': 'Capped at the hole depth, {v} mm.', 'hole.thread.loading': 'Loading thread sizes...',
   'hole.thread.add': 'Add thread to this hole', 'hole.thread.note': 'A tapped hole: add a thread feature on its wall.', 'hole.thread.have': 'This hole already has a thread ({id}).',
   'app.round.noSharedEdge': 'These faces do not share an edge', 'why.noDocument': 'Open or create a part first', 'why.round.none': 'Select edges, or two or more faces, to round', 'why.round.oneFace': 'Select a second face (or select edges) to round', 'why.shell': 'Select one or more faces to leave open',  'why.round.edgeMode': 'Switch to edge selection to round edges',
-  'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
+  'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool or use Corner holes, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
   // ---- feature creators (featureCreators.ts)
   'tab.Features': 'Features', 'tab.Surfaces': 'Surfaces',
   'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-mirror': 'Mirror', 'cmd.add-helix': 'Helix',
@@ -882,5 +883,6 @@ export const en: Catalog = {
   ...libraryStrings,
   ...propStrings,
   ...marineStrings,
+  ...cornerHolesStrings,
   ...impellerStrings,
 };

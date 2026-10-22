@@ -85,6 +85,16 @@
    "impeller.step.hub",
    "impeller.step.review"
   ],
+  "cornerHoles.issue.+": [
+  "cornerHoles.issue.count",
+  "cornerHoles.issue.inset",
+  "cornerHoles.issue.insetTooLarge",
+  "cornerHoles.issue.noFace",
+  "cornerHoles.issue.noFillet",
+  "cornerHoles.issue.outline",
+  "cornerHoles.issue.size",
+  "cornerHoles.issue.wall"
+  ],
   "marine.issue.+": [
   "marine.issue.blades",
   "marine.issue.bore",

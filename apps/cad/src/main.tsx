@@ -74,6 +74,9 @@ import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
 import { findMaterial, loadUseColour, appearanceOfMaterial } from './materials';
 import { HoleEditor } from './HoleEditor';
+import { CornerHolesPanel, plateFromOutline, type PlateInfo } from './CornerHolesPanel';
+import { DEFAULT_CORNER, faceOutline, readCornerHoles, withCornerHoles, type CornerRecord, type Pt as HolePt } from './cornerHoles';
+import { holeDiameter, loadHolePrefs, newHole } from './holeData';
 import { optionsFor } from './FeatureOptions';
 import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
 import { ThreadEditor } from './ThreadEditor';
@@ -332,6 +335,7 @@ function App() {
   const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string; marine?: MarineParams } | null>(null);   // `marine` set: the marine family
   const [impWiz, setImpWiz] = useState<{ params: ImpellerParams; roles: Record<string, string> | null; hubId?: string } | null>(null);   // the turbo-impeller wizard (standalone)
   const [pickingPath, setPickingPath] = useState<string | null>(null);
+  const [holeCorner, setHoleCorner] = useState<{ plate: PlateInfo; rec: CornerRecord } | null>(null);   // the Corner holes control of the open Hole-on-face sketch
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
   useEffect(() => { if (picked?.once) setPicked(null); }, [picked]);   // a one-click fix lands in the draft once; later typing in that field is not overridden
@@ -1712,7 +1716,11 @@ function App() {
       setSketching({ id: view.featureId, name: t('app.sketch.newName'), plane: typeof plane === 'string' ? t('app.ref.' + plane) : plane.kind === 'feature' ? planeLabel(plane.id) : t('app.sketch.dialog.onFace') });
       enteredSketch(true);
       selectTool(holeSketchRef.current ? 'point' : 'line');
-      if (holeSketchRef.current) setSketchHint(t('app.hole.hint'));
+      if (holeSketchRef.current) {
+        setSketchHint(t('app.hole.hint'));
+        const o = typeof plane === 'object' && plane.kind === 'face' ? faceOutline(view.frame, controller.bodyEdges(), plane.id) : null;
+        setHoleCorner(o ? { plate: plateFromOutline(o), rec: { ...DEFAULT_CORNER, matchFillet: !!o.radius } } : null);   // rounded corners: the holes start concentric with them
+      }
       if (after) await after();
     })();
   };
@@ -1780,7 +1788,7 @@ function App() {
     selectTool(null);
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
-    const wasHole = holeSketchRef.current; holeSketchRef.current = false;
+    const wasHole = holeSketchRef.current; holeSketchRef.current = false; setHoleCorner(null);
     projectSelRef.current = [];
     const sketchId = sketching.id;
     await timed(() => controller.commitSketch());
@@ -1808,7 +1816,7 @@ function App() {
     selectEntity(null, 0, 0);
     setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
     await controller.cancelSketch();
-    holeSketchRef.current = false;
+    holeSketchRef.current = false; setHoleCorner(null);
     projectSelRef.current = [];
     setSketching(null); setSketchHint(null); multiSelRef.current = []; toolEntitiesRef.current = [];
     redraw((n) => n + 1);
@@ -1858,6 +1866,15 @@ function App() {
     if (pl === 'front' || pl === 'top' || pl === 'right') return t('app.ref.' + pl);
     return pl && typeof pl === 'object' ? t('app.sketch.dialog.onFace') : '';
   })();
+  /** Place writes the corner points into the open hole sketch (replacing earlier ones) and keeps the record on the sketch; one sketch undo step. */
+  const placeCornerHolesInSketch = (rec: CornerRecord, points: HolePt[], plate: PlateInfo) => {
+    const d = controller.sketchDraft();
+    if (!d) return;
+    const next = withCornerHoles(d, points);
+    next.extras = { ...(d.extras ?? {}), cornerHoles: { ...rec, rect: plate.rect, radius: plate.radius } };
+    setHoleCorner({ plate, rec });
+    void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? t('cornerHoles.placed', { n: points.length }) : (r.hint ? t(r.hint) : null)); viewTick((n) => n + 1); });
+  };
   const sketchControls: SketchControls | null = sketching ? {
     name: sketching.name, plane: sketching.plane ?? sketchPlaneLabel,
     onOk: () => void confirmSketch(),
@@ -2095,6 +2112,24 @@ function App() {
     <ImpellerWizard key={'impeller-' + (impWiz.hubId ?? 'new')} params={impWiz.params} edit={!!impWiz.roles} name={impWiz.hubId ? String((doc.features.find((f) => f.id === impWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
       onDraft={onImpellerDraft} onCreate={onImpellerCreate} onCancel={onImpellerCancel} hint={previewHint} />
   ) : null;
+  // A hole made by Corner holes reopens with the control above the Hole editor: Update moves the holes (one edit), the hole parameters stay.
+  const cornerSketch = editingFeature?.type === 'hole' ? (doc?.features.find((f) => f.id === editingFeature.sketch) as unknown as { id: string; plane?: { kind?: string; id?: string }; points: Array<{ id: string }>; entities: Array<{ id: string }> } | undefined) : undefined;
+  const cornerRec = cornerSketch ? readCornerHoles(cornerSketch) : null;
+  const cornerHolesEdit = (() => {
+    if (!cornerSketch || !cornerRec || !editingFeature) return null;
+    const frame = controller.sketchFrameOf(cornerSketch.id);
+    const o = frame && cornerSketch.plane?.kind === 'face' && cornerSketch.plane.id ? faceOutline(frame, controller.bodyEdges(), cornerSketch.plane.id) : null;
+    // the face outline when it can be read, else the plate the holes were placed against
+    const plate: PlateInfo | null = o ? plateFromOutline(o) : cornerRec.rect ? { rect: cornerRec.rect, radius: cornerRec.radius ?? null, notes: [{ code: 'noFace', params: {} }] } : null;
+    if (!plate) return null;
+    const update = async (rec: CornerRecord, points: HolePt[], pl: PlateInfo) => {
+      const next = { ...withCornerHoles(cornerSketch, points), cornerHoles: { ...rec, rect: pl.rect, radius: pl.radius } };
+      await timed(() => controller.commit([{ op: 'replace', id: cornerSketch.id, feature: next as never }], 'corner holes'));
+      store.notify(t('cornerHoles.placed', { n: points.length }));
+      redraw((n) => n + 1);
+    };
+    return <CornerHolesPanel key={editingId} update value={cornerRec} plate={plate} holeDiameter={holeDiameter({ ...editingFeature, ...draft })} onPlace={update} />;
+  })();
   const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
@@ -2103,11 +2138,14 @@ function App() {
       group={groupFaces ?? undefined} warnings={store.featureWarnings.value}
       faceDiameter={threadCyl ? threadCyl.radius * 2 : null} internal={threadInternal} warning={editingId ? store.featureWarnings.value[editingId] ?? null : null} />
   ) : editingFeature?.type === 'hole' ? (
+    <>
+    {cornerHolesEdit}
     <HoleEditor key={editingId} feature={editingFeature} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint} linked={holeLinked}
       threads={{
         loadStandards: () => controller.threadStandards(), loadSizes: (std) => controller.threadSizes(std), wallLength: holeWallLength,
         entryModeled: holeEntry?.modeled, modeledMs: loadThreadPrefs().modeledMs ?? null, warning: holeEntry?.id ? store.featureWarnings.value[holeEntry.id] ?? null : null,
       }} />
+    </>
   ) : (
     <FeatureEditor
       feature={(editingFeature as { draftNew?: boolean } | null)?.draftNew ? (({ suppressed: _s, ...rest }) => rest)(editingFeature as unknown as Record<string, unknown>) as never : editingFeature}
@@ -2432,6 +2470,7 @@ function App() {
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
         {sketchBar}
+        {sketching && holeSketchRef.current && holeCorner ? <CornerHolesPanel floating value={holeCorner.rec} plate={holeCorner.plate} holeDiameter={holeDiameter(newHole(sketching.id, false, loadHolePrefs()))} onPlace={placeCornerHolesInSketch} /> : null}
         {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
         {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} /> : null}

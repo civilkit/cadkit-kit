@@ -1085,3 +1085,14 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .status .sketch-hint { color: var(--warn, #b8860b); font-size: 12px; }
 .status .aux-sel { font-size: 12px; }
 .display-sketch { border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 4px; }
+
+/* Corner holes control (CornerHolesPanel.tsx) */
+.chole { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--panel, #fff); border: 1px solid var(--line, #0003); font-size: 12px; }
+.chole-float { position: absolute; top: 120px; right: 112px; z-index: 7; width: 240px; box-shadow: 0 6px 22px #0004; }
+.chole-title { margin: 0; font-size: 12px; font-weight: 600; }
+.chole-count { color: var(--muted, #667); }
+.chole-issue { padding: 4px 6px; border-radius: 6px; font-size: 11.5px; }
+.chole-issue.warn { background: #f2a93b26; }
+.chole-issue.error { background: #d9382c22; }
+.chole-place { align-self: flex-start; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line, #0003); background: var(--accent, #0b74dc); color: #fff; cursor: pointer; }
+.chole-place:disabled { opacity: .45; cursor: default; }
