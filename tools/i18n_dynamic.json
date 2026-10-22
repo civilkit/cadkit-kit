@@ -54,7 +54,38 @@
   "light.studio",
   "light.technical"
  ],
- "marine.issue.+": [
+  "impeller.issue.+": [
+   "impeller.issue.bore",
+   "impeller.issue.exducer",
+   "impeller.issue.hubLength",
+   "impeller.issue.inducer",
+   "impeller.issue.mainBlades",
+   "impeller.issue.notNumber",
+   "impeller.issue.rootEmbed",
+   "impeller.issue.splitters",
+   "impeller.issue.splitterStart",
+   "impeller.issue.span",
+   "impeller.issue.stations",
+   "impeller.issue.stationsLoose",
+   "impeller.issue.thick",
+   "impeller.issue.thinTip",
+   "impeller.issue.tipThick",
+   "impeller.issue.tipThicker",
+   "impeller.issue.tight",
+   "impeller.issue.wrap",
+   "impeller.issue.wrapHigh"
+  ],
+  "impeller.preset.+": [
+   "impeller.preset.comp5",
+   "impeller.preset.comp7",
+   "impeller.preset.wide9"
+  ],
+  "impeller.step.+": [
+   "impeller.step.blade",
+   "impeller.step.hub",
+   "impeller.step.review"
+  ],
+  "marine.issue.+": [
   "marine.issue.blades",
   "marine.issue.bore",
   "marine.issue.chord",
@@ -481,8 +512,9 @@
   "cmd.add-gear",
   "cmd.add-gear-pair",
   "cmd.add-helix",
-  "cmd.add-hole",
-  "cmd.add-knit",
+   "cmd.add-hole",
+   "cmd.add-impeller",
+   "cmd.add-knit",
   "cmd.add-lip",
   "cmd.add-loft",
   "cmd.add-lpattern",
