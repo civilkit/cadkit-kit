@@ -416,6 +416,7 @@ export function propFeatures(p: PropParams, ids: Record<string, string>, linked 
 export function readProp(f: unknown): { params: PropParams; roles: Record<string, string> } | null {
   const rec = (f as { prop?: Record<string, unknown> } | null)?.prop;
   if (!rec || typeof rec !== 'object') return null;
+  if ((rec as { family?: string }).family === 'marine') return null;   // a marine propeller's record (marineData.ts readMarine)
   const { roles, ...rest } = rec as { roles?: Record<string, number | string> } & Partial<PropParams>;
   return { params: { ...DEFAULT_PROP, ...rest }, roles: Object.fromEntries(Object.entries((roles ?? {}) as Record<string, number | string>).map(([k, x]) => [k, typeof x === 'number' ? `F${x}` : x])) };
 }

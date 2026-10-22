@@ -23,6 +23,8 @@ export interface PropellerWizardProps {
   onDraft(next: PropParams): void;
   onCreate(next: PropParams): void;
   onCancel(): void;
+  /** Switch to the marine family (a new propeller only). */
+  onFamily?(family: 'marine'): void;
   /** The live preview's failure, or null when it is current. */
   hint?: string | null;
 }
@@ -161,13 +163,11 @@ export function PropellerWizard(p: PropellerWizardProps): JSX.Element {
 
       {step === 'size' ? (
         <div class="fedit-sec-fields prop-body" data-section="size">
-          <div class="fedit-fld" data-path="family">
-            <span class="fedit-fld-label">{t('prop.family')}</span>
-            <div class="thread-seg" role="radiogroup" aria-label={t('prop.family')}>
-              <button type="button" role="radio" aria-checked="true" class="on" data-value="airfoil" title={t('prop.family.airfoilTip')}><span>{t('prop.family.airfoil')}</span></button>
-              <button type="button" role="radio" aria-checked="false" aria-disabled="true" disabled data-value="marine" title={t('prop.family.marineTip')}><span>{t('prop.family.marine')} ({t('prop.comingSoon')})</span></button>
-            </div>
-          </div>
+          {p.edit ? null : (
+            <Seg name="family" label={t('prop.family')} value={'airfoil' as 'airfoil' | 'marine'}
+              options={[{ value: 'airfoil', text: t('prop.family.airfoil'), tip: t('prop.family.airfoilTip') }, { value: 'marine', text: t('prop.family.marine'), tip: t('prop.family.marineTip') }]}
+              onChange={(v) => { if (v === 'marine') p.onFamily?.('marine'); }} />
+          )}
           <label class="fedit-fld" data-path="preset">
             <span class="fedit-fld-label">{t('prop.preset')}</span>
             <select value={preset} aria-label={t('prop.preset')} onChange={(e) => applyPreset((e.currentTarget as HTMLSelectElement).value)}>
