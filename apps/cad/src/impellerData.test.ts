@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   DEFAULT_IMPELLER, ImpellerError, hubContour, hubSurface, impellerDocument, impellerErrors, impellerFeatures, impellerOps, impellerOwner, impellerPlan, impellerReadout, impellerRoles, impellerSection, impellerStationsTried, mainStationMs, readImpeller, splitterStationMs, thicknessAt, validateImpeller, type ImpellerParams,
 } from './impellerData';
@@ -217,5 +218,12 @@ describe('impeller edit path', () => {
     expect(() => impellerPlan({ features: [] }, P({ mainBlades: 1 }))).toThrow(ImpellerError);
     expect(impellerReadout(P({ mainBlades: 1 })).issues.some((i) => i.code === 'mainBlades')).toBe(true);
     expect(idsOf(P()).hubSketch).toBe('F2');
+  });
+});
+
+describe('impeller samples', () => {
+  it('the committed sample is what the generator makes', () => {
+    const onDisk = JSON.parse(readFileSync('apps/cad/public/samples/turbo-impeller.ckpart', 'utf8'));
+    expect(onDisk).toEqual(impellerDocument(DEFAULT_IMPELLER, 'Turbo impeller'));
   });
 });
