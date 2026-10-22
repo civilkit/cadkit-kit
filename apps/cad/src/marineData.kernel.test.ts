@@ -21,6 +21,16 @@ async function build(p: MarineParams) {
   return { s, rep, ms, mass, vol: mass.volume as number, com: mass.com as number[], facts, solids: (facts as { solids: number }).solids };
 }
 
+/** The build the wizard does: the requested section spacing, then the others of `marineSpacings` until one builds (the hub fuse depends on where the section planes fall). */
+async function buildRetry(p: MarineParams) {
+  let b = await build(p);
+  for (const sp of marineSpacings(p.raySpacing).slice(1)) {
+    if (!(b.rep.regen.errors as unknown[]).length) break;
+    b = await build({ ...p, raySpacing: sp });
+  }
+  return b;
+}
+
 /** Volume the geometry should have: the hub minus the bore, plus N blades: maximum thickness x developed chord x the mean of the foil profile over the chord, integrated outward from the hub surface. */
 function expectedVolume(p: MarineParams, steps = 400): number {
   const { R, hubR } = marineSpan(p);
@@ -112,7 +122,7 @@ describe('marine propeller against the real kernel', { skip: !process.env.CK_WAS
     const rows: string[] = [];
     for (const [n, o] of COUNTS.slice(0, 3)) {
       const p = P({ blades: n, ...o });
-      const b = await build(p);
+      const b = await buildRetry(p);
       expect(b.rep.regen.errors).toEqual([]);
       const want = expectedVolume(p);
       const rel = (b.vol - want) / want;
@@ -125,7 +135,7 @@ describe('marine propeller against the real kernel', { skip: !process.env.CK_WAS
   it('N = 2..6 blades: one solid each, the centre of gravity is on the axis within 0.01 mm in x and y', async () => {
     const rows: string[] = [];
     for (const [n, o] of COUNTS) {
-      const b = await build(P({ blades: n, ...o }));
+      const b = await buildRetry(P({ blades: n, ...o }));
       expect(b.rep.regen.errors, `N=${n}`).toEqual([]);
       expect(b.solids, `N=${n}`).toBe(1);
       const off = Math.hypot(b.com[0], b.com[1]);
