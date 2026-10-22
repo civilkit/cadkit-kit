@@ -6,6 +6,7 @@ import { toolbarStrings } from './toolbar';
 import { libraryStrings } from './library';
 import { propStrings } from './prop';
 import { marineStrings } from './marine';
+import { impellerStrings } from './impeller';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
 export const en: Catalog = {
@@ -881,4 +882,5 @@ export const en: Catalog = {
   ...libraryStrings,
   ...propStrings,
   ...marineStrings,
+  ...impellerStrings,
 };

@@ -82,7 +82,9 @@ import { GearEditor } from './GearEditor';
 import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
 import { MarineWizard } from './MarineWizard';
-import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, type MarineParams } from './marineData';
+import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, marineSpacings, type MarineParams } from './marineData';
+import { ImpellerWizard } from './ImpellerWizard';
+import { DEFAULT_IMPELLER, ImpellerError, impellerErrors, impellerOps, impellerOwner, impellerPlan, impellerStationsTried, type ImpellerParams } from './impellerData';
 import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
 import { readVars } from './variables';
 import { cylinderOfFace, cylindersOfFaces, faceExtent, holeWallFaces, isHoleWall, loadThreadPrefs, threadGroup, threadOpsForFaces } from './threadData';
@@ -328,6 +330,7 @@ function App() {
   editingIdRef.current = editingId;
   // The Propeller wizard: a new propeller (roles null) or a built one being edited (its role map and the name of its hub sketch)
   const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string; marine?: MarineParams } | null>(null);   // `marine` set: the marine family
+  const [impWiz, setImpWiz] = useState<{ params: ImpellerParams; roles: Record<string, string> | null; hubId?: string } | null>(null);   // the turbo-impeller wizard (standalone)
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
@@ -579,7 +582,7 @@ function App() {
       else { markClean(); autosaver.clear(); }
       if (!o.keep) { files.opened(o.file ?? null); if (o.file) { files.noteFile(o.file); files.noteThumb(o.file, thumbnail); } }
       files.names.seen(doc.name);
-      setEditingId(null); setEditingMaterial(false); setPropWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
+      setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
     } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
@@ -829,6 +832,7 @@ function App() {
     variables: () => showVariables(),
     script: () => showScript(),
     propeller: () => openPropeller(),
+    impeller: () => openImpeller(),
     open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
@@ -1198,6 +1202,13 @@ function App() {
     const marine = marineOwner((controller.document()?.features ?? []) as unknown[], id);
     if (marine) {   // any feature a marine propeller made opens the marine wizard on its parameters
       setSelectedId(marine.hubId); setEditingId(null); setPropWiz({ params: DEFAULT_PROP, marine: marine.params, roles: marine.roles, hubId: marine.hubId });
+      setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+      setLeftTab('Editor');
+      return;
+    }
+    const imp = impellerOwner((controller.document()?.features ?? []) as unknown[], id);
+    if (imp) {   // any feature an impeller made opens the impeller wizard on its parameters
+      setSelectedId(imp.hubId); setEditingId(null); setImpWiz({ params: imp.params, roles: imp.roles, hubId: imp.hubId });
       setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
       setLeftTab('Editor');
       return;
@@ -1939,8 +1950,7 @@ function App() {
     void controller.preview(propOps(doc as never, next, propWiz?.roles ?? undefined)).then(onPreviewResult);
   };
   // The marine family: the same live preview and commit, with one addition. The kernel sometimes cannot fuse a blade with the hub for one section spacing and builds it
-  // for another (docs/propellers.md), so a failed preview retries with 7, 6 and 4 degrees; the spacing that built is the one kept (and said so).
-  const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4].filter((x) => x !== sp)];
+  // for another (docs/propellers.md), so a failed preview retries with 7, 6, 4 and 3 degrees (marineSpacings); the spacing that built is the one kept (and said so).
   const buildMarine = async (next: MarineParams, delay: number): Promise<{ params: MarineParams; stale: boolean; last: Awaited<ReturnType<typeof controller.preview>> | null }> => {
     let last: Awaited<ReturnType<typeof controller.preview>> | null = null;
     for (const sp of marineSpacings(next.raySpacing)) {
@@ -1979,6 +1989,50 @@ function App() {
     setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
     redraw((n) => n + 1);
   };
+  // The turbo-impeller wizard: the same live preview and commit as the marine family, with the station count as the retry knob (impellerStationsTried).
+  const buildImpeller = async (next: ImpellerParams, delay: number): Promise<{ params: ImpellerParams; stale: boolean; last: Awaited<ReturnType<typeof controller.preview>> | null }> => {
+    let last: Awaited<ReturnType<typeof controller.preview>> | null = null;
+    for (const st of impellerStationsTried(next.stations)) {
+      const cand = { ...next, stations: st };
+      if (impellerErrors(cand).length) continue;
+      const r = await controller.preview(impellerOps(doc as never, cand, impWiz?.roles ?? undefined), delay);
+      if ((r as { stale?: boolean }).stale) return { params: next, stale: true, last: null };
+      if (r.ok) return { params: cand, stale: false, last: r };
+      last = r;
+      delay = 0;
+    }
+    return { params: next, stale: false, last };
+  };
+  const onImpellerDraft = (next: ImpellerParams) => {
+    if (!doc || impellerErrors(next).length) return;
+    void buildImpeller(next, 150).then((b) => {
+      if (b.stale) return;
+      if (b.last && b.params === next) { onPreviewResult(b.last); return; }
+      setPreviewHint(b.params.stations !== next.stations ? t('impeller.respaced', { from: String(next.stations), to: String(b.params.stations) }) : null);
+    });
+  };
+  const onImpellerCreate = async (next: ImpellerParams) => {
+    if (!doc) return;
+    const b = await buildImpeller(next, 0);
+    if (!b.last?.ok) { onPreviewResult(b.last ?? { ok: false }); return; }   // no station count built it: the preview's own diagnosis is the answer
+    let plan;
+    try { plan = impellerPlan(doc as never, b.params, impWiz?.roles ?? undefined); } catch (e) { setPreviewHint(e instanceof ImpellerError ? e.message : (e as Error).message); return; }
+    await controller.cancelPreview();
+    if (plan.before.length) {
+      const r = await timed(() => controller.commit(plan.before, 'impeller'));
+      if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
+    }
+    const r = await timed(() => controller.applyDocPatch(plan.patch as never, 'impeller'));
+    if (!r.ok) { setPreviewHint(t('prop.failed', { reason: r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') })); return; }
+    store.notify(t(impWiz?.roles ? 'impeller.updated' : 'impeller.created'));
+    setImpWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const onImpellerCancel = async () => {
+    await controller.cancelPreview();
+    setImpWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
   const onPropCancel = async () => {
     await controller.cancelPreview();
     setPropWiz(null); setPreviewHint(null); setLeftTab('Features');
@@ -2003,8 +2057,16 @@ function App() {
     if (!doc) return;
     if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
     if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
-    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null);
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setImpWiz(null);
     setPropWiz({ params: { ...DEFAULT_PROP, varPrefix: freePrefix(readVars(doc)) }, roles: null });
+    setLeftTab('Editor');
+  };
+  const openImpeller = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null);
+    setImpWiz({ params: { ...DEFAULT_IMPELLER }, roles: null });
     setLeftTab('Editor');
   };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
@@ -2029,7 +2091,11 @@ function App() {
     <PropellerWizard key={propWiz.hubId ?? 'new'} params={propWiz.params} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
       onDraft={onPropDraft} onCreate={onPropCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(true); }} hint={previewHint} />
   ) : null;
-  const featureEditor = propEditor ? propEditor : gearRec ? (
+  const impellerEditor = impWiz && doc ? (
+    <ImpellerWizard key={'impeller-' + (impWiz.hubId ?? 'new')} params={impWiz.params} edit={!!impWiz.roles} name={impWiz.hubId ? String((doc.features.find((f) => f.id === impWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
+      onDraft={onImpellerDraft} onCreate={onImpellerCreate} onCancel={onImpellerCancel} hint={previewHint} />
+  ) : null;
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}

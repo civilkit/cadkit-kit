@@ -1,11 +1,10 @@
-// The Propeller generator, marine family: parameters, validation, readout and the feature list for a hub with N blades whose FACE lies on a true constant-pitch helicoid.
-// Pure functions, no framework. The blade is built from what the kernel's propeller probe (cap 5 to 7) proved works, with one change forced by the kernel
-// (see docs/propellers.md, "Marine family: probe"): the kernel cannot thicken a TRIMMED sheet and a slab cannot be trimmed by an outline prism without an open edge, so
-// the sheet is made with the blade outline as its boundary instead of being trimmed:
-//   1. a helicoid sheet: a surface loft through radial line sections, one per angle phi_k, each on the plane z = P phi_k / 2 pi (a ruled helicoid); a line runs only
-//      from where its ray enters the expanded blade outline to where it leaves, so the loft's side edges ARE the leading and trailing edge;
-//   2. the sheet thickened toward the back with a root-to-tip taper (`thicknessAt`) into a closed blade, fused to the hub, patterned, bored.
-// Frame: shaft axis Z; the pressure face is the helicoid itself, all the thickness is on the back. Geometry only: no hydrodynamics.
+// The Propeller generator, marine family: parameters, validation, readout and the feature list for a hub with N blades whose FACE lies on a helicoid-like surface
+//   z = P(r) phi / 2 pi + tan(rake) (r - hubR),   P(r) = P_tip (1 + pitchProgress (1 - x)),   x the span fraction;
+// with rake and pitchProgress both 0 this is the true constant-pitch helicoid. Pure functions, no framework. The blade is ONE loft through closed sections, one per angle
+// phi_k, each in a plane through the shaft axis (the kernel cannot thicken a trimmed sheet, so there is no sheet / thicken / trim: docs/propellers.md, "Marine family: probe"):
+// a section is the face line (from where the ray enters the expanded outline to where it leaves), the tip end, the back spline (the face plus the axial thickness that gives the
+// requested thickness NORMAL to the face, `axialThickness`) and the root end. The loft's side edges are the leading and trailing edge; the blade is fused to the hub,
+// patterned, bored. Frame: shaft axis Z; the pressure face is the surface itself, all the thickness is on the back. Geometry only: no hydrodynamics.
 import type { EditOp } from '@ck/session';
 
 const round = (v: number, d = 6): number => { const k = 10 ** d; return Math.round(v * k) / k; };
@@ -20,7 +19,7 @@ export interface MarineParams {
   boreDia: number;
   /** 2..6 */
   blades: number;
-  /** Constant pitch / diameter (P / D). */
+  /** Pitch / diameter (P / D) at the tip; with `pitchProgress` = 0 the pitch is constant. */
   pitchRatio: number;
   /** Expanded area ratio: blades' developed area / disc area. */
   ear: number;
@@ -39,11 +38,15 @@ export interface MarineParams {
   rootEmbed: number;
   /** Angle between neighbouring helicoid sections, degrees (3 to 10): finer follows the outline better, coarser builds faster. */
   raySpacing: number;
+  /** Rake, degrees (-20..30): the blade leans aft, the face height gains tan(rake) (r - hubR). 0 = none. */
+  rake: number;
+  /** Progressive pitch (-0.15..0.5; further negative values are refused by the kernel's hub fuse for most rake values, see docs/propellers.md): fractional change of the local pitch from the tip to the root, linear in the span fraction: P(r) = P_tip (1 + pitchProgress (1 - x)). Positive = more pitch at the root. 0 = constant pitch. */
+  pitchProgress: number;
 }
 
 export const DEFAULT_MARINE: MarineParams = {
   diameter: 250, hubDia: 50, hubLength: 110, boreDia: 20, blades: 3, pitchRatio: 1, ear: 0.5, peak: 0.45, rootRatio: 0.55, tipRatio: 0.3,
-  skew: 15, thickRoot: 0.035, thickTip: 0.005, direction: 'rh', rootEmbed: 0.85, raySpacing: 5,
+  skew: 15, thickRoot: 0.035, thickTip: 0.005, direction: 'rh', rootEmbed: 0.85, raySpacing: 5, rake: 0, pitchProgress: 0,
 };
 
 export interface MarineIssue { level: 'error' | 'warning'; code: string; message: string }
@@ -75,8 +78,41 @@ export function chordMax(p: MarineParams): number {
 /** Developed chord (mm, along the pitch helix) at radius r; inside the hub the root value holds. */
 export const chordAt = (p: MarineParams, r: number): number => chordMax(p) * chordShape(p, spanFraction(p, r));
 
-/** Pitch angle of the helicoid at radius r (radians from the plane of rotation). */
-export const pitchAngleAt = (p: MarineParams, r: number): number => Math.atan((p.pitchRatio * p.diameter) / (2 * Math.PI * r));
+/** Local pitch (mm per revolution) at radius r: the tip pitch times (1 + pitchProgress (1 - x)), x the span fraction (linear, also inside the hub, where x < 0). */
+export const pitchAt = (p: MarineParams, r: number): number => p.pitchRatio * p.diameter * (1 + p.pitchProgress * (1 - spanFraction(p, r)));
+/** d(pitch)/dr, mm per mm (constant: the pitch is linear in r). */
+export const pitchSlope = (p: MarineParams): number => { const { R, hubR } = marineSpan(p); return (-p.pitchRatio * p.diameter * p.pitchProgress) / (R - hubR); };
+/** Height (mm, along the shaft) of the pressure face at angle `phi` (before the direction sign) and radius r: P(r) phi / 2 pi + tan(rake) (r - hubR). */
+export function faceZ(p: MarineParams, phi: number, r: number): number {
+  return (pitchAt(p, r) * phi) / (2 * Math.PI) + Math.tan(rad(p.rake)) * (r - marineSpan(p).hubR);
+}
+/** Slope of the face along the radius at fixed angle (dz/dr): how the face tilts inside a section plane. */
+export const faceSlopeR = (p: MarineParams, phi: number): number => (pitchSlope(p) * phi) / (2 * Math.PI) + Math.tan(rad(p.rake));
+/** Pitch angle of the helix on the face at radius r (radians from the plane of rotation): atan(P(r) / 2 pi r). Rake does not change it (the helix runs at constant r); it tilts the face radially (faceSlopeR). */
+export const pitchAngleAt = (p: MarineParams, r: number): number => Math.atan(pitchAt(p, r) / (2 * Math.PI * r));
+/** First-order axial offset t / n_z, n_z = 1 / sqrt(1 + (dz/dr)^2 + (dz / r dphi)^2): exact where the back is parallel to the face. */
+const axial0 = (p: MarineParams, phi: number, r: number): number => {
+  const fr = faceSlopeR(p, phi), ft = pitchAt(p, r) / (2 * Math.PI * r);
+  return thicknessAt(p, r) * Math.sqrt(1 + fr * fr + ft * ft);
+};
+/** Axial offset (mm) from the face to the back that gives the thickness t NORMAL to the face at (phi, r). The first-order t / n_z is exact only where the back is parallel to the
+ *  face; the offset changes with r and phi, and the normal leaves the face sideways by several mm near the root, so one Newton correction follows: march along the exact normal to the
+ *  first-order back (bisection), and move the offset by the distance error over n_z. The residual against a numeric march through the corrected back is under 1 % (marineData.test.ts). */
+export function axialThickness(p: MarineParams, phi: number, r: number): number {
+  const a0 = axial0(p, phi, r), t = thicknessAt(p, r);
+  if (p.rake === 0 && p.pitchProgress === 0) return a0;   // the constant-pitch helicoid keeps its original first-order offset (0.7 % thin at the root, see docs) so existing models are unchanged
+  const fr = faceSlopeR(p, phi), ft = pitchAt(p, r) / (2 * Math.PI * r);
+  const nz = 1 / Math.sqrt(1 + fr * fr + ft * ft), nr = -fr * nz, nt = -ft * nz;
+  const zp = faceZ(p, phi, r);
+  const gap = (sd: number): number => {
+    const x = r + sd * nr, y = sd * nt, rq = Math.hypot(x, y), pq = phi + Math.atan2(y, x);
+    return zp + sd * nz - (faceZ(p, pq, rq) + axial0(p, pq, rq));
+  };
+  let lo = 0, hi = 3 * a0;
+  if (gap(hi) < 0) return a0;   // the normal never meets the back (cannot happen for a sane blade): keep the first-order value
+  for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (gap(m) < 0) lo = m; else hi = m; }
+  return a0 + (t - lo) / nz;
+}
 /** Mid-chord angle (radians, before the direction sign) at radius r: the skew grows with the square of the span fraction. */
 export const midAngleAt = (p: MarineParams, r: number): number => rad(p.skew) * Math.min(1, Math.max(0, spanFraction(p, r))) ** 2;
 /** Half the angular width of the blade at radius r, radians: the developed chord's projection on the cylinder, c cos(theta) / r. */
@@ -89,21 +125,26 @@ export function thicknessAt(p: MarineParams, r: number): number {
   return p.diameter * (p.thickRoot + (p.thickTip - p.thickRoot) * x);
 }
 
-/** Hub length that keeps the root of the blade (the part of the sheet inside the hub radius, plus the thickness and 2 mm) between the hub's end faces. */
+/** Hub length that keeps the root of the blade (the part of the sections inside the hub radius, plus the axial thickness at the embed radius and 2 mm) between the hub's end faces. */
 export function hubLengthNeeded(p: MarineParams): number {
-  const { hubR } = marineSpan(p);
+  const { hubR, r0 } = marineSpan(p);
   const st = helicoidStations(p);
-  let zmax = 0;
-  st.psi.forEach((_x, i) => { if (st.rA[i] <= hubR) zmax = Math.max(zmax, Math.abs(st.z[i])); });
-  const r0 = marineSpan(p).r0;
-  return 2 * (zmax + thicknessAt(p, r0) / Math.cos(pitchAngleAt(p, r0)) + 2);
+  let need = 0;
+  st.psi.forEach((_x, i) => {
+    if (st.rA[i] > hubR) return;
+    // the face height is linear in r, so its extremes inside the hub are at the two ends of that part
+    let zmax = 0;
+    for (const r of [st.rA[i], Math.min(st.rB[i], hubR)]) zmax = Math.max(zmax, Math.abs(faceZ(p, st.phi[i], r)));
+    need = Math.max(need, zmax + axialThickness(p, st.phi[i], r0));
+  });
+  return 2 * (need + 2);
 }
 
 export function validateMarine(p: MarineParams): MarineIssue[] {
   const out: MarineIssue[] = [];
   const err = (code: string, message: string): void => { out.push({ level: 'error', code, message }); };
   const warn = (code: string, message: string): void => { out.push({ level: 'warning', code, message }); };
-  const nums: Array<keyof MarineParams> = ['diameter', 'hubDia', 'hubLength', 'boreDia', 'blades', 'pitchRatio', 'ear', 'peak', 'rootRatio', 'tipRatio', 'skew', 'thickRoot', 'thickTip', 'rootEmbed', 'raySpacing'];
+  const nums: Array<keyof MarineParams> = ['diameter', 'hubDia', 'hubLength', 'boreDia', 'blades', 'pitchRatio', 'ear', 'peak', 'rootRatio', 'tipRatio', 'skew', 'thickRoot', 'thickTip', 'rootEmbed', 'raySpacing', 'rake', 'pitchProgress'];
   for (const k of nums) if (!Number.isFinite(p[k] as number)) err('notNumber', `${k} is not a number`);
   if (out.length) return out;
   const { R, hubR, r0 } = marineSpan(p);
@@ -117,6 +158,8 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   if (p.rootRatio <= 0 || p.tipRatio <= 0) err('chord', 'The root and tip chord ratios must be above 0');
   if (p.thickRoot <= 0 || p.thickTip <= 0) err('thick', 'The thickness must be above 0');
   if (p.raySpacing < 3 || p.raySpacing > 10) err('raySpacing', 'The section spacing must be between 3 and 10 degrees');
+  if (p.rake < -20 || p.rake > 30) err('rake', 'The rake must be between -20 and 30 degrees');
+  if (p.pitchProgress < -0.15 || p.pitchProgress > 0.5) err('pitchProgress', 'The progressive pitch must be between -0.15 and 0.5');
   if (p.rootEmbed <= 0.3 || p.rootEmbed >= 1) err('rootEmbed', 'The root embed must be between 0.3 and 1 of the hub radius');
   if (out.length) return out;
   if (p.thickTip * p.diameter < 0.3) warn('thinTip', 'The blade tip is thinner than 0.3 mm');
@@ -126,6 +169,8 @@ export function validateMarine(p: MarineParams): MarineIssue[] {
   if ((p.blades * (te - le)) > 2 * Math.PI * 0.95) warn('overlap', 'The blades overlap at the hub: lower the area ratio or the root chord ratio');
   const need = hubLengthNeeded(p);
   if (p.hubLength < need) err('hubShort', `The hub is too short for the root: the blade root spans ${round(need, 1)} mm along the shaft (hub length at least that)`);
+  // the hub fuse is the touchy step: a low pitch near the hub (constant 0.7 to 0.8, or a pitch falling toward the root) is refused for most section spacings (docs/propellers.md)
+  if ((pitchAt(p, hubR) / p.diameter) <= 0.8 + 1e-9) warn('rootPitch', 'The pitch at the hub is 0.8 D or lower: the hub fuse often fails; the build then retries finer section spacings');
   if (Math.abs(p.skew) > 45) warn('skew', 'A skew above 45 degrees is unusual');
   void r0;
   return out;
@@ -136,6 +181,8 @@ export class MarineError extends Error {
 }
 
 export interface MarineReadout {
+  /** pitch is the tip pitch; pitchRoot the pitch at the hub surface. */
+  pitchRoot: number; rake: number;
   radius: number; hubRadius: number; pitch: number; pitchRatio: number; ear: number; chordMax: number;
   /** Pitch angle at the root, 0.7 R and tip (degrees). */
   angleRoot: number; angle70: number; angleTip: number;
@@ -148,7 +195,7 @@ export function marineReadout(p: MarineParams): MarineReadout {
   let area = 0; const n = 100;
   for (let i = 0; i < n; i++) { const r = hubR + ((R - hubR) * (i + 0.5)) / n; area += chordAt(p, r) * ((R - hubR) / n); }
   const deg = (r: number): number => (pitchAngleAt(p, r) * 180) / Math.PI;
-  return { radius: R, hubRadius: hubR, pitch: p.pitchRatio * p.diameter, pitchRatio: p.pitchRatio, ear: (p.blades * area) / (Math.PI * R * R), chordMax: chordMax(p), angleRoot: deg(hubR), angle70: deg(0.7 * R), angleTip: deg(R), bladeArea: area, issues: validateMarine(p) };
+  return { pitchRoot: pitchAt(p, hubR), rake: p.rake, radius: R, hubRadius: hubR, pitch: p.pitchRatio * p.diameter, pitchRatio: p.pitchRatio, ear: (p.blades * area) / (Math.PI * R * R), chordMax: chordMax(p), angleRoot: deg(hubR), angle70: deg(0.7 * R), angleTip: deg(R), bladeArea: area, issues: validateMarine(p) };
 }
 
 // ---- geometry ----
@@ -156,6 +203,8 @@ export function marineReadout(p: MarineParams): MarineReadout {
 export interface HelicoidStations {
   /** Angle (radians, world, direction sign applied), height and radial extent of each line section. */
   psi: number[]; z: number[]; rA: number[]; rB: number[];
+  /** The same angles before the direction sign is applied (the face height is a function of phi). */
+  phi: number[];
 }
 /** The radial interval of the blade at angle `phi` (before the direction sign), or null when the ray misses the outline. The outline is
  *  { r in [r0, R], leading edge <= phi <= trailing edge }; the interval is the first and last radius found on a fine scan, refined by bisection. */
@@ -184,8 +233,8 @@ export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): Helic
   }
   const count = Math.max(8, Math.ceil((hi - lo) / rad(stepDeg)) + 1);
   const step = (hi - lo) / count;
-  const s = sgn(p), P = p.pitchRatio * p.diameter;
-  const psi: number[] = [], z: number[] = [], rA: number[] = [], rB: number[] = [];
+  const s = sgn(p);
+  const psi: number[] = [], z: number[] = [], rA: number[] = [], rB: number[] = [], phis: number[] = [];
   for (let k = 0; k < count; k++) {
     const phi = lo + step * (k + 0.5);
     const iv = rayInterval(p, phi);
@@ -195,16 +244,19 @@ export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): Helic
     if (Math.abs(a - hubR) < 0.6) a = hubR - 0.6;
     if (Math.abs(b - hubR) < 0.6) b = hubR + 0.6;
     if (b - a < 1e-3) continue;
-    psi.push(s * phi); z.push((P * phi) / (2 * Math.PI)); rA.push(a); rB.push(b);
+    psi.push(s * phi); z.push(faceZ(p, phi, hubR)); rA.push(a); rB.push(b); phis.push(phi);
   }
-  return { psi, z, rA, rB };
+  return { psi, z, rA, rB, phi: phis };
 }
 
-/** The point of the helicoid at angle `phi` (before the direction sign) and radius r: the face the blade must lie on. */
+/** The point of the face (a helicoid when rake and progressive pitch are 0) at angle `phi` (before the direction sign) and radius r: the face the blade must lie on. */
 export function helicoidPoint(p: MarineParams, phi: number, r: number): [number, number, number] {
-  const s = sgn(p), P = p.pitchRatio * p.diameter;
-  return [r * Math.cos(s * phi), r * Math.sin(s * phi), (P * phi) / (2 * Math.PI)];
+  const s = sgn(p);
+  return [r * Math.cos(s * phi), r * Math.sin(s * phi), faceZ(p, phi, r)];
 }
+
+/** Section spacings the build tries, in order: the requested one, then 7, 6 and 4 degrees, and 3 as the last resort (it builds the lowest root pitches, in about 15 s). */
+export const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4, 3].filter((x) => x !== sp)];
 
 // ---- features ----
 
@@ -232,24 +284,31 @@ export function marineFeatures(p: MarineParams, ids: Record<string, string>): Fe
   hub.prop = record;
   out.push(hub);
   out.push({ type: 'extrude', id: ids.hub, name: 'Propeller hub', op: 'add', sketch: ids.hubSketch, end: 'mid', depth: round(p.hubLength) });
-  // one closed section per ray, on the plane through the shaft axis at the ray's angle: a thin quadrilateral (radius from rA to rB, the face line at height z, the back line
-  // an axial thickness above it, linear in radius). Sketch axes of such a plane: u = world Z, v = the radial direction at the ray's angle (checked against the kernel).
-  const { R, hubR } = marineSpan(p);
-  // thickness is normal to the face; along the shaft it is t / cos(pitch angle)
-  const tAxial = (r: number): number => thicknessAt(p, r) / Math.cos(pitchAngleAt(p, r));
+  // one closed section per ray, on the plane through the shaft axis at the ray's angle: a thin closed shape (radius from rA to rB, the face line, the back spline an axial
+  // thickness above it). Sketch axes of such a plane: u = world Z, v = the radial direction at the ray's angle (checked against the kernel).
   st.psi.forEach((psi, i) => {
-    const z0 = st.z[i], ra = st.rA[i], rb = st.rB[i];
+    const phi = st.phi[i], ra = st.rA[i], rb = st.rB[i];
     out.push({ type: 'plane', id: ids['plane' + i], name: `Blade plane ${i + 1}`, mode: 'angle', base: { kind: 'std', id: 'right' }, axis: { kind: 'axis', axis: 'z' }, angle: round(((psi * 180) / Math.PI) + 90, 5) });
-    // face line, tip end, back spline (through points that follow the real axial thickness, which is not linear in radius), root end
+    // face (a line when it is straight in this plane, which it is for the linear pitch law: z(r) = P(r) phi / 2 pi + tan(rake) (r - hubR) is linear in r; a spline through
+    // points when it is not), tip end, back spline (face + the axial thickness that makes the thickness NORMAL to the face, not linear in radius), root end
+    const zf = (r: number): number => faceZ(p, phi, r);
     const K = 7;
     const back: Array<[number, number]> = [];
-    for (let k = 0; k < K; k++) { const r = rb + ((ra - rb) * k) / (K - 1); back.push([z0 + tAxial(r), r]); }
-    const pts: Array<{ id: string; x: number; y: number }> = [{ id: 'a', x: round(z0, 6), y: round(ra, 6) }, { id: 'b', x: round(z0, 6), y: round(rb, 6) }];
+    for (let k = 0; k < K; k++) { const r = rb + ((ra - rb) * k) / (K - 1); back.push([zf(r) + axialThickness(p, phi, r), r]); }
+    const KF = 9;
+    const face: Array<[number, number]> = [];
+    for (let k = 0; k < KF; k++) { const r = ra + ((rb - ra) * k) / (KF - 1); face.push([zf(r), r]); }
+    const straight = face.every((c) => Math.abs(c[0] - (zf(ra) + ((zf(rb) - zf(ra)) * (c[1] - ra)) / (rb - ra))) < 1e-9);
+    const pts: Array<{ id: string; x: number; y: number }> = [];
+    const faceEnt: Record<string, unknown> = straight ? { type: 'line', id: 'face', p1: 'a', p2: 'b' } : { type: 'spline', id: 'face', pts: ['a', ...face.slice(1, -1).map((_c, k) => 'f' + (k + 1)), 'b'] };
+    pts.push({ id: 'a', x: round(zf(ra), 6), y: round(ra, 6) });
+    if (!straight) face.slice(1, -1).forEach((c, k) => pts.push({ id: 'f' + (k + 1), x: round(c[0], 6), y: round(c[1], 6) }));
+    pts.push({ id: 'b', x: round(zf(rb), 6), y: round(rb, 6) });
     back.forEach((c, k) => pts.push({ id: 'h' + k, x: round(c[0], 6), y: round(c[1], 6) }));
     out.push({
       type: 'sketch', id: ids['sec' + i], name: `Blade section ${i + 1}`, plane: { kind: 'feature', id: ids['plane' + i] }, points: pts,
       entities: [
-        { type: 'line', id: 'face', p1: 'a', p2: 'b' },
+        faceEnt,
         { type: 'line', id: 'tip', p1: 'b', p2: 'h0' },
         { type: 'spline', id: 'back', pts: back.map((_c, k) => 'h' + k) },
         { type: 'line', id: 'root', p1: 'h' + (K - 1), p2: 'a' },
@@ -283,6 +342,9 @@ export const MARINE_PRESETS: Record<string, Partial<MarineParams>> = {
   inboard4: { diameter: 400, hubDia: 80, hubLength: 200, boreDia: 30, blades: 4, pitchRatio: 1.1, ear: 0.7, rootRatio: 0.45, skew: 20, thickRoot: 0.04 },
   quiet5: { diameter: 300, hubDia: 60, hubLength: 150, boreDia: 25, blades: 5, pitchRatio: 1.3, ear: 0.8, rootRatio: 0.4, skew: 25 },
 };
+
+/** The shipped sample (`marine-propeller`): three blades, mild rake (10 degrees) and progressive pitch (15 % more pitch at the hub than at the tip); the hub is as long as the root needs. */
+export const MARINE_SAMPLE: MarineParams = (() => { const p = { ...DEFAULT_MARINE, rake: 10, pitchProgress: 0.15 }; return { ...p, hubLength: Math.max(p.hubLength, Math.ceil(hubLengthNeeded(p)) + 1) }; })();
 
 /** Reads a marine propeller record off a feature (the parameters with defaults filled in, and the role map), or null. */
 export function readMarine(f: unknown): { params: MarineParams; roles: Record<string, string> } | null {

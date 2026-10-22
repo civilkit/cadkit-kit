@@ -117,6 +117,8 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
       {step === 'blade' ? (
         <div class="fedit-sec-fields prop-body" data-section="blade">
           {field('pitchRatio', t('marine.pitchRatio'), { min: 0.4, max: 2, step: 0.05, tip: t('marine.pitchRatioTip') })}
+          {field('pitchProgress', t('marine.pitchProgress'), { min: -0.15, max: 0.5, step: 0.05, tip: t('marine.pitchProgressTip') })}
+          {field('rake', t('marine.rake'), { unit: 'deg', min: -20, max: 30, step: 1, tip: t('marine.rakeTip') })}
           {field('ear', t('marine.ear'), { min: 0.25, max: 1.2, step: 0.05, tip: t('marine.earTip') })}
           {field('peak', t('marine.peak'), { min: 0.05, max: 0.95, step: 0.05, tip: t('marine.peakTip') })}
           {field('rootRatio', t('marine.rootRatio'), { min: 0.05, max: 1, step: 0.05, tip: t('marine.rootRatioTip') })}
@@ -135,6 +137,8 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
             <dt>{t('prop.diameter')}</dt><dd data-k="diameter">{fmt(draft.diameter)} mm</dd>
             <dt>{t('prop.r.blades')}</dt><dd data-k="blades">{draft.blades}</dd>
             <dt>{t('prop.r.pitch')}</dt><dd data-k="pitch">{fmt(ro.pitch, 1)} mm/rev</dd>
+            {draft.pitchProgress !== 0 ? <><dt>{t('marine.r.pitchRoot')}</dt><dd data-k="pitchRoot">{fmt(ro.pitchRoot, 1)} mm/rev</dd></> : null}
+            {draft.rake !== 0 ? <><dt>{t('marine.rake')}</dt><dd data-k="rake">{fmt(ro.rake, 1)}&deg;</dd></> : null}
             <dt>{t('prop.r.pitchRatio')}</dt><dd data-k="pitchRatio">{fmt(ro.pitchRatio, 2)}</dd>
             <dt>{t('prop.r.angleRoot')}</dt><dd data-k="angleRoot">{fmt(ro.angleRoot, 1)}&deg;</dd>
             <dt>{t('prop.r.angle70')}</dt><dd data-k="angle70">{fmt(ro.angle70, 1)}&deg;</dd>

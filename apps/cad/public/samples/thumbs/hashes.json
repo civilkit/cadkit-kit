@@ -85,6 +85,7 @@
  "large-sample": "07b7f39173ee5100fbace96da33d",
  "herringbone-pair": "05528adbfc699a0cbd5687f80d8d",
  "loft-bottle": "1e25073672f28c09c828e0ad1977",
+ "marine-propeller": "12fee2eda1728c015b9634285197",
  "matx-case": "1f8cb1222095ed0c4e734f526ab8",
  "mounting-plate": "16ded71ab9ea290de21f185b68e7",
  "stepper-bracket": "1d699d072207621e602fb795e593",
@@ -98,5 +99,6 @@
  "thin-wall-bracket": "1575ce71df9d7014fbe9f6a06b2b",
  "threaded-bolt": "0b25c9c17413cd19fb5a2f8843de",
  "threaded-bolt-helix": "059581a92a83450c31872687e583",
- "tinnie-hull": "03906a1556fbc31b821cfb9ba4d3"
+ "tinnie-hull": "03906a1556fbc31b821cfb9ba4d3",
+ "turbo-impeller": "18bdba8dc34c4413d9b8ad8102b7"
 }
