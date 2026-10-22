@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_MARINE, MarineError, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
+  DEFAULT_MARINE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
   marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
 } from './marineData';
 import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
@@ -256,5 +256,186 @@ describe('marine propeller edit path', () => {
   it('refused parameters throw MarineError from both', () => {
     expect(() => marineOps({ features: [] }, P({ blades: 1 }))).toThrow(MarineError);
     expect(() => marinePlan({ features: [] }, P({ blades: 1 }))).toThrow(MarineError);
+  });
+});
+
+describe('marine propeller: rake and progressive pitch', () => {
+  const R0 = (o: Partial<MarineParams>): MarineParams => P(o);
+  const combos: Array<Partial<MarineParams>> = [{}, { rake: 15 }, { rake: -12 }, { pitchProgress: 0.3 }, { pitchProgress: -0.2 }, { rake: 20, pitchProgress: 0.3 }, { rake: 30, pitchProgress: 0.5 }, { rake: -20, pitchProgress: -0.3, direction: 'lh' }];
+
+  it('defaults are 0 and 0, and with them the face is the old constant-pitch helicoid exactly', () => {
+    expect(DEFAULT_MARINE.rake).toBe(0); expect(DEFAULT_MARINE.pitchProgress).toBe(0);
+    const p = P();
+    for (const r of [20, 60, 110]) for (const phi of [-0.4, 0, 0.5]) {
+      expect(pitchAt(p, r)).toBe(250);
+      expect(faceZ(p, phi, r)).toBeCloseTo((250 * phi) / (2 * Math.PI), 12);
+      expect(faceSlopeR(p, phi)).toBe(0);
+      expect(axialThickness(p, phi, r)).toBeCloseTo(thicknessAt(p, r) / Math.cos(pitchAngleAt(p, r)), 12);
+    }
+  });
+  it('pitch is linear in the span fraction: the tip pitch at the tip, more (positive progress) or less at the root, by the fraction asked', () => {
+    const { R, hubR } = marineSpan(P());
+    for (const pp of [-0.3, -0.1, 0.25, 0.5]) {
+      const p = P({ pitchProgress: pp });
+      expect(pitchAt(p, R)).toBeCloseTo(250, 9);
+      expect(pitchAt(p, hubR)).toBeCloseTo(250 * (1 + pp), 9);
+      expect(pitchAt(p, 0.5 * (R + hubR))).toBeCloseTo(250 * (1 + 0.5 * pp), 9);
+      expect(pitchAt(p, hubR) > pitchAt(p, R)).toBe(pp > 0);
+      // the slope is d(pitch)/dr
+      const h = 0.01;
+      expect((pitchAt(p, 70 + h) - pitchAt(p, 70 - h)) / (2 * h)).toBeCloseTo(-250 * pp / (R - hubR), 6);
+    }
+  });
+  it('rake adds tan(rake) x (r - hubR) to the face height, zero at the hub surface, and tilts the face in the section plane by tan(rake)', () => {
+    const p = P({ rake: 20 }), { hubR } = marineSpan(p);
+    expect(faceZ(p, 0, hubR)).toBeCloseTo(0, 12);
+    for (const r of [40, 80, 120]) expect(faceZ(p, 0.3, r) - faceZ(P(), 0.3, r)).toBeCloseTo(Math.tan((20 * Math.PI) / 180) * (r - hubR), 9);
+    expect(faceSlopeR(p, 0)).toBeCloseTo(Math.tan((20 * Math.PI) / 180), 12);
+    // a numeric derivative of the face height along r agrees with the slope
+    const q = P({ rake: -10, pitchProgress: 0.4 }), h = 1e-4;
+    expect((faceZ(q, 0.35, 80 + h) - faceZ(q, 0.35, 80 - h)) / (2 * h)).toBeCloseTo(faceSlopeR(q, 0.35), 6);
+  });
+  it('the pitch angle on the face is atan(P(r) / 2 pi r) and the outline width uses it: half angular width = chord cos(local angle) / 2r', () => {
+    for (const o of combos) {
+      const p = R0(o);
+      for (const r of [30, 60, 100]) {
+        expect(pitchAngleAt(p, r)).toBeCloseTo(Math.atan(pitchAt(p, r) / (2 * Math.PI * r)), 12);
+        expect(halfWidthAt(p, r)).toBeCloseTo((0.5 * chordAt(p, r) * Math.cos(pitchAngleAt(p, r))) / r, 12);
+      }
+    }
+    // progressive pitch narrows the angular width at the root (steeper face), more pitch there means a smaller cos
+    expect(halfWidthAt(P({ pitchProgress: 0.5 }), 30)).toBeLessThan(halfWidthAt(P(), 30));
+    expect(halfWidthAt(P({ pitchProgress: 0.5 }), 125)).toBeCloseTo(halfWidthAt(P(), 125), 9);   // the tip is untouched
+  });
+  it('every section lies on the new surface: face ends and the straight face line sit on z = P(r) phi / 2 pi + tan(rake) (r - hubR), and the face line is a line (the law is linear in r)', () => {
+    for (const o of combos) {
+      const p = R0(o), st = helicoidStations(p);
+      const doc = marineDocument(P({ ...o, hubLength: 140 })) as { features: Array<Record<string, any>> };
+      const secs = doc.features.filter((f) => f.type === 'sketch' && String(f.name).startsWith('Blade section'));
+      expect(secs.length).toBe(st.psi.length);
+      secs.forEach((s, i) => {
+        const pt = (id: string) => s.points.find((q: { id: string }) => q.id === id);
+        expect(pt('a').x).toBeCloseTo(faceZ(p, st.phi[i], st.rA[i]), 5);
+        expect(pt('b').x).toBeCloseTo(faceZ(p, st.phi[i], st.rB[i]), 5);
+        expect(s.entities[0].type).toBe('line');
+        // a mid point of the line is on the surface too
+        const rm = 0.5 * (st.rA[i] + st.rB[i]);
+        expect(0.5 * (pt('a').x + pt('b').x)).toBeCloseTo(faceZ(p, st.phi[i], rm), 5);
+        // the right sign of the direction: the section angle is s x phi
+        expect(st.psi[i]).toBeCloseTo((p.direction === 'lh' ? -1 : 1) * st.phi[i], 12);
+        // the back sits an axial thickness above the face at the ends and all 7 spline points
+        s.entities[2].pts.forEach((id: string) => { const h = pt(id); expect(h.x - faceZ(p, st.phi[i], h.y)).toBeCloseTo(axialThickness(p, st.phi[i], h.y), 4); });
+      });
+    }
+  });
+  it('the axial offset gives the thickness NORMAL to the face: a numeric march along the surface normal to the back meets it at t within 1 %, at several radii and angles', () => {
+    for (const o of combos) {
+      const p = R0(o);
+      for (const r of [35, 60, 90, 120]) for (const phi of [-0.4, 0, 0.4]) {
+        // right-hand cartesian field; the left-hand one is its mirror
+        const f = (x: number, y: number): number => faceZ(p, Math.atan2(y, x), Math.hypot(x, y));
+        const back = (x: number, y: number): number => f(x, y) + axialThickness(p, Math.atan2(y, x), Math.hypot(x, y));
+        const h = 1e-5, x0 = r * Math.cos(phi), y0 = r * Math.sin(phi), z0 = f(x0, y0);
+        const fx = (f(x0 + h, y0) - f(x0 - h, y0)) / (2 * h), fy = (f(x0, y0 + h) - f(x0, y0 - h)) / (2 * h);
+        const nn = Math.hypot(fx, fy, 1), n = [-fx / nn, -fy / nn, 1 / nn];
+        let lo = 0, hi = 4 * thicknessAt(p, r) + 1;
+        for (let k = 0; k < 60; k++) { const m = 0.5 * (lo + hi); if (z0 + m * n[2] - back(x0 + m * n[0], y0 + m * n[1]) < 0) lo = m; else hi = m; }
+        const want = thicknessAt(p, r);
+        // the constant-pitch case keeps its original first-order offset (0.7 % thin at the root, exact further out)
+        expect(Math.abs(lo - want) / want, `${JSON.stringify(o)} r ${r} phi ${phi}: ${lo} vs ${want}`).toBeLessThan(0.01);
+      }
+    }
+  });
+  it('sections stay well formed: the back is above the face along the whole spline, the ends are 0.6 mm off the hub surface, and the section count is finite', () => {
+    for (const o of combos) {
+      const p = R0(o), { hubR } = marineSpan(p);
+      const st = helicoidStations(p);
+      expect(st.psi.length).toBeGreaterThan(8);
+      st.rA.forEach((a, i) => { expect(Math.abs(a - hubR) >= 0.6 - 1e-9).toBe(true); expect(Math.abs(st.rB[i] - hubR) >= 0.6 - 1e-9).toBe(true); expect(axialThickness(p, st.phi[i], a)).toBeGreaterThan(0); });
+    }
+  });
+  it('the hub-length rule follows the root: it is the largest of |face height| inside the hub plus the axial thickness at the embed radius, and building with exactly that length is accepted', () => {
+    for (const o of combos) {
+      const p = R0(o), { hubR, r0 } = marineSpan(p);
+      const need = hubLengthNeeded(p), st = helicoidStations(p);
+      let top = 0;
+      st.psi.forEach((_x, i) => { if (st.rA[i] > hubR) return; for (let k = 0; k <= 20; k++) { const r = st.rA[i] + ((Math.min(st.rB[i], hubR) - st.rA[i]) * k) / 20; top = Math.max(top, Math.abs(faceZ(p, st.phi[i], r)), faceZ(p, st.phi[i], r) + axialThickness(p, st.phi[i], r)); } });
+      expect(need / 2 - 2, JSON.stringify(o)).toBeGreaterThanOrEqual(top - 1e-6);
+      expect(codes({ ...p, hubLength: Math.ceil(need) })).not.toContain('hubShort');
+      expect(codes({ ...p, hubLength: need - 1 })).toContain('hubShort');
+      void r0;
+    }
+    // progressive pitch makes the root steeper, so it needs a longer hub
+    expect(hubLengthNeeded(P({ pitchProgress: 0.5 }))).toBeGreaterThan(hubLengthNeeded(P()));
+    expect(hubLengthNeeded(P({ rake: 30 }))).not.toBeCloseTo(hubLengthNeeded(P()), 3);
+  });
+  it('validation: rake -20..30 and progressive pitch -0.3..0.5, each its own error code; the edges are accepted', () => {
+    expect(codes(P({ rake: 31 }))).toContain('rake');
+    expect(codes(P({ rake: -21 }))).toContain('rake');
+    expect(codes(P({ pitchProgress: 0.51 }))).toContain('pitchProgress');
+    expect(codes(P({ pitchProgress: -0.31 }))).toContain('pitchProgress');
+    expect(codes(P({ rake: NaN }))).toContain('notNumber');
+    expect(codes(P({ pitchProgress: Infinity }))).toContain('notNumber');
+    for (const o of [{ rake: -20 }, { rake: 30 }, { pitchProgress: -0.3 }, { pitchProgress: 0.5 }, { rake: 30, pitchProgress: 0.5, hubLength: 140 }]) expect(codes(P(o)).filter((c) => c !== 'hubShort'), JSON.stringify(o)).toEqual([]);
+  });
+  it('warns on a low pitch at the hub (the hub fuse is touchy there) and on the razor tip, without refusing', () => {
+    expect(validateMarine(P({ pitchProgress: -0.3 })).find((i) => i.code === 'rootPitch')?.level).toBe('warning');
+    expect(validateMarine(P({ pitchRatio: 0.7 })).some((i) => i.code === 'rootPitch')).toBe(true);
+    expect(validateMarine(P()).some((i) => i.code === 'rootPitch')).toBe(false);
+    expect(validateMarine(P({ pitchProgress: 0.5 })).some((i) => i.code === 'rootPitch')).toBe(false);
+    // a razor tip stays a warning with rake
+    expect(validateMarine(P({ rake: 25, thickTip: 0.001 })).find((i) => i.code === 'thinTip')?.level).toBe('warning');
+    expect(marineErrors(P({ rake: 25, thickTip: 0.001 })).map((i) => i.code)).not.toContain('thinTip');
+  });
+  it('the readout shows the tip pitch, the pitch at the hub and the local angles', () => {
+    const ro = readoutOf(P({ pitchProgress: 0.3, rake: 10, hubLength: 120 }));
+    expect(ro.pitch).toBeCloseTo(250, 9);
+    expect(ro.pitchRoot).toBeCloseTo(325, 9);
+    expect(ro.rake).toBe(10);
+    expect(ro.angleRoot).toBeCloseTo((Math.atan(325 / (2 * Math.PI * 25)) * 180) / Math.PI, 6);
+    expect(ro.angleTip).toBeCloseTo((Math.atan(250 / (2 * Math.PI * 125)) * 180) / Math.PI, 6);
+  });
+  it('the record round-trips with the new fields; an old record without them reads with the defaults filled in and rebuilds the old geometry', () => {
+    const p = P({ rake: 12, pitchProgress: 0.25, hubLength: 130 });
+    const d = marineDocument(p) as { features: Array<Record<string, any>> };
+    expect(readMarine(d.features[0])!.params).toEqual(p);
+    expect(d.features[0].prop.rake).toBe(12);
+    // an old record: the two fields are missing
+    const old = JSON.parse(JSON.stringify(marineDocument(P()))) as { features: Array<Record<string, any>> };
+    delete old.features[0].prop.rake; delete old.features[0].prop.pitchProgress;
+    const got = readMarine(old.features[0])!;
+    expect(got.params.rake).toBe(0); expect(got.params.pitchProgress).toBe(0);
+    expect(got.params).toEqual(P());
+    expect(JSON.stringify(marineFeatures(got.params, got.roles).slice(1))).toBe(JSON.stringify((marineDocument(P()) as { features: unknown[] }).features.slice(1)));
+  });
+  it('roles, ops and plan work with the new parameters: same structure replaces in place, a changed section count removes and appends', () => {
+    const p = P({ rake: 10, pitchProgress: 0.2, hubLength: 130 }), d = marineDocument(p) as { features: Array<{ id: string }>; seq: number };
+    const roles = readMarine(d.features[0])!.roles;
+    expect(Object.keys(roles)).toEqual(marineRoles(p));
+    const same = P({ ...p, rake: 11 });
+    if (helicoidStations(same).psi.length === helicoidStations(p).psi.length) {
+      expect(marineOps(d, same, roles).every((o) => o.op === 'replace')).toBe(true);
+      expect(marinePlan(d, same, roles).before).toEqual([]);
+    }
+    const other = P({ ...p, pitchProgress: 0.5, ear: 0.7, hubLength: 150 });
+    expect(marinePlan(d, other, roles).patch.append!.length).toBe(marineRoles(other).length);
+    expect(() => marineOps(d, P({ rake: 99 }), roles)).toThrow(MarineError);
+    expect(marineOwner(d.features as unknown[], roles['sec2'])?.params.rake).toBe(10);
+  });
+  it('the section spacings the build tries: the requested one first, then 7, 6, 4 and 3 degrees, no repeats', () => {
+    expect(marineSpacings(5)).toEqual([5, 7, 6, 4, 3]);
+    expect(marineSpacings(7)).toEqual([7, 6, 4, 3]);
+    expect(marineSpacings(3)).toEqual([3, 7, 6, 4]);
+  });
+  it('seeded hostile parameters including rake and progressive pitch: never NaN in the document, refused or finite', () => {
+    const rand = rng(23);
+    let built = 0;
+    for (let k = 0; k < 80; k++) {
+      const p = P({ rake: -30 + 70 * rand(), pitchProgress: -0.5 + 1.2 * rand(), pitchRatio: 0.3 + 1.8 * rand(), hubLength: 60 + 200 * rand(), skew: 40 * rand() - 20, direction: rand() < 0.5 ? 'rh' : 'lh' });
+      if (marineErrors(p).length) { expect(() => marineDocument(p)).toThrow(MarineError); continue; }
+      expect(JSON.stringify(marineFeatures(p, Object.fromEntries(marineRoles(p).map((r, i) => [r, `F${i + 1}`]))))).not.toMatch(/NaN|Infinity|null/);
+      built++;
+    }
+    expect(built).toBeGreaterThan(5);
   });
 });

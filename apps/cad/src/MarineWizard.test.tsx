@@ -69,6 +69,44 @@ describe('MarineWizard', () => {
     expect(m.drafts.at(-1)).toMatchObject({ pitchRatio: 1.3, skew: 25, raySpacing: 7 });
   });
 
+  it('blade step: rake and progressive pitch are fields with tips; they drive the record, rake and pitch are not mentioned as missing anywhere', () => {
+    const m = mount();
+    m.go('blade');
+    for (const k of ['rake', 'pitchProgress']) {
+      expect(m.input(k), k).toBeTruthy();
+      expect(m.input(k).getAttribute('title')?.length, k).toBeGreaterThan(20);
+    }
+    expect(m.input('rake').value).toBe('0'); expect(m.input('pitchProgress').value).toBe('0');
+    m.set('rake', '12');
+    expect(m.drafts.at(-1)).toMatchObject({ rake: 12, pitchProgress: 0 });
+    m.set('pitchProgress', '0.25');
+    expect(m.drafts.at(-1)).toMatchObject({ rake: 12, pitchProgress: 0.25 });
+    m.set('rake', '-8');
+    expect(m.drafts.at(-1)!.rake).toBe(-8);
+    // the review notes no longer say that rake and progressive pitch are missing
+    m.go('review');
+    expect(m.r.container.textContent).not.toMatch(/no rake|progressive pitch yet|Constant pitch only/i);
+  });
+
+  it('review: the pitch at the hub and the rake appear in the readout only when they are set; an out-of-range value is an error that blocks Create', () => {
+    const plain = mount(DEFAULT_MARINE, { step: 'review' });
+    expect(plain.q('[data-k="pitchRoot"]')).toBeNull(); expect(plain.q('[data-k="rake"]')).toBeNull();
+    cleanup();
+    const m = mount({ ...DEFAULT_MARINE, rake: 10, pitchProgress: 0.2, hubLength: 120 }, { step: 'review' });
+    expect(m.q('[data-k="pitchRoot"]').textContent).toContain('300');
+    expect(m.q('[data-k="rake"]').textContent).toContain('10');
+    expect(m.q('[data-k="pitch"]').textContent).toContain('250');
+    cleanup();
+    const bad = mount({ ...DEFAULT_MARINE, rake: 45 }, { step: 'review' });
+    expect(bad.q('[data-issue="rake"]').getAttribute('data-severity')).toBe('error');
+    expect(bad.q('[data-issue="rake"]').textContent).toMatch(/rake must be between/i);
+    expect((bad.q('[data-testid="marine-create"]') as HTMLButtonElement).disabled).toBe(true);
+    cleanup();
+    const low = mount({ ...DEFAULT_MARINE, pitchProgress: -0.3 }, { step: 'review' });
+    expect(low.q('[data-issue="rootPitch"]').getAttribute('data-severity')).toBe('warning');
+    expect((low.q('[data-testid="marine-create"]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('review: the readout shows the pitch, the angles and the area ratio; no issues says so; an error blocks Create and names the hub length needed', () => {
     const m = mount(DEFAULT_MARINE, { step: 'review' });
     expect(m.q('[data-k="pitch"]').textContent).toContain('250');
@@ -96,7 +134,7 @@ describe('MarineWizard', () => {
   });
 
   it('every issue code has a catalogue text (the hub length is the generator message)', () => {
-    for (const o of [{ blades: 1 }, { pitchRatio: 0.2 }, { ear: 3 }, { thickTip: 0.001 }, { thickTip: 0.05, thickRoot: 0.01 }, { raySpacing: 1 }, { rootEmbed: 2 }, { diameter: 0 }, { hubLength: 10 }]) {
+    for (const o of [{ blades: 1 }, { pitchRatio: 0.2 }, { ear: 3 }, { thickTip: 0.001 }, { thickTip: 0.05, thickRoot: 0.01 }, { raySpacing: 1 }, { rootEmbed: 2 }, { diameter: 0 }, { hubLength: 10 }, { rake: 40 }, { pitchProgress: 0.9 }, { pitchProgress: -0.3 }]) {
       for (const i of validateMarine({ ...DEFAULT_MARINE, ...o })) {
         const txt = marineIssueText(i);
         expect(txt.length, i.code).toBeGreaterThan(5);
