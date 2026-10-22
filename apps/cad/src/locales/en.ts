@@ -60,6 +60,7 @@ export const en: Catalog = {
   'script.loading': 'Opening the part...',
   'script.progress': 'Building {done} / {total}',
   'script.examples': 'Examples',
+  'script.example.pickleball': 'Pickleball: hollow ball, 40 holes in rings (edit the variables)',
   'script.example.bracket': 'Bracket with holes and fillet',
   'script.example.flange': 'Flanged cylinder',
   'script.example.box': 'Thin-walled box',

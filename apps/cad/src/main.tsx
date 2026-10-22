@@ -2072,8 +2072,19 @@ function App() {
     const extras = all.filter((v) => !declared.has(v.name));   // variables added by hand are kept
     store.busy.value = true; scriptRunning = true;
     try {
-      const r = await runScript(code, scriptHostFor((dd) => load(JSON.stringify({ ...emptyPart(d.name ?? 'Part'), ...dd, name: d.name }))), extras.length ? { variables: extras } : {}, { vars });
+      // The runner opens the empty part and then adds the whole list in one edit; here the finished part is opened in ONE load instead,
+      // so the screen never shows the empty part while the big rebuild runs.
+      let shell: Record<string, unknown> | null = null;
+      let opened = false;
+      const openWhole = async (features: unknown[]): Promise<void> => {
+        opened = true;
+        const top = features.reduce<number>((m, f) => Math.max(m, Number(/^F(\d+)$/.exec(String((f as { id?: string }).id))?.[1] ?? 0)), 0);
+        await load(JSON.stringify({ ...emptyPart(d.name ?? 'Part'), ...shell, name: d.name, features, seq: top + 1 }));
+      };
+      const host = { ...scriptHostFor(async (dd) => { shell = dd; }), edit: async (ops: Array<{ feature: unknown }>) => { await openWhole(ops.map((o) => o.feature)); return { ok: true } as never; } };
+      const r = await runScript(code, host as never, extras.length ? { variables: extras } : {}, { vars });
       if (r.errors.length) { store.notify(r.errors[0].message, 'error'); return; }
+      if (!opened && shell) await openWhole([]);
       controller.setDocExtra('script', code);
       controller.setDocExtra('scriptSig', featureSig(controller.document()?.features));
       store.notify(t('script.rebuilt'));
