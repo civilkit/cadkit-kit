@@ -126,15 +126,11 @@ export function slotProfile(u: number, v: number, l: number, w: number): Profile
 /** Half a disc on a diameter along x, with that diameter as the revolve axis: turned 360 degrees it is a sphere. */
 export function halfDiscProfile(u: number, v: number, r: number, wall = 0): Profile {
   if (wall > 0 && wall < r) {
-    // hollow: one closed half ring (outer arc e1 keeps its name), the inner arc runs the same way round
-    const i = r - wall;
+    // hollow: just the outer arc (the revolve's Thin wall, set by `shellOf`, gives it its thickness, so the wall stays editable in the feature's own panel)
     return {
-      points: [O, { id: 'c', x: u, y: v }, { id: 'pa', x: u + r, y: v }, { id: 'pb', x: u - r, y: v }, { id: 'ia', x: u + i, y: v }, { id: 'ib', x: u - i, y: v }],
+      points: [O, { id: 'c', x: u, y: v }, { id: 'pa', x: u + r, y: v }, { id: 'pb', x: u - r, y: v }],
       entities: [
         { id: 'e1', type: 'arc', c: 'c', p1: 'pa', p2: 'pb' },
-        { id: 'e2', type: 'line', p1: 'pb', p2: 'ib' },
-        { id: 'e3', type: 'arc', c: 'c', p1: 'ia', p2: 'ib' },
-        { id: 'e4', type: 'line', p1: 'ia', p2: 'pa' },
         { id: 'ax', type: 'line', p1: 'pb', p2: 'pa', construction: true },
       ],
     };
@@ -156,14 +152,10 @@ export function halfDiscProfile(u: number, v: number, r: number, wall = 0): Prof
 export function domeProfile(r: number, up: boolean, wall = 0): Profile {
   const s = up ? 1 : -1;
   if (wall > 0 && wall < r) {
-    const i = r - wall;
     return {
-      points: [O, { id: 'c', x: 0, y: 0 }, { id: 'pa', x: r, y: 0 }, { id: 'pb', x: 0, y: s * r }, { id: 'ia', x: i, y: 0 }, { id: 'ib', x: 0, y: s * i }],
+      points: [O, { id: 'c', x: 0, y: 0 }, { id: 'pa', x: r, y: 0 }, { id: 'pb', x: 0, y: s * r }],
       entities: [
         up ? { id: 'e1', type: 'arc', c: 'c', p1: 'pa', p2: 'pb' } : { id: 'e1', type: 'arc', c: 'c', p1: 'pb', p2: 'pa' },
-        { id: 'e2', type: 'line', p1: 'pb', p2: 'ib' },
-        up ? { id: 'e3', type: 'arc', c: 'c', p1: 'ia', p2: 'ib' } : { id: 'e3', type: 'arc', c: 'c', p1: 'ib', p2: 'ia' },
-        { id: 'e4', type: 'line', p1: 'ia', p2: 'pa' },
         { id: 'ax', type: 'line', p1: 'c', p2: 'pb', construction: true },
       ],
     };
@@ -255,7 +247,9 @@ export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, 
     case 'sphere':
       const w = item.op === 'add' ? wall : 0;     // only a sphere that adds can be hollow
       profile = dome ? domeProfile(size / 2, item.op === 'add', w) : halfDiscProfile(u, v, size / 2, w);
-      feature = { type: 'revolve', id: mainId, name, op: item.op, sketch: sketchId, axis: 'ax', end: 'blind', angle: 360 };
+      feature = { type: 'revolve', id: mainId, name, op: item.op, sketch: sketchId, axis: 'ax', end: 'blind', angle: 360,
+        // hollow: the revolve's own Thin wall (inside, flat ends) turns the arc into a shell, and its thickness can be changed later in the feature's panel
+        ...(w > 0 && w < size / 2 ? { thin: { thickness: w, side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}) };
       break;
     default: {
       // hole / counterbore / countersink: a point and a hole feature, through the part
