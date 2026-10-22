@@ -251,7 +251,7 @@ export interface HelicoidStations {
 export function rayInterval(p: MarineParams, phi: number): [number, number] | null {
   const { R, r0 } = marineSpan(p);
   const inside = (r: number): number => { const [a, b] = edgeAngles(p, r); return Math.min(phi - a, b - phi); };
-  const n = 600;
+  const n = 300;
   let first = -1, last = -1;
   for (let i = 0; i <= n; i++) if (inside(r0 + ((R - r0) * i) / n) >= 0) { if (first < 0) first = i; last = i; }
   if (first < 0) return null;
@@ -263,7 +263,18 @@ export function rayInterval(p: MarineParams, phi: number): [number, number] | nu
 }
 /** Radial line sections of the helicoid: they cover the blade's angular range with at most `stepDeg` between neighbours (the end rays sit half a step inside the range,
  *  so each has a finite length). */
+const stationCache = new Map<string, HelicoidStations>();
 export function helicoidStations(p: MarineParams, stepDeg = p.raySpacing): HelicoidStations {
+  // the build, the roles and the readout ask for the same stations again and again, and each costs a second: the last few are kept
+  const key = JSON.stringify([p, stepDeg]);
+  const hit = stationCache.get(key);
+  if (hit) return hit;
+  const out = computeStations(p, stepDeg);
+  if (stationCache.size >= 8) stationCache.delete(stationCache.keys().next().value as string);
+  stationCache.set(key, out);
+  return out;
+}
+function computeStations(p: MarineParams, stepDeg: number): HelicoidStations {
   const { R, hubR, r0 } = marineSpan(p);
   let lo = Infinity, hi = -Infinity;
   const n = 80;
