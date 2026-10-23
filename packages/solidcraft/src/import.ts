@@ -45,7 +45,11 @@ export type FaceResolver = (partBefore: ScPart, points: V3[], hints?: Array<Face
 /** The rim of a shell, found by a point on it: the face's name, its outward normal and its outlines (closed polylines in our world, line edges only; null when any edge is curved). */
 export interface Rim { name: string; normal: V3; loops: V3[][] | null }
 export type RimResolver = (partBefore: ScPart, point: V3) => Promise<Rim | null>;
+/** Finds, for each pick, the cylinder face of an inserted part (by its insertPart id) whose axis passes through the point (a circle centre in our world); null when there is no single such face. */
+export type AxisFaceResolver = (partBefore: ScPart, picks: Array<{ insert: string; point: V3 }>) => Promise<Array<string | null>>;
 export interface ImportOpts {
+  /** Needed to carry revolute joints over as hinge mates: without it they are kept as the pose they were saved in. */
+  axisFaceResolver?: AxisFaceResolver;
   /** Needed for lips and grooves: without it they are reported as unsupported. */
   rimResolver?: RimResolver;
   /** Needed for fillets and chamfers: without it they are reported as unsupported. */
@@ -324,6 +328,7 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
   const used = new Set<string>(features.map((f) => String(f.id)));
   const nid = () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); return id; };
   const parts = new Map<number, ScImport>();
+  const insertOf = new Map<number, string>();
   for (const occ of doc.occurrences as Rec[]) {
     const comp = comps.get(occ.component as number);
     const cname = String(comp?.name ?? `Component ${occ.component}`);
@@ -336,11 +341,29 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
     if (!imp.part) { rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'unsupported', reason: imp.refused ?? 'the component could not be imported' }); continue; }
     const m = occ.transform as number[][];
     const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = toYUp(row4(m, 2)), ez = toYUp(row4(m, 1)).map((x) => clean(-x)) as V3;
-    features.push({ type: 'insertPart', id: nid(), name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
+    const insertId = nid();
+    insertOf.set(occ.id as number, insertId);
+    features.push({ type: 'insertPart', id: insertId, name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
     rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'converted' });
   }
-  // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; the joint itself is not carried over
-  for (const j of (doc.assembly?.joints ?? []) as Rec[]) rows.push({ id: `joint ${j.id}`, name: String(j.name ?? 'Joint'), type: `${j.kind ?? ''} joint`.trim(), status: 'skipped', reason: 'kept as the pose it was saved in; the joint (and so its motion) is not imported' });
+  // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; a revolute joint between
+  // two circle centres also becomes a hinge mate (concentric cylinders), which keeps the pose and lets the part turn
+  for (const j of (doc.assembly?.joints ?? []) as Rec[]) {
+    const row = { id: `joint ${j.id}`, name: String(j.name ?? 'Joint'), type: `${j.kind ?? ''} joint`.trim() };
+    const ia = insertOf.get(j.a?.occurrence), ib = insertOf.get(j.b?.occurrence);
+    const pa = j.a?.snap?.type === 'circle_center' ? j.a.snap.pick : undefined, pb = j.b?.snap?.type === 'circle_center' ? j.b.snap.pick : undefined;
+    let why = 'kept as the pose it was saved in; the joint (and so its motion) is not imported';
+    if (j.kind === 'revolute' && ia && ib && Array.isArray(pa) && Array.isArray(pb) && opts.axisFaceResolver) {
+      const names = await opts.axisFaceResolver({ format: 'ck-part', version: 1, name, features, seq }, [{ insert: ia, point: toYUp(pa as V3).map(clean) as V3 }, { insert: ib, point: toYUp(pb as V3).map(clean) as V3 }]).catch(() => [null, null]);
+      if (names[0] && names[1]) {
+        features.push({ type: 'mate', id: nid(), name: row.name, kind: 'hinge', a: names[0], b: names[1] });
+        rows.push({ ...row, status: 'converted', notes: ['hinge mate on the two cylinders; the saved angle is kept as the pose, its limits are not imported'] });
+        continue;
+      }
+      why = 'kept as the pose it was saved in; no single cylinder lies on each circle centre';
+    }
+    rows.push({ ...row, status: 'skipped', reason: why });
+  }
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   return { name, part: { format: 'ck-part', version: 1, name, features, seq }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
