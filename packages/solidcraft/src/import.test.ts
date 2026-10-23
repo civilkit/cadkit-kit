@@ -114,9 +114,10 @@ describe('what is refused or reported', () => {
     // their arc runs counter-clockwise from (2, 0) to (0, 2); on the mirrored plane it starts at the mirror of its END, so the ends swap
     const at = (id: string) => { const q = sk.points.find((x: any) => x.id === id); return [q.x, q.y]; };
     expect([at(sk.entities[0].p1), at(sk.entities[0].p2)]).toEqual([[0, -2], [2, 0]]);
-    // horizontal on their YZ plane is vertical on ours (the plane axes swap)
+    // their YZ plane (x = +Y, y = +Z) is our right plane as it is: nothing swaps, so a horizontal stays horizontal
     const yz = { ...on('YZ'), sketch: { ...sketch(1).sketch, constraints: [{ id: 'k', type: 'horizontal', l: 0 }] } };
-    expect((await importSolidcraftDocument(doc([yz]), 'y')).part!.features[0]).toMatchObject({ constraints: [{ type: 'vertical' }] });
+    expect((await importSolidcraftDocument(doc([yz]), 'y')).part!.features[0]).toMatchObject({ constraints: [{ type: 'horizontal' }] });
+    // the plane that does swap: their XZ keeps x but reverses y (no swap either), so only a face plane turned a quarter does; see the face-plane tests
   });
   it('constraints: horizontal, vertical, length are carried; coincident merges; the origin point is the sketch origin', async () => {
     const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1)]), 'sq');
@@ -141,13 +142,40 @@ describe('what is refused or reported', () => {
     const ids = (r.part!.features as Array<Record<string, any>>).map((x) => x.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it('a second new body, a cut with nothing to cut, an unknown operation and a suppressed feature', async () => {
-    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1), sketch(3), extrude(4, 3), sketch(5), extrude(6, 5, { operation: 'intersect' }), { ...sketch(7), suppressed: true }]), 'x');
-    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'unsupported', 'converted', 'unsupported', 'skipped']);
-    expect(r.rows[3].reason).toMatch(/separate body/);
-    expect(r.rows[5].reason).toMatch(/operation "intersect"/);
+  it('a cut with nothing to cut, an unknown operation and a suppressed feature are reported', async () => {
+    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1), sketch(3), extrude(4, 3, { operation: 'imprint' }), { ...sketch(5), suppressed: true }]), 'x');
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'unsupported', 'skipped']);
+    expect(r.rows[3].reason).toMatch(/operation "imprint"/);
     const first = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { operation: 'cut' })]), 'x');
     expect(first.rows[1].reason).toMatch(/nothing to cut/);
+  });
+  it('several bodies: new bodies are named newBody lumps; a targeted cut, move, combine and remove refer to them by name', async () => {
+    const r = await importSolidcraftDocument(doc([
+      sketch(1), extrude(2, 1, { body_names: ['Block'] }),
+      sketch(3), extrude(4, 3, { body_names: ['Peg'] }),
+      sketch(5), extrude(6, 5, { operation: 'cut', targets: ['Block'] }),
+      { id: 7, name: 'Move1', type: 'move', suppressed: false, bodies: ['Peg'], translate: ['30', '0', '0'], copy: true, body_names: ['Peg2'] },
+      { id: 8, name: 'Turn', type: 'move', suppressed: false, bodies: ['Peg2'], translate: ['0', '40', '0'], rotate_axis: [0, 0, 1], angle: '90 deg' },
+      { id: 9, name: 'Combine1', type: 'combine', suppressed: false, target: 'Block', tools: ['Peg'], operation: 'join', keep_tools: false },
+      { id: 10, name: 'Remove1', type: 'remove', suppressed: false, bodies: ['Peg2'] },
+    ]), 'x');
+    expect(r.rows.filter((x) => x.status !== 'converted'), JSON.stringify(r.rows)).toEqual([]);
+    const f = r.part!.features as Array<Record<string, any>>;
+    const solids = f.filter((x) => x.type === 'extrude');
+    expect(solids.map((x) => [x.op, x.body])).toEqual([['newBody', 'Block'], ['newBody', 'Peg'], ['newBody', '__tool6']]);
+    expect(f.find((x) => x.type === 'combine' && x.tools?.[0]?.body === '__tool6')).toMatchObject({ op: 'cut', target: { body: 'Block' }, tools: [{ body: '__tool6' }], keepTools: false });
+    expect(f.find((x) => x.name === 'Move1')).toMatchObject({ type: 'moveBody', bodies: [{ body: 'Peg' }], copy: true, body: 'Peg2', translate: [30, 0, 0] });
+    // their z is our y; a turn about their z is a turn about our y, then the translation (0, 40, 0) is (0, 0, -40)
+    expect(f.find((x) => x.name === 'Turn')).toMatchObject({ rotate: { axis: [0, 1, 0], angle: 90 }, translate: [0, 0, -40] });
+    expect(f.find((x) => x.name === 'Combine1')).toMatchObject({ type: 'combine', op: 'union', target: { body: 'Block' }, tools: [{ body: 'Peg' }], keepTools: false });
+    expect(f.find((x) => x.name === 'Remove1')).toMatchObject({ type: 'deleteBody', mode: 'delete', bodies: [{ body: 'Peg2' }] });
+  });
+  it('a body that does not exist at that point is reported, not guessed; a one-body file keeps the plain add', async () => {
+    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['A'] }), { id: 3, name: 'Gone', type: 'remove', suppressed: false, bodies: ['B'] }, { id: 4, name: 'Tool', type: 'combine', suppressed: false, target: 'A', tools: ['Nope'], operation: 'cut' }]), 'x');
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'unsupported', 'unsupported']);
+    expect(r.rows[2].reason).toMatch(/body "B", which does not exist/);
+    const one = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['A'] })]), 'x');
+    expect((one.part!.features as Array<Record<string, any>>).find((x) => x.type === 'extrude')).toMatchObject({ op: 'add' });
   });
   it('malformed feature data is reported per feature, never thrown', async () => {
     const circle = { id: 1, name: 'Bad', type: 'sketch', suppressed: false, plane: { type: 'origin', name: 'XY' }, sketch: { points: [], curves: [{ id: 'c1', type: 'circle', c: 0, r: 2 }], constraints: [] } };

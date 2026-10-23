@@ -110,11 +110,12 @@ describe('plastic features against the kernel (the volumes of their own tests)',
 });
 
 describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM || !have }, () => {
-  it('slot: a stadium extruded 14, cut by a 6 x 12 x 20 box; volume by hand 9624.109', async () => {
+  it('slot: a stadium extruded 14, cut by a 6 x 12 x 20 box; volume by hand 9768.816', async () => {
     const r = await importSolidcraft(fixture('slot-fillet-no-fillet'), 'slot');
     const f = await (await open(r.part!)).facts();
-    // stadium area 25 * 19 + pi 9.5^2, times 14, minus the box's share (a half stadium end: 9.5 * 10 + pi 9.5^2 / 4) * 6
-    expect(f.volume).toBeCloseTo((25 * 19 + Math.PI * 9.5 ** 2) * 14 - (9.5 * 10 + Math.PI * 9.5 ** 2 / 4) * 6, 6);
+    // their YZ plane is x = +Y, y = +Z (their geometry source). Stadium area 25 * 19 + pi 9.5^2 along x, 14 deep. The box (x 3.5 to 9.5,
+    // y -12 to 0, z -10 to 10, centred on the stadium's centre line) removes the half of the end cap with y < 0: pi 9.5^2 / 2, times 6
+    expect(f.volume).toBeCloseTo((25 * 19 + Math.PI * 9.5 ** 2) * 14 - (Math.PI * 9.5 ** 2 / 2) * 6, 6);
   });
   it('sample plate: 80 x 50 x 8, R6 corners, two d8 holes, a d24 boss 14 high with a d12 bore through all; volume by hand 34793.84', async () => {
     const r = await importSolidcraft(fixture('sample-plate'), 'plate', { resolver, faceResolver });

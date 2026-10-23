@@ -6,7 +6,7 @@ A `.solidcraft` file is either a zip (newer files) or the bare JSON document (ol
 
 ## Orientation
 
-SolidCraft is Z-up and this kit is Y-up. Everything is rotated by -90 degrees about X on the way in: a point (x, y, z) becomes (x, z, -y), so a part keeps its shape and stands the right way up. Their ground plane XY is our top plane; their XZ plane is our front plane (with the sketch's y reversed); their YZ plane is our right plane. A mirrored sketch plane reverses arcs, and horizontal and vertical constraints swap when the plane axes swap.
+SolidCraft is Z-up and this kit is Y-up. Everything is rotated by -90 degrees about X on the way in: a point (x, y, z) becomes (x, z, -y), so a part keeps its shape and stands the right way up. Their ground plane XY is our top plane; their XZ plane is our front plane (with the sketch's y reversed); their YZ plane (x = +Y, y = +Z) is our right plane exactly. The planes follow their geometry source; their XZ plane changed at file format 6 (before it sketch y was +Z, normal -Y), so the importer reads the file's format and uses the frame the file was drawn on. A mirrored sketch plane reverses arcs, and horizontal and vertical constraints swap when the plane axes swap.
 
 ## What is mapped
 
@@ -52,9 +52,11 @@ A malformed feature (a curve pointing at a missing point, say) is an unsupported
 
 Run over the project's 22 sample files (the 19 in its repository plus the 3 from the app; `corpus.kernel.test.ts`, folder `corpus/solidcraft` next to the kit), against the numbers their own evaluator saved next to them where those exist (`expected/`):
 
-- **7 import completely.** Four match their saved volume and bounding box (`issue-489-stacked-join`, `issue-616-lid-ribs`, `m0-box-fillet-hole`, `split-body-pieces`); two more were checked by hand against closed-form volumes (Sample Plate, the slot file); one (`crazy-geom-cuts`) imports completely but our kernel fails one of its near-coincident cuts (`booleanFailed`), so it is listed as a known kernel issue.
-- **12 import in part**, each reporting what was left out. The partial ones that have saved numbers differ from them, as they should.
-- **3 are refused as assemblies** (the hinge sample, `joints-hinge`, `components-arm`).
+- **Import completely (15).** Nine match the volume (and bounding box where it is saved) their own evaluator saved: `issue-489-stacked-join`, `issue-616-lid-ribs`, `m0-box-fillet-hole`, `m0-revolve-primitives`, `modern-path-pattern`, `modern-plastic`, `move-bodies`, `naming-split-pieces` and `split-body-pieces`. Sample Plate and the slot file are checked against closed-form volumes (the slot by hand: the stadium minus half an end cap). `pi-case`, `pi-case-0.8` (with its lettering), `logo-up-down-join` and `battery-tpu-case` import with no feature left out and have no saved numbers. `crazy-geom-cuts` and `cubeish-chamfer-too-large` import completely but one operation fails in our kernel (`booleanFailed` on near-coincident cuts; a deliberately too-large chamfer, `blendOverflow`); both are listed as known in the corpus test.
+- **In part (2):** `battery-tpu-case-v2` (three fillets whose edges are not found, and what depends on them), `modern-sheet-metal` (sheet metal).
+- **Refused as assemblies (3):** the hinge sample, `joints-hinge`, `components-arm`.
+
+**Several bodies** (kernel ADR 0004): when a file names bodies (a target, `move`, `combine`, `remove`, `intersect`) or makes more than one, every new body is a named `newBody` lump (unnamed ones are `Body1`, `Body2`, ... in creation order, as in their app). A join, cut or intersect limited to named bodies becomes the shape as a body of its own plus a `combine` with each target. `move` becomes `moveBody` (rotation about the world origin, then translation; a copy takes its name), `combine` and `remove` map one to one. A file of a single body keeps the plain `add`. Needs the kernel with `newBody`.
 
 Plastic features become ordinary sketches and extrudes, checked against the volumes of their own tests: a **boss** (draft, hole and hole depth; a fillet at its foot and ribs are reported, not guessed), a **rest** (rectangle, round, hollow, drafted), a **snap fit** (arm and triangular catch) and a **lip / groove** (a band along the inner or outer edge of a flat rim, read from the kernel's outline of the rim; a clearance `gap`, a rim with curved edges or a face without an inner edge are reported). A lip needs the kernel's rim resolver (`kernelResolvers`); without it the row says so.
 
@@ -66,7 +68,7 @@ Lettering is kept as text: a sketch that links glyph outlines to a string become
 
 Pattern **along a path** (a line or arc, instances `spacing` apart, the first being the seed): kernel has no such pattern, so each instance is the seed's sketch moved along the path and extruded the same way. Only for round seeds (holes, round bosses); other seeds are reported.
 
-Left out most often: a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern of non-round seeds, sheet metal, and edges and faces that are not found on a body built differently from theirs.
+Left out most often: sheet metal, assemblies, a path pattern of non-round seeds, and edges and faces that are not found on a body built differently from theirs.
 
 ## Not done
 

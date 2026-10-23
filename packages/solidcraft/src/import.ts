@@ -73,7 +73,7 @@ const cross3 = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a
 const SC_PLANE: Record<string, { u: V3; v: V3 }> = {
   XY: { u: [1, 0, 0], v: [0, 1, 0] },
   XZ: { u: [1, 0, 0], v: [0, 0, -1] },
-  YZ: { u: [0, 0, -1], v: [0, 1, 0] },
+  YZ: { u: [0, 1, 0], v: [0, 0, 1] },   // their sketch x = +Y, y = +Z, normal +X (their geometry source, plane.rs)
 };
 /** Our standard planes in our world: in-plane axes x, y and the normal z. */
 const OUR_PLANE: Record<string, { x: V3; y: V3; z: V3 }> = {
@@ -247,13 +247,14 @@ function placeFrame(fr: ScFrame): Placed {
   }
   throw new Unsupported('a sketch plane that is not parallel to one of the three standard planes');
 }
-const originFrame = (name: string, distance = 0): ScFrame => {
-  const sc = SC_PLANE[name];
+/** Before format 6 their XZ plane had sketch y = +Z (normal -Y); from 6 on it is y = -Z (normal +Y). Older files keep the frame they were drawn on. */
+const scPlane = (name: string, version: number): { u: V3; v: V3 } | undefined => (version < 6 && name === 'XZ' ? { u: [1, 0, 0], v: [0, 0, 1] } : SC_PLANE[name]);
+const originFrameFor = (name: string, distance: number, version: number): ScFrame => {
+  const sc = scPlane(name, version);
   if (!sc) throw new Unsupported(`plane ${name}`);
   const n = cross3(sc.u, sc.v);
   return { o: [n[0] * distance, n[1] * distance, n[2] * distance], u: sc.u, v: sc.v };
 };
-const placeOf = (name: string, distance = 0): Placed => placeFrame(originFrame(name, distance));
 /** A frame at a point on a face with the face's outward direction as its normal; `along` (a direction across the face) is its x axis, else the first axis across. */
 function faceFrame(position: V3, dir: V3, along?: V3): ScFrame {
   const n = unit(dir);
@@ -309,6 +310,9 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   if (doc.units && doc.units !== 'mm') return refuse(name, `units are ${doc.units}; only mm is supported`);
   if (doc.assembly || doc.occurrences?.length) return refuse(name, `assemblies are not supported (${doc.occurrences?.length ?? 0} occurrences in ${doc.components?.length ?? 0} components)`);
 
+  const version = Number(String(doc.format).split('/')[1]);   // the file's format: some conventions changed between versions (XZ plane at 6, revolve start at 11)
+  const originFrame = (n: string, d = 0): ScFrame => originFrameFor(n, d, version);
+  const placeOf = (n: string, d = 0): Placed => placeFrame(originFrame(n, d));
   const vars: Record<string, number> = {};
   try { for (const p of doc.params ?? []) vars[p.name] = evalExpr(p.expr, vars); } catch (e) { return refuse(name, `a parameter cannot be evaluated: ${(e as Error).message}`); }
   const num = (x: unknown, what: string): number => {
@@ -324,6 +328,18 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   let n = 0;
   const nid = () => `F${++n}`;
   let bodies = 0;
+  /**
+   * The file refers to bodies by name (a target, a move, a combine, a remove, an intersect) or makes several: then every new body is a
+   * named `newBody` lump, so what comes later can find it. A file of one body keeps the plain output (`add`).
+   */
+  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || (Array.isArray(q.targets) && q.targets.length > 0)))
+    || (doc.features as Rec[]).filter((q) => !q.suppressed && q.operation === 'new_body').length > 1;
+  /** names of the bodies alive, in creation order; `bodyCount` is how many were ever made (unnamed ones are Body1, Body2, ... in that order) */
+  let live: string[] = [];
+  let bodyCount = 0;
+  /** the name the feature being converted gives its new lump, and features that must follow it (the combine of a cut that names its targets) */
+  let newName: string | undefined;
+  let after: Array<() => FeatureJson> = [];
   /** sketch id (theirs) -> our sketch feature, its curve ids, the sketch JSON (to add an axis line) and its placement */
   const sketches = new Map<number | string, { id: string; entityOf: Map<string, string>; placed: Placed; plane: Record<string, unknown>; geo: Map<string, Geo>; json: { points: FeatureJson[]; entities: FeatureJson[] } }>();
   /** feature name (theirs) -> the ids of the features it made (ours), for patterns and mirrors */
@@ -335,16 +351,34 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   const failedSketches = new Set<number | string>();
   const placeholders = opts.placeholders !== false;
 
-  const operation = (f: Rec): 'add' | 'cut' => {
-    const op = f.operation;
+  const operation = (f: Rec): 'add' | 'cut' | 'newBody' => {
+    const op = f.operation, targets = Array.isArray(f.targets) ? (f.targets as string[]) : [];
+    const alive = (nm: string): string => { if (!live.includes(nm)) throw new Unsupported(`"${f.name}" refers to the body "${nm}", which does not exist at this point`); return nm; };
     if (op === 'new_body') {
-      if (bodies > 0) throw new Unsupported(`"${f.name}" starts a separate body; this kit keeps one connected body per part`);
-      bodies++; return 'add';
+      if (!namedBodies) {
+        if (bodies > 0) throw new Unsupported(`"${f.name}" starts a separate body; this kit keeps one connected body per part`);
+        bodies++; return 'add';
+      }
+      const nm = String(f.body_names?.[0] ?? `Body${bodyCount + 1}`);
+      if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
+      bodyCount++; live.push(nm); bodies++; newName = nm;
+      return 'newBody';
     }
-    if (op === 'join') { bodies = Math.max(bodies, 1); return 'add'; }
-    if (op === 'cut') {
-      if (bodies === 0) throw new Unsupported(`"${f.name}" cuts but there is nothing to cut yet`);
-      return 'cut';
+    if (op === 'join' || op === 'cut' || op === 'intersect') {
+      if (op !== 'join' && bodies === 0) throw new Unsupported(`"${f.name}" ${op === 'cut' ? 'cuts' : 'intersects'} but there is nothing to ${op === 'cut' ? 'cut' : 'intersect'} yet`);
+      const named = targets.length ? targets : op === 'intersect' ? live : [];
+      if (!named.length) {
+        if (op === 'intersect') throw new Unsupported(`"${f.name}" intersects but there is no body`);
+        if (op === 'join') bodies = Math.max(bodies, 1);
+        return op === 'join' ? 'add' : 'cut';
+      }
+      if (!namedBodies) throw new Unsupported(`"${f.name}" works on named bodies`);
+      // limited to some bodies: the shape becomes a body of its own, then a combine with each target
+      named.forEach(alive);
+      const tool = `__tool${n + 1}`, cop = op === 'join' ? 'union' : op;
+      newName = tool;
+      after = named.map((t, i) => () => ({ type: 'combine', id: nid(), name: `${f.name}${named.length > 1 ? ` (${t})` : ''}`, op: cop, target: { body: t }, tools: [{ body: tool }], keepTools: i < named.length - 1 }));
+      return 'newBody';
     }
     throw new Unsupported(`operation "${op}" of "${f.name}"`);
   };
@@ -388,6 +422,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     const e: FeatureJson = depth === 'through' ? { type: 'extrude', id: nid(), op, sketch: sketchId, end: 'through', name: f.name } : { type: 'extrude', id: nid(), op, sketch: sketchId, end: 'blind', depth, name: f.name };
     if (flip) e.flip = true;
     if (regions) e.regions = regions;
+    if (op === 'newBody') { e.body = newName; newName = undefined; }
     return e;
   };
 
@@ -660,7 +695,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         const len = Math.hypot(...(f.axis as V3));
         const ax = (f.axis as V3).map((c) => c / (len || 1)) as V3;   // the axis as a unit vector
         const hit = (['YZ', 'XZ', 'XY'] as const).map((name) => {
-          const { u, v } = SC_PLANE[name], nrm = cross3(u, v), d = dot3(ax, nrm);
+          const { u, v } = scPlane(name, version)!, nrm = cross3(u, v), d = dot3(ax, nrm);
           return len > 0 && Math.abs(Math.abs(d) - 1) < 1e-9 ? { name, u, v, nrm, positive: d > 0 } : null;   // |d| = 1 for a unit vector means it IS the plane normal
         }).find(Boolean);
         if (!hit) throw new Unsupported('cylinder along an axis other than X, Y or Z');
@@ -719,6 +754,46 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
+      case 'move': {
+        const srcs = Array.isArray(f.bodies) ? (f.bodies as string[]) : [];
+        if (!srcs.length) throw new Unsupported('a move of no body');
+        for (const b of srcs) if (!live.includes(b)) throw new Unsupported(`"${f.name}" moves the body "${b}", which does not exist at this point`);
+        const t = ((f.translate as unknown[] | undefined) ?? [0, 0, 0]).map((x) => num(x, 'move distance'));
+        if (t.length !== 3) throw new Unsupported('a move that is not given as three distances');
+        const m: FeatureJson = { type: 'moveBody', id: nid(), name: f.name, bodies: srcs.map((b) => ({ body: b })) };
+        if (f.angle !== undefined && Number(num(f.angle, 'move angle')) !== 0) {
+          const ax = f.rotate_axis as V3 | undefined;
+          if (!ax || Math.hypot(ax[0], ax[1], ax[2]) < 1e-9) throw new Unsupported('a rotation without an axis');
+          m.rotate = { axis: toYUp(ax).map(clean), origin: [0, 0, 0], angle: num(f.angle, 'move angle') };
+        }
+        const tv = toYUp([t[0], t[1], t[2]]).map(clean);
+        if (tv.some((x) => x !== 0)) m.translate = tv;
+        if (f.copy === true) {
+          if (srcs.length !== 1) throw new Unsupported('a copy of several bodies at once');
+          const nm = String(f.body_names?.[0] ?? `Body${bodyCount + 1}`);
+          if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
+          bodyCount++; live.push(nm); m.copy = true; m.body = nm;
+        }
+        features.push(m);
+        return [];
+      }
+      case 'combine': {
+        const target = f.target as string | undefined, tools = Array.isArray(f.tools) ? (f.tools as string[]) : [];
+        for (const b of [target, ...tools]) if (!b || !live.includes(b)) throw new Unsupported(`"${f.name}" combines the body "${b}", which does not exist at this point`);
+        const cop = ({ cut: 'cut', join: 'union', union: 'union', intersect: 'intersect' } as Record<string, string>)[String(f.operation)];
+        if (!cop) throw new Unsupported(`a combine with operation "${f.operation}"`);
+        features.push({ type: 'combine', id: nid(), name: f.name, op: cop, target: { body: target }, tools: tools.map((b) => ({ body: b })), keepTools: f.keep_tools === true });
+        if (f.keep_tools !== true) live = live.filter((b) => !tools.includes(b));
+        return [];
+      }
+      case 'remove': {
+        const gone = Array.isArray(f.bodies) ? (f.bodies as string[]) : [];
+        if (!gone.length) throw new Unsupported('a remove of no body');
+        for (const b of gone) if (!live.includes(b)) throw new Unsupported(`"${f.name}" removes the body "${b}", which does not exist at this point`);
+        features.push({ type: 'deleteBody', id: nid(), name: f.name, mode: 'delete', bodies: gone.map((b) => ({ body: b })) });
+        live = live.filter((b) => !gone.includes(b));
+        return [];
+      }
       case 'construction_plane': {
         // sketches carry their own plane, so the plane needs no feature of its own; it is remembered for what refers to it by name
         constructionPlanes.set(String(f.name), frameOf(f.plane));
@@ -737,7 +812,8 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         const k = s.json.entities.length + 1;
         s.json.points.push({ id: `ax${k}a`, x: o[0], y: o[1] }, { id: `ax${k}b`, x: o[0] + d[0] * 10, y: o[1] + d[1] * 10 });
         s.json.entities.push({ id: `ax${k}`, type: 'line', p1: `ax${k}a`, p2: `ax${k}b`, construction: true });
-        features.push({ type: 'revolve', id: nid(), op, sketch: s.id, axis: `ax${k}`, end: 'blind', angle, name: f.name });
+        features.push({ type: 'revolve', id: nid(), op, sketch: s.id, axis: `ax${k}`, end: 'blind', angle, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
@@ -745,7 +821,8 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         const secs = ((f.sections as Rec[] | undefined) ?? []).map((q) => sketches.get(q.sketch)?.id);
         if (secs.length < 2 || secs.some((x) => !x)) throw new Unsupported('a loft section whose sketch was not imported');
         const op = operation(f);
-        features.push({ type: 'loft', id: nid(), op, sketches: secs, name: f.name });
+        features.push({ type: 'loft', id: nid(), op, sketches: secs, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
@@ -915,13 +992,16 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   for (const f of doc.features as Rec[]) {
     const row = { id: f.id, name: String(f.name ?? f.type), type: String(f.type) };
     if (f.suppressed) { rows.push({ ...row, status: 'skipped', reason: 'suppressed in the file' }); continue; }
-    const mark = features.length, bodiesBefore = bodies, nBefore = n;
+    const mark = features.length, bodiesBefore = bodies, nBefore = n, liveBefore = [...live], countBefore = bodyCount;
+    newName = undefined; after = [];
     try {
       const notes = await convert(f);
+      for (const make of after) features.push(make());
+      after = [];
       if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) ourExtrude.set(f.id, mine); }
       rows.push({ ...row, status: 'converted', ...(notes.length ? { notes } : {}) });
     } catch (e) {
-      features.length = mark; bodies = bodiesBefore; n = nBefore;   // drop what the feature half-added
+      features.length = mark; bodies = bodiesBefore; n = nBefore; live = liveBefore; bodyCount = countBefore; newName = undefined; after = [];   // drop what the feature half-added
       if (f.type === 'sketch') failedSketches.add(f.id);
       // a feature we do not understand, or one whose data is not what we expect, is reported; a bad file never aborts the import
       const reason = e instanceof Unsupported || e instanceof ExprError ? e.message : `could not read this feature (${(e as Error).message})`;
