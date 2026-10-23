@@ -37,7 +37,9 @@ export interface ScImport {
 /** Resolves points on the body built so far to kernel edge references ({faces, at}); null for a point that matches no edge. */
 export type EdgeResolver = (partBefore: ScPart, points: V3[], hints?: Array<EdgeHint | undefined>) => Promise<Array<Record<string, unknown> | null>>;
 /** What else the file says about an edge, for when its stored position no longer lies on the body (a parameter changed after it was picked): the direction of the edge, in our world. */
-export interface EdgeHint { /** the body the edge is on, when the file names one: bodies can lie on one another, so the position alone does not tell */ body?: string; dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
+export interface EdgeHint { /** the faces the file names for the edge (`F2:side:l5@F5.1|F2:start@F5.1`), as our name prefix and instance suffix: found by name when the stored position is stale */ faces?: [FaceName, FaceName]; /** the body the edge is on, when the file names one: bodies can lie on one another, so the position alone does not tell */ body?: string; dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
+/** A face by the name the kernel gives it: `prefix` (`F2.S.e5`, `F2.C1`) then maybe a qualifier (`~1`) then the instance suffix (`@F7.1`). */
+export interface FaceName { prefix: string; inst?: string }
 /** The same for a face the file names as the start or end cap of an extrude (`F2:top`): our id of that extrude and which cap. */
 export interface FaceHint { body?: string; cap?: { feature: string; end: 'start' | 'end' } }
 /** Resolves points on faces of the body built so far to our face names ("F2.S.e1"); null for a point that matches no single face. */
@@ -412,6 +414,10 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const mirroredFeatures = new Set<string>(((doc.features as Rec[]) ?? []).filter((x) => x.type === 'mirror').flatMap((x) => (x.features as string[] | undefined) ?? []));
   /** Their feature id -> our id of the extrude it became, for the names the file gives to caps (`F2:top`). */
   const ourExtrude = new Map<number, string>();
+  /** Their extrude id -> their sketch id (a side face `F2:side:l5` is the line l5 of that sketch). */
+  const extrudeSketch = new Map<number, number | string>();
+  /** Their move id -> our moveBody id (the instance suffix `@F5.1` of the copy). */
+  const ourMove = new Map<number, string>();
   /** construction planes by name (their frames) */
   const constructionPlanes = new Map<string, ScFrame>();
   const failedSketches = new Set<number | string>();
@@ -492,6 +498,27 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     if (regions) e.regions = regions;
     if (op === 'newBody') { e.body = newName; newName = undefined; }
     return e;
+  };
+
+  /** The two faces of an edge by their names in the file (`F2:side:l5@F5.1|F2:start@F5.1`) as the names this kit gives them; undefined for any other form (a shell's inner faces, other features). */
+  const faceNames = (edgeName: string | undefined): [FaceName, FaceName] | undefined => {
+    const parts = edgeName?.split('|');
+    if (parts?.length !== 2) return undefined;
+    const one = (t: string): FaceName | undefined => {
+      const m = /^F(\d+):(?:side:(l\d+)|(start|top|end))(?:@F(\d+)\.1)?$/.exec(t);
+      if (!m) return undefined;
+      const ext = ourExtrude.get(Number(m[1]));
+      if (!ext) return undefined;
+      let inst: string | undefined;
+      if (m[4]) { const mv = ourMove.get(Number(m[4])); if (!mv) return undefined; inst = `@${mv}.1`; }
+      if (m[2]) {
+        const sk = extrudeSketch.get(Number(m[1])), ent = sk === undefined ? undefined : sketches.get(sk)?.entityOf.get(m[2]);
+        return ent ? { prefix: `${ext}.S.${ent}`, ...(inst ? { inst } : {}) } : undefined;
+      }
+      return { prefix: `${ext}.C${m[3] === 'start' ? 0 : 1}`, ...(inst ? { inst } : {}) };
+    };
+    const a = one(parts[0]), b = one(parts[1]);
+    return a && b ? [a, b] : undefined;
   };
 
   const sketchOf = (f: Rec): { notes: string[] } => {
@@ -781,7 +808,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         const points = (f.edges as V3[] | undefined)?.map(toYUp);   // the edge positions are in their Z-up world
         if (!points?.length) throw new Unsupported('no edge positions in the file');
         // the stored direction of each edge: when a parameter changed after the pick, the point is off the body but the line is not
-        let hints = (f.edge_refs as Rec[] | undefined)?.map((r): EdgeHint | undefined => {
+        let hints = (f.edge_refs as Rec[] | undefined)?.map((r, i): EdgeHint | undefined => {
           const d = r?.dir as V3 | undefined, lo = r?.min as V3 | undefined, hi = r?.max as V3 | undefined;
           const h: EdgeHint = {};
           if (d && Math.hypot(d[0], d[1], d[2]) > 0.5) h.dir = toYUp(d);
@@ -790,7 +817,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
             h.box = { min: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])] };
           }
           if (typeof f.body === 'string') h.body = f.body;
-          return h.dir || h.box || h.body ? h : undefined;
+          const fn = faceNames((f.edge_names as string[] | undefined)?.[i]);
+          if (fn) h.faces = fn;
+          return h.dir || h.box || h.body || h.faces ? h : undefined;
         });
         if (!hints && typeof f.body === 'string') hints = points.map(() => ({ body: f.body as string }));
         const refs = await opts.resolver(part(), points, hints).catch(() => null);
@@ -1080,7 +1109,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       const notes = await convert(f);
       for (const make of after) features.push(make());
       after = [];
-      if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) ourExtrude.set(f.id, mine); }
+      if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) { ourExtrude.set(f.id, mine); if (f.sketch !== undefined) extrudeSketch.set(f.id, f.sketch); } }
+      if (f.type === 'move') { const mv = features.slice(mark).find((x) => x.type === 'moveBody'); if (mv) ourMove.set(f.id, String(mv.id)); }
       rows.push({ ...row, status: 'converted', ...(notes.length ? { notes } : {}) });
     } catch (e) {
       features.length = mark; bodies = bodiesBefore; n = nBefore; live = liveBefore; bodyCount = countBefore; newName = undefined; after = [];   // drop what the feature half-added

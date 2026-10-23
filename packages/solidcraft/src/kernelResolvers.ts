@@ -99,6 +99,41 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
           out[i] = m[0]?.matches?.[0]?.ref ?? null;
         }
       }
+      // still not found, and the file names the two faces of the edge: the edge between faces of those names, the one nearest the stored position
+      // (a parameter changed after the pick, so the position is stale but the names still say which edge it is)
+      const byName = points.map((_, i) => i).filter((i) => !out[i] && hints?.[i]?.faces);
+      if (byName.length) {
+        const bodies = [...new Set(byName.map((i) => hints![i]!.body))];
+        const names = new Map<string | undefined, string[]>();
+        for (const b of bodies) {
+          const all = (await s.resolve([{ kind: 'face', ...(b ? { body: b } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
+          names.set(b, (all[0]?.matches ?? []).map((m) => m.name));
+        }
+        const named = (list: string[], f: { prefix: string; inst?: string }) => list.filter((n) => {
+          if (!n.startsWith(f.prefix)) return false;
+          const rest = n.slice(f.prefix.length);
+          return f.inst ? rest === f.inst || (/^~\d+/.test(rest) && rest.endsWith(f.inst)) : rest === '' || /^~\d+$/.test(rest);
+        });
+        for (const i of byName) {
+          const h = hints![i]!, list = names.get(h.body) ?? [];
+          const as = named(list, h.faces![0]), bs = named(list, h.faces![1]);
+          const pairs = as.flatMap((a) => bs.map((b) => [a, b] as const)).filter(([a, b]) => a !== b);
+          if (!pairs.length || pairs.length > 12) continue;
+          const found = (await s.resolve(pairs.map(([a, b]) => ({ kind: 'edge', between: [a, b], ...(h.body ? { body: h.body } : {}) })))) as unknown as Array<{ matches?: Array<Match & { mid: number[]; dir?: string; length?: number }> }>;
+          const cands = found.flatMap((r) => r.matches ?? []);
+          // the distance from the stored position to the edge: to its segment for a line, to its middle for any other curve
+          const dist = (m: { mid: number[]; dir?: string; length?: number }) => {
+            const d = axisLabel(m.dir) ?? ((/^\(([^)]*)\)$/.exec(m.dir ?? '')?.[1] ?? '').split(',').map(Number) as number[]);
+            const w = [0, 1, 2].map((k) => points[i][k] - m.mid[k]);
+            if (d.length !== 3 || d.some((v) => !Number.isFinite(v)) || m.length === undefined) return Math.hypot(w[0], w[1], w[2]);
+            const along = Math.max(-m.length / 2, Math.min(m.length / 2, w[0] * d[0] + w[1] * d[1] + w[2] * d[2]));
+            return Math.hypot(w[0] - along * d[0], w[1] - along * d[1], w[2] - along * d[2]);
+          };
+          const best = cands.sort((x, y) => dist(x) - dist(y));
+          // the nearest edge must be clearly nearer than the next one (inner and outer wall edges differ by the wall thickness)
+          if (best.length && best[0].ref && (best.length === 1 || dist(best[1]) - dist(best[0]) > 1e-6) && dist(best[0]) < 5) out[i] = best[0].ref;
+        }
+      }
       return out;
     },
     faceResolver: async (part, points, hints) => {
