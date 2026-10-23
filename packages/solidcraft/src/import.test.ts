@@ -311,3 +311,50 @@ describe('planes, extents and features beyond the basics', () => {
     expect((await importSolidcraftDocument(doc([sq(1, 'P', { type: 'origin', name: 'XZ' }), rev('z')]), 'r')).rows[1].status).toBe('unsupported');
   });
 });
+
+describe('sketch constraints', () => {
+  // a 20 x 10 rectangle on their XY plane, plus a circle and an arc-less set of dimensions; points: 0 origin, 1..4 corners, 5 circle centre
+  const sketch = (constraints: unknown[], plane = { type: 'origin', name: 'XY' }) => ({
+    id: 1, name: 'S', type: 'sketch', suppressed: false, plane,
+    sketch: {
+      points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [20, 0] }, { id: 'p3', pos: [20, 10] }, { id: 'p4', pos: [0, 10] }, { id: 'p5', pos: [10, 5] }, { id: 'p6', pos: [10, 0] }],
+      curves: [
+        { id: 'l1', type: 'line', a: 1, b: 2 }, { id: 'l2', type: 'line', a: 2, b: 3 }, { id: 'l3', type: 'line', a: 3, b: 4 }, { id: 'l4', type: 'line', a: 4, b: 1 },
+        { id: 'c1', type: 'circle', c: 5, r: 2 },
+      ],
+      constraints,
+    },
+  });
+  const run = async (constraints: unknown[], plane?: { type: string; name: string }) => {
+    const r = await importSolidcraftDocument({ format: 'solidcraft/30', units: 'mm', params: [], features: [sketch(constraints, plane)] } as never, 'c');
+    const sk = (r.part!.features as Array<Record<string, any>>).find((x) => x.type === 'sketch')!;
+    return { r, cons: sk.constraints as Array<{ type: string; refs: string[]; value?: number }> };
+  };
+  it('carries midpoint, distances, radius, diameter, tangent, collinear, symmetric and point on curve', async () => {
+    const { r, cons } = await run([
+      { id: 'k1', type: 'midpoint', l: 0, p: 6 },
+      { id: 'k2', type: 'distance_x', p: 1, q: 2, value: 20, param: 'd1' },
+      { id: 'k3', type: 'distance_y', p: 2, q: 3, value: 10 },
+      { id: 'k4', type: 'distance', p: 1, q: 3, value: 22.36 },
+      { id: 'k5', type: 'radius', c: 4, value: 2 },
+      { id: 'k6', type: 'diameter', c: 4, value: 4 },
+      { id: 'k7', type: 'collinear', a: 0, b: 2 },
+      { id: 'k8', type: 'symmetric', p: 1, q: 2, l: 3 },
+      { id: 'k9', type: 'point_on_curve', p: 5, c: 4 },
+      { id: 'k10', type: 'point_on_curve', p: 6, c: 0 },
+      { id: 'k11', type: 'tangent', a: 0, b: 4 },
+    ]);
+    expect(cons.map((c) => c.type)).toEqual(['midpoint', 'hdist', 'vdist', 'distance', 'radius', 'diameter', 'collinear', 'symmetric', 'pointOnCircle', 'pointOnLine', 'tangent']);
+    expect(cons.find((c) => c.type === 'hdist')).toMatchObject({ value: 20 });
+    expect(cons.find((c) => c.type === 'radius')).toMatchObject({ value: 2 });
+    expect(r.rows[0].notes ?? []).toEqual([]);
+  });
+  it('a plane that swaps the sketch axes turns their horizontal distance into our vertical one; unusable ones are noted, not guessed', async () => {
+    // their YZ plane: their x runs along our -z and y along our y, so no swap; their XZ plane (front) keeps x and y: swap is for a plane whose u lies along our y
+    const { cons } = await run([{ id: 'k1', type: 'distance_x', p: 1, q: 2, value: 20 }], { type: 'origin', name: 'XY' });
+    expect(cons[0].type).toBe('hdist');
+    const bad = await run([{ id: 'k1', type: 'distance_x', p: 1, q: 1, value: 20 }, { id: 'k2', type: 'radius', c: 0, value: 2 }, { id: 'k3', type: 'distance', p: 1, q: 2, value: 0 }]);
+    expect(bad.cons).toEqual([]);
+    expect(bad.r.rows[0].notes?.length).toBeGreaterThanOrEqual(2);
+  });
+});

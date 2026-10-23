@@ -463,6 +463,24 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         if (a !== b) constraints.push({ id: `k${++kn}`, type: 'distance', refs: [a, b], value: Number(k.value) });
         continue;
       }
+      // the rest need the curves and points they name to be in the sketch (not glyph outlines of lettering, which are a text entity)
+      const keep = (i: unknown) => typeof i === 'number' && !!curves[i] && !textCurve(curves[i]);
+      const isRound = (i: unknown) => keep(i) && (curves[i as number].type === 'arc' || curves[i as number].type === 'circle');
+      const isLine = (i: unknown) => keep(i) && curves[i as number].type === 'line';
+      const num2 = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+      const dim = (type: string, refs: string[]): void => { const v = num2(k.value); if (v !== undefined && v > 0) constraints.push({ id: `k${++kn}`, type, refs, value: clean(v) }); else notes.push(`${k.type} constraint dropped (no usable value)`); };
+      if (k.type === 'midpoint' && isLine(k.l) && pts[k.p]) { constraints.push({ id: `k${++kn}`, type: 'midpoint', refs: [pid(k.p), eid(k.l)] }); continue; }
+      if ((k.type === 'distance_x' || k.type === 'distance_y') && pts[k.p] && pts[k.q] && find(k.p) !== find(k.q)) {
+        const horizontal = (k.type === 'distance_x') !== swapsAxes(placed);   // an axis swap turns their horizontal distance into our vertical one
+        dim(horizontal ? 'hdist' : 'vdist', [pid(k.p), pid(k.q)]);
+        continue;
+      }
+      if (k.type === 'distance' && pts[k.p] && pts[k.q] && find(k.p) !== find(k.q)) { dim('distance', [pid(k.p), pid(k.q)]); continue; }
+      if ((k.type === 'radius' || k.type === 'diameter') && isRound(k.c)) { dim(k.type, [eid(k.c)]); continue; }
+      if (k.type === 'tangent' && keep(k.a) && keep(k.b)) { constraints.push({ id: `k${++kn}`, type: 'tangent', refs: [eid(k.a), eid(k.b)] }); continue; }
+      if (k.type === 'symmetric' && pts[k.p] && pts[k.q] && isLine(k.l) && find(k.p) !== find(k.q)) { constraints.push({ id: `k${++kn}`, type: 'symmetric', refs: [pid(k.p), pid(k.q), eid(k.l)] }); continue; }
+      if (k.type === 'collinear' && isLine(k.a) && isLine(k.b)) { constraints.push({ id: `k${++kn}`, type: 'collinear', refs: [eid(k.a), eid(k.b)] }); continue; }
+      if (k.type === 'point_on_curve' && pts[k.p] && (isLine(k.c) || isRound(k.c))) { constraints.push({ id: `k${++kn}`, type: isLine(k.c) ? 'pointOnLine' : 'pointOnCircle', refs: [pid(k.p), eid(k.c)] }); continue; }
       notes.push(`${k.type} constraint dropped (the geometry is kept as stored)`);
     }
     const id = nid();
