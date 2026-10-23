@@ -152,7 +152,7 @@ export function refLabel(doc: DocIn, ref: RefIn): string {
 /** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
 export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number }): string {
   if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
-  return t('app.plane.defaultName', { offset: String(f.offset ?? 0), base: refLabel(doc, f.base) });
+  return t('app.plane.defaultName', { offset: String(+(f.offset ?? 0).toFixed(3) + 0), base: refLabel(doc, f.base) });
 }
 /** The base a new plane offsets from: a picked planar face, else a Plane feature selected in the tree, else the Front / Top / Right plane chosen, else Front. */
 export function planeBase(c: Ctx): { kind: string; id: string } {

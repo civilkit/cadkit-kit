@@ -261,7 +261,9 @@ function faceFrame(position: V3, dir: V3, along?: V3): ScFrame {
   const u = unit(along && across(along) ? along : ([[1, 0, 0], [0, 1, 0], [0, 0, 1]] as V3[]).find(across)!);
   return { o: position, u, v: cross3(n, u) };   // u x v = n
 }
-const mapXY = (pl: Placed, x: number, y: number): [number, number] => [pl.t[0] * x + pl.t[1] * y + pl.s[0], pl.t[2] * x + pl.t[3] * y + pl.s[1]];
+/** Snaps float noise (`1.9999999999999976`, from a rotated or recomputed value in their file) to 9 decimals: far below any tolerance, so the model is unchanged but names and numbers read clean. */
+export const clean = (x: number): number => { const r = Math.round(x * 1e9) / 1e9; return Object.is(r, -0) ? 0 : r; };
+const mapXY = (pl: Placed, x: number, y: number): [number, number] => [clean(pl.t[0] * x + pl.t[1] * y + pl.s[0]), clean(pl.t[2] * x + pl.t[3] * y + pl.s[1])];
 /** A reflection of the sketch plane (their counter-clockwise is our clockwise). */
 const mirrored = (pl: Placed) => pl.t[0] * pl.t[3] - pl.t[1] * pl.t[2] < 0;
 /** Their horizontal is our vertical when the plane axes swap. */
@@ -310,7 +312,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   const vars: Record<string, number> = {};
   try { for (const p of doc.params ?? []) vars[p.name] = evalExpr(p.expr, vars); } catch (e) { return refuse(name, `a parameter cannot be evaluated: ${(e as Error).message}`); }
   const num = (x: unknown, what: string): number => {
-    try { return evalExpr(x as string | number, vars); } catch (e) {
+    try { return clean(evalExpr(x as string | number, vars)); } catch (e) {
       if (e instanceof ExprError) throw new Unsupported(`${what}: ${e.message}`);
       throw e;
     }
@@ -351,7 +353,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   const planeRef = (pl: Placed): Record<string, unknown> => {
     if (Math.abs(pl.offset) < 1e-12) return { kind: 'std', id: pl.std };
     const id = nid();
-    features.push({ type: 'plane', id, mode: 'offset', base: { kind: 'std', id: pl.std }, offset: pl.offset });
+    features.push({ type: 'plane', id, mode: 'offset', base: { kind: 'std', id: pl.std }, offset: clean(pl.offset) });
     return { kind: 'feature', id };
   };
   /** Their plane, in any of its forms, as a frame in their world. */
@@ -441,7 +443,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         const [a, b] = mirrored(placed) ? [c.b, c.a] : [c.a, c.b];
         Object.assign(e, { type: 'arc', c: pid(c.c), p1: pid(a), p2: pid(b) });
       }
-      else if (c.type === 'circle') Object.assign(e, { type: 'circle', c: pid(c.c), r: c.r });
+      else if (c.type === 'circle') Object.assign(e, { type: 'circle', c: pid(c.c), r: clean(Number(c.r)) });
       else throw new Unsupported(`sketch curve "${c.type}"`);
       if (c.construction) e.construction = true;
       return e;
@@ -465,7 +467,8 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     }
     const id = nid();
     const kept = [...entities.filter((e) => e.type !== undefined), ...texts];   // one array: a revolve adds its axis line to it later
-    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities: kept, constraints });
+    // their app hides a sketch once a feature uses it; imported sketches start hidden (construction lines and plane outlines stay out of the model view)
+    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities: kept, constraints, visible: false });
     const geo = new Map<string, Geo>();
     for (const c of curves) {
       if (textCurve(c)) continue;
