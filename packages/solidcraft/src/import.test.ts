@@ -66,6 +66,15 @@ describe('what is refused or reported', () => {
     expect(r.part).toBeNull();
     expect(r.refused).toMatch(/assemblies are not supported \(2 occurrences in 2 components\)/);
   });
+  it('an older file is the bare JSON document, with or without a byte order mark', async () => {
+    const json = JSON.stringify({ format: 'solidcraft/1', units: 'mm', params: [], features: [] });
+    for (const text of [json, '\n  ' + json, '\ufeff' + json]) {
+      const r = await importSolidcraft(new TextEncoder().encode(text), 'old');
+      expect(r.refused, JSON.stringify(text.slice(0, 6))).toBeUndefined();
+      expect(r.part?.features).toEqual([]);
+    }
+    expect((await importSolidcraft(new TextEncoder().encode('{"format": '), 'old')).refused).toMatch(/not valid JSON/);
+  });
   it('not a zip, no document, bad JSON, wrong format, wrong units', async () => {
     expect((await importSolidcraft(new Uint8Array([1, 2, 3]), 'x')).refused).toMatch(/not a SolidCraft file/);
     expect((await importSolidcraftDocument({ format: 'other/1', features: [] }, 'x')).refused).toMatch(/unknown document format/);
@@ -119,6 +128,14 @@ describe('what is refused or reported', () => {
     expect(r.rows.map((x) => x.status)).toEqual(['unsupported', 'converted', 'converted', 'unsupported']);
     expect(r.rows[0].reason).toMatch(/could not read this feature/);
     expect(r.part!.features.filter((x) => (x as { type: string }).type === 'importedUnsupported')).toHaveLength(2);
+  });
+  it('an extent without a convention (older files) is the total distance; profiles chosen by curves become regions', async () => {
+    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { extent: { direction: 'positive', distance: '7' }, profiles: { type: 'curves', loops: [['l1', 'l2', 'l3', 'l4']] } })]), 'old');
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted']);
+    expect((r.part!.features as Array<Record<string, any>>)[1]).toMatchObject({ depth: 7, regions: ['e1', 'e2', 'e3', 'e4'] });
+    // loops as objects with `curves`, and a curve that is not there
+    const r2 = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { profiles: { type: 'curves', loops: [{ curves: ['l1', 'l9'] }] } })]), 'old');
+    expect(r2.rows[1].reason).toMatch(/not in the sketch/);
   });
   it('a refused extent, direction and chosen profiles', async () => {
     const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { extent: { convention: 'symmetric', direction: 'positive', distance: '5' } }), extrude(3, 1, { extent: { convention: 'total_distance', direction: 'both', distance: '5' } }), extrude(4, 1, { profiles: { type: 'some' } })]), 'x');

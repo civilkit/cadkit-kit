@@ -38,6 +38,13 @@ describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM }, 
     expect(f.box?.min.map((v) => +v.toFixed(6))).toEqual([0, 0, 0]);
     expect(f.box?.max.map((v) => +v.toFixed(6))).toEqual([80, 50, 22]);
   });
+  it('an older file (format solidcraft/1, bare JSON, extent without a convention): 40 x 30 x 20 box, R3 on one 20 mm edge, d10 hole through; volume by hand 22390.58', async () => {
+    const r = await importSolidcraft(fixture('old-format-box-fillet-hole'), 'old', { resolver });
+    expect(r.geometryComplete).toBe(true);
+    expect(r.summary).toMatchObject({ converted: 5, unsupported: 0 });
+    const f = await (await open(r.part!)).facts();
+    expect(f.volume).toBeCloseTo(40 * 30 * 20 - (1 - Math.PI / 4) * 9 * 20 - Math.PI * 25 * 20, 4);
+  });
   it('sample plate without a resolver: the plate, holes, boss and bore build, the fillet is a suppressed placeholder, no kernel error', async () => {
     const r = await importSolidcraft(fixture('sample-plate'), 'plate');
     const s = await open(r.part!);

@@ -1,5 +1,5 @@
 // SolidCraft (.solidcraft) -> feature tree. A .solidcraft file is a zip whose `document.json` ("solidcraft/N") holds the parametric
-// feature list; the rest (`cache/`) is derived and ignored. Mapped from the sample files only: sketch (line, arc, circle; coincident,
+// feature list (older files are that JSON on its own); the rest (`cache/`) is derived and ignored. Mapped from the sample files only: sketch (line, arc, circle; coincident,
 // horizontal, vertical, length), extrude (total distance), box, cylinder and a constant-radius fillet. Everything else is reported
 // per feature and kept as a suppressed placeholder carrying the original JSON, so the tree still regenerates and nothing is lost
 // silently. Assemblies are refused as a whole. See docs/solidcraft.md.
@@ -52,13 +52,27 @@ const STD: Record<string, string> = { XY: 'front', XZ: 'top', YZ: 'right' };
 
 const refuse = (name: string, why: string): ScImport => ({ name, part: null, rows: [], summary: { converted: 0, unsupported: 0, skipped: 0, notes: 0 }, geometryComplete: false, refused: why });
 
-/** A .solidcraft file (zip bytes) as a part plus the report. Never throws on a bad file: the reason is in `refused`. */
+/** True when the bytes look like a plain JSON document (older files are the bare document, newer ones a zip around it). */
+const looksLikeJson = (b: Uint8Array): boolean => {
+  let i = 0;
+  if (b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) i = 3;   // UTF-8 byte order mark
+  while (i < b.length && (b[i] === 0x20 || b[i] === 0x0a || b[i] === 0x0d || b[i] === 0x09)) i++;
+  return b[i] === 0x7b;   // {
+};
+
+/**
+ * A .solidcraft file as a part plus the report. Two containers exist: a zip with `document.json` inside (newer files) and the bare
+ * JSON document (older files, format tag `solidcraft/1` ...). Never throws on a bad file: the reason is in `refused`.
+ */
 export async function importSolidcraft(bytes: Uint8Array, name = 'SolidCraft part', opts: ImportOpts = {}): Promise<ScImport> {
   let raw: Uint8Array | null;
-  try { raw = await zipFile(bytes, 'document.json'); } catch (e) { return refuse(name, `not a SolidCraft file (${(e as Error).message})`); }
-  if (!raw) return refuse(name, 'no document.json in the file');
+  if (looksLikeJson(bytes)) raw = bytes;
+  else {
+    try { raw = await zipFile(bytes, 'document.json'); } catch (e) { return refuse(name, `not a SolidCraft file (${(e as Error).message})`); }
+    if (!raw) return refuse(name, 'no document.json in the file');
+  }
   let doc: Rec;
-  try { doc = JSON.parse(new TextDecoder().decode(raw)); } catch { return refuse(name, 'document.json is not valid JSON'); }
+  try { doc = JSON.parse(new TextDecoder().decode(raw)); } catch { return refuse(name, 'the document is not valid JSON'); }
   return importSolidcraftDocument(doc, name, opts);
 }
 
@@ -84,7 +98,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
   let n = 0;
   const nid = () => `F${++n}`;
   let bodies = 0;
-  const sketches = new Map<number | string, { id: string }>();
+  const sketches = new Map<number | string, { id: string; entityOf: Map<string, string> }>();
   const failedSketches = new Set<number | string>();
   const placeholders = opts.placeholders !== false;
 
@@ -121,12 +135,13 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     return { kind: 'feature', id };
   };
 
-  const extrudeOf = (f: Rec, sketchId: string, depth: number, positive: boolean): FeatureJson => {
+  const extrudeOf = (f: Rec, sketchId: string, depth: number, positive: boolean, regions?: string[]): FeatureJson => {
     const op = operation(f);
     // a boss grows along the plane normal and a cut goes against it; `flip` reverses
     const flip = op === 'cut' ? positive : !positive;
     const e: FeatureJson = { type: 'extrude', id: nid(), op, sketch: sketchId, end: 'blind', depth, name: f.name };
     if (flip) e.flip = true;
+    if (regions) e.regions = regions;
     return e;
   };
 
@@ -180,7 +195,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     }
     const id = nid();
     features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities, constraints });
-    sketches.set(f.id, { id });
+    sketches.set(f.id, { id, entityOf: new Map(curves.map((c, i) => [String(c.id), eid(i)])) });
     return { notes };
   };
 
@@ -190,10 +205,18 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
       case 'extrude': {
         const s = sketches.get(f.sketch);
         if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : `refers to sketch ${f.sketch}, which is not in the file`);
-        if (f.profiles?.type !== 'all') throw new Unsupported('extrude of chosen profiles only');
-        if (f.extent?.convention !== 'total_distance') throw new Unsupported(`extrude extent "${f.extent?.convention}"`);
+        // which regions of the sketch: all, or the ones bounded by the listed curves (our `regions` take entity ids)
+        let regions: string[] | undefined;
+        if (f.profiles?.type === 'curves' && Array.isArray(f.profiles.loops)) {
+          const ids = (f.profiles.loops as unknown[]).flatMap((l) => (Array.isArray(l) ? l : Array.isArray((l as Rec)?.curves) ? (l as Rec).curves : [])) as string[];
+          regions = ids.map((c) => s.entityOf.get(String(c))!);
+          if (!regions.length || regions.some((r) => !r)) throw new Unsupported('the chosen profile refers to a curve that is not in the sketch');
+        } else if (f.profiles?.type !== 'all') throw new Unsupported(`extrude profile selection "${f.profiles?.type}"`);
+        // older files have no `convention`; their extents are the same total distance
+        const conv = f.extent?.convention ?? 'total_distance';
+        if (conv !== 'total_distance') throw new Unsupported(`extrude extent "${conv}"`);
         if (f.extent.direction !== 'positive' && f.extent.direction !== 'negative') throw new Unsupported(`extrude direction "${f.extent.direction}"`);
-        features.push(extrudeOf(f, s.id, num(f.extent.distance, 'extrude distance'), f.extent.direction === 'positive'));
+        features.push(extrudeOf(f, s.id, num(f.extent.distance, 'extrude distance'), f.extent.direction === 'positive', regions));
         return [];
       }
       case 'box': {

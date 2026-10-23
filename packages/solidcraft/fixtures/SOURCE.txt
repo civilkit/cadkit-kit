@@ -2,3 +2,5 @@ Sample .solidcraft files (a zip of container.json and document.json; the derived
 Made with the SolidCraft app, version 0.19 (document format solidcraft/30), https://github.com/tangency-labs/solidcraft , licence MIT OR Apache-2.0.
 sample-plate and hinge-assembly are the app's own built-in samples; slot-fillet-no-fillet was exported from the app by this project's maintainer.
 Used only as import test data (see ../src/import.kernel.test.ts).
+old-format-box-fillet-hole.solidcraft is tests/corpus/m0-box-fillet-hole.solidcraft from the same repository (copied unchanged): an older file, format solidcraft/1, which is the bare JSON document and not a zip.
+The full set of the project's 19 .solidcraft files is kept outside this repository in corpus/solidcraft (see its README); corpus.kernel.test.ts runs them when that folder is present.
