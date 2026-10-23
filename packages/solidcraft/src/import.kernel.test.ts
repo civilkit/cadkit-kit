@@ -28,6 +28,19 @@ const volumeOf = async (doc: Parameters<typeof importSolidcraftDocument>[0], opt
   return { r, errors: rep.regen.errors, volume: (await s.facts()).volume! };
 };
 
+describe('lettering', { skip: !process.env.CK_WASM || !have, timeout: 120_000 }, () => {
+  it('pi-case-0.8: the "Pi 4" engraving becomes a text entity cut 0.6 deep, and the whole file imports', async () => {
+    const r = await importSolidcraft(fixture('pi-case-0.8'), 'pi', { resolver, faceResolver, rimResolver });
+    expect(r.geometryComplete, JSON.stringify(r.rows.filter((x) => x.status !== 'converted'))).toBe(true);
+    const s = await open(r.part!);
+    const rep = await s.verify();
+    expect(rep.regen.errors).toEqual([]);
+    // the body without the engraving is 28862.47 mm3; the ink of 16.3 x 6.25 mm lettering at 0.6 deep takes a small part of 61 mm3
+    const v = (await s.facts()).volume!;
+    expect(v).toBeLessThan(28862.47 - 5); expect(v).toBeGreaterThan(28862.47 - 61);
+  });
+});
+
 describe('lip and groove on a shelled box (the numbers of their own test)', { skip: !process.env.CK_WASM }, () => {
   // 80 x 50 x 30 box, the top face opened and the walls 2 thick: the rim is a 2 mm frame round a 76 x 46 opening
   const shelled = (extra: unknown[]) => ({

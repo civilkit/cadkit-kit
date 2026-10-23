@@ -415,8 +415,26 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
       return id;
     };
     const eid = (i: number) => `e${i + 1}`;
+    // lettering: the file keeps the string and the outlines of its glyphs (curves linked to it); we keep the string as a text entity
+    const textOf = new Map<string, string>();   // link id -> our text entity id
+    const notes: string[] = [];
+    const texts: FeatureJson[] = [];
+    for (const l of (sk.links as Rec[] | undefined) ?? []) {
+      if (l?.kind !== 'text' || !l.source?.text) continue;
+      const src = l.source as Rec, a = Number(src.angle ?? 0), at = (src.at as P2 | undefined) ?? [0, 0];
+      const d = [Math.cos(a), Math.sin(a)], t = placed.t;
+      const e: FeatureJson = { id: `tx${texts.length + 1}`, type: 'text', string: String(src.text), font: 'gauge', height: num(src.height, 'text height'), at: mapXY(placed, at[0], at[1]) };
+      const ang = (Math.atan2(t[2] * d[0] + t[3] * d[1], t[0] * d[0] + t[1] * d[1]) * 180) / Math.PI;
+      if (Math.abs(ang) > 1e-9) e.angle = ang;
+      if (mirrored(placed)) e.mirror = true;
+      texts.push(e);
+      textOf.set(String(l.id), e.id as string);
+      if (src.font && src.font !== 'gauge') notes.push(`text "${src.text}": font "${src.font}" is not available here; the built-in sans is used`);
+    }
+    const textCurve = (c: Rec) => (c.link !== undefined && textOf.has(String(c.link)) ? textOf.get(String(c.link))! : undefined);
     const entities = curves.map((c, i): FeatureJson => {
       const e: FeatureJson = { id: eid(i) };
+      if (textCurve(c)) return e;   // a glyph outline: replaced by the text entity
       if (c.type === 'line') Object.assign(e, { type: 'line', p1: pid(c.a), p2: pid(c.b) });
       else if (c.type === 'arc') {
         // counter-clockwise from start to end in their sketch; a mirrored sketch plane turns that round
@@ -428,7 +446,6 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
       if (c.construction) e.construction = true;
       return e;
     });
-    const notes: string[] = [];
     const constraints: FeatureJson[] = [];
     let kn = 0;
     for (const k of sk.constraints ?? []) {
@@ -447,15 +464,17 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
       notes.push(`${k.type} constraint dropped (the geometry is kept as stored)`);
     }
     const id = nid();
-    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities, constraints });
+    const kept = [...entities.filter((e) => e.type !== undefined), ...texts];   // one array: a revolve adds its axis line to it later
+    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities: kept, constraints });
     const geo = new Map<string, Geo>();
     for (const c of curves) {
+      if (textCurve(c)) continue;
       const at = (i: number) => pts[i].pos as P2;
       if (c.type === 'line') geo.set(String(c.id), { type: 'line', a: at(c.a), b: at(c.b) });
       else if (c.type === 'arc') geo.set(String(c.id), { type: 'arc', a: at(c.a), b: at(c.b), c: at(c.c) });
       else if (c.type === 'circle') geo.set(String(c.id), { type: 'circle', c: at(c.c), r: Number(c.r) });
     }
-    sketches.set(f.id, { id, entityOf: new Map(curves.map((c, i) => [String(c.id), eid(i)])), placed, plane, geo, json: { points: outPts, entities } });
+    sketches.set(f.id, { id, entityOf: new Map(curves.map((c, i) => [String(c.id), textCurve(c) ?? eid(i)])), placed, plane, geo, json: { points: outPts, entities: kept } });
     return { notes };
   };
 
@@ -471,9 +490,14 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         if (f.profiles?.type === 'curves' && Array.isArray(f.profiles.loops)) {
           const loops = (f.profiles.loops as unknown[]).map((l) => (Array.isArray(l) ? l : Array.isArray((l as Rec)?.curves) ? (l as Rec).curves : [])) as string[][];
           if (!loops.length || loops.some((l) => !l.length)) throw new Unsupported('an extrude with an empty profile');
-          const plans = loops.map((l) => loopOutline(l.map(String), s.geo));
+          // loops made of the outlines of lettering select the text entity; the others are handled as below
+          const isText = (l: string[]) => l.every((c) => String(s.entityOf.get(String(c))).startsWith('tx'));
+          const letterIds = [...new Set(loops.filter(isText).flat().map((c) => s.entityOf.get(String(c))!))];
+          const shapeLoops = loops.filter((l) => !isText(l));
+          const plans = shapeLoops.map((l) => loopOutline(l.map(String), s.geo));
+          if (letterIds.length && plans.some((p) => !p.whole)) throw new Unsupported('lettering together with an outline that uses only part of its curves');
           if (plans.every((p) => p.whole)) {
-            regions = loops.flat().map((c) => s.entityOf.get(String(c))!);
+            regions = [...shapeLoops.flat().map((c) => s.entityOf.get(String(c))!), ...letterIds];
             if (regions.some((r) => !r)) throw new Unsupported('the chosen profile refers to a curve that is not in the sketch');
           } else {
             // a loop runs along only part of a curve: draw just the chosen outline(s) on the same plane and extrude that
@@ -481,7 +505,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
             plans.forEach((p, li) => {
               if (p.whole) {
                 // a whole loop next to a trimmed one: copy its curves as they are
-                for (const cid of loops[li]) {
+                for (const cid of shapeLoops[li]) {
                   const g = s.geo.get(String(cid))!;
                   const m = (q: P2) => { const [x, y] = mapXY(s.placed, q[0], q[1]); const id = `q${pts.length}`; pts.push({ id, x, y }); return id; };
                   if (g.type === 'circle') ents.push({ id: `c${ents.length + 1}`, type: 'circle', c: m(g.c), r: g.r });
