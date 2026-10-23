@@ -126,6 +126,9 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
           {field('skew', t('marine.skew'), { unit: 'deg', min: -45, max: 45, step: 1, tip: t('marine.skewTip') })}
           {field('thickRoot', t('marine.thickRoot'), { min: 0.005, max: 0.08, step: 0.005, tip: t('marine.thickTip') })}
           {field('thickTip', t('marine.thickTipField'), { min: 0.001, max: 0.04, step: 0.001 })}
+          {field('maxThickAt', t('marine.maxThickAt'), { min: 0.2, max: 0.7, step: 0.05, tip: t('marine.maxThickAtTip') })}
+          {field('edgeThick', t('marine.edgeThick'), { min: 0.02, max: 0.5, step: 0.02, tip: t('marine.edgeThickTip') })}
+          {field('tipRounding', t('marine.tipRounding'), { min: 0, max: 0.4, step: 0.05, tip: t('marine.tipRoundingTip') })}
           {field('rootEmbed', t('prop.rootEmbed'), { min: 0.35, max: 0.95, step: 0.05, tip: t('prop.rootEmbedTip') })}
           {field('raySpacing', t('marine.raySpacing'), { unit: 'deg', min: 3, max: 10, step: 0.5, tip: t('marine.raySpacingTip') })}
         </div>

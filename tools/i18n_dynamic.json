@@ -100,9 +100,11 @@
   "marine.issue.bore",
   "marine.issue.chord",
   "marine.issue.diameter",
+  "marine.issue.edgeThick",
   "marine.issue.ear",
   "marine.issue.hubDia",
   "marine.issue.hubLength",
+  "marine.issue.maxThickAt",
   "marine.issue.notNumber",
   "marine.issue.overlap",
   "marine.issue.pitch",
@@ -114,7 +116,8 @@
   "marine.issue.skew",
   "marine.issue.thick",
   "marine.issue.thickTip",
-  "marine.issue.thinTip"
+  "marine.issue.thinTip",
+  "marine.issue.tipRounding"
  ],
  "marine.preset.+": [
   "marine.preset.inboard4",
