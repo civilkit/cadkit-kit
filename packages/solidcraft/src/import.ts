@@ -407,6 +407,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const sketches = new Map<number | string, { id: string; entityOf: Map<string, string>; placed: Placed; plane: Record<string, unknown>; geo: Map<string, Geo>; json: { points: FeatureJson[]; entities: FeatureJson[] } }>();
   /** feature name (theirs) -> the ids of the features it made (ours), for patterns and mirrors */
   const named = new Map<string, string[]>();
+  /** Features that act on named bodies through a tool body of their own: what a mirror of them needs (the tool body is kept until it is mirrored). */
+  const targeted = new Map<string, { tool: string; op: string; targets: string[] }>();
+  const mirroredFeatures = new Set<string>(((doc.features as Rec[]) ?? []).filter((x) => x.type === 'mirror').flatMap((x) => (x.features as string[] | undefined) ?? []));
   /** Their feature id -> our id of the extrude it became, for the names the file gives to caps (`F2:top`). */
   const ourExtrude = new Map<number, string>();
   /** construction planes by name (their frames) */
@@ -440,7 +443,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       named.forEach(alive);
       const tool = `__tool${n + 1}`, cop = op === 'join' ? 'union' : op;
       newName = tool;
-      after = named.map((t, i) => () => ({ type: 'combine', id: nid(), name: `${f.name}${named.length > 1 ? ` (${t})` : ''}`, op: cop, target: { body: t }, tools: [{ body: tool }], keepTools: i < named.length - 1 }));
+      const keep = mirroredFeatures.has(String(f.name));
+      if (keep) targeted.set(String(f.name), { tool, op: cop, targets: [...named] });
+      after = named.map((t, i) => () => ({ type: 'combine', id: nid(), name: `${f.name}${named.length > 1 ? ` (${t})` : ''}`, op: cop, target: { body: t }, tools: [{ body: tool }], keepTools: i < named.length - 1 || keep }));
       return 'newBody';
     }
     throw new Unsupported(`operation "${op}" of "${f.name}"`);
@@ -894,10 +899,20 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         return [];
       }
       case 'mirror': {
-        const seeds = ((f.features as string[] | undefined) ?? []).flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`mirror of "${nm}", which was not imported`); })());
-        if (!seeds.length) throw new Unsupported('a mirror with nothing to mirror');
+        const names = (f.features as string[] | undefined) ?? [];
+        const plain = names.filter((nm) => !targeted.has(nm));
+        const seeds = plain.flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`mirror of "${nm}", which was not imported`); })());
+        if (!seeds.length && plain.length === names.length) throw new Unsupported('a mirror with nothing to mirror');
         const plane = planeRef(placeFrame(frameOf(f.plane)));
-        features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false });
+        if (seeds.length) features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false });
+        // a feature that worked on named bodies through a tool body: the tool body is mirrored (a copy about the plane), the original tool
+        // removed, and the mirrored tool does the same operation on the same bodies
+        for (const nm of names.filter((x) => targeted.has(x))) {
+          const t = targeted.get(nm)!, mt = `${t.tool}m`;
+          features.push({ type: 'moveBody', id: nid(), name: `${f.name} (${nm})`, bodies: [{ body: t.tool }], copy: true, body: mt, mirror: plane });
+          features.push({ type: 'deleteBody', id: nid(), name: `${f.name} (${nm} tool)`, mode: 'delete', bodies: [{ body: t.tool }] });
+          t.targets.forEach((tg, i) => features.push({ type: 'combine', id: nid(), name: `${f.name} (${nm}${t.targets.length > 1 ? `, ${tg}` : ''})`, op: t.op, target: { body: tg }, tools: [{ body: mt }], keepTools: i < t.targets.length - 1 }));
+        }
         return [];
       }
       case 'pattern': {
