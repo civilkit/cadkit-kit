@@ -808,7 +808,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         const points = (f.edges as V3[] | undefined)?.map(toYUp);   // the edge positions are in their Z-up world
         if (!points?.length) throw new Unsupported('no edge positions in the file');
         // the stored direction of each edge: when a parameter changed after the pick, the point is off the body but the line is not
-        let hints = (f.edge_refs as Rec[] | undefined)?.map((r, i): EdgeHint | undefined => {
+        let hints = points.map((_, i): EdgeHint | undefined => {
+          const r = (f.edge_refs as Rec[] | undefined)?.[i];
           const d = r?.dir as V3 | undefined, lo = r?.min as V3 | undefined, hi = r?.max as V3 | undefined;
           const h: EdgeHint = {};
           if (d && Math.hypot(d[0], d[1], d[2]) > 0.5) h.dir = toYUp(d);

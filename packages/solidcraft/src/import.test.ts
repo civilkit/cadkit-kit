@@ -305,6 +305,20 @@ describe('planes, extents and features beyond the basics', () => {
     expect(F(whole).at(-1)!.regions).toEqual(['e1', 'e2', 'e3', 'e4']);
     expect(F(whole).filter((x) => x.type === 'sketch')).toHaveLength(1);
   });
+  it('an edge the file names by its two faces gets those names as a hint for when its stored position is stale', async () => {
+    const seen: unknown[] = [];
+    const resolver: EdgeResolver = async (_p, pts, hints) => { seen.push(hints?.[0]?.faces); return pts.map((p) => ({ faces: ['a', 'b'], at: p })); };
+    const d = doc([
+      sq(1, 'B', { type: 'origin', name: 'XY' }), ext(2, 1, { extent: { direction: 'positive', distance: '10' } }),
+      { id: 3, name: 'Round', type: 'fillet', suppressed: false, edges: [[10, 5, 10]], edge_names: ['F2:side:l1|F2:start'], radius: '1' },
+      { id: 4, name: 'Odd', type: 'fillet', suppressed: false, edges: [[10, 5, 10]], edge_names: ['F6:inner:F2:side:l1|F2:start'], radius: '1' },
+    ]);
+    const r = await importSolidcraftDocument(d, 'm', { resolver });
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'converted']);
+    const ext2 = F(r).find((x) => x.type === 'extrude')!.id;
+    expect(seen[0]).toEqual([{ prefix: `${ext2}.S.e1` }, { prefix: `${ext2}.C0` }]);
+    expect(seen[1]).toBeUndefined();   // a name of another form gives no hint
+  });
   it('revolve about the sketch axis, loft, rectangular pattern, chamfer, shell and offset face', async () => {
     const calls: unknown[][] = [];
     const resolver: EdgeResolver = async (_p, pts) => { calls.push(pts); return pts.map((p) => ({ faces: ['a', 'b'], at: p })); };
