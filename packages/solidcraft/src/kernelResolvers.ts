@@ -23,15 +23,28 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
       const out: Array<Record<string, unknown> | null> = points.map((_, i) => found[i]?.matches?.[0]?.ref ?? null);
       // a point that is off the body: the straight edge parallel to the stored direction whose line passes through it, if there is one
       if (out.some((r, i) => !r && hints?.[i]?.dir)) {
-        const edges = (await s.bodyForView())?.edges ?? [];
+        const viewEdges = (await s.bodyForView())?.edges ?? [];
+        // the straight edges of one body as end points (bodies can lie on one another, so the view edges alone are ambiguous)
+        const ofBody = new Map<string, Array<{ pts: number[][] }>>();
+        for (const b of new Set(hints?.map((h) => h?.body))) {
+          if (!b) continue;
+          const all = (await s.resolve([{ kind: 'edge', curve: 'line', body: b }])) as unknown as Array<{ matches?: Array<{ mid: number[]; dir?: string; length: number }> }>;
+          ofBody.set(b, (all[0]?.matches ?? []).flatMap((m) => {
+            const d = axisLabel(m.dir) ?? ((/^\(([^)]*)\)$/.exec(m.dir ?? '')?.[1] ?? '').split(',').map(Number) as number[]);
+            if (d.length !== 3 || d.some((v) => !Number.isFinite(v))) return [];
+            const l = m.length / 2;
+            return [{ pts: [[0, 1, 2].map((k) => m.mid[k] - d[k] * l), [0, 1, 2].map((k) => m.mid[k] + d[k] * l)] }];
+          }));
+        }
         for (let i = 0; i < points.length; i++) {
           const d = hints?.[i]?.dir;
           if (out[i] || !d) continue;
           const dl = Math.hypot(d[0], d[1], d[2]);
+          const edges = (hints?.[i]?.body ? ofBody.get(hints[i]!.body!) : undefined) ?? viewEdges;
           const near = edges.filter((e) => {
             if (e.pts.length !== 2) return false;
             const a = e.pts[0], b = e.pts[1], t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], tl = Math.hypot(t[0], t[1], t[2]);
-            if (tl < 1e-9 || Math.abs((t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) / (tl * dl)) < 1 - 1e-6) return false;
+            if (tl < 1e-9 || Math.abs((t[0] * d[0] + t[1] * d[1] + t[2] * d[2]) / (tl * dl)) < 1 - (hints?.[i]?.body ? 1e-4 : 1e-6)) return false;
             const w = [points[i][0] - a[0], points[i][1] - a[1], points[i][2] - a[2]];
             const along = (w[0] * t[0] + w[1] * t[1] + w[2] * t[2]) / (tl * tl);
             const off = Math.hypot(w[0] - along * t[0], w[1] - along * t[1], w[2] - along * t[2]);
