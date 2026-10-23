@@ -60,7 +60,7 @@ import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
-import { importSolidcraft, type EdgeResolver as ScEdgeResolver, type ScPart } from '@kit/solidcraft';
+import { importSolidcraft, type EdgeResolver as ScEdgeResolver, type FaceResolver as ScFaceResolver, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -773,10 +773,17 @@ function App() {
     const found = (await s.resolve(points.map((p) => ({ kind: 'edge', near: p, within: 1e-3 })))) as unknown as Array<{ matches?: Array<{ ref?: Record<string, unknown> }> }>;
     return points.map((_, i) => found[i]?.matches?.[0]?.ref ?? null);
   };
+  /** The same for faces (shell, offset face): the face nearest each position, taken only when it is clearly the nearest. */
+  const scFaceResolver: ScFaceResolver = async (partBefore, points) => {
+    const s = new Session(partBefore as unknown as PartDoc, await kernelRouter.transport(), 'import', 'solidcraft-import');
+    await s.verify();
+    const found = (await s.resolve(points.map((p) => ({ kind: 'face', near: p })))) as unknown as Array<{ matches?: Array<{ ref?: { id?: string } }> }>;
+    return points.map((_, i) => (found[i]?.matches?.length === 1 ? found[i].matches![0].ref?.id ?? null : null));
+  };
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const name = file.replace(/\.solidcraft$/i, '');
-    const r = await importSolidcraft(bytes, name, { resolver: scResolver });
+    const r = await importSolidcraft(bytes, name, { resolver: scResolver, faceResolver: scFaceResolver });
     if (!r.part) { store.notify(t('files.solidcraft.failed', { name: file, message: r.refused ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part as ScPart), { file: null });
     viewport?.fit();
