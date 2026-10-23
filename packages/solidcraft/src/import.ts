@@ -37,9 +37,9 @@ export interface ScImport {
 /** Resolves points on the body built so far to kernel edge references ({faces, at}); null for a point that matches no edge. */
 export type EdgeResolver = (partBefore: ScPart, points: V3[], hints?: Array<EdgeHint | undefined>) => Promise<Array<Record<string, unknown> | null>>;
 /** What else the file says about an edge, for when its stored position no longer lies on the body (a parameter changed after it was picked): the direction of the edge, in our world. */
-export interface EdgeHint { dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
+export interface EdgeHint { /** the body the edge is on, when the file names one: bodies can lie on one another, so the position alone does not tell */ body?: string; dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
 /** The same for a face the file names as the start or end cap of an extrude (`F2:top`): our id of that extrude and which cap. */
-export interface FaceHint { cap: { feature: string; end: 'start' | 'end' } }
+export interface FaceHint { body?: string; cap?: { feature: string; end: 'start' | 'end' } }
 /** Resolves points on faces of the body built so far to our face names ("F2.S.e1"); null for a point that matches no single face. */
 export type FaceResolver = (partBefore: ScPart, points: V3[], hints?: Array<FaceHint | undefined>) => Promise<Array<string | null>>;
 /** The rim of a shell, found by a point on it: the face's name, its outward normal and its outlines (closed polylines in our world, line edges only; null when any edge is curved). */
@@ -753,7 +753,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         const points = (f.edges as V3[] | undefined)?.map(toYUp);   // the edge positions are in their Z-up world
         if (!points?.length) throw new Unsupported('no edge positions in the file');
         // the stored direction of each edge: when a parameter changed after the pick, the point is off the body but the line is not
-        const hints = (f.edge_refs as Rec[] | undefined)?.map((r): EdgeHint | undefined => {
+        let hints = (f.edge_refs as Rec[] | undefined)?.map((r): EdgeHint | undefined => {
           const d = r?.dir as V3 | undefined, lo = r?.min as V3 | undefined, hi = r?.max as V3 | undefined;
           const h: EdgeHint = {};
           if (d && Math.hypot(d[0], d[1], d[2]) > 0.5) h.dir = toYUp(d);
@@ -761,8 +761,10 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
             const a = toYUp(lo), b = toYUp(hi);
             h.box = { min: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])] };
           }
-          return h.dir || h.box ? h : undefined;
+          if (typeof f.body === 'string') h.body = f.body;
+          return h.dir || h.box || h.body ? h : undefined;
         });
+        if (!hints && typeof f.body === 'string') hints = points.map(() => ({ body: f.body as string }));
         const refs = await opts.resolver(part(), points, hints).catch(() => null);
         if (!refs || !refs.every(Boolean)) throw new Unsupported('an edge was not found on the body built so far');
         if (f.type === 'fillet') features.push({ type: 'fillet', id: nid(), name: f.name, radius: num(f.radius, 'fillet radius'), edges: refs });
@@ -778,11 +780,13 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         const points = (f.faces as V3[] | undefined)?.map(toYUp);
         if (!points?.length) throw new Unsupported('no face positions in the file');
         // `F2:top` and `F2:start` name the end and start cap of extrude 2: found by name when the stored point is off the body
-        const hints = (f.face_names as string[] | undefined)?.map((n): FaceHint | undefined => {
+        let hints = (f.face_names as string[] | undefined)?.map((n): FaceHint | undefined => {
           const m = /^F(\d+):(top|start)$/.exec(n ?? '');
           const mine = m ? ourExtrude.get(Number(m[1])) : undefined;
-          return m && mine ? { cap: { feature: mine, end: m[2] === 'top' ? 'end' : 'start' } } : undefined;
+          const body = typeof f.body === 'string' ? f.body : undefined;
+          return m && mine ? { ...(body ? { body } : {}), cap: { feature: mine, end: m[2] === 'top' ? 'end' : 'start' } } : body ? { body } : undefined;
         });
+        if (!hints && typeof f.body === 'string') hints = points.map(() => ({ body: f.body as string }));
         const names = await opts.faceResolver(part(), points, hints).catch(() => null);
         if (!names || !names.every(Boolean)) throw new Unsupported('a face was not found, or not found uniquely, on the body built so far');
         if (f.type === 'shell') {

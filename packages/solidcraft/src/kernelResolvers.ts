@@ -10,16 +10,16 @@ type Match = { name: string; ref?: Record<string, unknown> & { id?: string }; no
 
 export function kernelResolvers(open: (part: ScPart) => Promise<Session>): KernelResolvers {
   /** The faces the kernel lists and its view edges: what is needed to find the face a position lies on. */
-  const faceData = async (part: ScPart) => {
+  const faceData = async (part: ScPart, body?: string) => {
     const s = await open(part);
-    const all = (await s.resolve([{ kind: 'face' }])) as unknown as Array<{ matches?: Match[] }>;
+    const all = (await s.resolve([{ kind: 'face', ...(body ? { body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
     const view = await s.bodyForView();
     return { faces: (all[0]?.matches ?? []).map((m) => ({ name: m.name, normal: m.normal, centroid: m.centroid })), edges: view?.edges ?? [] };
   };
   return {
     resolver: async (part, points, hints) => {
       const s = await open(part);
-      const found = (await s.resolve(points.map((p) => ({ kind: 'edge', near: p, within: 1e-3 })))) as unknown as Array<{ matches?: Match[] }>;
+      const found = (await s.resolve(points.map((p, i) => ({ kind: 'edge', near: p, within: 1e-3, ...(hints?.[i]?.body ? { body: hints[i]!.body } : {}) })))) as unknown as Array<{ matches?: Match[] }>;
       const out: Array<Record<string, unknown> | null> = points.map((_, i) => found[i]?.matches?.[0]?.ref ?? null);
       // a point that is off the body: the straight edge parallel to the stored direction whose line passes through it, if there is one
       if (out.some((r, i) => !r && hints?.[i]?.dir)) {
@@ -38,7 +38,7 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
             return off < 1e-3;
           });
           if (near.length !== 1) continue;
-          const m = (await s.resolve([{ kind: 'edge', near: [0, 1, 2].map((k) => (near[0].pts[0][k] + near[0].pts[1][k]) / 2), within: 1e-3 }])) as unknown as Array<{ matches?: Match[] }>;
+          const m = (await s.resolve([{ kind: 'edge', near: [0, 1, 2].map((k) => (near[0].pts[0][k] + near[0].pts[1][k]) / 2), within: 1e-3, ...(hints?.[i]?.body ? { body: hints[i]!.body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
           out[i] = m[0]?.matches?.[0]?.ref ?? null;
         }
       }
@@ -57,15 +57,17 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
           if (span < 1e-9) continue;
           const p = [...points[i]];
           p[k] = lo[k] + ((p[k] - b.min[k]) / span) * (hi[k] - lo[k]);
-          const m = (await s.resolve([{ kind: 'edge', near: p, within: 1e-3 }])) as unknown as Array<{ matches?: Match[] }>;
+          const m = (await s.resolve([{ kind: 'edge', near: p, within: 1e-3, ...(hints?.[i]?.body ? { body: hints[i]!.body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
           out[i] = m[0]?.matches?.[0]?.ref ?? null;
         }
       }
       return out;
     },
     faceResolver: async (part, points, hints) => {
-      const { faces, edges } = await faceData(part);
-      const out = points.map((p) => faceAtPoint(p, faces, edges));
+      // the faces of a named body only when the file names one (bodies can lie on one another)
+      const bodies = [...new Set(points.map((_, i) => hints?.[i]?.body))];
+      const data = new Map(await Promise.all(bodies.map(async (b) => [b, await faceData(part, b)] as const)));
+      const out = points.map((p, i) => { const d = data.get(hints?.[i]?.body)!; return faceAtPoint(p, d.faces, d.edges); });
       // a position that is off the body: the cap of the extrude the file names
       for (let i = 0; i < points.length; i++) {
         const cap = hints?.[i]?.cap;
