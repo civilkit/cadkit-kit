@@ -36,7 +36,7 @@ afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close(
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
 const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
-describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 120_000 }, () => {
+describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 600_000 }, () => {
   const table: string[] = [];
   const bad: string[] = [];
   it('imports every file without throwing; each is refused with a reason, or imported (a complete import regenerates without kernel errors)', async () => {

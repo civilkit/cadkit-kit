@@ -64,7 +64,9 @@ Extents: a **start offset** is the same sketch on an offset plane in the extrude
 
 Lettering is kept as text: a sketch that links glyph outlines to a string becomes our text entity (string, height, position, angle; the built-in sans stands in for their font, with a note), and an extrude that selects those outlines selects the text.
 
-Left out most often: a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern, sheet metal, and edges and faces that are not found on a body built differently from theirs.
+Pattern **along a path** (a line or arc, instances `spacing` apart, the first being the seed): kernel has no such pattern, so each instance is the seed's sketch moved along the path and extruded the same way. Only for round seeds (holes, round bosses); other seeds are reported.
+
+Left out most often: a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern of non-round seeds, sheet metal, and edges and faces that are not found on a body built differently from theirs.
 
 ## Not done
 

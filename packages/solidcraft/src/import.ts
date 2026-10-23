@@ -498,6 +498,67 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     return { notes };
   };
 
+  /**
+   * A pattern along a path, for round seeds (holes, round bosses): we have no such pattern, so each instance is the seed's sketch moved to
+   * its place on the path and extruded the same way. Instances are `spacing` apart along one line or arc, the first being the seed itself;
+   * the seed does not turn (round seeds look the same turned, so no orientation is needed).
+   */
+  const pathPattern = (f: Rec, pt: Rec): string[] => {
+    const ps = sketches.get(pt.path_sketch), curveIds = (pt.path as string[] | undefined) ?? [];
+    if (!ps || curveIds.length !== 1) throw new Unsupported(curveIds.length > 1 ? 'a path of several curves' : 'a path pattern whose path sketch was not imported');
+    const g = ps.geo.get(String(curveIds[0]));
+    if (!g || (g.type !== 'line' && g.type !== 'arc')) throw new Unsupported('a path that is not a line or an arc');
+    const count = num(pt.count, 'pattern count'), spacing = num(pt.spacing, 'pattern spacing');
+    if (!(count >= 2) || !(spacing > 0)) throw new Unsupported('a pattern with a single instance');
+    // where the path is, `s` along it, in the path sketch's own coordinates
+    let length: number, at: (s: number) => P2;
+    if (g.type === 'line') {
+      length = Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]);
+      at = (u) => [g.a[0] + ((g.b[0] - g.a[0]) * u) / length, g.a[1] + ((g.b[1] - g.a[1]) * u) / length];
+    } else {
+      const r = Math.hypot(g.a[0] - g.c[0], g.a[1] - g.c[1]), a0 = Math.atan2(g.a[1] - g.c[1], g.a[0] - g.c[0]);
+      let sweep = Math.atan2(g.b[1] - g.c[1], g.b[0] - g.c[0]) - a0;
+      while (sweep <= 1e-12) sweep += 2 * Math.PI;   // arcs run counter-clockwise from start to end
+      length = r * sweep;
+      at = (u) => [g.c[0] + r * Math.cos(a0 + u / r), g.c[1] + r * Math.sin(a0 + u / r)];
+    }
+    if ((count - 1) * spacing > length * (1 + 1e-6)) throw new Unsupported('a path shorter than its pattern');
+    const frame = (OUR_PLANE as Record<string, { x: V3; y: V3; z: V3 }>)[ps.placed.std];
+    const world = (q: P2): V3 => { const [x, y] = mapXY(ps.placed, q[0], q[1]); return [0, 1, 2].map((k) => x * frame.x[k] + y * frame.y[k] + ps.placed.offset * frame.z[k]) as V3; };
+    const origin = world(at(0));
+    const out: string[] = [];
+    for (const nm of (f.features as string[] | undefined) ?? []) {
+      const seedIds = named.get(nm);
+      if (!seedIds) throw new Unsupported(`pattern of "${nm}", which was not imported`);
+      for (const sid of seedIds) {
+        const ex = features.find((q) => q.id === sid);
+        const sk = ex && features.find((q) => q.type === 'sketch' && q.id === ex.sketch);
+        if (!ex || ex.type !== 'extrude' || !sk) throw new Unsupported(`a path pattern of "${nm}", which is not an extrude`);
+        // only what the extrude uses is repeated: its chosen profiles, or the whole sketch when it uses all of it
+        const chosen = Array.isArray(ex.regions) ? new Set(ex.regions as string[]) : null;
+        const ents = (sk.entities as FeatureJson[]).filter((e) => !chosen || chosen.has(e.id as string));
+        if (!ents.length || ents.some((e) => e.type !== 'circle')) throw new Unsupported(`a path pattern of "${nm}", which is not made of circles`);
+        const pl = sk.plane as { kind: string; id: string };
+        const base = pl.kind === 'std' ? { std: pl.id, offset: 0 } : (() => { const q = features.find((x) => x.type === 'plane' && x.id === pl.id); return q && q.mode === 'offset' && (q.base as { kind: string })?.kind === 'std' ? { std: (q.base as { id: string }).id, offset: Number(q.offset) } : null; })();
+        const sf = base && (OUR_PLANE as Record<string, { x: V3; y: V3; z: V3 }>)[base.std];
+        if (!base || !sf) throw new Unsupported(`a path pattern of "${nm}", whose sketch plane is not a standard or offset plane`);
+        for (let i = 1; i < count; i++) {
+          const p = world(at(i * spacing)), d: V3 = [p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]];
+          if (Math.abs(dot3(d, sf.z)) > 1e-6) throw new Unsupported(`a path that leaves the plane of "${nm}"`);
+          const dx = clean(dot3(d, sf.x)), dy = clean(dot3(d, sf.y));
+          const nsid = nid();
+          features.push({ type: 'sketch', id: nsid, name: `${f.name} ${i}`, plane: sk.plane, points: (sk.points as FeatureJson[]).map((q) => (q.id === 'O' ? { ...q } : { ...q, x: clean(Number(q.x) + dx), y: clean(Number(q.y) + dy) })), entities: JSON.parse(JSON.stringify(ents)), constraints: [], visible: false });
+          const nex = { ...ex, id: nid(), sketch: nsid, name: `${f.name} ${i}` };
+          features.push(nex);
+          out.push(nex.id as string);
+        }
+      }
+    }
+    if (!out.length) throw new Unsupported('a pattern with nothing to repeat');
+    named.set(f.name, out);
+    return [];
+  };
+
   const convert = async (f: Rec): Promise<string[]> => {
     switch (f.type) {
       case 'sketch': return sketchOf(f).notes;
@@ -697,6 +758,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
       }
       case 'pattern': {
         const pt = f.pattern as Rec | undefined;
+        if (pt?.type === 'path') return pathPattern(f, pt);
         if (pt?.type !== 'rectangular') throw new Unsupported(`a ${pt?.type ?? 'unknown'} pattern`);
         let cur = ((f.features as string[] | undefined) ?? []).flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`pattern of "${nm}", which was not imported`); })());
         if (!cur.length) throw new Unsupported('a pattern with nothing to repeat');
