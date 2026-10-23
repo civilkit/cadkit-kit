@@ -27,6 +27,7 @@ function expectedOf(f: string): { volume: number; area: number; min: V3; max: V3
 
 /** Complete imports on which the KERNEL (not the importer) fails today: reported in the table, not counted as failures. */
 const KNOWN_KERNEL_ISSUES: Record<string, string> = {
+  'cubeish-chamfer-too-large.solidcraft': 'blendOverflow on its last chamfer: the design is named for a chamfer that is too large, and a structured refusal is the right answer',
   'crazy-geom-cuts.solidcraft': 'booleanFailed (openEdge) on one of its near-coincident cuts: a stress design for exactly that',
 };
 

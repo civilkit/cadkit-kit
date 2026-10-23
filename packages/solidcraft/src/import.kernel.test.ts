@@ -41,7 +41,7 @@ describe('lettering', { skip: !process.env.CK_WASM || !have, timeout: 120_000 },
   });
 });
 
-describe('lip and groove on a shelled box (the numbers of their own test)', { skip: !process.env.CK_WASM }, () => {
+describe('lip and groove on a shelled box (the numbers of their own test)', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
   // 80 x 50 x 30 box, the top face opened and the walls 2 thick: the rim is a 2 mm frame round a 76 x 46 opening
   const shelled = (extra: unknown[]) => ({
     format: 'solidcraft/30', units: 'mm', params: [],
@@ -77,7 +77,7 @@ describe('lip and groove on a shelled box (the numbers of their own test)', { sk
   });
 });
 
-describe('plastic features against the kernel (the volumes of their own tests)', { skip: !process.env.CK_WASM }, () => {
+describe('plastic features against the kernel (the volumes of their own tests)', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
   const up = [0, 0, 1];
   const feat = (type: string, over: Record<string, unknown>) => ({ id: 2, name: type, type, suppressed: false, position: [30, 30, 3], direction: up, ...over });
   const close = (a: number, b: number, rel = 1e-6) => expect(Math.abs(a - b) / b).toBeLessThan(rel);

@@ -236,8 +236,15 @@ describe('planes, extents and features beyond the basics', () => {
     const neg = (await cut({ direction: 'positive', distance: '-100' })).at(-1)!;
     const same = (await cut({ direction: 'negative', distance: '100' })).at(-1)!;
     expect(neg).toMatchObject({ depth: 100 }); expect(neg.flip).toBe(same.flip); expect(neg.depth).toBe(same.depth);
-    const bad = await importSolidcraftDocument(doc([...base, ext(4, 3, { operation: 'cut', extent: { direction: 'positive', distance: '4', to: [1, 2, 3] } }), ext(5, 3, { operation: 'cut', extent: { direction: 'positive', distance: '4', start_offset: '2' } }), ext(6, 3, { operation: 'cut', extent: { direction: 'positive', distance: '0' } })]), 'x');
-    expect(bad.rows.slice(3).map((x) => x.status)).toEqual(['unsupported', 'unsupported', 'unsupported']);
+    const bad = await importSolidcraftDocument(doc([...base, ext(4, 3, { operation: 'cut', extent: { direction: 'positive', distance: '4', to: [1, 2, 3] } }), ext(6, 3, { operation: 'cut', extent: { direction: 'positive', distance: '0' } })]), 'x');
+    expect(bad.rows.slice(3).map((x) => x.status)).toEqual(['converted', 'unsupported']);
+    expect((bad.rows[3].notes ?? []).join(' ')).toMatch(/stops at a face/);
+    // a start offset moves the sketch along the extrude direction: a copy of it on an offset plane, depth unchanged
+    const off = await importSolidcraftDocument(doc([...base, ext(4, 3, { operation: 'cut', extent: { direction: 'positive', distance: '4', start_offset: '2' } })]), 'x');
+    expect(off.rows[3].status).toBe('converted');
+    const moved = off.part!.features.filter((q) => q.type === 'plane');
+    expect(moved.at(-1)).toMatchObject({ mode: 'offset', offset: 2 });
+    expect(off.part!.features.at(-1)).toMatchObject({ type: 'extrude', depth: 4 });
   });
   it('a profile that uses only part of a longer line gets its own outline; a whole loop keeps selecting by curve', async () => {
     // an outer 70 x 84 rectangle with two horizontal lines across at y = -31 and y = 31; the strip between them is chosen by l1, l5, l4, l7

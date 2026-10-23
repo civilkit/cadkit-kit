@@ -526,15 +526,39 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         const conv = f.extent?.convention ?? 'total_distance';
         if (conv !== 'total_distance') throw new Unsupported(`extrude extent "${conv}"`);
         if (f.extent.direction !== 'positive' && f.extent.direction !== 'negative') throw new Unsupported(`extrude direction "${f.extent.direction}"`);
-        if (f.extent.to !== undefined) throw new Unsupported('an extrude that stops at a point or face');
-        if (f.extent.start_offset !== undefined) throw new Unsupported('an extrude that starts offset from its sketch');
         // a negative distance runs the other way: "-100 mm" going positive is 100 mm going negative
         const dist = f.extent.through_all ? 0 : num(f.extent.distance, 'extrude distance');
-        const forward = (f.extent.direction === 'positive') !== (dist < 0);
+        let forward = (f.extent.direction === 'positive') !== (dist < 0);
         if (!f.extent.through_all && Math.abs(dist) < 1e-12) throw new Unsupported('an extrude of zero distance');
-        features.push(extrudeOf(f, sk.id, f.extent.through_all ? 'through' : Math.abs(dist), forward, s.placed.sign, regions));
+        // an extent "to" a point or face: the extrude runs to the plane through that point that is parallel to the sketch (the usual
+        // target, a face facing the sketch). The depth is fixed here at what it reaches now; the stored distance is only the value the
+        // file last had and is not used when it differs.
+        let reachDepth: number | undefined;
+        const stops: string[] = [];
+        if (f.extent.to !== undefined) {
+          const to = f.extent.to as V3 | undefined, fr = (OUR_PLANE as Record<string, { z: V3 } | undefined>)[s.placed.std];
+          if (!Array.isArray(to) || !fr || f.extent.through_all) throw new Unsupported('an extrude that stops at a point or face');
+          const startAt = f.extent.start_offset !== undefined ? num(f.extent.start_offset, 'start offset') : 0;
+          // the direction follows the target: towards the plane through the point, whatever the stored direction says
+          const gap = dot3(toYUp(to), fr.z) - s.placed.offset;
+          reachDepth = Math.abs(gap) - startAt;
+          if (!(reachDepth > 1e-9)) throw new Unsupported('an extrude whose target lies at or before its start');
+          forward = gap * s.placed.sign > 0;
+          stops.push(`${f.name}: stops at a face; imported as the fixed depth ${+reachDepth.toFixed(4)} it reaches now${Math.abs(reachDepth - Math.abs(dist)) > 1e-3 * Math.max(1, Math.abs(dist)) ? ` (the stored distance ${Math.abs(dist)} is not used)` : ''}`);
+        }
+        // a start offset moves the profile along the extrude direction before it is extruded: the same sketch on an offset plane
+        const startOffset = f.extent.start_offset !== undefined ? num(f.extent.start_offset, 'start offset') : 0;
+        if (Math.abs(startOffset) > 1e-12) {
+          const src = features.find((q) => q.type === 'sketch' && q.id === sk.id);
+          if (!src) throw new Unsupported('an offset start for a sketch that cannot be copied');
+          const moved: Placed = { ...s.placed, offset: s.placed.offset + (forward ? 1 : -1) * s.placed.sign * startOffset };
+          const nsid = nid();
+          features.push({ type: 'sketch', id: nsid, name: `${f.name} start`, plane: planeRef(moved), points: JSON.parse(JSON.stringify(src.points)), entities: JSON.parse(JSON.stringify(src.entities)), constraints: [], visible: false });
+          sk = { ...s, id: nsid };
+        }
+        features.push(extrudeOf(f, sk.id, f.extent.through_all ? 'through' : (reachDepth ?? Math.abs(dist)), forward, s.placed.sign, regions));
         named.set(f.name, [features[features.length - 1].id as string]);
-        return [];
+        return stops;
       }
       case 'box': {
         // a rectangle on their XY plane at z = corner z, extruded up
