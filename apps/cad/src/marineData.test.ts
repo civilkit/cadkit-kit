@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MARINE, MARINE_SAMPLE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
-  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, BACK_POINTS, EDGE_MIN_MM, backFractions, calmOffsets, chordAngle, chordFraction, edgeFraction, foilMean, foilProfile, thicknessLocal, OUTLINE_MIN_DEG, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
+  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, BACK_POINTS, EDGE_MIN_MM, backFractions, calmOffsets, chordAngle, chordFraction, edgeFraction, foilMean, foilProfile, thicknessLocal, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
 } from './marineData';
 import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
 
@@ -542,16 +542,14 @@ describe('marine propeller: foil sections, tip rounding, smoother outline', () =
     expect(Math.max(...c)).toBeLessThan(Math.max(...spiky));
     expect(Math.min(...c)).toBeGreaterThan(0.29);
   });
-  it('the outline refinement inserts rays where the tip-side end radius jumps (the tip corners) but keeps the spacing at least 1 degree and the hub ends clear; the stations stay ordered', () => {
+  it('the section spacing is uniform (extra rays around the rim corners left creases across the face): ordered stations, no gap above the spacing, gaps within a tenth of a spacing of each other', () => {
     for (const o of [{}, { tipRounding: 0 }, { tipRounding: 0.4 }, { blades: 5, ear: 0.8, rootRatio: 0.4, skew: 25 }]) {
       const p = P(o), st = helicoidStations(p);
+      expect(p.raySpacing).toBe(3);
       for (let i = 1; i < st.phi.length; i++) { expect(st.phi[i]).toBeGreaterThan(st.phi[i - 1]); expect(st.phi[i] - st.phi[i - 1]).toBeLessThanOrEqual(rad5(p.raySpacing) + 1e-9); }
       const gaps = st.phi.slice(1).map((x, i) => x - st.phi[i]);
-      expect(Math.min(...gaps)).toBeGreaterThanOrEqual((OUTLINE_MIN_DEG * Math.PI) / 180 / 2 - 1e-9);
+      expect(Math.max(...gaps) - Math.min(...gaps)).toBeLessThan(rad5(p.raySpacing) * 0.1 + 1e-9);
     }
-    // some outline needs the extra rays: a section count above the uniform grid's (range / spacing + 1) for at least one of the shapes
-    const extra = [{}, { tipRounding: 0.4 }, { skew: 35 }].map((o) => { const p = P(o), st = helicoidStations(p); return st.psi.length - (Math.ceil((st.phi[st.phi.length - 1] - st.phi[0]) / rad5(5)) + 1); });
-    expect(Math.max(...extra)).toBeGreaterThanOrEqual(0);
   });
   it('the record round-trips with the new fields; an old record without them reads with the new defaults', () => {
     const p = P({ maxThickAt: 0.5, edgeThick: 0.1, tipRounding: 0.25, hubLength: 120 });
