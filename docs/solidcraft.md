@@ -39,7 +39,7 @@ Each feature gets a row: converted, unsupported (with the reason) or skipped (su
 
 - An unsupported feature stays in the tree as a suppressed `importedUnsupported` feature that carries the original JSON, so the tree still regenerates and nothing is lost silently. Its dependants are reported too ("depends on sketch 5, which was not imported"). The geometry is partial and the notice says so.
 - A constraint kind we do not carry, or one with no usable value or that names a curve that is not in the sketch (lettering outlines), is dropped and counted in a note; the geometry is kept as stored. Every constraint in the 22 corpus files is carried.
-- A file that is refused as a whole is not opened and the open part is left alone: not a zip, no `document.json`, unknown format tag, units other than mm, or an **assembly** (components and occurrences).
+- A file that is refused as a whole is not opened and the open part is left alone: not a zip, no `document.json`, unknown format tag, units other than mm.
 - A second `new_body` in one document is unsupported: the kit keeps one connected body per part.
 
 A malformed feature (a curve pointing at a missing point, say) is an unsupported row, not an error.
@@ -54,7 +54,7 @@ Run over the project's 22 sample files (the 19 in its repository plus the 3 from
 
 - **Import completely (15).** Nine match the volume (and bounding box where it is saved) their own evaluator saved: `issue-489-stacked-join`, `issue-616-lid-ribs`, `m0-box-fillet-hole`, `m0-revolve-primitives`, `modern-path-pattern`, `modern-plastic`, `move-bodies`, `naming-split-pieces` and `split-body-pieces`. Sample Plate and the slot file are checked against closed-form volumes (the slot by hand: the stadium minus half an end cap). `pi-case`, `pi-case-0.8` (with its lettering), `logo-up-down-join` and `battery-tpu-case` import with no feature left out and have no saved numbers. `crazy-geom-cuts` and `cubeish-chamfer-too-large` import completely but one operation fails in our kernel (`booleanFailed` on near-coincident cuts; a deliberately too-large chamfer, `blendOverflow`); both are listed as known in the corpus test.
 - **In part (2):** `battery-tpu-case-v2` (three fillets whose edges are not found, and what depends on them), `modern-sheet-metal` (sheet metal).
-- **Refused as assemblies (3):** the hinge sample, `joints-hinge`, `components-arm`.
+- **Components and occurrences:** each component becomes a part of its own, inserted once per occurrence (`insertPart`, placed by the occurrence's transform, `fixed` when grounded). Features of no component stay in the main part. A joint is reported as skipped: the saved transforms already include the joint value, so the pose is right, but the joint and its motion are not carried over (no `mate`). `components-arm` and `joints-hinge` import completely (the hinge matches their volume to 6e-5 and their box).
 
 **Several bodies** (kernel ADR 0004): when a file names bodies (a target, `move`, `combine`, `remove`, `intersect`) or makes more than one, every new body is a named `newBody` lump (unnamed ones are `Body1`, `Body2`, ... in creation order, as in their app). A join, cut or intersect limited to named bodies becomes the shape as a body of its own plus a `combine` with each target. `move` becomes `moveBody` (rotation about the world origin, then translation; a copy takes its name), `combine` and `remove` map one to one. A file of a single body keeps the plain `add`. Needs the kernel with `newBody`.
 
@@ -68,7 +68,7 @@ Lettering is kept as text: a sketch that links glyph outlines to a string become
 
 Pattern **along a path** (a line or arc, instances `spacing` apart, the first being the seed): kernel has no such pattern, so each instance is the seed's sketch moved along the path and extruded the same way. Only for round seeds (holes, round bosses); other seeds are reported.
 
-Left out most often: sheet metal, assemblies, a path pattern of non-round seeds, and edges and faces that are not found on a body built differently from theirs.
+Left out most often: sheet metal, joints (as mates), a path pattern of non-round seeds, and edges and faces that are not found on a body built differently from theirs.
 
 ## Not done
 

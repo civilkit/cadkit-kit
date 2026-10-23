@@ -306,9 +306,49 @@ export async function importSolidcraft(bytes: Uint8Array, name = 'SolidCraft par
 /** The same from an already parsed document.json. */
 export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part', opts: ImportOpts = {}): Promise<ScImport> {
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.features)) return refuse(name, 'document.json has no feature list');
+  if (doc.occurrences?.length) return importComponents(doc, name, opts);
+  return importOne(doc, name, opts);
+}
+
+const row4 = (m: number[][], i: number): V3 => [m[i][0], m[i][1], m[i][2]];
+
+/** Components become inserted parts: each component's features are imported as a part of its own, the root features stay in the main part, and every occurrence is an `insertPart` placed by its transform (rows are images of the axes, translation in the last row). */
+async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
+  const comps = new Map<number, Rec>((doc.components ?? []).map((c: Rec) => [c.id as number, c]));
+  const sub = (component: number | undefined): Rec => ({ ...doc, components: undefined, occurrences: undefined, assembly: undefined, features: (doc.features as Rec[]).filter((f) => f.component === component) });
+  const root = await importOne(sub(undefined), name, opts);
+  if (!root.part) return root;
+  const rows = [...root.rows];
+  const features = [...root.part.features];
+  let seq = root.part.seq;
+  const used = new Set<string>(features.map((f) => String(f.id)));
+  const nid = () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); return id; };
+  const parts = new Map<number, ScImport>();
+  for (const occ of doc.occurrences as Rec[]) {
+    const comp = comps.get(occ.component as number);
+    const cname = String(comp?.name ?? `Component ${occ.component}`);
+    let imp = parts.get(occ.component as number);
+    if (!imp) {
+      imp = await importOne(sub(occ.component as number), cname, opts);
+      parts.set(occ.component as number, imp);
+      for (const r of imp.rows) rows.push({ ...r, name: `${cname}: ${r.name}` });
+    }
+    if (!imp.part) { rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'unsupported', reason: imp.refused ?? 'the component could not be imported' }); continue; }
+    const m = occ.transform as number[][];
+    const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = toYUp(row4(m, 2)), ez = toYUp(row4(m, 1)).map((x) => clean(-x)) as V3;
+    features.push({ type: 'insertPart', id: nid(), name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
+    rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'converted' });
+  }
+  // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; the joint itself is not carried over
+  for (const j of (doc.assembly?.joints ?? []) as Rec[]) rows.push({ id: `joint ${j.id}`, name: String(j.name ?? 'Joint'), type: `${j.kind ?? ''} joint`.trim(), status: 'skipped', reason: 'kept as the pose it was saved in; the joint (and so its motion) is not imported' });
+  const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
+  const unsupported = count('unsupported');
+  return { name, part: { format: 'ck-part', version: 1, name, features, seq }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
+}
+
+async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
   if (!/^solidcraft\/\d+$/.test(String(doc.format ?? ''))) return refuse(name, `unknown document format "${doc.format}"`);
   if (doc.units && doc.units !== 'mm') return refuse(name, `units are ${doc.units}; only mm is supported`);
-  if (doc.assembly || doc.occurrences?.length) return refuse(name, `assemblies are not supported (${doc.occurrences?.length ?? 0} occurrences in ${doc.components?.length ?? 0} components)`);
 
   const version = Number(String(doc.format).split('/')[1]);   // the file's format: some conventions changed between versions (XZ plane at 6, revolve start at 11)
   const originFrame = (n: string, d = 0): ScFrame => originFrameFor(n, d, version);

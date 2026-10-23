@@ -67,10 +67,20 @@ describe('sample plate (parameters, offset planes, a cut, a fillet)', { skip: !h
 });
 
 describe('what is refused or reported', () => {
-  it('an assembly is refused as a whole, with the counts', async () => {
-    const r = await importSolidcraftDocument({ format: 'solidcraft/30', units: 'mm', components: [{ id: 1 }, { id: 5 }], occurrences: [{ id: 2 }, { id: 6 }], assembly: { joints: [] }, features: [] }, 'hinge');
-    expect(r.part).toBeNull();
-    expect(r.refused).toMatch(/assemblies are not supported \(2 occurrences in 2 components\)/);
+  it('components become inserted parts placed by their occurrence transform (rows are the images of the axes, translation last); a joint is reported as skipped', async () => {
+    const box = { id: 3, name: 'Box1', type: 'box', component: 1, corner: [0, 0, 0], length: '10', width: '10', height: '10', operation: 'new_body' };
+    const r = await importSolidcraftDocument({
+      format: 'solidcraft/30', units: 'mm', features: [box], components: [{ id: 1, name: 'Leaf', parent: 0 }],
+      // turned 90 degrees about their X axis, then moved by (0, 29, 37)
+      occurrences: [{ id: 2, component: 1, name: 'Leaf:1', grounded: false, transform: [[1, 0, 0, 0], [0, 0, -1, 0], [0, 1, 0, 0], [0, 29, 37, 1]] }],
+      assembly: { joints: [{ id: 1, name: 'Hinge', kind: 'revolute' }] },
+    }, 'asm');
+    const ins = r.part!.features.find((f) => f.type === 'insertPart') as Record<string, any>;
+    expect(ins.fixed).toBe(false);
+    expect(ins.place).toEqual({ o: [0, 37, -29], x: [1, 0, 0], y: [0, 0, -1], z: [0, 1, 0] });
+    expect(ins.part.features.some((f: any) => f.type === 'extrude' || f.type === 'box')).toBe(true);
+    expect(r.rows.find((x) => x.name === 'Hinge')).toMatchObject({ status: 'skipped' });
+    expect(r.geometryComplete).toBe(true);
   });
   it('an older file is the bare JSON document, with or without a byte order mark', async () => {
     const json = JSON.stringify({ format: 'solidcraft/1', units: 'mm', params: [], features: [] });
