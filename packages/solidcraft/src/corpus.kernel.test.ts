@@ -37,7 +37,7 @@ const open = async (part: ScPart) => { const s = await Session.open(part as unkn
 const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
 // files that import with no feature left out: a regression to partial is a failure
-const MUST_BE_COMPLETE = new Set(['split-body-pieces', 'naming-split-pieces', 'move-bodies', 'logo-up-down-join', 'issue-489-stacked-join', 'issue-616-lid-ribs', 'm0-box-fillet-hole', 'm0-revolve-primitives', 'modern-path-pattern', 'modern-plastic', 'pi-case', 'pi-case-0.8', 'components-arm', 'joints-hinge', 'Sample Plate', 'slot-fillet-no-fillet']);
+const MUST_BE_COMPLETE = new Set(['split-body-pieces', 'naming-split-pieces', 'move-bodies', 'logo-up-down-join', 'issue-489-stacked-join', 'issue-616-lid-ribs', 'm0-box-fillet-hole', 'm0-revolve-primitives', 'modern-path-pattern', 'modern-plastic', 'pi-case', 'pi-case-0.8', 'components-arm', 'joints-hinge', 'Sample Plate', 'slot-fillet-no-fillet', 'modern-sheet-metal']);
 describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 600_000 }, () => {
   const table: string[] = [];
   const bad: string[] = [];

@@ -71,6 +71,9 @@ class Unsupported extends Error {}
  * SolidCraft is Z-up and this kit is Y-up, so every point of the file is rotated by -90 degrees about X: (x, y, z) -> (x, z, -y).
  * That is a proper rotation (no mirroring): their ground plane XY becomes our top plane, their up axis becomes ours.
  */
+/** Sheet metal: what a contour flange uses where the file is silent (see the `sheet_contour` case). */
+const SHEET_THICKNESS = 2.5, SHEET_BEND_RADIUS = 2.5;
+const SHEET_SIDE = 'inside';
 export const toYUp = (p: V3): V3 => [p[0], p[2], -p[1]];
 const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross3 = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -1096,6 +1099,53 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         }
         named.set(f.name, added);
         return [];
+      }
+      case 'sheet_contour': {
+        // A contour flange: a sheet of constant thickness along the path of the sketch, bent at its corners, as wide as `distance`.
+        // The file stores neither the thickness nor the bend radius (they are the app's settings); 2.5 mm and an inner bend radius of the same
+        // reproduce the volume, area and box its own evaluator saved for the one sample. The sheet lies to the right of the path, the way it runs.
+        const sk = sketches.get(f.sketch);
+        if (!sk) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : `refers to sketch ${f.sketch}, which is not in the file`);
+        const ids = Array.isArray(f.curves) ? (f.curves as unknown[]).map(String) : [];
+        if (!ids.length) throw new Unsupported('a contour flange without curves');
+        const lines = ids.map((c) => { const g = sk.geo.get(c); if (!g || g.type !== 'line') throw new Unsupported('a contour flange along something other than lines'); return g; });
+        for (let i = 1; i < lines.length; i++) if (!near2(lines[i - 1].b, lines[i].a)) throw new Unsupported('a contour flange whose curves do not run end to end');
+        const T = SHEET_THICKNESS, R = SHEET_BEND_RADIUS, W = num(f.distance, 'flange distance');
+        const dirs = lines.map((g): P2 => { const l = Math.hypot(g.b[0] - g.a[0], g.b[1] - g.a[1]); return [(g.b[0] - g.a[0]) / l, (g.b[1] - g.a[1]) / l]; });
+        // per corner: trim along both lines and the arc of the path (the path is the outer side of a bend that turns towards the sheet)
+        const corner = lines.slice(1).map((g, i) => {
+          const d1 = dirs[i], d2 = dirs[i + 1], cr = d1[0] * d2[1] - d1[1] * d2[0], th = Math.atan2(Math.abs(cr), d1[0] * d2[0] + d1[1] * d2[1]);
+          if (th < 1e-6) return null;
+          const rp = cr < 0 ? R + T : R, trim = rp * Math.tan(th / 2), v = g.a;
+          const p1: P2 = [v[0] - d1[0] * trim, v[1] - d1[1] * trim], p2: P2 = [v[0] + d2[0] * trim, v[1] + d2[1] * trim];
+          const nIn: P2 = cr > 0 ? [-d1[1], d1[0]] : [d1[1], -d1[0]];
+          return { trim, p1, p2, c: [p1[0] + nIn[0] * rp, p1[1] + nIn[1] * rp] as P2, left: cr > 0 };
+        });
+        const pts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }], ents: FeatureJson[] = [];
+        const pt = (q: P2): string => { const [x, y] = mapXY(sk.placed, q[0], q[1]); const id = `p${pts.length}`; pts.push({ id, x, y }); return id; };
+        let prev: string | undefined;
+        lines.forEach((g, i) => {
+          const before = i > 0 ? corner[i - 1] : null, after = i < corner.length ? corner[i] : null;
+          const a: P2 = before ? before.p2 : g.a, b: P2 = after ? after.p1 : g.b;
+          if ((b[0] - a[0]) * dirs[i][0] + (b[1] - a[1]) * dirs[i][1] < -1e-9) throw new Unsupported('a contour flange whose bends are larger than its flat parts');
+          const ia = prev ?? pt(a), ib = pt(b);
+          ents.push({ id: `e${ents.length + 1}`, type: 'line', p1: ia, p2: ib });
+          prev = ib;
+          if (after) {
+            const ic = pt(after.c), ip = pt(after.p2);
+            let [s1, s2] = after.left ? [ib, ip] : [ip, ib];   // counter-clockwise from start to end
+            if (mirrored(sk.placed)) [s1, s2] = [s2, s1];
+            ents.push({ id: `e${ents.length + 1}`, type: 'arc', c: ic, p1: s1, p2: s2 });
+            prev = ip;
+          }
+        });
+        const sid = nid();
+        features.push({ type: 'sketch', id: sid, name: `${f.name} path`, plane: sk.plane, points: pts, entities: ents, constraints: [], visible: false });
+        const ex = extrudeOf({ ...f, operation: bodies === 0 ? 'new_body' : 'join' }, sid, W, true, sk.placed.sign);
+        ex.thin = { thickness: T, side: SHEET_SIDE, ends: 'flat', cornerStyle: 'mitre' };
+        features.push(ex);
+        named.set(f.name, [ex.id as string]);
+        return [`thickness ${T} mm and inner bend radius ${R} mm are assumed: the file stores neither`];
       }
       default: throw new Unsupported(`feature type "${f.type}"`);
     }
