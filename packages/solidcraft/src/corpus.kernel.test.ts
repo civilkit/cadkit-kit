@@ -28,7 +28,6 @@ function expectedOf(f: string): { volume: number; area: number; min: V3; max: V3
 /** Complete imports on which the KERNEL (not the importer) fails today: reported in the table, not counted as failures. */
 const KNOWN_KERNEL_ISSUES: Record<string, string> = {
   'cubeish-chamfer-too-large.solidcraft': 'blendOverflow on its last chamfer: the design is named for a chamfer that is too large, and a structured refusal is the right answer',
-  'crazy-geom-cuts.solidcraft': 'booleanFailed (openEdge) on one of its near-coincident cuts: a stress design for exactly that',
 };
 
 const sessions: Session[] = [];
@@ -37,7 +36,7 @@ const open = async (part: ScPart) => { const s = await Session.open(part as unkn
 const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
 // files that import with no feature left out: a regression to partial is a failure
-const MUST_BE_COMPLETE = new Set(['split-body-pieces', 'naming-split-pieces', 'move-bodies', 'logo-up-down-join', 'issue-489-stacked-join', 'issue-616-lid-ribs', 'm0-box-fillet-hole', 'm0-revolve-primitives', 'modern-path-pattern', 'modern-plastic', 'pi-case', 'pi-case-0.8', 'components-arm', 'joints-hinge', 'Sample Plate', 'slot-fillet-no-fillet', 'modern-sheet-metal']);
+const MUST_BE_COMPLETE = new Set(['split-body-pieces', 'naming-split-pieces', 'move-bodies', 'logo-up-down-join', 'issue-489-stacked-join', 'issue-616-lid-ribs', 'm0-box-fillet-hole', 'm0-revolve-primitives', 'modern-path-pattern', 'modern-plastic', 'pi-case', 'pi-case-0.8', 'components-arm', 'joints-hinge', 'Sample Plate', 'slot-fillet-no-fillet', 'modern-sheet-metal', 'crazy-geom-cuts']);
 describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 600_000 }, () => {
   const table: string[] = [];
   const bad: string[] = [];
