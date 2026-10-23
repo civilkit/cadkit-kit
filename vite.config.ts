@@ -49,6 +49,7 @@ export default defineConfig(({ command }) => ({
       '@kit/platform': here('./packages/platform/src/index.ts'),
       '@kit/io': here('./packages/io/src/index.ts'),
       '@kit/fcstd': here('./packages/fcstd/src/index.ts'),
+      '@kit/solidcraft': here('./packages/solidcraft/src/index.ts'),
       '@kit/sketch': here('./packages/sketch/src/index.ts'),
       '@kit/script': here('./packages/script/src/index.ts'),
       '@kit/skill': here('./packages/skill/src/index.ts'),

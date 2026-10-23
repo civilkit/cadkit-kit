@@ -60,6 +60,7 @@ import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
+import { importSolidcraft, kernelResolvers, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -774,9 +775,31 @@ function App() {
     if (r.warnings.length) store.notify(t('files.fcstd.done', { name: file, features: r.steps.length, total, warnings: r.warnings.length, first: `${r.warnings[0].object}: ${r.warnings[0].message}` }), 'warn');
     else store.notify(t('files.fcstd.clean', { name: file, total }));
   });
-  /** Open a file by what it is: a part, STEP, DXF or FreeCAD; anything else gets a notice. `bytes` reads binary files. */
+  /** The kernel's answers for the importer (which edge, face or rim is at a position): the part built so far is regenerated on a scratch tag of its own, so the open part is untouched. */
+  const scResolvers = kernelResolvers(async (partBefore) => {
+    const s = new Session(partBefore as unknown as PartDoc, await kernelRouter.transport(), 'import', 'solidcraft-import');
+    await s.verify();
+    return s;
+  });
+  /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
+  const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
+    const name = file.replace(/\.solidcraft$/i, '');
+    const r = await importSolidcraft(bytes, name, scResolvers);
+    if (!r.part) { store.notify(t('files.solidcraft.failed', { name: file, message: r.refused ?? 'nothing to import' }), 'error'); return; }
+    await load(JSON.stringify(r.part as ScPart), { file: null });
+    // their app hides a sketch and a plane once a feature uses it: only the model is shown, as there (a view setting, not in the part)
+    lookStore.hidden.value = { body: false, ids: (r.part.features as Array<{ type: string; id: string }>).filter((x) => x.type === 'sketch' || x.type === 'plane').map((x) => x.id) };
+    viewport?.fit();
+    const total = r.rows.length - r.summary.skipped;
+    const bad = r.rows.filter((x) => x.status === 'unsupported');
+    if (bad.length) store.notify(t('files.solidcraft.done', { name: file, converted: r.summary.converted, total, first: `${bad[0].name}: ${bad[0].reason}`, more: bad.length > 1 ? ` (and ${bad.length - 1} more)` : '' }), 'warn');
+    else store.notify(t('files.solidcraft.clean', { name: file, total }));
+    if (r.summary.notes) store.notify(t('files.solidcraft.notes', { name: file, count: r.summary.notes }), 'warn');
+  });
+  /** Open a file by what it is: a part, STEP, DXF, FreeCAD or SolidCraft; anything else gets a notice. `bytes` reads binary files. */
   const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>) => {
     if (kind === 'fcstd') { if (bytes) void bytes().then((b) => importFcstdBytes(b, name)); return; }
+    if (kind === 'solidcraft') { if (bytes) void bytes().then((b) => importSolidcraftBytes(b, name)); return; }
     if (kind === 'skp') { if (bytes) void bytes().then((b) => importSkpBytes(b, name)); return; }
     if (kind === 'sldprt') { if (bytes) void bytes().then((b) => importSldprtBytes(b, name)); return; }
     if (kind === 'part') guarded(async () => { await load(await read(), { file: name }); });
@@ -837,7 +860,7 @@ function App() {
     script: () => showScript(),
     propeller: () => openPropeller(),
     impeller: () => openImpeller(),
-    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),

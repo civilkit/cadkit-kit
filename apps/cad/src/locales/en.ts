@@ -360,6 +360,7 @@ export const en: Catalog = {
   'feature.splitLine': 'Split line',
   'feature.moveFace': 'Move face',
   'feature.moveBody': 'Move or copy body',
+  'feature.importedUnsupported': 'Not imported',
   'feature.scale': 'Scale',
   'feature.axis': 'Axis',
 
