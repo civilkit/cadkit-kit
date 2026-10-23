@@ -57,7 +57,9 @@ Run over the project's 22 sample files (the 19 in its repository plus the 3 from
 
 Plastic features become ordinary sketches and extrudes, checked against the volumes of their own tests: a **boss** (draft, hole and hole depth; a fillet at its foot and ribs are reported, not guessed), a **rest** (rectangle, round, hollow, drafted), a **snap fit** (arm and triangular catch) and a **lip / groove** (a band along the inner or outer edge of a flat rim, read from the kernel's outline of the rim; a clearance `gap`, a rim with curved edges or a face without an inner edge are reported). A lip needs the kernel's rim resolver (`kernelResolvers`); without it the row says so.
 
-Left out most often: a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern, sheet metal, an extrude that stops at a point or starts offset from its sketch, edges and faces that are not found on a body built differently from theirs, and a `conic` sketch curve.
+Edges and faces are found by the position stored in the file. When a parameter changed after the pick (the file's own `height` is 32 but its fillet edges were stored at 24), the position is off the body, so the importer then tries, in order: the straight edge parallel to the stored direction whose line passes through the point; the point moved along the one axis on which the body's box differs from the box stored with the edge; and, for a face named as an extrude's start or end cap (`F2:top`), that cap by name.
+
+Left out most often: sketch text (`conic` curves), a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern, sheet metal, an extrude that stops at a point or starts offset from its sketch, edges and faces that are not found on a body built differently from theirs, and a `conic` sketch curve.
 
 ## Not done
 
