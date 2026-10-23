@@ -163,3 +163,21 @@ describe('joints', { skip: !process.env.CK_WASM || !have, timeout: 120_000 }, ()
     expect(f.box!.min[2]).toBeCloseTo(-37, 3); expect(f.box!.max[0]).toBeCloseTo(40, 3);
   });
 });
+
+describe('sheet metal', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
+  it('a contour flange is a bent sheet: 2.5 thick, inner bend radius 2.5, to the right of the path, as wide as its distance', async () => {
+    const pts = [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'l1.start', pos: [0, 0] }, { id: 'l1.end', pos: [40, 0] }, { id: 'l2.end', pos: [40, -30] }, { id: 'l3.end', pos: [70, -30] }];
+    const doc = {
+      format: 'solidcraft/1', units: 'mm', params: [],
+      features: [
+        { id: 1, name: 'Contour', type: 'sketch', suppressed: false, plane: { type: 'custom', plane: { origin: [0, 0, 0], x_dir: [1, 0, 0], y_dir: [0, 0, -1] } },
+          sketch: { points: pts, constraints: [], curves: [{ id: 'l1', type: 'line', a: 1, b: 2 }, { id: 'l2', type: 'line', a: 2, b: 3 }, { id: 'l3', type: 'line', a: 3, b: 4 }] } },
+        { id: 2, name: 'ContourFlange', type: 'sheet_contour', suppressed: false, sketch: 1, curves: ['l1', 'l2', 'l3'], distance: '50' },
+      ],
+    };
+    const { r, errors, volume } = await volumeOf(doc);
+    expect(r.geometryComplete).toBe(true);
+    expect(errors).toEqual([]);
+    expect(volume).toBeCloseTo(12097.62, 1);   // their evaluator saved 12097.48 for the sample (1e-5 apart)
+  });
+});
