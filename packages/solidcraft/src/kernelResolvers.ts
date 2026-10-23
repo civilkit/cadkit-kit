@@ -2,9 +2,9 @@
 // part built so far. The caller says how to open that session (the app uses a scratch tag of its own on the shared kernel; tests open a
 // kernel of their own), so this module holds no kernel of its own.
 import type { Session } from '@ck/session';
-import { axisLabel, faceAtPoint, faceOutlines, type EdgeResolver, type FaceResolver, type RimResolver, type ScPart } from './import';
+import { axisLabel, faceAtPoint, faceOutlines, type AxisFaceResolver, type EdgeResolver, type FaceResolver, type RimResolver, type ScPart } from './import';
 
-export interface KernelResolvers { resolver: EdgeResolver; faceResolver: FaceResolver; rimResolver: RimResolver }
+export interface KernelResolvers { axisFaceResolver: AxisFaceResolver; resolver: EdgeResolver; faceResolver: FaceResolver; rimResolver: RimResolver }
 
 type Match = { name: string; ref?: Record<string, unknown> & { id?: string }; normal?: string; centroid: number[] };
 
@@ -12,15 +12,40 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
   /** The faces the kernel lists and its view edges: what is needed to find the face a position lies on. */
   const faceData = async (part: ScPart, body?: string) => {
     const s = await open(part);
-    const all = (await s.resolve([{ kind: 'face', ...(body ? { body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
+    let all = (await s.resolve([{ kind: 'face', ...(body ? { body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
+    // a body the kernel does not know by that name (a piece of a split gets its own name in their file): all faces, by position alone
+    if (body && !all[0]?.matches?.length) all = (await s.resolve([{ kind: 'face' }])) as unknown as Array<{ matches?: Match[] }>;
     const view = await s.bodyForView();
     return { faces: (all[0]?.matches ?? []).map((m) => ({ name: m.name, normal: m.normal, centroid: m.centroid })), edges: view?.edges ?? [] };
   };
   return {
+    axisFaceResolver: async (part, picks) => {
+      const s = await open(part);
+      const all = (await s.resolve([{ kind: 'face', surface: 'cylinder' }])) as unknown as Array<{ matches?: Array<Match & { axis?: string; radius?: number }> }>;
+      const cyl = all[0]?.matches ?? [];
+      return picks.map((p) => {
+        // a cylinder's reported centre lies on its surface: the pick is on the axis when its distance from the axis line through that centre is the radius
+        const hit = cyl.filter((m) => {
+          if (!m.name.endsWith(`@${p.insert}.1`) || m.radius === undefined) return false;
+          const d = axisLabel(m.axis) ?? ((/^\(([^)]*)\)$/.exec(m.axis ?? '')?.[1] ?? '').split(',').map(Number) as number[]);
+          if (d.length !== 3 || d.some((v) => !Number.isFinite(v))) return false;
+          const w = [0, 1, 2].map((k) => p.point[k] - m.centroid[k]);
+          const along = w[0] * d[0] + w[1] * d[1] + w[2] * d[2];
+          return Math.abs(Math.hypot(w[0] - along * d[0], w[1] - along * d[1], w[2] - along * d[2]) - m.radius) < 1e-4;
+        });
+        return hit.length === 1 ? hit[0].name : null;
+      });
+    },
     resolver: async (part, points, hints) => {
       const s = await open(part);
       const found = (await s.resolve(points.map((p, i) => ({ kind: 'edge', near: p, within: 1e-3, ...(hints?.[i]?.body ? { body: hints[i]!.body } : {}) })))) as unknown as Array<{ matches?: Match[] }>;
       const out: Array<Record<string, unknown> | null> = points.map((_, i) => found[i]?.matches?.[0]?.ref ?? null);
+      // a body name the kernel does not know: the same lookup by position alone
+      const unnamed = points.map((_, i) => i).filter((i) => !out[i] && hints?.[i]?.body);
+      if (unnamed.length) {
+        const again = (await s.resolve(unnamed.map((i) => ({ kind: 'edge', near: points[i], within: 1e-3 })))) as unknown as Array<{ matches?: Match[] }>;
+        unnamed.forEach((i, k) => { out[i] = again[k]?.matches?.[0]?.ref ?? null; });
+      }
       // a point that is off the body: the straight edge parallel to the stored direction whose line passes through it, if there is one
       if (out.some((r, i) => !r && hints?.[i]?.dir)) {
         const viewEdges = (await s.bodyForView())?.edges ?? [];
@@ -72,6 +97,41 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
           p[k] = lo[k] + ((p[k] - b.min[k]) / span) * (hi[k] - lo[k]);
           const m = (await s.resolve([{ kind: 'edge', near: p, within: 1e-3, ...(hints?.[i]?.body ? { body: hints[i]!.body } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
           out[i] = m[0]?.matches?.[0]?.ref ?? null;
+        }
+      }
+      // still not found, and the file names the two faces of the edge: the edge between faces of those names, the one nearest the stored position
+      // (a parameter changed after the pick, so the position is stale but the names still say which edge it is)
+      const byName = points.map((_, i) => i).filter((i) => !out[i] && hints?.[i]?.faces);
+      if (byName.length) {
+        const bodies = [...new Set(byName.map((i) => hints![i]!.body))];
+        const names = new Map<string | undefined, string[]>();
+        for (const b of bodies) {
+          const all = (await s.resolve([{ kind: 'face', ...(b ? { body: b } : {}) }])) as unknown as Array<{ matches?: Match[] }>;
+          names.set(b, (all[0]?.matches ?? []).map((m) => m.name));
+        }
+        const named = (list: string[], f: { prefix: string; inst?: string }) => list.filter((n) => {
+          if (!n.startsWith(f.prefix)) return false;
+          const rest = n.slice(f.prefix.length);
+          return f.inst ? rest === f.inst || (/^~\d+/.test(rest) && rest.endsWith(f.inst)) : rest === '' || /^~\d+$/.test(rest);
+        });
+        for (const i of byName) {
+          const h = hints![i]!, list = names.get(h.body) ?? [];
+          const as = named(list, h.faces![0]), bs = named(list, h.faces![1]);
+          const pairs = as.flatMap((a) => bs.map((b) => [a, b] as const)).filter(([a, b]) => a !== b);
+          if (!pairs.length || pairs.length > 12) continue;
+          const found = (await s.resolve(pairs.map(([a, b]) => ({ kind: 'edge', between: [a, b], ...(h.body ? { body: h.body } : {}) })))) as unknown as Array<{ matches?: Array<Match & { mid: number[]; dir?: string; length?: number }> }>;
+          const cands = found.flatMap((r) => r.matches ?? []);
+          // the distance from the stored position to the edge: to its segment for a line, to its middle for any other curve
+          const dist = (m: { mid: number[]; dir?: string; length?: number }) => {
+            const d = axisLabel(m.dir) ?? ((/^\(([^)]*)\)$/.exec(m.dir ?? '')?.[1] ?? '').split(',').map(Number) as number[]);
+            const w = [0, 1, 2].map((k) => points[i][k] - m.mid[k]);
+            if (d.length !== 3 || d.some((v) => !Number.isFinite(v)) || m.length === undefined) return Math.hypot(w[0], w[1], w[2]);
+            const along = Math.max(-m.length / 2, Math.min(m.length / 2, w[0] * d[0] + w[1] * d[1] + w[2] * d[2]));
+            return Math.hypot(w[0] - along * d[0], w[1] - along * d[1], w[2] - along * d[2]);
+          };
+          const best = cands.sort((x, y) => dist(x) - dist(y));
+          // the nearest edge must be clearly nearer than the next one (inner and outer wall edges differ by the wall thickness)
+          if (best.length && best[0].ref && (best.length === 1 || dist(best[1]) - dist(best[0]) > 1e-6) && dist(best[0]) < 5) out[i] = best[0].ref;
         }
       }
       return out;

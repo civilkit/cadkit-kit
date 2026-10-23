@@ -14,7 +14,7 @@ const fixture = (n: string) => new Uint8Array(readFileSync(join(CORPUS, `${FILES
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
-const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
+const { resolver, faceResolver, rimResolver, axisFaceResolver } = kernelResolvers(open);
 
 /** A plate (their box, corner at the origin) with plastic features standing on its top face (z = height), as their own tests build them. */
 const plateDoc = (feats: unknown[], plate = [60, 60, 3]) => ({
@@ -145,5 +145,21 @@ describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM || 
     expect(rep.validate?.ok).toBe(true);
     const f = await s.facts();
     expect(f.volume).toBeGreaterThan(34793.84);   // square corners: more material than the filleted plate
+  });
+});
+
+describe('joints', { skip: !process.env.CK_WASM || !have, timeout: 120_000 }, () => {
+  it('joints-hinge: the revolute joint becomes a hinge mate between the two pin cylinders and the saved pose is kept', async () => {
+    const r = await importSolidcraft(fixture('joints-hinge'), 'hinge', { axisFaceResolver });
+    const mates = r.part!.features.filter((f) => f.type === 'mate');
+    expect(mates).toHaveLength(1);
+    expect(mates[0]).toMatchObject({ kind: 'hinge' });
+    expect(r.rows.find((x) => x.type === 'revolute joint')?.status).toBe('converted');
+    const s = await open(r.part!);
+    const rep = await s.verify();
+    expect(rep.regen.errors).toEqual([]);
+    const f = await s.facts();
+    expect(f.volume!).toBeCloseTo(11221.24, 1);
+    expect(f.box!.min[2]).toBeCloseTo(-37, 3); expect(f.box!.max[0]).toBeCloseTo(40, 3);
   });
 });

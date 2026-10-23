@@ -36,6 +36,8 @@ afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close(
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
 const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
+// files that import with no feature left out: a regression to partial is a failure
+const MUST_BE_COMPLETE = new Set(['split-body-pieces', 'naming-split-pieces', 'move-bodies', 'logo-up-down-join', 'issue-489-stacked-join', 'issue-616-lid-ribs', 'm0-box-fillet-hole', 'm0-revolve-primitives', 'modern-path-pattern', 'modern-plastic', 'pi-case', 'pi-case-0.8', 'components-arm', 'joints-hinge', 'Sample Plate', 'slot-fillet-no-fillet']);
 describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 600_000 }, () => {
   const table: string[] = [];
   const bad: string[] = [];
@@ -60,6 +62,7 @@ describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, tim
         const inserted = r.part.features.some((x) => x.type === 'insertPart');
         if (r.geometryComplete && ex.bodies === 1 && !inserted && !(volOk && boxOk)) bad.push(`${f}: complete import but volume ${facts.volume} vs ${ex.volume}, box ok ${boxOk}`);
       }
+      if (MUST_BE_COMPLETE.has(f.replace(/.*\//, '').replace(/\.solidcraft$/, '')) && !r.geometryComplete) bad.push(`${f}: no longer imports completely (${why})`);
       if (KNOWN_KERNEL_ISSUES[f] && rep.regen.errors.length) table.push(`  (known kernel issue: ${KNOWN_KERNEL_ISSUES[f]})`);
       table.push(`${f.padEnd(44)} ${String(r.summary.converted).padStart(2)} ok ${String(r.summary.unsupported).padStart(2)} unsupported  kernel errors ${rep.regen.errors.length}  volume ${facts?.volume?.toFixed(2) ?? '-'}${vs}  ${why}`);
       // a partial import may fail downstream of a feature that was left out; only a complete one must regenerate cleanly

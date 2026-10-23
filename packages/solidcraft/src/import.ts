@@ -37,7 +37,9 @@ export interface ScImport {
 /** Resolves points on the body built so far to kernel edge references ({faces, at}); null for a point that matches no edge. */
 export type EdgeResolver = (partBefore: ScPart, points: V3[], hints?: Array<EdgeHint | undefined>) => Promise<Array<Record<string, unknown> | null>>;
 /** What else the file says about an edge, for when its stored position no longer lies on the body (a parameter changed after it was picked): the direction of the edge, in our world. */
-export interface EdgeHint { /** the body the edge is on, when the file names one: bodies can lie on one another, so the position alone does not tell */ body?: string; dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
+export interface EdgeHint { /** the faces the file names for the edge (`F2:side:l5@F5.1|F2:start@F5.1`), as our name prefix and instance suffix: found by name when the stored position is stale */ faces?: [FaceName, FaceName]; /** the body the edge is on, when the file names one: bodies can lie on one another, so the position alone does not tell */ body?: string; dir?: V3; /** the box of the whole body when the edge was picked, in our world: an axis on which it differs from the body now is the one that changed */ box?: { min: V3; max: V3 } }
+/** A face by the name the kernel gives it: `prefix` (`F2.S.e5`, `F2.C1`) then maybe a qualifier (`~1`) then the instance suffix (`@F7.1`). */
+export interface FaceName { prefix: string; inst?: string }
 /** The same for a face the file names as the start or end cap of an extrude (`F2:top`): our id of that extrude and which cap. */
 export interface FaceHint { body?: string; cap?: { feature: string; end: 'start' | 'end' } }
 /** Resolves points on faces of the body built so far to our face names ("F2.S.e1"); null for a point that matches no single face. */
@@ -45,7 +47,11 @@ export type FaceResolver = (partBefore: ScPart, points: V3[], hints?: Array<Face
 /** The rim of a shell, found by a point on it: the face's name, its outward normal and its outlines (closed polylines in our world, line edges only; null when any edge is curved). */
 export interface Rim { name: string; normal: V3; loops: V3[][] | null }
 export type RimResolver = (partBefore: ScPart, point: V3) => Promise<Rim | null>;
+/** Finds, for each pick, the cylinder face of an inserted part (by its insertPart id) whose axis passes through the point (a circle centre in our world); null when there is no single such face. */
+export type AxisFaceResolver = (partBefore: ScPart, picks: Array<{ insert: string; point: V3 }>) => Promise<Array<string | null>>;
 export interface ImportOpts {
+  /** Needed to carry revolute joints over as hinge mates: without it they are kept as the pose they were saved in. */
+  axisFaceResolver?: AxisFaceResolver;
   /** Needed for lips and grooves: without it they are reported as unsupported. */
   rimResolver?: RimResolver;
   /** Needed for fillets and chamfers: without it they are reported as unsupported. */
@@ -324,6 +330,7 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
   const used = new Set<string>(features.map((f) => String(f.id)));
   const nid = () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); return id; };
   const parts = new Map<number, ScImport>();
+  const insertOf = new Map<number, string>();
   for (const occ of doc.occurrences as Rec[]) {
     const comp = comps.get(occ.component as number);
     const cname = String(comp?.name ?? `Component ${occ.component}`);
@@ -336,11 +343,29 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
     if (!imp.part) { rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'unsupported', reason: imp.refused ?? 'the component could not be imported' }); continue; }
     const m = occ.transform as number[][];
     const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = toYUp(row4(m, 2)), ez = toYUp(row4(m, 1)).map((x) => clean(-x)) as V3;
-    features.push({ type: 'insertPart', id: nid(), name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
+    const insertId = nid();
+    insertOf.set(occ.id as number, insertId);
+    features.push({ type: 'insertPart', id: insertId, name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
     rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'converted' });
   }
-  // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; the joint itself is not carried over
-  for (const j of (doc.assembly?.joints ?? []) as Rec[]) rows.push({ id: `joint ${j.id}`, name: String(j.name ?? 'Joint'), type: `${j.kind ?? ''} joint`.trim(), status: 'skipped', reason: 'kept as the pose it was saved in; the joint (and so its motion) is not imported' });
+  // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; a revolute joint between
+  // two circle centres also becomes a hinge mate (concentric cylinders), which keeps the pose and lets the part turn
+  for (const j of (doc.assembly?.joints ?? []) as Rec[]) {
+    const row = { id: `joint ${j.id}`, name: String(j.name ?? 'Joint'), type: `${j.kind ?? ''} joint`.trim() };
+    const ia = insertOf.get(j.a?.occurrence), ib = insertOf.get(j.b?.occurrence);
+    const pa = j.a?.snap?.type === 'circle_center' ? j.a.snap.pick : undefined, pb = j.b?.snap?.type === 'circle_center' ? j.b.snap.pick : undefined;
+    let why = 'kept as the pose it was saved in; the joint (and so its motion) is not imported';
+    if (j.kind === 'revolute' && ia && ib && Array.isArray(pa) && Array.isArray(pb) && opts.axisFaceResolver) {
+      const names = await opts.axisFaceResolver({ format: 'ck-part', version: 1, name, features, seq }, [{ insert: ia, point: toYUp(pa as V3).map(clean) as V3 }, { insert: ib, point: toYUp(pb as V3).map(clean) as V3 }]).catch(() => [null, null]);
+      if (names[0] && names[1]) {
+        features.push({ type: 'mate', id: nid(), name: row.name, kind: 'hinge', a: names[0], b: names[1] });
+        rows.push({ ...row, status: 'converted', notes: ['hinge mate on the two cylinders; the saved angle is kept as the pose, its limits are not imported'] });
+        continue;
+      }
+      why = 'kept as the pose it was saved in; no single cylinder lies on each circle centre';
+    }
+    rows.push({ ...row, status: 'skipped', reason: why });
+  }
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   return { name, part: { format: 'ck-part', version: 1, name, features, seq }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
@@ -384,8 +409,15 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const sketches = new Map<number | string, { id: string; entityOf: Map<string, string>; placed: Placed; plane: Record<string, unknown>; geo: Map<string, Geo>; json: { points: FeatureJson[]; entities: FeatureJson[] } }>();
   /** feature name (theirs) -> the ids of the features it made (ours), for patterns and mirrors */
   const named = new Map<string, string[]>();
+  /** Features that act on named bodies through a tool body of their own: what a mirror of them needs (the tool body is kept until it is mirrored). */
+  const targeted = new Map<string, { tool: string; op: string; targets: string[] }>();
+  const mirroredFeatures = new Set<string>(((doc.features as Rec[]) ?? []).filter((x) => x.type === 'mirror').flatMap((x) => (x.features as string[] | undefined) ?? []));
   /** Their feature id -> our id of the extrude it became, for the names the file gives to caps (`F2:top`). */
   const ourExtrude = new Map<number, string>();
+  /** Their extrude id -> their sketch id (a side face `F2:side:l5` is the line l5 of that sketch). */
+  const extrudeSketch = new Map<number, number | string>();
+  /** Their move id -> our moveBody id (the instance suffix `@F5.1` of the copy). */
+  const ourMove = new Map<number, string>();
   /** construction planes by name (their frames) */
   const constructionPlanes = new Map<string, ScFrame>();
   const failedSketches = new Set<number | string>();
@@ -417,7 +449,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       named.forEach(alive);
       const tool = `__tool${n + 1}`, cop = op === 'join' ? 'union' : op;
       newName = tool;
-      after = named.map((t, i) => () => ({ type: 'combine', id: nid(), name: `${f.name}${named.length > 1 ? ` (${t})` : ''}`, op: cop, target: { body: t }, tools: [{ body: tool }], keepTools: i < named.length - 1 }));
+      const keep = mirroredFeatures.has(String(f.name));
+      if (keep) targeted.set(String(f.name), { tool, op: cop, targets: [...named] });
+      after = named.map((t, i) => () => ({ type: 'combine', id: nid(), name: `${f.name}${named.length > 1 ? ` (${t})` : ''}`, op: cop, target: { body: t }, tools: [{ body: tool }], keepTools: i < named.length - 1 || keep }));
       return 'newBody';
     }
     throw new Unsupported(`operation "${op}" of "${f.name}"`);
@@ -464,6 +498,27 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     if (regions) e.regions = regions;
     if (op === 'newBody') { e.body = newName; newName = undefined; }
     return e;
+  };
+
+  /** The two faces of an edge by their names in the file (`F2:side:l5@F5.1|F2:start@F5.1`) as the names this kit gives them; undefined for any other form (a shell's inner faces, other features). */
+  const faceNames = (edgeName: string | undefined): [FaceName, FaceName] | undefined => {
+    const parts = edgeName?.split('|');
+    if (parts?.length !== 2) return undefined;
+    const one = (t: string): FaceName | undefined => {
+      const m = /^F(\d+):(?:side:(l\d+)|(start|top|end))(?:@F(\d+)\.1)?$/.exec(t);
+      if (!m) return undefined;
+      const ext = ourExtrude.get(Number(m[1]));
+      if (!ext) return undefined;
+      let inst: string | undefined;
+      if (m[4]) { const mv = ourMove.get(Number(m[4])); if (!mv) return undefined; inst = `@${mv}.1`; }
+      if (m[2]) {
+        const sk = extrudeSketch.get(Number(m[1])), ent = sk === undefined ? undefined : sketches.get(sk)?.entityOf.get(m[2]);
+        return ent ? { prefix: `${ext}.S.${ent}`, ...(inst ? { inst } : {}) } : undefined;
+      }
+      return { prefix: `${ext}.C${m[3] === 'start' ? 0 : 1}`, ...(inst ? { inst } : {}) };
+    };
+    const a = one(parts[0]), b = one(parts[1]);
+    return a && b ? [a, b] : undefined;
   };
 
   const sketchOf = (f: Rec): { notes: string[] } => {
@@ -753,7 +808,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         const points = (f.edges as V3[] | undefined)?.map(toYUp);   // the edge positions are in their Z-up world
         if (!points?.length) throw new Unsupported('no edge positions in the file');
         // the stored direction of each edge: when a parameter changed after the pick, the point is off the body but the line is not
-        let hints = (f.edge_refs as Rec[] | undefined)?.map((r): EdgeHint | undefined => {
+        let hints = points.map((_, i): EdgeHint | undefined => {
+          const r = (f.edge_refs as Rec[] | undefined)?.[i];
           const d = r?.dir as V3 | undefined, lo = r?.min as V3 | undefined, hi = r?.max as V3 | undefined;
           const h: EdgeHint = {};
           if (d && Math.hypot(d[0], d[1], d[2]) > 0.5) h.dir = toYUp(d);
@@ -762,7 +818,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
             h.box = { min: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])], max: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])] };
           }
           if (typeof f.body === 'string') h.body = f.body;
-          return h.dir || h.box || h.body ? h : undefined;
+          const fn = faceNames((f.edge_names as string[] | undefined)?.[i]);
+          if (fn) h.faces = fn;
+          return h.dir || h.box || h.body || h.faces ? h : undefined;
         });
         if (!hints && typeof f.body === 'string') hints = points.map(() => ({ body: f.body as string }));
         const refs = await opts.resolver(part(), points, hints).catch(() => null);
@@ -871,10 +929,20 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         return [];
       }
       case 'mirror': {
-        const seeds = ((f.features as string[] | undefined) ?? []).flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`mirror of "${nm}", which was not imported`); })());
-        if (!seeds.length) throw new Unsupported('a mirror with nothing to mirror');
+        const names = (f.features as string[] | undefined) ?? [];
+        const plain = names.filter((nm) => !targeted.has(nm));
+        const seeds = plain.flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`mirror of "${nm}", which was not imported`); })());
+        if (!seeds.length && plain.length === names.length) throw new Unsupported('a mirror with nothing to mirror');
         const plane = planeRef(placeFrame(frameOf(f.plane)));
-        features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false });
+        if (seeds.length) features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false });
+        // a feature that worked on named bodies through a tool body: the tool body is mirrored (a copy about the plane), the original tool
+        // removed, and the mirrored tool does the same operation on the same bodies
+        for (const nm of names.filter((x) => targeted.has(x))) {
+          const t = targeted.get(nm)!, mt = `${t.tool}m`;
+          features.push({ type: 'moveBody', id: nid(), name: `${f.name} (${nm})`, bodies: [{ body: t.tool }], copy: true, body: mt, mirror: plane });
+          features.push({ type: 'deleteBody', id: nid(), name: `${f.name} (${nm} tool)`, mode: 'delete', bodies: [{ body: t.tool }] });
+          t.targets.forEach((tg, i) => features.push({ type: 'combine', id: nid(), name: `${f.name} (${nm}${t.targets.length > 1 ? `, ${tg}` : ''})`, op: t.op, target: { body: tg }, tools: [{ body: mt }], keepTools: i < t.targets.length - 1 }));
+        }
         return [];
       }
       case 'pattern': {
@@ -1042,7 +1110,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       const notes = await convert(f);
       for (const make of after) features.push(make());
       after = [];
-      if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) ourExtrude.set(f.id, mine); }
+      if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) { ourExtrude.set(f.id, mine); if (f.sketch !== undefined) extrudeSketch.set(f.id, f.sketch); } }
+      if (f.type === 'move') { const mv = features.slice(mark).find((x) => x.type === 'moveBody'); if (mv) ourMove.set(f.id, String(mv.id)); }
       rows.push({ ...row, status: 'converted', ...(notes.length ? { notes } : {}) });
     } catch (e) {
       features.length = mark; bodies = bodiesBefore; n = nBefore; live = liveBefore; bodyCount = countBefore; newName = undefined; after = [];   // drop what the feature half-added
