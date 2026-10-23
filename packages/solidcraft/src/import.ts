@@ -467,8 +467,7 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
     }
     const id = nid();
     const kept = [...entities.filter((e) => e.type !== undefined), ...texts];   // one array: a revolve adds its axis line to it later
-    // their app hides a sketch once a feature uses it; imported sketches start hidden (construction lines and plane outlines stay out of the model view)
-    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities: kept, constraints, visible: false });
+    features.push({ type: 'sketch', id, name: f.name, plane, points: outPts, entities: kept, constraints });
     const geo = new Map<string, Geo>();
     for (const c of curves) {
       if (textCurve(c)) continue;
