@@ -34,7 +34,7 @@ A malformed feature (a curve pointing at a missing point, say) is an unsupported
 
 ## Tests
 
-`packages/solidcraft/src/*.test.ts` (no kernel) and `import.kernel.test.ts` (with `CK_WASM`): the slot file and the sample plate are checked against volumes worked out by hand. The fixtures in `packages/solidcraft/fixtures` are copies of the sample files with the cache dropped (`SOURCE.txt`). The platform layer reads `.solidcraft` as bytes (`packages/platform/src/web.ts`); `web.test.ts` covers it.
+`packages/solidcraft/src/*.test.ts` (no kernel) and `import.kernel.test.ts` (with `CK_WASM`): the slot file and the sample plate are checked against volumes worked out by hand. The sample files are not in this repository: the tests that need them read `cadkit/corpus/solidcraft` (next to the kit; see its README) and are skipped when it is missing, so the kernel and file-based tests do not run on a machine without the corpus. The synthetic tests build their documents in the test and always run. The platform layer reads `.solidcraft` as bytes (`packages/platform/src/web.ts`); `web.test.ts` covers it.
 
 ## Coverage today
 

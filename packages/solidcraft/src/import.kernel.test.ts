@@ -1,10 +1,15 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
 import { importSolidcraft, type EdgeResolver, type ScPart } from './import';
 
-const fixture = (n: string) => new Uint8Array(readFileSync(`${process.cwd()}/packages/solidcraft/fixtures/${n}.solidcraft`));
+// Sample files are read from the corpus folder next to the kit (cadkit/corpus/solidcraft); they are not part of this repository.
+const CORPUS = join(process.cwd(), '..', 'corpus', 'solidcraft');
+const have = existsSync(CORPUS);
+const FILES: Record<string, string> = { 'slot-fillet-no-fillet': 'from-app/slot-fillet-no-fillet', 'sample-plate': 'from-app/Sample Plate', 'old-format-box-fillet-hole': 'm0-box-fillet-hole' };
+const fixture = (n: string) => new Uint8Array(readFileSync(join(CORPUS, `${FILES[n] ?? n}.solidcraft`)));
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
@@ -20,7 +25,7 @@ const resolver: EdgeResolver = async (part, points) => {
   return out;
 };
 
-describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM }, () => {
+describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM || !have }, () => {
   it('slot: a stadium extruded 14, cut by a 6 x 12 x 20 box; volume by hand 9624.109', async () => {
     const r = await importSolidcraft(fixture('slot-fillet-no-fillet'), 'slot');
     const f = await (await open(r.part!)).facts();

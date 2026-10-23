@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { importSolidcraft, importSolidcraftDocument, type EdgeResolver } from './import';
 
-const fixture = (n: string) => new Uint8Array(readFileSync(`${process.cwd()}/packages/solidcraft/fixtures/${n}.solidcraft`));
+// Sample files are not part of this repository: they are read from the corpus folder next to the kit (cadkit/corpus/solidcraft, see its
+// README) and the tests that need them are skipped when it is absent. Everything else here builds its documents in the test.
+const CORPUS = join(process.cwd(), '..', 'corpus', 'solidcraft');
+const have = existsSync(CORPUS);
+const FILES: Record<string, string> = { 'slot-fillet-no-fillet': 'from-app/slot-fillet-no-fillet', 'sample-plate': 'from-app/Sample Plate' };
+const fixture = (n: string) => new Uint8Array(readFileSync(join(CORPUS, `${FILES[n] ?? n}.solidcraft`)));
 
-describe('slot file (sketch, extrude, box cut)', () => {
+describe('slot file (sketch, extrude, box cut)', { skip: !have }, () => {
   it('converts every feature, closes the profile by merging coincident points, and flips the cut', async () => {
     const r = await importSolidcraft(fixture('slot-fillet-no-fillet'), 'slot');
     expect(r.refused).toBeUndefined();
@@ -24,7 +30,7 @@ describe('slot file (sketch, extrude, box cut)', () => {
   });
 });
 
-describe('sample plate (parameters, offset planes, a cut, a fillet)', () => {
+describe('sample plate (parameters, offset planes, a cut, a fillet)', { skip: !have }, () => {
   it('without the kernel the fillet is reported and kept as a placeholder', async () => {
     const r = await importSolidcraft(fixture('sample-plate'), 'plate');
     const fillet = r.rows.find((x) => x.type === 'fillet')!;
@@ -62,7 +68,7 @@ describe('sample plate (parameters, offset planes, a cut, a fillet)', () => {
 
 describe('what is refused or reported', () => {
   it('an assembly is refused as a whole, with the counts', async () => {
-    const r = await importSolidcraft(fixture('hinge-assembly'), 'hinge');
+    const r = await importSolidcraftDocument({ format: 'solidcraft/30', units: 'mm', components: [{ id: 1 }, { id: 5 }], occurrences: [{ id: 2 }, { id: 6 }], assembly: { joints: [] }, features: [] }, 'hinge');
     expect(r.part).toBeNull();
     expect(r.refused).toMatch(/assemblies are not supported \(2 occurrences in 2 components\)/);
   });
