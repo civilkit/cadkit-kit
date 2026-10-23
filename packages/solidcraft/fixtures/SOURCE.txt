@@ -1,0 +1,4 @@
+Sample .solidcraft files (a zip of container.json and document.json; the derived cache/ folder is dropped).
+Made with the SolidCraft app, version 0.19 (document format solidcraft/30), https://github.com/tangency-labs/solidcraft , licence MIT OR Apache-2.0.
+sample-plate and hinge-assembly are the app's own built-in samples; slot-fillet-no-fillet was exported from the app by this project's maintainer.
+Used only as import test data (see ../src/import.kernel.test.ts).

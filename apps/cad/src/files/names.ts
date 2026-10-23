@@ -26,7 +26,7 @@ export function createNameCounter(start = 1) {
   };
 }
 
-export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'stl' | 'fcstd' | 'unknown';
+export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'stl' | 'fcstd' | 'solidcraft' | 'unknown';
 export function dropKind(fileName: string): DropKind {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (ext === 'ckpart' || ext === 'json') return 'part';
@@ -36,5 +36,6 @@ export function dropKind(fileName: string): DropKind {
   if (ext === 'dxf') return 'dxf';
   if (ext === 'stl') return 'stl';
   if (ext === 'fcstd') return 'fcstd';
+  if (ext === 'solidcraft') return 'solidcraft';
   return 'unknown';
 }

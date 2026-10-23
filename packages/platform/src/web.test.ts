@@ -124,3 +124,35 @@ describe('readHandleWith', () => {
     expect(await readHandleWith({})).toBeNull();
   });
 });
+
+describe('createWebPlatform openFile', () => {
+  /** Run openFile with a stand-in for the browser's file picker that "chooses" `file`. */
+  const pick = async (spec: { name: string; bytes?: Uint8Array; text?: string }) => {
+    // jsdom's File has no arrayBuffer() / text(): a stand-in with the two
+    const file = { name: spec.name, arrayBuffer: async () => (spec.bytes ?? new Uint8Array()).buffer, text: async () => spec.text ?? '' };
+    const orig = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      const el = orig(tag);
+      if (tag === 'input') {
+        const input = el as HTMLInputElement;
+        input.click = () => { Object.defineProperty(input, 'files', { value: [file] }); void input.onchange?.(new Event('change')); };
+      }
+      return el;
+    }) as typeof document.createElement);
+    try { return await createWebPlatform().openFile({ accept: ['.solidcraft'] }); } finally { vi.restoreAllMocks(); }
+  };
+  const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x80]);
+  it('reads the zip containers (FreeCAD, SolidWorks, SketchUp, SolidCraft) as bytes, not as text', async () => {
+    for (const name of ['a.FCStd', 'a.sldprt', 'a.skp', 'Sample Plate.solidcraft', 'B.SOLIDCRAFT']) {
+      const r = await pick({ name, bytes: zipBytes });
+      expect(r?.name, name).toBe(name);
+      expect(Array.from(r?.bytes ?? []), name).toEqual(Array.from(zipBytes));
+      expect(r?.text, name).toBe('');
+    }
+  });
+  it('still reads a part as text', async () => {
+    const r = await pick({ name: 'p.ckpart', text: '{"a":1}' });
+    expect(r?.text).toBe('{"a":1}');
+    expect(r?.bytes).toBeUndefined();
+  });
+});
