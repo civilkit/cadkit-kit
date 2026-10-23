@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { fileURLToPath } from 'node:url'
+import { cpus, loadavg } from 'node:os'
 
 // the kernel repo checkout whose packages (session, part-model, kernel-client) the kit uses; CK_REBUILD overrides it
 const FW = process.env.CK_REBUILD ?? fileURLToPath(new URL('../rebuild', import.meta.url))
@@ -74,7 +75,10 @@ export default defineConfig(({ command }) => ({
     exclude: [...configDefaults.exclude, ...(process.env.CK_WASM || process.env.CK_KERNEL_URL ? [] : ['**/*.kernel.test.{ts,tsx}', 'packages/mcp/src/mcp.test.ts'])],
     include: ['packages/**/*.test.{ts,tsx}', 'apps/**/*.test.{ts,tsx}', 'tools/**/*.test.{ts,tsx}'],
     // CK_KERNEL_URL (+ CK_KERNEL_TOKEN) runs the kernel suites against a local native service instead of CK_WASM (docs/local-kernel-service.md)
-    setupFiles: ['./tools/vitest.kernel-env.ts']
+    setupFiles: ['./tools/vitest.kernel-env.ts'],
+    // the kernel suites load the wasm in every worker and run for minutes, so a worker per core (the default) overloads a laptop: at most CK_TEST_WORKERS (default 2), and one while the machine is already busy
+    pool: 'forks',
+    poolOptions: { forks: { minForks: 1, maxForks: testWorkers() } }
   },
   server: {
     fs: {
@@ -82,3 +86,9 @@ export default defineConfig(({ command }) => ({
     }
   }
 }))
+
+function testWorkers(): number {
+  const asked = Number(process.env.CK_TEST_WORKERS)
+  if (asked >= 1) return Math.floor(asked)
+  return loadavg()[0] > cpus().length ? 1 : 2
+}
