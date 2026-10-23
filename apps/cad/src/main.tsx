@@ -104,6 +104,7 @@ import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
+import { runningBundle, watchForUpdate } from './updateCheck';
 import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
@@ -301,6 +302,7 @@ function App() {
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [guard, setGuard] = useState<(() => void) | null>(null);
+  const [stale, setStale] = useState(false);   // a newer build was deployed while this tab was open
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
   /** The picture written into a file on Save: kept outside the document, so it never counts as a change or a history step. */
@@ -2232,6 +2234,10 @@ function App() {
     return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
   }, []);
   useEffect(() => {
+    const w = watchForUpdate({ current: runningBundle(), fetchHtml: async () => (await fetch(location.origin + location.pathname, { cache: 'no-store' })).text(), onStale: () => setStale(true) });
+    return w.stop;
+  }, []);
+  useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } };
     addEventListener('beforeunload', warn);
     return () => removeEventListener('beforeunload', warn);
@@ -2367,6 +2373,13 @@ function App() {
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />
+          {stale ? (
+            <div class="toast update-bar" role="status">
+              <span>{t('app.update.text')}</span>
+              <button class="toast-act" onClick={() => guarded(() => location.reload())}>{t('app.update.refresh')}</button>
+              <button class="toast-act" onClick={() => setStale(false)}>{t('app.update.later')}</button>
+            </div>
+          ) : null}
         </div>
       </div>
       {rightMode === 'docked' ? right : null}

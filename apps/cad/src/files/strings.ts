@@ -5,6 +5,7 @@ export const filesEn = {
   'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only)',
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
+  'app.update.text': 'A new version is available.', 'app.update.refresh': 'Refresh', 'app.update.later': 'Later',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
   'files.restore.restore': 'Restore', 'files.restore.new': 'Start new',
