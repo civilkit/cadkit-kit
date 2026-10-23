@@ -38,7 +38,12 @@ export interface ScImport {
 export type EdgeResolver = (partBefore: ScPart, points: V3[]) => Promise<Array<Record<string, unknown> | null>>;
 /** Resolves points on faces of the body built so far to our face names ("F2.S.e1"); null for a point that matches no single face. */
 export type FaceResolver = (partBefore: ScPart, points: V3[]) => Promise<Array<string | null>>;
+/** The rim of a shell, found by a point on it: the face's name, its outward normal and its outlines (closed polylines in our world, line edges only; null when any edge is curved). */
+export interface Rim { name: string; normal: V3; loops: V3[][] | null }
+export type RimResolver = (partBefore: ScPart, point: V3) => Promise<Rim | null>;
 export interface ImportOpts {
+  /** Needed for lips and grooves: without it they are reported as unsupported. */
+  rimResolver?: RimResolver;
   /** Needed for fillets and chamfers: without it they are reported as unsupported. */
   resolver?: EdgeResolver;
   /** Needed for shells and offset faces: without it they are reported as unsupported. */
@@ -85,6 +90,101 @@ function crossLines(g: Geo, h: Geo): P2 | null {
   const t = ((h.a[0] - g.a[0]) * e[1] - (h.a[1] - g.a[1]) * e[0]) / den;
   return [g.a[0] + t * d[0], g.a[1] + t * d[1]];
 }
+/** Joins polylines end to end into closed loops (the edges of a face); null when they do not close into loops. */
+export function assembleLoops(lines: V3[][], tol = 1e-6): V3[][] | null {
+  const same = (a: V3, b: V3) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) <= tol;
+  const left = lines.map((l) => l.slice());
+  const loops: V3[][] = [];
+  while (left.length) {
+    const loop = left.pop()!;
+    for (let guard = 0; guard < 10000; guard++) {
+      if (loop.length > 2 && same(loop[0], loop[loop.length - 1])) break;
+      const end = loop[loop.length - 1];
+      const i = left.findIndex((l) => same(l[0], end) || same(l[l.length - 1], end));
+      if (i < 0) return null;
+      const next = left.splice(i, 1)[0];
+      if (!same(next[0], end)) next.reverse();
+      loop.push(...next.slice(1));
+    }
+    if (!(loop.length > 2 && same(loop[0], loop[loop.length - 1]))) return null;
+    loop.pop();
+    loops.push(loop);
+  }
+  return loops;
+}
+/** The outlines of one face from the kernel's view edges (each has a key "faceA|faceB#n" and a polyline): null when any edge of it is curved or they do not close. */
+export function faceOutlines(edges: Array<{ key?: string; pts: number[][] }>, face: string): V3[][] | null {
+  const mine = edges.filter((e) => (e.key ?? '').split('#')[0].split('|').includes(face));
+  if (!mine.length || mine.some((e) => e.pts.length !== 2)) return null;   // a straight edge is two points; a curve has more
+  return assembleLoops(mine.map((e) => e.pts.map((q) => [q[0], q[1], q[2]] as V3)));
+}
+/** A face as the kernel's query lists it (the label is the axis of a flat face's normal, "+y"). */
+export interface FaceInfo { name: string; normal?: string; centroid: number[] }
+/**
+ * The face a point lies ON: among the flat, axis-aligned faces whose plane passes through the point, the one whose outline contains it
+ * (several faces can share a plane, like a rim and the floor of a groove). The kernel's own "nearest" ranks by face centre, so it
+ * mistakes a point near the edge of a big face for a neighbour with a nearer centre.
+ */
+export function faceAtPoint(point: V3, faces: FaceInfo[], edges: Array<{ key?: string; pts: number[][] }>): string | null {
+  const tol = 1e-5;
+  const onPlane = faces.filter((f) => {
+    const n = axisLabel(f.normal);
+    return n && Math.abs(dot3(n, [point[0] - f.centroid[0], point[1] - f.centroid[1], point[2] - f.centroid[2]])) < tol;
+  });
+  if (onPlane.length <= 1) return onPlane[0]?.name ?? null;
+  const inside = onPlane.filter((f) => {
+    const loops = faceOutlines(edges, f.name);
+    if (!loops) return false;
+    const k = [0, 1, 2].find((i) => Math.abs(axisLabel(f.normal)![i]) === 1)!;
+    const drop = (q: V3): P2 => { const a = [0, 1, 2].filter((i) => i !== k); return [q[a[0]], q[a[1]]]; };
+    const [px, py] = drop(point);
+    let crossings = 0;   // even-odd over every outline: an inner outline makes a hole
+    for (const loop of loops.map((l) => l.map(drop))) {
+      for (let i = 0; i < loop.length; i++) {
+        const a = loop[i], b = loop[(i + 1) % loop.length];
+        if ((a[1] > py) !== (b[1] > py) && px < a[0] + ((py - a[1]) / (b[1] - a[1])) * (b[0] - a[0])) crossings++;
+      }
+    }
+    return crossings % 2 === 1;
+  });
+  return inside.length === 1 ? inside[0].name : null;
+}
+/** An axis label of the kernel's face query ("+y", "-z") as a unit vector. */
+export function axisLabel(label: string | undefined): V3 | null {
+  const m = /^([+-])([xyz])$/.exec(label ?? '');
+  if (!m) return null;
+  const v: V3 = [0, 0, 0];
+  v['xyz'.indexOf(m[2])] = m[1] === '+' ? 1 : -1;
+  return v;
+}
+/** The vertices of a closed polygon without the collinear ones. */
+function corners2(pts: P2[]): P2[] {
+  const out: P2[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[(i + pts.length - 1) % pts.length], b = pts[i], c = pts[(i + 1) % pts.length];
+    const cr = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cr) > 1e-9 * Math.hypot(b[0] - a[0], b[1] - a[1]) * Math.hypot(c[0] - b[0], c[1] - b[1])) out.push(b);
+  }
+  return out;
+}
+const area2 = (p: P2[]) => p.reduce((a, q, i) => { const r = p[(i + 1) % p.length]; return a + (q[0] * r[1] - r[0] * q[1]) / 2; }, 0);
+/** A simple polygon moved sideways by `d` (positive = outwards): each edge line is shifted and neighbouring lines meet at the new corners. */
+function offsetPolygon(poly: P2[], d: number): P2[] {
+  const p = corners2(poly), n = p.length;
+  const sgn = area2(p) > 0 ? 1 : -1;   // counter-clockwise polygons have their outside on the right of each edge
+  const lines = p.map((a, i) => {
+    const b = p[(i + 1) % n], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const nx = sgn * (b[1] - a[1]) / len, ny = sgn * -(b[0] - a[0]) / len;
+    return { a: [a[0] + nx * d, a[1] + ny * d] as P2, b: [b[0] + nx * d, b[1] + ny * d] as P2 };
+  });
+  return lines.map((ln, i) => {
+    const prev = lines[(i + n - 1) % n];
+    const c = crossLines({ type: 'line', a: prev.a, b: prev.b }, { type: 'line', a: ln.a, b: ln.b });
+    if (!c) throw new Unsupported('a rim with a doubled-back edge');
+    return c;
+  });
+}
+
 /**
  * The outline of one profile loop of theirs (curve ids in order, closed): when every curve is used whole, the ids select the region as they
  * are; when a curve is only partly used (the loop runs along part of a longer line) the ids would also pick the neighbouring regions that
@@ -150,6 +250,13 @@ const originFrame = (name: string, distance = 0): ScFrame => {
   return { o: [n[0] * distance, n[1] * distance, n[2] * distance], u: sc.u, v: sc.v };
 };
 const placeOf = (name: string, distance = 0): Placed => placeFrame(originFrame(name, distance));
+/** A frame at a point on a face with the face's outward direction as its normal; `along` (a direction across the face) is its x axis, else the first axis across. */
+function faceFrame(position: V3, dir: V3, along?: V3): ScFrame {
+  const n = unit(dir);
+  const across = (a: V3) => Math.hypot(...cross3(a, n)) > 1e-6;
+  const u = unit(along && across(along) ? along : ([[1, 0, 0], [0, 1, 0], [0, 0, 1]] as V3[]).find(across)!);
+  return { o: position, u, v: cross3(n, u) };   // u x v = n
+}
 const mapXY = (pl: Placed, x: number, y: number): [number, number] => [pl.t[0] * x + pl.t[1] * y + pl.s[0], pl.t[2] * x + pl.t[3] * y + pl.s[1]];
 /** A reflection of the sketch plane (their counter-clockwise is our clockwise). */
 const mirrored = (pl: Placed) => pl.t[0] * pl.t[3] - pl.t[1] * pl.t[2] < 0;
@@ -514,6 +621,138 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
         }
         if (!made.length) throw new Unsupported('a pattern with a single instance');
         named.set(f.name, made);
+        return [];
+      }
+      case 'lip': {
+        if (!opts.rimResolver) throw new Unsupported('needs the kernel to find its rim');
+        const at = f.face as V3 | undefined;
+        if (!at) throw new Unsupported('a lip without a position on the rim');
+        const w = num(f.width, 'lip width'), H = num(f.height, 'lip height');
+        if (f.gap !== undefined && num(f.gap, 'lip clearance') !== 0) throw new Unsupported('a lip or groove with a clearance gap');
+        if (!(w > 0 && H > 0)) throw new Unsupported('a lip with no size');
+        const rim = await opts.rimResolver(part(), toYUp(at)).catch(() => null);
+        if (!rim) throw new Unsupported('the rim face was not found on the body built so far');
+        if (!rim.loops) throw new Unsupported('a lip on a rim with curved edges');
+        if (rim.loops.length < 2) throw new Unsupported('a lip on a face that has no inner edge');
+        const std = Object.entries(OUR_PLANE).find(([, fr]) => Math.abs(Math.abs(dot3(rim.normal, fr.z)) - 1) < 1e-6);
+        if (!std) throw new Unsupported('a rim that is not parallel to one of the three standard planes');
+        const [stdName, fr] = std;
+        const zsign = dot3(rim.normal, fr.z) > 0 ? 1 : -1;
+        const offset = dot3(rim.loops[0][0], fr.z);
+        const flat = rim.loops.map((l) => l.map((q): P2 => [dot3(q, fr.x), dot3(q, fr.y)]));
+        const order = flat.map((l, i) => ({ i, a: Math.abs(area2(l)) })).sort((x, y) => x.a - y.a);
+        const inner = flat[order[0].i], outer = flat[order[order.length - 1].i];
+        const groove = f.groove === true, outside = f.outside === true;
+        // the band: next to the inner edge (growing outwards into the wall) or next to the outer edge (shrinking inwards)
+        const edge = outside ? outer : inner;
+        const other = offsetPolygon(edge, outside ? -w : w);
+        const plane = planeRef({ std: stdName, offset, t: [1, 0, 0, 1], s: [0, 0], sign: 1 });
+        const sid = nid();
+        const pts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }], ents: FeatureJson[] = [];
+        [corners2(edge), other].forEach((loop, li) => {
+          const ids = loop.map((q, k) => { const id = `l${li}_${k}`; pts.push({ id, x: q[0], y: q[1] }); return id; });
+          ids.forEach((id, k) => ents.push({ id: `le${li}_${k}`, type: 'line', p1: id, p2: ids[(k + 1) % ids.length] }));
+        });
+        features.push({ type: 'sketch', id: sid, name: `${f.name} band`, plane, points: pts, entities: ents, constraints: [], visible: false });
+        // a lip stands up from the rim (along its outward normal); a groove is cut down into it
+        const wantZ = (groove ? -1 : 1) * zsign;
+        const ex = extrudeOf({ operation: groove ? 'cut' : 'join', name: f.name }, sid, H, wantZ > 0, 1);
+        features.push(ex);
+        named.set(f.name, [ex.id as string]);
+        return [];
+      }
+      case 'boss': case 'rest': case 'snap_fit': {
+        // plastic features as plain sketches and extrudes on the face they stand on
+        const position = f.position as V3 | undefined;
+        if (!position) throw new Unsupported(`a ${f.type} without a position`);
+        const bodyHere = bodies > 0;
+        if (!bodyHere) throw new Unsupported(`a ${f.type} with no body to stand on`);
+        const dir = (f.direction as V3 | undefined) ?? undefined;
+        if (!dir) throw new Unsupported(`a ${f.type} without a direction (their face normal is not stored)`);
+        const joinOp = { operation: 'join', name: f.name };
+        const stand = (frame: ScFrame, name: string, build: (pl: Placed) => { points: FeatureJson[]; entities: FeatureJson[] }) => {
+          const pl = placeFrame(frame);
+          const plane = planeRef(pl);
+          const sid = nid();
+          const g = build(pl);
+          features.push({ type: 'sketch', id: sid, name, plane, points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...g.points], entities: g.entities, constraints: [], visible: false });
+          return { sid, pl };
+        };
+        /** closed polygon / circle entities from corner lists in the frame's own coordinates (u, v) */
+        const poly = (pl: Placed, loops: P2[][], tag: string) => {
+          const points: FeatureJson[] = [], entities: FeatureJson[] = [];
+          loops.forEach((loop, li) => {
+            const ids = loop.map((q, k) => { const [x, y] = mapXY(pl, q[0], q[1]); const id = `${tag}${li}_${k}`; points.push({ id, x, y }); return id; });
+            ids.forEach((id, k) => entities.push({ id: `${tag}e${li}_${k}`, type: 'line', p1: id, p2: ids[(k + 1) % ids.length] }));
+          });
+          return { points, entities };
+        };
+        const circle = (pl: Placed, r: number, tag: string) => { const [x, y] = mapXY(pl, 0, 0); return { points: [{ id: `${tag}c`, x, y }], entities: [{ id: `${tag}e`, type: 'circle', c: `${tag}c`, r }] }; };
+        const rect = (l: number, w: number): P2[] => [[-l / 2, -w / 2], [l / 2, -w / 2], [l / 2, w / 2], [-l / 2, w / 2]];
+        const added: string[] = [];
+        const push = (e: FeatureJson) => { features.push(e); added.push(e.id as string); };
+        const draftOf = (x: unknown): number => (x === undefined || x === null ? 0 : num(x, 'draft'));
+        if (f.type === 'boss') {
+          if (f.fillet !== undefined && num(f.fillet, 'boss fillet') > 0) throw new Unsupported('a boss with a fillet at its foot');
+          if (f.ribs !== undefined && num(f.ribs, 'boss ribs') > 0) throw new Unsupported('a boss with ribs');
+          const D = num(f.diameter, 'boss diameter'), H = num(f.height, 'boss height');
+          if (!(D > 0 && H > 0)) throw new Unsupported('a boss with no size');
+          const fr = faceFrame(position, dir);
+          const { sid, pl } = stand(fr, `${f.name} boss`, (p) => circle(p, D / 2, 'b'));
+          const ex = extrudeOf(joinOp, sid, H, true, pl.sign);
+          const dr = draftOf(f.draft);
+          if (dr) ex.draft = dr;
+          push(ex);
+          if (f.hole_diameter !== undefined) {
+            const d = num(f.hole_diameter, 'boss hole'), depth = f.hole_depth !== undefined ? num(f.hole_depth, 'boss hole depth') : H;
+            if (!(d > 0 && d < D)) throw new Unsupported('a boss hole that is not narrower than the boss');
+            // from the boss top, down into the boss
+            const nn = unit(dir);
+            const top = faceFrame([position[0] + nn[0] * H, position[1] + nn[1] * H, position[2] + nn[2] * H], dir);
+            const h = stand(top, `${f.name} hole`, (p) => circle(p, d / 2, 'h'));
+            push(extrudeOf({ operation: 'cut', name: `${f.name} hole` }, h.sid, depth, false, h.pl.sign));
+          }
+        } else if (f.type === 'rest') {
+          const w = num(f.width, 'rest width'), H = num(f.height, 'rest height');
+          const l = f.length !== undefined ? num(f.length, 'rest length') : undefined;
+          const t = f.thickness !== undefined ? num(f.thickness, 'rest wall') : 0;
+          if (!(w > 0 && H > 0)) throw new Unsupported('a rest with no size');
+          const fr = faceFrame(position, dir, f.along as V3 | undefined);
+          const { sid, pl } = stand(fr, `${f.name} pad`, (p) => {
+            if (l === undefined) {
+              if (t > 0) throw new Unsupported('a round hollow rest');
+              return circle(p, w / 2, 'r');
+            }
+            // length along their `along`, width across it
+            return poly(p, t > 0 ? [rect(l, w), rect(l - 2 * t, w - 2 * t)] : [rect(l, w)], 'r');
+          });
+          if (t > 0 && (2 * t >= w || (l !== undefined && 2 * t >= l))) throw new Unsupported('a rest whose wall is thicker than half its width');
+          const ex = extrudeOf(joinOp, sid, H, true, pl.sign);
+          const dr = draftOf(f.draft);
+          if (dr) ex.draft = dr;
+          push(ex);
+        } else {
+          // snap fit: an arm standing on the face (length along the face normal, thickness along the hook, width across both) and a
+          // triangular catch on the hook side at the arm's free end, deepest at its lower end
+          const hook = unit(f.hook as V3), n = unit(dir);
+          const L = num(f.length, 'snap fit length'), T = num(f.thickness, 'snap fit thickness'), W = num(f.width, 'snap fit width');
+          const cd = num(f.catch_depth, 'catch depth'), cl = num(f.catch_length, 'catch length');
+          if (Math.abs(dot3(hook, n)) > 1e-6) throw new Unsupported('a snap fit whose hook points along its arm');
+          if (!(L > 0 && T > 0 && W > 0 && cd > 0 && cl > 0 && cl < L)) throw new Unsupported('a snap fit with no usable size');
+          // the arm: a rectangle T x W on the face, centred on the position, thickness along the hook
+          const armFrame = faceFrame(position, dir, hook);   // u = hook, v = n x hook (across)
+          const arm = stand(armFrame, `${f.name} arm`, (p) => poly(p, [rect(T, W)], 'a'));
+          push(extrudeOf(joinOp, arm.sid, L, true, arm.pl.sign));
+          // the catch: a triangle in the (hook, arm) plane, extruded across the width
+          // the catch sketch lies in the plane holding the hook and arm directions (its normal is hook x n), started half a width to one
+          // side so that extruding it across the width is centred on the arm
+          const nrm = unit(cross3(hook, n));
+          const catchFrame: ScFrame = { o: [position[0] - nrm[0] * W / 2, position[1] - nrm[1] * W / 2, position[2] - nrm[2] * W / 2], u: hook, v: n };
+          const top = L, h0 = T / 2;
+          const cat = stand(catchFrame, `${f.name} catch`, (p) => poly(p, [[[h0, top], [h0, top - cl], [h0 + cd, top - cl]]], 'k'));
+          push(extrudeOf(joinOp, cat.sid, W, true, cat.pl.sign));
+        }
+        named.set(f.name, added);
         return [];
       }
       default: throw new Unsupported(`feature type "${f.type}"`);

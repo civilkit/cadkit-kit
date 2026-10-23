@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
-import { importSolidcraft, type EdgeResolver, type FaceResolver, type ScPart } from './import';
+import { importSolidcraft, importSolidcraftDocument, type ScPart } from './import';
+import { kernelResolvers } from './kernelResolvers';
 
 // Sample files are read from the corpus folder next to the kit (cadkit/corpus/solidcraft); they are not part of this repository.
 const CORPUS = join(process.cwd(), '..', 'corpus', 'solidcraft');
@@ -13,24 +14,87 @@ const fixture = (n: string) => new Uint8Array(readFileSync(join(CORPUS, `${FILES
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
+const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
-/** The kernel as the fillet's edge resolver, as the FreeCAD importer's tests do it. */
-const resolver: EdgeResolver = async (part, points) => {
-  const s = await open(part);
-  const out: Array<Record<string, unknown> | null> = [];
-  for (const p of points) {
-    const m = await s.resolve([{ kind: 'edge', near: p, within: 1e-3 }]);
-    out.push((m as unknown as Array<{ matches?: Array<{ ref?: Record<string, unknown> }> }>)[0]?.matches?.[0]?.ref ?? null);
-  }
-  return out;
+/** A plate (their box, corner at the origin) with plastic features standing on its top face (z = height), as their own tests build them. */
+const plateDoc = (feats: unknown[], plate = [60, 60, 3]) => ({
+  format: 'solidcraft/30', units: 'mm', params: [],
+  features: [{ id: 1, name: 'Plate', type: 'box', suppressed: false, corner: [0, 0, 0], length: plate[0], width: plate[1], height: plate[2], operation: 'new_body' }, ...feats],
+});
+const volumeOf = async (doc: Parameters<typeof importSolidcraftDocument>[0], opts: Parameters<typeof importSolidcraftDocument>[2] = {}) => {
+  const r = await importSolidcraftDocument(doc, 'p', opts);
+  const s = await open(r.part!);
+  const rep = await s.verify();
+  return { r, errors: rep.regen.errors, volume: (await s.facts()).volume! };
 };
 
-/** The kernel as the face resolver (shell, offset face): the face nearest each position, if it is clearly the nearest. */
-const faceResolver: FaceResolver = async (part, points) => {
-  const s = await open(part);
-  const res = (await s.resolve(points.map((p) => ({ kind: 'face', near: p })))) as unknown as Array<{ matches?: Array<{ ref?: { id?: string } }> }>;
-  return points.map((_, i) => (res[i]?.matches?.length === 1 ? res[i].matches![0].ref?.id ?? null : null));
-};
+describe('lip and groove on a shelled box (the numbers of their own test)', { skip: !process.env.CK_WASM }, () => {
+  // 80 x 50 x 30 box, the top face opened and the walls 2 thick: the rim is a 2 mm frame round a 76 x 46 opening
+  const shelled = (extra: unknown[]) => ({
+    format: 'solidcraft/30', units: 'mm', params: [],
+    features: [
+      { id: 1, name: 'Box', type: 'box', suppressed: false, corner: [0, 0, 0], length: 80, width: 50, height: 30, operation: 'new_body' },
+      { id: 2, name: 'Shell', type: 'shell', suppressed: false, faces: [[40, 25, 30]], thickness: '2' },
+      ...extra,
+    ],
+  });
+  const lip = (over: Record<string, unknown>) => ({ id: 3, name: 'Lip', type: 'lip', suppressed: false, face: [1, 25, 30], width: '1', height: '2', ...over });
+  const vol = async (extra: unknown[]) => {
+    const r = await importSolidcraftDocument(shelled(extra), 'p', { faceResolver, rimResolver });
+    const s = await open(r.part!);
+    const rep = await s.verify();
+    return { r, errors: rep.regen.errors, v: (await s.facts()).volume! };
+  };
+  it('a lip along the inner edge stands 2 high over a band 1 wide: (76 + 2)(46 + 2) - 76 * 46 = 248 square mm', async () => {
+    const base = (await vol([])).v;
+    const { r, errors, v } = await vol([lip({})]);
+    expect(r.rows.map((x) => x.status), JSON.stringify(r.rows)).toEqual(['converted', 'converted', 'converted']); expect(errors).toEqual([]);
+    expect(Math.abs((v - base) - 248 * 2) / (248 * 2)).toBeLessThan(1e-6);
+  });
+  it('a groove along the outer edge goes 2 deep over a band 1 wide: 80 * 50 - 78 * 48 = 256 square mm', async () => {
+    const base = (await vol([])).v;
+    const { errors, v } = await vol([lip({ groove: true, outside: true })]);
+    expect(errors).toEqual([]);
+    expect(Math.abs((base - v) - 256 * 2) / (256 * 2)).toBeLessThan(1e-6);
+  });
+  it('a face without an inner edge, a clearance gap and curved rims are reported', async () => {
+    expect((await vol([lip({ face: [40, 25, 0] })])).r.rows[2].reason).toMatch(/no inner edge/);
+    expect((await vol([lip({ gap: '0.1' })])).r.rows[2].reason).toMatch(/clearance/);
+    expect((await importSolidcraftDocument(shelled([lip({})]), 'p')).rows[2].reason).toMatch(/needs the kernel/);
+  });
+});
+
+describe('plastic features against the kernel (the volumes of their own tests)', { skip: !process.env.CK_WASM }, () => {
+  const up = [0, 0, 1];
+  const feat = (type: string, over: Record<string, unknown>) => ({ id: 2, name: type, type, suppressed: false, position: [30, 30, 3], direction: up, ...over });
+  const close = (a: number, b: number, rel = 1e-6) => expect(Math.abs(a - b) / b).toBeLessThan(rel);
+  it('boss: a cylinder with a hole of the same height', async () => {
+    const { r, errors, volume } = await volumeOf(plateDoc([feat('boss', { diameter: 10, height: 12, hole_diameter: 4 })]));
+    expect(r.geometryComplete, JSON.stringify(r.rows)).toBe(true); expect(errors).toEqual([]);
+    close(volume, 10800 + Math.PI * 25 * 12 - Math.PI * 4 * 12, 1e-6);
+    // a hole depth shorter than the boss, and a draft that narrows it
+    const shallow = await volumeOf(plateDoc([feat('boss', { diameter: 10, height: 12, hole_diameter: 4, hole_depth: 5 })]));
+    close(shallow.volume, 10800 + Math.PI * 25 * 12 - Math.PI * 4 * 5, 1e-6);
+    const drafted = await volumeOf(plateDoc([feat('boss', { diameter: 10, height: 12, draft: '1 deg' })]));
+    expect(drafted.volume).toBeGreaterThan(10800 + Math.PI * 25 * 10); expect(drafted.volume).toBeLessThan(10800 + Math.PI * 25 * 12);
+    // fillet and ribs are reported, not guessed
+    expect((await importSolidcraftDocument(plateDoc([feat('boss', { diameter: 10, height: 12, fillet: '2' })]), 'p')).rows[1].status).toBe('unsupported');
+  });
+  it('rest: rectangle, round, hollow and drafted pads', async () => {
+    const rest = (over: Record<string, unknown>) => volumeOf(plateDoc([feat('rest', { height: 4, ...over })]));
+    close((await rest({ width: 10, length: 20, along: [1, 0, 0] })).volume - 10800, 800);
+    close((await rest({ width: 10 })).volume - 10800, Math.PI * 25 * 4, 1e-3);
+    close((await rest({ width: 10, length: 20, thickness: 1 })).volume - 10800, 224);
+    const a = Math.tan((2 * Math.PI) / 180);
+    close((await rest({ width: 10, length: 20, draft: '2 deg' })).volume - 10800, 800 - a * 30 * 16 + (4 / 3) * a * a * 64);
+    expect((await importSolidcraftDocument(plateDoc([feat('rest', { width: 4, height: 4, length: 4, thickness: 2 })]), 'p')).rows[1].status).toBe('unsupported');
+  });
+  it('snap fit: a rectangular arm and a triangular catch', async () => {
+    const { r, errors, volume } = await volumeOf(plateDoc([feat('snap_fit', { position: [20, 20, 4], hook: [1, 0, 0], length: 15, thickness: 1.5, width: 6, catch_depth: 1, catch_length: 3 })], [40, 40, 4]));
+    expect(r.geometryComplete, JSON.stringify(r.rows)).toBe(true); expect(errors).toEqual([]);
+    close(volume - 6400, 1.5 * 15 * 6 + 0.5 * 1 * 3 * 6);
+  });
+});
 
 describe('SolidCraft files against the kernel', { skip: !process.env.CK_WASM || !have }, () => {
   it('slot: a stadium extruded 14, cut by a 6 x 12 x 20 box; volume by hand 9624.109', async () => {

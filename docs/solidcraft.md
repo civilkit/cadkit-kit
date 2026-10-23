@@ -55,7 +55,9 @@ Run over the project's 22 sample files (the 19 in its repository plus the 3 from
 - **12 import in part**, each reporting what was left out. The partial ones that have saved numbers differ from them, as they should.
 - **3 are refused as assemblies** (the hinge sample, `joints-hinge`, `components-arm`).
 
-Left out most often: the plastic features (lip, boss, rest, snap fit), a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern, sheet metal, an extrude that stops at a point or starts offset from its sketch, edges and faces that are not found on a body built differently from theirs, and a `conic` sketch curve.
+Plastic features become ordinary sketches and extrudes, checked against the volumes of their own tests: a **boss** (draft, hole and hole depth; a fillet at its foot and ribs are reported, not guessed), a **rest** (rectangle, round, hollow, drafted), a **snap fit** (arm and triangular catch) and a **lip / groove** (a band along the inner or outer edge of a flat rim, read from the kernel's outline of the rim; a clearance `gap`, a rim with curved edges or a face without an inner edge are reported). A lip needs the kernel's rim resolver (`kernelResolvers`); without it the row says so.
+
+Left out most often: a second separate body (and `move`, `combine`, `remove`, which work on whole bodies), intersect, a path pattern, sheet metal, an extrude that stops at a point or starts offset from its sketch, edges and faces that are not found on a body built differently from theirs, and a `conic` sketch curve.
 
 ## Not done
 

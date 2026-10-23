@@ -60,7 +60,7 @@ import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
-import { importSolidcraft, type EdgeResolver as ScEdgeResolver, type FaceResolver as ScFaceResolver, type ScPart } from '@kit/solidcraft';
+import { importSolidcraft, kernelResolvers, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -766,24 +766,16 @@ function App() {
     if (r.warnings.length) store.notify(t('files.fcstd.done', { name: file, features: r.steps.length, total, warnings: r.warnings.length, first: `${r.warnings[0].object}: ${r.warnings[0].message}` }), 'warn');
     else store.notify(t('files.fcstd.clean', { name: file, total }));
   });
-  /** The kernel as the edge resolver for imported fillets: the part built so far is regenerated on a scratch tag of its own (the open part is untouched) and each point is looked up as an edge. */
-  const scResolver: ScEdgeResolver = async (partBefore, points) => {
+  /** The kernel's answers for the importer (which edge, face or rim is at a position): the part built so far is regenerated on a scratch tag of its own, so the open part is untouched. */
+  const scResolvers = kernelResolvers(async (partBefore) => {
     const s = new Session(partBefore as unknown as PartDoc, await kernelRouter.transport(), 'import', 'solidcraft-import');
     await s.verify();
-    const found = (await s.resolve(points.map((p) => ({ kind: 'edge', near: p, within: 1e-3 })))) as unknown as Array<{ matches?: Array<{ ref?: Record<string, unknown> }> }>;
-    return points.map((_, i) => found[i]?.matches?.[0]?.ref ?? null);
-  };
-  /** The same for faces (shell, offset face): the face nearest each position, taken only when it is clearly the nearest. */
-  const scFaceResolver: ScFaceResolver = async (partBefore, points) => {
-    const s = new Session(partBefore as unknown as PartDoc, await kernelRouter.transport(), 'import', 'solidcraft-import');
-    await s.verify();
-    const found = (await s.resolve(points.map((p) => ({ kind: 'face', near: p })))) as unknown as Array<{ matches?: Array<{ ref?: { id?: string } }> }>;
-    return points.map((_, i) => (found[i]?.matches?.length === 1 ? found[i].matches![0].ref?.id ?? null : null));
-  };
+    return s;
+  });
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const name = file.replace(/\.solidcraft$/i, '');
-    const r = await importSolidcraft(bytes, name, { resolver: scResolver, faceResolver: scFaceResolver });
+    const r = await importSolidcraft(bytes, name, scResolvers);
     if (!r.part) { store.notify(t('files.solidcraft.failed', { name: file, message: r.refused ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part as ScPart), { file: null });
     viewport?.fit();

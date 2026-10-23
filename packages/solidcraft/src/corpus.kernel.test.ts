@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Session } from '@ck/session';
 import type { PartDoc } from '@ck/part-model';
-import { importSolidcraft, toYUp, type EdgeResolver, type FaceResolver, type ScPart, type V3 } from './import';
+import { importSolidcraft, toYUp, type ScPart, type V3 } from './import';
+import { kernelResolvers } from './kernelResolvers';
 
 const DIR = join(process.cwd(), '..', 'corpus', 'solidcraft');
 const files = existsSync(DIR) ? [...readdirSync(DIR), ...(existsSync(join(DIR, 'from-app')) ? readdirSync(join(DIR, 'from-app')).map((f) => join('from-app', f)) : [])].filter((f) => f.endsWith('.solidcraft')).sort() : [];
@@ -32,29 +33,14 @@ const KNOWN_KERNEL_ISSUES: Record<string, string> = {
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 const open = async (part: ScPart) => { const s = await Session.open(part as unknown as PartDoc); sessions.push(s); return s; };
-const resolver: EdgeResolver = async (part, points) => {
-  const s = await open(part);
-  const out: Array<Record<string, unknown> | null> = [];
-  for (const p of points) {
-    const m = await s.resolve([{ kind: 'edge', near: p, within: 1e-3 }]);
-    out.push((m as unknown as Array<{ matches?: Array<{ ref?: Record<string, unknown> }> }>)[0]?.matches?.[0]?.ref ?? null);
-  }
-  return out;
-};
-
-/** The kernel as the face resolver (shell, offset face): the face nearest each position, if it is clearly the nearest. */
-const faceResolver: FaceResolver = async (part, points) => {
-  const s = await open(part);
-  const res = (await s.resolve(points.map((p) => ({ kind: 'face', near: p })))) as unknown as Array<{ matches?: Array<{ ref?: { id?: string } }> }>;
-  return points.map((_, i) => (res[i]?.matches?.length === 1 ? res[i].matches![0].ref?.id ?? null : null));
-};
+const { resolver, faceResolver, rimResolver } = kernelResolvers(open);
 
 describe('SolidCraft corpus', { skip: !process.env.CK_WASM || !files.length, timeout: 120_000 }, () => {
   const table: string[] = [];
   const bad: string[] = [];
   it('imports every file without throwing; each is refused with a reason, or imported (a complete import regenerates without kernel errors)', async () => {
     for (const f of files) {
-      const r = await importSolidcraft(new Uint8Array(readFileSync(join(DIR, f))), f.replace(/.*\//, '').replace(/\.solidcraft$/, ''), { resolver, faceResolver });
+      const r = await importSolidcraft(new Uint8Array(readFileSync(join(DIR, f))), f.replace(/.*\//, '').replace(/\.solidcraft$/, ''), { resolver, faceResolver, rimResolver });
       if (!r.part) { table.push(`${f.padEnd(44)} REFUSED  ${r.refused}`); expect(r.refused, f).toBeTruthy(); continue; }
       const s = await open(r.part);
       const rep = await s.verify();
