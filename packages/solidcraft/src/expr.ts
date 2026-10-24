@@ -8,11 +8,37 @@ const UNITS = new Set(['mm', 'deg', 'rad']);
 
 type Tok = { k: 'num'; v: number } | { k: 'id'; v: string } | { k: 'op'; v: string };
 
+/**
+ * The text as the tokenizer reads it, after the spellings SolidCraft accepts besides the plain one: a single leading `=` marks a formula
+ * (`=d3`), a definition `name = expression` stands for its expression, and a decimal comma (`2,5 mm`, `,5`) is a point (there are no functions here, so a comma never separates arguments).
+ */
+function normalise(src: string): string {
+  let s = src.trim();
+  const def = /^([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)([\s\S]*)$/.exec(s);
+  if (def) s = def[2].trim();
+  else if (s.startsWith('=') && !s.startsWith('==')) s = s.slice(1).trim();
+  let out = '', point = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    const digit = (k: number) => k >= 0 && k < s.length && s[k] >= '0' && s[k] <= '9';
+    if (c === ',' && digit(i + 1)) {
+      let p = out.length - 1;
+      while (p >= 0 && out[p] === ' ') p--;
+      const operand = p < 0 || '+-*/'.includes(out[p]);   // where an operand is expected: a leading decimal comma
+      if (operand || (digit(i - 1) && !point)) { out += '.'; point = true; continue; }
+    }
+    if (c === '.') point = true;
+    else if (!(c >= '0' && c <= '9')) point = false;
+    out += c;
+  }
+  return out;
+}
+
 function tokens(src: string): Tok[] {
   const out: Tok[] = [];
   const re = /\s*(?:(\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)|([A-Za-z_][A-Za-z0-9_]*)|([-+*/()]))/y;
   let p = 0;
-  const s = src.trim();
+  const s = normalise(src);
   while (p < s.length) {
     re.lastIndex = p;
     const m = re.exec(s);
