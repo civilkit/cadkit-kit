@@ -159,6 +159,11 @@ describe('what is refused or reported', () => {
     const first = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { operation: 'cut' })]), 'x');
     expect(first.rows[1].reason).toMatch(/nothing to cut/);
   });
+  it('a name a rename freed (format 33) is skipped by the counter of unnamed bodies', async () => {
+    const make = async (extra: object) => ((await importSolidcraftDocument({ ...doc([sketch(1), extrude(2, 1, { operation: 'new_body' }), sketch(3), extrude(4, 3, { operation: 'new_body' })]), ...extra }, 'x')).part!.features as Array<Record<string, any>>).filter((x) => x.op === 'newBody').map((x) => x.body);
+    expect(await make({ reserved_body_names: ['Body2'] })).toEqual(['Body1', 'Body3']);
+    expect(await make({})).toEqual(['Body1', 'Body2']);   // a file saved before format 33 has no such list and keeps the plain counter
+  });
   it('several bodies: new bodies are named newBody lumps; a targeted cut, move, combine and remove refer to them by name', async () => {
     const r = await importSolidcraftDocument(doc([
       sketch(1), extrude(2, 1, { body_names: ['Block'] }),

@@ -405,6 +405,9 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   /** names of the bodies alive, in creation order; `bodyCount` is how many were ever made (unnamed ones are Body1, Body2, ... in that order) */
   let live: string[] = [];
   let bodyCount = 0;
+  /** Names a rename freed (`reserved_body_names`, format 33): the counter skips them, so a body made after `Body1` was renamed is `Body2`. */
+  const reserved = new Set(Array.isArray(doc.reserved_body_names) ? (doc.reserved_body_names as unknown[]).map(String) : []);
+  const autoName = (): string => { let k = bodyCount + 1; while (reserved.has(`Body${k}`) || live.includes(`Body${k}`)) k++; return `Body${k}`; };
   /** the name the feature being converted gives its new lump, and features that must follow it (the combine of a cut that names its targets) */
   let newName: string | undefined;
   let after: Array<() => FeatureJson> = [];
@@ -434,7 +437,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         if (bodies > 0) throw new Unsupported(`"${f.name}" starts a separate body; this kit keeps one connected body per part`);
         bodies++; return 'add';
       }
-      const nm = String(f.body_names?.[0] ?? `Body${bodyCount + 1}`);
+      const nm = String(f.body_names?.[0] ?? autoName());
       if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
       bodyCount++; live.push(nm); bodies++; newName = nm;
       return 'newBody';
@@ -875,7 +878,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         if (tv.some((x) => x !== 0)) m.translate = tv;
         if (f.copy === true) {
           if (srcs.length !== 1) throw new Unsupported('a copy of several bodies at once');
-          const nm = String(f.body_names?.[0] ?? `Body${bodyCount + 1}`);
+          const nm = String(f.body_names?.[0] ?? autoName());
           if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
           bodyCount++; live.push(nm); m.copy = true; m.body = nm;
         }
