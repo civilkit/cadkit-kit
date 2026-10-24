@@ -212,3 +212,39 @@ describe('tangent chain toggle (fillet and chamfer)', () => {
     fireEvent.click(m.box('tangentChain'));
   });
 });
+
+describe('the editors of the body features', () => {
+  const COMBINE = { type: 'combine', id: 'F6', op: 'cut', target: { body: 'Block' }, tools: [{ body: 'Peg' }, { face: 'F4.C0' }], keepTools: true };
+  it('combine: Join, Cut and Intersect (Cut chosen), the bodies in words, and keep tools', () => {
+    const m = mount(COMBINE);
+    const seg = [...m.q('op')!.querySelectorAll('button')];
+    expect(seg.map((b) => b.textContent)).toEqual(['Join', 'Cut', 'Intersect']);
+    expect(seg.find((b) => b.getAttribute('aria-checked') === 'true')!.textContent).toBe('Cut');
+    expect((m.q('target')!.querySelector('input') as HTMLInputElement).value).toBe('Block');
+    expect((m.q('tools')!.querySelector('input') as HTMLInputElement).value).toBe('Peg, the body with face F4.C0');
+    expect(m.box('keepTools').checked).toBe(true);
+    fireEvent.click(seg[0]);
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'union' });
+    fireEvent.click(m.box('keepTools'));
+    expect(m.drafts.at(-1)).toMatchObject({ keepTools: null });
+  });
+  it('move or copy: the bodies, how far, and a copy with its name', () => {
+    const m = mount({ type: 'moveBody', id: 'F7', bodies: [{ body: 'Battery' }], translate: [0, 0, 5], rotate: { axis: [0, 1, 0], origin: [0, 0, 0], angle: 90 }, copy: true, body: 'Case' });
+    expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Battery');
+    expect((m.q('translate')!.querySelector('input') as HTMLInputElement).value).toBe('by 0, 0, 5 mm; turned 90° about (0, 1, 0)');
+    expect(m.box('copy').checked).toBe(true);
+    expect((m.q('body')!.querySelector('input') as HTMLInputElement).value).toBe('Case');
+    fireEvent.click(m.box('copy'));
+    expect(m.drafts.at(-1)).toMatchObject({ copy: null, body: null });
+    const n = mount({ type: 'moveBody', id: 'F7', bodies: [{ body: 'Battery' }], translate: [1, 0, 0] });
+    expect(n.q('body')).toBeNull();
+    fireEvent.click(n.box('copy'));
+    expect(n.drafts.at(-1)).toMatchObject({ copy: true, body: 'Body 1' });
+  });
+  it('delete or keep: the bodies in words next to the mode', () => {
+    const m = mount({ type: 'deleteBody', id: 'F8', mode: 'delete', bodies: [{ body: 'Peg' }, { lump: 0 }] });
+    expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Peg, body 1');
+    expect(m.q('mode')).not.toBeNull();
+  });
+});
+

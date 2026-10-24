@@ -120,6 +120,8 @@ at a kernel checkout that has `combine`), `BodiesPanel.test.tsx`.
 
 The Operation control of Extrude, Revolve, Loft and Sweep offers **New body**, Add and Cut (`extrudeOp.ts`). New body writes `op: newBody` and a `body` name of its own (`Body 1`, `Body 2`, ...; kept when the feature has one, editable in the card); Add and Cut drop the name. A sketch that does not touch the body starts as a New body when the part already has a solid; the first solid of a part, and a sketch that meets the body, still add. A new body stays separate where it overlaps another; combine them in the Bodies panel.
 
+The tree and the Editor name the body features (`Combine bodies`, `Move or copy body`, `Delete or keep body`) and have forms of their own (`FeatureOptions.tsx`): Combine has Join, Cut, Intersect and Keep the tool bodies, with the target and tool bodies shown in words; Move or copy shows the bodies, how far they went (change it by dragging the body) and Make a copy with its name; Delete or keep shows the bodies next to the mode. Which bodies a feature acts on is set where it is made (the Bodies panel), not in the form.
+
 ## Not done / next
 
 * No undo for appearance edits (they are view state, like the exploded view). Appearance is not part of `Revert to step`.

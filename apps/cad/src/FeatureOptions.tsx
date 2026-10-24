@@ -2,7 +2,7 @@
 // fillet profile with the dependent fields shown and hidden as the kernel reads them (rules in featureOptions.ts). It plugs
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
-import { opChoiceOf, opChoices, opPatch } from './extrudeOp';
+import { nextBodyName, opChoiceOf, opChoices, opPatch } from './extrudeOp';
 import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
@@ -78,6 +78,79 @@ const endLabel = (e: string): string => t('opt.end.' + e);
 /** The body names the other features of the part use (this feature's own is not counted). */
 const otherBodyNames = (doc: PartDoc | null, eff: Wire): Set<string> =>
   usedBodyNames(((doc?.features ?? []) as unknown as Array<Record<string, unknown>>).filter((x) => x.id !== eff.id));
+
+/** A body reference of a feature in words: its name, or the face that tells which body. */
+export function bodyRefText(ref: unknown): string {
+  if (typeof ref === 'string') return t('opt.combine.ref.face', { face: ref });
+  const r = (ref && typeof ref === 'object' ? ref : {}) as Record<string, unknown>;
+  if (typeof r.body === 'string') return r.body;
+  if (typeof r.face === 'string') return t('opt.combine.ref.face', { face: r.face });
+  if (typeof r.feature === 'string') return t('opt.combine.ref.feature', { id: r.feature });
+  if (typeof r.lump === 'number') return t('opt.combine.ref.lump', { n: r.lump + 1 });
+  if (typeof r.surface === 'string') return t('opt.combine.ref.surface', { id: r.surface });
+  return '';
+}
+
+function RefText(p: { name: string; label: string; text: string }): JSX.Element {
+  return (
+    <label class="fedit-fld" data-path={p.name}>
+      <span class="fedit-fld-label">{p.label}</span>
+      <input type="text" value={p.text} readonly />
+    </label>
+  );
+}
+
+/** Combine bodies: how the target and the tool bodies are combined, and whether the tools are kept. Which bodies they are is set where the feature is made (the Bodies panel). */
+function CombineOptions(p: { eff: Wire; change: Change }): JSX.Element {
+  const { eff, change } = p;
+  const op = typeof eff.op === 'string' ? eff.op : 'union';
+  const choices = ['union', 'cut', 'intersect', ...(op === 'split' ? ['split'] : [])];
+  const tools = Array.isArray(eff.tools) ? eff.tools : [];
+  return (
+    <Section id="combine" title={t('opt.op')}>
+      <Segmented<string> name="op" label={t('opt.op')} value={op} choices={choices} text={(c) => t('opt.op.' + c)} onChange={(v) => change({ op: v })} />
+      <RefText name="target" label={t('opt.combine.target')} text={bodyRefText(eff.target)} />
+      <RefText name="tools" label={t('opt.combine.tools')} text={tools.map(bodyRefText).join(', ')} />
+      <Check name="keepTools" label={t('opt.combine.keepTools')} value={eff.keepTools} onChange={(v) => change({ keepTools: v ? true : null })} />
+    </Section>
+  );
+}
+
+const fmtNum = (n: unknown): string => (typeof n === 'number' && isFinite(n) ? String(+n.toFixed(3)) : '0');
+/** What a moveBody does in words: the translation and the turn; changed by dragging the body (the triball), not typed here. */
+export function moveSummary(eff: Wire): string {
+  const tr = Array.isArray(eff.translate) ? eff.translate : [];
+  const out: string[] = [];
+  if (tr.some((x) => Number(x) !== 0)) out.push(t('opt.move.by', { x: fmtNum(tr[0]), y: fmtNum(tr[1]), z: fmtNum(tr[2]) }));
+  const r = eff.rotate as { axis?: unknown[]; angle?: unknown } | undefined;
+  if (r && typeof r === 'object' && Number(r.angle) !== 0) out.push(t('opt.move.turn', { angle: fmtNum(r.angle), x: fmtNum(r.axis?.[0]), y: fmtNum(r.axis?.[1]), z: fmtNum(r.axis?.[2]) }));
+  return out.join('; ') || t('opt.move.none');
+}
+
+/** Move or copy bodies: which bodies, how far they went (read-only: drag the body to change it), and whether this makes a copy, and its name. */
+function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const bodies = Array.isArray(eff.bodies) ? eff.bodies : eff.bodies !== undefined ? [eff.bodies] : [];
+  const copy = eff.copy === true;
+  return (
+    <Section id="moveBody" title={t('opt.move.title')}>
+      <RefText name="bodies" label={t('opt.move.bodies')} text={bodies.map(bodyRefText).join(', ')} />
+      <RefText name="translate" label={t('opt.move.how')} text={moveSummary(eff)} />
+      <Check name="copy" label={t('opt.move.copy')} value={copy} onChange={(v) => change(v ? { copy: true, body: typeof eff.body === 'string' && eff.body ? eff.body : nextBodyName(otherBodyNames(p.doc, eff)) } : { copy: null, body: null })} />
+      {copy ? <BodyNameField eff={eff} change={change} /> : null}
+    </Section>
+  );
+}
+
+/** Delete or keep bodies: which bodies (the mode is the generic field). */
+function DeleteBodyOptions(p: { eff: Wire }): JSX.Element {
+  const bodies = Array.isArray(p.eff.bodies) ? p.eff.bodies : [];
+  return (
+    <Section id="deleteBody" title={t('opt.move.bodies')}>
+      <RefText name="bodies" label={t('opt.move.bodies')} text={bodies.map(bodyRefText).join(', ')} />
+    </Section>
+  );
+}
 
 /** The name a new body gets in the document: the Bodies panel lists it, and later features refer to it. */
 function BodyNameField(p: { eff: Wire; change: Change }): JSX.Element {
@@ -496,6 +569,9 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'shell': return { hide, node: <ShellOptions {...common} /> };
     case 'loft': return { hide, node: <LoftOptions {...common} doc={doc} /> };
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
+    case 'combine': return { hide, node: <CombineOptions {...common} /> };
+    case 'moveBody': return { hide, node: <MoveBodyOptions {...common} doc={doc} /> };
+    case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };
     case 'extend': return { hide, node: <ExtendOptions {...common} /> };
     case 'lpattern': case 'cpattern': case 'mirror': return { hide, node: <PatternOptions {...common} doc={doc} /> };
