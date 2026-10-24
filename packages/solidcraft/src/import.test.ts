@@ -199,6 +199,12 @@ describe('what is refused or reported', () => {
     expect(r.rows[0].reason).toMatch(/could not read this feature/);
     expect(r.part!.features.filter((x) => (x as { type: string }).type === 'importedUnsupported')).toHaveLength(2);
   });
+  it('legacy_per_side (older designs, 538 extrudes of one real file) reads as the plain distance one way, and is refused with a second distance', async () => {
+    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { extent: { convention: 'legacy_per_side', direction: 'positive', distance: '7' } }), sketch(3), extrude(4, 3, { operation: 'join', extent: { convention: 'legacy_per_side', direction: 'positive', distance: '7', distance2: '3' } })]), 'x');
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'unsupported']);
+    expect(r.rows[3].reason).toMatch(/second distance/);
+    expect((r.part!.features as Array<Record<string, any>>).find((x) => x.type === 'extrude')).toMatchObject({ type: 'extrude', op: 'add' });
+  });
   it('an extent without a convention (older files) is the total distance; profiles chosen by curves become regions', async () => {
     const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { extent: { direction: 'positive', distance: '7' }, profiles: { type: 'curves', loops: [['l1', 'l2', 'l3', 'l4']] } })]), 'old');
     expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted']);

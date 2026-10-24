@@ -739,9 +739,11 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
             sk = { ...s, id: nsid };
           }
         } else if (f.profiles?.type !== 'all') throw new Unsupported(`extrude profile selection "${f.profiles?.type}"`);
-        // older files have no `convention`; their extents are the same total distance
+        // older files have no `convention`; their extents are the same total distance. `legacy_per_side` only differs from the total for a
+        // symmetric extent (the distance on each side), which is refused below by its direction, so a one-way extent reads the same.
         const conv = f.extent?.convention ?? 'total_distance';
-        if (conv !== 'total_distance') throw new Unsupported(`extrude extent "${conv}"`);
+        if (conv !== 'total_distance' && conv !== 'legacy_per_side') throw new Unsupported(`extrude extent "${conv}"`);
+        if (f.extent?.distance2 !== undefined) throw new Unsupported('an extrude with a second distance (two sides)');
         if (f.extent.direction !== 'positive' && f.extent.direction !== 'negative') throw new Unsupported(`extrude direction "${f.extent.direction}"`);
         // a negative distance runs the other way: "-100 mm" going positive is 100 mm going negative
         const dist = f.extent.through_all ? 0 : num(f.extent.distance, 'extrude distance');
