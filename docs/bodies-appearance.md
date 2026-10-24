@@ -102,8 +102,23 @@ Tests: `packages/script/src/appearance.test.ts`.
 `opts.appearance: false` draws the default grey): colour, finish (metal shading from a sky / horizon / ground mirror and a
 highlight), opacity and hidden bodies; see docs/snapshot.md.
 
+## Names from the document and edits of whole bodies
+
+A body the document names (`body` on an extrude with `op: newBody`, on a `moveBody` copy or a `combine`; kernel ADR 0004) is listed under that name, ahead of the
+feature name; a name typed in the panel for a body that has none stays view state (`bodyNames`). The kernel does not say which face belongs to which lump, so
+the app asks `massProps {bodies: true}` for each lump's name, volume and centre (`Controller.lumps`, only when the document names bodies) and matches the lumps to
+the rows by volume (the rows' come from the display mesh) and centre, closest first (`matchLumps` in `bodies.ts`); a row that matches nothing keeps its feature name.
+
+Under the list: **Copy** (one body: a `moveBody` with `copy` and no motion, named `<name> 2`; move it afterwards), **Delete** (`deleteBody`), and **Join**, **Cut**,
+**Intersect** (two or more: a `combine` with the first body selected as the target and the others as tools, which are used up). A body is referred to by
+`{body: name}` when it has a name and by one of its faces otherwise. These are features, so they undo and show in History; a refusal (a cut that touches nothing
+says `cutNoEffect`) is reported and nothing changes. Renaming a body the document names renames it in the feature that made it and in every `{body: name}` that
+refers to it (`renameBodyOps` in `bodyOps.ts`); a name another body has is refused. Tests: `bodyOps.test.ts`, `bodyEdits.kernel.test.ts` (with `CK_WASM` and `CK_REBUILD`
+at a kernel checkout that has `combine`), `BodiesPanel.test.tsx`.
+
 ## Not done / next
 
 * No undo for appearance edits (they are view state, like the exploded view). Appearance is not part of `Revert to step`.
 * No face-level editing in the panel, no per-body material (density) and no export of colours to STEP or GLB (exports unchanged).
 * `export visible only` is not offered.
+* No Split (`combine` with `split`), no Mirror of a body, no choice of keeping the tools of a combine, and no "new body" choice in the Extrude, Revolve, Sweep and Loft dialogs yet: bodies made there still merge with what they touch.
