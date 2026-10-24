@@ -38,13 +38,13 @@ export const endAllowsDraft = (end: string): boolean => end !== 'mid' && end !==
 /** The fields a form of this feature type owns; the generic editor hides them. */
 export function managedPaths(type: string): Set<string> {
   switch (type) {
-    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endFace', 'endOffset', 'endPoint', 'thin', 'op']);
-    case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op']);
+    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endFace', 'endOffset', 'endPoint', 'thin', 'op', 'body']);
+    case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op', 'body']);
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
-    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'startNormal', 'endNormal']);
-    case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op']);
+    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'startNormal', 'endNormal']);
+    case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body']);
     case 'fill': return new Set(['continuity', 'fairing', 'merge']);
     case 'extend': return new Set(['distance', 'shape', 'end']);
     case 'lpattern': case 'cpattern': case 'mirror': return new Set(['carryThreads']);

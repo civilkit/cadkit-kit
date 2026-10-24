@@ -116,9 +116,13 @@ says `cutNoEffect`) is reported and nothing changes. Renaming a body the documen
 refers to it (`renameBodyOps` in `bodyOps.ts`); a name another body has is refused. Tests: `bodyOps.test.ts`, `bodyEdits.kernel.test.ts` (with `CK_WASM` and `CK_REBUILD`
 at a kernel checkout that has `combine`), `BodiesPanel.test.tsx`.
 
+## New body in the dialogs
+
+The Operation control of Extrude, Revolve, Loft and Sweep offers **New body**, Add and Cut (`extrudeOp.ts`). New body writes `op: newBody` and a `body` name of its own (`Body 1`, `Body 2`, ...; kept when the feature has one, editable in the card); Add and Cut drop the name. A sketch that does not touch the body starts as a New body when the part already has a solid; the first solid of a part, and a sketch that meets the body, still add. A new body stays separate where it overlaps another; combine them in the Bodies panel.
+
 ## Not done / next
 
 * No undo for appearance edits (they are view state, like the exploded view). Appearance is not part of `Revert to step`.
 * No face-level editing in the panel, no per-body material (density) and no export of colours to STEP or GLB (exports unchanged).
 * `export visible only` is not offered.
-* No Split (`combine` with `split`), no Mirror of a body, no choice of keeping the tools of a combine, and no "new body" choice in the Extrude, Revolve, Sweep and Loft dialogs yet: bodies made there still merge with what they touch.
+* No Split (`combine` with `split`), no Mirror of a body, no choice of keeping the tools of a combine.

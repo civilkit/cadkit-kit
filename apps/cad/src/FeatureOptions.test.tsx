@@ -83,6 +83,31 @@ describe('extrude options', () => {
   });
 });
 
+describe('the operation of a solid feature', () => {
+  const pressed = (m: ReturnType<typeof mount>) => [...m.q('op')!.querySelectorAll('button')].find((b) => b.getAttribute('aria-checked') === 'true')?.textContent;
+  const press = (m: ReturnType<typeof mount>, label: string) => fireEvent.click([...m.q('op')!.querySelectorAll('button')].find((b) => b.textContent === label)!);
+  it('offers New body, Add and Cut, and a body the feature names shows as New body with its name', () => {
+    const m = mount({ ...EXTRUDE, op: 'newBody', body: 'Case' });
+    expect([...m.q('op')!.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['New body', 'Add', 'Cut']);
+    expect(pressed(m)).toBe('New body');
+    expect((m.q('body')!.querySelector('input') as HTMLInputElement).value).toBe('Case');
+    expect(m.container.querySelectorAll('[data-path="body"]')).toHaveLength(1);   // the generic field is hidden
+  });
+  it('choosing New body gives it a free name, choosing Add drops the name, and a name can be typed', () => {
+    const m = mount(EXTRUDE);
+    expect(m.q('body')).toBeNull();
+    press(m, 'New body');
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'newBody', body: 'Body 1' });
+    const n = mount({ ...EXTRUDE, op: 'newBody', body: 'Body 1' });
+    const input = n.q('body')!.querySelector('input') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: ' Lid ' } });
+    fireEvent.change(input, { target: { value: ' Lid ' } });
+    expect(n.drafts.at(-1)).toMatchObject({ body: 'Lid' });
+    press(n, 'Add');
+    expect(n.drafts.at(-1)).toMatchObject({ op: 'add', body: null });
+  });
+});
+
 describe('revolve options', () => {
   const REV = { type: 'revolve', id: 'F2', op: 'add', sketch: 'F1', axis: 'ax', end: 'blind', angle: 360 };
   it('has an angle, blind / mid only, and keeps the axis pick', () => {
