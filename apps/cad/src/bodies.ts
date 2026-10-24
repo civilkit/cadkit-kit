@@ -24,6 +24,8 @@ export interface BodyRow {
   name: string;
   /** the default name was used (no user or script name) */
   named: boolean;
+  /** the name the document gives this body (`body` of the feature that made it), when the kernel's lump could be matched to the row */
+  docName?: string;
   faces: string[];
   edges: string[];
   /** lowest-numbered feature owning one of the faces */
@@ -72,25 +74,75 @@ export function lookFor(fields: BodyFields, key: string, origin: string | null):
   return { ...(origin ? cleanLook(a[origin]) : {}), ...cleanLook(a[key]) };
 }
 
-/** Signed volume of the triangles of the given faces (a closed shell gives its volume). */
-export function faceVolumes(mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null | undefined): Map<string, number> {
-  const out = new Map<string, number>();
+/** Signed volume and volume-weighted centre moment (sum of volume x centroid) of the triangles of each face. A closed shell's total volume is its volume and
+ *  moment / volume its centre of mass. */
+export function faceMoments(mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null | undefined): Map<string, { v: number; m: [number, number, number] }> {
+  const out = new Map<string, { v: number; m: [number, number, number] }>();
   if (!mesh) return out;
   const P = mesh.positions;
   for (let t = 0; t < mesh.triFace.length; t++) {
     const o = t * 9;
     const v = (P[o] * (P[o + 4] * P[o + 8] - P[o + 5] * P[o + 7]) - P[o + 1] * (P[o + 3] * P[o + 8] - P[o + 5] * P[o + 6]) + P[o + 2] * (P[o + 3] * P[o + 7] - P[o + 4] * P[o + 6])) / 6;
     const f = mesh.faceIds[mesh.triFace[t]];
-    out.set(f, (out.get(f) ?? 0) + v);
+    let e = out.get(f);
+    if (!e) { e = { v: 0, m: [0, 0, 0] }; out.set(f, e); }
+    e.v += v;
+    for (let k = 0; k < 3; k++) e.m[k] += v * (P[o + k] + P[o + 3 + k] + P[o + 6 + k]) / 4;   // the tetrahedron with the origin has its centroid at a quarter of the corner sum
   }
   return out;
+}
+
+/** Signed volume of the triangles of the given faces (a closed shell gives its volume). */
+export function faceVolumes(mesh: { positions: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] } | null | undefined): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [f, e] of faceMoments(mesh)) out.set(f, e.v);
+  return out;
+}
+
+/** What the kernel says about one lump (`massProps` with `bodies: true`): the name its document gave it, if any, and its volume and centre of mass. */
+export interface LumpInfo { name?: string; volume: number; com: readonly number[] }
+export interface BodyShape { key: string; volume: number | null; com: readonly number[] | null }
+
+/** The document names of the lumps, matched to the rows of the list: the kernel does not say which face belongs to which lump, but a lump and a
+ *  body of the list are the same thing when their volumes (the list's come from the display mesh, so a fraction of a percent off) and centres agree.
+ *  Closest pairs first, so two copies of one body (the same volume) are told apart by where they are. A row that matches nothing gets no name. */
+export function matchLumps(rows: readonly BodyShape[], lumps: readonly LumpInfo[]): Map<string, string> {
+  const pairs: Array<{ i: number; j: number; cost: number }> = [];
+  rows.forEach((r, i) => {
+    if (r.volume === null || r.com === null || !(r.volume > 0)) return;
+    lumps.forEach((l, j) => {
+      if (!l.name || !(l.volume > 0)) return;
+      const dv = Math.abs(l.volume - r.volume!) / l.volume;
+      const dc = Math.hypot(l.com[0] - r.com![0], l.com[1] - r.com![1], l.com[2] - r.com![2]);
+      if (dv > 0.03 || dc > 0.5 + 0.03 * Math.cbrt(l.volume)) return;
+      pairs.push({ i, j, cost: dv + dc / (1 + Math.cbrt(l.volume)) });
+    });
+  });
+  pairs.sort((a, b) => a.cost - b.cost);
+  const out = new Map<string, string>(), usedRow = new Set<number>(), usedLump = new Set<number>();
+  for (const p of pairs) {
+    if (usedRow.has(p.i) || usedLump.has(p.j)) continue;
+    usedRow.add(p.i); usedLump.add(p.j);
+    out.set(rows[p.i].key, lumps[p.j].name!);
+  }
+  return out;
+}
+
+/** The volume and centre of mass of each body from the display mesh (null for a sheet, which has no volume). */
+export function bodyShapes(bodies: readonly Body[], moments: Map<string, { v: number; m: [number, number, number] }>): BodyShape[] {
+  return bodies.map((b) => {
+    let v = 0; const m: [number, number, number] = [0, 0, 0];
+    for (const f of b.faces) { const e = moments.get(f); if (e) { v += e.v; m[0] += e.m[0]; m[1] += e.m[1]; m[2] += e.m[2]; } }
+    const ok = !b.surface && Math.abs(v) > 1e-12;
+    return { key: keyOf(b.faces), volume: ok ? Math.abs(v) : null, com: ok ? [m[0] / v, m[1] / v, m[2] / v] : null };
+  });
 }
 
 /** The rows of the Bodies list: ordered by creating feature, then key. */
 export function listBodies(
   bodies: readonly Body[],
   fields: BodyFields,
-  opts: { featureName?(id: string): string | null; volumes?: Map<string, number>; defaultName?(n: number): string } = {},
+  opts: { featureName?(id: string): string | null; volumes?: Map<string, number>; defaultName?(n: number): string; docNames?: Map<string, string> } = {},
 ): BodyRow[] {
   const hidden = new Set(fields.view?.hiddenBodies ?? []);
   const base = bodies.map((b) => ({ b, key: keyOf(b.faces), origin: originOf(b.faces) }));
@@ -102,14 +154,16 @@ export function listBodies(
   return base.map((x, i) => {
     const names = fields.bodyNames ?? {};
     const own = names[x.key]?.trim();
+    const docName = opts.docNames?.get(x.key);
     const feat = x.origin ? names[x.origin]?.trim() || opts.featureName?.(x.origin)?.trim() || '' : '';
     let name: string, named = true;
     if (own) name = own;
+    else if (docName) name = docName;
     else if (feat) { const k = (seen.get(x.origin!) ?? 0) + 1; seen.set(x.origin!, k); name = (perOrigin.get(x.origin!) ?? 1) > 1 ? `${feat} ${k}` : feat; }
     else { name = dflt(i + 1); named = false; }
     let volume: number | null = null;
     if (opts.volumes) { let v = 0, any = false; for (const f of x.b.faces) { const fv = opts.volumes.get(f); if (fv !== undefined) { v += fv; any = true; } } volume = any && !x.b.surface ? Math.abs(v) : null; }
-    return { key: x.key, name, named, faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin), hidden: hidden.has(x.key) };
+    return { key: x.key, name, named, ...(docName ? { docName } : {}), faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin), hidden: hidden.has(x.key) };
   });
 }
 
