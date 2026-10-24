@@ -245,6 +245,16 @@ describe('planes, extents and features beyond the basics', () => {
   const doc = (features: unknown[]) => ({ format: 'solidcraft/30', units: 'mm', params: [], features });
   const F = (r: { part: { features: unknown[] } | null }) => r.part!.features as Array<Record<string, any>>;
 
+  it('a body transfer that moves nothing is skipped (the bodies stay), one that moves them is reported', async () => {
+    const I = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
+    const tr = (id: number, transform: number[][]) => ({ id, name: `T${id}`, type: 'body_transfer', suppressed: false, bodies: ['Body1'], from: 0, to: 7, component: 7, transform });
+    const r = await importSolidcraftDocument(doc([sq(1, 'S', { type: 'origin', name: 'XY' }), ext(2, 1), tr(3, I), tr(4, [[1, 0, 0, 5], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])]), 'bt');
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'skipped', 'unsupported']);
+    expect(r.rows[3].reason).toMatch(/also moves/);
+    expect(r.geometryComplete).toBe(false);
+    expect((await importSolidcraftDocument(doc([sq(1, 'S', { type: 'origin', name: 'XY' }), ext(2, 1), tr(3, I)]), 'bt')).geometryComplete).toBe(true);
+  });
+
   it('a sketch on a face or custom plane carries its own frame: an axis-aligned one lands on a standard plane with an offset and an in-plane shift', async () => {
     // their frame: origin (10, 0, 0), x along their Y, y along their Z (a face of the part at x = 10, normal +X): our right plane, 10 along its normal (+X)
     const face = { type: 'face', name: 'F2:side:l1', at: [10, 0, 0], anchor: {}, plane: { origin: [10, 0, 0], x_dir: [0, 1, 0], y_dir: [0, 0, 1] } };

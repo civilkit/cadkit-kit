@@ -1159,6 +1159,12 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   for (const f of doc.features as Rec[]) {
     const row = { id: f.id, name: String(f.name ?? f.type), type: String(f.type) };
     if (f.suppressed) { rows.push({ ...row, status: 'skipped', reason: 'suppressed in the file' }); continue; }
+    if (f.type === 'body_transfer') {
+      // hands bodies from one component to another; the bodies are built where the file builds them, so with the identity transform nothing moves and only the grouping is lost
+      const m = f.transform as number[][] | undefined, still = !m || m.every((r, i) => r.every((x, j) => Math.abs(Number(x) - (i === j ? 1 : 0)) < 1e-9));
+      rows.push(still ? { ...row, status: 'skipped', reason: 'the bodies stay where they were built; which component owns them is not kept' } : { ...row, status: 'unsupported', reason: 'a body transfer that also moves the bodies' });
+      continue;
+    }
     const mark = features.length, bodiesBefore = bodies, nBefore = n, liveBefore = [...live], countBefore = bodyCount;
     newName = undefined; after = [];
     try {
