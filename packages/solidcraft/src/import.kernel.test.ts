@@ -181,3 +181,16 @@ describe('sheet metal', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => 
     expect(volume).toBeCloseTo(12097.62, 1);   // their evaluator saved 12097.48 for the sample (1e-5 apart)
   });
 });
+
+describe('sphere', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
+  it('a sphere has the volume of 4/3 pi r^3, joined to a plate and as a body of its own', async () => {
+    const ball = (over: Record<string, unknown>) => ({ id: 2, name: 'Ball', type: 'sphere', suppressed: false, center: [30, 30, 10], radius: '5', operation: 'new_body', ...over });
+    const alone = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [ball({ center: [0, 0, 0] })] });
+    expect(alone.errors).toEqual([]);
+    expect(alone.volume).toBeCloseTo((4 / 3) * Math.PI * 125, 0);
+    // clear of the plate: a second body, the plate keeps its 60 x 60 x 3
+    const two = await volumeOf(plateDoc([ball({})]), { namedBodies: true });
+    expect(two.errors).toEqual([]);
+    expect(two.volume).toBeCloseTo(10800 + (4 / 3) * Math.PI * 125, 0);
+  });
+});
