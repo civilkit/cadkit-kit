@@ -312,12 +312,14 @@ describe('planes, extents and features beyond the basics', () => {
       sq(1, 'B', { type: 'origin', name: 'XY' }), ext(2, 1, { extent: { direction: 'positive', distance: '10' } }),
       { id: 3, name: 'Round', type: 'fillet', suppressed: false, edges: [[10, 5, 10]], edge_names: ['F2:side:l1|F2:start'], radius: '1' },
       { id: 4, name: 'Odd', type: 'fillet', suppressed: false, edges: [[10, 5, 10]], edge_names: ['F6:inner:F2:side:l1|F2:start'], radius: '1' },
+      { id: 5, name: 'Piece', type: 'fillet', suppressed: false, edges: [[10, 5, 10]], edge_names: ['F2:side:l1#2|F2:start#1'], radius: '1' },
     ]);
     const r = await importSolidcraftDocument(d, 'm', { resolver });
-    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'converted']);
+    expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'converted', 'converted', 'converted']);
     const ext2 = F(r).find((x) => x.type === 'extrude')!.id;
     expect(seen[0]).toEqual([{ prefix: `${ext2}.S.e1` }, { prefix: `${ext2}.C0` }]);
     expect(seen[1]).toBeUndefined();   // a name of another form gives no hint
+    expect(seen[2]).toEqual(seen[0]);   // pieces of a split face (#1, #2, format 31 and later) name the same faces
   });
   it('revolve about the sketch axis, loft, rectangular pattern, chamfer, shell and offset face', async () => {
     const calls: unknown[][] = [];

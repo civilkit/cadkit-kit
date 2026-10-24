@@ -503,12 +503,12 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     return e;
   };
 
-  /** The two faces of an edge by their names in the file (`F2:side:l5@F5.1|F2:start@F5.1`) as the names this kit gives them; undefined for any other form (a shell's inner faces, other features). */
+  /** The two faces of an edge by their names in the file (`F2:side:l5@F5.1|F2:start@F5.1`; pieces of a split face carry `#1`, `#2`, which is ignored here: the nearest edge between any pieces of those faces is meant, and the stored position is tried first) as the names this kit gives them; undefined for any other form (a shell's inner faces, other features). */
   const faceNames = (edgeName: string | undefined): [FaceName, FaceName] | undefined => {
     const parts = edgeName?.split('|');
     if (parts?.length !== 2) return undefined;
     const one = (t: string): FaceName | undefined => {
-      const m = /^F(\d+):(?:side:(l\d+)|(start|top|end))(?:@F(\d+)\.1)?$/.exec(t);
+      const m = /^F(\d+):(?:side:(l\d+)|(start|top|end))(?:#\d+)?(?:@F(\d+)\.1)?(?:#\d+)?$/.exec(t);
       if (!m) return undefined;
       const ext = ourExtrude.get(Number(m[1]));
       if (!ext) return undefined;
