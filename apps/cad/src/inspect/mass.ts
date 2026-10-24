@@ -6,7 +6,7 @@ export interface MassRaw {
   volume?: number; area?: number; com?: number[];
   /** principal moments for unit density, mm^5 */
   principal?: number[]; axes?: number[][];
-  bodies?: Array<{ volume: number; area: number; com: number[] }>;
+  bodies?: Array<{ volume: number; area: number; com: number[]; name?: string }>;
 }
 
 /** Densities in g/cm3 for the materials a part can name; the part's `material` is matched ignoring case. */

@@ -949,6 +949,7 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .bodies-count { color: var(--text-2); }
 .bodies-actions, .body-presets { display: flex; gap: 4px; flex-wrap: wrap; }
 .bodies-btn { border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--text); padding: 3px 8px; font: inherit; cursor: pointer; }
+.bodies-edit { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
 .bodies-btn:disabled { opacity: 0.4; cursor: default; }
 .bodies-btn:focus-visible, .body-row:focus-visible, .body-eye:focus-visible, .body-solo:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 .body-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }

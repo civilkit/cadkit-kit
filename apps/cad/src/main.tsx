@@ -68,7 +68,8 @@ import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
-import { faceVolumes, hideOthers, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
+import { combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
+import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withName, type BodyLookSpec, type BodyRow } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { evaluate as evaluateScript, runScript } from '@kit/script';
 import { scopeOf } from './variables';
@@ -221,8 +222,10 @@ function bodyRowsFor(volumes: boolean): BodyRow[] {
   if (!m) return [];
   const d = controller.document();
   const feats = new Map((d?.features ?? []).map((f) => [f.id, (f as { name?: string }).name ?? null] as const));
+  // the names the document gives its bodies: asked of the kernel (controller.lumps) and matched to the list by volume and centre
+  const docNames = controller.lumps.length ? matchLumps(bodyShapes(m.bodies(), faceMoments(controller.bodyFaces())), controller.lumps) : undefined;
   return listBodies(m.bodies(), readBodyFields(d), {
-    featureName: (id) => feats.get(id) ?? null, defaultName: (n) => t('bodies.default', { n }),
+    featureName: (id) => feats.get(id) ?? null, ...(docNames ? { docNames } : {}), defaultName: (n) => t('bodies.default', { n }),
     ...(volumes ? { volumes: faceVolumes(controller.bodyFaces()) } : {}),
   });
 }
@@ -1422,6 +1425,7 @@ function App() {
     void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); applyHighlight(); viewTick((n) => n + 1); });
   };
   textEditRef.current = textEdit;
+  controller.onLumps = () => { viewport?.setBodyView(bodyViewNow()); redraw((n) => n + 1); };
   controller.onTextOutlines = () => { applyHighlight(); viewTick((n) => n + 1); const id = selectedText(); const d = controller.sketchDraft(); const e = id && d ? d.entities.find((x) => x.id === id) : null; const note = e && d ? textNotes(textOutlineOf(d, e))[0] : null; if (note) setSketchHint(t(note.key, note.params ?? {})); };
   sketchSelectRef.current = (ev) => {
     if (sketchToolRef.current) return;
@@ -2287,6 +2291,15 @@ function App() {
     viewport?.setBodyView(bodyViewNow());
     redraw((n) => n + 1);
   };
+  /** A body as an edit names it: by the name the document gives it, or by one of its faces. */
+  const targetOf = (r: BodyRow): BodyTarget => ({ ...(r.docName ? { docName: r.docName } : {}), face: [...r.faces].sort()[0] });
+  const editBodies = (ops: EditOp[]): void => {
+    void timed(() => controller.commit(ops, 'bodies')).then((r) => {
+      if (!r.ok) { const e = (r.errors?.[0] ?? null) as unknown; const code = Array.isArray(e) ? (e[1] as { code?: string } | undefined)?.code : (e as { code?: string } | null)?.code; store.notify(t('bodies.failed', { why: code ?? '' }), 'error'); }
+      store.select([]);
+      redraw((n) => n + 1);
+    });
+  };
   const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
   const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
   const bodyFields = readBodyFields(doc);
@@ -2297,7 +2310,18 @@ function App() {
     onSolo={(key) => setHiddenBodies(solo(bodyRows, key))}
     onShowAll={() => setHiddenBodies(showAll())}
     onHideOthers={() => setHiddenBodies(hideOthers(bodyRows, store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k)))}
-    onRename={(key, name) => setBodyField('bodyNames', withName(bodyFields, key, name))}
+    onRename={(key, name) => {
+      const row = bodyRows.find((r) => r.key === key);
+      if (!row?.docName) { setBodyField('bodyNames', withName(bodyFields, key, name)); return; }
+      // a body the document names is renamed in the document, in every feature that refers to it
+      const ops = renameBodyOps((controller.document()?.features ?? []) as unknown as Array<Record<string, unknown>>, row.docName, name);
+      if (!ops) { if (name.trim() && name.trim() !== row.docName) store.notify(t('bodies.nameTaken', { name: name.trim() }), 'error'); return; }
+      if (bodyFields.bodyNames?.[key]) setBodyField('bodyNames', withName(bodyFields, key, ''));
+      editBodies(ops);
+    }}
+    onCopy={(key) => { const r = bodyRows.find((x) => x.key === key); if (!r) return; const used = usedBodyNames((controller.document()?.features ?? []) as unknown as Array<Record<string, unknown>>, controller.lumps.flatMap((l) => (l.name ? [l.name] : []))); editBodies(copyBodyOps(targetOf(r), freeBodyName(used, r.named ? r.name : r.name))); }}
+    onRemove={(keys) => { const ts = keys.flatMap((k) => { const r = bodyRows.find((x) => x.key === k); return r ? [targetOf(r)] : []; }); if (ts.length) editBodies(removeBodyOps(ts)); }}
+    onCombine={(op, keys) => { const ts = keys.flatMap((k) => { const r = bodyRows.find((x) => x.key === k); return r ? [targetOf(r)] : []; }); if (ts.length >= 2) editBodies(combineBodyOps(op as CombineOp, ts[0], ts.slice(1))); }}
     onLook={(key, patch) => { const row = bodyRows.find((r) => r.key === key); if (row) setBodyField('appearance', withLook(bodyFields, row, patch as Partial<Record<keyof BodyLookSpec, never>>)); }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Variables'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); setLeftTab('Script'); };

@@ -15,6 +15,10 @@ export interface BodiesPanelProps {
   onShowAll(): void;
   onHideOthers(): void;
   onRename(key: string, name: string): void;
+  /** Edits of whole bodies (features): a copy in place, delete, and the first body combined with the others. Without them the buttons are not shown. */
+  onCopy?(key: string): void;
+  onRemove?(keys: string[]): void;
+  onCombine?(op: 'union' | 'cut' | 'intersect', keys: string[]): void;
   onLook(key: string, patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void;
 }
 
@@ -43,6 +47,15 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
           <button type="button" class="bodies-btn" disabled={!p.selected.length || p.rows.length < 2} onClick={p.onHideOthers}>{t('bodies.hideOthers')}</button>
         </span>
       </header>
+      {p.onCopy && p.onRemove && p.onCombine && p.rows.length ? (
+        <div class="bodies-edit" role="group" aria-label={t('bodies.editGroup')}>
+          <button type="button" class="bodies-btn" disabled={p.selected.length !== 1} title={t('bodies.copyTip')} onClick={() => p.onCopy!(p.selected[0])}>{t('bodies.copy')}</button>
+          <button type="button" class="bodies-btn" disabled={!p.selected.length} title={t('bodies.removeTip')} onClick={() => p.onRemove!(p.selected)}>{t('bodies.remove')}</button>
+          {(['union', 'cut', 'intersect'] as const).map((op) => (
+            <button key={op} type="button" class="bodies-btn" disabled={p.selected.length < 2} title={t('bodies.combineTip')} onClick={() => p.onCombine!(op, p.selected)}>{t(op === 'union' ? 'bodies.join' : op === 'cut' ? 'bodies.cut' : 'bodies.intersect')}</button>
+          ))}
+        </div>
+      ) : null}
       {p.rows.length === 0 ? <div class="empty">{t('bodies.empty')}</div> : (
         <ul class="body-list" role="listbox" aria-multiselectable="true" aria-label={t('bodies.list')} ref={listRef}>
           {p.rows.map((r, i) => {

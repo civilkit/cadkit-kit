@@ -9,6 +9,7 @@ import { importStepView, importSldprtView, type StepImportResult } from './files
 import { importSkpView, type SkpImportResult, type SkpLook, type SkpOrient } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
+import type { LumpInfo } from './bodies';
 import { drawingQuery } from './drawing/kernel';
 import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
@@ -1270,6 +1271,18 @@ export class Controller {
     if (!s) return null;
     try { return await go(s); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
   }
+  /** What the kernel says about each lump of the shown result (its document name, volume and centre), asked for only when the document names bodies. */
+  lumps: LumpInfo[] = [];
+  /** Called when `lumps` changed (the app redraws its Bodies list). */
+  onLumps: (() => void) | null = null;
+  private lumpSeq = 0;
+  private refreshLumps(): void {
+    const seq = ++this.lumpSeq;
+    const named = this.sdoc().features.some((f) => { const r = f as unknown as Record<string, unknown>; return r.op === 'newBody' || (typeof r.body === 'string' && r.body !== ''); });
+    const s = this.session;
+    if (!named || !s) { if (this.lumps.length) { this.lumps = []; this.onLumps?.(); } return; }
+    void queryMass(s).then((m) => { if (seq === this.lumpSeq) { this.lumps = (m?.bodies ?? []) as LumpInfo[]; this.onLumps?.(); } }).catch(() => { /* the names are a convenience: the list falls back to feature names */ });
+  }
   /** Volume, area, centre of mass and principal moments (unit density) of the body. */
   massProps(): Promise<MassRaw | null> { return this.inspect((s) => queryMass(s)); }
   /** The kernel's measurement of one or two faces / edges. */
@@ -1361,6 +1374,7 @@ export class Controller {
     this.shown = body;
     this.lastView = body ? withSmoothEdges(mergedView(body)) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
     this.view.setBody(body);
+    this.refreshLumps();
     // everything that can be selected now: faces, edges and the corners at the ends of edges
     const existing = new Set<string>(this.lastView?.mesh?.faceIds ?? []);
     if (body) existing.add(BODY);
