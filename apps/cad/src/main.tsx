@@ -2295,7 +2295,7 @@ function App() {
   const targetOf = (r: BodyRow): BodyTarget => ({ ...(r.docName ? { docName: r.docName } : {}), face: [...r.faces].sort()[0] });
   const editBodies = (ops: EditOp[]): void => {
     void timed(() => controller.commit(ops, 'bodies')).then((r) => {
-      if (!r.ok) { const e = (r.errors?.[0] ?? null) as unknown; const code = Array.isArray(e) ? (e[1] as { code?: string } | undefined)?.code : (e as { code?: string } | null)?.code; store.notify(t('bodies.failed', { why: code ?? '' }), 'error'); }
+      if (!r.ok) { const e = (r.errors?.[0] ?? null) as unknown; const code = Array.isArray(e) ? (e[1] as { code?: string } | undefined)?.code : (e as { code?: string } | null)?.code; const reason = code ? t('diag.reason.' + code) : ''; store.notify(t('bodies.failed', { why: reason && reason !== 'diag.reason.' + code ? reason : code ?? '' }), 'error'); }
       store.select([]);
       redraw((n) => n + 1);
     });
