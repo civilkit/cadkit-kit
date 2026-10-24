@@ -15,7 +15,7 @@ export const en: Catalog = {
   'app.sketch.editing': 'Editing {name}',
   'app.sketch.confirm': 'Confirm sketch',
   'app.sketch.extrude.tip': 'Finish the sketch and extrude it', 'app.sketch.revolve.tip': 'Finish the sketch and revolve it',
-  'opt.op.new': 'New body',
+  'opt.op.new': 'New body', 'opt.bodyName': 'Body name',
   'opt.cut.nothing': 'Nothing to cut: no body under this sketch.', 'opt.cut.miss': 'Nothing to cut: this cut does not reach any body.', 'opt.cut.switchAdd': 'Add instead',
   'app.sketch.ok': 'OK', 'app.sketch.cancelShort': 'Cancel', 'app.fileMore': 'More file actions',
   'app.sketch.dialog.plane': 'Plane', 'app.sketch.dialog.onFace': 'Face',

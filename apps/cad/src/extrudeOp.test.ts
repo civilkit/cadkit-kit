@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultExtrudeOp, opChoices, planeTouchesBox, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
+import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
 
 const box = { min: [0, 0, 0], max: [10, 10, 10] };
 const frame = (z: number) => ({ o: [0, 0, z], z: [0, 0, 1] });
@@ -25,9 +25,20 @@ describe('default extrude operation', () => {
     expect(defaultExtrudeOp({ touchesBody: false, supportsNew: true })).toBe('new');
     expect(defaultExtrudeOp({ touchesBody: true, supportsNew: true })).toBe('add');
   });
-  it('the kernel has no new-body extrude yet, so the card offers Add and Cut only', () => {
-    expect(KERNEL_SUPPORTS_NEW_BODY).toBe(false);
-    expect(opChoices()).toEqual(['add', 'cut']);
-    expect(opChoices(true)).toEqual(['new', 'add', 'cut']);
+  it('the kernel has a new-body extrude (ADR 0004), so the card offers New body, Add and Cut', () => {
+    expect(KERNEL_SUPPORTS_NEW_BODY).toBe(true);
+    expect(opChoices()).toEqual(['new', 'add', 'cut']);
+    expect(opChoices(false)).toEqual(['add', 'cut']);
+  });
+  it('the control shows newBody (and the aliases the kernel reads) as New body, and everything else but cut as Add', () => {
+    expect(['newBody', 'new', 'separate', 'cut', 'add', undefined].map(opChoiceOf)).toEqual(['new', 'new', 'new', 'cut', 'add', 'add']);
+  });
+  it('a new body gets a free name of its own; a name it has is kept; Add and Cut carry no body name', () => {
+    expect(nextBodyName(new Set())).toBe('Body 1');
+    expect(nextBodyName(new Set(['Body 1', 'Body 3']))).toBe('Body 2');
+    expect(opPatch('new', {}, new Set(['Body 1']))).toEqual({ op: 'newBody', flip: null, body: 'Body 2' });
+    expect(opPatch('new', { body: 'Case' }, new Set(['Case']))).toEqual({ op: 'newBody', flip: null, body: 'Case' });
+    expect(opPatch('add', { body: 'Case' }, new Set())).toEqual({ op: 'add', flip: null, body: null });
+    expect(opPatch('cut', { body: 'Case' }, new Set())).toEqual({ op: 'cut', body: null });
   });
 });

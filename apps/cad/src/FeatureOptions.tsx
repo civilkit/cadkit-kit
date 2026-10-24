@@ -2,7 +2,8 @@
 // fillet profile with the dependent fields shown and hidden as the kernel reads them (rules in featureOptions.ts). It plugs
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
-import { opChoices } from './extrudeOp';
+import { opChoiceOf, opChoices, opPatch } from './extrudeOp';
+import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
@@ -74,6 +75,20 @@ function PickField(p: { name: string; label: string; value: unknown; picking: bo
 
 const endLabel = (e: string): string => t('opt.end.' + e);
 
+/** The body names the other features of the part use (this feature's own is not counted). */
+const otherBodyNames = (doc: PartDoc | null, eff: Wire): Set<string> =>
+  usedBodyNames(((doc?.features ?? []) as unknown as Array<Record<string, unknown>>).filter((x) => x.id !== eff.id));
+
+/** The name a new body gets in the document: the Bodies panel lists it, and later features refer to it. */
+function BodyNameField(p: { eff: Wire; change: Change }): JSX.Element {
+  return (
+    <label class="fedit-fld" data-path="body">
+      <span class="fedit-fld-label">{t('opt.bodyName')}</span>
+      <input type="text" value={typeof p.eff.body === 'string' ? p.eff.body : ''} spellcheck={false} onChange={(e) => p.change({ body: (e.currentTarget as HTMLInputElement).value.trim() || null })} />
+    </label>
+  );
+}
+
 function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | null; onPick?(path: string): void; revolve: boolean; doc: PartDoc | null; actions?: ThinActions }): JSX.Element {
   const { eff, change } = p;
   const ends = endsFor(p.revolve ? 'revolve' : 'extrude');
@@ -93,7 +108,8 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
         {endNeedsPoint(end) ? <PickField name="endPoint" label={t('opt.endPoint')} value={eff.endPoint} picking={p.pickingPath === 'endPoint'} onPick={p.onPick} /> : null}
       </Section>
       <Section id="op" title={t('opt.op')}>
-        <Segmented<string> name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} choices={opChoices()} text={(c) => t('opt.op.' + c)} onChange={(v) => change(v === 'cut' ? { op: 'cut' } : { op: v, flip: null })} />
+        <Segmented<string> name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} choices={opChoices()} text={(c) => t('opt.op.' + c)} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
+        {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
         {p.actions?.cutProblem && eff.op === 'cut' ? (
           <div class="fedit-note fedit-warn" role="alert" data-note={'cut-' + p.actions.cutProblem}>
             {t(p.actions.cutProblem === 'nothing' ? 'opt.cut.nothing' : 'opt.cut.miss')}
@@ -311,7 +327,8 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
       </Section>
       <Section id="loftOptions" title={t('opt.section.options')}>
         <Check name="surface" label={t('opt.loft.surface')} value={surface} onChange={(v) => change({ surface: v ? true : null })} />
-        {!surface ? <Select name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} options={[['add', t('opt.op.add')], ['cut', t('opt.op.cut')]]} onChange={(v) => change({ op: v })} /> : null}
+        {!surface ? <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} /> : null}
+        {!surface && opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
         <Num name="startNormal" label={t('opt.loft.startTension')} value={tensionOf(eff, 'startNormal')} unit="" plain onChange={(v) => change(tensionPatch('startNormal', Number(v)))} />
         <Num name="endNormal" label={t('opt.loft.endTension')} value={tensionOf(eff, 'endNormal')} unit="" plain onChange={(v) => change(tensionPatch('endNormal', Number(v)))} />
       </Section>
@@ -360,7 +377,8 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
       </Section>
       <Section id="sweepOptions" title={t('opt.section.options')}>
         {!guides.length ? <Num name="twist" label={t('opt.sweep.twist')} value={typeof eff.twist === 'number' ? eff.twist : 0} unit="°" onChange={(v) => change({ twist: Number(v) ? v : null })} /> : null}
-        <Select name="op" label={t('opt.op')} value={eff.op === 'cut' ? 'cut' : 'add'} options={[['add', t('opt.op.add')], ['cut', t('opt.op.cut')]]} onChange={(v) => change({ op: v })} />
+        <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
+        {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
       </Section>
     </>
   );

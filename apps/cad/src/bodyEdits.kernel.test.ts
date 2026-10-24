@@ -4,6 +4,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory } from './controller';
 import { bodyShapes, faceMoments, faceVolumes, listBodies, matchLumps, readBodyFields, type BodyRow } from './bodies';
+import { nextBodyName, opPatch } from './extrudeOp';
 import { combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget } from './bodyOps';
 
 const sq = (id: string, x: number, y: number, w: number) => ({ type: 'sketch', id, plane: { kind: 'std', id: 'front' },
@@ -69,5 +70,26 @@ describe('body edits on the real kernel', { skip: !process.env.CK_WASM }, () => 
     expect(rows[0].volume).toBeLessThan(1000);   // the peg was cut out of the block
     expect((await c.commit(removeBodyOps([target(rows[0])]), 'bodies')).ok).toBe(true);
     await vi.waitFor(() => expect(c.selModel()?.bodies().length ?? 0).toBe(0));
+  });
+  it('the Operation control: switching an extrude to New body names it and keeps it apart, switching back joins it', async () => {
+    const c = await world();   // Block and Peg overlap, both newBody
+    // make Peg an Add: the two merge into one body, the name is dropped
+    expect((await c.commit([{ op: 'set', id: 'F4', path: 'op', value: 'add' }, { op: 'set', id: 'F4', path: 'body', value: null }] as never, 'op')).ok).toBe(true);
+    await vi.waitFor(() => expect(c.selModel()!.bodies().length).toBe(1));
+    // and back to New body with the name the control proposes
+    const f4 = feats(c).find((f) => f.id === 'F4')!;
+    const patch = opPatch('new', f4, usedBodyNames(feats(c).filter((f) => f.id !== 'F4')));
+    expect(patch.body).toBe(nextBodyName(new Set(['Block'])));
+    expect((await c.commit(Object.entries(patch).map(([path, value]) => ({ op: 'set', id: 'F4', path, value })) as never, 'op')).ok).toBe(true);
+    await rowsOf(c, 2, ['Block', 'Body 1']);
+  });
+  it('a revolve can be a new body too', async () => {
+    const c = await world();
+    const rev = { type: 'revolve', id: 'F6', op: 'newBody', body: 'Spin', sketch: 'F5', axis: 'e5', angle: 360, end: 'blind' };
+    const sk = { type: 'sketch', id: 'F5', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: 20, y: 0 }, { id: 'b', x: 25, y: 0 }, { id: 'c', x: 25, y: 5 }, { id: 'd', x: 20, y: 5 }, { id: 'up', x: 0, y: 10 }],
+      entities: [['e1', 'a', 'b'], ['e2', 'b', 'c'], ['e3', 'c', 'd'], ['e4', 'd', 'a'], ['e5', 'O', 'up']].map(([i, a, b]) => ({ id: i, type: 'line', p1: a, p2: b })), constraints: [] };
+    const r = await c.commit([{ op: 'add', feature: sk }, { op: 'add', feature: rev }] as never, 'rev');
+    expect(r.ok, JSON.stringify(r).slice(0, 300)).toBe(true);
+    await rowsOf(c, 3, ['Block', 'Peg', 'Spin']);
   });
 });

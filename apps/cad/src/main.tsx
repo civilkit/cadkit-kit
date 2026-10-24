@@ -15,7 +15,7 @@ import { isBodyName } from './select/model';
 import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
-import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
+import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY, nextBodyName } from './extrudeOp';
 import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
 import { tangentChainOn, chainSelection } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
@@ -1763,13 +1763,15 @@ function App() {
     if (!d) return;
     const target = sketchId ? { sketchId, regions: null } : nextExtrudeTarget(d.features as never, selectedId);
     if (!target) { store.notify(d.features.some((f) => f.type === 'sketch') ? t('app.allSketchesUsed') : t('app.noSketch'), 'error'); return; }
-    const dflt = defaultExtrudeOp({ explicitCut: opArg === 'cut', touchesBody: controller.sketchTouchesBody(target.sketchId), supportsNew: KERNEL_SUPPORTS_NEW_BODY });
-    const op: 'add' | 'cut' = dflt === 'cut' ? 'cut' : 'add';   // 'new' needs kernel support (none yet): a sketch in empty space adds too
+    const dflt = defaultExtrudeOp({ explicitCut: opArg === 'cut', touchesBody: controller.sketchTouchesBody(target.sketchId), supportsNew: KERNEL_SUPPORTS_NEW_BODY && controller.hasSolid() });
+    // a sketch that does not meet the body makes a new, named body; the first solid of a part just adds
+    const op: 'add' | 'cut' | 'newBody' = dflt === 'cut' ? 'cut' : dflt === 'new' ? 'newBody' : 'add';
+    const bodyName = op === 'newBody' ? nextBodyName(usedBodyNames(d.features as unknown as Array<Record<string, unknown>>)) : null;
     // a cut of a projected outline with a loop inside it is a pocket: the inner loop, not the wall that coincides with the body
     const regions = target.regions ?? (op === 'cut' ? defaultCutRegions(d.features.find((f) => f.id === target.sketchId) as never) : null);
-    const make = (flip: boolean) => ({ type: 'extrude', op, sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
+    const make = (flip: boolean) => ({ type: 'extrude', op, ...(bodyName ? { body: bodyName } : {}), sketch: target.sketchId, end: 'blind', depth: 10, ...(thin ? { thin: { thickness: defaultThickness(d.features.find((f) => f.id === target.sketchId) as never), side: 'inside', ends: 'flat', cornerStyle: 'mitre' } } : {}), ...(regions ? { regions } : {}), ...(flip ? { flip: true } : {}) });
     // a cut's direction is 'auto': the side the body lies on first, then the other, and the one that really touches the body is kept
-    let flip = controller.extrudeFlip(target.sketchId, op);
+    let flip = controller.extrudeFlip(target.sketchId, op === 'cut' ? 'cut' : 'add');
     if (op === 'cut') {
       const pick = await autoCutFlip(flip, async (f) => {
         const r = await controller.preview([{ op: 'add', feature: make(f) as never }], 0);
