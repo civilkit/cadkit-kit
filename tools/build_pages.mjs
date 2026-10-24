@@ -11,6 +11,7 @@ import { gzipSync } from 'node:zlib';
 import { filterSamples, suspectSamples } from './pages/samples.mjs';
 import { filterKernelThirdParty, renderLicensesHtml } from './pages/licenses.mjs';
 import { scanDir } from './pages_leakcheck.mjs';
+import { buildId, precacheList, swSource } from './pages/sw.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
@@ -100,6 +101,19 @@ const html = readFileSync(idx, 'utf8');
 if (!html.includes('</body>')) die('index.html has no </body> to add the licences link to');
 writeFileSync(idx, html.replace('</body>', `${link}</body>`));
 writeFileSync(join(OUT, '.nojekyll'), '');   // GitHub Pages: serve the assets/ folder as is
+
+// 5a. the web app manifest and its icons (the app build runs without a public folder, so they are copied here)
+mkdirSync(join(OUT, 'icons'), { recursive: true });
+copyFileSync(join(ROOT, 'apps/cad/public/manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));
+for (const f of readdirSync(join(ROOT, 'apps/cad/public/icons'))) copyFileSync(join(ROOT, 'apps/cad/public/icons', f), join(OUT, 'icons', f));
+
+// 5b. the service worker (installable app, offline start): it lists this build's files, so it is written last
+const listFiles = (dir, base = '') => readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? listFiles(join(dir, d.name), `${base}${d.name}/`) : [{ path: `${base}${d.name}`, size: statSync(join(dir, d.name)).size }]));
+const built = listFiles(OUT);
+const shell = precacheList(built.map((f) => f.path));
+for (const need of ['index.html', 'manifest.webmanifest', 'kernel/ck_wasm.wasm', 'icons/icon-192.png', 'icons/icon-512.png']) if (!shell.includes(need)) die(`the installable app needs ${need} in the output`);
+writeFileSync(join(OUT, 'sw.js'), swSource(buildId(built), shell));
+console.log(`service worker: ${shell.length} files stored at install`);
 
 // 6. leak check: the build fails on any hit
 let allowList = [];

@@ -112,6 +112,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
 import { runningBundle, watchForUpdate } from './updateCheck';
+import { installDismissed, rememberInstallDismissed, runsInstalled, registerServiceWorker, watchInstall, type InstallEvent } from './installPrompt';
 import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
 import { useHandles } from './useHandles';
@@ -310,6 +311,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [guard, setGuard] = useState<(() => void) | null>(null);
   const [stale, setStale] = useState(false);   // a newer build was deployed while this tab was open
+  const [installEv, setInstallEv] = useState<InstallEvent | null>(null);   // the browser can install the site as an app (offered once, see installPrompt.ts)
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
   /** The picture written into a file on Save: kept outside the document, so it never counts as a change or a history step. */
@@ -2400,6 +2402,10 @@ function App() {
     return w.stop;
   }, []);
   useEffect(() => {
+    if (runsInstalled()) return;
+    return watchInstall({ onAvailable: (ev) => { if (!installDismissed()) setInstallEv(ev); }, onInstalled: () => setInstallEv(null) });
+  }, []);
+  useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } };
     addEventListener('beforeunload', warn);
     return () => removeEventListener('beforeunload', warn);
@@ -2536,6 +2542,13 @@ function App() {
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <Toast notices={store.notices.value} />
+          {installEv ? (
+            <div class="toast install-bar" role="status">
+              <span>{t('app.install.text')}</span>
+              <button class="toast-act" onClick={() => { const ev = installEv; setInstallEv(null); void ev.prompt().then(() => ev.userChoice).catch(() => { /* closed without choosing */ }); }}>{t('app.install.action')}</button>
+              <button class="toast-act" onClick={() => { rememberInstallDismissed(); setInstallEv(null); }}>{t('app.install.later')}</button>
+            </div>
+          ) : null}
           {stale ? (
             <div class="toast update-bar" role="status">
               <span>{t('app.update.text')}</span>
@@ -2617,3 +2630,4 @@ function App() {
 }
 
 render(<App />, document.getElementById('root')!);
+registerServiceWorker();

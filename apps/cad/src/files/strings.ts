@@ -6,6 +6,7 @@ export const filesEn = {
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
   'app.update.text': 'A new version is available.', 'app.update.refresh': 'Refresh', 'app.update.later': 'Later',
+  'app.install.text': 'Install CadKit as an app: its own window, and it opens without the browser.', 'app.install.action': 'Install', 'app.install.later': 'Not now',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
   'files.restore.restore': 'Restore', 'files.restore.new': 'Start new',
