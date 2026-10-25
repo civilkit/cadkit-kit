@@ -239,21 +239,29 @@ interface Placed {
   s: [number, number];
   /** +1 when their plane normal points along ours, -1 against it (an extrude "forward" then runs the other way). */
   sign: 1 | -1;
+  /** A plane that lies on none of our standard ones (tilted): the frame itself in our world; `std` is then 'frame', the axes map straight across and `sign` is 1. */
+  frame?: { o: V3; x: V3; y: V3; z: V3 };
 }
 /** A plane frame in their world: origin and the two in-plane axes (the normal is u x v). */
 interface ScFrame { o: V3; u: V3; v: V3 }
 const unit = (a: V3): V3 => { const l = Math.hypot(...a); if (!(l > 1e-12)) throw new Unsupported('a plane with a zero axis'); return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /** A frame of theirs (any origin and in-plane axes) as our standard plane: it must lie flat on one of them, with its axes along ours. */
-function placeFrame(fr: ScFrame): Placed {
+function placeFrame(fr: ScFrame, general = false): Placed {
   const u = toYUp(unit(fr.u)), v = toYUp(unit(fr.v)), n = cross3(u, v), o = toYUp(fr.o);
+  // a sketch may stand on any plane (it becomes a `frame` plane of ours); a face frame for a hole or a rim must lie on a standard one
+  const anywhere = (): Placed => ({ std: 'frame', offset: 0, t: [1, 0, 0, 1], s: [0, 0], sign: 1, frame: { o: o.map(clean) as V3, x: u.map(clean) as V3, y: v.map(clean) as V3, z: n.map(clean) as V3 } });
   for (const [std, f] of Object.entries(OUR_PLANE)) {
     const d = dot3(n, f.z);
     if (Math.abs(Math.abs(d) - 1) > 1e-6) continue;
     const t: [number, number, number, number] = [dot3(u, f.x), dot3(v, f.x), dot3(u, f.y), dot3(v, f.y)];
-    if (t.some((c) => Math.abs(c - Math.round(c)) > 1e-6)) throw new Unsupported('a sketch plane turned about its normal by an angle that is not a multiple of 90 degrees');
+    if (t.some((c) => Math.abs(c - Math.round(c)) > 1e-6)) {
+      if (general) return anywhere();
+      throw new Unsupported('a sketch plane turned about its normal by an angle that is not a multiple of 90 degrees');
+    }
     return { std, offset: dot3(o, f.z), t: t.map(Math.round) as [number, number, number, number], s: [dot3(o, f.x), dot3(o, f.y)], sign: d > 0 ? 1 : -1 };
   }
+  if (general) return anywhere();
   throw new Unsupported('a sketch plane that is not parallel to one of the three standard planes');
 }
 /** Before format 6 their XZ plane had sketch y = +Z (normal -Y); from 6 on it is y = -Z (normal +Y). Older files keep the frame they were drawn on. */
@@ -268,7 +276,8 @@ const originFrameFor = (name: string, distance: number, version: number): ScFram
 function faceFrame(position: V3, dir: V3, along?: V3): ScFrame {
   const n = unit(dir);
   const across = (a: V3) => Math.hypot(...cross3(a, n)) > 1e-6;
-  const u = unit(along && across(along) ? along : ([[1, 0, 0], [0, 1, 0], [0, 0, 1]] as V3[]).find(across)!);
+  const u0 = unit(along && across(along) ? along : ([[1, 0, 0], [0, 1, 0], [0, 0, 1]] as V3[]).find(across)!), k = dot3(u0, n);
+  const u = unit([u0[0] - n[0] * k, u0[1] - n[1] * k, u0[2] - n[2] * k]);   // square to the normal (it already is when the normal lies along an axis)
   return { o: position, u, v: cross3(n, u) };   // u x v = n
 }
 /** Snaps float noise (`1.9999999999999976`, from a rotated or recomputed value in their file) to 9 decimals: far below any tolerance, so the model is unchanged but names and numbers read clean. */
@@ -465,6 +474,11 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
 
   /** Our sketch plane for one of their origin planes at a distance: the standard plane, or an offset plane feature. */
   const planeRef = (pl: Placed): Record<string, unknown> => {
+    if (pl.frame) {
+      const id = nid();
+      features.push({ type: 'plane', id, mode: 'frame', origin: pl.frame.o, xDir: pl.frame.x, yDir: pl.frame.y });
+      return { kind: 'feature', id };
+    }
     if (Math.abs(pl.offset) < 1e-12) return { kind: 'std', id: pl.std };
     const id = nid();
     features.push({ type: 'plane', id, mode: 'offset', base: { kind: 'std', id: pl.std }, offset: clean(pl.offset) });
@@ -491,7 +505,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       default: throw new Unsupported(`sketch on a ${pl?.type ?? 'unknown'} plane`);
     }
   };
-  const placeSketch = (pl: Rec): Placed => placeFrame(frameOf(pl));
+  const placeSketch = (pl: Rec): Placed => placeFrame(frameOf(pl), true);
 
   const extrudeOf = (f: Rec, sketchId: string, depth: number | 'through', positive: boolean, sign: 1 | -1, regions?: string[]): FeatureJson => {
     const op = operation(f);
@@ -660,6 +674,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     }
     if ((count - 1) * spacing > length * (1 + 1e-6)) throw new Unsupported('a path shorter than its pattern');
     const frame = (OUR_PLANE as Record<string, { x: V3; y: V3; z: V3 }>)[ps.placed.std];
+    if (!frame) throw new Unsupported('a path pattern whose path lies on a tilted plane');
     const world = (q: P2): V3 => { const [x, y] = mapXY(ps.placed, q[0], q[1]); return [0, 1, 2].map((k) => x * frame.x[k] + y * frame.y[k] + ps.placed.offset * frame.z[k]) as V3; };
     const origin = world(at(0));
     const out: string[] = [];
@@ -770,7 +785,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         if (Math.abs(startOffset) > 1e-12) {
           const src = features.find((q) => q.type === 'sketch' && q.id === sk.id);
           if (!src) throw new Unsupported('an offset start for a sketch that cannot be copied');
-          const moved: Placed = { ...s.placed, offset: s.placed.offset + (forward ? 1 : -1) * s.placed.sign * startOffset };
+          const delta = (forward ? 1 : -1) * s.placed.sign * startOffset, fz = s.placed.frame?.z;
+          const moved: Placed = { ...s.placed, offset: s.placed.offset + delta, ...(s.placed.frame && fz ? { frame: { ...s.placed.frame, o: s.placed.frame.o.map((c, k) => clean(c + fz[k] * delta)) as V3 } } : {}) };
           const nsid = nid();
           features.push({ type: 'sketch', id: nsid, name: `${f.name} start`, plane: planeRef(moved), points: JSON.parse(JSON.stringify(src.points)), entities: JSON.parse(JSON.stringify(src.entities)), constraints: [], visible: false });
           sk = { ...s, id: nsid };
@@ -801,13 +817,14 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
           const { u, v } = scPlane(name, version)!, nrm = cross3(u, v), d = dot3(ax, nrm);
           return len > 0 && Math.abs(Math.abs(d) - 1) < 1e-9 ? { name, u, v, nrm, positive: d > 0 } : null;   // |d| = 1 for a unit vector means it IS the plane normal
         }).find(Boolean);
-        if (!hit) throw new Unsupported('cylinder along an axis other than X, Y or Z');
-        const pl = placeOf(hit.name, dot3(b, hit.nrm));
+        if (!(len > 0)) throw new Unsupported('a cylinder with no axis');
+        // along another direction: the circle stands on a plane through the base with the axis as its normal (a tilted plane of ours)
+        const pl = hit ? placeOf(hit.name, dot3(b, hit.nrm)) : placeFrame(faceFrame(b, ax), true);
         const plane = planeRef(pl);
-        const [cx, cy] = mapXY(pl, dot3(b, hit.u), dot3(b, hit.v));
+        const [cx, cy] = hit ? mapXY(pl, dot3(b, hit.u), dot3(b, hit.v)) : [0, 0];
         const sid = nid();
         features.push({ type: 'sketch', id: sid, name: `${f.name} sketch`, plane, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: cx, y: cy }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: num(f.radius, 'cylinder radius') }], constraints: [] });
-        features.push(extrudeOf(f, sid, num(f.height, 'cylinder height'), hit.positive, pl.sign));
+        features.push(extrudeOf(f, sid, num(f.height, 'cylinder height'), hit ? hit.positive : true, pl.sign));
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }

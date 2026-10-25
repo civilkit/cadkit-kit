@@ -195,6 +195,49 @@ describe('sphere', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
   });
 });
 
+describe('tilted sketch plane', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
+  // a 20 x 10 rectangle on a plane turned 30 degrees about their X axis, extruded 5 along its normal: 1000 mm3 whatever the tilt
+  const tilt = (deg: number) => ({ origin: [0, 0, 0], x_dir: [1, 0, 0], y_dir: [0, Math.cos(deg * pi / 180), Math.sin(deg * pi / 180)] });
+  const pi = Math.PI;
+  const rect = (plane: unknown) => ({ id: 1, name: 'S', type: 'sketch', suppressed: false, plane: { type: 'custom', plane },
+    sketch: { points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [20, 0] }, { id: 'p3', pos: [20, 10] }, { id: 'p4', pos: [0, 10] }],
+      curves: [{ id: 'l1', type: 'line', a: 1, b: 2 }, { id: 'l2', type: 'line', a: 2, b: 3 }, { id: 'l3', type: 'line', a: 3, b: 4 }, { id: 'l4', type: 'line', a: 4, b: 1 }], constraints: [] } });
+  const ext = { id: 2, name: 'E', type: 'extrude', suppressed: false, sketch: 1, profiles: { type: 'all' }, operation: 'new_body', extent: { convention: 'total_distance', direction: 'positive', distance: '5' } };
+  it('a profile on a tilted plane extrudes along the plane normal', async () => {
+    const out = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [rect(tilt(30)), ext] });
+    expect(out.r.geometryComplete).toBe(true);
+    expect(out.errors).toEqual([]);
+    expect(out.volume).toBeCloseTo(1000, 3);
+    // it stands 10 sin 30 + 5 cos 30 = 9.33 high (their Z is our Y)
+    const s = await open(out.r.part!);
+    const box = (await s.facts()).box!;
+    expect(box.max[1] - box.min[1]).toBeCloseTo(10 * Math.sin(pi / 6) + 5 * Math.cos(pi / 6), 3);
+  });
+  it('the reverse direction and a plane that is flat but turned about its normal also come through', async () => {
+    const back = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [rect(tilt(30)), { ...ext, extent: { convention: 'total_distance', direction: 'negative', distance: '5' } }] });
+    expect(back.errors).toEqual([]);
+    expect(back.volume).toBeCloseTo(1000, 3);
+    const c = Math.cos(pi / 6), sn = Math.sin(pi / 6);
+    const turned = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [rect({ origin: [0, 0, 0], x_dir: [c, sn, 0], y_dir: [-sn, c, 0] }), ext] });
+    expect(turned.errors).toEqual([]);
+    expect(turned.volume).toBeCloseTo(1000, 3);
+  });
+});
+
+describe('cylinder along any axis', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
+  it('a cylinder along a slanted axis keeps its volume and leans the right way', async () => {
+    const cyl = { id: 1, name: 'C', type: 'cylinder', suppressed: false, base: [0, 0, 0], axis: [1, 0, 1], radius: '3', height: '10', operation: 'new_body' };
+    const out = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [cyl] });
+    expect(out.r.geometryComplete, JSON.stringify(out.r.rows.filter((x) => x.status !== 'converted'))).toBe(true);
+    expect(out.errors).toEqual([]);
+    expect(out.volume).toBeCloseTo(Math.PI * 9 * 10, 2);
+    // the far cap centre is 10 along (1,0,1)/sqrt2: their z is our y, so it reaches 7.07 + the cap's own lean (3 / sqrt2 = 2.12) high
+    const box = (await (await open(out.r.part!)).facts()).box!;
+    expect(box.max[1]).toBeCloseTo(10 / Math.SQRT2 + 3 / Math.SQRT2, 2);
+    expect(box.min[1]).toBeCloseTo(-3 / Math.SQRT2, 2);
+  });
+});
+
 describe('hole', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
   // the shapes of tests/hole_matrix in their repository: a 40 x 30 x 20 block with the corner at the origin, holes by position and direction
   const block = { id: 1, name: 'B', type: 'box', suppressed: false, corner: [0, 0, 0], length: 40, width: 30, height: 20, operation: 'new_body' };

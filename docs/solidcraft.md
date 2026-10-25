@@ -14,14 +14,14 @@ Written from three sample files; every other construct is reported, never guesse
 
 | In the file | Becomes |
 |---|---|
-| sketch on an origin plane, an offset of one, a construction plane, a **face** or a **custom plane** | a sketch on our front / top / right plane at an offset. A face or custom plane carries its own frame (origin and axes), so it needs no face lookup; the frame must lie flat on one of the three standard planes, with its axes along ours (a tilted face is reported) |
+| sketch on an origin plane, an offset of one, a construction plane, a **face** or a **custom plane** | a sketch on our front / top / right plane at an offset. A face or custom plane carries its own frame (origin and axes), so it needs no face lookup; a frame that lies flat on one of the three standard planes with its axes along ours becomes a sketch on that plane; any other frame (tilted, or turned about its normal by an angle that is not a multiple of 90 degrees) becomes a `plane` feature in `frame` mode (origin and the two directions) and the sketch stands on it. A hole or a rim still needs a standard plane |
 | line, arc (counter-clockwise start to end), circle, construction flag | the same entities |
 | coincident constraint | the two points are merged into one (the geometry is closed without the solver) |
 | horizontal, vertical, length constraints | horizontal, vertical, distance |
 | midpoint, distance_x / distance_y, distance, radius, diameter, tangent, symmetric, collinear, point_on_curve | midpoint, hdist / vdist (swapped with the plane axes), distance, radius, diameter, tangent, symmetric, collinear, pointOnLine / pointOnCircle |
 | extrude (new body / join / cut, either direction, a negative distance = the other way, **through all**) | extrude `add` / `cut`, `flip` set so the direction matches |
 | profiles: all, or chosen by curve ids | all regions, or the regions bounded by the chosen curves (`regions`). A loop that runs along only part of a longer line gets a small hidden profile sketch of its own outline, because selecting by curve id would also pick the neighbouring regions that share the line |
-| box, cylinder along +X / +Y / +Z (or the negative way) | a sketch and an extrude |
+| box, cylinder along any axis (along +X / +Y / +Z or the negative way it stands on a standard plane; along another direction on a `frame` plane through the base with the axis as its normal) | a sketch and an extrude |
 | fillet, chamfer (equal distance) | fillet / chamfer; the edges are found by the kernel from the edge positions stored in the file, so they need the kernel |
 | shell (inside or outside), offset face | shell / move face; the faces are found by the kernel from the positions stored in the file (the nearest face, only when clearly the nearest) |
 | revolve about the sketch's own x or y axis | revolve with a construction line along that axis |

@@ -64,7 +64,7 @@ export const en: Catalog = {
   'ui.editor.field.side': 'Side',
   'ui.editor.value.end.blind': 'Blind', 'ui.editor.value.end.through': 'Through', 'ui.editor.value.end.throughBoth': 'Through both', 'ui.editor.value.end.upToNext': 'Up to next',
   'ui.editor.value.plane.mode.offset': 'Offset', 'ui.editor.value.plane.mode.angle': 'Angle', 'ui.editor.value.plane.mode.mid': 'Midplane',
-  'ui.editor.value.plane.mode.parallel': 'Parallel', 'ui.editor.value.plane.mode.threePoints': 'Three points',
+  'ui.editor.value.plane.mode.parallel': 'Parallel', 'ui.editor.value.plane.mode.threePoints': 'Three points', 'ui.editor.value.plane.mode.frame': 'Origin and directions',
   'ui.editor.value.deleteBody.mode.delete': 'Delete', 'ui.editor.value.deleteBody.mode.keep': 'Keep',
   'ui.editor.value.definedBy.pitchRevs': 'Pitch and revolutions', 'ui.editor.value.definedBy.pitchHeight': 'Pitch and height', 'ui.editor.value.definedBy.revsHeight': 'Revolutions and height',
   'ui.editor.value.lip.kind.lip': 'Lip', 'ui.editor.value.lip.kind.groove': 'Groove',

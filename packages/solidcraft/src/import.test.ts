@@ -231,8 +231,11 @@ describe('what is refused or reported', () => {
     const f = await feats([0, 0, 1], [7, 5, 3]);
     expect(f.find((x) => x.type === 'plane')!.offset).toBe(3);
     expect(f.find((x) => x.type === 'sketch')!.points[1]).toMatchObject({ x: 7, y: 5 });
-    // an axis that is not one of the three
-    expect((await importSolidcraftDocument(doc([cyl([1, 1, 0], [0, 0, 0])]), 'c')).rows[0].status).toBe('unsupported');
+    // an axis that is not one of the three stands the circle on a plane of ours given as a frame, with the axis as its normal
+    const slanted = await importSolidcraftDocument(doc([cyl([1, 1, 0], [0, 0, 0])]), 'c');
+    expect(slanted.rows[0].status).toBe('converted');
+    expect(slanted.part!.features.find((x: any) => x.type === 'plane')).toMatchObject({ mode: 'frame' });
+    expect((await importSolidcraftDocument(doc([cyl([0, 0, 0], [0, 0, 0])]), 'c')).rows[0].status).toBe('unsupported');
   });
 });
 
@@ -274,9 +277,12 @@ describe('planes, extents and features beyond the basics', () => {
     expect(sk.plane).toEqual({ kind: 'feature', id: pl.id });
     // their (x, y) of this frame is our right plane's (y, x)?: their frame x -> their Y -> our -Z = our right x; their frame y -> their Z -> our Y = our right y
     expect(sk.points[2]).toMatchObject({ x: 10, y: 0 });
-    // a face frame that is tilted is reported, not guessed
+    // a tilted frame becomes a plane of ours given as origin and two directions; the sketch keeps its own coordinates
     const tilted = { type: 'custom', plane: { origin: [0, 0, 0], x_dir: [1, 0, 0], y_dir: [0, 0.7071, 0.7071] } };
-    expect((await importSolidcraftDocument(doc([sq(1, 'T', tilted)]), 't')).rows[0].reason).toMatch(/not parallel to one of the three standard planes/);
+    const tp = (await importSolidcraftDocument(doc([sq(1, 'T', tilted)]), 't')).part!.features as any[];
+    expect(tp[0]).toMatchObject({ type: 'plane', mode: 'frame', origin: [0, 0, 0], xDir: [1, 0, 0] });
+    expect(tp[1]).toMatchObject({ type: 'sketch', plane: { kind: 'feature', id: tp[0].id } });
+    expect(tp[1].points[2]).toMatchObject({ x: 10, y: 0 });
     // an origin of the frame that is not at zero shifts the sketch in-plane
     const shifted = { type: 'custom', plane: { origin: [3, 4, 0], x_dir: [1, 0, 0], y_dir: [0, 1, 0] } };
     const rs = await importSolidcraftDocument(doc([sq(1, 'Sh', shifted)]), 's');
