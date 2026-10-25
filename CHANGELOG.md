@@ -1,0 +1,35 @@
+# Changelog
+
+Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
+
+## 0.1.0 - 2026-10-25
+
+First versioned release; this entry covers the last day of work.
+
+### Added
+- **Sphere feature.** A kernel `sphere` (centre and radius, one spherical face; add, cut or new body) with its editor and tree icon. The Catalog's solid sphere is now one row.
+- **Bodies.** The Bodies panel shows the names a document gives, and offers Copy, Delete, Join, Cut and Intersect of whole bodies. Extrude, Revolve, Loft and Sweep have a New body operation with a name of its own. A failed body edit says why in words.
+- **Frame planes.** A `plane` feature in `frame` mode: a plane given by an origin and two directions.
+- **Installable app.** The studio installs as a PWA.
+- **Stack status.** `npm run stack:status` compares the dev wasm, the built site and the live site with `main`; the pages build writes `version.json`.
+- **SolidCraft import**
+  - Holes (simple, drilled, counterbore, countersink, at a position or at sketch points) become our hole feature.
+  - Sketches on tilted planes and cylinders along any axis import.
+  - Circular patterns of bodies import as rotated copies about any axis.
+  - Formats 31 to 33 read correctly: a leading `=` and decimal commas in expressions, `#n` face names, the counter of unnamed bodies, and `legacy_per_side` extents.
+
+### Changed
+- A SolidCraft body transfer that moves nothing is skipped instead of reported as unsupported.
+- Kernel `ping` reports the commit the wasm was built from.
+
+### Kernel (landed on `main` in the same period)
+- Overhang-corner fillets generalise (mirror, under the ledge, two vertices; skewed corners are refused).
+- Blade-fuse clips the hub-cylinder intersection to the blade rail when it overshoots.
+- Read-only design-for-manufacture queries.
+- Render close-up framing option.
+
+### Known gaps in SolidCraft import
+Splines, sweeps and coils; non-uniform scale; faithful body transfer (component ownership); joints are kept as a pose; tapped holes and threads.
+
+### Gate (kernel regression suite, unchanged)
+wire 280/280, valid.brep 280/319, vol.brep 319/319, mass.brep 271/319, naming.stable 214/216, step 16/21.
