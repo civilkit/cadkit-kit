@@ -245,6 +245,13 @@ describe('planes, extents and features beyond the basics', () => {
   const doc = (features: unknown[]) => ({ format: 'solidcraft/30', units: 'mm', params: [], features });
   const F = (r: { part: { features: unknown[] } | null }) => r.part!.features as Array<Record<string, any>>;
 
+  it('a sphere is one sphere row at the centre (their Z up becomes our Y up)', async () => {
+    const ball = { id: 1, name: 'Ball', type: 'sphere', suppressed: false, center: [10, 20, 30], radius: '4', operation: 'new_body' };
+    const r = await importSolidcraftDocument(doc([ball]), 's');
+    expect(r.rows[0].status).toBe('converted');
+    expect(F(r)).toEqual([expect.objectContaining({ type: 'sphere', op: 'add', center: [10, 30, -20], radius: 4 })]);
+  });
+
   it('a body transfer that moves nothing is skipped (the bodies stay), one that moves them is reported', async () => {
     const I = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
     const tr = (id: number, transform: number[][]) => ({ id, name: `T${id}`, type: 'body_transfer', suppressed: false, bodies: ['Body1'], from: 0, to: 7, component: 7, transform });

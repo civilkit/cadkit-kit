@@ -45,6 +45,7 @@ export function managedPaths(type: string): Set<string> {
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
     case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'startNormal', 'endNormal']);
     case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body']);
+    case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
     case 'moveBody': return new Set(['copy', 'body']);
     case 'deleteBody': return new Set(['bodies']);

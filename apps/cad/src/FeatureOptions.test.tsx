@@ -241,6 +241,15 @@ describe('the editors of the body features', () => {
     fireEvent.click(n.box('copy'));
     expect(n.drafts.at(-1)).toMatchObject({ copy: true, body: 'Body 1' });
   });
+  it('sphere: radius and centre as numbers, and the operation with a body name for a new body', () => {
+    const m = mount({ type: 'sphere', id: 'F9', op: 'newBody', body: 'Ball', center: [1, 2, 3], radius: 5 });
+    expect((m.q('radius')!.querySelector('input') as HTMLInputElement).value).toBe('5');
+    expect([0, 1, 2].map((i) => (m.q(`center.${i}`)!.querySelector('input') as HTMLInputElement).value)).toEqual(['1', '2', '3']);
+    expect((m.q('body')!.querySelector('input') as HTMLInputElement).value).toBe('Ball');
+    const y = m.q('center.1')!.querySelector('input') as HTMLInputElement;
+    fireEvent.input(y, { target: { value: '7' } }); fireEvent.change(y, { target: { value: '7' } });
+    expect(m.drafts.at(-1)).toMatchObject({ center: [1, 7, 3] });
+  });
   it('delete or keep: the bodies in words next to the mode', () => {
     const m = mount({ type: 'deleteBody', id: 'F8', mode: 'delete', bodies: [{ body: 'Peg' }, { lump: 0 }] });
     expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Peg, body 1');

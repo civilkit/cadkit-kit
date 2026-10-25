@@ -142,6 +142,21 @@ function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }):
   );
 }
 
+/** A ball: where its centre is, how big, and whether it is a body of its own, joins the part or cuts it. */
+function SphereOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const c = Array.isArray(eff.center) ? eff.center : [0, 0, 0];
+  const at = (i: number, v: number | string) => change({ center: [0, 1, 2].map((k) => (k === i ? v : c[k] ?? 0)) });
+  return (
+    <Section id="sphere" title={t('opt.sphere.title')}>
+      <Num name="radius" label={t('opt.sphere.radius')} value={eff.radius} unit="mm" onChange={(v) => change({ radius: v })} />
+      {[t('opt.sphere.centerX'), t('opt.sphere.centerY'), t('opt.sphere.centerZ')].map((label, i) => <Num key={i} name={`center.${i}`} label={label} value={c[i] ?? 0} unit="mm" onChange={(v) => at(i, v)} />)}
+      <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((k) => [k, t('opt.op.' + k)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
+      {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
+    </Section>
+  );
+}
+
 /** Delete or keep bodies: which bodies (the mode is the generic field). */
 function DeleteBodyOptions(p: { eff: Wire }): JSX.Element {
   const bodies = Array.isArray(p.eff.bodies) ? p.eff.bodies : [];
@@ -570,6 +585,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'loft': return { hide, node: <LoftOptions {...common} doc={doc} /> };
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
     case 'combine': return { hide, node: <CombineOptions {...common} /> };
+    case 'sphere': return { hide, node: <SphereOptions {...common} doc={doc} /> };
     case 'moveBody': return { hide, node: <MoveBodyOptions {...common} doc={doc} /> };
     case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };

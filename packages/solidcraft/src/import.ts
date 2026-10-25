@@ -812,15 +812,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         return [];
       }
       case 'sphere': {
-        // the kernel has no sphere: a half disc on the plane through the centre, revolved a full turn about its diameter
-        const [x0, y0, z0] = f.center as V3, r = num(f.radius, 'sphere radius');
-        const pl = placeOf('XY', z0);
-        const c = mapXY(pl, x0, y0), a = mapXY(pl, x0 - r, y0), b = mapXY(pl, x0 + r, y0);
-        const sid = nid();
-        const [from, to] = mirrored(pl) ? [a, b] : [b, a];   // counter-clockwise over the +y side
-        features.push({ type: 'sketch', id: sid, name: `${f.name} sketch`, plane: planeRef(pl), points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: c[0], y: c[1] }, { id: 'p2', x: from[0], y: from[1] }, { id: 'p3', x: to[0], y: to[1] }], entities: [{ id: 'e1', type: 'arc', c: 'p1', p1: 'p2', p2: 'p3' }, { id: 'e2', type: 'line', p1: 'p3', p2: 'p2' }, { id: 'e3', type: 'line', p1: 'p3', p2: 'p2', construction: true }], constraints: [] });
         const op = operation(f);
-        features.push({ type: 'revolve', id: nid(), op, sketch: sid, axis: 'e3', end: 'blind', angle: 360, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        features.push({ type: 'sphere', id: nid(), name: f.name, op, center: toYUp(f.center as V3).map(clean), radius: num(f.radius, 'sphere radius'), ...(op === 'newBody' ? { body: newName } : {}) });
         newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];

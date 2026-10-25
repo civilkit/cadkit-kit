@@ -366,7 +366,7 @@ export function loftProfileIds(c: Ctx, surface = false): string[] {
   if (surface && list.length) { const open = isOpenSketch(list[list.length - 1]); list = list.filter((s) => isOpenSketch(s) === open); }
   if (list.length < 2) return [];
   const all = feats(c);
-  const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
+  const lastBody = all.map((f, i) => (['loft', 'extrude', 'revolve', 'sweep', 'sphere'].includes(f.type) ? i : -1)).reduce((m, i) => Math.max(m, i), -1);
   const since = list.filter((s) => all.indexOf(s) > lastBody);
   return ordered((since.length >= 2 ? since : list.slice(-2)).map((s) => s.id));
 }
