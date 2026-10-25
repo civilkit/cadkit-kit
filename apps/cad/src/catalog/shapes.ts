@@ -198,6 +198,13 @@ export const shapeName = (item: CatalogItem): string => item.part ? item.part.ti
 export function buildShape(item: CatalogItem, target: PlaceTarget, seq: number, sizeOverride?: number, wall = 0): BuildResult {
   if (target.kind === 'ground' && item.op === 'cut') return { error: 'needsBody' };
   const size = sizeOverride ?? defaultSize(target);
+  if (item.kind === 'sphere' && !(item.op === 'add' && wall > 0 && wall < size / 2)) {
+    // a solid ball is the kernel's own sphere feature: no sketch, no half disc. It sits centred on the spot (on a face it is half in, half out, so it adds a dome or cuts a pit)
+    const snap = target.kind === 'ground' && (!target.plane || target.plane.kind === 'std');
+    const center = target.point.map((x) => (snap ? Math.round(x) : Math.round(x * 1e6) / 1e6) + 0);
+    const id = `F${seq}`;
+    return { ops: [{ op: 'add', feature: { type: 'sphere', id, name: shapeName(item), op: item.op, center, radius: size / 2 } }], mainId: id, sketchId: '', size, helpers: [] };
+  }
   const ops: EditOp[] = [];
   let n = seq;
   let plane: Record<string, unknown>;
