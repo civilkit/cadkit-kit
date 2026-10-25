@@ -60,6 +60,10 @@ export interface ImportOpts {
   faceResolver?: FaceResolver;
   /** Keep a suppressed `importedUnsupported` feature (with the original JSON) in the tree for each unsupported feature. Default true. */
   placeholders?: boolean;
+  /** Called as the features are read (feature number, number of features); the importer gives the page a turn between calls so it can draw them. */
+  onProgress?: (done: number, total: number) => void;
+  /** Aborting it stops the import at the next feature: the result is refused with the reason "cancelled". */
+  signal?: AbortSignal;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1259,7 +1263,10 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
     }
   };
 
-  for (const f of doc.features as Rec[]) {
+  const all = doc.features as Rec[];
+  for (const [fi, f] of all.entries()) {
+    if (opts.onProgress && fi % 20 === 0) { opts.onProgress(fi, all.length); await new Promise((r) => setTimeout(r, 0)); }
+    if (opts.signal?.aborted) return refuse(name, 'cancelled');
     const row = { id: f.id, name: String(f.name ?? f.type), type: String(f.type) };
     if (f.suppressed) { rows.push({ ...row, status: 'skipped', reason: 'suppressed in the file' }); continue; }
     if (f.type === 'body_transfer') {

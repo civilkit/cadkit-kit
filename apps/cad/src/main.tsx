@@ -148,7 +148,9 @@ const platform = createWebPlatform({ base });
 const files = new FileManager(platform, browserKV());
 /** True while a script run builds its part: nothing is autosaved meanwhile. */
 let scriptRunning = false;
-const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+/** A SolidCraft import in progress (the file, how far it has read, and how to stop it); null when none runs. */
+const importing = signal<{ name: string; done: number; total: number; abort: () => void } | null>(null);
+const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
 const snapshots = createSnapshots(idbBackend());
 /** Stored views of parts (IndexedDB): a part opens on its stored view while the kernel rebuilds it. Keyed by the recipe and the kernel's wasm hash. */
@@ -425,7 +427,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -791,7 +793,18 @@ function App() {
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const name = file.replace(/\.solidcraft$/i, '');
-    const r = await importSolidcraft(bytes, name, scResolvers);
+    if (importing.value) { store.notify(t('files.solidcraft.failed', { name: file, message: 'another import is still running' }), 'warn'); return; }
+    // shown at once: a big file takes minutes, and the page would otherwise look as if nothing had happened
+    const ctl = new AbortController();
+    importing.value = { name: file, done: 0, total: 0, abort: () => ctl.abort() };
+    let r: Awaited<ReturnType<typeof importSolidcraft>>;
+    try {
+      r = await importSolidcraft(bytes, name, { ...scResolvers, signal: ctl.signal, onProgress: (done, total) => { importing.value = { name: file, done, total, abort: () => ctl.abort() }; } });
+    } catch (e) {
+      store.notify(t('files.solidcraft.failed', { name: file, message: (e as Error).message }), 'error');
+      return;
+    } finally { importing.value = null; }
+    if (r.refused === 'cancelled') { store.notify(t('files.solidcraft.cancelled', { name: file }), 'warn'); return; }
     if (!r.part) { store.notify(t('files.solidcraft.failed', { name: file, message: r.refused ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part as ScPart), { file: null });
     // their app hides a sketch and a plane once a feature uses it: only the model is shown, as there (a view setting, not in the part)
@@ -2568,6 +2581,7 @@ function App() {
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
+          <BusyOverlay busy={!!importing.value} delayMs={0} label={importing.value ? (importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
           <Toast notices={store.notices.value} />
           {stale ? (
             <div class="toast update-bar" role="status">

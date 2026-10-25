@@ -197,6 +197,14 @@ describe('what is refused or reported', () => {
     const part = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['Block'] }), sketch(3), extrude(4, 3, { body_names: ['Peg'] }), { id: 5, name: 'Arc', type: 'pattern', suppressed: false, bodies: ['Peg'], features: [], pattern: { type: 'circular', axis: [0, 0, 1], origin: [0, 0, 0], count: '3', angle: '90 deg' } }]), 'x');
     expect((part.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'moveBody').map((m) => m.rotate.angle)).toEqual([45, 90]);   // a part circle spreads the copies over its angle, ends included
   });
+  it('progress is reported as the features are read, and an aborted import is refused as cancelled', async () => {
+    const d = doc([sketch(1), extrude(2, 1), sketch(3), extrude(4, 3)]);
+    const seen: Array<[number, number]> = [];
+    expect((await importSolidcraftDocument(d, 'x', { onProgress: (a, b) => seen.push([a, b]) })).part).toBeTruthy();
+    expect(seen).toEqual([[0, 4]]);
+    const stop = new AbortController(); stop.abort();
+    expect((await importSolidcraftDocument(d, 'x', { signal: stop.signal })).refused).toBe('cancelled');
+  });
   it('a body that does not exist at that point is reported, not guessed; a one-body file keeps the plain add', async () => {
     const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['A'] }), { id: 3, name: 'Gone', type: 'remove', suppressed: false, bodies: ['B'] }, { id: 4, name: 'Tool', type: 'combine', suppressed: false, target: 'A', tools: ['Nope'], operation: 'cut' }]), 'x');
     expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'unsupported', 'unsupported']);
