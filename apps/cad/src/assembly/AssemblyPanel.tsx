@@ -50,6 +50,8 @@ export interface AsmHost {
   partVolume(part: unknown): Promise<number | null>;
   notify(text: string, level?: 'info' | 'warn' | 'error'): void;
   toggleHidden(id: string): void;
+  /** Open this component's own part (its whole feature tree) to edit; Done in the app writes it back. Absent where the app cannot. */
+  editPart?(id: string): void;
   setExplode(patch: Partial<ExplodeState>): void;
   interference: AsmInterference;
 }
@@ -182,6 +184,7 @@ function PartsSection({ host }: { host: AsmHost }): JSX.Element {
                 <button class="row-act on" aria-pressed={!hidden} title={hidden ? t('asm.part.show') : t('asm.part.hide')} aria-label={hidden ? t('asm.part.show') : t('asm.part.hide')} onClick={() => host.toggleHidden(r.id)}>{hidden ? '○' : '●'}</button>
                 <button class="row-act on" aria-pressed={r.suppressed} title={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} aria-label={r.suppressed ? t('asm.part.unsuppress') : t('asm.part.suppress')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'suppressed', value: !r.suppressed }])}>S</button>
                 <button class="row-act on" aria-pressed={r.fixed} title={r.fixed ? t('asm.part.float') : t('asm.part.fix')} aria-label={r.fixed ? t('asm.part.float') : t('asm.part.fix')} onClick={() => void host.edit([{ op: 'set', id: r.id, path: 'fixed', value: !r.fixed }])}>{r.fixed ? '⚓' : '↔'}</button>
+                {host.editPart ? <button class="row-act on" title={t('asm.part.editPart')} aria-label={t('asm.part.editPart')} data-action="edit-part" onClick={() => host.editPart!(r.id)}>⚙</button> : null}
                 <button class="row-act on" title={t('asm.part.rename')} aria-label={t('asm.part.rename')} onClick={() => setRenaming(r.id)}>✎</button>
                 <button class="row-act on del" title={t('asm.part.delete')} aria-label={t('asm.part.delete')} onClick={() => void del(r)}>×</button>
               </span>

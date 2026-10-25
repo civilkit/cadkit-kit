@@ -55,6 +55,16 @@ describe('AssemblyPanel parts', () => {
     await waitFor(() => expect(calls.edits.length).toBe(1));
     expect(calls.edits[0][0]).toMatchObject({ op: 'add', feature: { type: 'insertPart', name: 'Sample one', dx: 12, source: 's1' } });
   });
+  it('a component row has an Edit part button that asks the app to open that component\'s own part', () => {
+    const opened: string[] = [];
+    const r = mount(host({ editPart: (id) => { opened.push(id); } }).h);
+    const b = [...r.container.querySelectorAll('button[data-action="edit-part"]')] as HTMLButtonElement[];
+    expect(b.length).toBe(2);   // the two components, not the mate
+    fireEvent.click(b[1]);
+    expect(opened).toEqual(['F2']);
+    cleanup();
+    expect(mount(host().h).container.querySelector('button[data-action="edit-part"]')).toBeNull();   // an app that cannot edit parts shows no button
+  });
   it('shows, suppresses, floats and deletes a component (with its mate) through ops', async () => {
     const { h, calls } = host();
     const r = mount(h);

@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.1.4 - 2026-10-26
+
+### Added
+- **Edit a component's own features.** Each component row of an assembly has an "Edit this part" button (⚙): it opens that part with its full feature tree (the gears of the Gear train sample can be changed again), and Done writes the changes back into the assembly, keeping placement and mates. Cancel returns the assembly unchanged. See `docs/assemblies.md`.
+
 ## 0.1.3 - 2026-10-26
 
 ### Fixed

@@ -14,6 +14,8 @@ export const assemblyStrings: Record<string, string> = {
   'asm.parts.empty': 'No parts inserted yet. Choose a sample or open a part file, then press Insert.',
   'asm.parts.list': 'Components',
   'asm.part.show': 'Show', 'asm.part.hide': 'Hide', 'asm.part.suppress': 'Suppress', 'asm.part.unsuppress': 'Unsuppress', 'asm.part.delete': 'Delete component',
+  'asm.part.editPart': 'Edit this part (its own features)',
+  'asm.editpart.banner': 'Editing {part} (in {asm})', 'asm.editpart.done': 'Done', 'asm.editpart.cancel': 'Cancel', 'asm.editpart.saveBlocked': 'Finish editing the part first (Done or Cancel): a save now would write the part over the assembly file.', 'asm.editpart.back': 'Back in {asm}: {part} updated.', 'asm.editpart.cancelled': 'Back in {asm}: {part} unchanged.', 'asm.editpart.missing': 'That component has no part to edit.',
   'asm.part.rename': 'Rename', 'asm.part.fix': 'Fix', 'asm.part.float': 'Float', 'asm.part.fixed': 'fixed', 'asm.part.suppressed': 'suppressed', 'asm.part.hidden': 'hidden',
   'asm.part.deleted': 'Deleted {name} and {n} mate(s) / pattern(s) that used it.', 'asm.part.deletedOnly': 'Deleted {name}.',
   'asm.part.select': 'Select the bodies of {name}', 'asm.part.edit': 'Placement of {name}',

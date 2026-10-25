@@ -149,8 +149,11 @@ const files = new FileManager(platform, browserKV());
 /** True while a script run builds its part: nothing is autosaved meanwhile. */
 let scriptRunning = false;
 /** A SolidCraft import in progress (the file, how far it has read, and how to stop it); null when none runs. */
+/** A component of an assembly open as a part of its own: the assembly it came from, which component, and whether the assembly had unsaved changes. */
+const editingPart = signal<{ assembly: PartDoc; id: string; part: string; asm: string; wasDirty: boolean } | null>(null);
+let internalLoad = false;   // set while the app itself swaps between the assembly and a component, so that load() keeps the context
 const importing = signal<{ name: string; done: number; total: number; abort: () => void } | null>(null);
-const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value || !!editingPart.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
 const snapshots = createSnapshots(idbBackend());
 /** Stored views of parts (IndexedDB): a part opens on its stored view while the kernel rebuilds it. Keyed by the recipe and the kernel's wasm hash. */
@@ -427,7 +430,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { importing.value; editingPart.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -576,6 +579,7 @@ function App() {
   /** Keep the stored view of the part just built (a file opened without one, so the next open is instant). Same tick: the document and its view. */
   const rememberView = () => { const d = controller.document(), v = controller.viewData(); if (d && v) void keepSnapshot(viewCache, kernelBuild, d, v); };
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
+    if (!internalLoad) editingPart.value = null;   // another file replaced the assembly: nothing to return to
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
@@ -739,6 +743,7 @@ function App() {
     else if (!r.cancelled) store.notify(t('files.saveFailed', { message: r.message ?? '' }), 'error');
   };
   const doSave = async (saveAs: boolean) => {
+    if (editingPart.value) { store.notify(t('asm.editpart.saveBlocked'), 'warn'); return; }
     const d = controller.document();
     if (!d) return;
     if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
@@ -792,6 +797,35 @@ function App() {
     if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
     return new Session(partBefore as unknown as PartDoc, transport, 'import', 'solidcraft-import');
   });
+  /** Open a component's own part for editing; Done writes it back into the assembly, Cancel returns the assembly as it was. */
+  const editComponent = (id: string) => {
+    const asm = controller.document() as unknown as PartDoc | null;
+    const f = asm?.features.find((x) => x.id === id) as (Record<string, unknown> & { part?: PartDoc; name?: string }) | undefined;
+    if (!asm || !f?.part) { store.notify(t('asm.editpart.missing'), 'warn'); return; }
+    const ctx = { assembly: JSON.parse(JSON.stringify(asm)) as PartDoc, id, part: String(f.name ?? f.part.name ?? id), asm: String(asm.name || t('app.part.unnamed')), wasDirty: isDirty() };
+    void (async () => {   // no unsaved-changes prompt: the assembly as it is now is kept in the context and comes back on Done or Cancel
+      internalLoad = true;
+      try { await load(JSON.stringify(f.part), { file: null, keep: true }); } finally { internalLoad = false; }
+      editingPart.value = ctx;
+      redraw((n) => n + 1);
+    })();
+  };
+  const finishEditingPart = async (commit: boolean) => {
+    const ctx = editingPart.value;
+    if (!ctx) return;
+    let back = ctx.assembly;
+    if (commit) {
+      const edited = controller.document() as unknown as PartDoc | null;
+      if (!edited) return;
+      back = { ...ctx.assembly, features: ctx.assembly.features.map((x) => (x.id === ctx.id ? { ...x, part: JSON.parse(JSON.stringify(edited)) } : x)) } as PartDoc;
+    }
+    editingPart.value = null;
+    internalLoad = true;
+    try { await load(JSON.stringify(back), { file: null, keep: true }); } finally { internalLoad = false; }
+    if (commit || ctx.wasDirty) cleanSig.current = '';   // changed since the file was saved
+    store.notify(t(commit ? 'asm.editpart.back' : 'asm.editpart.cancelled', { asm: ctx.asm, part: ctx.part }));
+    redraw((n) => n + 1);
+  };
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const name = file.replace(/\.solidcraft$/i, '');
@@ -1991,6 +2025,7 @@ function App() {
     partVolume: async (part) => (await controller.partMass(part)).volume,
     notify: (text, level) => store.notify(text, level ?? 'info'),
     toggleHidden: (id) => asmState.toggleHidden(id),
+    editPart: editComponent,
     setExplode: (patch) => asmState.setExplode(patch),
     interference: { data: inspect.props.interference, stale: inspect.props.interferenceStale, busy: inspect.props.interferenceBusy, run: inspect.props.onInterference },
   };
@@ -2585,6 +2620,13 @@ function App() {
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <BusyOverlay busy={!!importing.value} delayMs={0} label={importing.value ? (importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
           <Toast notices={store.notices.value} />
+          {editingPart.value ? (
+            <div class="busy-overlay" role="status" data-testid="edit-part-bar">
+              <span>{t('asm.editpart.banner', { part: editingPart.value.part, asm: editingPart.value.asm })}</span>
+              <button class="busy-cancel" onClick={() => void finishEditingPart(true)}>{t('asm.editpart.done')}</button>
+              <button class="busy-cancel" onClick={() => void finishEditingPart(false)}>{t('asm.editpart.cancel')}</button>
+            </div>
+          ) : null}
           {stale ? (
             <div class="toast update-bar" role="status">
               <span>{t('app.update.text')}</span>

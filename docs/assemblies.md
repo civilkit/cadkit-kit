@@ -117,8 +117,17 @@ The arrangement is saved in the document as a top-level field, `explode: {spread
 keeps unknown document fields; the field is held in the controller (`setDocExtra`), is part of `document()` for Save and autosave, is not
 an undo step and never triggers a rebuild. Hidden components are not saved.
 
+## Editing a component's own features
+
+The ⚙ button on a component row ("Edit this part") opens that component's part document in the normal editor: its feature tree, sketches and
+editors (the Gear editor included). A bar over the viewport says "Editing <part> (in <assembly>)" with Done and Cancel. Done writes the edited
+part back into the component (`insertPart.part`) and rebuilds the assembly, so its placement and mates stay; Cancel returns the assembly as it
+was. While the bar is up, Save is refused and autosave waits (a save would write the part over the assembly file); opening another file
+drops the context. The return reloads the assembly, so the undo history of the assembly starts again at that point, and the assembly counts as
+changed after Done. Instances of the same part are separate copies: only the edited component changes.
+
 ## Not done
 
-Edit part in context, new component in place, replace part, insert another instance from a component's menu, a real in-viewport drag
+New component in place, replace part, editing a component with the rest of the assembly in view, insert another instance from a component's menu, a real in-viewport drag
 of a component in the exploded view (the offset slider does it), profileCenter / path / linearCoupler / cam / universalJoint mates (kernel),
 edge references (the kernel takes faces only), a Drive for hinge.
