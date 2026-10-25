@@ -440,6 +440,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   /** construction planes by name (their frames) */
   const constructionPlanes = new Map<string, ScFrame>();
   const failedSketches = new Set<number | string>();
+  /** Their sketch id -> the id of our 3D sketch holding its one spline (a sweep path). */
+  const splinePaths = new Map<number | string, string>();
   const placeholders = opts.placeholders !== false;
 
   const operation = (f: Rec): 'add' | 'cut' | 'newBody' => {
@@ -545,7 +547,29 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     return a && b ? [a, b] : undefined;
   };
 
+  /** A sketch made of one spline (and the origin) is a path for a sweep: a 3D sketch with the spline through the same points in space. */
+  const splinePathOf = (f: Rec): { notes: string[] } | null => {
+    const sk = f.sketch as Rec, curves: Rec[] = sk.curves ?? [];
+    if (curves.length !== 1 || curves[0].type !== 'spline' || curves[0].closed) return null;
+    const ids: unknown[] = curves[0].pts ?? [];
+    const pts: Rec[] = sk.points ?? [];
+    if (ids.length < 2) return null;
+    const fr = frameOf(f.plane), u = unit(fr.u), v = unit(fr.v);
+    const at = (i: number): V3 => {
+      const q = pts[i]?.pos as P2 | undefined;
+      if (!q) throw new Unsupported('a spline through a point that is not in the sketch');
+      return [0, 1, 2].map((k) => fr.o[k] + u[k] * q[0] + v[k] * q[1]) as V3;
+    };
+    const out = ids.map((i) => toYUp(at(Number(i))));
+    const id = nid();
+    features.push({ type: 'sketch3d', id, name: f.name, points: out.map((q, k) => ({ id: `p${k + 1}`, x: clean(q[0]), y: clean(q[1]), z: clean(q[2]) })), entities: [{ id: 'e1', type: 'spline', pts: out.map((_, k) => `p${k + 1}`) }], constraints: [] });
+    splinePaths.set(f.id, id);
+    return { notes: [] };
+  };
+
   const sketchOf = (f: Rec): { notes: string[] } => {
+    const path = splinePathOf(f);
+    if (path) return path;
     const placed = placeSketch(f.plane);
     const plane = planeRef(placed);
     const sk = f.sketch as Rec;
@@ -1013,6 +1037,19 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
       case 'construction_plane': {
         // sketches carry their own plane, so the plane needs no feature of its own; it is remembered for what refers to it by name
         constructionPlanes.set(String(f.name), frameOf(f.plane));
+        return [];
+      }
+      case 'sweep': {
+        const s = sketches.get(f.sketch);
+        if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : 'its profile sketch is not in the file');
+        const path = splinePaths.get(f.path_sketch);
+        if (!path) throw new Unsupported(failedSketches.has(f.path_sketch) ? `depends on the path sketch ${f.path_sketch}, which was not imported` : 'a sweep along a path that is not one spline');
+        if (f.profiles?.type !== 'all') throw new Unsupported(`sweep profile selection "${f.profiles?.type}"`);
+        if (Array.isArray(f.path) && f.path.length !== 1) throw new Unsupported('a path of several curves');
+        const op = operation(f);
+        features.push({ type: 'sweep', id: nid(), op, sketch: s.id, path: { kind: 'sketch', id: path }, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        newName = undefined;
+        named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
       case 'revolve': {

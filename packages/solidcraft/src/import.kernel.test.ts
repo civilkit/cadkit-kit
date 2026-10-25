@@ -293,3 +293,20 @@ describe('hole', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
     expect(out.volume).toBeCloseTo(V, 1);
   });
 });
+
+describe('sweep along a spline', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
+  // their path: a spline in the plane z = 0 of their world straight up through four points, 45 long; the section is a circle of radius 2 on the plane at its start
+  const path = { id: 1, name: 'Path', type: 'sketch', suppressed: false, plane: { type: 'custom', plane: { origin: [0, 0, 0], x_dir: [1, 0, 0], y_dir: [0, 0, 1] } },
+    sketch: { points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [0, 15] }, { id: 'p3', pos: [0, 30] }, { id: 'p4', pos: [0, 45] }], curves: [{ id: 's1', type: 'spline', degree: 3, pts: [1, 2, 3, 4] }], constraints: [] } };
+  const section = { id: 2, name: 'Section', type: 'sketch', suppressed: false, plane: { type: 'custom', plane: { origin: [0, 0, 0], x_dir: [1, 0, 0], y_dir: [0, 1, 0] } },
+    sketch: { points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'c1.center', pos: [0, 0] }], curves: [{ id: 'c1', type: 'circle', c: 1, r: 2 }], constraints: [] } };
+  const sweep = { id: 3, name: 'Sweep1', type: 'sweep', suppressed: false, operation: 'new_body', path: ['s1'], path_sketch: 1, profiles: { type: 'all' }, sketch: 2 };
+  it('a circle swept along a spline makes a tube about as long as the path', async () => {
+    const out = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [path, section, sweep] });
+    expect(out.r.rows.map((x) => x.status), JSON.stringify(out.r.rows)).toEqual(['converted', 'converted', 'converted']);
+    expect(out.errors).toEqual([]);
+    expect(out.volume).toBeCloseTo(Math.PI * 4 * 45, 0);   // pi r^2 x 45 = 565.5
+    const box = (await (await open(out.r.part!)).facts()).box!;
+    expect(box.max[1] - box.min[1]).toBeCloseTo(45, 3);    // their Z is our Y
+  });
+});
