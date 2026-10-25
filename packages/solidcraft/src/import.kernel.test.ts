@@ -189,7 +189,7 @@ describe('sphere', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
     expect(alone.errors).toEqual([]);
     expect(alone.volume).toBeCloseTo((4 / 3) * Math.PI * 125, 0);
     // clear of the plate: a second body, the plate keeps its 60 x 60 x 3
-    const two = await volumeOf(plateDoc([ball({})]), { namedBodies: true });
+    const two = await volumeOf(plateDoc([ball({})]));
     expect(two.errors).toEqual([]);
     expect(two.volume).toBeCloseTo(10800 + (4 / 3) * Math.PI * 125, 0);
   });
