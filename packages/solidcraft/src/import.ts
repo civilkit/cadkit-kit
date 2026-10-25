@@ -818,6 +818,62 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
+      case 'hole': {
+        // their hole is a position, a drilling direction (into the material) and sizes; ours is a sketch of points on the face with the hole drilled into it.
+        // The sketch stands on the face at the hole: its normal points out of the material, so the drill (against the normal) runs along their direction.
+        if (bodies === 0) throw new Unsupported('a hole with no body to drill');
+        if (f.to) throw new Unsupported('a hole drilled up to a face or point');
+        const dir = f.direction as V3 | undefined, entry0 = f.position as V3 | undefined;
+        if (!dir) throw new Unsupported('a hole without a drilling direction');
+        const kind = (f.hole as Rec | undefined)?.type ?? 'simple';
+        // where the axes meet the surface, in their world: the hole's own position, or the chosen points of a sketch (on that sketch's plane)
+        let at: V3[];
+        if (f.points) {
+          const ps = f.points as { sketch: number; ids: string[] };
+          const raw = (doc.features as Rec[]).find((q) => q.id === ps.sketch && q.type === 'sketch');
+          if (!raw) throw new Unsupported('a hole at the points of a sketch that is not in the file');
+          const fr = frameOf(raw.plane as Rec), pts = (raw.sketch as Rec).points as Rec[];
+          at = ps.ids.map((pid) => {
+            const q = pts.find((x) => x.id === pid);
+            if (!q) throw new Unsupported(`a hole at the sketch point "${pid}", which is not in the sketch`);
+            const [x, y] = q.pos as [number, number];
+            return [0, 1, 2].map((k) => fr.o[k] + fr.u[k] * x + fr.v[k] * y) as V3;
+          });
+        } else {
+          if (!entry0) throw new Unsupported('a hole without a position');
+          at = [entry0];
+        }
+        if (!at.length) throw new Unsupported('a hole at no points');
+        const d = unit(dir), out: V3 = [-d[0], -d[1], -d[2]];
+        const fr = faceFrame(at[0], out), pl = placeFrame(fr), plane = planeRef(pl);
+        const u = unit(fr.u), v = unit(fr.v);
+        const sid = nid();
+        const pts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }], ents: FeatureJson[] = [];
+        at.forEach((q, i) => {
+          const rel: V3 = [q[0] - at[0][0], q[1] - at[0][1], q[2] - at[0][2]];
+          if (Math.abs(dot3(rel, d)) > 1e-6) throw new Unsupported('a hole at points that are not on one plane across the drill');
+          const [x, y] = mapXY(pl, dot3(rel, u), dot3(rel, v));
+          pts.push({ id: `p${i + 1}`, x, y }); ents.push({ id: `e${i + 1}`, type: 'point', p: `p${i + 1}` });
+        });
+        features.push({ type: 'sketch', id: sid, name: `${f.name} points`, plane, points: pts, entities: ents, constraints: [], visible: false });
+        const notes: string[] = [];
+        const h: FeatureJson = { type: 'hole', id: nid(), name: f.name, sketch: sid, diameter: num(f.diameter, 'hole diameter') };
+        if (f.depth === undefined || f.depth === null) h.end = 'through'; else { h.end = 'blind'; h.depth = num(f.depth, 'hole depth'); }
+        if (pl.sign < 0) h.flip = true;   // their drill runs against the normal of the sketch we stand on; ours does too, unless the plane faces the other way
+        const hk = f.hole as Rec | undefined;
+        if (kind === 'simple') h.kind = 'simple';
+        else if (kind === 'drilled') {
+          h.kind = 'simple'; h.tip = true;
+          if (Math.abs(num(hk!.tip_angle, 'tip angle') - 118) > 0.5) notes.push('the drill point is the standard 118 degrees; theirs is a different angle');
+        } else if (kind === 'counterbore') { h.kind = 'cbore'; h.cboreDiameter = num(hk!.cb_diameter, 'counterbore diameter'); h.cboreDepth = num(hk!.cb_depth, 'counterbore depth'); }
+        else if (kind === 'countersink') { h.kind = 'countersink'; h.cskDiameter = num(hk!.cs_diameter, 'countersink diameter'); h.cskAngle = num(hk!.cs_angle, 'countersink angle'); }
+        else throw new Unsupported(`a ${kind} hole`);
+        features.push(h);
+        if (Array.isArray(f.references) && f.references.length) notes.push('placed by distances from edges: kept at the place they give now, so it will not follow those edges');
+        if (f.thread) notes.push(`the cosmetic thread "${String(f.thread)}" is not kept (an annotation, no geometry)`);
+        named.set(f.name, [h.id as string]);
+        return notes;
+      }
       case 'fillet': case 'chamfer': {
         if (!opts.resolver) throw new Unsupported('needs the kernel to find its edges');
         const points = (f.edges as V3[] | undefined)?.map(toYUp);   // the edge positions are in their Z-up world
@@ -1172,6 +1228,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       rows.push(still ? { ...row, status: 'skipped', reason: 'the bodies stay where they were built; which component owns them is not kept' } : { ...row, status: 'unsupported', reason: 'a body transfer that also moves the bodies' });
       continue;
     }
+    if (f.type === 'thread' && !f.modeled) { rows.push({ ...row, status: 'skipped', reason: 'a cosmetic thread is an annotation: it has no geometry to rebuild' }); continue; }
     const mark = features.length, bodiesBefore = bodies, nBefore = n, liveBefore = [...live], countBefore = bodyCount;
     newName = undefined; after = [];
     try {

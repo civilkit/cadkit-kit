@@ -194,3 +194,59 @@ describe('sphere', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
     expect(two.volume).toBeCloseTo(10800 + (4 / 3) * Math.PI * 125, 0);
   });
 });
+
+describe('hole', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
+  // the shapes of tests/hole_matrix in their repository: a 40 x 30 x 20 block with the corner at the origin, holes by position and direction
+  const block = { id: 1, name: 'B', type: 'box', suppressed: false, corner: [0, 0, 0], length: 40, width: 30, height: 20, operation: 'new_body' };
+  const V = 40 * 30 * 20;
+  const hole = (over: Record<string, unknown>) => ({ id: 3, name: 'Hole1', type: 'hole', suppressed: false, position: [20, 15, 20], direction: [0, 0, -1], diameter: '6', hole: { type: 'simple' }, ...over });
+  const run = async (feats: unknown[]) => { const out = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [block, ...feats] }); return out; };
+  const pi = Math.PI;
+  it('a blind hole from the top and one from the bottom remove pi r^2 depth', async () => {
+    const top = await run([hole({ depth: '10' })]);
+    expect(top.errors).toEqual([]);
+    expect(top.r.rows.filter((x) => x.status !== 'converted')).toEqual([]);
+    expect(top.volume).toBeCloseTo(V - pi * 9 * 10, 1);
+    const bottom = await run([hole({ position: [20, 15, 0], direction: [0, 0, 1], depth: '10' })]);
+    expect(bottom.errors).toEqual([]);
+    expect(bottom.volume).toBeCloseTo(V - pi * 9 * 10, 1);
+  });
+  it('a hole with no depth goes through; a hole in a side face goes along the side', async () => {
+    const through = await run([hole({})]);
+    expect(through.volume).toBeCloseTo(V - pi * 9 * 20, 1);
+    const side = await run([hole({ position: [0, 15, 10], direction: [1, 0, 0], depth: '12' })]);
+    expect(side.errors).toEqual([]);
+    expect(side.volume).toBeCloseTo(V - pi * 9 * 12, 1);
+    const back = await run([hole({ position: [40, 15, 10], direction: [-1, 0, 0], depth: '12' })]);
+    expect(back.volume).toBeCloseTo(V - pi * 9 * 12, 1);
+  });
+  it('a counterbore and a countersink keep their steps and cone', async () => {
+    const cb = await run([hole({ depth: '12', hole: { type: 'counterbore', cb_diameter: '10', cb_depth: '4' } })]);
+    expect(cb.errors).toEqual([]);
+    expect(cb.volume).toBeCloseTo(V - pi * (25 * 4 + 9 * 8), 1);
+    const cs = await run([hole({ hole: { type: 'countersink', cs_diameter: '10', cs_angle: '90' } })]);
+    expect(cs.errors).toEqual([]);
+    expect(cs.volume).toBeCloseTo(V - (pi * 2 / 3) * 49 - pi * 9 * 18, 1);
+  });
+  it('holes at the points of a sketch are one hole each, and the references and thread are noted', async () => {
+    const pts = { id: 2, name: 'P', type: 'sketch', suppressed: false, plane: { type: 'custom', plane: { origin: [0, 0, 20], x_dir: [1, 0, 0], y_dir: [0, 1, 0] } }, sketch: { curves: [], constraints: [], counters: { k: 0, l: 0, p: 3 }, points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'q0', pos: [10, 10], fixed: false }, { id: 'q1', pos: [30, 20], fixed: false }] } };
+    const out = await run([pts, hole({ id: 4, position: [10, 10, 20], depth: '10', points: { sketch: 2, ids: ['q0', 'q1'] }, thread: 'M6x1', references: [{ edge: [0, 0, 20], distance: '10' }] })]);
+    expect(out.errors).toEqual([]);
+    expect(out.volume).toBeCloseTo(V - 2 * pi * 9 * 10, 1);
+    const row = out.r.rows.find((x) => x.type === 'hole')!;
+    expect(row.status).toBe('converted');
+    expect(row.notes?.length).toBe(2);
+  });
+  it('a drilling direction that points out of the material is not corrected: the hole shows a cutNoEffect error', async () => {
+    // files saved by 0.9.0 can carry such a direction (their engine drills toward the material anyway); we drill the way the file says
+    const out = await run([hole({ position: [20, 15, 0], direction: [0, 0, -1], depth: '10' })]);
+    expect(out.errors.map((e) => e[1].code)).toEqual(['cutNoEffect']);
+    expect(out.volume).toBeCloseTo(V, 1);
+  });
+  it('a hole that goes up to a face is refused, and a cosmetic thread is skipped', async () => {
+    const out = await run([hole({ to: [20, 15, 5] }), { id: 5, name: 'T', type: 'thread', suppressed: false, face: [0, 0, 0], designation: 'M6' }]);
+    expect(out.r.rows.find((x) => x.type === 'hole')!.status).toBe('unsupported');
+    expect(out.r.rows.find((x) => x.type === 'thread')!.status).toBe('skipped');
+    expect(out.volume).toBeCloseTo(V, 1);
+  });
+});
