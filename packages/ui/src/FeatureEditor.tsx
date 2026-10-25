@@ -188,6 +188,8 @@ export function FeatureEditor(p: {
   onShapeHover?(id: string | null): void;
   /** Optional form for the feature's options (end conditions, chamfer type...); its fields replace the generic ones. */
   options?(a: OptionsArgs): OptionsResult | null;
+  /** Extra content under the fields (an inserted part: the button that opens its own features). */
+  extra?: JSX.Element | null;
 }): JSX.Element {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -360,6 +362,7 @@ export function FeatureEditor(p: {
           </div>
         </div>
       ) : null}
+      {p.extra ?? null}
       {p.diag ?? (p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null)}
     </div>
   );

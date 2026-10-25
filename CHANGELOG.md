@@ -2,6 +2,14 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.1.5 - 2026-10-26
+
+### Added
+- **Edit this part's features from the Features tab.** The editor of a component (the pencil on its row) now has an "Edit this part's features" button; it is the same action as the ⚙ in the Assembly panel.
+
+### Fixed
+- The "A new version is available" notice moved into the top bar, next to the part name: over the viewport it covered the Start here card in a short window and the selection filter bar elsewhere.
+
 ## 0.1.4 - 2026-10-26
 
 ### Added

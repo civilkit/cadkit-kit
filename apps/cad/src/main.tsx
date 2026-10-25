@@ -2254,6 +2254,12 @@ function App() {
       diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} {...diagFixes()} /> : null}
       okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
       shapes={editShapes}
+      extra={editingFeature?.type === 'insertPart' && (editingFeature as { part?: unknown }).part && !(editingFeature as { draftNew?: boolean }).draftNew ? (
+        <div class="fedit-extra">
+          <button type="button" class="btn primary" data-action="edit-part-features" onClick={() => { const id = String(editingId); onCancel(); editComponent(id); }}>{t('asm.part.editPartBtn')}</button>
+          <small>{t('asm.part.editPartHint', { name: String((editingFeature as { name?: string }).name ?? '') })}</small>
+        </div>
+      ) : null}
       onShapeHover={(id) => {
         const ef = editingFeature as { sketch?: string } | null;
         const sk = ef?.sketch ? doc?.features.find((f) => f.id === ef.sketch) : null;
@@ -2528,6 +2534,13 @@ function App() {
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
           : null}
         <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
+        {stale ? (
+          <span class="update-note" role="status">
+            <span>{t('app.update.text')}</span>
+            <button class="rb-btn" onClick={() => guarded(() => location.reload())}>{t('app.update.refresh')}</button>
+            <button class="rb-btn" onClick={() => setStale(false)}>{t('app.update.later')}</button>
+          </span>
+        ) : null}
         <div class="mode-tabs" role="tablist" aria-label={t('drawing.title')}>
           <button role="tab" aria-selected={!drawingOpen} class="rb-btn" onClick={() => setDrawingOpen(false)}>{t('drawing.tab.part')}</button>
           <button role="tab" aria-selected={drawingOpen} class="rb-btn" disabled={!doc} onClick={() => setDrawingOpen(true)}>{t('drawing.tab.drawing')}</button>
@@ -2625,13 +2638,6 @@ function App() {
               <span>{t('asm.editpart.banner', { part: editingPart.value.part, asm: editingPart.value.asm })}</span>
               <button class="busy-cancel" onClick={() => void finishEditingPart(true)}>{t('asm.editpart.done')}</button>
               <button class="busy-cancel" onClick={() => void finishEditingPart(false)}>{t('asm.editpart.cancel')}</button>
-            </div>
-          ) : null}
-          {stale ? (
-            <div class="toast update-bar" role="status">
-              <span>{t('app.update.text')}</span>
-              <button class="toast-act" onClick={() => guarded(() => location.reload())}>{t('app.update.refresh')}</button>
-              <button class="toast-act" onClick={() => setStale(false)}>{t('app.update.later')}</button>
             </div>
           ) : null}
         </div>

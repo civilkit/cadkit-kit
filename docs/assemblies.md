@@ -119,7 +119,7 @@ an undo step and never triggers a rebuild. Hidden components are not saved.
 
 ## Editing a component's own features
 
-The ⚙ button on a component row ("Edit this part") opens that component's part document in the normal editor: its feature tree, sketches and
+The ⚙ button on a component row of the Assembly panel ("Edit this part"), and the "Edit this part's features" button in a component's editor (the pencil on its row in the Features tab), open that component's part document in the normal editor: its feature tree, sketches and
 editors (the Gear editor included). A bar over the viewport says "Editing <part> (in <assembly>)" with Done and Cancel. Done writes the edited
 part back into the component (`insertPart.part`) and rebuilds the assembly, so its placement and mates stay; Cancel returns the assembly as it
 was. While the bar is up, Save is refused and autosave waits (a save would write the part over the assembly file); opening another file
