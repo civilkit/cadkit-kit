@@ -189,6 +189,7 @@ const ICONS: Record<string, string> = {
   'ref-origin': D(12, 16, 2) + A('M12 16V5') + P('M12 16l8 3.5') + T('M12 16l-6 3'),
   'ref-material': O(12, 12, 8) + T('M12 4a8 8 0 0 1 0 16') + T('M7 12h10'),
   'feature-part': P(HEX) + T(Y),
+  'feature-sphere': '<circle cx="12" cy="12" r="8"/>' + AE(12, 12, 8, 3, 0),
   'sketch-here': P('M4 18h12V8H4z') + A('M14 6l4-2.5 2.5 3.5L16.5 9.5z') + T('M16 18l4-3'),
   'feature-sketch-point': P('M4 18h12V8H4z') + D(10, 13, 2.2) + T('M16 18l4-3'),
   'feature-sketch': P('M4 18h12V8H4z') + A('M14 6l4-2.5 2.5 3.5L16.5 9.5z') + T('M16 18l4-3'),
@@ -310,6 +311,7 @@ export function featureIconName(type: string, op?: string): string {
     case 'plane': return 'feature-plane';
     case 'extrude': return cut ? 'add-cut' : 'add-extrude';
     case 'revolve': return 'add-revolve';
+    case 'sphere': return 'feature-sphere';
     case 'fillet': return 'add-fillet';
     case 'chamfer': return 'add-chamfer';
     case 'shell': return 'add-shell';
