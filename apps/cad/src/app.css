@@ -204,7 +204,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 @keyframes spin { to { transform: rotate(360deg); } }
 .busy-cancel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 14px; padding: 4px 12px; cursor: pointer; font: inherit; color: inherit; }
 .toast { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: #1c2129; color: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 18px #0004; max-width: 80%; }
-.toast.update-bar { bottom: 64px; }
+.toast.update-bar { bottom: 64px; pointer-events: auto; }   /* #vp-layer ignores the mouse: the buttons of this one need it */
 .topbar .install-btn { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 .toast-icon { color: var(--ok); font-weight: 700; }
 .toast.warn .toast-icon { color: #f0b429; } .toast.error .toast-icon { color: #ff6b6b; }
