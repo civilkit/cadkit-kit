@@ -786,9 +786,11 @@ function App() {
   });
   /** The kernel's answers for the importer (which edge, face or rim is at a position): the part built so far is regenerated on a scratch tag of its own, so the open part is untouched. */
   const scResolvers = kernelResolvers(async (partBefore) => {
-    const s = new Session(partBefore as unknown as PartDoc, await kernelRouter.transport(), 'import', 'solidcraft-import');
-    await s.verify();
-    return s;
+    const transport = await kernelRouter.transport();
+    // only the rebuild: verify() also meshes and validates the whole body, which on a big file takes minutes per question; the kernel keeps the earlier states, so each question after the first costs a fraction of a second
+    const r = await transport.request({ type: 'regen', tag: 'solidcraft-import', part: partBefore, opts: { noView: true } });
+    if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
+    return new Session(partBefore as unknown as PartDoc, transport, 'import', 'solidcraft-import');
   });
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
