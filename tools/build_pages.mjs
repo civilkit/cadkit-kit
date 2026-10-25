@@ -114,6 +114,9 @@ const shell = precacheList(built.map((f) => f.path));
 for (const need of ['index.html', 'manifest.webmanifest', 'kernel/ck_wasm.wasm', 'icons/icon-192.png', 'icons/icon-512.png']) if (!shell.includes(need)) die(`the installable app needs ${need} in the output`);
 writeFileSync(join(OUT, 'sw.js'), swSource(buildId(built), shell));
 console.log(`service worker: ${shell.length} files stored at install`);
+// 5c. version.json: which commit the app bundle was built from (tools/stack_status.mjs reads it; written after the service worker so it is not stored at install)
+const kitRev = (() => { const g = (a) => spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' }).stdout.trim(); const r = g(['rev-parse', '--short=12', 'HEAD']); return r ? r + (g(['status', '--porcelain', '--untracked-files=no']) ? '-dirty' : '') : ''; })();
+writeFileSync(join(OUT, 'version.json'), JSON.stringify({ kit: kitRev }) + '\n');
 
 // 6. leak check: the build fails on any hit
 let allowList = [];

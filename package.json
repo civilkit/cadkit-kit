@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite apps/cad --config vite.config.ts",
     "build:pages": "node tools/build_pages.mjs",
+    "stack:status": "node tools/stack_status.mjs",
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",
     "test:kernel": "CK_TEST_WORKERS=1 vitest run .kernel.test",
