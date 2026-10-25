@@ -1039,6 +1039,37 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         constructionPlanes.set(String(f.name), frameOf(f.plane));
         return [];
       }
+      case 'coil': {
+        // a helix of the coil's size on a plane across its axis, and the wire's section on a plane through the axis at the helix start, swept along it
+        const sect = f.section === undefined ? 'circular' : String(f.section).toLowerCase();
+        if (sect !== 'circular' && sect !== 'circle' && sect !== 'square') throw new Unsupported(`a coil with a "${f.section}" section`);
+        const ax = f.axis as V3 | undefined;
+        if (!ax || !f.base) throw new Unsupported('a coil without an axis or a base point');
+        const a = unit(toYUp(ax)), o = toYUp(f.base as V3);
+        const diameter = num(f.diameter, 'coil diameter'), size = num(f.section_size, 'coil section size'), turns = num(f.turns ?? f.revolutions, 'coil turns');
+        const pitch = f.pitch !== undefined ? num(f.pitch, 'coil pitch') : num(f.height, 'coil height') / turns;
+        if (!(diameter > 0 && size > 0 && turns > 0 && pitch > 0)) throw new Unsupported('a coil with no size');
+        const where = f.section_position === 'outside' ? 1 : f.section_position === 'inside' ? -1 : 0;
+        const rc = diameter / 2 + (where * size) / 2;   // the wire's centre line: the diameter is the centre line's when centred, the wire's inner or outer edge otherwise
+        if (!(rc > size / 2)) throw new Unsupported('a coil whose wire reaches the axis');
+        const x0 = unit(Math.abs(a[1]) < 0.9 ? cross3(a, [0, 1, 0]) : cross3(a, [1, 0, 0])), y0 = cross3(a, x0);
+        const op = operation(f);
+        const across = nid(), through = nid(), helixSketch = nid(), helix = nid(), wire = nid();
+        features.push({ type: 'plane', id: across, mode: 'frame', origin: o.map(clean), xDir: x0.map(clean), yDir: y0.map(clean) });
+        features.push({ type: 'plane', id: through, mode: 'frame', origin: o.map(clean), xDir: x0.map(clean), yDir: a.map(clean) });
+        features.push({ type: 'sketch', id: helixSketch, name: `${f.name} helix`, plane: { kind: 'feature', id: across }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 0, y: 0 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: clean(rc) }], constraints: [] });
+        const start = f.start_angle === undefined ? 0 : num(f.start_angle, 'coil start angle');
+        features.push({ type: 'helix', id: helix, name: `${f.name} path`, sketch: helixSketch, definedBy: 'pitchRevs', pitch: clean(pitch), revolutions: clean(turns), startAngle: clean(start), ...(f.clockwise === true ? { leftHand: true } : {}) });
+        const h = size / 2;
+        const section = sect === 'square'
+          ? { points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...[[-h, -h], [h, -h], [h, h], [-h, h]].map(([dx, dy], k) => ({ id: `p${k + 1}`, x: clean(rc + dx), y: clean(dy) }))], entities: [1, 2, 3, 4].map((k) => ({ id: `e${k}`, type: 'line', p1: `p${k}`, p2: `p${k % 4 + 1}` })) }
+          : { points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: clean(rc), y: 0 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: clean(h) }] };
+        features.push({ type: 'sketch', id: wire, name: `${f.name} section`, plane: { kind: 'feature', id: through }, ...section, constraints: [] });
+        features.push({ type: 'sweep', id: nid(), op, sketch: wire, path: { kind: 'curve', id: helix }, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        newName = undefined;
+        named.set(f.name, [features[features.length - 1].id as string]);
+        return [];
+      }
       case 'sweep': {
         const s = sketches.get(f.sketch);
         if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : 'its profile sketch is not in the file');

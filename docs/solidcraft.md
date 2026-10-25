@@ -27,6 +27,9 @@ Written from three sample files; every other construct is reported, never guesse
 | revolve about the sketch's own x or y axis | revolve with a construction line along that axis |
 | loft | loft through the section sketches |
 | mirror about an origin, offset or construction plane | mirror of the named features (a join or cut limited to named bodies: its tool body is mirrored with `moveBody` `mirror` and combined again) |
+| sweep of a circle or other profile along a path that is one spline | a 3D sketch holding the spline (through the same points) and a sweep along it; the spline passes through the stored points, so a path that is a B-spline with control points gives a slightly different curve |
+| coil (round or square wire; diameter, turns, pitch or height, wire size, inside / centred / outside, either hand) | a helix of the wire's centre-line radius on a plane across the axis, the wire's section on a plane through the axis, and a sweep along the helix; the wire size is its diameter (a square wire's side) and `diameter` is the centre line's unless the section is inside or outside |
+| circular pattern of whole bodies (any axis, whole circle or part of one) | rotated copies of each body (`moveBody` copy), named `<body> 2`, `<body> 3`... |
 | rectangular pattern of named features | one or two linear patterns (the second also repeats the first row) |
 | construction plane | remembered by name; sketches carry their own plane, so no feature is added |
 | named parameters and expressions (`thickness + 14 mm`) | evaluated to numbers (`expr.ts`; mm, deg, rad only) |
@@ -77,4 +80,4 @@ Left out most often: sheet metal other than a contour flange, joints other than 
 
 ## Not done
 
-Assemblies (occurrence placement, joints and multi-body components), sweep, modelled threads, circular and path patterns, and the other feature types listed above. The placeholder row shows its raw type name.
+Assemblies (occurrence placement, joints and multi-body components), sweeps along a path that is not one spline, non-uniform scale, modelled threads, circular patterns of features, and the other feature types listed above. The placeholder row shows its raw type name.

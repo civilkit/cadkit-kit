@@ -2,6 +2,15 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.1.2 - 2026-10-26
+
+### Added
+- **SolidCraft import: sweeps along a spline and coils.** The path sketch becomes a 3D sketch holding the spline; a coil becomes a helix, the wire's section and a sweep along it (round or square wire, either hand, inside, centred or outside). SELENE's hydraulic hoses, motor leads and suspension springs now come through: the showcase file imports with no unsupported feature (2,001 converted) and imports and rebuilds in about 25 seconds.
+
+### Known
+- Rebuilding the SELENE functional file is still very slow (many minutes): the Pi 5 board has hundreds of small boxes and cylinders cut into one body and each cut gets slower. The import itself takes about 35 seconds.
+- Six cuts of the showcase's clamping hubs report `cutNoEffect` in the kernel.
+
 ## 0.1.1 - 2026-10-26
 
 ### Fixed

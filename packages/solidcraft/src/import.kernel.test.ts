@@ -310,3 +310,22 @@ describe('sweep along a spline', { skip: !process.env.CK_WASM, timeout: 90_000 }
     expect(box.max[1] - box.min[1]).toBeCloseTo(45, 3);    // their Z is our Y
   });
 });
+
+describe('coil', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
+  // the numbers of SolidCraft's own coil tests: wire volume = section area x centre-line length (the helix is a little longer than 2 pi r N: within half a percent)
+  const coil = (o: object) => ({ id: 1, name: 'Coil1', type: 'coil', suppressed: false, base: [0, 0, 0], axis: [0, 0, 1], operation: 'new_body', section: 'circular', ...o });
+  const doc = (c: object) => ({ format: 'solidcraft/30', units: 'mm', params: [], features: [coil(c)] });
+  it('a round wire: diameter 40, 2 turns, pitch 8, wire 4', async () => {
+    const out = await volumeOf(doc({ diameter: '40', turns: '2', pitch: '8', section_size: '4' }));
+    expect(out.r.rows.map((x) => x.status), JSON.stringify(out.r.rows)).toEqual(['converted']);
+    expect(out.errors).toEqual([]);
+    expect(Math.abs(out.volume - Math.PI * 4 * 2 * Math.PI * 20 * 2) / out.volume).toBeLessThan(5e-3);
+    const box = (await (await open(out.r.part!)).facts()).box!;
+    expect(box.max[1] - box.min[1]).toBeCloseTo(16 + 4, 1);   // 2 turns of pitch 8 plus the wire; their Z is our Y
+  });
+  it('a square wire outside the diameter, about their X axis, from height and turns', async () => {
+    const out = await volumeOf(doc({ diameter: '40', turns: '1.5', pitch: '10', section: 'square', section_size: '2', section_position: 'outside', axis: [1, 0, 0] }));
+    expect(out.errors).toEqual([]);
+    expect(Math.abs(out.volume - 4 * 2 * Math.PI * 21 * 1.5) / out.volume).toBeLessThan(5e-3);
+  });
+});
