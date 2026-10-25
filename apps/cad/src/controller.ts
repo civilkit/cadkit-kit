@@ -1361,6 +1361,11 @@ export class Controller {
     return (this.shown?.mesh.triFace.length ?? 0) > 0;
   }
 
+  /** Show this document again (its tab was brought back): wait for a background build, then publish its view, status and facts. */
+  async reshow(): Promise<void> {
+    await this.settled();
+    await this.refresh();
+  }
   private async refresh(): Promise<void> {
     const s = this.session;
     if (!s) return;

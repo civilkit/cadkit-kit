@@ -26,7 +26,9 @@ import {
   type HistoryFilter,
 } from '@kit/ui';
 import { createWebPlatform } from '@kit/platform';
-import { Controller } from './controller';
+import { Controller, type ViewSink } from './controller';
+import { TabSet } from './tabs/tabSet';
+import { TabStrip, type TabInfo } from './tabs/TabStrip';
 import { DiagnosticsCard } from './DiagnosticsCard';
 import { newBreakage, type DiagRoot, type Diagnosis } from './errorSummary';
 import { dxfToSketch } from '@kit/io';
@@ -52,7 +54,7 @@ import { whenIdle } from './library/thumbs';
 import { browserKV } from './files/storage';
 import { withCacheCap } from './kernelCaps';
 import { createKernelRouter, chipOf } from './kernelService';
-import { createAutosaver, clearAutosave, readAutosave, worthRestoring, type Autosave } from './files/autosave';
+import { createAutosaver, clearAutosave, readAutosave, worthRestoring, isTabs, sessionParts, type Autosave, type AutosaveTabs } from './files/autosave';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
 import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend } from './files/viewCache';
@@ -149,11 +151,8 @@ const files = new FileManager(platform, browserKV());
 /** True while a script run builds its part: nothing is autosaved meanwhile. */
 let scriptRunning = false;
 /** A SolidCraft import in progress (the file, how far it has read, and how to stop it); null when none runs. */
-/** A component of an assembly open as a part of its own: the assembly it came from, which component, and whether the assembly had unsaved changes. */
-const editingPart = signal<{ assembly: PartDoc; id: string; part: string; asm: string; wasDirty: boolean } | null>(null);
-let internalLoad = false;   // set while the app itself swaps between the assembly and a component, so that load() keeps the context
 const importing = signal<{ name: string; done: number; total: number; abort: () => void } | null>(null);
-const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value || !!editingPart.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
+const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
 const snapshots = createSnapshots(idbBackend());
 /** Stored views of parts (IndexedDB): a part opens on its stored view while the kernel rebuilds it. Keyed by the recipe and the kernel's wasm hash. */
@@ -240,9 +239,20 @@ const shownBody = (b: unknown): unknown => {
   if (!b || !d) return b;
   return displayBody(b as never, { inserts: insertIds(d as never), hidden: new Set(asmState.hidden.value), explode: asmState.explode.value, doc: d as never }) as unknown;
 };
-const controller = new Controller({
-  store,
-  view: {
+/** What belongs to one open document: its own controller (session, undo history, selection), its file, its camera and its look. */
+interface TabRec {
+  id: number;
+  controller: Controller;
+  file: { fileName: string | null; handle: unknown | null; partName: string | null };
+  cleanSig: string | null;
+  hidden: { body: boolean; ids: string[] } | null;
+  camera: ReturnType<Viewport['cameraState']> | null;
+  /** A component opened from an assembly tab: where Done writes it back (the assembly's tab and the component's feature id). */
+  parent?: { tabId: number; featureId: string; part: string; asm: string };
+}
+const tabSet = new TabSet<TabRec>();
+/** What the viewport is told by the active document's controller (the others stay silent: their work finishes in the background). */
+const realView: ViewSink = {
     setBody: (b) => {
       // sketches that a feature references are drawn quietly; compute them from the document
       const used = new Set<string>();
@@ -271,30 +281,45 @@ const controller = new Controller({
     setThreads: (items) => viewport?.setThreads(items as never),
     setThreadFocus: (id) => viewport?.setThreadFocus(id),
     setSketchEdit: (v) => viewport?.setSketchEdit(v as never),
-  },
-  kernel: {
-    async open(doc: PartDoc) { session = new Session(doc, await kernelRouter.transport(), 'user'); return session; },
-    cancel() { kernelRouter.cancel(); },
-  },
-  fonts: fontSource,
+  };
+const makeController = (tabId: number): Controller => {
+  const live = () => tabSet.activeId === tabId;
+  const view = Object.fromEntries(Object.entries(realView).map(([k, fn]) => [k, (...a: unknown[]) => { if (live()) (fn as (...x: unknown[]) => void)(...a); }])) as unknown as ViewSink;
+  const c = new Controller({
+    store,
+    view,
+    kernel: {
+      async open(doc: PartDoc) { session = new Session(doc, await kernelRouter.transport(), 'user'); return session; },
+      cancel() { kernelRouter.cancel(); },
+    },
+    fonts: fontSource,
+  });
+  c.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   // every undo first keeps the state it leaves
+  // Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
+  const rawEdit = c.edit.bind(c);
+  c.edit = async (ops, reason) => {
+    await c.settled();   // after a cached open the edit waits for the rebuild, and the history is the real session's
+    const at = c.history().length;
+    const r = await rawEdit(ops, reason);
+    if (!r.ok) {
+      const hint = c.rejection()?.summary || r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'edit failed';
+      rejections.value = [...rejections.value, { at, time: Date.now(), reason: reason ?? '', hint, ops }];
+    }
+    return r;
+  };
+  return c;
+};
+const newTabRec = (): TabRec => { const id = tabSet.nextId(); return { id, controller: makeController(id), file: { fileName: null, handle: null, partName: null }, cleanSig: null, hidden: null, camera: null }; };
+/** The app talks to `controller` as ever; it is the active tab's controller. */
+const controller: Controller = new Proxy({} as Controller, {
+  get: (_t, k) => { const c = tabSet.active!.controller; const v = Reflect.get(c, k, c); return typeof v === 'function' ? v.bind(c) : v; },
+  set: (_t, k, v) => { const c = tabSet.active!.controller as unknown as Record<PropertyKey, unknown>; c[k] = v; return true; },
 });
+const rejections = signal<Rejection[]>([]);
+tabSet.add(newTabRec());
 /** The Text panel's font picker; `apply` goes to the text edit of the current render. */
 const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {} };
 const fontsApi = makeFontsApi({ controller, source: fontSource, apply: (p) => textEditRef.current(p) });
-controller.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   // every undo first keeps the state it leaves
-// Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
-const rejections = signal<Rejection[]>([]);
-const rawEdit = controller.edit.bind(controller);
-controller.edit = async (ops, reason) => {
-  await controller.settled();   // after a cached open the edit waits for the rebuild, and the history is the real session's
-  const at = controller.history().length;
-  const r = await rawEdit(ops, reason);
-  if (!r.ok) {
-    const hint = controller.rejection()?.summary || r.hints?.map((h) => h.hint).join('; ') || r.schemaError || 'edit failed';
-    rejections.value = [...rejections.value, { at, time: Date.now(), reason: reason ?? '', hint, ops }];
-  }
-  return r;
-};
 if (import.meta.env.DEV) {
   const hook = { controller, store };                                          // for the browser console
   Object.defineProperty(hook, 'viewport', { get: () => viewport });            // created later by an effect
@@ -318,6 +343,7 @@ function App() {
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
   const [guard, setGuard] = useState<(() => void) | null>(null);
+  const [guardSave, setGuardSave] = useState<(() => Promise<void>) | null>(null);   // what Save does in the unsaved-changes dialog when it is not the file save (a component tab: write back)
   const [stale, setStale] = useState(false);   // a newer build was deployed while this tab was open
   const [installEv, setInstallEv] = useState<InstallEvent | null>(null);   // the browser can install the site as an app: the top bar then shows an Install button (see installPrompt.ts)
   const cleanSig = useRef<string | null>(null);
@@ -430,7 +456,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; editingPart.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; });
   const ws = store.workspace.value;
 
   useEffect(() => {
@@ -573,13 +599,107 @@ function App() {
   };
   const isDirty = (): boolean => { const d = controller.document(); return !!d && cleanSig.current !== null && sigOf(d) !== cleanSig.current; };
   const markClean = () => { cleanSig.current = sigOf(controller.document()); };
-  /** Run `go` now, or after the user decides what to do with unsaved changes. */
-  const guarded = (go: () => void | Promise<void>) => { if (isDirty()) setGuard(() => go); else void go(); };
+  // ---- document tabs: each tab has its own controller; these park the active one and bring another back ----
+  const tabDirty = (tb: TabRec): boolean => {
+    if (tb.id === tabSet.activeId) return isDirty();
+    const d = tb.controller.document();
+    return !!d && tb.cleanSig !== null && sigOf(d) !== tb.cleanSig;
+  };
+  const anyDirty = (): boolean => tabSet.tabs.some(tabDirty);
+  /** What a tab being left must keep: its file, its unsaved-changes mark, its look and its camera. */
+  const parkActive = () => {
+    const cur = tabSet.active;
+    if (!cur) return;
+    cur.file = files.snapshot(); cur.cleanSig = cleanSig.current; cur.hidden = lookStore.hidden.value; cur.camera = viewport?.cameraState() ?? null;
+  };
+  /** Nothing the user has opened or changed in the active tab yet: a new document may take its place instead of a new tab. */
+  const activeIsBlank = (): boolean => {
+    const d = controller.document();
+    return !d || (d.features.length === 0 && !files.fileName && !isDirty());
+  };
+  /** A tab cannot be left in the middle of a sketch (its tools and draft live in the app); a feature editor is just closed. */
+  const cannotLeave = (): boolean => {
+    if (controller.sketchDraft()) { store.notify(t('tabs.finishSketch'), 'warn'); return true; }
+    return false;
+  };
+  const leaveEditing = async () => {
+    await controller.cancelPreview();
+    setDrawingOpen(false);   // the drawing sheet belongs to the document being left
+    setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    setSelectedId(null); setRefSel(null); store.select([]); rejections.value = [];
+  };
+  /** The active tab (just changed in `tabSet`) takes over the app: its file, look, view and camera. */
+  const showActive = async () => {
+    const tb = tabSet.active!;
+    files.restore(tb.file); cleanSig.current = tb.cleanSig;
+    lookStore.hidden.value = tb.hidden ?? { body: false, ids: [] };
+    const d = controller.document();
+    if (d) asmState.reset(d);
+    store.busy.value = true;
+    try { await controller.reshow(); } finally { store.busy.value = false; }
+    if (tb.camera) viewport?.setCameraState(tb.camera); else viewport?.requestFit();
+    redraw((n) => n + 1);
+  };
+  const switchTab = async (id: number) => {
+    if (id === tabSet.activeId || !tabSet.get(id) || cannotLeave()) return;
+    await leaveEditing();
+    parkActive();
+    tabSet.activate(id);
+    await showActive();
+  };
+  /** A new, empty tab becomes active (the caller loads something into it). False when it could not be made. */
+  const addTab = async (): Promise<boolean> => {
+    if (tabSet.full()) { store.notify(t('tabs.limit'), 'warn'); return false; }
+    if (cannotLeave()) return false;
+    await leaveEditing();
+    parkActive();
+    tabSet.add(newTabRec());
+    files.restore({ fileName: null, handle: null, partName: null });
+    cleanSig.current = null;
+    lookStore.hidden.value = { body: false, ids: [] };
+    return true;
+  };
+  const forceCloseTab = async (id: number) => {
+    const wasActive = id === tabSet.activeId;
+    if (wasActive) await leaveEditing();
+    const next = tabSet.remove(id);
+    if (!next) {   // the last one went: a blank part stays
+      tabSet.add(newTabRec());
+      files.restore({ fileName: null, handle: null, partName: null });
+      cleanSig.current = null;
+      await load(JSON.stringify(emptyPart(files.names.next())), { file: null });
+      return;
+    }
+    if (wasActive) await showActive(); else redraw((n) => n + 1);
+  };
+  /** Close tab `id`; a tab with unsaved changes is brought up first and the usual Save / Don't save / Cancel decides. */
+  const closeTab = async (id: number) => {
+    const tb = tabSet.get(id);
+    if (!tb) return;
+    if (!tabDirty(tb)) { await forceCloseTab(id); return; }
+    if (id !== tabSet.activeId) await switchTab(id);
+    if (id !== tabSet.activeId) return;
+    if (tb.parent) setGuardSave(() => () => finishEditingPart(true));   // Save on a component tab writes it back into its assembly
+    setGuard(() => () => forceCloseTab(id));
+  };
+  /** Run `go` on a fresh document: in the active tab when that is still blank, else in a new tab. Nothing is asked: the current part stays open in its tab. */
+  const guarded = (go: () => void | Promise<void>) => { void (async () => { if (!activeIsBlank() && !(await addTab())) return; await go(); })(); };
+  /** Bring back a stored session: each changed part in a tab of its own (the first may take the blank tab the app starts with), the one that was active shown. */
+  const restoreSession = async (a: Autosave) => {
+    const parts = sessionParts(a);
+    for (const [i, part] of parts.entries()) {
+      if ((i > 0 || !activeIsBlank()) && !(await addTab())) break;
+      await load(JSON.stringify(part.doc), { restored: true });
+    }
+    const act = parts.findIndex((x) => x.active), target = act >= 0 ? tabSet.tabs[Math.min(act, tabSet.tabs.length - 1)] : null;
+    if (target && target.id !== tabSet.activeId) await switchTab(target.id);
+  };
+  /** Run `go` (leaving the page) now, or after the user decides what to do with unsaved changes. */
+  const guardedAll = (go: () => void | Promise<void>) => { if (!anyDirty()) { void go(); return; } const d = tabSet.tabs.find(tabDirty); if (d && d.id !== tabSet.activeId) void switchTab(d.id); setGuard(() => go); };
   /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
   /** Keep the stored view of the part just built (a file opened without one, so the next open is instant). Same tick: the document and its view. */
   const rememberView = () => { const d = controller.document(), v = controller.viewData(); if (d && v) void keepSnapshot(viewCache, kernelBuild, d, v); };
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
-    if (!internalLoad) editingPart.value = null;   // another file replaced the assembly: nothing to return to
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
@@ -743,7 +863,7 @@ function App() {
     else if (!r.cancelled) store.notify(t('files.saveFailed', { message: r.message ?? '' }), 'error');
   };
   const doSave = async (saveAs: boolean) => {
-    if (editingPart.value) { store.notify(t('asm.editpart.saveBlocked'), 'warn'); return; }
+    if (tabSet.active?.parent) { store.notify(t('asm.editpart.saveBlocked'), 'warn'); return; }
     const d = controller.document();
     if (!d) return;
     if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
@@ -797,34 +917,39 @@ function App() {
     if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
     return new Session(partBefore as unknown as PartDoc, transport, 'import', 'solidcraft-import');
   });
-  /** Open a component's own part for editing; Done writes it back into the assembly, Cancel returns the assembly as it was. */
+  /** Open a component's own part in a tab of its own (next to the assembly's); Done writes it back into the assembly, Cancel just closes the tab. */
   const editComponent = (id: string) => {
     const asm = controller.document() as unknown as PartDoc | null;
     const f = asm?.features.find((x) => x.id === id) as (Record<string, unknown> & { part?: PartDoc; name?: string }) | undefined;
     if (!asm || !f?.part) { store.notify(t('asm.editpart.missing'), 'warn'); return; }
-    const ctx = { assembly: JSON.parse(JSON.stringify(asm)) as PartDoc, id, part: String(f.name ?? f.part.name ?? id), asm: String(asm.name || t('app.part.unnamed')), wasDirty: isDirty() };
-    void (async () => {   // no unsaved-changes prompt: the assembly as it is now is kept in the context and comes back on Done or Cancel
-      internalLoad = true;
-      try { await load(JSON.stringify(f.part), { file: null, keep: true }); } finally { internalLoad = false; }
-      editingPart.value = ctx;
+    const parentId = tabSet.activeId;
+    const part = String(f.name ?? f.part.name ?? id), asmName = String(files.partName ?? asm.name ?? t('app.part.unnamed'));
+    const existing = tabSet.tabs.find((x) => x.parent?.tabId === parentId && x.parent.featureId === id);
+    if (existing) { void switchTab(existing.id); return; }   // already open: go to it
+    void (async () => {
+      if (!(await addTab())) return;
+      tabSet.active!.parent = { tabId: parentId, featureId: id, part, asm: asmName };
+      await load(JSON.stringify(f.part), { file: null });
       redraw((n) => n + 1);
     })();
   };
+  /** Close the component's tab and go back to its assembly; `commit` first writes the edited part into the assembly (one undo step there). */
   const finishEditingPart = async (commit: boolean) => {
-    const ctx = editingPart.value;
-    if (!ctx) return;
-    let back = ctx.assembly;
-    if (commit) {
+    const child = tabSet.active;
+    const ctx = child?.parent;
+    if (!child || !ctx) return;
+    const owner = tabSet.get(ctx.tabId);
+    if (commit && owner) {
       const edited = controller.document() as unknown as PartDoc | null;
       if (!edited) return;
-      back = { ...ctx.assembly, features: ctx.assembly.features.map((x) => (x.id === ctx.id ? { ...x, part: JSON.parse(JSON.stringify(edited)) } : x)) } as PartDoc;
+      const r = await owner.controller.edit([{ op: 'set', id: ctx.featureId, path: 'part', value: JSON.parse(JSON.stringify(edited)) }], 'edit part');
+      if (!r.ok) { store.notify(t('asm.editpart.rejected', { part: ctx.part, asm: ctx.asm }), 'error'); return; }
     }
-    editingPart.value = null;
-    internalLoad = true;
-    try { await load(JSON.stringify(back), { file: null, keep: true }); } finally { internalLoad = false; }
-    if (commit || ctx.wasDirty) cleanSig.current = '';   // changed since the file was saved
+    await leaveEditing();
+    tabSet.remove(child.id);
+    if (owner) tabSet.activate(owner.id); else if (!tabSet.active && tabSet.tabs[0]) tabSet.activate(tabSet.tabs[0].id);
+    await showActive();
     store.notify(t(commit ? 'asm.editpart.back' : 'asm.editpart.cancelled', { asm: ctx.asm, part: ctx.part }));
-    redraw((n) => n + 1);
   };
   /** A SolidCraft file becomes a new part with the features that map; the notice says what did not, and a feature that could not be mapped stays as a suppressed placeholder (see packages/solidcraft). */
   const importSolidcraftBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
@@ -2454,16 +2579,27 @@ function App() {
   useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
   const autoPayload = () => {
-    const d = controller.document();
-    // the stored copy is about to be replaced by a part with far fewer features: keep the stored one first
-    const prev = d ? readAutosave(browserKV()) : null;
-    if (d && prev && featureCount(prev.doc) >= 4 && d.features.length < featureCount(prev.doc) / 2) void snapshots.note(prev.doc, prev.name, 'drop');
-    if (d) void snapshots.note(d, files.partName ?? d.name, 'auto');
-    return d ? { name: files.partName ?? d.name, doc: files.partName ? { ...d, name: files.partName } : d } : null;
+    // every changed part (a tab opened from an assembly is not one: it is written back or dropped), as one stored session
+    const parts = tabSet.tabs.filter((tb) => !tb.parent && tabDirty(tb)).flatMap((tb) => {
+      const d = tb.controller.document();
+      if (!d) return [];
+      const name = (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? d.name;
+      return [{ name, doc: name !== d.name ? { ...d, name } : d, active: tb.id === tabSet.activeId }];
+    });
+    if (!parts.length) return null;
+    for (const x of parts) void snapshots.note(x.doc as PartDoc, x.name, 'auto');
+    if (parts.length === 1) {
+      const only = parts[0];
+      // the stored copy is about to be replaced by a part with far fewer features: keep the stored one first
+      const prev = readAutosave(browserKV());
+      if (prev && !isTabs(prev.doc) && featureCount(prev.doc) >= 4 && (only.doc as PartDoc).features.length < featureCount(prev.doc) / 2) void snapshots.note(prev.doc, prev.name, 'drop');
+      return { name: only.name, doc: only.doc };
+    }
+    return { name: parts.map((x) => x.name).join(', '), doc: { format: 'cad-tabs', tabs: parts } satisfies AutosaveTabs };
   };
-  useEffect(() => { if (controller.document() && isDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
+  useEffect(() => { if (anyDirty()) autosaver.schedule(autoPayload, (controller.document()?.features.length ?? 0) > 200 ? 5000 : undefined); });
   useEffect(() => {
-    const hide = () => { if (isDirty()) autosaver.flush(autoPayload); };
+    const hide = () => { if (anyDirty()) autosaver.flush(autoPayload); };
     addEventListener('pagehide', hide);
     const vis = () => { if (document.visibilityState === 'hidden') hide(); };
     document.addEventListener('visibilitychange', vis);
@@ -2488,7 +2624,7 @@ function App() {
     return watchInstall({ onAvailable: (ev) => setInstallEv(ev), onInstalled: () => setInstallEv(null) });
   }, []);
   useEffect(() => {
-    const warn = (e: BeforeUnloadEvent) => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } };
+    const warn = (e: BeforeUnloadEvent) => { if (anyDirty()) { e.preventDefault(); e.returnValue = ''; } };
     addEventListener('beforeunload', warn);
     return () => removeEventListener('beforeunload', warn);
   }, []);
@@ -2537,7 +2673,7 @@ function App() {
         {stale ? (
           <span class="update-note" role="status">
             <span>{t('app.update.text')}</span>
-            <button class="rb-btn" onClick={() => guarded(() => location.reload())}>{t('app.update.refresh')}</button>
+            <button class="rb-btn" onClick={() => guardedAll(() => location.reload())}>{t('app.update.refresh')}</button>
             <button class="rb-btn" onClick={() => setStale(false)}>{t('app.update.later')}</button>
           </span>
         ) : null}
@@ -2549,6 +2685,12 @@ function App() {
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>
+      <TabStrip
+        tabs={tabSet.tabs.map((tb): TabInfo => ({ id: tb.id, name: (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? tb.controller.document()?.name ?? t('app.noPart'), dirty: tabDirty(tb), active: tb.id === tabSet.activeId }))}
+        onSwitch={(id) => void switchTab(id)}
+        onClose={(id) => void closeTab(id)}
+        onNew={() => void (async () => { if (await addTab()) await load(JSON.stringify(emptyPart(files.names.next())), { file: null }); })()}
+      />
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={ribbonCommands} activeTab={activeRibbonTab(tab, !!sketching)} onTab={setTab} labels={ws.toolLabels} layout={ribbonLayout} hidden={fileIds} onlyTab={sketching ? SKETCH_TAB : undefined} tabLabel={(x) => (x === SKETCH_TAB && sketching ? t('app.sketch.editing', { name: sketching.name }) : undefined)} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
@@ -2633,9 +2775,9 @@ function App() {
           <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <BusyOverlay busy={!!importing.value} delayMs={0} label={importing.value ? (importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
           <Toast notices={store.notices.value} />
-          {editingPart.value ? (
+          {tabSet.active?.parent ? (
             <div class="busy-overlay" role="status" data-testid="edit-part-bar">
-              <span>{t('asm.editpart.banner', { part: editingPart.value.part, asm: editingPart.value.asm })}</span>
+              <span>{t('asm.editpart.banner', { part: tabSet.active.parent.part, asm: tabSet.active.parent.asm })}</span>
               <button class="busy-cancel" onClick={() => void finishEditingPart(true)}>{t('asm.editpart.done')}</button>
               <button class="busy-cancel" onClick={() => void finishEditingPart(false)}>{t('asm.editpart.cancel')}</button>
             </div>
@@ -2692,14 +2834,14 @@ function App() {
       {restore ? <RestoreDialog name={restore.name} savedAt={restore.savedAt}
         onVersions={() => { setRestore(null); setRecoverOpen(true); }}
         onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
-        onRestore={() => { const a = restore; setRestore(null); void load(JSON.stringify(a.doc), { restored: true }); }} /> : null}
+        onRestore={() => { const a = restore; setRestore(null); void restoreSession(a); }} /> : null}
       {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
         onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
-      {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => setGuard(null)}
-        onDiscard={() => { const go = guard; setGuard(null); void go(); }}
-        onSave={async () => { const go = guard; setGuard(null); await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
+      {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => { setGuard(null); setGuardSave(null); }}
+        onDiscard={() => { const go = guard; setGuard(null); setGuardSave(null); void go(); }}
+        onSave={async () => { const go = guard, sv = guardSave; setGuard(null); setGuardSave(null); if (sv) { await sv(); return; } await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
       {settings ? <SettingsDialog workspace={ws} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}

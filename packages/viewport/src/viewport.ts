@@ -467,6 +467,21 @@ export class Viewport {
   setTriBallView(view: TriView | null): void { this.triball.setView(view); }
   /** Where the camera is, for the ball's view-axis rotation. */
   cameraPosition(): [number, number, number] { const c = this.camera.position; return [c.x, c.y, c.z]; }
+  /** Where the camera is looking from and at, so a document tab can come back to it. */
+  cameraState(): { pos: [number, number, number]; target: [number, number, number]; zoom: number; ortho: boolean } {
+    const c = this.camera.position, t = this.controls.target;
+    return { pos: [c.x, c.y, c.z], target: [t.x, t.y, t.z], zoom: this.camera.zoom, ortho: this.ortho };
+  }
+  setCameraState(s: { pos: [number, number, number]; target: [number, number, number]; zoom: number; ortho?: boolean }): void {
+    if (s.ortho !== undefined && s.ortho !== this.ortho) this.setOrtho(s.ortho);
+    this.controls.target.set(...s.target);
+    this.camera.position.set(...s.pos);
+    this.camera.zoom = s.zoom;
+    this.camera.updateProjectionMatrix();
+    this.updateClip();
+    this.controls.update();
+    this.dirty = true;
+  }
   triBallScreen() { return this.triball.screen(); }
   triBallDragging(): boolean { return this.triball.dragging; }
   /** Route the next clicks on the body to `fn` (a pick for the ball's menus); null restores selecting. */

@@ -2,6 +2,15 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.2.0 - 2026-10-26
+
+### Added
+- **Document tabs.** Several parts open at once, as tabs under the top bar: each has its own undo history, file, unsaved-changes mark and camera. + opens a new part, × closes (a changed tab asks Save / Don't save / Cancel), opening a file or sample uses a blank tab or a new one and never asks about the part already open, and the page asks before it is left with any unsaved tab. See `docs/tabs.md`.
+- **Autosave of every changed tab.** After a reload or crash the app offers to restore the session, each changed part in its own tab.
+
+### Changed
+- **Edit this part opens the component in its own tab** (linked to its assembly) instead of replacing the assembly on screen. Done writes it back as one undo step in the assembly's own history, and the assembly may now refuse a change that breaks a mate, with the part kept open.
+
 ## 0.1.5 - 2026-10-26
 
 ### Added

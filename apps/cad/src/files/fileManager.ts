@@ -30,6 +30,9 @@ export class FileManager {
     this.store = platform.handleStore?.() ?? null;
   }
 
+  /** What belongs to the open document alone (its file, handle and part name), so a document tab can park it and bring it back. */
+  snapshot(): { fileName: string | null; handle: unknown | null; partName: string | null } { return { fileName: this.fileName, handle: this.handle, partName: this.partName }; }
+  restore(s: { fileName: string | null; handle: unknown | null; partName: string | null }): void { this.fileName = s.fileName; this.handle = s.handle; this.partName = s.partName; }
   recent(): RecentEntry[] { return readRecent(this.kv); }
 
   /** Pictures of the recent files (data URLs by file name), kept beside the recent list. */

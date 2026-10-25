@@ -119,12 +119,12 @@ an undo step and never triggers a rebuild. Hidden components are not saved.
 
 ## Editing a component's own features
 
-The ⚙ button on a component row of the Assembly panel ("Edit this part"), and the "Edit this part's features" button in a component's editor (the pencil on its row in the Features tab), open that component's part document in the normal editor: its feature tree, sketches and
-editors (the Gear editor included). A bar over the viewport says "Editing <part> (in <assembly>)" with Done and Cancel. Done writes the edited
-part back into the component (`insertPart.part`) and rebuilds the assembly, so its placement and mates stay; Cancel returns the assembly as it
-was. While the bar is up, Save is refused and autosave waits (a save would write the part over the assembly file); opening another file
-drops the context. The return reloads the assembly, so the undo history of the assembly starts again at that point, and the assembly counts as
-changed after Done. Instances of the same part are separate copies: only the edited component changes.
+The ⚙ button on a component row of the Assembly panel ("Edit this part"), and the "Edit this part's features" button in a component's editor
+(the pencil on its row in the Features tab), open that component's part in a tab of its own, next to the assembly's (see `docs/tabs.md`): its
+feature tree, sketches and editors (the Gear editor included). A bar over the viewport says "Editing <part> (in <assembly>)" with Done and Cancel.
+Done writes the edited part back into the component (`insertPart.part`) as one undo step in the assembly and closes the tab; the placement and mates
+stay and the assembly rebuilds. If the assembly refuses the change (a mate used something that is gone) the part stays open and says so. Cancel closes
+the tab unchanged. Save to a file is refused on that tab. Instances of the same part are separate copies: only the edited component changes.
 
 ## Not done
 

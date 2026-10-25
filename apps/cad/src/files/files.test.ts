@@ -119,3 +119,20 @@ describe('names', () => {
     expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'm.skp', 'N.SKP', 'a.skp.bak', 'd.dxf', 'm.stl', 'p.png', 'noext', 'a.FCStd', 'p.SolidCraft'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'skp', 'skp', 'unknown', 'dxf', 'stl', 'unknown', 'unknown', 'fcstd', 'solidcraft']);
   });
 });
+
+describe('autosave of several parts (document tabs)', async () => {
+  const { sessionParts, worthRestoring, isTabs } = await import('./autosave');
+  const part = (name: string, n: number) => ({ name, features: Array.from({ length: n }, (_, i) => ({ id: `F${i + 1}` })) });
+  it('a single stored part is one part; a tab set lists its parts in order', () => {
+    expect(sessionParts({ name: 'A', doc: part('A', 2), savedAt: 1 }).map((x) => x.name)).toEqual(['A']);
+    const set = { name: 'A, B', doc: { format: 'cad-tabs', tabs: [{ name: 'A', doc: part('A', 1), active: false }, { name: 'B', doc: part('B', 3), active: true }] }, savedAt: 1 };
+    expect(isTabs(set.doc)).toBe(true);
+    expect(sessionParts(set).map((x) => [x.name, x.active])).toEqual([['A', false], ['B', true]]);
+  });
+  it('a session is worth offering when any of its parts has features', () => {
+    const tabs = (a: number, b: number) => ({ name: 'x', doc: { format: 'cad-tabs', tabs: [{ name: 'A', doc: part('A', a), active: true }, { name: 'B', doc: part('B', b), active: false }] }, savedAt: 1 });
+    expect(worthRestoring(tabs(0, 0))).toBe(false);
+    expect(worthRestoring(tabs(0, 2))).toBe(true);
+    expect(worthRestoring({ name: 'A', doc: part('A', 0), savedAt: 1 })).toBe(false);
+  });
+});

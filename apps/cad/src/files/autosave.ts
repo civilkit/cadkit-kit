@@ -28,11 +28,18 @@ export function readAutosave(kv: KV | null): Autosave | null {
 
 export function clearAutosave(kv: KV | null): void { try { kv?.removeItem(AUTOSAVE_KEY); } catch { /* ignore */ } }
 
+/** Several changed parts at once (document tabs): stored as one autosave whose `doc` is this; a single changed part is stored as itself, as before. */
+export interface AutosaveTabs { format: 'cad-tabs'; tabs: Array<{ name: string; doc: unknown; active: boolean }> }
+export const isTabs = (d: unknown): d is AutosaveTabs => !!d && typeof d === 'object' && (d as { format?: unknown }).format === 'cad-tabs' && Array.isArray((d as { tabs?: unknown }).tabs);
+/** The parts a stored session holds, in tab order (one for the single-part form). */
+export function sessionParts(a: Autosave): Array<{ name: string; doc: unknown; active: boolean }> {
+  return isTabs(a.doc) ? a.doc.tabs.filter((x) => x && typeof x === 'object' && x.doc && typeof x.doc === 'object') : [{ name: a.name, doc: a.doc, active: true }];
+}
+
 /** Whether a stored session is worth offering: it has something in it, or is not just the blank part it would open as. */
 export function worthRestoring(a: Autosave | null): a is Autosave {
   if (!a) return false;
-  const d = a.doc as { features?: unknown[]; name?: string };
-  return Array.isArray(d.features) && d.features.length > 0;
+  return sessionParts(a).some((x) => { const d = x.doc as { features?: unknown[] }; return Array.isArray(d.features) && d.features.length > 0; });
 }
 
 /**

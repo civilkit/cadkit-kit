@@ -93,10 +93,10 @@ describe('thin wall section', () => {
 describe('operation row', () => {
   const closed = (): Wire => ({ ...sketch(), entities: [{ type: 'line', id: 'e1', p1: 'a', p2: 'b' }, { type: 'line', id: 'e2', p1: 'b', p2: 'c' }, { type: 'line', id: 'e3', p1: 'c', p2: 'd' }, { type: 'line', id: 'e4', p1: 'd', p2: 'a' }] });
   const CUT = { ...EXTRUDE, op: 'cut' };
-  it('offers Add and Cut (the kernel has no New body) and switches between them', () => {
+  it('offers New body, Add and Cut and switches between them', () => {
     const m = mount(CUT, doc(closed(), CUT));
     const btns = [...m.container.querySelectorAll('[data-path="op"] button')];
-    expect(btns.map((b) => b.textContent)).toEqual(['Add', 'Cut']);
+    expect(btns.map((b) => b.textContent)).toEqual(['New body', 'Add', 'Cut']);
     expect(m.q('[data-path="op"] [data-value="cut"]')!.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(m.q('[data-path="op"] [data-value="add"]')!);
     expect(m.drafts.at(-1)).toMatchObject({ op: 'add', flip: null });
