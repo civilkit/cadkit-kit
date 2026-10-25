@@ -653,7 +653,29 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
    * its place on the path and extruded the same way. Instances are `spacing` apart along one line or arc, the first being the seed itself;
    * the seed does not turn (round seeds look the same turned, so no orientation is needed).
    */
-  const pathPattern = (f: Rec, pt: Rec): string[] => {
+    // A circular pattern of whole bodies: rotated copies about an axis that may lie anywhere (the kernel's own circular pattern only turns about the world axes).
+  const circularPattern = (f: Rec, pt: Rec): string[] => {
+    const srcs = Array.isArray(f.bodies) ? (f.bodies as string[]) : [];
+    if (!srcs.length) throw new Unsupported(Array.isArray(f.features) && (f.features as unknown[]).length ? 'a circular pattern of features' : 'a circular pattern of no body');
+    if (Array.isArray(f.features) && (f.features as unknown[]).length) throw new Unsupported('a circular pattern of features together with bodies');
+    for (const b of srcs) if (!live.includes(b)) throw new Unsupported(`"${f.name}" repeats the body "${b}", which does not exist at this point`);
+    const ax = pt.axis as V3 | undefined, org = (pt.origin as V3 | undefined) ?? [0, 0, 0];
+    if (!ax || Math.hypot(ax[0], ax[1], ax[2]) < 1e-9) throw new Unsupported('a circular pattern without an axis');
+    const count = num(pt.count, 'pattern count'), angle = pt.angle === undefined ? 360 : num(pt.angle, 'pattern angle');
+    if (!(count >= 2) || !Number.isInteger(count)) throw new Unsupported('a pattern with a single instance');
+    const step = Math.abs(Math.abs(angle) - 360) < 1e-9 ? angle / count : angle / (count - 1);
+    const axis = toYUp(ax).map(clean), origin = toYUp(org).map(clean);
+    for (const src of srcs) {
+      for (let k = 1; k < count; k++) {
+        const nm = `${src} ${k + 1}`;
+        if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
+        bodyCount++; live.push(nm);
+        features.push({ type: 'moveBody', id: nid(), name: `${f.name} (${nm})`, bodies: [{ body: src }], copy: true, body: nm, rotate: { axis, origin, angle: clean(step * k) } });
+      }
+    }
+    return [];
+  };
+const pathPattern = (f: Rec, pt: Rec): string[] => {
     const ps = sketches.get(pt.path_sketch), curveIds = (pt.path as string[] | undefined) ?? [];
     if (!ps || curveIds.length !== 1) throw new Unsupported(curveIds.length > 1 ? 'a path of several curves' : 'a path pattern whose path sketch was not imported');
     const g = ps.geo.get(String(curveIds[0]));
@@ -1036,6 +1058,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       case 'pattern': {
         const pt = f.pattern as Rec | undefined;
         if (pt?.type === 'path') return pathPattern(f, pt);
+        if (pt?.type === 'circular') return circularPattern(f, pt);
         if (pt?.type !== 'rectangular') throw new Unsupported(`a ${pt?.type ?? 'unknown'} pattern`);
         let cur = ((f.features as string[] | undefined) ?? []).flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`pattern of "${nm}", which was not imported`); })());
         if (!cur.length) throw new Unsupported('a pattern with nothing to repeat');

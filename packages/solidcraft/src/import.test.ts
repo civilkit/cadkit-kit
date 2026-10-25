@@ -185,6 +185,18 @@ describe('what is refused or reported', () => {
     expect(f.find((x) => x.name === 'Combine1')).toMatchObject({ type: 'combine', op: 'union', target: { body: 'Block' }, tools: [{ body: 'Peg' }], keepTools: false });
     expect(f.find((x) => x.name === 'Remove1')).toMatchObject({ type: 'deleteBody', mode: 'delete', bodies: [{ body: 'Peg2' }] });
   });
+  it('a circular pattern of a body about an axis that is not through the origin makes rotated copies', async () => {
+    const r = await importSolidcraftDocument(doc([
+      sketch(1), extrude(2, 1, { body_names: ['Block'] }), sketch(3), extrude(4, 3, { body_names: ['Peg'] }),
+      { id: 5, name: 'Ring', type: 'pattern', suppressed: false, bodies: ['Peg'], features: [], pattern: { type: 'circular', axis: [0, 0, 1], origin: [10, 0, 0], count: '4', angle: '360 deg' } },
+    ]), 'x');
+    expect(r.rows.map((x) => x.status), JSON.stringify(r.rows)).toEqual(['converted', 'converted', 'converted', 'converted', 'converted']);
+    const moves = (r.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'moveBody');
+    expect(moves.map((m) => [m.body, m.rotate.angle])).toEqual([['Peg 2', 90], ['Peg 3', 180], ['Peg 4', 270]]);
+    expect(moves[0]).toMatchObject({ copy: true, bodies: [{ body: 'Peg' }], rotate: { axis: [0, 1, 0], origin: [10, 0, 0] } });
+    const part = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['Block'] }), sketch(3), extrude(4, 3, { body_names: ['Peg'] }), { id: 5, name: 'Arc', type: 'pattern', suppressed: false, bodies: ['Peg'], features: [], pattern: { type: 'circular', axis: [0, 0, 1], origin: [0, 0, 0], count: '3', angle: '90 deg' } }]), 'x');
+    expect((part.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'moveBody').map((m) => m.rotate.angle)).toEqual([45, 90]);   // a part circle spreads the copies over its angle, ends included
+  });
   it('a body that does not exist at that point is reported, not guessed; a one-body file keeps the plain add', async () => {
     const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1, { body_names: ['A'] }), { id: 3, name: 'Gone', type: 'remove', suppressed: false, bodies: ['B'] }, { id: 4, name: 'Tool', type: 'combine', suppressed: false, target: 'A', tools: ['Nope'], operation: 'cut' }]), 'x');
     expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted', 'unsupported', 'unsupported']);
