@@ -1,0 +1,8 @@
+# Deploy: cd tools/civilkit-cad-router && npx wrangler deploy   (the app itself is the Pages project civilkit-cad; see docs/pages-deploy.md)
+name = "civilkit-cad-router"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+routes = [
+  { pattern = "civilkit.io/cad", zone_name = "civilkit.io" },
+  { pattern = "civilkit.io/cad/*", zone_name = "civilkit.io" },
+]
