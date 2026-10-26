@@ -2,9 +2,10 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
-## Unreleased
+## 0.3.7 - 2026-10-26
 
 ### Fixed
+- **Big multi-body files rebuild in seconds, not minutes (kernel).** Every boolean result re-checks the volume of each face, and the table that remembers them held 8,192 faces and emptied itself when full; SELENE-functional has 12,000, so it never hit and recomputed all of them for every cut. The table now holds a quarter of a million. The whole SELENE-functional file now rebuilds in about 40 s; before, it did not finish in ten minutes.
 - **SolidCraft import: features of a component that act on a transferred body now run.** A body handed to a component by a body transfer is still built where it was made, so the component's moves, scales, cuts and removes of it found "no such body" and were dropped. With both components at the identity they now run in the part that holds the body. SELENE-functional goes from about 150 unsupported rows to the 15 that need the kernel to find edges (fillets and shells), its 8 scales convert, and its Pi board gets its holes.
 - **A cut that names `participants`** (not only `targets`) cuts those bodies, as SolidCraft's own evaluator does; before, such a cut was applied to everything.
 
