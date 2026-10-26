@@ -590,12 +590,15 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     const outPts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }];
     const pid = (i: number): string => {
       const r = find(i);
-      if (originRoot >= 0 && r === find(originRoot)) return 'O';
+      const isOrigin = originRoot >= 0 && r === find(originRoot);
+      // their sketch origin is the origin of their plane; ours is the plane's, which differs when the plane was moved within its own plane (a custom frame): then it is a point like the others
+      const at = (): [number, number] => (isOrigin ? mapXY(placed, 0, 0) : mapXY(placed, ...(pts[r].pos as [number, number])));
+      if (isOrigin) { const [ox, oy] = at(); if (Math.hypot(ox, oy) < 1e-9) return 'O'; }
       let id = ids.get(r);
       if (!id) {
         id = `p${ids.size + 1}`;
         ids.set(r, id);
-        const [x, y] = mapXY(placed, ...(pts[r].pos as [number, number]));
+        const [x, y] = at();
         outPts.push({ id, x, y });
       }
       return id;

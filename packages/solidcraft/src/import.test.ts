@@ -308,6 +308,18 @@ describe('planes, extents and features beyond the basics', () => {
     const rs = await importSolidcraftDocument(doc([sq(1, 'Sh', shifted)]), 's');
     expect(F(rs)[0].points[2]).toMatchObject({ x: 13, y: 4 });   // their (10, 0) on top of the frame origin (3, 4)
   });
+  it('a profile corner on the sketch origin of a moved plane stays on that origin, not on the origin of our plane', async () => {
+    // their sketch origin is the plane's origin (3, 4); a corner coincident with it must land there (it used to land on our own origin (0, 0))
+    const shifted = { type: 'custom', plane: { origin: [3, 4, 0], x_dir: [1, 0, 0], y_dir: [0, 1, 0] } };
+    const rs = await importSolidcraftDocument(doc([sq(1, 'Sh', shifted, undefined, { constraints: [{ type: 'coincident', p: 0, q: 1 }] })]), 's');
+    const sk = F(rs)[0];
+    const corner = sk.points.find((q: any) => q.id !== 'O' && Math.abs(q.x - 3) < 1e-9 && Math.abs(q.y - 4) < 1e-9);
+    expect(corner).toBeTruthy();
+    expect(sk.entities.filter((e: any) => e.p1 === 'O' || e.p2 === 'O')).toHaveLength(0);
+    // with the plane origin at zero the corner still is our fixed origin
+    const flat = await importSolidcraftDocument(doc([sq(1, 'Fl', { type: 'origin', name: 'XY' }, undefined, { constraints: [{ type: 'coincident', p: 0, q: 1 }] })]), 'f');
+    expect(F(flat)[0].entities.some((e: any) => e.p1 === 'O' || e.p2 === 'O')).toBe(true);
+  });
   it('construction planes: a sketch offset from one, and a mirror about one', async () => {
     const cp = { id: 2, name: 'Mid', type: 'construction_plane', suppressed: false, plane: { type: 'offset', base: { type: 'origin', name: 'YZ' }, distance: '-5' } };
     const sk = sq(3, 'S', { type: 'offset', base: { type: 'construction', name: 'Mid' }, distance: '2' });

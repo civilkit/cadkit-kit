@@ -2,6 +2,12 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.1 - 2026-10-26
+
+### Fixed
+- **SolidCraft import: a profile corner on the sketch origin of a moved plane landed on the world origin.** SELENE's parabolic dish (a bowl profile on a plane at x = -190) revolved into a huge cone because its closing point went to (0, 0) instead of the plane's own origin; the same slip made `Extrude6` cut nothing and blocked five later features (6 errors, now 0). Any sketch of a file on a custom plane whose profile touches the sketch origin is affected.
+- SELENE's path sketches (hose and wire routes) and coil helices are hidden on import like the other sketches and planes, instead of drawing as thin blue lines over the model.
+
 ## 0.3.0 - 2026-10-26
 
 ### Added

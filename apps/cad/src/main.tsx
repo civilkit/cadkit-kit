@@ -972,7 +972,7 @@ function App() {
     if (!r.part) { store.notify(t('files.solidcraft.failed', { name: file, message: r.refused ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part as ScPart), { file: null });
     // their app hides a sketch and a plane once a feature uses it: only the model is shown, as there (a view setting, not in the part)
-    lookStore.hidden.value = { body: false, ids: (r.part.features as Array<{ type: string; id: string }>).filter((x) => x.type === 'sketch' || x.type === 'plane').map((x) => x.id) };
+    lookStore.hidden.value = { body: false, ids: (r.part.features as Array<{ type: string; id: string }>).filter((x) => x.type === 'sketch' || x.type === 'sketch3d' || x.type === 'plane' || x.type === 'helix').map((x) => x.id) };
     viewport?.fit();
     const total = r.rows.length - r.summary.skipped;
     const bad = r.rows.filter((x) => x.status === 'unsupported');
