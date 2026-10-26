@@ -178,6 +178,26 @@ describe('what is refused or reported', () => {
     expect(f.find((x) => x.name === 'Same')).toBeUndefined();   // a factor of one changes nothing
     expect(r.rows.find((x) => x.name === 'Nobody')).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/does not exist/) });
   });
+  it('a component\'s move of a body transferred into it runs where the body was made (the transfer is not a copy), when both sit at the identity', async () => {
+    const id4 = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
+    const make = async (occ: number[][]) => importSolidcraftDocument({
+      ...doc([
+        sketch(1), extrude(2, 1, { body_names: ['A'] }),
+        { id: 3, name: 'Transfer', type: 'body_transfer', suppressed: false, component: 5, from: 0, to: 5, bodies: ['A'], transform: id4 },
+        { id: 4, name: 'Nudge', type: 'move', suppressed: false, component: 5, bodies: ['A'], translate: ['5', '0', '0'] },
+      ]),
+      components: [{ id: 5, name: 'Arm' }], occurrences: [{ id: 9, name: 'Arm1', component: 5, transform: occ }], assembly: { joints: [] },
+    }, 'x');
+    const r = await make(id4);
+    expect(r.rows.find((x) => /Nudge/.test(x.name))).toMatchObject({ status: 'converted' });
+    const f = r.part!.features as Array<Record<string, any>>;
+    expect(f.find((x) => x.name === 'Nudge')).toMatchObject({ type: 'moveBody', bodies: [{ body: 'A' }], translate: [5, 0, 0] });
+    const arm = f.find((x) => x.type === 'insertPart')!.part.features as Array<Record<string, any>>;
+    expect(arm.some((x) => x.type === 'moveBody')).toBe(false);
+    // a component placed away from the origin keeps the old behaviour: the move cannot be done in the part that has no such body
+    const placed = await make([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [10, 0, 0, 1]]);
+    expect(placed.rows.find((x) => /Nudge/.test(x.name))).toMatchObject({ status: 'unsupported' });
+  });
   it('several bodies: new bodies are named newBody lumps; a targeted cut, move, combine and remove refer to them by name', async () => {
     const r = await importSolidcraftDocument(doc([
       sketch(1), extrude(2, 1, { body_names: ['Block'] }),

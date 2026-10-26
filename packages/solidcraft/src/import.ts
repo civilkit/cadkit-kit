@@ -335,10 +335,49 @@ export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part
 
 const row4 = (m: number[][], i: number): V3 => [m[i][0], m[i][1], m[i][2]];
 
+/** The bodies a join, cut or intersect may change: its own `targets`, else its `participants` (what their evaluator does); empty means the bodies of its own component. */
+const cutTargets = (f: Rec): string[] => {
+  const names = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  const t = names(f.targets);
+  return t.length ? t : names(f.participants);
+};
+
+/**
+ * The part each feature is imported into. A feature belongs to its own component, except when it names a body that was made in
+ * another one: a body transferred in (`body_transfer`) is still built where it was made, so the feature that moves, scales, cuts
+ * or removes it has to run there (a part of its own would find no such body). That is only done when both components sit at
+ * the identity in every occurrence, so the feature's coordinates are the same in both. A feature that names bodies from two
+ * different parts, or sits in a placed component, stays where it is and is reported as before.
+ */
+function partsOf(doc: Rec): Map<Rec, number | undefined> {
+  const identity = new Map<number, boolean>();
+  for (const occ of (doc.occurrences ?? []) as Rec[]) {
+    const m = occ.transform as number[][] | undefined;
+    const id = Array.isArray(m) && m.length === 4 && m.every((r, i) => Array.isArray(r) && r.every((v, j) => Math.abs(v - (i === j ? 1 : 0)) < 1e-9));
+    identity.set(occ.component as number, (identity.get(occ.component as number) ?? true) && id);
+  }
+  const placedAtIdentity = (c: number | undefined) => c === undefined || identity.get(c) === true;
+  const names = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : typeof v === 'string' ? [v] : []);
+  const home = new Map<string, number | undefined>();
+  const out = new Map<Rec, number | undefined>();
+  for (const f of doc.features as Rec[]) {
+    let part = f.component as number | undefined;
+    if (f.type !== 'body_transfer') {
+      const refs = ['bodies', 'target', 'tools', 'targets', 'participants'].flatMap((k) => names(f[k]));
+      const foreign = [...new Set(refs.filter((b) => home.has(b) && home.get(b) !== part).map((b) => home.get(b)))];
+      if (foreign.length === 1 && placedAtIdentity(part) && placedAtIdentity(foreign[0])) part = foreign[0];
+    }
+    out.set(f, part);
+    for (const n of names(f.body_names)) home.set(n, part);
+  }
+  return out;
+}
+
 /** Components become inserted parts: each component's features are imported as a part of its own, the root features stay in the main part, and every occurrence is an `insertPart` placed by its transform (rows are images of the axes, translation in the last row). */
 async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
   const comps = new Map<number, Rec>((doc.components ?? []).map((c: Rec) => [c.id as number, c]));
-  const sub = (component: number | undefined): Rec => ({ ...doc, components: undefined, occurrences: undefined, assembly: undefined, features: (doc.features as Rec[]).filter((f) => f.component === component) });
+  const where = partsOf(doc);
+  const sub = (component: number | undefined): Rec => ({ ...doc, components: undefined, occurrences: undefined, assembly: undefined, features: (doc.features as Rec[]).filter((f) => where.get(f) === component) });
   const root = await importOne(sub(undefined), name, opts);
   if (!root.part) return root;
   const rows = [...root.rows];
@@ -419,7 +458,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
    * The file refers to bodies by name (a target, a move, a combine, a remove, an intersect) or makes several: then every new body is a
    * named `newBody` lump, so what comes later can find it. A file of one body keeps the plain output (`add`).
    */
-  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'scale', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || (Array.isArray(q.targets) && q.targets.length > 0)))
+  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'scale', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || cutTargets(q).length > 0))
     || (doc.features as Rec[]).filter((q) => !q.suppressed && q.operation === 'new_body').length > 1;
   /** names of the bodies alive, in creation order; `bodyCount` is how many were ever made (unnamed ones are Body1, Body2, ... in that order) */
   let live: string[] = [];
@@ -451,7 +490,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const placeholders = opts.placeholders !== false;
 
   const operation = (f: Rec): 'add' | 'cut' | 'newBody' => {
-    const op = f.operation, targets = Array.isArray(f.targets) ? (f.targets as string[]) : [];
+    const op = f.operation, targets = cutTargets(f);
     const alive = (nm: string): string => { if (!live.includes(nm)) throw new Unsupported(`"${f.name}" refers to the body "${nm}", which does not exist at this point`); return nm; };
     if (op === 'new_body') {
       if (!namedBodies) {
