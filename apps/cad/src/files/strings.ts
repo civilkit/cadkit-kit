@@ -2,7 +2,7 @@
 import { registerCatalog } from '@kit/i18n';
 
 export const filesEn = {
-  'cmd.save-as': 'Save as', 'cmd.import-step': 'Import STEP / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only)',
+  'cmd.save-as': 'Save as', 'cmd.embed-geometry': 'Save geometry in file', 'cmd.import-step': 'Import STEP / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only)',
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
   'app.update.text': 'A new version is available.', 'app.update.refresh': 'Refresh', 'app.update.later': 'Later',
@@ -15,7 +15,7 @@ export const filesEn = {
   'files.recover.title': 'Recover earlier versions', 'files.recover.empty': 'No earlier versions are kept yet.',
   'files.recover.row': '{name}: {features} features, {when}', 'files.recover.restore': 'Restore', 'files.recover.close': 'Close',
   'files.recover.reason.auto': 'automatic', 'files.recover.reason.undo': 'before an undo', 'files.recover.reason.drop': 'before a large drop', 'files.recover.reason.load': 'before opening another part',
-  'files.saveAs.title': 'Save as', 'files.saveAs.label': 'File name', 'files.saveAs.hint': 'Saved as {file}', 'files.saveAs.save': 'Save', 'files.saveAs.compress': 'Compress (.gz, about 10 times smaller)',
+  'files.saveAs.title': 'Save as', 'files.saveAs.label': 'File name', 'files.saveAs.hint': 'Saved as {file}', 'files.saveAs.save': 'Save', 'files.saveAs.compress': 'Compress (.gz, about 10 times smaller)', 'files.saveAs.geometry': 'Keep the built geometry in the file (opens at once; adds a few MB)',
   'files.saved': 'Saved {file}', 'files.saveFailed': 'Could not save: {message}',
   'files.autosave.tooBig': 'This part is too large for automatic backup in the browser. Save it to a file to be safe.',
   'files.autosave.quota': 'The browser has no room left for the automatic backup. Save to a file to be safe.',

@@ -2,6 +2,14 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.9 - 2026-10-27
+
+### Added
+- **Geometry in the file.** More file actions > "Save geometry in file" keeps the built view inside the `.ckpart`, so opening it anywhere shows the model about a second after the drop instead of rebuilding for ~19 s (SELENE-showcase); the kernel still rebuilds behind it. The file grows (1.9 MB to 5.3 MB for SELENE, 3.5 MB with `.gz`), so it is off by default; the choice is remembered, and a file opened with its view keeps it on Save. The view is used only when the part and the kernel build match what was saved, otherwise it is ignored. See `docs/files.md`.
+
+### Fixed
+- **Save As showed no Compress box.** 0.3.6 said it did, but the checkbox was never drawn (the state and text existed, not the markup), so `.gz` could only be had by typing it into a picker. The dialog now has "Compress" and "Keep the built geometry" boxes (the dialog appears when the browser has no file picker).
+
 ## 0.3.8 - 2026-10-27
 
 ### Added

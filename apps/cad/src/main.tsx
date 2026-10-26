@@ -57,7 +57,7 @@ import { createKernelRouter, chipOf } from './kernelService';
 import { createAutosaver, clearAutosave, readAutosave, worthRestoring, isTabs, sessionParts, type Autosave, type AutosaveTabs } from './files/autosave';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
-import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend } from './files/viewCache';
+import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend, embedSnapshot, embeddedSnapshot, takeEmbedded, type ViewData } from './files/viewCache';
 import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
@@ -701,12 +701,19 @@ function App() {
   const guardedAll = (go: () => void | Promise<void>) => { if (!anyDirty()) { void go(); return; } const d = tabSet.tabs.find(tabDirty); if (d && d.id !== tabSet.activeId) void switchTab(d.id); setGuard(() => go); };
   /** Open a part from text. `file` is the file it came from (null for a sample or a new part); `keep` leaves the file bookkeeping alone. */
   /** Keep the stored view of the part just built (a file opened without one, so the next open is instant). Same tick: the document and its view. */
+  /** Saves keep the built view in the file (File > Save geometry in file; the Save As box). A file opened with its view keeps it on Save. */
+  const [embedPref, setEmbedPref] = useState(() => { try { return localStorage.getItem('cad.embedgeometry') === '1'; } catch { return false; } });
+  const openedWithView = useRef(false);
+  const chooseEmbed = (on: boolean) => { setEmbedPref(on); try { localStorage.setItem('cad.embedgeometry', on ? '1' : '0'); } catch { /* private window */ } };
+  /** The `embed` option of a save: the view `v` taken with the document, written as the file's `viewCache` field. */
+  const embedOpt = (on: boolean, v: ViewData | null) => (on && v ? { embed: (w: { name: string }) => embedSnapshot(kernelBuild, w, v) } : {});
   const rememberView = () => { const d = controller.document(), v = controller.viewData(); if (d && v) void keepSnapshot(viewCache, kernelBuild, d, v); };
   const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean } = {}) => {
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(cur, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
-      const { doc, thumbnail } = stripThumbnail(JSON.parse(text) as PartDoc);   // the file's picture is not part of the document
+      const { doc: plain, thumbnail } = stripThumbnail(JSON.parse(text) as PartDoc);   // the file's picture is not part of the document
+      const { doc, embedded } = takeEmbedded(plain);   // nor is the view it may carry
       saveThumbs.remember(thumbnail);
       asmState.reset(doc);
       // While the part loads, controller.document() already changes (and a render can land in between) but the clean
@@ -714,7 +721,8 @@ function App() {
       cleanSig.current = null;
       viewport?.requestFit();
       // a stored view of exactly this recipe and kernel build is shown at once; the kernel rebuilds behind it
-      const stored = o.restored ? null : await findSnapshot(viewCache, kernelBuild, doc);
+      const stored = o.restored ? null : (await findSnapshot(viewCache, kernelBuild, doc)) ?? (embedded !== undefined ? await embeddedSnapshot(kernelBuild, doc, embedded) : null);
+      if (!o.keep) openedWithView.current = embedded !== undefined;
       const t0 = performance.now();
       await timed(() => controller.load(doc, stored ? { cached: stored.data } : undefined));
       if (stored) void controller.settled().then(() => { store.facts.value = { ...store.facts.value, rebuildMs: Math.round(performance.now() - t0) }; redraw((n) => n + 1); });
@@ -870,7 +878,8 @@ function App() {
     const d = controller.document();
     if (!d) return;
     if (saveAs && files.needsNameDialog()) { setSaveAsOpen(true); return; }
-    finishSave(await files.save(d, { saveAs, thumbnail: await saveThumbs.forSave(d) }), d);
+    const v = controller.viewData();   // the view of this very document, taken before anything is awaited
+    finishSave(await files.save(d, { saveAs, thumbnail: await saveThumbs.forSave(d), ...embedOpt(embedPref || openedWithView.current, v) }), d);
   };
   /** STEP text into a new part named after the file (view only, see files/stepImport.ts). */
   const importStepText = (text: string, file: string) => guarded(async () => {
@@ -1048,6 +1057,8 @@ function App() {
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),
+      embedOn: () => embedPref,
+      toggleEmbed: () => chooseEmbed(!embedPref),
       recover: () => setRecoverOpen(true),
       rotateSkp: () => rotateSkp(),
       hasSkp: () => !!skpShown.current && !!controller.importedLook(),
@@ -2687,7 +2698,7 @@ function App() {
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} />
-        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
+        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'embed-geometry', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
@@ -2859,8 +2870,8 @@ function App() {
         onVersions={() => { setRestore(null); setRecoverOpen(true); }}
         onNew={() => { clearAutosave(browserKV()); setRestore(null); }}
         onRestore={() => { const a = restore; setRestore(null); void restoreSession(a); }} /> : null}
-      {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} onCancel={() => setSaveAsOpen(false)}
-        onSave={async (fileName) => { setSaveAsOpen(false); const d = controller.document(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d) }), d); }} /> : null}
+      {saveAsOpen ? <SaveAsDialog initial={files.partName ?? doc?.name ?? 'Part1'} geometry={embedPref || openedWithView.current} onCancel={() => setSaveAsOpen(false)}
+        onSave={async (fileName, o) => { setSaveAsOpen(false); chooseEmbed(o.geometry); const d = controller.document(), v = controller.viewData(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d), ...embedOpt(o.geometry, v) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => { setGuard(null); setGuardSave(null); }}

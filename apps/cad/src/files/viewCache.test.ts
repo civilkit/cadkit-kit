@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canonicalJson, createBuildId, createViewCache, decodeSnapshot, encodeSnapshot, findSnapshot, keepSnapshot, memoryViewBackend, pruneViews, recipeKey,
+  canonicalJson, createBuildId, createViewCache, decodeSnapshot, embedSnapshot, embeddedSnapshot, encodeSnapshot, findSnapshot, keepSnapshot, takeEmbedded, memoryViewBackend, pruneViews, recipeKey,
   type ViewData, type ViewSnapshot,
 } from './viewCache';
 
@@ -164,5 +164,37 @@ describe('findSnapshot / keepSnapshot', () => {
     expect(a).toMatch(/^wasm-sha256:[0-9a-f]{64}$/);
     expect(await createBuildId(async () => { throw new Error('offline'); })()).toBeNull();
     expect(await createBuildId(async () => new Uint8Array([1, 2, 4]).buffer)()).not.toBe(a);
+  });
+});
+
+describe('the view inside the file', () => {
+  const build = (id: string | null) => () => Promise.resolve(id);
+  it('a view written with a part is read back for exactly that recipe and kernel, and survives JSON', async () => {
+    const d = doc();
+    const field = JSON.parse(JSON.stringify(await embedSnapshot(build('wasm:1'), d, data())));   // as it goes through the file
+    expect(field).toMatchObject({ format: 'ck-view', build: 'wasm:1' });
+    const file = JSON.parse(JSON.stringify({ ...d, viewCache: field }));
+    const { doc: bare, embedded } = takeEmbedded(file);
+    expect('viewCache' in bare).toBe(false);
+    const s = await embeddedSnapshot(build('wasm:1'), bare, embedded);
+    expect(s?.data.status).toEqual(data().status);
+    expect((s?.data.body as { mesh: { positions: Float32Array } }).mesh.positions).toEqual(mesh().positions);
+  });
+  it('is ignored when the part was edited, the kernel differs, or the field is damaged', async () => {
+    const d = doc();
+    const field = await embedSnapshot(build('wasm:1'), d, data());
+    expect(await embeddedSnapshot(build('wasm:1'), doc({ features: [{ id: 'F1', type: 'sketch', w: 2 }] }), field)).toBeNull();
+    expect(await embeddedSnapshot(build('wasm:2'), d, field)).toBeNull();
+    expect(await embeddedSnapshot(build(null), d, field)).toBeNull();
+    expect(await embeddedSnapshot(build('wasm:1'), d, { ...field, data: 'AAAA' })).toBeNull();
+    expect(await embeddedSnapshot(build('wasm:1'), d, { ...field, data: '!!not base64' })).toBeNull();
+    expect(await embeddedSnapshot(build('wasm:1'), d, 'junk')).toBeNull();
+    expect(await embeddedSnapshot(build('wasm:1'), d, undefined)).toBeNull();
+  });
+  it('nothing is written without a kernel id or a view; a part with no field passes through', async () => {
+    expect(await embedSnapshot(build(null), doc(), data())).toBeNull();
+    expect(await embedSnapshot(build('b'), doc(), null)).toBeNull();
+    const d = doc();
+    expect(takeEmbedded(d)).toEqual({ doc: d, embedded: undefined });
   });
 });

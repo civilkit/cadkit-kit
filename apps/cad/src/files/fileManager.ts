@@ -5,6 +5,7 @@ import { addRecent, dropped, readRecent, readRecentThumbs, setRecentThumb, type 
 import { createNameCounter, partNameOf, PART_EXT } from './names';
 import type { KV } from './storage';
 import { thumbnailUrl, type DocThumbnail } from './docThumb';
+import { EMBED_FIELD } from './viewCache';
 
 export interface FilePlatform {
   saveDocument?(name: string, data: string, opts?: { handle?: unknown; pick?: boolean }): Promise<SavedDocument | null>;
@@ -68,11 +69,13 @@ export class FileManager {
    * Write the document. `saveAs` asks for a new file (the browser's picker, or the `name` the Save As dialog gave).
    * The document's name inside the file is the part name chosen (or the document's own).
    */
-  async save(doc: { name: string }, opts: { saveAs?: boolean; fileName?: string; /** written as the file's `thumbnail` field */ thumbnail?: DocThumbnail | null } = {}): Promise<SaveOutcome> {
+  async save(doc: { name: string }, opts: { saveAs?: boolean; fileName?: string; /** written as the file's `thumbnail` field */ thumbnail?: DocThumbnail | null; /** given the document as it will be written, the value of its `viewCache` field (the part's built view), or null */ embed?: (written: { name: string }) => Promise<unknown | null> } = {}): Promise<SaveOutcome> {
     const part = opts.fileName ? partNameOf(opts.fileName) : this.partName ?? doc.name ?? 'Part1';
     const file = opts.fileName ?? this.fileName ?? `${part || 'part'}${PART_EXT}`;
-    const { thumbnail: _old, ...body } = doc as { name: string; thumbnail?: unknown };
-    const data = JSON.stringify(opts.thumbnail ? { ...body, name: part, thumbnail: opts.thumbnail } : { ...body, name: part }, null, 1);
+    const { thumbnail: _old, [EMBED_FIELD]: _oldView, ...body } = doc as { name: string; thumbnail?: unknown; viewCache?: unknown };
+    const written = { ...body, name: part };
+    const view = opts.embed ? await opts.embed(written).catch(() => null) : null;
+    const data = JSON.stringify({ ...written, ...(opts.thumbnail ? { thumbnail: opts.thumbnail } : {}), ...(view ? { [EMBED_FIELD]: view } : {}) }, null, 1);
     try {
       let saved: SavedDocument | null;
       if (this.platform.saveDocument) {

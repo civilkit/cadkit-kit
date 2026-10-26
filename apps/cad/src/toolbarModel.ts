@@ -101,13 +101,13 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-)/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 
 /** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
 export const isFileCommand = (id: string): boolean =>
-  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp'].includes(id);
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp'].includes(id);
 
 /** The contextual tab that replaces the others while a sketch is open. */
 export const SKETCH_TAB = 'Sketch';

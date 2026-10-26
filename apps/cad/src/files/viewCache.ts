@@ -57,7 +57,7 @@ export async function sha256Hex(data: string | Uint8Array | ArrayBuffer): Promis
 
 /** What the kernel is given of a document: the fonts and the file's picture travel beside it, not in it. */
 export function recipeOf(doc: unknown): unknown {
-  const { fonts: _f, thumbnail: _t, ...rest } = doc as Record<string, unknown>;
+  const { fonts: _f, thumbnail: _t, [EMBED_FIELD]: _v, ...rest } = doc as Record<string, unknown>;
   return rest;
 }
 /** SHA-256 of the canonical recipe. */
@@ -329,4 +329,50 @@ export async function keepSnapshot(cache: Cache, build: () => Promise<string | n
     if (!b || !data) return;
     await cache.save(await recipeKey(doc), b, data);
   } catch { /* the cache is optional */ }
+}
+
+
+// ---- the view inside the file ----
+// A part can carry its own view: the same snapshot, written as the base64 of its binary form in a top-level field (like the
+// thumbnail). Opened on a machine that has never seen the part, it is shown at once and the kernel rebuilds behind it. It is used
+// only when its recipe key and kernel build match, so an edited file, or one saved by another kernel, just rebuilds as always.
+
+/** Name of the file's top-level field that holds the view. */
+export const EMBED_FIELD = 'viewCache';
+export interface EmbeddedView { format: 'ck-view'; version: number; key: string; build: string; data: string }
+
+function toBase64(bytes: Uint8Array): string {
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromBase64(text: string): Uint8Array { const bin = atob(text); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
+
+/** The view of `doc` (as it will be written) as a file field; null when there is no kernel id or no view. Never rejects. */
+export async function embedSnapshot(build: () => Promise<string | null>, doc: unknown, data: ViewData | null): Promise<EmbeddedView | null> {
+  try {
+    const b = await build();
+    if (!b || !data) return null;
+    const key = await recipeKey(doc);
+    return { format: 'ck-view', version: VIEW_VERSION, key, build: b, data: toBase64(await encodeSnapshot({ key, build: b, savedAt: Date.now(), data })) };
+  } catch { return null; }
+}
+
+/** The document without its embedded view, and that field as read (undefined when the file has none). The input is not changed. */
+export function takeEmbedded<T extends object>(doc: T): { doc: T; embedded: unknown } {
+  if (!(EMBED_FIELD in doc)) return { doc, embedded: undefined };
+  const { [EMBED_FIELD]: embedded, ...rest } = doc as T & Record<string, unknown>;
+  return { doc: rest as T, embedded };
+}
+
+/** The view a file carries when it belongs to exactly this recipe and kernel build; otherwise null (never throws). */
+export async function embeddedSnapshot(build: () => Promise<string | null>, doc: unknown, field: unknown): Promise<ViewSnapshot | null> {
+  try {
+    const e = field as Partial<EmbeddedView> | null;
+    if (!e || e.format !== 'ck-view' || e.version !== VIEW_VERSION || typeof e.key !== 'string' || typeof e.build !== 'string' || typeof e.data !== 'string') return null;
+    const b = await build();
+    if (!b || b !== e.build || e.key !== await recipeKey(doc)) return null;
+    const s = await decodeSnapshot(fromBase64(e.data));
+    return s && s.key === e.key && s.build === b ? s : null;
+  } catch { return null; }
 }

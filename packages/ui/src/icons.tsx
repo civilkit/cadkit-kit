@@ -244,6 +244,7 @@ const ICONS: Record<string, string> = {
   'section-view': cube('', P('M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z')) + AD('M3 13.5 12 9l9 4.5'),
   // ---- added by the icon audit: files, history, selection, display style, lighting, background
   'save-as': P('M5 4h9l4 4v12H5z') + P('M8 4v4h5V4') + A('M15.5 21.5l1-3.5 5-5 2.5 2.5-5 5z', 1.5),
+  'embed-geometry': P('M5 5h10l4 4v10H5z') + C('M15 5v4h4') + A('M12 10l-4 2.2 4 2.2 4-2.2z', 1.6) + T('M8 14.6l4 2.2 4-2.2'),
   'recover-versions': P('M4 12a8 8 0 1 0 2.4-5.7') + A('M12 8v4l3 2', 1.75) + A('M3.5 4.5v4h4', 1.75),
   'import-step': P(HEX) + T(Y) + A('M12 1.8v7M9 6l3 3 3-3', 2),
   'rotate-skp': P(HEX) + T(Y) + A('M19 5.5a8 8 0 0 0-13 1M5 18.5a8 8 0 0 0 13-1M5.5 3.5v4h4M18.5 20.5v-4h-4', 1.75),

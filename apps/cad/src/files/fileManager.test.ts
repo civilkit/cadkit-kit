@@ -31,6 +31,17 @@ describe('FileManager save', () => {
     expect(f.writes.map((w) => w.name)).toEqual(['Bracket.ckpart', 'Bracket.ckpart']);
     expect(m.fileName).toBe('Bracket.ckpart');
   });
+  it('embed writes the view field for the document as written (its part name), and drops an old one', async () => {
+    const f = fake(); const m = new FileManager(f.platform, kv());
+    let seen: unknown = null;
+    await m.save({ name: 'Part1', viewCache: 'stale' } as never, { saveAs: true, fileName: 'Hinge.ckpart', embed: async (w) => { seen = w; return { format: 'ck-view', n: 1 }; } });
+    expect(seen).toEqual({ name: 'Hinge' });
+    expect(JSON.parse(f.writes[0].data)).toMatchObject({ name: 'Hinge', viewCache: { format: 'ck-view', n: 1 } });
+    await m.save({ name: 'Part1', viewCache: 'stale' } as never, { embed: async () => null });
+    expect('viewCache' in JSON.parse(f.writes[1].data)).toBe(false);
+    await m.save({ name: 'Part1' }, { embed: async () => { throw new Error('boom'); } });
+    expect(JSON.parse(f.writes[2].data).name).toBe('Hinge');
+  });
   it('Save As with a typed name stores it as the part name inside the file and for later saves', async () => {
     const f = fake(); const m = new FileManager(f.platform, kv());
     const r = await m.save({ name: 'Part1' }, { saveAs: true, fileName: 'Hinge.ckpart' });

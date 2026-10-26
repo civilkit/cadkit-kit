@@ -53,7 +53,19 @@ describe('SaveAsDialog', () => {
     fireEvent.input(input, { target: { value: 'Hinge' } });
     expect(screen.getByRole('dialog').textContent).toContain('Hinge.ckpart');
     fireEvent.submit(input.closest('form')!);
-    expect(on.onSave).toHaveBeenCalledWith('Hinge.ckpart');
+    expect(on.onSave).toHaveBeenCalledWith('Hinge.ckpart', { geometry: false });
+  });
+  it('has a Compress box and a Keep-geometry box', () => {
+    const on = { onSave: vi.fn(), onCancel: vi.fn() };
+    render(<SaveAsDialog initial="Part1" geometry {...on} />);
+    const [gz, geo] = [...document.querySelectorAll('.saveas-gz input')] as HTMLInputElement[];
+    expect(geo.checked).toBe(true);
+    expect(gz.checked).toBe(false);
+    fireEvent.click(gz);
+    expect(screen.getByRole('dialog').textContent).toContain('Part1.ckpart.gz');
+    fireEvent.click(geo);
+    fireEvent.submit(screen.getByLabelText('File name').closest('form')!);
+    expect(on.onSave).toHaveBeenCalledWith('Part1.ckpart.gz', { geometry: false });
   });
   it('cannot submit an empty name; Cancel and Escape cancel', () => {
     const on = { onSave: vi.fn(), onCancel: vi.fn() };
@@ -131,7 +143,7 @@ describe('file commands', () => {
   };
   it('Ctrl+Shift+S is Save as and Ctrl+S stays Save', () => {
     const saveAs = vi.fn(); const save = vi.fn();
-    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp() {}, hasSkp: () => false } });
+    const cmds = buildCommands({ ...base, save, files: { saveAs, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp() {}, hasSkp: () => false, embedOn: () => false, toggleEmbed() {} } });
     const ev = (o: Partial<KeyboardEvent>) => ({ key: 's', shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...o });
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
@@ -140,7 +152,7 @@ describe('file commands', () => {
   });
   it('Rotate imported model is a file command, enabled only while a SketchUp model is shown', () => {
     const rotateSkp = vi.fn(); let shown = false;
-    const cmds = buildCommands({ ...base, save() {}, files: { saveAs() {}, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp, hasSkp: () => shown } });
+    const cmds = buildCommands({ ...base, save() {}, files: { saveAs() {}, importStep() {}, importSkpHidden() {}, recover() {}, rotateSkp, hasSkp: () => shown, embedOn: () => false, toggleEmbed() {} } });
     const c = cmds.find((x) => x.id === 'rotate-skp')!;
     expect(c.label).toBe('Rotate imported model');
     expect(c.enabled?.()).toBe(false);
