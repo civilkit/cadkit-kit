@@ -617,10 +617,13 @@ function App() {
     const d = controller.document();
     return !d || (d.features.length === 0 && !files.fileName && !isDirty());
   };
-  /** A tab cannot be left in the middle of a sketch (its tools and draft live in the app); a feature editor is just closed. */
-  const cannotLeave = (): boolean => {
-    if (controller.sketchDraft()) { store.notify(t('tabs.finishSketch'), 'warn'); return true; }
-    return false;
+  /** A sketch in progress is finished (as the check mark does) so the tab can be left with it kept; false when it cannot be (the sketch stays open and says so). */
+  const settleSketch = async (): Promise<boolean> => {
+    if (!controller.sketchDraft()) return true;
+    await confirmSketch();
+    if (controller.sketchDraft()) { store.notify(t('tabs.finishSketch'), 'warn'); return false; }
+    store.notify(t('tabs.sketchKept', { name: files.partName ?? controller.document()?.name ?? t('app.noPart') }));
+    return true;
   };
   const leaveEditing = async () => {
     await controller.cancelPreview();
@@ -641,7 +644,7 @@ function App() {
     redraw((n) => n + 1);
   };
   const switchTab = async (id: number) => {
-    if (id === tabSet.activeId || !tabSet.get(id) || cannotLeave()) return;
+    if (id === tabSet.activeId || !tabSet.get(id) || !(await settleSketch())) return;
     await leaveEditing();
     parkActive();
     tabSet.activate(id);
@@ -650,7 +653,7 @@ function App() {
   /** A new, empty tab becomes active (the caller loads something into it). False when it could not be made. */
   const addTab = async (): Promise<boolean> => {
     if (tabSet.full()) { store.notify(t('tabs.limit'), 'warn'); return false; }
-    if (cannotLeave()) return false;
+    if (!(await settleSketch())) return false;
     await leaveEditing();
     parkActive();
     tabSet.add(newTabRec());
@@ -1112,6 +1115,26 @@ function App() {
   dropFilesRef.current = dropFiles;
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
+  // Tabs: Ctrl+Tab / Ctrl+Shift+Tab step through them (also from the Script box); Ctrl+Alt+1..9 jump to one (9 is the last), Ctrl+Alt+T opens a new part, Ctrl+Alt+W closes the active one
+  const tabKeysRef = useRef<(e: KeyboardEvent) => boolean>(() => false);
+  tabKeysRef.current = (e) => {
+    if (!e.ctrlKey || e.metaKey) return false;
+    const n = tabSet.count, at = tabSet.index(tabSet.activeId);
+    let to: number | null = null;
+    if (e.key === 'Tab' && !e.altKey) to = (at + (e.shiftKey ? -1 : 1) + n) % n;
+    else if (e.altKey && /^Digit[1-9]$/.test(e.code)) { const d = +e.code.slice(5); to = d === 9 ? n - 1 : Math.min(d - 1, n - 1); }
+    else if (e.altKey && e.code === 'KeyW') { void closeTab(tabSet.activeId); return true; }
+    else if (e.altKey && e.code === 'KeyT') { void (async () => { if (await addTab()) await load(JSON.stringify(emptyPart(files.names.next())), { file: null }); })(); return true; }
+    if (to === null) return false;
+    const target = tabSet.tabs[to];
+    if (target && target.id !== tabSet.activeId) void switchTab(target.id);
+    return true;
+  };
+  useEffect(() => {
+    const onTabKey = (e: KeyboardEvent) => { if (tabKeysRef.current(e)) e.preventDefault(); };
+    addEventListener('keydown', onTabKey);
+    return () => removeEventListener('keydown', onTabKey);
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -2689,6 +2712,7 @@ function App() {
         tabs={tabSet.tabs.map((tb): TabInfo => ({ id: tb.id, name: (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? tb.controller.document()?.name ?? t('app.noPart'), dirty: tabDirty(tb), active: tb.id === tabSet.activeId }))}
         onSwitch={(id) => void switchTab(id)}
         onClose={(id) => void closeTab(id)}
+        onMove={(id, to) => { tabSet.move(id, to); redraw((n) => n + 1); }}
         onNew={() => void (async () => { if (await addTab()) await load(JSON.stringify(emptyPart(files.names.next())), { file: null }); })()}
       />
       {ws.ribbon !== 'off' ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={ribbonCommands} activeTab={activeRibbonTab(tab, !!sketching)} onTab={setTab} labels={ws.toolLabels} layout={ribbonLayout} hidden={fileIds} onlyTab={sketching ? SKETCH_TAB : undefined} tabLabel={(x) => (x === SKETCH_TAB && sketching ? t('app.sketch.editing', { name: sketching.name }) : undefined)} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}

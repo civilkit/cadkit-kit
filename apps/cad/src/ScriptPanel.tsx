@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { EXAMPLES, formatScript, createRunControl, formatElapsed, throttleProgress, type Progress, type RunOptions, type ScriptError } from '@kit/script';
 import { t } from './i18n';
+import { highlight } from './scriptHighlight';
 
 /** The Script tab: a code box with line numbers, Run (Ctrl/Cmd+Enter), examples and the error list. Running opens a NEW part. */
 export function ScriptPanel(p: { saved: string; name?: string; onRun(code: string, run?: Pick<RunOptions, 'signal' | 'onProgress'>): Promise<ScriptError[]> }): JSX.Element {
@@ -9,6 +10,8 @@ export function ScriptPanel(p: { saved: string; name?: string; onRun(code: strin
   const [errors, setErrors] = useState<ScriptError[]>([]);
   const area = useRef<HTMLTextAreaElement>(null);
   const gutter = useRef<HTMLPreElement>(null);
+  const under = useRef<HTMLPreElement>(null);   // the coloured copy of the code that sits under the transparent textarea
+  const toks = useMemo(() => highlight(code), [code]);
   // a document with its own script (opened from a file) replaces what is in the box
   useEffect(() => { if (p.saved) { setCode(p.saved); setErrors([]); } }, [p.saved]);
   const lines = code.split('\n').length;
@@ -61,17 +64,17 @@ export function ScriptPanel(p: { saved: string; name?: string; onRun(code: strin
   };
   return (
     <div class="script-panel" style="display:flex;flex-direction:column;gap:6px;padding:8px;height:100%;box-sizing:border-box;min-height:0">
-      <div style="display:flex;gap:6px;align-items:center">
+      <select style="width:100%;min-width:0" aria-label={t('script.examples')} value="" onChange={(e) => { const ex = EXAMPLES.find((x) => x.id === (e.currentTarget as HTMLSelectElement).value); if (ex) { setCode(ex.code); setErrors([]); } }}>
+        <option value="">{t('script.examples')}</option>
+        {EXAMPLES.map((x) => <option key={x.id} value={x.id}>{t('script.example.' + x.id, undefined, x.title)}</option>)}
+      </select>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <button class="btn primary" disabled={!!prog} onClick={() => void run()} title="Ctrl/Cmd+Enter">{t('script.run')}</button>
         {prog ? <button class="btn" onClick={() => { ctl.current?.cancel(); setCancelling(true); }}>{t('script.cancel')}</button> : null}
         <button class="btn" onClick={() => fileIn.current?.click()} title={t('script.open.tip')}>{t('script.open')}</button>
         <button class="btn" onClick={save} title={t('script.save.tip')}>{t('script.save')}</button>
         <button class="btn" onClick={format} title={t('script.format.tip')}>{t('script.format')}</button>
         <input ref={fileIn} type="file" accept=".js,.ts,.mjs,.txt,text/plain,text/javascript" style="display:none" onChange={(e) => void openFile((e.currentTarget as HTMLInputElement).files?.[0])} />
-        <select aria-label={t('script.examples')} value="" onChange={(e) => { const ex = EXAMPLES.find((x) => x.id === (e.currentTarget as HTMLSelectElement).value); if (ex) { setCode(ex.code); setErrors([]); } }}>
-          <option value="">{t('script.examples')}</option>
-          {EXAMPLES.map((x) => <option key={x.id} value={x.id}>{t('script.example.' + x.id)}</option>)}
-        </select>
       </div>
       {prog ? (
         <div role="status" aria-live="polite" style="font-size:12px;display:flex;flex-direction:column;gap:3px">
@@ -83,13 +86,21 @@ export function ScriptPanel(p: { saved: string; name?: string; onRun(code: strin
         <pre ref={gutter} aria-hidden="true" style="margin:0;padding:4px 6px;text-align:right;overflow:hidden;opacity:.7;user-select:none;min-width:2.5em">
           {Array.from({ length: lines }, (_, i) => <div key={i} style={bad.has(i + 1) ? 'color:#e5484d;font-weight:700' : ''}>{i + 1}</div>)}
         </pre>
-        <textarea
-          ref={area} value={code} spellcheck={false} aria-label={t('script.title')} wrap="off"
-          style="flex:1;border:0;outline:0;resize:none;padding:4px;font:inherit;background:transparent;color:inherit;white-space:pre;overflow:auto"
-          onInput={(e) => setCode((e.currentTarget as HTMLTextAreaElement).value)}
-          onScroll={(e) => { if (gutter.current) gutter.current.scrollTop = (e.currentTarget as HTMLTextAreaElement).scrollTop; }}
-          onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void run(); } else if (e.shiftKey && e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); format(); } }}
-        />
+        <div style="position:relative;flex:1;min-width:0">
+          <pre ref={under} class="script-hl" aria-hidden="true">
+            <code>{toks.map((k, i) => (k.kind ? <span key={i} class={'syn-' + k.kind}>{k.text}</span> : k.text))}{'\n '}</code>
+          </pre>
+          <textarea
+            ref={area} value={code} spellcheck={false} aria-label={t('script.title')} wrap="off" class="script-ta"
+            onInput={(e) => setCode((e.currentTarget as HTMLTextAreaElement).value)}
+            onScroll={(e) => {
+              const el = e.currentTarget as HTMLTextAreaElement;
+              if (gutter.current) gutter.current.scrollTop = el.scrollTop;
+              if (under.current) under.current.style.transform = `translate(${-el.scrollLeft}px, ${-el.scrollTop}px)`;
+            }}
+            onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void run(); } else if (e.shiftKey && e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); format(); } }}
+          />
+        </div>
       </div>
       <ul class="script-errors" aria-live="polite" style="margin:0;padding:0;list-style:none;font-size:12px;max-height:30%;overflow:auto">
         {errors.map((e, i) => (

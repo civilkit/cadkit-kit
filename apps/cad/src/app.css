@@ -1105,7 +1105,8 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .fedit-extra small { color: var(--text-2); }
 
 /* document tabs */
-.tabstrip { grid-area: tabs; display: flex; align-items: flex-end; gap: 2px; padding: 4px 8px 0; background: var(--title); border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; min-width: 0; }
+.tabbar { grid-area: tabs; display: flex; align-items: flex-end; min-width: 0; position: relative; background: var(--title); border-bottom: 1px solid var(--line); }
+.tabstrip { flex: 1; display: flex; align-items: flex-end; gap: 2px; padding: 4px 8px 0; overflow-x: auto; scrollbar-width: thin; min-width: 0; }
 .tabstrip .tab { display: flex; align-items: center; gap: 6px; min-width: 90px; max-width: 220px; padding: 5px 6px 5px 12px; border-radius: 8px 8px 0 0; background: #ffffff0f; color: var(--title-text); font-size: 12.5px; cursor: pointer; white-space: nowrap; border: 1px solid transparent; border-bottom: 0; }
 .tabstrip .tab:hover { background: #ffffff1c; }
 .tabstrip .tab.active { background: var(--panel); color: var(--text); border-color: var(--line); font-weight: 600; }
@@ -1114,3 +1115,21 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .tabstrip .tab .tab-x, .tabstrip .tab-new { border: 0; background: transparent; color: inherit; border-radius: 4px; width: 20px; height: 20px; line-height: 18px; padding: 0; cursor: pointer; font-size: 14px; opacity: .7; }
 .tabstrip .tab .tab-x:hover, .tabstrip .tab-new:hover { background: #ffffff22; opacity: 1; }
 .tabstrip .tab-new { margin: 0 0 3px 4px; flex: none; color: var(--title-text); }
+
+/* Script box: the textarea is transparent and lies over a coloured copy of the same text (same font, padding and wrapping) */
+.script-hl { position: absolute; inset: 0; margin: 0; padding: 4px; overflow: hidden; pointer-events: none; font: inherit; white-space: pre; transform-origin: 0 0; }
+.script-hl code { font: inherit; }
+.script-ta { position: absolute; inset: 0; width: 100%; height: 100%; box-sizing: border-box; border: 0; outline: 0; resize: none; padding: 4px; font: inherit; background: transparent; color: transparent; caret-color: var(--text); white-space: pre; overflow: auto; }
+.script-ta::selection { background: var(--accent-soft); color: transparent; }
+.syn-kw { color: var(--syn-kw); } .syn-str { color: var(--syn-str); } .syn-num { color: var(--syn-num); } .syn-com { color: var(--syn-com); font-style: italic; } .syn-fn { color: var(--syn-fn); }
+
+.tabstrip .tab.dragging { opacity: .45; }
+.tabstrip .tab.drop-before { box-shadow: inset 3px 0 0 var(--accent); }
+.tabstrip .tab.drop-after { box-shadow: inset -3px 0 0 var(--accent); }
+.tabbar .tab-more { flex: none; margin: 0 8px 3px 2px; border: 1px solid #ffffff2a; background: transparent; color: var(--title-text); border-radius: 6px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+.tabbar .tab-more:hover, .tabbar .tab-more[aria-expanded="true"] { background: #ffffff22; }
+.tabbar .tab-list { position: absolute; right: 8px; top: 100%; z-index: 30; margin: 2px 0 0; padding: 4px; list-style: none; min-width: 220px; max-width: 360px; max-height: 60vh; overflow: auto; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px #0006; }
+.tabbar .tab-list button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; padding: 6px 8px; border-radius: 5px; cursor: pointer; font: inherit; }
+.tabbar .tab-list button:hover, .tabbar .tab-list button.on { background: var(--accent-soft); }
+.tabbar .tab-list .tab-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabbar .tab-list .tab-dirty { width: 7px; height: 7px; border-radius: 50%; background: #f0b429; flex: none; }

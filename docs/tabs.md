@@ -18,7 +18,9 @@ a tag of its own, so this is a quick refresh, not a rebuild from a file.
   (no features, no file, no changes) and a new tab otherwise. Nothing asks about unsaved changes: the current part stays open in its tab.
 - **×** (or a middle click) closes a tab. A tab with unsaved changes is brought up and asks Save / Don't save / Cancel. Closing the last tab
   leaves a blank part. Closing the active tab shows its right neighbour (else the left one).
-- At most 32 tabs. A tab cannot be left in the middle of a sketch (finish or leave the sketch first); an open feature editor is closed on a switch.
+- At most 32 tabs. Switching away in the middle of a sketch finishes the sketch (as the check mark does) and keeps it; if it cannot be finished it stays open and says so. An open feature editor is closed on a switch.
+- Drag a tab to reorder; the ▾ button lists every open part when the strip overflows (or there are more than seven).
+- Keys: Ctrl+Tab / Ctrl+Shift+Tab next / previous, Ctrl+Alt+1..9 jump to a tab (9 = last), Ctrl+Alt+T new part, Ctrl+Alt+W close. (Browsers keep Ctrl+Tab and Ctrl+W for their own tabs; in the installed app Ctrl+Tab works, and the Ctrl+Alt keys work everywhere.)
 - The page asks before it is left (reload, close the window) when any tab has unsaved changes.
 - The Drawing view is a mode of the tab's document; it closes when you switch tabs.
 
@@ -37,5 +39,4 @@ with the tab that was active shown. Component tabs are not stored. The stored se
 
 ## Not done
 
-Dragging tabs to reorder (`TabSet.move` exists), a tab list for very many tabs, keyboard shortcuts for tabs, the undo history of a restored tab
-(history is not stored), and a hover preview.
+The undo history of a restored tab (the session's undo steps hold whole earlier documents and are not stored), and a hover preview.

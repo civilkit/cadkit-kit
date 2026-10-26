@@ -2,6 +2,17 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.2.1 - 2026-10-26
+
+### Added
+- **Syntax colouring in the Script box** (comments, strings, numbers, keywords, calls), in the light and dark themes.
+- **Tabs can be dragged to reorder**, and a ▾ list of all open parts appears when they no longer fit (or there are many).
+- **Keyboard shortcuts for tabs:** Ctrl+Tab / Ctrl+Shift+Tab step through them (also from the Script box), Ctrl+Alt+1..9 jump to one (9 is the last), Ctrl+Alt+T opens a new part, Ctrl+Alt+W closes the active one.
+
+### Changed
+- **Script panel:** the Examples list now sits on its own row above Run / Open / Save / Format, spans the panel, and has short names (it ran off the panel before); the examples added later no longer show their raw keys.
+- **Switching tabs in the middle of a sketch finishes the sketch and keeps it** (as the check mark does) instead of refusing; when the sketch cannot be finished it stays open and says so.
+
 ## 0.2.0 - 2026-10-26
 
 ### Added
