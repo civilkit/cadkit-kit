@@ -6,10 +6,11 @@
 // silently. Assemblies are refused as a whole. See docs/solidcraft.md.
 import { zipFile } from '@kit/fcstd';
 import { evalExpr, ExprError } from './expr';
+import { bodyLooks, type ScLook } from './appearance';
 
 export type V3 = [number, number, number];
 export type FeatureJson = Record<string, unknown>;
-export interface ScPart { format: 'ck-part'; version: number; name: string; features: FeatureJson[]; seq: number }
+export interface ScPart { format: 'ck-part'; version: number; name: string; features: FeatureJson[]; seq: number; appearance?: Record<string, ScLook>; view?: { hiddenBodies: string[] } }
 
 /** One line of the import report: what became of one feature of the file. */
 export interface ScRow {
@@ -347,6 +348,8 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
   const nid = () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); return id; };
   const parts = new Map<number, ScImport>();
   const insertOf = new Map<number, string>();
+  const appearance: Record<string, ScLook> = { ...(root.part.appearance ?? {}) };
+  const hiddenBodies: string[] = [...(root.part.view?.hiddenBodies ?? [])];
   for (const occ of doc.occurrences as Rec[]) {
     const comp = comps.get(occ.component as number);
     const cname = String(comp?.name ?? `Component ${occ.component}`);
@@ -361,6 +364,9 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
     const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = toYUp(row4(m, 2)), ez = toYUp(row4(m, 1)).map((x) => clean(-x)) as V3;
     const insertId = nid();
     insertOf.set(occ.id as number, insertId);
+    // the colours of the component's bodies, keyed in the assembly as feature-of-the-part @ insert (what its face names say)
+    for (const [k, v] of Object.entries(imp.part.appearance ?? {})) appearance[`${k}@${insertId}`] = v;
+    for (const k of imp.part.view?.hiddenBodies ?? []) hiddenBodies.push(`${k}@${insertId}`);
     features.push({ type: 'insertPart', id: insertId, name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
     rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'converted' });
   }
@@ -384,7 +390,7 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
   }
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
-  return { name, part: { format: 'ck-part', version: 1, name, features, seq }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
+  return { name, part: { format: 'ck-part', version: 1, name, features, seq, ...(Object.keys(appearance).length ? { appearance } : {}), ...(hiddenBodies.length ? { view: { hiddenBodies } } : {}) }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
 }
 
 async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
@@ -1365,7 +1371,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   return {
-    name, part: part(), rows,
+    name, part: { ...part(), ...bodyLooks(doc, features, live) }, rows,
     summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) },
     geometryComplete: unsupported === 0,
   };

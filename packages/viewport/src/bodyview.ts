@@ -6,7 +6,8 @@ import type { BodyMesh } from './meshgeom';
 export type Finish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const FINISHES: readonly Finish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 
-export interface BodyLookSpec { color?: string; opacity?: number; finish?: Finish }
+/** `metallic` and `roughness` (0..1) are the PBR values of the material: they replace the finish's own when set. */
+export interface BodyLookSpec { color?: string; opacity?: number; finish?: Finish; metallic?: number; roughness?: number }
 export interface ViewBodyDef { key: string; faces: string[]; edges?: string[] }
 /** What the viewport needs to draw bodies individually: the bodies, the look of those that have one (keyed by body key), the hidden keys. */
 export interface BodyViewSpec {
@@ -31,6 +32,16 @@ export function finishParams(f: Finish | undefined): { roughness: number; metaln
     default: return { roughness: 0.24, metalness: 0.45 };   // the part's default satin metal
   }
 }
+
+export const clampUnit = (v: unknown): number | undefined => (typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0, v)) : undefined);
+
+/** Roughness and metalness a look asks for: the PBR values when set, else its finish's, else null (the part's material stands). */
+export function lookMaterial(l: BodyLookSpec | undefined): { roughness: number | null; metalness: number | null } {
+  const f = l?.finish ? finishParams(l.finish) : null;
+  return { roughness: clampUnit(l?.roughness) ?? f?.roughness ?? null, metalness: clampUnit(l?.metallic) ?? f?.metalness ?? null };
+}
+/** Whether a look changes the colour or the material at all (opacity is drawn separately). */
+export const looksTinted = (l: BodyLookSpec | undefined): boolean => !!l && (l.color !== undefined || l.finish !== undefined || l.metallic !== undefined || l.roughness !== undefined);
 
 /** The opacity a look draws with (1 when it sets none). */
 export const lookOpacity = (l: BodyLookSpec | undefined): number => clampBodyOpacity(l?.opacity ?? 1);

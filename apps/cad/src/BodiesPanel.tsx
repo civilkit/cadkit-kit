@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { Icon } from '@kit/ui';
-import { FINISHES, PICK_OPACITY } from '@kit/viewport';
+import { FINISHES, PICK_OPACITY, finishParams } from '@kit/viewport';
 import { t } from './i18n';
 import { FINISH_LABEL_KEY, GLASS_PRESET, SWATCH_DEFAULT, type BodyLookSpec, type BodyRow, type Finish } from './bodies';
 
@@ -98,6 +98,9 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
 function LookEditor(p: { row: BodyRow; onLook(patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void }): JSX.Element {
   const l = p.row.look;
   const op = Math.round((l.opacity ?? 1) * 100);
+  const fp = finishParams(l.finish);   // what the finish gives; the sliders override it (a file's PBR values come in this way)
+  const met = Math.round((l.metallic ?? fp.metalness) * 100), rough = Math.round((l.roughness ?? fp.roughness) * 100);
+  const NO_PBR = { metallic: undefined, roughness: undefined };
   const id = 'body-look-' + p.row.key.replace(/\W/g, '_');
   return (
     <div class="body-look" role="group" aria-label={t('bodies.appearance') + ': ' + p.row.name}>
@@ -111,15 +114,23 @@ function LookEditor(p: { row: BodyRow; onLook(patch: Partial<Record<keyof BodyLo
       </label>
       {op / 100 < PICK_OPACITY ? <div class="bodies-hint">{t('bodies.clear')}</div> : null}
       <label class="body-field" for={id + '-f'}><span>{t('bodies.finish')}</span>
-        <select id={id + '-f'} value={l.finish ?? ''} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; p.onLook({ finish: v ? (v as Finish) : undefined }); }}>
+        <select id={id + '-f'} value={l.finish ?? ''} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; p.onLook({ finish: v ? (v as Finish) : undefined, ...NO_PBR }); }}>
           <option value="">{t('bodies.finish.default')}</option>
           {FINISHES.map((f) => <option key={f} value={f}>{t(FINISH_LABEL_KEY[f])}</option>)}
         </select>
       </label>
+      <label class="body-field" for={id + '-m'}><span>{t('bodies.metallic')}</span>
+        <input id={id + '-m'} type="range" min={0} max={100} step={1} value={met} aria-valuetext={`${met}%`} onInput={(e) => p.onLook({ metallic: Number((e.currentTarget as HTMLInputElement).value) / 100 })} />
+        <output>{met}%</output>
+      </label>
+      <label class="body-field" for={id + '-r'}><span>{t('bodies.roughness')}</span>
+        <input id={id + '-r'} type="range" min={0} max={100} step={1} value={rough} aria-valuetext={`${rough}%`} onInput={(e) => p.onLook({ roughness: Number((e.currentTarget as HTMLInputElement).value) / 100 })} />
+        <output>{rough}%</output>
+      </label>
       <div class="body-presets">
-        <button type="button" class="bodies-btn" onClick={() => p.onLook({ ...GLASS_PRESET })}>{t('bodies.preset.glass')}</button>
-        <button type="button" class="bodies-btn" onClick={() => p.onLook({ color: '#e4e7ea', finish: 'chrome', opacity: undefined })}>{t('bodies.preset.chrome')}</button>
-        <button type="button" class="bodies-btn" disabled={!Object.keys(l).length} onClick={() => p.onLook({ color: undefined, opacity: undefined, finish: undefined })}>{t('bodies.reset')}</button>
+        <button type="button" class="bodies-btn" onClick={() => p.onLook({ ...GLASS_PRESET, ...NO_PBR })}>{t('bodies.preset.glass')}</button>
+        <button type="button" class="bodies-btn" onClick={() => p.onLook({ color: '#e4e7ea', finish: 'chrome', opacity: undefined, ...NO_PBR })}>{t('bodies.preset.chrome')}</button>
+        <button type="button" class="bodies-btn" disabled={!Object.keys(l).length} onClick={() => p.onLook({ color: undefined, opacity: undefined, finish: undefined, ...NO_PBR })}>{t('bodies.reset')}</button>
       </div>
     </div>
   );

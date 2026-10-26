@@ -2,6 +2,16 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.0 - 2026-10-26
+
+### Added
+- **SolidCraft colours.** The importer reads each body's colour, opacity and (in newer files) its PBR values (metallic, roughness), and the bodies a file hides, and saves them in the part (`appearance`, `view`), keyed by the feature that made each body. SELENE now opens in its own colours instead of all grey, with its three hydraulic hoses hidden.
+- **Metallic and roughness per body.** The Bodies panel has two sliders (Metallic, Roughness) next to Colour, Opacity and Finish. They override the finish, are saved with the part, and picking a finish or preset clears them. Not carried over: the file's index of refraction.
+- **Bodies hidden by feature.** A feature id in the hidden list hides every body that feature made; showing one body keeps its siblings hidden.
+
+### Fixed
+- Bodies of an inserted component in an assembly are keyed `feature@insert` (e.g. `F2@F6`), so their colours and names no longer collide with the assembly's own feature of the same number; a component's bodies are named after the component.
+
 ## 0.2.2 - 2026-10-26
 
 ### Fixed

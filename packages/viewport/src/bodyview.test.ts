@@ -61,3 +61,15 @@ describe('draw order and picking', () => {
     expect(pickThrough([])).toBe(-1);
   });
 });
+
+describe('metallic and roughness of a look', () => {
+  it('the PBR values replace the finish\'s, one at a time', async () => {
+    const { lookMaterial, looksTinted } = await import('./bodyview');
+    expect(lookMaterial(undefined)).toEqual({ roughness: null, metalness: null });
+    expect(lookMaterial({ finish: 'chrome' })).toEqual({ roughness: 0.06, metalness: 1 });
+    expect(lookMaterial({ finish: 'chrome', roughness: 0.5 })).toEqual({ roughness: 0.5, metalness: 1 });
+    expect(lookMaterial({ metallic: 0.2 })).toEqual({ roughness: null, metalness: 0.2 });
+    expect(looksTinted({ opacity: 0.5 })).toBe(false);
+    expect(looksTinted({ roughness: 0.3 })).toBe(true);
+  });
+});

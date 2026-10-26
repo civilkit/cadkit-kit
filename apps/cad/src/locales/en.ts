@@ -55,7 +55,7 @@ export const en: Catalog = {
   'bodies.nameTaken': 'Another body is already called "{name}".', 'bodies.failed': 'The bodies could not be changed: {why}',
   'bodies.showAll': 'Show all', 'bodies.hideOthers': 'Hide others', 'bodies.hidden': 'hidden',
   'bodies.show': 'Show body', 'bodies.hide': 'Hide body', 'bodies.solo': 'Show only this body', 'bodies.rename': 'Body name',
-  'bodies.appearance': 'Appearance', 'bodies.color': 'Colour', 'bodies.opacity': 'Opacity', 'bodies.finish': 'Finish',
+  'bodies.appearance': 'Appearance', 'bodies.color': 'Colour', 'bodies.opacity': 'Opacity', 'bodies.finish': 'Finish', 'bodies.metallic': 'Metallic', 'bodies.roughness': 'Roughness',
   'bodies.clear': 'Very clear bodies are not picked by a click when something lies behind them.',
   'bodies.finish.default': 'Part material', 'bodies.finish.matte': 'Matte', 'bodies.finish.plastic': 'Plastic', 'bodies.finish.chrome': 'Chrome',
   'bodies.finish.glass': 'Glass', 'bodies.finish.brushed': 'Brushed metal',

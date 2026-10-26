@@ -2,19 +2,20 @@
 // edges), found by the selection model. Nothing here touches the kernel or the feature history.
 //
 // Document fields (viewer state, not features, not undo steps; saved with the part):
-//   appearance: { [key]: { color?: '#rrggbb', opacity?: 0.05..1, finish?: 'matte'|'plastic'|'chrome'|'glass'|'brushed' } }
+//   appearance: { [key]: { color?: '#rrggbb', opacity?: 0.05..1, finish?: 'matte'|'plastic'|'chrome'|'glass'|'brushed', metallic?: 0..1, roughness?: 0..1 } }
 //   bodyNames:  { [key]: string }
-//   view:       { hiddenBodies: string[] }       (body keys)
+//   view:       { hiddenBodies: string[] }       (body keys, or feature ids: every body made by that feature)
 // KEY RULE. A key is either a BODY key or a FEATURE id.
 //   body key    '@body:' + the lowest face name of the body (plain string order, e.g. '@body:F83.S1'). Face names carry the id of the
 //               feature that made the face and survive regeneration, so the key survives editing, adding or removing any other feature.
-//   feature id  'F83': applies to every body whose ORIGIN is that feature. A body's origin is the lowest-numbered feature that owns one
+//   feature id  'F83': applies to every body whose ORIGIN is that feature. In an assembly a body of a component has the origin 'F2@F6': feature F2 of
+//               the part inserted by F6 (the face names say so: 'F2.S.e12@F6.1'). A body's origin is the lowest-numbered feature that owns one
 //               of its faces (the feature that created the lump; later cuts and fillets do not change it). Scripts key by feature
 //               (the id is known while the script runs; the face names are not), and one entry covers a pattern's whole row of bodies.
 // A body key wins over a feature id; a user edit always writes the body key.
 import type { Body } from './select/model';
 import { BODY_PREFIX } from './select/model';
-import { clampBodyOpacity, FINISHES, isHex, type BodyLookSpec, type BodyViewSpec, type Finish } from '@kit/viewport';
+import { clampBodyOpacity, clampUnit, FINISHES, isHex, type BodyLookSpec, type BodyViewSpec, type Finish } from '@kit/viewport';
 
 export type { BodyLookSpec, Finish };
 export const FEATURE_KEY = /^F\d+$/;
@@ -45,13 +46,20 @@ export interface BodyFields {
   view?: { hiddenBodies?: string[] };
 }
 
-const num = (id: string): number => Number(id.slice(1));
+const num = (id: string): number => parseInt(id.slice(1), 10);
 export const faceOwner = (name: string): string | null => { const m = /^(F\d+)(?:[.:|#]|$)/.exec(name); return m ? m[1] : null; };
+/** The origin a face gives its body: its feature ('F3'), or for a face of a component the feature of the inserted part and the insert ('F3@F6'). */
+export const faceOrigin = (name: string): string | null => {
+  const m = /^(F\d+)[^@]*@(F\d+)/.exec(name);
+  return m ? `${m[1]}@${m[2]}` : faceOwner(name);
+};
+/** Where an origin sorts: roots by feature number; a component's features just after the insert that made them. */
+const order = (origin: string): number => { const [a, b] = origin.split('@'); return b ? num(b) + num(a) / 1e7 : num(a); };
 
 /** The feature that created a body: the lowest feature number among its faces' owners. */
 export function originOf(faces: readonly string[]): string | null {
   let best: string | null = null;
-  for (const f of faces) { const o = faceOwner(f); if (o && (best === null || num(o) < num(best))) best = o; }
+  for (const f of faces) { const o = faceOrigin(f); if (o && (best === null || order(o) < order(best))) best = o; }
   return best;
 }
 
@@ -65,6 +73,9 @@ export function cleanLook(raw: unknown): BodyLookSpec {
   if (isHex(c)) out.color = c.toLowerCase();
   if (typeof r.opacity === 'number' && isFinite(r.opacity)) out.opacity = clampBodyOpacity(r.opacity);
   if ((FINISHES as readonly unknown[]).includes(r.finish)) out.finish = r.finish as Finish;
+  const m = clampUnit(r.metallic), g = clampUnit(r.roughness);
+  if (m !== undefined) out.metallic = m;
+  if (g !== undefined) out.roughness = g;
   return out;
 }
 
@@ -146,24 +157,26 @@ export function listBodies(
 ): BodyRow[] {
   const hidden = new Set(fields.view?.hiddenBodies ?? []);
   const base = bodies.map((b) => ({ b, key: keyOf(b.faces), origin: originOf(b.faces) }));
-  base.sort((x, y) => (x.origin ? num(x.origin) : Infinity) - (y.origin ? num(y.origin) : Infinity) || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
+  base.sort((x, y) => (x.origin ? order(x.origin) : Infinity) - (y.origin ? order(y.origin) : Infinity) || (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
   const perOrigin = new Map<string, number>();
-  for (const x of base) if (x.origin) perOrigin.set(x.origin, (perOrigin.get(x.origin) ?? 0) + 1);
+  /** bodies are told apart by the feature that made them, those of a component by the insert (the component's name) */
+  const group = (o: string): string => o.split('@')[1] ?? o;
+  for (const x of base) if (x.origin) perOrigin.set(group(x.origin), (perOrigin.get(group(x.origin)) ?? 0) + 1);
   const seen = new Map<string, number>();
   const dflt = opts.defaultName ?? ((n: number) => `Body ${n}`);
   return base.map((x, i) => {
     const names = fields.bodyNames ?? {};
     const own = names[x.key]?.trim();
     const docName = opts.docNames?.get(x.key);
-    const feat = x.origin ? names[x.origin]?.trim() || opts.featureName?.(x.origin)?.trim() || '' : '';
+    const feat = x.origin ? names[x.origin]?.trim() || opts.featureName?.(group(x.origin))?.trim() || '' : '';
     let name: string, named = true;
     if (own) name = own;
     else if (docName) name = docName;
-    else if (feat) { const k = (seen.get(x.origin!) ?? 0) + 1; seen.set(x.origin!, k); name = (perOrigin.get(x.origin!) ?? 1) > 1 ? `${feat} ${k}` : feat; }
+    else if (feat) { const g = group(x.origin!), k = (seen.get(g) ?? 0) + 1; seen.set(g, k); name = (perOrigin.get(g) ?? 1) > 1 ? `${feat} ${k}` : feat; }
     else { name = dflt(i + 1); named = false; }
     let volume: number | null = null;
     if (opts.volumes) { let v = 0, any = false; for (const f of x.b.faces) { const fv = opts.volumes.get(f); if (fv !== undefined) { v += fv; any = true; } } volume = any && !x.b.surface ? Math.abs(v) : null; }
-    return { key: x.key, name, named, ...(docName ? { docName } : {}), faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin), hidden: hidden.has(x.key) };
+    return { key: x.key, name, named, ...(docName ? { docName } : {}), faces: x.b.faces, edges: x.b.edges, origin: x.origin, volume, look: lookFor(fields, x.key, x.origin), hidden: hidden.has(x.key) || (!!x.origin && hidden.has(x.origin)) };
   });
 }
 
@@ -174,18 +187,18 @@ export function resolveFaceLooks(entries: Record<string, BodyLookSpec> | undefin
   const keys = Object.keys(entries).sort((a, b) => a.length - b.length);
   for (const k of keys) {
     const l = cleanLook(entries[k]);
-    if (l.color === undefined && l.finish === undefined) continue;
+    if (l.color === undefined && l.finish === undefined && l.metallic === undefined && l.roughness === undefined) continue;
     const pre = k.endsWith('*') ? k.slice(0, -1) : null;
-    for (const f of faceNames) if (pre !== null ? f.startsWith(pre) : f === k) out[f] = { ...out[f], color: l.color ?? out[f]?.color, finish: l.finish ?? out[f]?.finish };
+    for (const f of faceNames) if (pre !== null ? f.startsWith(pre) : f === k) out[f] = { ...out[f], color: l.color ?? out[f]?.color, finish: l.finish ?? out[f]?.finish, metallic: l.metallic ?? out[f]?.metallic, roughness: l.roughness ?? out[f]?.roughness };
   }
-  for (const f of Object.keys(out)) { const o = out[f]; if (o.color === undefined) delete o.color; if (o.finish === undefined) delete o.finish; }
+  for (const f of Object.keys(out)) { const o = out[f]; if (o.color === undefined) delete o.color; if (o.finish === undefined) delete o.finish; if (o.metallic === undefined) delete o.metallic; if (o.roughness === undefined) delete o.roughness; }
   return out;
 }
 
 /** What the viewport is given. */
 export function viewSpec(rows: readonly BodyRow[], faces?: Record<string, BodyLookSpec>): BodyViewSpec {
   const looks: Record<string, BodyLookSpec> = {};
-  for (const r of rows) if (r.look.color !== undefined || r.look.opacity !== undefined || r.look.finish !== undefined) looks[r.key] = r.look;
+  for (const r of rows) if (r.look.color !== undefined || r.look.opacity !== undefined || r.look.finish !== undefined || r.look.metallic !== undefined || r.look.roughness !== undefined) looks[r.key] = r.look;
   return { bodies: rows.map((r) => ({ key: r.key, faces: r.faces, edges: r.edges })), looks, hidden: rows.filter((r) => r.hidden).map((r) => r.key), ...(faces && Object.keys(faces).length ? { faces } : {}) };
 }
 
@@ -195,9 +208,13 @@ export function toggleHidden(fields: BodyFields, key: string): string[] {
   const h = fields.view?.hiddenBodies ?? [];
   return h.includes(key) ? h.filter((k) => k !== key) : [...h, key];
 }
-export const setHidden = (fields: BodyFields, key: string, hide: boolean): string[] => {
+export const setHidden = (fields: BodyFields, key: string, hide: boolean, rows?: readonly BodyRow[]): string[] => {
   const h = fields.view?.hiddenBodies ?? [];
-  return hide ? uniq([...h, key]) : h.filter((k) => k !== key);
+  if (hide) return uniq([...h, key]);
+  // a body hidden through its feature (the importer hides a file's hidden bodies that way): showing it keeps the others of that feature hidden by their own keys
+  const origin = rows?.find((r) => r.key === key)?.origin;
+  if (origin && h.includes(origin)) return uniq([...h.filter((k) => k !== origin && k !== key), ...(rows ?? []).filter((r) => r.origin === origin && r.key !== key).map((r) => r.key)]);
+  return h.filter((k) => k !== key);
 };
 /** Hide every body but `key` (solo); soloing the only visible body shows all again. */
 export function solo(rows: readonly BodyRow[], key: string): string[] {

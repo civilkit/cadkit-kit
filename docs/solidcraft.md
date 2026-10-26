@@ -81,3 +81,11 @@ Left out most often: sheet metal other than a contour flange, joints other than 
 ## Not done
 
 Assemblies (occurrence placement, joints and multi-body components), sweeps along a path that is not one spline, non-uniform scale, modelled threads, circular patterns of features, and the other feature types listed above. The placeholder row shows its raw type name.
+
+
+## Colours and hidden bodies
+
+`appearances.bodies[name]` of the file (colour 0-255, opacity, and in newer files `pbr`: metallic, roughness, dielectric_ior) becomes the part's
+`appearance` field (`#rrggbb`, `opacity`, `metallic`, `roughness`), keyed by the feature that made the body (the first feature carrying its name; a
+file of one unnamed body colours its first adding feature). `visibility.hidden_bodies` that are still alive at the end become `view.hiddenBodies`
+(feature ids). Bodies of an inserted component are keyed `feature@insert`. Not imported: the index of refraction, per-face colours, hidden joints.

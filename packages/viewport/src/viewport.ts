@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
-import { backToFront, finishParams, hiddenSets, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
+import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
@@ -1295,14 +1295,14 @@ export class Viewport {
     this.faceLookMap = new Map();
     for (const b of spec.bodies) {
       const l = spec.looks[b.key];
-      if (!l || (l.color === undefined && l.finish === undefined)) continue;
-      const fp = l.finish ? finishParams(l.finish) : null;
-      for (const f of b.faces) this.faceLookMap.set(f, { color: l.color ?? null, roughness: fp?.roughness ?? null, metalness: fp?.metalness ?? null });
+      if (!looksTinted(l)) continue;
+      const fp = lookMaterial(l);
+      for (const f of b.faces) this.faceLookMap.set(f, { color: l.color ?? null, roughness: fp.roughness, metalness: fp.metalness });
     }
     for (const [f, l] of Object.entries(spec.faces ?? {})) {
-      if (l.color === undefined && l.finish === undefined) continue;
-      const fp = l.finish ? finishParams(l.finish) : null, prev = this.faceLookMap.get(f);
-      this.faceLookMap.set(f, { color: l.color ?? prev?.color ?? null, roughness: fp?.roughness ?? prev?.roughness ?? null, metalness: fp?.metalness ?? prev?.metalness ?? null });
+      if (!looksTinted(l)) continue;
+      const fp = lookMaterial(l), prev = this.faceLookMap.get(f);
+      this.faceLookMap.set(f, { color: l.color ?? prev?.color ?? null, roughness: fp.roughness ?? prev?.roughness ?? null, metalness: fp.metalness ?? prev?.metalness ?? null });
     }
     if (same || !rebuild || !this.lastBody) return;
     this.setBody(this.lastBody);
@@ -1330,7 +1330,7 @@ export class Viewport {
     tb.keys.forEach((key, k) => {
       if (!isFinite(ext[k].start)) return;
       const look = this.bodyView.looks[key];
-      const op = lookOpacity(look), fp = finishParams(look?.finish ?? 'glass');
+      const op = lookOpacity(look), gl = lookMaterial(look), glassFp = finishParams('glass'), fp = { roughness: gl.roughness ?? glassFp.roughness, metalness: gl.metalness ?? glassFp.metalness };
       const mat = new THREE.MeshStandardMaterial({ color: look?.color ?? '#9fb4c4', roughness: fp.roughness, metalness: fp.metalness * this.metalScale, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
       const mesh = new THREE.Mesh(share(ext[k].start, ext[k].end - ext[k].start), mat);
       mesh.userData.bodyOpacity = op;

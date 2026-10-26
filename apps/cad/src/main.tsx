@@ -2512,7 +2512,7 @@ function App() {
   const bodiesPanel = <BodiesPanel rows={bodyRows}
     selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
     onSelect={(key, add) => store.select([key], add)}
-    onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden))}
+    onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden, bodyRows))}
     onSolo={(key) => setHiddenBodies(solo(bodyRows, key))}
     onShowAll={() => setHiddenBodies(showAll())}
     onHideOthers={() => setHiddenBodies(hideOthers(bodyRows, store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k)))}

@@ -117,3 +117,32 @@ describe('the app and the snapshot renderer agree on keys', () => {
     for (const r of rows) for (const f of r.faces) expect(looks.get(f) ?? {}).toEqual(r.look);
   });
 });
+
+describe('metallic and roughness of a body, and bodies hidden by their feature', () => {
+  it('cleanLook keeps metallic and roughness in 0..1', () => {
+    expect(cleanLook({ color: '#112233', metallic: 2, roughness: 0.3 })).toEqual({ color: '#112233', metallic: 1, roughness: 0.3 });
+    expect(cleanLook({ metallic: 'x' })).toEqual({});
+  });
+  it('a feature id in hiddenBodies hides every body that feature made, and showing one keeps its siblings hidden', () => {
+    const bodies = [{ faces: ['F3.S1'], edges: [], surface: false }, { faces: ['F3.S9'], edges: [], surface: false }, { faces: ['F4.S1'], edges: [], surface: false }] as never;
+    const fields = { view: { hiddenBodies: ['F3'] } };
+    const rows = listBodies(bodies, fields);
+    expect(rows.map((r) => r.hidden)).toEqual([true, true, false]);
+    const next = setHidden(fields, rows[0].key, false, rows);
+    expect(next).toEqual([rows[1].key]);
+    expect(listBodies(bodies, { view: { hiddenBodies: next } }).map((r) => r.hidden)).toEqual([false, true, false]);
+  });
+});
+
+describe('bodies of the components of an assembly', () => {
+  it('a face of an inserted part has the origin feature@insert, not the root feature of the same number', () => {
+    expect(originOf(['F2.S.e12@F6.1', 'F7.S.e1@F6.1'])).toBe('F2@F6');
+    expect(originOf(['F2.S.e1', 'F2.S.e1@F6.1'])).toBe('F2');
+    expect(originOf(['F9.S1@F30.1', 'F2.S1@F31.1'])).toBe('F9@F30');   // components sort by their insert
+  });
+  it('a look keyed feature@insert colours that component body only, and the row is named after the insert', () => {
+    const bodies = [{ faces: ['F2.S1'], edges: [], surface: false }, { faces: ['F2.S1@F6.1'], edges: [], surface: false }] as never;
+    const rows = listBodies(bodies, { appearance: { 'F2@F6': { color: '#ff0000', metallic: 0.5 } } }, { featureName: (id) => (id === 'F6' ? 'Wheel' : id === 'F2' ? 'Plate' : null) });
+    expect(rows.map((r) => [r.name, r.look.color])).toEqual([['Plate', undefined], ['Wheel', '#ff0000']]);
+  });
+});
