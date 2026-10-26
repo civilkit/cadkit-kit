@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.2 - 2026-10-26
+
+### Changed
+- **Large parts open and edit much faster (kernel).** The kernel stored a snapshot of its state after every feature, which for a part with thousands of features meant copying a growing model thousands of times. A part longer than 256 features now stores about 256 evenly spaced snapshots. SELENE-showcase (4,218 features): the kernel's rebuild went from 24-39 s to about 7 s with identical output, and an edit near the end re-runs 53 features (1.3 s) instead of all of them. Parts of 256 features or fewer are unchanged.
+
 ## 0.3.1 - 2026-10-26
 
 ### Fixed
