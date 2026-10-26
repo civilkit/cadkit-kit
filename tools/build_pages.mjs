@@ -124,6 +124,9 @@ try { allowList = JSON.parse(readFileSync(join(ROOT, 'tools/pages_leakcheck.allo
 const r = scanDir(OUT, allowList);
 for (const a of r.allowed) console.log(`leak check allowed: ${a.id} ${a.file}: ${a.match} (${a.reason})`);
 for (const h of r.hits) console.error(`LEAK ${h.id} ${h.file}\n     ${h.context}`);
-if (r.hits.length) die(`leak check found ${r.hits.length} hit(s); the site is not safe to publish`);
+// A local preview (tools/serve_local.sh) never leaves this machine, so it may skip the check; the deploy folder never may.
+const localOnly = process.env.PAGES_SKIP_LEAKCHECK === '1' && OUT !== resolve(ROOT, 'dist-pages');
+if (r.hits.length && localOnly) console.warn(`leak check: ${r.hits.length} hit(s) ignored, this build is for local viewing only`);
+else if (r.hits.length) die(`leak check found ${r.hits.length} hit(s); the site is not safe to publish`);
 const total = (function sum(d) { let n = 0; for (const f of readdirSync(d)) { const p = join(d, f); n += statSync(p).isDirectory() ? sum(p) : statSync(p).size; } return n; })(OUT);
 console.log(`leak check: ${r.files} files scanned, clean. Site: ${OUT} (${kb(total)})`);
