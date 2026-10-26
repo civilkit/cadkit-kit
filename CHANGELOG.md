@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.4 - 2026-10-26
+
+### Fixed
+- **The Display panel could not be scrolled to its last items.** Its height was capped as if the window had a short header, so with the full ribbon the bottom of the list (Grid, Relations, Overall size, Threads, Design issues) sat below the viewport, out of reach. The list now takes the room under its button, whatever the ribbon height, and scrolls inside it.
+
 ## 0.3.3 - 2026-10-26
 
 ### Changed
