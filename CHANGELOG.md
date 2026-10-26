@@ -2,6 +2,15 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.5 - 2026-10-26
+
+### Added
+- **Scale.** The kernel scales bodies about a point by one factor or one per axis (`scale`), exactly where the shape stays exact: planes, cylinders and cones stretched along their axis, free-form faces, and spheres and tori under one factor. Cases that would need an elliptic cylinder or similar are refused with a hint instead of guessed. The SolidCraft importer converts a scale of named bodies. SELENE's own 8 scales are inside components that get their bodies by a body transfer, which is not supported yet, so they are still reported as unsupported there.
+- **Extrema query (kernel, for agents and tools):** the extent of a body or selection along a direction, with the extreme points and what they lie on.
+
+### Changed
+- Kernel update: large parts open and edit faster (see 0.3.2), and the gate now also runs the fillet corpus.
+
 ## 0.3.4 - 2026-10-26
 
 ### Fixed

@@ -329,3 +329,21 @@ describe('coil', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
     expect(Math.abs(out.volume - 4 * 2 * Math.PI * 21 * 1.5) / out.volume).toBeLessThan(5e-3);
   });
 });
+
+describe('scale', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
+  it('a cylinder stretched along its axis and a box stretched along their y, as in SELENE: volume times the factor, nothing else changes', async () => {
+    const doc = {
+      format: 'solidcraft/30', units: 'mm', params: [],
+      features: [
+        { id: 1, name: 'Shaft', type: 'cylinder', suppressed: false, axis: [0, 1, 0], base: [177, -17, 145], height: '34', radius: '3', operation: 'new_body', body_names: ['Shaft'] },
+        { id: 2, name: 'Brace', type: 'box', suppressed: false, corner: [268.24, -5, 248.04], length: '8', width: '10', height: '8', operation: 'new_body', body_names: ['Brace'] },
+        { id: 3, name: 'Scale1', type: 'scale', suppressed: false, bodies: ['Shaft'], factor: '1', factors: ['1', '1.088235294117647', '1'], origin: [177, 0, 165] },
+        { id: 4, name: 'Scale2', type: 'scale', suppressed: false, bodies: ['Brace'], factor: '1', factors: ['1', '1.84', '1'], origin: [0, 0, 0] },
+      ],
+    };
+    const { r, errors, volume } = await volumeOf(doc);
+    expect(r.rows.filter((x) => x.status !== 'converted'), JSON.stringify(r.rows)).toEqual([]);
+    expect(errors).toEqual([]);
+    expect(volume).toBeCloseTo(Math.PI * 9 * 34 * 1.088235294117647 + 8 * 10 * 8 * 1.84, 3);
+  });
+});

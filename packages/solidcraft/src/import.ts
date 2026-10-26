@@ -419,7 +419,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
    * The file refers to bodies by name (a target, a move, a combine, a remove, an intersect) or makes several: then every new body is a
    * named `newBody` lump, so what comes later can find it. A file of one body keeps the plain output (`add`).
    */
-  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || (Array.isArray(q.targets) && q.targets.length > 0)))
+  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'scale', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || (Array.isArray(q.targets) && q.targets.length > 0)))
     || (doc.features as Rec[]).filter((q) => !q.suppressed && q.operation === 'new_body').length > 1;
   /** names of the bodies alive, in creation order; `bodyCount` is how many were ever made (unnamed ones are Body1, Body2, ... in that order) */
   let live: string[] = [];
@@ -1024,6 +1024,19 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
           bodyCount++; live.push(nm); m.copy = true; m.body = nm;
         }
         features.push(m);
+        return [];
+      }
+      case 'scale': {
+        // a scale of whole bodies about a point: one factor, or one per axis (`factors` wins; the lone `factor` is dead
+        // when it is there); their Z-up axes become ours (their y is our z, their z our y)
+        const srcs = Array.isArray(f.bodies) ? (f.bodies as string[]) : [];
+        if (!srcs.length) throw new Unsupported('a scale of no body');
+        for (const b of srcs) if (!live.includes(b)) throw new Unsupported(`"${f.name}" scales the body "${b}", which does not exist at this point`);
+        const fs = Array.isArray(f.factors) && f.factors.length === 3 ? (f.factors as unknown[]).map((x) => num(x, 'scale factor')) : [num(f.factor ?? 1, 'scale factor')];
+        if (fs.some((x) => !(x > 0))) throw new Unsupported('a scale factor that is not above zero');
+        const about = toYUp((((f.origin as unknown[] | undefined) ?? [0, 0, 0]).map((x) => num(x, 'scale origin'))) as V3).map(clean);
+        const m: FeatureJson = { type: 'scale', id: nid(), name: f.name, bodies: srcs.map((b) => ({ body: b })), factor: fs.length === 3 ? [fs[0], fs[2], fs[1]].map(clean) : fs[0], at: about };
+        if (fs.length === 1 ? fs[0] !== 1 : fs.some((x) => x !== 1)) features.push(m);
         return [];
       }
       case 'combine': {

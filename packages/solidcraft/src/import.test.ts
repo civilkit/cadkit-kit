@@ -164,6 +164,20 @@ describe('what is refused or reported', () => {
     expect(await make({ reserved_body_names: ['Body2'] })).toEqual(['Body1', 'Body3']);
     expect(await make({})).toEqual(['Body1', 'Body2']);   // a file saved before format 33 has no such list and keeps the plain counter
   });
+  it('a scale of a named body becomes a scale feature: their axes are turned into ours (their y is our z), `factors` wins over the dead `factor`', async () => {
+    const r = await importSolidcraftDocument(doc([
+      sketch(1), extrude(2, 1, { body_names: ['Shaft'] }),
+      { id: 3, name: 'Scale1', type: 'scale', suppressed: false, bodies: ['Shaft'], factor: '1', factors: ['1', '1.5', '2'], origin: [10, 20, 30] },
+      { id: 4, name: 'Scale2', type: 'scale', suppressed: false, bodies: ['Shaft'], factor: '2', origin: [0, 0, 0] },
+      { id: 5, name: 'Same', type: 'scale', suppressed: false, bodies: ['Shaft'], factors: ['1', '1', '1'], origin: [0, 0, 0] },
+      { id: 6, name: 'Nobody', type: 'scale', suppressed: false, bodies: ['Gone'], factor: '2', origin: [0, 0, 0] },
+    ]), 'x');
+    const f = r.part!.features as Array<Record<string, any>>;
+    expect(f.find((x) => x.name === 'Scale1')).toMatchObject({ type: 'scale', bodies: [{ body: 'Shaft' }], factor: [1, 2, 1.5], at: [10, 30, -20] });
+    expect(f.find((x) => x.name === 'Scale2')).toMatchObject({ type: 'scale', factor: 2, at: [0, 0, 0] });
+    expect(f.find((x) => x.name === 'Same')).toBeUndefined();   // a factor of one changes nothing
+    expect(r.rows.find((x) => x.name === 'Nobody')).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/does not exist/) });
+  });
   it('several bodies: new bodies are named newBody lumps; a targeted cut, move, combine and remove refer to them by name', async () => {
     const r = await importSolidcraftDocument(doc([
       sketch(1), extrude(2, 1, { body_names: ['Block'] }),
