@@ -376,6 +376,8 @@ export const en: Catalog = {
   'feature.splitLine': 'Split line',
   'feature.moveFace': 'Move face',
   'feature.moveBody': 'Move or copy body', 'feature.sphere': 'Sphere',
+  'opt.scale.title': 'Scale', 'opt.scale.uniform': 'Same in every direction', 'opt.scale.factor': 'Factor', 'opt.scale.x': 'Factor X', 'opt.scale.y': 'Factor Y', 'opt.scale.z': 'Factor Z',
+  'opt.scale.about': 'About', 'opt.scale.about.centroid': 'Centre of mass', 'opt.scale.about.origin': 'Origin', 'opt.scale.about.point': 'A point', 'opt.scale.point': 'Point', 'opt.scale.bodies': 'Bodies', 'opt.scale.all': 'The whole part',
   'opt.sphere.title': 'Sphere', 'opt.sphere.radius': 'Radius', 'opt.sphere.centerX': 'Centre X', 'opt.sphere.centerY': 'Centre Y', 'opt.sphere.centerZ': 'Centre Z',
   'feature.importedUnsupported': 'Not imported',
   'feature.scale': 'Scale',
@@ -757,7 +759,7 @@ export const en: Catalog = {
   'app.noAxis': 'Draw a construction line for the axis', 'app.hole.hint': 'Place the hole centres with the Point tool or use Corner holes, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
   // ---- feature creators (featureCreators.ts)
   'tab.Features': 'Features', 'tab.Surfaces': 'Surfaces',
-  'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-mirror': 'Mirror', 'cmd.add-helix': 'Helix',
+  'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-mirror': 'Mirror', 'cmd.add-scale': 'Scale', 'cmd.add-helix': 'Helix',
   'cmd.add-gear': 'Gear', 'cmd.add-gear-pair': 'Gear pair', 'feature.gear': 'Gear',
   'gear.title': 'Gear', 'gear.section.gear': 'Gear', 'gear.section.shaft': 'Bore and hub', 'gear.section.tooth': 'Tooth form', 'gear.section.pair': 'Mating gear', 'gear.section.readout': 'Readout',
   'gear.type': 'Type', 'gear.type.spur': 'Spur', 'gear.type.spurTip': 'External spur gear', 'gear.type.internal': 'Ring', 'gear.type.internalTip': 'Internal (ring) gear',

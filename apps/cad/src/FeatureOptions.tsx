@@ -142,6 +142,31 @@ function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }):
   );
 }
 
+/** Scale bodies: one factor for every direction, or one per axis (the kernel stretches along cylinder and cone axes and refuses what it cannot keep exact), and the point it grows from. */
+function ScaleOptions(p: { eff: Wire; change: Change }): JSX.Element {
+  const { eff, change } = p;
+  const raw = eff.factor ?? eff.factors;
+  const per = Array.isArray(raw) && raw.length === 3 ? raw : null;
+  const uniform = !per || per.every((v) => v === per[0]);
+  const one = per ? per[0] : raw ?? 1;
+  const at = Array.isArray(eff.at) ? eff.at : Array.isArray(eff.origin) ? eff.origin : null;
+  const about = at ? 'point' : eff.about === 'origin' ? 'origin' : 'centroid';
+  const bodies = Array.isArray(eff.bodies) ? eff.bodies : eff.bodies !== undefined ? [eff.bodies] : [];
+  const axis = (i: number, v: number | string) => change({ factor: [0, 1, 2].map((k) => (k === i ? v : per?.[k] ?? one)), factors: null });
+  return (
+    <Section id="scale" title={t('opt.scale.title')}>
+      <Check name="uniform" label={t('opt.scale.uniform')} value={uniform} onChange={(v) => change({ factor: v ? one : [one, one, one], factors: null })} />
+      {uniform
+        ? <Num name="factor" label={t('opt.scale.factor')} value={one} unit="" plain onChange={(v) => change({ factor: v, factors: null })} />
+        : [t('opt.scale.x'), t('opt.scale.y'), t('opt.scale.z')].map((label, i) => <Num key={i} name={`factor.${i}`} label={label} value={per?.[i] ?? one} unit="" plain onChange={(v) => axis(i, v)} />)}
+      <Select name="about" label={t('opt.scale.about')} value={about} options={[['centroid', t('opt.scale.about.centroid')], ['origin', t('opt.scale.about.origin')], ...(at ? [['point', t('opt.scale.about.point')] as [string, string]] : [])]}
+        onChange={(v) => change({ about: v === 'origin' ? 'origin' : null, at: v === 'point' ? at : null, origin: null })} />
+      {at ? <RefText name="at" label={t('opt.scale.point')} text={at.map(fmtNum).join(', ')} /> : null}
+      <RefText name="bodies" label={t('opt.scale.bodies')} text={bodies.length ? bodies.map(bodyRefText).join(', ') : t('opt.scale.all')} />
+    </Section>
+  );
+}
+
 /** A ball: where its centre is, how big, and whether it is a body of its own, joins the part or cuts it. */
 function SphereOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
   const { eff, change } = p;
@@ -586,6 +611,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
     case 'combine': return { hide, node: <CombineOptions {...common} /> };
     case 'sphere': return { hide, node: <SphereOptions {...common} doc={doc} /> };
+    case 'scale': return { hide, node: <ScaleOptions {...common} /> };
     case 'moveBody': return { hide, node: <MoveBodyOptions {...common} doc={doc} /> };
     case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };

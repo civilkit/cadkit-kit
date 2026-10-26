@@ -210,6 +210,7 @@ const ICONS: Record<string, string> = {
   'add-rib': P('M3 19h18') + T('M3 19V9M21 19V9') + P('M8 19V10h3v9') + A('M9.5 10V5'),
   'add-lip': P('M4 16h16') + P('M4 16v-4h3v-3h10v3h3v4') + A('M7 9h10') + T('M4 20h16'),
   'add-mirror': P('M4 7l6 3v7l-6-3z') + P('M20 7l-6 3v7l6-3z') + C('M12 4v16') + A('M10.5 12h3M12 10.5 13.5 12 12 13.5'),
+  'add-scale': P('M4 13h7v7H4z') + C('M4 4h16v16H4z') + A('M12 12l7-7M14.5 5H19v4.5'),
   'add-helix': P('M7 19c8 0 10-2 10-3.5S9 13 7 12.5') + P('M7 12.5c8 0 10-2 10-3.5S9 6.5 7 6') + A('M17 15.5v-6.5') + T('M7 19V6'),
   'add-pipe-cut': P('M3 9c4-3 14-3 18 0v6c-4 3-14 3-18 0z') + C('M3 12c4 3 14 3 18 0') + A('M12 5v8M9.5 10.5 12 13l2.5-2.5'),
   'add-delete-body': P(HEX) + T(Y) + A('M8 8l8 8M16 8l-8 8', 2),

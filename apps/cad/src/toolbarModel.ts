@@ -55,7 +55,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   Features: [
     { id: 'Reference', entries: [slot('reference')] },
     { id: 'Create', entries: [slot('gear')] },
-    { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-pipe-cut'] },
+    { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-scale', 'add-pipe-cut'] },
     { id: 'Bodies', entries: [slot('delete-geom')] },
   ],
   Surfaces: [
@@ -89,7 +89,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
-  { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'triball', 'add-pipe-cut', slot('delete-geom')] },
+  { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'add-scale', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'surfaces', entries: [slot('surface-new'), slot('surface-reshape'), slot('surface-edit')] },
   { id: 'pattern', entries: [slot('pattern')] },
   { id: 'inspect', entries: [slot('measure'), slot('surface-check')] },

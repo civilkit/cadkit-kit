@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
 import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
-import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, type BodyMesh, type Grouped } from './meshgeom';
+import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
@@ -1223,7 +1223,11 @@ export class Viewport {
     const hid = hiddenSets(this.bodyView);
     const merged = hid.faces.size ? { ...merged0, ...withoutFaces(merged0.mesh, merged0.edges, hid.faces, hid.edges) } : merged0;
     const tb = transparentBodies(this.bodyView);
-    if (body.mesh.triFace.length > 0 || body.surfaces?.length) this.box = mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
+    if (body.mesh.triFace.length > 0 || body.surfaces?.length) {
+      // Fit frames what is drawn: bodies the document hides (a file's ground strip, a helper body) must not stretch the view
+      const anyHidden = hid.faces.size > 0 || this.hiddenIds.size > 0;
+      this.box = (anyHidden && positionsBox(merged.mesh.positions)) || mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
+    }
     if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds); this.dirty = true; return; }
     const g = groupByFace(merged.mesh, tb.keys.length ? (n) => tb.rank.get(n) ?? 0 : undefined);
     const geo = new THREE.BufferGeometry();

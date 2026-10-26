@@ -76,3 +76,11 @@ export function withoutOwned<E extends { key?: string }>(mesh: BodyMesh, edges: 
   });
   return { mesh: { positions, normals, triFace, faceIds: mesh.faceIds }, edges: keptEdges };
 }
+
+/** The box around a position array (x, y, z triples), or null when it is empty. */
+export function positionsBox(p: ArrayLike<number>): { min: [number, number, number]; max: [number, number, number] } | null {
+  if (p.length < 3) return null;
+  const min: [number, number, number] = [Infinity, Infinity, Infinity], max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i + 2 < p.length; i += 3) for (let a = 0; a < 3; a++) { const v = p[i + a]; if (v < min[a]) min[a] = v; if (v > max[a]) max[a] = v; }
+  return min.every(Number.isFinite) ? { min, max } : null;
+}

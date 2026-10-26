@@ -160,6 +160,22 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     expect((await f.stats()).errors).toEqual([]);
   });
 
+  it('scale: the part doubles about its centre of mass; per-axis factors stretch it', async () => {
+    const w = await world(box());
+    expect(w.cmd('add-scale').enabled!()).toBe(true);
+    const before = await w.stats();
+    await w.run('add-scale');
+    expect(last(w)).toMatchObject({ type: 'scale', factor: 2 });
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    expect(after.volume).toBeCloseTo(before.volume * 8, 2);
+    const id = String(last(w).id);
+    await w.controller.edit([{ op: 'set', id, path: 'factor', value: [1, 3, 1] } as never]);
+    const tall = await w.stats();
+    expect(tall.errors).toEqual([]);
+    expect(tall.volume).toBeCloseTo(before.volume * 3, 2);
+  });
+
   it('lip: a raised band along the edges of the picked face', async () => {
     const w = await world(box());
     expect(w.cmd('add-lip').enabled!()).toBe(false);

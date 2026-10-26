@@ -2,6 +2,15 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.8 - 2026-10-27
+
+### Added
+- **Scale command.** Features > Modify > Scale scales the whole part about its centre of mass (a factor of 2 to start). The options panel takes one factor, or one per axis, the point it grows from (centre of mass, the origin, or a point) and shows the bodies it acts on. Per-axis stretches stay exact for planes, cylinders and cones along their axis and B-splines; the kernel refuses (and says why) what it cannot keep exact, for example a cylinder stretched across its axis.
+
+### Fixed
+- **A file's hidden bodies no longer stretch the view.** Fit framed the box around every body, including ones the file hides (SELENE-functional's 21 track ridges are 1.5 m wide and hidden), so the rover opened small in the middle of an empty view. Fit now frames what is drawn.
+- **SolidCraft import: sketches and datum planes stay out of the way.** Imported sketches and planes are hidden (shown again from the tree), as SolidCraft hides the ones its features have consumed; before, thousands of orange sketch lines and blue plane patches covered a large model.
+
 ## 0.3.7 - 2026-10-26
 
 ### Fixed

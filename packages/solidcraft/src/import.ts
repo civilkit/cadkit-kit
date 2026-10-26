@@ -1425,6 +1425,8 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
   }
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
+  // their sketches and datum planes are consumed by the features that use them and are not drawn; ours stay out of the way the same way (shown again from the tree)
+  for (const f of features) if ((f.type === 'sketch' || f.type === 'plane') && f.visible === undefined) f.visible = false;
   return {
     name, part: { ...part(), ...bodyLooks(doc, features, live) }, rows,
     summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) },

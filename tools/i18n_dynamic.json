@@ -538,6 +538,7 @@
   "cmd.add-pipe-cut",
   "cmd.add-plane",
   "cmd.add-revolve",
+  "cmd.add-scale",
   "cmd.add-rib",
   "cmd.add-shell",
   "cmd.add-surface-extrude",

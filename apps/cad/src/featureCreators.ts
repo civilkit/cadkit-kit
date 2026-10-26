@@ -211,6 +211,10 @@ export function mirrorOps(c: Ctx): EditOp[] | null {
   const plane = faces.length === 1 ? { kind: 'face', id: faces[0] } : { kind: 'std', id: 'right' };
   return [{ op: 'add', feature: { type: 'mirror', seeds: [seed.id], plane, body: false } }];
 }
+/** The whole part scaled to twice its size about its centre of mass: the options panel sets the factor (one number, or one per axis), the centre and which bodies. */
+export function scaleOps(c: Ctx): EditOp[] | null {
+  return c.doc ? [{ op: 'add', feature: { type: 'scale', factor: 2 } }] : null;
+}
 export function helixOps(c: Ctx): EditOp[] | null {
   const sk = sketchWhere(c, hasCircle);
   if (!sk) return null;
@@ -496,6 +500,7 @@ export const CREATORS: Creator[] = [
   { id: 'add-rib', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && ok((x) => sketchWhere(x, isOpenSketch))(c), ops: ribOps },
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
+  { id: 'add-scale', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c), ops: scaleOps },
   { id: 'add-gear', tab: 'Features', group: 'Create', keys: 'Shift+Y', enabled: doc, ops: (c) => gearCreateOps(c) },
   { id: 'add-gear-pair', tab: 'Features', group: 'Create', enabled: doc, ops: (c) => gearCreateOps(c, true) },
   { id: 'add-helix', tab: 'Features', group: 'Curves', enabled: ok((c) => sketchWhere(c, hasCircle)), ops: helixOps },

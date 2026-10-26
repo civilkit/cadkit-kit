@@ -250,6 +250,22 @@ describe('the editors of the body features', () => {
     fireEvent.input(y, { target: { value: '7' } }); fireEvent.change(y, { target: { value: '7' } });
     expect(m.drafts.at(-1)).toMatchObject({ center: [1, 7, 3] });
   });
+  it('scale: one factor, or one per axis; about the centre of mass, the origin or a point', () => {
+    const m = mount({ type: 'scale', id: 'F5', factor: 2 });
+    expect((m.q('factor')!.querySelector('input') as HTMLInputElement).value).toBe('2');
+    expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('The whole part');
+    expect(m.box('uniform').checked).toBe(true);
+    fireEvent.click(m.box('uniform'));
+    expect(m.drafts.at(-1)).toMatchObject({ factor: [2, 2, 2], factors: null });
+    const n = mount({ type: 'scale', id: 'F5', factor: [1, 3, 1], at: [0, 5, 0], bodies: [{ body: 'Arm' }] });
+    expect(n.box('uniform').checked).toBe(false);
+    expect([0, 1, 2].map((i) => (n.q(`factor.${i}`)!.querySelector('input') as HTMLInputElement).value)).toEqual(['1', '3', '1']);
+    expect((n.q('at')!.querySelector('input') as HTMLInputElement).value).toBe('0, 5, 0');
+    expect((n.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Arm');
+    const y = n.q('factor.1')!.querySelector('input') as HTMLInputElement;
+    fireEvent.input(y, { target: { value: '4' } }); fireEvent.change(y, { target: { value: '4' } });
+    expect(n.drafts.at(-1)).toMatchObject({ factor: [1, 4, 1] });
+  });
   it('delete or keep: the bodies in words next to the mode', () => {
     const m = mount({ type: 'deleteBody', id: 'F8', mode: 'delete', bodies: [{ body: 'Peg' }, { lump: 0 }] });
     expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Peg, body 1');

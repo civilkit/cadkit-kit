@@ -48,6 +48,7 @@ export function managedPaths(type: string): Set<string> {
     case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
     case 'moveBody': return new Set(['copy', 'body']);
+    case 'scale': return new Set(['factor', 'factors', 'about', 'at', 'origin']);
     case 'deleteBody': return new Set(['bodies']);
     case 'fill': return new Set(['continuity', 'fairing', 'merge']);
     case 'extend': return new Set(['distance', 'shape', 'end']);

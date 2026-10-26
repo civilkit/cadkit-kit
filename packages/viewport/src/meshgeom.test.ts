@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupByFace, faceOfVertexIndex, edgeSegments, facesGeometry, namesBox } from './meshgeom';
+import { groupByFace, faceOfVertexIndex, edgeSegments, facesGeometry, namesBox, positionsBox } from './meshgeom';
 
 const tri = (z: number) => [0, 0, z, 1, 0, z, 0, 1, z];
 const mesh = {
@@ -72,4 +72,11 @@ describe('nameOwner / withoutOwned (feature hide)', () => {
     expect(r.edges.map((e) => e.key)).toEqual(['F2.C0|F7.C1#0', undefined]);
     expect(withoutOwned(m, edges, new Set(['F9'])).mesh).toBe(m);
   });
+});
+
+describe('positionsBox', () => {
+  it('bounds the vertices', () => {
+    expect(positionsBox(new Float32Array([1, 2, 3, -4, 5, 0, 2, -1, 9]))).toEqual({ min: [-4, -1, 0], max: [2, 5, 9] });
+  });
+  it('is null for nothing', () => { expect(positionsBox(new Float32Array(0))).toBeNull(); });
 });
