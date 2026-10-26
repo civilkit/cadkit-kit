@@ -31,3 +31,4 @@ export interface HandleStore {
 
 export { createWebPlatform } from './web';
 export { saveDocumentWith, readHandleWith, idbHandleStore, type FsEnv } from './fsaccess';
+export { gzipText, bytesText, fileText, isGzip, wantsGzip } from './gzip';

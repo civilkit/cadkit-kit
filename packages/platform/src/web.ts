@@ -1,7 +1,8 @@
 import type { Platform } from './index';
 import { idbHandleStore, readHandleWith, saveDocumentWith, type FsEnv } from './fsaccess';
+import { fileText } from './gzip';
 
-const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json' };
+const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json', gz: 'application/gzip' };
 const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
@@ -17,7 +18,7 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
           const f = input.files?.[0];
           if (!f) return resolve(null);
           if (/\.(fcstd|sldprt|skp|solidcraft)$/i.test(f.name)) return resolve({ name: f.name, text: '', bytes: new Uint8Array(await f.arrayBuffer()) });   // binary container: text would be garbage
-          resolve({ name: f.name, text: await f.text() });
+          resolve({ name: f.name, text: await fileText(f) });
         };
         // Cancel has no change event; a later focus with no selection means cancel.
         input.oncancel = () => resolve(null);

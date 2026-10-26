@@ -1,5 +1,7 @@
 .saveas-body { display: flex; flex-direction: column; gap: 6px; padding: 12px; }
 .saveas-body label { display: flex; flex-direction: column; gap: 4px; }
+.saveas-body label.saveas-gz { flex-direction: row; align-items: center; gap: 6px; cursor: pointer; }
+.saveas-body label.saveas-gz input { padding: 0; border: 0; }
 .saveas-body input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; }
 .saveas-body small { color: var(--muted, #667); min-height: 1.2em; }
 .drop-overlay { position: fixed; inset: 0; z-index: 90; background: #0a101766; display: flex; align-items: center; justify-content: center; pointer-events: none; }

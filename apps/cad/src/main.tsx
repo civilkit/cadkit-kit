@@ -25,7 +25,7 @@ import {
   BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext,
   type HistoryFilter,
 } from '@kit/ui';
-import { createWebPlatform } from '@kit/platform';
+import { createWebPlatform, fileText } from '@kit/platform';
 import { Controller, type ViewSink } from './controller';
 import { TabSet } from './tabs/tabSet';
 import { TabStrip, type TabInfo } from './tabs/TabStrip';
@@ -996,7 +996,7 @@ function App() {
     const plan = planDrop(list.map((f) => f.name));
     if (plan.action === 'none') return;
     if (plan.action === 'multiple') { store.notify(t('files.drop.one'), 'warn'); return; }
-    openByKind(plan.name, () => list[0].text(), plan.kind, async () => new Uint8Array(await list[0].arrayBuffer()));
+    openByKind(plan.name, () => fileText(list[0]), plan.kind, async () => new Uint8Array(await list[0].arrayBuffer()));
   };
   const openRecent = (e: RecentEntry) => {
     setSamples(null);
@@ -1044,7 +1044,7 @@ function App() {
     script: () => showScript(),
     propeller: () => openPropeller(),
     impeller: () => openImpeller(),
-    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.gz', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { t } from '../i18n';
 import { ago } from './strings';
-import { fileNameFor } from './names';
+import { fileNameFor, isCompressedName } from './names';
 import type { Snapshot } from './snapshots';
 import './files.css';
 
@@ -53,11 +53,12 @@ export function RecoverDialog(p: { load(): Promise<Snapshot[]>; now?: number; on
   );
 }
 
-/** Save As: asks for the name. `.ckpart` is added. */
+/** Save As: asks for the name. `.ckpart` is added, `.gz` too when compressed. */
 export function SaveAsDialog(p: { initial: string; onSave(fileName: string): void; onCancel(): void }) {
   const [v, setV] = useState(p.initial);
+  const [gz, setGz] = useState(isCompressedName(p.initial));
   useEscape(p.onCancel);
-  const file = fileNameFor(v);
+  const file = fileNameFor(v, gz);
   const submit = () => { if (file) p.onSave(file); };
   return (
     <div class="dlg-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onCancel(); }}>

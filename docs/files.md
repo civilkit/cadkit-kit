@@ -42,3 +42,6 @@ document or preference field and conversion in every panel, so it was not added.
 
 ## New part
 `New` opens a blank part named Part1, Part2, ... (counter per session; opening a part named PartN moves the counter past N).
+
+## Compressed parts
+A file whose name ends in `.gz` (`part.ckpart.gz`) is written gzip-compressed: the platform layer compresses when the name the file ended up with (the picker may change it) ends in `.gz`, so the Save As box, the browser's picker and a plain download all agree. Reading is by content, not by name: bytes that start with the gzip magic (`1f 8b`) are decompressed first, so Open, drag and drop and the recent list need no special case. The browser's `CompressionStream` does the work; where it is missing the text is written plain (the file still opens). The kernel and the corpus tools read plain JSON only: `gunzip` a part before giving it to them.

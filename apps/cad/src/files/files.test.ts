@@ -106,6 +106,12 @@ describe('names', () => {
     expect(fileNameFor('  Bracket.FWPART ')).toBe('Bracket.ckpart');
     expect(fileNameFor('a/b:c')).toBe('a_b_c.ckpart');
     expect(fileNameFor('...')).toBeNull();
+    expect(fileNameFor('Bracket', true)).toBe('Bracket.ckpart.gz');
+    expect(fileNameFor('Bracket.ckpart.gz', true)).toBe('Bracket.ckpart.gz');
+    expect(fileNameFor('Bracket.ckpart.gz')).toBe('Bracket.ckpart');
+    expect(partNameOf('Bracket.ckpart.gz')).toBe('Bracket');
+    expect(dropKind('Bracket.ckpart.gz')).toBe('part');
+    expect(dropKind('notes.txt.gz')).toBe('unknown');
     expect(fileNameFor('   ')).toBeNull();
     expect(partNameOf('Bracket.ckpart')).toBe('Bracket');
   });

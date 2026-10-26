@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.6 - 2026-10-26
+
+### Added
+- **Compressed parts.** Save As has a "Compress" box, which saves the part as `name.ckpart.gz` (gzip). A part is very repetitive JSON: SELENE's 1.9 MB comes out at 138 KB. Opening, dropping and the recent list accept `.ckpart.gz`, and any file that starts with the gzip header is read as compressed whatever its name. Saving over an open `.gz` file keeps it compressed. Plain `.ckpart` stays the default and stays plain JSON, so other tools and diffs still work.
+
 ## 0.3.5 - 2026-10-26
 
 ### Added

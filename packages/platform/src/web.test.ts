@@ -129,7 +129,7 @@ describe('createWebPlatform openFile', () => {
   /** Run openFile with a stand-in for the browser's file picker that "chooses" `file`. */
   const pick = async (spec: { name: string; bytes?: Uint8Array; text?: string }) => {
     // jsdom's File has no arrayBuffer() / text(): a stand-in with the two
-    const file = { name: spec.name, arrayBuffer: async () => (spec.bytes ?? new Uint8Array()).buffer, text: async () => spec.text ?? '' };
+    const file = { name: spec.name, arrayBuffer: async () => (spec.bytes ?? new TextEncoder().encode(spec.text ?? '')).buffer, text: async () => spec.text ?? '' };
     const orig = document.createElement.bind(document);
     vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
       const el = orig(tag);

@@ -15,7 +15,7 @@ export const filesEn = {
   'files.recover.title': 'Recover earlier versions', 'files.recover.empty': 'No earlier versions are kept yet.',
   'files.recover.row': '{name}: {features} features, {when}', 'files.recover.restore': 'Restore', 'files.recover.close': 'Close',
   'files.recover.reason.auto': 'automatic', 'files.recover.reason.undo': 'before an undo', 'files.recover.reason.drop': 'before a large drop', 'files.recover.reason.load': 'before opening another part',
-  'files.saveAs.title': 'Save as', 'files.saveAs.label': 'File name', 'files.saveAs.hint': 'Saved as {file}', 'files.saveAs.save': 'Save',
+  'files.saveAs.title': 'Save as', 'files.saveAs.label': 'File name', 'files.saveAs.hint': 'Saved as {file}', 'files.saveAs.save': 'Save', 'files.saveAs.compress': 'Compress (.gz, about 10 times smaller)',
   'files.saved': 'Saved {file}', 'files.saveFailed': 'Could not save: {message}',
   'files.autosave.tooBig': 'This part is too large for automatic backup in the browser. Save it to a file to be safe.',
   'files.autosave.quota': 'The browser has no room left for the automatic backup. Save to a file to be safe.',

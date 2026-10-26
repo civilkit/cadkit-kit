@@ -1,12 +1,13 @@
 // File System Access API support, kept apart from web.ts so it can be tested with fakes. Every browser object comes in
 // through `FsEnv`; nothing here touches `window`.
 import type { HandleStore, SavedDocument } from './index';
+import { fileText, gzipText, wantsGzip } from './gzip';
 
-interface Writable { write(d: string): Promise<void>; close(): Promise<void> }
+interface Writable { write(d: string | Uint8Array): Promise<void>; close(): Promise<void> }
 export interface FsHandle {
   name: string;
   createWritable(): Promise<Writable>;
-  getFile?(): Promise<{ text(): Promise<string> }>;
+  getFile?(): Promise<{ arrayBuffer?(): Promise<ArrayBuffer>; text?(): Promise<string> }>;
   queryPermission?(o: { mode: 'read' | 'readwrite' }): Promise<string>;
   requestPermission?(o: { mode: 'read' | 'readwrite' }): Promise<string>;
 }
@@ -14,7 +15,7 @@ export interface FsEnv {
   /** `window.showSaveFilePicker`, absent in browsers without the API. */
   showSaveFilePicker?: (o: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<FsHandle>;
   /** Plain download, the fallback. */
-  download(name: string, data: string): Promise<void>;
+  download(name: string, data: string | Uint8Array): Promise<void>;
 }
 
 const isAbort = (e: unknown) => (e as { name?: string })?.name === 'AbortError';
@@ -29,7 +30,7 @@ async function ensureWrite(h: FsHandle): Promise<boolean> {
 
 async function write(h: FsHandle, data: string): Promise<void> {
   const w = await h.createWritable();
-  await w.write(data);
+  await w.write(wantsGzip(h.name) ? await gzipText(data) : data);   // the name the file ended up with decides, the picker may have changed it
   await w.close();
 }
 
@@ -41,7 +42,7 @@ export async function saveDocumentWith(env: FsEnv, name: string, data: string, o
   }
   if (env.showSaveFilePicker) {
     try {
-      const h = await env.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Part', accept: { 'application/json': ['.ckpart'] } }] });
+      const h = await env.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Part', accept: { 'application/json': ['.ckpart'] } }, { description: 'Compressed part', accept: { 'application/gzip': ['.gz'] } }] });
       await write(h, data);
       return { name: h.name, handle: h };
     } catch (e) {
@@ -49,7 +50,7 @@ export async function saveDocumentWith(env: FsEnv, name: string, data: string, o
       // any other failure (blocked in a frame, disk error): fall through to a download so the work is not lost
     }
   }
-  await env.download(name, data);
+  await env.download(name, wantsGzip(name) ? await gzipText(data) : data);
   return { name, handle: null };
 }
 
@@ -61,7 +62,7 @@ export async function readHandleWith(handle: unknown): Promise<{ name: string; t
       if ((await h.requestPermission?.({ mode: 'read' })) !== 'granted') return 'denied';
     }
     const f = await h.getFile();
-    return { name: h.name, text: await f.text() };
+    return { name: h.name, text: await fileText(f) };
   } catch { return null; }
 }
 
