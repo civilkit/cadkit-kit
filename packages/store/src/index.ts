@@ -17,7 +17,7 @@ export const BODY = '@body';
 export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number; /** a button on the toast, e.g. Undo */ action?: { label: string; run(): void } }
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
-export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: true, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
+export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: false, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
 export interface Workspace {
   ribbon: 'full' | 'compact' | 'off';
   leftPanel: 'docked' | 'floating' | 'hidden';
@@ -49,8 +49,10 @@ export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
   classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'docked', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
   minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
 };
-/** Merge stored workspace settings over the default preset, dropping unknown keys and bad values. */
-export function sanitizeWorkspace(raw: unknown, base: Workspace = WORKSPACE_PRESETS.plasticity): Workspace {
+/** What a first visit starts with (and what stored settings are merged over): the full ribbon, a floating left panel with tabs, the inspector docked right, no tool rail, selection bar or bottom drawer. It is none of the three presets, so the settings dialog calls it "Custom". */
+export const DEFAULT_WORKSPACE: Workspace = { ...WORKSPACE_PRESETS.plasticity, ribbon: 'full', leftPanel: 'floating', rightPanel: 'docked', toolRail: false, selectionBar: false, drawerOpen: false };
+/** Merge stored workspace settings over the default layout, dropping unknown keys and bad values. */
+export function sanitizeWorkspace(raw: unknown, base: Workspace = DEFAULT_WORKSPACE): Workspace {
   const out: Workspace = { ...base };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;

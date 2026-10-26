@@ -26,8 +26,14 @@ describe('store', () => {
     expect(s.display.value.sketches).toBe(true);
     expect(createStore({ planes: false }).display.value.planes).toBe(false);
   });
-  it('defaults to the Plasticity-style workspace and applies presets', () => {
+  it('starts with planes hidden', () => {
+    expect(createStore().display.value.planes).toBe(false);
+    expect(createStore({ planes: true }).display.value.planes).toBe(true);
+  });
+  it('defaults to the full-ribbon floating-panel layout and applies presets', () => {
     const s = createStore();
+    expect(s.workspace.value).toMatchObject({ ribbon: 'full', leftPanel: 'floating', leftTabs: true, rightPanel: 'docked', toolRail: false, sketchPalette: false, selectionBar: false, drawerOpen: false, handles: true, toolLabels: 'icons-and-text' });
+    s.applyPreset('plasticity');
     expect(s.workspace.value.ribbon).toBe('off');
     expect(s.workspace.value.toolRail).toBe(true);
     s.applyPreset('classic');
@@ -45,18 +51,18 @@ describe('store', () => {
   });
   it('setWorkspace changes only what it is given and clamps bad values', () => {
     const s = createStore();
-    s.setWorkspace({ toolRail: false, opacity: 5, blur: -3 });
-    expect(s.workspace.value.toolRail).toBe(false);
+    s.setWorkspace({ toolRail: true, opacity: 5, blur: -3 });
+    expect(s.workspace.value.toolRail).toBe(true);
     expect(s.workspace.value.opacity).toBe(1);
     expect(s.workspace.value.blur).toBe(0);
-    expect(s.workspace.value.ribbon).toBe('off');
+    expect(s.workspace.value.ribbon).toBe('full');
   });
   it('sanitizeWorkspace ignores stored garbage', () => {
-    const w = sanitizeWorkspace({ ribbon: 'weird', toolRail: 'yes', opacity: 'x', leftPanel: 'floating', extra: 1 });
-    expect(w.ribbon).toBe('off');
-    expect(w.toolRail).toBe(true);
-    expect(w.leftPanel).toBe('floating');
-    expect(sanitizeWorkspace(null).ribbon).toBe('off');
+    const w = sanitizeWorkspace({ ribbon: 'weird', toolRail: 'yes', opacity: 'x', leftPanel: 'docked', extra: 1 });
+    expect(w.ribbon).toBe('full');
+    expect(w.toolRail).toBe(false);
+    expect(w.leftPanel).toBe('docked');
+    expect(sanitizeWorkspace(null).ribbon).toBe('full');
   });
 
   it('toolLabels defaults to icons-and-text in every preset, and round-trips through sanitize and the store', () => {

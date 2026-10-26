@@ -28,7 +28,7 @@ function Host({ store }: { store: ReturnType<typeof createStore> }) {
 
 describe('layout handles', () => {
   it('keyboard resize writes the store; collapse and reset round-trip', () => {
-    const store = createStore({}, { rightPanel: 'docked' });
+    const store = createStore({}, { leftPanel: 'docked', rightPanel: 'docked', drawerOpen: true });
     render(<Host store={store} />);
     const [left, right, drawer] = screen.getAllByRole('separator');
     fireEvent.keyDown(left, { key: 'ArrowRight', shiftKey: true });

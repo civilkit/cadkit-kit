@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.3.3 - 2026-10-26
+
+### Changed
+- **New defaults.** Reference planes are hidden until you switch them on (Show > Planes). A first visit now starts with the full ribbon, the left panel floating (with its Outliner / Features / Assets tabs), the inspector docked on the right, and no tool rail, selection mode bar, sketch tool palette or bottom drawer. Saved settings are untouched, and the three presets (Plasticity, Classic, Minimal) are unchanged.
+
 ## 0.3.2 - 2026-10-26
 
 ### Changed
