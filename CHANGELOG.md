@@ -2,6 +2,11 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.2.2 - 2026-10-26
+
+### Fixed
+- **The feature tree scrolled into blank space on long parts** (SELENE, 4,218 features): the list looked for its scroll box in the wrong place once the left panel had tabs, so scrolling never loaded the rows. It now follows whichever box really scrolls.
+
 ## 0.2.1 - 2026-10-26
 
 ### Added

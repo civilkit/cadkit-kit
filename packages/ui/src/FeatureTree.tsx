@@ -330,7 +330,14 @@ export function FeatureTree(p: {
   const listTop = (): number | null => root.current?.querySelector('.tree-pad, .row[data-id]')?.getBoundingClientRect().top ?? null;
   const [win, setWin] = useState<[number, number]>([0, 60]);
   const winRef = useRef(win); winRef.current = win;
-  const scroller = (): HTMLElement | null => root.current?.closest<HTMLElement>('.tree-wrap') ?? root.current?.parentElement ?? null;
+  /** The box that scrolls the list: the nearest ancestor with its own vertical scrolling (the tab body when the panel is tabbed, else the panel). */
+  const scroller = (): HTMLElement | null => {
+    for (let el = root.current?.parentElement ?? null; el; el = el.parentElement) {
+      const oy = getComputedStyle(el).overflowY;
+      if (oy === 'auto' || oy === 'scroll') return el;
+    }
+    return root.current?.closest<HTMLElement>('.tree-wrap') ?? root.current?.parentElement ?? null;
+  };
   const measure = () => {
     const sc = scroller(), lt = listTop();
     if (!sc || lt === null) return;
