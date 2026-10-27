@@ -51,8 +51,8 @@ passed with `WASM_SRC` to `build:pages`. Environment switches are named `CK_*`.
 
 ## Files
 
-Parts are saved as `.ckpart` (JSON, format name `ck-part`), optionally gzip-compressed. Files
-written under the earlier names (`.fwpart`, `fw-part`, `formwerk-part`) still open.
+Parts are saved as `.ckpart` (JSON, format name `ck-part`), optionally gzip-compressed. Files saved
+by earlier versions still open.
 
 ## Licence
 
