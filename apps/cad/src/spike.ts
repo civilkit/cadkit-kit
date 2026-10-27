@@ -4,7 +4,7 @@ import { createBrowserKernel } from '@ck/kernel-client/browser';
 import { Viewport, type ViewBody } from '@kit/viewport';
 
 const SAMPLES = [
-  'coupling-sample', 'stepper-bracket', 'stepper-sample', 'bench-bolt',
+  'bench-bolt',
   'bench-spur_gear', 'bench-torus_link', 'bench-pan_head_screw_top_slot', 'bench-bellows', 'bench-clevis', 'brepjs-o_ring',
 ];
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;

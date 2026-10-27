@@ -204,7 +204,7 @@ describe('layers: curves, planes, axes', () => {
 
 // ---- kernel fixture: flangeBolt has a circle, a hex-head sketch, a helix curve and a datum plane ----
 const wasm = process.env.CK_WASM;
-const fixture = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'tools/cases/flangeBolt.ckpart');
+const fixture = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../kernel'), 'tools/cases/flangeBolt.ckpart');
 
 describe('layers: flangeBolt fixture', { skip: !(wasm && existsSync(fixture)) }, () => {
   it('bodyForView sketch/curve/plane data converts to polylines', async () => {

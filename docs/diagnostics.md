@@ -55,5 +55,5 @@ cannot put a broken model into the document; it shows the refusal (toast, Diagno
 nothing. A broken model can still arrive by opening a file that already has failing features; that is the case where
 the tree shows the cause and blocked rows and the drawer offers `Undo this change`.
 
-Example: in the large sample sample, Barrel surface (F2) angle 120 gives root F14 (trimNoIntersection) and 16
+Example: in the hair dryer sample, Barrel surface (F2) angle 120 gives root F14 (trimNoIntersection) and 16
 consequences; 170 gives root F24 (fillInvalid) and 15. See `apps/cad/src/errorSummary.kernel.test.ts`.

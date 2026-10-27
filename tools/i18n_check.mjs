@@ -121,7 +121,7 @@ export function editorEnums() {
 function kernelDir() {
   if (process.env.CK_REBUILD) return process.env.CK_REBUILD;
   const here = import.meta.url.startsWith('file:') ? dirname(fileURLToPath(import.meta.url)) : join(process.cwd(), 'tools');
-  return join(here, '../../rebuild');
+  return join(here, '../../kernel');
 }
 
 /** String-union fields of the kernel's feature schema (part-model/features.ts): field -> values. Best effort; [] when the kernel checkout is absent. */

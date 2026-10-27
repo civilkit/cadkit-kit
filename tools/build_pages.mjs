@@ -2,7 +2,7 @@
 // Builds the public static site (default dist-pages/): app bundle, stripped kernel wasm, allow-listed samples, licenses.html; then runs the leak check.
 //   PAGES_BASE=/my-repo/ npm run build:pages        (default base './': works under any sub-path and at a domain root)
 // Env: PAGES_OUT output dir (default dist-pages), CK_REBUILD kernel repo checkout, WASM_SRC wasm to publish (default apps/cad/public/kernel/ck_wasm.wasm),
-//      WASM_STRIP path of wasm-strip, KERNEL_THIRD_PARTY kernel THIRD_PARTY.md. See docs/pages-deploy.md.
+//      WASM_STRIP path of wasm-strip, KERNEL_THIRD_PARTY kernel THIRD_PARTY.md.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -15,7 +15,7 @@ import { buildId, precacheList, swSource } from './pages/sw.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
-const FW = process.env.CK_REBUILD || fileURLToPath(new URL('../../rebuild', import.meta.url));
+const FW = process.env.CK_REBUILD || fileURLToPath(new URL('../../kernel', import.meta.url));
 const die = (m) => { console.error(`build:pages: ${m}`); process.exit(1); };
 const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
 const fmt = (n) => `${n} bytes (${kb(n)})`;

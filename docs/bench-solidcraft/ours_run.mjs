@@ -1,5 +1,5 @@
 // usage: node ours_run.mjs <kernel.wasm> <part.ckpart|part.json> [--step out.step] [--reps 3]
-// Cold regen (fresh wasm instance, noCache) of a .ckpart through the CadKit kernel; prints one JSON line per rep.
+// Cold regen (fresh wasm instance, noCache) of a .ckpart through the kernel; prints one JSON line per rep.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { Kernel } from './kernel.mjs';
 const a = process.argv.slice(2);

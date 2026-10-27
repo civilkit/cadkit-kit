@@ -1,4 +1,4 @@
 {
-  "_comment": "Allow-listed leak-check false positives. Each entry: { id, match?, file?, reason }. A reason is mandatory. Empty on purpose: the first run found nothing that needed one (see docs/pages-deploy.md).",
+  "_comment": "Allow-listed leak-check false positives. Each entry: { id, match?, file?, reason }. A reason is mandatory. Empty on purpose: the first run found nothing that needed one.",
   "allow": []
 }

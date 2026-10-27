@@ -18,10 +18,6 @@ Picking, hover and selection highlights work in every style: the body mesh stays
 `colorWrite = false`), so raycasts are unchanged. While a sketch is edited the body is capped at 25 percent opacity on top of
 the style (`applyBodyLook(..., fade)`), and restored when the sketch closes.
 
-![previous look, new default, and the original CadKit](img/look-compare.png)
-
-The same part in the same isometric view: the previous flat grey look, the new default, and the earlier CadKit app.
-
 ## Appearance
 
 The default look is a light cool metal under the studio light (see below), not a flat grey. A body has a colour and a finish:

@@ -40,7 +40,7 @@ The module's public contract is: the protocol, the transport endpoints, the pair
 
 v1 (HTTP request per message) stays and is always available. v2 adds, behind capability flags the client reads from `/version`:
 1. **WebSocket** `/session/<id>/ws`: the same messages as frames; replies as binary frames in the existing framing; unsolicited **events** (progress, regen phase, cache stats) as JSON frames with an `event` field.
-2. **Binary meshes:** replies carry mesh buffers as raw f32/u32 (they already do: keep) and the JSON no longer repeats number arrays for large bodies (the 23 MB large sample reply becomes about a tenth).
+2. **Binary meshes:** replies carry mesh buffers as raw f32/u32 (they already do: keep) and the JSON no longer repeats number arrays for large bodies (the 23 MB large reply becomes about a tenth).
 3. **gzip** (`Accept-Encoding`/permessage-deflate) for JSON parts.
 4. **Cancel:** `DELETE /session/<id>/request/<request-id>` or a `cancel` frame; the kernel checks a cooperative cancel flag at feature boundaries and inside long loops, returns `{"error":"cancelled"}`, and the session state stays valid (the regen cache keeps what finished).
 5. **Backpressure and fairness:** per-session queue depth 1 by default (a newer preview replaces a pending one); a global CPU budget so one client cannot starve others (round-robin between sessions).
@@ -84,7 +84,7 @@ Problem: CivilKit and cadkit run in different origins, so `BroadcastChannel` and
 ## 9. Verification and gates
 
 - Existing: `tools/native_diff.mjs` (280 wire cases byte-identical to the wasm, big documents within last-digit float noise), loopback protocol tests, auth/Origin/Host matrix.
-- New CI gate (kernel): build `ck-native` with the service profile, run the wire/valid/vol/step corpora and the fan and large sample through it, fail on any difference beyond the documented libm tolerance; run the pairing, revoke, limit, cancel and hub tests; fuzz the HTTP parser and the WebSocket framing (no panics).
+- New CI gate (kernel): build `ck-native` with the service profile, run the wire/valid/vol/step corpora and the fan and hair dryer through it, fail on any difference beyond the documented libm tolerance; run the pairing, revoke, limit, cancel and hub tests; fuzz the HTTP parser and the WebSocket framing (no panics).
 - Conformance suite: a client-agnostic script (`tools/service_conformance.mjs`) that any client implementation (kit, CivilKit, an MCP bridge) can run against a live service.
 - Performance: native vs wasm timings per case on the CI box (kept in the repo as data), so a regression shows.
 

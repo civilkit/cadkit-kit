@@ -15,8 +15,7 @@ const ipv4Ok = (s) => {
 
 /** Each pattern: id, regex (global), optional `accept(match)` returning false for a non-hit. */
 export const PATTERNS = [
-  { id: 'internal-host', re: /(?:internal-host|internal-host|internal-org|internal-host|maho-?commerce|mem\.internal-org)/gi },
-  // not preceded by a letter/digit/dot/minus and not followed by another number: minified SVG path data ("l1.2.4.5 1 1.1") is not an address
+    // not preceded by a letter/digit/dot/minus and not followed by another number: minified SVG path data ("l1.2.4.5 1 1.1") is not an address
   { id: 'ipv4', re: /(?<![\w.-])(?:\d{1,3}\.){3}\d{1,3}(?![\w.]|[ ,-]-?\.?\d)/g, accept: ipv4Ok },
   { id: 'abs-path', re: /(?:\/Users\/|\/Volumes\/|\/private\/tmp|[A-Za-z]:\\\\?(?:Users|Documents and Settings)\\)[\w.-]*/g },
   { id: 'email', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g, accept: (m) => !/\.(png|jpe?g|webp|gif|svg|css|js|mjs|json|wasm|html?)$/i.test(m) },   // icon@2x.png is a file name
@@ -29,7 +28,11 @@ export const PATTERNS = [
 ];
 
 /** @returns {Array<{id:string, match:string, context:string, index:number}>} */
-export function scanText(text, patterns = PATTERNS) {
+/** Internal host names are not listed in this public file: LEAKCHECK_HOSTS is the source of a regular expression (for example
+ *  `internal-name|other-name`) set by whoever deploys; unset means no host names are checked. Read at each scan. */
+const hostPatterns = () => (process.env.LEAKCHECK_HOSTS ? [{ id: 'internal-host', re: new RegExp(`(?:${process.env.LEAKCHECK_HOSTS})`, 'gi') }] : []);
+
+export function scanText(text, patterns = [...hostPatterns(), ...PATTERNS]) {
   const out = [];
   for (const p of patterns) {
     p.re.lastIndex = 0;

@@ -19,7 +19,7 @@ Code: `apps/cad/src/files/*`, `packages/platform/src/{fsaccess,web}.ts`. Wiring 
 - Cancelling the picker does nothing. The unsaved-changes dialog's Save only goes on when the save really happened.
 
 ## Old names
-Parts used to be `.ckpart` with the format name `ck-part` (and `ck-part` before that). All three names are read: Open, drag and drop, the recent list and the library accept `.ckpart` and `.ckpart.gz`, and `normalizePartFormat` turns an old format name into `ck-part` in the document, so the next save writes the new names. Save As and downloads write `.ckpart` only.
+Parts used to be `.fwpart` with the format name `fw-part` (and `formwerk-part` before that). All three names are read: Open, drag and drop, the recent list and the library accept `.fwpart` and `.fwpart.gz`, and `normalizePartFormat` turns an old format name into `ck-part` in the document, so the next save writes the new names. Save As and downloads write `.ckpart` only.
 
 ## Recent
 - The Samples dialog has a Recent section (last 8 samples and files, with age). Names and times are in `cad.recent.v1`;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { scanText, scanDir, extractStrings } from './pages_leakcheck.mjs';
 
 const ids = (t: string) => scanText(t).map((h) => h.id);
@@ -8,9 +9,15 @@ const ids = (t: string) => scanText(t).map((h) => h.id);
 const dot = '.';
 
 describe('leak patterns', () => {
-  it('flags internal hostnames', () => {
-    expect(ids('fetch("https://dev.internal-host' + dot + 'com.au/x")')).toContain('internal-host');
-    expect(ids('mem.internal-org')).toContain('internal-host');
+  it('flags internal hostnames from LEAKCHECK_HOSTS, and none when it is unset', () => {
+    const saved = process.env.LEAKCHECK_HOSTS;
+    try {
+      process.env.LEAKCHECK_HOSTS = 'internal-box|other-name';
+      expect(ids('fetch("https://dev.internal-box' + dot + 'example/x")')).toContain('internal-host');
+      expect(ids('mem.other-name')).toContain('internal-host');
+      delete process.env.LEAKCHECK_HOSTS;
+      expect(ids('fetch("https://dev.internal-box' + dot + 'example/x")')).not.toContain('internal-host');
+    } finally { if (saved === undefined) delete process.env.LEAKCHECK_HOSTS; else process.env.LEAKCHECK_HOSTS = saved; }
   });
   it('flags IPv4 addresses but not loopback or SVG path data', () => {
     expect(ids('host="10' + dot + '0' + dot + '4' + dot + '17"')).toContain('ipv4');
@@ -66,7 +73,7 @@ describe('extractStrings', () => {
 });
 
 describe('scanDir', () => {
-  const mk = () => mkdtempSync(join(resolve(__dirname, '../../scratch-qa-pages'), 'leak-'));
+  const mk = () => mkdtempSync(join(tmpdir(), 'leak-'));
   it('reads text files and wasm strings, rejects .map files, and honours allow entries that have a reason', () => {
     const d = mk();
     try {

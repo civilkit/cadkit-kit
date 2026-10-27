@@ -6,20 +6,12 @@ import {
   type SketchDraft,
 } from './index';
 
-const BOLT = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'tools/cases/flangeBolt.ckpart');
-const TRIM = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'bench/parts/largeSampleTrim.ckpart');
+const BOLT = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../kernel'), 'tools/cases/flangeBolt.ckpart');
 
 function boltSketch(id: string): Record<string, unknown> {
   const doc = JSON.parse(readFileSync(BOLT, 'utf8')) as { features: Array<Record<string, unknown>> };
   const f = doc.features.find((x) => x.id === id);
   if (!f) throw new Error('no feature ' + id);
-  return f;
-}
-
-function firstSketchOf(path: string): Record<string, unknown> {
-  const doc = JSON.parse(readFileSync(path, 'utf8')) as { features: Array<Record<string, unknown>> };
-  const f = doc.features.find((x) => x.type === 'sketch');
-  if (!f) throw new Error('no sketch in ' + path);
   return f;
 }
 
@@ -35,11 +27,6 @@ describe('sketch draft round trip', () => {
   it('round trips the simple shank sketch and the thread profile', () => {
     expect(toFeature(fromFeature(SHANK))).toEqual(SHANK);
     expect(toFeature(fromFeature(THREAD_PROFILE))).toEqual(THREAD_PROFILE);
-  });
-
-  it('round trips a bench part sketch', { skip: !existsSync(TRIM) }, () => {
-    const f = firstSketchOf(TRIM);
-    expect(toFeature(fromFeature(f))).toEqual(f);
   });
 
   it('preserves fields the typed model does not know (construction, extra constraints)', () => {

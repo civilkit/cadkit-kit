@@ -1,7 +1,7 @@
 # The move / rotate ball (F10)
 
 A screen-space manipulator that moves, rotates, copies and patterns the current selection. It follows the study in
-`ironcad-triball.md` (read from tutorial videos; the frames in `img/ironcad-triball/` are the reference for the look).
+the design notes for the triball look.
 Code: pure maths `packages/viewport/src/triball.ts`, drawing and pointer work `triballLayer.ts`, app side
 `apps/cad/src/triball/` (`ops.ts` the edits, `rigid.ts` motion composition, `useTriBall.tsx` the wiring,
 `FieldsDialog.tsx`, `triballPrefs.ts`). Tests: `triball.test.ts`, `triball/ops.test.ts`, `triball/triball.kernel.test.ts`

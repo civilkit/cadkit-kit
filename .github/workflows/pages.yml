@@ -1,6 +1,6 @@
 # Builds the static site and deploys it to GitHub Pages. Manual only (no push or schedule trigger).
 # The kernel wasm is not committed, and the kit imports the kernel's TypeScript packages from the kernel repository, so both come from
-# URLs you supply and are checked against the sha256 you supply. See docs/pages-deploy.md. No secrets are used.
+# URLs you supply and are checked against the sha256 you supply. No secrets are used.
 name: pages
 
 on:
@@ -57,16 +57,16 @@ jobs:
             curl -fsSL --retry 3 -o "$3" "$1"
             echo "$2  $3" | sha256sum -c -
           }
-          mkdir -p apps/cad/public/kernel "$RUNNER_TEMP/fw"
+          mkdir -p apps/cad/public/kernel "$RUNNER_TEMP/kernel"
           fetch "$WASM_URL" "$WASM_SHA256" apps/cad/public/kernel/ck_wasm.wasm
           fetch "$KSRC_URL" "$KSRC_SHA256" "$RUNNER_TEMP/kernel-src.tar.gz"
-          tar -xzf "$RUNNER_TEMP/kernel-src.tar.gz" -C "$RUNNER_TEMP/fw"
+          tar -xzf "$RUNNER_TEMP/kernel-src.tar.gz" -C "$RUNNER_TEMP/kernel"
       - id: pages
         uses: actions/configure-pages@v5
       - name: Build (includes the leak check)
         env:
           PAGES_BASE: ${{ steps.pages.outputs.base_path }}/
-          CK_REBUILD: ${{ runner.temp }}/fw
+          CK_REBUILD: ${{ runner.temp }}/kernel
         run: npm run build:pages
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -2,7 +2,7 @@
 
 Status: design, 2026-10-20. Nothing here is built. "Measured" means run today on the built kernel wasm (`target/wasm32-unknown-unknown/release/ck_wasm.wasm`);
 "derived" means worked out by hand from measured numbers; "to pin" means the value is fixed when the gate case is added.
-Paths: `K:` = kernel repo (`rebuild-main`), `C:` = this kit repo. Related: K:`docs/persisted-cache.md` (branch `cache-persist`), K:`docs/regen-cache.md`,
+Paths: `K:` = kernel repo (`kernel`), `C:` = this kit repo. Related: K:`docs/persisted-cache.md` (branch `cache-persist`), K:`docs/regen-cache.md`,
 K:`docs/robustness.md`, K:`docs/sldprt.md`, K:`docs/skp.md`, K:`docs/recognition.md`, K:`docs/heal-tolerance.md`, `C:docs/files.md`.
 
 ## 1. Problem and what exists
@@ -25,7 +25,7 @@ Facts about the kernel this spec builds on (all read in code):
   Cost per body-changing feature is therefore one clone, which every feature already pays (regen-cache.md, "Sharing and the cap").
 * The regen cache key hashes the feature JSON as received (`chain_keys`, K:`crates/ck-wasm/src/regen_cache.rs`), plus extra fingerprints for loaded fonts (`text_fonts`: `name=<sha256|missing>`).
   That is the precedent for content that lives outside the document.
-* A binary body codec exists as a spike on branch `cache-persist`: K:`crates/ck-topo/src/bincodec.rs` (LEB128, raw f64 bits, bit-exact, `decode(encode(b)) == b`; 1.5 to 2.4 MB zstd for the fan shroud / large sample, decode 1-2 ms,
+* A binary body codec exists as a spike on branch `cache-persist`: K:`crates/ck-topo/src/bincodec.rs` (LEB128, raw f64 bits, bit-exact, `decode(encode(b)) == b`; 1.5 to 2.4 MB zstd for the fan shroud / hair dryer, decode 1-2 ms,
   persisted-cache.md). Gap found while reading it: the reader bounds **counts** by the bytes left but does not validate **ids** (an `EdgeId`, `VertexId`, loop or shell index past the arena would panic later = a wasm trap, robustness.md). It needs a validation pass before it may read untrusted data (section 8).
 
 ## 2. Decisions in one table
@@ -114,7 +114,7 @@ A plain readable `.ckpart` without `blobs` still opens: the tree and every recip
 **Cache key.** `chain_keys` already hashes the whole feature JSON, which contains `data.sha256`, `options`, `place`, `op`. Add one fingerprint, like fonts: `blob=<sha256>:<present|missing>`
 (`regen_cache.rs`, next to `text_fonts`), so a regen that failed with `importedBodyMissing` is not replayed after the blob arrives, and `putBlob` of the same bytes after a restart keeps every key. Cosmetic keys (`name`, `group`, `visible`) stay out of the hash as for every feature. Nothing else changes: the importedBody state is cached after feature 1 like any other (`BrepSnap` shares the registry `Rc` for free when the cache is told to adopt it: store the registry value as `Rc<Option<Body>>` and let `Brep::save` take it when the body is pointer-equal; saves one clone, optional).
 
-**Cost.** Decode happens once per `putBlob` (1-2 ms for 2.5-3.3 MB, persisted-cache.md), validation about the same; regen pays one clone (about 1-4 ms for the large sample-sized body; the joint part is tens of KB). The first regen after import also tessellates (SLDPRT 40-400 faces: 0.1-1 s, sldprt.md), exactly what `importSldprt` already did; with `asFeature` the kit can use `noView` on the import call and take the first view from the regen, so the file is tessellated once.
+**Cost.** Decode happens once per `putBlob` (1-2 ms for 2.5-3.3 MB, persisted-cache.md), validation about the same; regen pays one clone (about 1-4 ms for the large -sized body; the joint part is tens of KB). The first regen after import also tessellates (SLDPRT 40-400 faces: 0.1-1 s, sldprt.md), exactly what `importSldprt` already did; with `asFeature` the kit can use `noView` on the import call and take the first view from the regen, so the file is tessellated once.
 **Memory.** Registry bytes count against `cacheCap` accounting as encoded bytes plus the decoded `Body::est_bytes`; the decoded copy is shared with cache snapshots. A 3 MB body is about 3-5 MB decoded; the 256 MiB regen-cache cap is unaffected.
 
 **Several imported bodies.** One document may hold N `importedBody` features (a library part, a fixture, a mating part) as separate lumps; `combine` / `bodyBoolean` operate on lumps (spec-agent-interface.md, `combine`) and the per-body material/appearance work (bodies spec, piece C). A multi-solid STEP file stays **one** feature holding all solids (`I1.*`, `I2.*`), with `options.solids` to select a subset; "split into bodies" is a kit action creating one feature per solid. Real assemblies (instances with mates) stay `insertPart`: its nested `part` may itself start with an `importedBody` (blobs are process-wide, so `regen_nested` resolves them; `part_key` already hashes the nested JSON, so the sha is in the key).

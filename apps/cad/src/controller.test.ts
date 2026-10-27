@@ -451,7 +451,7 @@ describe('controller preview and commit', { skip: !process.env.CK_WASM }, () => 
 
 // ---- sketch session (S1): open, drag with the solver, confirm/cancel ----
 
-const BOLT = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../rebuild'), 'tools/cases/flangeBolt.ckpart');
+const BOLT = resolve(process.env.CK_REBUILD ?? resolve(__dirname, '../../../../kernel'), 'tools/cases/flangeBolt.ckpart');
 const boltDoc = (): PartDoc => JSON.parse(readFileSync(BOLT, 'utf8')) as PartDoc;
 const R = 7.505553499465135; // head construction-circle radius in the fixture
 

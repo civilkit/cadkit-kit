@@ -115,12 +115,12 @@ describe('names', () => {
     expect(fileNameFor('   ')).toBeNull();
     expect(partNameOf('Bracket.ckpart')).toBe('Bracket');
   });
-  it('still reads the old .ckpart names', () => {
-    expect(dropKind('Bracket.ckpart')).toBe('part');
-    expect(dropKind('Bracket.ckpart.gz')).toBe('part');
-    expect(partNameOf('Bracket.ckpart')).toBe('Bracket');
-    expect(partNameOf('Bracket.ckpart.gz')).toBe('Bracket');
-    expect(fileNameFor('Bracket.ckpart', true)).toBe('Bracket.ckpart.gz');
+  it('still reads the old .fwpart names', () => {
+    expect(dropKind('Bracket.fwpart')).toBe('part');
+    expect(dropKind('Bracket.fwpart.gz')).toBe('part');
+    expect(partNameOf('Bracket.fwpart')).toBe('Bracket');
+    expect(partNameOf('Bracket.fwpart.gz')).toBe('Bracket');
+    expect(fileNameFor('Bracket.fwpart', true)).toBe('Bracket.ckpart.gz');
   });
   it('counts new parts Part1, Part2 ... and skips names already seen', () => {
     const c = createNameCounter();

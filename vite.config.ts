@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { cpus, loadavg } from 'node:os'
 
 // the kernel repo checkout whose packages (session, part-model, kernel-client) the kit uses; CK_REBUILD overrides it
-const FW = process.env.CK_REBUILD ?? fileURLToPath(new URL('../rebuild', import.meta.url))
+const FW = process.env.CK_REBUILD ?? fileURLToPath(new URL('../kernel', import.meta.url))
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 // Static-site build (tools/build_pages.mjs): PAGES_BUILD=1 puts the output in PAGES_OUT, serves from PAGES_BASE (default './', which works

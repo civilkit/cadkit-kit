@@ -6,7 +6,7 @@
 // A wasm built by the kernel's tools/remote_build.sh says which commit it came from (`ping` -> "build"); one built any other way is "unstamped".
 // The pages build writes version.json ({kit: <commit>}), which says the same for the app bundle.
 //
-// usage: node tools/stack_status.mjs [--site URL] [--no-site]     env: CK_REBUILD = kernel checkout (default ../rebuild-main)
+// usage: node tools/stack_status.mjs [--site URL] [--no-site]     env: CK_REBUILD = kernel checkout (default ../kernel)
 // Exit 1 when something is behind or unknown, so it can sit in a hook or a release script.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const FW = resolve(process.env.CK_REBUILD || join(ROOT, '..', 'rebuild-main'));
+const FW = resolve(process.env.CK_REBUILD || join(ROOT, '..', 'kernel'));
 const args = process.argv.slice(2);
 const SITE = args.includes('--no-site') ? null : (args[args.indexOf('--site') + 1] || process.env.SITE || 'https://cadkit-studio.pages.dev').replace(/\/$/, '');
 const git = (dir, ...a) => { try { return execFileSync('git', ['-C', dir, ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };

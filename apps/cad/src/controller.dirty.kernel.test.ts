@@ -11,7 +11,7 @@ const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 
 describe('a freshly opened sample is not modified', { skip: !process.env.CK_WASM }, () => {
-  const files = readdirSync(dir).filter((f) => /^(spur-gear|bench-coil_spring|brepjs-fluted_knob|brepjs-vented_louvre_case|coupling-sample)\.ckpart$/.test(f));   // the five QA saw as modified (all 82 pass too, 6 min)
+  const files = readdirSync(dir).filter((f) => /^(spur-gear|bench-coil_spring|brepjs-fluted_knob|brepjs-vented_louvre_case)\.ckpart$/.test(f));   // four of the five QA saw as modified (all 82 pass too, 6 min)
   // The dirty dot came from main.tsx (a render between the controller swapping the part and markClean), not from a late document change.
   it('document() is unchanged after the controller settles, for the samples QA saw as modified', async () => {
     const bad: string[] = [];
