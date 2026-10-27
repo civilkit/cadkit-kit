@@ -1,4 +1,15 @@
 {
-  "_comment": "Allow-listed leak-check false positives. Each entry: { id, match?, file?, reason }. A reason is mandatory. Empty on purpose: the first run found nothing that needed one.",
-  "allow": []
+  "_comment": "Allow-listed leak-check false positives. Each entry: { id, match?, file?, reason }. A reason is mandatory.",
+  "allow": [
+    {
+      "id": "secret-near-word",
+      "file": "mark-",
+      "reason": "the minified search-highlight script of the documentation viewer: code, not a secret"
+    },
+    {
+      "id": "localhost-url",
+      "match": "localhost:5173",
+      "reason": "the development origin that the documented local kernel service always allows"
+    }
+  ]
 }

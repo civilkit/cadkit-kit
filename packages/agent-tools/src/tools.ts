@@ -237,8 +237,9 @@ export function createTools(): ToolDef[] {
         if (!png && raw && typeof raw === 'object') {
           const r = raw as Record<string, unknown>;
           png = img(r.png) ?? img(r.data) ?? img(r.image) ?? img((r.image as Record<string, unknown> | undefined)?.data);
-          const { png: _p, data: _d, image: _i, ...rest } = r;
-          extra = rest;
+          const { png: _p, data: _d, image: _i, rgba: _px, ...rest } = r;
+          // what stays is a short summary (sizes, counts): anything bulky, such as pixel arrays, is left out of the text block
+          extra = Object.fromEntries(Object.entries(rest).filter(([, v]) => (JSON.stringify(v) ?? '').length <= 2000));
         }
         if (!png) throw new ToolError('snapshot_failed', 'the snapshot renderer returned no image', 'try another view or a smaller size');
         return { summary: `snapshot ${String(i.view ?? 'iso')} ${i.size ?? 768}px`, images: [{ data: png, mimeType: 'image/png' }], data: { view: i.view ?? 'iso', size: i.size ?? 768, bytes: Math.floor(png.length * 0.75), ...extra } };

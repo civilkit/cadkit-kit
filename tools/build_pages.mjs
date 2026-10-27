@@ -15,6 +15,17 @@ import { buildId, precacheList, swSource } from './pages/sw.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
+// the page at /docs/: where the documentation sets are listed
+const docsHubHtml = () => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CadKit documentation</title>
+<style>:root{color-scheme:light dark}body{font:16px/1.55 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:0 1rem}h1{font-size:1.6rem}a{color:#1a5fb4}li{margin:.5rem 0}small{opacity:.7}</style></head>
+<body><h1>CadKit documentation</h1>
+<ul>
+<li><a href="/docs/cad/"><strong>CadKit user guide</strong></a><br><small>Modelling, sketching, importing and exporting, drawings, checks, scripting and agents.</small></li>
+<li><a href="/docs/cad/kernel/"><strong>Kernel reference</strong></a><br><small>The part format, the protocol, how the kernel works, and how results are validated.</small></li>
+<li><a href="/cad/"><strong>Open CadKit</strong></a></li>
+</ul></body></html>
+`;
 const FW = process.env.CK_REBUILD || fileURLToPath(new URL('../../kernel', import.meta.url));
 const die = (m) => { console.error(`build:pages: ${m}`); process.exit(1); };
 const kb = (n) => `${(n / 1024).toFixed(1)} KiB`;
@@ -99,13 +110,46 @@ const idx = join(OUT, 'index.html');
 const link = '<a id="licences-link" href="licenses.html">Licences</a><style>#licences-link{position:fixed;left:62%;bottom:4px;z-index:1;font:10px/1.4 system-ui,sans-serif;color:inherit;opacity:.45;text-decoration:none}#licences-link:hover{opacity:1;text-decoration:underline}</style>';
 const html = readFileSync(idx, 'utf8');
 if (!html.includes('</body>')) die('index.html has no </body> to add the licences link to');
-writeFileSync(idx, html.replace('</body>', `${link}</body>`));
+// the documentation (5d below) is built only when PAGES_DOCS=1 (the /cad/ site: the books link to each other by absolute /cad/docs/ paths)
+const wantDocs = process.env.PAGES_DOCS === '1';
+const docsLink = wantDocs ? '<a id="docs-link" href="/docs/cad/">Documentation</a><style>#docs-link{position:fixed;left:70%;bottom:4px;z-index:1;font:10px/1.4 system-ui,sans-serif;color:inherit;opacity:.45;text-decoration:none}#docs-link:hover{opacity:1;text-decoration:underline}</style>' : '';
+writeFileSync(idx, html.replace('</body>', `${link}${docsLink}</body>`));
 writeFileSync(join(OUT, '.nojekyll'), '');   // GitHub Pages: serve the assets/ folder as is
 
 // 5a. the web app manifest and its icons (the app build runs without a public folder, so they are copied here)
 mkdirSync(join(OUT, 'icons'), { recursive: true });
 copyFileSync(join(ROOT, 'apps/cad/public/manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));
 for (const f of readdirSync(join(ROOT, 'apps/cad/public/icons'))) copyFileSync(join(ROOT, 'apps/cad/public/icons', f), join(OUT, 'icons', f));
+
+// 5d. documentation (PAGES_DOCS=1): the user guide at <site>/docs/cad/ and the kernel book at <site>/docs/cad/kernel/ (mdBook), where <site> is the folder that
+// holds the app folder (so the app at <site>/cad/ and the books at <site>/docs/cad/). The books link to each other by absolute /docs/cad/ paths.
+// MDBOOK names the binary (default: mdbook on PATH); a missing mdbook is an error.
+if (wantDocs) {
+  const mdbook = process.env.MDBOOK || 'mdbook';
+  const have = spawnSync(mdbook, ['--version'], { encoding: 'utf8' });
+  if (have.status !== 0) {
+    die(`PAGES_DOCS=1 but ${mdbook} did not run. Install mdBook (cargo install mdbook) or set MDBOOK=/path/to/mdbook.`);
+  } else {
+    const book = (src, dest, label) => {
+      if (!existsSync(join(src, 'book.toml'))) die(`${label}: ${src}/book.toml not found`);
+      const b = spawnSync(mdbook, ['build', src, '--dest-dir', dest], { encoding: 'utf8' });
+      if (b.status !== 0) die(`${label}: mdbook build failed\n${b.stderr || b.stdout}`);
+      if (/\bWARN|\bERROR/.test(b.stderr || '')) console.warn(`${label}: mdbook reported:\n${b.stderr}`);
+    };
+    const docsOut = join(dirname(OUT), 'docs');
+    if (!docsOut.startsWith(ROOT + '/')) die(`the documentation folder ${docsOut} must be inside the repository`);
+    book(join(ROOT, 'guide'), join(docsOut, 'cad'), 'user guide');
+    book(join(FW, 'book'), join(docsOut, 'cad', 'kernel'), 'kernel book');
+    writeFileSync(join(docsOut, 'index.html'), docsHubHtml());
+    // the documentation lives outside the app folder, so the leak check below would not see it: scan it here with the same allow list
+    let docsAllow = [];
+    try { docsAllow = JSON.parse(readFileSync(join(ROOT, 'tools/pages_leakcheck.allow.json'), 'utf8')).allow ?? []; } catch { /* none */ }
+    const dr = scanDir(docsOut, docsAllow);
+    for (const h of dr.hits) console.error(`LEAK ${h.id} ${h.file}\n     ${h.context}`);
+    if (dr.hits.length) die(`leak check found ${dr.hits.length} hit(s) in the documentation; the site is not safe to publish`);
+    console.log(`documentation: built the user guide and the kernel book into ${join(docsOut, 'cad')} (leak check: ${dr.files} files scanned, clean)`);
+  }
+}
 
 // 5b. the service worker (installable app, offline start): it lists this build's files, so it is written last
 const listFiles = (dir, base = '') => readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? listFiles(join(dir, d.name), `${base}${d.name}/`) : [{ path: `${base}${d.name}`, size: statSync(join(dir, d.name)).size }]));

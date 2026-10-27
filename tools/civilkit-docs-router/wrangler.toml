@@ -1,0 +1,8 @@
+# Deploy: cd tools/civilkit-docs-router && npx wrangler deploy   (the pages themselves are in the Pages project civilkit-cad, under /docs/)
+name = "civilkit-docs-router"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+routes = [
+  { pattern = "civilkit.io/docs", zone_name = "civilkit.io" },
+  { pattern = "civilkit.io/docs/*", zone_name = "civilkit.io" },
+]

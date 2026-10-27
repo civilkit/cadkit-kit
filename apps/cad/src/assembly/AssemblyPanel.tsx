@@ -361,7 +361,7 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
                 <input type="number" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
                   onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
               {q.drive ? (
-                <label class="asm-f wide"><span>{t('asm.mate.testDrive')} ({fmt(Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0, 4)}\u00B0)</span>
+                <label class="asm-f wide"><span>{t('asm.mate.testDrive')} ({fmt(Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0, 4)}°)</span>
                   <input type="range" min={draft.kind === 'screw' ? -1080 : -360} max={draft.kind === 'screw' ? 1080 : 360} step="1" value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0} aria-label={t('asm.mate.testDrive')}
                     onInput={(e) => { setDriving(true); const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
               ) : null}

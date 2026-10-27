@@ -25,7 +25,7 @@ export const filesEn = {
   'files.cache.pickWait': 'Rebuilding the part: picking is available in a moment.',
   'files.restored': 'Restored "{name}"',
   'files.drop.title': 'Drop a file to open it', 'files.drop.hint': '.ckpart  .json  .step  .stp  .sldprt  .skp  .dxf  .fcstd  .solidcraft',
-  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf and .FCStd files are supported.',
+  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf, .FCStd and .solidcraft files are supported.',
   'files.drop.stl': 'STL files cannot be imported yet (mesh import is not available). Use a STEP file instead.',
   'files.drop.one': 'Drop one file at a time.',
   'files.dxf.target': 'DXF opens in a sketch: a new sketch on the front plane was started.',

@@ -8,3 +8,4 @@ dist-pages-civilkit
 dist-local/
 .serve-local-*
 .DS_Store
+dist-docshots/

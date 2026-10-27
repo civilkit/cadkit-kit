@@ -1,0 +1,154 @@
+{
+  "assembly-panel": {
+    "file": "assembly-panel.png",
+    "caption": "The left panel on the Outliner tab with the Parts section open for the gear train assembly sample, components listed with their degrees-of-freedom badges."
+  },
+  "bodies-glass": {
+    "file": "bodies-glass.png",
+    "caption": "The Bodies tab with several bodies listed and one body selected after choosing the Glass preset, with its Appearance group visible."
+  },
+  "bodies-panel": {
+    "file": "bodies-panel.png",
+    "caption": "The Bodies tab for a part with three bodies: a plate, a block and a copy, with the plate hidden and the Copy, Delete, Join, Cut and Intersect buttons above the list."
+  },
+  "catalog-primitives": {
+    "file": "catalog-primitives.png",
+    "caption": "The Catalog panel on the Primitives tab: the Placement row, then the Add material and Remove material columns of shapes."
+  },
+  "check-tab": {
+    "file": "check-tab.png",
+    "caption": "The Check tab with the FDM 3D printing profile run on a part with two separate solids and a thin fin: issues are grouped under Errors and Warnings and the faces are tinted on the part."
+  },
+  "constraints-list-open": {
+    "file": "constraints-list-open.png",
+    "caption": "A dimensioned bracket sketch with relation glyphs in the view and the Constraints list opened from the status chip."
+  },
+  "corner-holes": {
+    "file": "corner-holes.png",
+    "caption": "A rectangular plate seen face-on with the hole sketch open, the Corner holes card at the top right of the canvas, and four hole points placed in the corners."
+  },
+  "display-menu": {
+    "file": "display-menu.png",
+    "caption": "The Display popover open on a part, showing Style, Appearance swatches, Scene presets and the Show list."
+  },
+  "drawing-sheet": {
+    "file": "drawing-sheet.png",
+    "caption": "The Drawing view for the mounting plate sample: front, top, right and isometric views with dimensions and the title block."
+  },
+  "edit-breaks-model": {
+    "file": "edit-breaks-model.png",
+    "caption": "The Extrude editor with the depth reduced to 2 mm: a note says the edit would break the rim fillet that comes later, and the Confirm tick is greyed."
+  },
+  "expression-field": {
+    "file": "expression-field.png",
+    "caption": "The Extrude editor with the Depth field holding =thick*2, showing the blue fx badge and the evaluated value under the field."
+  },
+  "extrude-editor": {
+    "file": "extrude-editor.png",
+    "caption": "A block with a circle sketch on its top face and the Extrude editor open in the left panel, with End condition, Operation and Options sections and the preview in the view."
+  },
+  "feature-tree": {
+    "file": "feature-tree.png",
+    "caption": "The Features tab for a bracket plate: sketch rows tucked under their extrude and hole, a thread nested beneath the hole, a fillet, one failed hole row in red, and the rollback line at the bottom."
+  },
+  "fillet-editor": {
+    "file": "fillet-editor.png",
+    "caption": "A plate with three edges around its top corner selected and the Fillet editor open showing Variable radius, Radius, Profile and Tangent chain."
+  },
+  "first-part-dimensioned": {
+    "file": "first-part-dimensioned.png",
+    "caption": "A rectangle sketch on the Front plane with 60 and 40 dimensions and the status chip showing the remaining degrees of freedom."
+  },
+  "first-part-finished": {
+    "file": "first-part-finished.png",
+    "caption": "The finished plate with a hole and a rounded corner, in the Iso view with the feature tree listing the extrude, hole and fillet."
+  },
+  "first-part-start": {
+    "file": "first-part-start.png",
+    "caption": "A new empty part with the Start here card offering three Sketch on plane buttons."
+  },
+  "inspect-drawer": {
+    "file": "inspect-drawer.png",
+    "caption": "The Inspect tab of the drawer under a part, showing the Mass properties card and the result of measuring the distance between two corners."
+  },
+  "interface-overview": {
+    "file": "interface-overview.png",
+    "caption": "The default CadKit window with a small part open: top bar, ribbon, feature tree, viewport with view cube, and status bar."
+  },
+  "library-tab": {
+    "file": "library-tab.png",
+    "caption": "The Catalog panel open on the Libraries tab with the search box, the All, Included and Add-ons chips and a grid of cards."
+  },
+  "linear-pattern": {
+    "file": "linear-pattern.png",
+    "caption": "A bar with a pocket repeated three times along its length and the Linear pattern editor open showing Count and Spacing."
+  },
+  "loft-editor": {
+    "file": "loft-editor.png",
+    "caption": "Three square sketches on offset planes lofted into a tapered solid, with the Profiles list showing three rows and the Guide curves section below."
+  },
+  "mate-editor": {
+    "file": "mate-editor.png",
+    "caption": "The Mates section with a Gear mate being edited: both references picked, the ratio filled in and the Test drive slider visible."
+  },
+  "navigation-viewcube": {
+    "file": "navigation-viewcube.png",
+    "caption": "The view cube in the top right corner with the Fit and projection buttons beside it, the model in the Iso view."
+  },
+  "reference-plane": {
+    "file": "reference-plane.png",
+    "caption": "A block with a reference plane drawn 10 mm above its top face and the Plane editor open showing Mode, Offset and Base plane."
+  },
+  "ribbon-tabs": {
+    "file": "ribbon-tabs.png",
+    "caption": "The ribbon with the Home tab selected and the Extrude button flyout open, showing Extruded cut."
+  },
+  "script-tab": {
+    "file": "script-tab.png",
+    "caption": "The Script tab in the left panel with the bracket example in the code box and the Run button, and the resulting plate with two holes and rounded edges in the viewport."
+  },
+  "size-box": {
+    "file": "size-box.png",
+    "caption": "An extruded block selected from the feature tree with its size box shown: face handles, corner handles, the anchor diamond and the three dimension labels."
+  },
+  "sketch-editor-open": {
+    "file": "sketch-editor-open.png",
+    "caption": "A sketch open on the top face of a plate: the Editing tab of the ribbon, the faded body, the status chip, and the pointer coordinates in the status bar."
+  },
+  "sketch-tools-palette": {
+    "file": "sketch-tools-palette.png",
+    "caption": "The Draw group of the sketch ribbon with the Rectangle flyout open, listing the tool names and their keys."
+  },
+  "surfaces-tab": {
+    "file": "surfaces-tab.png",
+    "caption": "The Surfaces tab of the ribbon with a wavy extruded surface standing on a plate, tinted teal, and the Create and Edit groups visible."
+  },
+  "tab-strip": {
+    "file": "tab-strip.png",
+    "caption": "The top bar and tab strip with three open parts, the first marked as changed."
+  },
+  "text-panel": {
+    "file": "text-panel.png",
+    "caption": "The Text tool open in a sketch with the text panel (characters, cap height, font, anchor grid, on an arc) and the lettering RPM x100 laid along an arc."
+  },
+  "thin-wall": {
+    "file": "thin-wall.png",
+    "caption": "A C-shaped open spline extruded as a thin wall, with the Thin wall section of the Extrude editor open showing Wall thickness, Side and End caps."
+  },
+  "tree-error": {
+    "file": "tree-error.png",
+    "caption": "The feature tree after the first extrude lost its sketch: the failed row is red and the rows that depend on it are muted and carry blocked-by chips."
+  },
+  "variables-panel": {
+    "file": "variables-panel.png",
+    "caption": "The Variables tab for a parametric bracket with four variables (width, depth, thick and hole) and the Configurations list below with Small, Standard and Large."
+  },
+  "wizard-propeller": {
+    "file": "wizard-propeller.png",
+    "caption": "The Propeller wizard open in the left panel on its Blade step, with the live preview of a three-blade propeller in the viewport."
+  },
+  "move-rotate-ball": {
+    "file": "move-rotate-ball.png",
+    "caption": "A block selected whole with the move and rotate ball at its centre, shown while dragging an axis end dot, with the Distance readout above the ball."
+  }
+}

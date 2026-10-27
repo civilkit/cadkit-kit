@@ -73,7 +73,7 @@ export const ENUMS: Record<string, string[]> = {
   end: ['blind', 'through', 'throughBoth', 'upToNext'],
   'plane.mode': ['offset', 'angle', 'mid', 'parallel', 'threePoints'],
   'deleteBody.mode': ['delete', 'keep'],
-  definedBy: ['pitchRevs', 'pitchHeight', 'revsHeight'],
+  definedBy: ['pitchRevs', 'heightRevs', 'heightPitch'],
   'lip.kind': ['lip', 'groove'],
   side: ['front', 'back', 'both'],
 };

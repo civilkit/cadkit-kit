@@ -1,0 +1,180 @@
+# The interface
+
+This chapter is a tour of the CadKit window: the top bar, the ribbon, the feature tree and other side panels, the viewport, the status bar, the bottom drawer, command search, the Display menu and document tabs. It describes the default layout; [Units and settings](settings.md) shows how to rearrange it.
+
+![The default CadKit window with a small part open: top bar, ribbon, feature tree, viewport with view cube, and status bar.](../img/interface-overview.png)
+
+## Layout at a glance
+
+From top to bottom:
+
+1. The **top bar**: file buttons, the part name, command search and settings.
+2. The **document tabs**, one per open part.
+3. The **ribbon**: tabs of command groups.
+4. The working area: the **left panel** (feature tree and friends), the **viewport**, and the **inspector panel** on the right when a feature is selected.
+5. The **drawer** (hidden until you open it).
+6. The **status bar**.
+
+All three side areas can be resized by dragging the thin handle between them and the viewport. Double-click a handle to reset it. Drag a panel to nearly nothing and it folds away. See [Units and settings](settings.md) for the layout presets and **Reset layout**.
+
+## The top bar
+
+From left to right:
+
+| Control | What it does |
+| --- | --- |
+| **New part** (`Ctrl+N`, which a browser tab may keep for itself) | Opens a blank part in a new tab, or in the current tab if that is still blank. |
+| **Open** (`Ctrl+O`) | Opens a part file. |
+| **Save** (`Ctrl+S`) | Saves the part. |
+| **Export** (`Ctrl+E`) | Opens the Export menu. See [Exporting](../files/export.md). |
+| **More file actions** | A menu with **Save as**, **Save geometry in file**, **Recover earlier versions…**, **Import STEP / SolidWorks / SketchUp**, **Import SketchUp with hidden geometry** and **Rotate imported model**. |
+| **Samples** | Opens the sample parts. |
+| Part name | Double-click to rename the part. A dot after the name means unsaved changes. |
+| **Part** / **Drawing** | Switches the document between the model and its drawing. See [Drawings](../files/drawings.md). |
+| **Search commands** (`F`) | Opens command search. |
+| **Settings** | Opens the settings dialog. |
+
+When a newer version of the application is available the bar shows a note with **Refresh** and **Later**. When your browser allows it, an **Install** button appears. See [Install as an app and work offline](../reference/pwa.md).
+
+## Document tabs
+
+A strip under the top bar holds one tab per open part. You can keep several parts open and switch between them without losing undo history.
+
+- **+** opens a new blank part after the current tab.
+- **×**, or a middle click, closes a tab. A tab with unsaved changes asks **Save**, **Don't save** or **Cancel**.
+- Drag a tab to reorder it. The **▾** button lists all open parts when the strip overflows.
+- `Ctrl+Alt+1` to `Ctrl+Alt+9` jump to a tab (9 is the last), `Ctrl+Alt+T` opens a new part and `Ctrl+Alt+W` closes the current one. `Ctrl+Tab` and `Ctrl+Shift+Tab` step through the tabs, but browsers reserve them and they may not reach the page in a normal tab; they work in the installed app.
+- Opening a file, a sample or an import uses the current tab if it is blank and a new tab otherwise.
+- You can have at most 32 tabs.
+- Switching tabs while a sketch is open finishes the sketch and keeps it.
+
+Closing the browser page while any tab has unsaved changes makes the browser ask first.
+
+## The ribbon
+
+The ribbon is a row of tabs; each tab holds groups of buttons. Many buttons stand for a family of commands: the button shows the one you used last, and a small arrow, a long press or a right click opens the others. For example the **Extrude** button also holds **Extruded cut**.
+
+| Tab | Groups |
+| --- | --- |
+| **Home** | **Sketch**, **Create**, **Modify**, **Pattern**, **Edit** |
+| **Features** | **Reference**, **Create**, **Modify**, **Bodies** |
+| **Surfaces** | **Create**, **Edit** |
+| **View** | **Views**, **Display style**, **Appearance** (lighting, background and **Show**), **Workspace** |
+| **Select** | **Pick**, **Expand**, **Position** |
+| **Evaluate** | **Measure**, **Surface analysis** |
+| **Assembly** | **Components**, **Review** |
+
+The **Assembly** tab appears when the part contains inserted components, and opens by itself when you open an assembly.
+
+Three things change the ribbon:
+
+- **While a sketch is open** the ribbon shows one tab, named **Editing** followed by the sketch name. Its groups are **Select**, **Finish**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. See [Starting a sketch](../sketching/start.md).
+- **While a feature editor is open** the commands that create or change geometry are greyed out. Undo, Redo, view, selection and inspection commands stay available. Confirm or cancel the editor first.
+- **A command that cannot run** is greyed, and its tooltip says why: for example **Fillet** says "Select edges, or two or more faces, to round".
+
+The ribbon has two sizes, **Full** and **Compact**, and can be turned off, in which case you reach every command through command search. File commands are in the top bar, not on a ribbon tab.
+
+## The left panel
+
+The left panel can be docked, floating over the viewport, or hidden. Press `[` to show or hide it. When tabs are on (the default) it has these tabs:
+
+| Tab | Contents |
+| --- | --- |
+| **Outliner** | The parts, mates and patterns of an assembly. |
+| **Features** | The feature tree, described below. While a feature editor is open it takes this place. |
+| **Editor** | The editor of the selected feature. |
+| **Catalog** | Shapes and library parts to drop onto the model. See [Catalog parts](../library/catalog.md). |
+| **Variables** | Named values and configurations. See [Equations and variables](../modelling/equations.md). |
+| **Script** | A script box. See [Scripting](../automation/scripting.md). |
+| **Bodies** | The bodies of the part, with colour, opacity and finish. See [Bodies and combining](../modelling/bodies.md). |
+
+### The feature tree
+
+The tree lists the history of the part in build order. At the top are fixed rows: **Material**, **Front Plane**, **Top Plane**, **Right Plane** and **Origin**. Below them is one row per feature. A sketch that a feature uses is tucked under that feature.
+
+- Click a row to select it, Ctrl-click to add to the selection, Shift-click to select a range.
+- Double-click a row to open its editor. Double-clicking a sketch reopens it for editing.
+- Hover a row to see its buttons: **Select in viewport**, **Edit**, **Roll back to here**, the eye (**Hide (view only)** / **Show**), the pause button (**Suppress (rebuilds)** / **Unsuppress (rebuilds)**) and **Remove**.
+- A failed feature is red with its reason underneath. Features that fail only because an earlier one failed are muted and say "blocked by" the cause.
+- Drag the **model is here** marker to roll the model back to an earlier step. See [The feature tree and history](../modelling/history.md).
+- Use the search box to find a feature by name, type or id.
+- `F2` renames the selected feature, `Delete` removes it, `Ctrl+Shift+U` suppresses or unsuppresses it, and `Ctrl+G` groups several neighbouring features into a folder.
+
+## The inspector panel
+
+On the right, the inspector shows the properties of the selected feature as plain fields. It appears only while a feature is selected. The same fields are in the feature's editor. You can set it to **Off**, **Docked right** or **Floating** in the settings.
+
+## The viewport
+
+The viewport shows the model. Over it you find:
+
+- The **view cube** in the top right corner, with the **Fit** and projection buttons under it. See [Moving around the model](navigation.md).
+- The **Display** button (an eye icon), described below.
+- The **selection list** at the bottom right when something is selected. See [Selecting things](selection.md).
+- On-canvas handles: arrows and dots you can drag to change a depth, a fillet radius, a shell thickness or a hole diameter. They can be turned off in the settings.
+- Notices and a busy indicator with a **Cancel** button when a rebuild takes long.
+
+Right-click the viewport for a menu of the commands that apply to what is selected. With nothing selected it offers the three **New sketch** commands, **Extrude**, **Extruded cut**, selection commands and **Fit**.
+
+If you turn on the **Selection mode bar** in the settings, a small bar appears at the top of the viewport with **Auto**, **Face**, **Edge**, **Corner**, **Body**, a **Box select** button and a filter button.
+
+## The status bar
+
+The status bar runs along the bottom.
+
+| Item | Meaning |
+| --- | --- |
+| **Ready** / **Busy** | Whether the kernel is working. |
+| Hover name | What is under the pointer. |
+| Notices | The latest message, for a few seconds. |
+| **Selected** | A summary of the selection, such as `3 faces, 12.4 cm²`. |
+| **Features**, **Faces**, **Triangles** | Size of the part. |
+| **Cached view** | Shown while the stored view of a part is on screen during a rebuild. |
+| Design check chip | The result of the last design check. See [Design checks](../analysis/design-checks.md). |
+| **Kernel** | Shown only when you use the local kernel service. Click it to open the kernel settings. |
+| **Last rebuild** | How long the last rebuild took. |
+| **Errors** | The number of failed features, in red when not zero. |
+| **Drawer** | Opens and closes the drawer. |
+
+In a sketch the bar also shows the pointer position on the sketch plane, the active snap, the **Snap** and **Grid** switches, the **Zoom** and the grid **Spacing**. Click **Spacing** to type a grid spacing; `0` or empty means automatic.
+
+## The drawer
+
+Press `\` or click **Drawer** in the status bar to open the drawer at the bottom of the window. It has five tabs:
+
+| Tab | What it shows |
+| --- | --- |
+| **History** | Every edit as a step, with filters **All**, **You**, **Agent** and **Failed**. Click a step to go back to it. |
+| **Diagnostics** | Why a failed feature failed and what to try. See [Checks and diagnostics](../analysis/checks.md). |
+| **Inspect** | Measure, mass properties, section view and interference. See [Measure and inspect](../analysis/measure.md). |
+| **Check** | Design rule checks. See [Design checks](../analysis/design-checks.md). |
+| **Console** | Recent messages. |
+
+Badges on the tab names count entries; red means problems.
+
+## Command search
+
+Press `F`, or click **Search commands**, to search every command by name, group or tab. Type a few letters, move with the arrow keys, press `Enter` to run the highlighted command and `Esc` to close. Greyed commands cannot run in the current state. Before you type, the search offers a short list of pinned commands: **Iso**, **Fit**, **Undo**, **Redo**, **Samples** and **Workspace settings**.
+
+Command search is the one place that lists everything. If you cannot find a button, search for it. [Commands and shortcuts](../reference/commands.md) lists the commands and their keys.
+
+## The Display menu
+
+The **Display** button in the viewport opens a panel with these sections:
+
+- **Style**: **Shaded**, **Shaded with edges** (the default), **Wireframe**, **Hidden lines removed** and **Ghost**, with an opacity slider for Ghost.
+- **Appearance**: a colour and a material finish for the part, or for the selected component of an assembly.
+- **Scene**: lighting presets **Studio**, **Flat**, **High contrast** and **Technical**, **Light strength**, and **Reflections**.
+- **Edge width** and **Silhouette outline**, and the **Background**.
+- **Surface analysis** options. See [Surfaces](../modelling/surfaces.md).
+- **Show**: switches for **Edges**, **Sketches**, **Curves**, **Planes**, **Axes**, **Grid**, **Relations**, **Overall size**, **Threads** and **Design issues**.
+- While a sketch is open, a **Sketch** section with **Dimensions**, **Relation glyphs**, **Reference dimensions**, **Colour by definition** and **Constraints panel**.
+
+These settings change only how the part looks. They are never written into the part's geometry.
+
+## Next
+
+- [Moving around the model](navigation.md)
+- [Selecting things](selection.md)
+- [Units and settings](settings.md)
+- [Commands and shortcuts](../reference/commands.md)
