@@ -14,11 +14,17 @@ export interface DocThumbnail { format: 'png'; width: number; height: number; ha
 /** Parts of the document the picture does not depend on. */
 const IGNORED = new Set(['thumbnail', 'name']);
 
+/** The format was renamed (ck-part, then ck-part): ck-part hashes as ck-part, the name the stored hashes were made with, at any depth
+ *  (a nested part of an assembly has its own `format`), so a picture drawn before the rename is still current. */
+function canonicalFormat(v: unknown): string {
+  return v === 'ck-part' ? JSON.stringify('ck-part') : canonical(v);
+}
+
 function canonical(v: unknown): string {
   if (Array.isArray(v)) return '[' + v.map(canonical).join(',') + ']';
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
-    return '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + canonical(o[k])).join(',') + '}';
+    return '{' + Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + (k === 'format' ? canonicalFormat(o[k]) : canonical(o[k]))).join(',') + '}';
   }
   return JSON.stringify(v) ?? 'null';
 }

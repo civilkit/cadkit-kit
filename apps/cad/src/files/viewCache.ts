@@ -13,7 +13,7 @@
 import type { FeatureStatus } from '@kit/store';
 
 export const VIEW_VERSION = 1;
-const MAGIC = [0x46, 0x57, 0x56, 0x43];   // 'CKVC'
+const MAGIC = [0x43, 0x4b, 0x56, 0x43];   // 'CKVC'
 
 /** Everything the controller shows after a rebuild, in a form that survives JSON plus typed arrays. */
 export interface ViewData {

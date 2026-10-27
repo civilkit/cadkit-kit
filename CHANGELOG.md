@@ -2,6 +2,14 @@
 
 Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the commit it was built from. Dates are when the change went live.
 
+## 0.4.0 - 2026-10-27
+
+### Changed
+- **Renamed to `ck`.** Parts are saved as `.ckpart` with the format name `ck-part`, the kernel crates are `ck-*`, the wasm is `ck_wasm`, the environment switches are `CK_*` (`CK_REBUILD`, `CK_WASM`) and the kit's aliases are `@ck/*`. Nothing about how a part behaves changed.
+- **Old files still open.** `.ckpart` and `.ckpart.gz` open, drop and import as before, and the format names `ck-part` and `ck-part` are read and become `ck-part` in the document, so the next save writes the new names. Only the new names are written.
+- A view saved inside a file by 0.3.9 or earlier is not used (it was keyed to the old kernel build anyway); the part rebuilds as usual and the next "Save geometry in file" writes a new one.
+- Sample thumbnails stay current across the rename: the picture hash reads `ck-part` as the name it was made with.
+
 ## 0.3.9 - 2026-10-27
 
 ### Added

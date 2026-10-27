@@ -17,7 +17,7 @@
    "file": "parts/block-small.ckpart",
    "source": "https://example.com/fixture-parts/block-small",
    "bytes": 1859,
-   "sha256": "5a26f151268c1d32a5b56431c2f48b6efab20449ada5a626afd734816a28041c"
+   "sha256": "5591783fc16cf9b1afdb2600ec0bc425859d59ffbd20a0071c97f33e5e8fb1ee"
   },
   {
    "id": "block-wide",
@@ -30,7 +30,7 @@
    "file": "parts/block-wide.ckpart",
    "source": "https://example.com/fixture-parts/block-wide",
    "bytes": 1856,
-   "sha256": "dff8ef59503ff2814d30e5e4458160f1a6e7f1369c6a73f78bb62600d136cd93"
+   "sha256": "1ef930e0a3af4eb3db3b7441a472de9957afce493a2c46898dac12d15ed99733"
   },
   {
    "id": "plate-gpl",
@@ -43,7 +43,7 @@
    "file": "parts/plate-gpl.ckpart",
    "source": "https://example.com/fixture-parts/plate-gpl",
    "bytes": 1841,
-   "sha256": "76d22fdf700124765750eed5573c91c9302598e80ce582c37cbcb8f8708a3664",
+   "sha256": "b2708b02f2db56e28771c1d2293a14d0b5db3f921178872769612fe77371f72d",
    "licence": "GPL-3.0-or-later"
   }
  ]

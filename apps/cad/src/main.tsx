@@ -1053,7 +1053,7 @@ function App() {
     script: () => showScript(),
     propeller: () => openPropeller(),
     impeller: () => openImpeller(),
-    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.gz', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
+    open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.ckpart', '.gz', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
       saveAs: () => void doSave(true),

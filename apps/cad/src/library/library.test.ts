@@ -354,7 +354,7 @@ describe('parts without an image, and what is installed', () => {
     await registry.putGeneratedThumb(id, 'block-small', PNG);
     expect(await registry.generatedThumb(id, 'block-small')).toEqual(PNG);
     const keys = await cache.keys(id);
-    expect(keys.some((k) => k.includes('/gen#5a26f151268c1d32a5b56431c2f48b6efab20449ada5a626afd734816a28041c'))).toBe(true);
+    expect(keys.some((k) => k.includes('/gen#5591783fc16cf9b1afdb2600ec0bc425859d59ffbd20a0071c97f33e5e8fb1ee'))).toBe(true);
     await registry.refresh(id);
     expect(await registry.generatedThumb(id, 'block-small')).toEqual(PNG);                   // a refresh keeps it while the part is unchanged
     await registry.remove(id);

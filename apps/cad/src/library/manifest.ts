@@ -117,7 +117,7 @@ export function validateManifest(raw: unknown, opts: ValidateOptions = {}): Mani
         if (Array.isArray(p.tags) && p.tags.length <= 20 && p.tags.every((x) => typeof x === 'string' && clean(x) && x.length <= 40)) for (const x of p.tags as string[]) tags.push(clean(x).toLowerCase());
         else bad(`${at}.tags`, 'tags');
       }
-      if (!relativePathOk(p.file) || !/\.(ckpart|json)$/i.test(p.file as string)) bad(`${at}.file`, 'file');
+      if (!relativePathOk(p.file) || !/\.(ckpart|ckpart|json)$/i.test(p.file as string)) bad(`${at}.file`, 'file');
       let thumb: string | undefined;
       if (p.thumb === undefined) warnings.push({ path: `${at}.thumb`, code: 'thumbMissing' });
       if (p.thumb !== undefined) { if (relativePathOk(p.thumb) && /\.(png|webp|jpe?g)$/i.test(p.thumb as string)) thumb = p.thumb as string; else bad(`${at}.thumb`, 'thumb'); }

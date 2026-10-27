@@ -18,9 +18,12 @@ describe('legacy format name', () => {
     const { isPartFormat, normalizePartFormat } = await import('./partVersion');
     expect(isPartFormat('ck-part')).toBe(true);
     expect(isPartFormat('ck-part')).toBe(true);
+    expect(isPartFormat('ck-part')).toBe(true);
     expect(isPartFormat('other')).toBe(false);
-    const d = { format: 'ck-part' };
-    normalizePartFormat(d);
-    expect(d.format).toBe('ck-part');
+    for (const old of ['ck-part', 'ck-part']) {
+      const d = { format: old };
+      normalizePartFormat(d);
+      expect(d.format).toBe('ck-part');
+    }
   });
 });
