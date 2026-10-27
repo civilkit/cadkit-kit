@@ -5,3 +5,5 @@ dist-pages
 sweep-report.json
 docs/solidcraft-issues/
 dist-pages-civilkit
+dist-local/
+.serve-local-*
