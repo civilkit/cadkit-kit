@@ -2,7 +2,7 @@
 // a bounded linear history of document states (undo/redo), named checkpoints, a notes string and the script-origin marks.
 import { Session, referencers } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
-import { hintFor } from '@ck/driver-verify';
+import { repairHint } from './hints';
 import { runScript, type ScriptHost, type ScriptError } from '@kit/script';
 import type { EditOp } from '@ck/session';
 import { ToolError } from './errors';
@@ -49,6 +49,8 @@ const clone = <T>(x: T): T => structuredClone(x);
 export class AgentSession {
   session!: Session;
   readonly registry: Registry;
+  /** the document the last script build used (its features give the sketch frames in repair hints) */
+  private scratchDoc: { features: Array<Record<string, unknown>> } | undefined;
   notes = '';
   readonly checkpoints = new Map<string, DocState>();
   private history: DocState[] = [];
@@ -153,6 +155,7 @@ export class AgentSession {
 
   /** Build `doc` on a scratch kernel tag (no display work unless `view`); the open document is untouched. */
   async scratchBuild(doc: Record<string, unknown>, view: boolean) {
+    this.scratchDoc = doc as { features: Array<Record<string, unknown>> };
     const r = await this.transport.request({ type: 'regen', tag: this.scratchTag, part: { ...emptyPart('script'), ...doc }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
     const res = r.result as { errors?: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>; body?: Record<string, unknown> | null };
@@ -262,16 +265,54 @@ export class AgentSession {
     this.scriptRuns = run;
     await this.setDocument(doc, `${origin} (${mode})`);
     const rep = await this.session.regenReport();
-    const warnings = [...(res.warnings ?? []).map((w) => ({ code: 'scriptWarning', line: w.line, message: w.message })), ...rep.warnings];
+    const multi = await this.multiBodyCutWarnings(doc.features as unknown as Array<Record<string, unknown>>, mine).catch(() => []);
+    const warnings = [...(res.warnings ?? []).map((w) => ({ code: 'scriptWarning', line: w.line, message: w.message })), ...rep.warnings, ...multi];
     // kernel errors of the final document (should not happen after a clean scratch build)
-    const late = rep.errors.map(([fid, err]) => ({ line: 0, feature: fid, message: (err as { message?: string }).message ?? err.code ?? 'error', code: err.code, hint: hintFor(fid, err.code ?? '', err.params ?? {}).hint }));
+    const late = rep.errors.map(([fid, err]) => ({ line: 0, feature: fid, message: (err as { message?: string }).message ?? err.code ?? 'error', code: err.code, hint: repairHint(fid, err.code ?? '', err.params ?? {}, this.doc as never) }));
     return { ok: late.length === 0, errors: late, warnings, mode, run, created: [...mine], removed, regenMs: performance.now() - t0 };
+  }
+
+  /** Per-lump volume and centre of mass of a feature list, built on the scratch tag; null when it does not build. */
+  private async lumpsOf(features: Array<Record<string, unknown>>, base: PartDoc): Promise<Array<{ volume: number; com: number[] }> | null> {
+    const r = await this.scratchBuild({ ...(base as unknown as Record<string, unknown>), features }, false);
+    if (r.errors.length) return null;
+    const m = await this.transport.request({ type: 'massProps', tag: this.scratchTag, bodies: true });
+    return m.ok ? ((m.result as { bodies?: Array<{ volume: number; com: number[] }> }).bodies ?? []) : null;
+  }
+
+  /**
+   * A cut applies to EVERY body that exists when it runs. When this run added cuts (or holes), rebuild the list just before and just after
+   * each one and warn when it changed more than one body. Only checked when the result has several bodies, for at most 24 cuts and 8 seconds.
+   */
+  private async multiBodyCutWarnings(feats: Array<Record<string, unknown>>, mine: Set<string>): Promise<Array<{ code: string; line: number; message: string }>> {
+    const isCut = (f: Record<string, unknown>) => mine.has(String(f.id)) && ((['extrude', 'revolve', 'sweep', 'loft'].includes(String(f.type)) && f.op === 'cut') || f.type === 'hole');
+    const cuts = feats.map((f, i) => ({ f, i })).filter(({ f }) => isCut(f));
+    if (!cuts.length) return [];
+    const final = await this.session.massProps({ bodies: true }).catch(() => null);
+    if ((final?.bodies?.length ?? 0) < 2) return [];
+    const out: Array<{ code: string; line: number; message: string }> = [];
+    const t0 = performance.now();
+    let checked = 0;
+    for (const { f, i } of cuts) {
+      if (checked >= 24 || performance.now() - t0 > 8000) break;
+      const before = await this.lumpsOf(feats.slice(0, i), this.doc);
+      if (!before || before.length < 2) continue;
+      checked++;
+      const after = await this.lumpsOf(feats.slice(0, i + 1), this.doc);
+      if (!after) continue;
+      const same = (x: { volume: number; com: number[] }, y: { volume: number; com: number[] }) => Math.abs(x.volume - y.volume) <= 1e-6 * Math.max(1, x.volume) && Math.hypot(x.com[0] - y.com[0], x.com[1] - y.com[1], x.com[2] - y.com[2]) <= 1e-6;
+      const left = [...after];
+      let changed = 0;
+      for (const b of before) { const k = left.findIndex((y) => same(b, y)); if (k >= 0) left.splice(k, 1); else changed++; }
+      if (changed > 1) out.push({ code: 'cutHitManyBodies', line: 0, message: `${f.id} (${String(f.name ?? f.type)}) changed ${changed} bodies: a cut applies to every body that exists when it runs. If only one body should be cut, build the others after this cut or leave clearance` });
+    }
+    return out;
   }
 
   private decorate(e: ScriptError, raw: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>) {
     const hit = e.feature ? raw.find(([id]) => id === e.feature) : undefined;
     const code = hit?.[1]?.code;
-    return { line: e.line, message: e.message, ...(e.feature ? { feature: e.feature } : {}), ...(code ? { code, hint: hintFor(e.feature!, code, hit![1].params ?? {}).hint } : {}) };
+    return { line: e.line, message: e.message, ...(e.feature ? { feature: e.feature } : {}), ...(code ? { code, hint: repairHint(e.feature!, code, hit![1].params ?? {}, this.scratchDoc as never) } : {}) };
   }
 
   async close(): Promise<void> {

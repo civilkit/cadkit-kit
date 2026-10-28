@@ -50,16 +50,19 @@ export interface SnapshotOpts {
   view?: ViewSpec;
   up?: 'y' | 'z';
   size?: number | { width: number; height: number };
-  projection?: 'ortho' | 'persp';
+  /** 'ortho' (alias 'orthographic') or 'persp' (alias 'perspective') */
+  projection?: 'ortho' | 'persp' | 'orthographic' | 'perspective';
   style?: StyleName;
   /** pin the framing so before/after renders are comparable */
   frame?: Frame;
   markers?: Marker[];
-  annotate?: Dimension[];
+  /** dimension lines to draw; `true` draws the three overall extents of the bounding box */
+  annotate?: Dimension[] | boolean;
   /** face ids to colour */
   highlight?: string[];
   background?: string | [number, number, number];
-  sheet?: SheetName;
+  /** a sheet name; `true` means 'drawing-third-angle', `false` 'single' */
+  sheet?: SheetName | boolean;
   /** 'ab' sheet: B is `input` for B (two different inputs) or, when absent, the same view with negated azimuth. */
   ab?: { b?: SnapshotInput; bView?: ViewSpec; labels?: [string, string] };
   /** supersampling factor (integer, default 2) */

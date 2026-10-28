@@ -8,6 +8,7 @@
  * Coincident constraints are listed but not drawn: they are the shared points themselves.
  */
 import type { DraftConstraint, DraftEntity, SketchDraft } from './index';
+import { shownValue, storedValue } from './slotLength';
 import type { Pt } from './tools/types';
 
 export interface Annotation {
@@ -73,7 +74,8 @@ export function annotate(draft: SketchDraft): Annotation[] {
     if (c.hidden === true) continue;   // placed by a tool (patterns) and not worth a label; the constraint list still shows it
     const refs = c.refs ?? [];
     const base = { id: c.id, type: c.type, refs };
-    if (DIM_TYPES.has(c.type) && typeof c.value === 'number') {
+    const shown = shownValue(draft, c);
+    if (DIM_TYPES.has(c.type) && shown !== undefined) {
       let at: Pt | null = null;
       if (c.type === 'angle' && refs.length === 2) {
         const a = ents.get(refs[0]), b = ents.get(refs[1]);
@@ -86,7 +88,7 @@ export function annotate(draft: SketchDraft): Annotation[] {
       } else if (refs.length === 1) at = anchorOf(refs[0]);
       if (!at) continue;
       const prefix = c.type === 'radius' ? 'R' : c.type === 'diameter' ? 'Ø' : c.type === 'angle' ? '∠' : '';
-      out.push({ ...base, kind: 'dimension', text: `${prefix}${fmt(c.value)}${c.type === 'angle' ? '°' : ''}`, at, value: c.value, ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) });
+      out.push({ ...base, kind: 'dimension', text: `${prefix}${fmt(shown)}${c.type === 'angle' ? '°' : ''}`, at, value: shown, ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) });
       continue;
     }
     const glyph = GLYPHS[c.type];
@@ -126,6 +128,11 @@ export function setConstraintValue(draft: SketchDraft, id: string, value: number
   const c = draft.constraints.find((x) => x.id === id);
   if (!c || typeof c.value !== 'number' || !Number.isFinite(value)) return null;
   if (c.type !== 'angle' && value <= 0) return null;
+  if (c.overall === true) {   // the overall length of a slot: stored as the centre distance, and an expression cannot say that, so it is dropped
+    const stored = storedValue(draft, c, value);
+    if (stored === undefined) return null;
+    return { ...draft, constraints: draft.constraints.map((x) => { if (x.id !== id) return x; const { expr: _old, ...rest } = x; return { ...rest, value: stored }; }) };
+  }
   // an expression links the dimension to the variables (the kernel re-solves when they change); a plain number unlinks it
   return { ...draft, constraints: draft.constraints.map((x) => { if (x.id !== id) return x; const { expr: _old, ...rest } = x; return expr ? { ...rest, value, expr: expr.replace(/^\s*=\s*/, '') } : { ...rest, value }; }) };
 }

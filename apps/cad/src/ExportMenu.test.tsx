@@ -41,4 +41,10 @@ describe('ExportMenu', () => {
     fireEvent.mouseDown(screen.getByText('elsewhere'));
     expect(screen.queryByRole('menu')).toBeNull();
   });
+  it('shows an Only visible bodies checkbox when asked and reports its changes', () => {
+    const onChange = vi.fn();
+    render(<ExportMenu items={items()} open onOpenChange={() => {}} visibleOnly={{ on: false, onChange }} />);
+    fireEvent.click(screen.getByLabelText('Only visible bodies (STL, OBJ)'));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
 });

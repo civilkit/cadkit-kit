@@ -58,4 +58,31 @@ p.bodyName(lens, 'Tach lens'); p.bodyName('F4', 'Cap');`);
     expect(r.errors[0]?.message).toContain(msg);
     expect(r.errors[0]?.line).toBeGreaterThan(0);
   });
+  it('a look on a pattern also styles the seed body (a look given to the seed itself wins)', async () => {
+    const { r } = await run(`const p = part('x');
+p.sketch('front', (s) => s.circle(5, [0, 0])).extrude(3);
+const seed = p.handle();
+p.linearPattern({ count: 3, spacing: 20, direction: 'x' });
+const pat = p.handle();
+p.appearance({ feature: pat, colour: '#aa5500' });
+p.appearance({ feature: seed, finish: 'matte' });`);
+    expect(r.errors).toEqual([]);
+    expect((r.document as { appearance: unknown }).appearance).toEqual({ F2: { color: '#aa5500', finish: 'matte' }, F3: { color: '#aa5500' } });
+  });
+});
+
+describe('newBody option', () => {
+  it('extrude / revolve / sweep write op newBody (and the body name); a cut refuses it', async () => {
+    const { r } = await run(`const p = part('x');
+p.sketch('front', (s) => s.rect(20, 20)).extrude(5);
+p.sketch('front', (s) => s.rect(5, 5, [40, 0])).extrude(5, { newBody: 'Block' });
+p.sketch('front', (s) => s.polygon([[10, 0], [20, 0], [20, 5], [10, 5]])).revolve(360, { newBody: true });
+p.sweep({ on: 'front', draw: (s) => s.circle(2) }, { on: 'right', draw: (s) => s.line([0, 0], [0, 20]) }, { newBody: true });`);
+    expect(r.errors).toEqual([]);
+    const f = (r.document as { features: Array<Record<string, unknown>> }).features.filter((x) => ['extrude', 'revolve', 'sweep'].includes(String(x.type)));
+    expect(f.map((x) => x.op)).toEqual(['add', 'newBody', 'newBody', 'newBody']);
+    expect(f[1].body).toBe('Block');
+    const bad = await run(`part('x').sketch('front', (s) => s.rect(20, 20)).extrude(5).sketch('front', (s) => s.circle(2)).cut(through(), { newBody: true });`);
+    expect(bad.r.errors[0].message).toMatch(/newBody applies to material you add/);
+  });
 });

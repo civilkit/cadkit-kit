@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SelModel } from './select/model';
 import { box, meshOf } from './select/fixtures';
-import { cleanLook, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withName } from './bodies';
+import { cleanLook, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh } from './bodies';
+import { exportStl } from './exportFiles';
 
 // two separate boxes: F1 (10 x 10 x 10 at the origin) and F5 (20 x 5 x 5 apart from it)
 const model = (): SelModel => {
@@ -56,6 +57,10 @@ describe('look edits', () => {
     expect(a).toEqual({ [rows[0].key]: { opacity: 0.3 } });
     const b = withLook({ appearance: a }, { key: rows[0].key, look: { opacity: 0.3 } }, { opacity: undefined });
     expect(b).toEqual({});
+  });
+  it('applies one patch to several bodies, each keeping the rest of its own look', () => {
+    const next = withLooks({ appearance: { [rows[0].key]: { color: '#101010' } } }, [{ key: rows[0].key, look: { color: '#101010' } }, { key: rows[1].key, look: {} }], { opacity: 0.5 });
+    expect(next).toEqual({ [rows[0].key]: { color: '#101010', opacity: 0.5 }, [rows[1].key]: { opacity: 0.5 } });
   });
   it('editing a body that takes its look from a feature entry writes its own entry and leaves the feature entry alone', () => {
     const f = { appearance: { F1: { color: '#101010' } } };
@@ -144,5 +149,26 @@ describe('bodies of the components of an assembly', () => {
     const bodies = [{ faces: ['F2.S1'], edges: [], surface: false }, { faces: ['F2.S1@F6.1'], edges: [], surface: false }] as never;
     const rows = listBodies(bodies, { appearance: { 'F2@F6': { color: '#ff0000', metallic: 0.5 } } }, { featureName: (id) => (id === 'F6' ? 'Wheel' : id === 'F2' ? 'Plate' : null) });
     expect(rows.map((r) => [r.name, r.look.color])).toEqual([['Plate', undefined], ['Wheel', '#ff0000']]);
+  });
+});
+
+describe('visibleMesh (export only visible bodies)', () => {
+  // two single-triangle faces, F1.a and F2.a, one per body
+  const mesh = { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0, 0, 6, 0, 0, 5, 1, 0], triFace: [0, 1], faceIds: ['F1.a', 'F2.a'] };
+  const rows = (hideSecond: boolean) => [{ hidden: false, faces: ['F1.a'] }, { hidden: hideSecond, faces: ['F2.a'] }];
+  it('is the mesh itself when nothing is hidden or it carries no face ids', () => {
+    expect(visibleMesh(mesh, rows(false))).toBe(mesh);
+    const bare = { positions: mesh.positions };
+    expect(visibleMesh(bare, rows(true))).toBe(bare);
+    expect(visibleMesh(null, rows(true))).toBeNull();
+  });
+  it('drops the triangles of hidden bodies, so the exported file has only the visible ones', () => {
+    const v = visibleMesh(mesh, rows(true))!;
+    expect(Array.from(v.positions)).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const r = exportStl(v, 'P');
+    expect(r.notices.find((n) => n.key === 'io.done')?.params?.triangles).toBe(1);
+  });
+  it('is null when every body is hidden', () => {
+    expect(visibleMesh(mesh, [{ hidden: true, faces: ['F1.a'] }, { hidden: true, faces: ['F2.a'] }])).toBeNull();
   });
 });

@@ -77,8 +77,8 @@ function mkView(doc: DrawingDoc, kind: DView['kind'], label: string, fr: { x: V3
   };
 }
 
-/** Front, top, right (and isometric) filling the sheet at the largest standard scale that fits; replaces the views already on it. */
-export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names = ['front', 'top', 'right', 'iso'], reserve = 0): Promise<{ doc: DrawingDoc; data: Record<string, ViewData> }> {
+/** Front, top, right (and isometric) filling the sheet at the largest standard scale that fits (or at `forceScale`, e.g. '2:1'); replaces the views already on it. */
+export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names = ['front', 'top', 'right', 'iso'], reserve = 0, forceScale?: string): Promise<{ doc: DrawingDoc; data: Record<string, ViewData> }> {
   let d: DrawingDoc = { ...doc, views: [], dims: [], balloons: [] };
   const proj = d.sheet.projection;
   const front = mkView(d, 'std', 'Front', STD_FRAMES.front, [0, 0]);
@@ -106,7 +106,7 @@ export async function standardViews(doc: DrawingDoc, query: DrawingQuery, names 
   const side = d.views.find((v) => v.side === 'right' || v.side === 'left');
   const iso = d.views.find((v) => v.kind === 'std' && v.id !== front.id);
   const ue = up ? ext(up) : [0, 0] as V2, se = side ? ext(side) : [0, 0] as V2;
-  const cross3 = bestScale(d.sheet, [[fe[0], fe[1]], [se[0], 0], [0, ue[1]]]);
+  const cross3 = forceScale ?? bestScale(d.sheet, [[fe[0], fe[1]], [se[0], 0], [0, ue[1]]]);
   const s = parseScale(cross3);
   d = { ...d, sheet: { ...d.sheet, scale: cross3 } };
   const [sw, sh] = sheetSize(d.sheet);

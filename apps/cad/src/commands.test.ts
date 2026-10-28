@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildCommands, type Actions } from './commands';
+import { buildCommands, resetLastCommand, type Actions } from './commands';
 
 const actions = (over: Partial<Actions> = {}): Actions => ({
   open: vi.fn(), save: vi.fn(), samples: vi.fn(), undo: vi.fn(), redo: vi.fn(), palette: vi.fn(), toggleDrawer: vi.fn(), settings: vi.fn(), hasDocument: () => false, newPart: vi.fn(), toggleProjection: vi.fn(), sketchHere: vi.fn(), toggleLeftPanel: vi.fn(), sketchOnFace: vi.fn(), hasFaceSelection: () => false, addExtrude: vi.fn(), newSketch: vi.fn(),
@@ -7,6 +7,23 @@ const actions = (over: Partial<Actions> = {}): Actions => ({
 });
 
 describe('ribbon commands', () => {
+  it('Repeat last command runs the command run before it, ignores itself and the search, and is off until one ran', () => {
+    resetLastCommand();
+    const fit = vi.fn(); const palette = vi.fn();
+    const cmds = buildCommands(actions({ fit, palette, hasDocument: () => true }));
+    const rep = cmds.find((c) => c.id === 'repeat-last')!;
+    expect(rep.enabled?.()).toBe(false);
+    cmds.find((c) => c.id === 'fit')!.run();
+    cmds.find((c) => c.id === 'palette')!.run();
+    expect(rep.enabled?.()).toBe(true);
+    rep.run(); rep.run();
+    expect(fit).toHaveBeenCalledTimes(3);
+    expect(palette).toHaveBeenCalledTimes(1);
+    // survives a rebuilt table, and follows the target's own enabled rule
+    const again = buildCommands(actions({ fit, hasDocument: () => true })).find((c) => c.id === 'repeat-last')!;
+    expect(again.enabled?.()).toBe(true);
+    resetLastCommand();
+  });
   it('has unique ids and the expected tabs', () => {
     const cmds = buildCommands(actions());
     expect(new Set(cmds.map((c) => c.id)).size).toBe(cmds.length);

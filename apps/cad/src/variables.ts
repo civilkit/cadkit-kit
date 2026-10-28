@@ -2,7 +2,7 @@
 // The kernel reads `variables: [{name, expr}]` from the part and ignores other keys, so a comment and a unit ride along on each
 // variable, and `configurations` / `activeConfig` are extra top-level fields (the kernel never reads them; Save keeps them).
 import type { PartDoc } from '@ck/part-model';
-import { evalExpr, identifiers, nameError, resolveVariables, type Scope, type Variable } from '@kit/ui';
+import { evalExpr, identifiers, nameError, resolveVariables, type ExprCode, type Scope, type Variable } from '@kit/ui';
 
 export interface Config { name: string; values: Record<string, string> }
 export type VarDoc = PartDoc & { variables?: Variable[]; configurations?: Config[]; activeConfig?: string };
@@ -91,4 +91,16 @@ export function firstProblem(vars: Variable[]): { name: string; code: string; at
   }
   for (let i = 0; i < vars.length; i++) if (!evalExpr(vars[i].expr, sc.values).ok) return { name: vars[i].name, code: 'badExpression', at: i };
   return null;
+}
+
+/** Define the parameter a `name = value` entry names: a new variable, or the existing one given the new value (it keeps its comment and unit).
+ *  The result is the whole variable list to apply, or the first problem (a bad name, a value that does not evaluate, a cycle). */
+export function defineVariable(vars: Variable[], name: string, expr: string): { ok: true; variables: Variable[] } | { ok: false; code: ExprCode; name: string } {
+  const value = expr.replace(/^\s*=\s*/, '');
+  const taken = vars.map((v) => v.name).filter((n) => n !== name);
+  const nameBad = nameError(name, taken);
+  if (nameBad) return { ok: false, code: nameBad, name };
+  const variables = vars.some((v) => v.name === name) ? vars.map((v) => (v.name === name ? { ...v, expr: value } : v)) : [...vars, { name, expr: value }];
+  const bad = firstProblem(variables);
+  return bad ? { ok: false, code: bad.code as ExprCode, name: bad.name } : { ok: true, variables };
 }

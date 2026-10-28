@@ -215,6 +215,22 @@ function refPoints(d: SketchDraft, c: DraftConstraint): string[] {
   return out;
 }
 
+/** The points and entities named by constraints the solver blames (conflicts, and redundant ones once the sketch is over-constrained), for drawing them in the conflict colour.
+ *  An entity counts when a conflicting constraint names it or one of its points. */
+export function conflictingGeometry(draft: SketchDraft, status: SketchSolverStatus | null): { entities: string[]; points: string[] } {
+  if (!status) return { entities: [], points: [] };
+  const conflicting = new Set([...status.conflicts, ...status.redundant.filter(() => status.state === 'over')]);
+  const points = new Set<string>();
+  const named = new Set<string>();
+  for (const c of draft.constraints) {
+    if (!conflicting.has(c.id)) continue;
+    for (const p of refPoints(draft, c)) points.add(p);
+    for (const r of c.refs ?? []) if (draft.entities.some((e) => e.id === r)) named.add(r);
+  }
+  const entities = draft.entities.filter((e) => named.has(e.id) || entityPoints(e).some((p) => points.has(p))).map((e) => e.id);
+  return { entities, points: [...points] };
+}
+
 /**
  * How defined each entity is. `status` is the solver's answer for the draft as it stands. At zero degrees of freedom
  * everything is `full`; otherwise each free point (and circle radius) is probed with a pin and the entity is `full`
@@ -224,11 +240,7 @@ function refPoints(d: SketchDraft, c: DraftConstraint): string[] {
 export async function definitionMap(draft: SketchDraft, status: SketchSolverStatus | null, solve: Solve, opts: { maxProbes?: number; cancelled?: () => boolean } = {}): Promise<Map<string, DefState>> {
   const out = new Map<string, DefState>();
   if (!status) return out;
-  const conflicting = new Set([...status.conflicts, ...status.redundant.filter(() => status.state === 'over')]);
-  const overPts = new Set<string>();
-  for (const c of draft.constraints) if (conflicting.has(c.id)) for (const p of refPoints(draft, c)) overPts.add(p);
-  const overEnt = new Set<string>();
-  for (const c of draft.constraints) if (conflicting.has(c.id)) for (const r of c.refs ?? []) if (draft.entities.some((e) => e.id === r)) overEnt.add(r);
+  const over = new Set(conflictingGeometry(draft, status).entities);
 
   const known = new Map<string, boolean>();   // point or circle id -> determined
   if (status.dof === 0 && status.solved) {
@@ -252,7 +264,7 @@ export async function definitionMap(draft: SketchDraft, status: SketchSolverStat
     for (const e of draft.entities) if (e.type === 'circle') known.set(e.id, await probe('radius', e.id, Number(e.r)));
   }
   for (const e of draft.entities) {
-    if (overEnt.has(e.id) || entityPoints(e).some((p) => overPts.has(p))) { out.set(e.id, 'over'); continue; }
+    if (over.has(e.id)) { out.set(e.id, 'over'); continue; }
     const parts = [...entityPoints(e), ...(e.type === 'circle' ? [e.id] : [])];
     out.set(e.id, parts.every((p) => known.get(p)) ? 'full' : 'under');
   }

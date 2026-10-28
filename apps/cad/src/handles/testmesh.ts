@@ -30,3 +30,38 @@ export function boxMesh(min: V3, max: V3, prefix = 'F2'): { mesh: MeshLike; edge
   }
   return { mesh: { positions, normals, triFace, faceIds: faces.map((f) => f.name) }, edges, box: { min: [...min], max: [...max] } };
 }
+
+/** A cylinder about the z axis (radius r, z0..z1): the wall `<prefix>.S.c1` as `n` quads with smooth normals, the caps `<prefix>.C0` / `<prefix>.C1`, and the two rim circles as edges. */
+export function cylinderMesh(r: number, z0: number, z1: number, prefix = 'F2', n = 48): { mesh: MeshLike; edges: ViewEdge[]; box: { min: number[]; max: number[] } } {
+  const wall = `${prefix}.S.c1`, c0 = `${prefix}.C0`, c1 = `${prefix}.C1`;
+  const positions: number[] = [], normals: number[] = [], triFace: number[] = [];
+  const rim = (z: number): V3[] => Array.from({ length: n + 1 }, (_, i) => [r * Math.cos((2 * Math.PI * i) / n), r * Math.sin((2 * Math.PI * i) / n), z]);
+  const lo = rim(z0), hi = rim(z1);
+  for (let i = 0; i < n; i++) {
+    const q = [lo[i], lo[i + 1], hi[i + 1], hi[i]];
+    for (const tri of [[0, 1, 2], [0, 2, 3]]) for (const k of tri) { positions.push(...q[k]); normals.push(q[k][0] / r, q[k][1] / r, 0); }
+    triFace.push(0, 0);
+  }
+  for (let i = 0; i < n; i++) {
+    for (const [pts, nz, f] of [[lo, -1, 1], [hi, 1, 2]] as Array<[V3[], number, number]>) {
+      for (const p of [[0, 0, pts[0][2]] as V3, pts[i], pts[i + 1]]) { positions.push(...p); normals.push(0, 0, nz); }
+      triFace.push(f);
+    }
+  }
+  const edges: ViewEdge[] = [
+    { key: `${wall}|${c0}#0`, faces: [wall, c0], pts: lo, mid: lo[0] },
+    { key: `${wall}|${c1}#1`, faces: [wall, c1], pts: hi, mid: hi[0] },
+  ];
+  return { mesh: { positions, normals, triFace, faceIds: [wall, c0, c1] }, edges, box: { min: [-r, -r, z0], max: [r, r, z1] } };
+}
+
+/** A sphere (centre at the origin) as one face named `<name>`, `n` by `n` quads with smooth normals. */
+export function sphereMesh(r: number, name = 'F2.S.s1', n = 24): MeshLike {
+  const positions: number[] = [], normals: number[] = [], triFace: number[] = [];
+  const at = (i: number, j: number): V3 => { const th = (Math.PI * i) / n, ph = (2 * Math.PI * j) / n; return [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]; };
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const q = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)];
+    for (const tri of [[0, 1, 2], [0, 2, 3]]) { for (const k of tri) { positions.push(q[k][0] * r, q[k][1] * r, q[k][2] * r); normals.push(...q[k]); } triFace.push(0); }
+  }
+  return { positions, normals, triFace, faceIds: [name] };
+}

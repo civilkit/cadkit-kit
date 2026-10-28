@@ -1,6 +1,9 @@
 import { matxScript } from './matx';
 import { dashScript } from './dash';
 import { PICKLEBALL_SCRIPT } from './pickleball';
+import { KNURLED_KNOB_SCRIPT } from './knurledknob';
+import { SCREWS_SCRIPT } from './screws';
+import { BEARINGS_SCRIPT } from './bearings';
 export interface Example { id: string; title: string; code: string }
 export const EXAMPLES: Example[] = [
   {
@@ -108,6 +111,9 @@ part('Motor end cap')
 `,
   },
   { id: 'pickleball', title: 'Pickleball: hollow ball, 40 holes in rings (edit the variables; ~30 s)', code: PICKLEBALL_SCRIPT },
+  { id: 'knurled-knob', title: 'Knurled knob: straight, pyramid or diamond knurl on the rim (edit the variables)', code: KNURLED_KNOB_SCRIPT },
+  { id: 'screws', title: 'Screws: every head and drive, M3 by default (edit size and length; ~10 s)', code: SCREWS_SCRIPT },
+  { id: 'bearings', title: 'Bearings: 625, 608, 6204 and R2 by designation, shielded, sealed or open with balls (edit the list; ~10 s)', code: BEARINGS_SCRIPT },
   { id: 'speedboat-dash', title: 'Speedboat analog dash cluster (4 gauges, ~150 features, ~20 s)', code: dashScript() },
   { id: 'matx-frame', title: 'mATX case: hoops, corner blocks, strips (fast)', code: matxScript(['blocks', 'strips', 'hoops']) },
   { id: 'matx-case', title: 'mATX case: the whole tower (several minutes to regenerate)', code: matxScript() },

@@ -4,7 +4,7 @@ import { t } from './i18n';
 
 /** The top bar's Export button and its list of formats. The list is the export commands themselves (so the menu, the
  *  ribbon and the command search never disagree); a format that cannot run now is shown disabled. */
-export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(open: boolean): void; keys?: string; disabled?: boolean }) {
+export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(open: boolean): void; keys?: string; disabled?: boolean; /** "Only visible bodies" for the mesh formats; absent: no such row. */ visibleOnly?: { on: boolean; onChange(on: boolean): void } }) {
   const box = useRef<HTMLDivElement>(null);
   const { open, onOpenChange } = p;
   useEffect(() => {
@@ -33,6 +33,12 @@ export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(op
               </button>
             );
           })}
+          {p.visibleOnly ? (
+            <label class="export-row export-opt">
+              <input type="checkbox" data-pref="exportVisible" checked={p.visibleOnly.on} onChange={(e) => p.visibleOnly!.onChange((e.currentTarget as HTMLInputElement).checked)} />
+              <span>{t('export.visibleOnly')}</span>
+            </label>
+          ) : null}
         </div>
       ) : null}
     </div>

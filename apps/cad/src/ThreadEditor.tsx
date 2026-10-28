@@ -9,11 +9,11 @@ import type { JSX } from 'preact';
 import { EditorSection as Section, Icon } from '@kit/ui';
 import type { FeatureWarning } from '@kit/store';
 import { t } from './i18n';
-import { HandRow, LengthRow, ModelRow, ReadoutCard, Select, Seg, SizeChips, SizePicker, fmt, stdLabel } from './ThreadControls';
+import { ClearanceRow, HandRow, LengthRow, ModelRow, ReadoutCard, Select, Seg, SizeChips, SizePicker, fmt, stdLabel } from './ThreadControls';
 
 export { Select, Seg, SizePicker, stdLabel };
 import {
-  NEAREST_MARKED, THREAD_HANDS, THREAD_STARTS, classOptions, clampLength, customLengthDefault, filterSizes, fitStatus, loadThreadPrefs, modelFallbackReason,
+  CLEARANCE_DEFAULT, NEAREST_MARKED, THREAD_HANDS, clearanceOf, patchClearance, THREAD_STARTS, classOptions, clampLength, customLengthDefault, filterSizes, fitStatus, loadThreadPrefs, modelFallbackReason,
   groupChip, groupMisfits, nearestSizes, patchSize, patchStandard, quickSizes, suggestedSize, readoutRows, rememberSize, saveThreadPrefs, sizeLabel, startMatters,
   type FaceExtent, type ThreadRow, type ThreadStd,
 } from './threadData';
@@ -57,6 +57,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const root = useRef<HTMLDivElement>(null);
   const lastCustom = useRef<number | null>(null);
+  const lastClearance = useRef(CLEARANCE_DEFAULT);
   const f = p.feature;
   const eff: Wire = { ...(f ?? {}), ...draft };
   for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
@@ -121,6 +122,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
   const last = loadThreadPrefs().lastSize?.[standard] ?? null;
   const chips = quickSizes(standard, rows, last);
   const modeled = Boolean(eff.modeled);
+  const clearance = clearanceOf(eff);
   const notBuilt = modelFallbackReason(modeled, p.entryModeled, p.warning);
   const sec = p.modeledMs ? Math.max(1, Math.round(p.modeledMs / 1000)) : null;
 
@@ -189,6 +191,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
             onChange={(v) => change({ start: v === 'open' ? null : v })} />
         ) : null}
         <ModelRow on={modeled} seconds={sec} onChange={(on) => { saveThreadPrefs({ modeled: on }); change({ modeled: on }); }} />
+        {modeled ? <ClearanceRow dir={clearance.dir} mm={clearance.mm || lastClearance.current} onDir={(d) => change(patchClearance(d, lastClearance.current))} onValue={(v) => { lastClearance.current = v; change(patchClearance(clearance.dir, v)); }} /> : null}
         {modeled && p.entryModeled === false && f.modeled === true
           ? <div class="thread-fit warn" role="status" data-testid="thread-notbuilt" data-warning="threadModelFallback">{notBuilt ? t('thread.modeled.notBuilt', { reason: notBuilt }) : t('thread.modeled.notBuiltUnknown')}</div> : null}
       </Section>

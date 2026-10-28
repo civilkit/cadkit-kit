@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
+import { render, fireEvent, cleanup, screen, act, waitFor } from '@testing-library/preact';
 import { Slot, slotMemory, type SlotItem } from './Slot';
 
 afterEach(() => { cleanup(); });
@@ -43,10 +43,9 @@ describe('Slot', () => {
     render(<Slot id="s4" items={items} variant="rail" side="right" />);
     const b = screen.getByRole('button', { name: 'Alpha' });
     fireEvent.pointerDown(b);
-    await new Promise((r) => setTimeout(r, 460));
+    await waitFor(() => expect(document.querySelector('.slot-flyout')).not.toBeNull(), { timeout: 3000 });   // the 380 ms hold fires
     fireEvent.pointerUp(b);
     fireEvent.click(b);
-    await new Promise((r) => setTimeout(r, 20));
     expect(document.querySelector('.slot-flyout')).not.toBeNull();
     expect(items[0].run).not.toHaveBeenCalled();
   });
@@ -54,12 +53,14 @@ describe('Slot', () => {
     const items = mk();
     render(<Slot id="s5" items={items} variant="rail" side="right" />);
     const b = screen.getByRole('button', { name: 'Alpha' });
-    // jsdom has no PointerEvent and no onpointer* properties, so Preact listens under the camel-case names there
-    const ev = (type: string, x: number) => b.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: 10 }));
-    ev('PointerDown', 10);
-    ev('PointerMove', 30);
-    await new Promise((r) => setTimeout(r, 20));
-    expect(document.querySelector('.slot-flyout')).not.toBeNull();
+    // jsdom has no PointerEvent and no onpointer* properties, so Preact listens under the camel-case names there. The events go
+    // through act (the render is flushed when it returns) and the check waits for the list instead of sleeping a fixed time,
+    // so a loaded machine cannot make it flaky.
+    const ev = (type: string, x: number) => act(() => { b.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: 10 })); });
+    await ev('PointerDown', 10);
+    await ev('PointerMove', 30);
+    await waitFor(() => expect(document.querySelector('.slot-flyout')).not.toBeNull());
+    expect(items[0].run).not.toHaveBeenCalled();
   });
   it('the corner triangle opens the list and Escape closes it', () => {
     const { container } = render(<Slot id="s6" items={mk()} variant="ribbon" />);

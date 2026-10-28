@@ -74,8 +74,8 @@ export interface KernelFactory {
   cancel?(): void;
 }
 
-/** One undoable change of the part's material. */
-interface MaterialStep { at: number; before: string | null; after: string }
+/** One undoable change of the part's material, or (with `extra`) of a document field the session has no op for (the cosmetic knurls): no rebuild, ordered with the session's own steps. */
+interface MaterialStep { at: number; before: unknown; after: unknown; extra?: string }
 
 export class Controller {
   private readonly store: Store;
@@ -169,7 +169,7 @@ export class Controller {
       const reset = () => {
         // viewer-state fields kept in the file: the exploded view and the drawing sheet
         this.docExtra = {}; this.extraRev++;
-        for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
+        for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources', 'cosmeticKnurls']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
         this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
         this.tipNoteV = null; this.limits = new Map();
       };
@@ -660,7 +660,8 @@ export class Controller {
     if (this.sketchOpen) { await this.undoSketch(); return; }
     const last = this.materialSteps[this.materialSteps.length - 1];
     if (last && last.at === s.history().length) {   // the newest change is a material change: it is the one step undone
-      this.materialSteps.pop(); this.material = last.before; this.redoStack.push(last);
+      this.materialSteps.pop(); this.redoStack.push(last);
+      if (last.extra) { this.putExtra(last.extra, last.before); this.onExtraChange?.(last.extra); } else this.material = last.before as string | null;
       return;
     }
     // An undo takes back exactly one step. If the step it would restore has far fewer features than the part has now (more
@@ -694,7 +695,11 @@ export class Controller {
     const ops = this.redoStack.pop();
     if (!ops || !this.session) return;
     if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatchNow(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
-    if (!Array.isArray(ops)) { this.materialSteps.push({ ...ops, at: this.session.history().length }); this.material = ops.after; return; }
+    if (!Array.isArray(ops)) {
+      this.materialSteps.push({ ...ops, at: this.session.history().length });
+      if (ops.extra) { this.putExtra(ops.extra, ops.after); this.onExtraChange?.(ops.extra); } else this.material = ops.after as string;
+      return;
+    }
     // edit() clears the redo stack on success; keep the remaining entries.
     const rest = this.redoStack;
     try {
@@ -955,10 +960,22 @@ export class Controller {
   private extraRev = 0;
 
   /** Keep a viewer-state field (the exploded view) in the document; `null` removes it. Not a history step and no rebuild. */
-  setDocExtra(key: string, value: unknown | null): void {
+  setDocExtra(key: string, value: unknown | null): void { this.putExtra(key, value); }
+  private putExtra(key: string, value: unknown | null): void {
     this.extraRev++;
     this.extraRev++;
-    if (value === null) delete this.docExtra[key]; else this.docExtra[key] = structuredClone(value);
+    if (value === null || value === undefined) delete this.docExtra[key]; else this.docExtra[key] = structuredClone(value);
+  }
+  /** Called after an undo or redo changed a field set with `setUndoableExtra` (the app redraws what shows it). */
+  onExtraChange: ((key: string) => void) | null = null;
+  /** Like `setDocExtra`, but one undo step (and redo), in order with the session's edits and the material changes. No rebuild: the field is not geometry.
+   *  Use `null` for none. The cosmetic knurls are kept this way. */
+  setUndoableExtra(key: string, value: unknown | null): void {
+    if (!this.hasDoc()) return;
+    const before = this.docExtra[key] === undefined ? null : structuredClone(this.docExtra[key]);
+    this.materialSteps.push({ at: this.session?.history().length ?? 0, before, after: value === undefined ? null : structuredClone(value), extra: key });
+    this.putExtra(key, value);
+    this.redoStack = [];
   }
 
   /** The kernel's `drawing` request for the current state, for the Drawings workspace (null with no document). */

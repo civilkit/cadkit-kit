@@ -1,0 +1,2 @@
+- The plane frame is the one at() documents: for { origin, normal, xdir } sketch x = xdir (projected perpendicular to the normal), sketch y = normal x xdir, the origin is the sketch origin. Standard names: front = X, Y (normal +Z); top = X, -Z (normal +Y); right = -Z, Y (normal +X).
+- Take part.handle() right after workplane() and sketch on at(handle). Planes are features: they show in the tree and survive edits.

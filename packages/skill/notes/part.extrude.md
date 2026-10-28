@@ -3,3 +3,4 @@
 - On the 'top' and 'right' planes the sketch axes are not x/y of the world (top: sketch y = world -Z; right: sketch x = world -Z); see plane() for the table.
 - Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.
 - draft is in degrees and tapers the sides inward for a positive angle on a boss.
+- Touching or overlapping solids FUSE into one body. To keep a solid separate pass { newBody: true } or { newBody: 'Name' } (extrude, revolve and sweep; not for cuts). Two newBody solids may overlap without merging; leave a clearance (0.1 mm) between parts that must not fuse and use the bodies tool to check the body count.

@@ -7,3 +7,7 @@ export { EXAMPLES, type Example } from './examples';
 export * from './matx';
 export * from './dash';
 export { CURATED_FONT_IDS, BUILTIN_FONT_IDS } from './fonts';
+export { knurlEditOps, knurlCosmeticRecord, type KnurlOpts } from './knurlOps';
+export { bearingEditOps, BEARING_PRESETS, bearingPreset, findBearings, bearingModel, bearingProblem, defaultBallCount, defaultChamfer, housingSeat, SEAT_FITS, BEARING_SEALS, type BearingOpts, type BearingPreset, type BearingSeal, type BearingSeries, type BearingSpec, type BearingModel, type HousingSeat, type SeatFit } from './bearingOps';
+export { screwEditOps, SCREW_SIZES, type ScrewOpts, type ScrewHead, type ScrewDrive } from './screwOps';
+export { sanitizeCosmeticKnurls, cosmeticToOpts, type CosmeticKnurl } from './cosmeticKnurl';

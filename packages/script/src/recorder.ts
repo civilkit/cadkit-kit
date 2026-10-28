@@ -6,6 +6,10 @@ import { buildPlane, type PlaneBase, type PlaneOpts, type PlaneRotate, type Plan
 export { Expr };
 export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
+import type { ScrewOpts } from './features/screw';
+import type { BearingOpts } from './features/bearing';
+import { applyNewBody } from './features/h';
+import type { CosmeticKnurl } from './cosmeticKnurl';
 import { CURATED_FONT_IDS, isKnownFont, unknownFontMessage } from './fonts';
 export type Plane = 'front' | 'top' | 'right';
 
@@ -497,7 +501,7 @@ export interface HoleOpts {
   /** tapped: cut the real helical groove instead of a cosmetic thread */
   modeled?: boolean;
 }
-export interface ExtrudeOpts { /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
+export interface ExtrudeOpts { /** keep the solid as a SEPARATE body (op newBody) instead of uniting it with what it touches or overlaps; a string also names the body. Not for cuts. */ newBody?: boolean | string; /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
 export type BodyFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const BODY_FINISHES: readonly BodyFinish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 /** Colour, opacity and finish of a body. `colour` is the same as `color`: '#rrggbb' or '#rgb'. */
@@ -514,6 +518,8 @@ function hex6(c: unknown, line: number): string {
 export class PartBuilder {
   steps: Step[] = [];
   decor: Decor[] = [];
+  /** cosmetic knurls (knurl({ mode: 'cosmetic' })): display records written to the document field cosmeticKnurls, no feature */
+  cosmetic: CosmeticKnurl[] = [];
   variables: Array<{ name: string; expr: string }> = [];
   /** the folder name set by an enclosing group(); every feature added inside carries it */
   private curGroup: string | undefined;
@@ -629,6 +635,7 @@ export class PartBuilder {
       const id = ctx.nextId();
       const through = typeof end === 'object' && 'through' in end;
       const f: Record<string, unknown> = { type: 'extrude', id, op, sketch: ctx.lastSketch };
+      applyNewBody(f, op, o.newBody, label, this.line());
       const dir = o.direction ?? (op === 'cut' && !o.flip && !o.mid && !o.symmetric ? 'auto' : undefined);
       if (dir !== undefined && !['into', 'away', 'both', 'auto'].includes(dir)) throw new SelectorError(`${label}(): direction must be 'into', 'away', 'both' or 'auto'`, this.line());
       const both = dir === 'both' || !!o.mid || !!o.symmetric;
@@ -657,6 +664,7 @@ export class PartBuilder {
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
    * @param o.thin wall thickness for a thin-walled extrude
+   * @param o.newBody true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps
    * @example
    * part('Boss').sketch('front', (s) => s.rect(50, 50)).extrude(10)
    *   .sketch(face('>Z'), (s) => s.circle(12)).extrude(15);
@@ -688,13 +696,14 @@ export class PartBuilder {
    * @param o.op add (default) or cut
    * @param o.thin wall thickness for a thin revolve
    * @param o.axis { from: [x, y], to: [x, y] } axis line in the sketch plane
+   * @param o.newBody true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps
    * @example
    * part('Flanged bush')
    *   .sketch('front', (s) => s.polygon([[10, 0], [25, 0], [25, 6], [15, 6], [15, 30], [10, 30]]))
    *   .revolve(360);
    * @see sketch.polygon, sketch.axisAt
    */
-  revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this {
+  revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt }; newBody?: boolean | string } = {}): this {
     const sk = [...this.steps].reverse().find((x) => x.sk)?.sk;
     if (sk && o.axis) sk.axisAt(o.axis.from, o.axis.to);
     else if (sk && !sk.axisId) sk.axis();
@@ -702,6 +711,7 @@ export class PartBuilder {
       if (!ctx.lastSketch) throw new SelectorError('revolve() needs a sketch before it', this.line());
       const id = ctx.nextId();
       const f: Record<string, unknown> = { type: 'revolve', id, op: o.op ?? 'add', sketch: ctx.lastSketch, axis: sk?.axisId, angle: ref(angle) };
+      applyNewBody(f, o.op ?? 'add', o.newBody, 'revolve', this.line());
       if (o.thin !== undefined) f.thin = { thickness: ref(o.thin), side: 'mid' };
       ctx.lastFeature = id;
       return [{ op: 'add', feature: f }];
@@ -778,7 +788,7 @@ export class PartBuilder {
        */
       points: (on: FaceSel, pts: Pt[], o: HO): this => this.holePoints('holes', on, pts, o),
       /**
-       * A bolt circle: count holes equally spaced on a circle.
+       * A bolt circle: drill a polar array of count holes equally spaced on a circle.
        *
        * Drills `count` holes on a circle of `radius` about `center` (sketch-plane coordinates, usually [0, 0]), the first at startAngle degrees. All holes are one feature.
        * @domain holes
@@ -985,7 +995,7 @@ export class PartBuilder {
   /**
    * Colour, opacity and finish of the bodies a feature made (view only, no geometry change).
    *
-   * appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.
+   * appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them, and for a pattern the seed's own body too. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.
    * @domain utilities
    * @param o { feature | body | face, colour?, opacity?, finish? }
    * @example
@@ -1409,25 +1419,72 @@ export function makeApi(state: ScriptState) {
       if (!p) throw new SelectorError('group() needs a part() before it', callerLine());
       p.group(name, build);
     },
+    /**
+     * A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
+     *
+     * The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M8 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.
+     * @domain features
+     * @param o options object, see part.screw
+     * @example
+     * screw({ size: 'M3', length: 8, head: 'pan', drive: 'cross', origin: [10, 0, 5], axis: [0, 0, -1] });
+     * @see part.screw
+     */
+    screw: (o: ScrewOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Screw'); state.parts.push(p); }
+      return p.screw(o);
+    },
+    /**
+     * A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
+     *
+     * The free-function form of the bearing method: bearing({ designation: '608', seal: '2RS' }) adds a bearing to the current part (a new one when there is none) and returns it. Give a preset designation ('608', '6204', 'MR63', 'R2') or bore, od and width in mm. seal is '2Z' (default), '2RS' or 'open' (visible balls). origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body.
+     * @domain features
+     * @param o options object, see part.bearing
+     * @example
+     * bearing({ designation: '6204', seal: 'open', origin: [0, 0, 10] });
+     * @see part.bearing
+     */
+    bearing: (o: BearingOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Bearing'); state.parts.push(p); }
+      return p.bearing(o);
+    },
     face, faces, edges, through, at, plane,
   };
 }
 export type ScriptApi = ReturnType<typeof makeApi>;
 
+/** The seed features of a pattern feature (lpattern / cpattern), followed through patterns of patterns; [] for any other feature or an unknown id. */
+function patternSeeds(doc: Record<string, unknown>, id: string, seen = new Set<string>()): string[] {
+  const feats = (doc.features ?? []) as Array<{ id?: string; type?: string; seeds?: unknown }>;
+  const f = feats.find((x) => x.id === id);
+  if (!f || (f.type !== 'lpattern' && f.type !== 'cpattern') || !Array.isArray(f.seeds) || seen.has(id)) return [];
+  seen.add(id);
+  const out: string[] = [];
+  for (const sd of f.seeds as unknown[]) { if (typeof sd !== 'string') continue; out.push(sd, ...patternSeeds(doc, sd, seen)); }
+  return out;
+}
+
 /** Write what appearance() and bodyName() recorded into the document fields `appearance`, `faceAppearance` and `bodyNames`, now that handles have ids. Later calls win field by field. */
-export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn?: (message: string, line: number) => void): void {
+export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn?: (message: string, line: number) => void, features?: Array<Record<string, unknown>>): void {
+  const all = { features: features ?? doc.features };
   const appearance: Record<string, Record<string, unknown>> = {}, faceAppearance: Record<string, Record<string, unknown>> = {}, bodyNames: Record<string, string> = {};
   for (const d of part.decor) {
     if (d.face !== undefined) { faceAppearance[d.face] = { ...faceAppearance[d.face], ...d.look }; continue; }
     const id = typeof d.ref === 'string' ? d.ref : d.ref?.id ?? null;
     if (id && d.allFaces) { faceAppearance[id + '.*'] = { ...faceAppearance[id + '.*'], ...d.look }; continue; }
     if (!id) { warn?.('appearance / bodyName: the feature handle is not resolved (take part.handle() after the feature)', d.line); continue; }
-    if (d.look) appearance[id] = { ...appearance[id], ...d.look };
+    if (d.look) {
+      // a pattern's copies are the pattern's bodies, the seed's own body belongs to the seed feature: style the seeds too (a look given to a seed itself wins)
+      for (const sd of patternSeeds(all, id)) appearance[sd] = { ...d.look, ...appearance[sd] };
+      appearance[id] = { ...appearance[id], ...d.look };
+    }
     if (d.name) bodyNames[id] = d.name;
   }
   if (Object.keys(appearance).length) doc.appearance = appearance; else delete doc.appearance;
   if (Object.keys(faceAppearance).length) doc.faceAppearance = faceAppearance; else delete doc.faceAppearance;
   if (Object.keys(bodyNames).length) doc.bodyNames = bodyNames; else delete doc.bodyNames;
+  if (part.cosmetic.length) doc.cosmeticKnurls = part.cosmetic.map((k) => ({ ...k, center: [...k.center] })); else delete doc.cosmeticKnurls;
   // library fonts the text entities name: the app loads them by id when it opens the document
   const ids = new Set<string>();
   for (const st of part.steps) for (const e of (st.sk?.entities ?? []) as Array<{ type?: string; font?: unknown }>) if (e.type === 'text' && typeof e.font === 'string' && CURATED_FONT_IDS.includes(e.font)) ids.add(e.font);

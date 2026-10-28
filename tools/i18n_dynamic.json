@@ -264,6 +264,14 @@
   "hole.end.through",
   "hole.end.upToNext"
  ],
+ "thread.clearance.+": [
+  "thread.clearance.narrower",
+  "thread.clearance.narrowerTip",
+  "thread.clearance.none",
+  "thread.clearance.noneTip",
+  "thread.clearance.wider",
+  "thread.clearance.widerTip"
+ ],
  "thread.hand.+": [
   "thread.hand.left",
   "thread.hand.leftTip",
@@ -1463,5 +1471,79 @@
   "prop.twist.linearTip",
   "prop.twist.pitch",
   "prop.twist.pitchTip"
+ ],
+ "knurl.issue.+": [
+  "knurl.issue.count",
+  "knurl.issue.depth",
+  "knurl.issue.noTarget",
+  "knurl.issue.range"
+ ],
+ "knurl.method.+": [
+  "knurl.method.boolean",
+  "knurl.method.faceted"
+ ],
+ "knurl.pattern.+": [
+  "knurl.pattern.diamond",
+  "knurl.pattern.pyramid",
+  "knurl.pattern.straight"
+ ],
+ "knurl.profile.+": [
+  "knurl.profile.round",
+  "knurl.profile.v"
+ ],
+ "knurl.reason.+": [
+  "knurl.reason.internal",
+  "knurl.reason.notCylinder",
+  "knurl.reason.oblique"
+ ],
+ "screw.head.+": [
+  "screw.head.button",
+  "screw.head.cheese",
+  "screw.head.countersunk",
+  "screw.head.hex",
+  "screw.head.pan"
+ ],
+ "screw.drive.+": [
+  "screw.drive.cross",
+  "screw.drive.hex",
+  "screw.drive.none",
+  "screw.drive.slotted",
+  "screw.drive.torx"
+ ],
+ "screw.axis.+": [
+  "screw.axis.nx",
+  "screw.axis.ny",
+  "screw.axis.nz",
+  "screw.axis.px",
+  "screw.axis.py",
+  "screw.axis.pz"
+ ],
+ "screw.issue.+": [
+  "screw.issue.countersunk",
+  "screw.issue.hexDrive",
+  "screw.issue.length",
+  "screw.issue.size"
+ ],
+ "bearing.seal.+": [
+  "bearing.seal.open",
+  "bearing.seal.seal",
+  "bearing.seal.shield"
+ ],
+ "bearing.axis.+": [
+  "bearing.axis.nx",
+  "bearing.axis.ny",
+  "bearing.axis.nz",
+  "bearing.axis.px",
+  "bearing.axis.py",
+  "bearing.axis.pz"
+ ],
+ "bearing.fit.+": [
+  "bearing.fit.h7",
+  "bearing.fit.press",
+  "bearing.fit.print"
+ ],
+ "bearing.issue.+": [
+  "bearing.issue.size"
  ]
+
 }

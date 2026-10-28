@@ -19,6 +19,7 @@ export const inspectStrings: Record<string, string> = {
   'inspect.pick.vertex': 'Corner ({at})', 'inspect.pick.edge': 'Edge {name}', 'inspect.pick.face': 'Face {name}',
   'measure.length': 'Length', 'measure.area': 'Area', 'measure.radius': 'Radius', 'measure.diameter': 'Diameter', 'measure.center': 'Center',
   'measure.distance': 'Minimum distance', 'measure.normalDistance': 'Normal distance', 'measure.centerDistance': 'Center distance', 'measure.angle': 'Angle',
+  'quick.circumference': 'Circumference', 'quick.count': '{n} items', 'quick.label': 'Size of the selection',
   'measure.position': 'Position', 'measure.delta': 'Offset (x, y, z)',
   'measure.areaA': 'Area (first)', 'measure.areaB': 'Area (second)', 'measure.lengthA': 'Length (first)', 'measure.lengthB': 'Length (second)',
   'measure.radiusA': 'Radius (first)', 'measure.radiusB': 'Radius (second)',

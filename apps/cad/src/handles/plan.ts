@@ -6,6 +6,7 @@
 //   end cap (Fn.C1) of a blind extrude: arrow along the normal edits `depth` (a cut deepens when the cap moves into the part)
 //   inner wall of a shell: arrow edits the shell `thickness`
 //   wall of a plain hole: dot edits the hole `diameter`
+//   cylinder or sphere face (not a hole, fillet or thin wall): arrow pushes or pulls the face along its normal (one `moveFace` offset, merged on repeat)
 //   Extrude / Cut card open (blind or mid-plane): one red arrow at the profile centre sets `depth` in the card's draft (depthArrow.ts)
 //   Thread editor open: dot at the end of the thread edits `length` in the editor's draft (threadHandle.ts)
 //   whole body (Alt+click): the placement gizmo, only when the kernel has moveBody (it does not yet)
@@ -16,7 +17,9 @@ import { V, type HandleSpec, type Vec3 } from '@kit/viewport';
 import { edgeRefs, faceNames, type Box, type ViewEdge } from '../featureCommands';
 import { holeDiameter, kindOf } from '../holeData';
 import { t } from '../i18n';
-import { bisectorAt, faceInfo, onHull, surfaceNear, type MeshLike } from './geom';
+import { bisectorAt, faceInfo, onHull, sphereOf, surfaceNear, type MeshLike } from './geom';
+import { cylinderOfFace } from '../threadData';
+import { faceMoveOps } from '../triball/ops';
 import { MIN_SIZE, type HandleSession } from './session';
 import { placementSession, type Placement } from './placement';
 import { threadLengthSession, type ThreadHandleCtx } from './threadHandle';
@@ -203,6 +206,26 @@ function holeDiameterGesture(c: PlanCtx, h: Feat, name: string): HandleSession |
   };
 }
 
+/** A round face (a cylinder or a sphere) that no feature handle claims: an arrow along its outward normal pushes or pulls it. The distance is the
+ *  kernel's `moveFace` offset (a cylinder's radius grows by it); dragging the same face again edits that feature instead of stacking another. */
+function pushPull(c: PlanCtx, name: string): HandleSession | null {
+  if (!c.mesh) return null;
+  const info = faceInfo(c.mesh, name);
+  if (!info || info.planar) return null;
+  const cyl = cylinderOfFace(name, c.edges);
+  if (cyl ? cyl.internal === true : !sphereOf(c.mesh, name)) return null;   // a hole wall has its own handle; anything but a cylinder or sphere is not offered
+  const on = surfaceNear(c.mesh, name, info.centroid);
+  if (!on) return null;
+  const spec: HandleSpec = { id: 'pushpull', kind: 'arrow', origin: on.point, axis: on.normal, base: 0, scale: 1, sizePx: 80, unit: 'mm', label: t('handles.pushPull.label') };
+  const ops = (q: number): EditOp[] | null => faceMoveOps(c.doc, [name], false, on.normal, q);
+  return {
+    kind: 'push-pull', specs: [spec],
+    preview: (_id, q) => ops(q),
+    commit: (_id, q) => { const o = ops(q); return o ? { ops: o, create: false } : null; },
+    format: (_id, q) => t('handles.pushPull', { v: (q >= 0 ? '+' : '') + fmt(q) }),
+  };
+}
+
 const fmt = (v: number): string => String(Math.round(v * 100) / 100);
 
 /** The handle session for the selection, or null (nothing selected, a sketch or the Editor open, handles off, or no gesture for this selection). */
@@ -233,8 +256,7 @@ export function planHandles(c: PlanCtx): HandleSession | null {
     if (thin) return thinThickness(c, thin, name);
     const hole = feats(c.doc).find((f) => f.type === 'hole' && name.startsWith(f.id + '.S.h'));
     if (hole) return holeDiameterGesture(c, hole, name);
-    return shellThickness(c, name);
-    // Any other face: the kernel has no moveFace / offsetFace yet, so there is nothing to drag.
+    return shellThickness(c, name) ?? pushPull(c, name);
   }
   return null;
 }

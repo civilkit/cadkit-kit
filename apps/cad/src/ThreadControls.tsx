@@ -6,7 +6,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { Icon } from '@kit/ui';
 import { t } from './i18n';
 import {
-  NEAREST_MARKED, THREAD_HANDS, filterSizes, nearestSizes, readoutRows, sizeLabel, type ThreadRow, type ThreadStd,
+  CLEARANCE_MAX, NEAREST_MARKED, THREAD_CLEARANCES, THREAD_HANDS, filterSizes, nearestSizes, readoutRows, sizeLabel, type ThreadClearance, type ThreadRow, type ThreadStd,
 } from './threadData';
 
 export const fmt = (v: number): string => String(Math.round(v * 1000) / 1000);
@@ -188,6 +188,22 @@ export function HandRow(p: { value: 'right' | 'left'; onChange(v: 'right' | 'lef
     <Seg name="hand" label={t('thread.hand')} value={p.value}
       options={THREAD_HANDS.map((h) => ({ value: h, text: t('thread.hand.' + h), icon: h === 'left' ? 'helix-left' : 'helix-right', tip: t('thread.hand.' + h + 'Tip') }))}
       onChange={p.onChange} />
+  );
+}
+
+/** Printed-thread clearance: None | Wider | Narrower, with the millimetres to the right once one is chosen. */
+export function ClearanceRow(p: { dir: ThreadClearance; mm: number; onDir(d: ThreadClearance): void; onValue(v: number): void }): JSX.Element {
+  return (
+    <Seg name="clearance" label={t('thread.clearance')} value={p.dir}
+      options={THREAD_CLEARANCES.map((c) => ({ value: c, text: t('thread.clearance.' + c), tip: t('thread.clearance.' + c + 'Tip') }))}
+      onChange={p.onDir}
+      trail={p.dir !== 'none' ? (
+        <span class="fedit-num fedit-inline" data-path="clearanceValue">
+          <input type="number" step="0.05" min="0.01" max={String(CLEARANCE_MAX)} aria-label={t('thread.clearance')} value={fmt(p.mm)}
+            onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v) && v > 0) p.onValue(v); }} />
+          <span class="fedit-unit">mm</span>
+        </span>
+      ) : <span class="fedit-sub">{t('thread.clearance.sub')}</span>} />
   );
 }
 

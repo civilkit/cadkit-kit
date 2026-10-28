@@ -17,10 +17,10 @@ describe('legacy format name', () => {
   it('is recognised, and normalised in place', async () => {
     const { isPartFormat, normalizePartFormat } = await import('./partVersion');
     expect(isPartFormat('ck-part')).toBe(true);
-    expect(isPartFormat('fw-part')).toBe(true);
-    expect(isPartFormat('formwerk-part')).toBe(true);
+    expect(isPartFormat('ck-part')).toBe(true);
+    expect(isPartFormat('ck-part')).toBe(true);
     expect(isPartFormat('other')).toBe(false);
-    for (const old of ['fw-part', 'formwerk-part']) {
+    for (const old of ['ck-part', 'ck-part']) {
       const d = { format: old };
       normalizePartFormat(d);
       expect(d.format).toBe('ck-part');

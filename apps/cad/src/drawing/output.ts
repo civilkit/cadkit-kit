@@ -5,11 +5,15 @@ import type { V2 } from './model';
 const MM = 72 / 25.4;
 const f = (n: number): string => String(+n.toFixed(3));
 
+/** Helvetica has no depth glyph: the hole callouts' `↧ 4` prints as `DEPTH 4`. */
+export const pdfText = (s: string): string => s.replace(/↧\s*/g, 'DEPTH ');
+/** Code points outside latin1 that WinAnsi has at another byte (quotes, dashes, ellipsis, bullet). */
+const WIN_EXTRA: Record<number, number> = { 0x2026: 0x85, 0x2018: 0x91, 0x2019: 0x92, 0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97 };
 function winAnsi(s: string): number[] {
   const out: number[] = [];
-  for (const ch of s) {
+  for (const ch of pdfText(s)) {
     const c = ch.codePointAt(0)!;
-    out.push(c === 0x2026 ? 0x85 : c < 256 ? c : 0x3f);
+    out.push(WIN_EXTRA[c] ?? (c < 256 ? c : 0x3f));
   }
   return out;
 }
@@ -43,7 +47,7 @@ export function toPdf(prims: Prim[], size: V2): Uint8Array {
       for (let i = 0; i <= n; i++) { const a = a0 + ((a1 - a0) * i) / n; pts.push(p.c[0] + Math.cos(a) * p.r, p.c[1] - Math.sin(a) * p.r); }
       c.push(`${f(p.w * MM)} w [] 0 d\n${path(pts, p.t === 'circle')}S`);
     } else {
-      const w = textWidth(p.s, p.size, p.bold);
+      const w = textWidth(pdfText(p.s), p.size, p.bold);
       const off = p.anchor === 'middle' ? -w / 2 : p.anchor === 'end' ? -w : 0;
       const rad = (-p.rot * Math.PI) / 180, cs = Math.cos(rad), sn = Math.sin(rad);
       // text origin moved along the baseline by `off`
@@ -109,7 +113,7 @@ export function toDxf(prims: Prim[], size: V2): string {
     } else {
       const w = textWidth(p.s, p.size, p.bold), off = p.anchor === 'middle' ? -w / 2 : p.anchor === 'end' ? -w : 0;
       const rad = (p.rot * Math.PI) / 180;
-      g(0, 'TEXT'); g(8, layer); g(10, p.x + off * Math.cos(rad)); g(20, Y(p.y - off * Math.sin(rad))); g(30, 0); g(40, p.size); g(1, p.s.replace(/Ø/g, '%%c').replace(/°/g, '%%d').replace(/…/g, '...')); g(50, -p.rot);
+      g(0, 'TEXT'); g(8, layer); g(10, p.x + off * Math.cos(rad)); g(20, Y(p.y - off * Math.sin(rad))); g(30, 0); g(40, p.size); g(1, pdfText(p.s).replace(/Ø/g, '%%c').replace(/°/g, '%%d').replace(/…/g, '...')); g(50, -p.rot);
     }
   }
   g(0, 'ENDSEC'); g(0, 'EOF');

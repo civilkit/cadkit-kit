@@ -8,3 +8,4 @@ export { resolveView, stdDirection, dirFromAzEl, azElOf, makeCamera, STD_VIEWS }
 export { renderSectionPanel } from './section2d.js';
 export { faceLooks, lumps, bodyKey, bodyOrigin, type FaceLook, type Finish, type AppearanceFields } from './appearance.js';
 export type * from './types.js';
+export { SHEET_NAMES, SHEET_HELP, coerceSheet, coerceProjection, normalizeOpts, boxDimensions } from './opts.js';

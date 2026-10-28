@@ -259,6 +259,29 @@ describe('ThreadEditor: length, hand, start', () => {
   });
 });
 
+describe('ThreadEditor: print clearance', () => {
+  it('shows only for a modeled thread; Wider and Narrower write the signed millimetres, None removes the field', async () => {
+    const off = await mount();
+    expect(off.q('clearance')).toBeNull();
+    cleanup();
+    const m = await mount({ ...THREAD, modeled: true });
+    expect(m.q('clearanceValue')).toBeNull();
+    fireEvent.click(m.seg('clearance', 'wider'));
+    expect(m.drafts.at(-1)).toMatchObject({ clearance: 0.2 });
+    fireEvent.change(m.q('clearanceValue')!.querySelector('input')!, { target: { value: '0.35' } });
+    expect(m.drafts.at(-1)).toMatchObject({ clearance: 0.35 });
+    fireEvent.click(m.seg('clearance', 'narrower'));
+    expect(m.drafts.at(-1)).toMatchObject({ clearance: -0.35 });
+    fireEvent.click(m.seg('clearance', 'none'));
+    expect(m.drafts.at(-1)!.clearance).toBeNull();   // null in a draft removes the field
+  });
+  it('an existing feature shows its direction and value', async () => {
+    const m = await mount({ ...THREAD, modeled: true, clearance: -0.25 });
+    expect(m.seg('clearance', 'narrower').getAttribute('aria-checked')).toBe('true');
+    expect((m.q('clearanceValue')!.querySelector('input') as HTMLInputElement).value).toBe('0.25');
+  });
+});
+
 describe('ThreadEditor: modeled option', () => {
   it('the checkbox shows a cost note, from the last measured rebuild when there is one', async () => {
     const m = await mount();

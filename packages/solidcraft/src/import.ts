@@ -7,6 +7,7 @@
 import { zipFile } from '@kit/fcstd';
 import { evalExpr, ExprError } from './expr';
 import { bodyLooks, type ScLook } from './appearance';
+import { followSketches, STD_PLANES } from './follow';
 
 export type V3 = [number, number, number];
 export type FeatureJson = Record<string, unknown>;
@@ -90,11 +91,7 @@ const SC_PLANE: Record<string, { u: V3; v: V3 }> = {
   YZ: { u: [0, 1, 0], v: [0, 0, 1] },   // their sketch x = +Y, y = +Z, normal +X (their geometry source, plane.rs)
 };
 /** Our standard planes in our world: in-plane axes x, y and the normal z. */
-const OUR_PLANE: Record<string, { x: V3; y: V3; z: V3 }> = {
-  front: { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] },
-  top: { x: [1, 0, 0], y: [0, 0, -1], z: [0, 1, 0] },
-  right: { x: [0, 0, -1], y: [0, 1, 0], z: [1, 0, 0] },
-};
+const OUR_PLANE = STD_PLANES;
 type P2 = [number, number];
 /** A sketch curve in their sketch coordinates (the points as stored). */
 type Geo = { type: 'line'; a: P2; b: P2 } | { type: 'arc'; a: P2; b: P2; c: P2 } | { type: 'circle'; c: P2; r: number };
@@ -201,6 +198,49 @@ function offsetPolygon(poly: P2[], d: number): P2[] {
     if (!c) throw new Unsupported('a rim with a doubled-back edge');
     return c;
   });
+}
+
+/** Points on a clamped B-spline of degree p over the control points (knots: the file's when they fit, else clamped uniform); both ends are included. */
+function sampleBSpline(cv: V3[], p: number, knots?: number[]): V3[] {
+  const n = cv.length, spans = n - p;
+  let k = knots && knots.length === n + p + 1 ? knots : null;
+  if (!k) { k = new Array(p + 1).fill(0); for (let i = 1; i < spans; i++) k.push(i / spans); k.push(...new Array(p + 1).fill(1)); }
+  const t0 = k[p], t1 = k[n];
+  const at = (t: number): V3 => {
+    let s = p; while (s < n - 1 && t >= k![s + 1]) s++;
+    const d = cv.slice(s - p, s + 1).map((q) => [...q] as V3);
+    for (let r = 1; r <= p; r++) for (let j = p; j >= r; j--) {
+      const den = k![s + j + 1 - r] - k![s - p + j];
+      const a = den > 0 ? (t - k![s - p + j]) / den : 0;
+      d[j] = [0, 1, 2].map((c) => (1 - a) * d[j - 1][c] + a * d[j][c]) as V3;
+    }
+    return d[p];
+  };
+  const m = Math.min(160, Math.max(16, 12 * spans));
+  return Array.from({ length: m + 1 }, (_, i) => at(i === m ? t1 : t0 + ((t1 - t0) * i) / m));
+}
+
+/**
+ * True when a sketch looks like the outline of a part with smaller shapes inside it: some curves reach the sketch's overall bounding box
+ * and at least one other curve lies strictly inside it. A cut that selects "all" regions of such a sketch removes the outline's whole area.
+ */
+function hasEnclosingOutline(geo: Map<string, Geo>): boolean {
+  const box = (g: Geo): [number, number, number, number] => {
+    if (g.type === 'circle') return [g.c[0] - g.r, g.c[1] - g.r, g.c[0] + g.r, g.c[1] + g.r];
+    if (g.type === 'line') return [Math.min(g.a[0], g.b[0]), Math.min(g.a[1], g.b[1]), Math.max(g.a[0], g.b[0]), Math.max(g.a[1], g.b[1])];
+    const r = Math.hypot(g.a[0] - g.c[0], g.a[1] - g.c[1]), a0 = Math.atan2(g.a[1] - g.c[1], g.a[0] - g.c[0]);
+    let sw = Math.atan2(g.b[1] - g.c[1], g.b[0] - g.c[0]) - a0;
+    while (sw <= 1e-12) sw += 2 * Math.PI;
+    const xs: number[] = [], ys: number[] = [];
+    for (let i = 0; i <= 32; i++) { xs.push(g.c[0] + r * Math.cos(a0 + (sw * i) / 32)); ys.push(g.c[1] + r * Math.sin(a0 + (sw * i) / 32)); }
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  };
+  const boxes = [...geo.values()].map(box);
+  if (boxes.length < 2) return false;
+  const lo = [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1]))], hi = [Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
+  const tol = 1e-6 * Math.max(1, hi[0] - lo[0], hi[1] - lo[1]);
+  const inside = (b: [number, number, number, number]) => b[0] > lo[0] + tol && b[1] > lo[1] + tol && b[2] < hi[0] - tol && b[3] < hi[1] - tol;
+  return boxes.some(inside) && boxes.some((b) => !inside(b));
 }
 
 /**
@@ -440,7 +480,18 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const originFrame = (n: string, d = 0): ScFrame => originFrameFor(n, d, version);
   const placeOf = (n: string, d = 0): Placed => placeFrame(originFrame(n, d));
   const vars: Record<string, number> = {};
-  try { for (const p of doc.params ?? []) vars[p.name] = evalExpr(p.expr, vars); } catch (e) { return refuse(name, `a parameter cannot be evaluated: ${(e as Error).message}`); }
+  try {
+    // a parameter may use one listed after it: evaluate in passes until each is settled; a pass that settles none is the error (a cycle, or a name that is not there)
+    const pending = [...(doc.params ?? [])] as Array<{ name: string; expr: string }>;
+    while (pending.length) {
+      const before = pending.length;
+      let last: unknown;
+      for (let k = 0; k < pending.length;) {
+        try { vars[pending[k].name] = evalExpr(pending[k].expr, vars); pending.splice(k, 1); } catch (e) { last = e; k++; }
+      }
+      if (pending.length === before) throw last;
+    }
+  } catch (e) { return refuse(name, `a parameter cannot be evaluated: ${(e as Error).message}`); }
   const num = (x: unknown, what: string): number => {
     try { return clean(evalExpr(x as string | number, vars)); } catch (e) {
       if (e instanceof ExprError) throw new Unsupported(`${what}: ${e.message}`);
@@ -605,11 +656,19 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       if (!q) throw new Unsupported('a spline through a point that is not in the sketch');
       return [0, 1, 2].map((k) => fr.o[k] + u[k] * q[0] + v[k] * q[1]) as V3;
     };
-    const out = ids.map((i) => toYUp(at(Number(i))));
+    let out = ids.map((i) => toYUp(at(Number(i))));
+    const notes: string[] = [];
+    if (curves[0].control) {
+      // the points are the control polygon: the kernel's sweep path takes only a through-points spline, so the curve of the B-spline is sampled
+      const p = Number.isInteger(curves[0].degree) ? Number(curves[0].degree) : 3;
+      if (p < 1 || out.length < p + 1) throw new Unsupported('a control-vertex spline path with fewer points than its degree needs');
+      out = sampleBSpline(out, p, Array.isArray(curves[0].knots) ? (curves[0].knots as number[]) : undefined);
+      notes.push(`control-vertex spline path (degree ${p}) is carried as a through-points spline sampled from the curve (${out.length} points)`);
+    }
     const id = nid();
     features.push({ type: 'sketch3d', id, name: f.name, points: out.map((q, k) => ({ id: `p${k + 1}`, x: clean(q[0]), y: clean(q[1]), z: clean(q[2]) })), entities: [{ id: 'e1', type: 'spline', pts: out.map((_, k) => `p${k + 1}`) }], constraints: [] });
     splinePaths.set(f.id, id);
-    return { notes: [] };
+    return { notes };
   };
 
   const sketchOf = (f: Rec): { notes: string[] } => {
@@ -670,6 +729,12 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         Object.assign(e, { type: 'arc', c: pid(c.c), p1: pid(a), p2: pid(b) });
       }
       else if (c.type === 'circle') Object.assign(e, { type: 'circle', c: pid(c.c), r: clean(Number(c.r)) });
+      else if (c.type === 'spline' && Array.isArray(c.pts) && c.pts.length >= 2) {
+        // `control` says the points are the control polygon of a B-spline of the given degree; otherwise the curve passes through them
+        const ends = { pts: (c.pts as number[]).map(pid), ...(c.closed ? { closed: true } : {}) };
+        if (c.control) Object.assign(e, { type: 'cvspline', ...ends, ...(Number.isInteger(c.degree) ? { degree: c.degree } : {}) });
+        else Object.assign(e, { type: 'spline', ...ends });
+      }
       else throw new Unsupported(`sketch curve "${c.type}"`);
       if (c.construction) e.construction = true;
       return e;
@@ -891,6 +956,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         }
         features.push(extrudeOf(f, sk.id, f.extent.through_all ? 'through' : (reachDepth ?? Math.abs(dist)), forward, s.placed.sign, regions));
         named.set(f.name, [features[features.length - 1].id as string]);
+        if (f.profiles?.type === 'all' && f.operation === 'cut' && hasEnclosingOutline(s.geo)) stops.push('all profiles selected; the file does not name the regions, and the sketch holds an outline around other shapes, so this cut can remove the whole body');
         return stops;
       }
       case 'box': {
@@ -1388,6 +1454,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         named.set(f.name, [ex.id as string]);
         return [`thickness ${T} mm and inner bend radius ${R} mm are assumed: the file stores neither`];
       }
+      case 'import': throw new Unsupported('the file holds the original solid as imported geometry (a STEP body of a part converted from another CAD system); there is no feature for it, so only the sketches and operations around it are carried');
       default: throw new Unsupported(`feature type "${f.type}"`);
     }
   };
@@ -1426,6 +1493,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   // their sketches and datum planes are consumed by the features that use them and are not drawn; ours stay out of the way the same way (shown again from the tree)
+  features.push(...followSketches(features, nid));   // a moved body leaves its sketches behind: hidden copies at its pose
   for (const f of features) if ((f.type === 'sketch' || f.type === 'plane') && f.visible === undefined) f.visible = false;
   return {
     name, part: { ...part(), ...bodyLooks(doc, features, live) }, rows,

@@ -1,6 +1,6 @@
 // The thread GUI against the real kernel: the sample regenerates clean with its two threads, a wrong hole diameter warns
 // (with the kernel's hint and `nearest`), a modeled NPT falls back with a warning, Add thread picks the nearest size.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Session } from '@ck/session';
@@ -8,11 +8,13 @@ import type { PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { canThread, featureCommands, type Ctx, type FeatureActions } from './featureCommands';
-import { cylinderOfFace, holeThreadOps, suggestedSize, threadOps } from './threadData';
+import { cylinderOfFace, holeThreadOps, newThread, suggestedSize, threadOps } from './threadData';
 
 const SAMPLE = resolve(process.cwd(), 'apps/cad/public/samples/threaded-bolt.ckpart');
 const sample = (): PartDoc => JSON.parse(readFileSync(SAMPLE, 'utf8')) as PartDoc;
 const sessions: Session[] = [];
+// remembered thread choices (localStorage) would change what Add thread creates (modeled), so each test starts without them
+beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 
 async function world(doc: PartDoc) {
@@ -146,4 +148,34 @@ describe('threads with the real kernel', { skip: !process.env.CK_WASM }, () => {
     expect(w.store.featureWarnings.value).toEqual({});
     expect(holeThreadOps({ ...hole, fit: 'normal' }, rows)).toBeNull();
   }, 90000);
+});
+
+// The ISO 261 coarse-pitch sizes that were checked against the table (M3.5, M7, M33, M39 among them): pitch, and the tap drill
+// of the table (major - pitch for the usual sizes).
+describe('the metric coarse table', { skip: !process.env.CK_WASM }, () => {
+  const ISO_COARSE: Array<[string, number, number]> = [
+    ['M1', 1, 0.25], ['M1.2', 1.2, 0.25], ['M1.4', 1.4, 0.3], ['M1.6', 1.6, 0.35], ['M1.8', 1.8, 0.35], ['M2', 2, 0.4], ['M2.2', 2.2, 0.45], ['M2.5', 2.5, 0.45],
+    ['M3', 3, 0.5], ['M3.5', 3.5, 0.6], ['M4', 4, 0.7], ['M5', 5, 0.8], ['M6', 6, 1], ['M7', 7, 1], ['M8', 8, 1.25], ['M10', 10, 1.5], ['M12', 12, 1.75],
+    ['M14', 14, 2], ['M16', 16, 2], ['M18', 18, 2.5], ['M20', 20, 2.5], ['M22', 22, 2.5], ['M24', 24, 3], ['M27', 27, 3], ['M30', 30, 3.5], ['M33', 33, 3.5],
+    ['M36', 36, 4], ['M39', 39, 4], ['M42', 42, 4.5], ['M45', 45, 4.5], ['M48', 48, 5], ['M52', 52, 5], ['M56', 56, 5.5], ['M60', 60, 5.5], ['M64', 64, 6],
+  ];
+  it('has every size with its ISO 261 coarse pitch', async () => {
+    const w = await world(sample());
+    const rows = await w.controller.threadSizes('metric');
+    for (const [size, major, pitch] of ISO_COARSE) {
+      const r = rows.find((x) => x.size === size);
+      expect(r, size).toBeDefined();
+      expect(r!.major, size).toBeCloseTo(major, 6);
+      expect(r!.pitch, size).toBeCloseTo(pitch, 6);
+      expect(r!.tapDrill, size).toBeGreaterThan(0);
+      expect(r!.tapDrill, size).toBeLessThan(major);
+    }
+  }, 60000);
+  it('the sizes the issue named are found by Add thread: a 3.5, 7, 33 and 39 mm shaft each get their own size', async () => {
+    const w = await world(sample());
+    const rows = await w.controller.threadSizes('metric');
+    for (const [dia, size] of [[3.5, 'M3.5'], [7, 'M7'], [33, 'M33'], [39, 'M39']] as const) {
+      expect(newThread('F1.S.c1', dia, rows, false)).toMatchObject({ size });
+    }
+  }, 60000);
 });

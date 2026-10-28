@@ -48,6 +48,12 @@ export interface Actions {
   propeller?(): void;
   /** Open the turbo-impeller wizard (see ImpellerWizard.tsx). */
   impeller?(): void;
+  /** Open the Knurl wizard on the selected cylindrical face (see KnurlWizard.tsx). */
+  knurl?(): void;
+  /** Open the Screw wizard (see ScrewWizard.tsx). */
+  screw?(): void;
+  /** Open the Bearing wizard (see BearingWizard.tsx). */
+  bearing?(): void;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
@@ -115,6 +121,12 @@ export function matchShortcut(cmds: Command[], e: { key: string; shiftKey: boole
   });
 }
 
+/** The id of the command most recently run (Repeat last command runs it again). Module-level because the table is rebuilt on render. */
+let lastCommandId: string | null = null;
+/** Forget the remembered command (tests). */
+export function resetLastCommand(): void { lastCommandId = null; }
+const NOT_REPEATABLE = new Set(['palette', 'repeat-last']);
+
 const LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads'];
 
 export function buildCommands(a: Actions): Command[] {
@@ -157,6 +169,9 @@ export function buildCommands(a: Actions): Command[] {
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
   if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.propeller) cmds.push({ id: 'add-propeller', label: t('cmd.add-propeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.propeller });
+  if (a.knurl) cmds.push({ id: 'add-knurl', label: t('cmd.add-knurl'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.knurl });
+  if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
+  if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });
   if (a.script) cmds.push({ id: 'open-script', label: t('cmd.open-script'), tab: 'Home', group: 'Features', run: a.script });
   if (a.variables) cmds.push({ id: 'open-variables', label: t('cmd.open-variables'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: a.variables });
@@ -174,6 +189,18 @@ export function buildCommands(a: Actions): Command[] {
   for (const layer of LAYERS) {
     cmds.push({ id: `layer-${layer}`, label: `${a.layer(layer) ? '✓ ' : ''}${t('layer.' + layer)}`, tab: 'View', group: 'Show', pressed: () => a.layer(layer), run: () => a.toggleLayer(layer) });
   }
+  for (const c of cmds) {
+    if (NOT_REPEATABLE.has(c.id)) continue;
+    const run = c.run;
+    c.run = () => { lastCommandId = c.id; run(); };
+  }
+  const target = (): Command | undefined => (lastCommandId ? cmds.find((c) => c.id === lastCommandId) : undefined);
+  cmds.push({
+    id: 'repeat-last', label: t('cmd.repeat-last'), tab: 'Home', group: 'Edit',
+    enabled: () => { const c = target(); return !!c && (c.enabled?.() ?? true); },
+    why: () => (target() ? undefined : t('cmd.repeat-last.why')),
+    run: () => target()?.run(),
+  });
   return cmds;
 }
 

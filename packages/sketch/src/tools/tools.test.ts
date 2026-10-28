@@ -3,6 +3,7 @@ import type { SketchDraft } from '../index';
 import { DEFAULT_SETTINGS, type Modifiers, type Pt, type Tool, type ToolEvent, type ToolOutput } from './types';
 import { lineTool } from './line';
 import { rectangleTool } from './rectangle';
+import { centerRectangleTool } from './center-rectangle';
 
 const M: Modifiers = { shift: false, ctrl: false, alt: false };
 const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, points: [], entities: [], constraints: [], temp: [] });
@@ -138,5 +139,38 @@ describe('rectangle tool', () => {
     const o = run(rectangleTool, [click(0, 0), click(8, 0)]);
     expect(o.draft.entities).toHaveLength(0);
     expect(o.hint).toBe('app.sketch.hint.degenerate');
+  });
+});
+
+describe('rectangle tool with Alt', () => {
+  const alt: Modifiers = { shift: false, ctrl: false, alt: true };
+  const aclick = (x: number, y: number): ToolEvent => ({ type: 'click', at: { x, y }, mods: alt });
+  const amove = (x: number, y: number): ToolEvent => ({ type: 'move', at: { x, y }, mods: alt });
+  it('Alt makes a square from the longer pointer offset, toward the pointer', () => {
+    const o = run(rectangleTool, [click(0, 0), amove(10, -4), aclick(10, -4)]);
+    expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[0, 0], [10, 0], [10, -10], [0, -10]]);
+  });
+  it('the preview and the size fields show the square while Alt is held, and go back to the rectangle when it is released', () => {
+    let o = run(rectangleTool, [click(0, 0), amove(3, 9)]);
+    expect(o.fields.map((f) => f.value)).toEqual([9, 9]);
+    o = rectangleTool.step(o.state, move(3, 9), o.draft, DEFAULT_SETTINGS);
+    expect(o.fields.map((f) => f.value)).toEqual([3, 9]);
+  });
+  it('a typed side makes the other side follow', () => {
+    let o = run(rectangleTool, [click(0, 0), amove(3, 9)]);
+    o = rectangleTool.step(o.state, { type: 'field', id: 'w', value: 5, commit: true }, o.draft, DEFAULT_SETTINGS);
+    expect(o.fields.map((f) => f.value)).toEqual([5, 5]);
+  });
+  it('without Alt the corners are free, as before', () => {
+    const o = run(rectangleTool, [click(0, 0), click(10, 6)]);
+    expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[0, 0], [10, 0], [10, 6], [0, 6]]);
+  });
+});
+
+describe('centre rectangle tool with Alt', () => {
+  it('Alt makes a square about the centre', () => {
+    const alt: Modifiers = { shift: false, ctrl: false, alt: true };
+    const o = run(centerRectangleTool, [click(0, 0), { type: 'move', at: { x: 2, y: 5 }, mods: alt }, { type: 'click', at: { x: 2, y: 5 }, mods: alt }]);
+    expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[0, 0], [-5, -5], [5, -5], [5, 5], [-5, 5]]);
   });
 });

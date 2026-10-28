@@ -3,10 +3,12 @@
 import data from './registry.generated.json';
 import { Bm25f, editDistanceAtMostOne } from './search';
 import { RECIPES } from './recipes';
+import { GUIDE } from './guide';
 import type { DocsResult, IndexEntry, MethodDoc, Recipe, Registry, SearchHit, SearchResult } from './types';
 
 export * from './types';
 export { RECIPES } from './recipes';
+export { GUIDE } from './guide';
 export { SYNONYM_GROUPS } from './synonyms';
 export { stem, tokenize, synonymsOf } from './search';
 
@@ -20,6 +22,10 @@ export interface SkillRegistry {
   recipes(): Array<Pick<Recipe, 'id' | 'title' | 'intent' | 'description' | 'kind'>>;
   getRecipe(id: string): Recipe | undefined;
   systemPromptFragment(): string;
+  /** the long guide (ck://docs/guide) */
+  guide(): string;
+  /** docs/llms.txt: the guide plus the one-line index of every method and recipe */
+  llmsTxt(): string;
 }
 
 const compactSig = (m: MethodDoc): string => {
@@ -101,8 +107,20 @@ export function createSkill(reg: Registry, recipeList: Recipe[]): SkillRegistry 
     return lines.join('\n');
   };
 
+  const llmsTxt = (): string => {
+    const lines = [GUIDE.trimEnd(), '', '## Method index', '', 'Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, the rest are plain functions. Ask `docs { names: [...] }` for parameters, notes and an example.', ''];
+    for (const d of reg.domains) {
+      lines.push(`### ${d}`, '');
+      for (const m of reg.methods.filter((x) => x.domain === d)) lines.push(`* \`${compactSig(m)}\`: ${m.summary}`);
+      lines.push('');
+    }
+    lines.push('## Recipes (complete scripts, `docs { names: [id] }` returns the code)', '');
+    for (const r of recipeList) lines.push(`* \`${r.id}\`: ${r.title}`);
+    return lines.join('\n') + '\n';
+  };
+
   return {
-    data: reg, listMethods, docs, search, systemPromptFragment,
+    data: reg, listMethods, guide: () => GUIDE, llmsTxt, docs, search, systemPromptFragment,
     recipes: () => recipeList.map(({ id, title, intent, description, kind }) => ({ id, title, intent, description, kind })),
     getRecipe: (id) => recipeList.find((r) => r.id === id),
   };

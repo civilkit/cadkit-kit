@@ -13,7 +13,7 @@ export interface FsHandle {
 }
 export interface FsEnv {
   /** `window.showSaveFilePicker`, absent in browsers without the API. */
-  showSaveFilePicker?: (o: { suggestedName: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<FsHandle>;
+  showSaveFilePicker?: (o: { suggestedName: string; /** the browser reopens the picker in the folder last used under the same id */ id?: string; types?: Array<{ description: string; accept: Record<string, string[]> }> }) => Promise<FsHandle>;
   /** Plain download, the fallback. */
   download(name: string, data: string | Uint8Array): Promise<void>;
 }
@@ -42,7 +42,7 @@ export async function saveDocumentWith(env: FsEnv, name: string, data: string, o
   }
   if (env.showSaveFilePicker) {
     try {
-      const h = await env.showSaveFilePicker({ suggestedName: name, types: [{ description: 'Part', accept: { 'application/json': ['.ckpart'] } }, { description: 'Compressed part', accept: { 'application/gzip': ['.gz'] } }] });
+      const h = await env.showSaveFilePicker({ suggestedName: name, id: 'ckpart-save', types: [{ description: 'Part', accept: { 'application/json': ['.ckpart'] } }, { description: 'Compressed part', accept: { 'application/gzip': ['.gz'] } }] });
       await write(h, data);
       return { name: h.name, handle: h };
     } catch (e) {

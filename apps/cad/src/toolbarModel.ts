@@ -19,7 +19,7 @@ export const SLOTS: Record<string, string[]> = {
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern'],
   'loft-sweep': ['add-loft', 'add-sweep'],
-  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller'],
+  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-bearing'],
   reference: ['add-plane', 'add-axis', 'add-helix'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],
   'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft'],
@@ -50,7 +50,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
-    { id: 'Edit', entries: ['undo', 'redo', slot('history'), 'group-selected'] },
+    { id: 'Edit', entries: ['undo', 'redo', 'repeat-last', slot('history'), 'group-selected'] },
   ],
   Features: [
     { id: 'Reference', entries: [slot('reference')] },
@@ -86,7 +86,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
 /** The tool palette on the left edge: sections of slots (a bare id is a single-command cell). A section with no
  *  command in this build is skipped. Above these the palette adds a "For selection" slot when something is selected. */
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
-  { id: 'history', entries: ['undo', 'redo', slot('history')] },
+  { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'add-scale', 'triball', 'add-pipe-cut', slot('delete-geom')] },

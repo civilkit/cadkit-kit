@@ -42,4 +42,24 @@ describe('SketchFields', () => {
     render(<SketchFields fields={[{ ...field, value: 3.14159 }]} x={0} y={0} onField={() => {}} />);
     expect((screen.getByLabelText('len') as HTMLInputElement).value).toBe('3.14');
   });
+  it('name = value defines the parameter, then locks the value linked to it', async () => {
+    const onField = vi.fn(), onDefine = vi.fn().mockResolvedValue(true);
+    render(<SketchFields fields={[field]} x={0} y={0} onField={onField} onDefine={onDefine} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'w = 4*2' } });
+    expect(onField).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onDefine).toHaveBeenCalledWith('w', '=4*2');
+    await Promise.resolve(); await Promise.resolve();
+    expect(onField).toHaveBeenLastCalledWith('len', 8, true, 'w');
+  });
+  it('a refused definition locks nothing, and without onDefine the text is just an expression', async () => {
+    const onField = vi.fn(), onDefine = vi.fn().mockResolvedValue(false);
+    render(<SketchFields fields={[field]} x={0} y={0} onField={onField} onDefine={onDefine} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'w = 4' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await Promise.resolve(); await Promise.resolve();
+    expect(onField).not.toHaveBeenCalled();
+  });
 });

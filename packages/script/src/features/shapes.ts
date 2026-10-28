@@ -2,7 +2,7 @@
 import type { EditOp, Num, OffsetPlane, Plane, PartBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
 import { DEFAULT_GEAR, gearFeatures, rolesFor, type GearParams } from '../../../../apps/cad/src/gearData';
-import { H, planeRef, sketchOps, type SketchSpec } from './h';
+import { H, applyNewBody, planeRef, sketchOps, type SketchSpec } from './h';
 
 type End = 'cap' | 'point';
 const SKETCH_SPEC = 'a section is { on: plane | at(plane, offset) | face(sel), draw: (s) => ... } or { on, point: [x, y] }';
@@ -72,6 +72,7 @@ export const shapeFeatures = {
    * @param path path sketch { on, draw } (open chain starting on the profile plane)
    * @param o.twist total twist in degrees over the path
    * @param o.op 'add' (default) or 'cut'
+   * @param o.newBody true or 'Name': keep the swept solid as a separate body instead of fusing it with what it touches
    * @example
    * part('Pipe').sweep(
    *   { on: 'front', draw: (s) => { s.circle(5); s.circle(4); } },
@@ -79,7 +80,7 @@ export const shapeFeatures = {
    * );
    * @see part.loft, sketch.polyline, sketch.spline
    */
-  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut' } = {}): PartBuilder {
+  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string } = {}): PartBuilder {
     const line = H.callerLine();
     if (!profile?.on || !profile.draw || !path?.on || !path.draw) throw new H.SelectorError(`sweep() needs a profile and a path sketch: ${SKETCH_SPEC}`, line);
     this.steps.push({ line, label: 'sweep', run: (ctx) => {
@@ -88,6 +89,7 @@ export const shapeFeatures = {
       const id = ctx.nextId();
       const f: Record<string, unknown> = { type: 'sweep', id, op: o.op ?? 'add', sketch: pid, path: { kind: 'sketch', id: path_ } };
       if (o.twist !== undefined) f.twist = H.ref(o.twist);
+      applyNewBody(f, o.op ?? 'add', o.newBody, 'sweep', line);
       ops.push({ op: 'add', feature: f });
       ctx.lastFeature = id; ctx.lastSketch = null;
       return ops;

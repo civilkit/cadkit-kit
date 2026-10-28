@@ -97,6 +97,10 @@ describe('what is refused or reported', () => {
     expect((await importSolidcraftDocument({ format: 'solidcraft/30', units: 'in', features: [] }, 'x')).refused).toMatch(/only mm/);
     expect((await importSolidcraftDocument({ format: 'solidcraft/30' } as never, 'x')).refused).toMatch(/no feature list/);
     expect((await importSolidcraftDocument({ format: 'solidcraft/30', params: [{ name: 'a', expr: 'b' }], features: [] }, 'x')).refused).toMatch(/parameter/);
+    // a parameter listed before the one it uses is fine; a cycle and an undefined name are still refused
+    const ok = await importSolidcraftDocument({ format: 'solidcraft/30', params: [{ name: 'a', expr: 'b+1' }, { name: 'b', expr: '2' }], features: [] }, 'x');
+    expect(ok.refused).toBeUndefined();
+    expect((await importSolidcraftDocument({ format: 'solidcraft/30', params: [{ name: 'a', expr: 'b' }, { name: 'b', expr: 'a' }], features: [] }, 'x')).refused).toMatch(/parameter/);
   });
   const sketch = (id: number, extra: Record<string, unknown> = {}) => ({
     id, name: `S${id}`, type: 'sketch', suppressed: false, plane: { type: 'origin', name: 'XY' },
@@ -142,8 +146,62 @@ describe('what is refused or reported', () => {
     expect(r.rows[0]).toMatchObject({ status: 'converted', notes: [expect.stringMatching(/tangent constraint dropped/)] });
     expect(r.summary.notes).toBe(1);
   });
+  it('a spline is carried: through its points (fit) or as the control polygon of a B-spline (control), sharing the ends with the line that closes it', async () => {
+    const pts = [{ id: 'origin', pos: [0, 0] }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [10, 0] }, { id: 'p3', pos: [8, 5] }, { id: 'p4', pos: [2, 5] }];
+    const withSpline = (spline: Record<string, unknown>) => sketch(1, { points: pts, curves: [{ id: 'l1', type: 'line', a: 1, b: 2 }, { id: 's1', type: 'spline', construction: false, pts: [2, 3, 4, 1], ...spline }], constraints: [] });
+    const fit = await importSolidcraftDocument(doc([withSpline({ control: false }), extrude(2, 1)]), 'f');
+    expect(fit.geometryComplete).toBe(true);
+    expect((fit.part!.features[0] as Record<string, any>).entities[1]).toEqual({ id: 'e2', type: 'spline', pts: ['p2', 'p3', 'p4', 'p1'] });
+    const cv = await importSolidcraftDocument(doc([withSpline({ control: true, degree: 3, closed: false }), extrude(2, 1)]), 'c');
+    expect(cv.geometryComplete).toBe(true);
+    expect((cv.part!.features[0] as Record<string, any>).entities[1]).toEqual({ id: 'e2', type: 'cvspline', pts: ['p2', 'p3', 'p4', 'p1'], degree: 3 });
+    // a spline of one point cannot be drawn
+    expect((await importSolidcraftDocument(doc([withSpline({ pts: [2] })]), 'x')).rows[0].reason).toMatch(/sketch curve "spline"/);
+  });
+  it('a cut with profiles "all" on a sketch that holds an outline around other shapes gets a note; a plain sketch or a join does not', async () => {
+    const withCircle = sketch(2, { points: [{ id: 'origin', pos: [0, 0] }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [10, 0] }, { id: 'p3', pos: [10, 10] }, { id: 'p4', pos: [0, 10] }, { id: 'p5', pos: [5, 5] }],
+      curves: [{ id: 'l1', type: 'line', a: 1, b: 2 }, { id: 'l2', type: 'line', a: 2, b: 3 }, { id: 'l3', type: 'line', a: 3, b: 4 }, { id: 'l4', type: 'line', a: 4, b: 1 }, { id: 'c1', type: 'circle', c: 5, r: 2 }] });
+    const r = await importSolidcraftDocument(doc([sketch(1), extrude(2, 1), withCircle, extrude(3, 2, { operation: 'cut' }), extrude(4, 2, { operation: 'join' }), sketch(5), extrude(6, 5, { operation: 'cut' })]), 'n');
+    const note = (name: string) => r.rows.find((x) => x.name === name)?.notes ?? [];
+    expect(note('E3')).toEqual([expect.stringMatching(/all profiles selected; the file does not name the regions/)]);
+    expect(note('E4')).toEqual([]);
+    expect(note('E6')).toEqual([]);
+  });
+  it('a control-vertex spline used as a sweep path is sampled from its B-spline curve (clamped: ends on the end control points, the middle inside the polygon); a fit spline keeps its points', async () => {
+    const pts = [{ id: 'origin', pos: [0, 0] }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [0, 15] }, { id: 'p3', pos: [30, 30] }, { id: 'p4', pos: [0, 45] }];
+    const path = (spline: Record<string, unknown>) => sketch(1, { points: pts, curves: [{ id: 's1', type: 'spline', pts: [1, 2, 3, 4], ...spline }], constraints: [] });
+    const imp = async (spline: Record<string, unknown>) => {
+      const r = await importSolidcraftDocument(doc([path(spline)]), 'p');
+      return { row: r.rows[0], s3: r.part!.features.find((f) => f.type === 'sketch3d') as Record<string, any> };
+    };
+    const fit = await imp({ control: false });
+    expect(fit.s3.points).toHaveLength(4);
+    expect(fit.row.notes ?? []).toEqual([]);
+    const cv = await imp({ control: true, degree: 3 });
+    expect(cv.s3.entities[0].type).toBe('spline');
+    expect(cv.s3.points.length).toBeGreaterThan(8);
+    expect(cv.row.notes).toEqual([expect.stringMatching(/control-vertex spline path \(degree 3\)/)]);
+    const P = cv.s3.points as Array<Record<string, number>>, first = P[0], last = P[P.length - 1];
+    // clamped: the ends are the first and last control points (their y is our -z or +z: the sketch lies in their XY plane)
+    expect([first.x, first.y, Math.abs(first.z)]).toEqual([0, 0, 0]);
+    expect(Math.hypot(last.x, last.y, Math.abs(last.z) - 45)).toBeLessThan(1e-9);
+    // the curve follows the polygon without reaching its corner: sideways offset (their x) peaks well below 30 but above 5
+    const side = Math.max(...P.map((q) => Math.abs(q.x)));
+    expect(side).toBeLessThan(30);
+    expect(side).toBeGreaterThan(5);
+    // a degree that needs more points than the sketch has is reported
+    const tooHigh = await importSolidcraftDocument(doc([path({ control: true, degree: 5 })]), 'p');
+    expect(tooHigh.rows[0].status).toBe('unsupported');
+  });
+  it('imported geometry (a STEP body kept by a converter) is reported with its own reason; a suppressed one is skipped', async () => {
+    const imp = (over: Record<string, unknown> = {}) => ({ id: 3, name: 'Original', type: 'import', suppressed: false, step_blob: 'blobs/x.step', ...over });
+    const r = await importSolidcraftDocument(doc([imp(), sketch(4)]), 'x');
+    expect(r.rows[0]).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/original solid as imported geometry/) });
+    expect(r.rows[1].status).toBe('converted');
+    expect((await importSolidcraftDocument(doc([imp({ suppressed: true })]), 'x')).rows[0].status).toBe('skipped');
+  });
   it('an unsupported sketch takes its extrude with it, and the numbering of the rest is intact', async () => {
-    const bad = sketch(1); bad.sketch.curves[0] = { id: 'l1', type: 'spline', a: 1, b: 2 } as never;
+    const bad = sketch(1); bad.sketch.curves[0] = { id: 'l1', type: 'conic', a: 1, b: 2 } as never;
     const r = await importSolidcraftDocument(doc([bad, extrude(2, 1), sketch(3), extrude(4, 3)]), 'x');
     expect(r.rows.map((x) => x.status)).toEqual(['unsupported', 'unsupported', 'converted', 'converted']);
     expect(r.rows[1].reason).toMatch(/depends on sketch 1/);

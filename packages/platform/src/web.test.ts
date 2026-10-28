@@ -91,6 +91,12 @@ describe('saveDocumentWith', () => {
     expect(picks).toBe(1);
     expect(h.writes).toEqual(['one', 'two']);
   });
+  it('gives the save picker an id so the browser reopens it in the folder used last', async () => {
+    const seen: Array<string | undefined> = [];
+    const env: FsEnv = { showSaveFilePicker: async (o) => { seen.push(o.id); return fakeHandle('z.ckpart'); }, download: async () => {} };
+    await saveDocumentWith(env, 'z.ckpart', 'd');
+    expect(seen).toEqual(['ckpart-save']);
+  });
   it('asks again with pick (Save As)', async () => {
     const h = fakeHandle('x.ckpart');
     let picks = 0;

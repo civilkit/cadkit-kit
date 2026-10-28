@@ -53,7 +53,7 @@ describe('MCP over stdio (--stdio-direct)', () => {
     expect(body.volume).toBe(1000);
     expect(byId.get(4).result.isError).toBe(true);
     expect(JSON.parse(byId.get(4).result.content[0].text).error.code).toBe('bad_input');
-    expect(byId.get(5).result.contents[0].text).toContain('Script API');
+    expect(byId.get(5).result.contents[0].text).toContain('CadKit script API');
     expect(byId.get(6).error.code).toBe(-32601);
     expect(byId.get(7).result).toEqual({});
     expect(out.length).toBe(7);                         // the notification got no answer

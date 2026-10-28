@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchSolverStatus } from '@ck/part-model';
 import type { SketchDraft } from './index';
-import { definitionMap, fullyDefine, suggestDimensions, suggestRelations, type Solve } from './define';
+import { conflictingGeometry, definitionMap, fullyDefine, suggestDimensions, suggestRelations, type Solve } from './define';
 import { rectDraft } from './tools/edit-fixtures';
 
 const P = (id: string, x: number, y: number, fixed = false) => ({ id, x, y, ...(fixed ? { fixed: true } : {}) });
@@ -117,5 +117,20 @@ describe('definitionMap with a stub solver', () => {
     expect(m.get('e1')).toBe('over');
     expect(m.get('e3')).toBe('under');
     expect(calls).toBeLessThanOrEqual(3);
+  });
+
+  it('conflictingGeometry lists the points and curves a blamed constraint names, and nothing when all is well', () => {
+    const d: SketchDraft = { ...rect(), constraints: [{ id: 'k1', type: 'distance', refs: ['a', 'b'], value: 10 }, { id: 'k2', type: 'distance', refs: ['a', 'b'], value: 12 }] };
+    const g = conflictingGeometry(d, status(2, { state: 'over', conflicts: ['k2'] }));
+    expect(g.points).toEqual(['a', 'b']);
+    expect(g.entities).toContain('e1');
+    expect(g.entities).not.toContain('e3');
+    expect(conflictingGeometry(d, status(2))).toEqual({ entities: [], points: [] });
+    expect(conflictingGeometry(d, null)).toEqual({ entities: [], points: [] });
+  });
+  it('a redundant constraint is blamed only once the sketch is over-constrained', () => {
+    const d: SketchDraft = { ...rect(), constraints: [{ id: 'k1', type: 'distance', refs: ['a', 'b'], value: 10 }] };
+    expect(conflictingGeometry(d, status(2, { state: 'under', redundant: ['k1'] })).points).toEqual([]);
+    expect(conflictingGeometry(d, status(2, { state: 'over', redundant: ['k1'] })).points).toEqual(['a', 'b']);
   });
 });

@@ -59,6 +59,8 @@ Centre marks are drawn on round holes and on cylinder axes (two parallel silhoue
   and length), `M8x1.25 ↧ 14` (tapped blind hole: the thread's size with the pitch from the kernel's thread tables, the hole depth),
   `Ø6.5 THRU`, `M5 CLR THRU` plus `CSK` / `C'BORE` for countersunk and counterbored holes. The text is computed from the features when the
   sheet is drawn, so it changes with the feature. See `docs/threads.md` for the thread features.
+  Only real `hole` / `thread` features get a callout: a sketch circle plus a cut is drawn as a plain circle with a diameter. The PDF and DXF
+  writers print `DEPTH` for the `↧` glyph (Helvetica has none); the SVG keeps the glyph.
 - **Note**: click for text; Shift+click on a view for a note with a leader to the clicked point. The panel edits the text (several lines).
 - **Balloon**: click on a view for a numbered balloon with a leader. **Auto balloons** (assemblies): one per BOM item on the selected view
   (front by default), attached to a visible edge of the item's component.
@@ -98,6 +100,14 @@ like the exploded view: `setDocExtra('drawing', ...)`). Only references are stor
 Drawing tab is open (or while it is open), every view is projected again by the kernel. Dimensions made on an edge keep that edge's two
 face names and a model point and find the edge again (`findRef`); overall dimensions follow the view's bounds. A dimension whose edge is
 gone stays where it was and the status line says how many.
+
+## Headless use (the MCP `drawing` tool)
+
+`apps/cad/src/drawing/headless.ts` (`drawHeadless(session, options)`) builds the same documents without the UI: standard views at the best
+(or a given) scale, automatic dimensions and hole callouts, an optional section, and SVG / PDF / DXF. `tidy` (default on) points callout
+leaders away from the middle of the view and drops plain diameters of small circles (`minDiameter`, default 10 mm); hidden lines are off by
+default because they bury callouts on busy assemblies. The `drawing` tool of `@kit/agent-tools` wraps it (`docs/mcp.md`); the module is
+reached through the `@kit/cad-drawing` alias so packages need not import the app by path.
 
 ## Tests
 

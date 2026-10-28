@@ -31,6 +31,19 @@ describe('BusyOverlay', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(onCancel).toHaveBeenCalled();
   });
+  it('adds the seconds to a custom label when asked, so a long step shows that it is still going', () => {
+    vi.useFakeTimers();
+    render(<BusyOverlay busy={true} onCancel={() => {}} delayMs={0} label="Building part" showElapsed />);
+    act(() => { vi.advanceTimersByTime(3200); });
+    expect(screen.getByText('Building part 3 s')).toBeTruthy();
+  });
+  it('leaves the Cancel button out of work that cannot be stopped', () => {
+    vi.useFakeTimers();
+    render(<BusyOverlay busy={true} onCancel={() => {}} delayMs={0} label="Building part" cancelable={false} />);
+    act(() => { vi.advanceTimersByTime(50); });
+    expect(screen.getByText('Building part')).toBeTruthy();
+    expect(screen.queryByText('Cancel')).toBeNull();
+  });
 });
 
 describe('Toast', () => {

@@ -65,7 +65,7 @@
     "plane",
     "part.workplane"
    ],
-   "notes": "- front moves along +Z, top along +Y, right along +X; a face offset goes along the face's OUTWARD normal (negative = into the body).\n- { origin, normal } with a normal along a world axis is an ordinary offset plane; any other normal adds helper points and a three-point plane (7 features at most): fine for one-off tilted sketches, prefer rotate: { axis: 'x', angle } for a tilt about an axis.\n- rotate turns the plane about the axis LINE, the plane passes through it; only world axes through the origin and straight edges are accepted."
+   "notes": "- front moves along +Z, top along +Y, right along +X; a face offset goes along the face's OUTWARD normal (negative = into the body).\n- { origin, normal } with a normal along a world axis is an ordinary offset plane; any other normal adds helper points and a three-point plane (7 features at most): fine for one-off tilted sketches, prefer rotate: { axis: 'x', angle } for a tilt about an axis.\n- rotate turns the plane about the axis LINE, the plane passes through it; only world axes through the origin and straight edges are accepted.\n- FRAME of { origin, normal, xdir }: the sketch origin is `origin`, sketch x (u) = xdir projected perpendicular to the normal, sketch y (v) = normal x u. Example: normal [1,0,0] with xdir [0,0,1] gives u = +Z and v = X x Z = -Y. Without xdir and with an axis-aligned normal the plane is the standard one (front / top / right frame below, a negative normal is flipped); without xdir and an oblique normal, u = normal x [1,0,0] (normal x [0,1,0] when the normal is nearly X). When a sketch lands in the wrong place, give xdir: it removes the guesswork.\n- Standard frames (sketch x, sketch y, normal): front = X, Y, +Z; top = X, -Z, +Y; right = -Z, Y, +X. A point [u, v] on a plane offset by d is world = origin + u*x + v*y + d*normal."
   },
   {
    "id": "part.sketch",
@@ -186,7 +186,8 @@
     "at",
     "part.handle",
     "part.sketch"
-   ]
+   ],
+   "notes": "- The plane frame is the one at() documents: for { origin, normal, xdir } sketch x = xdir (projected perpendicular to the normal), sketch y = normal x xdir, the origin is the sketch origin. Standard names: front = X, Y (normal +Z); top = X, -Z (normal +Y); right = -Z, Y (normal +X).\n- Take part.handle() right after workplane() and sketch on at(handle). Planes are features: they show in the tree and survive edits."
   },
   {
    "id": "plane",
@@ -791,6 +792,49 @@
    "notes": "- Put lettering in a sketch of ITS OWN: its loops are not intersected with the other curves of the sketch (letters inside a rect do not become holes of it). Several s.text() calls in one sketch are fine (dial numerals).\n- height is the CAP height (an H), not the font size; under 0.8 mm the run warns textTooSmall. Engrave 0.1 to 0.5 mm deep: cut(0.3). Emboss = extrude(0.15).\n- Upright numerals around a dial: one text per number, anchor ['center', 'middle'], angle 0, at the numeral radius; the arc option bends ONE string along a circle (side 'outside' reads clockwise over the top, 'inside' with angleCentre 270 reads left to right below).\n- Keep letters clear of other thin features (ridges, tick marks): a glyph corner touching a ridge corner can make the kernel boolean fail (booleanFailed); move the numeral radius by a few tenths of a mm if it does.\n- Characters outside Latin-1 are skipped with a textMissingGlyph warning; an empty or blank string is an error.\n- Fonts: 'gauge' and 'engrave' are built in; a library font is named by its id ('barlow', 'bebas-neue', 'great-vibes' ...) and loaded by the app. Library fonts have no kerning or ligatures; connected script faces (great-vibes, satisfy) and some display faces have overlapping strokes that can make an engrave fail validation or warn textOverlappingContours; keep those strings short. An unknown id lists the valid ones."
   },
   {
+   "id": "bearing",
+   "kind": "function",
+   "domain": "features",
+   "signature": "bearing(o: BearingOpts): PartBuilder",
+   "summary": "A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.",
+   "description": "The free-function form of the bearing method: bearing({ designation: '608', seal: '2RS' }) adds a bearing to the current part (a new one when there is none) and returns it. Give a preset designation ('608', '6204', 'MR63', 'R2') or bore, od and width in mm. seal is '2Z' (default), '2RS' or 'open' (visible balls). origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "BearingOpts",
+     "optional": false,
+     "description": "options object, see part.bearing"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "bearing({ designation: '6204', seal: 'open', origin: [0, 0, 10] });",
+   "related": [
+    "part.bearing"
+   ]
+  },
+  {
+   "id": "part.bearing",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".bearing(o: BearingOpts)",
+   "summary": "A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.",
+   "description": "Give a preset designation ('608', '6204', 'MR63', 'R2' for a 1/8 inch bore) or bore, od and width in mm; the presets are the nominal ISO 15 sizes of the miniature 6xx, MR, 60xx, 62xx and 63xx series and some inch sizes. seal: '2Z' (default) is a flat shield disc on both faces, '2RS' a thicker seal with a sloping lip, 'open' shows the balls (count and diameter from the race gap, or balls and ballDiameter). All four corners of each ring are chamfered (chamfer, default by size). The races are plain cylinders, without ball grooves, so this is for assemblies, fit checks and looks, not for load ratings. origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body and does not merge with what it touches. seat: true first cuts a pocket for the outer ring into the bodies that exist (diameter with an H7 housing allowance, depth the width), seat: { fit: 'press' | 'h7' | 'print', allowance } picks another fit.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "BearingOpts",
+     "optional": false,
+     "description": "options object { designation | bore, od, width, seal, chamfer, balls, origin, axis, name }, the fields below"
+    }
+   ],
+   "example": "part('Wheel hub').bearing({ designation: '608', seal: '2RS', origin: [0, 0, 0], axis: [0, 0, 1] })\n  .bearing({ bore: 5, od: 16, width: 5, seal: 'open', origin: [30, 0, 0] });",
+   "related": [
+    "bearing",
+    "part.screw",
+    "part.revolve"
+   ]
+  },
+  {
    "id": "part.chamfer",
    "kind": "method",
    "domain": "features",
@@ -840,6 +884,12 @@
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": ""
+      },
       {
        "name": "name",
        "type": "string",
@@ -892,7 +942,7 @@
     "part.extrude",
     "part.hole"
    ],
-   "notes": "- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.\n- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.\n- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way."
+   "notes": "- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.\n- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.\n- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way.\n- A cut applies to EVERY body that exists when it runs (not only the one you are looking at). A through-cut for holes in a base plate also slits any earlier body it crosses. Build the parts the cut must not touch AFTER the cut, or keep clearance, or limit the cut depth. run_script reports a warning ('cut F7 changed N bodies') when one cut changed several bodies."
   },
   {
    "id": "part.extrude",
@@ -915,6 +965,12 @@
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": "true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps"
+      },
       {
        "name": "name",
        "type": "string",
@@ -967,7 +1023,7 @@
     "part.thin",
     "part.revolve"
    ],
-   "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; direction 'into' reverses, 'both' (or mid) is symmetric with depth as the total.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world (top: sketch y = world -Z; right: sketch x = world -Z); see plane() for the table.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss."
+   "notes": "- Each extrude consumes the sketch before it: sketch again for the next feature.\n- A sketch on a face adds material outward (a boss). On the 'front' plane it goes +Z, on 'top' +Y, on 'right' +X; direction 'into' reverses, 'both' (or mid) is symmetric with depth as the total.\n- On the 'top' and 'right' planes the sketch axes are not x/y of the world (top: sketch y = world -Z; right: sketch x = world -Z); see plane() for the table.\n- Nested closed shapes in one sketch (rect inside rect) give a ring, not two solids.\n- draft is in degrees and tapers the sides inward for a positive angle on a boss.\n- Touching or overlapping solids FUSE into one body. To keep a solid separate pass { newBody: true } or { newBody: 'Name' } (extrude, revolve and sweep; not for cuts). Two newBody solids may overlap without merging; leave a clearance (0.1 mm) between parts that must not fuse and use the bodies tool to check the body count."
   },
   {
    "id": "part.feature",
@@ -1101,6 +1157,28 @@
    "notes": "- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).\n- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z)."
   },
   {
+   "id": "part.knurl",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".knurl(o: KnurlOpts)",
+   "summary": "Knurl a cylinder: cut straight, diamond or pyramid grooves into it.",
+   "description": "Describe the cylinder (axis x, y or z, centre, radius, axial range from..to). 'straight' cuts axial grooves in one cut (fast). 'diamond' cuts two crossed helical sets, one per hand, each a twisted sweep (slow: the helper stops above 260 groove crossings, count squared times twice the turn fraction, because the kernel's boolean budget fails around 570). 'pyramid' crosses axial grooves with rings for raised square pyramids. Give count (per hand for a diamond) or pitch, and depth (default pitch / 4). profile 'v' (angle, default 90) or 'round' (width, default 2 * depth). mode 'cosmetic' skips the cutting: it records the knurl in the document for display only, instant at any count. Overlapping grooves are refused with the largest count that fits. On a 20 mm diameter, 12 mm band: straight 24 grooves under 1 s, pyramid 24 x 8 about 11 s, diamond 12 + 12 at 22 degrees about 4 s, 16 + 16 at 45 degrees about 23 s. faceted (the default for a V diamond or pyramid) builds the surface as faces in the kernel: linear in the groove count, planar flanks (volume within about 3 percent); method 'boolean' cuts the grooves one set against the other (slow when dense; round grooves and straight always use the cuts).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "KnurlOpts",
+     "optional": false,
+     "description": "options object { radius, from, to, count | pitch, ... }, the fields below"
+    }
+   ],
+   "example": "part('Knob').sketch('front', (s) => s.circle(15)).extrude(12)\n  .knurl({ axis: 'z', radius: 15, from: 0, to: 12, pattern: 'straight', count: 36, depth: 0.5 });",
+   "related": [
+    "part.sweep",
+    "part.cut",
+    "part.revolve"
+   ]
+  },
+  {
    "id": "part.loft",
    "kind": "method",
    "domain": "features",
@@ -1172,7 +1250,7 @@
    "id": "part.revolve",
    "kind": "method",
    "domain": "features",
-   "signature": ".revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } } = {}): this",
+   "signature": ".revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt }; newBody?: boolean | string } = {}): this",
    "summary": "Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).",
    "description": "Revolves the last sketch `angle` degrees (default 360). The axis is the sketch Y axis unless axis: { from, to } gives a line in the sketch plane. Profile x is the radius, y the height along the axis, so draw a half cross-section on one side of the axis. op: 'cut' removes the revolved volume instead. thin makes a revolved shell.",
    "parameters": [
@@ -1185,7 +1263,7 @@
     },
     {
      "name": "o",
-     "type": "{ name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt } }",
+     "type": "{ name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt }; newBody?: boolean | string }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
@@ -1213,6 +1291,12 @@
        "type": "{ from: Pt; to: Pt }",
        "optional": true,
        "description": "{ from: [x, y], to: [x, y] } axis line in the sketch plane"
+      },
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": "true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps"
       }
      ]
     }
@@ -1223,7 +1307,7 @@
     "sketch.polygon",
     "sketch.axisAt"
    ],
-   "notes": "- Draw the half profile on ONE side of the axis: x is the distance from the axis, y the height. Keep the profile from crossing the axis (no negative x).\n- The sketch plane decides the world axis: on 'front' and 'right' the sketch Y axis is world Y or world Z accordingly; for a pulley on 'right' the axis is world Y and the end faces are face('>Y') / face('<Y').\n- 360 is a full solid of revolution; a smaller angle leaves two planar end faces."
+   "notes": "- Draw the half profile on ONE side of the axis: x is the distance from the axis, y the height. Keep the profile from crossing the axis (no negative x).\n- The sketch plane decides the world axis: on 'front' and 'right' the sketch Y axis is world Y or world Z accordingly; for a pulley on 'right' the axis is world Y and the end faces are face('>Y') / face('<Y').\n- 360 is a full solid of revolution; a smaller angle leaves two planar end faces.\n- A profile that crosses the axis (points on both sides of the revolve axis) gives profileCrossesAxis. Draw HALF of the profile, from the axis outwards (x >= 0), and let the 360 degrees make the other side."
   },
   {
    "id": "part.rib",
@@ -1263,6 +1347,28 @@
    "notes": "- The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.\n- The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z))."
   },
   {
+   "id": "part.screw",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".screw(o: ScrewOpts)",
+   "summary": "A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.",
+   "description": "Give the metric size (M2 to M8) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "ScrewOpts",
+     "optional": false,
+     "description": "options object { size, length, head, drive, origin, axis, ... }, the fields below"
+    }
+   ],
+   "example": "part('Plate').sketch('front', (s) => s.rect(30, 30)).extrude(4).hole(face('>Z'), [0, 0], { diameter: 3.4 })\n  .screw({ size: 'M3', length: 8, head: 'button', drive: 'hex', origin: [0, 0, 4] });",
+   "related": [
+    "screw",
+    "part.thread",
+    "part.revolve"
+   ]
+  },
+  {
    "id": "part.shell",
    "kind": "method",
    "domain": "features",
@@ -1295,7 +1401,7 @@
    "id": "part.sweep",
    "kind": "method",
    "domain": "features",
-   "signature": ".sweep(profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut' } = {})",
+   "signature": ".sweep(profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string } = {})",
    "summary": "Sweep a closed profile along a path sketch (pipes, rails, handles).",
    "description": "Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The kernel has no keep-normal option: the profile follows the path frame.",
    "parameters": [
@@ -1313,7 +1419,7 @@
     },
     {
      "name": "o",
-     "type": "{ twist?: Num; op?: 'add' | 'cut' }",
+     "type": "{ twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
@@ -1329,6 +1435,12 @@
        "type": "'add' | 'cut'",
        "optional": true,
        "description": "'add' (default) or 'cut'"
+      },
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": "true or 'Name': keep the swept solid as a separate body instead of fusing it with what it touches"
       }
      ]
     }
@@ -1434,6 +1546,27 @@
     "part.holes.points"
    ],
    "notes": "- Cosmetic by default: the geometry does not change, the thread appears in the regen threads list and drawings. modeled: true cuts the helix; it may fall back to cosmetic with a threadModelFallback warning.\n- The hole should be the tap drill of the thread (M6 -> 5.0): hole(..., { kind: 'tapped', thread: 'M6' }) does both. A mismatch is the warning threadDiameterMismatch with the diameter to drill.\n- on: 'hole' means the last hole feature (all its positions); a face name must be the persistent name of a cylindrical face."
+  },
+  {
+   "id": "screw",
+   "kind": "function",
+   "domain": "features",
+   "signature": "screw(o: ScrewOpts): PartBuilder",
+   "summary": "A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.",
+   "description": "The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M8 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "ScrewOpts",
+     "optional": false,
+     "description": "options object, see part.screw"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "screw({ size: 'M3', length: 8, head: 'pan', drive: 'cross', origin: [10, 0, 5], axis: [0, 0, -1] });",
+   "related": [
+    "part.screw"
+   ]
   },
   {
    "id": "through",
@@ -1942,7 +2075,7 @@
    "kind": "method",
    "domain": "holes",
    "signature": ".holes.polar(on: FaceSel, c: { center: Pt; radius: number; count: number; startAngle?: number }, o: HoleOpts): this",
-   "summary": "A bolt circle: count holes equally spaced on a circle.",
+   "summary": "A bolt circle: drill a polar array of count holes equally spaced on a circle.",
    "description": "Drills `count` holes on a circle of `radius` about `center` (sketch-plane coordinates, usually [0, 0]), the first at startAngle degrees. All holes are one feature.",
    "parameters": [
     {
@@ -2589,7 +2722,7 @@
    "domain": "utilities",
    "signature": ".appearance(o: AppearanceTarget): this",
    "summary": "Colour, opacity and finish of the bodies a feature made (view only, no geometry change).",
-   "description": "appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.",
+   "description": "appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them, and for a pattern the seed's own body too. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.",
    "parameters": [
     {
      "name": "o",
@@ -2603,7 +2736,8 @@
    "related": [
     "part.bodyName",
     "part.handle"
-   ]
+   ],
+   "notes": "- Styling a PATTERN feature (linearPattern / circularPattern) styles the copies AND the seed's own body, because the seed body belongs to the seed feature. A look given to the seed explicitly wins field by field.\n- A body is keyed by the feature that created it: a boss fused into an earlier body is part of that body (take the handle of the FIRST feature of the body), a feature made with newBody is its own body.\n- finish 'brushed' and 'chrome' are metallic: they shift colours towards grey in renders (copper looks silver). Use 'plastic' or 'matte' for coloured parts.\n- It changes view state only (no feature, no undo step); STEP export keeps no colours or body names, a .ckpart does."
   },
   {
    "id": "part.area",

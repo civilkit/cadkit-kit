@@ -1,6 +1,6 @@
 # Parametric wizards
 
-This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
+This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
 
 All of these are about geometry only. The app does not calculate strength, lubrication, or aerodynamic or hydrodynamic performance.
 
@@ -239,6 +239,27 @@ The review step reports the radii, blade counts, wrap, section line length and t
 - There is one meridional blade shape. There is no leading-edge sweep, no changing wrap along the span, and no shroud surface. The hub contour's knee is fixed at 75 % of the length.
 - Blades are joined to the hub without a root fillet.
 - Reopen the wizard by clicking any feature the impeller made.
+
+## Bearings
+
+**Bearing** adds a ball bearing as ordinary features: an inner ring, an outer ring and, for an open bearing, the balls. Start it from **Features > Create**, command search, or the Catalog: **Primitives** tab, **Generators**, **Bearing**. The live preview shows the bearing before **Add bearing** keeps it as one undo step.
+
+The **Size** list holds the nominal ISO 15 dimensions (bore x outer diameter x width) of the miniature 6xx series (602 to 629), the MR miniature series (MR52 to MR149), the 60xx, 62xx and 63xx series (bores 10 to 60 mm) and some inch sizes (R2 with its 1/8 inch bore, R3, R4, R6, R8, R10, R12). Type in **Search** to narrow the list: `620` lists 6200 to 6209, `8x22` finds the 608, and a whole designation such as `6204-2RS` or `MR63ZZ` picks that size and its sides. Typing a bore, outer diameter or width by hand makes it a custom size.
+
+| Parameter | What it does | Default |
+| --- | --- | --- |
+| Sides | **Open** shows the balls, **Shielded (2Z)** is a flat disc on each face, **Sealed (2RS)** is a thicker seal with a sloping lip. | Shielded |
+| Chamfer | Chamfer on all four corners of each ring. 0 leaves them sharp. | By size (0.1 mm for the smallest, 0.3 mm for a 608, 1 mm for a 6204 or larger) |
+| Balls, Ball diameter | Open bearings only. | The diameter is just under the gap between the races, the count about 1.6 ball diameters of pitch |
+| First face centre, Extends | Where the first face sits and which way the bearing runs from it. | Origin, up (+Z) |
+
+Each ring and each ball is its own body (named, for example, *Bearing 608 inner ring*), and a shield or seal belongs to the outer ring. The races are plain cylinders without ball grooves and without a cage, and the ring, ball and shield sizes follow rules of thumb rather than a maker's catalogue. Use it for assemblies, fit checks and looks, not for load ratings.
+
+### Housing seat
+
+The **Housing seat** read-out gives the pocket for the outer ring: its diameter with the fit allowance, and the bearing width as the depth. **Fit** chooses **H7 housing** (cut at the middle of the +IT7 / 0 zone of ISO 286), **Nominal (press fit)** (the outer diameter itself) or **0.2 mm clearance** (for a printed pocket). Select a flat face before you open Bearing and the bearing is placed on that face, running into the body; tick **Cut this pocket in the picked face** and the pocket is cut first, then the bearing is added in it.
+
+In the Script tab: `part('Housing').bearing({ designation: '608', seal: '2RS', origin: [0, 0, 10], axis: [0, 0, -1], seat: true })`. The **Bearings** example shows a row of them.
 
 ## Corner holes
 

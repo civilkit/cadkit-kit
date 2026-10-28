@@ -25,7 +25,7 @@ Facts about the kernel this spec builds on (all read in code):
   Cost per body-changing feature is therefore one clone, which every feature already pays (regen-cache.md, "Sharing and the cap").
 * The regen cache key hashes the feature JSON as received (`chain_keys`, K:`crates/ck-wasm/src/regen_cache.rs`), plus extra fingerprints for loaded fonts (`text_fonts`: `name=<sha256|missing>`).
   That is the precedent for content that lives outside the document.
-* A binary body codec exists as a spike on branch `cache-persist`: K:`crates/ck-topo/src/bincodec.rs` (LEB128, raw f64 bits, bit-exact, `decode(encode(b)) == b`; 1.5 to 2.4 MB zstd for the fan shroud / hair dryer, decode 1-2 ms,
+* A binary body codec exists as a spike on branch `cache-persist`: K:`crates/ck-topo/src/bincodec.rs` (LEB128, raw f64 bits, bit-exact, `decode(encode(b)) == b`; 1.5 to 2.4 MB zstd for the fan shroud / large sample, decode 1-2 ms,
   persisted-cache.md). Gap found while reading it: the reader bounds **counts** by the bytes left but does not validate **ids** (an `EdgeId`, `VertexId`, loop or shell index past the arena would panic later = a wasm trap, robustness.md). It needs a validation pass before it may read untrusted data (section 8).
 
 ## 2. Decisions in one table

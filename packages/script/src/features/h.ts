@@ -56,3 +56,12 @@ export function sketchOps(ctx: Ctx, spec: SketchSpec, ops: EditOp[]): string {
   ops.push({ op: 'add', feature: { type: 'sketch', id, ...(spec.name ? { name: spec.name } : {}), plane, points: s.pointList, entities: s.entities, constraints: [] } });
   return id;
 }
+
+/** newBody: true | 'Name' on a solid-making feature: the kernel's `newBody` op (a separate body, not united with what it touches); a string names the body. */
+export function applyNewBody(f: Record<string, unknown>, op: 'add' | 'cut', newBody: boolean | string | undefined, label: string, line: number): void {
+  if (newBody === undefined || newBody === false) return;
+  if (op === 'cut') throw new H.SelectorError(`${label}(): newBody applies to material you add, not to a cut (a cut hits every body that exists)`, line);
+  if (typeof newBody === 'string' && !newBody.trim()) throw new H.SelectorError(`${label}(): newBody must be true or a non-empty body name`, line);
+  f.op = 'newBody';
+  if (typeof newBody === 'string') f.body = newBody.trim();
+}

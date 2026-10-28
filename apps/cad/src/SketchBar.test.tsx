@@ -130,6 +130,14 @@ describe('reference dimensions on the canvas and in the list', () => {
     fireEvent.dblClick(ref); expect(onToggleDriven).toHaveBeenCalledWith('r1', true);
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
+  it('a right-click on a dimension asks for the menu instead of flipping it', () => {
+    const onMenu = vi.fn(), onToggleDriven = vi.fn();
+    const item = { id: 'k1', text: 'R5', kind: 'dimension' as const, type: 'radius', x: 10, y: 10 };
+    const { container } = render(<SketchAnnotations items={[item]} hot={null} onEdit={() => {}} onHover={() => {}} onToggleDriven={onToggleDriven} onMenu={onMenu} />);
+    fireEvent.contextMenu(container.querySelector('.annot')!, { clientX: 30, clientY: 40 });
+    expect(onMenu).toHaveBeenCalledWith(item, 30, 40);
+    expect(onToggleDriven).not.toHaveBeenCalled();
+  });
   it('the constraint list marks blamed rows, brackets reference rows and has the driven toggle', () => {
     const onToggleDriven = vi.fn();
     const { container } = render(<SketchConstraintList rows={[{ id: 'k1', type: 'distance', refs: ['a', 'b'], value: 10, blame: 'conflict' }, { id: 'r1', type: 'distance', refs: ['a', 'c'], driven: true }, { id: 'k2', type: 'horizontal', refs: ['e1'] }]} status={st({ state: 'over', conflicts: ['k1'] })} hot={null} onHover={() => {}} onDelete={() => {}} onEdit={() => {}} onToggleDriven={onToggleDriven} />);

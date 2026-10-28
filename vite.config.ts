@@ -58,6 +58,8 @@ export default defineConfig(({ command }) => ({
       '@kit/agent-tools': here('./packages/agent-tools/src/index.ts'),
       '@kit/mcp': here('./packages/mcp/src/index.ts'),
       '@kit/snapshot': here('./packages/snapshot/src/index.ts'),
+      // the app's headless drawing layer (views, dimensions, callouts, SVG / PDF / DXF); the MCP `drawing` tool imports it on demand
+      '@kit/cad-drawing': here('./apps/cad/src/drawing/headless.ts'),
       '@ck/driver-verify': FW + '/packages/driver/src/verify.ts',
       '@ck/session': FW + '/packages/session/src/session.ts',
       '@ck/mesh': FW + '/packages/render/src/mesh.ts',

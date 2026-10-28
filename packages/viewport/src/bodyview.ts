@@ -2,6 +2,7 @@
 // key); this module holds the pure parts: the finishes, which bodies are drawn in the transparent pass and in what order, which
 // faces a hidden body takes with it, and which hit of a ray is the one a click means (pass-through below PICK_OPACITY).
 import type { BodyMesh } from './meshgeom';
+import type { KnurlView } from './knurlview';
 
 export type Finish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const FINISHES: readonly Finish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
@@ -14,6 +15,8 @@ export interface BodyViewSpec {
   bodies: ViewBodyDef[]; looks: Record<string, BodyLookSpec>; hidden: string[];
   /** colour and finish of single faces by face name (they win over their body's; the opacity of a face is ignored) */
   faces?: Record<string, BodyLookSpec>;
+  /** cosmetic knurls: shading on the matching cylinders, no geometry (see knurlview.ts) */
+  knurls?: KnurlView[];
 }
 
 /** Faces of a body whose opacity is below this are skipped by a click when something lies behind them. */

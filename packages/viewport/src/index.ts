@@ -30,3 +30,4 @@ export type { CursorContext, CursorTool, HoverTarget, DragState } from './cursor
 export { adaptiveGrid, niceStep, parseSpacing, GRID_MIN_PX, GRID_MAX_PX } from './gridSpacing';
 export type { GridSpec } from './gridSpacing';
 export * from './bodyview';
+export { packKnurls, grooveField, KNURL_MAX, type KnurlView } from './knurlview';

@@ -195,6 +195,22 @@ export function resolveFaceLooks(entries: Record<string, BodyLookSpec> | undefin
   return out;
 }
 
+/** The mesh without the triangles of hidden bodies (what "export only visible bodies" writes). The same mesh when no body is hidden
+ *  or the mesh does not say which face a triangle belongs to; null when nothing visible is left. */
+export function visibleMesh(mesh: { positions: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } | null, rows: readonly Pick<BodyRow, 'hidden' | 'faces'>[]): { positions: ArrayLike<number> } | null {
+  if (!mesh) return null;
+  const gone = new Set<string>();
+  for (const r of rows) if (r.hidden) for (const f of r.faces) gone.add(f);
+  const { triFace, faceIds } = mesh;
+  if (!gone.size || !triFace || !faceIds) return mesh;
+  const out: number[] = [];
+  for (let t = 0; t < triFace.length; t++) {
+    if (gone.has(faceIds[triFace[t]])) continue;
+    for (let i = t * 9; i < t * 9 + 9; i++) out.push(mesh.positions[i]);
+  }
+  return out.length ? { positions: new Float32Array(out) } : null;
+}
+
 /** What the viewport is given. */
 export function viewSpec(rows: readonly BodyRow[], faces?: Record<string, BodyLookSpec>): BodyViewSpec {
   const looks: Record<string, BodyLookSpec> = {};
@@ -231,6 +247,12 @@ export function withLook(fields: BodyFields, row: Pick<BodyRow, 'key' | 'look'>,
   for (const k of Object.keys(patch) as Array<keyof BodyLookSpec>) if (patch[k] === undefined) delete entry[k];
   if (Object.keys(entry).length) next[row.key] = entry; else delete next[row.key];
   return next;
+}
+/** The same look change on several bodies at once (Appearance applied to a multi-selection): each keeps the rest of its own look. */
+export function withLooks(fields: BodyFields, rows: Array<Pick<BodyRow, 'key' | 'look'>>, patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): Record<string, BodyLookSpec> {
+  let f = fields;
+  for (const r of rows) f = { ...f, appearance: withLook(f, r, patch) };
+  return f.appearance ?? {};
 }
 export function withName(fields: BodyFields, key: string, name: string): Record<string, string> {
   const next = { ...(fields.bodyNames ?? {}) };

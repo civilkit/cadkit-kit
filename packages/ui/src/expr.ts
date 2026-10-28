@@ -210,6 +210,13 @@ export function parseFieldText(text: string): { kind: 'empty' } | { kind: 'numbe
   return { kind: 'expr', expr: s.startsWith('=') ? s : '=' + s };
 }
 
+/** `name = value` typed in a value box: the name and the value as an expression (`=...`). Null for anything else, including a
+ *  plain `=expr` (no name before the `=`) and `==`. */
+export function parseAssignment(text: string): { name: string; expr: string } | null {
+  const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(?!=)\s*(\S.*?)\s*$/.exec(text);
+  return m ? { name: m[1], expr: '=' + m[2].replace(/^=\s*/, '') } : null;
+}
+
 /** Value of a field (number or `=expr`) in a scope; null when it does not evaluate. */
 export function valueOf(v: unknown, scope: Scope): number | null {
   if (typeof v === 'number') return v;

@@ -44,6 +44,7 @@ export function gestureHint(kind: GestureKind | null): string | null {
     case 'extrude-depth': return t('ctx.hint.depth');
     case 'shell-thickness': return t('ctx.hint.thickness');
     case 'hole-diameter': return t('ctx.hint.diameter');
+    case 'push-pull': return t('ctx.hint.pushPull');
     default: return null;
   }
 }

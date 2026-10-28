@@ -1,7 +1,8 @@
 /**
  * Rectangle by two corners. First click sets a corner, second click the opposite one. Typed width and height
  * (committed with Tab or Enter) become `distance` constraints. The four lines get horizontal and vertical
- * constraints, so the rectangle stays axis-aligned however it is dragged later.
+ * constraints, so the rectangle stays axis-aligned however it is dragged later. Holding Alt makes it a square: both
+ * sides take the longer of the pointer's two offsets (or a typed size, which the other side then follows).
  */
 import type { SketchDraft } from '../index';
 import { addConstraintOf, addLine, addPoint } from './builders';
@@ -12,6 +13,8 @@ export interface RectState {
   locked: { w?: number; h?: number };
   live: { w?: number; h?: number };
   cursor?: Pt;
+  /** Alt was held at the last pointer event */
+  square?: boolean;
 }
 
 const sign = (v: number) => (v < 0 ? -1 : 1);
@@ -21,8 +24,9 @@ function opposite(s: RectState): { x1: number; y1: number; w: number; h: number 
   if (!s.corner || !s.cursor) return null;
   const { at } = s.corner;
   const e = eff(s);
-  const w = e.w ?? Math.abs(s.cursor.x - at.x);
-  const h = e.h ?? Math.abs(s.cursor.y - at.y);
+  const side = e.w ?? e.h ?? Math.max(Math.abs(s.cursor.x - at.x), Math.abs(s.cursor.y - at.y));
+  const w = e.w ?? (s.square ? side : Math.abs(s.cursor.x - at.x));
+  const h = e.h ?? (s.square ? side : Math.abs(s.cursor.y - at.y));
   return { x1: at.x + sign(s.cursor.x - at.x) * w, y1: at.y + sign(s.cursor.y - at.y) * h, w, h };
 }
 
@@ -66,11 +70,11 @@ export const rectangleTool: Tool<RectState> = {
   start: () => ({ locked: {}, live: {} }),
   step(state, ev, draft, settings) {
     switch (ev.type) {
-      case 'move': return view({ ...state, cursor: ev.snap?.at ?? ev.at }, draft, settings);
+      case 'move': return view({ ...state, cursor: ev.snap?.at ?? ev.at, square: ev.mods.alt }, draft, settings);
       case 'click': {
         const at = ev.snap?.at ?? ev.at;
         if (!state.corner) return view({ ...state, corner: { at, ...(ev.snap?.pointId ? { pointId: ev.snap.pointId } : {}) }, cursor: at }, draft, settings);
-        return commit({ ...state, cursor: at }, draft, settings);
+        return commit({ ...state, cursor: at, square: ev.mods.alt }, draft, settings);
       }
       case 'field': {
         if (!state.corner) return view(state, draft, settings);

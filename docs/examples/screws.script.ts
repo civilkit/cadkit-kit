@@ -1,0 +1,19 @@
+// Screws: every head (columns) with every drive (rows), plus an external hex bolt. M3 by default; change `size` ('M2' to 'M8') or `length`.
+// Paste into the Script tab and Run (about 10 s for the 17 screws). Each screw is its own body, head up, shank down, bearing face on the XY plane.
+// The cross (Phillips) and Torx drives are approximations: the cross is two crossed tapered arms with a blunt tip, the Torx a six-lobed outline of true arcs
+// with the ISO tip and valley diameters. Good for looks, fit checks and mass; not toleranced drives.
+const { length, spacing } = variables({ length: 6, spacing: 14 });
+const size = 'M3';                                    // 'M2' | 'M2.5' | 'M3' | 'M4' | 'M5' | 'M6' | 'M8'
+const heads = ['pan', 'button', 'countersunk', 'cheese'];
+const drives = ['slotted', 'hex', 'cross', 'torx'];
+
+const p = part('Screws');
+heads.forEach((head, i) => drives.forEach((drive, j) => {
+  p.screw({ size, length, head, drive, origin: [i * spacing, -j * spacing, 0] });
+}));
+// the external hex head has no drive
+p.screw({ size, length, head: 'hex', origin: [heads.length * spacing, 0, 0] });
+
+// A screw in a hole: origin is the bearing face, axis the direction the shank points. Uncomment to add a plate with a clearance hole and an M3 screw in it.
+// part('Plate').sketch('front', (s) => s.rect(30, 20)).extrude(4).hole(face('>Z'), [0, 0], { diameter: 3.4 })
+//   .screw({ size: 'M3', length: 8, head: 'button', drive: 'hex', origin: [0, 0, 4], axis: [0, 0, -1] });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PartDoc } from '@ck/part-model';
-import { applyConfig, configOf, firstProblem, freshName, matchesConfig, renameIn, renamePatch, usesOf } from './variables';
+import { applyConfig, configOf, defineVariable, firstProblem, freshName, matchesConfig, renameIn, renamePatch, usesOf } from './variables';
 import { patched } from './docFields';
 import { setConstraintValue, annotate, type SketchDraft } from '@kit/sketch';
 
@@ -82,5 +82,20 @@ describe('sketch dimension expressions', () => {
     expect(annotate(linked)[0]).toMatchObject({ value: 63, expr: 'w*2+3' });
     const plain = setConstraintValue(linked, 'c1', 50)!;
     expect(plain.constraints[0]).toEqual({ id: 'c1', type: 'distance', refs: ['a', 'b'], value: 50 });
+  });
+});
+
+describe('defineVariable (name = value)', () => {
+  const vars = [{ name: 'w', expr: '40', comment: 'width' }];
+  it('adds a new parameter', () => {
+    expect(defineVariable(vars, 'h', '=w/2')).toEqual({ ok: true, variables: [vars[0], { name: 'h', expr: 'w/2' }] });
+  });
+  it('gives an existing one its new value and keeps its comment', () => {
+    expect(defineVariable(vars, 'w', '=12')).toEqual({ ok: true, variables: [{ name: 'w', expr: '12', comment: 'width' }] });
+  });
+  it('reports a bad name, a value that does not evaluate and a cycle', () => {
+    expect(defineVariable(vars, 'sin', '=1')).toMatchObject({ ok: false, code: 'badName' });
+    expect(defineVariable(vars, 'x', '=nope')).toMatchObject({ ok: false, name: 'x' });
+    expect(defineVariable(vars, 'w', '=w*2')).toMatchObject({ ok: false, code: 'cyclicVariables' });
   });
 });

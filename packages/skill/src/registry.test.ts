@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { evaluate } from '../../script/src/index';
 import { generate, render, OUT } from '../tools/generate.mjs';
@@ -65,7 +66,7 @@ describe('listMethods and docs', () => {
     expect(r.unknown).toEqual([]);
     const ex = r.entries[0];
     expect(ex.signature).toContain('.extrude(depth: Num');
-    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['name', 'mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
+    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['newBody', 'name', 'mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
     expect(ex.example).toContain('extrude');
     expect(ex.related).toContain('part.cut');
     expect(ex.notes).toContain('consumes the sketch');
@@ -103,5 +104,18 @@ describe('recipes', () => {
       ['grid of pockets', 'pocket-grid'], ['L bracket with fillets', 'l-bracket'], ['bushing with a flange', 'flanged-bushing'], ['gear blank with keyway', 'spur-gear-blank'], ['tapered boss with chamfer', 'tapered-boss-chamfer'],
     ];
     for (const [q, id] of cases) expect(search(q).recipes[0]?.id, q).toBe(id);
+  });
+});
+
+describe('docs/llms.txt', () => {
+  const file = path.resolve(OUT, '../../../../docs/llms.txt');
+  it('is the guide plus the method index (regenerate with UPDATE_LLMS=1 npx vitest run packages/skill/src/registry.test.ts)', () => {
+    if (process.env.UPDATE_LLMS === '1') fs.writeFileSync(file, registry.llmsTxt());
+    expect(fs.readFileSync(file, 'utf8')).toBe(registry.llmsTxt());
+  });
+  it('covers units, plane frames, handles, appearance and common errors', () => {
+    const t = registry.llmsTxt();
+    for (const w of ['Millimetres', 'sketch x (u) = xdir', 'newBody', 'bodyName', 'appearance', 'profileCrossesAxis', 'cutNoEffect', 'EVERY body']) expect(t, w).toContain(w);
+    for (const m of registry.data.methods) expect(t, m.id).toContain(m.summary);
   });
 });

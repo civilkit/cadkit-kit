@@ -7,6 +7,9 @@ import { libraryStrings } from './library';
 import { propStrings } from './prop';
 import { marineStrings } from './marine';
 import { cornerHolesStrings } from './cornerHoles';
+import { knurlStrings } from './knurl';
+import { screwStrings } from './screw';
+import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
 
 /** English text of the CAD app (source of truth and fallback). Add a language by registering another catalogue. */
@@ -237,6 +240,7 @@ export const en: Catalog = {
   'cmd.export': 'Export',
   'cmd.export-stl': 'Export STL (binary)', 'cmd.export-stl-ascii': 'Export STL (ASCII)', 'cmd.export-obj': 'Export OBJ', 'cmd.export-step': 'Export STEP',
   'cmd.export-dxf-sketch': 'Export sketch as DXF', 'cmd.export-dxf-views': 'Export 3 views as DXF',
+  'export.visibleOnly': 'Only visible bodies (STL, OBJ)', 'io.visibleStep': 'STEP export includes hidden bodies; only STL and OBJ leave them out',
   'io.noBody': 'There is no solid to export yet',
   'io.noSketch': 'Open a sketch or select one in the feature tree to export it',
   'io.emptySketch': 'The sketch has no geometry to export',
@@ -249,7 +253,7 @@ export const en: Catalog = {
   'tab.Home': 'Home', 'tab.View': 'View', 'tab.Select': 'Select',
   'group.Show': 'Show',
   'cmd.open': 'Open', 'cmd.save': 'Save', 'cmd.samples': 'Samples', 'cmd.palette': 'Command search', 'cmd.drawer': 'Toggle drawer', 'cmd.reset-layout': 'Reset layout', 'settings.resetLayout.hint': 'Panel sizes', 'app.resize.left': 'Resize side panel', 'app.resize.right': 'Resize properties panel', 'app.resize.drawer': 'Resize drawer', 'app.resize.floating': 'Resize floating panel width', 'app.resize.corner': 'Resize floating panel',
-  'cmd.settings': 'Workspace settings', 'cmd.undo': 'Undo', 'cmd.redo': 'Redo',
+  'cmd.settings': 'Workspace settings', 'cmd.undo': 'Undo', 'cmd.redo': 'Redo', 'cmd.repeat-last': 'Repeat last command', 'cmd.repeat-last.why': 'No command has been run yet',
   'cmd.view-iso': 'Iso', 'cmd.view-back': 'Back', 'cmd.view-left': 'Left', 'cmd.view-bottom': 'Bottom', 'cmd.view-front': 'Front', 'cmd.view-top': 'Top', 'cmd.view-right': 'Right', 'cmd.fit': 'Fit',
   'cmd.group-selected': 'Group into folder',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',
@@ -492,7 +496,7 @@ export const en: Catalog = {
   'app.sketch.tool.fillet': 'Fillet', 'app.sketch.tool.chamfer': 'Chamfer', 'app.sketch.tool.trim': 'Trim', 'app.sketch.tool.extend': 'Extend', 'app.sketch.tool.mirror': 'Mirror', 'app.sketch.tool.offset': 'Offset', 'app.sketch.tool.construction': 'Construction', 'app.sketch.tool.project': 'Project edges', 'app.sketch.tool.pattern-linear': 'Linear pattern', 'app.sketch.tool.pattern-circular': 'Circular pattern',
   'app.sketch.constructionMode': 'Construction', 'app.sketch.constructionMode.tip': 'Draw new geometry as construction (dashed, not extruded)', 'app.sketch.toggleConstruction': 'Make construction', 'app.sketch.toggleConstruction.tip': 'Switch the selected entity between normal and construction',
   'app.sketch.field.length': 'len', 'app.sketch.field.angle': 'ang', 'app.sketch.field.width': 'w', 'app.sketch.field.height': 'h',
-  'app.sketch.field.radius': 'rad', 'app.sketch.field.count': 'count', 'app.sketch.field.spacing': 'space', 'app.sketch.field.diameter': 'dia', 'app.sketch.field.distance': 'dist',
+  'app.sketch.field.radius': 'rad', 'app.sketch.field.count': 'count', 'app.sketch.field.spacing': 'space', 'app.sketch.field.diameter': 'dia', 'app.sketch.field.distance': 'dist', 'app.sketch.field.overall': 'overall',
   'app.sketch.field.majorRadius': 'major', 'app.sketch.field.minorRadius': 'minor', 'app.sketch.field.apothem': 'apothem', 'app.sketch.field.circumradius': 'radius', 'app.sketch.field.sides': 'sides',
   'app.sketch.hint.degenerate': 'Too small: move the pointer farther',
   'app.sketch.hint.collinear': 'The three points lie on one line',
@@ -687,7 +691,7 @@ export const en: Catalog = {
   'app.status.selection': 'Selected',
   'ctx.group.select': 'Select',
   'ctx.hint.round': 'Drag the dot: out = fillet, in = chamfer', 'ctx.hint.roundEdit': 'Drag the dot to change the size', 'ctx.hint.depth': 'Drag the arrow to change the depth',
-  'ctx.hint.thickness': 'Drag the arrow to change the thickness', 'ctx.hint.diameter': 'Drag the dot to change the diameter',
+  'ctx.hint.thickness': 'Drag the arrow to change the thickness', 'ctx.hint.pushPull': 'Drag the arrow to push or pull the face', 'ctx.hint.diameter': 'Drag the dot to change the diameter',
   'ctx.unsupported.moveBody': 'The kernel cannot move bodies yet',
   // Hole editor (HoleEditor.tsx)
   'hole.section.type': 'Type', 'hole.section.size': 'Size', 'hole.section.end': 'End', 'hole.section.options': 'Options', 'hole.section.thread': 'Thread options',
@@ -722,7 +726,7 @@ export const en: Catalog = {
   'opt.open.gapNear': 'Almost closed: the ends are {d} mm apart. Close the loop, or give the curve a wall thickness.',
   'opt.open.noGap': 'This sketch has no single chain with two loose ends to close',
   'opt.open.thin': 'Make thin wall', 'opt.open.close': 'Close with a line', 'opt.open.surface': 'Extrude as surface',
-  'app.shape.chain': 'Open curve {n} ({count} segments)', 'handles.thin.label': 'Wall thickness', 'handles.thin': 'Wall {v} mm',
+  'app.shape.chain': 'Open curve {n} ({count} segments)', 'handles.pushPull.label': 'Drag to push or pull the face', 'handles.pushPull': 'Offset {v} mm', 'handles.thin.label': 'Wall thickness', 'handles.thin': 'Wall {v} mm',
   'opt.shell.thickness': 'Wall thickness', 'opt.shell.outward': 'Grow outward',
   // thread feature (ThreadEditor.tsx, threadData.ts)
   'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',
@@ -747,6 +751,9 @@ export const en: Catalog = {
   'thread.root': 'Root diameter (d3)', 'thread.minorD1': 'Minor diameter (D1)',
   'thread.class.note': 'Recorded with the thread; it does not change the geometry.',
   'thread.length.custom': 'Custom', 'thread.length.max': 'Up to {v} mm (the face)',
+  'thread.clearance': 'Print clearance', 'thread.clearance.none': 'None', 'thread.clearance.wider': 'Wider', 'thread.clearance.narrower': 'Narrower',
+  'thread.clearance.noneTip': 'The thread as the standard draws it', 'thread.clearance.widerTip': 'Wider groove, a looser fit: for a thread that will be printed',
+  'thread.clearance.narrowerTip': 'Narrower groove, a tighter fit', 'thread.clearance.sub': 'For a printed thread.',
   'thread.hand.rightTip': 'Right hand', 'thread.hand.leftTip': 'Left hand',
   'thread.start.openTip': 'From the open end', 'thread.start.topTip': 'From the top end (higher along the axis)', 'thread.start.bottomTip': 'From the bottom end (lower along the axis)',
   'thread.modeled.cost': 'About {n} s to rebuild, many more triangles.', 'thread.modeled.costUnknown': 'Slower to rebuild, many more triangles.',
@@ -892,6 +899,7 @@ export const en: Catalog = {
   'app.sketch.selected': '{count} selected', 'app.sketch.clearSelection': 'Clear',
   'app.sketch.driven': 'Reference', 'app.sketch.driven.tip': 'Make this a reference dimension: it measures but no longer drives',
   'app.sketch.driving.tip': 'Make this a driving dimension at its present value',
+  'app.sketch.dim.toDiameter': 'Change to diameter', 'app.sketch.dim.toRadius': 'Change to radius', 'app.sketch.dim.makeReference': 'Make reference', 'app.sketch.dim.makeDriving': 'Make driving', 'app.sketch.dim.delete': 'Delete dimension',
   'app.sketch.madeReference': 'That dimension was already fixed by others: it was added as a reference dimension',
   'app.sketch.refdim': 'Reference dimension', 'app.sketch.constraint.pointOnLine': 'Point on line', 'app.sketch.constraint.pointOnCircle': 'Point on circle',
   'app.sketch.box.window': 'Window: entirely inside', 'app.sketch.box.crossing': 'Crossing: inside or touching',
@@ -904,5 +912,8 @@ export const en: Catalog = {
   ...propStrings,
   ...marineStrings,
   ...cornerHolesStrings,
+  ...knurlStrings,
+  ...screwStrings,
+  ...bearingStrings,
   ...impellerStrings,
 };

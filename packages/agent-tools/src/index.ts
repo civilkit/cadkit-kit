@@ -8,7 +8,7 @@ import { createTools, type ToolDef } from './tools';
 export { AgentSession, type AgentSessionOptions, type ScriptRunReport } from './agent-session';
 export { createTools, summarize, loadSnapshotFn, type ToolDef, type ToolOutput } from './tools';
 export { ToolError } from './errors';
-export { defaultRegistry, METHODS, type Registry, type MethodDoc, type Recipe } from './registry';
+export { defaultRegistry, type Registry, type MethodDoc, type Recipe } from './registry';
 export { validate, type Schema } from './schema';
 export { capJson, MAX_OUTPUT_CHARS } from './output';
 export { meshToGlb } from './exporters';

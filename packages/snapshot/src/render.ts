@@ -1,4 +1,5 @@
 // renderSnapshot: single views and the multi-panel sheets (orthos, first / third angle drawings, A|B, section).
+import { normalizeOpts } from './opts.js';
 import { azElOf, dirFromAzEl, resolveView, stdDirection } from './camera.js';
 import { encodePng } from './png.js';
 import { Raster, type RGB } from './raster.js';
@@ -19,8 +20,9 @@ function parseColor(c: SnapshotOpts['background'], dflt: RGB): RGB {
 const GAP = 10;
 const HEADER = 30;
 
-export async function renderSnapshot(input: SnapshotInput, opts: SnapshotOpts = {}): Promise<SnapshotResult> {
+export async function renderSnapshot(input: SnapshotInput, rawOpts: SnapshotOpts = {}): Promise<SnapshotResult> {
   const t0 = Date.now();
+  const opts = normalizeOpts(rawOpts, input);
   const up = opts.up ?? 'y';
   const sheet: SheetName = opts.sheet ?? 'single';
   const style: StyleName = opts.style ?? 'shaded';

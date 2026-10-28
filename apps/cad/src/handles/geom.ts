@@ -59,3 +59,38 @@ export function onHull(info: FaceInfo, box: { min: number[]; max: number[] }, ep
   const top = Math.max(...corners.map((c) => V.dot(c, info.normal)));
   return Math.abs(V.dot(info.centroid, info.normal) - top) < eps;
 }
+
+/**
+ * The sphere a face lies on, fitted from its mesh points and normals (every point is `centre + radius * normal`), or null when
+ * the face is not one: a plane, cylinder or cone has no centre that all its points agree on.
+ */
+export function sphereOf(m: MeshLike, name: string): { centre: Vec3; radius: number } | null {
+  const pts: Array<[Vec3, Vec3]> = [];
+  for (const t of trianglesOf(m, name)) for (let k = 0; k < 3; k++) pts.push([pos(m, t, k), V.norm(nor(m, t, k))]);
+  if (pts.length < 6) return null;
+  const step = Math.max(1, Math.floor(pts.length / 400));
+  // least squares for (cx, cy, cz, r) in p = c + r n, by the normal equations
+  const A = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+  for (let i = 0; i < pts.length; i += step) {
+    const [p, n] = pts[i];
+    for (let ax = 0; ax < 3; ax++) {
+      const row = [0, 0, 0, n[ax]]; row[ax] = 1;
+      for (let a = 0; a < 4; a++) { for (let b = 0; b < 4; b++) A[a][b] += row[a] * row[b]; A[a][4] += row[a] * p[ax]; }
+    }
+  }
+  for (let c = 0; c < 4; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 4; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    if (Math.abs(A[piv][c]) < 1e-12) return null;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    for (let r = 0; r < 4; r++) if (r !== c) { const f = A[r][c] / A[c][c]; for (let k = c; k < 5; k++) A[r][k] -= f * A[c][k]; }
+  }
+  const centre: Vec3 = [A[0][4] / A[0][0], A[1][4] / A[1][1], A[2][4] / A[2][2]];
+  const radius = A[3][4] / A[3][3];
+  if (!(radius > 1e-6)) return null;
+  for (let i = 0; i < pts.length; i += step) {
+    const [p, n] = pts[i];
+    if (V.len(V.sub(p, V.add(centre, V.mul(n, radius)))) > 1e-3 * Math.max(radius, 1)) return null;
+  }
+  return { centre, radius };
+}

@@ -17,6 +17,8 @@ claude mcp add ck-cad -e CK_WASM=<repo>/apps/cad/public/kernel/ck_wasm.wasm -- n
 
 or commit a project `.mcp.json` (see `packages/mcp/examples/mcp.json`). Cursor: the same JSON in `~/.cursor/mcp.json` (or the project's `.cursor/mcp.json`). Claude Desktop: `packages/mcp/examples/claude_desktop_config.json` merged into `claude_desktop_config.json`. Codex: `packages/mcp/examples/codex-config.toml` appended to `~/.codex/config.toml`.
 
+Kernel checkout: the launcher and the tests resolve `@ck/*` (session, part-model, kernel-client, driver) from a kernel repo checkout. The default is `../rebuild` next to this repo (`vite.config.ts`); set `CK_REBUILD=<path to the kernel checkout>` when yours lives elsewhere (for example `CK_REBUILD=/work/kernel`), otherwise the server fails at start with `@ck/session` not resolving. Put it in the same `env` block as `CK_WASM` (`claude mcp add ck-cad -e CK_WASM=... -e CK_REBUILD=... -- node ...`).
+
 Launcher flags (after the script path):
 
 | Flag | Meaning |
@@ -54,23 +56,32 @@ All inputs are validated (small JSON-schema subset, unknown fields refused) befo
 | `tree` | none | `{name, featureCount, handMade, features[{index,id,type,name,origin,params,error?}]}` |
 | `find` | `query` | features, face names and edge names matching |
 | `inspect` | `id` | the feature JSON (sketch points and entities), `createdFaces`, `touchedEdges`, `usedBy`, `error?` |
+| `bodies` | none | one row per body (connected solid): `{index, name, key, feature, featureType, volume, bbox{min,max,size}, faceCount, appearance, hidden}`. Shows which solids fused and which one a cut sliced |
+| `drawing` | `views?, sheet?, orientation?, scale?, projection?, hidden?, dimensions?, section?, tidy?, minDiameter?, title?, path?` | an engineering sheet from the app's drawing layer: SVG text (no `path`) or `<path>.pdf` / `.dxf` / `.svg` files; summary of views, dimensions and hole callouts |
 | `facts` | `expect?` (kernel check grammar) | mass props, bbox, counts, validity, and `check` results |
 | `probe` | `points?`, `rays?` | per point `{inside, distance, face, nearest}`; per ray the hit list |
 | `section` | `plane{origin?, normal}`, `detail?` | exact loops (outer/inner), area, frame |
 | `sections` | `axis`, `n?`, `positions?` | areas per slice, integrated volume vs exact volume |
-| `snapshot` | `view, up, size, style, projection, section, sheet, highlight, markers, frame, annotate, background` | MCP image content (base64 PNG) plus a text summary |
+| `snapshot` | `view, up, size, style, projection, section, sheet, highlight, markers, frame, annotate, background` | MCP image content (base64 PNG) plus a text summary. `projection`: `ortho` (alias `orthographic`) or `persp` (alias `perspective`). `sheet`: `single`, `orthos`, `drawing-third-angle`, `drawing-first-angle`, `ab`, `section` (`true` means `drawing-third-angle`). `annotate: true` draws the three overall bounding-box dimensions. `front` looks along the part's -Z axis |
 | `checkpoint` / `restore` / `checkpoints` | `name` | named full-document snapshots in memory (at most 20; the oldest goes) |
 | `notes` | `text?`, `append?` | the scratch notes; persist across restore, undo and new scripts |
-| `list_methods` / `docs` | `query?` / `names[]` | the script API registry; recipes by id |
+| `list_methods` / `docs` | `query?` / `names[]` | the script API registry (generated from the JSDoc of `packages/script/src/recorder.ts`, the same source as the Script tab: every method `run_script` accepts is there, with parameters, notes and an example); recipes by id; `docs {names:['guide']}` returns the guide |
 | `undo` / `redo` | none | document history (50 states) |
 | `ask_user` | `question`, `options?` | `{needsUserInput: true, ...}`: there is no UI in MCP, ask in your reply |
 | `export` | `format: 'step'\|'stl'\|'glb'\|'ckpart'`, `path?` | writes the file (default `./<part name>.<ext>` in the server's cwd) |
 
-Resources: `ck://docs/guide`, `ck://docs/methods`, `ck://recipes/<id>` (the Script tab's examples), `ck://document`, `ck://notes`.
+Resources: `ck://docs/guide` (units, plane frames, bodies and appearance, workflow, common errors), `ck://llms.txt` (the guide plus a one-line index of every method, kept in the repo as `docs/llms.txt`), `ck://docs/methods`, `ck://recipes/<id>` (the Script tab's examples), `ck://document`, `ck://notes`.
 
 ### Attach mode and origin marks
 
 `run_script` with `mode: 'new'` replaces the document with the script's part. With `mode: 'attach'` the script's features are APPENDED to the open document (selectors see the body as it is, ids continue from the document's counter). Every feature a script run makes gets `"origin": "script#N"` in its JSON; the kernel and the GUI keep unknown feature fields, so the marks survive regeneration, saving and hand edits (the session also keeps an id to origin map). By default an attach run first removes the features of the PREVIOUS script run (`replace: 'last'`), so re-running a corrected script does not duplicate it; `'all'` replaces every script feature, `'none'` only appends. Hand-made features are never removed. If a hand-made feature uses a script feature that would be replaced (a sketch on its face, a reference to its edge), the run is refused with the feature named and the hint to use `replace:'none'` or remove it first.
+
+### Things worth knowing before you script (all in `ck://docs/guide`)
+
+* Sketch frames: `front` x=X y=Y n=+Z; `top` x=X y=-Z n=+Y; `right` x=-Z y=Y n=+X; for `{origin, normal, xdir}` planes sketch x = xdir, sketch y = normal x xdir. A `cutNoEffect` error prints the frame of the sketch involved.
+* A cut applies to EVERY body that exists when it runs. `run_script` adds a `cutHitManyBodies` warning when one cut (or hole) changed more than one body (checked for results with several bodies, at most 24 cuts and about 8 s).
+* Touching or overlapping solids fuse. `extrude / revolve / sweep` accept `newBody: true | 'Name'` to keep a solid separate; `bodies` shows the result.
+* `appearance({feature})` on a pattern styles the copies and the seed's body. Hole callouts in `drawing` need real hole features (`hole`, `holes.*`), not a sketch circle plus a cut.
 
 ## Worked example: a flanged bushing
 
@@ -160,4 +171,4 @@ What the app would do (not built):
 
 ## Tests
 
-`npx vitest run packages/agent-tools packages/mcp` with `CK_WASM=<wasm>`: tool handlers on the real kernel (new and attach, hand-made feature survives, hand dependents block replacement, tree / inspect / facts / probe / section(s), checkpoint / restore / notes / undo, script error line numbers, schema errors, export), a protocol test that spawns `ck-mcp.mjs --stdio-direct` and speaks JSON-RPC, and daemon tests (token required, Origin and Host refused, 0600 state file, two concurrent calls serialised, idle exit, event stream, shim forwarding).
+`CK_WASM=<wasm> CK_REBUILD=<kernel checkout> npx vitest run packages/agent-tools packages/mcp packages/skill packages/snapshot` (kernel suites are skipped without `CK_WASM`; the registry-coverage test walks the recorder classes and needs neither): tool handlers on the real kernel (new and attach, hand-made feature survives, hand dependents block replacement, tree / inspect / facts / probe / section(s), checkpoint / restore / notes / undo, script error line numbers, schema errors, export), a protocol test that spawns `ck-mcp.mjs --stdio-direct` and speaks JSON-RPC, and daemon tests (token required, Origin and Host refused, 0600 state file, two concurrent calls serialised, idle exit, event stream, shim forwarding).

@@ -3,7 +3,7 @@ import type { PartDoc } from '@ck/part-model';
 import { BODY } from '@kit/store';
 import '../i18n';
 import { planHandles, type PlanCtx } from './plan';
-import { boxMesh } from './testmesh';
+import { boxMesh, cylinderMesh, sphereMesh } from './testmesh';
 import { faceInfo, onHull, bisectorAt } from './geom';
 import { moveBodyOps, placementSession, placementSpecs, type MoveParams, type Placement } from './placement';
 
@@ -125,7 +125,7 @@ describe('end cap of an extrude: depth', () => {
     const through = doc([base.features[0], { ...(base.features[1] as object), end: 'through' }]);
     expect(planHandles(ctx({ doc: through, mode: 'face', selection: ['F2.C1'] }))).toBeNull();
     expect(planHandles(ctx({ mode: 'face', selection: ['F2.C0'] }))).toBeNull();
-    expect(planHandles(ctx({ mode: 'face', selection: ['F2.S.e1'] }))).toBeNull();   // no moveFace in the kernel: no arrow
+    expect(planHandles(ctx({ mode: 'face', selection: ['F2.S.e1'] }))).toBeNull();   // a plane: the move gizmo pushes it, there is no arrow
     expect(planHandles(ctx({ mode: 'face', selection: ['F2.C1', 'F2.C0'] }))).toBeNull();
   });
 });
@@ -157,6 +157,39 @@ describe('hole wall and shell wall', () => {
     // an outer wall (on the box hull) has none
     const outer = { ...b.mesh, faceIds: b.mesh.faceIds.map((n) => n + '~2') };
     expect(planHandles(ctx({ doc: d, mesh: outer, mode: 'face', selection: ['F2.S.e2~2'] }))).toBeNull();
+  });
+});
+
+describe('push / pull of a round face', () => {
+  const cyl = cylinderMesh(15, 0, 12);
+  const cdoc = doc([{ type: 'sketch', id: 'F1' }, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 12 }]);
+  const cctx = (over: Partial<PlanCtx> = {}): PlanCtx => ctx({ doc: cdoc, mesh: cyl.mesh, edges: cyl.edges, box: cyl.box, mode: 'face', selection: ['F2.S.c1'], ...over });
+  it('a cylinder wall gets an arrow along its outward normal that adds a moveFace offset', () => {
+    const s = planHandles(cctx())!;
+    expect(s.kind).toBe('push-pull');
+    expect(s.specs[0]).toMatchObject({ kind: 'arrow', base: 0, scale: 1 });
+    const a = s.specs[0].axis;
+    expect(Math.hypot(a[0], a[1])).toBeCloseTo(1);   // radial, across the axis
+    expect(a[2]).toBeCloseTo(0);
+    expect(s.preview('pushpull', 2.5, [0, 0, 0])).toEqual([{ op: 'add', feature: { type: 'moveFace', faces: ['F2.S.c1'], mode: 'offset', distance: 2.5 } }]);
+    expect(s.preview('pushpull', 0, [0, 0, 0])).toBeNull();
+    expect(s.commit('pushpull', -1, [0, 0, 0])).toMatchObject({ create: false, ops: [{ op: 'add', feature: { distance: -1 } }] });
+    expect(s.format!('pushpull', 2.5)).toContain('+2.5');
+  });
+  it('dragging the same face again edits the last moveFace instead of stacking another', () => {
+    const d = doc([...cdoc.features, { type: 'moveFace', id: 'F3', faces: ['F2.S.c1'], mode: 'offset', distance: 2 }]);
+    const s = planHandles(cctx({ doc: d }))!;
+    expect(s.preview('pushpull', 1, [0, 0, 0])).toEqual([{ op: 'replace', id: 'F3', feature: { type: 'moveFace', id: 'F3', faces: ['F2.S.c1'], mode: 'offset', distance: 3 } }]);
+  });
+  it('a sphere gets the arrow too; a plane, a hole wall, two faces and a switched-off setting do not', () => {
+    const sph = sphereMesh(8);
+    expect(planHandles(ctx({ doc: cdoc, mesh: sph, edges: [], box: null, mode: 'face', selection: ['F2.S.s1'] }))!.kind).toBe('push-pull');
+    expect(planHandles(cctx({ selection: ['F2.C0'] }))).toBeNull();                        // the bottom cap is a plane
+    expect(planHandles(cctx({ selection: ['F2.C1'] }))!.kind).toBe('extrude-depth');      // the top cap keeps its depth arrow
+    expect(planHandles(cctx({ selection: ['F2.S.c1', 'F2.C1'] }))).toBeNull();
+    expect(planHandles(cctx({ enabled: false }))).toBeNull();
+    const hole = doc([...cdoc.features, { type: 'hole', id: 'H', sketch: 'F3', kind: 'cbore', size: 'M6', fit: 'normal', end: 'through' }]);
+    expect(planHandles(cctx({ doc: hole, selection: ['H.S.h1'], mesh: { ...cyl.mesh, faceIds: ['H.S.h1', 'F2.C0', 'F2.C1'] }, edges: cyl.edges.map((e) => ({ ...e, faces: ['H.S.h1', e.faces![1]] })) }))).toBeNull();
   });
 });
 

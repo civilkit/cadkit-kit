@@ -21,6 +21,12 @@ export interface CatalogPanelProps {
   upAxis?: UpAxis;
   /** Opens the Propeller wizard (omitted: the Generators block is not offered). */
   onPropeller?(): void;
+  /** Opens the Knurl wizard (omitted: no Knurl button). */
+  onKnurl?(): void;
+  /** Opens the Screw wizard (omitted: no Screw button). */
+  onScrew?(): void;
+  /** Opens the Bearing wizard (omitted: no Bearing button). */
+  onBearing?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
   library?: { registry: LibraryRegistry; actions: LibraryActions; notify?(text: string, level?: 'error' | 'warn' | 'info'): void; renderThumb?: ThumbRenderer };
 }
@@ -62,7 +68,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onBearing }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -108,6 +114,24 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
                   <Icon name="add-propeller" size={26} />
                   <span class="cat-name">{t('cmd.add-propeller')}</span>
                 </button>
+                {onKnurl ? (
+                  <button class="cat-item" data-item="knurl" title={t('tip.add-knurl')} onClick={onKnurl}>
+                    <Icon name="add-knurl" size={26} />
+                    <span class="cat-name">{t('cmd.add-knurl')}</span>
+                  </button>
+                ) : null}
+                {onScrew ? (
+                  <button class="cat-item" data-item="screw" title={t('tip.add-screw')} onClick={onScrew}>
+                    <Icon name="add-screw" size={26} />
+                    <span class="cat-name">{t('cmd.add-screw')}</span>
+                  </button>
+                ) : null}
+                {onBearing ? (
+                  <button class="cat-item" data-item="bearing" title={t('tip.add-bearing')} onClick={onBearing}>
+                    <Icon name="add-bearing" size={26} />
+                    <span class="cat-name">{t('cmd.add-bearing')}</span>
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}

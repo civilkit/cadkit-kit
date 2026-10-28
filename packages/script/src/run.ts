@@ -405,10 +405,10 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     // what the app gets: everything up to (not including) the step the kernel refused
     const kept = keep >= 0 ? ops.filter((o) => (stepOfFeature.get(o.feature.id as string) ?? 0) < keep) : ops;
     if (opts.prefix) {
-      applyDecor(doc, part, warn);
+      applyDecor(doc, part, warn, [...prefix, ...kept.map((o) => o.feature)]);
       return { ops: kept, document: { ...doc, features: [...prefix, ...kept.map((o) => o.feature)], seq: n + 1 }, errors, warnings, stats: { ...stats, totalMs: performance.now() - t0 } };
     }
-    applyDecor(doc, part, warn);
+    applyDecor(doc, part, warn, kept.map((o) => o.feature));
     progress('loading');
     await yieldToUi();
     const tl = performance.now();

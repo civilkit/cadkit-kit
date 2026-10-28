@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  applyOpsLocal, cylinderOfFace, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, nearestSizes, newThread, patchLength,
-  patchSize, patchStandard, suggestedSize, threadOps, warningsById, type EdgeLike, type ThreadRow,
+  CLEARANCE_DEFAULT, CLEARANCE_MAX, applyOpsLocal, clearanceOf, cylinderOfFace, holeThreadOps, holeThreadSize, holeWallFace, isHoleWall, nearestSizes, newThread, patchLength,
+  patchClearance, patchSize, patchStandard, suggestedSize, threadOps, warningsById, type EdgeLike, type ThreadRow,
 } from './threadData';
+
+// the editor's remembered choices live in localStorage and feed newThread (modeled): every test starts and ends without them, in any file order
+const clearPrefs = (): void => { try { localStorage.clear(); } catch { /* none */ } };
+beforeEach(clearPrefs);
+afterEach(clearPrefs);
 
 const row = (size: string, major: number, tapDrill: number, pitch = 1): ThreadRow => ({
   size, standard: 'metric', major, pitch, minorInternal: major - 1.0825 * pitch, minorExternal: major - 1.2269 * pitch, tapDrill, classInternal: '6H', classExternal: '6g',
@@ -115,6 +120,27 @@ describe('patches', () => {
     expect(patchLength('')).toEqual({ length: 'full' });
     expect(patchLength('-3')).toBeNull();
     expect(patchLength('abc')).toBeNull();
+  });
+});
+
+describe('printed-thread clearance', () => {
+  it('a feature without the field has none; the sign is the direction', () => {
+    expect(clearanceOf({})).toEqual({ dir: 'none', mm: 0 });
+    expect(clearanceOf({ clearance: 0.2 })).toEqual({ dir: 'wider', mm: 0.2 });
+    expect(clearanceOf({ clearance: -0.15 })).toEqual({ dir: 'narrower', mm: 0.15 });
+    expect(clearanceOf({ clearance: 'x' })).toEqual({ dir: 'none', mm: 0 });
+    expect(clearanceOf({ clearance: 5 }).mm).toBe(CLEARANCE_MAX);
+  });
+  it('patches: wider is positive, narrower negative, none removes the field, the size is held to its range', () => {
+    expect(patchClearance('wider', 0.2)).toEqual({ clearance: 0.2 });
+    expect(patchClearance('narrower', 0.1)).toEqual({ clearance: -0.1 });
+    expect(patchClearance('none', 0.3)).toEqual({ clearance: null });
+    expect(patchClearance('wider', 0)).toEqual({ clearance: 0.01 });
+    expect(patchClearance('narrower', 9)).toEqual({ clearance: -CLEARANCE_MAX });
+    expect(patchClearance('wider', NaN)).toEqual({ clearance: CLEARANCE_DEFAULT });
+  });
+  it('a new thread starts with no clearance', () => {
+    expect(newThread('F1.S.c1', 6, ROWS, false)).not.toHaveProperty('clearance');
   });
 });
 

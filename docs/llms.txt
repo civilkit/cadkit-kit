@@ -1,0 +1,201 @@
+# CadKit script API: guide for LLM agents
+
+CadKit builds parametric solids from a short JavaScript script. Every call on the part chain adds ONE normal feature (sketch, extrude, cut, hole, fillet, pattern ...) to a history tree; the kernel regenerates it and returns exact numbers. You never write geometry kernel calls: you write `part('Name').sketch(...).extrude(...)`, run it with `run_script`, and then PROVE the result with `facts`, `bodies`, `probe`, `section(s)` and `snapshot`.
+
+## Units and conventions
+
+* Millimetres and degrees. Y is up. Right-handed axes.
+* `circle(r)` takes a RADIUS, `hole()` and `holes.*` take a DIAMETER.
+* A script builds ONE part: `part(name)` then a chain. Each extrude / cut / revolve CONSUMES the sketch just before it (sketch again for the next feature).
+* `variables({ w: 60, t: 'w/10' })` declares named values (strings are expressions); `expr('w*2')` keeps a feature parameter linked to them.
+
+## Sketch planes and their frames (this is where most mistakes happen)
+
+| plane | sketch x (u) | sketch y (v) | normal | extrude goes |
+| --- | --- | --- | --- | --- |
+| `'front'` | world +X | world +Y | +Z | +Z |
+| `'top'` | world +X | world -Z | +Y | +Y |
+| `'right'` | world -Z | world +Y | +X | +X |
+
+So on 'top' a larger sketch y moves towards the BACK (world -Z); on 'right' a larger sketch x moves towards world -Z. `plane('top').toWorld([u, v], offset)` gives the world point.
+
+* `at('front', 20)` is the plane moved 20 mm along its normal (top along +Y, right along +X); `at(face('>Z'), 5)` offsets a planar face along its outward normal.
+* `sketch(face('>Z'), ...)`: the sketch origin is the world origin projected on that face; u/v follow the face's own frame. Hole centres are [u, v] in that frame.
+* Any plane: `at({ origin: [x, y, z], normal: [nx, ny, nz], xdir: [dx, dy, dz] })` (or `part.workplane(...)` for a plane feature of its own). Frame: the sketch origin is `origin`; sketch x (u) = xdir projected perpendicular to the normal; sketch y (v) = normal x u. Example: normal [1,0,0], xdir [0,0,1] gives u = +Z, v = X x Z = -Y. GIVE xdir whenever the orientation matters. Without xdir an axis-aligned normal is the standard plane of that axis (frames above), an oblique normal gets u = normal x [1,0,0].
+* A tilt about a world axis: `at('front', 10, { rotate: { axis: 'x', angle: 30 } })`.
+
+## Extrude, cut, revolve, sweep
+
+* `extrude(d)` goes ALONG the sketch normal; `direction: 'into' | 'away' | 'both'`, `mid: true` (symmetric, d is the total), `draft`, `thin`. A sketch on a face adds material outward (a boss).
+* `cut(d)` / `cut(through())` removes material. Default direction 'auto': it tries against the sketch normal (into the body from a face sketch) and flips once if the kernel says cutNoEffect (the run then carries the warning 'cut direction flipped automatically'). Say `direction: 'into' | 'away' | 'both'` to skip the retry.
+* A cut applies to EVERY body that exists when it runs. A through-cut for the base plate's holes also slits an earlier body that crosses it. Build later parts after the cut, or leave clearance. The run warns when one cut changed several bodies.
+* `revolve(360)`: the sketch must be the HALF profile on one side of the axis (x = distance from the axis, y = height; the axis is the sketch y axis unless `axis: { from, to }`). Drawing both sides gives profileCrossesAxis.
+* `sweep(profile, path)`: both are `{ on, draw }` objects; the profile plane must be perpendicular to the path where the path starts; paths are planar sketches (a vertical plane per path for 3D routings).
+* Two solids that touch or overlap FUSE into one body. Keep them apart with `newBody`: `extrude(10, { newBody: true })` or `{ newBody: 'Magnet' }` (also revolve and sweep, never for a cut). Use `bodies` to confirm the body count; a clearance of 0.1 mm also keeps parts separate.
+
+## Handles, bodies, names, appearance
+
+* `const h = part.handle()` right AFTER a feature returns a handle on that feature. Use it in `face('>Z', { of: h })`, `faces({ createdBy: h })`, patterns (`linearPattern(h, ...)`, `circularPattern([h1, h2], ...)`: the seed may be 'last', a handle, an id like 'F7', or an ARRAY), `appearance` and `bodyName`.
+* A body (a connected lump) is identified by the feature that created it. `bodyName(h, 'Rotor')` names it (a pattern's bodies are numbered 'Rotor 1', 'Rotor 2').
+* `appearance({ feature: h, colour: '#b87333', opacity: 0.2, finish: 'plastic' })` styles the bodies a feature created. finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'; 'brushed' and 'chrome' are metallic and make colours read grey, so use 'plastic' or 'matte' for coloured parts. A pattern's appearance also covers the seed's body. `{ face: 'F3.C1' }` / `{ face: 'F3.*' }` / `{ face: handle }` styles single faces. Appearance is view state (no geometry, no undo step); a .ckpart keeps it and STEP does not.
+* `group('Name', () => { ... })` (or `part.group`) puts the features it records in a named folder of the tree.
+* `insertPart(doc, { at, fixed, name })` inserts another part's document as a component; `mate(...)` positions it.
+
+## Holes
+
+Use hole FEATURES (`hole`, `holes.points`, `holes.polar`, `holes.grid`) for anything that should be a hole: the drawing layer lists callouts such as "M2.5 TAPPED DEPTH 2" only for real hole features, not for a sketch circle plus a cut.
+
+## Workflow
+
+1. `list_methods { query }` / `docs { names }`: read the exact signatures of what you use. Do not guess option names.
+2. `run_script { mode: 'new', code }`. It is atomic: an error leaves the document unchanged and names the line (and the kernel code with a repair hint).
+3. Check: `facts` (volume, bbox, solids, validity; pass `expect` for pass/fail checks), `bodies` (one row per body: name, creating feature, volume, bbox, colour), `probe` (is there material at a point), `section` / `sections` (exact slices), `tree`.
+4. Look: `snapshot { view: 'iso' | 'front' | 'top' | ... }`; with `section` for an internal view, `sheet` for a multi-view sheet. For a real engineering drawing (dimensions, hole callouts, sections, PDF/SVG/DXF) use `drawing`.
+5. `checkpoint` before a risky change, `undo` / `restore` after. Use `mode: 'attach'` to ADD to what the user has built by hand (their features are kept).
+6. Export with `export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }`.
+
+## Common errors and what to do
+
+| code | meaning | fix |
+| --- | --- | --- |
+| cutNoEffect | the cut tool does not overlap the material | check the plane frame (table above) and the sketch coordinates; use `direction`; a sketch circle outside the body misses in BOTH directions |
+| nothingToCut | a cut ran with no body yet | build the base solid first |
+| profileCrossesAxis | revolve profile lies on both sides of the axis | draw half of the profile, from the axis outwards |
+| sweepProfileNotNormal | profile plane is not perpendicular to the path start | sketch the profile on the plane the path leaves at right angles |
+| booleanFailed | the union / cut could not be completed | move the tool by 0.01 mm, avoid coincident faces, unite touching bodies first |
+| unsupported selector / Line N | a face()/edges() selector found nothing | selectors resolve against the body just before that step; print `tree` and use `find` for names |
+| unknown method | not in the API | `list_methods { query }` |
+
+## Performance
+
+A part with many hundred features regenerates in seconds. Patterns of bodies are the heavy part; prefer one `hole` feature with many points (`holes.polar`) over a loop of `hole()` calls.
+
+## Method index
+
+Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, the rest are plain functions. Ask `docs { names: [...] }` for parameters, notes and an example.
+
+### sketch
+
+* `at(base, offset?, opts?)`: A workplane for a sketch: an offset plane, a face, a plane feature, a point and normal, or a tilt.
+* `.sketch(plane, build, name?)`: Start a sketch on a plane or a face; the next extrude, cut or revolve uses it.
+* `.sketchFeature(on, json)`: Append a raw sketch (points, entities, constraints) on a plane.
+* `.workplane(base, offset?, opts?)`: /** Add a reference plane (workplane) feature without a sketch.
+* `plane(name)`: The frame of a standard sketch plane: which world axes its sketch x, y and normal are.
+* `s.arc(centre, start, end)`: Counter-clockwise arc about a centre from a start point to an end point.
+* `s.arc3(a, m, b)`: Arc from a to b passing through the middle point m (either direction).
+* `s.axis()`: Construction line along the sketch Y axis (the default revolve axis).
+* `s.axisAt(from, to)`: Construction line used as the revolve axis when it is not the sketch Y axis.
+* `s.circle(r, at?)`: Circle given its RADIUS (not diameter).
+* `s.cvspline(pts, o?)`: Control-vertex spline: the points are the control polygon, not on the curve.
+* `s.grid(origin, pitch, count)`: Points on a rectangular grid.
+* `s.line(a, b)`: One line segment between two points.
+* `s.point(at)`: A single point (a hole centre).
+* `s.points(pts)`: Several points (hole centres).
+* `s.polarPoints(center, radius, n, startAngle?)`: Points on a circle: a bolt circle of centres.
+* `s.polygon(pts)`: Closed polygon through the points.
+* `s.polyline(pts)`: Open chain of lines through the points.
+* `s.rect(w, h, at?)`: Rectangle of width x height centred on a point.
+* `s.rrect(w, h, r, at?)`: Rounded rectangle: width x height with corner radius r.
+* `s.spline(pts, o?)`: Interpolating spline: a smooth curve through the points.
+* `s.text(string, at, opts?)`: Lettering: the outlines of a string as closed regions (engrave it with cut, emboss it with extrude).
+
+### features
+
+* `bearing(o)`: A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
+* `.bearing(o)`: A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
+* `.chamfer(on, distance)`: Bevel edges: equal distance, two distances, or distance and angle.
+* `.cut(end, o?)`: Cut the last sketch out of the body: a depth or through().
+* `.extrude(depth, o?)`: Extrude the last sketch into a solid (adds material).
+* `.feature(json)`: Append any kernel feature as raw JSON (escape hatch for features without a helper).
+* `.fillet(on, radius)`: Round edges: one radius, a radius per edge, or a variable radius.
+* `.gear(o)`: Involute spur or helical gear (profile, body extrude, bore) from module and teeth.
+* `.knurl(o)`: Knurl a cylinder: cut straight, diamond or pyramid grooves into it.
+* `.loft(sections, o?)`: Loft a solid through two or more section sketches, optionally ending in a point.
+* `.revolve(angle?, o?)`: Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).
+* `.rib(thickness, o?)`: Rib: a web of a given thickness from an open sketch line, grown to the body.
+* `.screw(o)`: A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.
+* `.shell(open, thickness)`: Hollow the body to a wall thickness, opening the selected face(s).
+* `.sweep(profile, path, o?)`: Sweep a closed profile along a path sketch (pipes, rails, handles).
+* `.thin(thickness)`: Make the previous extrude or revolve a thin-walled one.
+* `.thread(on, o)`: Add a cosmetic or modeled screw thread to a bore or cylinder.
+* `screw(o)`: A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
+* `through()`: End condition for cut(): through all material.
+
+### selectors
+
+* `edges(sel)`: Select edges of the current body by direction, extreme plane, or a rule object.
+* `face(sel, opts?)`: Select ONE face of the current body: by direction, by persistent name, by feature, or by a rule.
+* `faces(sel, opts?)`: Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.
+
+### holes
+
+* `.hole(on, at, o)`: A simple drilled hole on a planar face at [x, y].
+* `.holes.grid(on, g, o)`: A rectangular grid of holes.
+* `.holes.points(on, pts, o)`: Drill holes at listed coordinates: one hole feature at a list of centres.
+* `.holes.polar(on, c, o)`: A bolt circle: drill a polar array of count holes equally spaced on a circle.
+
+### patterns
+
+* `.circularPattern(seed, o?)`: Repeat features around an axis.
+* `.linearPattern(seed, o?)`: Repeat features along a direction, optionally as a 2D grid.
+* `.mirror(plane, o?)`: Mirror the last feature (or the whole body) about a plane.
+
+### surfaces
+
+* `.knit(o?)`: Surface: sew all surfaces so far into one body (a solid when they close).
+* `.surfaceExtrude(depth, o?)`: Surface: extrude the last sketch into a sheet (no end caps, not a solid).
+* `.surfaceLoft(sections)`: Surface: loft a sheet through section sketches (open or closed curves).
+* `.surfacePlanar()`: Surface: a flat sheet filling the last closed sketch.
+* `.thicken(thickness, o?)`: Surface: give the last surface a wall thickness and make it a solid.
+
+### assembly
+
+* `.insertPart(doc, o?)`: Assembly: insert another part (its document) as a component, optionally moved.
+* `.mate(o)`: Assembly: constrain two faces of different components.
+
+### utilities
+
+* `expr(text)`: A parameter written as an expression over the variables.
+* `group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
+* `part(name?)`: Start the part the script builds; returns the fluent builder.
+* `.appearance(o)`: Colour, opacity and finish of the bodies a feature made (view only, no geometry change).
+* `.area()`: Read the total surface area (mm2) of the part built so far.
+* `.bbox()`: Read the bounding box of the part built so far.
+* `.bodyName(target, name)`: Name the bodies a feature made (shown in the Bodies list; the default is Body 1, 2, ...).
+* `.centreOfMass()`: Read the centre of mass of the part built so far.
+* `.edgeCount()`: Read the number of edges of the part built so far.
+* `.edges()`: Read the edges of the part built so far: key, midpoint, length, adjacent faces.
+* `.expectBBox(box, o?)`: Check the bounding box of the part built so far.
+* `.expectFaceCount(n)`: Check the number of faces of the part built so far.
+* `.expectValid()`: Check that the part built so far passes the kernel's validity check.
+* `.expectVolume(v, o?)`: Check the volume of the part built so far; a mismatch is reported as an error with this line.
+* `.faceCount()`: Read the number of faces of the part built so far.
+* `.faces()`: Read the faces of the part built so far: persistent name, kind, area, normal, centre, radius, feature.
+* `.group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
+* `.handle(label?)`: A handle on the feature recorded last, for face({ of }) and patterns.
+* `.issues()`: Read the validator's issues for the part built so far.
+* `.isValid()`: Read whether the part built so far passes the kernel's validity check.
+* `.textMetrics(string, opts?)`: Measure a string before drawing it: width, ink box and per-letter advances.
+* `.volume()`: Read the volume (mm3) of the part built so far.
+* `variables(defs)`: Declare named values; strings are expressions over earlier ones.
+
+## Recipes (complete scripts, `docs { names: [id] }` returns the code)
+
+* `engraved-nameplate`: Nameplate with engraved lettering (text sized from its metrics)
+* `dial-numerals`: Dial with upright numerals on a 270 degree sweep and a caption on an arc
+* `boss-by-feature-verified`: Plate with a boss: pick faces by feature and verify with read-backs
+* `flanged-bushing`: Flanged bushing (revolved profile)
+* `bolt-circle-plate`: Round plate with a centre bore and a bolt circle
+* `l-bracket`: L-bracket with filleted corners and mounting holes
+* `hollow-box-lid`: Hollow box: shell the walls, then close it with a lid
+* `pulley`: Pulley: revolved groove profile plus lightening holes
+* `spur-gear-blank`: Spur gear blank: disc, hub, bore and keyway (no teeth)
+* `rib-plate`: Plate reinforced with ribs (ribs as thin extrudes)
+* `tapered-boss-chamfer`: Tapered boss on a plate with a chamfered top edge
+* `pocket-grid`: Grid of rectangular pockets in one feature
+* `boat-hull-loft`: Boat hull: loft through four spline stations to a point bow
+* `swept-pipe`: Swept pipe along an arc path
+* `counterbored-plate`: Plate with a centre bore and four counterbored screw holes
+* `mirrored-bracket`: Channel bracket: build half, mirror the body
+* `verification`: How to verify a part (numbers first, then eyes)
+* `common-errors`: Common errors and what to do about them

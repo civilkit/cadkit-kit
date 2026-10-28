@@ -2,7 +2,7 @@ import { createContext } from 'preact';
 import { useContext, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { t } from './i18n';
-import { EMPTY_SCOPE, ERROR_TEXT, completions, evalExpr, isExprValue, parseFieldText, type ExprCode, type Scope } from './expr';
+import { EMPTY_SCOPE, ERROR_TEXT, completions, evalExpr, isExprValue, parseAssignment, parseFieldText, type ExprCode, type Scope } from './expr';
 
 /** The variables in scope for every expression field below (the app provides it). */
 export const VarsContext = createContext<Scope>(EMPTY_SCOPE);
@@ -33,6 +33,8 @@ export function ExprInput(p: {
   max?: number;
   /** Numbers only: an expression shows a message and is not applied (fields the app computes with, like a draft angle). */
   plain?: boolean;
+  /** Accept `name = value`: it shows the value under the field and applies nothing while typing (the owner defines the parameter on Enter). */
+  assign?: boolean;
 }): JSX.Element {
   const scope = useScope();
   const [text, setText] = useState<string | null>(null);
@@ -41,7 +43,8 @@ export function ExprInput(p: {
   const driven = isExprValue(p.value) && !p.plain;
   const shown = text ?? (typeof p.value === 'number' ? fmt(p.value) : String(p.value));
   const parsed = parseFieldText(shown);
-  const res = parsed.kind === 'expr' ? evalExpr(parsed.expr, scope.values) : null;
+  const asg = p.assign && !p.plain ? parseAssignment(shown) : null;
+  const res = asg ? evalExpr(asg.expr, scope.values) : parsed.kind === 'expr' ? evalExpr(parsed.expr, scope.values) : null;
   const err = p.plain && parsed.kind === 'expr' ? t('expr.error.plain', undefined, 'This field takes a plain number') : res && !res.ok ? errorText(res.code, res.name) : null;
   const value = res && res.ok ? res.value : null;
   const wantList = open && /^=|[A-Za-z_]$/.test(shown.trim());
@@ -50,6 +53,7 @@ export function ExprInput(p: {
     setText(raw);
     setOpen(true);
     setSel(0);
+    if (p.assign && parseAssignment(raw)) return;
     const q = parseFieldText(raw);
     if (q.kind === 'number') p.onValue(q.value);
     else if (q.kind === 'expr' && !p.plain && evalExpr(q.expr, scope.values).ok) p.onValue(q.expr);
@@ -98,7 +102,7 @@ export function ExprInput(p: {
         </ul>
       ) : null}
       {err && !(items.length && /[A-Za-z_]$/.test(shown.trim())) ? <span class="expr-hint err" role="alert">{err}</span>
-        : parsed.kind === 'expr' && value !== null ? <span class="expr-hint">= {fmt(value)}{p.unit ? ' ' + p.unit : ''}</span> : null}
+        : (parsed.kind === 'expr' || asg) && value !== null ? <span class="expr-hint">= {fmt(value)}{p.unit ? ' ' + p.unit : ''}</span> : null}
     </span>
   );
 }

@@ -75,6 +75,7 @@ export const ENUMS: Record<string, string[]> = {
   'deleteBody.mode': ['delete', 'keep'],
   definedBy: ['pitchRevs', 'heightRevs', 'heightPitch'],
   'lip.kind': ['lip', 'groove'],
+  'knurlBand.pattern': ['diamond', 'pyramid'],
   side: ['front', 'back', 'both'],
 };
 const UNITS: Record<string, string> = {

@@ -3,3 +3,4 @@
 - A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).
 - Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).
 - Depth beyond the body is fine; through() is clearer when you mean all the way.
+- A cut applies to EVERY body that exists when it runs (not only the one you are looking at). A through-cut for holes in a base plate also slits any earlier body it crosses. Build the parts the cut must not touch AFTER the cut, or keep clearance, or limit the cut depth. run_script reports a warning ('cut F7 changed N bodies') when one cut changed several bodies.

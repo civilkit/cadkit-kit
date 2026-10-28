@@ -1,0 +1,4 @@
+- Styling a PATTERN feature (linearPattern / circularPattern) styles the copies AND the seed's own body, because the seed body belongs to the seed feature. A look given to the seed explicitly wins field by field.
+- A body is keyed by the feature that created it: a boss fused into an earlier body is part of that body (take the handle of the FIRST feature of the body), a feature made with newBody is its own body.
+- finish 'brushed' and 'chrome' are metallic: they shift colours towards grey in renders (copper looks silver). Use 'plastic' or 'matte' for coloured parts.
+- It changes view state only (no feature, no undo step); STEP export keeps no colours or body names, a .ckpart does.

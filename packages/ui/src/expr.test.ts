@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completions, evalExpr, isExprValue, nameError, parseFieldText, resolveVariables, valueOf } from './expr';
+import { completions, evalExpr, isExprValue, nameError, parseAssignment, parseFieldText, resolveVariables, valueOf } from './expr';
 
 const ev = (s: string, v?: Record<string, number>) => { const r = evalExpr(s, v); return r.ok ? r.value : r.code; };
 
@@ -80,5 +80,16 @@ describe('field text', () => {
     expect(completions('=si', sc).map((c) => c.name)).toEqual(['sin']);
     expect(completions('=p', sc).map((c) => c.name)).toEqual(['pi']);
     expect(completions('=3', sc)).toEqual([]);
+  });
+});
+
+describe('parseAssignment', () => {
+  it('splits name = value', () => {
+    expect(parseAssignment('w = 5')).toEqual({ name: 'w', expr: '=5' });
+    expect(parseAssignment(' width=h*2+1 ')).toEqual({ name: 'width', expr: '=h*2+1' });
+    expect(parseAssignment('r = =4')).toEqual({ name: 'r', expr: '=4' });
+  });
+  it('is not a plain number, an expression, a comparison or a half-typed assignment', () => {
+    for (const t of ['5', '=w*2', 'w', 'w == 5', '= 5', '2w = 3', 'w =', 'w = ']) expect(parseAssignment(t)).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 // Session-level helper: pull the body (and, for section views, the exact loops) out of a kernel session and render it.
 import { renderSnapshot } from './render.js';
+import { coerceSheet } from './opts.js';
 import type { SectionLike, SnapshotInput, SnapshotOpts, SnapshotResult, V3 } from './types.js';
 
 /** The part of a @ck/session Session this helper needs (structural, so tests and the MCP daemon can pass any equivalent). */
@@ -34,14 +35,15 @@ export async function inputOf(session: SessionLike, opts: SessionSnapshotOpts = 
   const input: SnapshotInput = { mesh: body.mesh, edges: body.edges, box: body.box, name: opts.name ?? session.document?.name };
   const d = session.document;
   if (d && (d.appearance || d.faceAppearance || d.view)) input.appearance = { appearance: d.appearance as never, faceAppearance: d.faceAppearance as never, view: d.view as never };
-  const wantsVolume = (opts.sheet ?? 'single').startsWith('drawing');
+  const sheet = coerceSheet(opts.sheet);
+  const wantsVolume = sheet.startsWith('drawing');
   if (wantsVolume && session.massProps) {
     try { const m = await session.massProps(); if (typeof m.volume === 'number') input.volume = m.volume; } catch { /* the title block shows N/A */ }
   }
   if (opts.section) {
     if (!session.section) throw new Error('snapshot: this session cannot compute sections');
     input.section = await session.section(planeOf(opts.section));
-  } else if (opts.sheet === 'section') throw new Error("snapshot: sheet 'section' needs opts.section");
+  } else if (sheet === 'section') throw new Error("snapshot: sheet 'section' needs opts.section");
   return input;
 }
 

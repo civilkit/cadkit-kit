@@ -11,6 +11,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
     "types": ["node", "vite/client"],
     "paths": {
+      "@kit/cad-drawing": ["./apps/cad/src/drawing/headless.ts"],
       "@kit/*": ["./packages/*/src/index.ts"],
       "@ck/driver-verify": ["../kernel/packages/driver/src/verify.ts"],
       "@ck/session": ["../kernel/packages/session/src/session.ts"],

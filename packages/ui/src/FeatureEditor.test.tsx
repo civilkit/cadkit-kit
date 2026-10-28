@@ -38,6 +38,12 @@ describe('geometry reference fields', () => {
     expect(opts).toContain('mid');
     expect(opts).not.toContain('delete');
   });
+  it('a faceted knurl band offers its pattern as a dropdown', () => {
+    const feature = { type: 'knurlBand', id: 'F3', axis: 'z', center: [0, 0], radius: 10, from: 0, to: 12, pattern: 'diamond', count: 24, depth: 0.5 };
+    const { container } = render(<FeatureEditor feature={feature} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    const opts = [...container.querySelectorAll('[data-path="pattern"] option')].map((o) => (o as HTMLOptionElement).value);
+    expect(opts).toEqual(['diamond', 'pyramid']);
+  });
 });
 
 describe('FeatureEditor', () => {

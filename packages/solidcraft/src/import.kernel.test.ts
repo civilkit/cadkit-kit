@@ -309,6 +309,21 @@ describe('sweep along a spline', { skip: !process.env.CK_WASM, timeout: 90_000 }
     const box = (await (await open(out.r.part!)).facts()).box!;
     expect(box.max[1] - box.min[1]).toBeCloseTo(45, 3);    // their Z is our Y
   });
+  it('a control-vertex spline path (control: true) sweeps too, and follows the B-spline, not the points', async () => {
+    const cv = (pts: number[][]) => ({ ...path, sketch: { points: [{ id: 'origin', pos: [0, 0], fixed: true }, ...pts.map((pos, i) => ({ id: `p${i + 1}`, pos })), ], curves: [{ id: 's1', type: 'spline', control: true, degree: 3, pts: pts.map((_, i) => i + 1) }], constraints: [] } });
+    const straight = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [cv([[0, 0], [0, 15], [0, 30], [0, 45]]), section, sweep] });
+    expect(straight.r.rows.map((x) => x.status), JSON.stringify(straight.r.rows)).toEqual(['converted', 'converted', 'converted']);
+    expect(straight.errors).toEqual([]);
+    expect(straight.volume).toBeCloseTo(Math.PI * 4 * 45, 0);
+    // the polygon bulges sideways but the curve only follows it, so the tube differs from the through-points one
+    const bent = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [cv([[0, 0], [0, 20], [30, 35], [-30, 50], [0, 70]]), section, sweep] });
+    expect(bent.errors).toEqual([]);
+    const fitDoc = { ...cv([[0, 0], [0, 20], [30, 35], [-30, 50], [0, 70]]) };
+    (fitDoc.sketch.curves[0] as Record<string, unknown>).control = false;
+    const fit = await volumeOf({ format: 'solidcraft/30', units: 'mm', params: [], features: [fitDoc, section, sweep] });
+    expect(bent.volume).toBeGreaterThan(Math.PI * 4 * 60);   // longer than the straight rise
+    expect(bent.volume).not.toBeCloseTo(fit.volume, 0);
+  });
 });
 
 describe('coil', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
@@ -345,5 +360,25 @@ describe('scale', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
     expect(r.rows.filter((x) => x.status !== 'converted'), JSON.stringify(r.rows)).toEqual([]);
     expect(errors).toEqual([]);
     expect(volume).toBeCloseTo(Math.PI * 9 * 34 * 1.088235294117647 + 8 * 10 * 8 * 1.84, 3);
+  });
+});
+
+describe('spline sketches', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
+  // a profile closed by a line and a spline: the fit spline passes through the points, the control spline only follows its polygon, so it bulges less
+  const spline = (control: boolean) => ({
+    format: 'solidcraft/30', units: 'mm', params: [],
+    features: [
+      { id: 1, name: 'S', type: 'sketch', suppressed: false, plane: { type: 'origin', name: 'XY' },
+        sketch: { points: [{ id: 'origin', pos: [0, 0], fixed: true }, { id: 'p1', pos: [0, 0] }, { id: 'p2', pos: [20, 0] }, { id: 'p3', pos: [15, 10] }, { id: 'p4', pos: [5, 10] }],
+          curves: [{ id: 'l1', type: 'line', a: 1, b: 2 }, { id: 's1', type: 'spline', construction: false, control, degree: 3, pts: [2, 3, 4, 1] }], constraints: [] } },
+      { id: 2, name: 'E', type: 'extrude', suppressed: false, sketch: 1, profiles: { type: 'all' }, operation: 'new_body', extent: { convention: 'total_distance', direction: 'positive', distance: '5' } },
+    ],
+  });
+  it('a fit spline and a control-vertex spline both regenerate to a solid, the control one smaller than the fit one', async () => {
+    const fit = await volumeOf(spline(false) as never), cv = await volumeOf(spline(true) as never);
+    expect(fit.r.geometryComplete && cv.r.geometryComplete).toBe(true);
+    expect(fit.errors).toEqual([]); expect(cv.errors).toEqual([]);
+    expect(cv.volume).toBeGreaterThan(0);
+    expect(cv.volume).toBeLessThan(fit.volume);
   });
 });

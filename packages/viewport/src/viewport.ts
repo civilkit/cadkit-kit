@@ -28,6 +28,7 @@ const TECHNICAL_FACE = '#f2f4f7';
 import { makeHullMaterial } from './hull';
 import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
 import { AnalysisLayer } from './analysisLayer';
+import { KnurlLayer } from './knurlview';
 import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend } from './analysis';
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
@@ -177,6 +178,7 @@ export class Viewport {
   private readonly dom: HTMLCanvasElement;
 
   private mesh: THREE.Mesh | null = null;
+  private readonly knurls = new KnurlLayer();
   private readonly analysis = new AnalysisLayer(this.scene, (l) => this.opts.onAnalysisLegend?.(l));
   private analysisOpts: AnalysisOptions = DEFAULT_ANALYSIS;
   /** The colour attribute of the mesh without analysis (surface tints), and the polylines a comb is drawn over. */
@@ -241,7 +243,9 @@ export class Viewport {
   private rubber: { cx: number; cy: number; x: number; y: number; moved: boolean } | null = null;
   /** How defined each entity of the open sketch is (blue under, dark fully, red over); entities not listed stay blue. */
   private sketchDef: Record<string, 'under' | 'full' | 'over'> | null = null;
-  private sketchDefLines: Array<THREE.LineSegments | LineSegments2> = [];
+  private sketchDefLines: Array<THREE.LineSegments | LineSegments2 | THREE.Points> = [];
+  /** Curves and points a conflicting constraint names: drawn in the conflict colour whatever the colouring setting. */
+  private sketchConflict: { entities: Set<string>; points: Set<string> } | null = null;
   private sketchTool = false;
   private sketchPreviewGroup: THREE.Group | null = null;
   private sketchPreviewShapes: SketchPreviewShape[] = [];
@@ -494,7 +498,7 @@ export class Viewport {
   setSketchEdit(v: SketchEditShape | null): void {
     this.clearSketchOverlay();
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
-    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; }
+    if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; }
     this.sketchDefLines = [];
     this.sketchEdit = v;
     this.sketchDrag = null;
@@ -553,18 +557,25 @@ export class Viewport {
     this.rebuildSketchDef();
   }
 
+  /** Draw the curves and points a conflicting constraint names in the conflict (red) colour. Null or empty clears. */
+  setSketchConflicts(c: { entities: string[]; points: string[] } | null): void {
+    this.sketchConflict = c && (c.entities.length || c.points.length) ? { entities: new Set(c.entities), points: new Set(c.points) } : null;
+    this.rebuildSketchDef();
+  }
+
   private rebuildSketchDef(): void {
     for (const l of this.sketchDefLines) { l.parent?.remove(l); l.geometry.dispose(); const m = l.material as THREE.Material; this.fatMaterials = this.fatMaterials.filter((x) => x !== (m as unknown)); m.dispose(); }
     this.sketchDefLines = [];
-    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef;
+    const v = this.sketchEdit, group = this.sketchOverlay, map = this.sketchDef, bad = this.sketchConflict;
     this.dirty = true;
-    if (!v || !group || !map) return;
+    if (!v || !group || (!map && !bad)) return;
     const bg = getComputedStyle(this.host).getPropertyValue('--vp-bottom').trim() || '#e6eaf0';
     const c = new THREE.Color(bg);
     const dark = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.4;
     const colours = { full: dark ? 0xf2f2f2 : 0x151515, over: 0xe03131 } as const;
+    const stateOf = (id: string): 'under' | 'full' | 'over' | undefined => (bad?.entities.has(id) ? 'over' : map?.[id]);
     for (const state of ['full', 'over'] as const) {
-      const ents = v.sketch.entities.filter((e) => map[e.id] === state && e.construction !== true);
+      const ents = v.sketch.entities.filter((e) => stateOf(e.id) === state && e.construction !== true);
       if (!ents.length) continue;
       const seg = this.segmentsOf(sketchEditPolylines({ ...v.sketch, entities: ents }, v.frame as never, 'solid'));
       if (!seg.length) continue;
@@ -572,6 +583,19 @@ export class Viewport {
       lines.renderOrder = 10;
       group.add(lines);
       this.sketchDefLines.push(lines);
+    }
+    if (bad?.points.size) {
+      const world = sketchPointWorld(v.sketch.points.filter((p) => bad.points.has(p.id)), v.frame as never);
+      if (world.length) {
+        const pos = new Float32Array(world.length * 3);
+        world.forEach((p, i) => { pos[i * 3] = p.xyz[0]; pos[i * 3 + 1] = p.xyz[1]; pos[i * 3 + 2] = p.xyz[2]; });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const dots = new THREE.Points(geo, new THREE.PointsMaterial({ color: colours.over, size: 7, sizeAttenuation: false }));
+        dots.renderOrder = 11;
+        group.add(dots);
+        this.sketchDefLines.push(dots);
+      }
     }
   }
 
@@ -1239,6 +1263,7 @@ export class Viewport {
     this.faceLooks(geo);
     const bodyMat = makeBodyMaterial(this.shownLook(), this.bodyFade(), this.baseTints !== null);
     this.analysis.install(bodyMat);
+    this.knurls.install(bodyMat);
     this.analysis.reset();
     this.mesh = new THREE.Mesh(geo, bodyMat);
     this.scene.add(this.mesh);
@@ -1294,8 +1319,10 @@ export class Viewport {
    *  by it. Hidden bodies are left out of the drawing and of picking (nothing is rebuilt in the kernel); bodies below full opacity are drawn
    *  in a transparent pass, farthest first, without writing depth; a click on one below PICK_OPACITY means the body behind it. */
   setBodyView(spec: BodyViewSpec, rebuild = true): void {
-    const same = JSON.stringify(spec) === JSON.stringify(this.bodyView);
-    this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden], ...(spec.faces ? { faces: { ...spec.faces } } : {}) };
+    const bare = (v: BodyViewSpec): string => JSON.stringify({ ...v, knurls: undefined });   // cosmetic knurls are uniforms: a change of them alone rebuilds nothing
+    const same = bare(spec) === bare(this.bodyView);
+    this.bodyView = { bodies: spec.bodies.map((b) => ({ ...b })), looks: { ...spec.looks }, hidden: [...spec.hidden], ...(spec.faces ? { faces: { ...spec.faces } } : {}), ...(spec.knurls?.length ? { knurls: spec.knurls } : {}) };
+    if (this.knurls.set(spec.knurls ?? [])) this.dirty = true;   // the shader reads them from uniforms: no rebuild
     this.faceLookMap = new Map();
     for (const b of spec.bodies) {
       const l = spec.looks[b.key];

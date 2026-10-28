@@ -5,6 +5,7 @@ import { dirname, resolve as resolvePath } from 'node:path';
 import { meshToStl } from '@kit/io';
 import type { AgentSession } from './agent-session';
 import { ToolError } from './errors';
+import { listBodies } from './bodies';
 import { meshToGlb } from './exporters';
 import type { Schema } from './schema';
 
@@ -21,6 +22,9 @@ export interface ToolDef {
   handler(input: Record<string, unknown>, a: AgentSession): Promise<ToolOutput>;
 }
 
+/** The sheets @kit/snapshot renders (a test keeps this in step with its SHEET_NAMES). */
+export const SHEET_NAMES = ['single', 'orthos', 'drawing-third-angle', 'drawing-first-angle', 'ab', 'section'] as const;
+const SHEET_HELP_TEXT = 'single (default) | orthos (front, top, right, iso panels) | drawing-third-angle | drawing-first-angle (projected views, overall dimensions, title block) | ab (two views side by side) | section (needs `section`)';
 const vec3: Schema = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 };
 const obj = (properties: Record<string, Schema>, required: string[] = []): Schema & { type: 'object' } => ({ type: 'object', properties, required, additionalProperties: false });
 const round = (x: number | null | undefined, d = 4): number | null => (typeof x === 'number' && Number.isFinite(x) ? Number(x.toFixed(d)) : null);
@@ -186,6 +190,15 @@ export function createTools(): ToolDef[] {
       },
     },
     {
+      name: 'bodies',
+      description: 'One row per body (connected solid lump) of the open document: name, the feature that created it, volume, bounding box, colour / opacity / finish and hidden flag. Use it after run_script when `solids` is not what you expect: it shows WHICH parts fused (touching solids merge into one body unless extrude / revolve / sweep got newBody) or which one a cut sliced.',
+      inputSchema: obj({}),
+      async handler(_i, a) {
+        const rows = await listBodies(a);
+        return { summary: `${rows.length} bod${rows.length === 1 ? 'y' : 'ies'}`, data: { count: rows.length, bodies: rows } };
+      },
+    },
+    {
       name: 'probe',
       description: 'Is there material at a point / what does a ray hit. points: [[x,y,z],...] give inside / outside / boundary and the signed distance to the nearest face; rays: [{origin, dir}] give hit lists with face names.',
       inputSchema: obj({
@@ -218,20 +231,22 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'snapshot',
-      description: 'Render the model to a PNG (returned as image content). view: iso | front | back | left | right | top | bottom or a custom direction; style: shaded | hidden-line | wire; section: a plane to cut at; sheet: a multi-view drawing sheet; highlight: face / edge / feature names; markers: points to mark. Needs the @kit/snapshot package.',
+      description: "Render the model to a PNG (returned as image content). view: iso | front | back | left | right | top | bottom ('front' looks along the part's -Z); style: shaded | edges | xray | hidden-line | mono; projection: ortho (alias orthographic) | persp (alias perspective); section: {origin?, normal} plane to cut at; sheet: " + SHEET_HELP_TEXT + "; sheet:true means drawing-third-angle; annotate:true draws the overall bounding-box dimensions on a single view; highlight: face names; markers: [{p:[x,y,z], label?}]. For a full engineering drawing (hole callouts, sections, PDF / DXF) use the drawing tool. Needs the @kit/snapshot package.",
       inputSchema: obj({
         view: { type: 'string', maxLength: 40 }, up: { type: 'string', maxLength: 10 },
         size: { type: 'integer', minimum: 64, maximum: 2048 }, style: { type: 'string', maxLength: 40 },
-        projection: { type: 'string', enum: ['ortho', 'perspective'] },
+        projection: { type: 'string', enum: ['ortho', 'orthographic', 'persp', 'perspective'] },
         section: obj({ origin: vec3, normal: vec3 }, ['normal']),
-        sheet: { oneOf: [{ type: 'boolean' }, { type: 'string', maxLength: 40 }] },
+        sheet: { oneOf: [{ type: 'boolean' }, { type: 'string', enum: SHEET_NAMES }] },
         highlight: { type: 'array', items: { type: 'string', maxLength: 80 }, maxItems: 100 },
         markers: { type: 'array', items: { type: 'object' }, maxItems: 100 },
-        frame: { type: 'boolean' }, annotate: { type: 'boolean' }, background: { type: 'string', maxLength: 20 },
+        frame: { type: 'boolean', description: 'ignored (the framing is automatic)' }, annotate: { type: 'boolean' }, background: { type: 'string', maxLength: 20 },
       }),
       async handler(i, a) {
         const fn = a.snapshotFn ?? (await loadSnapshotFn());
-        const raw = await fn(a.session, { size: 768, ...i }) as unknown;
+        const { frame: _frame, ...snapOpts } = i;   // `frame` is a pinned-framing object in the renderer; a boolean here is not one
+        void _frame;
+        const raw = await fn(a.session, { size: 768, ...snapOpts }) as unknown;
         let png: string | null = img(raw);
         let extra: Record<string, unknown> = {};
         if (!png && raw && typeof raw === 'object') {
@@ -243,6 +258,45 @@ export function createTools(): ToolDef[] {
         }
         if (!png) throw new ToolError('snapshot_failed', 'the snapshot renderer returned no image', 'try another view or a smaller size');
         return { summary: `snapshot ${String(i.view ?? 'iso')} ${i.size ?? 768}px`, images: [{ data: png, mimeType: 'image/png' }], data: { view: i.view ?? 'iso', size: i.size ?? 768, bytes: Math.floor(png.length * 0.75), ...extra } };
+      },
+    },
+    {
+      name: 'drawing',
+      description: "Make an engineering drawing sheet of the open document with the app's drawing layer: standard views (front, top, right, iso ...), automatic dimensions (overall size, diameters), hole callouts, an optional section view, title block. Returns the SVG text (and a PNG-free summary of what was drawn); with `path` it also writes <path>.pdf and <path>.dxf (or the exact file given with .pdf / .dxf / .svg). Hole callouts such as 'M2.5 TAPPED DEPTH 2' appear only for real hole features (hole, holes.points / polar / grid), not for a sketch circle plus a cut. Options: views (first must be 'front'), sheet (A4 A3 A2 A1 A0, ANSI A-E), orientation, scale ('2:1', default: best fit), projection (third | first), hidden (hidden lines, default false), dimensions (default true), section (true or {dir:'v'|'h', at}), tidy (default true: callout leaders point away from the view centre, tiny diameters are dropped; minDiameter mm).",
+      inputSchema: obj({
+        views: { type: 'array', items: { type: 'string', enum: ['front', 'top', 'right', 'left', 'bottom', 'back', 'iso'] }, minItems: 1, maxItems: 7 },
+        sheet: { type: 'string', enum: ['A4', 'A3', 'A2', 'A1', 'A0', 'ANSI A', 'ANSI B', 'ANSI C', 'ANSI D', 'ANSI E'] },
+        orientation: { type: 'string', enum: ['landscape', 'portrait'] },
+        scale: { type: 'string', maxLength: 12 },
+        projection: { type: 'string', enum: ['third', 'first'] },
+        hidden: { type: 'boolean' }, dimensions: { type: 'boolean' }, tidy: { type: 'boolean' }, minDiameter: { type: 'number', minimum: 0, maximum: 1000 },
+        section: { oneOf: [{ type: 'boolean' }, obj({ dir: { type: 'string', enum: ['v', 'h'] }, at: { type: 'number' } })] },
+        title: obj({ title: { type: 'string', maxLength: 120 }, partNo: { type: 'string', maxLength: 60 }, material: { type: 'string', maxLength: 60 }, author: { type: 'string', maxLength: 60 }, revision: { type: 'string', maxLength: 10 }, company: { type: 'string', maxLength: 80 } }),
+        path: { type: 'string', maxLength: 500, description: 'where to write the files: <path>.pdf and <path>.dxf, or a file name ending .pdf / .dxf / .svg for that one format' },
+        includeSvg: { type: 'boolean', description: 'return the SVG text in the result (default true when no path is given)' },
+      }),
+      async handler(i, a) {
+        if (!a.doc.features.length) throw new ToolError('no_body', 'the document is empty', 'run_script first');
+        let mod: typeof import('@kit/cad-drawing');
+        try { mod = await import('@kit/cad-drawing'); } catch (e) {
+          throw new ToolError('drawing_unavailable', `the drawing layer could not be loaded: ${(e as Error).message}`, 'the MCP must run through the repo launcher (vite-node) so the app modules resolve');
+        }
+        let d;
+        try {
+          d = await mod.drawHeadless(a.session, { views: i.views as string[] | undefined, sheet: i.sheet as string | undefined, orientation: i.orientation as never, scale: i.scale as string | undefined, projection: i.projection as never, hidden: i.hidden as boolean | undefined, dimensions: i.dimensions as boolean | undefined, section: i.section as never, tidy: i.tidy as boolean | undefined, minDiameter: i.minDiameter as number | undefined, title: i.title as never });
+        } catch (e) { throw new ToolError('drawing_failed', (e as Error).message, 'check views / sheet / scale; the document needs a solid'); }
+        const written: Array<{ path: string; bytes: number }> = [];
+        if (typeof i.path === 'string' && i.path) {
+          const base = resolvePath(i.path);
+          const m = /\.(pdf|dxf|svg)$/i.exec(base);
+          const out: Array<[string, string | Uint8Array]> = m ? [[base, m[1].toLowerCase() === 'pdf' ? d.pdf() : m[1].toLowerCase() === 'dxf' ? d.dxf() : d.svg]] : [[`${base}.pdf`, d.pdf()], [`${base}.dxf`, d.dxf()], [`${base}.svg`, d.svg]];
+          for (const [p, bytes] of out) { mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, bytes); written.push({ path: p, bytes: typeof bytes === 'string' ? Buffer.byteLength(bytes) : bytes.byteLength }); }
+        }
+        const withSvg = i.includeSvg ?? !written.length;
+        return {
+          summary: `drawing ${d.summary.sheet} ${d.summary.scale}, ${d.summary.views.length} views, ${d.summary.dimensions} dimensions`,
+          data: { ...d.summary, sheetSize: d.size, warnings: d.warnings, written, ...(withSvg ? { svg: d.svg } : {}) },
+        };
       },
     },
     {
@@ -285,7 +339,7 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'list_methods',
-      description: 'Search the script API. Without a query lists everything (name and signature). Use docs for details.',
+      description: 'Search the script API (every method run_script accepts is listed). Without a query it returns the guide and every method (name, group, signature, summary). Use docs for details.',
       inputSchema: obj({ query: { type: 'string', maxLength: 200 } }),
       async handler(i, a) {
         const list = i.query ? a.registry.search(String(i.query), 20) : a.registry.methods();
@@ -294,14 +348,16 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'docs',
-      description: 'Full documentation (signature, summary, notes, example) for method names, or the code of recipes by id.',
+      description: "Full documentation (signature, parameters, notes, example) for method names such as 'extrude', 'holes.polar', 's.arc3', 'appearance', or the code of recipes by id. docs {names:['guide']} returns the full guide (units, plane frames, bodies, workflow, common errors).",
       inputSchema: obj({ names: { type: 'array', items: { type: 'string', maxLength: 80 }, minItems: 1, maxItems: 30 } }, ['names']),
       async handler(i, a) {
         const out: unknown[] = [];
         for (const n of i.names as string[]) {
+          if (n === 'guide' || n === 'llms.txt' || n === 'llms') { out.push({ name: n, guide: n === 'guide' ? a.registry.guide() : (a.registry.llmsTxt?.() ?? a.registry.guide()) }); continue; }
           const m = a.registry.get(n);
           const r = a.registry.recipes().find((x) => x.id === n);
-          out.push(m ?? r ?? { name: n, error: 'unknown', hint: 'use list_methods {query} to search' });
+          const close = m || r ? [] : (a.registry.suggest?.(n) ?? []);
+          out.push(m ?? r ?? { name: n, error: 'unknown', hint: close.length ? `did you mean: ${close.join(', ')}? (list_methods {query} searches)` : 'use list_methods {query} to search' });
         }
         return { data: { docs: out } };
       },

@@ -28,7 +28,7 @@ export interface Backend {
   read(uri: string): Promise<{ uri: string; mimeType: string; text: string } | null>;
 }
 
-const INSTRUCTIONS = `ck-cad drives a parametric CAD kernel. run_script is the ONLY tool that changes the model (it writes a normal feature tree); tree, find, inspect, facts, probe, section(s) and snapshot read, prove and show it. Start with list_methods / the ck://docs/guide resource, build with run_script, then check numbers (facts, probe, sections) and look (snapshot). checkpoint before risky changes. Use mode 'attach' to add to what the user already has: their hand-made features are kept.`;
+const INSTRUCTIONS = `ck-cad drives a parametric CAD kernel. run_script is the ONLY tool that changes the model (it writes a normal feature tree); tree, find, inspect, facts, bodies, probe, section(s), snapshot and drawing read, prove and show it. Start with list_methods / the ck://docs/guide resource, build with run_script, then check numbers (facts, probe, sections) and look (snapshot). checkpoint before risky changes. Use mode 'attach' to add to what the user already has: their hand-made features are kept.`;
 
 export function agentBackend(a: AgentSession, tools: ToolDef[] = createTools()): Backend {
   return {
@@ -36,6 +36,7 @@ export function agentBackend(a: AgentSession, tools: ToolDef[] = createTools()):
     call: (name, args) => callTool(a, tools, name, args),
     resources: () => [
       { uri: 'ck://docs/guide', name: 'Script guide', description: 'How the script API works and the build-check loop', mimeType: 'text/markdown' },
+      { uri: 'ck://llms.txt', name: 'llms.txt', description: 'The guide plus a one-line index of every method and recipe (same as docs/llms.txt in the repo)', mimeType: 'text/plain' },
       { uri: 'ck://docs/methods', name: 'Script methods', description: 'Every script method with signature and summary', mimeType: 'application/json' },
       ...a.registry.recipes().map((r) => ({ uri: `ck://recipes/${r.id}`, name: `Recipe: ${r.title}`, description: 'A complete example script', mimeType: 'text/javascript' })),
       { uri: 'ck://document', name: 'Open document', description: 'The open document as JSON', mimeType: 'application/json' },
@@ -43,6 +44,7 @@ export function agentBackend(a: AgentSession, tools: ToolDef[] = createTools()):
     ],
     async read(uri) {
       if (uri === 'ck://docs/guide') return { uri, mimeType: 'text/markdown', text: a.registry.guide() };
+      if (uri === 'ck://llms.txt') return { uri, mimeType: 'text/plain', text: a.registry.llmsTxt?.() ?? a.registry.guide() };
       if (uri === 'ck://docs/methods') return { uri, mimeType: 'application/json', text: JSON.stringify(a.registry.methods(), null, 1) };
       if (uri === 'ck://document') return { uri, mimeType: 'application/json', text: JSON.stringify(a.doc, null, 1) };
       if (uri === 'ck://notes') return { uri, mimeType: 'text/plain', text: a.notes };

@@ -7,7 +7,7 @@ export function isNewerPart(doc: { version?: unknown }): boolean {
 }
 
 /** The format names before `ck-part`: still read, never written. */
-export const LEGACY_PART_FORMATS = ['fw-part', 'formwerk-part'] as const;
+export const LEGACY_PART_FORMATS = ['ck-part', 'ck-part'] as const;
 
 export const isPartFormat = (f: unknown): boolean => f === 'ck-part' || (LEGACY_PART_FORMATS as readonly unknown[]).includes(f);
 

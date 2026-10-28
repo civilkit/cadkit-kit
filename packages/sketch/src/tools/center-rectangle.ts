@@ -17,6 +17,8 @@ export interface CenterRectState {
   locked: { w?: number; h?: number };
   live: { w?: number; h?: number };
   cursor?: Pt;
+  /** Alt was held at the last pointer event: a square */
+  square?: boolean;
 }
 
 const eff = (s: CenterRectState) => ({ ...s.live, ...s.locked });
@@ -24,9 +26,11 @@ const eff = (s: CenterRectState) => ({ ...s.live, ...s.locked });
 function extent(s: CenterRectState): { hw: number; hh: number } | null {
   if (!s.centre || !s.cursor) return null;
   const e = eff(s);
+  const dx = Math.abs(s.cursor.x - s.centre.at.x), dy = Math.abs(s.cursor.y - s.centre.at.y);
+  const side = e.w !== undefined ? e.w / 2 : e.h !== undefined ? e.h / 2 : Math.max(dx, dy);
   return {
-    hw: e.w !== undefined ? e.w / 2 : Math.abs(s.cursor.x - s.centre.at.x),
-    hh: e.h !== undefined ? e.h / 2 : Math.abs(s.cursor.y - s.centre.at.y),
+    hw: e.w !== undefined ? e.w / 2 : s.square ? side : dx,
+    hh: e.h !== undefined ? e.h / 2 : s.square ? side : dy,
   };
 }
 
@@ -70,11 +74,11 @@ export const centerRectangleTool: Tool<CenterRectState> = {
   start: () => ({ locked: {}, live: {} }),
   step(state, ev, draft, settings) {
     switch (ev.type) {
-      case 'move': return view({ ...state, cursor: ev.snap?.at ?? ev.at }, draft, settings);
+      case 'move': return view({ ...state, cursor: ev.snap?.at ?? ev.at, square: ev.mods.alt }, draft, settings);
       case 'click': {
         const at = ev.snap?.at ?? ev.at;
         if (!state.centre) return view({ ...state, centre: { at, ...(ev.snap?.pointId ? { pointId: ev.snap.pointId } : {}) }, cursor: at }, draft, settings);
-        return commit({ ...state, cursor: at }, draft, settings);
+        return commit({ ...state, cursor: at, square: ev.mods.alt }, draft, settings);
       }
       case 'field': {
         if (!state.centre) return view(state, draft, settings);

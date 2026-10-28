@@ -1,5 +1,5 @@
 import { useRef } from 'preact/hooks';
-import { ExprInput, evalExpr, parseFieldText, useScope } from '@kit/ui';
+import { ExprInput, evalExpr, parseAssignment, parseFieldText, useScope } from '@kit/ui';
 import type { FieldSpec } from '@kit/sketch';
 import { t } from './i18n';
 
@@ -11,8 +11,9 @@ export const parseTyped = (text: string): number | null => {
 };
 
 /** One field. Takes a number or an expression (`=w*2`, a variable name): while it has focus it shows exactly what was typed;
- *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension. */
-function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value: number | null, commit: boolean, expr?: string): void }) {
+ *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension.
+ *  `name = value` defines the parameter `name` (when the owner takes `onDefine`) and links the field to it. */
+function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value: number | null, commit: boolean, expr?: string): void; onDefine?(name: string, expr: string): Promise<boolean> }) {
   const { f } = p;
   const scope = useScope();
   const emit = (value: number | null, commit: boolean, expr?: string): void => { if (expr !== undefined) p.onField(f.id, value, commit, expr); else p.onField(f.id, value, commit); };
@@ -30,6 +31,15 @@ function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value:
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault();
           e.stopPropagation();
+          const asg = p.onDefine ? parseAssignment(el.value) : null;
+          const val = asg ? evalExpr(asg.expr, scope.values) : null;
+          if (asg && val?.ok) {
+            const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
+            void p.onDefine!(asg.name, asg.expr).then((ok) => { if (ok) emit(val.value, true, asg.name); });
+            latest.current = null;
+            if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
+            return;
+          }
           const q = parseFieldText(el.value);
           const got = q.kind === 'number' ? { value: q.value } : q.kind === 'expr' ? resolve(q.expr) : null;
           if (got) emit(got.value, true, got.expr);
@@ -48,6 +58,7 @@ function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value:
       <ExprInput
         value={f.expr ? '=' + f.expr : Math.round(f.value * 100) / 100}
         label={t(f.label)}
+        assign={!!p.onDefine}
         onValue={(v) => { const got = resolve(v); latest.current = got; if (got) emit(got.value, false, got.expr); }}
       />
     </span>
@@ -56,14 +67,14 @@ function FieldInput(p: { f: FieldSpec; index: number; onField(id: string, value:
 
 /** The typed-value fields that follow the pointer while a tool draws (length, angle, radius ...).
  *  Typing changes a live preview; Tab or Enter locks the value as a driving dimension. */
-export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; onField(id: string, value: number | null, commit: boolean, expr?: string): void }) {
+export function SketchFields(p: { fields: FieldSpec[]; x: number; y: number; cls?: string; onField(id: string, value: number | null, commit: boolean, expr?: string): void; /** define the parameter a `name = value` entry names; resolves false when it was refused */ onDefine?(name: string, expr: string): Promise<boolean> }) {
   if (!p.fields.length) return null;
   return (
     <div class={'sketch-fields ' + (p.cls ?? '')} style={{ left: p.x + 16 + 'px', top: p.y + 16 + 'px' }} onPointerDown={(e) => e.stopPropagation()}>
       {p.fields.map((f, i) => (
         <label key={f.id} class={f.locked ? 'locked' : ''}>
           <span>{t(f.label)}</span>
-          <FieldInput f={f} index={i} onField={p.onField} />
+          <FieldInput f={f} index={i} onField={p.onField} onDefine={p.onDefine} />
         </label>
       ))}
     </div>

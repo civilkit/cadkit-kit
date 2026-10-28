@@ -179,6 +179,24 @@ export function patchLength(raw: string): Wire | null {
   return Number.isFinite(v) && v > 0 ? { length: v } : null;
 }
 
+/** Printed-thread clearance: `clearance` on the feature is signed millimetres, positive = Wider (a looser fit), negative = Narrower (tighter), absent = none. */
+export const THREAD_CLEARANCES = ['none', 'wider', 'narrower'] as const;
+export type ThreadClearance = (typeof THREAD_CLEARANCES)[number];
+/** The value Wider / Narrower starts with (a common first try for a printer with a 0.4 mm nozzle), and the largest accepted. */
+export const CLEARANCE_DEFAULT = 0.2;
+export const CLEARANCE_MAX = 1;
+/** The direction and size (mm, always positive) a feature's `clearance` stands for. */
+export function clearanceOf(f: Wire): { dir: ThreadClearance; mm: number } {
+  const v = typeof f.clearance === 'number' && Number.isFinite(f.clearance) ? f.clearance : 0;
+  return v > 0 ? { dir: 'wider', mm: Math.min(v, CLEARANCE_MAX) } : v < 0 ? { dir: 'narrower', mm: Math.min(-v, CLEARANCE_MAX) } : { dir: 'none', mm: 0 };
+}
+/** The draft patch for a clearance choice; `mm` is held to 0.01 .. CLEARANCE_MAX, and none removes the field. */
+export function patchClearance(dir: ThreadClearance, mm: number): Wire {
+  if (dir === 'none') return { clearance: null };
+  const v = Math.round(Math.min(CLEARANCE_MAX, Math.max(0.01, Number.isFinite(mm) ? mm : CLEARANCE_DEFAULT)) * 1000) / 1000;
+  return { clearance: dir === 'wider' ? v : -v };
+}
+
 // ---- warnings ----
 
 /** The size the kernel suggests in a threadDiameterMismatch warning (`params.nearest`: a name, `{size}` or a list of them). */
