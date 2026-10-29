@@ -137,8 +137,10 @@ export function evalExpr(src: string | number, vars: Record<string, number> = {}
   return v;
 }
 
-/** What the part's expression grammar has: the functions (everything else of the format has no counterpart there). */
+/** What the part's expression grammar has: the functions (`log` and `sign`, which this evaluator refuses too, have no counterpart there). */
 const KERNEL_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'abs']);
+/** The functions the part's grammar calls as `name(a, b, ...)`, where a comma separates the arguments. */
+const KERNEL_MULTI = new Set(['min', 'max', 'pow', 'mod', 'hypot', 'atan2', 'round', 'floor', 'ceil', 'trunc', 'exp', 'ln', 'log10', 'asin', 'acos', 'atan']);
 /** Names the part cannot use for a variable: `pi`, its functions and its units, in any letter case, and anything that is not letters, digits and `_`. */
 const RESERVED = new Set(['pi', 'sqrt', 'sin', 'cos', 'tan', 'abs', 'mm', 'cm', 'm', 'in', 'deg']);
 export const usableName = (n: string): boolean => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) && !RESERVED.has(n.toLowerCase());
@@ -153,11 +155,18 @@ export function kernelExpr(src: string | number, names: ReadonlySet<string>): st
   try { t = tokens(String(src)); } catch { return null; }
   if (!t.length) return null;
   let out = '';
+  const calls: boolean[] = [];   // for each open parenthesis: a call of a function with several arguments (where a comma may separate them)
   for (let i = 0; i < t.length; i++) {
     const x = t[i];
+    const callNext = t[i + 1]?.k === 'op' && t[i + 1].v === '(';
     if (x.k === 'num') out += String(x.v);
-    else if (x.k === 'op') { if (x.v === ',') return null; out += x.v; }
-    else if (t[i + 1]?.k === 'op' && t[i + 1].v === '(' && KERNEL_FUNCTIONS.has(x.v) && !names.has(x.v)) out += x.v;
+    else if (x.k === 'op') {
+      if (x.v === ',') { if (!calls[calls.length - 1]) return null; }
+      else if (x.v === '(') { const p = t[i - 1]; calls.push(p?.k === 'id' && KERNEL_MULTI.has(p.v) && !names.has(p.v)); }
+      else if (x.v === ')') calls.pop();
+      out += x.v;
+    }
+    else if (callNext && (KERNEL_FUNCTIONS.has(x.v) || KERNEL_MULTI.has(x.v)) && !names.has(x.v)) out += x.v;
     else if (names.has(x.v)) out += x.v;
     else if (x.v === 'pi' || x.v === 'PI') out += 'pi';
     else return null;

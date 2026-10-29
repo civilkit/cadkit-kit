@@ -46,9 +46,19 @@ describe('live parameters against the kernel', { skip: !process.env.CK_WASM, tim
     near(await volumeOf(r.part!), 30 * 15 * 7);
     near(await volumeOf(withVariable(r.part!, 'w', '60')), 60 * 30 * 10);
   });
+  it('functions with several arguments follow too: depth max(t, 1) + min(w, 100) / 10', async () => {
+    const r = await importSolidcraftDocument(doc('max(t, 1) + min(w, 100) / 10'), 'p');
+    expect(r.rows[1].notes).toBeUndefined();
+    near(await volumeOf(r.part!), 30 * 15 * 7);
+    near(await volumeOf(withVariable(r.part!, 't', '0.5')), 30 * 15 * 4);   // max(0.5, 1) + 3
+    near(await volumeOf(withVariable(r.part!, 'w', '200')), 200 * 100 * 14);   // w = 200 makes h = 100; min(200, 100) / 10 = 10
+  });
   it('a number that the grammar could not hold does not follow, and says so', async () => {
-    const r = await importSolidcraftDocument(doc('max(t, 1)'), 'p');
-    expect(r.rows[1].notes?.[0]).toMatch(/kept as the number 4/);
-    near(await volumeOf(withVariable(r.part!, 't', '10')), 30 * 15 * 4);
+    const d = doc('t + n');
+    d.params.push({ name: 'n', expr: '0 mm' });
+    d.params[3] = { name: 'sin', expr: '2 mm' } as never;
+    const r = await importSolidcraftDocument({ ...d, features: [d.features[0], { ...d.features[1], extent: { ...(d.features[1] as Rec).extent, distance: 'sin + t' } }] }, 'p');
+    expect(r.rows[1].notes?.[0]).toMatch(/kept as the number 6/);
+    near(await volumeOf(withVariable(r.part!, 't', '10')), 30 * 15 * 6);
   });
 });

@@ -24,7 +24,14 @@ describe('expression text for the part', () => {
     expect(kernelExpr('2 cm + w', names)).toBe('20+w');
     expect(kernelExpr('=sqrt(w ^ 2 + t ^ 2)', names)).toBe('sqrt(w^2+t^2)');
     expect(kernelExpr('2 * pi', names)).toBe('2*pi');
-    expect(kernelExpr('max(w, t)', names)).toBeNull();
+    expect(kernelExpr('max(w, t)', names)).toBe('max(w,t)');
+    expect(kernelExpr('min(w, 2 cm, sqrt(t)) + round(t / 3)', names)).toBe('min(w,20,sqrt(t))+round(t/3)');
+    expect(kernelExpr('atan2(w, t) + hypot(3, 4) + pow(2, t) + mod(w, 7) + floor(w) + ceil(w) + trunc(w) + exp(t) + ln(w) + log10(w) + asin(0.5) + acos(0.5) + atan(1)', names)).toBe('atan2(w,t)+hypot(3,4)+pow(2,t)+mod(w,7)+floor(w)+ceil(w)+trunc(w)+exp(t)+ln(w)+log10(w)+asin(0.5)+acos(0.5)+atan(1)');
+    expect(kernelExpr('sqrt(w, t)', names)).toBeNull();   // a comma outside the calls that take several arguments
+    expect(kernelExpr('(w, t)', names)).toBeNull();
+    expect(kernelExpr('log(w)', names)).toBeNull();   // not in the part's grammar
+    expect(kernelExpr('sign(w)', names)).toBeNull();
+    expect(kernelExpr('max(w, 1', names)).toBe('max(w,1');   // unbalanced text is the evaluator's to refuse, not this function's
     expect(kernelExpr('w + other', names)).toBeNull();
     expect(kernelExpr(5, names)).toBe('5');
   });
@@ -39,7 +46,7 @@ describe('variables and live fields', () => {
   const params = [{ name: 'width', expr: '40 mm' }, { name: 'thickness', expr: 'width / 5' }, { name: 'tall', expr: 'max(width, 3)' }];
   it('the parameter table becomes the part\'s variables, a grammar-held expression kept as written for the part', async () => {
     const { part } = await run(params, [sketch(1), extrude(2, 1, '5')]);
-    expect(part.variables).toEqual([{ name: 'width', expr: '40' }, { name: 'thickness', expr: 'width/5' }, { name: 'tall', expr: '40' }]);
+    expect(part.variables).toEqual([{ name: 'width', expr: '40' }, { name: 'thickness', expr: 'width/5' }, { name: 'tall', expr: 'max(width,3)' }]);
   });
   it('a depth that is a plain name or a simple expression stays an expression; a plain number stays a number', async () => {
     const a = await run(params, [sketch(1), extrude(2, 1, 'thickness')]);
@@ -49,10 +56,15 @@ describe('variables and live fields', () => {
     const c = await run(params, [sketch(1), extrude(2, 1, '12 mm')]);
     expect(c.f.find((x) => x.type === 'extrude')!.depth).toBe(12);
   });
+  it('functions the part has stay live, however many arguments they take', async () => {
+    const { f, part } = await run([...params, { name: 'big', expr: 'max(width, 3) / 4' }], [sketch(1), extrude(2, 1, 'min(max(width, 3) / 4, thickness + 20)')]);
+    expect(f.find((x) => x.type === 'extrude')!.depth).toBe('=min(max(width,3)/4,thickness+20)');
+    expect(part.variables.find((v: Rec) => v.name === 'big').expr).toBe('max(width,3)/4');
+  });
   it('what the grammar cannot hold stays a number and the row says so', async () => {
-    const { f, r } = await run(params, [sketch(1), extrude(2, 1, 'max(width, 3) / 4')]);
-    expect(f.find((x) => x.type === 'extrude')!.depth).toBe(10);
-    expect(r.rows[1].notes?.[0]).toMatch(/extrude distance.*kept as the number 10/);
+    const { f, r } = await run([{ name: 'sin', expr: '3' }, ...params], [sketch(1), extrude(2, 1, 'sin + width / 4')]);
+    expect(f.find((x) => x.type === 'extrude')!.depth).toBe(13);
+    expect(r.rows[1].notes?.[0]).toMatch(/extrude distance.*kept as the number 13/);
     expect(r.rows[1].status).toBe('converted');
   });
   it('a parameter whose name the part cannot take is not a variable, and fields using it are numbers with a note', async () => {
