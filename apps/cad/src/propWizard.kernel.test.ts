@@ -7,6 +7,7 @@ import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { DEFAULT_PROP, freePrefix, propOps, propOwner, propPlan, type PropParams } from './propData';
 import { readVars } from './variables';
+import { folderIds } from './treeFolders';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -83,4 +84,28 @@ describe('propeller wizard commit path against the real kernel', { skip: !proces
     // a second propeller in the same document would use the next prefix, so the first one's variables stay
     expect(freePrefix(readVars(d1))).toBe('prop2');
   }, 400000);
+
+  it('the propeller sits in one folder; editing it keeps the folder (renamed too); deleting the folder removes exactly its features, one undo step', async () => {
+    const w = await world();
+    await w.controller.applyDocPatch(propPlan(w.controller.document() as never, P()).patch as never, 'propeller');
+    const feats = () => w.controller.document()!.features as unknown as Array<{ id: string; type: string; group?: string }>;
+    const n = feats().length;
+    expect(new Set(feats().map((f) => f.group))).toEqual(new Set(['Propeller']));
+    // the user renames the folder, then re-opens the wizard and changes a size: still the renamed folder
+    await w.controller.edit(feats().map((f) => ({ op: 'set' as const, id: f.id, path: 'group', value: 'Drive prop' })));
+    const owner = propOwner(feats() as never, 'F1')!;
+    const plan = propPlan(w.controller.document() as never, { ...owner.params, diameter: 100 }, owner.roles);
+    expect((await w.controller.applyDocPatch(plan.patch as never, 'propeller')).ok).toBe(true);
+    expect(new Set(feats().map((f) => f.group))).toEqual(new Set(['Drive prop']));
+    // delete the folder: everything it holds goes in one step
+    const rows = feats().map((f) => ({ id: f.id, type: f.type, group: f.group }));
+    const ids = folderIds(rows, feats(), 'Drive prop');
+    expect(ids.length).toBe(n);
+    const before = w.controller.history().length;
+    expect((await w.controller.deleteFeatures(ids))?.ok).toBe(true);
+    expect(feats().length).toBe(0);
+    expect(w.controller.history().length).toBe(before + 1);
+    await w.controller.undo();
+    expect(feats().length).toBe(n);
+  }, 300000);
 });

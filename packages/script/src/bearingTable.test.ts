@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BEARING_PRESETS, bearingModel, bearingPreset, bearingProblem, defaultBallCount, defaultChamfer, findBearings, housingSeat, innerRingProfile, it7, maxBalls, outerRingProfile,
+  BEARING_PRESETS, bearingModel, bearingPreset, bearingProblem, defaultBallCount, defaultChamfer, findBearings, housingSeat, innerRingPath, innerRingProfile, it7, maxBalls, outerRingPath, outerRingProfile,
   type BearingSpec,
 } from './bearingTable';
 
@@ -169,40 +169,143 @@ describe('bearing model', () => {
 
 describe('bearing ring profiles', () => {
   const spec = (seal: BearingSpec['seal'], o: Partial<BearingSpec> = {}): BearingSpec => ({ bore: 8, od: 22, width: 7, seal, ...o });
-  it('the inner ring is a rectangle with four chamfered corners', () => {
-    const m = bearingModel(spec('open'));
+  /** Area of the disc beyond a chord at distance h from the centre (the groove cut out of the ring at its shoulder). */
+  const segment = (r: number, h: number): number => r * r * Math.acos(h / r) - h * Math.sqrt(r * r - h * h);
+  const smallBall = { ballDiameter: 1 };   // balls much smaller than the gap: no groove, plain races
+
+  it('without a groove the inner ring is a rectangle with four chamfered corners', () => {
+    const m = bearingModel(spec('open', smallBall));
+    expect(m.groove).toBeNull();
+    expect(m.r2s).toBe(m.r2);
     const pts = innerRingProfile(m);
     expect(pts.length).toBe(8);
     expect(area(pts)).toBeCloseTo(m.ring * m.width - 4 * (m.chamfer * m.chamfer) / 2, 9);
     expect(selfIntersects(pts)).toBe(false);
     for (const [x, y] of pts) { expect(x).toBeGreaterThanOrEqual(m.r1 - 1e-12); expect(x).toBeLessThanOrEqual(m.r2 + 1e-12); expect(y).toBeGreaterThanOrEqual(0); expect(y).toBeLessThanOrEqual(m.width); }
   });
-  it('the open outer ring is the same with its own radii; sharp corners give a plain rectangle', () => {
-    const m = bearingModel(spec('open'));
+  it('without a groove the open outer ring is the same with its own radii; sharp corners give a plain rectangle', () => {
+    const m = bearingModel(spec('open', smallBall));
     expect(area(outerRingProfile(m))).toBeCloseTo(m.ring * m.width - 4 * (m.chamfer * m.chamfer) / 2, 9);
-    const sharp = bearingModel(spec('open', { chamfer: 0 }));
+    const sharp = bearingModel(spec('open', { ...smallBall, chamfer: 0 }));
     expect(innerRingProfile(sharp).length).toBe(4);
     expect(outerRingProfile(sharp).length).toBe(4);
     expect(area(outerRingProfile(sharp))).toBeCloseTo(sharp.ring * sharp.width, 9);
   });
+
+  describe('the ball groove', () => {
+    it('608: an arc of 0.52 ball diameters about the ball centre circle at mid-width, 0.27 ball diameters deep', () => {
+      const m = bearingModel(spec('open'));
+      const g = m.groove!;
+      expect(g).not.toBeNull();
+      expect(g.radius).toBeCloseTo(0.52 * m.ballDiameter, 12);
+      expect(g.depth).toBeCloseTo(0.27 * m.ballDiameter, 12);
+      expect(g.centre[0]).toBeCloseTo(m.pitchRadius, 12);
+      expect(g.centre[1]).toBeCloseTo(m.width / 2, 12);
+      // the numbers of a 608 (ball 3.724): radius 1.936, depth 1.005, centre circle 7.5, shoulders 6.569 and 8.431
+      expect(g.radius).toBeCloseTo(1.9365, 3); expect(g.depth).toBeCloseTo(1.0055, 3); expect(m.pitchRadius).toBeCloseTo(7.5, 9);
+      expect(m.r2s).toBeCloseTo(6.569, 3); expect(m.r3s).toBeCloseTo(8.431, 3);
+      // the shoulders are mirror images about the ball circle
+      expect(m.r2s + m.r3s).toBeCloseTo(2 * m.pitchRadius, 12);
+      expect(m.pitchRadius - g.radius).toBeCloseTo(m.r2, 1);   // for the default ball the groove bottom is the old race radius
+    });
+    it('6204: scales with its ball (7.182): radius 3.735, depth 1.939, centre circle 16.75', () => {
+      const m = bearingModel({ bore: 20, od: 47, width: 14, seal: 'open' });
+      expect(m.groove!.radius).toBeCloseTo(3.7346, 3); expect(m.groove!.depth).toBeCloseTo(1.9391, 3); expect(m.pitchRadius).toBeCloseTo(16.75, 9);
+    });
+    it('the ball sits in the groove: centre on the groove centre, ball radius <= groove radius, depth < ball radius, no ring point inside the ball', () => {
+      for (const p of BEARING_PRESETS) {
+        const m = bearingModel({ bore: p.bore, od: p.od, width: p.width, seal: 'open' });
+        const g = m.groove;
+        if (!g) continue;
+        const rb = m.ballDiameter / 2;
+        expect(g.centre, p.designation).toEqual([m.pitchRadius, m.width / 2]);
+        expect(rb, p.designation).toBeLessThanOrEqual(g.radius);
+        expect(g.depth, p.designation).toBeLessThan(rb);
+        expect(g.radius - rb, p.designation).toBeGreaterThanOrEqual(0);   // surface clearance of the ball in the groove at its bottom
+        for (const pts of [innerRingProfile(m, 200), outerRingProfile(m, 200)]) {
+          for (const q of pts) expect(Math.hypot(q[0] - g.centre[0], q[1] - g.centre[1]), p.designation).toBeGreaterThanOrEqual(rb - 1e-9);
+        }
+        // the shoulders stand on the ball's side of the pitch circle
+        expect(m.r2s, p.designation).toBeLessThan(m.pitchRadius); expect(m.r3s, p.designation).toBeGreaterThan(m.pitchRadius);
+      }
+    });
+    it('the ring area is the plain rectangle minus the chamfers and the exact circular segment of the groove', () => {
+      const m = bearingModel(spec('open'));
+      const g = m.groove!;
+      const plain = (m.r2s - m.r1) * m.width - 2 * (m.chamfer * m.chamfer);
+      const cut = segment(g.radius, g.radius - g.depth);
+      // 4000 chords per arc put the polygon within a few parts in 10^9 of the true area
+      expect(area(innerRingProfile(m, 4000))).toBeCloseTo(plain - cut, 5);
+      expect(area(outerRingProfile(m, 4000))).toBeCloseTo((m.R - m.r3s) * m.width - 2 * (m.chamfer * m.chamfer) - cut, 5);
+    });
+    it('the path has one true arc per ring about the ball centre, the profile is simple and symmetric about mid-width', () => {
+      const m = bearingModel(spec('open'));
+      for (const path of [innerRingPath(m), outerRingPath(m)]) {
+        const arcs = path.filter((n) => n.arc);
+        expect(arcs.length).toBe(1);
+        expect(arcs[0].arc!.c).toEqual(m.groove!.centre);
+        const i = path.indexOf(arcs[0]); const a = arcs[0].p, b = path[(i + 1) % path.length].p;
+        expect(Math.hypot(a[0] - m.pitchRadius, a[1] - m.width / 2)).toBeCloseTo(m.groove!.radius, 12);
+        expect(Math.hypot(b[0] - m.pitchRadius, b[1] - m.width / 2)).toBeCloseTo(m.groove!.radius, 12);
+        expect(a[1] + b[1]).toBeCloseTo(m.width, 12);
+      }
+      for (const pts of [innerRingProfile(m), outerRingProfile(m)]) {
+        expect(selfIntersects(pts)).toBe(false);
+        for (const [x, y] of pts) expect(pts.some(([a, b]) => Math.abs(a - x) < 1e-9 && Math.abs(b - (m.width - y)) < 1e-9)).toBe(true);
+      }
+    });
+    it('the groove stays clear of the chamfers and the covers, and the wall under it is at least 0.4 mm', () => {
+      for (const p of BEARING_PRESETS) for (const seal of ['open', '2Z', '2RS'] as const) {
+        const m = bearingModel({ bore: p.bore, od: p.od, width: p.width, seal });
+        const g = m.groove;
+        if (!g) continue;
+        const edge = seal === 'open' ? m.chamfer : Math.max(m.chamfer, m.recess + m.shieldThickness);
+        expect(m.width / 2 - g.halfWidth, `${p.designation} ${seal}`).toBeGreaterThanOrEqual(edge + 0.15 - 1e-9);
+        expect(g.centre[0] - g.radius - m.r1, `${p.designation} ${seal}`).toBeGreaterThanOrEqual(0.4);
+        expect(m.R - (g.centre[0] + g.radius), `${p.designation} ${seal}`).toBeGreaterThanOrEqual(0.4);
+        expect(m.shieldTip, `${p.designation} ${seal}`).toBeGreaterThan(m.r2s);
+        expect(m.shieldTip, `${p.designation} ${seal}`).toBeLessThan(m.r3s);
+      }
+    });
+    it('a sealed bearing is grooved for the default ball; the only presets left plain are the tiniest MR sizes (a ring under 0.4 mm)', () => {
+      const plain = new Set<string>();
+      for (const p of BEARING_PRESETS) for (const seal of ['open', '2Z', '2RS'] as const) {
+        const m = bearingModel({ bore: p.bore, od: p.od, width: p.width, seal });
+        if (!m.groove) { plain.add(p.designation); expect(m.r2s).toBe(m.r2); expect(m.r3s).toBe(m.r3); }
+        if (seal !== 'open') expect(m.ballDiameter).toBe(0);
+      }
+      expect([...plain].sort()).toEqual(['MR52', 'MR63', 'MR74', 'MR85']);
+      const sealed = bearingModel(spec('2RS'));
+      expect(sealed.groove!.radius).toBeCloseTo(0.52 * sealed.grooveBall, 12);
+    });
+    it('a custom ball sets the groove; balls much smaller than the gap, or a ring too thin, keep the plain race', () => {
+      const big = bearingModel(spec('open', { ballDiameter: 3.9 }));
+      expect(big.groove!.radius).toBeCloseTo(0.52 * 3.9, 12);
+      expect(bearingModel(spec('open', { ballDiameter: 2 })).groove).toBeNull();
+      expect(bearingModel({ bore: 3, od: 6, width: 2.5, seal: 'open' }).groove).toBeNull();
+      expect(bearingProblem(spec('open', { ballDiameter: 2 }))).toBeNull();
+    });
+  });
+
   for (const seal of ['2Z', '2RS'] as const) {
     it(`${seal}: the outer ring carries a cover at each face, mirror-symmetric, simple, and clear of the inner ring`, () => {
       const m = bearingModel(spec(seal));
       const pts = outerRingProfile(m);
       expect(selfIntersects(pts)).toBe(false);
       expect(Math.min(...pts.map((p) => p[0]))).toBeCloseTo(m.shieldTip, 9);
-      expect(m.shieldTip).toBeGreaterThan(m.r2);
-      expect(m.shieldTip).toBeLessThan(m.r3);
+      expect(m.shieldTip).toBeGreaterThan(m.r2s);
+      expect(m.shieldTip).toBeLessThan(m.r3s);
       // mirror symmetry about the mid plane: every point has a partner at B - y
       for (const [x, y] of pts) expect(pts.some(([a, b]) => Math.abs(a - x) < 1e-9 && Math.abs(b - (m.width - y)) < 1e-9)).toBe(true);
-      // the cover adds material to the open ring's area, but not more than the two discs
+      // the cover adds material to the open ring's area, but not more than the two discs (the plain outer ring, without a groove, is the yardstick)
       const open = bearingModel(spec('open'));
-      const extra = area(pts) - area(outerRingProfile(open));
+      const extra = area(pts) - area(outerRingProfile(open, 4000));
       expect(extra).toBeGreaterThan(0);
-      expect(extra).toBeLessThan(2 * (m.r3 - m.shieldTip) * m.shieldThickness + 1e-9 + 2 * m.chamfer * m.recess);
-      // the two covers leave an open cavity between them
-      const ys = pts.filter(([x]) => Math.abs(x - m.r3) < 1e-9).map(([, y]) => y);
+      expect(extra).toBeLessThan(2 * (m.r3s - m.shieldTip) * m.shieldThickness + 1e-9 + 2 * m.chamfer * m.recess);
+      // the two covers leave an open cavity between them, with the groove on its wall
+      const ys = pts.filter(([x]) => Math.abs(x - m.r3s) < 1e-9).map(([, y]) => y);
       expect(ys.some((y) => y > m.recess + m.shieldThickness - 1e-9 && y < m.width / 2)).toBe(true);
+      expect(outerRingPath(m).filter((n) => n.arc).length).toBe(1);
     });
   }
   it('2RS is thicker than 2Z and its lip slopes', () => {

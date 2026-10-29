@@ -2,6 +2,8 @@
 // checks that need no kernel, and the ops. The ops come from the script's knurl() helper (packages/script/src/features/knurl.ts), so the wizard and the
 // Script tab cut the same grooves. Nothing here touches the DOM or the kernel.
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupOps, wizardGroupName } from './wizardGroup';
 import { cosmeticToOpts, knurlCosmeticRecord, knurlEditOps, type CosmeticKnurl, type KnurlOpts } from '@kit/script';
 import type { EdgeLike } from './threadData';
 import { cylinderOfFace } from './threadData';
@@ -122,11 +124,11 @@ export function knurlIssue(p: KnurlParams): KnurlIssue | null {
   return null;
 }
 
-/** The ops that append the knurl to the document: sketches, planes and cuts, numbered from the document's next feature id. Throws with the helper's message. */
+/** The ops that append the knurl to the document, in one tree folder named after the wizard (see wizardGroup.ts): sketches, planes and cuts, numbered from the document's next feature id. Throws with the helper's message. */
 export function knurlOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: KnurlParams): EditOp[] {
   const o = knurlOpts({ ...p, cosmetic: false });
   if (!o) throw new Error('Pick a cylindrical face to knurl');
-  return knurlEditOps(o, nextSeq(doc)) as unknown as EditOp[];
+  return groupOps(knurlEditOps(o, nextSeq(doc)) as unknown as EditOp[], wizardGroupName(doc.features, t('knurl.title')));
 }
 
 /** Grooves per ... for a start: about one groove every 1.5 mm of circumference, rounded to a multiple of 2 and kept in 8..120. */

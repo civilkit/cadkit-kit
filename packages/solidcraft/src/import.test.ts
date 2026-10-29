@@ -193,12 +193,42 @@ describe('what is refused or reported', () => {
     const tooHigh = await importSolidcraftDocument(doc([path({ control: true, degree: 5 })]), 'p');
     expect(tooHigh.rows[0].status).toBe('unsupported');
   });
-  it('imported geometry (a STEP body kept by a converter) is reported with its own reason; a suppressed one is skipped', async () => {
-    const imp = (over: Record<string, unknown> = {}) => ({ id: 3, name: 'Original', type: 'import', suppressed: false, step_blob: 'blobs/x.step', ...over });
-    const r = await importSolidcraftDocument(doc([imp(), sketch(4)]), 'x');
-    expect(r.rows[0]).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/original solid as imported geometry/) });
-    expect(r.rows[1].status).toBe('converted');
-    expect((await importSolidcraftDocument(doc([imp({ suppressed: true })]), 'x')).rows[0].status).toBe('skipped');
+  describe('imported geometry (a STEP body kept by a converter)', () => {
+    const STEP = 'ISO-10303-21;\nHEADER;\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n';
+    const sha = async (t: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t))), (b) => b.toString(16).padStart(2, '0')).join('');
+    const imp = (over: Record<string, unknown> = {}) => ({ id: 3, name: 'Original', type: 'import', suppressed: false, step: '', step_blob: 'blobs/x.step', ...over });
+    const blob = async (p: string) => (p === 'blobs/x.step' ? new TextEncoder().encode(STEP) : null);
+    it('becomes an importStep feature holding the STEP text, turned to Y up, with the sketches kept after it', async () => {
+      const r = await importSolidcraftDocument(doc([imp(), sketch(4)]), 'x', { blob });
+      expect(r.rows[0]).toMatchObject({ status: 'converted', notes: [expect.stringMatching(/STEP body stored in the file/)] });
+      expect(r.rows[1].status).toBe('converted');
+      const f = r.part!.features as Array<Record<string, any>>;
+      const key = await sha(STEP);
+      expect(f[0]).toMatchObject({ type: 'importStep', id: 'F1', blob: key });
+      expect(f[1]).toMatchObject({ type: 'moveBody', bodies: [{ feature: 'F1' }], rotate: { axis: 'x', angle: -90 } });
+      expect(f[2].type).toBe('sketch');
+      expect(r.part!.blobs).toEqual({ [key]: STEP });
+      expect(r.geometryComplete).toBe(true);
+    });
+    it('inline STEP text works without an archive; the same text twice is one blob', async () => {
+      const r = await importSolidcraftDocument(doc([imp({ step: STEP, step_blob: undefined }), imp({ id: 9, step: STEP, step_blob: undefined, name: 'Again' })]), 'x');
+      expect(Object.keys(r.part!.blobs!)).toHaveLength(1);
+      expect(r.rows.map((x) => x.status)).toEqual(['converted', 'converted']);
+      // two bodies: both are named, so what comes later can find them
+      const f = (r.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'importStep');
+      expect(f.map((x) => x.body)).toEqual(['Body1', 'Body2']);
+    });
+    it('without the data it is reported (not as "no feature") and kept as a placeholder; a suppressed one is skipped', async () => {
+      const r = await importSolidcraftDocument(doc([imp(), sketch(4)]), 'x');
+      expect(r.rows[0]).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/STEP data could not be read/) });
+      expect(r.rows[0].reason).not.toMatch(/no feature/);
+      expect(r.rows[1].status).toBe('converted');
+      expect((r.part!.features as Array<Record<string, any>>)[0].type).toBe('importedUnsupported');
+      expect(r.part!.blobs).toBeUndefined();
+      const bad = await importSolidcraftDocument(doc([imp()]), 'x', { blob: async () => new TextEncoder().encode('not step') });
+      expect(bad.rows[0].status).toBe('unsupported');
+      expect((await importSolidcraftDocument(doc([imp({ suppressed: true })]), 'x')).rows[0].status).toBe('skipped');
+    });
   });
   it('an unsupported sketch takes its extrude with it, and the numbering of the rest is intact', async () => {
     const bad = sketch(1); bad.sketch.curves[0] = { id: 'l1', type: 'conic', a: 1, b: 2 } as never;

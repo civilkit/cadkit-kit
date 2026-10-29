@@ -6,6 +6,7 @@ import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
+import { sldprtAsPart, type SldprtPartResult } from './files/sldprtImport';
 import { importSkpView, type SkpImportResult, type SkpLook, type SkpOrient } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
@@ -1086,6 +1087,19 @@ export class Controller {
       if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; }
       return r;
     } finally { this.store.busy.value = false; }
+  }
+
+  /**
+   * A SolidWorks .SLDPRT as an editable part: the kernel reads the solid of the file, writes it out as STEP and the part holds it as an
+   * imported body (see files/sldprtImport.ts). Nothing is shown or changed here; the caller loads `part`. When the part cannot be built
+   * the result says why, and `importSldprt` shows the body view-only instead.
+   */
+  async sldprtPart(bytes: Uint8Array, name: string): Promise<SldprtPartResult> {
+    if (this.realLoad) await this.whenReal();
+    const k = this.transport();
+    if (!k) return { ok: false, code: 'noSession', message: 'no document loaded' };
+    this.store.busy.value = true;
+    try { return await sldprtAsPart(k, bytes, name); } finally { this.store.busy.value = false; }
   }
 
   /** Show a SketchUp .skp file in the viewport (view only, like STEP): faces coloured by their SketchUp materials. `opts.hidden` also brings in hidden geometry. */

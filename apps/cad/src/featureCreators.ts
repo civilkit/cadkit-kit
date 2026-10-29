@@ -6,7 +6,7 @@
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
-import { DEFAULT_GEAR, defaultPair, gearOps, type GearParams } from './gearData';
+import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
@@ -475,7 +475,7 @@ export function gearPlane(c: Ctx): { kind: string; id: string } {
 export function gearCreateOps(c: Ctx, pair = false): EditOp[] | null {
   if (!c.doc) return null;
   const base: GearParams = { ...DEFAULT_GEAR, plane: gearPlane(c) };
-  return gearOps(c.doc as never, pair ? defaultPair(base) : base);
+  return gearCommitOps(c.doc as never, pair ? defaultPair(base) : base);
 }
 
 // ---- commands ----

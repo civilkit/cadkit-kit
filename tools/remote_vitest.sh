@@ -48,6 +48,9 @@ SYNC=(rsync -a -e "$RSH" --exclude node_modules --exclude 'dist*' --exclude .git
 SYNCK=(rsync -a -e "$RSH" --exclude node_modules --exclude .DS_Store)
 "${SYNCK[@]}" "$KERNEL/packages/" "$H:ci-cad/remote-vitest/$NAME/kernel/packages/" >/dev/null || { echo "sync of the kernel packages failed" >&2; exit 70; }
 rsync -a -e "$RSH" "$WASM" "$H:ci-cad/remote-vitest/$NAME/ck_wasm.wasm" || { echo "sync of the wasm failed" >&2; exit 70; }
+# a run directory without the kernel packages' built dist (the session's worker host lives there) takes a copy of the shared one, ci-cad/remote-vitest/.kernel-dist
+# (build it once on the box with `npm run build` in the kernel's packages/, then copy that dist/ there)
+ssh "${SSHO[@]}" "$H" "d=$R/$NAME/kernel/packages/dist; [ -f \$d/kernel-client/src/worker-host.js ] || { [ -d $R/.kernel-dist ] && cp -r $R/.kernel-dist \$d; }" || true
 # the vitest args cross ssh as one quoted string
 ARGS=""; for a in "$@"; do ARGS="$ARGS $(printf '%q' "$a")"; done
 ssh "${SSHO[@]}" "$H" bash -s <<EOF

@@ -26,7 +26,7 @@ export function base64Of(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
-function viewOfImport(rep: Awaited<ReturnType<Session['importStep']>>): StepImportResult {
+export function viewOfImport(rep: Awaited<ReturnType<Session['importStep']>>): StepImportResult {
   if (rep.errors.length) {
     const [where, err] = rep.errors[0];
     return { ok: false, code: err.code, message: `${where}: ${err.code}` };

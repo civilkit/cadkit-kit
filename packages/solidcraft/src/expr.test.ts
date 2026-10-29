@@ -26,8 +26,36 @@ describe('parameter expressions', () => {
     expect(evalExpr('1 + ,25')).toBe(1.25);
     expect(evalExpr('(2,5 + 1)')).toBe(3.5);
   });
+  it('units are converted: lengths to mm, angles to degrees', () => {
+    expect(evalExpr('2 cm')).toBe(20);
+    expect(evalExpr('1.5 m')).toBe(1500);
+    expect(evalExpr('1 in + 1 mm')).toBeCloseTo(26.4, 12);
+    expect(evalExpr('2 ft')).toBeCloseTo(609.6, 12);
+    expect(evalExpr('0.5 rad')).toBeCloseTo(28.6478897565, 9);
+    expect(evalExpr('w / 2 cm', { w: 40 })).toBe(2);   // the unit belongs to the number it follows
+    expect(evalExpr('in * 2', { in: 3 })).toBe(6);   // a unit word that is not after a number is a name
+  });
+  it('powers, constants and functions', () => {
+    expect(evalExpr('2 ^ 3 ^ 2')).toBe(512);   // right to left
+    expect(evalExpr('-2 ^ 2')).toBe(-4);
+    expect(evalExpr('2 ^ -1')).toBe(0.5);
+    expect(evalExpr('2 * pi')).toBeCloseTo(6.283185307179586, 12);
+    expect(evalExpr('PI')).toBe(Math.PI);
+    expect(evalExpr('sqrt(a ^ 2 + b ^ 2)', { a: 3, b: 4 })).toBe(5);
+    expect(evalExpr('sin(30 deg)')).toBeCloseTo(0.5, 12);   // degrees in, degrees out
+    expect(evalExpr('cos(60) * 10')).toBeCloseTo(5, 12);
+    expect(evalExpr('atan2(1, 1)')).toBeCloseTo(45, 12);
+    expect(evalExpr('asin(0.5)')).toBeCloseTo(30, 12);
+    expect(evalExpr('max(1, 5, 3) - min(2, 4)')).toBe(3);
+    expect(evalExpr('max(1,5)')).toBe(5);   // inside a function a comma separates arguments
+    expect(evalExpr('hypot(3, 4) + pow(2, 3) + mod(7, 4)')).toBe(16);
+    expect(evalExpr('round(2.5) + round(-2.5) + floor(1.9) + ceil(1.1) + trunc(-1.9) + abs(-1)')).toBe(3 - 3 + 1 + 2 - 1 + 1);
+    expect(evalExpr('ln(exp(2)) + log10(1000)')).toBeCloseTo(5, 12);
+    expect(evalExpr('max(a, 1)', { a: 7 })).toBe(7);
+    expect(evalExpr('max', { max: 9 })).toBe(9);   // a parameter may be called like a function
+  });
   it('refuses what it cannot evaluate, never guesses', () => {
-    for (const bad of ['', 'x', 'width', '1 +', '(1 + 2', '1 / 0', '2 cm', 'foo(1)', '1 ^ 2', '3 $ 4', '1 2', '==3', '= =3', '2 ,5', '1.5,5', '3,']) expect(() => evalExpr(bad), bad).toThrow(ExprError);
+    for (const bad of ['', 'x', 'width', '1 +', '(1 + 2', '1 / 0', 'foo(1)', 'log(10)', 'sign(2)', 'max(', 'sqrt(1, 2)', 'atan2(1)', '2 mm mm', '3 $ 4', '1 2', '==3', '= =3', '2 ,5', '1.5,5', '3,']) expect(() => evalExpr(bad), bad).toThrow(ExprError);
     expect(() => evalExpr(NaN)).toThrow(ExprError);
     expect(() => evalExpr('toString')).toThrow(ExprError);   // not an inherited property
   });

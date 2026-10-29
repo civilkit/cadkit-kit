@@ -29,6 +29,7 @@ export const filesEn = {
   'files.drop.stl': 'STL files cannot be imported yet (mesh import is not available). Use a STEP file instead.',
   'files.drop.one': 'Drop one file at a time.',
   'files.dxf.target': 'DXF opens in a sketch: a new sketch on the front plane was started.',
+  'files.sldprt.part': 'Opened {name} (SolidWorks): {faces} faces, as an editable body. The design history of the file is not read; the solid is kept in the part.',
   'files.sldprt.done': 'Imported {name} (SolidWorks): {faces} faces. Imported bodies are view only and are not saved with the part.',
   'files.skp.done': 'Imported {name} (SketchUp): {faces} faces in {pieces} pieces, {materials} materials. Imported bodies are view only and are not saved with the part.',
   'files.skp.open': 'SketchUp surface model: {open} open edges; solids operations may not apply. Convert to CAD is planned.',

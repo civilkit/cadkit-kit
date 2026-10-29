@@ -1,6 +1,6 @@
 // Bearings: a row of deep-groove ball bearings by designation (nominal ISO 15 sizes), with a flat shield (2Z), a seal (2RS) or open with visible balls.
 // Paste into the Script tab and Run (a few seconds). Each ring and each ball is its own body, the first face of every bearing on the XY plane.
-// The races are plain cylinders without ball grooves: for assemblies, fit checks and looks, not for load ratings.
+// Each race has a ball groove (no cage): for assemblies, fit checks and looks, not for load ratings.
 const { spacing } = variables({ spacing: 30 });
 const list = [
   { designation: '625', seal: '2Z' },      // the NEMA 17 rear bearing

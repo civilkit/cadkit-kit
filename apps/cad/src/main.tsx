@@ -65,7 +65,7 @@ import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
 import { importFcstd, resolveEdges } from '@kit/fcstd';
-import { importSolidcraft, kernelResolvers, type ScPart } from '@kit/solidcraft';
+import { importSolidcraft, kernelResolvers, kernelStepTools, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
 import { createAnalysisStore } from './analysisState';
@@ -95,7 +95,7 @@ import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
 import { ThreadEditor } from './ThreadEditor';
 import { followedFaces, patternedBy, threadParents, type ThreadEntry } from './patternThreads';
 import { GearEditor } from './GearEditor';
-import { gearOps, gearOwner, readGear, type GearParams } from './gearData';
+import { gearCommitOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
 import { MarineWizard } from './MarineWizard';
 import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, marineSpacings, type MarineParams } from './marineData';
@@ -942,10 +942,17 @@ function App() {
     if (r.ok) { viewport?.fit(); store.notify(t('files.step.done', { name: file, faces: r.faces })); offerZUp(r.view.mesh); }
     else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
   });
-  /** A SolidWorks part into a new part named after the file (view only, like STEP). */
+  /** A SolidWorks part into a new part named after the file: an editable imported body (see files/sldprtImport.ts); when that cannot be built, the solid is shown view only as for STEP. */
   const importSldprtBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
-    await load(JSON.stringify(emptyPart(partNameOf(file))), { file: null });
-    const r = await controller.importSldprt(bytes, partNameOf(file));
+    const name = partNameOf(file);
+    await load(JSON.stringify(emptyPart(name)), { file: null });
+    const made = await controller.sldprtPart(bytes, name);
+    if (made.ok) {
+      await load(JSON.stringify(made.part), { file: null });
+      viewport?.fit(); store.notify(t('files.sldprt.part', { name: file, faces: made.faces })); offerZUp(made.view.mesh);
+      return;
+    }
+    const r = await controller.importSldprt(bytes, name);
     if (r.ok) { viewport?.fit(); store.notify(t('files.sldprt.done', { name: file, faces: r.faces })); offerZUp(r.view.mesh); }
     else store.notify(t('files.step.failed', { name: file, message: r.message }), 'error');
   });
@@ -983,6 +990,8 @@ function App() {
     if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
     return new Session(partBefore as unknown as PartDoc, transport, 'import', 'solidcraft-import');
   });
+  /** The kernel's answers about the original solid of a converted file: its STEP read to the right body, and the volume the operations of the file have to rebuild. */
+  const scStep = kernelStepTools(() => kernelRouter.transport());
   /** Open a component's own part in a tab of its own (next to the assembly's); Done writes it back into the assembly, Cancel just closes the tab. */
   const editComponent = (id: string) => {
     const asm = controller.document() as unknown as PartDoc | null;
@@ -1027,7 +1036,7 @@ function App() {
     const tStart = Date.now();
     let r: Awaited<ReturnType<typeof importSolidcraft>>;
     try {
-      r = await importSolidcraft(bytes, name, { ...scResolvers, signal: ctl.signal, onProgress: (done, total) => { importing.value = { name: file, done, total, abort: () => ctl.abort(), phase: 'reading' }; } });
+      r = await importSolidcraft(bytes, name, { ...scResolvers, ...scStep, signal: ctl.signal, onProgress: (done, total) => { importing.value = { name: file, done, total, abort: () => ctl.abort(), phase: 'reading' }; } });
     } catch (e) {
       importing.value = null;
       store.notify(t('files.solidcraft.failed', { name: file, message: (e as Error).message }), 'error');
@@ -2537,7 +2546,7 @@ function App() {
   };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
   const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
-  const gearEditOps = (next: GearParams): EditOp[] => gearOps(doc as never, next, gearRec?.roles);
+  const gearEditOps = (next: GearParams): EditOp[] => gearCommitOps(doc as never, next, gearRec?.roles);
   const onGearDraft = (next: GearParams) => { void controller.preview(gearEditOps(next)).then(onPreviewResult); };
   const onGearConfirm = async (next: GearParams) => {
     await timed(() => controller.commit(gearEditOps(next), 'gear'));

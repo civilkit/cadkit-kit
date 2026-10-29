@@ -88,6 +88,7 @@ export const en: Catalog = {
   'ui.editor.field.kind': 'Kind',
   'ui.editor.field.diameter': 'Diameter',
   'ui.editor.field.tip': 'Drill point tip',
+  'ui.editor.section.body': 'Body',
   'ui.editor.section.profile': 'Profile',
   'ui.editor.section.operation': 'Operation',
   'ui.editor.section.axis': 'Axis',

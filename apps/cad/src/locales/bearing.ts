@@ -23,7 +23,7 @@ export const bearingStrings: Record<string, string | Record<string, string>> = {
   'bearing.ballsTip': 'Number of balls; the default leaves about 0.6 of a ball between neighbours',
   'bearing.ballDiameter': 'Ball diameter',
   'bearing.ballDiameterTip': 'The default is just under the gap between the races',
-  'bearing.approx': 'The races are plain cylinders (no ball grooves, no cage) and the ring, ball and shield sizes follow rules of thumb: good for assemblies, fit checks and looks, not for load ratings.',
+  'bearing.approx': 'Each ring has a ball groove (a plain race when the size is too small for one; no cage), and the ring, groove, ball and shield sizes follow rules of thumb: good for assemblies, fit checks and looks, not for load ratings.',
   'bearing.position': 'First face centre',
   'bearing.x': 'X',
   'bearing.y': 'Y',

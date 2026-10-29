@@ -6,6 +6,8 @@
 // requested thickness NORMAL to the face, `axialThickness`) and the root end. The loft's side edges are the leading and trailing edge; the blade is fused to the hub,
 // patterned, bored. Frame: shaft axis Z; the pressure face is the surface itself, all the thickness is on the back. Geometry only: no hydrodynamics.
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupPatch, wizardGroupName } from './wizardGroup';
 
 const round = (v: number, d = 6): number => { const k = 10 ** d; return Math.round(v * k) / k; };
 
@@ -505,7 +507,7 @@ export function marinePlan(doc: { features: Array<{ id?: string }>; seq?: number
   const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
   if (existing && same) {
     const feats = marineFeatures(p, existing);
-    return { before: [], patch: { variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) } };
+    return { before: [], patch: groupPatch({ variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) }, wizardGroupName(doc.features, t('marine.title'), existing)) };
   }
   const before: EditOp[] = [];
   let features = doc.features;
@@ -519,5 +521,5 @@ export function marinePlan(doc: { features: Array<{ id?: string }>; seq?: number
   let n = start;
   for (const r of wanted) ids[r] = `F${n++}`;
   const feats = marineFeatures(p, ids);
-  return { before, patch: { variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length } };
+  return { before, patch: groupPatch({ variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length }, wizardGroupName(doc.features, t('marine.title'), existing)) };
 }

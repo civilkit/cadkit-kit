@@ -383,7 +383,7 @@ export const en: Catalog = {
   'opt.scale.title': 'Scale', 'opt.scale.uniform': 'Same in every direction', 'opt.scale.factor': 'Factor', 'opt.scale.x': 'Factor X', 'opt.scale.y': 'Factor Y', 'opt.scale.z': 'Factor Z',
   'opt.scale.about': 'About', 'opt.scale.about.centroid': 'Centre of mass', 'opt.scale.about.origin': 'Origin', 'opt.scale.about.point': 'A point', 'opt.scale.point': 'Point', 'opt.scale.bodies': 'Bodies', 'opt.scale.all': 'The whole part',
   'opt.sphere.title': 'Sphere', 'opt.sphere.radius': 'Radius', 'opt.sphere.centerX': 'Centre X', 'opt.sphere.centerY': 'Centre Y', 'opt.sphere.centerZ': 'Centre Z',
-  'feature.importedUnsupported': 'Not imported',
+  'feature.importedUnsupported': 'Not imported', 'feature.importStep': 'Imported STEP body',
   'feature.scale': 'Scale',
   'feature.axis': 'Axis',
 

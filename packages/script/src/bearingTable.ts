@@ -4,7 +4,7 @@
 // The table lists NOMINAL boundary dimensions (bore d, outer diameter D, width B) of single-row deep-groove ball bearings as ISO 15 gives them:
 // the miniature 6xx series, the MR miniature (1-up) series, the 60xx / 62xx / 63xx series and a few inch (R series) sizes. They are standard facts,
 // written down from the standard's tables and checked against each other (bore < D, one series stepping up with the bore); the ring and ball
-// sizes below the nominal ones (race gap, ball diameter, ball count, chamfer) are rules of thumb, not a bearing maker's catalogue.
+// sizes below the nominal ones (race gap, ball diameter, ball count, chamfer, groove) are rules of thumb, not a bearing maker's catalogue.
 
 export type BearingSeries = 'miniature' | 'mr' | '60' | '62' | '63' | 'inch';
 export interface BearingPreset {
@@ -99,6 +99,13 @@ export interface BearingSpec {
   ballDiameter?: number;
 }
 
+/**
+ * The ball groove of both rings: a circular arc in the section, centred on the ball centre circle (radius `centre[0]`, at mid-width `centre[1]`), of radius
+ * `radius` (a little more than the ball radius), cut `depth` into the ring from its shoulder. Seen from the section it spans `halfWidth` either side of mid-width at
+ * the shoulder radius. Rules of thumb: radius 0.52 ball diameters, depth 0.27 ball diameters.
+ */
+export interface BearingGroove { radius: number; depth: number; centre: [number, number]; halfWidth: number }
+
 /** The numbers of a bearing section. Radii are from the axis; y is along the axis from the first face (0) to the second (width). */
 export interface BearingModel {
   seal: BearingSeal;
@@ -112,7 +119,20 @@ export interface BearingModel {
   recess: number; shieldThickness: number; shieldTip: number;
   /** outer-ring inside corner chamfer when a shield sits there */ innerCornerChamfer: number;
   /** balls (open bearings; 0 otherwise) */ balls: number; ballDiameter: number; pitchRadius: number;
+  /**
+   * The ball groove, or null for a plain race (a ring too thin under the groove, a bearing too narrow for it, or balls much smaller than the gap).
+   * `grooveBall` is the ball diameter the groove is cut for: the real one for an open bearing, the default rule for a shielded or sealed one (the balls are hidden).
+   */
+  groove: BearingGroove | null; grooveBall: number;
+  /**
+   * Radius of the inner ring's outer surface (its shoulder) and of the outer ring's inner surface. With a groove the race radii r2 and r3 are where the groove
+   * bottom sits for the default ball, and the shoulders stand out of them (the ring is thicker at its sides, the way a deep-groove ring is); without one they equal r2 and r3.
+   */
+  r2s: number; r3s: number;
 }
+
+/** Groove rules of thumb: radius as a fraction of the ball diameter (conformity), depth as a fraction, the thinnest wall under it (mm), the smallest ball (as a fraction of the race gap) it is cut for. */
+const GROOVE_RADIUS = 0.52, GROOVE_DEPTH = 0.27, GROOVE_MIN_WALL = 0.4, GROOVE_MIN_BALL = 0.6;
 
 /** Ring chamfer by section height (D - d) / 2, after the usual minimum chamfers r_s of ISO 582: small for miniatures, 1 mm from about 13 mm of section up. */
 export function defaultChamfer(sectionHeight: number): number {
@@ -158,11 +178,20 @@ function bearingModelUnchecked(s: BearingSpec): BearingModel {
   const chamfer = s.chamfer ?? Math.min(defaultChamfer(H), 0.45 * ring);
   const recess = Math.min(Math.max(0.2, 0.04 * width), width / 4);
   const shieldThickness = seal === '2RS' ? Math.min(Math.max(0.12 * width, 0.4), 0.9) : Math.min(Math.max(0.07 * width, 0.25), 0.5);
-  const clearance = seal === '2RS' ? 0.03 : Math.max(0.05, Math.min(0.2, 0.08 * gap));
   const pitchRadius = (r2 + r3) / 2;
   const ballDiameter = seal === 'open' ? (s.ballDiameter ?? Math.min(0.95 * gap, 0.8 * width)) : 0;
   const balls = seal === 'open' ? (s.balls ?? defaultBallCount(pitchRadius, ballDiameter)) : 0;
-  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, recess, shieldThickness, shieldTip: r2 + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius };
+  const grooveBall = seal === 'open' ? ballDiameter : Math.min(0.95 * gap, 0.8 * width);
+  // the groove is an arc about the ball centre circle at mid-width; its bottom is rg inside (outside) the pitch circle on the inner (outer) ring
+  const rg = GROOVE_RADIUS * grooveBall, depth = GROOVE_DEPTH * grooveBall, halfWidth = Math.sqrt(Math.max(0, rg * rg - (rg - depth) ** 2));
+  const shoulder = pitchRadius - rg + depth;   // inner ring; the outer ring's is the mirror image about the pitch circle
+  const wall = Math.min(pitchRadius - rg - r1, R - (pitchRadius + rg));
+  const coverEdge = seal === 'open' ? chamfer : Math.max(chamfer, recess + shieldThickness);
+  const grooved = grooveBall >= GROOVE_MIN_BALL * gap && wall >= GROOVE_MIN_WALL && width / 2 - halfWidth >= coverEdge + 0.15 && shoulder < pitchRadius;
+  const groove: BearingGroove | null = grooved ? { radius: rg, depth, centre: [pitchRadius, width / 2], halfWidth } : null;
+  const r2s = grooved ? shoulder : r2, r3s = grooved ? 2 * pitchRadius - shoulder : r3;
+  const clearance = seal === '2RS' ? 0.03 : Math.max(0.05, Math.min(0.2, 0.08 * gap));
+  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, recess, shieldThickness, shieldTip: r2s + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius, groove, grooveBall, r2s, r3s };
 }
 
 /** The model of a bearing. Throws an Error with the reason when `bearingProblem` finds one. */
@@ -173,22 +202,53 @@ export function bearingModel(s: BearingSpec): BearingModel {
 }
 
 type Pt = [number, number];
+/**
+ * One corner of a ring section. `arc`, when set, says the edge from this corner to the next one is a circular arc about `c`, run counter-clockwise
+ * (`ccw`) or clockwise from this corner to the next. All other edges are straight lines.
+ */
+export interface PathNode { p: Pt; arc?: { c: Pt; ccw: boolean } }
+const node = (x: number, y: number, arc?: PathNode['arc']): PathNode => (arc ? { p: [x, y], arc } : { p: [x, y] });
 /** Drops repeated neighbours (a zero chamfer leaves two corner points on one spot). */
-const dedupe = (pts: Pt[]): Pt[] => pts.filter((p, i) => { const q = pts[(i + pts.length - 1) % pts.length]; return Math.hypot(p[0] - q[0], p[1] - q[1]) > 1e-9; });
+const dedupe = (ns: PathNode[]): PathNode[] => ns.filter((n, i) => { const q = ns[(i + ns.length - 1) % ns.length].p; return n.arc !== undefined || Math.hypot(n.p[0] - q[0], n.p[1] - q[1]) > 1e-9; });
 
-/** The section of the inner ring as a closed polygon: a rectangle with the four corners chamfered. x radial, y along the axis. */
-export function innerRingProfile(m: BearingModel): Pt[] {
-  const { r1, r2, width: B, chamfer: c } = m;
-  return dedupe([[r1 + c, 0], [r2 - c, 0], [r2, c], [r2, B - c], [r2 - c, B], [r1 + c, B], [r1, B - c], [r1, c]]);
+/** The polygon of a path with every arc replaced by `steps` chords (points on the true arc, so the polygon lies inside it). */
+export function flattenPath(path: PathNode[], steps = 48): Pt[] {
+  const out: Pt[] = [];
+  path.forEach((n, i) => {
+    out.push(n.p);
+    if (!n.arc) return;
+    const q = path[(i + 1) % path.length].p, [cx, cy] = n.arc.c;
+    const a0 = Math.atan2(n.p[1] - cy, n.p[0] - cx), r = Math.hypot(n.p[0] - cx, n.p[1] - cy);
+    let sweep = Math.atan2(q[1] - cy, q[0] - cx) - a0;
+    if (n.arc.ccw) { while (sweep <= 0) sweep += 2 * Math.PI; } else { while (sweep >= 0) sweep -= 2 * Math.PI; }
+    for (let k = 1; k < steps; k++) { const a = a0 + (sweep * k) / steps; out.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); }
+  });
+  return out;
 }
 
 /**
- * The section of the outer ring as a closed polygon. For a shielded or sealed bearing the cover is part of it (the shield is pressed into the outer ring):
- * a flat disc 2Z, or a thicker seal 2RS with a sloping lip, at both faces, recessed from the face and ending a little outside the inner ring.
+ * The section of the inner ring as a path: a rectangle with the four corners chamfered and, in the middle of its outer side, the ball groove (a true arc).
+ * x radial, y along the axis.
  */
-export function outerRingProfile(m: BearingModel): Pt[] {
-  const { r3, R, width: B, chamfer: c } = m;
-  if (m.seal === 'open') return dedupe([[r3 + c, 0], [R - c, 0], [R, c], [R, B - c], [R - c, B], [r3 + c, B], [r3, B - c], [r3, c]]);
+export function innerRingPath(m: BearingModel): PathNode[] {
+  const { r1, r2s: r2, width: B, chamfer: c, groove: g } = m;
+  const side: PathNode[] = g
+    ? [node(r2, B / 2 - g.halfWidth, { c: g.centre, ccw: false }), node(r2, B / 2 + g.halfWidth)]   // from the low side up over the groove bottom (the smaller radius)
+    : [];
+  return dedupe([node(r1 + c, 0), node(r2 - c, 0), node(r2, c), ...side, node(r2, B - c), node(r2 - c, B), node(r1 + c, B), node(r1, B - c), node(r1, c)]);
+}
+
+/**
+ * The section of the outer ring as a path. For a shielded or sealed bearing the cover is part of it (the shield is pressed into the outer ring):
+ * a flat disc 2Z, or a thicker seal 2RS with a sloping lip, at both faces, recessed from the face and ending a little outside the inner ring.
+ * The ball groove, when there is one, is a true arc in the middle of the inner side.
+ */
+export function outerRingPath(m: BearingModel): PathNode[] {
+  const { r3s: r3, R, width: B, chamfer: c, groove: g } = m;
+  if (m.seal === 'open') {
+    const side: PathNode[] = g ? [node(r3, B / 2 + g.halfWidth, { c: g.centre, ccw: false }), node(r3, B / 2 - g.halfWidth)] : [];   // downwards over the groove bottom (the larger radius)
+    return dedupe([node(r3 + c, 0), node(R - c, 0), node(R, c), node(R, B - c), node(R - c, B), node(r3 + c, B), node(r3, B - c), ...side, node(r3, c)]);
+  }
   const { recess: e, shieldThickness: ts, shieldTip: rt, innerCornerChamfer: cc } = m;
   // one cover, from the face at y = 0 up; the one at the other face is its mirror image (y -> B - y)
   const lip = (r: number, y: number): Pt[] => {
@@ -199,8 +259,16 @@ export function outerRingProfile(m: BearingModel): Pt[] {
   };
   const low: Pt[] = [[R - c, 0], [r3 + cc, 0], [r3, cc], ...lip(r3, e)];
   const high: Pt[] = [...low].map(([x, y]): Pt => [x, B - y]).reverse();
-  return dedupe([...low, ...high, [R, B - c], [R, c]]);
+  const nodes = (pts: Pt[]): PathNode[] => pts.map((q) => node(q[0], q[1]));
+  // between the covers the inner wall runs up past the groove (the larger radius, counter-clockwise about the ball centre)
+  const mid: PathNode[] = g ? [node(r3, B / 2 - g.halfWidth, { c: g.centre, ccw: true }), node(r3, B / 2 + g.halfWidth)] : [];
+  return dedupe([...nodes(low), ...mid, ...nodes(high), node(R, B - c), node(R, c)]);
 }
+
+/** The section of the inner ring as a closed polygon (arcs of the groove as `steps` chords; see `innerRingPath` for the exact one). */
+export function innerRingProfile(m: BearingModel, steps = 48): Pt[] { return flattenPath(innerRingPath(m), steps); }
+/** The section of the outer ring as a closed polygon (arcs of the groove as `steps` chords; see `outerRingPath` for the exact one). */
+export function outerRingProfile(m: BearingModel, steps = 48): Pt[] { return flattenPath(outerRingPath(m), steps); }
 
 // ---- the housing seat ----
 

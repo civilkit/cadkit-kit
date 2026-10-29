@@ -4,6 +4,8 @@
 // turn a record into edit ops; the record itself lives on the profile sketch as `gear` (the kernel keeps unknown fields), so reopening the
 // editor regenerates the same features from it. See docs/gears.md.
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupOps, wizardGroupName } from './wizardGroup';
 
 export type GearType = 'spur' | 'internal' | 'helical' | 'herringbone' | 'rack';
 export const GEAR_TYPES: GearType[] = ['spur', 'internal', 'helical', 'herringbone', 'rack'];
@@ -521,6 +523,11 @@ export function gearOps(doc: { features: Array<{ id?: string; type?: string }>; 
   const at = ops.findIndex((o) => o.op === 'replace' && (o as { id?: string }).id === ids.profile);
   if (at > 0) ops.unshift(ops.splice(at, 1)[0]);
   return ops;
+}
+
+/** gearOps as the editor commits it: the gear's features in one tree folder named after the wizard (a gear being edited keeps the folder it is in, see wizardGroup.ts). */
+export function gearCommitOps(doc: { features: Array<{ id?: string; type?: string }>; seq?: number }, p: GearParams, existing?: Record<string, string>): EditOp[] {
+  return groupOps(gearOps(doc, p, existing), wizardGroupName(doc.features, t('gear.title'), existing));
 }
 
 /** The default pair: 20 and 40 teeth, module 2, a little backlash so the flanks do not touch. */

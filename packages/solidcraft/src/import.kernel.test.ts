@@ -286,11 +286,11 @@ describe('hole', { skip: !process.env.CK_WASM, timeout: 90_000 }, () => {
     expect(out.errors.map((e) => e[1].code)).toEqual(['cutNoEffect']);
     expect(out.volume).toBeCloseTo(V, 1);
   });
-  it('a hole that goes up to a face is refused, and a cosmetic thread is skipped', async () => {
+  it('a hole that goes up to a face is as deep as the face is far, and a cosmetic thread is skipped', async () => {
     const out = await run([hole({ to: [20, 15, 5] }), { id: 5, name: 'T', type: 'thread', suppressed: false, face: [0, 0, 0], designation: 'M6' }]);
-    expect(out.r.rows.find((x) => x.type === 'hole')!.status).toBe('unsupported');
+    expect(out.r.rows.find((x) => x.type === 'hole')!.status).toBe('converted');
     expect(out.r.rows.find((x) => x.type === 'thread')!.status).toBe('skipped');
-    expect(out.volume).toBeCloseTo(V, 1);
+    expect(out.volume).toBeLessThan(V - 1);
   });
 });
 

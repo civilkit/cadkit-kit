@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BEARING, bearingIssue, bearingNumbers, bearingOpts, bearingOps, bearingSeat, bearingSpec, findBearings, seatOnFace, withPreset, type BearingParams, type FaceMesh } from './bearing';
+import { DEFAULT_BEARING, freeBodyPrefix, bearingIssue, bearingNumbers, bearingOpts, bearingOps, bearingSeat, bearingSpec, findBearings, seatOnFace, withPreset, type BearingParams, type FaceMesh } from './bearing';
 import { BEARING_PRESETS } from '@kit/script';
 
 const P = (o: Partial<BearingParams> = {}): BearingParams => ({ ...DEFAULT_BEARING, ...o });
@@ -43,6 +43,11 @@ describe('bearing wizard rules', () => {
     expect(bearingNumbers(P({ seal: 'open', balls: 5 }))!.balls).toBe(5);
     expect(bearingNumbers(P({ bore: 30 }))).toBeNull();
     expect(bearingSpec(P({ seal: '2Z', balls: 5 }))).not.toHaveProperty('balls');
+  });
+  it('the ring sketches carry the ball groove as an arc, for every seal; a bearing too small for one has none', () => {
+    const arcs = (ops: unknown): number => (JSON.stringify(ops).match(/"type":"arc"/g) ?? []).length;
+    for (const seal of ['open', '2Z', '2RS'] as const) expect(arcs(bearingOps({ features: [] }, P({ seal }))), seal).toBeGreaterThanOrEqual(2);
+    expect(arcs(bearingOps({ features: [] }, withPreset(P(), BEARING_PRESETS.find((p) => p.designation === 'MR52')!)))).toBe(0);
   });
   it('the housing seat read-out follows the fit', () => {
     expect(bearingSeat(P()).diameter).toBeCloseTo(22.0105, 3);
@@ -112,5 +117,33 @@ describe('seating on a picked face', () => {
     expect(seatOnFace('F1.C1', curved)).toBeNull();
     expect(seatOnFace('F9.C1', squareMesh(0, 1))).toBeNull();
     expect(seatOnFace('F1.C1', null)).toBeNull();
+  });
+});
+
+describe('a second bearing of the same size', () => {
+  const bodiesOf = (ops: Array<{ feature?: Record<string, unknown> }>): string[] => ops.map((o) => o.feature?.body).filter((b): b is string => typeof b === 'string');
+  const commit = (features: Array<Record<string, unknown>>, ops: Array<{ feature?: Record<string, unknown> }>) => [...features, ...ops.map((o) => o.feature as Record<string, unknown>)];
+
+  it('names its bodies apart from the first, so the part has no body name conflict', () => {
+    const first = bearingOps({ features: [] }, P()) as unknown as Array<{ feature?: Record<string, unknown> }>;
+    expect(bodiesOf(first)).toEqual(expect.arrayContaining(['Bearing 608 inner ring', 'Bearing 608 outer ring']));
+    const f1 = commit([], first);
+    const second = bearingOps({ features: f1 as never }, P()) as unknown as Array<{ feature?: Record<string, unknown> }>;
+    const names = bodiesOf(second);
+    expect(names).toEqual(expect.arrayContaining(['Bearing 608 2 inner ring', 'Bearing 608 2 outer ring']));
+    const all = [...bodiesOf(first), ...names];
+    expect(new Set(all).size).toBe(all.length);
+    const third = bearingOps({ features: commit(f1, second) as never }, P()) as unknown as Array<{ feature?: Record<string, unknown> }>;
+    expect(bodiesOf(third)).toContain('Bearing 608 3 inner ring');
+  });
+  it('takes the first free number, and keeps the plain name when no feature uses it', () => {
+    expect(freeBodyPrefix([], 'Bearing 608')).toBe('Bearing 608');
+    expect(freeBodyPrefix([{ body: 'Bearing 608 2 inner ring' }], 'Bearing 608')).toBe('Bearing 608');
+    expect(freeBodyPrefix([{ body: 'Bearing 608 inner ring' }], 'Bearing 608')).toBe('Bearing 608 2');
+    expect(freeBodyPrefix([{ body: 'Bearing 608 inner ring' }, { body: 'Bearing 608 2 ball 3' }], 'Bearing 608')).toBe('Bearing 608 3');
+    expect(freeBodyPrefix([{ body: 'Bearing 608 ball' }], 'Bearing 608')).toBe('Bearing 608 2');
+  });
+  it('a different size does not clash with a 608', () => {
+    expect(freeBodyPrefix([{ body: 'Bearing 608 inner ring' }], 'Bearing 6204')).toBe('Bearing 6204');
   });
 });

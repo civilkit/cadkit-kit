@@ -13,6 +13,8 @@
 // meridional contour is a hub profile, wrapDeg is just total wrap (backsweep for a compressor).
 // Frame: shaft axis Z; the hub sketch lives on an angle plane (u = world Z, v = radial at 0).
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupPatch, wizardGroupName } from './wizardGroup';
 
 export interface ImpellerParams {
   mainBlades: number;
@@ -347,7 +349,7 @@ export function impellerPlan(doc: { features: Array<{ id?: string }>; seq?: numb
   const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
   if (existing && same) {
     const feats = impellerFeatures(p, existing);
-    return { before: [], patch: { variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) } };
+    return { before: [], patch: groupPatch({ variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) }, wizardGroupName(doc.features, t('impeller.title'), existing)) };
   }
   const before: EditOp[] = [];
   let features = doc.features;
@@ -361,5 +363,5 @@ export function impellerPlan(doc: { features: Array<{ id?: string }>; seq?: numb
   let n = start;
   for (const r of wanted) ids[r] = `F${n++}`;
   const feats = impellerFeatures(p, ids);
-  return { before, patch: { variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length } };
+  return { before, patch: groupPatch({ variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length }, wizardGroupName(doc.features, t('impeller.title'), existing)) };
 }

@@ -253,7 +253,7 @@ The **Size** list holds the nominal ISO 15 dimensions (bore x outer diameter x w
 | Balls, Ball diameter | Open bearings only. | The diameter is just under the gap between the races, the count about 1.6 ball diameters of pitch |
 | First face centre, Extends | Where the first face sits and which way the bearing runs from it. | Origin, up (+Z) |
 
-Each ring and each ball is its own body (named, for example, *Bearing 608 inner ring*), and a shield or seal belongs to the outer ring. The races are plain cylinders without ball grooves and without a cage, and the ring, ball and shield sizes follow rules of thumb rather than a maker's catalogue. Use it for assemblies, fit checks and looks, not for load ratings.
+Each ring and each ball is its own body (named, for example, *Bearing 608 inner ring*), and a shield or seal belongs to the outer ring. Each ring has a ball groove (a circular arc about the ball centre circle, radius 0.52 ball diameters and 0.27 deep, so the balls sit in it); a bearing too small for one gets plain races. There is no cage, and the ring, groove, ball and shield sizes follow rules of thumb rather than a maker's catalogue. Use it for assemblies, fit checks and looks, not for load ratings.
 
 ### Housing seat
 

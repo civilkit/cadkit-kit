@@ -1,6 +1,8 @@
 // The Screw wizard's rules: the parameter record with its defaults, the checks that need no kernel, and the ops. The ops come from the script's screw()
 // helper (packages/script/src/features/screw.ts), so the wizard and the Script tab build the same fastener. Nothing here touches the DOM or the kernel.
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupOps, wizardGroupName } from './wizardGroup';
 import { screwEditOps, SCREW_SIZES, type ScrewOpts } from '@kit/script';
 
 export const SCREW_SIZE_LIST = Object.keys(SCREW_SIZES);
@@ -46,9 +48,9 @@ export function screwIssue(p: ScrewParams): ScrewIssue | null {
   return null;
 }
 
-/** The ops that append the screw to the document, numbered from the document's next feature id. Throws with the helper's message. */
+/** The ops that append the screw to the document (all in one tree folder named after the wizard, see wizardGroup.ts), numbered from the document's next feature id. Throws with the helper's message. */
 export function screwOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: ScrewParams): EditOp[] {
   let n = doc.seq ?? 1;
   for (const f of doc.features) { const m = /^F(\d+)$/.exec(String(f.id ?? '')); if (m) n = Math.max(n, Number(m[1]) + 1); }
-  return screwEditOps(screwOpts(p), n) as unknown as EditOp[];
+  return groupOps(screwEditOps(screwOpts(p), n) as unknown as EditOp[], wizardGroupName(doc.features, t('screw.title')));
 }

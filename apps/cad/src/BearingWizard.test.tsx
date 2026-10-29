@@ -68,9 +68,9 @@ describe('BearingWizard', () => {
     fireEvent.change(m.select('seal'), { target: { value: '2Z' } });
     expect(m.drafts.at(-1)).toMatchObject({ seal: '2Z', balls: null });
   });
-  it('says the races are plain cylinders', () => {
+  it('says the rings have a ball groove and no cage', () => {
     const m = mount();
-    expect(m.q('[data-testid="bearing-approx"]').textContent).toMatch(/plain cylinders/);
+    expect(m.q('[data-testid="bearing-approx"]').textContent).toMatch(/ball groove/);
   });
   it('the housing seat read-out follows the size and the fit', () => {
     const m = mount();

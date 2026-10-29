@@ -2,6 +2,8 @@
 // come from the script's bearing() helper (packages/script/src/features/bearing.ts), so the wizard and the Script tab build the same bearing. Nothing here touches
 // the DOM or the kernel.
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupOps, wizardGroupName } from './wizardGroup';
 import {
   bearingEditOps, bearingModel, bearingProblem, BEARING_PRESETS, BEARING_SEALS, findBearings, housingSeat, SEAT_FITS,
   type BearingModel, type BearingOpts, type BearingPreset, type BearingSeal, type BearingSpec, type SeatFit,
@@ -87,11 +89,25 @@ export function bearingIssue(p: BearingParams): BearingIssue | null {
   return why ? bad('model', why) : null;
 }
 
-/** The ops that append the bearing to the document, numbered from the document's next feature id. Throws with the helper's message. */
+/** The ops that append the bearing to the document (all in one tree folder named after the wizard, see wizardGroup.ts), numbered from the document's next feature id. Throws with the helper's message. */
 export function bearingOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: BearingParams): EditOp[] {
   let n = doc.seq ?? 1;
   for (const f of doc.features) { const m = /^F(\d+)$/.exec(String(f.id ?? '')); if (m) n = Math.max(n, Number(m[1]) + 1); }
-  return bearingEditOps(bearingOpts(p), n) as unknown as EditOp[];
+  const opts = bearingOpts(p);
+  return groupOps(bearingEditOps({ ...opts, name: freeBodyPrefix(doc.features, opts.name ?? 'Bearing') }, n) as unknown as EditOp[], wizardGroupName(doc.features, t('bearing.title')));
+}
+
+/**
+ * The name prefix for a new bearing's bodies ("Bearing 608 inner ring", "... outer ring", "... ball"). Body names must be unique in a part, so a second
+ * bearing of the same size takes "Bearing 608 2", a third "Bearing 608 3": the first number whose bodies no feature already names.
+ */
+export function freeBodyPrefix(features: ReadonlyArray<object>, base: string): string {
+  const used = new Set<string>();
+  for (const f of features as Array<Record<string, unknown>>) for (const k of ['newBody', 'body']) if (typeof f[k] === 'string') used.add(f[k] as string);
+  const esc = (v: string): string => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const taken = (c: string): boolean => { const re = new RegExp(`^${esc(c)} (inner ring|outer ring|ball( \\d+)?)$`); return [...used].some((u) => re.test(u)); };
+  if (!taken(base)) return base;
+  for (let i = 2; ; i++) if (!taken(`${base} ${i}`)) return `${base} ${i}`;
 }
 
 // ---- seating on a picked face ----

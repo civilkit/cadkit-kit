@@ -80,7 +80,7 @@ Drop or open a file, or use **Import STEP / SolidWorks / SketchUp** in the **Mor
 | "Drop one file at a time." | Drop the files one after another. |
 | "Open or create a part first, then import the STEP file." | Use **New part**, then import. |
 | "Could not import *name*: *message*" | The message names the cause. See [Importing](../files/import.md). |
-| "Imported bodies are view only and are not saved with the part." | This is a notice, not an error. STEP, SolidWorks and SketchUp imports appear as view-only bodies. |
+| "Imported bodies are view only and are not saved with the part." | This is a notice, not an error. STEP and SketchUp imports appear as view-only bodies, and so does a SolidWorks part that could not be built as an editable body. |
 | "SketchUp surface model: n open edges; solids operations may not apply." | The file is a surface model, not a closed solid. |
 | "n hidden faces were left out." | Choose **Show hidden geometry** or **Import SketchUp with hidden geometry** to include them. |
 

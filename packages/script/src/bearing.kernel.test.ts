@@ -20,7 +20,10 @@ async function build(code: string): Promise<{ run: any; bodies: Body[] }> {
   return { run, bodies };
 }
 
-/** Volume of a polygon (x radial, y axial) revolved a full turn about the y axis: Pappus, 2 pi x centroid-x x area. */
+/**
+ * Volume of a polygon (x radial, y axial) revolved a full turn about the y axis: Pappus, 2 pi x centroid-x x area. The profiles passed in have the groove arcs
+ * sampled in 2000 chords (points on the true arc), which puts the polygon's area within about one part in 10^7 of the true one, far below the tolerance.
+ */
 function revolved(pts: Array<[number, number]>): number {
   let A = 0, Sx = 0;
   pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; const c = p[0] * q[1] - q[0] * p[1]; A += c; Sx += (p[0] + q[0]) * c; });
@@ -39,27 +42,54 @@ describe('bearing(): rings and covers', () => {
       expect(bodies.map((b) => b.name).sort()).toEqual(['Bearing 608 inner ring', 'Bearing 608 outer ring']);
       const m = bearingModel(spec({ seal }));
       const inner = bodies.find((b) => /inner/.test(b.name))!, outer = bodies.find((b) => /outer/.test(b.name))!;
-      near(inner.volume, revolved(innerRingProfile(m)), 0.01);
-      near(outer.volume, revolved(outerRingProfile(m)), 0.01);
+      near(inner.volume, revolved(innerRingProfile(m, 2000)), 0.002);
+      near(outer.volume, revolved(outerRingProfile(m, 2000)), 0.002);
+      expect(m.groove).not.toBeNull();   // the volumes above include the groove: a plain ring would be several percent bigger
       const all = [inner, outer];
       expect(Math.min(...all.map((b) => b.bbox.min[0]))).toBeCloseTo(-11, 2);
       expect(Math.max(...all.map((b) => b.bbox.max[0]))).toBeCloseTo(11, 2);
       expect(Math.min(...all.map((b) => b.bbox.min[2]))).toBeCloseTo(0, 2);
       expect(Math.max(...all.map((b) => b.bbox.max[2]))).toBeCloseTo(7, 2);
-      expect(inner.bbox.size[0]).toBeCloseTo(2 * m.r2, 1);   // the display mesh is faceted
+      expect(inner.bbox.size[0]).toBeCloseTo(2 * m.r2s, 1);   // the display mesh is faceted
     }, 600_000);
   }
 
-  it('open bearing without a preset, sharp corners: rings are plain tubes', async () => {
-    const { run, bodies } = await build(`part('B').bearing({ bore: 10, od: 30, width: 9, seal: 'open', chamfer: 0, balls: 6 });`);
+  it('open bearing with small balls (too small for a groove), sharp corners: rings are plain tubes', async () => {
+    const { run, bodies } = await build(`part('B').bearing({ bore: 10, od: 30, width: 9, seal: 'open', chamfer: 0, balls: 6, ballDiameter: 2 });`);
     expect(run.ok, JSON.stringify(run.errors)).toBe(true);
-    const m = bearingModel(spec({ bore: 10, od: 30, width: 9, seal: 'open', chamfer: 0, balls: 6 }));
+    const m = bearingModel(spec({ bore: 10, od: 30, width: 9, seal: 'open', chamfer: 0, balls: 6, ballDiameter: 2 }));
+    expect(m.groove).toBeNull();
     const rings = bodies.filter((b) => / ring$/.test(b.name));
     expect(rings.length).toBe(2);
     const tube = (r1: number, r2: number) => Math.PI * (r2 * r2 - r1 * r1) * 9;
     near(rings.find((b) => /inner/.test(b.name))!.volume, tube(m.r1, m.r2), 0.005);
     near(rings.find((b) => /outer/.test(b.name))!.volume, tube(m.r3, m.R), 0.005);
   }, 600_000);
+});
+
+describe('bearing(): the ball groove', () => {
+  for (const [designation, seal] of [['608', 'open'], ['608', '2Z'], ['608', '2RS'], ['6204', 'open'], ['6204', '2RS'], ['625', 'open']] as const) {
+    it(`${designation} ${seal}: regenerates valid, each ring one solid whose volume is the grooved profile revolved`, async () => {
+      const { run, bodies } = await build(`part('B').bearing({ designation: '${designation}', seal: '${seal}' });`);
+      expect(run.ok, JSON.stringify(run.errors)).toBe(true);
+      const p = { '608': [8, 22, 7], '6204': [20, 47, 14], '625': [5, 16, 5] }[designation];
+      const m = bearingModel({ bore: p[0], od: p[1], width: p[2], seal });
+      expect(m.groove, 'grooved').not.toBeNull();
+      const inner = bodies.find((b) => /inner/.test(b.name))!, outer = bodies.find((b) => /outer/.test(b.name))!;
+      // The kernel reports the volume of its display mesh, and the groove is a concave torus: its facets move the volume by up to 0.3 % (6204 inner ring +0.27 %,
+      // outer ring -0.17 %; 608 +0.13 % / -0.17 %). 0.005 holds that, and a plain ring (no groove) would differ by 5 to 10 %, so it still tells a groove from none.
+      near(inner.volume, revolved(innerRingProfile(m, 2000)), 0.005);
+      near(outer.volume, revolved(outerRingProfile(m, 2000)), 0.005);
+      console.log('GROOVEDIFF', designation, seal, (inner.volume / revolved(innerRingProfile(m, 2000)) - 1).toFixed(5), (outer.volume / revolved(outerRingProfile(m, 2000)) - 1).toFixed(5));
+      // the groove really removed material: the kernel volume is the same ring without the groove minus the revolved circular segment, whose centroid lies between the groove bottom and the shoulder
+      const g = m.groove!, h = g.radius - g.depth;
+      const seg = g.radius ** 2 * Math.acos(h / g.radius) - h * Math.sqrt(g.radius ** 2 - h * h);
+      const removed = revolved(innerRingProfile({ ...m, groove: null }, 2000)) - inner.volume;
+      expect(removed).toBeGreaterThan(2 * Math.PI * (g.centre[0] - g.radius) * seg * 0.95);
+      expect(removed).toBeLessThan(2 * Math.PI * m.r2s * seg * 1.05);
+      console.log('GROOVE', designation, seal, JSON.stringify({ inner: +inner.volume.toFixed(3), outer: +outer.volume.toFixed(3), r: +g.radius.toFixed(4), depth: +g.depth.toFixed(4) }));
+    }, 600_000);
+  }
 });
 
 describe('bearing(): open bearing with balls', () => {

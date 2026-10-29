@@ -331,7 +331,7 @@ export function featureIconName(type: string, op?: string): string {
     case 'rib': case 'lip': return 'feature-rib';
     case 'mirror': return 'feature-mirror';
     case 'knit': return 'feature-knit';
-    case 'insertPart': return 'feature-part';
+    case 'insertPart': case 'importStep': return 'feature-part';
     case 'surfacePlanar': case 'surfaceExtrude': case 'surfaceRevolve': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'pipeCut':
     case 'sweep': case 'loft': case 'thicken': return 'feature-surface';
     default: return 'feature-generic';

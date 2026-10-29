@@ -38,9 +38,9 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 
 ## Importing
 
-- **STEP, SolidWorks and SketchUp** files open as **view-only** bodies. You can look at them, measure them and section them, but they are not features of the part and are not saved with it.
+- **STEP and SketchUp** files open as **view-only** bodies. You can look at them, measure them and section them, but they are not features of the part and are not saved with it. A **SolidWorks** part opens as an editable imported body that is saved with the part.
 - **STEP** import does not read assemblies, placements, colours or names. Shell-based surface models and open shells are not imported. A small share of files in real use import with defects.
-- **SolidWorks** import reads the geometry of the active configuration only, and has no feature tree. Sheet and wire bodies are refused.
+- **SolidWorks** import reads the geometry of the active configuration only, and has no feature tree. Sheet and wire bodies are refused. A file whose geometry the kernel cannot read to a closed solid is refused.
 - **SketchUp** import is a surface body of planar faces: no curves, dimensions, scenes or text. Files over 50,000 faces are refused by default.
 - **STL, OBJ and 3MF cannot be imported.** Ask for a STEP file.
 - **DXF** import reads ASCII DXF only, up to 20,000 entities and coordinates within 1,000,000 mm of the origin. Splines with a general knot vector become short line segments. Unsupported entity types, such as text and dimensions, are skipped and listed.

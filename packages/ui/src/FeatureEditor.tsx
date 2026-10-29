@@ -42,8 +42,12 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   knit: { surfaces: ['surfaces'], operation: ['solid'] },
   fill: { edges: ['edges'], operation: ['continuity', 'fairing', 'merge'] },
   extend: { edges: ['edges'], operation: ['distance'] },
+  importStep: { body: ['body'] },
   thicken: { operation: ['surface', 'thickness', 'side', 'op'] },
 };
+
+/** Fields the editor does not offer: the STEP data of an imported body is replaced by importing again, not by typing. */
+const HIDDEN: Record<string, string[]> = { importStep: ['blob', 'step'] };
 
 const FIELD_LABELS: Record<string, string> = {
   sketch: 'Profile sketch',
@@ -63,6 +67,7 @@ const FIELD_LABELS: Record<string, string> = {
   faces: 'Faces',
   seeds: 'Features to repeat',
   sections: 'Sections',
+  body: 'Body name',
   mode: 'Mode', offset: 'Offset', plane: 'Plane', base: 'Base', toolSurface: 'Tool surface', surface: 'Surface', surfaces: 'Surfaces',
   pitch: 'Pitch', revolutions: 'Revolutions', startAngle: 'Start angle', definedBy: 'Defined by', width: 'Width', height: 'Height',
 };
@@ -131,7 +136,8 @@ function kindOf(field: Field): Field['kind'] {
 /** Group a feature's primitive fields into ordered, titled sections. */
 export function sectionsOf(feature: FeatureLike | null): Section[] {
   if (!feature) return [];
-  const all = fieldsOf(feature as Record<string, unknown>);
+  const hidden = HIDDEN[feature.type ?? ''] ?? [];
+  const all = fieldsOf(feature as Record<string, unknown>).filter((f) => !hidden.includes(f.path));
   for (const path of LIST_FIELDS) {
     const v = feature[path];
     if (Array.isArray(v)) all.push({ path, label: path, kind: 'list', value: listText(path, v) });

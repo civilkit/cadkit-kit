@@ -8,6 +8,8 @@
 // sketch axes are u = -Z and v = +Y, so a point with tangential T (world Y) and axial A (world Z) is drawn at (u, v) = (-A, T). Viewed from +Z looking down at the XY plane the 'ccw' propeller turns counter-clockwise, so its leading
 // edges lead toward +Y and the thrust is toward +Z (the suction side of every section faces +Z). 'cw' is the mirror image (T negated).
 import type { EditOp } from '@ck/session';
+import { t } from './i18n';
+import { groupPatch, wizardGroupName } from './wizardGroup';
 
 export type AirfoilKind = 'naca4' | 'arc' | 'plate';
 export const AIRFOIL_KINDS: AirfoilKind[] = ['naca4', 'arc', 'plate'];
@@ -513,7 +515,7 @@ export function propPlan(doc: { features: Array<{ id?: string }>; seq?: number; 
   const same = !!existing && wanted.length === Object.keys(existing).length && wanted.every((r) => existing[r]);
   if (existing && same) {
     const feats = propFeatures(p, existing, true);
-    return { before: [], patch: { variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) } };
+    return { before: [], patch: groupPatch({ variables: vars, features: Object.fromEntries(feats.map((f) => [f.id, f as unknown as Record<string, unknown>])) }, wizardGroupName(doc.features, t('prop.title'), existing)) };
   }
   const before: EditOp[] = [];
   let features = doc.features;
@@ -525,7 +527,8 @@ export function propPlan(doc: { features: Array<{ id?: string }>; seq?: number; 
   const start = nextSeq({ features, seq: doc.seq });
   const ids = idsFor(p, start);
   const feats = propFeatures(p, ids, true);
-  return { before, patch: { variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length } };
+  const group = wizardGroupName(doc.features, t('prop.title'), existing);
+  return { before, patch: groupPatch({ variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length }, group) };
 }
 
 /** The whole part document of a propeller (features and variables), for tests, samples and the script panel. */

@@ -5,13 +5,13 @@
 // per feature and kept as a suppressed placeholder carrying the original JSON, so the tree still regenerates and nothing is lost
 // silently. Assemblies are refused as a whole. See docs/solidcraft.md.
 import { zipFile } from '@kit/fcstd';
-import { evalExpr, ExprError } from './expr';
+import { evalExpr, ExprError, kernelExpr, namesIn, usableName } from './expr';
 import { bodyLooks, type ScLook } from './appearance';
 import { followSketches, STD_PLANES } from './follow';
 
 export type V3 = [number, number, number];
 export type FeatureJson = Record<string, unknown>;
-export interface ScPart { format: 'ck-part'; version: number; name: string; features: FeatureJson[]; seq: number; appearance?: Record<string, ScLook>; view?: { hiddenBodies: string[] } }
+export interface ScPart { format: 'ck-part'; version: number; name: string; features: FeatureJson[]; seq: number; variables?: Array<{ name: string; expr: string }>; blobs?: Record<string, string>; appearance?: Record<string, ScLook>; view?: { hiddenBodies: string[] } }
 
 /** One line of the import report: what became of one feature of the file. */
 export interface ScRow {
@@ -51,6 +51,11 @@ export interface Rim { name: string; normal: V3; loops: V3[][] | null }
 export type RimResolver = (partBefore: ScPart, point: V3) => Promise<Rim | null>;
 /** Finds, for each pick, the cylinder face of an inserted part (by its insertPart id) whose axis passes through the point (a circle centre in our world); null when there is no single such face. */
 export type AxisFaceResolver = (partBefore: ScPart, picks: Array<{ insert: string; point: V3 }>) => Promise<Array<string | null>>;
+export type StepNormal = { ok: true; step: string; volume: number } | { ok: false; reason: string };
+export type StepNormalizer = (step: string) => Promise<StepNormal>;
+/** A history that rebuilds the stored original solid to within this fraction of its volume is kept. */
+export const HISTORY_VOLUME_TOLERANCE = 0.005;
+
 export interface ImportOpts {
   /** Needed to carry revolute joints over as hinge mates: without it they are kept as the pose they were saved in. */
   axisFaceResolver?: AxisFaceResolver;
@@ -62,6 +67,22 @@ export interface ImportOpts {
   faceResolver?: FaceResolver;
   /** Keep a suppressed `importedUnsupported` feature (with the original JSON) in the tree for each unsupported feature. Default true. */
   placeholders?: boolean;
+  /** Reads a file of the archive the document came from (a STEP body is kept as `blobs/<sha>.step` beside document.json). Without it a feature that holds imported geometry cannot be carried. `importSolidcraft` sets it. */
+  blob?: (path: string) => Promise<Uint8Array | null>;
+  /**
+   * Turns the STEP text of the original solid into one the kernel reads to the right body (its orientation repaired by the kernel's healing,
+   * the text written again by the kernel when the plain reading differs), with the volume of that body; or says why the kernel cannot read it.
+   * Without it the text is used as it is: right for the STEP of the program that made the file, wrong for a restatement that has some faces turned.
+   */
+  normalizeStep?: StepNormalizer;
+  /**
+   * The volume and error count of a part regenerated in the kernel. With it and `normalizeStep`, a file that keeps its original solid but also
+   * builds a body from sketches and operations is checked: when the operations do not rebuild the original solid (volume off by more than 0.5%,
+   * or they fail), the original solid is used and the operations that build bodies are skipped, with the volumes in the row.
+   */
+  volumeOf?: (part: ScPart) => Promise<{ volume: number | null; errors: number }>;
+  /** The file's axes are already Y up (set from the file by `importSolidcraftDocument`; see `fromSolidWorks`). */
+  yUp?: boolean;
   /** Called as the features are read (feature number, number of features); the importer gives the page a turn between calls so it can draw them. */
   onProgress?: (done: number, total: number) => void;
   /** Aborting it stops the import at the next feature: the result is refused with the reason "cancelled". */
@@ -80,7 +101,20 @@ class Unsupported extends Error {}
 /** Sheet metal: what a contour flange uses where the file is silent (see the `sheet_contour` case). */
 const SHEET_THICKNESS = 2.5, SHEET_BEND_RADIUS = 2.5;
 const SHEET_SIDE = 'inside';
-export const toYUp = (p: V3): V3 => [p[0], p[2], -p[1]];
+/**
+ * Whether the file's coordinates are already this kit's (Y up, front plane XY). A SolidWorks part is: SolidWorks stores Y up, as the kernel's own
+ * `.sldprt` reader and the `.ckpart` Dutchman writes keep it. The file does not say so, but the original solid it keeps names the file it came
+ * from, and that name is the convention the importer reads (a file converted from SolidWorks names a `.sldprt`). The answer travels with the
+ * import (`ImportOpts.yUp`), so imports can run side by side.
+ */
+const SOLIDWORKS_FILE = /\.sld(prt|asm)$/i;
+/** Whether `doc` was converted from a SolidWorks file (the `import` feature names its source file). */
+export const fromSolidWorks = (doc: { features?: unknown }): boolean =>
+  Array.isArray(doc.features) && doc.features.some((f: { type?: unknown; file?: unknown }) => f?.type === 'import' && typeof f.file === 'string' && SOLIDWORKS_FILE.test(f.file));
+/** The turn from the file's axes to this kit's: from Z up (the default) or none when the file is already Y up. */
+const frameFor = (yUp: boolean) => (p: V3): V3 => (yUp ? [p[0], p[1], p[2]] : [p[0], p[2], -p[1]]);
+/** The turn from Z up. */
+export const toYUp = frameFor(false);
 const dot3 = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross3 = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
@@ -275,6 +309,27 @@ function loopOutline(ids: string[], geo: Map<string, Geo>): { whole: true } | { 
   return wholeAll ? { whole: true } : { whole: false, corners };
 }
 
+/**
+ * The regions of `profiles: {type: "whole_boundaries", profiles: [{outer, holes}]}`: each profile is a region bounded by the whole curves of its
+ * outer loop, with the loops of its holes inside. The part picks a region by one curve of its outer boundary (it keeps the holes inside the region
+ * by itself, and a hole curve in the list would add the hole as a region of its own), so one curve of each outer loop is returned: a curve that
+ * no hole uses and that no other profile shares when there is one, because a shared curve also selects the region on its other side.
+ */
+export function boundaryRegions(profiles: Rec, entityOf: Map<string, string>): string[] {
+  const list = (profiles.profiles ?? []) as Array<{ outer?: unknown; holes?: unknown }>;
+  if (!Array.isArray(list) || !list.length) throw new Unsupported('a profile selection with no region');
+  const ids = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
+  const holeCurves = new Set(list.flatMap((p) => (Array.isArray(p.holes) ? p.holes.flatMap(ids) : [])));
+  const uses = new Map<string, number>();
+  for (const p of list) for (const c of new Set(ids(p.outer))) uses.set(c, (uses.get(c) ?? 0) + 1);
+  return list.map((p) => {
+    const outer = ids(p.outer).filter((c) => entityOf.has(c));
+    if (!outer.length) throw new Unsupported('a profile whose outline is not in the sketch');
+    const pick = outer.find((c) => !holeCurves.has(c) && uses.get(c) === 1) ?? outer.find((c) => !holeCurves.has(c)) ?? outer[0];
+    return entityOf.get(pick)!;
+  });
+}
+
 /** Where a sketch plane of theirs lands in our Y-up world: one of our standard planes, an offset along its normal, and how the in-plane axes map. */
 interface Placed {
   /** Our standard plane and the offset of the sketch plane along its normal. */
@@ -292,7 +347,7 @@ interface ScFrame { o: V3; u: V3; v: V3 }
 const unit = (a: V3): V3 => { const l = Math.hypot(...a); if (!(l > 1e-12)) throw new Unsupported('a plane with a zero axis'); return [a[0] / l, a[1] / l, a[2] / l]; };
 
 /** A frame of theirs (any origin and in-plane axes) as our standard plane: it must lie flat on one of them, with its axes along ours. */
-function placeFrame(fr: ScFrame, general = false): Placed {
+function placeFrame(fr: ScFrame, general = false, toYUp: (p: V3) => V3): Placed {
   const u = toYUp(unit(fr.u)), v = toYUp(unit(fr.v)), n = cross3(u, v), o = toYUp(fr.o);
   // a sketch may stand on any plane (it becomes a `frame` plane of ours); a face frame for a hole or a rim must lie on a standard one
   const anywhere = (): Placed => ({ std: 'frame', offset: 0, t: [1, 0, 0, 1], s: [0, 0], sign: 1, frame: { o: o.map(clean) as V3, x: u.map(clean) as V3, y: v.map(clean) as V3, z: n.map(clean) as V3 } });
@@ -333,7 +388,7 @@ const mirrored = (pl: Placed) => pl.t[0] * pl.t[3] - pl.t[1] * pl.t[2] < 0;
 /** Their horizontal is our vertical when the plane axes swap. */
 const swapsAxes = (pl: Placed) => pl.t[0] === 0;
 /** A direction of theirs as one of our axes ("x" | "y" | "z") and whether it points the negative way. */
-function axisOf(dir: V3, what: string): { axis: 'x' | 'y' | 'z'; neg: boolean } {
+function axisOf(dir: V3, what: string, toYUp: (p: V3) => V3): { axis: 'x' | 'y' | 'z'; neg: boolean } {
   const d = unit(toYUp(dir));
   const i = [0, 1, 2].find((k) => Math.abs(Math.abs(d[k]) - 1) < 1e-6);
   if (i === undefined) throw new Unsupported(`${what} along ${JSON.stringify(dir)}, which is not one of the three axes`);
@@ -363,14 +418,21 @@ export async function importSolidcraft(bytes: Uint8Array, name = 'SolidCraft par
   }
   let doc: Rec;
   try { doc = JSON.parse(new TextDecoder().decode(raw)); } catch { return refuse(name, 'the document is not valid JSON'); }
-  return importSolidcraftDocument(doc, name, opts);
+  return importSolidcraftDocument(doc, name, { blob: async (p) => (looksLikeJson(bytes) ? null : zipFile(bytes, p)), ...opts });
 }
 
 /** The same from an already parsed document.json. */
 export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part', opts: ImportOpts = {}): Promise<ScImport> {
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.features)) return refuse(name, 'document.json has no feature list');
-  if (doc.occurrences?.length) return importComponents(doc, name, opts);
-  return importOne(doc, name, opts);
+  const inner: ImportOpts = { ...opts, yUp: opts.yUp ?? fromSolidWorks(doc) };
+  if (doc.occurrences?.length) return importComponents(doc, name, inner);
+  return importOne(doc, name, inner);
+}
+
+/** Lower-case hex SHA-256 of the UTF-8 bytes of `text` (the key of a blob in the part). */
+async function sha256Hex(text: string): Promise<string> {
+  const h = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  return Array.from(h, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 const row4 = (m: number[][], i: number): V3 => [m[i][0], m[i][1], m[i][2]];
@@ -413,42 +475,109 @@ function partsOf(doc: Rec): Map<Rec, number | undefined> {
   return out;
 }
 
-/** Components become inserted parts: each component's features are imported as a part of its own, the root features stay in the main part, and every occurrence is an `insertPart` placed by its transform (rows are images of the axes, translation in the last row). */
+/** The ids of the occurrences along a hidden placement, from the design down, as one key. */
+const pathKey = (p: unknown[]): string => p.join('/');
+const MAX_NESTING = 24;
+
+/**
+ * Components become inserted parts: each component's features are imported as a part of its own, the root features stay in the main part, and every
+ * occurrence is an `insertPart` placed by its transform (rows are images of the axes, translation in the last row). An occurrence whose `parent` is a
+ * component that is itself placed (a sub-assembly) is inserted into the part of that component, so it moves with it. A placement the file hides
+ * (`visibility.hidden_occurrences`, a path of occurrence ids from the design down) has the bodies of its part hidden.
+ */
 async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
+  const yUp = !!opts.yUp, toYUp = frameFor(yUp);
   const comps = new Map<number, Rec>((doc.components ?? []).map((c: Rec) => [c.id as number, c]));
   const where = partsOf(doc);
   const sub = (component: number | undefined): Rec => ({ ...doc, components: undefined, occurrences: undefined, assembly: undefined, features: (doc.features as Rec[]).filter((f) => where.get(f) === component) });
   const root = await importOne(sub(undefined), name, opts);
   if (!root.part) return root;
   const rows = [...root.rows];
-  const features = [...root.part.features];
-  let seq = root.part.seq;
-  const used = new Set<string>(features.map((f) => String(f.id)));
-  const nid = () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); return id; };
+  const occs = (doc.occurrences ?? []) as Rec[];
+  const placed = new Set<number>(occs.map((o) => o.component as number));
+  /** The component an occurrence sits in: a placed component (a sub-assembly), else the design itself. */
+  const parentOf0 = (o: Rec): number | undefined => (typeof o.parent === 'number' && placed.has(o.parent) && o.parent !== o.component ? o.parent : undefined);
+  /** Whether the chain of holders of an occurrence ends at the design: an occurrence in a ring of components that hold one another is not reachable from it, and is placed in the design instead. */
+  const reachable = (o: Rec): boolean => {
+    let at = o, seen = 0;
+    for (;;) {
+      const up = parentOf0(at);
+      if (up === undefined) return true;
+      const holder = occs.find((x) => x.component === up);
+      if (!holder || ++seen > MAX_NESTING) return false;
+      at = holder;
+    }
+  };
+  const parentOf = (o: Rec): number | undefined => (reachable(o) ? parentOf0(o) : undefined);
+  const hidden = new Set<string>(((doc.visibility as Rec | undefined)?.hidden_occurrences as unknown[] | undefined ?? []).filter(Array.isArray).map((p) => pathKey(p as unknown[])));
+  /** A part being assembled: its features, the ids in use, and what its inserts add to its colours and hidden bodies. */
+  interface Host { part: ScPart; used: Set<string>; appearance: Record<string, ScLook>; hiddenBodies: string[]; nid: () => string }
+  const hostOf = (part: ScPart): Host => {
+    const used = new Set<string>(part.features.map((f) => String(f.id)));
+    let seq = part.seq;
+    return { part, used, appearance: { ...(part.appearance ?? {}) }, hiddenBodies: [...(part.view?.hiddenBodies ?? [])], nid: () => { let id: string; do id = `F${++seq}`; while (used.has(id)); used.add(id); part.seq = seq; return id; } };
+  };
+  const finish = (h: Host): ScPart => {
+    if (Object.keys(h.appearance).length) h.part.appearance = h.appearance;
+    if (h.hiddenBodies.length) h.part.view = { hiddenBodies: [...new Set(h.hiddenBodies)] };
+    return h.part;
+  };
+  const rootHost = hostOf({ ...root.part, features: [...root.part.features] });
   const parts = new Map<number, ScImport>();
   const insertOf = new Map<number, string>();
-  const appearance: Record<string, ScLook> = { ...(root.part.appearance ?? {}) };
-  const hiddenBodies: string[] = [...(root.part.view?.hiddenBodies ?? [])];
-  for (const occ of doc.occurrences as Rec[]) {
-    const comp = comps.get(occ.component as number);
-    const cname = String(comp?.name ?? `Component ${occ.component}`);
-    let imp = parts.get(occ.component as number);
-    if (!imp) {
-      imp = await importOne(sub(occ.component as number), cname, opts);
-      parts.set(occ.component as number, imp);
-      for (const r of imp.rows) rows.push({ ...r, name: `${cname}: ${r.name}` });
+  /** The part of a component, with the sub-assemblies it holds inserted. */
+  const partOf = async (cid: number, trail: number[]): Promise<ScImport> => {
+    let imp = parts.get(cid);
+    if (imp) return imp;
+    const cname = String(comps.get(cid)?.name ?? `Component ${cid}`);
+    imp = await importOne(sub(cid), cname, opts);
+    parts.set(cid, imp);
+    for (const r of imp.rows) rows.push({ ...r, name: `${cname}: ${r.name}` });
+    if (imp.part) {
+      imp.part = { ...imp.part, features: [...imp.part.features] };
+      const host = hostOf(imp.part);
+      for (const o of occs.filter((x) => parentOf(x) === cid)) await place(host, o, trail);
+      finish(host);
     }
-    if (!imp.part) { rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'unsupported', reason: imp.refused ?? 'the component could not be imported' }); continue; }
+    return imp;
+  };
+  const place = async (host: Host, occ: Rec, trail: number[]): Promise<void> => {
+    const cname = String(comps.get(occ.component as number)?.name ?? `Component ${occ.component}`);
+    const label = String(occ.name ?? cname);
+    if (trail.length > MAX_NESTING || trail.includes(occ.component as number)) { rows.push({ id: String(occ.id), name: label, type: 'occurrence', status: 'unsupported', reason: 'components that hold themselves' }); return; }
+    const imp = await partOf(occ.component as number, [...trail, occ.component as number]);
+    if (!imp.part) { rows.push({ id: String(occ.id), name: label, type: 'occurrence', status: 'unsupported', reason: imp.refused ?? 'the component could not be imported' }); return; }
     const m = occ.transform as number[][];
-    const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = toYUp(row4(m, 2)), ez = toYUp(row4(m, 1)).map((x) => clean(-x)) as V3;
-    const insertId = nid();
-    insertOf.set(occ.id as number, insertId);
-    // the colours of the component's bodies, keyed in the assembly as feature-of-the-part @ insert (what its face names say)
-    for (const [k, v] of Object.entries(imp.part.appearance ?? {})) appearance[`${k}@${insertId}`] = v;
-    for (const k of imp.part.view?.hiddenBodies ?? []) hiddenBodies.push(`${k}@${insertId}`);
-    features.push({ type: 'insertPart', id: insertId, name: String(occ.name ?? cname), part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
-    rows.push({ id: String(occ.id), name: String(occ.name ?? cname), type: 'occurrence', status: 'converted' });
-  }
+    // the basis turns with the points: their (x, y, z) become our (x, z, -y), or stay when the file is already Y up
+    const tr = toYUp(row4(m, 3)), ex = toYUp(row4(m, 0)), ey = yUp ? row4(m, 1) : toYUp(row4(m, 2)), ez = yUp ? row4(m, 2) : (toYUp(row4(m, 1)).map((x) => clean(-x)) as V3);
+    const insertId = host.nid();
+    // the colours and hidden bodies of the component's bodies, keyed in the assembly as feature-of-the-part @ insert (what its face names say); a body of a
+    // sub-assembly keeps the key it has there (feature @ the insert inside the sub-assembly)
+    const key = (k: string) => (k.includes('@') ? k : `${k}@${insertId}`);
+    for (const [k, v] of Object.entries(imp.part.appearance ?? {})) host.appearance[key(k)] = v;
+    for (const k of imp.part.view?.hiddenBodies ?? []) host.hiddenBodies.push(key(k));
+    const path = [...ancestry(occ), occ.id as number];
+    const hides = hidden.has(pathKey(path));
+    if (hides) for (const f of imp.part.features) if (f.type !== 'sketch' && f.type !== 'plane' && typeof f.id === 'string') host.hiddenBodies.push(key(f.id));
+    host.part.features.push({ type: 'insertPart', id: insertId, name: label, part: imp.part, place: { o: tr.map(clean), x: ex.map(clean), y: ey.map(clean), z: ez }, fixed: !!occ.grounded });
+    if (host === rootHost) insertOf.set(occ.id as number, insertId);
+    rows.push({ id: String(occ.id), name: label, type: 'occurrence', status: 'converted', ...(hides ? { notes: ['hidden in the file: its bodies are hidden here too'] } : {}) });
+  };
+  /** The occurrences that placed the component an occurrence sits in, from the design down (the first one that places it). */
+  const ancestry = (occ: Rec): number[] => {
+    const out: number[] = [];
+    let at = parentOf(occ);
+    for (let guard = 0; at !== undefined && guard < MAX_NESTING; guard++) {
+      const holder = occs.find((o) => o.component === at);
+      if (!holder) break;
+      out.unshift(holder.id as number);
+      at = parentOf(holder);
+    }
+    return out;
+  };
+  for (const occ of occs.filter((o) => parentOf(o) === undefined)) await place(rootHost, occ, []);
+  const features = rootHost.part.features;
+  const nid = rootHost.nid;
   // the saved transforms already satisfy the joints (the joint value is part of the pose), so the geometry is right; a revolute joint between
   // two circle centres also becomes a hinge mate (concentric cylinders), which keeps the pose and lets the part turn
   for (const j of (doc.assembly?.joints ?? []) as Rec[]) {
@@ -457,7 +586,7 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
     const pa = j.a?.snap?.type === 'circle_center' ? j.a.snap.pick : undefined, pb = j.b?.snap?.type === 'circle_center' ? j.b.snap.pick : undefined;
     let why = 'kept as the pose it was saved in; the joint (and so its motion) is not imported';
     if (j.kind === 'revolute' && ia && ib && Array.isArray(pa) && Array.isArray(pb) && opts.axisFaceResolver) {
-      const names = await opts.axisFaceResolver({ format: 'ck-part', version: 1, name, features, seq }, [{ insert: ia, point: toYUp(pa as V3).map(clean) as V3 }, { insert: ib, point: toYUp(pb as V3).map(clean) as V3 }]).catch(() => [null, null]);
+      const names = await opts.axisFaceResolver({ format: 'ck-part', version: 1, name, features, seq: rootHost.part.seq }, [{ insert: ia, point: toYUp(pa as V3).map(clean) as V3 }, { insert: ib, point: toYUp(pb as V3).map(clean) as V3 }]).catch(() => [null, null]);
       if (names[0] && names[1]) {
         features.push({ type: 'mate', id: nid(), name: row.name, kind: 'hinge', a: names[0], b: names[1] });
         rows.push({ ...row, status: 'converted', notes: ['hinge mate on the two cylinders; the saved angle is kept as the pose, its limits are not imported'] });
@@ -467,18 +596,20 @@ async function importComponents(doc: Rec, name: string, opts: ImportOpts): Promi
     }
     rows.push({ ...row, status: 'skipped', reason: why });
   }
+  const final = finish(rootHost);
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
-  return { name, part: { format: 'ck-part', version: 1, name, features, seq, ...(Object.keys(appearance).length ? { appearance } : {}), ...(hiddenBodies.length ? { view: { hiddenBodies } } : {}) }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
+  return { name, part: { ...final, format: 'ck-part', version: 1, name }, rows, summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) }, geometryComplete: unsupported === 0 };
 }
 
 async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScImport> {
+  const yUp = !!opts.yUp, toYUp = frameFor(yUp);
   if (!/^solidcraft\/\d+$/.test(String(doc.format ?? ''))) return refuse(name, `unknown document format "${doc.format}"`);
   if (doc.units && doc.units !== 'mm') return refuse(name, `units are ${doc.units}; only mm is supported`);
 
   const version = Number(String(doc.format).split('/')[1]);   // the file's format: some conventions changed between versions (XZ plane at 6, revolve start at 11)
   const originFrame = (n: string, d = 0): ScFrame => originFrameFor(n, d, version);
-  const placeOf = (n: string, d = 0): Placed => placeFrame(originFrame(n, d));
+  const placeOf = (n: string, d = 0): Placed => placeFrame(originFrame(n, d), false, toYUp);
   const vars: Record<string, number> = {};
   try {
     // a parameter may use one listed after it: evaluate in passes until each is settled; a pass that settles none is the error (a cycle, or a name that is not there)
@@ -499,8 +630,29 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     }
   };
 
+  /**
+   * The parameters of the file as the part's variables: the ones whose names the part can use, each with its expression when the part's grammar holds
+   * it (else its value). A feature field written as an expression over them is carried as that expression (`field`), so changing a variable changes the part.
+   */
+  const paramNames = new Set<string>(((doc.params ?? []) as Array<{ name: string }>).map((p) => p.name).filter((n) => usableName(n) && Object.prototype.hasOwnProperty.call(vars, n)));
+  const variables: Array<{ name: string; expr: string }> = ((doc.params ?? []) as Array<{ name: string; expr: string }>).filter((p) => paramNames.has(p.name)).map((p) => ({ name: p.name, expr: kernelExpr(p.expr, paramNames) ?? String(vars[p.name]) }));
+  /** Things on the row of the feature being converted that the caller of `live` found. */
+  let liveNotes: string[] = [];
+  /** A field: its expression over the variables when it has names in it and the grammar holds it, else the number (said on the row when it had names). */
+  const field = (x: unknown, what: string): number | string => {
+    const v = num(x, what);
+    if (typeof x !== 'string') return v;
+    const used = namesIn(x).filter((n) => Object.prototype.hasOwnProperty.call(vars, n));
+    if (!used.length) return v;
+    const ke = used.every((n) => paramNames.has(n)) ? kernelExpr(x, paramNames) : null;
+    if (ke === null) { liveNotes.push(`${what}: "${x.trim()}" is kept as the number ${v}: the part's expressions cannot hold it`); return v; }
+    return `=${ke}`;
+  };
+
   const features: FeatureJson[] = [];
-  const part = (): ScPart => ({ format: 'ck-part', version: 1, name, features, seq: 1 });
+  /** STEP texts of the imported geometry, by the SHA-256 of the text (the key the kernel checks). */
+  const blobs: Record<string, string> = {};
+  const part = (): ScPart => ({ format: 'ck-part', version: 1, name, features, seq: 1, ...(variables.length ? { variables } : {}), ...(Object.keys(blobs).length ? { blobs } : {}) });
   const rows: ScRow[] = [];
   let n = 0;
   const nid = () => `F${++n}`;
@@ -509,8 +661,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
    * The file refers to bodies by name (a target, a move, a combine, a remove, an intersect) or makes several: then every new body is a
    * named `newBody` lump, so what comes later can find it. A file of one body keeps the plain output (`add`).
    */
-  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'scale', 'combine', 'remove'].includes(q.type) || q.operation === 'intersect' || cutTargets(q).length > 0))
-    || (doc.features as Rec[]).filter((q) => !q.suppressed && q.operation === 'new_body').length > 1;
+  const namedBodies = (doc.features as Rec[]).some((q) => !q.suppressed && (['move', 'scale', 'combine', 'remove'].includes(q.type) || (q.type === 'mirror' && Array.isArray(q.bodies) && q.bodies.length > 0) || q.operation === 'intersect' || cutTargets(q).length > 0))
+    || (doc.features as Rec[]).filter((q) => !q.suppressed && (q.operation === 'new_body' || q.type === 'import')).length > 1;
   /** names of the bodies alive, in creation order; `bodyCount` is how many were ever made (unnamed ones are Body1, Body2, ... in that order) */
   let live: string[] = [];
   let bodyCount = 0;
@@ -539,6 +691,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   /** Their sketch id -> the id of our 3D sketch holding its one spline (a sweep path). */
   const splinePaths = new Map<number | string, string>();
   const placeholders = opts.placeholders !== false;
+  /** Their feature id -> the features of ours it made (for the timeline folders). */
+  const produced = new Map<unknown, FeatureJson[]>();
 
   const operation = (f: Rec): 'add' | 'cut' | 'newBody' => {
     const op = f.operation, targets = cutTargets(f);
@@ -607,19 +761,27 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       default: throw new Unsupported(`sketch on a ${pl?.type ?? 'unknown'} plane`);
     }
   };
-  const placeSketch = (pl: Rec): Placed => placeFrame(frameOf(pl), true);
+  const placeSketch = (pl: Rec): Placed => placeFrame(frameOf(pl), true, toYUp);
 
-  const extrudeOf = (f: Rec, sketchId: string, depth: number | 'through', positive: boolean, sign: 1 | -1, regions?: string[]): FeatureJson => {
+  const extrudeOf = (f: Rec, sketchId: string, depth: number | string, positive: boolean, sign: 1 | -1, regions?: string[], extra: { end?: 'mid' | 'throughBoth'; draft?: number; draftOut?: boolean } = {}): FeatureJson => {
     const op = operation(f);
     // a boss grows along the plane normal and a cut goes against it; `flip` reverses. Their "positive" runs along their normal,
     // which is ours or the opposite of ours (sign).
     const along = (positive ? 1 : -1) * sign;
     const flip = op === 'cut' ? along > 0 : along < 0;
-    const e: FeatureJson = depth === 'through' ? { type: 'extrude', id: nid(), op, sketch: sketchId, end: 'through', name: f.name } : { type: 'extrude', id: nid(), op, sketch: sketchId, end: 'blind', depth, name: f.name };
-    if (flip) e.flip = true;
+    const e: FeatureJson = depth === 'through' ? { type: 'extrude', id: nid(), op, sketch: sketchId, end: extra.end ?? 'through', name: f.name } : { type: 'extrude', id: nid(), op, sketch: sketchId, end: extra.end ?? 'blind', depth, name: f.name };
+    // a symmetric extent has no direction to reverse
+    if (flip && !extra.end) e.flip = true;
     if (regions) e.regions = regions;
+    if (extra.draft) { e.draft = extra.draft; if (extra.draftOut) e.draftOut = true; }
     if (op === 'newBody') { e.body = newName; newName = undefined; }
     return e;
+  };
+
+  /** How far `p` (a point in our world) lies above a placed sketch plane, along the normal of that plane. */
+  const heightAbove = (pl: Placed, p: V3): number => {
+    if (pl.frame) return dot3([p[0] - pl.frame.o[0], p[1] - pl.frame.o[1], p[2] - pl.frame.o[2]], pl.frame.z);
+    return dot3(p, (OUR_PLANE as Record<string, { z: V3 }>)[pl.std].z) - pl.offset;
   };
 
   /** The two faces of an edge by their names in the file (`F2:side:l5@F5.1|F2:start@F5.1`; pieces of a split face carry `#1`, `#2`, which is ignored here: the nearest edge between any pieces of those faces is meant, and the stored position is tried first) as the names this kit gives them; undefined for any other form (a shell's inner faces, other features). */
@@ -729,6 +891,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
         Object.assign(e, { type: 'arc', c: pid(c.c), p1: pid(a), p2: pid(b) });
       }
       else if (c.type === 'circle') Object.assign(e, { type: 'circle', c: pid(c.c), r: clean(Number(c.r)) });
+      // an ellipse: its centre, the end of its major axis and the minor radius (a mirrored or turned plane keeps all three as they are)
+      else if (c.type === 'ellipse' && pts[c.c] && pts[c.m] && Number(c.r) > 0) Object.assign(e, { type: 'ellipse', c: pid(c.c), p: pid(c.m), r: clean(Number(c.r)) });
       else if (c.type === 'spline' && Array.isArray(c.pts) && c.pts.length >= 2) {
         // `control` says the points are the control polygon of a B-spline of the given degree; otherwise the curve passes through them
         const ends = { pts: (c.pts as number[]).map(pid), ...(c.closed ? { closed: true } : {}) };
@@ -741,6 +905,12 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
     });
     const constraints: FeatureJson[] = [];
     let kn = 0;
+    /** A dimension that names a parameter holding the same number is driven by that variable. */
+    const bind = (c: FeatureJson, k: Rec): FeatureJson => {
+      const p = k.param;
+      if (typeof p === 'string' && paramNames.has(p) && Math.abs(vars[p] - Number(c.value)) < 1e-6 * Math.max(1, Math.abs(vars[p]))) c.expr = `=${p}`;
+      return c;
+    };
     for (const k of sk.constraints ?? []) {
       if (k.type === 'coincident') continue;
       if (k.type === 'horizontal' || k.type === 'vertical') {
@@ -751,7 +921,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       if (k.type === 'length' && curves[k.l]?.type === 'line') {
         const c = curves[k.l];
         const [a, b] = [pid(c.a), pid(c.b)];
-        if (a !== b) constraints.push({ id: `k${++kn}`, type: 'distance', refs: [a, b], value: Number(k.value) });
+        if (a !== b) constraints.push(bind({ id: `k${++kn}`, type: 'distance', refs: [a, b], value: Number(k.value) }, k));
         continue;
       }
       // the rest need the curves and points they name to be in the sketch (not glyph outlines of lettering, which are a text entity)
@@ -759,7 +929,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       const isRound = (i: unknown) => keep(i) && (curves[i as number].type === 'arc' || curves[i as number].type === 'circle');
       const isLine = (i: unknown) => keep(i) && curves[i as number].type === 'line';
       const num2 = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
-      const dim = (type: string, refs: string[]): void => { const v = num2(k.value); if (v !== undefined && v > 0) constraints.push({ id: `k${++kn}`, type, refs, value: clean(v) }); else notes.push(`${k.type} constraint dropped (no usable value)`); };
+      const dim = (type: string, refs: string[]): void => { const v = num2(k.value); if (v !== undefined && v > 0) constraints.push(bind({ id: `k${++kn}`, type, refs, value: clean(v) }, k)); else notes.push(`${k.type} constraint dropped (no usable value)`); };
       if (k.type === 'midpoint' && isLine(k.l) && pts[k.p]) { constraints.push({ id: `k${++kn}`, type: 'midpoint', refs: [pid(k.p), eid(k.l)] }); continue; }
       if ((k.type === 'distance_x' || k.type === 'distance_y') && pts[k.p] && pts[k.q] && find(k.p) !== find(k.q)) {
         const horizontal = (k.type === 'distance_x') !== swapsAxes(placed);   // an axis swap turns their horizontal distance into our vertical one
@@ -772,6 +942,14 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       if (k.type === 'symmetric' && pts[k.p] && pts[k.q] && isLine(k.l) && find(k.p) !== find(k.q)) { constraints.push({ id: `k${++kn}`, type: 'symmetric', refs: [pid(k.p), pid(k.q), eid(k.l)] }); continue; }
       if (k.type === 'collinear' && isLine(k.a) && isLine(k.b)) { constraints.push({ id: `k${++kn}`, type: 'collinear', refs: [eid(k.a), eid(k.b)] }); continue; }
       if (k.type === 'point_on_curve' && pts[k.p] && (isLine(k.c) || isRound(k.c))) { constraints.push({ id: `k${++kn}`, type: isLine(k.c) ? 'pointOnLine' : 'pointOnCircle', refs: [pid(k.p), eid(k.c)] }); continue; }
+      if ((k.type === 'parallel' || k.type === 'perpendicular') && isLine(k.a) && isLine(k.b)) { constraints.push({ id: `k${++kn}`, type: k.type, refs: [eid(k.a), eid(k.b)] }); continue; }
+      if (k.type === 'equal' && keep(k.a) && keep(k.b) && ((isLine(k.a) && isLine(k.b)) || (isRound(k.a) && isRound(k.b)))) { constraints.push({ id: `k${++kn}`, type: 'equal', refs: [eid(k.a), eid(k.b)] }); continue; }
+      if (k.type === 'point_line_distance' && pts[k.p] && isLine(k.l)) { dim('pldist', [pid(k.p), eid(k.l)]); continue; }
+      if (k.type === 'fix' && pts[k.p]) {
+        const at = pid(k.p);
+        if (at !== 'O') constraints.push({ id: `k${++kn}`, type: 'fix', refs: [at], value: mapXY(placed, ...(pts[k.p].pos as [number, number])) });
+        continue;
+      }
       notes.push(`${k.type} constraint dropped (the geometry is kept as stored)`);
     }
     const id = nid();
@@ -794,11 +972,28 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
    * its place on the path and extruded the same way. Instances are `spacing` apart along one line or arc, the first being the seed itself;
    * the seed does not turn (round seeds look the same turned, so no orientation is needed).
    */
-    // A circular pattern of whole bodies: rotated copies about an axis that may lie anywhere (the kernel's own circular pattern only turns about the world axes).
+  /** A circular pattern of features about a coordinate axis through the origin: the kernel's `cpattern` (it turns only about the world axes). */
+  const featureCircularPattern = (f: Rec, pt: Rec, names: string[]): string[] => {
+    const seeds = names.flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`pattern of "${nm}", which was not imported`); })());
+    const ax = pt.axis as V3 | undefined, org = (pt.origin as V3 | undefined) ?? [0, 0, 0];
+    if (!ax || Math.hypot(ax[0], ax[1], ax[2]) < 1e-9) throw new Unsupported('a circular pattern without an axis');
+    const a = axisOf(ax, 'a circular pattern axis', toYUp), at = toYUp(org), k = 'xyz'.indexOf(a.axis);
+    if (at.some((c, i) => i !== k && Math.abs(c) > 1e-6)) throw new Unsupported('a circular pattern of features about an axis that does not pass through the origin');
+    const count = num(pt.count, 'pattern count'), angle = pt.angle === undefined ? 360 : num(pt.angle, 'pattern angle');
+    if (!(count >= 2) || !Number.isInteger(count)) throw new Unsupported('a pattern with a single instance');
+    if (!(Math.abs(angle) > 0)) throw new Unsupported('a circular pattern of no angle');
+    const id = nid();
+    features.push({ type: 'cpattern', id, name: f.name, seeds, axis: { kind: 'axis', axis: a.axis }, count, angle: Math.abs(angle), equal: true, ...(a.neg !== angle < 0 ? { reverse: true } : {}) });
+    named.set(f.name, [id]);
+    return [];
+  };
+  // A circular pattern of whole bodies: rotated copies about an axis that may lie anywhere (the kernel's own circular pattern only turns about the world axes).
   const circularPattern = (f: Rec, pt: Rec): string[] => {
     const srcs = Array.isArray(f.bodies) ? (f.bodies as string[]) : [];
-    if (!srcs.length) throw new Unsupported(Array.isArray(f.features) && (f.features as unknown[]).length ? 'a circular pattern of features' : 'a circular pattern of no body');
-    if (Array.isArray(f.features) && (f.features as unknown[]).length) throw new Unsupported('a circular pattern of features together with bodies');
+    const seedNames = Array.isArray(f.features) ? (f.features as string[]) : [];
+    if (!srcs.length && seedNames.length) return featureCircularPattern(f, pt, seedNames);
+    if (!srcs.length) throw new Unsupported('a circular pattern of no body');
+    if (seedNames.length) throw new Unsupported('a circular pattern of features together with bodies');
     for (const b of srcs) if (!live.includes(b)) throw new Unsupported(`"${f.name}" repeats the body "${b}", which does not exist at this point`);
     const ax = pt.axis as V3 | undefined, org = (pt.origin as V3 | undefined) ?? [0, 0, 0];
     if (!ax || Math.hypot(ax[0], ax[1], ax[2]) < 1e-9) throw new Unsupported('a circular pattern without an axis');
@@ -873,6 +1068,52 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
     return [];
   };
 
+  /**
+   * A sketch of ours that holds exactly the curves `ids` of their sketch `src` (lines and arcs, joined by shared points): the sketch itself when
+   * it draws nothing else, else a hidden copy. A sweep path or a guide rail is the whole drawn content of the sketch it is given as.
+   */
+  const curveSketch = (src: number | string, ids: string[], name: string): string => {
+    const s = sketches.get(src);
+    if (!s) throw new Unsupported(failedSketches.has(src) ? `depends on sketch ${src}, which was not imported` : `refers to sketch ${src}, which is not in the file`);
+    const chosen = new Set(ids.map((c) => s.entityOf.get(String(c))));
+    if (chosen.has(undefined)) throw new Unsupported('a curve that is not in its sketch');
+    if (ids.some((c) => { const g = s.geo.get(String(c)); return !g || g.type === 'circle'; })) throw new Unsupported('a path or rail that is not made of lines and arcs');
+    const drawn = s.json.entities.filter((e) => !e.construction && e.type !== 'text');
+    if (drawn.every((e) => chosen.has(e.id as string)) && [...chosen].every((c) => drawn.some((e) => e.id === c))) return s.id;
+    const pts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }], ents: FeatureJson[] = [], at = new Map<string, string>();
+    const m = (q: P2): string => {
+      const [x, y] = mapXY(s.placed, q[0], q[1]), key = `${x.toFixed(6)},${y.toFixed(6)}`;
+      let id = at.get(key);
+      if (!id) { id = `q${pts.length}`; pts.push({ id, x, y }); at.set(key, id); }
+      return id;
+    };
+    for (const cid of ids.map(String)) {
+      const g = s.geo.get(cid);
+      if (!g || g.type === 'circle') throw new Unsupported('a path or rail that is not made of lines and arcs');
+      if (g.type === 'line') ents.push({ id: `c${ents.length + 1}`, type: 'line', p1: m(g.a), p2: m(g.b) });
+      else { const [a, b] = mirrored(s.placed) ? [g.b, g.a] : [g.a, g.b]; ents.push({ id: `c${ents.length + 1}`, type: 'arc', c: m(g.c), p1: m(a), p2: m(b) }); }
+    }
+    const nsid = nid();
+    features.push({ type: 'sketch', id: nsid, name, plane: s.plane, points: pts, entities: ents, constraints: [], visible: false });
+    return nsid;
+  };
+
+  /** The regions a revolve or a sheet base takes: all of the sketch, or the ones its outlines name (an outline that runs along only part of a curve is not carried). */
+  const wholeRegions = (f: Rec, s: { entityOf: Map<string, string>; geo: Map<string, Geo> }, what: string): string[] | undefined => {
+    const sel = f.profiles as Rec | undefined;
+    if (sel?.type === 'all') return undefined;
+    if (sel?.type === 'whole_boundaries') return boundaryRegions(sel, s.entityOf);
+    if (sel?.type === 'curves' && Array.isArray(sel.loops) && sel.loops.length) {
+      const loops = (sel.loops as unknown[]).map((l) => (Array.isArray(l) ? l : Array.isArray((l as Rec)?.curves) ? (l as Rec).curves : [])) as string[][];
+      if (loops.some((l) => !l.length)) throw new Unsupported(`${what} with an empty profile`);
+      if (loops.some((l) => !loopOutline(l.map(String), s.geo).whole)) throw new Unsupported(`${what} with a profile that runs along only part of a curve`);
+      const ids = loops.flat().map((c) => s.entityOf.get(String(c)));
+      if (ids.some((x) => !x)) throw new Unsupported('the chosen profile refers to a curve that is not in the sketch');
+      return [...new Set(ids as string[])];
+    }
+    throw new Unsupported(`${what} profile selection "${sel?.type}"`);
+  };
+
   const convert = async (f: Rec): Promise<string[]> => {
     switch (f.type) {
       case 'sketch': return sketchOf(f).notes;
@@ -916,45 +1157,72 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
             features.push({ type: 'sketch', id: nsid, name: `${f.name} profile`, plane: s.plane, points: pts, entities: ents, constraints: [], visible: false });
             sk = { ...s, id: nsid };
           }
-        } else if (f.profiles?.type !== 'all') throw new Unsupported(`extrude profile selection "${f.profiles?.type}"`);
+        } else if (f.profiles?.type === 'whole_boundaries') regions = boundaryRegions(f.profiles, s.entityOf);
+        else if (f.profiles?.type !== 'all') throw new Unsupported(`extrude profile selection "${f.profiles?.type}"`);
         // older files have no `convention`; their extents are the same total distance. `legacy_per_side` only differs from the total for a
-        // symmetric extent (the distance on each side), which is refused below by its direction, so a one-way extent reads the same.
-        const conv = f.extent?.convention ?? 'total_distance';
+        // symmetric extent (the distance on each side).
+        const ext = (f.extent ?? {}) as Rec;
+        const conv = ext.convention ?? 'total_distance';
         if (conv !== 'total_distance' && conv !== 'legacy_per_side') throw new Unsupported(`extrude extent "${conv}"`);
-        if (f.extent?.distance2 !== undefined) throw new Unsupported('an extrude with a second distance (two sides)');
-        if (f.extent.direction !== 'positive' && f.extent.direction !== 'negative') throw new Unsupported(`extrude direction "${f.extent.direction}"`);
+        const symmetric = ext.direction === 'symmetric';
+        if (!symmetric && ext.direction !== 'positive' && ext.direction !== 'negative') throw new Unsupported(`extrude direction "${ext.direction}"`);
+        const dist2 = ext.distance2 !== undefined ? num(ext.distance2, 'second extrude distance') : undefined;
+        if (dist2 !== undefined && (symmetric || conv !== 'total_distance' || ext.direction !== 'positive' || ext.through_all || ext.to !== undefined || !(dist2 > 0))) throw new Unsupported('an extrude with a second distance (two sides) that is not a plain distance each way');
+        const taper = ext.taper !== undefined ? num(ext.taper, 'extrude taper') : 0;
+        if (taper !== 0 && (symmetric || dist2 !== undefined || ext.through_all || ext.to !== undefined)) throw new Unsupported('a tapered extrude that is symmetric, two-sided, through all or stops at a face');
+        if (ext.to_offset !== undefined && num(ext.to_offset, 'end offset') !== 0) throw new Unsupported('an extrude that stops at an offset from a face');
         // a negative distance runs the other way: "-100 mm" going positive is 100 mm going negative
-        const dist = f.extent.through_all ? 0 : num(f.extent.distance, 'extrude distance');
-        let forward = (f.extent.direction === 'positive') !== (dist < 0);
-        if (!f.extent.through_all && Math.abs(dist) < 1e-12) throw new Unsupported('an extrude of zero distance');
+        const dist = ext.through_all ? 0 : num(ext.distance, 'extrude distance');
+        let forward = symmetric || (ext.direction === 'positive') !== (dist < 0);
+        if (!ext.through_all && Math.abs(dist) < 1e-12) throw new Unsupported('an extrude of zero distance');
+        if (dist2 !== undefined && dist < 0) throw new Unsupported('an extrude with a second distance (two sides) that is not a plain distance each way');
         // an extent "to" a point or face: the extrude runs to the plane through that point that is parallel to the sketch (the usual
         // target, a face facing the sketch). The depth is fixed here at what it reaches now; the stored distance is only the value the
         // file last had and is not used when it differs.
         let reachDepth: number | undefined;
         const stops: string[] = [];
-        if (f.extent.to !== undefined) {
-          const to = f.extent.to as V3 | undefined, fr = (OUR_PLANE as Record<string, { z: V3 } | undefined>)[s.placed.std];
-          if (!Array.isArray(to) || !fr || f.extent.through_all) throw new Unsupported('an extrude that stops at a point or face');
-          const startAt = f.extent.start_offset !== undefined ? num(f.extent.start_offset, 'start offset') : 0;
+        if (ext.to !== undefined) {
+          const to = ext.to as V3 | undefined;
+          if (!Array.isArray(to) || ext.through_all || symmetric) throw new Unsupported('an extrude that stops at a point or face');
+          const startAt = ext.start_offset !== undefined ? num(ext.start_offset, 'start offset') : 0;
           // the direction follows the target: towards the plane through the point, whatever the stored direction says
-          const gap = dot3(toYUp(to), fr.z) - s.placed.offset;
+          const gap = heightAbove(s.placed, toYUp(to));
           reachDepth = Math.abs(gap) - startAt;
           if (!(reachDepth > 1e-9)) throw new Unsupported('an extrude whose target lies at or before its start');
           forward = gap * s.placed.sign > 0;
           stops.push(`${f.name}: stops at a face; imported as the fixed depth ${+reachDepth.toFixed(4)} it reaches now${Math.abs(reachDepth - Math.abs(dist)) > 1e-3 * Math.max(1, Math.abs(dist)) ? ` (the stored distance ${Math.abs(dist)} is not used)` : ''}`);
         }
         // a start offset moves the profile along the extrude direction before it is extruded: the same sketch on an offset plane
-        const startOffset = f.extent.start_offset !== undefined ? num(f.extent.start_offset, 'start offset') : 0;
-        if (Math.abs(startOffset) > 1e-12) {
+        const startOffset = ext.start_offset !== undefined ? num(ext.start_offset, 'start offset') : 0;
+        let delta = (forward ? 1 : -1) * s.placed.sign * startOffset;   // in our normal
+        // a start "from" a face: the profile starts on the plane through that point, parallel to the sketch
+        if (ext.from !== undefined) {
+          if (!Array.isArray(ext.from) || ext.from.length !== 3 || symmetric) throw new Unsupported('an extrude that starts at a point or face');
+          if (!forward && Math.abs(startOffset) > 1e-12) throw new Unsupported('an extrude that starts at a face plus an offset and runs against its sketch normal');
+          const at = heightAbove(s.placed, toYUp(ext.from as V3));
+          delta += at;
+          stops.push(`${f.name}: starts at a face; imported as the profile moved ${+at.toFixed(4)} from its sketch plane`);
+        }
+        let total = reachDepth ?? Math.abs(dist);
+        if (dist2 !== undefined) {
+          if (Math.abs(startOffset) > 1e-12 || ext.from !== undefined) throw new Unsupported('an extrude with a second distance (two sides) and a start offset');
+          // the sketch plane lies inside the solid: start the profile the second distance back and run the two distances together
+          delta = -s.placed.sign * dist2;
+          total = Math.abs(dist) + dist2;
+        }
+        if (Math.abs(delta) > 1e-12) {
           const src = features.find((q) => q.type === 'sketch' && q.id === sk.id);
           if (!src) throw new Unsupported('an offset start for a sketch that cannot be copied');
-          const delta = (forward ? 1 : -1) * s.placed.sign * startOffset, fz = s.placed.frame?.z;
+          const fz = s.placed.frame?.z;
           const moved: Placed = { ...s.placed, offset: s.placed.offset + delta, ...(s.placed.frame && fz ? { frame: { ...s.placed.frame, o: s.placed.frame.o.map((c, k) => clean(c + fz[k] * delta)) as V3 } } : {}) };
           const nsid = nid();
           features.push({ type: 'sketch', id: nsid, name: `${f.name} start`, plane: planeRef(moved), points: JSON.parse(JSON.stringify(src.points)), entities: JSON.parse(JSON.stringify(src.entities)), constraints: [], visible: false });
           sk = { ...s, id: nsid };
         }
-        features.push(extrudeOf(f, sk.id, f.extent.through_all ? 'through' : (reachDepth ?? Math.abs(dist)), forward, s.placed.sign, regions));
+        if (symmetric) {
+          const half = conv === 'legacy_per_side' ? 2 : 1;
+          features.push(extrudeOf(f, sk.id, ext.through_all ? 'through' : Math.abs(dist) * half, true, s.placed.sign, regions, { end: ext.through_all ? 'throughBoth' : 'mid' }));
+        } else features.push(extrudeOf(f, sk.id, ext.through_all ? 'through' : dist2 === undefined && reachDepth === undefined && dist > 0 ? field(ext.distance, 'extrude distance') : total, forward, s.placed.sign, regions, taper !== 0 ? { draft: Math.abs(taper), draftOut: taper > 0 } : {}));
         named.set(f.name, [features[features.length - 1].id as string]);
         if (f.profiles?.type === 'all' && f.operation === 'cut' && hasEnclosingOutline(s.geo)) stops.push('all profiles selected; the file does not name the regions, and the sketch holds an outline around other shapes, so this cut can remove the whole body');
         return stops;
@@ -983,27 +1251,57 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         }).find(Boolean);
         if (!(len > 0)) throw new Unsupported('a cylinder with no axis');
         // along another direction: the circle stands on a plane through the base with the axis as its normal (a tilted plane of ours)
-        const pl = hit ? placeOf(hit.name, dot3(b, hit.nrm)) : placeFrame(faceFrame(b, ax), true);
+        const pl = hit ? placeOf(hit.name, dot3(b, hit.nrm)) : placeFrame(faceFrame(b, ax), true, toYUp);
         const plane = planeRef(pl);
         const [cx, cy] = hit ? mapXY(pl, dot3(b, hit.u), dot3(b, hit.v)) : [0, 0];
         const sid = nid();
         features.push({ type: 'sketch', id: sid, name: `${f.name} sketch`, plane, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: cx, y: cy }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: num(f.radius, 'cylinder radius') }], constraints: [] });
-        features.push(extrudeOf(f, sid, num(f.height, 'cylinder height'), hit ? hit.positive : true, pl.sign));
+        features.push(extrudeOf(f, sid, field(f.height, 'cylinder height'), hit ? hit.positive : true, pl.sign));
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
       case 'sphere': {
         const op = operation(f);
-        features.push({ type: 'sphere', id: nid(), name: f.name, op, center: toYUp(f.center as V3).map(clean), radius: num(f.radius, 'sphere radius'), ...(op === 'newBody' ? { body: newName } : {}) });
+        features.push({ type: 'sphere', id: nid(), name: f.name, op, center: toYUp(f.center as V3).map(clean), radius: field(f.radius, 'sphere radius'), ...(op === 'newBody' ? { body: newName } : {}) });
         newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
+      }
+      case 'torus': {
+        // a ring about their Z axis: a circle of the tube's radius, revolved about a vertical line through the centre, in a plane through that axis
+        const c = f.center as V3 | undefined;
+        if (!c) throw new Unsupported('a torus without a centre');
+        if (yUp) throw new Unsupported('a torus in a file that is already Y up');
+        const major = num(f.major, 'torus major radius'), minor = num(f.minor, 'torus minor radius');
+        if (!(minor > 0 && major > minor)) throw new Unsupported('a torus whose tube is as wide as its ring');
+        const op = operation(f);
+        const [cx, cy, cz] = toYUp(c);
+        const plane = planeRef({ std: 'front', offset: clean(cz), t: [1, 0, 0, 1], s: [0, 0], sign: 1 });
+        const sid = nid();
+        features.push({ type: 'sketch', id: sid, name: `${f.name} section`, plane, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: clean(cx + major), y: clean(cy) }, { id: 'a1', x: clean(cx), y: clean(cy) }, { id: 'a2', x: clean(cx), y: clean(cy + 10) }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: minor }, { id: 'e2', type: 'line', p1: 'a1', p2: 'a2', construction: true }], constraints: [], visible: false });
+        features.push({ type: 'revolve', id: nid(), op, sketch: sid, axis: 'e2', end: 'blind', angle: 360, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        newName = undefined;
+        named.set(f.name, [features[features.length - 1].id as string]);
+        return [];
+      }
+      case 'sheet_base': {
+        // a flat sheet from a closed profile: the profile extruded by the thickness of the sheet rule it names (bend settings of the rule are not kept)
+        const s = sketches.get(f.sketch);
+        if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : `refers to sketch ${f.sketch}, which is not in the file`);
+        const regions = wholeRegions(f, s, 'sheet base');
+        const rule = ((doc.sheet as Rec | undefined)?.rules as Rec[] | undefined)?.find((r) => r.name === f.rule);
+        if (!rule) throw new Unsupported(`the sheet rule "${f.rule}" is not in the file`);
+        const T = num(rule.thickness, 'sheet thickness');
+        if (!(T > 0)) throw new Unsupported('a sheet of no thickness');
+        const ex = extrudeOf({ ...f, operation: bodies === 0 ? 'new_body' : 'join' }, s.id, T, f.flip !== true, s.placed.sign, regions);
+        features.push(ex);
+        named.set(f.name, [ex.id as string]);
+        return [`a sheet metal base flange is carried as a plain extrude of its thickness ${T} mm; the bend rule is not kept`];
       }
       case 'hole': {
         // their hole is a position, a drilling direction (into the material) and sizes; ours is a sketch of points on the face with the hole drilled into it.
         // The sketch stands on the face at the hole: its normal points out of the material, so the drill (against the normal) runs along their direction.
         if (bodies === 0) throw new Unsupported('a hole with no body to drill');
-        if (f.to) throw new Unsupported('a hole drilled up to a face or point');
         const dir = f.direction as V3 | undefined, entry0 = f.position as V3 | undefined;
         if (!dir) throw new Unsupported('a hole without a drilling direction');
         const kind = (f.hole as Rec | undefined)?.type ?? 'simple';
@@ -1026,7 +1324,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         }
         if (!at.length) throw new Unsupported('a hole at no points');
         const d = unit(dir), out: V3 = [-d[0], -d[1], -d[2]];
-        const fr = faceFrame(at[0], out), pl = placeFrame(fr), plane = planeRef(pl);
+        const fr = faceFrame(at[0], out), pl = placeFrame(fr, false, toYUp), plane = planeRef(pl);
         const u = unit(fr.u), v = unit(fr.v);
         const sid = nid();
         const pts: FeatureJson[] = [{ id: 'O', x: 0, y: 0, fixed: true }], ents: FeatureJson[] = [];
@@ -1038,15 +1336,22 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         });
         features.push({ type: 'sketch', id: sid, name: `${f.name} points`, plane, points: pts, entities: ents, constraints: [], visible: false });
         const notes: string[] = [];
-        const h: FeatureJson = { type: 'hole', id: nid(), name: f.name, sketch: sid, diameter: num(f.diameter, 'hole diameter') };
-        if (f.depth === undefined || f.depth === null) h.end = 'through'; else { h.end = 'blind'; h.depth = num(f.depth, 'hole depth'); }
+        const h: FeatureJson = { type: 'hole', id: nid(), name: f.name, sketch: sid, diameter: field(f.diameter, 'hole diameter') };
+        if (f.to !== undefined && f.to !== null) {
+          // up to a face: the depth to the plane through that point across the drill (the face the file names is square to the drill)
+          const target = f.to as V3 | undefined;
+          if (!Array.isArray(target) || target.length !== 3) throw new Unsupported('a hole drilled up to a face or point that the file does not locate');
+          const reach = dot3([target[0] - at[0][0], target[1] - at[0][1], target[2] - at[0][2]], d);
+          if (!(reach > 1e-9)) throw new Unsupported('a hole whose end face lies at or behind its start');
+          h.end = 'blind'; h.depth = clean(reach);
+        } else if (f.depth === undefined || f.depth === null) h.end = 'through'; else { h.end = 'blind'; h.depth = field(f.depth, 'hole depth'); }
         if (pl.sign < 0) h.flip = true;   // their drill runs against the normal of the sketch we stand on; ours does too, unless the plane faces the other way
         const hk = f.hole as Rec | undefined;
         if (kind === 'simple') h.kind = 'simple';
         else if (kind === 'drilled') {
           h.kind = 'simple'; h.tip = true;
           if (Math.abs(num(hk!.tip_angle, 'tip angle') - 118) > 0.5) notes.push('the drill point is the standard 118 degrees; theirs is a different angle');
-        } else if (kind === 'counterbore') { h.kind = 'cbore'; h.cboreDiameter = num(hk!.cb_diameter, 'counterbore diameter'); h.cboreDepth = num(hk!.cb_depth, 'counterbore depth'); }
+        } else if (kind === 'counterbore') { h.kind = 'cbore'; h.cboreDiameter = field(hk!.cb_diameter, 'counterbore diameter'); h.cboreDepth = field(hk!.cb_depth, 'counterbore depth'); }
         else if (kind === 'countersink') { h.kind = 'countersink'; h.cskDiameter = num(hk!.cs_diameter, 'countersink diameter'); h.cskAngle = num(hk!.cs_angle, 'countersink angle'); }
         else throw new Unsupported(`a ${kind} hole`);
         features.push(h);
@@ -1077,10 +1382,10 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         if (!hints && typeof f.body === 'string') hints = points.map(() => ({ body: f.body as string }));
         const refs = await opts.resolver(part(), points, hints).catch(() => null);
         if (!refs || !refs.every(Boolean)) throw new Unsupported('an edge was not found on the body built so far');
-        if (f.type === 'fillet') features.push({ type: 'fillet', id: nid(), name: f.name, radius: num(f.radius, 'fillet radius'), edges: refs });
+        if (f.type === 'fillet') features.push({ type: 'fillet', id: nid(), name: f.name, radius: field(f.radius, 'fillet radius'), edges: refs });
         else {
           if (f.distance2 !== undefined || f.angle !== undefined) throw new Unsupported('a chamfer with two distances or an angle');
-          features.push({ type: 'chamfer', id: nid(), name: f.name, chamferType: 'equal', distance: num(f.distance, 'chamfer distance'), edges: refs });
+          features.push({ type: 'chamfer', id: nid(), name: f.name, chamferType: 'equal', distance: field(f.distance, 'chamfer distance'), edges: refs });
         }
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
@@ -1101,7 +1406,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         if (!names || !names.every(Boolean)) throw new Unsupported('a face was not found, or not found uniquely, on the body built so far');
         if (f.type === 'shell') {
           if (f.direction !== undefined && f.direction !== 'inside' && f.direction !== 'outside') throw new Unsupported(`shell direction "${f.direction}"`);
-          const sh: FeatureJson = { type: 'shell', id: nid(), name: f.name, faces: names, thickness: num(f.thickness, 'shell thickness') };
+          const sh: FeatureJson = { type: 'shell', id: nid(), name: f.name, faces: names, thickness: field(f.thickness, 'shell thickness') };
           if (f.direction === 'outside') sh.outward = true;
           features.push(sh);
         } else features.push({ type: 'moveFace', id: nid(), name: f.name, faces: names, mode: 'offset', distance: num(f.distance, 'offset distance') });
@@ -1167,6 +1472,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         return [];
       }
       case 'coil': {
+        if (f.sketch !== undefined) throw new Unsupported('a coil swept from a sketch profile: the file does not state the radius of its helix');
         // a helix of the coil's size on a plane across its axis, and the wire's section on a plane through the axis at the helix start, swept along it
         const sect = f.section === undefined ? 'circular' : String(f.section).toLowerCase();
         if (sect !== 'circular' && sect !== 'circle' && sect !== 'square') throw new Unsupported(`a coil with a "${f.section}" section`);
@@ -1179,7 +1485,9 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         const where = f.section_position === 'outside' ? 1 : f.section_position === 'inside' ? -1 : 0;
         const rc = diameter / 2 + (where * size) / 2;   // the wire's centre line: the diameter is the centre line's when centred, the wire's inner or outer edge otherwise
         if (!(rc > size / 2)) throw new Unsupported('a coil whose wire reaches the axis');
-        const x0 = unit(Math.abs(a[1]) < 0.9 ? cross3(a, [0, 1, 0]) : cross3(a, [1, 0, 0])), y0 = cross3(a, x0);
+        // the coil starts where their world X axis, projected square to the coil's axis, points (an axis along X: their axis x Y, which is their Z), and a start angle turns right-handed from there
+        const xAxis: V3 = [1, 0, 0], kx = dot3(a, xAxis);
+        const x0 = Math.hypot(...cross3(a, xAxis)) > 1e-6 ? unit([xAxis[0] - a[0] * kx, xAxis[1] - a[1] * kx, xAxis[2] - a[2] * kx]) : unit(cross3(a, toYUp([0, 1, 0]))), y0 = cross3(a, x0);
         const op = operation(f);
         const across = nid(), through = nid(), helixSketch = nid(), helix = nid(), wire = nid();
         features.push({ type: 'plane', id: across, mode: 'frame', origin: o.map(clean), xDir: x0.map(clean), yDir: y0.map(clean) });
@@ -1200,12 +1508,19 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
       case 'sweep': {
         const s = sketches.get(f.sketch);
         if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : 'its profile sketch is not in the file');
-        const path = splinePaths.get(f.path_sketch);
-        if (!path) throw new Unsupported(failedSketches.has(f.path_sketch) ? `depends on the path sketch ${f.path_sketch}, which was not imported` : 'a sweep along a path that is not one spline');
         if (f.profiles?.type !== 'all') throw new Unsupported(`sweep profile selection "${f.profiles?.type}"`);
-        if (Array.isArray(f.path) && f.path.length !== 1) throw new Unsupported('a path of several curves');
+        if (f.orientation !== undefined) throw new Unsupported('a sweep whose profile keeps a fixed or given orientation along the path');
+        if (f.scale !== undefined && num(f.scale, 'sweep scale') !== 1) throw new Unsupported('a sweep that scales its profile along the path');
+        if (Array.isArray(f.rails) && f.rails.length) throw new Unsupported('a sweep guided by a rail');
+        const spline = splinePaths.get(f.path_sketch);
+        const curveIds = Array.isArray(f.path) ? (f.path as unknown[]).map(String) : [];
+        if (!spline && !failedSketches.has(f.path_sketch) && !sketches.has(f.path_sketch)) throw new Unsupported('its path sketch is not in the file');
+        if (spline && curveIds.length > 1) throw new Unsupported('a path of several curves');
+        if (!spline && !curveIds.length) throw new Unsupported('a sweep without a path');
+        const pathId = spline ?? curveSketch(f.path_sketch, curveIds, `${f.name} path`);
+        const twist = f.twist !== undefined ? num(f.twist, 'sweep twist') : 0;
         const op = operation(f);
-        features.push({ type: 'sweep', id: nid(), op, sketch: s.id, path: { kind: 'sketch', id: path }, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        features.push({ type: 'sweep', id: nid(), op, sketch: s.id, path: { kind: 'sketch', id: pathId }, name: f.name, ...(twist !== 0 ? { twist: field(f.twist, 'sweep twist') } : {}), ...(op === 'newBody' ? { body: newName } : {}) });
         newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
@@ -1213,37 +1528,89 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
       case 'revolve': {
         const s = sketches.get(f.sketch);
         if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : 'its sketch is not in the file');
-        if (f.profiles?.type !== 'all') throw new Unsupported(`revolve profile selection "${f.profiles?.type}"`);
-        if (f.axis?.type !== 'sketch_axis' || (f.axis.axis !== 'x' && f.axis.axis !== 'y')) throw new Unsupported(`a revolve about "${f.axis?.type ?? 'an unknown axis'}"`);
+        const regions = wholeRegions(f, s, 'revolve');
+        const ax = f.axis as Rec | undefined;
+        if (ax?.type !== 'sketch_axis' && ax?.type !== 'sketch_line' && ax?.type !== 'line') throw new Unsupported(`a revolve about "${ax?.type ?? 'an unknown axis'}"`);
+        if (ax.type === 'sketch_axis' && ax.axis !== 'x' && ax.axis !== 'y') throw new Unsupported(`a revolve about "${ax.type}"`);
+        const pl = s.placed;
+        // the axis as a line of the profile's sketch: one of its own lines, or a construction line through the given place
+        let axisId: string | undefined;
+        let axisLine: { o: P2; d: P2 } | undefined;
+        if (ax.type === 'sketch_line') {
+          const g = s.geo.get(String(ax.curve));
+          axisId = s.entityOf.get(String(ax.curve));
+          if (!axisId || g?.type !== 'line') throw new Unsupported('a revolve about a curve of its sketch that is not a straight line');
+        } else if (ax.type === 'line') {
+          const o = toYUp(ax.origin as V3), d = unit(toYUp(ax.dir as V3));
+          const nrm = pl.frame ? pl.frame.z : (OUR_PLANE as Record<string, { z: V3 }>)[pl.std].z;
+          if (Math.abs(heightAbove(pl, o)) > 1e-6 || Math.abs(dot3(d, nrm)) > 1e-6) throw new Unsupported('a revolve about an axis that is not in the plane of its sketch');
+          const fr = pl.frame ?? { o: [0, 0, 0] as V3, ...(OUR_PLANE as Record<string, { x: V3; y: V3 }>)[pl.std] };
+          const rel = (p: V3): V3 => [p[0] - fr.o[0], p[1] - fr.o[1], p[2] - fr.o[2]];
+          axisLine = { o: [clean(dot3(rel(o), fr.x)), clean(dot3(rel(o), fr.y))], d: [clean(dot3(d, fr.x)), clean(dot3(d, fr.y))] };
+        } else {
+          axisLine = { o: mapXY(pl, 0, 0), d: ax.axis === 'x' ? [pl.t[0], pl.t[2]] : [pl.t[1], pl.t[3]] };
+        }
         const op = operation(f);
         const angle = num(f.angle, 'revolve angle');
-        // the sketch's own x or y axis becomes a construction line through the sketch origin
-        const pl = s.placed, d = f.axis.axis === 'x' ? [pl.t[0], pl.t[2]] : [pl.t[1], pl.t[3]];
-        const o = mapXY(pl, 0, 0);
-        const k = s.json.entities.length + 1;
-        s.json.points.push({ id: `ax${k}a`, x: o[0], y: o[1] }, { id: `ax${k}b`, x: o[0] + d[0] * 10, y: o[1] + d[1] * 10 });
-        s.json.entities.push({ id: `ax${k}`, type: 'line', p1: `ax${k}a`, p2: `ax${k}b`, construction: true });
-        features.push({ type: 'revolve', id: nid(), op, sketch: s.id, axis: `ax${k}`, end: 'blind', angle, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        if (!axisId) {
+          const k = s.json.entities.length + 1, { o, d } = axisLine!;
+          s.json.points.push({ id: `ax${k}a`, x: o[0], y: o[1] }, { id: `ax${k}b`, x: clean(o[0] + d[0] * 10), y: clean(o[1] + d[1] * 10) });
+          s.json.entities.push({ id: `ax${k}`, type: 'line', p1: `ax${k}a`, p2: `ax${k}b`, construction: true });
+          axisId = `ax${k}`;
+        }
+        // a symmetric extent turns half the angle each way from the sketch plane (a full turn has no sides)
+        const mid = f.symmetric === true && Math.abs(angle) < 360 - 1e-9;
+        features.push({ type: 'revolve', id: nid(), op, sketch: s.id, axis: axisId, end: mid ? 'mid' : 'blind', angle: angle > 0 ? field(f.angle, 'revolve angle') : angle, name: f.name, ...(regions ? { regions } : {}), ...(op === 'newBody' ? { body: newName } : {}) });
         newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
       case 'loft': {
-        const secs = ((f.sections as Rec[] | undefined) ?? []).map((q) => sketches.get(q.sketch)?.id);
+        const given = (f.sections as Rec[] | undefined) ?? [];
+        const secs = given.map((q) => sketches.get(q.sketch)?.id);
         if (secs.length < 2 || secs.some((x) => !x)) throw new Unsupported('a loft section whose sketch was not imported');
+        if (given.some((q) => q.profiles && q.profiles.type !== 'all')) throw new Unsupported('a loft section that uses only some of the regions of its sketch');
+        // a section that is a point (the apex of a cone): the sketch holds only its origin, which the part wants as a point entity
+        given.forEach((q, i) => {
+          if (q.point === undefined) return;
+          const sk = features.find((x) => x.type === 'sketch' && x.id === secs[i]);
+          if (!sk || (sk.entities as FeatureJson[]).length) throw new Unsupported('a loft section that is a point of a sketch that holds curves');
+          if (i !== 0 && i !== given.length - 1) throw new Unsupported('a loft with a point section in the middle');
+          (sk.entities as FeatureJson[]).push({ id: 'pt1', type: 'point', p: 'O' });
+        });
+        const rails = Array.isArray(f.rails) ? (f.rails as Rec[]) : [];
+        if (rails.length > 2) throw new Unsupported('a loft guided by more than two rails');
+        const guides = rails.map((r) => ({ sketch: curveSketch(r.sketch, (r.curves as unknown[]).map(String), `${f.name} rail`), influence: 'next' }));
         const op = operation(f);
-        features.push({ type: 'loft', id: nid(), op, sketches: secs, name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
+        features.push({ type: 'loft', id: nid(), op, sketches: secs, ...(guides.length ? { guides } : {}), name: f.name, ...(op === 'newBody' ? { body: newName } : {}) });
         newName = undefined;
         named.set(f.name, [features[features.length - 1].id as string]);
         return [];
       }
       case 'mirror': {
         const names = (f.features as string[] | undefined) ?? [];
+        if (Array.isArray(f.bodies) && f.bodies.length) {
+          // whole bodies: a mirrored copy of each, kept as a body of its own or united with the original
+          if (names.length) throw new Unsupported('a mirror of bodies together with features');
+          const plane = planeRef(placeFrame(frameOf(f.plane), true, toYUp));
+          for (const b of f.bodies as string[]) {
+            if (!live.includes(b)) throw new Unsupported(`"${f.name}" mirrors the body "${b}", which does not exist at this point`);
+            let nm = `${b} (mirror)`;
+            for (let k = 2; live.includes(nm); k++) nm = `${b} (mirror ${k})`;
+            bodyCount++; live.push(nm);
+            features.push({ type: 'moveBody', id: nid(), name: `${f.name} (${nm})`, bodies: [{ body: b }], copy: true, body: nm, mirror: plane });
+            if (f.combine === true) {
+              features.push({ type: 'combine', id: nid(), name: `${f.name} (${b})`, op: 'union', target: { body: b }, tools: [{ body: nm }], keepTools: false });
+              live = live.filter((x) => x !== nm);
+            }
+          }
+          return [];
+        }
         const plain = names.filter((nm) => !targeted.has(nm));
         const seeds = plain.flatMap((nm) => named.get(nm) ?? (() => { throw new Unsupported(`mirror of "${nm}", which was not imported`); })());
         if (!seeds.length && plain.length === names.length) throw new Unsupported('a mirror with nothing to mirror');
-        const plane = planeRef(placeFrame(frameOf(f.plane)));
-        if (seeds.length) features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false });
+        const plane = planeRef(placeFrame(frameOf(f.plane), true, toYUp));
+        if (seeds.length) { features.push({ type: 'mirror', id: nid(), name: f.name, seeds, plane, body: false }); named.set(f.name, [features[features.length - 1].id as string]); }
         // a feature that worked on named bodies through a tool body: the tool body is mirrored (a copy about the plane), the original tool
         // removed, and the mirrored tool does the same operation on the same bodies
         for (const nm of names.filter((x) => targeted.has(x))) {
@@ -1265,9 +1632,9 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         for (const [dir, count, spacing] of [[pt.dir1, pt.count1, pt.spacing1], [pt.dir2, pt.count2, pt.spacing2]] as Array<[V3 | undefined, unknown, unknown]>) {
           const c = count === undefined ? 1 : num(count, 'pattern count');
           if (!dir || c <= 1) continue;
-          const a = axisOf(dir, 'a pattern direction');
+          const a = axisOf(dir, 'a pattern direction', toYUp);
           const id = nid();
-          features.push({ type: 'lpattern', id, name: f.name, seeds: cur, dir: { kind: 'axis', axis: a.axis }, count: c, spacing: num(spacing, 'pattern spacing'), reverse: a.neg });
+          features.push({ type: 'lpattern', id, name: f.name, seeds: cur, dir: { kind: 'axis', axis: a.axis }, count: c, spacing: field(spacing, 'pattern spacing'), reverse: a.neg });
           made.push(id);
           cur = [...cur, id];   // the second direction repeats the first row too
         }
@@ -1323,7 +1690,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         if (!dir) throw new Unsupported(`a ${f.type} without a direction (their face normal is not stored)`);
         const joinOp = { operation: 'join', name: f.name };
         const stand = (frame: ScFrame, name: string, build: (pl: Placed) => { points: FeatureJson[]; entities: FeatureJson[] }) => {
-          const pl = placeFrame(frame);
+          const pl = placeFrame(frame, false, toYUp);
           const plane = planeRef(pl);
           const sid = nid();
           const g = build(pl);
@@ -1454,9 +1821,45 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         named.set(f.name, [ex.id as string]);
         return [`thickness ${T} mm and inner bend radius ${R} mm are assumed: the file stores neither`];
       }
-      case 'import': throw new Unsupported('the file holds the original solid as imported geometry (a STEP body of a part converted from another CAD system); there is no feature for it, so only the sketches and operations around it are carried');
+      case 'import': {
+        // the original solid of a part converted from another CAD system: a STEP body kept in the archive. It becomes an importStep
+        // feature holding the text, turned from their Z-up to our Y-up like every point of the file.
+        const why = 'the file holds the original solid as imported geometry (a STEP body of a part converted from another CAD system) but its STEP data could not be read, so only the sketches and operations around it are carried';
+        let text = await stepTextOf(f);
+        if (!text.includes('ISO-10303-21')) throw new Unsupported(why + (f.step_blob && !opts.blob ? ' (the archive was not given to the importer)' : ''));
+        if (opts.normalizeStep) {
+          const n = await opts.normalizeStep(text);
+          if (!n.ok) throw new Unsupported(`the file holds the original solid as imported geometry, but the kernel cannot read it (${n.reason}), so only the sketches and operations around it are carried`);
+          text = n.step;
+        }
+        const key = await sha256Hex(text);
+        let nm: string | undefined;
+        if (namedBodies) {
+          nm = String(f.body_names?.[0] ?? autoName());
+          if (live.includes(nm)) throw new Unsupported(`the body name "${nm}" is used twice`);
+          bodyCount++; live.push(nm);
+        } else if (bodies > 0) throw new Unsupported(`"${f.name}" holds a separate body; this kit keeps one connected body per part`);
+        bodies++;
+        blobs[key] = text;
+        const id = nid();
+        features.push({ type: 'importStep', id, name: String(f.name ?? 'Imported body'), blob: key, ...(nm ? { body: nm } : {}) });
+        if (yUp) return ['the solid is the STEP body stored in the file, in the axes of the file (Y up, as this kit\'s)'];
+        features.push({ type: 'moveBody', id: nid(), name: `${f.name} (Y up)`, bodies: [nm ? { body: nm } : { feature: id }], rotate: { axis: 'x', origin: [0, 0, 0], angle: -90 } });
+        return ['the solid is the STEP body stored in the file, turned to this kit\'s Y-up axes'];
+      }
       default: throw new Unsupported(`feature type "${f.type}"`);
     }
+  };
+
+  /** The STEP text of an `import` feature: inline, or the blob of the archive it names. */
+  const stepTextOf = async (f: Rec): Promise<string> => {
+    let text = typeof f.step === 'string' && f.step.includes('ISO-10303-21') ? f.step : '';
+    if (!text && typeof f.step_blob === 'string' && opts.blob) {
+      let data: Uint8Array | null = null;
+      try { data = await opts.blob(f.step_blob); } catch { data = null; }
+      if (data) text = new TextDecoder().decode(data);
+    }
+    return text;
   };
 
   const all = doc.features as Rec[];
@@ -1464,7 +1867,7 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
     if (opts.onProgress && fi % 20 === 0) { opts.onProgress(fi, all.length); await new Promise((r) => setTimeout(r, 0)); }
     if (opts.signal?.aborted) return refuse(name, 'cancelled');
     const row = { id: f.id, name: String(f.name ?? f.type), type: String(f.type) };
-    if (f.suppressed) { rows.push({ ...row, status: 'skipped', reason: 'suppressed in the file' }); continue; }
+    if (f.suppressed) { rows.push({ ...row, status: 'skipped', reason: typeof f.skipReason === 'string' ? f.skipReason : 'suppressed in the file' }); continue; }
     if (f.type === 'body_transfer') {
       // hands bodies from one component to another; the bodies are built where the file builds them, so with the identity transform nothing moves and only the grouping is lost
       const m = f.transform as number[][] | undefined, still = !m || m.every((r, i) => r.every((x, j) => Math.abs(Number(x) - (i === j ? 1 : 0)) < 1e-9));
@@ -1475,11 +1878,14 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
     const mark = features.length, bodiesBefore = bodies, nBefore = n, liveBefore = [...live], countBefore = bodyCount;
     newName = undefined; after = [];
     try {
-      const notes = await convert(f);
+      liveNotes = [];
+      const notes = [...(await convert(f))];
+      notes.push(...liveNotes);
       for (const make of after) features.push(make());
       after = [];
       if (f.type === 'extrude' || f.type === 'box' || f.type === 'cylinder') { const mine = named.get(f.name)?.[0]; if (mine) { ourExtrude.set(f.id, mine); if (f.sketch !== undefined) extrudeSketch.set(f.id, f.sketch); } }
       if (f.type === 'move') { const mv = features.slice(mark).find((x) => x.type === 'moveBody'); if (mv) ourMove.set(f.id, String(mv.id)); }
+      produced.set(f.id, features.slice(mark));
       rows.push({ ...row, status: 'converted', ...(notes.length ? { notes } : {}) });
     } catch (e) {
       features.length = mark; bodies = bodiesBefore; n = nBefore; live = liveBefore; bodyCount = countBefore; newName = undefined; after = [];   // drop what the feature half-added
@@ -1490,11 +1896,36 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
       rows.push({ ...row, status: 'unsupported', reason });
     }
   }
+  // the file keeps its original solid (suppressed, because its operations are meant to rebuild it) and also builds a body from sketches and
+  // operations: when those do not give the original back, the original is the body and the operations that build bodies are skipped
+  if (opts.volumeOf && opts.normalizeStep && !opts.signal?.aborted) {
+    const original = all.find((x) => x.type === 'import' && x.suppressed);
+    const builds = rows.some((r) => r.status === 'converted' && r.type !== 'sketch' && r.type !== 'construction_plane');
+    const text = original && builds ? await stepTextOf(original) : '';
+    const norm = text ? await opts.normalizeStep(text) : null;
+    if (original && norm?.ok && norm.volume > 0) {
+      let built: { volume: number | null; errors: number } | null = null;
+      try { built = await opts.volumeOf(part()); } catch { built = null; }
+      const off = !built || built.errors > 0 || !built.volume || Math.abs(built.volume - norm.volume) > HISTORY_VOLUME_TOLERANCE * norm.volume;
+      if (off) {
+        const num = (v: number | null | undefined) => (v ? String(Math.round(v * 100) / 100) : 'none');
+        const why = `the operations of the file do not rebuild its original solid (volume ${num(built?.volume)} mm3 against ${num(norm.volume)} mm3${built && built.errors ? `, ${built.errors} error(s)` : ''}): the stored solid is the body`;
+        const patched = { ...doc, features: all.map((x) => (x === original ? { ...x, suppressed: false } : x.type === 'sketch' || x.type === 'construction_plane' ? x : { ...x, suppressed: true, skipReason: why })) };
+        return importOne(patched, name, { ...opts, volumeOf: undefined });
+      }
+    }
+  }
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   // their sketches and datum planes are consumed by the features that use them and are not drawn; ours stay out of the way the same way (shown again from the tree)
   features.push(...followSketches(features, nid));   // a moved body leaves its sketches behind: hidden copies at its pose
   for (const f of features) if ((f.type === 'sketch' || f.type === 'plane') && f.visible === undefined) f.visible = false;
+  // the timeline folders of the file: the features a folder lists carry its name as their cosmetic group
+  for (const g of Array.isArray(doc.timeline_groups) ? (doc.timeline_groups as Rec[]) : []) {
+    const folder = typeof g?.name === 'string' ? g.name.trim() : '';
+    if (!folder || !Array.isArray(g.features)) continue;
+    for (const id of g.features as unknown[]) for (const made of produced.get(id) ?? []) if (made.group === undefined) made.group = folder;
+  }
   return {
     name, part: { ...part(), ...bodyLooks(doc, features, live) }, rows,
     summary: { converted: count('converted'), unsupported, skipped: count('skipped'), notes: rows.reduce((a, r) => a + (r.notes?.length ?? 0), 0) },

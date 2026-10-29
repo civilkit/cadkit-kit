@@ -1,12 +1,12 @@
 // Rolling bearings: a deep-groove ball bearing from its bore, outer diameter and width, placed by an origin and an axis. Mixed into PartBuilder by
 // features/index.ts. The sizes and rules are in bearingTable.ts (nominal ISO 15 dimensions, rules of thumb for the rest).
 //
-// Built only from features the kernel already has: one revolve per ring (the chamfers are part of the profile, and a shield or seal is part of the outer
+// Built only from features the kernel already has: one revolve per ring (the chamfers and the ball groove are part of the profile, the groove a true arc, and a shield or seal is part of the outer
 // ring's profile, like the 625-2Z of the NEMA 17 sample), and for an open bearing one revolve of a half disc per ball. Every ring and ball is its own
 // body, so the bearing can be assembled and the parts moved or hidden one by one.
 import type { Num, OffsetPlane, PartBuilder } from '../recorder';
 import type { PlaneBase } from '../planes';
-import { bearingModel, bearingPreset, BEARING_SEALS, housingSeat, innerRingProfile, outerRingProfile, SEAT_FITS, type BearingSeal, type SeatFit } from '../bearingTable';
+import { bearingModel, bearingPreset, BEARING_SEALS, housingSeat, innerRingPath, outerRingPath, type PathNode, SEAT_FITS, type BearingSeal, type SeatFit } from '../bearingTable';
 import { H } from './h';
 import { cross3, dot3, norm, Pen, type V3 } from './screw';
 
@@ -36,11 +36,19 @@ export interface BearingOpts {
 
 const LETTER = ['x', 'y', 'z'] as const;
 
+/** Draws a ring section: straight lines, and the groove as a true arc. */
+function drawPath(pen: Pen, path: PathNode[]): void {
+  path.forEach((n, i) => {
+    const q = path[(i + 1) % path.length].p;
+    if (n.arc) pen.arc(n.arc.c, n.p, q, n.arc.ccw); else pen.line(n.p, q);
+  });
+}
+
 export const bearingFeatures = {
   /**
    * A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
    *
-   * Give a preset designation ('608', '6204', 'MR63', 'R2' for a 1/8 inch bore) or bore, od and width in mm; the presets are the nominal ISO 15 sizes of the miniature 6xx, MR, 60xx, 62xx and 63xx series and some inch sizes. seal: '2Z' (default) is a flat shield disc on both faces, '2RS' a thicker seal with a sloping lip, 'open' shows the balls (count and diameter from the race gap, or balls and ballDiameter). All four corners of each ring are chamfered (chamfer, default by size). The races are plain cylinders, without ball grooves, so this is for assemblies, fit checks and looks, not for load ratings. origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body and does not merge with what it touches. seat: true first cuts a pocket for the outer ring into the bodies that exist (diameter with an H7 housing allowance, depth the width), seat: { fit: 'press' | 'h7' | 'print', allowance } picks another fit.
+   * Give a preset designation ('608', '6204', 'MR63', 'R2' for a 1/8 inch bore) or bore, od and width in mm; the presets are the nominal ISO 15 sizes of the miniature 6xx, MR, 60xx, 62xx and 63xx series and some inch sizes. seal: '2Z' (default) is a flat shield disc on both faces, '2RS' a thicker seal with a sloping lip, 'open' shows the balls (count and diameter from the race gap, or balls and ballDiameter). All four corners of each ring are chamfered (chamfer, default by size). Each race has a ball groove (an arc about the ball centre circle, radius 0.52 ball diameters, 0.27 deep; a plain race when the bearing is too small for one), no cage, so this is for assemblies, fit checks and looks, not for load ratings. origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body and does not merge with what it touches. seat: true first cuts a pocket for the outer ring into the bodies that exist (diameter with an H7 housing allowance, depth the width), seat: { fit: 'press' | 'h7' | 'print', allowance } picks another fit.
    *
    * @domain features
    * @param o options object { designation | bore, od, width, seal, chamfer, balls, origin, axis, name }, the fields below
@@ -104,8 +112,8 @@ export const bearingFeatures = {
       const across = offsetPlane({ origin: [origin[0] - d[0] * lead, origin[1] - d[1] * lead, origin[2] - d[2] * lead], normal: [-d[0], -d[1], -d[2]], xdir: u });
       this.sketch(across, (s) => { s.circle(seat.diameter / 2); }, `${name} seat`).cut(seat.depth + lead, { direction: 'into', name: `${name} seat` });
     }
-    this.sketch(axial, (s) => new Pen(s).poly(innerRingProfile(m)), `${name} inner ring profile`).revolve(360, { newBody: `${name} inner ring`, name: `${name} inner ring` });
-    this.sketch(axial, (s) => new Pen(s).poly(outerRingProfile(m)), `${name} outer ring profile`).revolve(360, { newBody: `${name} outer ring`, name: `${name} outer ring` });
+    this.sketch(axial, (s) => drawPath(new Pen(s), innerRingPath(m)), `${name} inner ring profile`).revolve(360, { newBody: `${name} inner ring`, name: `${name} inner ring` });
+    this.sketch(axial, (s) => drawPath(new Pen(s), outerRingPath(m)), `${name} outer ring profile`).revolve(360, { newBody: `${name} outer ring`, name: `${name} outer ring` });
     if (m.seal !== 'open') return this;
 
     // balls: a half disc about its own centre line, revolved. One ball is repeated around the axis when that is a world axis through the origin (the kernel

@@ -10,7 +10,7 @@ All lengths are millimetres inside the app. Formats that carry other units are c
 |---|---|---|---|---|
 | CadKit part | `.ckpart`, `.json`, `.ckpart.gz` | Open, drop | The full editable part | Nothing |
 | STEP | `.step`, `.stp` | Open, drop, More file actions | A view-only solid | The history; colours, names, assembly structure |
-| SolidWorks part | `.sldprt` | Open, drop, More file actions | A view-only solid | The feature tree, sketches, configurations, annotations |
+| SolidWorks part | `.sldprt` | Open, drop, More file actions | An editable imported body (view-only if it cannot be built) | The feature tree, sketches, configurations, annotations |
 | SketchUp | `.skp` | Open, drop, More file actions | A view-only surface model, with its colours | Scenes, text, dimensions, curves as true arcs |
 | FreeCAD | `.FCStd` | Open, drop | An editable part for the features that map | Features that do not map; the rest of the document |
 | SolidCraft | `.solidcraft` | Open, drop | An editable part for the features that map | Features that do not map are kept as suppressed placeholders |

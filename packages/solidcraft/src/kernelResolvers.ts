@@ -2,7 +2,7 @@
 // part built so far. The caller says how to open that session (the app uses a scratch tag of its own on the shared kernel; tests open a
 // kernel of their own), so this module holds no kernel of its own.
 import type { Session } from '@ck/session';
-import { axisLabel, faceAtPoint, faceOutlines, type AxisFaceResolver, type EdgeResolver, type FaceResolver, type RimResolver, type ScPart } from './import';
+import { axisLabel, faceAtPoint, faceOutlines, type AxisFaceResolver, type EdgeResolver, type FaceResolver, type RimResolver, type ScPart, type StepNormal, type StepNormalizer } from './import';
 
 export interface KernelResolvers { axisFaceResolver: AxisFaceResolver; resolver: EdgeResolver; faceResolver: FaceResolver; rimResolver: RimResolver }
 
@@ -157,6 +157,74 @@ export function kernelResolvers(open: (part: ScPart) => Promise<Session>): Kerne
       const name = faceAtPoint(point, faces, edges);
       const normal = axisLabel(faces.find((f) => f.name === name)?.normal);
       return name && normal ? { name, normal, loops: faceOutlines(edges, name) } : null;
+    },
+  };
+}
+
+/** The kernel as a transport of messages: what a session talks to. */
+export interface StepKernel { request(msg: Record<string, unknown>): Promise<{ ok?: boolean; trap?: string; error?: unknown; result?: unknown }> }
+export interface StepTools { normalizeStep: StepNormalizer; volumeOf: (part: ScPart) => Promise<{ volume: number | null; errors: number }> }
+
+/** Lower-case hex SHA-256 of the UTF-8 bytes of `text`. */
+async function sha256(text: string): Promise<string> {
+  const h = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  return Array.from(h, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Two volumes are the same body to this fraction. */
+const SAME_BODY = 1e-3;
+
+/**
+ * What the importer asks of the kernel about an original solid (STEP text) and about the part built around it, on scratch tags of their own.
+ *
+ * The kernel reads a STEP text two ways: the `importStep` message repairs the orientation of faces (healing), the `importStep` feature of a part
+ * does not, because a feature that changed geometry unseen would surprise. A STEP made from another program's own geometry reads the same both ways;
+ * a restatement by a converter can have some faces turned, so the feature gives a wrong volume (an open shell, a wrong body) where the message gives
+ * the right one. `normalizeStep` reads the text both ways and, when the volumes differ, writes the healed body out again with the kernel's own
+ * writer and checks that the feature now gives the same volume. A text the kernel cannot read says why.
+ */
+export function kernelStepTools(transport: () => Promise<StepKernel>): StepTools {
+  const tags = { feature: 'solidcraft-step-feature', message: 'solidcraft-step-message', again: 'solidcraft-step-again', part: 'solidcraft-volume' };
+  const volume = async (k: StepKernel, tag: string): Promise<number | null> => {
+    const r = await k.request({ type: 'massProps', tag });
+    const v = r.ok && r.result ? (r.result as { volume?: unknown }).volume : null;
+    return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
+  };
+  const viaFeature = async (k: StepKernel, text: string, tag: string): Promise<number | null> => {
+    const key = await sha256(text);
+    const part: ScPart = { format: 'ck-part', version: 1, name: 'step', seq: 2, features: [{ type: 'importStep', id: 'F1', blob: key }], blobs: { [key]: text } };
+    const r = await k.request({ type: 'regen', tag, part, opts: { noView: true } });
+    if (!r.ok || r.trap || ((r.result as { errors?: unknown[] } | undefined)?.errors?.length ?? 0)) return null;
+    return volume(k, tag);
+  };
+  const memo = new Map<string, Promise<StepNormal>>();   // the same original is asked about twice (as the body, then to check the operations)
+  const normalize: StepNormalizer = async (text) => {
+      const k = await transport();
+      const rep = await k.request({ type: 'importStep', tag: tags.message, name: 'original', data: text });
+      const errors = (rep.result as { errors?: Array<[string, { code?: string; params?: { message?: string } }]> } | undefined)?.errors ?? [];
+      if (!rep.ok || rep.trap || errors.length) {
+        const e = errors[0]?.[1];
+        return { ok: false, reason: e ? `${e.code ?? 'error'}${e.params?.message ? `: ${e.params.message}` : ''}` : String(rep.trap ?? rep.error ?? 'no answer') };
+      }
+      const healed = await volume(k, tags.message);
+      if (!healed) return { ok: false, reason: 'the solid has no volume' };
+      const plain = await viaFeature(k, text, tags.feature);
+      if (plain !== null && Math.abs(plain - healed) <= SAME_BODY * healed) return { ok: true, step: text, volume: healed };
+      // the plain reading is wrong or fails: the body as healed, written out again
+      const out = await k.request({ type: 'step', tag: tags.message, name: 'original' });
+      if (!out.ok || typeof out.result !== 'string' || !out.result.includes('ISO-10303-21')) return { ok: false, reason: 'the healed solid could not be written as STEP' };
+      const again = await viaFeature(k, out.result, tags.again);
+      if (again === null || Math.abs(again - healed) > SAME_BODY * healed) return { ok: false, reason: 'the body read from the text depends on healing that a part cannot repeat' };
+      return { ok: true, step: out.result, volume: healed };
+  };
+  return {
+    normalizeStep: (text) => { let r = memo.get(text); if (!r) { r = normalize(text); memo.set(text, r); } return r; },
+    volumeOf: async (part) => {
+      const k = await transport();
+      const r = await k.request({ type: 'regen', tag: tags.part, part, opts: { noView: true } });
+      if (!r.ok || r.trap) return { volume: null, errors: 1 };
+      const errors = (r.result as { errors?: unknown[] } | undefined)?.errors?.length ?? 0;
+      return { volume: await volume(k, tags.part), errors };
     },
   };
 }
