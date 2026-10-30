@@ -435,6 +435,31 @@
   "file": "brepjs-wall_mount_flanged_junction_box.ckpart"
  },
  {
+  "id": "motor-outrunner-2212",
+  "title": "Outrunner drone motor 2212 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "file": "motor-outrunner-2212.ckpart"
+ },
+ {
+  "id": "motor-inrunner-2430",
+  "title": "Inrunner motor 2430 (own model, typical dimensions; set EXPLODE=11 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "file": "motor-inrunner-2430.ckpart"
+ },
+ {
+  "id": "motor-outrunner-2306",
+  "title": "Outrunner drone motor 2306 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "file": "motor-outrunner-2306.ckpart"
+ },
+ {
+  "id": "motor-outrunner-5010",
+  "title": "Outrunner motor 5010 (own model, typical dimensions; set EXPLODE=20 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "file": "motor-outrunner-5010.ckpart"
+ },
+ {
+  "id": "motor-gimbal-2804",
+  "title": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "file": "motor-gimbal-2804.ckpart"
+ },
+ {
   "id": "assembly-block-bolt",
   "title": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)",
   "file": "assembly-block-bolt.ckpart"

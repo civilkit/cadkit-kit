@@ -50,7 +50,7 @@ The file does not store the model's faces. It stores how to rebuild them, which 
 Other data the app keeps in the same file when you use it:
 
 - A **preview picture** (a small PNG of the part in the isometric view), used for the recent list. It is refreshed when you save and is never read as part of the model.
-- The **stored view** if you chose Save geometry in file (see [Saving and opening](files.md)). It is a cache; removing it is always safe.
+- The **stored view** if you chose Save geometry in file (see [Saving and opening](files.md)). It is a cache; removing it is always safe. The MCP `export` tool can also write it (`cache: true`), and the app tells you when it ignores one that does not match the file or this build.
 - **Drawings**, the **exploded view** of an assembly, the **colours, opacity and finish of bodies** and body names, an embedded **script** and the **fonts** used by text.
 - Configurations and variables that you defined.
 

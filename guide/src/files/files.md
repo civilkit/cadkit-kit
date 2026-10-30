@@ -112,6 +112,8 @@ Programs that read `.ckpart` as text (scripts, other tools) need the file decomp
 A large part takes a while to rebuild, and the app caches the finished view in the browser so the second open is instant. A file opened on another computer, or after the cache is cleared, would still rebuild. **More file actions > Save geometry in file** makes the file carry the finished view, so it shows the model and the tree about a second after you open it. The model still rebuilds behind it and replaces the view.
 
 - It is a cache, never an input. If you edit the file elsewhere, or open it in a different build of the app, the stored view is ignored and the part rebuilds normally. Deleting the field is always safe.
+- If the file carries a stored view that cannot be used, the app shows a short notice and rebuilds. The notice says which of four things happened: the part was edited after the view was stored, the view is from a different kernel build, the view has a format this version does not know, or it could not be read. A file with no stored view gives no notice.
+- Files written by an AI agent through the MCP `export` tool with `cache: true` carry the same stored view.
 - It makes files bigger. As a guide, a part with about 185,000 triangles adds about 3.4 MB of text to a recipe of about 2 MB. Combined with `.gz` it is smaller than without compression, but it does not compress as well as the recipe.
 - It is off by default. The choice is remembered, and a file that was opened with its view keeps it when saved.
 - Autosave never writes the view.

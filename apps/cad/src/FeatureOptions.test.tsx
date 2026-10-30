@@ -273,3 +273,28 @@ describe('the editors of the body features', () => {
   });
 });
 
+
+describe('extrude target body', () => {
+  const doc = { features: [{ type: 'importStep', id: 'F1', body: 'Original (STEP)' }, { type: 'extrude', id: 'F3', op: 'newBody', body: 'History' }, { type: 'extrude', id: 'F5', op: 'add' }] } as never;
+  const withDoc = (feature: Wire) => mount(feature, { options: (a: never) => optionsFor(a, doc) });
+  it('Add and Cut offer Automatic and the named bodies of the part; the choice is written as {body: name}', () => {
+    const m = withDoc({ type: 'extrude', id: 'F5', op: 'add', sketch: 'F4', end: 'blind', depth: 5 });
+    expect(m.texts(m.sel('target'))).toEqual(['Automatic (every body the shape reaches)', 'Original (STEP)', 'History']);
+    fireEvent.change(m.sel('target'), { target: { value: 'History' } });
+    expect(m.drafts.at(-1)).toMatchObject({ target: { body: 'History' } });
+    fireEvent.change(m.sel('target'), { target: { value: '' } });
+    expect(m.drafts.at(-1)).toMatchObject({ target: null });
+  });
+  it('is not offered for a new body, for a revolve, or when the part names no body', () => {
+    const nb = withDoc({ type: 'extrude', id: 'F5', op: 'newBody', body: 'B', sketch: 'F4', end: 'blind', depth: 5 });
+    expect(nb.q('target')).toBeNull();
+    const none = mount({ type: 'extrude', id: 'F5', op: 'cut', sketch: 'F4', end: 'blind', depth: 5 });
+    expect(none.q('target')).toBeNull();
+  });
+  it('choosing New body drops the target', () => {
+    const m = withDoc({ type: 'extrude', id: 'F5', op: 'cut', sketch: 'F4', end: 'blind', depth: 5, target: { body: 'History' } });
+    const newBtn = [...m.container.querySelectorAll('[data-path="op"] button')].find((b) => b.textContent === 'New body') as HTMLElement;
+    fireEvent.click(newBtn);
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'newBody', target: null });
+  });
+});

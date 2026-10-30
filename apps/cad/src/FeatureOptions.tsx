@@ -2,7 +2,7 @@
 // fillet profile with the dependent fields shown and hidden as the kernel reads them (rules in featureOptions.ts). It plugs
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
-import { nextBodyName, opChoiceOf, opChoices, opPatch } from './extrudeOp';
+import { nextBodyName, opChoiceOf, opChoices, opPatch, targetBodyOf, targetPatch } from './extrudeOp';
 import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
@@ -78,6 +78,17 @@ const endLabel = (e: string): string => t('opt.end.' + e);
 /** The body names the other features of the part use (this feature's own is not counted). */
 const otherBodyNames = (doc: PartDoc | null, eff: Wire): Set<string> =>
   usedBodyNames(((doc?.features ?? []) as unknown as Array<Record<string, unknown>>).filter((x) => x.id !== eff.id));
+
+/** Which body an Add or Cut acts on: Automatic (every body the shape reaches) or one of the named bodies of the part. Shown once the part names a body. */
+function TargetBody(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+  const names = [...otherBodyNames(p.doc, p.eff)];
+  const cur = targetBodyOf(p.eff);
+  if (cur && !names.includes(cur)) names.push(cur);   // a target the part no longer names stays visible (the kernel reports it)
+  if (!names.length) return null;
+  return (
+    <Select name="target" label={t('opt.target')} value={cur} options={[['', t('opt.target.auto')], ...names.map((n) => [n, n] as [string, string])]} onChange={(v) => p.change(targetPatch(v))} />
+  );
+}
 
 /** A body reference of a feature in words: its name, or the face that tells which body. */
 export function bodyRefText(ref: unknown): string {
@@ -223,6 +234,7 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
       <Section id="op" title={t('opt.op')}>
         <Segmented<string> name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} choices={opChoices()} text={(c) => t('opt.op.' + c)} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
         {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
+        {!p.revolve && opChoiceOf(eff.op) !== 'new' ? <TargetBody eff={eff} change={change} doc={p.doc} /> : null}
         {p.actions?.cutProblem && eff.op === 'cut' ? (
           <div class="fedit-note fedit-warn" role="alert" data-note={'cut-' + p.actions.cutProblem}>
             {t(p.actions.cutProblem === 'nothing' ? 'opt.cut.nothing' : 'opt.cut.miss')}

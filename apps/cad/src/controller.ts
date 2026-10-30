@@ -1,4 +1,5 @@
 import { isNewerPart, normalizePartFormat } from './partVersion';
+import { originalCandidates, originalsToHide, type LumpVolume } from './referenceBody';
 import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
@@ -22,8 +23,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import { markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
-import { diagnose, type DiagFeature, type Diagnosis } from './errorSummary';
-import { adviceOf, summaryLine } from './diagnosticsText';
+import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
 import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
@@ -190,6 +190,7 @@ export class Controller {
       watchComponents(this.session, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       this.session.forgetReplies?.();   // the warm-up regen of open() predates the watch: ask again so its components are seen
       reset();
+      await this.hideReplacedOriginal(doc);
       await this.refresh();
     } finally {
       this.store.busy.value = false;
@@ -240,6 +241,17 @@ export class Controller {
   }
 
   /** The real build behind a cached open. Any failure leaves the cached view and says so. */
+  /** A converted part holds its original solid next to the body its history rebuilds: when the rebuilt body is there and has the original's volume the
+   *  original is hidden (viewer state), in every other case it stays visible. Only asks the kernel when the part has such an original. */
+  private async hideReplacedOriginal(doc: PartDoc): Promise<void> {
+    if (!originalCandidates(doc).length || !this.session) return;
+    try {
+      const m = await queryMass(this.session);
+      const ids = originalsToHide(doc, (m?.bodies ?? []) as LumpVolume[]);
+      if (ids.length) { this.docExtra.view = { hiddenBodies: ids }; this.extraRev++; }
+    } catch { /* the original simply stays visible */ }
+  }
+
   private async openReal(doc: PartDoc, forKernel: PartDoc, docFonts: unknown, mine: number): Promise<void> {
     try {
       const s = await this.kernel.open(forKernel);
@@ -251,6 +263,7 @@ export class Controller {
       this.asmComponents = []; this.asmExtra = { report: null, errors: new Map() };
       watchComponents(s, (c, x) => { this.asmComponents = c; this.asmExtra = x; });
       s.forgetReplies?.();
+      await this.hideReplacedOriginal(doc);
       await this.refresh();
       if (mine === this.loadSeq) this.store.cached.value = false;
       await this.repairTip();
@@ -567,7 +580,7 @@ export class Controller {
   /** The roots and consequences of the committed model's last regen (empty when it built cleanly). */
   diagnosis(): Diagnosis { return this.committedDiag; }
   private diagnoseErrors(errors: Array<[string, { code: string; params?: Record<string, unknown> }]>, hints: Array<{ feature: string; code: string; hint: string }>, features: unknown): Diagnosis {
-    return diagnose(errors.map(([id, e]) => ({ id, code: e.code, params: e.params, hint: hints.find((h) => h.feature === id && h.code === e.code)?.hint })), features as DiagFeature[]);
+    return diagnoseErrorList(errors, hints, features);
   }
   private committedExtras: { threads: unknown[]; warnings: unknown[] } = { threads: [], warnings: [] };
   private shownThreads: unknown[] = [];
@@ -1425,19 +1438,11 @@ export class Controller {
     const report = rr ? { regen: { errors: rr.errors, threads: rr.threads, warnings: rr.warnings }, hints: rr.hints } : await s.verify();
     this.committedExtras = await this.regenExtras(s, this.sdoc(), this.previewTagOf(s), report.regen as unknown as { threads?: unknown[]; warnings?: unknown[] });
     this.applyExtras(this.committedExtras);
-    const errors = new Map(report.regen.errors);
     this.lastErrors = report.regen.errors as never;
     this.limits = await this.askLimits();
     this.committedDiag = this.diagnoseErrors(report.regen.errors, report.hints, this.sdoc().features);
-    this.store.featureStatus.value = this.sdoc().features.map((f) => {
-      const err = errors.get(f.id);
-      if (!err) return { id: f.id, ok: true };
-      const hint = report.hints.find((h) => h.feature === f.id && h.code === err.code);
-      const root = this.committedDiag.roots.find((r) => r.id === f.id);
-      // an error code with no repair text gets the plain advice instead of the raw "error code {params}" line
-      const text = root && (!hint?.hint || hint.hint.includes('see the features field table')) ? adviceOf(root) : hint?.hint;
-      return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: this.committedDiag.blockedBy[f.id] };
-    });
+    // an error code with no repair text gets the plain advice instead of the raw "error code {params}" line (see featureStatuses)
+    this.store.featureStatus.value = featureStatuses(this.sdoc().features, report.regen.errors, report.hints, this.committedDiag);
     this.lastGood = this.sdoc();
     this.lastGoodHistory = typeof s.history === 'function' ? s.history().length : 0;
     // a font too big to embed whole travels as the glyphs of the document's text: ask for those after every change of the text

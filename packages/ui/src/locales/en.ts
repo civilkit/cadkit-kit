@@ -66,7 +66,7 @@ export const en: Catalog = {
   'ui.editor.value.plane.mode.offset': 'Offset', 'ui.editor.value.plane.mode.angle': 'Angle', 'ui.editor.value.plane.mode.mid': 'Midplane',
   'ui.editor.value.plane.mode.parallel': 'Parallel', 'ui.editor.value.plane.mode.threePoints': 'Three points', 'ui.editor.value.plane.mode.frame': 'Origin and directions',
   'ui.editor.value.deleteBody.mode.delete': 'Delete', 'ui.editor.value.deleteBody.mode.keep': 'Keep',
-  'ui.editor.value.definedBy.pitchRevs': 'Pitch and revolutions', 'ui.editor.value.definedBy.heightRevs': 'Height and revolutions', 'ui.editor.value.definedBy.heightPitch': 'Height and pitch',
+  'ui.editor.value.definedBy.pitchRevs': 'Pitch and revolutions', 'ui.editor.value.definedBy.heightRevs': 'Height and revolutions', 'ui.editor.value.definedBy.heightPitch': 'Height and pitch', 'ui.editor.value.definedBy.pitchHeight': 'Pitch and height', 'ui.editor.value.definedBy.revsHeight': 'Revolutions and height',
   'ui.editor.value.lip.kind.lip': 'Lip', 'ui.editor.value.lip.kind.groove': 'Groove',
   'ui.editor.value.knurlBand.pattern.diamond': 'Diamond', 'ui.editor.value.knurlBand.pattern.pyramid': 'Pyramid',
   'ui.editor.value.side.front': 'Front', 'ui.editor.value.side.back': 'Back', 'ui.editor.value.side.both': 'Both',

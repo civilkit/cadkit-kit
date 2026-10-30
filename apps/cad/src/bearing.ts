@@ -34,10 +34,12 @@ export interface BearingParams {
   seat: boolean;
   /** the face the wizard was opened on and placed the bearing against (null: placed by the numbers) */
   placedOn: string | null;
+  /** where the face placed the bearing (the centre of its first face and the axis), when it did: the bearing is built from the face while its axis and its position along the axis are still these, so it follows the face when the part is edited */
+  placedAt: { origin: [number, number, number]; axis: (typeof BEARING_AXES)[number] } | null;
 }
 export const DEFAULT_BEARING: BearingParams = {
   designation: '608', bore: 8, od: 22, width: 7, seal: '2Z', chamfer: null, balls: null, ballDiameter: null,
-  origin: [0, 0, 0], axis: 'pz', seatFit: 'h7', seat: false, placedOn: null,
+  origin: [0, 0, 0], axis: 'pz', seatFit: 'h7', seat: false, placedOn: null, placedAt: null,
 };
 
 /** The record with a preset's sizes (and, for a designation with a seal suffix, its seal). */
@@ -63,6 +65,17 @@ export function bearingNumbers(p: BearingParams): BearingModel | null {
 /** The pocket for the outer ring in the fit chosen: diameter, depth and a note for a drawing. */
 export const bearingSeat = (p: BearingParams) => housingSeat({ od: p.od, width: p.width, fit: p.seatFit });
 
+/**
+ * The face the bearing is built from, so that it moves with the face: the face it was placed on, while it is still where that placement put it along its axis
+ * (sliding it across the face keeps it on the face; a different axis, or a different depth, is a position of the user's own, built at those numbers).
+ */
+export function followedFace(p: BearingParams): string | null {
+  const at = p.placedAt;
+  if (!p.placedOn || !at || at.axis !== p.axis) return null;
+  const k = 'xyz'.indexOf(p.axis[1]);
+  return Math.abs(at.origin[k] - p.origin[k]) < 1e-6 ? p.placedOn : null;
+}
+
 /** The options of the script helper for these parameters. */
 export function bearingOpts(p: BearingParams): BearingOpts {
   const s = bearingSpec(p);
@@ -73,6 +86,7 @@ export function bearingOpts(p: BearingParams): BearingOpts {
     ...(s.ballDiameter !== undefined ? { ballDiameter: s.ballDiameter } : {}),
     origin: p.origin, axis: AXIS_VEC[p.axis],
     ...(p.designation ? { name: `Bearing ${p.designation}` } : {}),
+    ...(followedFace(p) ? { onFace: followedFace(p)! } : {}),
     ...(p.seat && p.placedOn ? { seat: { fit: p.seatFit } } : {}),
   };
 }

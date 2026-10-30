@@ -23,7 +23,7 @@ Open the **Bodies** tab in the left panel (next to Features, Variables and Scrip
 | Part of the row | What it does |
 |---|---|
 | Eye | Hides or shows the body. Space on a focused row does the same. This changes the view only, not the model |
-| Colour swatch and name | Click selects the body; Shift-click or Ctrl-click adds to the selection. Clicking a face in the view selects its row. F2 or a double-click renames. Up and Down move between rows |
+| Colour swatch and name | The line under the name says which feature made the body ("made by Boss-Extrude1"). Click selects the body; Shift-click or Ctrl-click adds to the selection. Clicking a face in the view selects its row. F2 or a double-click renames. Up and Down move between rows |
 | Volume | The body's volume, in cm³ or mm³. A sheet shows no volume |
 | Isolate button | Hides every other body. Press it again on the only visible body to show all |
 
@@ -44,6 +44,14 @@ Hidden bodies are not drawn and cannot be picked. Hiding a body in the panel is 
 ### Names
 
 A body that the part names (from the Operation control, a copy or a combine) shows that name, ahead of the feature name. Renaming it in the panel renames it in the feature that made it and in every feature that refers to it. A name another body already has is refused with "Another body is already called ...". A body that has no name in the part falls back to the feature that made it, or Body 1, Body 2, and so on.
+
+## Which body an Add or Cut acts on
+
+An Add fuses with every body the new solid touches or overlaps; a Cut removes material from every body it reaches. An Add that reaches no body makes a separate one, and the first solid of a part just adds. Once the part names a body, the Extrude editor shows a **Target body** control for Add and Cut: **Automatic** is the behaviour above, and choosing a body aims the operation at that body alone (the other bodies are left as they are). The control is not shown for New body.
+
+### Parts converted from another CAD system
+
+A part converted from another program can carry its stored solid (named **Original (STEP)**) on top of the body its history builds, so two identical solids lie on one another. **Original (STEP)** is hidden when the part is opened only if the body its history rebuilds is there and has the same volume (within 0.5%); if the history is suppressed, greyed, failed or a different size, it stays visible. Show or Hide in the Bodies panel changes that. An Add or Cut that is sketched on a face of one of two identical bodies acts on the body that owns the face, so a hole cut from a face does not meet its twin. When an Automatic cut cannot be made on all the bodies at once, it is made on each body in turn, the one that owns the face first; a body the tool misses, or whose hole already holds the tool, is skipped, and the cut is refused only when no body is touched.
 
 ## Combine bodies
 

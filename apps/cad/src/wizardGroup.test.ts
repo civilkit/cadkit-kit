@@ -59,7 +59,7 @@ describe('every inserting wizard puts its whole result in one folder named after
     expect(groups(fs)).toEqual(['Screw']);
   });
   it('knurl (cut and faceted forms)', () => {
-    const P = (o: Partial<KnurlParams>): KnurlParams => ({ ...DEFAULT_KNURL, count: 24, depth: 0.6, target, ...o });
+    const P = (o: Partial<KnurlParams>): KnurlParams => ({ ...DEFAULT_KNURL, cosmetic: false, count: 24, depth: 0.6, target, ...o });
     expect(groups(added(knurlOps(doc, P({}))))).toEqual(['Knurl']);
     const pyramid = added(knurlOps(doc, P({ pattern: 'pyramid', count: 12, depth: 0.5 })));
     expect(pyramid.length).toBeGreaterThan(0);

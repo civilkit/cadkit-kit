@@ -2,6 +2,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentSession, callTool, createTools } from './index';
+import { createHash } from 'node:crypto';
+import { checkEmbedded, takeEmbedded, embeddedSnapshot } from '@kit/viewdata';
+import { usesPooledFont } from './viewCache';
 import { placeholderSnapshot } from './testing/placeholder-snapshot';
 
 const WASM = process.env.CK_WASM;
@@ -193,6 +196,79 @@ describe('agent tools on the real kernel', () => {
       if (fmt === 'step') expect(readFileSync(path, 'utf8')).toContain('ISO-10303');
       rmSync(path);
     }
+  });
+
+  describe('export ckpart with cache', () => {
+    const dir = join(process.cwd(), 'node_modules', '.cache', 'agent-tools-test');
+    const wasmBuild = async () => 'wasm-sha256:' + createHash('sha256').update(readFileSync(WASM!)).digest('hex');
+    const read = (path: string) => JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown> & { features: unknown[] };
+
+    it('writes a view the app codec accepts for the same document and kernel build', async () => {
+      await call('run_script', { code: PLATE, mode: 'new' });
+      const path = join(dir, 'cached.ckpart');
+      const { json, r } = await call('export', { format: 'ckpart', path, cache: true });
+      expect(r.isError).toBeFalsy();
+      expect(json.viewCache.build).toBe(await wasmBuild());
+      const file = read(path);
+      const { doc, embedded } = takeEmbedded(file);
+      expect(doc).toEqual(JSON.parse(JSON.stringify(a.doc)));
+      const verdict = await checkEmbedded(wasmBuild, doc, embedded);
+      expect(verdict.ok).toBe(true);
+      const snap = await embeddedSnapshot(wasmBuild, doc, embedded);
+      const view = snap!.data;
+      expect(view.status).toHaveLength(a.doc.features.length);
+      expect(view.status.every((x) => x.ok)).toBe(true);
+      const mesh = (view.body as { mesh: { positions: Float32Array; triFace: Int32Array } }).mesh;
+      expect(mesh.positions.length).toBe(mesh.triFace.length * 9);
+      expect(mesh.positions.length).toBeGreaterThan(0);
+      // the same mesh the session shows
+      const live = await a.session.bodyForView();
+      expect(Array.from(mesh.positions)).toEqual(Array.from(live!.mesh.positions as ArrayLike<number>));
+      // an edit of the recipe, or another kernel build, is not accepted
+      expect(await checkEmbedded(wasmBuild, { ...doc, name: 'Edited' }, embedded)).toEqual({ ok: false, reason: 'recipe' });
+      expect(await checkEmbedded(async () => 'wasm-sha256:other', doc, embedded)).toEqual({ ok: false, reason: 'build' });
+      rmSync(path);
+    });
+
+    it('without cache the file has no viewCache field; cache with another format is a bad_input', async () => {
+      const path = join(dir, 'plain.ckpart');
+      await call('export', { format: 'ckpart', path });
+      expect('viewCache' in read(path)).toBe(false);
+      rmSync(path);
+      const { r } = await call('export', { format: 'stl', path: join(dir, 'x.stl'), cache: true });
+      expect(r.isError).toBe(true);
+      expect((r.content[0] as { text: string }).text).toContain('bad_input');
+    });
+
+    it('writes nothing and says why when the view cannot be reproduced (pooled fonts, rollback)', async () => {
+      expect(usesPooledFont([{ id: 'F1', entities: [{ type: 'text', string: 'A', font: 'barlow' }] }])).toBe(true);
+      expect(usesPooledFont([{ id: 'F1', entities: [{ type: 'text', string: 'A', font: 'gauge' }, { type: 'text', string: 'B' }] }])).toBe(false);
+      expect(usesPooledFont([{ id: 'F1', type: 'extrude', depth: 3 }])).toBe(false);
+      const original = a.doc;
+      try {
+        for (const extra of [{ fonts: [{ name: 'barlow', hash: 'x', source: 'curated', id: 'barlow' }] }, { rollback: 2 }]) {
+          await a.setDocument({ ...original, ...extra } as never, 'test', false);
+          const path = join(dir, 'refused.ckpart');
+          const { r } = await call('export', { format: 'ckpart', path, cache: true });
+          expect(r.isError).toBe(true);
+          expect((r.content[0] as { text: string }).text).toContain('view_unavailable');
+          expect(existsSync(path)).toBe(false);
+        }
+        // a text entity in a curated font is refused too, and one in a built-in font is cached (the kernel draws those itself)
+        const sk = original.features.find((f) => (f as { type?: string }).type === 'sketch') as unknown as { points: unknown[]; entities?: unknown[] };
+        const withText = (font: string) => ({ ...original, features: [...original.features, { ...JSON.parse(JSON.stringify(sk)), id: 'FT', name: 'Lettering', points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'pt', x: 1, y: 1 }], constraints: [], entities: [{ id: 'et', type: 'text', string: 'AB', font, height: 3, p: 'pt' }] }] });
+        const path = join(dir, 'text.ckpart');
+        await a.setDocument(withText('barlow') as never, 'test', false);
+        expect((await call('export', { format: 'ckpart', path, cache: true })).r.isError).toBe(true);
+        expect(existsSync(path)).toBe(false);
+        await a.setDocument(withText('gauge') as never, 'test', false);
+        const ok = await call('export', { format: 'ckpart', path, cache: true });
+        expect(ok.r.isError).toBeFalsy();
+        const { doc, embedded } = takeEmbedded(read(path));
+        expect((await checkEmbedded(wasmBuild, doc, embedded)).ok).toBe(true);
+        rmSync(path);
+      } finally { await a.setDocument(original, 'test restore', false); }
+    });
   });
 
   it('output size cap truncates with a note', async () => {

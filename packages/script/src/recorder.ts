@@ -16,6 +16,8 @@ export type Plane = 'front' | 'top' | 'right';
 export type EditOp = { op: 'add'; feature: Record<string, unknown>; index?: number };
 /** A workplane: a base plane, face, plane feature or point+normal, moved along its normal and optionally rotated. A reference plane feature is added for it. */
 export interface OffsetPlane { kind: 'offset'; plane: PlaneBase; offset: Num; opts: PlaneOpts; line: number }
+/** A plane feature that an earlier step of the same part makes (its id is filled in when the script runs): a sketch sits on it as it is, with no plane added. Used by helpers that build their own planes (bearing). */
+export interface PlaneRef { kind: 'planeRef'; ref: { id: string | null }; line: number }
 /** A feature of the part, taken with part.handle() once it exists; its id is filled in when the script runs. */
 export class FeatureHandle { id: string | null = null; constructor(public label = 'feature') {} toString(): string { return this.id ?? ''; } }
 /**
@@ -607,7 +609,7 @@ export class PartBuilder {
    *   .sketch(face('>Z'), (s) => s.circle(5)).cut(through());
    * @see sketch.rect, face, at, part.extrude
    */
-  sketch(plane: Plane | OffsetPlane | FaceSel, build: (s: SketchBuilder) => void, name?: string): this {
+  sketch(plane: Plane | OffsetPlane | PlaneRef | FaceSel, build: (s: SketchBuilder) => void, name?: string): this {
     const s = new SketchBuilder();
     build(s);
     const line = callerLine();
@@ -615,7 +617,10 @@ export class PartBuilder {
       const pre: EditOp[] = [];
       let pl: Record<string, unknown>;
       if (typeof plane === 'string') pl = { kind: 'std', id: plane };
-      else if (plane.kind === 'offset') {
+      else if (plane.kind === 'planeRef') {
+        if (!plane.ref.id) throw new SelectorError('sketch(): the plane it sits on is not built yet', plane.line);
+        pl = { kind: 'feature', id: plane.ref.id };
+      } else if (plane.kind === 'offset') {
         const b = buildPlane(plane.plane, plane.offset, plane.opts, { geo: ctx.geo, nextId: ctx.nextId, warn: ctx.warn }, plane.line);
         pre.push(...b.ops);
         pl = b.ref;

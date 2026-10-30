@@ -90,19 +90,30 @@ export function moveTransform(m: Rec, features: readonly Rec[]): Affine | null {
 
 const sketchRefs = (f: Rec): string[] => [f.sketch, ...(Array.isArray(f.sketches) ? f.sketches : [])].filter((s): s is string => typeof s === 'string');
 
+type Owned = Map<string, Array<{ sketch: string; pose: Affine }>>;
+/** Feature types that carry a sketch and make or change a body by an `add`/`cut` (a join or cut). */
+const SKETCH_BODY_FEATURES = new Set(['extrude', 'revolve', 'sweep', 'loft']);
+/** Feature types that bring bodies the follower does not track (it cannot tell which body a join without a name touches once one exists). */
+const FOREIGN_BODIES = new Set(['insertPart', 'importStep']);
+
 /**
- * The display copies of the sketches whose body was moved later: for every body alive at the end whose pose differs from where its sketches were
- * drawn, a hidden frame plane and a hidden copy of each sketch on it. `nid` makes the feature ids. Bodies are followed by the features that name
- * them (`newBody` extrudes, revolves, sweeps and lofts; `combine` hands a tool's sketches to its target; a copy keeps its source's sketches); a
- * join or cut that names no body belongs to no body here and gets no copy. A move this cannot read (a face selector, a plane it cannot resolve) is left out.
+ * For every body alive at the end, the sketches that built it and the motion each has had since it was drawn (the pose the body's copy of the sketch
+ * belongs at). Bodies are followed by the features that name them (`newBody` extrudes, revolves, sweeps and lofts; `combine` hands a tool's sketches to
+ * its target; a copy keeps its source's sketches). A join or cut that names no body belongs to the body it changes only when that is certain: exactly one
+ * body is alive and none came from an inserted part or an imported solid. With two or more bodies the kernel unites it with whichever lump it meets,
+ * which is not known here, so it belongs to none. A move this cannot read (a face selector, a plane it cannot resolve) is left out.
  */
-export function followSketches(features: readonly Rec[], nid: () => string): Rec[] {
-  const owned = new Map<string, Array<{ sketch: string; pose: Affine }>>();
+export function sketchOwners(features: readonly Rec[]): Owned {
+  const owned: Owned = new Map();
+  let foreign = false;
   const moveAll = (list: Array<{ sketch: string; pose: Affine }>, m: Affine) => list.map((e) => ({ sketch: e.sketch, pose: then(m, e.pose) }));
   for (const f of features) {
     if (f.suppressed) continue;
+    if (FOREIGN_BODIES.has(f.type)) foreign = true;
     if (typeof f.body === 'string' && f.op === 'newBody' && f.type !== 'moveBody') {
       owned.set(f.body, sketchRefs(f).map((sketch) => ({ sketch, pose: IDENT })));
+    } else if ((f.op === 'add' || f.op === 'cut') && typeof f.body !== 'string' && SKETCH_BODY_FEATURES.has(f.type)) {
+      if (!foreign && owned.size === 1) owned.get([...owned.keys()][0])!.push(...sketchRefs(f).map((sketch) => ({ sketch, pose: IDENT })));
     } else if (f.type === 'combine' && typeof f.target?.body === 'string') {
       const mine = owned.get(f.target.body);
       if (mine) for (const t of f.tools ?? []) { const got = owned.get(t?.body); if (got) mine.push(...got); }
@@ -119,17 +130,41 @@ export function followSketches(features: readonly Rec[], nid: () => string): Rec
       } else for (const nm of names) if (owned.has(nm)) owned.set(nm, moveAll(owned.get(nm)!, m));
     }
   }
-  const out: Rec[] = [];
+  return owned;
+}
+
+/** Up to this many copies are shown by default; a larger model keeps them hidden like its other sketches (thousands of orange lines hid the model). */
+export const SHOW_COPIES_UP_TO = 40;
+
+/** The ids of the sketches every body of which was moved after they were drawn: where they were drawn is a place no body is at, so they are not shown. */
+export function strandedSketches(features: readonly Rec[]): Set<string> {
+  const poses = new Map<string, boolean[]>();
+  for (const list of sketchOwners(features).values()) for (const { sketch, pose } of list) (poses.get(sketch) ?? poses.set(sketch, []).get(sketch)!).push(!isIdentity(pose));
+  return new Set([...poses].filter(([, moved]) => moved.every(Boolean)).map(([id]) => id));
+}
+
+/**
+ * The display copies of the sketches whose body was moved later: for every body alive at the end whose pose differs from where its sketches were
+ * drawn, a frame plane at that pose and a copy of each sketch on it (see `sketchOwners` for which sketch belongs to which body). `nid` makes the
+ * feature ids. The copies are shown when there are at most `SHOW_COPIES_UP_TO` of them, hidden otherwise (shown from the tree).
+ */
+export function followSketches(features: readonly Rec[], nid: () => string): Rec[] {
+  const owned = sketchOwners(features);
+  const jobs: Array<{ body: string; sk: Rec; fr: NonNullable<ReturnType<typeof planeFrame>>; pose: Affine }> = [];
   for (const [body, list] of owned) {
     for (const { sketch, pose } of list) {
       if (isIdentity(pose)) continue;
       const sk = features.find((q) => q.type === 'sketch' && q.id === sketch);
       const fr = sk && planeFrame(sk.plane, features);
-      if (!sk || !fr) continue;
-      const pid = nid(), sid = nid();
-      out.push({ type: 'plane', id: pid, name: `${sk.name ?? sketch} (${body}) frame`, mode: 'frame', origin: point(pose, fr.o).map(clean), xDir: dir(pose, fr.x).map(clean), yDir: dir(pose, fr.y).map(clean), visible: false });
-      out.push({ type: 'sketch', id: sid, name: `${sk.name ?? sketch} (${body})`, plane: { kind: 'feature', id: pid }, points: JSON.parse(JSON.stringify(sk.points)), entities: JSON.parse(JSON.stringify(sk.entities)), constraints: [], visible: false });
+      if (sk && fr) jobs.push({ body, sk, fr, pose });
     }
+  }
+  const visible = jobs.length <= SHOW_COPIES_UP_TO;
+  const out: Rec[] = [];
+  for (const { body, sk, fr, pose } of jobs) {
+    const pid = nid(), sid = nid();
+    out.push({ type: 'plane', id: pid, name: `${sk.name ?? sk.id} (${body}) frame`, mode: 'frame', origin: point(pose, fr.o).map(clean), xDir: dir(pose, fr.x).map(clean), yDir: dir(pose, fr.y).map(clean), visible: false });
+    out.push({ type: 'sketch', id: sid, name: `${sk.name ?? sk.id} (${body})`, plane: { kind: 'feature', id: pid }, points: JSON.parse(JSON.stringify(sk.points)), entities: JSON.parse(JSON.stringify(sk.entities)), constraints: [], visible });
   }
   return out;
 }

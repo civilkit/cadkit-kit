@@ -16,7 +16,7 @@ import { FilterMenu } from './select/FilterMenu';
 import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
 import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY, nextBodyName } from './extrudeOp';
-import { isPointSketch, featureLabel, loftMoveAfter } from './featureCreators';
+import { featureLabel, loftMoveAfter } from './featureCreators';
 import { tangentChainOn, chainSelection } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { annotate, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
@@ -60,7 +60,7 @@ import { createAutosaver, clearAutosave, readAutosave, worthRestoring, isTabs, s
 import { cleanSigAfterSave, mayClearAutosave } from './files/saveState';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
-import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend, embedSnapshot, embeddedSnapshot, takeEmbedded, type ViewData } from './files/viewCache';
+import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend, embedSnapshot, checkEmbedded, takeEmbedded, type ViewData } from './files/viewCache';
 import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
@@ -87,13 +87,14 @@ import { ScrewWizard } from './ScrewWizard';
 import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { BearingWizard } from './BearingWizard';
 import { bearingIssue, bearingOps, DEFAULT_BEARING, seatOnFace, type BearingParams } from './bearing';
+import { knurlDependents, knurlOwner, knurlReplaceOps, paramsFromCosmetic, replaceCosmetic, type KnurlOwner } from './knurlEdit';
 import { DEFAULT_KNURL, cosmeticToCutOps, knurlCosmetic, knurlIssue, knurlOps, knurlTarget, readCosmeticKnurls, suggestCount, suggestDepth, type KnurlParams } from './knurl';
 import { DEFAULT_CORNER, faceOutline, readCornerHoles, withCornerHoles, type CornerRecord, type Pt as HolePt } from './cornerHoles';
 import { holeDiameter, loadHolePrefs, newHole } from './holeData';
 import { optionsFor } from './FeatureOptions';
 import { asSurfaceOp, closeWithLineOp, openProfile, thinOf } from './thinRules';
 import { ThreadEditor } from './ThreadEditor';
-import { followedFaces, patternedBy, threadParents, type ThreadEntry } from './patternThreads';
+import { followedFaces, type ThreadEntry } from './patternThreads';
 import { GearEditor } from './GearEditor';
 import { gearCommitOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
@@ -124,6 +125,7 @@ import { SketchConstraintList } from './SketchConstraintList';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
 import { t } from './i18n';
+import { featureRows, refRows, treeKnurlRows } from './treeModel';
 import { runningBundle, watchForUpdate } from './updateCheck';
 import { runsInstalled, registerServiceWorker, watchInstall, type InstallEvent } from './installPrompt';
 import { installDismissGuard } from './dismissGuard';
@@ -180,18 +182,6 @@ import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeT
 import { defaultThickness } from './thinRules';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
-/** The ids a feature refers to by name in its fields (sketches, paths, sections ...): the tree tucks the sketches among them under it. */
-const usedSketches = (f: unknown): string[] => {
-  const out: string[] = [];
-  for (const v of Object.values(f as Record<string, unknown>)) {
-    for (const x of Array.isArray(v) ? v : [v]) {
-      const id = typeof x === 'string' ? x : x && typeof x === 'object' ? (x as { id?: unknown }).id : undefined;   // a path is {kind:'sketch', id}
-      if (typeof id === 'string' && /^[A-Za-z]+\d*$/.test(id)) out.push(id);
-    }
-  }
-  return out;
-};
-
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
 const OBJECT_SNAPS_OFF: SketchPrefs['snaps'] = Object.fromEntries(Object.keys(DEFAULT_SKETCH_PREFS.snaps).map((k) => [k, k === 'grid'])) as SketchPrefs['snaps'];
@@ -224,13 +214,15 @@ const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
 /** The cosmetic knurl the Knurl wizard is previewing (drawn with the saved ones, never saved). */
 let knurlDraft: ReturnType<typeof knurlCosmetic> | null = null;
+/** Index of the saved cosmetic knurl the wizard is editing: it is not drawn while its replacement is previewed. */
+let knurlHidden: number | null = null;
 /** What the viewport is told about bodies: their looks, the hidden ones and the per-face colours. */
 function bodyViewNow(): ReturnType<typeof viewSpec> {
   const rows = bodyRowsFor(false);
   const imp = controller.importedLook();   // an imported SketchUp body: its colours come from the file, not from the document
   const spec = viewSpec(rows, { ...resolveFaceLooks(readBodyFields(controller.document()).faceAppearance, rows.flatMap((r) => r.faces)), ...imp?.faces });
   if (imp) { spec.bodies.push(...imp.bodies); Object.assign(spec.looks, imp.looks); }
-  const knurls = [...readCosmeticKnurls((controller.document() as unknown as Record<string, unknown> | null)?.cosmeticKnurls), ...(knurlDraft ? [knurlDraft] : [])];
+  const knurls = [...readCosmeticKnurls((controller.document() as unknown as Record<string, unknown> | null)?.cosmeticKnurls).filter((_, i) => i !== knurlHidden), ...(knurlDraft ? [knurlDraft] : [])];
   if (knurls.length) spec.knurls = knurls;
   return spec;
 }
@@ -387,7 +379,8 @@ function App() {
   // The Propeller wizard: a new propeller (roles null) or a built one being edited (its role map and the name of its hub sketch)
   const [propWiz, setPropWiz] = useState<{ params: PropParams; roles: Record<string, string> | null; hubId?: string; marine?: MarineParams } | null>(null);   // `marine` set: the marine family
   const [impWiz, setImpWiz] = useState<{ params: ImpellerParams; roles: Record<string, string> | null; hubId?: string } | null>(null);   // the turbo-impeller wizard (standalone)
-  const [knurlWiz, setKnurlWiz] = useState<{ params: KnurlParams; reason: string | null } | null>(null);   // the Knurl wizard: the cylinder read from the face selected when it opened
+  const [knurlWiz, setKnurlWiz] = useState<{ params: KnurlParams; reason: string | null; edit?: { owner: KnurlOwner } | { cosmeticIndex: number }; refusal?: string | null } | null>(null);   // the Knurl wizard: the cylinder read from the face selected when it opened
+  useEffect(() => { if (!knurlWiz && knurlHidden !== null) { knurlHidden = null; viewport?.setBodyView(bodyViewNow()); } }, [knurlWiz]);   // the saved cosmetic knurl comes back when the wizard closes
   const [screwWiz, setScrewWiz] = useState<{ params: ScrewParams } | null>(null);   // the Screw wizard: a fastener over the screw() helper
   const [bearingWiz, setBearingWiz] = useState<{ params: BearingParams } | null>(null);   // the Bearing wizard: a ball bearing over the bearing() helper
   const [pickingPath, setPickingPath] = useState<string | null>(null);
@@ -742,7 +735,12 @@ function App() {
       cleanSig.current = null;
       viewport?.requestFit();
       // a stored view of exactly this recipe and kernel build is shown at once; the kernel rebuilds behind it
-      const stored = o.restored ? null : (await findSnapshot(viewCache, kernelBuild, doc)) ?? (embedded !== undefined ? await embeddedSnapshot(kernelBuild, doc, embedded) : null);
+      let stored = o.restored ? null : await findSnapshot(viewCache, kernelBuild, doc);
+      let rejected: 'recipe' | 'build' | 'version' | 'corrupt' | null = null;   // why the view the file carries is not used (no notice when the file has none)
+      if (!stored && !o.restored && embedded !== undefined) {
+        const r = await checkEmbedded(kernelBuild, doc, embedded);
+        if (r.ok) stored = r.snapshot; else rejected = r.reason;   // reason null: nothing to judge by, no notice
+      }
       if (!o.keep) openedWithView.current = embedded !== undefined;
       const t0 = performance.now();
       await timed(() => controller.load(doc, stored ? { cached: stored.data } : undefined));
@@ -755,6 +753,7 @@ function App() {
       setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
+      if (rejected) store.notify(rejected === 'recipe' ? t('files.cache.rejected.recipe') : rejected === 'build' ? t('files.cache.rejected.build') : rejected === 'version' ? t('files.cache.rejected.version') : t('files.cache.rejected.corrupt'), 'info');
     } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
   };
   const edit = async (ops: EditOp[]) => {
@@ -1258,10 +1257,7 @@ function App() {
   const selText = selModelNow ? summaryText(summarize(selModelNow, store.selection.value)) : '';
   const quickText = useQuickMeasure(controller, store.selection.value, selText, inspect.measuring || !!sketching);
   const doc = controller.document();
-  const wireFeatures = (doc?.features ?? []) as unknown as Array<Record<string, unknown>>;
-  const threadUnder = doc ? threadParents(wireFeatures) : {};
-  const patterned = doc ? patternedBy(wireFeatures) : {};
-  const rows = doc ? doc.features.map((f) => ({ id: f.id, type: f.type, name: f.type === 'plane' || f.type === 'sketch' ? featureLabel(doc, f as never) : f.name, op: f.type === 'sketch' && isPointSketch(f as never) ? 'point' : (f as { op?: string }).op, suppressed: (f as { suppressed?: boolean }).suppressed, uses: usedSketches(f), under: threadUnder[f.id], group: (f as { group?: string }).group, note: patterned[f.id] ? t('tree.patternedBy', { id: patterned[f.id].join(', ') }) : undefined })) : [];
+  const rows = doc ? featureRows(doc as never) : [];
   const rev = useRevealInTree(store.selection.value, rows.map((r) => r.id), doc ? insertIds(doc as never) : new Set<string>(), !sketching);
   revealRef.current = rev;
   const feature = doc && selectedId ? (doc.features.find((f) => f.id === selectedId) as unknown as Record<string, unknown> | undefined) ?? null : null;
@@ -1535,6 +1531,8 @@ function App() {
       setLeftTab('Editor');
       return;
     }
+    const knurl = knurlOwner((controller.document()?.features ?? []) as never, id);
+    if (knurl) { openKnurlEdit({ owner: knurl }); return; }   // a knurl the wizard made (or a faceted band) reopens the Knurl wizard; unmarked ones stay on the generic editor
     const gear = gearOwner((controller.document()?.features ?? []) as unknown[], id);
     if (gear) {   // any feature a gear made opens the Gear editor on its parameters
       setSelectedId(gear.profileId); setEditingId(gear.profileId);
@@ -2243,15 +2241,9 @@ function App() {
   };
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
-      refs={doc ? [
-        { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material', swatch: appearance.color, editable: true, editLabel: t('material.edit') },
-        { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', tag: 'XY', choosable: true },
-        { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', tag: 'XZ', choosable: true },
-        { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', tag: 'ZY', choosable: true },
-        { id: 'origin', label: t('app.ref.origin'), icon: 'ref-origin', choosable: true },
-      ] : []}
+      refs={doc ? [...refRows(doc as never, appearance.color), ...treeKnurlRows(doc as never)] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
-      onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
+      onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id.startsWith('knurl:')) openKnurlEdit({ cosmeticIndex: Number(id.slice(6)) }); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
       hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
       {...ti.treeProps}
@@ -2438,10 +2430,11 @@ function App() {
       return;
     }
     if (knurlDraft) { knurlDraft = null; viewport?.setBodyView(bodyViewNow()); }
-    void controller.preview(knurlOps(doc as never, next), 400).then(onPreviewResult);
+    const owner = knurlWiz && knurlWiz.edit && 'owner' in knurlWiz.edit ? knurlWiz.edit.owner : null;
+    void controller.preview(owner ? knurlReplaceOps(doc as never, next, owner) : knurlOps(doc as never, next), 400).then(onPreviewResult);
   };
   const onKnurlCancel = async () => {
-    knurlDraft = null;
+    knurlDraft = null; knurlHidden = null;
     await controller.cancelPreview();
     viewport?.setBodyView(bodyViewNow());
     setKnurlWiz(null); setPreviewHint(null); setLeftTab('Features');
@@ -2453,21 +2446,31 @@ function App() {
       // a record in the document (one undo step, no rebuild): the solid is not touched
       let rec;
       try { rec = knurlCosmetic(next); } catch (e) { setPreviewHint((e as Error).message); return; }
-      knurlDraft = null;
+      const saved = readCosmeticKnurls((controller.document() as unknown as Record<string, unknown> | null)?.cosmeticKnurls);
+      const at = knurlWiz?.edit && 'cosmeticIndex' in knurlWiz.edit ? knurlWiz.edit.cosmeticIndex : null;
+      const list = at === null ? [...saved, rec] : replaceCosmetic(saved, at, rec);
+      if (!list) { setPreviewHint(t('knurl.failed', { reason: 'the cosmetic knurl is gone' })); return; }
+      knurlDraft = null; knurlHidden = null;
       await controller.cancelPreview();
-      controller.setUndoableExtra('cosmeticKnurls', [...readCosmeticKnurls((controller.document() as unknown as Record<string, unknown> | null)?.cosmeticKnurls), rec]);
+      controller.setUndoableExtra('cosmeticKnurls', list);
       viewport?.setBodyView(bodyViewNow());
-      store.notify(t('knurl.createdCosmetic'));
+      store.notify(t(at === null ? 'knurl.createdCosmetic' : 'knurl.updated'));
       setKnurlWiz(null); setPreviewHint(null); setLeftTab('Features');
       redraw((n) => n + 1);
       return;
     }
+    const owner = knurlWiz?.edit && 'owner' in knurlWiz.edit ? knurlWiz.edit.owner : null;
+    if (owner) {   // the features it was made of may have changed since the wizard opened (an undo, another edit): look again
+      const now = knurlOwner(doc.features as never, owner.ids[0]);
+      const users = knurlDependents(doc.features as never, owner.ids);
+      if (!now || users.length) { setPreviewHint(users.length ? t('knurl.refused', { ids: users.join(', ') }) : t('knurl.failed', { reason: 'the knurl is gone' })); return; }
+    }
     let ops;
-    try { ops = knurlOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
+    try { ops = owner ? knurlReplaceOps(doc as never, next, owner) : knurlOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
     await controller.cancelPreview();
-    const r = await timed(() => controller.commit(ops, 'knurl'));
+    const r = await timed(() => controller.commit(ops, 'knurl'));   // one batch: the old features out, the new ones in at the same place
     if (!r.ok) { setPreviewHint(t('knurl.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
-    store.notify(t('knurl.created'));
+    store.notify(t(owner ? 'knurl.updated' : 'knurl.created'));
     setKnurlWiz(null); setPreviewHint(null); setLeftTab('Features');
     redraw((n) => n + 1);
   };
@@ -2477,10 +2480,27 @@ function App() {
     if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
     setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setScrewWiz(null); setBearingWiz(null); setBearingWiz(null);
     const face = selectedFace();
-    const found = face ? knurlTarget(face, controller.bodyEdges() as never) : { reason: 'notCylinder' as const };
+    const found = face ? knurlTarget(face, controller.bodyEdges() as never, controller.bodyFaces()) : { reason: 'notCylinder' as const };
     const target = 'target' in found ? found.target : null;
     const count = target ? suggestCount(target.radius) : DEFAULT_KNURL.count;
-    setKnurlWiz({ params: { ...DEFAULT_KNURL, target, count, depth: target ? suggestDepth(target.radius, count) : DEFAULT_KNURL.depth }, reason: 'reason' in found ? found.reason : null });
+    setKnurlWiz({ params: { ...DEFAULT_KNURL, target, count, depth: target ? suggestDepth(target.radius, count) : DEFAULT_KNURL.depth }, reason: face && 'reason' in found ? found.reason : null });
+    if (!target) { store.mode.value = 'face'; viewport?.setPickMode('face'); }   // no cylinder yet: the wizard waits for a click on a round face
+    setLeftTab('Editor');
+  };
+  /** Reopen an existing knurl in the wizard on its own parameters (Update replaces it in place). `owner`: cut knurls; `cosmeticIndex`: a cosmetic record. */
+  const openKnurlEdit = (edit: { owner: KnurlOwner } | { cosmeticIndex: number }) => {
+    if (!doc) return;
+    const recs = readCosmeticKnurls((controller.document() as unknown as Record<string, unknown> | null)?.cosmeticKnurls);
+    const rec = 'cosmeticIndex' in edit ? recs[edit.cosmeticIndex] : null;
+    if ('cosmeticIndex' in edit && !rec) return;
+    const params = 'owner' in edit ? edit.owner.params : paramsFromCosmetic(rec!);
+    const users = 'owner' in edit ? knurlDependents(doc.features as never, edit.owner.ids) : [];
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' });
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setScrewWiz(null);
+    knurlHidden = 'cosmeticIndex' in edit ? edit.cosmeticIndex : null;
+    setKnurlWiz({ params, reason: null, edit, refusal: users.length ? t('knurl.refused', { ids: users.join(', ') }) : null });
+    if ('owner' in edit) setSelectedId(edit.owner.ids[0]);
     setLeftTab('Editor');
   };
   // The Screw wizard: every change previews the fastener (the same features the Script tab's screw() makes); Add screw commits them, one undo step.
@@ -2541,7 +2561,7 @@ function App() {
     setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setScrewWiz(null);
     const face = selectedFace();
     const placed = face ? seatOnFace(face, controller.bodyFaces()) : null;
-    setBearingWiz({ params: { ...DEFAULT_BEARING, ...(placed && face ? { origin: placed.origin, axis: placed.axis, placedOn: face } : {}) } });
+    setBearingWiz({ params: { ...DEFAULT_BEARING, ...(placed && face ? { origin: placed.origin, axis: placed.axis, placedOn: face, placedAt: { origin: placed.origin, axis: placed.axis } } : {}) } });
     setLeftTab('Editor');
   };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
@@ -2589,7 +2609,7 @@ function App() {
     return <CornerHolesPanel key={editingId} update value={cornerRec} plate={plate} holeDiameter={holeDiameter({ ...editingFeature, ...draft })} onPlace={update} />;
   })();
   const knurlEditor = knurlWiz && doc ? (
-    <KnurlWizard key="knurl" params={knurlWiz.params} reason={knurlWiz.reason} onDraft={onKnurlDraft} onApply={onKnurlApply} onCancel={onKnurlCancel} hint={previewHint} />
+    <KnurlWizard face={selectedFace()} edges={controller.bodyEdges() as never} mesh={controller.bodyFaces()} key={knurlWiz.edit ? 'knurl-edit-' + ('owner' in knurlWiz.edit ? knurlWiz.edit.owner.ids.join('+') : 'c' + knurlWiz.edit.cosmeticIndex) : 'knurl'} params={knurlWiz.params} reason={knurlWiz.reason} edit={!!knurlWiz.edit} refusal={knurlWiz.refusal} scriptNote={!!knurlWiz.edit && !!(doc as unknown as { script?: string }).script} onDraft={onKnurlDraft} onApply={onKnurlApply} onCancel={onKnurlCancel} hint={previewHint} />
   ) : null;
   const screwEditor = screwWiz && doc ? (
     <ScrewWizard key="screw" params={screwWiz.params} onDraft={onScrewDraft} onApply={onScrewApply} onCancel={onScrewCancel} hint={previewHint} />
@@ -2746,6 +2766,7 @@ function App() {
   const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
   const bodyFields = readBodyFields(doc);
   const bodiesPanel = <BodiesPanel rows={bodyRows}
+    madeBy={(o) => { const f = (controller.document()?.features ?? []).find((x) => x.id === o.split('@')[0]) as { name?: string; type?: string } | undefined; return f ? f.name || f.type || o : null; }}
     selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
     onSelect={(key, add) => store.select([key], add)}
     onToggleHidden={(key) => setHiddenBodies(setHidden(bodyFields, key, !bodyRows.find((r) => r.key === key)?.hidden, bodyRows))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
+import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, targetBodyOf, targetPatch, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
 
 const box = { min: [0, 0, 0], max: [10, 10, 10] };
 const frame = (z: number) => ({ o: [0, 0, z], z: [0, 0, 1] });
@@ -36,9 +36,19 @@ describe('default extrude operation', () => {
   it('a new body gets a free name of its own; a name it has is kept; Add and Cut carry no body name', () => {
     expect(nextBodyName(new Set())).toBe('Body 1');
     expect(nextBodyName(new Set(['Body 1', 'Body 3']))).toBe('Body 2');
-    expect(opPatch('new', {}, new Set(['Body 1']))).toEqual({ op: 'newBody', flip: null, body: 'Body 2' });
-    expect(opPatch('new', { body: 'Case' }, new Set(['Case']))).toEqual({ op: 'newBody', flip: null, body: 'Case' });
+    expect(opPatch('new', {}, new Set(['Body 1']))).toEqual({ op: 'newBody', flip: null, target: null, body: 'Body 2' });
+    expect(opPatch('new', { body: 'Case' }, new Set(['Case']))).toEqual({ op: 'newBody', flip: null, target: null, body: 'Case' });
     expect(opPatch('add', { body: 'Case' }, new Set())).toEqual({ op: 'add', flip: null, body: null });
     expect(opPatch('cut', { body: 'Case' }, new Set())).toEqual({ op: 'cut', body: null });
+  });
+});
+
+describe('target body', () => {
+  it('reads and writes {body: name}; no name is Automatic and removes the field', () => {
+    expect(targetBodyOf({})).toBe('');
+    expect(targetBodyOf({ target: null })).toBe('');
+    expect(targetBodyOf({ target: { body: 'Case' } })).toBe('Case');
+    expect(targetPatch('Case')).toEqual({ target: { body: 'Case' } });
+    expect(targetPatch('')).toEqual({ target: null });
   });
 });

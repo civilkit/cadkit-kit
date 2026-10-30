@@ -12,6 +12,8 @@ All of these are about geometry only. The app does not calculate strength, lubri
 - A readout and checks show the derived numbers. Errors stop the build. Warnings do not.
 - The settings are stored on the part, so you can reopen the wizard later and change them. The features are regenerated from the settings, keeping their ids, so later features that refer to them keep working.
 
+Whether a wizard's result moves when you edit the part it sits on depends on the wizard. A bearing added from a selected flat face stays on that face (see [Bearings](#bearings)), and a knurl cut into a cylinder keeps its distance from the cylinder's end face (see [Knurl](#knurl)). The other wizards (Gear, Propeller, Impeller, Screw) are built at the numbers you gave.
+
 Parts built by a wizard are not locked. You can add fillets, cuts and patterns on top. What you cannot do is edit the generated profile sketch by hand while it is still tied to its wizard (see each section).
 
 ![The Propeller wizard open in the left panel on its Blade step, with the live preview of a three-blade propeller in the viewport.](../img/wizard-propeller.png)
@@ -259,7 +261,13 @@ Each ring and each ball is its own body (named, for example, *Bearing 608 inner 
 
 The **Housing seat** read-out gives the pocket for the outer ring: its diameter with the fit allowance, and the bearing width as the depth. **Fit** chooses **H7 housing** (cut at the middle of the +IT7 / 0 zone of ISO 286), **Nominal (press fit)** (the outer diameter itself) or **0.2 mm clearance** (for a printed pocket). Select a flat face before you open Bearing and the bearing is placed on that face, running into the body; tick **Cut this pocket in the picked face** and the pocket is cut first, then the bearing is added in it.
 
-In the Script tab: `part('Housing').bearing({ designation: '608', seal: '2RS', origin: [0, 0, 10], axis: [0, 0, -1], seat: true })`. The **Bearings** example shows a row of them.
+### Following the face
+
+A bearing added from a selected flat face stays on that face. Put a bearing at each end of a 30 mm shaft, then change the shaft length to 20 mm in the extrude: the bearing and its pocket at the far end move with the end face, and changing the length back moves them back. The same holds for a plate that gets thicker or thinner. The face must be flat and face along the X, Y or Z axis, and the bearing keeps its distance from the face's own origin, so it follows the face along its normal but not when you move the shaft sideways in its sketch.
+
+What does not follow: a bearing placed by typing its numbers without a selected face, one whose first face centre or direction you changed by hand (only sliding it across the face keeps it attached), one on a tilted face, and bearings made in an earlier version, which stay at the position they were made at. Delete such a bearing and add it again from the face to attach it. If an edit leaves a seat that no longer touches the part, the failure card says so and suggests this.
+
+In the Script tab: `part('Housing').bearing({ designation: '608', seal: '2RS', origin: [0, 0, 10], axis: [0, 0, -1], seat: true })`; add `onFace: 'F2.C1'` (the face the bearing sits on) to build it from the face as the wizard does. The **Bearings** example shows a row of them.
 
 ## Corner holes
 
@@ -286,6 +294,22 @@ To change them later, double-click the hole in the feature tree. The same card a
 Limits: the exact plate outline is used only for a flat face that is a rectangle, with or without equal rounded corners. Any other outline uses its bounding box and says so. The inset is a plain number, not an expression. A hole sketch on a plane that is not a body face (a standard or datum plane) has no card. Use the Point tool there.
 
 See [Holes and threads](../modelling/holes.md) for the hole settings themselves.
+
+## Knurl
+
+The Knurl wizard puts a straight, diamond or pyramid pattern of grooves on a cylindrical face. Select a cylindrical face on the outside of a body, then choose **Knurl** from the **Create** group. You can also open **Knurl** first: the panel says "Click a round face of the part" and waits, the **Knurl** button stays dimmed, and clicking a round face in the viewport fills in the cylinder. If you click a face that cannot be knurled (a flat face, a tilted cylinder or the wall of a hole), the panel says why and keeps waiting. **Escape** or **Cancel** closes it. Set the pattern, the groove shape, the number of grooves, their depth, the helix angle (diamond) and the band along the axis; the viewport previews the result as you type.
+
+**Cosmetic (instant)** is ticked when the wizard opens. In that mode the grooves are only drawn: they appear at once however many you ask for, but the body stays a plain cylinder, so the mass, the Bodies list and exported files (STL, OBJ, STEP) do not include them. A cosmetic knurl has a row under Origin in the feature tree ("Cosmetic knurl 1: 30 grooves"); click it to reopen the wizard and change it. When you export a part that has cosmetic knurls, the app tells you they are not in the file and offers to convert them to real cuts.
+
+Untick **Cosmetic** to make a real cut. The grooves are then cut into the solid as ordinary features, in one "Knurl" folder, so mass and exports include them. Diamond and pyramid cuts take several seconds to build, and the preview waits until you stop typing. The wizard keeps your choice when you change the pattern.
+
+### Following the end face
+
+A cut knurl keeps its distance from the end of the cylinder. Knurl a 30 mm shaft with a band that ends 5 mm from its far end, then change the length of the shaft in the extrude to 20 mm or 40 mm: the band moves with that end and stays 5 mm from it, and changing the length back puts it back. The band is measured from whichever flat end face of the cylinder is nearer to it (for a band across the whole cylinder, the end that the extrude moves), so a band near the fixed end stays where it is. This holds for straight grooves, and for diamond and pyramid when **Build** is **Cut grooves**.
+
+What does not follow: a **Cosmetic** knurl (a display record at fixed positions), a diamond or pyramid built as **Faceted** (the wizard says so under the options), a cylinder whose ends are not flat faces (a chamfer, a fillet or a cone at the end), and knurls made in an earlier version. They keep the numbers they were made with. If a change then leaves a band past the end of the part, the failure card says the knurl band no longer touches the part and suggests undoing the change or setting the band again. If the part becomes shorter than the band reaches, shorten the band.
+
+In the Script tab: `knurl({ radius: 10, from: 15, to: 25, count: 24, depth: 0.5, onFace: { face: 'F2.C1', at: 30 } })` builds the cut grooves from the end face `F2.C1`, which lies at 30 along the axis; `from` and `to` then say where the band is now. For diamond and pyramid add `method: 'boolean'`.
 
 ## Samples
 

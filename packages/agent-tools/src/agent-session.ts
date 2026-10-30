@@ -167,6 +167,17 @@ export class AgentSession {
     const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as never as { positions: ArrayLike<number> } | null;
     return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as never[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
   }
+  /**
+   * The two fields of a regen reply of the open document that the Session drops (`limits` of a drafted extrude, `components` of an
+   * assembly, asked with `dofReport` as the app does), read from a regen on a scratch tag so the open document's own state is untouched.
+   */
+  async viewReplyExtras(): Promise<{ limits: unknown; components: unknown[] }> {
+    const r = await this.transport.request({ type: 'regen', tag: `${this.scratchTag}-view`, part: this.doc, opts: { dofReport: true } });
+    if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
+    const res = r.result as { limits?: unknown; components?: unknown };
+    await this.transport.request({ type: 'regen', tag: `${this.scratchTag}-view`, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
+    return { limits: res.limits, components: Array.isArray(res.components) ? res.components : [] };
+  }
   /** Mass properties / validity of the document `scratchBuild` built last (a script's read-back). */
   async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }) {
     const out: { text?: never; volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } = {};

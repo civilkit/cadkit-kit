@@ -7,14 +7,17 @@ import { groupOps, wizardGroupName } from './wizardGroup';
 import { cosmeticToOpts, knurlCosmeticRecord, knurlEditOps, type CosmeticKnurl, type KnurlOpts } from '@kit/script';
 import type { EdgeLike } from './threadData';
 import { cylinderOfFace } from './threadData';
+import { seatOnFace, type FaceMesh } from './bearing';
 
 export type KnurlAxis = 'x' | 'y' | 'z';
 export const KNURL_PATTERNS = ['straight', 'diamond', 'pyramid'] as const;
 export const KNURL_PROFILES = ['v', 'round'] as const;
 export const KNURL_METHODS = ['faceted', 'boolean'] as const;
 
-/** The cylinder being knurled, in world coordinates. `center` is the axis position across it: [x, y] for z, [x, z] for y, [y, z] for x. */
-export interface KnurlTarget { axis: KnurlAxis; center: [number, number]; radius: number; from: number; to: number }
+/** An end of the cylinder that is a flat face across its axis: the face name and its position along the axis. The band is built from the nearer one, so it keeps its distance from it when the part is edited. */
+export interface KnurlEnd { face: string; at: number }
+/** The cylinder being knurled, in world coordinates. `center` is the axis position across it: [x, y] for z, [x, z] for y, [y, z] for x. `ends` are its flat end faces (none when an end is a chamfer, a fillet or a cone, or the faces were not known). */
+export interface KnurlTarget { axis: KnurlAxis; center: [number, number]; radius: number; from: number; to: number; ends?: KnurlEnd[] }
 /** What the user chose; the target comes from the picked face. */
 export interface KnurlParams {
   pattern: (typeof KNURL_PATTERNS)[number];
@@ -30,10 +33,14 @@ export interface KnurlParams {
   range: [number, number] | null;
   /** cosmetic: draw the grooves only (a record in the document, the solid stays a plain cylinder); false cuts them */
   cosmetic: boolean;
+  /** Not offered by the wizard; kept so that editing a knurl made by a script or an older version does not reset them. Absent: the helper's default. */
+  angle?: number;
+  ringPitch?: number;
+  width?: number;
 }
-export const DEFAULT_KNURL: KnurlParams = { pattern: 'straight', profile: 'v', count: 36, depth: 0.5, helixAngle: 30, method: 'faceted', target: null, range: null, cosmetic: false };
-/** Whether a pattern starts as cosmetic in the wizard: never, since the faceted build makes a real diamond or pyramid in seconds and a cosmetic knurl is missing from exports; the box stays one click away. */
-export const cosmeticByDefault = (_pattern: KnurlParams['pattern']): boolean => false;
+export const DEFAULT_KNURL: KnurlParams = { pattern: 'straight', profile: 'v', count: 36, depth: 0.5, helixAngle: 30, method: 'faceted', target: null, range: null, cosmetic: true };
+/** Whether a pattern starts as cosmetic in the wizard: always. Cosmetic (instant) is the default for every pattern; unticking it makes the real cut, one click away. */
+export const cosmeticByDefault = (_pattern: KnurlParams['pattern']): boolean => true;
 
 const round3 = (v: number): number => Math.round(v * 1000) / 1000 + 0;
 
@@ -41,7 +48,7 @@ const round3 = (v: number): number => Math.round(v * 1000) / 1000 + 0;
  * The cylinder a face is, when its axis lies along a world axis (the knurl cuts across and along that axis); the axial range is the face's own extent.
  * `reason` says why not: 'notCylinder' or 'oblique' (the axis is tilted) or 'internal' (a hole wall: a knurl is cut on the outside).
  */
-export function knurlTarget(face: string, edges: EdgeLike[]): { target: KnurlTarget } | { reason: 'notCylinder' | 'oblique' | 'internal' } {
+export function knurlTarget(face: string, edges: EdgeLike[], mesh?: FaceMesh | null): { target: KnurlTarget } | { reason: 'notCylinder' | 'oblique' | 'internal' } {
   const cyl = cylinderOfFace(face, edges);
   if (!cyl) return { reason: 'notCylinder' };
   if (cyl.internal) return { reason: 'internal' };
@@ -58,7 +65,40 @@ export function knurlTarget(face: string, edges: EdgeLike[]): { target: KnurlTar
   const c = cyl.axisPoint;
   const axis: KnurlAxis = (['x', 'y', 'z'] as const)[k];
   const center: [number, number] = axis === 'z' ? [c[0], c[1]] : axis === 'y' ? [c[0], c[2]] : [c[1], c[2]];
-  return { target: { axis, center: [round3(center[0]), round3(center[1])], radius: round3(cyl.radius), from: round3(lo), to: round3(hi) } };
+  const ends = endFaces(face, edges, axis, k, [lo, hi], mesh ?? null);
+  return { target: { axis, center: [round3(center[0]), round3(center[1])], radius: round3(cyl.radius), from: round3(lo), to: round3(hi), ...(ends.length ? { ends } : {}) } };
+}
+
+/** The flat faces across the axis at the two ends of the cylinder face: the face on the other side of the circular edge at that end, when it is flat, faces along the axis and lies there. */
+function endFaces(face: string, edges: EdgeLike[], axis: KnurlAxis, k: number, at: number[], mesh: FaceMesh | null): KnurlEnd[] {
+  if (!mesh) return [];
+  const out: KnurlEnd[] = [];
+  for (const end of at) {
+    for (const e of edges) {
+      if (!e.pts || !e.faces?.includes(face) || e.faces.length !== 2) continue;
+      if (!e.pts.every((p) => Math.abs(p[k] - end) < 1e-4)) continue;   // an edge round the end, not a seam
+      const other = e.faces.find((f) => f !== face);
+      const flat = other ? seatOnFace(other, mesh) : null;
+      if (!other || !flat || flat.axis[1] !== axis || Math.abs(flat.origin[k] - end) > 1e-3) continue;
+      if (!out.some((x) => x.face === other)) out.push({ face: other, at: round3(end) });
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * The end face the band is built from, so that it keeps its distance from it when the part is edited: of the flat end faces, the one nearer to the band
+ * (the one a longer or shorter shaft moves, when both are as near: the `.C1` end of an extrude). Null when the cylinder has none, or the knurl is
+ * cosmetic or a faceted band, which are placed at the numbers (a knurlBand holds plain numbers).
+ */
+export function knurlAnchor(p: KnurlParams): KnurlEnd | null {
+  const ends = p.target?.ends;
+  if (!p.target || !ends?.length || p.cosmetic || (knurlHasMethod(p) && p.method === 'faceted')) return null;
+  const [from, to] = p.range ?? [p.target.from, p.target.to];
+  const gap = (e: KnurlEnd): number => (e.at > (from + to) / 2 ? e.at - to : from - e.at);
+  const moves = (e: KnurlEnd): number => (/\.C1$/.test(e.face) ? 0 : 1);
+  return [...ends].sort((a, b) => Math.abs(gap(a)) - Math.abs(gap(b)) || moves(a) - moves(b) || b.at - a.at)[0];
 }
 
 export type KnurlIssueCode = 'noTarget' | 'count' | 'depth' | 'range' | 'kernel';
@@ -74,12 +114,17 @@ export function knurlOpts(p: KnurlParams): KnurlOpts | null {
   if (!p.target) return null;
   const t = p.target;
   const [from, to] = p.range ?? [t.from, t.to];
+  const anchor = knurlAnchor(p);
   return {
     axis: t.axis, center: t.center, radius: t.radius, from, to,
     pattern: p.pattern, profile: p.profile, count: p.count, depth: p.depth,
     ...(p.pattern === 'diamond' ? { helixAngle: p.helixAngle } : {}),
+    ...(p.angle !== undefined ? { angle: p.angle } : {}),
+    ...(p.width !== undefined ? { width: p.width } : {}),
+    ...(p.pattern === 'pyramid' && p.ringPitch !== undefined ? { ringPitch: p.ringPitch } : {}),
     ...(p.cosmetic ? { mode: 'cosmetic' as const } : {}),
     ...(knurlHasMethod(p) ? { method: p.method } : {}),
+    ...(anchor ? { onFace: { face: anchor.face, at: anchor.at } } : {}),
   };
 }
 
@@ -124,11 +169,31 @@ export function knurlIssue(p: KnurlParams): KnurlIssue | null {
   return null;
 }
 
-/** The ops that append the knurl to the document, in one tree folder named after the wizard (see wizardGroup.ts): sketches, planes and cuts, numbered from the document's next feature id. Throws with the helper's message. */
-export function knurlOps(doc: { features: Array<{ id?: string }>; seq?: number }, p: KnurlParams): EditOp[] {
+/** The marker a cut knurl (straight, or diamond/pyramid cut as grooves) carries on its first feature, so the wizard can reopen it: the parameters and the ids
+ *  of every feature the knurl made. It is a plain JSON field of the feature, which the kernel keeps unchanged (as the `gear` record of a gear). A faceted
+ *  knurlBand needs none (it holds the parameters itself); a cosmetic knurl is a record in the document. */
+export const KNURL_MARK = 'knurl';
+/** `ids` are the numbers of the F<n> ids, not the id strings: the kernel treats an exact id string inside another feature as a reference to it (it would refuse to remove the members one by one). */
+export interface KnurlMark { v: 1; ids: number[]; params: KnurlParams }
+
+/** The parameters as stored in the marker: what the wizard edits, never the cosmetic flag. */
+function markParams(p: KnurlParams): KnurlParams {
+  return JSON.parse(JSON.stringify({ ...p, cosmetic: false })) as KnurlParams;
+}
+
+/** The ops that append the knurl to the document, in one tree folder named after the wizard (see wizardGroup.ts): sketches, planes and cuts, numbered from the
+ *  document's next feature id. Throws with the helper's message. `group` keeps the folder of a knurl being replaced (default: a new, unique folder name).
+ *  The first feature carries the marker (see KNURL_MARK) unless the knurl is a single faceted band. */
+export function knurlOps(doc: { features: Array<{ id?: string; group?: unknown }>; seq?: number }, p: KnurlParams, group?: { keep: string | undefined }): EditOp[] {
   const o = knurlOpts({ ...p, cosmetic: false });
   if (!o) throw new Error('Pick a cylindrical face to knurl');
-  return groupOps(knurlEditOps(o, nextSeq(doc)) as unknown as EditOp[], wizardGroupName(doc.features, t('knurl.title')));
+  const ops = knurlEditOps(o, nextSeq(doc)) as unknown as EditOp[];
+  const adds = ops.filter((x): x is Extract<EditOp, { op: 'add' }> => x.op === 'add');
+  if (adds.length && adds[0].feature.type !== 'knurlBand') {
+    const mark: KnurlMark = { v: 1, ids: adds.map((a) => Number(String(a.feature.id).replace(/^F/, ''))), params: markParams(p) };
+    adds[0].feature[KNURL_MARK] = mark;
+  }
+  return groupOps(ops, group ? group.keep : wizardGroupName(doc.features, t('knurl.title')));
 }
 
 /** Grooves per ... for a start: about one groove every 1.5 mm of circumference, rounded to a multiple of 2 and kept in 8..120. */

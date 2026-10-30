@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_BEARING, freeBodyPrefix, bearingIssue, bearingNumbers, bearingOpts, bearingOps, bearingSeat, bearingSpec, findBearings, seatOnFace, withPreset, type BearingParams, type FaceMesh } from './bearing';
+import { followedFace, DEFAULT_BEARING, freeBodyPrefix, bearingIssue, bearingNumbers, bearingOpts, bearingOps, bearingSeat, bearingSpec, findBearings, seatOnFace, withPreset, type BearingParams, type FaceMesh } from './bearing';
 import { BEARING_PRESETS } from '@kit/script';
 
 const P = (o: Partial<BearingParams> = {}): BearingParams => ({ ...DEFAULT_BEARING, ...o });
@@ -35,6 +35,31 @@ describe('bearing wizard rules', () => {
     expect(bearingOpts(P({ seat: true }))).not.toHaveProperty('seat');
     expect(bearingOpts(P({ seat: false, placedOn: 'F1.C1' }))).not.toHaveProperty('seat');
     expect(bearingOpts(P({ seat: true, placedOn: 'F1.C1', seatFit: 'print' }))).toMatchObject({ seat: { fit: 'print' } });
+  });
+  it('builds from the face while the bearing is still where the face placed it, and at its numbers once it is moved along its axis or turned', () => {
+    const at = { origin: [30, 9, 11] as [number, number, number], axis: 'nx' as const };
+    const placed = P({ placedOn: 'F2.C1', placedAt: at, ...at });
+    expect(followedFace(placed)).toBe('F2.C1');
+    expect(bearingOpts(placed)).toMatchObject({ onFace: 'F2.C1' });
+    expect(followedFace(P({ ...placed, origin: [30, 12, 5] }))).toBe('F2.C1');   // slid across the face: still on it
+    expect(followedFace(P({ ...placed, origin: [28, 9, 11] }))).toBeNull();   // moved deeper: the user's own position
+    expect(followedFace(P({ ...placed, axis: 'px' }))).toBeNull();
+    expect(followedFace(P({ ...placed, placedAt: null }))).toBeNull();   // a document from before bearings followed their face, or placed by numbers
+    expect(bearingOpts(P({ placedOn: 'F2.C1', ...at }))).not.toHaveProperty('onFace');
+    expect(bearingOpts(P())).not.toHaveProperty('onFace');
+  });
+  it('the face-built ops derive every plane from the face: no feature carries the absolute position along the axis', () => {
+    const at = { origin: [30, 9, 11] as [number, number, number], axis: 'nx' as const };
+    const ops = bearingOps({ features: [] }, P({ placedOn: 'F2.C1', placedAt: at, ...at, seat: true })) as unknown as Array<{ feature: Record<string, unknown> }>;
+    const types = ops.map((o) => `${o.feature.type}${o.feature.mode ? ':' + o.feature.mode : ''}`);
+    expect(types).toEqual(expect.arrayContaining(['plane:offset', 'axis', 'plane:perpendicular', 'sketch', 'extrude', 'revolve']));
+    expect(types).not.toContain('plane:threePoints');
+    const first = ops[0].feature;
+    expect(first).toMatchObject({ type: 'plane', mode: 'offset', base: { kind: 'face', id: 'F2.C1' }, flip: true });
+    // none of the planes sits at x = 30 (the old absolute position): only across-the-face numbers (9 or 11) appear as plane offsets
+    const offsets = ops.filter((o) => o.feature.type === 'plane' && (o.feature.base as { kind: string }).kind === 'std').map((o) => o.feature.offset);
+    expect(offsets.every((v) => v === 9 || v === 11 || v === 0)).toBe(true);
+    expect(ops.some((o) => o.feature.type === 'extrude' && o.feature.op === 'cut')).toBe(true);
   });
   it('fills in the numbers the model chose, and none for a bad record', () => {
     const n = bearingNumbers(P({ seal: 'open' }))!;

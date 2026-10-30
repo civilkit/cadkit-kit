@@ -42,9 +42,17 @@ export function nextBodyName(used: ReadonlySet<string>): string {
   return `Body ${n}`;
 }
 
-/** The fields the Operation control sets: a new body gets a name of its own (kept when it has one), the others have no body name. */
+/** The fields the Operation control sets: a new body gets a name of its own (kept when it has one) and has no target body; the others have no body name. */
 export function opPatch(choice: ExtrudeOp, current: { body?: unknown }, used: ReadonlySet<string>): Record<string, unknown> {
   if (choice === 'cut') return { op: 'cut', body: null };
-  if (choice === 'new') return { op: 'newBody', flip: null, body: typeof current.body === 'string' && current.body ? current.body : nextBodyName(used) };
+  if (choice === 'new') return { op: 'newBody', flip: null, target: null, body: typeof current.body === 'string' && current.body ? current.body : nextBodyName(used) };
   return { op: 'add', flip: null, body: null };
 }
+
+/** The body an Add or Cut is aimed at: its name, '' when it acts on every body the shape reaches. */
+export const targetBodyOf = (eff: { target?: unknown }): string => {
+  const t = eff.target as { body?: unknown } | null | undefined;
+  return t && typeof t === 'object' && typeof t.body === 'string' ? t.body : '';
+};
+/** The patch the Target body control sets: `{body: name}`, or no target for Automatic. */
+export const targetPatch = (name: string): Record<string, unknown> => ({ target: name ? { body: name } : null });

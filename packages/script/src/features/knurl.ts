@@ -2,10 +2,11 @@
 // Built only from features the kernel already has: one multi-profile extrude cut (straight), one multi-profile revolve cut (rings),
 // and a twisted sweep cut along the cylinder axis (helical). No circular pattern: it only rotates about a world axis through the origin,
 // and one cut with N profiles is also several times faster than N patterned cuts.
-import type { Num, OffsetPlane, PartBuilder, Plane, SketchBuilder } from '../recorder';
+import type { Num, OffsetPlane, PartBuilder, Plane, PlaneRef, SketchBuilder } from '../recorder';
 import { H } from './h';
 import type { CosmeticKnurl } from '../cosmeticKnurl';
 import { facetedKnurl, facetedRefusal } from './knurlFaceted';
+import { knurlFaceFrame } from './knurlOnFace';
 
 type Axis = 'x' | 'y' | 'z';
 type Pt = [number, number];
@@ -42,26 +43,32 @@ export interface KnurlOpts {
   mode?: 'cut' | 'cosmetic';
   /** 'faceted' (default for a V diamond or pyramid): the kernel builds the knurled surface as faces and cuts it once, seconds for any count. 'boolean': cut the grooves one set against the other (slow when dense; needed for round grooves) */
   method?: 'faceted' | 'boolean';
+  /** the end face of the cylinder the band is measured from, { face: 'F2.C1', at }: a flat face whose normal lies along the axis, `at` its position along the axis. The grooves are then built from that face, so the band keeps its distance from it when the part is edited (a longer or shorter shaft). Cut grooves only: a cosmetic knurl and the faceted method are placed at the numbers. */
+  onFace?: { face: string; at: Num };
 }
 
 const sketchPlane: Record<Axis, Plane> = { z: 'front', y: 'top', x: 'right' };
 
 /** The geometry of a knurl: per axis, how world axial/radial positions map to the sketch planes used. */
-function frame(axis: Axis, c: Pt, line: number) {
+interface Frame {
+  cross(a: number): Plane | OffsetPlane | PlaneRef; cu: number; cv: number; readonly side: Plane | OffsetPlane | PlaneRef;
+  axisPt(a: number): Pt; ringPt(a: number, r: number): Pt; dir: 'into' | 'away';
+}
+function frame(axis: Axis, c: Pt, line: number): Frame {
   const off = (base: Plane, offset: number): Plane | OffsetPlane => (offset === 0 ? base : ({ kind: 'offset', plane: base, offset, opts: {}, line } as OffsetPlane));
   // cross: the plane across the axis (profiles of axial grooves). cu, cv: sketch coordinates of the axis point there.
   // side: a plane containing the axis (ring profiles and the sweep path). a(): axial -> sketch point on the axis line, r(): radial offset added.
   if (axis === 'z') return {
     cross: (a: number) => off('front', a), cu: c[0], cv: c[1],
-    side: off('right', c[0]), axisPt: (a: number): Pt => [-a, c[1]], ringPt: (a: number, r: number): Pt => [-a, c[1] + r],
+    side: off('right', c[0]), axisPt: (a: number): Pt => [-a, c[1]], ringPt: (a: number, r: number): Pt => [-a, c[1] + r], dir: 'away',
   };
   if (axis === 'y') return {
     cross: (a: number) => off('top', a), cu: c[0], cv: -c[1],
-    side: off('front', c[1]), axisPt: (a: number): Pt => [c[0], a], ringPt: (a: number, r: number): Pt => [c[0] + r, a],
+    side: off('front', c[1]), axisPt: (a: number): Pt => [c[0], a], ringPt: (a: number, r: number): Pt => [c[0] + r, a], dir: 'away',
   };
   return {
     cross: (a: number) => off('right', a), cu: -c[1], cv: c[0],
-    side: off('front', c[1]), axisPt: (a: number): Pt => [a, c[0]], ringPt: (a: number, r: number): Pt => [a, c[0] + r],
+    side: off('front', c[1]), axisPt: (a: number): Pt => [a, c[0]], ringPt: (a: number, r: number): Pt => [a, c[0] + r], dir: 'away',
   };
 }
 
@@ -70,6 +77,7 @@ export const knurlFeatures = {
    * Knurl a cylinder: cut straight, diamond or pyramid grooves into it.
    *
    * Describe the cylinder (axis x, y or z, centre, radius, axial range from..to). 'straight' cuts axial grooves in one cut (fast). 'diamond' cuts two crossed helical sets, one per hand, each a twisted sweep (slow: the helper stops above 260 groove crossings, count squared times twice the turn fraction, because the kernel's boolean budget fails around 570). 'pyramid' crosses axial grooves with rings for raised square pyramids. Give count (per hand for a diamond) or pitch, and depth (default pitch / 4). profile 'v' (angle, default 90) or 'round' (width, default 2 * depth). mode 'cosmetic' skips the cutting: it records the knurl in the document for display only, instant at any count. Overlapping grooves are refused with the largest count that fits. On a 20 mm diameter, 12 mm band: straight 24 grooves under 1 s, pyramid 24 x 8 about 11 s, diamond 12 + 12 at 22 degrees about 4 s, 16 + 16 at 45 degrees about 23 s.
+   * onFace: { face: 'F2.C1', at: 30 } builds the cut grooves from that end face of the cylinder (a flat face whose normal lies along the axis; `at` is where it is) instead of from the numbers from and to, which then only say where the band lies at the moment: change the length of the shaft and the band keeps its distance from the face. Diamond and pyramid need method: 'boolean' for it (the faceted band is one feature with fixed numbers).
    * faceted (the default for a V diamond or pyramid) builds the surface as faces in the kernel: linear in the groove count, planar flanks (volume within about 3 percent); method 'boolean' cuts the grooves one set against the other (slow when dense; round grooves and straight always use the cuts).
    *
    * @domain features
@@ -90,6 +98,7 @@ export const knurlFeatures = {
    * @param o.ringPitch pyramid: spacing of the ring grooves, default the groove pitch
    * @param o.mode 'cut' (default) cuts the grooves; 'cosmetic' only draws them (instant, solid unchanged, not in mass or exports)
    * @param o.method 'faceted' (default for V diamond and pyramid) | 'boolean'
+   * @param o.onFace { face: 'F2.C1', at } the end face the band is measured from and its position along the axis: the cuts are built from that face and keep their distance from it when the part is edited (cut grooves only; faceted and cosmetic knurls are placed at the numbers)
    * @example
    * part('Knob').sketch('front', (s) => s.circle(15)).extrude(12)
    *   .knurl({ axis: 'z', radius: 15, from: 0, to: 12, pattern: 'straight', count: 36, depth: 0.5 });
@@ -137,6 +146,11 @@ export const knurlFeatures = {
     const spacingChord = (n: number): number => 2 * R * Math.sin(Math.PI / n);   // straight distance between neighbouring groove centres
     const roomy = (n: number, ch: number): boolean => ch <= 0.9 * spacingChord(n);
     const maxCount = (ch: number): number => { let n = N; while (n > 3 && !roomy(n, ch)) n--; return n; };
+    if (o.onFace !== undefined) {
+      if (mode === 'cosmetic') fail('onFace needs real cuts: a cosmetic knurl is a record at fixed positions');
+      if (!o.onFace || typeof o.onFace !== 'object' || typeof o.onFace.face !== 'string' || !o.onFace.face.trim()) fail(`onFace must be { face: 'F2.C1', at: <position of the face along the axis> }`);
+      if (!Number.isFinite(H.num(o.onFace.at))) fail('onFace.at must be the position of the face along the axis');
+    }
     if (mode === 'cosmetic') {
       const ha = o.helixAngle ?? 30;
       if (pattern === 'diamond' && !(ha > 0 && ha < 80)) fail('helixAngle must be between 0 and 80 degrees (0 would be a straight knurl)');
@@ -151,6 +165,7 @@ export const knurlFeatures = {
     // faceted: the kernel builds the diamond or pyramid surface as faces (knurlFaceted.ts); the cut-based code below is the 'boolean' method
     const method = o.method ?? (pattern !== 'straight' && profile === 'v' ? 'faceted' : 'boolean');
     if (method !== 'faceted' && method !== 'boolean') fail(`method must be 'faceted' or 'boolean'`);
+    if (method === 'faceted' && o.onFace !== undefined) fail(`onFace needs method: 'boolean' for a diamond or pyramid (the faceted band is one feature with fixed numbers and cannot follow a face)`);
     if (method === 'faceted') {
       const why = facetedRefusal(pattern, profile);
       if (why) fail(why);
@@ -161,7 +176,10 @@ export const knurlFeatures = {
       return facetedKnurl(this, line, { axis, center: c, radius: R, from, to, pattern: pattern as 'diamond' | 'pyramid', count: N, depth: d, angle: o.angle ?? 90, helixAngle: ha, ringPitch: rp });
     }
 
-    const f = frame(axis, c, line);
+    const at = o.onFace ? H.num(o.onFace.at) : 0;
+    const f: Frame = o.onFace
+      ? knurlFaceFrame(this, line, { axis, center: c, face: o.onFace.face.trim(), at, outward: at > (from + to) / 2 ? 1 : -1 })
+      : frame(axis, c, line);
     const len = to - from;
     const rad = (a: number): Pt => [Math.cos(a), Math.sin(a)];
     // all N groove profiles around the axis, drawn into one sketch on the cross plane
@@ -175,14 +193,14 @@ export const knurlFeatures = {
     };
 
     if (pattern === 'straight' || pattern === 'pyramid') {
-      this.sketch(f.cross(from) as Plane, drawGrooves).cut(len, { direction: 'away' });
+      this.sketch(f.cross(from), drawGrooves).cut(len, { direction: f.dir });
     }
     if (pattern === 'pyramid') {
       const rp = o.ringPitch !== undefined ? H.num(o.ringPitch) : pitch;
       if (!(rp > chord / 0.9)) fail(`ringPitch ${rp.toFixed(2)} is too small for grooves ${chord.toFixed(2)} mm wide`);
       const M = Math.max(1, Math.floor(len / rp));
       const step = len / M;
-      this.sketch(f.side as Plane, (s) => {
+      this.sketch(f.side, (s) => {
         for (let k = 0; k < M; k++) {
           const a = from + step * (k + 0.5);
           if (profile === 'v') s.polygon([f.ringPt(a, R - d), f.ringPt(a + hwOut, R + e), f.ringPt(a - hwOut, R + e)]);

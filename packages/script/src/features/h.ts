@@ -1,6 +1,6 @@
 // Shared plumbing of the feature mixins (loft, sweep, mirror, ...). recorder.ts binds the helpers it owns once, after the classes exist,
 // so the mixins never import recorder.ts at run time (no import cycle) and recorder.ts stays untouched by new features.
-import type { Ctx, EditOp, Expr, OffsetPlane, Plane, SketchBuilder as SketchBuilderT } from '../recorder';
+import type { Ctx, EditOp, Expr, OffsetPlane, Plane, PlaneRef, SketchBuilder as SketchBuilderT } from '../recorder';
 import type { EdgeSel, FaceSel, Geometry } from '../selectors';
 import { buildPlane } from '../planes';
 
@@ -20,7 +20,7 @@ export const bindHelpers = (h: Helpers): void => { Object.assign(H, h); };
 /** A sketch described for a feature that takes several: where it lies and how it is drawn (or, for a point section, where the point is). */
 export interface SketchSpec {
   /** 'front' | 'top' | 'right', at(plane, offset), or face(sel) */
-  on: Plane | OffsetPlane | FaceSel;
+  on: Plane | OffsetPlane | PlaneRef | FaceSel;
   /** draws the outline with the sketch builder */
   draw?: (s: SketchBuilderT) => void;
   /** a point section ([x, y] in the sketch plane): a single point, the apex of a loft */
@@ -34,8 +34,13 @@ const memory = new WeakMap<Ctx, Memory>();
 export const memOf = (ctx: Ctx): Memory => { let m = memory.get(ctx); if (!m) memory.set(ctx, (m = { holes: [], surfaces: [], inserts: [] })); return m; };
 
 /** The plane reference of a feature, adding the offset reference plane feature to `pre` when needed. */
-export function planeRef(ctx: Ctx, on: Plane | OffsetPlane | FaceSel, pre: EditOp[]): Record<string, unknown> {
+export function planeRef(ctx: Ctx, on: Plane | OffsetPlane | PlaneRef | FaceSel, pre: EditOp[]): Record<string, unknown> {
   if (typeof on === 'string') return { kind: 'std', id: on };
+  if ((on as PlaneRef).kind === 'planeRef') {   // a plane feature an earlier step of the same part made (its id is known once that step has run)
+    const r = on as PlaneRef;
+    if (!r.ref.id) throw new H.SelectorError('the plane this sketch sits on is not built yet', r.line);
+    return { kind: 'feature', id: r.ref.id };
+  }
   if ((on as OffsetPlane).kind === 'offset') {
     // the same builder `sketch(at(...))` uses: the base may be a standard plane, a face, a plane handle, a point + normal spec, between(), with rotate
     const o = on as OffsetPlane;

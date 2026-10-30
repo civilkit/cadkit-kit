@@ -20,6 +20,8 @@ export interface BodiesPanelProps {
   onRemove?(keys: string[]): void;
   onCombine?(op: 'union' | 'cut' | 'intersect', keys: string[]): void;
   onLook(key: string, patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void;
+  /** The name of the feature that made a body (its `origin`), shown under the body's name; without it the line is not shown. */
+  madeBy?(origin: string): string | null;
 }
 
 const fmtVol = (v: number | null): string => (v === null ? '' : v >= 1000 ? `${(v / 1000).toFixed(v >= 1e5 ? 0 : 1)} cm³` : `${v.toFixed(v >= 100 ? 0 : 1)} mm³`);
@@ -81,7 +83,12 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
                   <input class="body-name-edit" value={draft} aria-label={t('bodies.rename')} autoFocus spellcheck={false}
                     onClick={(e) => e.stopPropagation()} onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)} onBlur={commit}
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setRenaming(null); }} />
-                ) : <span class="body-name" title={r.name}>{r.name}</span>}
+                ) : (
+                  <span class="body-names">
+                    <span class="body-name" title={r.name}>{r.name}</span>
+                    {r.origin && p.madeBy?.(r.origin) ? <span class="body-origin">{t('bodies.madeBy', { name: p.madeBy(r.origin)! })}</span> : null}
+                  </span>
+                )}
                 <span class="body-vol">{fmtVol(r.volume)}</span>
                 <button type="button" class="body-solo" aria-label={t('bodies.solo') + ': ' + r.name} title={t('bodies.solo')}
                   onClick={(e) => { e.stopPropagation(); p.onSolo(r.key); }}><Icon name="isolate" size={15} /></button>

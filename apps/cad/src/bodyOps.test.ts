@@ -56,3 +56,13 @@ describe('matching the kernel lumps to the rows of the list', () => {
     expect(m.size).toBe(0);
   });
 });
+
+describe('renaming a body a target refers to', () => {
+  it('renames the {body} of an extrude target with the feature that made the body', () => {
+    const features = [{ id: 'F1', type: 'importStep', body: 'Old' }, { id: 'F4', type: 'extrude', op: 'cut', target: { body: 'Old' } }];
+    const ops = renameBodyOps(features, 'Old', 'New')!;
+    const made = ops.map((o) => (o as unknown as { feature: Record<string, unknown> }).feature);
+    expect(made[0].body).toBe('New');
+    expect(made[1].target).toEqual({ body: 'New' });
+  });
+});

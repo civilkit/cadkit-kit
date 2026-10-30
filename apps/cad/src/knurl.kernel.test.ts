@@ -35,7 +35,7 @@ describe('knurl wizard against the real kernel', { skip: !process.env.CK_WASM },
     if (!('target' in found)) throw new Error('no target');
     expect(found.target).toMatchObject({ axis: 'z', radius: 10, from: 0, to: 12 });
     const count = suggestCount(10);
-    const params = { ...DEFAULT_KNURL, target: found.target, count, depth: suggestDepth(10, count) };
+    const params = { ...DEFAULT_KNURL, cosmetic: false, target: found.target, count, depth: suggestDepth(10, count) };
     expect(knurlIssue(params)).toBeNull();
     const ops = knurlOps(c.document() as never, params);
     const pre = await c.preview(ops, 0);

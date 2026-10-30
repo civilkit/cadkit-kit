@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  canonicalJson, createBuildId, createViewCache, decodeSnapshot, embedSnapshot, embeddedSnapshot, encodeSnapshot, findSnapshot, keepSnapshot, takeEmbedded, memoryViewBackend, pruneViews, recipeKey,
+  canonicalJson, createBuildId, createViewCache, decodeSnapshot, checkEmbedded, embedSnapshot, embeddedSnapshot, encodeSnapshot, findSnapshot, keepSnapshot, takeEmbedded, memoryViewBackend, pruneViews, recipeKey,
   type ViewData, type ViewSnapshot,
 } from './viewCache';
 
@@ -196,5 +196,39 @@ describe('the view inside the file', () => {
     expect(await embedSnapshot(build('b'), doc(), null)).toBeNull();
     const d = doc();
     expect(takeEmbedded(d)).toEqual({ doc: d, embedded: undefined });
+  });
+});
+
+describe('why a stored view in a file is not used', () => {
+  const build = (id: string | null) => () => Promise.resolve(id);
+  const stored = async () => JSON.parse(JSON.stringify(await embedSnapshot(build('wasm:1'), doc(), data())));
+  it('accepts the view of exactly this recipe and build', async () => {
+    const r = await checkEmbedded(build('wasm:1'), doc(), await stored());
+    expect(r.ok).toBe(true);
+  });
+  it('says recipe for an edited part', async () => {
+    expect(await checkEmbedded(build('wasm:1'), doc({ features: [{ id: 'F1', type: 'sketch', w: 2 }] }), await stored())).toEqual({ ok: false, reason: 'recipe' });
+  });
+  it('says build for another kernel build (also when the part was edited too)', async () => {
+    expect(await checkEmbedded(build('wasm:2'), doc(), await stored())).toEqual({ ok: false, reason: 'build' });
+    expect(await checkEmbedded(build('wasm:2'), doc({ name: 'Q' }), await stored())).toEqual({ ok: false, reason: 'build' });
+  });
+  it('says version for a view format this code does not know', async () => {
+    expect(await checkEmbedded(build('wasm:1'), doc(), { ...(await stored()), version: 99 })).toEqual({ ok: false, reason: 'version' });
+  });
+  it('says corrupt for a damaged or malformed field', async () => {
+    const f = await stored();
+    for (const bad of [{ ...f, data: 'AAAA' }, { ...f, data: '!!not base64' }, { ...f, key: 7 }, { ...f, format: 'other' }, 'junk', 42]) {
+      expect(await checkEmbedded(build('wasm:1'), doc(), bad)).toEqual({ ok: false, reason: 'corrupt' });
+    }
+  });
+  it('a record whose inner key or build disagrees with the field is corrupt', async () => {
+    const inner = await embedSnapshot(build('wasm:9'), doc(), data());
+    expect(await checkEmbedded(build('wasm:1'), doc(), { ...inner!, build: 'wasm:1' })).toEqual({ ok: false, reason: 'corrupt' });
+  });
+  it('has no reason (so no notice) when the file carries no view, or the kernel build is unknown', async () => {
+    expect(await checkEmbedded(build('wasm:1'), doc(), undefined)).toEqual({ ok: false, reason: null });
+    expect(await checkEmbedded(build('wasm:1'), doc(), null)).toEqual({ ok: false, reason: null });
+    expect(await checkEmbedded(build(null), doc(), await stored())).toEqual({ ok: false, reason: null });
   });
 });

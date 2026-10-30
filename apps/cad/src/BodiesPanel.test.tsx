@@ -14,6 +14,17 @@ function setup(over: Partial<BodiesPanelProps> = {}) {
   return { p, r, li };
 }
 
+describe('BodiesPanel made-by line', () => {
+  it('shows the feature that made each body under its name, when the app can name it', () => {
+    const rows = [row('@body:a', 'History', { origin: 'F2' }), row('@body:b', 'Original (STEP)', { origin: 'F9' }), row('@body:c', 'Loose', { origin: null })];
+    const { li } = setup({ rows, madeBy: (o) => (o === 'F2' ? 'Boss-Extrude1' : null) });
+    expect(li('@body:a').querySelector('.body-origin')!.textContent).toBe('made by Boss-Extrude1');
+    expect(li('@body:b').querySelector('.body-origin')).toBeNull();
+    expect(li('@body:c').querySelector('.body-origin')).toBeNull();
+    expect(li('@body:a').querySelector('.body-name')!.textContent).toBe('History');
+  });
+});
+
 describe('BodiesPanel', () => {
   it('lists each body with its name, volume, eye and solo button, and counts bodies and hidden ones', () => {
     const { r, li } = setup();

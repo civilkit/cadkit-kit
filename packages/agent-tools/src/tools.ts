@@ -7,6 +7,7 @@ import type { AgentSession } from './agent-session';
 import { ToolError } from './errors';
 import { listBodies } from './bodies';
 import { meshToGlb } from './exporters';
+import { viewCacheField } from './viewCache';
 import type { Schema } from './schema';
 
 export interface ToolOutput {
@@ -394,15 +395,23 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'export',
-      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size.",
-      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 } }, ['format']),
+      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed.",
+      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' } }, ['format']),
       async handler(i, a) {
         const fmt = String(i.format);
+        if (i.cache === true && fmt !== 'ckpart') throw new ToolError('bad_input', 'cache applies to the ckpart format only', 'drop cache, or use format ckpart');
         const stem = (a.doc.name || 'part').replace(/[^\w\- ]+/g, '_').trim() || 'part';
         const path = resolvePath(typeof i.path === 'string' && i.path ? i.path : `${stem}.${fmt === 'ckpart' ? 'ckpart' : fmt}`);
         let bytes: Uint8Array | string;
         let extra: Record<string, unknown> = {};
-        if (fmt === 'ckpart') bytes = JSON.stringify(a.doc, null, 1);
+        if (fmt === 'ckpart') {
+          const doc = a.doc;
+          if (i.cache === true) {
+            const view = await viewCacheField(a, doc);
+            bytes = JSON.stringify({ ...doc, viewCache: view }, null, 1);
+            extra = { viewCache: { build: view.build, key: view.key, base64Bytes: view.data.length } };
+          } else bytes = JSON.stringify(doc, null, 1);
+        }
         else if (fmt === 'step') bytes = await a.session.step(stem);
         else {
           const v = await a.session.bodyForView();

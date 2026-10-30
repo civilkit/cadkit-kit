@@ -76,3 +76,20 @@ describe('newBreakage / rawErrorText', () => {
     expect(rawErrorText(d)).toBe('F4: trimNoIntersection {"detail":"x"}');
   });
 });
+
+describe('a bearing seat that cuts nothing', () => {
+  const seat = (plane: Record<string, unknown>): DiagFeature[] => [
+    { id: 'F1', type: 'plane', mode: 'offset', base: { kind: 'face', id: 'F2.C1' } },
+    { id: 'F2', type: 'sketch', plane },
+    { id: 'F3', type: 'extrude', op: 'cut', sketch: 'F2', name: 'Bearing 608 seat' },
+  ];
+  it('is told apart by where its sketch plane comes from: fixed numbers, or a face', () => {
+    expect(diagnose([e('F3', 'cutNoEffect')], seat({ kind: 'feature', id: 'F9' })).roots[0].seat).toBe('fixed');
+    expect(diagnose([e('F3', 'cutNoEffect')], seat({ kind: 'feature', id: 'F1' })).roots[0].seat).toBe('face');
+    expect(diagnose([e('F3', 'nothingToCut')], seat({ kind: 'face', id: 'F2.C1' })).roots[0].seat).toBe('face');
+  });
+  it('only a cut of that name that found nothing to cut', () => {
+    expect(diagnose([e('F3', 'booleanFailed')], seat({ kind: 'feature', id: 'F9' })).roots[0].seat).toBeUndefined();
+    expect(diagnose([e('F6', 'cutNoEffect')], feats).roots[0].seat).toBeUndefined();
+  });
+});

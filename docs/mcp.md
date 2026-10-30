@@ -68,7 +68,7 @@ All inputs are validated (small JSON-schema subset, unknown fields refused) befo
 | `list_methods` / `docs` | `query?` / `names[]` | the script API registry (generated from the JSDoc of `packages/script/src/recorder.ts`, the same source as the Script tab: every method `run_script` accepts is there, with parameters, notes and an example); recipes by id; `docs {names:['guide']}` returns the guide |
 | `undo` / `redo` | none | document history (50 states) |
 | `ask_user` | `question`, `options?` | `{needsUserInput: true, ...}`: there is no UI in MCP, ask in your reply |
-| `export` | `format: 'step'\|'stl'\|'glb'\|'ckpart'`, `path?` | writes the file (default `./<part name>.<ext>` in the server's cwd) |
+| `export` | `format: 'step'\|'stl'\|'glb'\|'ckpart'`, `path?`, `cache?` | writes the file (default `./<part name>.<ext>` in the server's cwd). `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, the one the app's Save geometry in file writes (see `docs/files.md`); the result carries `viewCache {build, key, base64Bytes}` |
 
 Resources: `ck://docs/guide` (units, plane frames, bodies and appearance, workflow, common errors), `ck://llms.txt` (the guide plus a one-line index of every method, kept in the repo as `docs/llms.txt`), `ck://docs/methods`, `ck://recipes/<id>` (the Script tab's examples), `ck://document`, `ck://notes`.
 
@@ -144,6 +144,7 @@ Nothing changed; fix line 4 and run again. `undo` and `restore {"name": "v1"}` a
 * A script is evaluated with the fuel-limited `new Function` sandbox of `@kit/script`: NOT a security boundary (see `docs/scripting.md`); do not point the daemon at untrusted scripts. The daemon only listens on loopback and needs the token, but any local process of the same user can read the state file.
 * Checkpoints and history are in memory (bounded: 20 and 50) and die with the daemon.
 * The launcher uses vite-node, so a start costs about 1.5 s; the daemon removes that cost for later sessions. A bundled `dist` build (esbuild) is the packaging step still to do.
+* `export ckpart` with `cache: true` builds the view from the Session's regen reply of the exact document written (shared code in `@kit/viewdata`, also used by the app controller), keyed by the SHA-256 of the canonical recipe and the kernel build id, the SHA-256 of the wasm file the server runs (`CK_WASM` / `wasmPath`; the app hashes the wasm it loads, so the two agree when they run the same build). It writes nothing and returns `view_unavailable` when the view could not be reproduced exactly: a document with a curated or embedded font (the app loads those through its font pool; built-in fonts are fine), a rolled-back document, a non-`ck-part` format, or a kernel that is not a local wasm file (no hash).
 * `export glb` writes flat-shaded triangles from the display mesh; `stl` uses `@kit/io`.
 * `snapshot` and a generated registry depend on two parallel branches (below).
 

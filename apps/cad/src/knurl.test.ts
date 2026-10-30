@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_KNURL, cosmeticToCutOps, knurlCosmetic, knurlIssue, knurlOpts, knurlOps, knurlTarget, readCosmeticKnurls, suggestCount, suggestDepth, type KnurlParams } from './knurl';
+import { DEFAULT_KNURL, cosmeticByDefault, cosmeticToCutOps, knurlCosmetic, knurlIssue, knurlOpts, knurlOps, knurlTarget, readCosmeticKnurls, suggestCount, suggestDepth, type KnurlParams } from './knurl';
 
 /** A closed ring of points: a circle of radius r about the axis through c along axis k, at axial position h. */
 function ring(k: number, c: number[], r: number, h: number, n = 48): number[][] {
@@ -18,7 +18,7 @@ const cylinderEdges = (k: number, c: number[], r: number, h0: number, h1: number
   { faces: ['F2.S.c1', 'F2.S.t'], pts: ring(k, c, r, h1) },
 ];
 const target = (over: Partial<NonNullable<KnurlParams['target']>> = {}) => ({ axis: 'z' as const, center: [0, 0] as [number, number], radius: 10, from: 0, to: 12, ...over });
-const P = (o: Partial<KnurlParams> = {}): KnurlParams => ({ ...DEFAULT_KNURL, count: 24, depth: 0.6, target: target(), ...o });
+const P = (o: Partial<KnurlParams> = {}): KnurlParams => ({ ...DEFAULT_KNURL, cosmetic: false, count: 24, depth: 0.6, target: target(), ...o });
 
 describe('knurlTarget: the cylinder a face is', () => {
   it('reads radius, axis, centre and axial range for a cylinder along each world axis', () => {
@@ -102,6 +102,12 @@ describe('knurlIssue / knurlOps', () => {
 });
 
 describe('cosmetic knurls', () => {
+  it('Cosmetic (instant) is the default of the wizard, for every pattern', () => {
+    expect(DEFAULT_KNURL.cosmetic).toBe(true);
+    for (const k of ['straight', 'diamond', 'pyramid'] as const) expect(cosmeticByDefault(k)).toBe(true);
+    expect(knurlOpts({ ...DEFAULT_KNURL, target: target() })).toMatchObject({ mode: 'cosmetic' });
+    expect(knurlOpts(P())).not.toHaveProperty('mode');   // the real cut stays one click away
+  });
   it('the helper options carry the mode; the record has every number resolved', () => {
     expect(knurlOpts(P({ cosmetic: true }))).toMatchObject({ mode: 'cosmetic' });
     expect(knurlOpts(P())).not.toHaveProperty('mode');

@@ -6,6 +6,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { DEFAULT_KNURL, cosmeticToCutOps, knurlCosmetic, readCosmeticKnurls } from './knurl';
+import { paramsFromCosmetic, replaceCosmetic } from './knurlEdit';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -92,5 +93,19 @@ describe('cosmetic knurl against the real kernel', { skip: !process.env.CK_WASM 
     expect(field(c)).toEqual([]);
     await c.undo();   // the clearing of the record
     expect(field(c)).toEqual([r]);
+  }, 300000);
+
+  it('editing a record replaces it at its place in the list as one undo step', async () => {
+    const c = await world();
+    const a = rec({ count: 40 }), b = rec({ count: 60 }), z = rec({ count: 80 });
+    c.setUndoableExtra('cosmeticKnurls', [a, b, z]);
+    const edited = knurlCosmetic({ ...paramsFromCosmetic(field(c)[1]), count: 50 });
+    c.setUndoableExtra('cosmeticKnurls', replaceCosmetic(field(c), 1, edited));
+    expect(field(c).map((r) => r.count)).toEqual([40, 50, 80]);
+    await c.undo();   // the edit alone
+    expect(field(c).map((r) => r.count)).toEqual([40, 60, 80]);
+    expect(c.document()!.features.length).toBe(2);
+    await c.redo();
+    expect(field(c).map((r) => r.count)).toEqual([40, 50, 80]);
   }, 300000);
 });

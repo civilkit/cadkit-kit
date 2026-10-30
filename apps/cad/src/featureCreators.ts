@@ -6,6 +6,7 @@
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
+import { SURFACE_TYPES } from '@kit/viewdata';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
@@ -65,7 +66,7 @@ export function sketchWhere(c: Ctx, fits: (s: Feat) => boolean): Feat | null {
 // ---- surface features ----
 
 /** Feature types that leave a surface body registered under their id. */
-export const SURFACE_TYPES = ['surfacePlanar', 'surfaceExtrude', 'surfaceRevolve', 'surfaceOffset', 'trimSurface', 'fill', 'extend', 'pipeCut'];
+export { SURFACE_TYPES };
 /** Whether this feature leaves a surface body: the types above, a Knit that is not a solid, a Sweep or Loft asked for a surface. */
 export const isSurfaceFeature = (f: Feat): boolean =>
   SURFACE_TYPES.includes(f.type) || (f.type === 'knit' && f.solid !== true) || ((f.type === 'loft' || f.type === 'sweep') && f.surface === true);

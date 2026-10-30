@@ -55,7 +55,7 @@ Use hole FEATURES (\`hole\`, \`holes.points\`, \`holes.polar\`, \`holes.grid\`) 
 3. Check: \`facts\` (volume, bbox, solids, validity; pass \`expect\` for pass/fail checks), \`bodies\` (one row per body: name, creating feature, volume, bbox, colour), \`probe\` (is there material at a point), \`section\` / \`sections\` (exact slices), \`tree\`.
 4. Look: \`snapshot { view: 'iso' | 'front' | 'top' | ... }\`; with \`section\` for an internal view, \`sheet\` for a multi-view sheet. For a real engineering drawing (dimensions, hole callouts, sections, PDF/SVG/DXF) use \`drawing\`.
 5. \`checkpoint\` before a risky change, \`undo\` / \`restore\` after. Use \`mode: 'attach'\` to ADD to what the user has built by hand (their features are kept).
-6. Export with \`export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }\`.
+6. Export with \`export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }\`. For a \`.ckpart\` that opens at once in the app, add \`cache: true\`: the built view is stored in the file (refused with \`view_unavailable\` for a part with a curated or embedded font (text in the built-in fonts is fine), or a rolled-back part).
 
 ## Common errors and what to do
 

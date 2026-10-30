@@ -7,7 +7,7 @@
 import { zipFile } from '@kit/fcstd';
 import { evalExpr, ExprError, kernelExpr, namesIn, usableName } from './expr';
 import { bodyLooks, type ScLook } from './appearance';
-import { followSketches, STD_PLANES } from './follow';
+import { followSketches, strandedSketches, STD_PLANES } from './follow';
 
 export type V3 = [number, number, number];
 export type FeatureJson = Record<string, unknown>;
@@ -1918,7 +1918,10 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
   const count = (s: ScRow['status']) => rows.filter((r) => r.status === s).length;
   const unsupported = count('unsupported');
   // their sketches and datum planes are consumed by the features that use them and are not drawn; ours stay out of the way the same way (shown again from the tree)
-  features.push(...followSketches(features, nid));   // a moved body leaves its sketches behind: hidden copies at its pose
+  // a moved body leaves its sketches behind: copies of them at its pose (shown when few), and the originals, which no body is at any more, hidden
+  const stranded = strandedSketches(features);
+  features.push(...followSketches(features, nid));
+  for (const f of features) if (f.type === 'sketch' && stranded.has(f.id as string)) f.visible = false;
   for (const f of features) if ((f.type === 'sketch' || f.type === 'plane') && f.visible === undefined) f.visible = false;
   // the timeline folders of the file: the features a folder lists carry its name as their cosmetic group
   for (const g of Array.isArray(doc.timeline_groups) ? (doc.timeline_groups as Rec[]) : []) {

@@ -20,16 +20,18 @@ const plate: R[] = [
 // The check: extrude the display copy of the sketch as a body of its own. If its frame is at the pose of the body, that second body fills the first exactly
 // (same box, and the part holds two lumps with twice the volume).
 describe('the sketch copy of a moved body lies at the body (kernel)', { skip: !process.env.CK_WASM, timeout: 60_000 }, () => {
-  const check = async (moves: R[], flip = false) => {
-    const feats = [...plate, ...moves];
+  const check = async (moves: R[], flip = false, extra: R[] = [], pick?: string, depth = 10) => {
+    const feats = [...plate, ...extra, ...moves];
     const base = await build(feats);
     expect(base.errors).toEqual([]);
     const copies = followSketches(feats, (() => { let n = 50; return () => `F${++n}`; })());
-    const shown = copies.find((f) => f.type === 'sketch')!;
-    const both = await build([...feats, ...copies, { type: 'extrude', id: 'F99', op: 'newBody', body: 'Ghost', sketch: shown.id, end: 'blind', depth: 10, ...(flip ? { flip: true } : {}) }]);
+    const shown = copies.find((f) => f.type === 'sketch' && (!pick || f.name === pick))!;
+    expect(shown, 'the copy exists').toBeTruthy();
+    expect(shown.visible).toBe(true);
+    const both = await build([...feats, ...copies, { type: 'extrude', id: 'F99', op: 'newBody', body: 'Ghost', sketch: shown.id, end: 'blind', depth, ...(flip ? { flip: true } : {}) }]);
     expect(both.errors).toEqual([]);
     expect(both.facts.solids).toBe(base.facts.solids + 1);
-    expect(both.facts.volume!).toBeCloseTo(base.facts.volume! + 8000, 3);
+    expect(both.facts.volume!).toBeCloseTo(base.facts.volume! + (pick ? 100 * depth : 8000), 3);
     return { base, both };
   };
   it('a move of 100 mm along x', async () => {
@@ -45,5 +47,19 @@ describe('the sketch copy of a moved body lies at the body (kernel)', { skip: !p
     const { base, both } = await check([{ type: 'moveBody', id: 'F3', copy: true, body: 'Mirror', bodies: [{ body: 'Plate' }], mirror: { kind: 'std', id: 'right' } }], true);
     expect(base.facts.box!.min[0]).toBeCloseTo(-40, 6);
     for (const k of [0, 1, 2]) { expect(both.facts.box!.min[k]).toBeCloseTo(base.facts.box!.min[k], 6); expect(both.facts.box!.max[k]).toBeCloseTo(base.facts.box!.max[k], 6); }
+  });
+  // a boss joined to the plate by an extrude that names no body: its sketch follows the one body alive
+  const boss: R[] = [
+    { type: 'plane', id: 'F10', mode: 'offset', base: { kind: 'std', id: 'front' }, offset: 10 },
+    { type: 'sketch', id: 'F11', name: 'Boss', plane: { kind: 'feature', id: 'F10' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 5, y: 5 }, { id: 'p2', x: 15, y: 5 }, { id: 'p3', x: 15, y: 15 }, { id: 'p4', x: 5, y: 15 }],
+      entities: [['e1', 'p1', 'p2'], ['e2', 'p2', 'p3'], ['e3', 'p3', 'p4'], ['e4', 'p4', 'p1']].map(([id, a, b]) => ({ id, type: 'line', p1: a, p2: b })), constraints: [] },
+    { type: 'extrude', id: 'F12', op: 'add', sketch: 'F11', end: 'blind', depth: 5 },
+  ];
+  it('the sketch of a join that names no body lies on the moved body (translate, then turn)', async () => {
+    const t = await check([{ type: 'moveBody', id: 'F3', bodies: [{ body: 'Plate' }], translate: [100, 0, 0] }], false, boss, 'Boss (Plate)', 5);
+    expect(t.base.facts.box!.min[0]).toBeCloseTo(100, 6);
+    expect(t.base.facts.box!.max[2]).toBeCloseTo(15, 6);   // the boss rises 5 above the plate
+    const r = await check([{ type: 'moveBody', id: 'F3', bodies: [{ body: 'Plate' }], rotate: { axis: [0, 1, 0], origin: [5, 0, 0], angle: 90 }, translate: [0, 7, 30] }], false, boss, 'Boss (Plate)', 5);
+    for (const k of [0, 1, 2]) { expect(r.both.facts.box!.min[k]).toBeCloseTo(r.base.facts.box!.min[k], 6); expect(r.both.facts.box!.max[k]).toBeCloseTo(r.base.facts.box!.max[k], 6); }
   });
 });

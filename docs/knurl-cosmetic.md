@@ -1,12 +1,12 @@
 # Cosmetic knurls
 
 A cosmetic knurl is drawn, not cut. It exists for diamond and pyramid patterns, whose real cut takes 4 to 30 s and fails with
-`booleanBudgetExceeded` when dense. Real cuts are the default.
+`booleanBudgetExceeded` when dense. Real cuts are the default of the script helper; the wizard starts cosmetic.
 
 * Script: `part.knurl({ ..., mode: 'cosmetic' })`. Default mode is `'cut'`. Same options as the real cut (`count` or `pitch`, `depth`,
   `profile`, `helixAngle`, `ringPitch`, band `from`..`to`). No feature is added; volume, faces and validity are those of the plain cylinder.
   The overlap and crossing limits of the real cut do not apply (they are checked when you convert).
-* Wizard: "Cosmetic (instant)" is off by default (a diamond or pyramid is built as a real faceted cut in seconds, and a cosmetic knurl is missing from exports); tick it for instant display at any density, and it stays where you put it.
+* Wizard: "Cosmetic (instant)" is on by default for every pattern (instant at any density, display only: the solid, mass and exports are unchanged); untick it for a real cut that changes the solid, and it stays where you put it while you change the pattern. Reopening a knurl keeps its own form.
   The preview is the same shading and needs no rebuild.
 * Stored in the document as the top-level field `cosmeticKnurls`: an array of records with every number resolved
   (`axis, center, radius, from, to, pattern, count, depth, profile, angle, width, helixAngle, ringPitch`). The kernel keeps the

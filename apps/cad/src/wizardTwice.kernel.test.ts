@@ -50,7 +50,7 @@ describe('an inserting wizard run twice into one part', () => {
     const c = await world({ ...emptyPart('Rod'), features: [cyl, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 24 }] } as never);
     const target = { axis: 'z' as const, center: [0, 0] as [number, number], radius: 10 };
     for (const [from, to] of [[0, 10], [14, 24]]) {
-      const r = await c.commit(knurlOps(c.document() as never, { ...DEFAULT_KNURL, count: 24, depth: 0.6, target: { ...target, from, to } }), 'knurl');
+      const r = await c.commit(knurlOps(c.document() as never, { ...DEFAULT_KNURL, cosmetic: false, count: 24, depth: 0.6, target: { ...target, from, to } }), 'knurl');
       expect(r.ok, fail(r)).toBe(true);
     }
     expect(folders(c)).toEqual(['Knurl', 'Knurl 2']);
