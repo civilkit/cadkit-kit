@@ -22,10 +22,11 @@ export function fieldsOf(feature: Record<string, unknown>): Field[] {
   return out;
 }
 
-export function Inspector(p: { feature: Record<string, unknown> | null; onSet(path: string, value: number | boolean | string): void }): JSX.Element {
+export function Inspector(p: { feature: Record<string, unknown> | null; onSet(path: string, value: number | boolean | string): void; /** Regen warnings of this feature, shown above the fields. */ warnings?: Array<{ code: string; hint: string }> }): JSX.Element {
   const fields = p.feature ? fieldsOf(p.feature) : [];
   return (
     <div class="insp">
+      {(p.warnings ?? []).map((w, i) => <p key={i} class="insp-warn" role="status" data-warning={w.code}><b>{w.code}</b> {w.hint}</p>)}
       {fields.map((f) => (
         <label class="fld" key={f.path}>
           <span class="fld-label">{f.label}</span>

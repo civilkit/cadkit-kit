@@ -185,6 +185,8 @@ export const en: Catalog = {
   'app.status.triangles': 'Triangles',
   'app.status.lastRebuild': 'Last rebuild',
   'app.status.errors': 'Errors',
+  'app.status.warnings': 'Warnings', 'app.status.warnings.tip': 'Show the warnings in the Diagnostics tab',
+  'app.diagnostics.warnings': 'Warnings ({n})',
   'app.status.secondsUnit': '{value} s',
   'app.status.cursor': 'Pointer position', 'app.status.snapName': 'Snap: {name}', 'app.status.snap': 'Snap', 'app.status.grid': 'Grid', 'app.status.zoom': 'Zoom',
   'app.status.gridSpacing': 'Grid spacing', 'app.status.spacing': 'Spacing', 'app.status.gridSpacing.tip': 'Click to type a grid spacing (0 or empty for automatic)', 'app.status.gridAuto': 'auto',

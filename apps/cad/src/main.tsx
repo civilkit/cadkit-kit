@@ -815,6 +815,7 @@ function App() {
     lookStore.hide(hideTarget());
     if (lookStore.hidden.value !== before) store.notify(t('app.look.hidden'));
   };
+  const showWarning = (id: string) => { selectFailed(id); setDrawerTab('diagnostics'); store.setWorkspace({ drawerOpen: true }); };
   const openInspect = () => { setDrawerTab('inspect'); store.setWorkspace({ drawerOpen: true }); };
   const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef);
   const toggleLeftPanel = () => store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed });
@@ -1265,6 +1266,7 @@ function App() {
   const records = controller.history();
   const entries = toEntries(records, rejections.value);
   const failures = store.featureStatus.value.filter((s) => !s.ok);
+  const warnList = Object.entries(store.featureWarnings.value);
   const facts = store.facts.value;
 
   const editShapes = (() => {
@@ -2244,7 +2246,7 @@ function App() {
       refs={doc ? [...refRows(doc as never, appearance.color), ...treeKnurlRows(doc as never)] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
       onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id.startsWith('knurl:')) openKnurlEdit({ cosmeticIndex: Number(id.slice(6)) }); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
-      status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId}
+      status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId} onWarning={showWarning}
       hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
       {...ti.treeProps}
       reveal={rev.reveal} onSelectGroup={selectGroupFaces} onSelectFaces={(id) => selectGroupFaces([id])}
@@ -2841,7 +2843,7 @@ function App() {
   const rightMode = feature ? ws.rightPanel : 'off';
   const right = rightMode === 'off' ? null : (
     <div class={'insp-wrap ' + rightMode}>
-      <Inspector feature={feature} onSet={(path, value) => {
+      <Inspector feature={feature} warnings={selectedId ? (store.featureWarnings.value[selectedId]?.all ?? (store.featureWarnings.value[selectedId] ? [store.featureWarnings.value[selectedId]] : [])) : []} onSet={(path, value) => {
         clearTimeout(pending);
         pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
       }} />
@@ -3076,14 +3078,14 @@ function App() {
         <Drawer active={drawerTab} onTab={setDrawerTab} onClose={toggleDrawer}
           tabs={[
             { id: 'history', label: t('app.drawer.history'), badge: entries.length, content: <HistoryLog entries={entries} here={records.length} filter={histFilter} onFilter={setHistFilter} onGoto={gotoStep} /> },
-            { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length || (controller.rejection() ? 1 : 0), bad: failures.length > 0 || !!controller.rejection(), content: (() => {
+            { id: 'diagnostics', label: t('app.drawer.diagnostics'), badge: failures.length || (controller.rejection() ? 1 : 0) || warnList.length, bad: failures.length > 0 || !!controller.rejection(), content: <>{(() => {
               const dg = controller.diagnosis(); const rej = controller.rejection();
               if (dg.roots.length) return <DiagnosticsCard diagnosis={dg} onSelect={selectFailed} onUndo={records.length ? () => { void controller.undo().then(() => redraw((n) => n + 1)); } : undefined} />;
               if (rej) return <DiagnosticsCard diagnosis={rej.diagnosis} onSelect={selectFailed} note={t('diag.rejected')} />;
               return failures.length ? (
                 <div>{failures.map((f) => <div key={f.id} class="issue"><b>{f.code ?? t('app.diagnostics.error')}</b> {t('app.diagnostics.on')} {f.id}<div class="why">{f.hint}</div><button class="btn" onClick={() => selectFailed(f.id)}>{t('app.diagnostics.show')}</button></div>)}</div>
-              ) : <div class="empty">{t('app.diagnostics.none')}</div>;
-            })() },
+              ) : warnList.length ? null : <div class="empty">{t('app.diagnostics.none')}</div>;
+            })()}{warnList.length ? <h4 class="warn-head">{t('app.diagnostics.warnings', { n: warnList.length })}</h4> : null}{warnList.map(([id, w]) => <div key={'w' + id} class="issue warn" data-warning={w.code}><b>{w.code}</b> {t('app.diagnostics.on')} {id}<div class="why">{w.hint}</div><button class="btn" onClick={() => selectFailed(id)}>{t('app.diagnostics.show')}</button></div>)}</> },
             { id: 'inspect', label: t('app.drawer.inspect'), content: <InspectPanel {...inspect.props} /> },
             { id: 'check', label: t('app.drawer.check'), badge: check.badge, bad: check.badge > 0, content: <CheckPanel {...check.props} /> },
             { id: 'console', label: t('app.drawer.console'), content: (
@@ -3102,6 +3104,7 @@ function App() {
             {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} /> : null}</> : <ModelReadout />}
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
+            ...(warnList.length ? [{ label: t('app.status.warnings'), value: String(warnList.length), tone: 'warn' as const, title: t('app.status.warnings.tip'), onClick: () => { setDrawerTab('diagnostics'); store.setWorkspace({ drawerOpen: true }); } }] : []),
             { label: t('app.status.features'), value: String(rows.length) },
             { label: t('app.status.faces'), value: String(facts.faces) },
             { label: t('app.status.triangles'), value: String(facts.triangles) },

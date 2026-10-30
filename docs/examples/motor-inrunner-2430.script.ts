@@ -21,7 +21,7 @@ const { EXPLODE: E, TEXT_ANGLE, LETTERS, CLR, CAN_R, CAN_IN_R, CAN_Z0, CAN_Z1, F
 const WR = 7.5, GA = 30;                                                   // lead radius (under the coils) and the angle of the middle wire
 // KingVal drawing: 2 x M3 and 4 x M2.5 on the front face (positions measured from the drawing, +-0.3 mm); the X-Team motor has 4 x M2.5 on a 16 mm circle
 const M3 = V.KINGVAL ? [[0, 8.5], [0, -8.5]] : [];
-const M25 = V.KINGVAL ? [[-6.7, 4.0], [5.8, 3.5], [-5.9, -3.4], [7.0, -4.0]] : [45, 135, 225, 315].map((a) => [PCD_R * Math.cos(a * Math.PI / 180), PCD_R * Math.sin(a * Math.PI / 180)]);
+const M25 = [45, 135, 225, 315].map((a) => { const r = V.KINGVAL ? 7.6 : PCD_R; return [r * Math.cos(a * Math.PI / 180), r * Math.sin(a * Math.PI / 180)]; });   // symmetric: four holes at 90 degree steps on one circle (KINGVAL: 7.6 mm, the mean of the photographed hand-placed positions)
 const P = part('Inrunner 2430');
 const rad = (d) => d * Math.PI / 180;
 const LOOK = { can: '#e0262f', plate: '#2a2c30', cap: '#2a2c30', sleeveRotor: '#8a9098', steel: '#7d858f', copper: '#d0702a', chrome: '#c7ccd1', dark: '#555b63', magN: '#3f444c', magS: '#6b727b', clip: '#3a3d42',

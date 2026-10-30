@@ -5,7 +5,7 @@ import type { RecentEntry } from './files/recent';
 import { CategoryIcon } from './library/CategoryIcon';
 import './files/files.css';
 
-export interface SampleEntry { id: string; title: string; url: string }
+export interface SampleEntry { id: string; title: string; url: string; detail?: string }
 
 /** A small picture that loads lazily and gives way to the category icon of `name` when there is none (or it fails to load). */
 export function ThumbImg(p: { src?: string; name: string; class?: string }) {
@@ -28,7 +28,7 @@ export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; on
   }, []);
   const shown = useMemo(() => {
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return p.samples.filter((s) => terms.every((t) => `${s.title} ${s.id}`.toLowerCase().includes(t)));
+    return p.samples.filter((s) => terms.every((t) => `${s.title} ${s.detail ?? ''} ${s.id}`.toLowerCase().includes(t)));
   }, [q, p.samples]);
   return (
     <div class="dlg-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
@@ -53,7 +53,7 @@ export function SamplesDialog(p: { samples: SampleEntry[]; thumbBase: string; on
         ) : null}
         <div class="dlg-list">
           {shown.map((s) => (
-            <button key={s.id} class="dlg-item" onClick={() => p.onPick(s)}>
+            <button key={s.id} class="dlg-item" title={s.detail} onClick={() => p.onPick(s)}>
               <ThumbImg name={s.title} src={`${p.thumbBase}samples/thumbs/${s.id}.webp`} />
               <span>{s.title}</span>
             </button>

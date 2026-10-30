@@ -417,7 +417,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .handle-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 6; padding: 6px 12px; border-radius: 8px; pointer-events: none; max-width: 70%;
   background: rgba(var(--glass-rgb), max(var(--alpha), .9)); color: var(--text); outline: 1px solid var(--accent); outline-offset: -1px; }
 /* thread / feature warnings (amber, the feature still works) */
-.row-warn { flex: 0 0 auto; width: 15px; height: 15px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; cursor: help; }
+.row-warn { flex: 0 0 auto; width: 15px; height: 15px; border-radius: 50%; background: var(--warn); color: #fff; font-size: 10px; font-weight: 700; line-height: 15px; text-align: center; cursor: pointer; }
+.insp-warn { margin: 0 0 8px; padding: 6px 8px; border-left: 3px solid var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: 12px; line-height: 1.4; }
+.warn-head { margin: 10px 0 4px; font-size: 12px; }
 .fedit-warn { color: var(--warn); font-size: 12px; line-height: 1.35; padding: 4px 0; }
 .fedit-warn button { margin-left: 6px; font: inherit; font-size: 12px; cursor: pointer; }
 .thread-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); padding: 6px 10px 8px; display: grid; gap: 4px; min-width: 0; }

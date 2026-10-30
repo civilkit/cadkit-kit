@@ -58,3 +58,17 @@ describe('bookkeeping fields', () => {
     expect(paths).toEqual(['offset']);
   });
 });
+
+describe('Inspector warnings', () => {
+  it('shows the feature warnings above the fields', () => {
+    const { container } = render(<Inspector feature={{ type: 'extrude', depth: 5 }} onSet={() => {}} warnings={[{ code: 'unknownField', hint: 'sketch has no field `x`; it is ignored' }]} />);
+    const w = container.querySelector('.insp-warn')!;
+    expect(w.getAttribute('data-warning')).toBe('unknownField');
+    expect(w.textContent).toContain('it is ignored');
+    expect(container.querySelector('.insp')!.firstElementChild).toBe(w);
+  });
+  it('shows nothing without warnings', () => {
+    const { container } = render(<Inspector feature={{ type: 'extrude', depth: 5 }} onSet={() => {}} />);
+    expect(container.querySelector('.insp-warn')).toBeNull();
+  });
+});

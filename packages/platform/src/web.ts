@@ -35,12 +35,12 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
       URL.revokeObjectURL(url);
       return Promise.resolve();
     },
-    async listSamples(): Promise<Array<{ id: string; title: string; url: string }>> {
+    async listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string }>> {
       try {
         const r = await fetch(`${base}samples/index.json`);
         if (!r.ok) return [];
-        const entries = (await r.json()) as Array<{ id: string; title: string; file: string }>;
-        return entries.map((e) => ({ id: e.id, title: e.title, url: `${base}samples/${e.file}` }));
+        const entries = (await r.json()) as Array<{ id: string; title: string; file: string; detail?: string }>;
+        return entries.map((e) => ({ id: e.id, title: e.title, detail: e.detail, url: `${base}samples/${e.file}` }));
       } catch {
         return [];
       }

@@ -6,7 +6,7 @@ export interface Platform {
   openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string; bytes?: Uint8Array } | null>;
   /** Download a file. Text goes out as UTF-8; bytes as they are. `mime` defaults from the file extension. */
   saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void>;
-  listSamples(): Promise<Array<{ id: string; title: string; url: string }>>;
+  listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string }>>;
   wasmUrl(): string;
   /** True when a save can overwrite a file the user picked (File System Access API). */
   canOverwrite?(): boolean;

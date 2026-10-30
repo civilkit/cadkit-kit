@@ -218,7 +218,10 @@ export function warningsById(list: unknown): Record<string, FeatureWarning> {
     if (!Array.isArray(item) || typeof item[0] !== 'string') continue;
     const w = (item[1] ?? {}) as { code?: unknown; params?: Record<string, unknown> };
     const code = typeof w.code === 'string' ? w.code : 'warning';
-    const hint = typeof w.params?.hint === 'string' ? w.params.hint : code;
+    // What is wrong (params.detail, e.g. "sketch has no field `x`; it is ignored") ahead of what to do (params.hint).
+    const detail = typeof w.params?.detail === 'string' && w.params.detail ? w.params.detail : '';
+    const advice = typeof w.params?.hint === 'string' ? w.params.hint : '';
+    const hint = detail && advice ? `${detail}. ${advice}` : detail || advice || code;
     const one = { code, hint, ...(w.params ? { params: w.params } : {}) };
     const cur = out[item[0]];
     if (!cur) out[item[0]] = { ...one };

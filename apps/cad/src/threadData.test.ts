@@ -158,6 +158,11 @@ describe('warnings', () => {
     expect(warningsById(undefined)).toEqual({});
     expect(warningsById([['F1', { code: 'c' }], 7, ['F2']])).toMatchObject({ F1: { code: 'c', hint: 'c' }, F2: { code: 'warning' } });
   });
+  it('the detail (what is wrong) comes before the hint (what to do)', () => {
+    const w = warningsById([['F1', { code: 'unknownField', params: { detail: 'sketch has no field `origin`; it is ignored', fields: ['origin'], hint: 'check the field names' } }], ['F2', { code: 'unknownField', params: { detail: 'extrude has no field `x`; it is ignored' } }]]);
+    expect(w.F1.hint).toBe('sketch has no field `origin`; it is ignored. check the field names');
+    expect(w.F2.hint).toBe('extrude has no field `x`; it is ignored');
+  });
   it('suggestedSize reads nearest as a name, an object or a list', () => {
     expect(suggestedSize({ nearest: 'M8' })).toBe('M8');
     expect(suggestedSize({ nearest: { size: 'M8', tapDrill: 6.8 } })).toBe('M8');

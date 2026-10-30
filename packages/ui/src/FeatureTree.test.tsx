@@ -44,6 +44,28 @@ describe('FeatureTree', () => {
     expect(rows[0].querySelector('.row-warn')).toBeNull();
   });
 
+  it('the warning tooltip carries what is wrong and what to do', () => {
+    const hint = 'sketch has no field `origin`; it is ignored. check the field names';
+    const { container } = render(
+      <FeatureTree rows={[{ id: 'S1', type: 'sketch' }]} status={[{ id: 'S1', ok: true }]} warnings={{ S1: { code: 'unknownField', hint } }}
+        selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />,
+    );
+    const w = container.querySelector('.row-warn')!;
+    expect(w.getAttribute('title')).toBe(hint);
+    expect(w.getAttribute('aria-label')).toBe(hint);
+  });
+
+  it('clicking the warning mark reports the feature without selecting the row', () => {
+    const got: string[] = []; const sel: string[] = [];
+    const { container } = render(
+      <FeatureTree rows={[{ id: 'S1', type: 'sketch' }]} status={[{ id: 'S1', ok: true }]} warnings={{ S1: { code: 'unknownField', hint: 'h' } }}
+        selectedId={null} onSelect={(id) => sel.push(id)} onWarning={(id) => got.push(id)} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />,
+    );
+    (container.querySelector('.row-warn') as HTMLElement).click();
+    expect(got).toEqual(['S1']);
+    expect(sel).toEqual([]);
+  });
+
   it('calls onSelect with the row id on click', () => {
     const picked: string[] = [];
     const { container } = render(

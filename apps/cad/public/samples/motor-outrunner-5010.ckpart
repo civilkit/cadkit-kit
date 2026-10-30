@@ -13,7 +13,7 @@
    },
    "offset": 0,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -140,7 +140,7 @@
    ],
    "constraints": [],
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "revolve",
@@ -151,7 +151,7 @@
    "angle": 360,
    "group": "Bell",
    "name": "Revolve Bell profile",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -163,7 +163,7 @@
    },
    "offset": 22.2,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -251,7 +251,7 @@
    ],
    "constraints": [],
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -262,7 +262,7 @@
    "depth": 4.599999999999998,
    "group": "Bell",
    "name": "Cut Cap windows",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -274,7 +274,7 @@
    },
    "offset": 21.2,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -318,7 +318,7 @@
    ],
    "constraints": [],
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -329,7 +329,7 @@
    "depth": 2,
    "group": "Bell",
    "name": "Extrude Prop hub",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -341,7 +341,7 @@
    },
    "offset": 23.2,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -385,7 +385,7 @@
    ],
    "constraints": [],
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -396,7 +396,7 @@
    "depth": 1,
    "group": "Bell",
    "name": "Cut Shaft recess",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -447,7 +447,7 @@
    ],
    "constraints": [],
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "hole",
@@ -462,7 +462,7 @@
    "depth": 2.2,
    "group": "Bell",
    "name": "Prop adapter holes M3",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -474,7 +474,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -486,7 +486,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -498,7 +498,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Bell",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "chamfer",
@@ -542,7 +542,7 @@
    ],
    "group": "Bell",
    "name": "Entry chamfer M3",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -575,7 +575,7 @@
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -586,7 +586,7 @@
    "depth": 4,
    "group": "Base",
    "name": "Extrude Base plate",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -598,7 +598,7 @@
    },
    "offset": 4,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -631,7 +631,7 @@
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -642,7 +642,7 @@
    "depth": 13.5,
    "group": "Base",
    "name": "Extrude Bearing tube",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -654,7 +654,7 @@
    },
    "offset": 17.5,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -687,7 +687,7 @@
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -698,7 +698,7 @@
    "depth": 17.5,
    "group": "Base",
    "name": "Cut Bore",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -759,7 +759,7 @@
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "hole",
@@ -774,7 +774,7 @@
    "depth": 3.5,
    "group": "Base",
    "name": "Mount holes M4",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -786,7 +786,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -798,7 +798,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -810,7 +810,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "thread",
@@ -822,7 +822,7 @@
    "hand": "right",
    "modeled": false,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "chamfer",
@@ -877,7 +877,7 @@
    ],
    "group": "Base",
    "name": "Entry chamfer M4",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -889,7 +889,7 @@
    },
    "offset": 4,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -908,23 +908,23 @@
     },
     {
      "id": "p1",
-     "x": -3.2124912868,
-     "y": 18.2189434307
-    },
-    {
-     "id": "p2",
-     "x": -18.5,
+     "x": 14.2,
      "y": 0
     },
     {
+     "id": "p2",
+     "x": 0,
+     "y": 14.2
+    },
+    {
      "id": "p3",
-     "x": -3.2124912868,
-     "y": -18.2189434307
+     "x": -14.2,
+     "y": 0
     },
     {
      "id": "p4",
-     "x": 17.3843134845,
-     "y": -6.3273726515
+     "x": 0,
+     "y": -14.2
     }
    ],
    "entities": [
@@ -932,30 +932,30 @@
      "id": "e1",
      "type": "circle",
      "c": "p1",
-     "r": 4.5
+     "r": 4
     },
     {
      "id": "e2",
      "type": "circle",
      "c": "p2",
-     "r": 4.5
+     "r": 4
     },
     {
      "id": "e3",
      "type": "circle",
      "c": "p3",
-     "r": 4.5
+     "r": 4
     },
     {
      "id": "e4",
      "type": "circle",
      "c": "p4",
-     "r": 4.5
+     "r": 4
     }
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -966,7 +966,7 @@
    "depth": 4,
    "group": "Base",
    "name": "Cut Lightening holes",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -978,7 +978,7 @@
    },
    "offset": 4,
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1076,7 +1076,7 @@
    ],
    "constraints": [],
    "group": "Base",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -1087,7 +1087,7 @@
    "depth": 3,
    "group": "Base",
    "name": "Cut Wire window",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1099,7 +1099,7 @@
    },
    "offset": -1.4,
    "group": "Retaining clip",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1143,7 +1143,7 @@
    ],
    "constraints": [],
    "group": "Retaining clip",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -1154,7 +1154,7 @@
    "depth": 0.5,
    "group": "Retaining clip",
    "name": "Extrude E-clip",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1166,7 +1166,7 @@
    },
    "offset": -0.8999999999999999,
    "group": "Retaining clip",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1232,7 +1232,7 @@
    ],
    "constraints": [],
    "group": "Retaining clip",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -1243,7 +1243,7 @@
    "depth": 0.5,
    "group": "Retaining clip",
    "name": "Cut Clip opening",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1255,7 +1255,7 @@
    },
    "offset": 0,
    "group": "Lower bearing",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1448,7 +1448,7 @@
    ],
    "constraints": [],
    "group": "Lower bearing",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "revolve",
@@ -1459,7 +1459,7 @@
    "angle": 360,
    "group": "Lower bearing",
    "name": "Revolve Lower bearing profile",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1471,7 +1471,7 @@
    },
    "offset": 0,
    "group": "Upper bearing",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1664,7 +1664,7 @@
    ],
    "constraints": [],
    "group": "Upper bearing",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "revolve",
@@ -1675,7 +1675,7 @@
    "angle": 360,
    "group": "Upper bearing",
    "name": "Revolve Upper bearing profile",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1687,7 +1687,7 @@
    },
    "offset": 6,
    "group": "Stator",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1731,7 +1731,7 @@
    ],
    "constraints": [],
    "group": "Stator",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -1742,7 +1742,7 @@
    "depth": 10,
    "group": "Stator",
    "name": "Extrude Stator yoke",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1754,7 +1754,7 @@
    },
    "offset": 6,
    "group": "Stator",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1842,7 +1842,7 @@
    ],
    "constraints": [],
    "group": "Stator",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -1853,7 +1853,7 @@
    "depth": 10,
    "group": "Stator",
    "name": "Extrude Tooth",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -1869,7 +1869,7 @@
    "angle": 360,
    "equal": true,
    "group": "Stator",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1910,7 +1910,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1923,7 +1923,7 @@
    "offset": 10,
    "visible": false,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -1954,7 +1954,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1978,7 +1978,7 @@
     }
    ],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -1990,7 +1990,7 @@
    },
    "offset": 0,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2100,7 +2100,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -2111,7 +2111,7 @@
    "depth": 5.299999999999997,
    "group": "Windings",
    "name": "Extrude Coil A",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -2127,7 +2127,7 @@
    "angle": 360,
    "equal": true,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2168,7 +2168,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2181,7 +2181,7 @@
    "offset": 10,
    "visible": false,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2212,7 +2212,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2236,7 +2236,7 @@
     }
    ],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2248,7 +2248,7 @@
    },
    "offset": 0,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2358,7 +2358,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -2369,7 +2369,7 @@
    "depth": 5.299999999999997,
    "group": "Windings",
    "name": "Extrude Coil B",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -2385,7 +2385,7 @@
    "angle": 360,
    "equal": true,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2426,7 +2426,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2439,7 +2439,7 @@
    "offset": 10,
    "visible": false,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2470,7 +2470,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2494,7 +2494,7 @@
     }
    ],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2506,7 +2506,7 @@
    },
    "offset": 0,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2616,7 +2616,7 @@
    ],
    "constraints": [],
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -2627,7 +2627,7 @@
    "depth": 5.299999999999997,
    "group": "Windings",
    "name": "Extrude Coil C",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -2643,7 +2643,7 @@
    "angle": 360,
    "equal": true,
    "group": "Windings",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2655,7 +2655,7 @@
    },
    "offset": 6,
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2753,7 +2753,7 @@
    ],
    "constraints": [],
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -2764,7 +2764,7 @@
    "depth": 10,
    "group": "Magnets",
    "name": "Extrude Magnet N",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -2780,7 +2780,7 @@
    "angle": 360,
    "equal": true,
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2792,7 +2792,7 @@
    },
    "offset": 6,
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -2890,7 +2890,7 @@
    ],
    "constraints": [],
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -2901,7 +2901,7 @@
    "depth": 10,
    "group": "Magnets",
    "name": "Extrude Magnet S",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "cpattern",
@@ -2917,7 +2917,7 @@
    "angle": 360,
    "equal": true,
    "group": "Magnets",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -2929,7 +2929,7 @@
    },
    "offset": 0,
    "group": "Shaft",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3078,7 +3078,7 @@
    ],
    "constraints": [],
    "group": "Shaft",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "revolve",
@@ -3089,7 +3089,7 @@
    "angle": 360,
    "group": "Shaft",
    "name": "Revolve Shaft profile",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3130,7 +3130,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3143,7 +3143,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3174,7 +3174,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3198,7 +3198,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3210,7 +3210,7 @@
    },
    "offset": 5.300000000000001,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3242,7 +3242,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3254,7 +3254,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3302,7 +3302,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -3314,7 +3314,7 @@
     "id": "F101"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3327,7 +3327,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3368,7 +3368,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3381,7 +3381,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3412,7 +3412,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3436,7 +3436,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3477,7 +3477,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3490,7 +3490,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3521,7 +3521,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3545,7 +3545,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3557,7 +3557,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3589,7 +3589,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3601,7 +3601,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3638,7 +3638,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -3650,7 +3650,7 @@
     "id": "F115"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3663,7 +3663,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3704,7 +3704,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3717,7 +3717,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3748,7 +3748,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3772,7 +3772,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3784,7 +3784,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3817,7 +3817,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -3828,7 +3828,7 @@
    "depth": 4,
    "group": "Wires",
    "name": "Extrude Bare end Yellow",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3869,7 +3869,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3882,7 +3882,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3913,7 +3913,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3937,7 +3937,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3949,7 +3949,7 @@
    },
    "offset": 5.300000000000001,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -3981,7 +3981,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -3993,7 +3993,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4041,7 +4041,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -4053,7 +4053,7 @@
     "id": "F132"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4066,7 +4066,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4107,7 +4107,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4120,7 +4120,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4151,7 +4151,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4175,7 +4175,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4216,7 +4216,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4229,7 +4229,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4260,7 +4260,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4284,7 +4284,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4296,7 +4296,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4328,7 +4328,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4340,7 +4340,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4377,7 +4377,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -4389,7 +4389,7 @@
     "id": "F146"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4402,7 +4402,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4443,7 +4443,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4456,7 +4456,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4487,7 +4487,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4511,7 +4511,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4523,7 +4523,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4556,7 +4556,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -4567,7 +4567,7 @@
    "depth": 4,
    "group": "Wires",
    "name": "Extrude Bare end Blue",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4608,7 +4608,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4621,7 +4621,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4652,7 +4652,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4676,7 +4676,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4688,7 +4688,7 @@
    },
    "offset": 5.300000000000001,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4720,7 +4720,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4732,7 +4732,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4780,7 +4780,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -4792,7 +4792,7 @@
     "id": "F163"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4805,7 +4805,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4846,7 +4846,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4859,7 +4859,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4890,7 +4890,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4914,7 +4914,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4955,7 +4955,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -4968,7 +4968,7 @@
    "offset": -10,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -4999,7 +4999,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5023,7 +5023,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5035,7 +5035,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5067,7 +5067,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5079,7 +5079,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5116,7 +5116,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sweep",
@@ -5128,7 +5128,7 @@
     "id": "F177"
    },
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5141,7 +5141,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5182,7 +5182,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5195,7 +5195,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5226,7 +5226,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5250,7 +5250,7 @@
     }
    ],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5262,7 +5262,7 @@
    },
    "offset": 0,
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5295,7 +5295,7 @@
    ],
    "constraints": [],
    "group": "Wires",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -5306,7 +5306,7 @@
    "depth": 4,
    "group": "Wires",
    "name": "Extrude Bare end Red",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5319,7 +5319,7 @@
    "offset": 2.5,
    "visible": false,
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5360,7 +5360,7 @@
    ],
    "constraints": [],
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5373,7 +5373,7 @@
    "offset": 12.5,
    "visible": false,
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5404,7 +5404,7 @@
    ],
    "constraints": [],
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5428,7 +5428,7 @@
     }
    ],
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5440,7 +5440,7 @@
    },
    "offset": 0,
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -5946,7 +5946,7 @@
    ],
    "constraints": [],
    "group": "Sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -5957,7 +5957,7 @@
    "depth": 12,
    "group": "Sleeve",
    "name": "Extrude Heat-shrink sleeve",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -5969,7 +5969,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6009,7 +6009,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6021,7 +6021,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6051,7 +6051,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6074,7 +6074,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6085,7 +6085,7 @@
     "id": "F199"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6123,7 +6123,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -6134,7 +6134,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter C",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6146,7 +6146,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6186,7 +6186,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6198,7 +6198,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6228,7 +6228,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6251,7 +6251,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6262,7 +6262,7 @@
     "id": "F207"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6300,7 +6300,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -6311,7 +6311,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CI",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6323,7 +6323,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6363,7 +6363,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6375,7 +6375,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6405,7 +6405,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6428,7 +6428,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6439,7 +6439,7 @@
     "id": "F215"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6477,7 +6477,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -6488,7 +6488,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIV",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6500,7 +6500,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6540,7 +6540,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6552,7 +6552,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6582,7 +6582,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6605,7 +6605,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6616,7 +6616,7 @@
     "id": "F223"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6654,7 +6654,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -6665,7 +6665,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIVI",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6677,7 +6677,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6717,7 +6717,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6729,7 +6729,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6759,7 +6759,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6782,7 +6782,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6793,7 +6793,7 @@
     "id": "F231"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6831,7 +6831,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -6842,7 +6842,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIVIL",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6854,7 +6854,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6894,7 +6894,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6906,7 +6906,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -6936,7 +6936,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6959,7 +6959,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -6970,7 +6970,7 @@
     "id": "F239"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7008,7 +7008,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7019,7 +7019,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIVILK",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7031,7 +7031,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7071,7 +7071,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7083,7 +7083,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7113,7 +7113,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7136,7 +7136,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7147,7 +7147,7 @@
     "id": "F247"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7185,7 +7185,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7196,7 +7196,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIVILKI",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7208,7 +7208,7 @@
    },
    "offset": 15,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7248,7 +7248,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7260,7 +7260,7 @@
    },
    "offset": 25,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7290,7 +7290,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7313,7 +7313,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7324,7 +7324,7 @@
     "id": "F255"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7362,7 +7362,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7373,7 +7373,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter CIVILKIT",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7385,7 +7385,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7425,7 +7425,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7437,7 +7437,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7467,7 +7467,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7490,7 +7490,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7501,7 +7501,7 @@
     "id": "F263"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7539,7 +7539,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7550,7 +7550,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7562,7 +7562,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7602,7 +7602,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7614,7 +7614,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7644,7 +7644,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7667,7 +7667,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7678,7 +7678,7 @@
     "id": "F271"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7716,7 +7716,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7727,7 +7727,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 50",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7739,7 +7739,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7779,7 +7779,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7791,7 +7791,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7821,7 +7821,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7844,7 +7844,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7855,7 +7855,7 @@
     "id": "F279"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7893,7 +7893,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -7904,7 +7904,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 501",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7916,7 +7916,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7956,7 +7956,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -7968,7 +7968,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -7998,7 +7998,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8021,7 +8021,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8032,7 +8032,7 @@
     "id": "F287"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8070,7 +8070,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -8081,7 +8081,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5010",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8093,7 +8093,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8133,7 +8133,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8145,7 +8145,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8175,7 +8175,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8198,7 +8198,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8209,7 +8209,7 @@
     "id": "F295"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8247,7 +8247,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -8258,7 +8258,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5010 B",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8270,7 +8270,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8310,7 +8310,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8322,7 +8322,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8352,7 +8352,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8375,7 +8375,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8386,7 +8386,7 @@
     "id": "F303"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8424,7 +8424,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -8435,7 +8435,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5010 BL",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8447,7 +8447,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8487,7 +8487,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8499,7 +8499,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8529,7 +8529,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8552,7 +8552,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8563,7 +8563,7 @@
     "id": "F311"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8601,7 +8601,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -8612,7 +8612,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5010 BLD",
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8624,7 +8624,7 @@
    },
    "offset": 9.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8664,7 +8664,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8676,7 +8676,7 @@
    },
    "offset": 19.4,
    "visible": false,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8706,7 +8706,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8729,7 +8729,7 @@
      "point": "q2"
     }
    ],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "plane",
@@ -8740,7 +8740,7 @@
     "id": "F319"
    },
    "offset": 0,
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "sketch",
@@ -8778,7 +8778,7 @@
     }
    ],
    "constraints": [],
-   "origin": "script#11"
+   "origin": "script#1"
   },
   {
    "type": "extrude",
@@ -8789,7 +8789,7 @@
    "end": "blind",
    "depth": 0.2,
    "name": "Extrude Letter 5010 BLDC",
-   "origin": "script#11"
+   "origin": "script#1"
   }
  ],
  "seq": 323,
@@ -8828,7 +8828,7 @@
    "expr": "1"
   }
  ],
- "script": "// 2212 outrunner drone motor, 12N14P, exploded-view ready. Axis = Z, base underside at z = 0, mm.\n// EXPLODE = 0 is the assembled motor; EXPLODE > 0 spreads the bodies along Z by EXPLODE per step (wires follow their coils).\n// Between every pair of parts there is a clearance CLR so each part stays its own body (touching parts would fuse).\n// Parametric outrunner drone motor, 12N14P, exploded-view ready. Axis = Z, base underside at z = 0, mm.\n// SIZE selects a row of the table below (2212 = A2212-class, from photos and the manufacturer drawing; 2306 and 5010 = catalogue-typical dimensions, NOT from a drawing).\n// Optional row fields (stator.neck/tip, base.mount*, base.light*, base.win*, bell.win/prop/recessR, clipOpen, wire.r/gap/tip/sleeve/drop, screw) fall back to the 2212/2306 values when a row leaves them out.\n// EXPLODE = 0 is the assembled motor; EXPLODE > 0 spreads the bodies along Z by EXPLODE per step (wires follow their coils).\n// Between every pair of parts there is a clearance CLR so each part stays its own body (touching parts would fuse).\nconst V = variables({\n  SIZE: 5010, EXPLODE: 0, CLR: 0.1, SCREWS: 0, EXTERIOR: 0, BLACK: 0, TEXT_ANGLE: 62, LETTERS: 1   // EXTERIOR: 1 leaves out the parts nobody can see (stator, windings, magnets...) so the drawing has no hidden-line clutter\n            // SCREWS: 1 adds the four mounting screws (loose accessory; they hide the open mount holes)\n});\n// ---- size table: every dimension that differs between motors. Derived numbers are explicit too, so a size is one readable row. ----\nconst SIZES = {\n  2212: {\n    stator: { tipR: 10.9, yokeOut: 7.5, yokeIn: 5.6, stack: 12, zStart: 11.8, toothIn: 7.0, shoulderR: 9.9, teeth: 12 },\n    coil: { r0: 7.6, r1: 9.8, t: 0.55 },\n    mag: { n: 14, ri: 11.5, ro: 12.8, half: 10.5 },\n    bell: { r: 13.9, inR: 12.9, z0: 4, top: 28, topIn: 25.2, hubR: 4.5, hubIn: 4, m2Depth: 2.6 },\n    base: { r: 13.9, t: 3, mountX: 8, mountY: 9.5, tubeR: 5.5, boreR: 4.1, tubeTop: 24, lightR: 2.75, lightAt: 10, winIn: 6.9, winOut: 14.6 },\n    shaft: { r: 1.585, top: 32.5, bot: -2.2 },\n    brg: { ri: 1.65, a: 2.45, b: 3.3, ro: 4.05, h: 3, shield: 0.3, ch: 0.2, zLow: 0.2, zUp: 20.4 },\n    clipR: 3,\n    wire: { wr: 8.7, re: 14.5, ro: 25, rs: 15.4 },\n    text: [{ h: 2.6, z: 17.6 }, { h: 2.0, z: 13.8 }],\n  },\n  // 2306: typical catalogue values (28 mm can, 23 mm stator, 6 mm stack, 4 mm shaft, 16 x 16 mm M3 mount, 4 x 9 x 4 bearings), not taken from a drawing\n  2306: {\n    stator: { tipR: 11.5, yokeOut: 8.2, yokeIn: 5.6, stack: 6, zStart: 5.0, toothIn: 7.7, shoulderR: 10.5, teeth: 12 },\n    coil: { r0: 8.3, r1: 10.4, t: 0.55 },\n    mag: { n: 14, ri: 12.0, ro: 13.2, half: 10.5 },\n    bell: { r: 14.1, inR: 13.3, z0: 4, top: 15.2, topIn: 12.8, hubR: 4.5, hubIn: 4, m2Depth: 2.2 },\n    base: { r: 14.1, t: 3, mountX: 8, mountY: 8, tubeR: 5.5, boreR: 4.55, tubeTop: 11.2, lightR: 2.75, lightAt: 10, winIn: 6.9, winOut: 14.8 },\n    shaft: { r: 2.0, top: 19.7, bot: -2.2 },\n    brg: { ri: 2.065, a: 2.865, b: 3.75, ro: 4.5, h: 4, shield: 0.3, ch: 0.2, zLow: 0.2, zUp: 6.8 },\n    clipR: 3.4,\n    wire: { wr: 9.35, re: 14.7, ro: 25.2, rs: 15.6 },\n    text: [{ h: 2.6, z: 9.6 }, { h: 2.0, z: 6.2 }],\n  },\n  // 5010: typical catalogue values (50 mm stator, 10 mm stack, 12N14P, 6 mm shaft, 56 mm can, 25 x 25 mm M4 mount, 606-size 6 x 17 x 6 bearings, 1.5 mm magnets), not taken from a drawing\n  5010: {\n    stator: { tipR: 25.0, yokeOut: 17.0, yokeIn: 9.6, stack: 10, zStart: 6.0, toothIn: 16.4, shoulderR: 22.5, teeth: 12, neck: 2.0, tip: 4.2 },\n    coil: { r0: 17.1, r1: 22.4, t: 1.0 },\n    mag: { n: 14, ri: 25.5, ro: 27.0, half: 10.5 },\n    bell: { r: 28.0, inR: 27.1, z0: 5, top: 21.2, topIn: 18.6, hubR: 7.5, hubIn: 5.5, m2Depth: 2.2, recessR: 4.5,\n      win: { big: { r: 6.5, at: 19.5 }, small: { r: 4.5, at: 20.0 } }, prop: { size: 'M3', r: 10.5, within: 1.7 } },\n    base: { r: 28.0, t: 4, mountX: 12.5, mountY: 12.5, tubeR: 9.5, boreR: 8.55, tubeTop: 17.5, lightR: 4.5, lightAt: 18.5, winIn: 19.5, winOut: 29.5,\n      mountSize: 'M4', mountDepth: 3.5, mountCh: 0.5, mountChWithin: 2.2, lightAngles: [100, 180, 260, 340], winDepth: 3 },\n    shaft: { r: 3.0, top: 33, bot: -2.2 },\n    brg: { ri: 3.065, a: 4.4, b: 7.0, ro: 8.5, h: 6, shield: 0.4, ch: 0.3, zLow: 0.2, zUp: 11.3 },\n    clipR: 5.2, clipOpen: { l: 3.4, w: 2.4, cx: 4.0 },\n    wire: { wr: 21.0, re: 28.8, ro: 44.0, rs: 29.7, r: 1.2, gap: 2.8, tip: 4, sleeve: 12, drop: 1.5 },\n    screw: { rMaj: 2, R: 3.8, k: 2.2, hex: 2.5, hd: 1.3, L: 3.5, p: 0.7, zSeat: -0.3 },\n    text: [{ h: 4.6, z: 15.0 }, { h: 3.4, z: 9.4 }],\n  },\n};\nconst Z = SIZES[V.SIZE];\nif (!Z) throw new Error('unknown SIZE ' + V.SIZE + ' (table has ' + Object.keys(SIZES).join(', ') + ')');\nconst q = (x) => Math.round(x * 1e6) / 1e6;   // keep derived numbers identical to the literals they replace\nconst { EXPLODE: E, TEXT_ANGLE, LETTERS, CLR } = V;\nconst { stator: ST, coil: CO, mag: MG, bell: BL, base: BS, shaft: SH, brg: BG } = Z;\nconst BASE_R = BS.r, BASE_T = BS.t, MOUNT_X = BS.mountX, MOUNT_Y = BS.mountY, TUBE_R = BS.tubeR, BORE_R = BS.boreR, TUBE_TOP = BS.tubeTop;\nconst STACK = ST.stack, Z_STATOR = ST.zStart, YOKE_IN = ST.yokeIn, YOKE_OUT = ST.yokeOut, TIP_R = ST.tipR, N_TEETH = ST.teeth;\nconst COIL_T = CO.t, COIL_R0 = CO.r0, COIL_R1 = CO.r1;\nconst BELL_Z0 = BL.z0, BELL_TOP_IN = BL.topIn, BELL_TOP = BL.top;\nconst SHAFT_R = SH.r, SHAFT_TOP = SH.top, SHAFT_BOT = SH.bot;\nconst MAG_RI = MG.ri, MAG_RO = MG.ro, MAG_N = MG.n, MAG_HALF = MG.half;\nconst WK = Z.wire, WIRE_R = WK.r ?? 0.8, WIRE_OUT = 10, WIRE_GAP = WK.gap ?? 1.8, TIP_LEN = WK.tip ?? 2.5;\nconst NECK = ST.neck ?? 1.0, TIPW = ST.tip ?? 2.0;\nconst P = part('Outrunner ' + V.SIZE);\nconst rad = (d) => d * Math.PI / 180;\nconst LOOK = { base: '#2d3139', steel: '#4a5058', copper: '#e0701c', chrome: '#c7ccd1', bell: V.BLACK ? '#1f2125' : '#c1272d', magN: '#4a4f57', magS: '#6b727b', clip: '#3a3d42', yellow: '#e5b800', blue: '#1f6fd0', red: '#d12c2c', bare: '#d98a4a', sleeve: '#16171a', screw: '#9aa1a8' };\nconst look = (h, name, colour, finish) => { P.bodyName(h, name); P.appearance({ feature: h, colour, finish }); };\n// explode steps (z shift = step * EXPLODE): screws -2, clip -1, base 0, lower bearing 1, coils 2 (below the stator so their leads do not pass through it), stator 3, upper bearing 4, magnets 5, bell 6, shaft 7\nconst dz = (k) => k * E;\nconst HUB_TOP = q(BELL_TOP + 2);   // prop hub stands 2 mm proud of the cap (2212: arms 28, hub 30, manufacturer drawing)\n// revolve a closed (r, z) polygon about the Z axis; points are [r, z]\nconst rev = (pts, z0, name) => {\n  P.sketch(at('top', 0), (s) => s.polygon(pts.map(([r, z]) => [r, -(z + z0)])), name);\n  P.revolve(360, { axis: { from: [0, 0], to: [0, -1] } });\n  return P.handle();\n};\nconst ring = (z, ro, ri, h, name) => { P.sketch(at('front', z), (s) => { s.circle(ro); s.circle(ri); }, name); P.extrude(h); return P.handle(); };\n\n// ---- bell (built first: its cuts must not touch the other bodies) ----\nP.group('Bell', () => {\n  const k = dz(6);\n  const h = rev([[SHAFT_R + CLR / 2, BELL_TOP_IN - 1], [BL.hubIn, BELL_TOP_IN - 1], [BL.hubIn, BELL_TOP_IN], [BL.inR, BELL_TOP_IN], [BL.inR, BELL_Z0], [BL.r, BELL_Z0], [BL.r, BELL_TOP], [SHAFT_R + CLR / 2, BELL_TOP]], k, 'Bell profile');\n  look(h, 'Bell', LOOK.bell, 'plastic');\n  // cap windows (SunnySky photos): three large round windows and, between them, three smaller ones, leaving six arms; all of them break through the rim as notches\n  const WB = BL.win?.big ?? { r: 4.8, at: 10.6 }, WS = BL.win?.small ?? { r: 3.4, at: 10.9 };\n  P.sketch(at('front', BELL_TOP + k + 1), (s) => {\n    [30, 150, 270].forEach((a) => s.circle(WB.r, [WB.at * Math.cos(rad(a)), WB.at * Math.sin(rad(a))]));\n    [90, 210, 330].forEach((a) => s.circle(WS.r, [WS.at * Math.cos(rad(a)), WS.at * Math.sin(rad(a))]));\n  }, 'Cap windows');\n  P.cut(BELL_TOP - BELL_TOP_IN + 2, { direction: 'into' });\n  // flat cap: arms flush with the rim (photos), the prop hub (dia 9) stands 2 mm proud with a recess round the shaft; the six wide windows run out through the rim as notches\n  P.sketch(at('front', BELL_TOP + k), (s) => { s.circle(BL.hubR); s.circle(SHAFT_R + CLR / 2); }, 'Prop hub'); P.extrude(HUB_TOP - BELL_TOP);\n  look(P.handle(), 'Bell', LOOK.bell, 'plastic');\n  P.sketch(at('front', HUB_TOP + k), (s) => { s.circle(BL.recessR ?? 3.0); s.circle(SHAFT_R + CLR / 2); }, 'Shaft recess'); P.cut(1.0, { direction: 'into' });\n  const PR = BL.prop ?? { size: 'M2', r: 6, within: 1.2 };\n  const m2 = [60, 180, 300].map((a) => [PR.r * Math.cos(rad(a)), PR.r * Math.sin(rad(a))]), f2 = face({ normal: [0, 0, 1], at: [m2[0][0], m2[0][1], BELL_TOP + k] });\n  P.holes.points(f2, m2, { size: PR.size, kind: 'tapped', depth: BL.m2Depth, name: 'Prop adapter holes ' + PR.size }); const hM2 = P.handle();\n  P.chamfer(edges({ union: m2.map(([x, y]) => edges({ near: [x, y, BELL_TOP + k], within: PR.within })) }), 0.35, { name: 'Entry chamfer ' + PR.size });   // entry chamfer so the hole reads in a render\n});\n\n// ---- base: plate with pockets and spokes, bearing tube, M3 holes, lead holes ----\nlet BASE;\nP.group('Base', () => {\n  P.sketch('front', (s) => s.circle(BASE_R), 'Base plate'); P.extrude(BASE_T);\n  const h = P.handle();\n  P.sketch(at('front', BASE_T), (s) => s.circle(TUBE_R), 'Bearing tube'); P.extrude(TUBE_TOP - BASE_T);\n  P.sketch(at('front', TUBE_TOP), (s) => s.circle(BORE_R), 'Bore'); P.cut(TUBE_TOP, { direction: 'into' });   // depth-limited: a through cut would also cut every body built before the base\n  const fR = face({ normal: [0, 0, -1], at: [MOUNT_X, MOUNT_Y, 0] });\n  P.holes.points(fR, [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => [a * MOUNT_X, b * MOUNT_Y]), { size: BS.mountSize ?? 'M3', kind: 'tapped', depth: BS.mountDepth ?? 2.8, name: 'Mount holes ' + (BS.mountSize ?? 'M3') });   // real hole feature, so the drawing can call it out\n  const hM3 = P.handle();\n  P.chamfer(edges({ union: [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => edges({ near: [a * MOUNT_X, b * MOUNT_Y, 0], within: BS.mountChWithin ?? 1.6 })) }), BS.mountCh ?? 0.4, { name: 'Entry chamfer ' + (BS.mountSize ?? 'M3') });\n  // four large round lightening holes between the four tapped mount holes (SunnySky photos: tapped M3 alternate with larger round holes)\n  P.sketch(at('front', BASE_T), (s) => { (BS.lightAngles ?? [0, 90, 180, 270]).forEach((a) => s.circle(BS.lightR, [BS.lightAt * Math.cos(rad(a)), BS.lightAt * Math.sin(rad(a))])); }, 'Lightening holes'); P.cut(BASE_T, { direction: 'into' });\n  // wire exit: a window in the base wall for the three leads (they run radially out of it, see Wires)\n  P.sketch(at('front', BASE_T), (s) => {\n    const a0 = rad(BS.winA0 ?? -8), a1 = rad(BS.winA1 ?? 68), am = rad(30), p = (r, a) => [r * Math.cos(a), r * Math.sin(a)];\n    s.arc3(p(BS.winOut, a0), p(BS.winOut, am), p(BS.winOut, a1)); s.line(p(BS.winOut, a1), p(BS.winIn, a1)); s.arc3(p(BS.winIn, a1), p(BS.winIn, am), p(BS.winIn, a0)); s.line(p(BS.winIn, a0), p(BS.winOut, a0));\n  }, 'Wire window'); P.cut(BS.winDepth ?? 2, { direction: 'into' });\n  BASE = h;\n});\nlook(BASE, 'Base', LOOK.base, 'matte');\n\n// ---- e-clip under the base (with its opening) ----\nP.group('Retaining clip', () => {\n  const z = -1.4 + dz(-1);\n  const h = ring(z, Z.clipR, SHAFT_R - 0.4 + 0.05, 0.5, 'E-clip');\n  look(h, 'E-clip', LOOK.clip, 'matte');\n  P.sketch(at('front', z + 0.5), (s) => s.rect(Z.clipOpen?.l ?? 2.4, Z.clipOpen?.w ?? 1.6, [Z.clipOpen?.cx ?? 2.6, 0]), 'Clip opening'); P.cut(0.5, { direction: 'into' });\n});\n\n// ---- bearings 693ZZ-class (3.2 bore, 8.1 OD, 4 wide), assumed ----\n// shielded ball bearing, one revolved profile: outer race, inner race, recessed shield between them; OD 8.1, bore 3.3, width 3\nconst mkBearing = (z, name) => rev([[BG.ri, 0], [BG.a, 0], [BG.a, BG.shield], [BG.b, BG.shield], [BG.b, 0], [q(BG.ro - BG.ch), 0], [BG.ro, BG.ch], [BG.ro, q(BG.h - BG.ch)], [q(BG.ro - BG.ch), BG.h], [BG.b, BG.h], [BG.b, q(BG.h - BG.shield)], [BG.a, q(BG.h - BG.shield)], [BG.a, BG.h], [BG.ri, BG.h]], z, name + ' profile');\nif (!V.EXTERIOR) P.group('Lower bearing', () => look(mkBearing(BG.zLow + dz(1), 'Lower bearing'), 'Lower bearing', LOOK.chrome, 'chrome'));   // flush with the rear face, as in the photos\nif (!V.EXTERIOR) P.group('Upper bearing', () => look(mkBearing(BG.zUp + dz(4), 'Upper bearing'), 'Upper bearing', LOOK.chrome, 'chrome'));\n\n// ---- stator: yoke ring and 12 teeth ----\nif (!V.EXTERIOR) P.group('Stator', () => {\n  const z = Z_STATOR + dz(3);\n  const h = ring(z, YOKE_OUT, YOKE_IN, STACK, 'Stator yoke');\n  P.sketch(at('front', z), (s) => s.polygon([[ST.toothIn, -NECK], [ST.shoulderR, -NECK], [TIP_R, -TIPW], [TIP_R, TIPW], [ST.shoulderR, NECK], [ST.toothIn, NECK]]), 'Tooth'); P.extrude(STACK);\n  P.circularPattern({ count: N_TEETH, axis: 'z' });\n  look(h, 'Stator', LOOK.steel, 'brushed');\n});\n\n// ---- windings: a rectangular winding around each tooth; phases A, B, C every third tooth ----\nconst PHASES = [{ n: 'A', a: 0 }, { n: 'B', a: 30 }, { n: 'C', a: 60 }];\nconst coilZ0 = Z_STATOR - 0.6 + dz(2), coilZ1 = Z_STATOR + STACK + 0.6 + dz(2);\nif (!V.EXTERIOR) P.group('Windings', () => PHASES.forEach((ph) => {\n  const t = rad(ph.a), c = Math.cos(t), sn = Math.sin(t);\n  P.workplane({ origin: [COIL_R0 * c, COIL_R0 * sn, 0], normal: [c, sn, 0], xdir: [-sn, c, 0] }); const pl = P.handle();\n  const hw = NECK + CLR + COIL_T;                      // outer half width\n  P.sketch(at(pl), (s) => {\n    s.polygon([[-hw, coilZ0], [hw, coilZ0], [hw, coilZ1], [-hw, coilZ1]]);\n    s.polygon([[-(hw - COIL_T), coilZ0 + 0.5], [hw - COIL_T, coilZ0 + 0.5], [hw - COIL_T, coilZ1 - 0.5], [-(hw - COIL_T), coilZ1 - 0.5]]);\n  }, 'Coil ' + ph.n);\n  P.extrude(COIL_R1 - COIL_R0);\n  const seed = P.handle();                      // the pattern's copies take their look from the seed AND the pattern feature\n  P.circularPattern({ count: N_TEETH / 3, axis: 'z' });\n  look(seed, 'Winding ' + ph.n, LOOK.copper, 'plastic'); look(P.handle(), 'Winding ' + ph.n, LOOK.copper, 'plastic');\n}));\n\n// ---- magnets: 14 arc segments, alternating poles in two bodies ----\nif (!V.EXTERIOR) P.group('Magnets', () => {\n  const z = Z_STATOR + dz(5), pitch = 360 / MAG_N;\n  [['N', 0, LOOK.magN], ['S', pitch, LOOK.magS]].forEach(([n, off, col]) => {\n    P.sketch(at('front', z), (s) => {\n      const a0 = rad(off - MAG_HALF), a1 = rad(off + MAG_HALF), am = rad(off), p = (r, a) => [r * Math.cos(a), r * Math.sin(a)];\n      s.arc3(p(MAG_RO, a0), p(MAG_RO, am), p(MAG_RO, a1)); s.line(p(MAG_RO, a1), p(MAG_RI, a1)); s.arc3(p(MAG_RI, a1), p(MAG_RI, am), p(MAG_RI, a0)); s.line(p(MAG_RI, a0), p(MAG_RO, a0));\n    }, 'Magnet ' + n);\n    P.extrude(STACK);\n    const seed = P.handle();\n    P.circularPattern({ count: MAG_N / 2, axis: 'z' });\n    look(seed, 'Magnets ' + n, col, 'matte'); look(P.handle(), 'Magnets ' + n, col, 'matte');\n  });\n});\n\n// ---- shaft with a groove for the clip ----\nP.group('Shaft', () => {\n  const k = dz(7);\n  const h = rev([[0, SHAFT_BOT], [SHAFT_R - 0.3, SHAFT_BOT], [SHAFT_R, SHAFT_BOT + 0.3], [SHAFT_R, -1.55], [SHAFT_R - 0.4, -1.55], [SHAFT_R - 0.4, -0.85], [SHAFT_R, -0.85], [SHAFT_R, SHAFT_TOP - 0.3], [SHAFT_R - 0.3, SHAFT_TOP], [0, SHAFT_TOP]], k, 'Shaft profile');\n  look(h, 'Shaft', LOOK.chrome, 'chrome');\n});\n\n// ---- three phase wires, one colour each: down from the coils, then radially out through the base-wall window, gathered into one black heat-shrink sleeve with bare tips ----\nconst WR = Z.wire.wr, GA = 30, RE = Z.wire.re, RO = Z.wire.ro, RS = Z.wire.rs, SLEEVE_L = WK.sleeve ?? 7.5;       // lead radius, exit angle, end of the fanned segment, end of the straight segment, sleeve start and length\nconst eV = [Math.cos(rad(GA)), Math.sin(rad(GA))], tV = [-Math.sin(rad(GA)), Math.cos(rad(GA))];\nconst zf = q(BASE_T - (WK.drop ?? 1.0)) + dz(2);                                                      // height of the radial run: mid-way in the window (follows the coils when exploded)\nP.group('Wires', () => [{ n: 'Yellow', a: 0, k: -1, col: LOOK.yellow }, { n: 'Blue', a: 30, k: 0, col: LOOK.blue }, { n: 'Red', a: 60, k: 1, col: LOOK.red }].forEach((w) => {\n  const S = [WR * Math.cos(rad(w.a)), WR * Math.sin(rad(w.a))], E1 = [RE * eV[0] + w.k * WIRE_GAP * tV[0], RE * eV[1] + w.k * WIRE_GAP * tV[1]];\n  const dx = E1[0] - S[0], dy = E1[1] - S[1], L = Math.hypot(dx, dy), zs = coilZ0 - CLR, d = [dx / L, dy / L];\n  P.workplane({ origin: [S[0], S[1], 0], normal: [-d[1], d[0], 0], xdir: [d[0], d[1], 0] }); const pl = P.handle();   // path plane: sketch x = along d, sketch y = -z\n  P.sweep({ on: at('front', zs), draw: (s) => s.circle(WIRE_R, S) }, { on: at(pl), draw: (s) => s.polyline([[0, -zs], [0, -zf], [L, -zf]]) });\n  look(P.handle(), 'Wire ' + w.n, w.col, 'plastic');\n  // straight run along the exit direction (starts a little inside the first piece so the two fuse)\n  const P0 = [E1[0] - 0.4 * eV[0], E1[1] - 0.4 * eV[1]], len = RO - RE + 0.4;\n  P.workplane({ origin: [P0[0], P0[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const prof = P.handle();\n  P.workplane({ origin: [P0[0], P0[1], 0], normal: [-eV[1], eV[0], 0], xdir: [eV[0], eV[1], 0] }); const pl2 = P.handle();\n  P.sweep({ on: at(prof), draw: (s) => s.circle(WIRE_R, [0, 0]) }, { on: at(pl2), draw: (s) => s.polyline([[0, -zf], [len, -zf]]) });\n  look(P.handle(), 'Wire ' + w.n, w.col, 'plastic');\n  const E2 = [E1[0] + (RO - RE + CLR) * eV[0], E1[1] + (RO - RE + CLR) * eV[1]];\n  P.workplane({ origin: [E2[0], E2[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const tip = P.handle();\n  P.sketch(at(tip), (s) => s.circle(WIRE_R * 0.55, [0, 0]), 'Bare end ' + w.n); P.extrude(TIP_LEN);\n  look(P.handle(), 'Bare end ' + w.n, LOOK.bare, 'brushed');\n}));\nP.group('Sleeve', () => {\n  const along = WIRE_GAP + WIRE_R, stadium = (a, b) => { const pts = []; for (let i = 0; i <= 10; i++) { const t = -Math.PI / 2 + Math.PI * i / 10; pts.push([a - b + b * Math.cos(t), b * Math.sin(t)]); } for (let i = 0; i <= 10; i++) { const t = Math.PI / 2 + Math.PI * i / 10; pts.push([-(a - b) + b * Math.cos(t), b * Math.sin(t)]); } return pts; };\n  P.workplane({ origin: [RS * eV[0], RS * eV[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const sp = P.handle();\n  P.sketch(at(sp), (s) => { s.polygon(stadium(along + 0.6, WIRE_R + 0.6)); s.polygon(stadium(along + 0.15, WIRE_R + 0.15)); }, 'Heat-shrink sleeve'); P.extrude(SLEEVE_L);\n  look(P.handle(), 'Heat-shrink sleeve', LOOK.sleeve, 'matte');\n});\n// ISO 7380 button-head hex-socket screw: domed head, hex socket, threaded shank (ring grooves, no helix), chamfered tip.\n// zSeat = underside of the head, dir = +1 when the shank points up (+z), -1 when it points down; R head radius, k head height, hex across flats, hd socket depth, L shank length, p pitch\nconst SCW = Z.screw ?? { rMaj: 1.5, R: 2.85, k: 1.65, hex: 2.0, hd: 1.0, L: 3.2, p: 0.5, zSeat: -0.3 };\nconst mkScrew = ({ x, y, zSeat, dir, rMaj, R, k, hex, hd, L, p, name }) => {\n  const rRoot = rMaj - 0.61 * p, n = Math.floor((L - 0.4) / p);\n  const prof = [[0, -k], [R - 0.6, -k], [R - 0.1, -k * 0.6], [R, -k * 0.3], [R, 0], [rRoot, 0]];\n  for (let j = 0; j < n; j++) { prof.push([rMaj, (j + 0.5) * p]); prof.push([rRoot, (j + 1) * p]); }\n  prof.push([rRoot - 0.15, L], [0, L]);\n  P.sketch(at('top', y), (s) => s.polygon(prof.map(([r, t]) => [x + r, -(zSeat + dir * t)])), name);\n  P.revolve(360, { axis: { from: [x, 0], to: [x, -1] } });\n  const h = P.handle(), rc = hex / Math.sqrt(3);\n  const zPlane = dir > 0 ? zSeat - k + hd : zSeat + k;\n  P.sketch(at('front', zPlane), (s) => s.polygon([0, 1, 2, 3, 4, 5].map((i) => [x + rc * Math.cos(i * Math.PI / 3), y + rc * Math.sin(i * Math.PI / 3)])), name + ' socket');\n  P.cut(dir > 0 ? hd + 0.3 : hd, { direction: 'into' });\n  return h;\n};\n// ---- four M3 x 3.2 mounting screws, heads below the base (accessory) ----\nif (V.SCREWS) P.group('Mount screws', () => [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([a, b], i) => {\n  const h = mkScrew({ x: a * MOUNT_X, y: b * MOUNT_Y, zSeat: SCW.zSeat + dz(-2), dir: 1, rMaj: SCW.rMaj, R: SCW.R, k: SCW.k, hex: SCW.hex, hd: SCW.hd, L: SCW.L, p: SCW.p, name: 'Screw ' + (i + 1) });\n  look(h, 'Mount screw ' + (BS.mountSize ?? 'M3') + ' ' + (i + 1), LOOK.screw, 'plastic');\n}));\n\n// lettering that wraps the barrel: each letter is its own 0.2 mm raised white print on a plane tangent to the bell wall at that letter, so the line follows the curve (no wrap feature exists in the kernel, so a letter is flat but it sits on its own tangent). Lines read around the barrel, left to right when seen from outside.\nif (LETTERS) await (async () => {\n  const k = dz(6), R = q(BL.r + 0.05), TA = TEXT_ANGLE;\n  for (const ln of [{ str: 'CIVILKIT', ...Z.text[0] }, { str: V.SIZE + ' BLDC', ...Z.text[1] }]) {\n    const m = await P.textMetrics(ln.str, { height: ln.h });\n    const total = m.advances.reduce((a, b) => a + b, 0);\n    let pen = 0;\n    for (let i = 0; i < ln.str.length; i++) {\n      const adv = m.advances[i], ch = ln.str[i];\n      if (ch !== ' ') {\n        const th = rad(TA) + (pen + adv / 2 - total / 2) / R, c = Math.cos(th), sn = Math.sin(th);\n        P.workplane({ origin: [R * c, R * sn, ln.z + k], normal: [c, sn, 0], xdir: [-sn, c, 0] }); const tp = P.handle();\n        P.sketch(at(tp), (sk) => sk.text(ch, [-adv / 2, 0], { height: ln.h, anchor: ['left', 'middle'] }), 'Letter ' + ln.str.slice(0, i + 1));\n        const ln_ = 'Letter ' + ln.str.replace(' ', '_') + ' ' + i; P.extrude(0.2, { newBody: ln_ }); look(P.handle(), ln_, '#f2f2f2', 'matte');\n      }\n      pen += adv;\n    }\n  }\n})();\n",
+ "script": "// 2212 outrunner drone motor, 12N14P, exploded-view ready. Axis = Z, base underside at z = 0, mm.\n// EXPLODE = 0 is the assembled motor; EXPLODE > 0 spreads the bodies along Z by EXPLODE per step (wires follow their coils).\n// Between every pair of parts there is a clearance CLR so each part stays its own body (touching parts would fuse).\n// Parametric outrunner drone motor, 12N14P, exploded-view ready. Axis = Z, base underside at z = 0, mm.\n// SIZE selects a row of the table below (2212 = A2212-class, from photos and the manufacturer drawing; 2306 and 5010 = catalogue-typical dimensions, NOT from a drawing).\n// Optional row fields (stator.neck/tip, base.mount*, base.light*, base.win*, bell.win/prop/recessR, clipOpen, wire.r/gap/tip/sleeve/drop, screw) fall back to the 2212/2306 values when a row leaves them out.\n// EXPLODE = 0 is the assembled motor; EXPLODE > 0 spreads the bodies along Z by EXPLODE per step (wires follow their coils).\n// Between every pair of parts there is a clearance CLR so each part stays its own body (touching parts would fuse).\nconst V = variables({\n  SIZE: 5010, EXPLODE: 0, CLR: 0.1, SCREWS: 0, EXTERIOR: 0, BLACK: 0, TEXT_ANGLE: 62, LETTERS: 1   // EXTERIOR: 1 leaves out the parts nobody can see (stator, windings, magnets...) so the drawing has no hidden-line clutter\n            // SCREWS: 1 adds the four mounting screws (loose accessory; they hide the open mount holes)\n});\n// ---- size table: every dimension that differs between motors. Derived numbers are explicit too, so a size is one readable row. ----\nconst SIZES = {\n  2212: {\n    stator: { tipR: 10.9, yokeOut: 7.5, yokeIn: 5.6, stack: 12, zStart: 11.8, toothIn: 7.0, shoulderR: 9.9, teeth: 12 },\n    coil: { r0: 7.6, r1: 9.8, t: 0.55 },\n    mag: { n: 14, ri: 11.5, ro: 12.8, half: 10.5 },\n    bell: { r: 13.9, inR: 12.9, z0: 4, top: 28, topIn: 25.2, hubR: 4.5, hubIn: 4, m2Depth: 2.6 },\n    base: { r: 13.9, t: 3, mountX: 8, mountY: 9.5, tubeR: 5.5, boreR: 4.1, tubeTop: 24, lightR: 2.75, lightAt: 10, winIn: 6.9, winOut: 14.6 },\n    shaft: { r: 1.585, top: 32.5, bot: -2.2 },\n    brg: { ri: 1.65, a: 2.45, b: 3.3, ro: 4.05, h: 3, shield: 0.3, ch: 0.2, zLow: 0.2, zUp: 20.4 },\n    clipR: 3,\n    wire: { wr: 8.7, re: 14.5, ro: 25, rs: 15.4 },\n    text: [{ h: 2.6, z: 17.6 }, { h: 2.0, z: 13.8 }],\n  },\n  // 2306: typical catalogue values (28 mm can, 23 mm stator, 6 mm stack, 4 mm shaft, 16 x 16 mm M3 mount, 4 x 9 x 4 bearings), not taken from a drawing\n  2306: {\n    stator: { tipR: 11.5, yokeOut: 8.2, yokeIn: 5.6, stack: 6, zStart: 5.0, toothIn: 7.7, shoulderR: 10.5, teeth: 12 },\n    coil: { r0: 8.3, r1: 10.4, t: 0.55 },\n    mag: { n: 14, ri: 12.0, ro: 13.2, half: 10.5 },\n    bell: { r: 14.1, inR: 13.3, z0: 4, top: 15.2, topIn: 12.8, hubR: 4.5, hubIn: 4, m2Depth: 2.2 },\n    base: { r: 14.1, t: 3, mountX: 8, mountY: 8, tubeR: 5.5, boreR: 4.55, tubeTop: 11.2, lightR: 2.75, lightAt: 10, winIn: 6.9, winOut: 14.8 },\n    shaft: { r: 2.0, top: 19.7, bot: -2.2 },\n    brg: { ri: 2.065, a: 2.865, b: 3.75, ro: 4.5, h: 4, shield: 0.3, ch: 0.2, zLow: 0.2, zUp: 6.8 },\n    clipR: 3.4,\n    wire: { wr: 9.35, re: 14.7, ro: 25.2, rs: 15.6 },\n    text: [{ h: 2.6, z: 9.6 }, { h: 2.0, z: 6.2 }],\n  },\n  // 5010: typical catalogue values (50 mm stator, 10 mm stack, 12N14P, 6 mm shaft, 56 mm can, 25 x 25 mm M4 mount, 606-size 6 x 17 x 6 bearings, 1.5 mm magnets), not taken from a drawing\n  5010: {\n    stator: { tipR: 25.0, yokeOut: 17.0, yokeIn: 9.6, stack: 10, zStart: 6.0, toothIn: 16.4, shoulderR: 22.5, teeth: 12, neck: 2.0, tip: 4.2 },\n    coil: { r0: 17.1, r1: 22.4, t: 1.0 },\n    mag: { n: 14, ri: 25.5, ro: 27.0, half: 10.5 },\n    bell: { r: 28.0, inR: 27.1, z0: 5, top: 21.2, topIn: 18.6, hubR: 7.5, hubIn: 5.5, m2Depth: 2.2, recessR: 4.5,\n      win: { big: { r: 6.5, at: 19.5 }, small: { r: 4.5, at: 20.0 } }, prop: { size: 'M3', r: 10.5, within: 1.7 } },\n    base: { r: 28.0, t: 4, mountX: 12.5, mountY: 12.5, tubeR: 9.5, boreR: 8.55, tubeTop: 17.5, lightR: 4.0, lightAt: 14.2, winIn: 19.5, winOut: 29.5,\n      mountSize: 'M4', mountDepth: 3.5, mountCh: 0.5, mountChWithin: 2.2, winDepth: 3 },\n    shaft: { r: 3.0, top: 33, bot: -2.2 },\n    brg: { ri: 3.065, a: 4.4, b: 7.0, ro: 8.5, h: 6, shield: 0.4, ch: 0.3, zLow: 0.2, zUp: 11.3 },\n    clipR: 5.2, clipOpen: { l: 3.4, w: 2.4, cx: 4.0 },\n    wire: { wr: 21.0, re: 28.8, ro: 44.0, rs: 29.7, r: 1.2, gap: 2.8, tip: 4, sleeve: 12, drop: 1.5 },\n    screw: { rMaj: 2, R: 3.8, k: 2.2, hex: 2.5, hd: 1.3, L: 3.5, p: 0.7, zSeat: -0.3 },\n    text: [{ h: 4.6, z: 15.0 }, { h: 3.4, z: 9.4 }],\n  },\n};\nconst Z = SIZES[V.SIZE];\nif (!Z) throw new Error('unknown SIZE ' + V.SIZE + ' (table has ' + Object.keys(SIZES).join(', ') + ')');\nconst q = (x) => Math.round(x * 1e6) / 1e6;   // keep derived numbers identical to the literals they replace\nconst { EXPLODE: E, TEXT_ANGLE, LETTERS, CLR } = V;\nconst { stator: ST, coil: CO, mag: MG, bell: BL, base: BS, shaft: SH, brg: BG } = Z;\nconst BASE_R = BS.r, BASE_T = BS.t, MOUNT_X = BS.mountX, MOUNT_Y = BS.mountY, TUBE_R = BS.tubeR, BORE_R = BS.boreR, TUBE_TOP = BS.tubeTop;\nconst STACK = ST.stack, Z_STATOR = ST.zStart, YOKE_IN = ST.yokeIn, YOKE_OUT = ST.yokeOut, TIP_R = ST.tipR, N_TEETH = ST.teeth;\nconst COIL_T = CO.t, COIL_R0 = CO.r0, COIL_R1 = CO.r1;\nconst BELL_Z0 = BL.z0, BELL_TOP_IN = BL.topIn, BELL_TOP = BL.top;\nconst SHAFT_R = SH.r, SHAFT_TOP = SH.top, SHAFT_BOT = SH.bot;\nconst MAG_RI = MG.ri, MAG_RO = MG.ro, MAG_N = MG.n, MAG_HALF = MG.half;\nconst WK = Z.wire, WIRE_R = WK.r ?? 0.8, WIRE_OUT = 10, WIRE_GAP = WK.gap ?? 1.8, TIP_LEN = WK.tip ?? 2.5;\nconst NECK = ST.neck ?? 1.0, TIPW = ST.tip ?? 2.0;\nconst P = part('Outrunner ' + V.SIZE);\nconst rad = (d) => d * Math.PI / 180;\nconst LOOK = { base: '#2d3139', steel: '#4a5058', copper: '#e0701c', chrome: '#c7ccd1', bell: V.BLACK ? '#1f2125' : '#c1272d', magN: '#4a4f57', magS: '#6b727b', clip: '#3a3d42', yellow: '#e5b800', blue: '#1f6fd0', red: '#d12c2c', bare: '#d98a4a', sleeve: '#16171a', screw: '#9aa1a8' };\nconst look = (h, name, colour, finish) => { P.bodyName(h, name); P.appearance({ feature: h, colour, finish }); };\n// explode steps (z shift = step * EXPLODE): screws -2, clip -1, base 0, lower bearing 1, coils 2 (below the stator so their leads do not pass through it), stator 3, upper bearing 4, magnets 5, bell 6, shaft 7\nconst dz = (k) => k * E;\nconst HUB_TOP = q(BELL_TOP + 2);   // prop hub stands 2 mm proud of the cap (2212: arms 28, hub 30, manufacturer drawing)\n// revolve a closed (r, z) polygon about the Z axis; points are [r, z]\nconst rev = (pts, z0, name) => {\n  P.sketch(at('top', 0), (s) => s.polygon(pts.map(([r, z]) => [r, -(z + z0)])), name);\n  P.revolve(360, { axis: { from: [0, 0], to: [0, -1] } });\n  return P.handle();\n};\nconst ring = (z, ro, ri, h, name) => { P.sketch(at('front', z), (s) => { s.circle(ro); s.circle(ri); }, name); P.extrude(h); return P.handle(); };\n\n// ---- bell (built first: its cuts must not touch the other bodies) ----\nP.group('Bell', () => {\n  const k = dz(6);\n  const h = rev([[SHAFT_R + CLR / 2, BELL_TOP_IN - 1], [BL.hubIn, BELL_TOP_IN - 1], [BL.hubIn, BELL_TOP_IN], [BL.inR, BELL_TOP_IN], [BL.inR, BELL_Z0], [BL.r, BELL_Z0], [BL.r, BELL_TOP], [SHAFT_R + CLR / 2, BELL_TOP]], k, 'Bell profile');\n  look(h, 'Bell', LOOK.bell, 'plastic');\n  // cap windows (SunnySky photos): three large round windows and, between them, three smaller ones, leaving six arms; all of them break through the rim as notches\n  const WB = BL.win?.big ?? { r: 4.8, at: 10.6 }, WS = BL.win?.small ?? { r: 3.4, at: 10.9 };\n  P.sketch(at('front', BELL_TOP + k + 1), (s) => {\n    [30, 150, 270].forEach((a) => s.circle(WB.r, [WB.at * Math.cos(rad(a)), WB.at * Math.sin(rad(a))]));\n    [90, 210, 330].forEach((a) => s.circle(WS.r, [WS.at * Math.cos(rad(a)), WS.at * Math.sin(rad(a))]));\n  }, 'Cap windows');\n  P.cut(BELL_TOP - BELL_TOP_IN + 2, { direction: 'into' });\n  // flat cap: arms flush with the rim (photos), the prop hub (dia 9) stands 2 mm proud with a recess round the shaft; the six wide windows run out through the rim as notches\n  P.sketch(at('front', BELL_TOP + k), (s) => { s.circle(BL.hubR); s.circle(SHAFT_R + CLR / 2); }, 'Prop hub'); P.extrude(HUB_TOP - BELL_TOP);\n  look(P.handle(), 'Bell', LOOK.bell, 'plastic');\n  P.sketch(at('front', HUB_TOP + k), (s) => { s.circle(BL.recessR ?? 3.0); s.circle(SHAFT_R + CLR / 2); }, 'Shaft recess'); P.cut(1.0, { direction: 'into' });\n  const PR = BL.prop ?? { size: 'M2', r: 6, within: 1.2 };\n  const m2 = [60, 180, 300].map((a) => [PR.r * Math.cos(rad(a)), PR.r * Math.sin(rad(a))]), f2 = face({ normal: [0, 0, 1], at: [m2[0][0], m2[0][1], BELL_TOP + k] });\n  P.holes.points(f2, m2, { size: PR.size, kind: 'tapped', depth: BL.m2Depth, name: 'Prop adapter holes ' + PR.size }); const hM2 = P.handle();\n  P.chamfer(edges({ union: m2.map(([x, y]) => edges({ near: [x, y, BELL_TOP + k], within: PR.within })) }), 0.35, { name: 'Entry chamfer ' + PR.size });   // entry chamfer so the hole reads in a render\n});\n\n// ---- base: plate with pockets and spokes, bearing tube, M3 holes, lead holes ----\nlet BASE;\nP.group('Base', () => {\n  P.sketch('front', (s) => s.circle(BASE_R), 'Base plate'); P.extrude(BASE_T);\n  const h = P.handle();\n  P.sketch(at('front', BASE_T), (s) => s.circle(TUBE_R), 'Bearing tube'); P.extrude(TUBE_TOP - BASE_T);\n  P.sketch(at('front', TUBE_TOP), (s) => s.circle(BORE_R), 'Bore'); P.cut(TUBE_TOP, { direction: 'into' });   // depth-limited: a through cut would also cut every body built before the base\n  const fR = face({ normal: [0, 0, -1], at: [MOUNT_X, MOUNT_Y, 0] });\n  P.holes.points(fR, [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => [a * MOUNT_X, b * MOUNT_Y]), { size: BS.mountSize ?? 'M3', kind: 'tapped', depth: BS.mountDepth ?? 2.8, name: 'Mount holes ' + (BS.mountSize ?? 'M3') });   // real hole feature, so the drawing can call it out\n  const hM3 = P.handle();\n  P.chamfer(edges({ union: [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([a, b]) => edges({ near: [a * MOUNT_X, b * MOUNT_Y, 0], within: BS.mountChWithin ?? 1.6 })) }), BS.mountCh ?? 0.4, { name: 'Entry chamfer ' + (BS.mountSize ?? 'M3') });\n  // four large round lightening holes between the four tapped mount holes (SunnySky photos: tapped M3 alternate with larger round holes)\n  P.sketch(at('front', BASE_T), (s) => { (BS.lightAngles ?? [0, 90, 180, 270]).forEach((a) => s.circle(BS.lightR, [BS.lightAt * Math.cos(rad(a)), BS.lightAt * Math.sin(rad(a))])); }, 'Lightening holes'); P.cut(BASE_T, { direction: 'into' });\n  // wire exit: a window in the base wall for the three leads (they run radially out of it, see Wires)\n  P.sketch(at('front', BASE_T), (s) => {\n    const a0 = rad(BS.winA0 ?? -8), a1 = rad(BS.winA1 ?? 68), am = rad(30), p = (r, a) => [r * Math.cos(a), r * Math.sin(a)];\n    s.arc3(p(BS.winOut, a0), p(BS.winOut, am), p(BS.winOut, a1)); s.line(p(BS.winOut, a1), p(BS.winIn, a1)); s.arc3(p(BS.winIn, a1), p(BS.winIn, am), p(BS.winIn, a0)); s.line(p(BS.winIn, a0), p(BS.winOut, a0));\n  }, 'Wire window'); P.cut(BS.winDepth ?? 2, { direction: 'into' });\n  BASE = h;\n});\nlook(BASE, 'Base', LOOK.base, 'matte');\n\n// ---- e-clip under the base (with its opening) ----\nP.group('Retaining clip', () => {\n  const z = -1.4 + dz(-1);\n  const h = ring(z, Z.clipR, SHAFT_R - 0.4 + 0.05, 0.5, 'E-clip');\n  look(h, 'E-clip', LOOK.clip, 'matte');\n  P.sketch(at('front', z + 0.5), (s) => s.rect(Z.clipOpen?.l ?? 2.4, Z.clipOpen?.w ?? 1.6, [Z.clipOpen?.cx ?? 2.6, 0]), 'Clip opening'); P.cut(0.5, { direction: 'into' });\n});\n\n// ---- bearings 693ZZ-class (3.2 bore, 8.1 OD, 4 wide), assumed ----\n// shielded ball bearing, one revolved profile: outer race, inner race, recessed shield between them; OD 8.1, bore 3.3, width 3\nconst mkBearing = (z, name) => rev([[BG.ri, 0], [BG.a, 0], [BG.a, BG.shield], [BG.b, BG.shield], [BG.b, 0], [q(BG.ro - BG.ch), 0], [BG.ro, BG.ch], [BG.ro, q(BG.h - BG.ch)], [q(BG.ro - BG.ch), BG.h], [BG.b, BG.h], [BG.b, q(BG.h - BG.shield)], [BG.a, q(BG.h - BG.shield)], [BG.a, BG.h], [BG.ri, BG.h]], z, name + ' profile');\nif (!V.EXTERIOR) P.group('Lower bearing', () => look(mkBearing(BG.zLow + dz(1), 'Lower bearing'), 'Lower bearing', LOOK.chrome, 'chrome'));   // flush with the rear face, as in the photos\nif (!V.EXTERIOR) P.group('Upper bearing', () => look(mkBearing(BG.zUp + dz(4), 'Upper bearing'), 'Upper bearing', LOOK.chrome, 'chrome'));\n\n// ---- stator: yoke ring and 12 teeth ----\nif (!V.EXTERIOR) P.group('Stator', () => {\n  const z = Z_STATOR + dz(3);\n  const h = ring(z, YOKE_OUT, YOKE_IN, STACK, 'Stator yoke');\n  P.sketch(at('front', z), (s) => s.polygon([[ST.toothIn, -NECK], [ST.shoulderR, -NECK], [TIP_R, -TIPW], [TIP_R, TIPW], [ST.shoulderR, NECK], [ST.toothIn, NECK]]), 'Tooth'); P.extrude(STACK);\n  P.circularPattern({ count: N_TEETH, axis: 'z' });\n  look(h, 'Stator', LOOK.steel, 'brushed');\n});\n\n// ---- windings: a rectangular winding around each tooth; phases A, B, C every third tooth ----\nconst PHASES = [{ n: 'A', a: 0 }, { n: 'B', a: 30 }, { n: 'C', a: 60 }];\nconst coilZ0 = Z_STATOR - 0.6 + dz(2), coilZ1 = Z_STATOR + STACK + 0.6 + dz(2);\nif (!V.EXTERIOR) P.group('Windings', () => PHASES.forEach((ph) => {\n  const t = rad(ph.a), c = Math.cos(t), sn = Math.sin(t);\n  P.workplane({ origin: [COIL_R0 * c, COIL_R0 * sn, 0], normal: [c, sn, 0], xdir: [-sn, c, 0] }); const pl = P.handle();\n  const hw = NECK + CLR + COIL_T;                      // outer half width\n  P.sketch(at(pl), (s) => {\n    s.polygon([[-hw, coilZ0], [hw, coilZ0], [hw, coilZ1], [-hw, coilZ1]]);\n    s.polygon([[-(hw - COIL_T), coilZ0 + 0.5], [hw - COIL_T, coilZ0 + 0.5], [hw - COIL_T, coilZ1 - 0.5], [-(hw - COIL_T), coilZ1 - 0.5]]);\n  }, 'Coil ' + ph.n);\n  P.extrude(COIL_R1 - COIL_R0);\n  const seed = P.handle();                      // the pattern's copies take their look from the seed AND the pattern feature\n  P.circularPattern({ count: N_TEETH / 3, axis: 'z' });\n  look(seed, 'Winding ' + ph.n, LOOK.copper, 'plastic'); look(P.handle(), 'Winding ' + ph.n, LOOK.copper, 'plastic');\n}));\n\n// ---- magnets: 14 arc segments, alternating poles in two bodies ----\nif (!V.EXTERIOR) P.group('Magnets', () => {\n  const z = Z_STATOR + dz(5), pitch = 360 / MAG_N;\n  [['N', 0, LOOK.magN], ['S', pitch, LOOK.magS]].forEach(([n, off, col]) => {\n    P.sketch(at('front', z), (s) => {\n      const a0 = rad(off - MAG_HALF), a1 = rad(off + MAG_HALF), am = rad(off), p = (r, a) => [r * Math.cos(a), r * Math.sin(a)];\n      s.arc3(p(MAG_RO, a0), p(MAG_RO, am), p(MAG_RO, a1)); s.line(p(MAG_RO, a1), p(MAG_RI, a1)); s.arc3(p(MAG_RI, a1), p(MAG_RI, am), p(MAG_RI, a0)); s.line(p(MAG_RI, a0), p(MAG_RO, a0));\n    }, 'Magnet ' + n);\n    P.extrude(STACK);\n    const seed = P.handle();\n    P.circularPattern({ count: MAG_N / 2, axis: 'z' });\n    look(seed, 'Magnets ' + n, col, 'matte'); look(P.handle(), 'Magnets ' + n, col, 'matte');\n  });\n});\n\n// ---- shaft with a groove for the clip ----\nP.group('Shaft', () => {\n  const k = dz(7);\n  const h = rev([[0, SHAFT_BOT], [SHAFT_R - 0.3, SHAFT_BOT], [SHAFT_R, SHAFT_BOT + 0.3], [SHAFT_R, -1.55], [SHAFT_R - 0.4, -1.55], [SHAFT_R - 0.4, -0.85], [SHAFT_R, -0.85], [SHAFT_R, SHAFT_TOP - 0.3], [SHAFT_R - 0.3, SHAFT_TOP], [0, SHAFT_TOP]], k, 'Shaft profile');\n  look(h, 'Shaft', LOOK.chrome, 'chrome');\n});\n\n// ---- three phase wires, one colour each: down from the coils, then radially out through the base-wall window, gathered into one black heat-shrink sleeve with bare tips ----\nconst WR = Z.wire.wr, GA = 30, RE = Z.wire.re, RO = Z.wire.ro, RS = Z.wire.rs, SLEEVE_L = WK.sleeve ?? 7.5;       // lead radius, exit angle, end of the fanned segment, end of the straight segment, sleeve start and length\nconst eV = [Math.cos(rad(GA)), Math.sin(rad(GA))], tV = [-Math.sin(rad(GA)), Math.cos(rad(GA))];\nconst zf = q(BASE_T - (WK.drop ?? 1.0)) + dz(2);                                                      // height of the radial run: mid-way in the window (follows the coils when exploded)\nP.group('Wires', () => [{ n: 'Yellow', a: 0, k: -1, col: LOOK.yellow }, { n: 'Blue', a: 30, k: 0, col: LOOK.blue }, { n: 'Red', a: 60, k: 1, col: LOOK.red }].forEach((w) => {\n  const S = [WR * Math.cos(rad(w.a)), WR * Math.sin(rad(w.a))], E1 = [RE * eV[0] + w.k * WIRE_GAP * tV[0], RE * eV[1] + w.k * WIRE_GAP * tV[1]];\n  const dx = E1[0] - S[0], dy = E1[1] - S[1], L = Math.hypot(dx, dy), zs = coilZ0 - CLR, d = [dx / L, dy / L];\n  P.workplane({ origin: [S[0], S[1], 0], normal: [-d[1], d[0], 0], xdir: [d[0], d[1], 0] }); const pl = P.handle();   // path plane: sketch x = along d, sketch y = -z\n  P.sweep({ on: at('front', zs), draw: (s) => s.circle(WIRE_R, S) }, { on: at(pl), draw: (s) => s.polyline([[0, -zs], [0, -zf], [L, -zf]]) });\n  look(P.handle(), 'Wire ' + w.n, w.col, 'plastic');\n  // straight run along the exit direction (starts a little inside the first piece so the two fuse)\n  const P0 = [E1[0] - 0.4 * eV[0], E1[1] - 0.4 * eV[1]], len = RO - RE + 0.4;\n  P.workplane({ origin: [P0[0], P0[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const prof = P.handle();\n  P.workplane({ origin: [P0[0], P0[1], 0], normal: [-eV[1], eV[0], 0], xdir: [eV[0], eV[1], 0] }); const pl2 = P.handle();\n  P.sweep({ on: at(prof), draw: (s) => s.circle(WIRE_R, [0, 0]) }, { on: at(pl2), draw: (s) => s.polyline([[0, -zf], [len, -zf]]) });\n  look(P.handle(), 'Wire ' + w.n, w.col, 'plastic');\n  const E2 = [E1[0] + (RO - RE + CLR) * eV[0], E1[1] + (RO - RE + CLR) * eV[1]];\n  P.workplane({ origin: [E2[0], E2[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const tip = P.handle();\n  P.sketch(at(tip), (s) => s.circle(WIRE_R * 0.55, [0, 0]), 'Bare end ' + w.n); P.extrude(TIP_LEN);\n  look(P.handle(), 'Bare end ' + w.n, LOOK.bare, 'brushed');\n}));\nP.group('Sleeve', () => {\n  const along = WIRE_GAP + WIRE_R, stadium = (a, b) => { const pts = []; for (let i = 0; i <= 10; i++) { const t = -Math.PI / 2 + Math.PI * i / 10; pts.push([a - b + b * Math.cos(t), b * Math.sin(t)]); } for (let i = 0; i <= 10; i++) { const t = Math.PI / 2 + Math.PI * i / 10; pts.push([-(a - b) + b * Math.cos(t), b * Math.sin(t)]); } return pts; };\n  P.workplane({ origin: [RS * eV[0], RS * eV[1], zf], normal: [eV[0], eV[1], 0], xdir: [tV[0], tV[1], 0] }); const sp = P.handle();\n  P.sketch(at(sp), (s) => { s.polygon(stadium(along + 0.6, WIRE_R + 0.6)); s.polygon(stadium(along + 0.15, WIRE_R + 0.15)); }, 'Heat-shrink sleeve'); P.extrude(SLEEVE_L);\n  look(P.handle(), 'Heat-shrink sleeve', LOOK.sleeve, 'matte');\n});\n// ISO 7380 button-head hex-socket screw: domed head, hex socket, threaded shank (ring grooves, no helix), chamfered tip.\n// zSeat = underside of the head, dir = +1 when the shank points up (+z), -1 when it points down; R head radius, k head height, hex across flats, hd socket depth, L shank length, p pitch\nconst SCW = Z.screw ?? { rMaj: 1.5, R: 2.85, k: 1.65, hex: 2.0, hd: 1.0, L: 3.2, p: 0.5, zSeat: -0.3 };\nconst mkScrew = ({ x, y, zSeat, dir, rMaj, R, k, hex, hd, L, p, name }) => {\n  const rRoot = rMaj - 0.61 * p, n = Math.floor((L - 0.4) / p);\n  const prof = [[0, -k], [R - 0.6, -k], [R - 0.1, -k * 0.6], [R, -k * 0.3], [R, 0], [rRoot, 0]];\n  for (let j = 0; j < n; j++) { prof.push([rMaj, (j + 0.5) * p]); prof.push([rRoot, (j + 1) * p]); }\n  prof.push([rRoot - 0.15, L], [0, L]);\n  P.sketch(at('top', y), (s) => s.polygon(prof.map(([r, t]) => [x + r, -(zSeat + dir * t)])), name);\n  P.revolve(360, { axis: { from: [x, 0], to: [x, -1] } });\n  const h = P.handle(), rc = hex / Math.sqrt(3);\n  const zPlane = dir > 0 ? zSeat - k + hd : zSeat + k;\n  P.sketch(at('front', zPlane), (s) => s.polygon([0, 1, 2, 3, 4, 5].map((i) => [x + rc * Math.cos(i * Math.PI / 3), y + rc * Math.sin(i * Math.PI / 3)])), name + ' socket');\n  P.cut(dir > 0 ? hd + 0.3 : hd, { direction: 'into' });\n  return h;\n};\n// ---- four M3 x 3.2 mounting screws, heads below the base (accessory) ----\nif (V.SCREWS) P.group('Mount screws', () => [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([a, b], i) => {\n  const h = mkScrew({ x: a * MOUNT_X, y: b * MOUNT_Y, zSeat: SCW.zSeat + dz(-2), dir: 1, rMaj: SCW.rMaj, R: SCW.R, k: SCW.k, hex: SCW.hex, hd: SCW.hd, L: SCW.L, p: SCW.p, name: 'Screw ' + (i + 1) });\n  look(h, 'Mount screw ' + (BS.mountSize ?? 'M3') + ' ' + (i + 1), LOOK.screw, 'plastic');\n}));\n\n// lettering that wraps the barrel: each letter is its own 0.2 mm raised white print on a plane tangent to the bell wall at that letter, so the line follows the curve (no wrap feature exists in the kernel, so a letter is flat but it sits on its own tangent). Lines read around the barrel, left to right when seen from outside.\nif (LETTERS) await (async () => {\n  const k = dz(6), R = q(BL.r + 0.05), TA = TEXT_ANGLE;\n  for (const ln of [{ str: 'CIVILKIT', ...Z.text[0] }, { str: V.SIZE + ' BLDC', ...Z.text[1] }]) {\n    const m = await P.textMetrics(ln.str, { height: ln.h });\n    const total = m.advances.reduce((a, b) => a + b, 0);\n    let pen = 0;\n    for (let i = 0; i < ln.str.length; i++) {\n      const adv = m.advances[i], ch = ln.str[i];\n      if (ch !== ' ') {\n        const th = rad(TA) + (pen + adv / 2 - total / 2) / R, c = Math.cos(th), sn = Math.sin(th);\n        P.workplane({ origin: [R * c, R * sn, ln.z + k], normal: [c, sn, 0], xdir: [-sn, c, 0] }); const tp = P.handle();\n        P.sketch(at(tp), (sk) => sk.text(ch, [-adv / 2, 0], { height: ln.h, anchor: ['left', 'middle'] }), 'Letter ' + ln.str.slice(0, i + 1));\n        const ln_ = 'Letter ' + ln.str.replace(' ', '_') + ' ' + i; P.extrude(0.2, { newBody: ln_ }); look(P.handle(), ln_, '#f2f2f2', 'matte');\n      }\n      pen += adv;\n    }\n  }\n})();\n",
  "appearance": {
   "F3": {
    "color": "#c1272d",

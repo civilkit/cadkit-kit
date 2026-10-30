@@ -1,18 +1,21 @@
 [
  {
   "id": "mounting-plate",
-  "title": "Mounting plate (4 countersunk corner holes)",
-  "file": "mounting-plate.ckpart"
+  "title": "Mounting plate",
+  "file": "mounting-plate.ckpart",
+  "detail": "Mounting plate (4 countersunk corner holes)"
  },
  {
   "id": "parametric-bracket",
-  "title": "Parametric bracket (4 variables, 3 configurations)",
-  "file": "parametric-bracket.ckpart"
+  "title": "Parametric bracket",
+  "file": "parametric-bracket.ckpart",
+  "detail": "Parametric bracket (4 variables, 3 configurations)"
  },
  {
   "id": "threaded-bolt",
-  "title": "Threaded bolt and tapped block (M10 shaft thread, M8 tapped hole)",
-  "file": "threaded-bolt.ckpart"
+  "title": "Threaded bolt and tapped block",
+  "file": "threaded-bolt.ckpart",
+  "detail": "Threaded bolt and tapped block (M10 shaft thread, M8 tapped hole)"
  },
  {
   "id": "threaded-bolt-helix",
@@ -21,38 +24,45 @@
  },
  {
   "id": "patterned-threaded-holes",
-  "title": "Plate with six threaded M5 holes (one hole, one thread, a circular pattern: the copies are threaded too)",
-  "file": "patterned-threaded-holes.ckpart"
+  "title": "Plate with six threaded M5 holes",
+  "file": "patterned-threaded-holes.ckpart",
+  "detail": "Plate with six threaded M5 holes (one hole, one thread, a circular pattern: the copies are threaded too)"
  },
  {
   "id": "surface-patch",
-  "title": "Surface patch: plate with a wavy surface wall and a planar patch",
-  "file": "surface-patch.ckpart"
+  "title": "Surface patch",
+  "file": "surface-patch.ckpart",
+  "detail": "Surface patch: plate with a wavy surface wall and a planar patch"
  },
  {
   "id": "spur-gear",
-  "title": "Spur gear: 24 teeth, module 2, bore with keyway and hub (Gear command)",
-  "file": "spur-gear.ckpart"
+  "title": "Spur gear",
+  "file": "spur-gear.ckpart",
+  "detail": "Spur gear: 24 teeth, module 2, bore with keyway and hub (Gear command)"
  },
  {
   "id": "gear-pair",
-  "title": "Gear pair: 20 and 40 teeth, module 2, at the centre distance (Gear pair command)",
-  "file": "gear-pair.ckpart"
+  "title": "Gear pair",
+  "file": "gear-pair.ckpart",
+  "detail": "Gear pair: 20 and 40 teeth, module 2, at the centre distance (Gear pair command)"
  },
  {
   "id": "herringbone-pair",
-  "title": "Herringbone pair: 20 and 40 teeth, module 2, 30 degree helix, 6 mm centre groove (Gear pair command)",
-  "file": "herringbone-pair.ckpart"
+  "title": "Herringbone pair",
+  "file": "herringbone-pair.ckpart",
+  "detail": "Herringbone pair: 20 and 40 teeth, module 2, 30 degree helix, 6 mm centre groove (Gear pair command)"
  },
  {
   "id": "turbo-impeller",
-  "title": "Turbo impeller: 7 + 7 blades, 45 mm exducer, 75 degree wrap (Impeller command)",
-  "file": "turbo-impeller.ckpart"
+  "title": "Turbo impeller",
+  "file": "turbo-impeller.ckpart",
+  "detail": "Turbo impeller: 7 + 7 blades, 45 mm exducer, 75 degree wrap (Impeller command)"
  },
  {
   "id": "marine-propeller",
-  "title": "Marine propeller: 3 blades, 250 mm, 10 degree rake, 15 % progressive pitch (Propeller command, marine family)",
-  "file": "marine-propeller.ckpart"
+  "title": "Marine propeller",
+  "file": "marine-propeller.ckpart",
+  "detail": "Marine propeller: 3 blades, 250 mm, 10 degree rake, 15 % progressive pitch (Propeller command, marine family)"
  },
  {
   "id": "bench-ball_knob",
@@ -261,8 +271,9 @@
  },
  {
   "id": "bench-propeller",
-  "title": "Propeller (4 twisted blades)",
-  "file": "bench-propeller.ckpart"
+  "title": "Propeller",
+  "file": "bench-propeller.ckpart",
+  "detail": "Propeller (4 twisted blades)"
  },
  {
   "id": "bench-ratchet_sector",
@@ -436,87 +447,104 @@
  },
  {
   "id": "motor-outrunner-2212",
-  "title": "Outrunner drone motor 2212 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
-  "file": "motor-outrunner-2212.ckpart"
+  "title": "Outrunner drone motor 2212",
+  "file": "motor-outrunner-2212.ckpart",
+  "detail": "Outrunner drone motor 2212 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
   "id": "motor-inrunner-2430",
-  "title": "Inrunner motor 2430 (own model, typical dimensions; set EXPLODE=11 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
-  "file": "motor-inrunner-2430.ckpart"
+  "title": "Inrunner motor 2430",
+  "file": "motor-inrunner-2430.ckpart",
+  "detail": "Inrunner motor 2430 (own model, typical dimensions; set EXPLODE=11 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
   "id": "motor-outrunner-2306",
-  "title": "Outrunner drone motor 2306 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
-  "file": "motor-outrunner-2306.ckpart"
+  "title": "Outrunner drone motor 2306",
+  "file": "motor-outrunner-2306.ckpart",
+  "detail": "Outrunner drone motor 2306 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
   "id": "motor-outrunner-5010",
-  "title": "Outrunner motor 5010 (own model, typical dimensions; set EXPLODE=20 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
-  "file": "motor-outrunner-5010.ckpart"
+  "title": "Outrunner motor 5010",
+  "file": "motor-outrunner-5010.ckpart",
+  "detail": "Outrunner motor 5010 (own model, typical dimensions; set EXPLODE=20 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
   "id": "motor-gimbal-2804",
-  "title": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
-  "file": "motor-gimbal-2804.ckpart"
+  "title": "Gimbal motor 2804",
+  "file": "motor-gimbal-2804.ckpart",
+  "detail": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
   "id": "assembly-block-bolt",
-  "title": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)",
-  "file": "assembly-block-bolt.ckpart"
+  "title": "Assembly: block with a bolt",
+  "file": "assembly-block-bolt.ckpart",
+  "detail": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)"
  },
  {
   "id": "loft-bottle",
-  "title": "Loft bottle (a circle lofted to a rounded rectangle)",
-  "file": "loft-bottle.ckpart"
+  "title": "Loft bottle",
+  "file": "loft-bottle.ckpart",
+  "detail": "Loft bottle (a circle lofted to a rounded rectangle)"
  },
  {
   "id": "swept-handle",
-  "title": "Swept handle (a round section swept along a U-shaped path)",
-  "file": "swept-handle.ckpart"
+  "title": "Swept handle",
+  "file": "swept-handle.ckpart",
+  "detail": "Swept handle (a round section swept along a U-shaped path)"
  },
  {
   "id": "assembly-gear-train",
-  "title": "Assembly: gear train (20T and 40T gears on fixed shafts, hinge + gear mate with ratio 2)",
-  "file": "assembly-gear-train.ckpart"
+  "title": "Assembly: gear train",
+  "file": "assembly-gear-train.ckpart",
+  "detail": "Assembly: gear train (20T and 40T gears on fixed shafts, hinge + gear mate with ratio 2)"
  },
  {
   "id": "assembly-hinge-door",
-  "title": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)",
-  "file": "assembly-hinge-door.ckpart"
+  "title": "Assembly: hinge door",
+  "file": "assembly-hinge-door.ckpart",
+  "detail": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)"
  },
  {
   "id": "thin-wall-bracket",
-  "title": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)",
-  "file": "thin-wall-bracket.ckpart"
+  "title": "Thin wall bracket",
+  "file": "thin-wall-bracket.ckpart",
+  "detail": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)"
  },
  {
   "id": "matx-case",
-  "title": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)",
-  "file": "heavy/matx-case.ckpart"
+  "title": "mATX tower case",
+  "file": "heavy/matx-case.ckpart",
+  "detail": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)"
  },
  {
   "id": "speedboat-dash",
-  "title": "Speedboat analog dash cluster (script-built)",
-  "file": "speedboat-dash.ckpart"
+  "title": "Speedboat analog dash cluster",
+  "file": "speedboat-dash.ckpart",
+  "detail": "Speedboat analog dash cluster (script-built)"
  },
  {
   "id": "tinnie-hull",
-  "title": "Tinnie boat (3.5 m aluminium)",
-  "file": "tinnie-hull.ckpart"
+  "title": "Tinnie boat",
+  "file": "tinnie-hull.ckpart",
+  "detail": "Tinnie boat (3.5 m aluminium)"
  },
  {
   "id": "grab-handle",
-  "title": "Grab handle (swept U loop, inserted twice in the Tinnie boat)",
-  "file": "grab-handle.ckpart"
+  "title": "Grab handle",
+  "file": "grab-handle.ckpart",
+  "detail": "Grab handle (swept U loop, inserted twice in the Tinnie boat)"
  },
  {
   "id": "fan-shroud-filleted",
-  "title": "Fan shroud (cone on plate, rim and notch fillets)",
-  "file": "fan-shroud-filleted.ckpart"
+  "title": "Fan shroud",
+  "file": "fan-shroud-filleted.ckpart",
+  "detail": "Fan shroud (cone on plate, rim and notch fillets)"
  },
  {
   "id": "corner-holes-plate",
-  "title": "Plate with rounded corners and 4 corner holes (inset = fillet radius)",
-  "file": "corner-holes-plate.ckpart"
+  "title": "Plate with rounded corners and 4 corner holes",
+  "file": "corner-holes-plate.ckpart",
+  "detail": "Plate with rounded corners and 4 corner holes (inset = fillet radius)"
  }
 ]
