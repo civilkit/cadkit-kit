@@ -41,3 +41,11 @@ describe('buildViewData', () => {
     expect((shownBody(body, [{ type: 'surfacePlanar' }], [sheet]) as { surfaces?: unknown[] }).surfaces).toHaveLength(1);
   });
 });
+
+describe('surface bodies of an import', () => {
+  it('an importStep can leave surface bodies (the parts of its file that are not solids), so its surfaces are shown', async () => {
+    const { hasSurfaceFeatures } = await import('./surfaces');
+    expect(hasSurfaceFeatures([{ type: 'importStep' }] as never)).toBe(true);
+    expect(hasSurfaceFeatures([{ type: 'extrude' }] as never)).toBe(false);
+  });
+});

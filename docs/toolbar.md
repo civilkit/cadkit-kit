@@ -154,7 +154,7 @@ whole command table (every optional command included) and fails for a command wi
   suppressed draft (`draftNew`) with the error shown inline; the first accepted edit makes it real, Cancel removes it. The same draft
   mechanism serves Shell, Fillet, Chamfer, Extrude, Revolve and Sweep (`createFeature` in `main.tsx`). Tests: `loftOrder.kernel.test.ts`.
 * **Look normal.** Entering a sketch with the camera more than 5 degrees off the plane normal shows a `Look normal (N)` chip in the sketch
-  bar; N does the same in a sketch. Settings > Sketching (and the Snaps menu) has `Auto look normal for new sketches` (default off).
+  bar; N does the same in a sketch. Settings > Sketching (and the Snaps menu) has `Auto look normal for new sketches` (default on).
   The automatic grid is 1 mm whenever 1 mm is 8 to 80 px wide, so the snap step is whole millimetres without setting the spacing.
 * **Guides and constraints.** `Auto-constrain from guides` is off for a clean profile (tests: `sketchPrefs.test.ts`); guides are drawn and
   snap either way, only the constraint is gated (`constrainsFromGuides`).

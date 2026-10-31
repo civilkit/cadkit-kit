@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decimalsFor, formatCursor, formatDelta, formatLen, formatPoint3, formatSpacing, formatZoom, zoomPercent } from './sketchStatus';
+import { decimalsFor, formatCursor, formatDelta, formatLen, formatPoint3, formatSpacing, formatZoom, uppForPercent, zoomPercent } from './sketchStatus';
 
 describe('status text', () => {
   it('cursor coordinates in the display unit, precision following the zoom', () => {
@@ -18,6 +18,8 @@ describe('status text', () => {
   it('zoom as a percentage of real size, and grid spacing with its unit', () => {
     expect(zoomPercent(25.4 / 96)).toBe(100);
     expect(formatZoom(25.4 / 96 / 2)).toBe('200%');
+    expect(zoomPercent(uppForPercent(37))).toBe(37);
+    expect(uppForPercent(100)).toBeCloseTo(25.4 / 96, 9);
     expect(formatSpacing(10)).toBe('10 mm');
     expect(formatSpacing(0.5)).toBe('0.5 mm');
     expect(formatSpacing(25.4, 'in')).toBe('1 in');

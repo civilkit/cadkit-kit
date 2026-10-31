@@ -2,9 +2,13 @@
 // view-only body: shown in the viewport, measured, but not part of the document and not saved with it.
 import type { Session, ViewBody } from '@ck/session';
 import { meshFromBody } from '@ck/mesh';
+import { toViewSurfaces, withSurfaces } from '@kit/viewdata';
+import { parseParts, type ImportPart } from './importReport';
 
+/** `parts`: what became of each part of the file (solid / surface body / refused, with reasons; see importReport.ts). The parts that
+ *  came in as surface bodies are shown with the solid (`view.surfaces`) and counted in `faces`. */
 export type StepImportResult =
-  | { ok: true; view: ViewBody; faces: number; edges: number }
+  | { ok: true; view: ViewBody; faces: number; edges: number; parts: ImportPart[] }
   | { ok: false; code: string; message: string };
 
 export async function importStepView(session: Pick<Session, 'importStep'>, text: string, name: string): Promise<StepImportResult> {
@@ -32,12 +36,23 @@ export function viewOfImport(rep: Awaited<ReturnType<Session['importStep']>>): S
     return { ok: false, code: err.code, message: `${where}: ${err.code}` };
   }
   const body = rep.body as { faces?: unknown[]; edges?: Array<{ key?: string; pts: number[][] }>; box?: { min: number[]; max: number[] } } | null | undefined;
-  if (!body || !body.faces?.length) return { ok: false, code: 'empty', message: 'no solid in the file' };
-  const view: ViewBody = {
-    mesh: meshFromBody(body as Parameters<typeof meshFromBody>[0]),
-    edges: body.edges ?? [],
-    box: body.box ?? { min: [0, 0, 0], max: [0, 0, 0] },
+  const surfaces = toViewSurfaces((rep as { surfaces?: unknown }).surfaces);
+  const surfaceFaces = countSurfaceFaces((rep as { surfaces?: unknown }).surfaces);
+  if ((!body || !body.faces?.length) && !surfaces.length) return { ok: false, code: 'empty', message: 'no solid in the file' };
+  const solidFaces = body?.faces?.length ?? 0;
+  const solid: ViewBody = {
+    mesh: meshFromBody((body ?? {}) as Parameters<typeof meshFromBody>[0]),
+    edges: body?.edges ?? [],
+    box: body?.box ?? surfaces[0]?.box ?? { min: [0, 0, 0], max: [0, 0, 0] },
     sketches: [], curves: [], planes: [], markers: [],
   };
-  return { ok: true, view, faces: body.faces.length, edges: view.edges.length };
+  const view = (withSurfaces(solid as never, surfaces) ?? solid) as ViewBody;
+  const parts = parseParts((rep as { import?: { parts?: unknown } }).import?.parts);
+  return { ok: true, view, faces: solidFaces + surfaceFaces, edges: view.edges.length, parts };
+}
+
+/** Faces of the surface bodies of a reply (`surfaces: [[id, body], ..]`). */
+function countSurfaceFaces(raw: unknown): number {
+  if (!Array.isArray(raw)) return 0;
+  return raw.reduce((n, p) => n + (Array.isArray(p) && p[1] && Array.isArray((p[1] as { faces?: unknown[] }).faces) ? (p[1] as { faces: unknown[] }).faces.length : 0), 0);
 }

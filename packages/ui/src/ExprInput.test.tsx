@@ -91,3 +91,46 @@ describe('FeatureEditor with expressions', () => {
     expect(drafts.at(-1)).toEqual({ depth: '=wall*4' });
   });
 });
+
+describe('ExprInput on a phone keypad', () => {
+  const attr = (m: ReturnType<typeof setup>, n: string) => m.input.getAttribute(n);
+  it('asks for the decimal keypad and a Done key', () => {
+    const m = setup();
+    expect(attr(m, 'inputmode')).toBe('decimal');
+    expect(attr(m, 'enterkeyhint')).toBe('done');
+  });
+  it('a whole-number field asks for the digit pad, and a field with a next one says Next', () => {
+    const r = render(<ExprInput value={3} label="Count" integer enterKeyHint="next" onValue={() => {}} />);
+    const i = r.container.querySelector('input')!;
+    expect(i.getAttribute('inputmode')).toBe('numeric');
+    expect(i.getAttribute('enterkeyhint')).toBe('next');
+    expect(r.container.querySelector('.expr-sign')).toBeNull();   // a count has no minus
+  });
+  it('the formula key switches to the full keyboard and back; a field driven by an expression starts there', () => {
+    const m = setup();
+    const kb = m.r.container.querySelector('.expr-kb') as HTMLButtonElement;
+    fireEvent.click(kb);
+    expect(m.input.getAttribute('inputmode')).toBe('text');
+    fireEvent.click(kb);
+    expect(m.input.getAttribute('inputmode')).toBe('decimal');
+    const d = setup('=width*2');
+    expect(d.input.getAttribute('inputmode')).toBe('text');
+  });
+  it('the sign key flips the minus of a number and does not take the focus', () => {
+    const m = setup(5);
+    const sign = m.r.container.querySelector('.expr-sign') as HTMLButtonElement;
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    sign.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);   // the keyboard stays up
+    fireEvent.click(sign);
+    expect(m.values.at(-1)).toBe(-5);
+    fireEvent.click(sign);
+    expect(m.values.at(-1)).toBe(5);
+  });
+  it('a field that takes only plain numbers has no formula key; one that cannot be negative has no sign key', () => {
+    const m = setup(5, { plain: true });
+    expect(m.r.container.querySelector('.expr-kb')).toBeNull();
+    const r = render(<ExprInput value={5} min={0} onValue={() => {}} />);
+    expect(r.container.querySelector('.expr-sign')).toBeNull();
+  });
+});

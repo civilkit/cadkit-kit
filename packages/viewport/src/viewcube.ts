@@ -14,6 +14,8 @@ export type Dir = [number, number, number];
 
 /** A click in the outer 0.3 of a face reaches the edge or corner: those snap to a diagonal view. */
 const ZONE = 0.45;
+/** A finger dragging the cube turns the model this many times as far as a mouse does (the cube is only about 80 px wide). */
+export const TOUCH_GAIN = 1.8;
 
 /** The view direction (from the target towards the camera) for a point on the cube, in the cube's local frame. */
 export function zoneOf(p: { x: number; y: number; z: number }): Dir {
@@ -45,13 +47,17 @@ export class ViewCube {
   private dragging = false;
   private moved = false;
   private last = { x: 0, y: 0 };
+  /** The page colours the face textures were drawn in (a cube drawn before the theme was applied would stay in the fallback colours: black). */
+  private paint = '';
+  private frames = 0;
+  private drag: { id: number; x: number; y: number } | null = null;
 
   constructor(private readonly host: HTMLElement, private readonly opts: ViewCubeOptions) {
     const size = opts.size ?? 112;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'viewcube';
     this.canvas.setAttribute('aria-label', 'Camera orientation cube: click a face to snap the view');
-    this.canvas.style.cssText = `position:absolute;top:54px;right:12px;width:${size}px;height:${size}px;z-index:4;cursor:grab;touch-action:none`;
+    this.canvas.style.cssText = `position:absolute;top:54px;right:12px;width:${size}px;height:${size}px;z-index:4;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none`;
     host.appendChild(this.canvas);
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -83,9 +89,15 @@ export class ViewCube {
     this.canvas.addEventListener('pointerdown', this.onDown);
     this.canvas.addEventListener('pointermove', this.onMove);
     this.canvas.addEventListener('pointerup', this.onUp);
-    this.canvas.addEventListener('pointercancel', this.onUp);
+    this.canvas.addEventListener('pointercancel', this.onCancel);
     this.canvas.addEventListener('pointerleave', this.onLeave);
+    // a phone can drop the GPU context under memory pressure (a long rebuild): draw the faces again when it comes back
+    this.canvas.addEventListener('webglcontextlost', this.onLost);
+    this.canvas.addEventListener('webglcontextrestored', this.onRestored);
   }
+
+  private onLost = (e: Event): void => { e.preventDefault(); };
+  private onRestored = (): void => { this.refreshTheme(); };
 
   private themeColours(): { face: string; edge: string; text: string } {
     const css = getComputedStyle(this.host);
@@ -95,6 +107,7 @@ export class ViewCube {
 
   private faceMaterials(): THREE.MeshBasicMaterial[] {
     const { face, edge, text } = this.themeColours();
+    this.paint = face + edge + text;
     return cubeFaceLabels(this.upAxis).map((label) => {
       const c = document.createElement('canvas');
       c.width = c.height = 128;
@@ -145,6 +158,7 @@ export class ViewCube {
 
   /** Point the cube at the main camera's orientation and draw it. Call whenever the host draws. */
   render(camera: THREE.Camera, target: THREE.Vector3): void {
+    if (++this.frames % 20 === 1) { const c = this.themeColours(); if (c.face + c.edge + c.text !== this.paint) this.refreshTheme(); }
     const dir = camera.position.clone().sub(target).normalize();
     this.cam.position.copy(dir.multiplyScalar(this.cam.position.length() || 5.5));
     this.cam.up.copy(camera.up);
@@ -160,6 +174,8 @@ export class ViewCube {
   }
 
   private onDown = (e: PointerEvent): void => {
+    if (this.dragging) return;   // a second finger on the cube is not a second drag
+    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     this.dragging = true;
     this.moved = false;
     this.last = { x: e.clientX, y: e.clientY };
@@ -172,10 +188,14 @@ export class ViewCube {
 
   private onMove = (e: PointerEvent): void => {
     if (this.dragging) {
+      if (this.drag && e.pointerId !== this.drag.id) return;
       const dx = e.clientX - this.last.x;
       const dy = e.clientY - this.last.y;
-      if (Math.abs(dx) + Math.abs(dy) > 2) this.moved = true;
-      if (this.moved) { this.opts.orbit(dx, dy); this.last = { x: e.clientX, y: e.clientY }; }
+      // a finger wobbles: it is a drag (not a tap on a face) once it has gone a few pixels from where it went down
+      if (!this.moved && Math.hypot(e.clientX - (this.drag?.x ?? this.last.x), e.clientY - (this.drag?.y ?? this.last.y)) > (e.pointerType === 'touch' ? 6 : 2)) this.moved = true;
+      // the cube is small and a finger covers it: its drag turns the model faster than a mouse drag does, so one stroke across it is a good turn
+      const k = e.pointerType === 'touch' ? TOUCH_GAIN : 1;
+      if (this.moved) { this.opts.orbit(dx * k, dy * k); this.last = { x: e.clientX, y: e.clientY }; }
       return;
     }
     const h = this.hit(e);
@@ -184,9 +204,17 @@ export class ViewCube {
     this.opts.onChange();
   };
 
-  private onUp = (e: PointerEvent): void => {
+  /** The system took the finger (a scroll, a palm, a call): end the drag without snapping to whatever is under it. */
+  private onCancel = (e: PointerEvent): void => {
     if (!this.dragging) return;
-    this.dragging = false;
+    this.dragging = false; this.moved = true; this.drag = null;
+    this.canvas.style.cursor = 'grab';
+    try { this.canvas.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
+  };
+
+  private onUp = (e: PointerEvent): void => {
+    if (!this.dragging || (this.drag && e.pointerId !== this.drag.id)) return;
+    this.dragging = false; this.drag = null;
     this.canvas.style.cursor = 'grab';
     try { this.canvas.releasePointerCapture(e.pointerId); } catch { /* not captured */ }
     if (this.moved) return;
@@ -204,7 +232,9 @@ export class ViewCube {
     this.canvas.removeEventListener('pointerdown', this.onDown);
     this.canvas.removeEventListener('pointermove', this.onMove);
     this.canvas.removeEventListener('pointerup', this.onUp);
-    this.canvas.removeEventListener('pointercancel', this.onUp);
+    this.canvas.removeEventListener('pointercancel', this.onCancel);
+    this.canvas.removeEventListener('webglcontextlost', this.onLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.onRestored);
     this.canvas.removeEventListener('pointerleave', this.onLeave);
     for (const m of this.cube.material as THREE.MeshBasicMaterial[]) { m.map?.dispose(); m.dispose(); }
     this.cube.geometry.dispose();

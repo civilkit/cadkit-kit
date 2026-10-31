@@ -121,6 +121,8 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .fedit-pick { border: 1px solid var(--line); background: var(--chip); border-radius: 6px; padding: 4px 8px; cursor: pointer; font: inherit; font-size: 12px; flex: none; color: inherit; }
 .fedit-pick.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .fedit-hint { color: var(--err); font-size: 12px; padding: 10px 12px; }
+.fedit-fix { padding: 0 12px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.fedit-fix-note { margin: 0; font-size: 12px; }
 .status-wrap { grid-area: status; background: var(--panel-2); border-top: 1px solid var(--line); padding: 5px 12px; }
 .status { display: flex; gap: 16px; align-items: center; overflow: hidden; white-space: nowrap; }
 /* one fixed row: never a scrollbar (it added height and made the viewport jump); what does not fit shrinks with an ellipsis, the drawer button stays */
@@ -213,19 +215,20 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .topbar .install-btn { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 .toast-icon { color: var(--ok); font-weight: 700; }
 .toast.warn .toast-icon { color: #f0b429; } .toast.error .toast-icon { color: #ff6b6b; }
+/* a narrow window with the desktop layout forced in Settings (the phone and tablet layouts below draw their own panels) */
 @media (max-width: 760px) {
-  #app, #app[data-left="docked"], #app[data-right="docked"] { --lw: 0px; --rw: 0px;
+  #app[data-layout="desktop"], #app[data-layout="desktop"][data-left="docked"], #app[data-layout="desktop"][data-right="docked"] { --lw: 0px; --rw: 0px;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
     grid-template-areas: "top" "tabs" "rib" "vp" "left" "drawer" "status"; }
-  .tree-wrap.docked { grid-area: left; max-height: 26vh; border: 0; border-top: 1px solid var(--line); }
-  .insp-wrap.docked { display: none; }
-  .topbar { flex-wrap: wrap; gap: 6px; }
-  .topbar .doc-name { min-width: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .search-btn { min-width: 0; flex: 1 1 120px; }
-  .search-btn kbd { display: none; }
-  .drawer { height: 22vh; }
-  .status { overflow: hidden; white-space: nowrap; }
+  #app[data-layout="desktop"] .tree-wrap.docked { grid-area: left; max-height: 26vh; border: 0; border-top: 1px solid var(--line); }
+  #app[data-layout="desktop"] .insp-wrap.docked { display: none; }
+  #app[data-layout="desktop"] .topbar { flex-wrap: wrap; gap: 6px; }
+  #app[data-layout="desktop"] .topbar .doc-name { min-width: 0; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #app[data-layout="desktop"] .search-btn { min-width: 0; flex: 1 1 120px; }
+  #app[data-layout="desktop"] .search-btn kbd { display: none; }
+  #app[data-layout="desktop"] .drawer { height: 22vh; }
+  #app[data-layout="desktop"] .status { overflow: hidden; white-space: nowrap; }
 }
 /* display menu on the viewport */
 .display-menu { position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 6; display: flex; flex-direction: column; align-items: flex-end; pointer-events: none; }
@@ -276,7 +279,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 /* sketch annotations: dimension labels and constraint symbols over the sketch, and the constraints panel */
 .sketch-annots { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .annot { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; font: 600 11px ui-monospace, monospace; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
-.annot.dimension { background: var(--panel); color: var(--accent); outline: 1px solid var(--accent); cursor: text; }
+.annot.dimension { background: var(--panel); color: var(--err); outline: 1px solid var(--err); cursor: text; }   /* driving dimensions: the error red token (light and dark variants) */
 .annot.mark { background: var(--panel-2); color: var(--text-2); outline: 1px solid var(--line); min-width: 15px; text-align: center; pointer-events: none; }   /* never covers what you click on */
 .annot.hot { background: var(--accent); color: #fff; outline-color: var(--accent); z-index: 1; }
 .sketch-cons { width: 236px; max-height: min(60vh, 420px); overflow: auto; border-radius: 10px; padding: 8px;
@@ -446,6 +449,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .insp-rows { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; }
 .insp-rows dt { color: var(--text-2); }
 .insp-rows dd { margin: 0; font: 500 12px ui-monospace, monospace; user-select: text; overflow-wrap: anywhere; }
+.insp-rows dd.insp-mat { white-space: pre; overflow-x: auto; }
 .insp-picks { margin: 0; padding-left: 16px; font-size: 12px; }
 .insp-table { border-collapse: collapse; font-size: 12px; }
 .insp-table th, .insp-table td { text-align: left; padding: 2px 10px 2px 0; }
@@ -523,6 +527,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .sizebox-about button:hover { border-color: var(--accent); }
 .sizebox-about button.on { background: var(--accent); color: #fff; }
 .vp-size-label:hover { border-color: #fff !important; }
+@media (pointer: coarse) { .vp-size-label { padding: 9px 12px !important; font-size: 13px !important; } }   /* a fingertip taps it to type an exact value */
 
 /* ---- Catalog panel and the ghost that follows the pointer (see docs/catalog.md) ---- */
 .catalog { padding: 0 8px 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -856,8 +861,9 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 
 /* editor rows: the unit sits inside the number box so numbers, dropdowns and segmented controls share one right edge */
 .fedit-fld .expr-row { position: relative; }
-.fedit-fld .expr-row input { padding-right: 32px; }
-.fedit-fld .expr-row .fedit-unit { position: absolute; right: 9px; pointer-events: none; }
+.expr-box { position: relative; display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+.fedit-fld .expr-box input { padding-right: 32px; }
+.fedit-fld .expr-box .fedit-unit { position: absolute; right: 9px; pointer-events: none; }
 .fedit-fld .fedit-inline { position: relative; }
 .fedit-fld .fedit-inline input { padding-right: 32px; }
 .fedit-fld .fedit-inline .fedit-unit { position: absolute; right: 9px; pointer-events: none; }
@@ -918,12 +924,15 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 /* sketch readout in the status bar */
 .status .st-sketch { display: inline-flex; gap: 14px; align-items: center; }
 .status .st-coords, .status .st-delta { font: 500 12.5px ui-monospace, monospace; min-width: 0; }
-.status .st-coords { min-width: 17ch; }
-.status .st-snap { color: var(--accent); font-weight: 600; }
+.status .st-sketch > * { flex: none; }
+.status .st-coords { width: 20ch; white-space: pre; overflow: hidden; }
+.status .st-delta { width: 38ch; white-space: pre; overflow: hidden; }
+.status .st-snap { color: var(--accent); font-weight: 600; width: 18ch; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.status .st-field { display: inline-flex; gap: 4px; align-items: center; }
+.status .st-input { width: 9ch; font: 500 12.5px ui-monospace, monospace; background: none; color: inherit; border: 1px solid transparent; border-radius: 6px; padding: 0 4px; text-align: right; }
+.status .st-input:hover { border-color: var(--line); }
+.status .st-input:focus { border-color: var(--accent); background: var(--bg, transparent); outline: none; cursor: text; }
 .status .st-toggle { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
-.status .st-spacing { font: inherit; background: none; border: 1px solid transparent; border-radius: 6px; padding: 0 6px; cursor: pointer; color: inherit; }
-.status .st-spacing:hover { border-color: var(--line); }
-.status .st-spacing-input { width: 9ch; font: 500 12.5px ui-monospace, monospace; cursor: text; }
 
 /* tree: reveal of the feature that owns a picked face, search, folders */
 .tree:focus { outline: none; }
@@ -1144,3 +1153,268 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .tabbar .tab-list button:hover, .tabbar .tab-list button.on { background: var(--accent-soft); }
 .tabbar .tab-list .tab-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar .tab-list .tab-dirty { width: 7px; height: 7px; border-radius: 50%; background: #f0b429; flex: none; }
+
+/* Dimension drawings under the labels: driving in red, reference (driven) in the secondary text colour */
+.sketch-annots .annot-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.annot-lines .dimg { stroke: var(--err); stroke-width: 1; fill: none; color: var(--err); }
+.annot-lines .dimg .arrow { fill: var(--err); stroke: none; }
+.annot-lines .dimg.driven { stroke: var(--text-2); stroke-dasharray: 4 3; }
+.annot-lines .dimg.driven .arrow { fill: var(--text-2); }
+.annot-lines .dimg.hot { stroke-width: 2; }
+.sketch-annots .annot.dimension.driven { color: var(--text-2); outline-color: var(--text-2); }
+.sketch-fields .fld-toggle { font: 600 10px ui-monospace, monospace; padding: 0 4px; margin-left: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text-2); cursor: pointer; }
+.sketch-fields .fld-toggle.on { background: var(--accent); color: var(--on-accent, #fff); border-color: var(--accent); }
+
+/* While sketching the hint line is what is read: it takes the room that is left, and on a narrow window (1440 px and below) the plain model counters
+   (Features, Faces, Triangles, Errors ...) give way to it; the buttons among them (Warnings, the drawer) stay. */
+.status > .sketch-hint { flex: 1 1 auto; min-width: 30ch; }
+.status:has([data-testid="status-sketch"]) > .sp { flex: 0 0 0; }
+@media (max-width: 1600px) {
+  .status:has([data-testid="status-sketch"]) > .st-item:not(.st-chip) { display: none; }
+}
+.display-seg { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 4px 0 2px; font-size: 12px; }
+.display-seg-btn { font: inherit; padding: 1px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel-2); color: var(--text-2); cursor: pointer; }
+.display-seg-btn.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+
+/* ================================================================================================================================
+   Touch: the page, the dynamic viewport, and the phone and tablet layouts (apps/cad/src/layoutMode.ts sets #app[data-layout]).
+   Everything below that is scoped to phone or tablet leaves the desktop layout as it was.
+   ================================================================================================================================ */
+html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce while orbiting */
+#app { touch-action: manipulation; }   /* no double-tap zoom on the chrome; the canvas below handles its own gestures */
+#vp canvas { touch-action: none; }
+@supports (height: 1dvh) {   /* the browser's toolbars come and go on a phone: 100vh is taller than what is visible */
+  html, body, #root { height: 100dvh; }
+  .pal-back { padding-top: 12dvh; }
+  .pal { max-height: 70dvh; }
+  .dlg { height: min(560px, 86dvh); }
+  .dlg.set-dlg { height: auto; max-height: 86dvh; }
+  .sketch-cons { max-height: min(60dvh, 420px); }
+  .mat-list { max-height: clamp(120px, 24dvh, 260px); }
+  .slot-flyout { max-height: calc(100dvh - 16px); }
+  .tabbar .tab-list { max-height: 60dvh; }
+}
+.pal-back, .dlg-back { padding-bottom: var(--kb-inset, 0px); }   /* the on-screen keyboard (layoutMode.ts publishes its height) */
+
+#app[data-layout="phone"], #app[data-layout="tablet"] { --tap: 44px; padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+#app[data-layout] .topbar { padding-top: max(6px, env(safe-area-inset-top, 0px)); }
+
+/* ---- phone: the canvas is the page; tree, properties and diagnostics are sheets opened from the bar along the bottom */
+/* top bar, canvas, the split sheet (it takes its own row: the canvas shrinks to what is left above it), the sketch actions, the status line and the bottom bar.
+   The app is as tall as what the on-screen keyboard leaves visible (--vvh, --vv-top: layoutMode.ts), so with the keyboard up the canvas shrinks instead of being covered. */
+#app[data-layout="phone"] { --lw: 0px; --rw: 0px; grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-areas: "top" "vp" "sheet" "skact" "status" "nav";
+  height: var(--vvh, 100dvh); transform: translateY(var(--vv-top, 0px)); }
+#app[data-layout="phone"] .status-wrap { display: none; }   /* the bottom bar carries the diagnostics; a sketch shows its snap and grid line again */
+#app[data-layout="phone"][data-sketching] .status-wrap { display: block; }
+:root[data-kb] #app[data-layout="phone"] .nav-wrap, :root[data-kb] #app[data-layout="phone"] .status-wrap { display: none; }   /* the keyboard is up: all the room goes to the sheet and the canvas */
+.nav-wrap { grid-area: nav; position: relative; z-index: 41; }
+.bottom-nav { display: flex; background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); position: relative; z-index: 41; }
+.bn-btn { flex: 1 1 0; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: none; color: var(--text-2); font: 600 11px system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
+.bn-btn[aria-pressed="true"] { color: var(--accent); box-shadow: inset 0 3px 0 var(--accent); }
+.bn-btn:disabled { opacity: .38; cursor: default; }
+.bn-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.bn-icon { position: relative; display: grid; place-items: center; }
+.bn-badge { position: absolute; top: -6px; left: 100%; margin-left: -4px; min-width: 16px; padding: 0 4px; border-radius: 9px; background: var(--chip); color: var(--text); font-size: 10px; line-height: 16px; text-align: center; }
+.bn-badge.bad { background: var(--err); color: #fff; }
+#app[data-layout="phone"] .status-wrap { padding-bottom: 5px; }
+#app[data-layout="phone"] .status .st-drawer { display: none; }   /* the Diagnostics button of the bottom bar does this */
+#app[data-layout="tablet"] .status .st-drawer { min-height: var(--tap); padding: 0 14px; }
+#app[data-layout="phone"] .splitter { display: none; }
+
+/* the sheet (packages/ui Sheet): its snap height is set inline; it stands on the bar, or on the keyboard when that is up */
+.sheet { position: fixed; left: 0; right: 0; bottom: max(var(--sheet-bottom, 0px), var(--kb-inset, 0px)); z-index: 40; display: flex; flex-direction: column; max-height: calc(var(--vvh, 100dvh) - 8px);
+  background: var(--panel); color: var(--text); border-radius: 16px 16px 0 0; outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 -8px 28px #0004;
+  padding-bottom: var(--sheet-pad, env(safe-area-inset-bottom, 0px)); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); overscroll-behavior: contain; }
+.sheet.docked { position: relative; grid-area: sheet; bottom: auto; left: auto; right: auto; z-index: 40; box-shadow: 0 -4px 14px #0003; max-height: calc(var(--vvh, 100dvh) - 150px); min-height: 0; }
+.sheet-scrim { position: fixed; inset: 0; z-index: 39; background: #0a101755; }
+.sheet-head { position: relative; flex: none; display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 12px 4px 0 16px; border-bottom: 1px solid var(--line-soft); cursor: grab; touch-action: none; }
+.sheet-grip { position: absolute; left: 50%; top: 0; width: 72px; height: 24px; transform: translateX(-50%); border-radius: 8px; }
+.sheet-grip::after { content: ''; position: absolute; left: 18px; right: 18px; top: 8px; height: 5px; border-radius: 3px; background: var(--line); }
+.sheet-grip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sheet-title { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet-close { flex: none; width: var(--tap, 44px); height: var(--tap, 44px); display: grid; place-items: center; border: 0; border-radius: 10px; background: none; color: var(--text-2); font-size: 16px; cursor: pointer; }
+.sheet-close:hover { background: var(--accent-soft); color: var(--text); }
+.sheet-body { flex: 1 1 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.sheet-body > .tree-wrap { height: 100%; }
+.tree-wrap.sheeted { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+.sheet-body > .insp-wrap { padding: 8px; }
+.sheet .drawer { grid-area: auto; height: 100%; border-top: 0; }
+.sheet .dtools { display: none; }   /* the sheet has its own close button */
+.sheet-empty { padding: 20px 16px; color: var(--text-2); }
+
+/* ---- phone and tablet: finger-sized targets (44 px) */
+#app[data-layout="phone"] .rb-btn, #app[data-layout="tablet"] .rb-btn { min-height: var(--tap); }
+#app[data-layout="phone"] .rb-btn.icon-only, #app[data-layout="tablet"] .rb-btn.icon-only,
+#app[data-layout="phone"] .topbar .tb-icon, #app[data-layout="tablet"] .topbar .tb-icon { width: var(--tap); height: var(--tap); min-height: 0; flex: none; }
+#app[data-layout="phone"] .search-btn, #app[data-layout="tablet"] .search-btn { min-width: 0; min-height: var(--tap); flex: 0 1 220px; }
+#app[data-layout="phone"] .search-btn { flex: 1 1 100px; }
+#app[data-layout="phone"] .search-btn kbd { display: none; }
+#app[data-layout="phone"] .rb-tab, #app[data-layout="tablet"] .rb-tab { min-height: var(--tap); }
+#app[data-layout="phone"] .slot.ribbon .slot-btn.icon-only, #app[data-layout="tablet"] .slot.ribbon .slot-btn.icon-only,
+#app[data-layout="phone"] .slot[data-slot="file-more"] .slot-btn, #app[data-layout="tablet"] .slot[data-slot="file-more"] .slot-btn { width: var(--tap); height: var(--tap); }
+#app[data-layout="phone"] .slot.rail .slot-btn, #app[data-layout="tablet"] .slot.rail .slot-btn,
+#app[data-layout="phone"] .slot.icon .slot-btn, #app[data-layout="tablet"] .slot.icon .slot-btn { width: var(--tap); height: var(--tap); }
+#app[data-layout="phone"] .selmodes button, #app[data-layout="tablet"] .selmodes button { min-width: var(--tap); min-height: var(--tap); justify-content: center; }
+#app[data-layout="phone"] .cube-tools button, #app[data-layout="tablet"] .cube-tools button { width: var(--tap); height: var(--tap); }
+#app[data-layout="phone"] .display-btn, #app[data-layout="tablet"] .display-btn { min-width: var(--tap); min-height: var(--tap); justify-content: center; }
+#app[data-layout="phone"] .display-lab { display: none; }
+#app[data-layout="phone"] .ptabs .pt, #app[data-layout="tablet"] .ptabs .pt { min-height: var(--tap); min-width: var(--tap); }
+#app[data-layout="phone"] .ptabs, #app[data-layout="tablet"] .ptabs { overflow-x: auto; scrollbar-width: none; }
+#app[data-layout="phone"] .dtab, #app[data-layout="tablet"] .dtab,
+#app[data-layout="phone"] .set-tab, #app[data-layout="tablet"] .set-tab { min-height: var(--tap); }
+#app[data-layout="phone"] .btn, #app[data-layout="tablet"] .btn { min-height: 36px; padding: 3px 12px; }
+#app[data-layout="phone"] .start-planes .rb-btn, #app[data-layout="tablet"] .start-planes .rb-btn { min-height: var(--tap); }
+#app[data-layout="phone"] .tabstrip .tab, #app[data-layout="tablet"] .tabstrip .tab { min-height: var(--tap); }
+#app[data-layout="phone"] .tabstrip .tab .tab-x, #app[data-layout="tablet"] .tabstrip .tab .tab-x,
+#app[data-layout="phone"] .tabstrip .tab-new, #app[data-layout="tablet"] .tabstrip .tab-new { width: var(--tap); height: var(--tap); margin-bottom: 0; }
+#app[data-layout="phone"] .tabbar .tab-more, #app[data-layout="tablet"] .tabbar .tab-more { min-width: var(--tap); min-height: var(--tap); margin-bottom: 0; }
+/* rows: taller, and the buttons that only showed on hover (a finger cannot hover) are there for the hide and suppress actions of every row */
+#app[data-layout="phone"] .tree .row, #app[data-layout="tablet"] .tree .row { min-height: var(--tap); }
+#app[data-layout="phone"] .tree .row.child, #app[data-layout="tablet"] .tree .row.child { min-height: var(--tap); }
+#app[data-layout="phone"] .row-act, #app[data-layout="tablet"] .row-act { width: var(--tap); height: var(--tap); }
+/* the actions sit in the row (the name gives way) instead of over it: hide and suppress on every row, all of them on the selected row, on a line of its own under the name */
+#app[data-layout="phone"] .tree .row .row-actions, #app[data-layout="tablet"] .tree .row .row-actions { position: static; transform: none; margin: 0 -4px 0 auto; padding: 0; background: none; }
+#app[data-layout="phone"] .tree .row .row-hide, #app[data-layout="tablet"] .tree .row .row-hide,
+#app[data-layout="phone"] .tree .row .row-sup, #app[data-layout="tablet"] .tree .row .row-sup { opacity: 1; }
+#app[data-layout="phone"] .tree .row:not(.sel) .row-act:not(.row-hide):not(.row-sup), #app[data-layout="tablet"] .tree .row:not(.sel) .row-act:not(.row-hide):not(.row-sup) { display: none; }
+#app[data-layout="phone"] .tree .row.sel, #app[data-layout="tablet"] .tree .row.sel { flex-wrap: wrap; }
+#app[data-layout="phone"] .tree .row.sel .row-actions, #app[data-layout="tablet"] .tree .row.sel .row-actions { order: 90; flex: 1 0 100%; justify-content: flex-end; margin: 0; }
+#app[data-layout="phone"] .row-chev, #app[data-layout="phone"] .row-chev-space, #app[data-layout="tablet"] .row-chev, #app[data-layout="tablet"] .row-chev-space { width: 24px; height: 28px; }
+/* a field a finger focuses must be 16 px or the browser zooms the page in */
+#app[data-layout="phone"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), #app[data-layout="phone"] select, #app[data-layout="phone"] textarea,
+#app[data-layout="tablet"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), #app[data-layout="tablet"] select, #app[data-layout="tablet"] textarea { font-size: 16px; }
+
+/* ---- phone: one slim top bar (file menu, the document title that doubles as the tab list, undo, redo, more) */
+#app[data-layout="phone"] .topbar { flex-wrap: wrap; gap: 2px; padding: 2px 4px; min-height: 48px; padding-top: max(2px, env(safe-area-inset-top, 0px)); }
+#app[data-layout="phone"] .topbar .update-note { flex-basis: 100%; white-space: normal; }
+#app[data-layout="phone"] .ribbon-wrap { max-width: 100%; }
+
+/* ---- phone: dialogs fill the screen (samples, settings, ...); the settings tabs scroll sideways */
+#app[data-layout="phone"] .dlg-back { align-items: stretch; }
+#app[data-layout="phone"] .dlg-back > .dlg:not(.discard-dlg):not(.tb-dlg) { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+#app[data-layout="phone"] .dlg-head input { min-height: var(--tap); }
+#app[data-layout="phone"] .set-tabs, #app[data-layout="tablet"] .set-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+#app[data-layout="phone"] .set-tab, #app[data-layout="tablet"] .set-tab { flex: none; }
+#app[data-layout="phone"] .dlg.set-dlg .set-body { min-height: 0; flex: 1 1 0; }
+#app[data-layout="phone"] .set-row { flex-wrap: wrap; min-height: var(--tap); }
+#app[data-layout="phone"] .pal-back { padding-top: max(8px, env(safe-area-inset-top, 0px)); }
+#app[data-layout="phone"] .pal { width: calc(100% - 16px); max-height: calc(var(--vvh, 100dvh) - 16px); }
+#app[data-layout="phone"] .discard-dlg, #app[data-layout="phone"] .tb-dlg { width: calc(100% - 16px); }
+#app[data-layout="phone"] .dlg.discard-dlg, #app[data-layout="phone"] .dlg.tb-dlg, #app[data-layout="tablet"] .dlg.discard-dlg, #app[data-layout="tablet"] .dlg.tb-dlg { height: auto; align-self: center; }   /* the dynamic-height rule for .dlg must not stretch a small question (Restore, Unsaved changes) */
+
+/* ---- phone and tablet: the canvas corners. Top left the selection modes and the measurement, top right the display button, the view cube and its two
+   buttons in a column under it; the bottom holds the start card and the selection list. Nothing shares a corner. */
+#app[data-layout="phone"] .selmodes, #app[data-layout="tablet"] .selmodes { left: 8px; top: 8px; transform: none; max-width: calc(100% - 72px); overflow-x: auto; scrollbar-width: none; }
+#app[data-layout="phone"] .display-menu, #app[data-layout="tablet"] .display-menu { top: 8px; right: 8px; bottom: 8px; }
+#app[data-layout="phone"] .viewcube, #app[data-layout="tablet"] .viewcube { width: 72px !important; height: 72px !important; top: 60px !important; right: 8px !important; }
+#app[data-layout="phone"] .cube-tools, #app[data-layout="tablet"] .cube-tools { flex-direction: column; top: 138px; right: 22px; }
+#app[data-layout="phone"] .quick-measure, #app[data-layout="tablet"] .quick-measure { top: 60px; left: 8px; right: auto; bottom: auto; max-width: calc(100% - 100px); }
+#app[data-layout="phone"] .sizebox-about, #app[data-layout="tablet"] .sizebox-about { top: 104px; bottom: auto; left: 8px; max-width: calc(100% - 100px); flex-wrap: wrap; }
+#app[data-layout="phone"] .sel-list, #app[data-layout="tablet"] .sel-list { left: auto; right: 8px; bottom: 8px; width: min(320px, calc(100% - 16px)); max-height: 28%; }
+#app[data-layout="phone"] .face-sketch-chip, #app[data-layout="tablet"] .face-sketch-chip { top: auto; bottom: calc(28% + 16px); min-height: var(--tap); }
+#app[data-layout="phone"] .start-card { left: 8px; right: 8px; bottom: 8px; transform: none; max-width: none; }
+#app[data-layout="phone"] .toast { bottom: 12px; max-width: calc(100% - 24px); }
+#app[data-layout="phone"] .handle-hint { bottom: 8px; max-width: calc(100% - 16px); }
+#app[data-layout="phone"] .sketch-tools { left: 8px; right: 88px; top: 60px; }
+#app[data-layout="phone"] .text-panel { left: 8px; right: 8px; top: 8px; width: auto; max-height: calc(100% - 16px); overflow: auto; }
+#app[data-layout="phone"] .chole-float { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; }
+
+/* ---- tablet: docked tree and properties, narrower than on a desktop so the canvas keeps the room (portrait 820 px) */
+#app[data-layout="tablet"][data-left="docked"] { --lw: clamp(200px, var(--lw-user, 280px), min(30vw, calc(100vw - var(--rw) - 320px))); }
+#app[data-layout="tablet"][data-right="docked"] { --rw: clamp(200px, var(--rw-user, 280px), 30vw); }
+
+
+/* ================================================================================================================================
+   Phase 1b: the phone's chrome (one top bar, the tools above the bottom bar), icons on one grid, the view cube, busy pill, keypad keys.
+   ================================================================================================================================ */
+/* one icon size and one centring rule for every icon button on a touch layout: top bar, tool strip, bottom bar, view overlay, sketch actions */
+#app[data-layout="phone"], #app[data-layout="tablet"] { --icon: 22px; }
+#app[data-layout="phone"] .topbar .tb-icon, #app[data-layout="phone"] .slot.icon .slot-btn, #app[data-layout="phone"] .slot.ribbon .slot-btn.icon-only,
+#app[data-layout="phone"] .cube-tools button, #app[data-layout="phone"] .display-btn, #app[data-layout="phone"] .selmodes button,
+#app[data-layout="tablet"] .topbar .tb-icon, #app[data-layout="tablet"] .slot.icon .slot-btn, #app[data-layout="tablet"] .slot.ribbon .slot-btn.icon-only,
+#app[data-layout="tablet"] .cube-tools button, #app[data-layout="tablet"] .display-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 0; }
+#app[data-layout="phone"] .topbar .tb-icon, #app[data-layout="tablet"] .topbar .tb-icon, #app[data-layout="phone"] .slot.icon .slot-btn { width: var(--tap); height: var(--tap); }
+#app[data-layout="phone"] svg.icon, #app[data-layout="tablet"] svg.icon { width: var(--icon); height: var(--icon); flex: none; display: block; }
+#app[data-layout="phone"] .slot-flyout svg.icon, #app[data-layout="tablet"] .slot-flyout svg.icon { width: 18px; height: 18px; }
+#app[data-layout="phone"] .doc-switch svg.icon { width: 16px; height: 16px; }
+#app[data-layout="phone"] .doc-x svg.icon, #app[data-layout="phone"] .doc-new svg.icon { width: 18px; height: 18px; }
+#app[data-layout="phone"] .slot.icon { flex: none; }
+#app[data-layout="phone"] .slot-more-mark { display: none; }
+
+.phone-bar .slot.icon .slot-btn { background: #ffffff14; border: 1px solid #ffffff2a; color: var(--title-text); border-radius: 8px; }
+.phone-bar .slot.icon .slot-btn:hover:not(:disabled) { background: #ffffff24; }
+.phone-bar .tb-icon { border-radius: 8px; }
+.doc-switch { flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px); display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 0; background: none; color: var(--title-text); font: inherit; cursor: pointer; text-align: left; }
+.doc-switch .doc-name { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-switch .doc-count { flex: none; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #ffffff2a; font-size: 11px; line-height: 18px; text-align: center; }
+.phone-bar > .doc-name { flex: 1 1 0; min-width: 0; }
+.doc-list { position: absolute; left: 8px; right: 8px; top: calc(max(2px, env(safe-area-inset-top, 0px)) + 46px); z-index: 60; margin: 0; padding: 4px; list-style: none; max-height: 60dvh; overflow-y: auto;
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px #0005; }
+.doc-list li { display: flex; align-items: center; border-radius: 8px; }
+.doc-list li.on { background: var(--accent-soft); }
+.doc-item { flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px); display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.doc-item .tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-x { flex: none; width: var(--tap, 44px); height: var(--tap, 44px); display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--text-2); cursor: pointer; }
+.phone-bar { position: relative; }
+
+/* the tool strip: the tabs as chips, the tools of the chosen tab in one scrolling row with their names, just above the bottom bar */
+.tool-scrim { position: fixed; inset: 0; z-index: 38; background: transparent; }
+.tool-tray { position: absolute; left: 0; right: 0; bottom: 100%; z-index: 42; background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px #0003; }
+.tt-tabs { display: flex; gap: 6px; padding: 6px 8px 2px; overflow-x: auto; scrollbar-width: none; }
+.tt-tab { flex: none; min-height: var(--tap, 44px); padding: 0 14px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-2); color: var(--text); font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.tt-tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tt-strip { display: flex; align-items: stretch; gap: 0; overflow-x: auto; overflow-y: hidden; padding: 4px 6px 6px; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.tt-group { flex: none; display: flex; align-items: stretch; gap: 2px; padding: 0 6px; border-right: 1px solid var(--line-soft); }
+.tt-group:last-child { border-right: 0; }
+.tool-tray .slot.ribbon .slot-btn.has-label { width: 64px; height: 64px; justify-content: center; gap: 4px; padding: 6px 2px 4px; }
+.tool-tray .slot-lab { font-size: 11px; }
+.tool-tray .slot.multi .slot-more { width: 24px; height: 24px; }
+
+/* the bottom bar: the same 22 px icon over a label, equal widths */
+.bn-btn { min-height: 52px; }
+.bn-icon { width: var(--icon, 22px); height: var(--icon, 22px); }
+.bn-icon .icon { display: block; }
+
+/* the sketch actions (a phone has no Enter, Escape or Delete): one row above the bottom bar, not over the drawing */
+.sketch-actions { grid-area: skact; display: flex; background: var(--panel); border-top: 1px solid var(--line); }
+.sa-btn { flex: 1 1 0; min-width: 0; min-height: var(--tap, 44px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 0; background: none; color: var(--text); font: 600 11px system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
+.sa-btn .icon { display: block; }
+.sa-btn:disabled { opacity: .38; cursor: default; }
+.sa-done { color: var(--accent); }
+.sa-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+/* the fields that follow the pointer on a desktop sit at the bottom edge of the canvas on a phone (a finger would cover them); the keypad opens below */
+#app[data-layout="phone"] .sketch-fields { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto; max-width: none; justify-content: center; flex-wrap: wrap; }
+#app[data-layout="phone"] .sketch-fields input { min-width: 0; }
+#app[data-layout="phone"] .sketch-pending { display: none; }
+
+/* the number keypad's two extra keys (formula keyboard, sign): on a finger device only */
+.expr-kb, .expr-sign { display: none; flex: none; min-width: 34px; min-height: 34px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--text); font: 600 14px system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
+.expr-kb.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (pointer: coarse) { .expr-kb, .expr-sign { display: inline-flex; align-items: center; justify-content: center; } }
+#app[data-layout="phone"] .expr-kb, #app[data-layout="phone"] .expr-sign, #app[data-layout="tablet"] .expr-kb, #app[data-layout="tablet"] .expr-sign { min-width: var(--tap); min-height: var(--tap); }
+
+/* the view cube: one finger orbits it, a tap on a face snaps to that view; large enough for a finger */
+#app[data-layout="phone"] .viewcube, #app[data-layout="tablet"] .viewcube { width: 80px !important; height: 80px !important; touch-action: none; }
+#app[data-layout="phone"] .cube-tools, #app[data-layout="tablet"] .cube-tools { top: 148px; }
+
+/* the busy pill: one line, never wrapped in the middle of a phrase; Cancel is its own button */
+.busy-overlay { width: max-content; max-width: calc(100% - 32px); }   /* an absolute box at left: 50% would only be offered half the width and wrap its words */
+.busy-overlay > span:not(.busy-spin) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.busy-spin { flex: none; }
+.busy-cancel { flex: none; white-space: nowrap; }
+#app[data-layout="tablet"] .busy-cancel { min-height: var(--tap); min-width: 72px; border-radius: 22px; }
+#app[data-layout="phone"] .busy-overlay { top: 8px; padding: 4px 4px 4px 14px; gap: 10px; }
+#app[data-layout="phone"] .busy-cancel { min-height: var(--tap); min-width: 72px; border-radius: 22px; }
+
+/* ---- tablet: the same slimming, one top bar row and no strip for a single document (the ribbon keeps its tabs and tools) */
+#app[data-layout="tablet"] .topbar { flex-wrap: nowrap; gap: 4px; padding-top: max(2px, env(safe-area-inset-top, 0px)); padding-bottom: 2px; }
+#app[data-layout="tablet"] .topbar .doc-name { flex: 1 1 0; min-width: 0; max-width: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#app[data-layout="tablet"] .topbar .update-note { margin-right: 0; font-size: 11px; }
+#app[data-layout="tablet"] .topbar .tb-new { display: none; }
+#app[data-layout="tablet"] .search-btn { flex: 0 1 180px; }
+#app[data-layout="tablet"] .search-btn kbd { display: none; }
+#app[data-layout="tablet"] .tabbar:not(:has(.tab ~ .tab)) { display: none; }

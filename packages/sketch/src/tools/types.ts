@@ -34,8 +34,10 @@ export interface ToolSettings {
   autoConstraints: boolean;
   arcSwitch: 'hover' | 'keys' | 'off';
   onViewValues: 'both' | 'dimensions' | 'off';
+  /** A typed angle in the Line tool also makes a driving angle dimension between the new line and the previous one (default on). */
+  typedAngleDims?: boolean;
 }
-export const DEFAULT_SETTINGS: ToolSettings = { autoConstraints: true, arcSwitch: 'hover', onViewValues: 'dimensions' };
+export const DEFAULT_SETTINGS: ToolSettings = { autoConstraints: true, arcSwitch: 'hover', onViewValues: 'dimensions', typedAngleDims: true };
 
 export type ToolEvent =
   | { type: 'move'; at: Pt; snap?: SnapHit; mods: Modifiers }
@@ -57,6 +59,8 @@ export interface FieldSpec {
   unit: 'length' | 'angle' | 'count';
   /** The expression (no leading =) the value is linked to, when it has one. */
   expr?: string;
+  /** A small switch beside the field (the line tool's relative angle): clicking it sends a `field` event with this id and 1 (turn on) or 0. */
+  toggle?: { id: string; on: boolean; /** i18n keys */ label: string; tip: string };
 }
 
 export interface ToolOutput<S> {

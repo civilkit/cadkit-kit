@@ -43,16 +43,25 @@ export function nextBodyName(used: ReadonlySet<string>): string {
 }
 
 /** The fields the Operation control sets: a new body gets a name of its own (kept when it has one) and has no target body; the others have no body name. */
-export function opPatch(choice: ExtrudeOp, current: { body?: unknown }, used: ReadonlySet<string>): Record<string, unknown> {
+export function opPatch(choice: ExtrudeOp, current: { body?: unknown; target?: unknown }, used: ReadonlySet<string>): Record<string, unknown> {
   if (choice === 'cut') return { op: 'cut', body: null };
   if (choice === 'new') return { op: 'newBody', flip: null, target: null, body: typeof current.body === 'string' && current.body ? current.body : nextBodyName(used) };
-  return { op: 'add', flip: null, body: null };
+  // an Add joins one body: a Cut-from list of several does not carry over
+  return { op: 'add', flip: null, body: null, ...(targetBodiesOf(current).length > 1 ? { target: null } : {}) };
 }
 
-/** The body an Add or Cut is aimed at: its name, '' when it acts on every body the shape reaches. */
+/** The bodies an Add or Cut is aimed at, by name: the `target` of the feature as one selection or a list; empty when it acts on every body the shape reaches. */
+export const targetBodiesOf = (eff: { target?: unknown }): string[] => {
+  const t = eff.target;
+  const one = (x: unknown): string[] => (x && typeof x === 'object' && typeof (x as { body?: unknown }).body === 'string' ? [(x as { body: string }).body] : []);
+  return Array.isArray(t) ? t.flatMap(one) : one(t);
+};
+/** The one body an Add is aimed at: its name, '' when it acts on every body the shape reaches (or on several). */
 export const targetBodyOf = (eff: { target?: unknown }): string => {
-  const t = eff.target as { body?: unknown } | null | undefined;
-  return t && typeof t === 'object' && typeof t.body === 'string' ? t.body : '';
+  const names = targetBodiesOf(eff);
+  return names.length === 1 ? names[0] : '';
 };
 /** The patch the Target body control sets: `{body: name}`, or no target for Automatic. */
 export const targetPatch = (name: string): Record<string, unknown> => ({ target: name ? { body: name } : null });
+/** The patch the Cut from control sets: a list of the chosen bodies, or no target (every body the cut reaches) when none is chosen. */
+export const cutFromPatch = (names: readonly string[]): Record<string, unknown> => ({ target: names.length ? names.map((body) => ({ body })) : null });

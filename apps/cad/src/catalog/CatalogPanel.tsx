@@ -58,7 +58,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
         </select>
       </label>
       <label title={t('catalog.place.wall.tip')}>{t('catalog.place.wall')}
-        <input type="number" min="0" step="0.5" value={sphereWall.value} onInput={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); sphereWall.value = n > 0 ? n : 0; }} />
+        <input type="number" inputMode="decimal" enterKeyHint="done" min="0" step="0.5" value={sphereWall.value} onInput={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); sphereWall.value = n > 0 ? n : 0; }} />
       </label>
       <label class="place-mirror"><input type="checkbox" checked={s.mirror} onChange={(e) => set({ mirror: (e.currentTarget as HTMLInputElement).checked })} />{t('catalog.place.mirror')}</label>
     </div>

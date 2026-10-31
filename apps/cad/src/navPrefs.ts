@@ -23,3 +23,9 @@ export function loadNavPrefs(storage: Pick<Storage, 'getItem'> | null = typeof l
 export function saveNavPrefs(p: NavPrefs, storage: Pick<Storage, 'setItem'> | null = typeof localStorage === 'undefined' ? null : localStorage): void {
   try { storage?.setItem(KEY, JSON.stringify(p)); } catch { /* private window: keep the setting for this session only */ }
 }
+
+/** The up axis a document asks for (its `upAxis` field, written by a script's part().upAxis()), or null. It is a view hint: the camera only, never saved as the user's setting. */
+export function docUpAxis(doc: unknown): UpAxis | null {
+  const v = doc && typeof doc === 'object' ? (doc as { upAxis?: unknown }).upAxis : undefined;
+  return (UP_AXES as readonly unknown[]).includes(v) ? (v as UpAxis) : null;
+}

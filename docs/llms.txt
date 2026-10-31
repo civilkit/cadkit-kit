@@ -89,8 +89,10 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.cvspline(pts, o?)`: Control-vertex spline: the points are the control polygon, not on the curve.
 * `s.grid(origin, pitch, count)`: Points on a rectangular grid.
 * `s.line(a, b)`: One line segment between two points.
+* `s.offset(distance, o?)`: Offset the chain drawn last.
 * `s.point(at)`: A single point (a hole centre).
 * `s.points(pts)`: Several points (hole centres).
+* `s.polar(count, draw, o?)`: Repeat a drawing around a centre.
 * `s.polarPoints(center, radius, n, startAngle?)`: Points on a circle: a bolt circle of centres.
 * `s.polygon(pts)`: Closed polygon through the points.
 * `s.polyline(pts)`: Open chain of lines through the points.
@@ -104,6 +106,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `bearing(o)`: A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
 * `.bearing(o)`: A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
 * `.chamfer(on, distance)`: Bevel edges: equal distance, two distances, or distance and angle.
+* `.combine(op, target, tools, o?)`: Boolean between whole bodies: union, cut or intersect.
 * `.cut(end, o?)`: Cut the last sketch out of the body: a depth or through().
 * `.extrude(depth, o?)`: Extrude the last sketch into a solid (adds material).
 * `.feature(json)`: Append any kernel feature as raw JSON (escape hatch for features without a helper).
@@ -173,9 +176,11 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.faces()`: Read the faces of the part built so far: persistent name, kind, area, normal, centre, radius, feature.
 * `.group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
 * `.handle(label?)`: A handle on the feature recorded last, for face({ of }) and patterns.
+* `.inertia(density?)`: Read the mass, first moments, inertia tensor and principal axes of the part built so far.
 * `.issues()`: Read the validator's issues for the part built so far.
 * `.isValid()`: Read whether the part built so far passes the kernel's validity check.
 * `.textMetrics(string, opts?)`: Measure a string before drawing it: width, ink box and per-letter advances.
+* `.upAxis(axis)`: Z-up or Y-up view hint.
 * `.volume()`: Read the volume (mm3) of the part built so far.
 * `variables(defs)`: Declare named values; strings are expressions over earlier ones.
 

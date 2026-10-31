@@ -58,6 +58,27 @@ export const miscFeatures = {
   },
 
   /**
+   * Boolean between whole bodies: union, cut or intersect.
+   *
+   * Builds the combine feature the Bodies panel makes: the target body is united with, cut by or intersected with the tool bodies, which are used up (keepTools: true keeps them). Bodies are named in the document by newBody: 'Name' on an extrude, revolve, loft or sweep (a name matches every body of that name, so one sketch with several loops gives one tool). Use it for cutters that must not touch the other bodies: build the cutter as a newBody, then cut a named target with it. A target or tool that does not exist is an error with the names the document has.
+   * @domain features
+   * @param op 'union' | 'cut' | 'intersect'
+   * @param target name of the body that is kept (and changed)
+   * @param tools name or names of the bodies it is combined with
+   * @param o.keepTools keep the tool bodies (default: they are used up)
+   * @example
+   * part('Cup').sketch('front', (s) => s.circle(20)).extrude(30, { newBody: 'Cup' })
+   *   .sketch('front', (s) => s.circle(17)).extrude(28, { newBody: 'Core' })
+   *   .combine('cut', 'Cup', 'Core');
+   * @see part.feature, part.extrude, part.revolve
+   */
+  combine(this: PartBuilder, op: 'union' | 'cut' | 'intersect', target: string, tools: string | string[], o: { keepTools?: boolean } = {}): PartBuilder {
+    const names = Array.isArray(tools) ? tools : [tools];
+    if (typeof target !== 'string' || !target || !names.length || names.some((n) => typeof n !== 'string' || !n)) throw new H.SelectorError('combine(op, target, tools): target and tools are body names, e.g. combine("cut", "Cup", "Core")', H.callerLine());
+    return this.feature({ type: 'combine', op, target: { body: target }, tools: names.map((n) => ({ body: n })), ...(o.keepTools ? { keepTools: true } : {}) });
+  },
+
+  /**
    * Append a raw sketch (points, entities, constraints) on a plane.
    *
    * For sketches the builder cannot draw: pass the kernel's sketch JSON { points, entities, constraints? } and the plane ('front' | 'top' | 'right', at(plane, offset) or face(sel)). The next extrude, cut, revolve or rib consumes it. Point ids and entity ids are yours; remember the origin point O exists only if you declare it.

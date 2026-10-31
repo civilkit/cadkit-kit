@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { t } from '../i18n';
 import { ago } from './strings';
 import { fileNameFor, isCompressedName } from './names';
@@ -14,15 +14,17 @@ const useEscape = (f: () => void) => useEffect(() => {
 /** On start: a session was left that was never saved to a file. */
 export function RestoreDialog(p: { name: string; savedAt: number; now?: number; onRestore(): void; onNew(): void; onVersions?(): void }) {
   // no Escape here: dismissing must not throw the stored session away by accident
+  const restore = useRef<HTMLButtonElement>(null);
+  useEffect(() => { restore.current?.focus(); }, []);   // keyboard: Enter restores, Tab reaches Start new (the attribute alone does not move focus in a page that is already loaded)
   return (
-    <div class="dlg-back">
-      <div class="dlg discard-dlg" role="alertdialog" aria-label={t('files.restore.title')}>
+    <div class="dlg-back" data-testid="restore-dialog">
+      <div class="dlg discard-dlg" role="alertdialog" aria-modal="true" aria-label={t('files.restore.title')}>
         <div class="dlg-head"><b>{t('files.restore.title')}</b></div>
         <div class="discard-body">{t('files.restore.text', { name: p.name, when: ago(p.savedAt, p.now ?? Date.now(), t) })}</div>
         <div class="discard-actions">
-          {p.onVersions ? <button class="rb-btn" onClick={p.onVersions}>{t('files.restore.versions')}</button> : null}
-          <button class="rb-btn" onClick={p.onNew}>{t('files.restore.new')}</button>
-          <button class="rb-btn ok" autofocus onClick={p.onRestore}>{t('files.restore.restore')}</button>
+          {p.onVersions ? <button type="button" class="rb-btn" data-testid="restore-versions" aria-label={t('files.restore.versions')} onClick={p.onVersions}>{t('files.restore.versions')}</button> : null}
+          <button type="button" class="rb-btn" data-testid="restore-new" aria-label={t('files.restore.new')} onClick={p.onNew}>{t('files.restore.new')}</button>
+          <button type="button" class="rb-btn ok" ref={restore} autofocus data-testid="restore-restore" aria-label={t('files.restore.restore')} onClick={p.onRestore}>{t('files.restore.restore')}</button>
         </div>
       </div>
     </div>

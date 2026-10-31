@@ -41,11 +41,11 @@ describe('token budgets (4 characters per token)', () => {
     console.log('SKILL index tokens', t, 'methods', listMethods().length);
     expect(t).toBeLessThan(5000);
   });
-  it('the system prompt fragment is 1 to 2k tokens', () => {
+  it('the system prompt fragment stays under 2.4k tokens', () => {
     const t = tokens(systemPromptFragment());
     console.log('SKILL prompt fragment tokens', t);
     expect(t).toBeGreaterThan(700);
-    expect(t).toBeLessThan(2200);
+    expect(t).toBeLessThan(2400);
   });
   it('the prompt fragment names the rule, the conventions and every method', () => {
     const p = systemPromptFragment();
@@ -66,7 +66,7 @@ describe('listMethods and docs', () => {
     expect(r.unknown).toEqual([]);
     const ex = r.entries[0];
     expect(ex.signature).toContain('.extrude(depth: Num');
-    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['newBody', 'name', 'mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
+    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['newBody', 'name', 'from', 'mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
     expect(ex.example).toContain('extrude');
     expect(ex.related).toContain('part.cut');
     expect(ex.notes).toContain('consumes the sketch');

@@ -464,3 +464,10 @@ describe('FeatureTree with a long list', () => {
     expect(container.querySelector('.rb-bar')).toBeNull();   // the marker sits after row 600, outside the window
   });
 });
+
+describe('FeatureTree automation hooks', () => {
+  it('each row has a test id by feature id', () => {
+    const { container } = render(<FeatureTree rows={[{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude' }]} status={[]} selectedId={null} onSelect={() => {}} onMove={() => {}} onRemove={() => {}} onToggleSuppress={() => {}} />);
+    expect(container.querySelector('[data-testid="tree-row-F2"]')!.getAttribute('data-id')).toBe('F2');
+  });
+});

@@ -174,7 +174,7 @@ export function LengthRow(p: { custom: boolean; value: number | null; fullLength
       onChange={(v) => p.onMode(v === 'custom')}
       trail={p.custom ? (
         <span class="fedit-num fedit-inline" data-path="length">
-          <input type="number" step="any" min={p.min !== undefined ? String(p.min) : '0'} max={p.max !== null ? String(p.max) : undefined} aria-label={t('thread.length')}
+          <input type="number" inputMode="decimal" enterKeyHint="done" step="any" min={p.min !== undefined ? String(p.min) : '0'} max={p.max !== null ? String(p.max) : undefined} aria-label={t('thread.length')}
             title={p.max !== null ? t('thread.length.max', { v: fmt(p.max) }) : undefined} value={p.value === null ? '' : fmt(p.value)}
             onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v) && v > 0) p.onValue(v); }} />
           <span class="fedit-unit">mm</span>
@@ -199,7 +199,7 @@ export function ClearanceRow(p: { dir: ThreadClearance; mm: number; onDir(d: Thr
       onChange={p.onDir}
       trail={p.dir !== 'none' ? (
         <span class="fedit-num fedit-inline" data-path="clearanceValue">
-          <input type="number" step="0.05" min="0.01" max={String(CLEARANCE_MAX)} aria-label={t('thread.clearance')} value={fmt(p.mm)}
+          <input type="number" inputMode="decimal" enterKeyHint="done" step="0.05" min="0.01" max={String(CLEARANCE_MAX)} aria-label={t('thread.clearance')} value={fmt(p.mm)}
             onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v) && v > 0) p.onValue(v); }} />
           <span class="fedit-unit">mm</span>
         </span>

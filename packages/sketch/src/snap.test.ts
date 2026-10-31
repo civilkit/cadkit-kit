@@ -18,6 +18,12 @@ describe('snapAt', () => {
   it('lands on a line midpoint and names the line', () => {
     expect(snapAt(draft(), { x: 10.1, y: 4.1 }, { tolerance: 0.5 })).toMatchObject({ kind: 'midpoint', entityId: 'e1', at: { x: 10, y: 4 } });
   });
+  it('an alignment keeps the other coordinate on the grid when the grid is on and near', () => {
+    const at = snapAt(draft(), { x: 10.2, y: 20.04 }, { tolerance: 0.5, grid: 5 });
+    expect(at).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'p1' } });
+    expect(snapAt(draft(), { x: 10.2, y: 21.5 }, { tolerance: 0.5, grid: 5 })).toEqual({ kind: 'align', at: { x: 10, y: 21.5 }, alignTo: { x: 'p1' } });   // too far from a grid line: raw
+    expect(snapAt(draft(), { x: 10.2, y: 20.04 }, { tolerance: 0.5, grid: 5, kinds: { grid: false } })).toEqual({ kind: 'align', at: { x: 10, y: 20.04 }, alignTo: { x: 'p1' } });
+  });
   it('aligns with other points in x, y or both', () => {
     expect(snapAt(draft(), { x: 10.2, y: 20 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'p1' } });
     expect(snapAt(draft(), { x: 30, y: 8.2 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 30, y: 8 }, alignTo: { y: 'p2' } });

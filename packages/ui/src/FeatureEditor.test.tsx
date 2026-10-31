@@ -253,3 +253,30 @@ describe('inject (the depth arrow in the viewport)', () => {
     expect(confirmed.at(-1)).toEqual({ depth: 12.5, flip: true });
   });
 });
+
+describe('FeatureEditor automation hooks', () => {
+  it('OK and Cancel have test ids and accessible names', () => {
+    let ok = 0, no = 0;
+    const { container } = render(<FeatureEditor feature={EXTRUDE} onDraft={() => {}} onConfirm={() => { ok++; }} onCancel={() => { no++; }} />);
+    const a = container.querySelector('[data-testid="feature-ok"]') as HTMLElement, b = container.querySelector('[data-testid="feature-cancel"]') as HTMLElement;
+    expect([a.getAttribute('aria-label'), b.getAttribute('aria-label')]).toEqual(['Confirm', 'Cancel']);
+    fireEvent.click(a); fireEvent.click(b);
+    expect([ok, no]).toEqual([1, 1]);
+  });
+});
+
+describe('numeric keypads', () => {
+  it('Depth asks for the decimal keypad with a Done key, and has a formula key and a sign key', () => {
+    const { container } = render(<FeatureEditor feature={EXTRUDE} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    const i = container.querySelector('[data-path="depth"] input') as HTMLInputElement;
+    expect(i.getAttribute('inputmode')).toBe('decimal');
+    expect(i.getAttribute('enterkeyhint')).toBe('done');
+    expect(container.querySelector('[data-path="depth"] .expr-kb')).toBeTruthy();
+    expect(container.querySelector('[data-path="depth"] .expr-sign')).toBeTruthy();
+  });
+  it('a count asks for the digit pad', () => {
+    const { container } = render(<FeatureEditor feature={{ type: 'cpattern', id: 'F5', seed: 'F2', count: 6, angle: 360 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
+    expect((container.querySelector('[data-path="count"] input') as HTMLInputElement).getAttribute('inputmode')).toBe('numeric');
+    expect((container.querySelector('[data-path="angle"] input') as HTMLInputElement).getAttribute('inputmode')).toBe('decimal');
+  });
+});

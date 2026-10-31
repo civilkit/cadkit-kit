@@ -1,9 +1,28 @@
 // One-click fixes the feature editor offers next to a refused edit (pure; main.tsx applies them to the draft).
-//   shell too thick + the kernel's maxThickness  ->  Use suggested thickness
+//   a size too large + the kernel's maxSize      ->  Use the largest size (X mm)   (any feature: shell, move face, draft, thin wall, hole, and fillet / chamfer once the kernel names one)
+//   shell too thick + the kernel's maxThickness  ->  Use suggested thickness       (older kernels, no maxSize)
 //   cut that misses the body                     ->  Flip direction (with the message `The cut does not touch the body in this direction. Flip?`)
 import { t } from './i18n';
+import { maxSizeOf, maxSizeText, type MaxSize } from './diagnosticsText';
 
-export type EditorFix = { key: 'thickness'; label: string; path: 'thickness'; value: number } | { key: 'flip'; label: string; path: 'flip'; value: boolean };
+export type EditorFix = { key: 'thickness'; label: string; path: 'thickness'; value: number } | { key: 'flip'; label: string; path: 'flip'; value: boolean } | { key: 'maxSize'; label: string; path: string; value: unknown };
+
+/** The draft patch that puts the kernel's largest size in its field: a top-level field that holds a number (or is not set), or one level down in an object (`thin.thickness`). Null when the field holds something else (a variable fillet's radii pair) or already has that value. */
+export function maxSizeFix(m: MaxSize, eff: Record<string, unknown>): Extract<EditorFix, { key: 'maxSize' }> | null {
+  const label = t('diag.fix.maxSize', { size: maxSizeText(m) });
+  const [head, ...rest] = m.param.split('.');
+  if (rest.length > 1) return null;
+  if (rest.length === 1) {
+    const parent = eff[head];
+    if (!parent || typeof parent !== 'object' || Array.isArray(parent)) return null;
+    const cur = (parent as Record<string, unknown>)[rest[0]];
+    if ((cur !== undefined && typeof cur !== 'number') || cur === m.value) return null;
+    return { key: 'maxSize', label, path: head, value: { ...(parent as Record<string, unknown>), [rest[0]]: m.value } };
+  }
+  const cur = eff[head];
+  if ((cur !== undefined && typeof cur !== 'number') || cur === m.value) return null;
+  return { key: 'maxSize', label, path: head, value: m.value };
+}
 export interface EditorFixes { /** replaces the generic advice line */ message?: string; fixes: EditorFix[] }
 
 /** The largest wall with one decimal that stays under the kernel's maximum (0.05 steps when even 0.1 is too thick). */
@@ -24,9 +43,15 @@ export function defaultShellThickness(box: { min: number[]; max: number[] } | nu
   return Math.round(Math.max(1, 0.02 * smallest) * 10) / 10;
 }
 
-export function editorFixes(root: { code: string; params?: Record<string, unknown> } | null | undefined, feature: Record<string, unknown> | null | undefined, draft: Record<string, unknown> = {}): EditorFixes {
+export function editorFixes(root: { id?: string; code: string; params?: Record<string, unknown> } | null | undefined, feature: Record<string, unknown> | null | undefined, draft: Record<string, unknown> = {}): EditorFixes {
   if (!root || !feature) return { fixes: [] };
   const eff = { ...feature, ...draft };
+  const max = maxSizeOf(root.params);
+  // the size is the refused feature's own field: not offered when the edit broke a later feature
+  if (max && (root.id === undefined || feature.id === undefined || root.id === feature.id)) {
+    const fix = maxSizeFix(max, eff);
+    return { fixes: fix ? [fix] : [] };
+  }
   if (feature.type === 'shell') {
     const v = suggestedThickness(root.params?.maxThickness);
     if (v !== null && v !== eff.thickness) return { fixes: [{ key: 'thickness', label: t('diag.fix.shellThickness', { value: String(v) }), path: 'thickness', value: v }] };

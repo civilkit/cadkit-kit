@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from '../index';
 import { DEFAULT_SETTINGS, type Modifiers, type Pt, type Tool, type ToolEvent, type ToolOutput } from './types';
-import { lineTool } from './line';
+import { absoluteAngle, lineTool, setRelativeAngle, turnAngle } from './line';
 import { rectangleTool } from './rectangle';
 import { centerRectangleTool } from './center-rectangle';
+import { splineTool } from './spline';
 
 const M: Modifiers = { shift: false, ctrl: false, alt: false };
 const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, points: [], entities: [], constraints: [], temp: [] });
@@ -172,5 +173,154 @@ describe('centre rectangle tool with Alt', () => {
     const alt: Modifiers = { shift: false, ctrl: false, alt: true };
     const o = run(centerRectangleTool, [click(0, 0), { type: 'move', at: { x: 2, y: 5 }, mods: alt }, { type: 'click', at: { x: 2, y: 5 }, mods: alt }]);
     expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[0, 0], [-5, -5], [5, -5], [5, 5], [-5, 5]]);
+  });
+});
+
+const field = (id: string, value: number | null, commit = true): ToolEvent => ({ type: 'field', id, value, commit });
+const key = (k: string): ToolEvent => ({ type: 'key', key: k });
+/** A typed segment: len and ang locked (the second lock places it). */
+const typed = (len: number, ang: number): ToolEvent[] => [move(1, 1), field('len', len), field('ang', ang)];
+
+describe('line tool: typed first point and typed closing', () => {
+  it('Tab before the first click shows X and Y; locking both places the first point exactly there', () => {
+    let o = run(lineTool, [move(7.3, 4.1), key('Tab')]);
+    expect(o.fields.map((f) => f.id)).toEqual(['x', 'y']);
+    expect(o.hint).toBe('app.sketch.hint.lineTypeStart');
+    o = lineTool.step(o.state, field('x', 0), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.points).toHaveLength(0);               // not yet: Y is still open
+    expect(o.fields.find((f) => f.id === 'x')?.locked).toBe(true);
+    o = lineTool.step(o.state, field('y', 0), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[0, 0]]);
+    expect(o.state.first).toBe('p1');
+    expect(o.state.start).toBeUndefined();
+  });
+  it('the first point lands on an existing point at those coordinates (no duplicate)', () => {
+    const base = run(lineTool, [click(0, 0), key('Escape'), key('Escape')]);
+    const o = run(lineTool, [key('Tab'), field('x', 0), field('y', 0)], { ...base.draft });
+    expect(o.state.first).toBe(base.draft.points[0].id);
+    expect(o.draft.points).toHaveLength(1);
+  });
+  it('a click with only X typed takes Y from the pointer; Escape drops the typing, not the tool', () => {
+    let o = run(lineTool, [move(3, 9), key('Tab'), field('x', 5)]);
+    o = lineTool.step(o.state, click(3, 9), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.points.map((p) => [p.x, p.y])).toEqual([[5, 9]]);
+    const esc = run(lineTool, [key('Tab'), key('Escape')]);
+    expect(esc.state.start).toBeUndefined();
+    expect(esc.fields).toEqual([]);
+  });
+  it('a typed segment that ends exactly on the start closes the loop with the shared point and ends the chain', () => {
+    const o = run(lineTool, [key('Tab'), field('x', 0), field('y', 0), ...typed(10, 0), ...typed(10, 90), ...typed(10, 180), ...typed(10, 270)]);
+    expect(o.draft.points).toHaveLength(4);                       // no fifth point on top of the start
+    expect(o.draft.entities.map((e) => [e.p1, e.p2])).toEqual([['p1', 'p2'], ['p2', 'p3'], ['p3', 'p4'], ['p4', 'p1']]);
+    expect(o.state.last).toBeUndefined();                          // the chain ended
+    expect(o.preview).toEqual([]);                                 // no rubber band from the start
+    const esc = lineTool.step(o.state, key('Escape'), o.draft, DEFAULT_SETTINGS);
+    expect(esc.draft.entities).toHaveLength(4);
+  });
+  it('two typed segments back to the start do not close a 2-point sliver', () => {
+    const o = run(lineTool, [click(0, 0), ...typed(10, 0), ...typed(10, 180)]);
+    expect(o.state.last).toBeDefined();
+    expect(o.draft.points).toHaveLength(3);
+  });
+  it('says what to do in the hint line', () => {
+    expect(run(lineTool, [move(1, 1)]).hint).toBe('app.sketch.hint.lineStart');
+    expect(run(lineTool, [click(0, 0), move(5, 5)]).hint).toBe('app.sketch.hint.lineNext');
+  });
+});
+
+describe('spline tool: finishing', () => {
+  it('Enter finishes, and so does a second click on the last point; the hint line says how', () => {
+    const picked = run(splineTool, [click(0, 0), click(10, 5), click(20, 0)]);
+    expect(picked.hint).toBe('app.sketch.hint.curveNext');
+    expect(run(splineTool, [move(1, 1)]).hint).toBe('app.sketch.hint.curveStart');
+    const enter = splineTool.step(picked.state, key('Enter'), picked.draft, DEFAULT_SETTINGS);
+    expect(enter.draft.entities.map((e) => e.type)).toEqual(['spline']);
+    const dbl = splineTool.step(picked.state, click(20, 0), picked.draft, DEFAULT_SETTINGS);
+    expect(dbl.draft.entities.map((e) => e.type)).toEqual(['spline']);
+  });
+});
+
+describe('line tool: relative (turn) angle', () => {
+  it('the angle maths: a turn adds to the previous direction and wraps to -180..180', () => {
+    expect(absoluteAngle(90, 90)).toBe(180);
+    expect(absoluteAngle(170, 20)).toBe(-170);
+    expect(absoluteAngle(0, -90)).toBe(-90);
+    expect(turnAngle(90, 0)).toBe(-90);
+    expect(turnAngle(-170, 170)).toBe(-20);
+    expect(turnAngle(30, 30)).toBe(0);
+  });
+  it('is off by default (absolute); on, a typed 90 turns left from the previous segment, and the box shows the turn', () => {
+    setRelativeAngle(false);
+    try {
+      let o = run(lineTool, [click(0, 0), ...typed(10, 0)]);                  // first segment along +x
+      expect(o.fields.find((f) => f.id === 'ang')?.toggle).toMatchObject({ id: 'turn', on: false });
+      // absolute: 90 is straight up
+      const abs = run(lineTool, [click(0, 0), ...typed(10, 0), ...typed(5, 90)]);
+      expect(abs.draft.points[2].x).toBeCloseTo(10); expect(abs.draft.points[2].y).toBeCloseTo(5);
+      // relative: from a segment going UP, a turn of 90 goes LEFT (-x)
+      o = lineTool.step(o.state, { type: 'field', id: 'turn', value: 1 }, o.draft, DEFAULT_SETTINGS);
+      expect(o.fields.find((f) => f.id === 'ang')?.toggle?.on).toBe(true);
+      const up = run(lineTool, [click(0, 0), ...typed(10, 90)]);
+      let r = lineTool.step(up.state, { type: 'field', id: 'turn', value: 1 }, up.draft, DEFAULT_SETTINGS);
+      r = lineTool.step(r.state, move(1, 1), r.draft, DEFAULT_SETTINGS);
+      r = lineTool.step(r.state, field('len', 5), r.draft, DEFAULT_SETTINGS);
+      r = lineTool.step(r.state, field('ang', 90), r.draft, DEFAULT_SETTINGS);
+      expect(r.draft.points[2].x).toBeCloseTo(-5); expect(r.draft.points[2].y).toBeCloseTo(10);
+      // straight on is a turn of 0, and the box shows the turn for a pointer-driven end too
+      const s = lineTool.step(r.state, move(-5, 20), r.draft, DEFAULT_SETTINGS);
+      expect(s.fields.find((f) => f.id === 'ang')?.value).toBeCloseTo(-90);      // the last segment went left (180), the pointer heads up (90): a right turn
+    } finally { setRelativeAngle(false); }
+  });
+  it('the T key toggles it and drops a typed angle that the new mode would misread', () => {
+    setRelativeAngle(false);
+    try {
+      const o = run(lineTool, [click(0, 0), ...typed(10, 0), move(3, 3), field('ang', 45)]);
+      expect(o.state.locked.ang).toBe(45);
+      const t = lineTool.step(o.state, key('t'), o.draft, DEFAULT_SETTINGS);
+      expect(t.state.locked.ang).toBeUndefined();
+      expect(t.fields.find((f) => f.id === 'ang')?.toggle?.on).toBe(true);
+      const first = run(lineTool, [click(0, 0), move(3, 3)]);
+      expect(first.fields.find((f) => f.id === 'ang')?.toggle).toBeUndefined();      // no previous segment: nothing to turn from
+    } finally { setRelativeAngle(false); }
+  });
+});
+
+describe('line tool: a typed angle becomes an angle dimension', () => {
+  const angles = (o: ToolOutput<unknown>) => o.draft.constraints.filter((c) => c.type === 'angle');
+  const first = (extra: ToolEvent[]) => run(lineTool, [click(0, 0), ...extra]);
+  it('the interior angle between the new line and the previous one, as a driving angle constraint', () => {
+    const o = first([...typed(10, 0), ...typed(10, 135)]);
+    expect(angles(o)).toHaveLength(1);
+    expect([...angles(o)[0].refs!].sort()).toEqual(['e1', 'e2']);
+    expect(angles(o)[0].value).toBeCloseTo(45, 6);           // directions 180 (back along the first line) and 135 degrees
+    // the first segment, typed 0, is horizontal; typed 90 on the second is a right angle between them: dimensioned (and drawn as a square corner)
+    const sq = first([...typed(10, 0), ...typed(10, 90)]);
+    expect(sq.draft.constraints.filter((c) => c.type === 'horizontal').map((c) => c.refs)).toEqual([['e1']]);
+    expect(angles(sq)[0].value).toBeCloseTo(90, 6);
+  });
+  it('a right angle between lines that are not horizontal / vertical is kept as a dimension', () => {
+    const o = first([...typed(10, 30), ...typed(10, 120)]);
+    expect(angles(o)[0].value).toBeCloseTo(90, 6);
+  });
+  it('relative mode: a left turn of 90 is an interior angle of 90; a turn of 45 is 135', () => {
+    setRelativeAngle(true);
+    try {
+      const o = first([...typed(10, 30), ...typed(10, 90)]);        // the first segment is absolute (nothing to turn from), the second turns 90 left
+      expect(angles(o)[0].value).toBeCloseTo(90, 6);
+      const p = first([...typed(10, 30), ...typed(10, -45)]);
+      expect(angles(p)[0].value).toBeCloseTo(135, 6);
+    } finally { setRelativeAngle(false); }
+  });
+  it('none for the first segment, for a clicked segment, with the setting off, or for the segment that closes the outline', () => {
+    expect(angles(first(typed(10, 30)))).toEqual([]);
+    expect(first(typed(10, 90)).draft.constraints.filter((c) => c.type === 'vertical')).toHaveLength(1);        // typed 90 as the first segment: vertical, no angle dimension
+    expect(angles(first([...typed(10, 30), click(20, 20)]))).toEqual([]);
+    const off = run(lineTool, [click(0, 0), ...typed(10, 30), ...typed(10, 120)], empty(), { ...DEFAULT_SETTINGS, typedAngleDims: false });
+    expect(angles(off)).toEqual([]);
+    // a triangle drawn by typing: the third (closing) segment ends on the start and gets no angle, with a hint
+    const tri = first([...typed(10, 0), ...typed(10, 120), ...typed(10, 240)]);
+    expect(tri.state.last).toBeUndefined();
+    expect(angles(tri)).toHaveLength(1);
+    expect(tri.hint).toBe('app.sketch.hint.angleSkipped');
   });
 });

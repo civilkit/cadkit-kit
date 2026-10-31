@@ -39,14 +39,14 @@ describe('Look normal', () => {
     fireEvent.click(btns[0]);
     expect(props.onLookNormal).toHaveBeenCalled();
   });
-  it('the option Auto look normal for new sketches is off by default and toggles', () => {
-    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(false);
+  it('the option Auto look normal for new sketches is on by default and toggles', () => {
+    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(true);
     const { container, props } = bar(st({}));
     fireEvent.click(container.querySelector('.aux-pop button')!);
     const box = container.querySelector('[data-pref="autoLookNormal"]') as HTMLInputElement;
-    expect(box.checked).toBe(false);
+    expect(box.checked).toBe(true);
     fireEvent.click(box);
-    expect(props.onPrefs).toHaveBeenCalledWith({ autoLookNormal: true });
+    expect(props.onPrefs).toHaveBeenCalledWith({ autoLookNormal: false });
   });
 });
 
@@ -168,5 +168,14 @@ describe('Extrude and Revolve buttons', () => {
     expect(container.querySelector('[data-action="sketch-extrude"]')).toBeNull();
     fireEvent.click(container.querySelector('.rb-btn.ok')!);
     expect(props.onOk).toHaveBeenCalled();
+  });
+});
+
+describe('angle dimensions', () => {
+  it('double-clicking an angle label edits it', () => {
+    const onEdit = vi.fn();
+    const { container } = render(<SketchAnnotations items={[{ id: 'k9', text: '135°', kind: 'dimension', type: 'angle', x: 10, y: 10 }]} hot={null} onEdit={onEdit} onHover={() => {}} />);
+    fireEvent.dblClick(container.querySelector('.annot.dimension')!);
+    expect(onEdit).toHaveBeenCalledWith('k9');
   });
 });

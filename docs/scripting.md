@@ -36,7 +36,7 @@ Part methods (each adds one feature, in order):
 | `.handle()` | a handle on the feature recorded last (for `{of}` and patterns) |
 | `.appearance({ feature \| body \| face, colour, opacity, finish })` | colour (`'#rrggbb'`), opacity 0.05 to 1 and finish (`matte plastic chrome glass brushed`) of the bodies a feature made, or `face: 'F3.*'` / a handle for faces; view state, adds no feature (docs/bodies-appearance.md) |
 | `.bodyName(handle \| 'F12', name)` | the name shown in the Bodies list |
-| `await .volume() / .area() / .bbox() / .centreOfMass() / .faceCount() / .edgeCount() / .isValid() / .issues() / .faces() / .edges()` | read-back (see Reading results back) |
+| `await .volume() / .area() / .bbox() / .centreOfMass() / .inertia(density) / .faceCount() / .edgeCount() / .isValid() / .issues() / .faces() / .edges()` | read-back (see Reading results back) |
 | `.expectVolume(v, {tol \| abs})`, `.expectValid()`, `.expectBBox({min,max,size})`, `.expectFaceCount(n)` | assertions that add an error with the script line |
 
 ### More features (loft, sweep, mirror, holes, surfaces, ...)
@@ -188,7 +188,7 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
  .expectValid().expectBBox({ size: [60, 40, 10] }).expectFaceCount(7);
 ```
 
-* Accessors (all `await`): `volume() area() bbox() centreOfMass() faceCount() edgeCount() isValid() issues() faces() edges()`. `faces()` areas and surface kinds are the kernel's exact values; `edges()` gives the keys the per-edge `fillet` form takes.
+* Accessors (all `await`): `volume() area() bbox() centreOfMass() inertia(density) faceCount() edgeCount() isValid() issues() faces() edges()`. `faces()` areas and surface kinds are the kernel's exact values; `edges()` gives the keys the per-edge `fillet` form takes.
 * A script that uses `await` runs as an async function (top-level `await` is allowed). The runner builds everything recorded so far on the scratch kernel when the read is reached, answers, and the script goes on recording. Only await the read-backs.
 * **Cost.** Every read forces a regeneration of ALL features recorded so far (a headless build; a view build for bbox / faces / counts) plus a kernel query. Results are cached until the next feature is added, so several reads in a row cost one build. Read once after a group of features; never inside a loop that adds features.
 * `expectVolume(v, {tol = 1e-3 | abs})`, `expectValid()`, `expectBBox({min, max, size}, {tol = 1e-3})`, `expectFaceCount(n)` are steps like any other (no await). A failure is an error `{line, message}` (`Line 4: expected volume 25000 (tolerance 0.025), got 24000`), the run goes on, and the agent layer does not replace the open document when the run has errors.

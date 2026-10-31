@@ -29,6 +29,8 @@ The first time you open the app with a network, it saves the app files on your d
 - Library parts are available offline only after you installed them or dropped them once. See [The library and samples](../library/library.md).
 - The local kernel service and the MCP server work on your own computer and do not need the internet either. See [The local kernel service](../automation/local-kernel.md).
 
+On a phone or tablet the geometry kernel (about 7 MB) is not saved when the app is installed, so the first load stays light; it is saved the first time the app starts the kernel, which happens as soon as you open or build a part. Open a part once while online before you rely on offline use there.
+
 To be sure it works offline, open the app once while online and wait for it to finish loading.
 
 ## Updates

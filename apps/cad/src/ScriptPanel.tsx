@@ -4,7 +4,7 @@ import { EXAMPLES, formatScript, createRunControl, formatElapsed, throttleProgre
 import { t } from './i18n';
 import { highlight } from './scriptHighlight';
 
-/** The Script tab: a code box with line numbers, Run (Ctrl/Cmd+Enter), examples and the error list. Running opens a NEW part. */
+/** The Script tab: a code box with line numbers, Run (Ctrl/Cmd+Enter), examples and the error list. Run builds a new part the first time and then rebuilds that same part in place (see scriptTarget.ts). */
 export function ScriptPanel(p: { saved: string; name?: string; onRun(code: string, run?: Pick<RunOptions, 'signal' | 'onProgress'>): Promise<ScriptError[]> }): JSX.Element {
   const [code, setCode] = useState(p.saved || EXAMPLES[0].code);
   const [errors, setErrors] = useState<ScriptError[]>([]);

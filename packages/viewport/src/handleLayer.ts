@@ -322,6 +322,8 @@ export class HandleLayer {
     if (!b || !target || el.querySelector('input')) return;
     const input = document.createElement('input');
     input.type = 'text';
+    input.inputMode = 'decimal';      // the digit keypad on a phone
+    input.enterKeyHint = 'done';
     input.value = (b.spec.text ?? '').replace(/[^0-9.\-]/g, '');
     input.style.cssText = 'width:64px;font:inherit;color:inherit;background:transparent;border:0;outline:0;text-align:center';
     el.textContent = '';

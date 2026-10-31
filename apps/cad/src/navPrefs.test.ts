@@ -16,3 +16,12 @@ describe('navigation prefs', () => {
     expect(loadNavPrefs(st)).toEqual({ upAxis: 'z', orbitMode: 'trackball', orbitPivot: 'cursor' });
   });
 });
+
+describe('docUpAxis', () => {
+  it('reads y or z from the document, nothing else', async () => {
+    const { docUpAxis } = await import('./navPrefs');
+    expect(docUpAxis({ upAxis: 'z' })).toBe('z');
+    expect(docUpAxis({ upAxis: 'y' })).toBe('y');
+    for (const d of [{}, { upAxis: 'x' }, { upAxis: 1 }, null, undefined, 'z']) expect(docUpAxis(d)).toBeNull();
+  });
+});

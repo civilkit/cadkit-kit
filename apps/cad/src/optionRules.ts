@@ -9,42 +9,45 @@ import { featureLabel } from './featureCreators';
 type Wire = Record<string, unknown>;
 
 /**
- * The kernel parses the end conditions upToFace, offsetFromFace and upToPoint but does not cut them yet
- * (extrude.rs: "TODO(rebuild): extrude up to a reference needs ck-ops"), and it reads no field naming the face or the
- * point. The editor has the pick fields ready (endFace, endOffset, endPoint are the planned wire names) but does not offer
- * the three ends until this is true. optionRules.kernel.test.ts fails when the kernel starts cutting them.
+ * `toObject` ends the extrusion at any reference in `endRef` (a face, a plane, a corner or point, a named body), read again on
+ * every rebuild so the end follows it; `endOffset` moves it along the extrusion. `start: 'fromObject'` with `startRef` and
+ * `startOffset` starts it there instead of on the sketch plane (with a blind or To object end). The kernel refuses a lost
+ * reference with a hint and never guesses (extrude_object.rs). The older upToFace / offsetFromFace / upToPoint ends are not
+ * offered (To object covers them); a feature that has one still shows it.
  */
-export const KERNEL_END_REFERENCES = false;
-
-export type EndCondition = 'blind' | 'mid' | 'through' | 'throughBoth' | 'upToNext' | 'upToFace' | 'offsetFromFace' | 'upToPoint';
-const BASE_ENDS: EndCondition[] = ['blind', 'mid', 'through', 'throughBoth', 'upToNext'];
-const REF_ENDS: EndCondition[] = ['upToFace', 'offsetFromFace', 'upToPoint'];
+export type EndCondition = 'blind' | 'mid' | 'through' | 'throughBoth' | 'upToNext' | 'toObject' | 'upToFace' | 'offsetFromFace' | 'upToPoint';
+const EXTRUDE_ENDS: EndCondition[] = ['blind', 'mid', 'through', 'throughBoth', 'upToNext', 'toObject'];
 
 /** Extrude (and cut) end conditions on offer. Revolve has only blind (an angle) and mid (symmetric about the sketch). */
 export function endsFor(type: string): EndCondition[] {
   if (type === 'revolve') return ['blind', 'mid'];
-  return KERNEL_END_REFERENCES ? [...BASE_ENDS, ...REF_ENDS] : BASE_ENDS;
+  return EXTRUDE_ENDS;
 }
 
 export const endOf = (eff: Wire): EndCondition => (typeof eff.end === 'string' ? (eff.end as EndCondition) : 'blind');
 /** Depth: blind and mid. Through, through-both and up-to-next take their length from the body. */
 export const endNeedsDepth = (end: string): boolean => end === 'blind' || end === 'mid';
-/** The end conditions that name a face, and the one that names a point. */
-export const endNeedsFace = (end: string): boolean => end === 'upToFace' || end === 'offsetFromFace';
-export const endNeedsPoint = (end: string): boolean => end === 'upToPoint';
+/** The end that names a reference (`endRef`). */
+export const endNeedsObject = (end: string): boolean => end === 'toObject';
+/** From object works with a blind or To object end. */
+export const startAllowed = (end: string): boolean => end === 'blind' || end === 'toObject';
+export type StartCondition = 'sketch' | 'fromObject';
+export const startOf = (eff: Wire): StartCondition => (eff.start === 'fromObject' ? 'fromObject' : 'sketch');
+/** Patch for choosing the start: the sketch plane drops the reference and its offset. */
+export const patchStart = (start: StartCondition): Wire => (start === 'fromObject' ? { start } : { start: null, startRef: null, startOffset: null });
 /** Draft is cut for one-sided ends only (the kernel refuses a drafted mid-plane or through-both extrude). */
 export const endAllowsDraft = (end: string): boolean => end !== 'mid' && end !== 'throughBoth';
 
 /** The fields a form of this feature type owns; the generic editor hides them. */
 export function managedPaths(type: string): Set<string> {
   switch (type) {
-    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endFace', 'endOffset', 'endPoint', 'thin', 'op', 'body']);
-    case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op', 'body']);
+    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endRef', 'endOffset', 'start', 'startRef', 'startOffset', 'thin', 'op', 'body', 'target']);
+    case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op', 'body', 'target']);
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
-    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'startNormal', 'endNormal']);
-    case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body']);
+    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'target', 'startNormal', 'endNormal']);
+    case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body', 'target']);
     case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
     case 'moveBody': return new Set(['copy', 'body']);
@@ -67,10 +70,8 @@ export function patchEnd(eff: Wire, end: EndCondition): Wire {
   const depth = typeof eff.depth === 'number' ? eff.depth : 10;
   if (endNeedsDepth(end)) { if (typeof eff.depth !== 'number') p.depth = depth; } else p.depth = null;
   if (!endAllowsDraft(end)) { p.draft = null; p.draftOut = null; }
-  if (!endNeedsFace(end)) { p.endFace = null; p.endOffset = null; }
-  else if (end === 'offsetFromFace' && typeof eff.endOffset !== 'number') p.endOffset = 0;
-  else if (end === 'upToFace') p.endOffset = null;
-  if (!endNeedsPoint(end)) p.endPoint = null;
+  if (!endNeedsObject(end)) { p.endRef = null; p.endOffset = null; }
+  if (!startAllowed(end)) { p.start = null; p.startRef = null; p.startOffset = null; }
   return p;
 }
 
@@ -145,5 +146,66 @@ export function planeBaseChoices(doc: { features?: unknown[] } | null | undefine
   }
   const cur = current as RefLike;
   if (cur?.kind === 'face' && cur.id) out.push([`face:${cur.id}`, t('opt.plane.face', { id: cur.id })]);
+  return out;
+}
+
+// ---- To object / From object references ----
+
+type ObjRef = { kind?: string; id?: string; name?: string; sketch?: string; point?: string; faces?: string[]; at?: number[] } | string | null | undefined;
+const objOf = (r: unknown): Exclude<ObjRef, string> => (typeof r === 'string' ? (r ? { kind: 'face', id: r } : null) : (r as Exclude<ObjRef, string>));
+const num = (v: number): string => String(Math.round(v * 1000) / 1000);
+
+/** A reference in words: 'Face F2.C1', 'Top Plane', the Plane feature's name, 'Body Lid', 'Corner at (1, 2, 3)'. */
+export function objectRefLabel(doc: { features?: unknown[] } | null | undefined, ref: unknown): string {
+  const r = objOf(ref);
+  if (!r || typeof r !== 'object') return '';
+  switch (r.kind) {
+    case 'face': return r.id ? t('opt.plane.face', { id: r.id }) : '';
+    case 'std': return r.id ? t('app.ref.' + r.id) : '';
+    case 'feature': {
+      const f = (doc?.features ?? []).find((x) => (x as { id: string }).id === r.id);
+      return (f ? featureLabel(doc, f as never) : '') || t('opt.toObject.plane', { id: String(r.id) });
+    }
+    case 'body': return t('opt.toObject.body', { name: String(r.name) });
+    case 'vertex': case 'point': {
+      const a = r.at ?? [];
+      return t(r.kind === 'vertex' ? 'opt.toObject.corner' : 'opt.toObject.point', { at: a.map((v) => num(Number(v))).join(', ') });
+    }
+    case 'sketchPoint': return t('opt.toObject.sketchPoint', { point: String(r.point), sketch: String(r.sketch) });
+    default: return '';
+  }
+}
+
+/** The list value of a reference: `std:top`, `feature:P1`, `body:Lid`; a picked face or point is `picked`; none is ''. */
+export function objectRefValue(ref: unknown): string {
+  const r = objOf(ref);
+  if (!r) return '';
+  if ((r.kind === 'std' || r.kind === 'feature') && r.id) return `${r.kind}:${r.id}`;
+  if (r.kind === 'body' && r.name) return `body:${r.name}`;
+  return 'picked';
+}
+
+/** The reference a list value stands for. */
+export function objectRefPatch(value: string): Wire | null {
+  const i = value.indexOf(':');
+  if (i < 0) return null;
+  const kind = value.slice(0, i), id = value.slice(i + 1);
+  return kind === 'body' ? { kind, name: id } : { kind, id };
+}
+
+/** What the To object / From object list offers: the three planes, the Plane features before this feature and (for an end)
+ *  the named bodies. The current reference heads the list when it is not one of them (a picked face, corner or point). */
+export function objectRefChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown, bodies: boolean): Array<[string, string]> {
+  const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  const names: string[] = [];
+  for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; body?: unknown }>) {
+    if (f.id === selfId) break;
+    if (f.type === 'plane') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);
+    if (bodies && typeof f.body === 'string' && f.body && !names.includes(f.body)) names.push(f.body);
+  }
+  for (const n of names) out.push([`body:${n}`, t('opt.toObject.body', { name: n })]);
+  const v = objectRefValue(current);
+  if (!v) out.unshift(['', t(bodies ? 'opt.toObject.none' : 'opt.fromObject.none')]);
+  else if (!out.some(([x]) => x === v)) out.unshift([v, objectRefLabel(doc, current)]);
   return out;
 }

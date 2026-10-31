@@ -58,7 +58,7 @@ describe('dimensioning the caps', () => {
     const k = done.draft.constraints.find((c) => c.type === 'distance' && c.overall === true)!;
     expect(k).toMatchObject({ refs: [a, b], value: 32 });                 // 40 - 2 x 4
     expect(shownValue(done.draft, k)).toBe(40);
-    expect(annotate(done.draft).find((x) => x.id === k.id)).toMatchObject({ text: '40', value: 40 });
+    expect(annotate(done.draft).find((x) => x.id === k.id)).toMatchObject({ text: '40 mm', value: 40 });
   });
   it('a length no longer than the caps is refused', () => {
     const d = slot();
@@ -90,7 +90,7 @@ describe('dimensioning the caps', () => {
     const ref = makeDriven(made, id)!;
     expect(refDimsOf(ref)[0]).toMatchObject({ overall: true });
     expect(measureRef(ref, refDimsOf(ref)[0])).toBeCloseTo(28, 9);
-    expect(refAnnotations(ref)[0].text).toBe('(28)');
+    expect(refAnnotations(ref)[0].text).toBe('(28 mm)');
     const back = makeDriving(ref, 'r1')!;
     expect(back.constraints.find((c) => c.overall)).toMatchObject({ value: 20, refs: [a, b] });
   });

@@ -2,7 +2,7 @@
 import type { EditOp, Num, OffsetPlane, Plane, PartBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
 import { DEFAULT_GEAR, gearFeatures, rolesFor, type GearParams } from '../../../../apps/cad/src/gearData';
-import { H, applyNewBody, planeRef, sketchOps, type SketchSpec } from './h';
+import { H, applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './h';
 
 type End = 'cap' | 'point';
 const SKETCH_SPEC = 'a section is { on: plane | at(plane, offset) | face(sel), draw: (s) => ... } or { on, point: [x, y] }';
@@ -20,6 +20,7 @@ export const shapeFeatures = {
    * @param o.startNormal true or a tension: leave the first section along its normal
    * @param o.endNormal true or a tension: arrive at the last section along its normal
    * @param o.op 'add' (default) or 'cut'
+   * @param o.from with op 'cut': a body name or list of names (bodies made with newBody) the cut changes; the other bodies stay as they are
    * @example
    * part('Cone').loft([
    *   { on: 'front', draw: (s) => s.circle(10) },
@@ -27,7 +28,7 @@ export const shapeFeatures = {
    * ], { ends: { last: 'point' } });
    * @see at, sketch.circle, part.sweep
    */
-  loft(this: PartBuilder, sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut' } = {}): PartBuilder {
+  loft(this: PartBuilder, sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[] } = {}): PartBuilder {
     const line = H.callerLine();
     if (!Array.isArray(sections) || sections.length < 2) throw new H.SelectorError(`loft() needs at least two sections: ${SKETCH_SPEC}`, line);
     const secs = sections.map((s, i) => {
@@ -56,6 +57,7 @@ export const shapeFeatures = {
       if (cid) f.centreLine = { sketch: cid };
       if (o.startNormal !== undefined && o.startNormal !== false) f.startNormal = o.startNormal === true ? true : H.ref(o.startNormal);
       if (o.endNormal !== undefined && o.endNormal !== false) f.endNormal = o.endNormal === true ? true : H.ref(o.endNormal);
+      applyFrom(f, o.op ?? 'add', o.from, 'loft', line);
       ops.push({ op: 'add', feature: f });
       ctx.lastFeature = id; ctx.lastSketch = null;
       return ops;
@@ -73,6 +75,7 @@ export const shapeFeatures = {
    * @param o.twist total twist in degrees over the path
    * @param o.op 'add' (default) or 'cut'
    * @param o.newBody true or 'Name': keep the swept solid as a separate body instead of fusing it with what it touches
+   * @param o.from with op 'cut': a body name or list of names the cut changes; the other bodies stay as they are
    * @example
    * part('Pipe').sweep(
    *   { on: 'front', draw: (s) => { s.circle(5); s.circle(4); } },
@@ -80,7 +83,7 @@ export const shapeFeatures = {
    * );
    * @see part.loft, sketch.polyline, sketch.spline
    */
-  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string } = {}): PartBuilder {
+  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[] } = {}): PartBuilder {
     const line = H.callerLine();
     if (!profile?.on || !profile.draw || !path?.on || !path.draw) throw new H.SelectorError(`sweep() needs a profile and a path sketch: ${SKETCH_SPEC}`, line);
     this.steps.push({ line, label: 'sweep', run: (ctx) => {
@@ -90,6 +93,7 @@ export const shapeFeatures = {
       const f: Record<string, unknown> = { type: 'sweep', id, op: o.op ?? 'add', sketch: pid, path: { kind: 'sketch', id: path_ } };
       if (o.twist !== undefined) f.twist = H.ref(o.twist);
       applyNewBody(f, o.op ?? 'add', o.newBody, 'sweep', line);
+      applyFrom(f, o.op ?? 'add', o.from, 'sweep', line);
       ops.push({ op: 'add', feature: f });
       ctx.lastFeature = id; ctx.lastSketch = null;
       return ops;

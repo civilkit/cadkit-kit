@@ -123,3 +123,11 @@ describe('VariablesPanel', () => {
     expect(m.calls[3].patch).toMatchObject({ activeConfig: 'Medium' });
   });
 });
+
+describe('VariablesPanel automation hooks', () => {
+  it('name and expression inputs have test ids by variable name', () => {
+    const m = setup();
+    expect((m.r.container.querySelector('[data-testid="var-name-width"]') as HTMLInputElement).value).toBe('width');
+    expect((m.r.container.querySelector('[data-testid="var-expr-half"]') as HTMLInputElement).value).toBe('width/2');
+  });
+});

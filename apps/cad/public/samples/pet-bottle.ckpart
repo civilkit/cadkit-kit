@@ -1,0 +1,686 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "PET bottle 500 ml",
+ "features": [
+  {
+   "type": "plane",
+   "id": "F1",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F2",
+   "name": "Profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F1"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": -205
+    },
+    {
+     "id": "p2",
+     "x": 13.8,
+     "y": -205
+    },
+    {
+     "id": "p3",
+     "x": 13.8,
+     "y": -192
+    },
+    {
+     "id": "p4",
+     "x": 17.5,
+     "y": -192
+    },
+    {
+     "id": "p5",
+     "x": 17.5,
+     "y": -190
+    },
+    {
+     "id": "p6",
+     "x": 14.6,
+     "y": -190
+    },
+    {
+     "id": "p7",
+     "x": 14.6,
+     "y": -184
+    },
+    {
+     "id": "p8",
+     "x": 14.6,
+     "y": -184
+    },
+    {
+     "id": "p9",
+     "x": 19,
+     "y": -177
+    },
+    {
+     "id": "p10",
+     "x": 27,
+     "y": -165
+    },
+    {
+     "id": "p11",
+     "x": 32.2,
+     "y": -150
+    },
+    {
+     "id": "p12",
+     "x": 33,
+     "y": -135
+    },
+    {
+     "id": "p13",
+     "x": 33,
+     "y": -135
+    },
+    {
+     "id": "p14",
+     "x": 33,
+     "y": -9
+    },
+    {
+     "id": "p15",
+     "x": 24.0001330472,
+     "y": -8.9998669528
+    },
+    {
+     "id": "p16",
+     "x": 33,
+     "y": -9
+    },
+    {
+     "id": "p17",
+     "x": 24,
+     "y": 0
+    },
+    {
+     "id": "p18",
+     "x": 24,
+     "y": 0
+    },
+    {
+     "id": "p19",
+     "x": 15,
+     "y": 0
+    },
+    {
+     "id": "p20",
+     "x": 4,
+     "y": -9
+    },
+    {
+     "id": "p21",
+     "x": 0,
+     "y": -9
+    },
+    {
+     "id": "p22",
+     "x": 0,
+     "y": -205
+    },
+    {
+     "id": "p23",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p24",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p5",
+     "p2": "p6"
+    },
+    {
+     "id": "e6",
+     "type": "line",
+     "p1": "p6",
+     "p2": "p7"
+    },
+    {
+     "id": "e7",
+     "type": "spline",
+     "pts": [
+      "p8",
+      "p9",
+      "p10",
+      "p11",
+      "p12"
+     ]
+    },
+    {
+     "id": "e8",
+     "type": "line",
+     "p1": "p13",
+     "p2": "p14"
+    },
+    {
+     "id": "e9",
+     "type": "arc",
+     "c": "p15",
+     "p1": "p16",
+     "p2": "p17"
+    },
+    {
+     "id": "e10",
+     "type": "line",
+     "p1": "p18",
+     "p2": "p19"
+    },
+    {
+     "id": "e11",
+     "type": "line",
+     "p1": "p19",
+     "p2": "p20"
+    },
+    {
+     "id": "e12",
+     "type": "line",
+     "p1": "p20",
+     "p2": "p21"
+    },
+    {
+     "id": "e13",
+     "type": "line",
+     "p1": "p21",
+     "p2": "p22"
+    },
+    {
+     "id": "e14",
+     "type": "line",
+     "p1": "p23",
+     "p2": "p24",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F3",
+   "op": "add",
+   "sketch": "F2",
+   "axis": "e14",
+   "angle": 360,
+   "name": "Revolve Profile"
+  },
+  {
+   "type": "plane",
+   "id": "F4",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "front"
+   },
+   "offset": -1
+  },
+  {
+   "type": "sketch",
+   "id": "F5",
+   "name": "Petals",
+   "plane": {
+    "kind": "feature",
+    "id": "F4"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 23.5,
+     "y": -10.1166666667
+    },
+    {
+     "id": "p2",
+     "x": 9,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 38,
+     "y": 0
+    },
+    {
+     "id": "p4",
+     "x": 23.5,
+     "y": 10.1166666667
+    },
+    {
+     "id": "p5",
+     "x": 38,
+     "y": 0
+    },
+    {
+     "id": "p6",
+     "x": 9,
+     "y": 0
+    },
+    {
+     "id": "p7",
+     "x": 16.8834211243,
+     "y": 19.2236062065
+    },
+    {
+     "id": "p8",
+     "x": 2.7811529494,
+     "y": 8.5595086467
+    },
+    {
+     "id": "p9",
+     "x": 11.7426457862,
+     "y": 36.1401476192
+    },
+    {
+     "id": "p10",
+     "x": -2.3596223887,
+     "y": 25.4760500594
+    },
+    {
+     "id": "p11",
+     "x": 11.7426457862,
+     "y": 36.1401476192
+    },
+    {
+     "id": "p12",
+     "x": 2.7811529494,
+     "y": 8.5595086467
+    },
+    {
+     "id": "p13",
+     "x": -13.0654718988,
+     "y": 21.9975086886
+    },
+    {
+     "id": "p14",
+     "x": -7.2811529494,
+     "y": 5.2900672706
+    },
+    {
+     "id": "p15",
+     "x": -30.7426457862,
+     "y": 22.3358395871
+    },
+    {
+     "id": "p16",
+     "x": -24.9583268368,
+     "y": 5.6283981691
+    },
+    {
+     "id": "p17",
+     "x": -30.7426457862,
+     "y": 22.3358395871
+    },
+    {
+     "id": "p18",
+     "x": -7.2811529494,
+     "y": 5.2900672706
+    },
+    {
+     "id": "p19",
+     "x": -24.9583268368,
+     "y": -5.6283981691
+    },
+    {
+     "id": "p20",
+     "x": -7.2811529494,
+     "y": -5.2900672706
+    },
+    {
+     "id": "p21",
+     "x": -30.7426457862,
+     "y": -22.3358395871
+    },
+    {
+     "id": "p22",
+     "x": -13.0654718988,
+     "y": -21.9975086886
+    },
+    {
+     "id": "p23",
+     "x": -30.7426457862,
+     "y": -22.3358395871
+    },
+    {
+     "id": "p24",
+     "x": -7.2811529494,
+     "y": -5.2900672706
+    },
+    {
+     "id": "p25",
+     "x": -2.3596223887,
+     "y": -25.4760500594
+    },
+    {
+     "id": "p26",
+     "x": 2.7811529494,
+     "y": -8.5595086467
+    },
+    {
+     "id": "p27",
+     "x": 11.7426457862,
+     "y": -36.1401476192
+    },
+    {
+     "id": "p28",
+     "x": 16.8834211243,
+     "y": -19.2236062065
+    },
+    {
+     "id": "p29",
+     "x": 11.7426457862,
+     "y": -36.1401476192
+    },
+    {
+     "id": "p30",
+     "x": 2.7811529494,
+     "y": -8.5595086467
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "arc",
+     "c": "p1",
+     "p1": "p3",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "arc",
+     "c": "p4",
+     "p1": "p6",
+     "p2": "p5"
+    },
+    {
+     "id": "e3",
+     "type": "arc",
+     "c": "p7",
+     "p1": "p9",
+     "p2": "p8"
+    },
+    {
+     "id": "e4",
+     "type": "arc",
+     "c": "p10",
+     "p1": "p12",
+     "p2": "p11"
+    },
+    {
+     "id": "e5",
+     "type": "arc",
+     "c": "p13",
+     "p1": "p15",
+     "p2": "p14"
+    },
+    {
+     "id": "e6",
+     "type": "arc",
+     "c": "p16",
+     "p1": "p18",
+     "p2": "p17"
+    },
+    {
+     "id": "e7",
+     "type": "arc",
+     "c": "p19",
+     "p1": "p21",
+     "p2": "p20"
+    },
+    {
+     "id": "e8",
+     "type": "arc",
+     "c": "p22",
+     "p1": "p24",
+     "p2": "p23"
+    },
+    {
+     "id": "e9",
+     "type": "arc",
+     "c": "p25",
+     "p1": "p27",
+     "p2": "p26"
+    },
+    {
+     "id": "e10",
+     "type": "arc",
+     "c": "p28",
+     "p1": "p30",
+     "p2": "p29"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F6",
+   "op": "cut",
+   "sketch": "F5",
+   "end": "blind",
+   "depth": 12,
+   "flip": true,
+   "draft": 10,
+   "name": "Cut Petals"
+  },
+  {
+   "type": "shell",
+   "id": "F7",
+   "faces": [
+    "F3.S.e1"
+   ],
+   "thickness": 0.35
+  },
+  {
+   "type": "plane",
+   "id": "F8",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F9",
+   "name": "Cap profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F8"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 14,
+     "y": -192.4
+    },
+    {
+     "id": "p2",
+     "x": 15.4,
+     "y": -192.4
+    },
+    {
+     "id": "p3",
+     "x": 15.4,
+     "y": -207.4
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": -207.4
+    },
+    {
+     "id": "p5",
+     "x": 0,
+     "y": -206
+    },
+    {
+     "id": "p6",
+     "x": 14,
+     "y": -206
+    },
+    {
+     "id": "p7",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p8",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p5",
+     "p2": "p6"
+    },
+    {
+     "id": "e6",
+     "type": "line",
+     "p1": "p6",
+     "p2": "p1"
+    },
+    {
+     "id": "e7",
+     "type": "line",
+     "p1": "p7",
+     "p2": "p8",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F10",
+   "op": "newBody",
+   "sketch": "F9",
+   "axis": "e7",
+   "angle": 360,
+   "body": "Cap",
+   "name": "Revolve Cap profile"
+  }
+ ],
+ "seq": 11,
+ "rollback": null,
+ "variables": [
+  {
+   "name": "WALL",
+   "expr": "0.35"
+  },
+  {
+   "name": "FEET",
+   "expr": "5"
+  },
+  {
+   "name": "GROOVE_UP",
+   "expr": "11"
+  },
+  {
+   "name": "DRAFT",
+   "expr": "10"
+  },
+  {
+   "name": "CAP",
+   "expr": "1"
+  }
+ ],
+ "script": "// Own work: the same 500 ml PET bottle as pet-bottle.script.ts, built the short way: revolve the closed outline, cut the petal grooves with draft, shell the top: 7 features, 10 with the cap.\n// Needs a kernel whose shell handles a spline shoulder, the torus base corner and drafted grooves (shell-bottle fixes); pet-bottle.script.ts is the version for older kernels.\n// Axis = Z, the bottle stands on z = 0, mm. Variables: WALL (wall thickness), FEET (number of feet), GROOVE_UP (how high the petal grooves reach), DRAFT (groove wall angle), CAP = 1 adds the screw cap.\nconst V = variables({ WALL: 0.35, FEET: 5, GROOVE_UP: 11, DRAFT: 10, CAP: 1 });\nconst P = part('PET bottle 500 ml (shell)');\nP.upAxis('z');   // the part is built along Z: the app opens it Z-up\nconst pr = (r, z) => [r, -z];                                          // top sketch: x = radius, y = -z\nP.sketch(at('top', 0), (s) => {\n  s.polyline([pr(0, 205), pr(13.8, 205), pr(13.8, 192), pr(17.5, 192), pr(17.5, 190), pr(14.6, 190), pr(14.6, 184)]);   // mouth, finish, support ring, neck\n  s.spline([pr(14.6, 184), pr(19, 177), pr(27, 165), pr(32.2, 150), pr(33, 135)]);                                      // shoulder: one smooth curve\n  s.polyline([pr(33, 135), pr(33, 9)]);                                                                                  // straight body\n  s.arc3(pr(33, 9), pr(30.364, 2.636), pr(24, 0));                                                                       // base corner radius 9\n  s.polyline([pr(24, 0), pr(15, 0), pr(4, 9), pr(0, 9), pr(0, 205)]);                                                    // standing ring, push-up cone, flat centre, axis\n}, 'Profile');\nP.revolve(360, { axis: { from: [0, 0], to: [0, -1] } });\nconst BODY = P.handle();\nP.sketch(at('front', -1), (s) => s.polar(V.FEET, (c) => { c.arc3([9, 0], [22, 7.5], [38, 0]); c.arc3([38, 0], [22, -7.5], [9, 0]); }), 'Petals');   // one lens per foot gap, 1 mm below the standing plane\nP.cut(V.GROOVE_UP + 1, { direction: 'away', draft: V.DRAFT });\nP.shell(face('>Z'), V.WALL);\nP.appearance({ feature: BODY, colour: '#5b9bd5', opacity: 0.55, finish: 'glass' });\nif (V.CAP) {                                                                                                             // screw cap (separate body)\n  P.sketch(at('top', 0), (s) => s.polygon([pr(14.0, 192.4), pr(15.4, 192.4), pr(15.4, 207.4), pr(0, 207.4), pr(0, 206.0), pr(14.0, 206.0)]), 'Cap profile');\n  P.revolve(360, { newBody: 'Cap', axis: { from: [0, 0], to: [0, -1] } });\n  P.appearance({ feature: P.handle(), colour: '#f2f2f2', finish: 'plastic' });\n}\n",
+ "appearance": {
+  "F3": {
+   "color": "#5b9bd5",
+   "opacity": 0.55,
+   "finish": "glass"
+  },
+  "F10": {
+   "color": "#f2f2f2",
+   "finish": "plastic"
+  }
+ },
+ "upAxis": "z"
+}

@@ -150,6 +150,30 @@ if (e < 12) throw new Error('edges ' + e);
     expect(await r.volume()).toBeCloseTo(24000 - PI * 160, 3);
   }, 120000);
 
+  it('inertia() reads mass, first moments, both tensors and the principal axes of a block (steel)', async () => {
+    const r = await rig();
+    const res = await runScript(`const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+const m = await p.inertia(7.85);
+const v = 24000, mass = v * 7.85 / 1000;
+const want = [mass * (30 * 30 + 20 * 20) / 12, mass * (40 * 40 + 20 * 20) / 12, mass * (40 * 40 + 30 * 30) / 12];
+const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+if (!near(m.mass, mass)) throw new Error('mass ' + m.mass);
+for (let k = 0; k < 3; k++) if (!near(m.principal[k], want[k])) throw new Error('principal ' + m.principal);
+const tr = m.tensor[0][0] + m.tensor[1][1] + m.tensor[2][2];
+if (!near(tr, want[0] + want[1] + want[2])) throw new Error('trace ' + tr);
+for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== j && Math.abs(m.tensor[i][j]) > 1e-6 * want[2]) throw new Error('product ' + i + j);
+// parallel axis: I_origin = I_com + mass (|c|^2 E - c c^T)
+const c = m.centreOfMass, c2 = c[0] * c[0] + c[1] * c[1] + c[2] * c[2];
+for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+  const w = m.tensor[i][j] + mass * ((i === j ? c2 : 0) - c[i] * c[j]);
+  if (!near(m.tensorOrigin[i][j], w)) throw new Error('origin ' + i + j + ' ' + m.tensorOrigin[i][j] + ' vs ' + w);
+}
+for (let i = 0; i < 3; i++) if (!near(m.firstMoment[i], mass * c[i])) throw new Error('first moment ' + m.firstMoment);
+for (const a of m.axes) if (!near(Math.hypot(a[0], a[1], a[2]), 1)) throw new Error('axis ' + a);
+`, r.host);
+    expect(res.errors).toEqual([]);
+  }, 120000);
+
   it('reports a failed expectation with its line and keeps going', async () => {
     const r = await rig();
     const res = await runScript(`part('Block')

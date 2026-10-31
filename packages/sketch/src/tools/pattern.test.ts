@@ -45,7 +45,7 @@ describe('linear pattern geometry', () => {
     expect(added.filter((c) => c.hidden).length).toBeGreaterThan(0);
     // the canvas annotations show the two spacing labels and no hidden ones
     const labels = annotate(r.draft).filter((a) => a.kind === 'dimension' && !['k1', 'k2', 'k3', 'k4'].includes(a.id));
-    expect(labels.map((a) => a.text)).toEqual(['15', '15']);
+    expect(labels.map((a) => a.text)).toEqual(['15 mm', '15 mm']);
   });
   it('an oblique pattern gets hdist + vdist', () => {
     const r = applyLinear(rectDraft(10, 5), all4, { n: 2, spacing: 10, angleDeg: 30 });

@@ -2,7 +2,7 @@ import type { JSX } from 'preact';
 import { useEffect } from 'preact/hooks';
 import { t } from '../i18n';
 import { copyText, fmt, rowText, type Outcome, type Pick, type Row } from './measure';
-import { massText, type MassView } from './mass';
+import { massText, matrixText, type MassView } from './mass';
 import type { Interference } from './kernel';
 
 export interface Box { min: number[]; max: number[] }
@@ -50,13 +50,17 @@ function MassCard(p: InspectProps): JSX.Element {
     [t('mass.com'), `(${v3(m.com)}) mm`],
     ...(p.box && size ? [[t('mass.box'), `(${v3(p.box.min)}) – (${v3(p.box.max)})`] as [string, string], [t('mass.size'), `${size.map((x) => fmt(x, 3)).join(' × ')} mm`] as [string, string]] : []),
     ...(m.principal.length ? [[t('mass.moments'), `${m.principal.map((x) => fmt(x, 2)).join(', ')} g·mm²`] as [string, string]] : []),
+    ...(m.principal.length ? m.axes.slice(0, 3).map((a, i) => [t('mass.axis', { n: i + 1 }), `(${a.map((x) => fmt(x, 4)).join(', ')})`] as [string, string]) : []),
+    ...(m.firstMoment ? [[t('mass.firstMoment'), `(${m.firstMoment.map((x) => fmt(x, 2)).join(', ')}) g·mm`] as [string, string]] : []),
+    ...(m.inertia ? [[t('mass.inertia'), `${matrixText(m.inertia)}\n${t('mass.inertiaUnit')}`] as [string, string]] : []),
+    ...(m.inertiaOrigin ? [[t('mass.inertiaOrigin'), `${matrixText(m.inertiaOrigin)}\n${t('mass.inertiaUnit')}`] as [string, string]] : []),
   ] : [];
   return (
     <section class="insp-card" aria-label={t('inspect.mass')}>
       <h4>{t('inspect.mass')}</h4>
       <div class="insp-bar">
         <label class="insp-field"><span>{t('inspect.density')}</span>
-          <input type="number" step="any" min="0" value={p.density} aria-label={t('inspect.density')} onChange={(e) => p.onDensity(parseFloat((e.currentTarget as HTMLInputElement).value))} />
+          <input type="number" inputMode="decimal" enterKeyHint="done" step="any" min="0" value={p.density} aria-label={t('inspect.density')} onChange={(e) => p.onDensity(parseFloat((e.currentTarget as HTMLInputElement).value))} />
           <span class="insp-unit">g/cm³</span></label>
         <button class="btn" disabled={!p.hasSolid || p.massBusy} onClick={p.onMass}>{t('inspect.mass.compute')}</button>
         <button class="btn" disabled={!m} onClick={() => p.onCopy(lines.map(([a, b]) => `${a}\t${b}`).join('\n'))}>{t('inspect.copy')}</button>
@@ -65,7 +69,7 @@ function MassCard(p: InspectProps): JSX.Element {
       {!p.hasSolid ? <div class="empty">{t(p.surfaces ? 'inspect.mass.sheets' : 'inspect.mass.none')}</div> : null}
       {p.hasSolid && p.surfaces ? <div class="insp-note">{t('inspect.mass.sheetsAlso')}</div> : null}
       {p.massStale ? <div class="insp-note warn">{t('inspect.stale')}</div> : null}
-      {lines.length ? <dl class="insp-rows">{lines.map(([k, v]) => <><dt>{k}</dt><dd>{v}</dd></>)}</dl> : null}
+      {lines.length ? <dl class="insp-rows">{lines.map(([k, v]) => <><dt>{k}</dt><dd class={v.includes('\n') ? 'insp-mat' : undefined}>{v}</dd></>)}</dl> : null}
       {m && m.bodies.length > 1 ? (
         <table class="insp-table"><thead><tr><th>{t('mass.bodies')}</th><th>{t('mass.volume')}</th><th>{t('mass.mass')}</th></tr></thead>
           <tbody>{m.bodies.map((b, i) => <tr key={i}><td>{i + 1}</td><td>{fmt(b.volume, 2)}</td><td>{massText(b.mass)}</td></tr>)}</tbody></table>
@@ -116,7 +120,7 @@ function SectionCard(p: InspectProps): JSX.Element {
         <>
           <label class="insp-field wide"><span>{t('inspect.section.offset')}</span>
             <input type="range" min={r[0]} max={r[1]} step={step} value={Math.min(r[1], Math.max(r[0], s.offset))} aria-label={t('inspect.section.offset')} onInput={(e) => p.onSection({ offset: parseFloat((e.currentTarget as HTMLInputElement).value) })} />
-            <input type="number" step="any" value={+s.offset.toFixed(4)} aria-label={t('inspect.section.offsetValue')} onChange={(e) => { const v = parseFloat((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) p.onSection({ offset: v }); }} />
+            <input type="number" inputMode="decimal" enterKeyHint="done" step="any" value={+s.offset.toFixed(4)} aria-label={t('inspect.section.offsetValue')} onChange={(e) => { const v = parseFloat((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) p.onSection({ offset: v }); }} />
             <span class="insp-unit">mm</span></label>
           <label class="insp-flag"><input type="checkbox" checked={s.flip} onChange={(e) => p.onSection({ flip: (e.currentTarget as HTMLInputElement).checked })} />{t('inspect.section.flip')}</label>
         </>

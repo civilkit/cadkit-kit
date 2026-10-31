@@ -123,3 +123,16 @@ describe('Slot fixed', () => {
     expect(screen.getByRole('button', { name: 'Alpha' })).toBeTruthy();
   });
 });
+
+describe('automation hooks', () => {
+  it('a single command button carries cmd-<id>', () => {
+    const { container } = render(<Slot id="one" items={[mk()[0]]} variant="rail" />);
+    expect(container.querySelector('[data-testid="cmd-a"]')).not.toBeNull();
+  });
+  it('the button and the list rows carry test ids by command id', () => {
+    const { container } = render(<Slot id="views" items={mk()} variant="rail" side="right" />);
+    expect(container.querySelector('[data-testid="slot-views"]')).not.toBeNull();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Alpha' }));
+    expect(document.querySelector('[data-testid="cmd-b"]')!.getAttribute('aria-label')).toBe('Beta');
+  });
+});

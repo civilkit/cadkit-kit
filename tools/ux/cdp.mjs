@@ -16,7 +16,7 @@ export function findChrome() {
 /** Launch ONE headless Chrome with a remote debugging port; returns {port, close()}. */
 export async function launchChrome({ port, profileDir, width = 1440, height = 900 }) {
   const dir = profileDir ?? mkdtempSync(join(process.env.UX_TMP ?? tmpdir(), 'ux-chrome-'));
-  const proc = spawn(findChrome(), [`--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--headless=new', '--no-first-run', '--no-default-browser-check', '--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
+  const proc = spawn(findChrome(), [`--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--headless=new', '--no-first-run', '--no-default-browser-check', '--use-gl=angle', '--use-angle=swiftshader-webgl', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...(process.env.UX_CHROME_ARGS ?? '').split(/\s+/).filter(Boolean), `--window-size=${width},${height}`, 'about:blank'], { stdio: 'ignore' });
   for (let i = 0; i < 60; i++) {
     try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); if (r.ok) break; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250));
@@ -45,6 +45,35 @@ export class Page {
   async setViewport(width, height, dark) {
     await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+  }
+  /** Phone or tablet: mobile metrics (device pixel ratio, orientation), touch events, and so a coarse pointer without hover. */
+  async setMobile(width, height, { dark = false, dpr = 2 } = {}) {
+    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: true, screenWidth: width, screenHeight: height,
+      screenOrientation: width > height ? { type: 'landscapePrimary', angle: 90 } : { type: 'portraitPrimary', angle: 0 } });
+    await this.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+  }
+  async clearMobile() {
+    await this.send('Emulation.clearDeviceMetricsOverride');
+    await this.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  }
+  /** One touch event; `points` are {x, y, id?} for every finger that is down after it ([] for the end of the last one). */
+  async touch(type, points = []) {
+    await this.send('Input.dispatchTouchEvent', { type, touchPoints: points.map((p, i) => ({ x: p.x, y: p.y, id: p.id ?? i, radiusX: 1, radiusY: 1, force: 1 })) });
+  }
+  async tap(x, y) { await this.touch('touchStart', [{ x, y }]); await new Promise((r) => setTimeout(r, 40)); await this.touch('touchEnd'); }
+  /** One finger from (x0, y0) to (x1, y1) in `steps` moves. */
+  async swipe(x0, y0, x1, y1, { steps = 10, ms = 16 } = {}) {
+    await this.touch('touchStart', [{ x: x0, y: y0 }]);
+    for (let i = 1; i <= steps; i++) { await new Promise((r) => setTimeout(r, ms)); await this.touch('touchMove', [{ x: x0 + ((x1 - x0) * i) / steps, y: y0 + ((y1 - y0) * i) / steps }]); }
+    await this.touch('touchEnd');
+  }
+  /** Two fingers either side of (cx, cy), `r0` px from it apart each, moving to `r1`: a pinch (r1 < r0) or a spread. */
+  async pinch(cx, cy, r0, r1, { steps = 10, ms = 16 } = {}) {
+    const at = (r) => [{ x: cx - r, y: cy, id: 0 }, { x: cx + r, y: cy, id: 1 }];
+    await this.touch('touchStart', at(r0));
+    for (let i = 1; i <= steps; i++) { await new Promise((r) => setTimeout(r, ms)); await this.touch('touchMove', at(r0 + ((r1 - r0) * i) / steps)); }
+    await this.touch('touchEnd');
   }
   async goto(url) { await this.send('Page.navigate', { url }); await new Promise((r) => setTimeout(r, 300)); }
   async screenshot() { const r = await this.send('Page.captureScreenshot', { format: 'png' }); return Buffer.from(r.data, 'base64'); }

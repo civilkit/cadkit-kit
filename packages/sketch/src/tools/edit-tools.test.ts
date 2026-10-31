@@ -73,7 +73,7 @@ describe('fillet tool', () => {
     const d = withExtra(rectDraft(10, 10), [{ id: 'p9', x: 5, y: 5 }], [{ id: 'e9', type: 'circle', c: 'p9', r: 1 }]);
     expect(run(filletTool, d, [clickOn('e9')]).hint).toBe('app.sketch.hint.pickLine');
     expect(run(filletTool, d, [clickOn('e1'), clickOn('e1')]).hint).toBe('app.sketch.hint.pickOtherLine');
-    expect(run(filletTool, d, [clickOn('e1'), clickOn('e3')]).hint).toBe('app.sketch.hint.noCorner');
+    expect(run(filletTool, d, [clickOn('e1'), clickOn('e3')]).hint).toBe('app.sketch.hint.parallel.more');   // opposite sides: parallel, so they never meet
     expect(run(filletTool, d, [{ type: 'click', at: { x: 5, y: 5 }, snap: { kind: 'point', at: { x: 5, y: 5 }, pointId: 'p9' }, mods: M }]).hint).toBe('app.sketch.hint.noCorner');
   });
 

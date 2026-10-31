@@ -8,6 +8,8 @@ import type { PartDoc } from '@ck/part-model';
 import { BODY } from '@kit/store';
 import { defaultShellThickness } from './editorFixes';
 import { t } from './i18n';
+import { revolveEdit } from './revolveAxis';
+export { axisLine } from './revolveAxis';
 import { newHole, type HolePrefs } from './holeData';
 import { cylindersOfFaces, sameSizeFaces } from './threadData';
 import { chainSelection, rememberRoundPick } from './roundChain';
@@ -105,7 +107,29 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[], 
   if (path === 'faces') { const r = faceNames(selection); return r.length ? r : null; }
   // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
   if (path === 'neutral' || path === 'plane') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }
+  if (path === 'endRef' || path === 'startRef') return objectRef(selection, edges, path === 'endRef');
   return selection[0] ?? null;
+}
+
+/** The To object / From object reference of a pick (extrude `endRef` / `startRef`): a face, a named body (an end only), or a
+ *  corner named by the faces of the edges that end there (so it follows them; a point no edge ends at stays a fixed point). */
+export function objectRef(selection: string[], edges: ViewEdge[], body: boolean): unknown {
+  const n = selection[0];
+  if (!n || isEdgeName(n) || n === BODY) return null;
+  if (n.startsWith('@body:')) return body ? { kind: 'body', name: n.slice(6) } : null;
+  if (n.startsWith('v:')) {
+    const at = n.slice(2).split(',').map(Number);
+    if (at.length !== 3 || at.some((v) => !Number.isFinite(v))) return null;
+    const faces: string[] = [];
+    const tol = 1e-6 * Math.max(1, ...at.map(Math.abs));
+    const hit = (p?: number[]) => !!p && p.length === 3 && p.every((v, i) => Math.abs(v - at[i]) <= tol);
+    for (const e of edges) {
+      if (!e.pts?.length || !(hit(e.pts[0]) || hit(e.pts[e.pts.length - 1]))) continue;
+      for (const f of e.faces ?? []) if (!faces.includes(f)) faces.push(f);
+    }
+    return faces.length ? { kind: 'vertex', faces: faces.sort(), at } : { kind: 'point', at };
+  }
+  return { kind: 'face', id: n };
 }
 
 export interface Ctx {
@@ -152,11 +176,6 @@ export const canThread = (c: Ctx): boolean => !!c.doc && hasSolid(c) && c.mode =
 export const canSelectSame = canThread;
 export const canHole = (c: Ctx): boolean => !!c.doc && hasSolid(c) && ((c.mode === 'face' && faceNames(c.selection).length === 1) || pointSketch(c) !== null);
 
-/** The construction line of a sketch that serves as the revolve axis (the first one), or null. */
-export function axisLine(sketch: Feat): string | null {
-  const e = ((sketch.entities as Array<{ id: string; type: string; construction?: boolean }> | undefined) ?? []).find((x) => x.type === 'line' && x.construction);
-  return e?.id ?? null;
-}
 /** The sketch to revolve: the one selected in the tree, else the last sketch of the document. */
 export function revolveSketch(c: Ctx): Feat | null {
   const sk = feats(c.doc).filter((f) => f.type === 'sketch');
@@ -192,10 +211,9 @@ export function shellOps(c: Ctx): EditOp[] | null {
 export function holeOps(sketchId: string, flip: boolean, prefs?: HolePrefs): EditOp[] {
   return [{ op: 'add', feature: newHole(sketchId, flip, prefs) }];
 }
+/** A new full revolve of the sketch about its construction line, a profile edge on its vertical axis, or a vertical axis line it adds (see revolveAxis.ts). */
 export function revolveOps(sketch: Feat): EditOp[] | null {
-  const axis = axisLine(sketch);
-  if (!axis) return null;
-  return [{ op: 'add', feature: { type: 'revolve', op: 'add', sketch: sketch.id, axis, end: 'blind', angle: 360 } }];
+  return revolveEdit(sketch);
 }
 /** A world axis picked by the body's size: the longest (a row runs along it) or the shortest (a ring turns about it). */
 function worldAxis(box: Box | null, which: 'longest' | 'shortest'): 'x' | 'y' | 'z' {

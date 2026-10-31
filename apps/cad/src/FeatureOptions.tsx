@@ -2,7 +2,7 @@
 // fillet profile with the dependent fields shown and hidden as the kernel reads them (rules in featureOptions.ts). It plugs
 // into the generic FeatureEditor through its `options` prop, so sketch, axis, edges and faces keep their pick buttons and
 // the shape list. Only fields the kernel really reads are offered.
-import { nextBodyName, opChoiceOf, opChoices, opPatch, targetBodyOf, targetPatch } from './extrudeOp';
+import { cutFromPatch, nextBodyName, opChoiceOf, opChoices, opPatch, targetBodiesOf, targetBodyOf, targetPatch } from './extrudeOp';
 import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
@@ -10,14 +10,16 @@ import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
-  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsFace, endNeedsPoint, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
-  patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf,
-  type ChamferType, type EndCondition, type FilletProfile,
+  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsObject, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
+  objectRefChoices, objectRefPatch, objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
+  planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf, startAllowed, startOf,
+  type ChamferType, type EndCondition, type FilletProfile, type StartCondition,
 } from './optionRules';
 import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
 } from './thinRules';
 import { sketchOpenChains } from '@kit/sketch';
+import { axisChoices } from './revolveAxis';
 import { roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
 import { loftAutoOrder, loftPointIssue } from './featureCreators';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
@@ -60,13 +62,17 @@ function Check(p: { name: string; label: string; value: unknown; onChange(v: boo
   );
 }
 
-/** A reference field filled from the viewport: the text, and a Pick button that turns picking on (a click on a face fills it). */
-function PickField(p: { name: string; label: string; value: unknown; picking: boolean; onPick?(path: string): void }): JSX.Element {
+/** A To object / From object reference: a list of the planes (and, for an end, the named bodies) headed by what is picked
+ *  now, and a Pick button that takes a face, corner or body from the view. */
+function ObjectRefField(p: { name: string; label: string; value: unknown; doc: PartDoc | null; selfId: string; bodies: boolean; picking: boolean; onPick?(path: string): void; onChange(ref: Wire): void }): JSX.Element {
+  const options = objectRefChoices(p.doc, p.selfId, p.value, p.bodies);
   return (
     <label class={'fedit-fld ref' + (p.picking ? ' picking' : '')} data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-ref">
-        <input type="text" value={typeof p.value === 'string' ? p.value : ''} readonly />
+        <select value={objectRefValue(p.value)} onChange={(e) => { const r = objectRefPatch((e.currentTarget as HTMLSelectElement).value); if (r) p.onChange(r); }}>
+          {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
         {p.onPick ? <button type="button" class={'fedit-pick' + (p.picking ? ' on' : '')} aria-pressed={p.picking} onClick={() => p.onPick!(p.name)}>{p.picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
       </span>
     </label>
@@ -88,6 +94,27 @@ function TargetBody(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.
   return (
     <Select name="target" label={t('opt.target')} value={cur} options={[['', t('opt.target.auto')], ...names.map((n) => [n, n] as [string, string])]} onChange={(v) => p.change(targetPatch(v))} />
   );
+}
+
+/** Which bodies a Cut changes: All (every body the shape reaches) or the ticked bodies of the part. Shown once the part names a body. */
+function CutFrom(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+  const names = [...otherBodyNames(p.doc, p.eff)];
+  const cur = targetBodiesOf(p.eff);
+  for (const n of cur) if (!names.includes(n)) names.push(n);   // a body the part no longer names stays visible (the kernel reports it)
+  if (!names.length) return null;
+  return (
+    <div class="fedit-fld" data-path="target" role="group" aria-label={t('opt.cutFrom')}>
+      <span class="fedit-fld-label">{t('opt.cutFrom')}</span>
+      <Check name="target.all" label={t('opt.cutFrom.all')} value={!cur.length} onChange={(v) => p.change(cutFromPatch(v ? [] : names))} />
+      {names.map((n) => <Check key={n} name={'target.' + n} label={n} value={cur.includes(n)} onChange={(v) => p.change(cutFromPatch(v ? [...cur, n] : cur.filter((x) => x !== n)))} />)}
+    </div>
+  );
+}
+
+/** The body control of an Add or Cut (not of a New body): Cut from for a cut, Target body for an add. */
+function BodyTarget(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+  const op = opChoiceOf(p.eff.op);
+  return op === 'cut' ? <CutFrom {...p} /> : op === 'add' ? <TargetBody {...p} /> : null;
 }
 
 /** A body reference of a feature in words: its name, or the face that tells which body. */
@@ -213,6 +240,17 @@ function BodyNameField(p: { eff: Wire; change: Change }): JSX.Element {
   );
 }
 
+/** The Axis of a revolve as a list of the sketch's straight lines, named in words ('Sketch vertical axis'), or null when the sketch is not known (the generic id field stays). */
+export function revolveAxisField(doc: PartDoc | null, eff: Wire): { value: string; options: Array<[string, string]> } | null {
+  const sk = (doc?.features ?? []).find((f) => f.id === eff.sketch && f.type === 'sketch') as { id: string; type: string } | undefined;
+  if (!sk) return null;
+  const options = axisChoices(sk);
+  const cur = typeof eff.axis === 'string' ? eff.axis : '';
+  if (cur && !options.some(([id]) => id === cur)) options.unshift([cur, cur]);
+  if (!cur) options.unshift(['', t('opt.axis.none')]);
+  return { value: cur, options };
+}
+
 function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | null; onPick?(path: string): void; revolve: boolean; doc: PartDoc | null; actions?: ThinActions }): JSX.Element {
   const { eff, change } = p;
   const ends = endsFor(p.revolve ? 'revolve' : 'extrude');
@@ -221,20 +259,32 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
   const options: Array<[string, string]> = ends.map((e) => [e, endLabel(e)]);
   if (!ends.includes(raw)) options.unshift([raw, endLabel(raw)]);   // an end the editor does not offer stays visible (the kernel reports it)
   const draftAngle = typeof eff.draft === 'number' ? eff.draft : 0;
+  const axisOf = p.revolve ? revolveAxisField(p.doc, eff) : null;
   return (
     <>
       <Section id="end" title={t('opt.section.end')}>
         <Select name="end" label={t('opt.end')} value={end} options={options} onChange={(v) => change(patchEnd(eff, v as EndCondition))} />
         {!p.revolve && endNeedsDepth(end) ? <Num name="depth" label={end === 'mid' ? t('opt.depth.total') : t('opt.depth')} value={eff.depth} unit="mm" onChange={(v) => change({ depth: v })} /> : null}
         {p.revolve ? <Num name="angle" label={end === 'mid' ? t('opt.angle.total') : t('opt.angle')} value={eff.angle ?? 360} unit="°" onChange={(v) => change({ angle: v })} /> : null}
-        {endNeedsFace(end) ? <PickField name="endFace" label={t('opt.endFace')} value={eff.endFace} picking={p.pickingPath === 'endFace'} onPick={p.onPick} /> : null}
-        {end === 'offsetFromFace' ? <Num name="endOffset" label={t('opt.endOffset')} value={eff.endOffset ?? 0} unit="mm" onChange={(v) => change({ endOffset: v })} /> : null}
-        {endNeedsPoint(end) ? <PickField name="endPoint" label={t('opt.endPoint')} value={eff.endPoint} picking={p.pickingPath === 'endPoint'} onPick={p.onPick} /> : null}
+        {!p.revolve && endNeedsObject(end) ? <>
+          <ObjectRefField name="endRef" label={t('opt.endRef')} value={eff.endRef} doc={p.doc} selfId={String(eff.id ?? '')} bodies picking={p.pickingPath === 'endRef'} onPick={p.onPick} onChange={(r) => change({ endRef: r })} />
+          <Num name="endOffset" label={t('opt.endOffset')} value={eff.endOffset ?? 0} unit="mm" onChange={(v) => change({ endOffset: v })} />
+        </> : null}
+        {!p.revolve && startAllowed(end) ? <>
+          <Select name="start" label={t('opt.start')} value={startOf(eff)} options={[['sketch', t('opt.start.sketch')], ['fromObject', t('opt.start.fromObject')]]} onChange={(v) => change(patchStart(v as StartCondition))} />
+          {startOf(eff) === 'fromObject' ? <>
+            <ObjectRefField name="startRef" label={t('opt.startRef')} value={eff.startRef} doc={p.doc} selfId={String(eff.id ?? '')} bodies={false} picking={p.pickingPath === 'startRef'} onPick={p.onPick} onChange={(r) => change({ startRef: r })} />
+            <Num name="startOffset" label={t('opt.startOffset')} value={eff.startOffset ?? 0} unit="mm" onChange={(v) => change({ startOffset: v })} />
+          </> : null}
+        </> : null}
       </Section>
+      {axisOf ? <Section id="axis" title={t('opt.axis')}>
+        <Select name="axis" label={t('opt.axis')} value={axisOf.value} options={axisOf.options} onChange={(v) => change({ axis: v })} />
+      </Section> : null}
       <Section id="op" title={t('opt.op')}>
         <Segmented<string> name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} choices={opChoices()} text={(c) => t('opt.op.' + c)} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
         {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
-        {!p.revolve && opChoiceOf(eff.op) !== 'new' ? <TargetBody eff={eff} change={change} doc={p.doc} /> : null}
+        <BodyTarget eff={eff} change={change} doc={p.doc} />
         {p.actions?.cutProblem && eff.op === 'cut' ? (
           <div class="fedit-note fedit-warn" role="alert" data-note={'cut-' + p.actions.cutProblem}>
             {t(p.actions.cutProblem === 'nothing' ? 'opt.cut.nothing' : 'opt.cut.miss')}
@@ -454,6 +504,7 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
         <Check name="surface" label={t('opt.loft.surface')} value={surface} onChange={(v) => change({ surface: v ? true : null })} />
         {!surface ? <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} /> : null}
         {!surface && opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
+        {!surface ? <BodyTarget eff={eff} change={change} doc={p.doc} /> : null}
         <Num name="startNormal" label={t('opt.loft.startTension')} value={tensionOf(eff, 'startNormal')} unit="" plain onChange={(v) => change(tensionPatch('startNormal', Number(v)))} />
         <Num name="endNormal" label={t('opt.loft.endTension')} value={tensionOf(eff, 'endNormal')} unit="" plain onChange={(v) => change(tensionPatch('endNormal', Number(v)))} />
       </Section>
@@ -504,6 +555,7 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
         {!guides.length ? <Num name="twist" label={t('opt.sweep.twist')} value={typeof eff.twist === 'number' ? eff.twist : 0} unit="°" onChange={(v) => change({ twist: Number(v) ? v : null })} /> : null}
         <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} />
         {opChoiceOf(eff.op) === 'new' ? <BodyNameField eff={eff} change={change} /> : null}
+        <BodyTarget eff={eff} change={change} doc={p.doc} />
       </Section>
     </>
   );
@@ -615,7 +667,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
   const common = { eff: a.eff, change: a.change };
   switch (type) {
     case 'extrude': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve={false} doc={doc} actions={actions} /> };
-    case 'revolve': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve doc={doc} actions={actions} /> };
+    case 'revolve': return { hide: revolveAxisField(doc, a.eff) ? new Set([...hide, 'axis']) : hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve doc={doc} actions={actions} /> };
     case 'chamfer': return { hide, node: <ChamferOptions {...common} /> };
     case 'fillet': return { hide, node: <FilletOptions {...common} /> };
     case 'shell': return { hide, node: <ShellOptions {...common} /> };

@@ -14,7 +14,8 @@ export function makesSurface(f: Feat): boolean {
   if (SURFACE_TYPES.includes(f.type ?? '')) return true;
   if (f.type === 'knit') return f.solid !== true;
   if (f.type === 'sweep' || f.type === 'loft') return f.surface === true;
-  return f.type === 'deleteFace' || f.type === 'freeform';
+  // an import keeps the parts of its file that are not valid solids as surface bodies (until Repair Part makes them solids)
+  return f.type === 'deleteFace' || f.type === 'freeform' || f.type === 'importStep';
 }
 export const hasSurfaceFeatures = (features: Feat[]): boolean => features.some(makesSurface);
 

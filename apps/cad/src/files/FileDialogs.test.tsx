@@ -165,3 +165,16 @@ describe('file commands', () => {
     expect(buildCommands(base).some((c) => c.id === 'save-as')).toBe(false);
   });
 });
+
+describe('RestoreDialog hooks', () => {
+  it('has stable test ids and accessible names, starts on Restore, and the buttons are reachable by keyboard', () => {
+    const on = { onRestore: vi.fn(), onNew: vi.fn(), onVersions: vi.fn() };
+    render(<RestoreDialog name="Bracket" savedAt={0} now={60_000} {...on} />);
+    expect(screen.getByTestId('restore-dialog')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Restore' })).toBe(screen.getByTestId('restore-restore'));
+    expect(screen.getByRole('button', { name: 'Start new' })).toBe(screen.getByTestId('restore-new'));
+    expect(screen.getByTestId('restore-versions').getAttribute('aria-label')).toBe('Earlier versions…');
+    expect(document.activeElement).toBe(screen.getByTestId('restore-restore'));
+    for (const id of ['restore-restore', 'restore-new', 'restore-versions']) expect((screen.getByTestId(id) as HTMLButtonElement).tabIndex).toBeGreaterThanOrEqual(0);
+  });
+});

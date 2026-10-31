@@ -86,6 +86,8 @@ export const ENUMS: Record<string, string[]> = {
 const UNITS: Record<string, string> = {
   depth: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
 };
+/** Whole-number fields (a count): their phone keypad is the digit pad. */
+const INTEGER_FIELDS = new Set(['count', 'count1', 'count2', 'sides', 'turns', 'segments', 'teeth', 'instances']);
 /** 'threePoints' -> 'Three points': the last-resort label for an enum value that has no catalogue entry. */
 export const humanise = (v: string): string => {
   const s = v.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase();
@@ -271,8 +273,8 @@ export function FeatureEditor(p: {
       <div class="fedit-head">
         <Icon name={featureIconName(String(feature.type ?? ''), String((draft.op ?? feature.op) ?? ''))} size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
-        <button type="button" class={'fedit-confirm' + (p.okBlocked ? ' blocked' : '')} aria-disabled={p.okBlocked ? true : undefined} onClick={confirm} title={p.okBlocked ?? t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
-        <button type="button" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
+        <button type="button" data-testid="feature-ok" class={'fedit-confirm' + (p.okBlocked ? ' blocked' : '')} aria-disabled={p.okBlocked ? true : undefined} onClick={confirm} title={p.okBlocked ?? t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
+        <button type="button" data-testid="feature-cancel" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       {sections.map((sec) => (
         <div class={'fedit-sec' + (collapsed[sec.id] ? ' closed' : '')} key={sec.id}>
@@ -338,7 +340,7 @@ export function FeatureEditor(p: {
                       </select>
                     ) : kindOf(f) === 'number' || isExprValue(value) ? (
                       <span class="fedit-num">
-                        <ExprInput value={value as number | string} label={labelOf(f)} unit={UNITS[f.path]} onValue={(v) => apply(f.path, v)} />
+                        <ExprInput value={value as number | string} label={labelOf(f)} unit={UNITS[f.path]} integer={INTEGER_FIELDS.has(f.path)} onValue={(v) => apply(f.path, v)} />
                       </span>
                     ) : (
                       <input

@@ -9,7 +9,7 @@
  *   refAnnotations  the labels to draw: the value in brackets
  */
 import type { DraftConstraint, SketchDraft } from './index';
-import { annotate, type Annotation } from './annotations';
+import { annotate, type AnnotateOptions, type Annotation } from './annotations';
 import { angleSpec } from './tools/constraints';
 import { measure } from './tools/transform';
 import { shownValue, storedValue } from './slotLength';
@@ -69,7 +69,7 @@ export function makeDriving(d: SketchDraft, refId: string): SketchDraft | null {
 export const removeRefDim = (d: SketchDraft, id: string): SketchDraft => withRefs(d, refDimsOf(d).filter((r) => r.id !== id));
 
 /** Labels for the reference dimensions: the measured value in brackets, in the same places as driving ones. */
-export function refAnnotations(d: SketchDraft): Annotation[] {
+export function refAnnotations(d: SketchDraft, opts: AnnotateOptions = {}): Annotation[] {
   const list = refDimsOf(d);
   if (!list.length) return [];
   const fake: DraftConstraint[] = [];
@@ -77,7 +77,7 @@ export function refAnnotations(d: SketchDraft): Annotation[] {
     const v = measureRef(d, r);
     if (v !== undefined && Number.isFinite(v)) fake.push({ id: r.id, type: r.type, refs: r.refs, value: v });
   }
-  return annotate({ ...d, constraints: fake }).map((a) => ({ ...a, text: `(${a.text})`, driven: true }));
+  return annotate({ ...d, constraints: fake }, opts).map((a) => ({ ...a, text: `(${a.text})`, driven: true }));
 }
 
 /** Delete a dimension by id, driving (`k..`) or reference (`r..`). */

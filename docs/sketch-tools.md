@@ -123,16 +123,68 @@ glyphs (endpoint, midpoint, centre, extent as a diamond) in cyan; the sketch's o
 every zoom (half size `MARKER_HALF_PX` times plane units per pixel), and the shade changes with the viewport background (darker on
 light, brighter on dark). The text tag beside the pointer stays.
 
-**Status bar** while a sketch is open (`SketchReadout`, `sketchReadout.tsx`; text in `sketchStatus.ts`):
+**Status bar** while a sketch is open (`SketchReadout`, `sketchReadout.tsx`; text in `sketchStatus.ts`). The slots never move: left to right
+**Snap**, **Grid**, **Zoom**, **Spacing**, then three fixed-width text boxes that are blank when there is nothing to show (`data-testid`
+`status-snap`, `status-grid`, `status-zoom`, `status-spacing`, `status-coords`, `status-delta`, `status-snapname`; the inputs have `aria-label`s):
 
+* **Snap** switches all point snapping (every kind and the model snaps) and **Grid** switches grid snapping and the grid lines;
+  both are in `cad.sketchPrefs` (`snapOn`, `gridSnap`) beside the Snaps popover;
+* **Zoom** (percent of real size at 96 dpi) and **Spacing** (grid) are inputs, always shown, also with the pointer off the canvas
+  (`onSketchZoom`): type `50`, or `2.5` / `0.25 in` / `0` for automatic, Enter commits, Escape cancels. The fields keep their keys:
+  Enter, digits and letters typed there never reach the sketch shortcuts (Enter would confirm the sketch, 7 would switch the view);
 * the pointer on the sketch plane in the display unit, for example `232.1 mm, -5.1 mm`, with one more decimal per tenfold zoom; with a
   snap it is the snapped position; any tool (also Select) feeds it, once per animation frame;
 * while drawing, the delta from the last point: `dx 12.0  dy 3.5  len 12.5  angle 16°`;
-* the active snap: `Snap: midpoint`;
-* **Snap** switches all point snapping (every kind and the model snaps) and **Grid** switches grid snapping and the grid lines;
-  both are in `cad.sketchPrefs` (`snapOn`, `gridSnap`) beside the Snaps popover;
-* the zoom as a percentage of real size at 96 dpi, and the grid **Spacing**, which is a field: click it, type `2.5`, `0.25 in` or
-  `0` / empty for automatic (Enter commits, Escape cancels).
+* the active snap: `Snap: midpoint`.
+
+**View in a sketch.** A new sketch squares the view up to its plane (`Auto look normal for new sketches`, default on); re-entering an
+existing sketch keeps the camera (`Keep the view`, default on) and offers `Look normal (N)` when it is angled; with Keep view off every
+entry squares up. Fit (button or Z) frames the sketch's own geometry (an empty sketch: 100 mm around the plane origin). The wheel and
+a trackpad pinch zoom about the point of the plane under the pointer (`zoomAbout` in `navButtons.ts`).
+
+**Typed entry (Line tool).** Before the first click Tab shows X and Y: type, Tab or Enter to lock each; with both locked the first point
+is placed exactly there (on an existing point at those coordinates, so a profile can start at 0, 0). While a chain runs, type a length and
+an angle (Tab locks each). A typed segment that ends exactly on the chain's first point (from the third segment on) closes the loop on
+that point, like a click on it, and ends the chain; Escape clears typed values, then ends the chain. The hint line says what to do next
+for the Line tool and both splines (double-click the last point or Enter finishes, the first point closes, Escape cancels).
+
+**Dimension graphics** (`annotations.ts`, pure, sketch coordinates; drawn by `SketchAnnotations` as SVG under the labels, projected by
+`dimGraphics.ts`): a length has extension lines, a dimension line 26 px off the geometry with arrowheads and the label centred on it (text
+along the line, kept upright); horizontal / vertical distances run on their axis; an angle between two lines is an arc inside the corner with
+the degrees beside it; a radius or diameter is a leader through the circle. Driving dimensions use the error colour token, reference ones the
+secondary text colour, dashed and in brackets. Labels are `1 500 mm`, `R12 mm`, `Ø8 mm`, `110°` (at most two decimals, space as thousands
+separator); labels that would overlap are pushed apart on screen (`nudgeLabels`). The label stays the hit target: double-click edits.
+
+**Placement of dimensions** (`dimLayout.ts`, pure, in pixels through the view's projection). Longest dimensions first; each tries the dimension line
+at 26, 52, 78 and 104 px on one side of its geometry, then on the other, and takes the first place where its label (an oriented rectangle, kept
+upright) touches no placed label or arrowhead, no hit zone (4 px) of another segment, nothing outside the view and no control (Display, view cube,
+buttons); the extension lines stretch to the chosen level. A segment shorter on screen than its label gets the text outside the extension lines
+with arrowheads pointing in and a short leader. With no free place the label is hidden and shows while what it measures is hovered or selected.
+**Dimensions** in the Display menu (kept in `cad.sketchPrefs` as `dimDisplay`): All, Driving only (no reference dimensions), Selected only (a
+dimension shows when its entity is selected or hovered, or the Dimension tool is active).
+
+**Typed angles are dimensions.** A segment of the Line tool committed with a typed angle also gets a driving `angle` constraint between the new line and
+the chain's previous line (`angleSpec`: the interior angle at their shared corner, 0..180; with a relative turn it is 180 minus the turn, left or
+right). The angle is drawn as an arc with the degrees (a right angle as a small square corner when "Right angles as a square" is on). Not made:
+for a clicked segment; for the first segment of a chain (a typed 0 / 180 or 90 there gets the horizontal / vertical constraint when auto
+constraints are on, any other first angle stays a plain direction: there is no line to measure against, and the X axis is not an entity); for the
+segment that closes the chain; after an arc; when the angle repeats or contradicts one (the hint line says so). A dimension the solver finds already
+given by the others (a closed outline over-determines one corner) is turned into a reference dimension at once, with a notice (`settleDimensions`).
+Both settings are in the Display menu next to Dimensions and kept in `cad.sketchPrefs` (`typedAngleDims`, `rightAngleSquare`). On the typed bottle
+outline (14 lines, all lengths and angles typed from a typed first point) the sketch goes from 13 degrees of freedom to 2 (the position of the first
+point); `typedAngles.kernel.test.ts`. The Dimension tool on two lines of one corner offers their angle at once with its field focused and selected; double-click on an angle
+label edits it.
+
+**Escape and fields.** Escape steps back (typed text, the chain, the tool) and never discards a sketch that has geometry; the red X does. Typing
+a digit with the Line tool active and no field focused collects the characters and puts them in the first field (replacing its text); every field
+selects its text when it gets focus. Snapping to an alignment keeps the other coordinate on the grid.
+
+**Relative angle.** Once a chain has a segment, the ANG box has a `turn` switch (or the T key): the typed angle is then the turn from the previous
+segment's direction (left is positive), shown as such; off (the default) it is measured from the x axis. The choice is kept for the session
+(`setRelativeAngle` in `line.ts`); switching drops a typed angle that the other mode would misread.
+
+**Open profile card** (Extrude / Cut): closed shapes and open chains are found by joining end points that coincide within `JOIN_TOL`
+(`shapes.ts`), so curves that do not share point ids (script-made lens shapes) still form loops.
 
 In model mode the status bar keeps its content (Ready, features, faces, triangles, rebuild time, errors) and adds the coordinates of the
 surface point under the pointer (`onHoverPoint`, one ray cast per frame; faces only, so an edge hover shows the face point behind it).

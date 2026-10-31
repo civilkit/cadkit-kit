@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
+import { TouchGuard } from './touchguard';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
 import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
@@ -16,7 +17,7 @@ import { ViewCube } from './viewcube';
 import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
-import { navButtons, zoomedDistance } from './navButtons';
+import { navButtons, wheelFactor, zoomAbout, zoomedDistance } from './navButtons';
 import { RefPlanes, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
 import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
@@ -33,7 +34,7 @@ import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend }
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
 import { adaptiveGrid } from './gridSpacing';
-import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchFitView, sketchPointWorld, lookAngleDeg } from './sketchedit';
+import { planeToWorld, rayPlane, viewSide, sketchEditPolylines, sketchEditFit, sketchPointWorld, lookAngleDeg } from './sketchedit';
 
 export interface ViewFrame {
   o: number[];
@@ -120,6 +121,8 @@ export interface ViewportOptions {
   /** The pointer over the model (not in a sketch): the world point on the surface under it, or null off the model. At most once per frame. */
   onHoverPoint?(p: [number, number, number] | null): void;
   onPlaneCursor?(c: { u: number; v: number; upp: number; grid: number } | null): void;
+  /** The sketch view's scale changed (zoom, pan, orbit, a new sketch): plane units per pixel and the grid's minor spacing; null when the sketch closed. Not tied to the pointer. */
+  onSketchZoom?(v: { upp: number; grid: number } | null): void;
   /** The surface analysis on screen changed: what its colour legend shows (null when nothing is drawn). */
   onAnalysisLegend?(legend: Legend | null): void;
 }
@@ -135,8 +138,16 @@ export interface SketchBoxEvent {
   mods: { shift: boolean; ctrl: boolean; alt: boolean };
 }
 
+/** OrbitControls' one-finger action when it is to do nothing (any value it does not know). */
+const TOUCH_NONE = -1 as THREE.TOUCH;
+/** How far a finger may wander and still be a tap (CSS px), and how far in a fingertip's reach a sketch point is picked (CSS px). */
+export const TOUCH_SLOP = 8;
+export const PICK_RADIUS = 12, PICK_RADIUS_TOUCH = 24;
+
 export interface SketchPointerEvent {
-  type: 'move' | 'click' | 'leave';
+  /** `press`, `dragstart` and `cancel` come from a finger only: it went down (`press`), moved off the spot far enough to be a drag (`dragstart`, at the spot it went down: the
+   *  tool's first point), or the gesture was abandoned (a second finger, a cancelled touch: whatever it began is to be dropped). A drag ends in a `click` where the finger lifts. */
+  type: 'move' | 'click' | 'leave' | 'press' | 'dragstart' | 'cancel';
   /** Plane coordinates of the pointer. */
   u: number;
   v: number;
@@ -291,7 +302,7 @@ export class Viewport {
       pickPoint: (x, y) => this.hit(x, y)?.point.clone() ?? null,
       selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
     });
-    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); });
+    this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); this.reportSketchZoom(); });
 
     this.scene.add(this.hemi);
     this.sun.position.set(1, 2, 1.5);
@@ -305,6 +316,10 @@ export class Viewport {
       orbit: (dx, dy) => this.orbitBy(dx, dy),
       onChange: () => { this.dirty = true; },
     });
+    this.dom.addEventListener('pointerdown', this.onTouchDown, true);   // first: a second finger must cancel what the other listeners are about to start
+    window.addEventListener('pointerup', this.onTouchEnd);
+    window.addEventListener('pointercancel', this.onTouchEnd);
+    this.dom.addEventListener('pointercancel', this.onCancel);
     this.dom.addEventListener('pointerdown', this.onBoxDown, true);
     this.dom.addEventListener('pointerdown', this.midZoomDown, true);
     window.addEventListener('pointermove', this.midZoomMove);
@@ -321,6 +336,7 @@ export class Viewport {
     this.dom.addEventListener('pointerup', this.onCursorMove);
     window.addEventListener('keydown', this.onSpace);
     window.addEventListener('keyup', this.onSpace);
+    this.dom.addEventListener('wheel', this.onSketchWheel, { capture: true, passive: false });
     this.dom.addEventListener('dblclick', this.onDouble);
     this.dom.addEventListener('contextmenu', this.onContext);
     this.dom.addEventListener('pointerdown', this.onRightDown);
@@ -386,6 +402,43 @@ export class Viewport {
     this.midZoom = null;
     e.stopImmediatePropagation();
   };
+  private reportSketchZoom(): void {
+    if (!this.sketchEdit || !this.opts.onSketchZoom) return;
+    this.opts.onSketchZoom({ upp: this.sketchUnitsPerPixel(), grid: this.gridStep() });
+  }
+
+  /** Set the sketch view's scale (plane units per pixel) about the middle of the canvas: the Zoom % field of the status bar. */
+  setSketchZoom(upp: number): void {
+    const v = this.sketchEdit;
+    if (!v || !(upp > 0) || !Number.isFinite(upp)) return;
+    const r = this.dom.getBoundingClientRect();
+    const uv = this.planeAt(r.left + r.width / 2, r.top + r.height / 2);
+    const anchor = uv ? new THREE.Vector3(...planeToWorld(v.frame as never, uv[0], uv[1])) : this.controls.target.clone();
+    const z = zoomAbout(this.camera.position, this.controls.target, anchor, upp / this.sketchUnitsPerPixel());
+    this.camera.position.copy(z.position);
+    this.controls.target.copy(z.target);
+    this.updateClip();
+    this.controls.update();
+    this.reportSketchZoom();
+    this.dirty = true;
+  }
+
+  /** In a sketch the wheel (and a trackpad pinch) zooms about the point of the sketch plane under the pointer, so that point stays put: smooth, with
+   *  the same step for any camera angle (the controls' own zoom-to-cursor aims at the depth of the orbit target, which jumps in an oblique view). */
+  private onSketchWheel = (e: WheelEvent): void => {
+    if (!this.sketchEdit) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    const uv = this.planeAt(e.clientX, e.clientY);
+    const v = this.sketchEdit;
+    const anchor = uv ? new THREE.Vector3(...planeToWorld(v.frame as never, uv[0], uv[1])) : this.controls.target.clone();
+    const z = zoomAbout(this.camera.position, this.controls.target, anchor, wheelFactor(e.deltaY, e.deltaMode, e.ctrlKey));
+    this.camera.position.copy(z.position);
+    this.controls.target.copy(z.target);
+    this.updateClip();
+    this.controls.update();
+    this.dirty = true;
+  };
+
   /** Dolly towards (dy < 0, a drag up) or away from the target by a screen drag of dy pixels. */
   zoomBy(dy: number): void {
     const off = this.camera.position.clone().sub(this.controls.target);
@@ -395,8 +448,38 @@ export class Viewport {
     this.dirty = true;
   }
 
+  /** The touch pointers that are down: a second one is a pinch or a two-finger pan, which must never select, drag a sketch point or draw a band. */
+  private touch = new TouchGuard();
+  /** A finger is drawing with the active sketch tool: where it went down and whether it has moved far enough to be a drag. */
+  private touchDraw: { id: number; x0: number; y0: number; started: boolean } | null = null;
+  private onTouchDown = (e: PointerEvent): void => { if (this.touch.down(e)) this.cancelGesture(); };
+  /** Runs on the window after the canvas's own pointerup, so that handler still sees `multi` for the last finger of a pinch (no tap pick). */
+  private onTouchEnd = (e: PointerEvent): void => this.touch.end(e);
+  /** The system took the pointer (a scroll or a palm, a call coming in, the finger left the screen): there will be no pointerup. */
+  private onCancel = (): void => { this.suppressUp = false; this.cancelGesture(); };
+  /** Abandon the press in progress: no click, no rubber band, no point drag, no box, and the orbit controls back on. */
+  cancelGesture(): void {
+    this.down = null;
+    if (this.touchDraw) { this.touchDraw = null; this.opts.onSketchPointer?.({ type: 'cancel', u: 0, v: 0, x: 0, y: 0, tol: 0, grid: 0, mods: { shift: false, ctrl: false, alt: false } }); }
+    if (this.rubber) {
+      const moved = this.rubber.moved;
+      this.rubber = null;
+      if (moved) this.opts.onSketchBox?.({ phase: 'cancel', x0: 0, y0: 0, x1: 0, y1: 0, crossing: false, u0: 0, v0: 0, u1: 0, v1: 0, mods: { shift: false, ctrl: false, alt: false } } as never);
+    }
+    this.sketchDrag = null;
+    this.modPan = null;
+    this.midZoom = null;
+    if (this.boxDrag) {
+      try { this.dom.releasePointerCapture(this.boxDrag.id); } catch { /* not captured */ }
+      this.boxDrag = null;
+      this.boxEl?.remove();
+      this.boxEl = null;
+    }
+    this.controls.enabled = true;
+  }
+
   private onBoxDown = (e: PointerEvent): void => {
-    if (e.button !== 0 || this.sketchEdit || this.placement || this.pickIntercept || !this.opts.onBoxSelect) return;
+    if (this.touch.multi || e.button !== 0 || this.sketchEdit || this.placement || this.pickIntercept || !this.opts.onBoxSelect) return;
     // Box select mode starts anywhere; otherwise Shift+drag starting on empty space (a click on the body still adds to the selection)
     if (!this.boxMode && !(e.shiftKey && this.pickName(e.clientX, e.clientY) === null && !this.hit(e.clientX, e.clientY))) return;
     this.boxDrag = { x0: e.clientX, y0: e.clientY, id: e.pointerId, add: e.shiftKey };
@@ -506,8 +589,10 @@ export class Viewport {
     if (!v) {
       this.applyMeshLook();   // the fade is gone: back to the style's own opacity
       this.dirty = true;
+      this.opts.onSketchZoom?.(null);
       return;
     }
+    this.reportSketchZoom();
     // Fade the body so the sketch reads on top of it.
     this.applyMeshLook();   // applyBodyLook caps the opacity at SKETCH_FADE while a sketch is open
     if (this.sketchLines) this.sketchLines.visible = false; // no double-draw of the same sketch
@@ -614,6 +699,8 @@ export class Viewport {
     const sketching = this.sketchTool || !!this.sketchEdit;
     this.controls.zoomToCursor = sketching;   // in a sketch the wheel zooms towards the pointer, so a small detail can be reached without panning first
     this.controls.mouseButtons = navButtons(sketching);   // model: middle orbits, Shift+middle pans, Ctrl+middle zooms (midZoomDown)
+    // a finger belongs to the active tool (press = first point, drag = size, lift = place); two fingers pan and pinch the view
+    this.controls.touches = { ONE: this.sketchTool ? TOUCH_NONE : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
   }
 
   /** Draw what the active tool is about to make: amber lines, dotted guides and snap markers, on top of everything. */
@@ -831,13 +918,13 @@ export class Viewport {
     return Math.hypot(b[0] - a[0], b[1] - a[1]) || 0.1;
   }
 
-  private emitSketchPointer(type: 'move' | 'click', e: PointerEvent, cb = this.opts.onSketchPointer): void {
+  private emitSketchPointer(type: SketchPointerEvent['type'], e: Pick<PointerEvent, 'clientX' | 'clientY' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey' | 'pointerType'>, cb = this.opts.onSketchPointer): void {
     const uv = this.planeAt(e.clientX, e.clientY);
     if (!uv) return;
     const r = this.dom.getBoundingClientRect();
     cb?.({
       type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
-      tol: this.sketchUnitsPerPixel() * 12,
+      tol: this.sketchUnitsPerPixel() * (e.pointerType === 'touch' ? PICK_RADIUS_TOUCH : PICK_RADIUS),   // a fingertip is wider than a mouse pointer
       grid: this.gridStep(),
       mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
     });
@@ -958,7 +1045,8 @@ export class Viewport {
     if (id !== this.lastRefHover) { this.lastRefHover = id; this.opts.onRefPlaneHover?.(id); }
   }
 
-  private onLeave = (): void => {
+  private onLeave = (e?: PointerEvent): void => {
+    if (e?.pointerType === 'touch') return;   // a finger lifting is no "pointer left": the shape in progress and its fields stay
     this.emitRefPlaneHover(null);
     this.opts.onPlaneCursor?.(null);
     this.opts.onHoverPoint?.(null);
@@ -2021,10 +2109,12 @@ export class Viewport {
 
   fit(): void {
     // in a sketch, Fit frames the SKETCH (its geometry, else a 100 mm view around the origin), never the reference planes or the body
-    const sk = this.sketchEdit ? sketchFitView(this.sketchEdit as never, this.sketchEdit.frame as never) : null;
+    const sk = this.sketchEdit ? sketchEditFit({ frame: this.sketchEdit.frame as never, sketch: this.sketchEdit.sketch }) : null;
     const c = sk ? new THREE.Vector3(...sk.center) : this.center();
     const r = sk ? sk.radius : this.radius();
-    const dist = (r * 1.2) / Math.sin((this.camera.fov * Math.PI) / 360);
+    // the limiting half angle is the narrower of the vertical and the horizontal one (a tall, narrow canvas)
+    const half = Math.min(1, this.camera.aspect || 1) * Math.sin((this.camera.fov * Math.PI) / 360);
+    const dist = (r * 1.2) / half;
     const dir = this.camera.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-9) dir.set(1, 0.8, 1);
     dir.normalize().multiplyScalar(dist);
@@ -2140,6 +2230,10 @@ export class Viewport {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
+    this.dom.removeEventListener('pointerdown', this.onTouchDown, true);
+    window.removeEventListener('pointerup', this.onTouchEnd);
+    window.removeEventListener('pointercancel', this.onTouchEnd);
+    this.dom.removeEventListener('pointercancel', this.onCancel);
     this.dom.removeEventListener('pointerdown', this.onBoxDown, true);
     this.dom.removeEventListener('pointerdown', this.midZoomDown, true);
     window.removeEventListener('pointermove', this.midZoomMove);
@@ -2154,6 +2248,7 @@ export class Viewport {
     this.dom.removeEventListener('pointerup', this.onCursorMove);
     window.removeEventListener('keydown', this.onSpace);
     window.removeEventListener('keyup', this.onSpace);
+    this.dom.removeEventListener('wheel', this.onSketchWheel, true);
     cancelAnimationFrame(this.cursorRaf);
     this.dom.removeEventListener('dblclick', this.onDouble);
     this.dom.removeEventListener('contextmenu', this.onContext);
@@ -2321,14 +2416,14 @@ export class Viewport {
   }
 
   /** Nearest sketch point within ~12 px of the cursor, else null. */
-  private sketchPick(x: number, y: number): string | null {
+  private sketchPick(x: number, y: number, touch = false): string | null {
     const v = this.sketchEdit;
     if (!v) return null;
     const r = this.dom.getBoundingClientRect();
     const world = sketchPointWorld(v.sketch.points, v.frame as never);
     const p3 = new THREE.Vector3();
     let best: string | null = null;
-    let bestD = 12;
+    let bestD = touch ? PICK_RADIUS_TOUCH : PICK_RADIUS;
     for (const p of world) {
       p3.set(p.xyz[0], p.xyz[1], p.xyz[2]).project(this.camera);
       const px = r.left + ((p3.x + 1) / 2) * r.width;
@@ -2395,11 +2490,19 @@ export class Viewport {
   }
 
   private onDown = (e: PointerEvent): void => {
+    if (this.touch.multi) return;
     this.down = { x: e.clientX, y: e.clientY };
     if (this.sketchEdit && e.button === 0 && e.pointerType !== 'touch' && (e.metaKey || e.ctrlKey || this.spaceHeld)) { this.modPan = { x: e.clientX, y: e.clientY, moved: false }; this.dom.setPointerCapture(e.pointerId); }
-    if (this.sketchEdit && this.sketchTool) return; // a tool is active: clicks go to the tool on release
+    if (this.sketchEdit && this.sketchTool) {   // a tool is active: clicks go to the tool on release
+      if (e.pointerType === 'touch' && e.isPrimary) {   // a finger: press shows what it would snap to, a drag sizes the shape, lifting places it
+        this.touchDraw = { id: e.pointerId, x0: e.clientX, y0: e.clientY, started: false };
+        this.emitSketchPointer('press', e);
+        this.emitSketchPointer('move', e);
+      }
+      return;
+    }
     if (this.sketchEdit) {
-      const id = this.sketchPick(e.clientX, e.clientY);
+      const id = this.sketchPick(e.clientX, e.clientY, e.pointerType === 'touch');
       if (id) {
         this.sketchDrag = id;
         this.controls.enabled = false; // orbit off while dragging a point
@@ -2415,6 +2518,7 @@ export class Viewport {
   private onUp = (e: PointerEvent): void => {
     const d = this.down;
     this.down = null;
+    if (this.touch.multi) return;   // the end of a pinch or two-finger pan
     if (this.modPan) {
       const moved = this.modPan.moved;
       this.modPan = null;
@@ -2436,6 +2540,9 @@ export class Viewport {
       return;
     }
     if (this.sketchEdit && this.sketchTool) {
+      const td = this.touchDraw;
+      this.touchDraw = null;
+      if (td && e.pointerType === 'touch') { if (td.started || Math.hypot(e.clientX - td.x0, e.clientY - td.y0) < TOUCH_SLOP) this.emitSketchPointer('click', e); return; }
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e);
       return;
     }
@@ -2507,6 +2614,7 @@ export class Viewport {
   }
 
   private onMove = (e: PointerEvent): void => {
+    if (this.touch.multi) return;
     if (this.modPan) {
       const m = this.modPan;
       if (!m.moved && Math.hypot(e.clientX - m.x, e.clientY - m.y) >= 4) { m.moved = true; this.dom.style.cursor = 'grabbing'; }
@@ -2514,7 +2622,15 @@ export class Viewport {
     }
     if (this.regionPick && !this.sketchEdit && !this.down) { const uv = this.regionPlaneAt(e.clientX, e.clientY); this.regionPick.move(uv ? uv[0] : 0, uv ? uv[1] : null); }
     if (this.placement && !this.sketchEdit) { if (!this.down) this.placement.move(e.clientX, e.clientY, { alt: e.altKey }); return; }
-    if (this.sketchEdit && this.sketchTool) { this.emitSketchPointer('move', e); return; }
+    if (this.sketchEdit && this.sketchTool) {
+      const td = this.touchDraw;
+      if (td && !td.started && Math.hypot(e.clientX - td.x0, e.clientY - td.y0) >= TOUCH_SLOP) {
+        td.started = true;
+        this.emitSketchPointer('dragstart', { clientX: td.x0, clientY: td.y0, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, pointerType: 'touch' });
+      }
+      this.emitSketchPointer('move', e);
+      return;
+    }
     if (this.sketchEdit && this.rubber) {
       const b = this.rubber;
       if (!b.moved && Math.hypot(e.clientX - b.cx, e.clientY - b.cy) >= 4) b.moved = true;

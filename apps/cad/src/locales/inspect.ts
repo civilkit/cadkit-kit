@@ -12,6 +12,8 @@ export const inspectStrings: Record<string, string> = {
   'inspect.density.unknown': 'No density known for "{name}": set one.', 'inspect.density.noMaterial': 'The part names no material: set a density.',
   'mass.volume': 'Volume', 'mass.area': 'Surface area', 'mass.mass': 'Mass', 'mass.com': 'Centre of mass', 'mass.box': 'Bounding box',
   'mass.size': 'Size', 'mass.moments': 'Principal moments', 'mass.bodies': 'Body',
+  'mass.axis': 'Principal axis {n}', 'mass.firstMoment': 'First moments (mass × centre)',
+  'mass.inertia': 'Inertia tensor about the centre of mass', 'mass.inertiaOrigin': 'Inertia tensor about the origin', 'mass.inertiaUnit': 'rows x, y, z; g·mm²',
   'inspect.measure': 'Measure', 'measure.start': 'Start measuring', 'measure.stop': 'Stop measuring', 'measure.clear': 'Clear picks',
   'measure.off': 'Press M or Start measuring, then pick in the view.',
   'measure.hint': 'Pick one or two faces, edges or corners (Q face, E edge, V corner).',

@@ -100,6 +100,11 @@ export function sketchFitView(
   return { center: planeToWorld(frame, (u0 + u1) / 2, (v0 + v1) / 2), radius, empty: false };
 }
 
+/** What Fit frames for the sketch being edited, from the viewport's edit record (`{ featureId, frame, sketch }`): the record's `sketch` part is what `sketchFitView` reads, not the record itself. */
+export function sketchEditFit(edit: { frame: Frame; sketch: SketchEditShape }): { center: [number, number, number]; radius: number; empty: boolean } {
+  return sketchFitView(edit.sketch, edit.frame);
+}
+
 /** The angle in degrees between the camera's line of sight and the sketch plane's normal (0 = looking straight at the sketch, from either side). */
 export function lookAngleDeg(sight: number[], normal: number[]): number {
   const dot = sight[0] * normal[0] + sight[1] * normal[1] + sight[2] * normal[2];

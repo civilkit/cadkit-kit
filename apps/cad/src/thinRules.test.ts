@@ -14,7 +14,21 @@ const cSketch = (gap = 4): Wire => ({
 });
 const circle: Wire = { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'o', x: 0, y: 0 }], entities: [{ type: 'circle', id: 'e1', c: 'o', r: 10 }], constraints: [] };
 
+/** Two arcs forming a lens with separate end points at the same places (what the script layer writes). */
+const lensSketch = (): Wire => ({
+  type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' },
+  points: [{ id: 'c1', x: 15, y: -10 }, { id: 'a1', x: 30, y: 0 }, { id: 'b1', x: 0, y: 0 }, { id: 'c2', x: 15, y: 10 }, { id: 'a2', x: 0, y: 0 }, { id: 'b2', x: 30, y: 0 }],
+  entities: [{ type: 'arc', id: 'e1', c: 'c1', p1: 'a1', p2: 'b1' }, { type: 'arc', id: 'e2', c: 'c2', p1: 'a2', p2: 'b2' }],
+  constraints: [],
+});
+
 describe('thin option rules', () => {
+  it('a sketch of arcs that meet at the same coordinates (separate points) is not an open profile', () => {
+    expect(openProfile(doc(lensSketch()), 'F1')).toBeNull();
+    const moved = lensSketch() as { points: Array<{ id: string; x: number }> };
+    moved.points.find((p) => p.id === 'b2')!.x = 40;
+    expect(openProfile(doc(moved as unknown as Wire), 'F1')?.closedShapes).toBe(0);
+  });
   it('reads the option, with defaults, and treats enabled:false as off', () => {
     expect(thinOf({})).toBeNull();
     expect(thinOf({ thin: null })).toBeNull();

@@ -1,0 +1,23 @@
+import { chromium } from 'playwright';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 810 }, colorScheme: 'light' });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('pageerror', (e.stack || String(e)).slice(0, 900)));
+await page.goto('http://localhost:5192/?theme=light&noprompt=1'); await page.waitForSelector('.status .ready');
+await page.getByRole('button', { name: /sketch on front plane/i }).click(); await sleep(900);
+await page.mouse.move(720, 470); await page.keyboard.press('Tab'); await page.keyboard.type('0'); await page.keyboard.press('Tab'); await page.keyboard.type('10'); await page.keyboard.press('Enter'); await sleep(300);
+await page.mouse.move(780, 430);
+for (const [l, a] of [[5, 0], [14.142, -45], [10, 0], [7.071, 45], [125, 90]]) { await page.keyboard.type(String(l)); await page.keyboard.press('Tab'); await page.keyboard.type(String(a)); await page.keyboard.press('Enter'); await sleep(200); }
+const zoom = async (tag) => console.log(tag, 'zoom field =', await page.getByTestId('status-zoom').inputValue().catch(async () => await page.getByTestId('status-zoom').textContent()));
+await zoom('before');
+await page.getByTestId('slot-line').click().catch(() => {});
+await page.keyboard.press('Escape'); await sleep(200);
+await page.mouse.move(900, 300);
+await page.keyboard.press('z'); await sleep(900); await zoom('after key z');
+console.log(await page.locator('[aria-label="Fit" i], [title^="Fit" i]').count(), 'fit buttons');
+await page.locator('[aria-label="Fit" i], [title^="Fit" i]').first().click(); await sleep(900); await zoom('after fit click');
+await page.screenshot({ path: '/private/tmp/claude-501/probe/fit.png' });
+const z = page.getByTestId('status-zoom'); await z.click(); await z.fill('60'); await z.press('Enter'); await sleep(900); await zoom('after zoom 60');
+await page.screenshot({ path: '/private/tmp/claude-501/probe/zoom60.png' });
+await browser.close();

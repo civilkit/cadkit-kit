@@ -1217,6 +1217,12 @@
   "tab.Surfaces",
   "tab.View"
  ],
+ "settings.layoutMode.+": [
+  "settings.layoutMode.auto",
+  "settings.layoutMode.phone",
+  "settings.layoutMode.tablet",
+  "settings.layoutMode.desktop"
+ ],
  "settings.nav.+": [
   "settings.nav.upAxis",
   "settings.nav.orbitMode",

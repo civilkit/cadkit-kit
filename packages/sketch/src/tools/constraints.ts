@@ -74,6 +74,8 @@ export type Resolved = { spec: Spec } | { more: true } | { hint: string };
 export const HINT = {
   invalid: 'app.sketch.hint.pick.invalid',
   same: 'app.sketch.hint.pick.same',
+  ownEnd: 'app.sketch.hint.pick.ownEnd',
+  lineEnds: 'app.sketch.hint.pick.lineEnds',
   none: 'app.sketch.hint.pick.none',
   exists: 'app.sketch.hint.constraint.exists',
   redundant: 'app.sketch.hint.constraint.redundant',
@@ -102,7 +104,10 @@ export function resolve(kind: ConstraintKind, d: SketchDraft, picks: readonly Pi
     case 'coincident':
       if (a.kind !== 'point') return bad;
       if (picks.length === 1) return { more: true };
-      return b.kind === 'point' ? { spec: { type: 'coincident', refs: [a.id, b.id] } } : bad;
+      if (b.kind !== 'point') return bad;
+      // a line's two ends made coincident would shrink the line to a point (the kernel names it sketchLineEndsCoincident)
+      if (d.entities.some((e) => e.type === 'line' && [str(e.p1), str(e.p2)].sort().join('|') === [a.id, b.id].sort().join('|'))) return { hint: HINT.lineEnds };
+      return { spec: { type: 'coincident', refs: [a.id, b.id] } };
     case 'concentric': {
       if (a.kind !== 'point' && !isCurve(a)) return bad;
       if (picks.length === 1) return { more: true };
@@ -126,7 +131,7 @@ export function resolve(kind: ConstraintKind, d: SketchDraft, picks: readonly Pi
       if (picks.length === 1) return { more: true };
       const pt = a.kind === 'point' ? a : b, ln = a.kind === 'line' ? a : b;
       if (pt.kind !== 'point' || ln.kind !== 'line') return bad;
-      if (lineEnds(d, ln.id)?.includes(pt.id)) return bad; // an end point of the line cannot be its midpoint
+      if (lineEnds(d, ln.id)?.includes(pt.id)) return { hint: HINT.ownEnd }; // an end point of the line cannot be its midpoint
       return { spec: { type: 'midpoint', refs: [pt.id, ln.id] } };
     }
     case 'tangent': {
@@ -312,6 +317,32 @@ export const refusalHint = (r: Refusal): string => HINT[r];
 
 // ---- reading the solver status -----------------------------------------------------------------------------------
 
+/** A coded problem in the kernel's sketch status (docs/sketch-status.md "Problems" in the kernel repo). */
+export interface SolveProblem { code: string; message: string; constraint?: string; entity?: string }
+type WithProblems = SketchSolverStatus & { problems?: SolveProblem[] };
+
+/** Status-line text for each kernel problem code; a code missing here shows the generic status. */
+const PROBLEM_HINT: Record<string, string> = {
+  sketchCurveShrunk: 'app.sketch.problem.curveShrunk',
+  sketchSameCurveTwice: 'app.sketch.problem.sameCurveTwice',
+  sketchMidpointOwnEnd: 'app.sketch.problem.midpointOwnEnd',
+  sketchLineEndsCoincident: 'app.sketch.problem.lineEndsCoincident',
+};
+/** Problems that mean the kernel did not take the solve (the sketch keeps its coordinates). */
+const REFUSING = new Set(['sketchCurveShrunk']);
+
+/** The problem that made the kernel refuse the solve, if any. */
+export function refusedBy(status: SketchSolverStatus | null | undefined): SolveProblem | undefined {
+  return (status as WithProblems | null | undefined)?.problems?.find((p) => REFUSING.has(p.code));
+}
+
+/** i18n key for the status line from the kernel's coded problems: the refused solve first, then the picks. */
+export function problemHint(status: SketchSolverStatus | null | undefined): string | undefined {
+  const ps = ((status as WithProblems | null | undefined)?.problems ?? []).filter((p) => p.code in PROBLEM_HINT);
+  const p = ps.find((q) => REFUSING.has(q.code)) ?? ps[0];
+  return p ? PROBLEM_HINT[p.code] : undefined;
+}
+
 export interface StatusReport {
   level: 'under' | 'full' | 'redundant' | 'conflict' | 'unsolved';
   /** i18n key for the status line; none when the sketch is simply still under-defined. */
@@ -330,7 +361,7 @@ export function reportStatus(status: SketchSolverStatus, addedId?: string): Stat
   const mk = (level: StatusReport['level'], hint: string | undefined, ids: string[]): StatusReport =>
     ({ level, ...(hint ? { hint } : {}), ids, blamesAdded: addedId !== undefined && ids.includes(addedId) });
   if (status.conflicts.length) return mk('conflict', 'app.sketch.hint.status.overConstrained', status.conflicts);
-  if (!status.solved) return mk('unsolved', 'app.sketch.hint.status.unsolved', []);
+  if (!status.solved) return mk('unsolved', problemHint(status) ?? 'app.sketch.hint.status.unsolved', []);
   if (status.redundant.length) return mk('redundant', 'app.sketch.hint.status.redundant', status.redundant);
   if (status.state === 'full') return mk('full', 'app.sketch.hint.status.fullyDefined', []);
   return mk('under', undefined, []);

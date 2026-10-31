@@ -298,3 +298,18 @@ describe('HoleEditor: Threaded', () => {
     expect(m.container.querySelector('[data-testid="thread-notbuilt"]')!.textContent).toContain('bore too small');
   });
 });
+
+describe('HoleEditor: a refused size', () => {
+  it('shows the largest size that builds and sets it in one click', () => {
+    const cb = { ...HOLE, kind: 'cbore', size: 'M8', end: 'blind', depth: 6, cboreDiameter: 15, cboreDepth: 8 };
+    const m = mount(cb, { hint: 'F4 Hole failed', fix: { note: 'The largest size that builds is 5.99 mm.', label: 'Use the largest size (5.99 mm)', path: 'cboreDepth', value: 5.99 } });
+    expect(m.container.querySelector('.fedit-fix-note')!.textContent).toBe('The largest size that builds is 5.99 mm.');
+    fireEvent.click(m.container.querySelector('[data-fix="maxSize"]')!);
+    expect(m.drafts.at(-1)).toMatchObject({ cboreDepth: 5.99 });
+    expect(m.num('cboreDepth').value).toBe('5.99');
+  });
+  it('no fix, no button', () => {
+    const m = mount(HOLE, { hint: 'F4 Hole failed' });
+    expect(m.container.querySelector('[data-fix]')).toBeNull();
+  });
+});

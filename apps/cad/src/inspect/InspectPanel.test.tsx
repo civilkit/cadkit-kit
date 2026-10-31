@@ -57,6 +57,25 @@ describe('InspectPanel', () => {
     void getByText;
   });
 
+  it('mass card: first moments, principal axes and the inertia tensors, scaled by density; Copy carries them', () => {
+    const I = [[100, -10, 0], [-10, 200, 0], [0, 0, 250]];
+    const mass = massView({ volume: 1000, area: 600, com: [1, 2, 3], principal: [95, 205, 250], axes: [[0.9, 0.4, 0], [-0.4, 0.9, 0], [0, 0, 1]],
+      firstMoment: [1000, 2000, 3000], inertia: I, inertiaOrigin: I.map((r) => r.map((x) => x + 5)) }, 2);
+    const { p, container } = setup({ mass });
+    const text = card(container, 'Mass properties').textContent!;
+    expect(text).toContain('Principal axis 1'); expect(text).toContain('(0.9, 0.4, 0)');
+    expect(text).toContain('First moments'); expect(text).toContain('(2, 4, 6) g·mm');   // density 2 g/cm3 = 0.002 g/mm3
+    expect(text).toContain('Inertia tensor about the centre of mass'); expect(text).toContain('0.2   -0.02   0');
+    expect(text).toContain('Inertia tensor about the origin');
+    fireEvent.click(card(container, 'Mass properties').querySelector('button:last-of-type')!);
+    expect(p.onCopy).toHaveBeenCalledWith(expect.stringContaining('Inertia tensor about the origin'));
+  });
+
+  it('mass card without tensor data (an older kernel) shows only the rows it has', () => {
+    const { container } = setup({ mass: massView({ volume: 10, area: 5, com: [0, 0, 0], principal: [1, 2, 3] }, 1) });
+    expect(card(container, 'Mass properties').textContent).not.toContain('Inertia tensor');
+  });
+
   it('density field reports changes; an unknown material says to set one; no solid disables Compute', () => {
     const { p, container } = setup({ material: 'unobtainium', densityKnown: false, hasSolid: false });
     expect(card(container, 'Mass properties').textContent).toContain('No density known for "unobtainium"');

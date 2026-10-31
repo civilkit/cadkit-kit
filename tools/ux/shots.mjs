@@ -2,7 +2,6 @@
 // Post-change UX review toolchain: drive the app through the scenarios, save a PNG + metrics JSON per scenario/width/scheme, write report.md.
 //   node tools/ux/shots.mjs --out <dir> [--baseline <dir>] [--url <url>] [--only a,b] [--quick] [--widths 1440,820] [--schemes light,dark]
 // Without --url it starts the vite dev server of this checkout on a free port in 5500-5549 and stops it at the end.
-import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -11,6 +10,7 @@ import { launchChrome, Page } from './cdp.mjs';
 import { collectMetrics, findings, THRESHOLDS } from './metrics.mjs';
 import { SCENARIOS, WS } from './scenarios.mjs';
 import { diffPng } from './png.mjs';
+import { startVite } from './vite.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRATCH = fileURLToPath(new URL('../../../scratch-uxreview', import.meta.url));
@@ -65,20 +65,9 @@ function makeCtx(page, base) {
   return ctx;
 }
 
-async function startVite() {
-  for (let port = 5500; port < 5550; port++) {
-    try { await fetch(`http://localhost:${port}/`); continue; } catch { /* free */ }
-    const cache = existsSync(SCRATCH) ? join(SCRATCH, 'vite-cache') : join(ROOT, 'node_modules/.vite-ux');
-    const proc = spawn(process.execPath, [join(ROOT, 'node_modules/vite/bin/vite.js'), 'apps/cad', '--config', 'vite.config.ts', '--port', String(port), '--strictPort'], { cwd: ROOT, env: { ...process.env, VITE_CACHE_DIR: cache }, stdio: 'ignore' });
-    for (let i = 0; i < 120; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) return { url: `http://localhost:${port}/`, stop: () => proc.kill('SIGTERM') }; } catch { /* booting */ } await sleep(500); }
-    proc.kill('SIGTERM'); throw new Error('vite did not start');
-  }
-  throw new Error('no free port in 5500-5549');
-}
-
 async function main() {
   const t0 = Date.now(); mkdirSync(OUT, { recursive: true });
-  const vite = args.url ? null : await startVite(); const url = args.url ?? vite.url;
+  const vite = args.url ? null : await startVite(ROOT, SCRATCH); const url = args.url ?? vite.url;
   const chrome = await launchChrome({ port: CHROME_PORT, profileDir: join(existsSync(SCRATCH) ? SCRATCH : tmpdir(), 'chrome-profile-ux') });
   const results = []; let exit = 0;
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { chrome.close(); vite?.stop(); process.exit(130); });

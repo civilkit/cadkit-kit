@@ -39,6 +39,8 @@ export function Inspector(p: { feature: Record<string, unknown> | null; onSet(pa
           ) : f.kind === 'number' ? (
             <input
               type="number"
+              inputMode="decimal"
+              enterKeyHint="done"
               value={String(f.value)}
               onChange={(e) => {
                 const raw = (e.currentTarget as HTMLInputElement).value;

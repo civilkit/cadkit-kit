@@ -1,0 +1,22 @@
+// Interactive probe: node e2e/probe.mjs step1 ... prints and screenshots; state is not kept between runs, so each run replays from the start.
+import { chromium } from 'playwright';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 810 }, colorScheme: 'light', deviceScaleFactor: 1 });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('pageerror', String(e).slice(0, 200)));
+await page.goto('http://localhost:5192/?theme=light&noprompt=1', { timeout: 240000 });
+await page.waitForSelector('.status .ready', { timeout: 240000 });
+let n = 0; const shot = async (name) => { const f = `/private/tmp/claude-501/probe/${String(++n).padStart(2, '0')}-${name}.png`; await page.screenshot({ path: f }); console.log('shot', f); };
+await shot('start');
+await page.getByRole('button', { name: /sketch on front plane/i }).click();
+await sleep(1500); await shot('sketch-front');
+await page.mouse.move(720, 480); await sleep(300);
+await page.keyboard.press('Tab'); await sleep(500); await shot('tab-xy');
+await page.keyboard.type('0'); await page.keyboard.press('Tab'); await page.keyboard.type('9'); await sleep(300); await shot('typed-xy');
+await page.keyboard.press('Enter'); await sleep(500); await page.mouse.move(800, 480); await sleep(400); await shot('after-first');
+await page.keyboard.type('4'); await page.keyboard.press('Tab'); await page.keyboard.type('0'); await sleep(300); await shot('typed-len');
+await page.keyboard.press('Enter'); await sleep(500); await page.mouse.move(900, 560); await sleep(300); await shot('second-seg');
+const ids = await page.evaluate(() => [...document.querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid')).slice(0, 80));
+console.log(JSON.stringify(ids));
+await browser.close();

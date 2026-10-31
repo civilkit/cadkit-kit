@@ -26,7 +26,7 @@ export function AnalysisSection(p: { opts: AnalysisOptions; onChange(patch: Part
               {PULL_DIRECTIONS.map((d) => <option key={d.id} value={d.id}>{d.id.toUpperCase()}</option>)}
             </select></label>
           <label class="display-field"><span>{t('analysis.draftMin')}</span>
-            <input type="number" aria-label={t('analysis.draftMin')} min="0" max="45" step="0.5" value={o.draftMin} onChange={(e) => p.onChange({ draftMin: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
+            <input type="number" inputMode="decimal" enterKeyHint="done" aria-label={t('analysis.draftMin')} min="0" max="45" step="0.5" value={o.draftMin} onChange={(e) => p.onChange({ draftMin: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
         </>
       ) : null}
       <label class="display-row">

@@ -717,6 +717,66 @@ describe('sketch on a face', { skip: !process.env.CK_WASM }, () => {
   }, 60000);
 });
 
+// ---- the kernel's solve guard (a solve that shrinks a curve to a point is not taken) ----
+
+/** One sketch, F1: `points`/`entities`/`constraints` as given, on the front plane. */
+function sketchDoc(points: unknown[], entities: unknown[], constraints: unknown[]): PartDoc {
+  return { ...emptyPart('Guard'), features: [{ type: 'sketch', name: 'S', id: 'F1', plane: { kind: 'std', id: 'front' }, points, entities, constraints }], seq: 2 } as PartDoc;
+}
+const C30 = Math.cos(Math.PI / 6), S30 = Math.sin(Math.PI / 6);
+
+describe('sketch solve guard', { skip: !process.env.CK_WASM }, () => {
+  const factories: Array<{ closeAll(): Promise<void> }> = [];
+  afterEach(async () => { await Promise.all(factories.splice(0).map((f) => f.closeAll())); });
+
+  async function open(doc: PartDoc) {
+    const { view, sketchEdits } = fakeView();
+    const f = nodeFactory();
+    factories.push(f);
+    const controller = new Controller({ store: createStore(), view, kernel: f.kernel });
+    await controller.load(doc);
+    const good = await controller.beginSketch('F1');
+    expect(good).not.toBeNull();
+    return { controller, sketchEdits, good };
+  }
+
+  it('a drag that would press a line to no length snaps back and says why (solidcraft #8600, #9728)', async () => {
+    // a line held at its midpoint on the fixed origin, 30 degrees to a horizontal line from the origin
+    const { controller, sketchEdits, good } = await open(sketchDoc(
+      [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'h', x: 15, y: 0 }, { id: 'p', x: -10 * C30, y: -10 * S30 }, { id: 'q', x: 10 * C30, y: 10 * S30 }],
+      [{ id: 'l1', type: 'line', p1: 'p', p2: 'q' }, { id: 'l2', type: 'line', p1: 'O', p2: 'h' }],
+      [{ id: 'k1', type: 'midpoint', refs: ['O', 'l1'] }, { id: 'k2', type: 'horizontal', refs: ['l2'] }, { id: 'k3', type: 'angle', refs: ['l2', 'l1'], value: 30 }],
+    ));
+    const editsBefore = sketchEdits.length;
+    const r = await controller.updateSketch(movePoint(controller.sketchDraft()!, 'q', 0, 0), 0);   // onto its own midpoint
+    expect(r.ok).toBe(false);
+    expect(r.hint).toBe('app.sketch.problem.curveShrunk');
+    expect(r.view).toBeUndefined();
+    expect(sketchEdits.length).toBe(editsBefore);
+    expect(sketchEdits.at(-1)).toEqual(good);
+    // a drag along the line still works
+    const ok = await controller.updateSketch(movePoint(controller.sketchDraft()!, 'q', 6 * C30, 6 * S30), 0);
+    expect(ok.ok).toBe(true);
+  }, 60000);
+
+  it('a constraint whose solve would collapse the rectangle is refused: the draft goes back and the hint says why (solidcraft #8988)', async () => {
+    const pts = [{ id: 'p1', x: 0, y: 0 }, { id: 'p2', x: 10, y: 0 }, { id: 'p3', x: 10, y: 5 }, { id: 'p4', x: 0, y: 5 }];
+    const ents = [{ id: 'e1', type: 'line', p1: 'p1', p2: 'p2' }, { id: 'e2', type: 'line', p1: 'p2', p2: 'p3' }, { id: 'e3', type: 'line', p1: 'p3', p2: 'p4' }, { id: 'e4', type: 'line', p1: 'p4', p2: 'p1' }];
+    const hv = [{ id: 'c1', type: 'horizontal', refs: ['e1'] }, { id: 'c2', type: 'vertical', refs: ['e2'] }, { id: 'c3', type: 'horizontal', refs: ['e3'] }, { id: 'c4', type: 'vertical', refs: ['e4'] }];
+    const { controller, sketchEdits, good } = await open(sketchDoc(pts, ents, hv));
+    const before = controller.sketchDraft()!;
+    const editsBefore = sketchEdits.length;
+    const r = await controller.applySketchDraft({ ...before, constraints: [...before.constraints, { id: 'k5', type: 'midpoint', refs: ['p2', 'e4'] }] });
+    expect(r.ok).toBe(false);
+    expect(r.hint).toBe('app.sketch.problem.curveShrunk');
+    expect(controller.sketchDraft()).toEqual(before);
+    expect(sketchEdits.length).toBe(editsBefore);
+    expect(sketchEdits.at(-1)).toEqual(good);
+    // nothing to undo: the refused edit never became the draft
+    expect(await controller.undoSketch()).toBe(false);
+  }, 60000);
+});
+
 describe('controller design check (fake session)', () => {
   const profiles = { profiles: [{ id: 'fdm-print', name: 'FDM 3D printing', description: '', rules: [] }], rules: [] };
   function fake(check: () => Promise<unknown>) {

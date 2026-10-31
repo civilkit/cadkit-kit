@@ -113,3 +113,16 @@ describe('Ribbon layout', () => {
     expect(container.querySelector('.slot-lab')).not.toBeNull();
   });
 });
+
+describe('Ribbon automation hooks', () => {
+  it('tab buttons have test ids and names, and a command button a test id by command id', () => {
+    const picked: string[] = [];
+    const { container } = render(<Ribbon commands={commands} activeTab="Home" onTab={(x) => picked.push(x)} />);
+    const tab = container.querySelector('[data-testid="ribbon-tab-View"]') as HTMLElement;
+    expect(tab.getAttribute('aria-label')).toBe('View');
+    fireEvent.click(tab);
+    expect(picked).toEqual(['View']);
+    expect(container.querySelector('[data-testid="ribbon-tab-Home"]')!.getAttribute('aria-selected')).toBe('true');
+    expect(container.querySelector('[data-testid="cmd-open"]')).not.toBeNull();
+  });
+});

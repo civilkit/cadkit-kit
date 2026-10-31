@@ -1,9 +1,9 @@
 // The runner: evaluates the script text in a restricted scope, then applies the recorded steps through a host (the app's Controller or a Session).
-import type { TextMetricsFact } from './recorder';
+import type { InertiaFact, TextMetricsFact } from './recorder';
 import { applyDecor, type PartBuilder, makeApi, setLineOffset, type Ctx, type EditOp, type FactNeed, type Facts, type ReadRuntime, type ScriptState, type Step } from './recorder';
 import { faceInfos, SelectorError, type Geometry, type Vec } from './selectors';
 
-export interface EditResultLike { ok: boolean; errors?: Array<[string, { code?: string; message?: string }] | { feature?: string; code?: string; message?: string }>; schemaError?: string; added?: string[] }
+export interface EditResultLike { ok: boolean; errors?: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }] | { feature?: string; code?: string; message?: string; params?: Record<string, unknown> }>; schemaError?: string; added?: string[] }
 /** What the runner needs from the app: a way to open a document, edit it, and read the current body. */
 export interface ScriptHost {
   load(doc: Record<string, unknown>): Promise<void>;
@@ -24,13 +24,15 @@ export interface ScriptHost {
   facts?(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<KernelFacts>;
 }
 export interface KernelFacts {
-  volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>;
+  volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null;
+  /** unit-density inertia numbers of the massProps answer (see InertiaFact); absent when the kernel predates them */
+  inertia?: InertiaFact | null; issues?: Array<{ code: string; entity: string; detail: string }>;
   /** per face name: the kernel's exact surface type, area and radius (the display mesh only approximates the area) */
   faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }>;
   /** the kernel's textMetrics answer for need.text */
   text?: TextMetricsFact;
 }
-export interface BuildReply { errors: Array<[string, { code?: string; message?: string }]>; geometry?: Geometry }
+export interface BuildReply { errors: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>; geometry?: Geometry }
 export interface Progress { phase: 'building' | 'loading'; done: number; total: number; elapsedMs: number }
 export interface RunOptions {
   /** Variable expressions that replace the defaults written in `variables({...})` (the Variables tab after an edit). */
@@ -201,7 +203,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
       const k = need.mass || need.validate ? await host.facts!({ mass: need.mass, validate: need.validate }) : {};
       const g = geoFacts(host.geometry());
       if (need.geometry && host.facts && g.faces.length > 0 && g.faces.length <= 600) g.faces = exactFaces(g.faces, (await host.facts({ describe: g.faces.map((f) => f.name) }).catch(() => ({} as KernelFacts))).faces ?? []);
-      return { ...EMPTY_FACTS, ...g, volume: k.volume ?? null, area: k.area ?? null, com: (k.com as Vec | null | undefined) ?? null, valid: k.valid ?? null, issues: k.issues ?? [] };
+      return { ...EMPTY_FACTS, ...g, volume: k.volume ?? null, area: k.area ?? null, com: (k.com as Vec | null | undefined) ?? null, inertia: k.inertia ?? null, valid: k.valid ?? null, issues: k.issues ?? [] };
     },
     fail: (message, line) => { errors.push({ line, message }); },
   };
@@ -317,7 +319,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
       let best = Infinity, fid = r.errors[0][0], msg = '';
       for (const [id, e] of r.errors) {
         const si = stepOfFeature.get(id) ?? upTo - 1;
-        if (si < best) { best = si; fid = id; msg = e?.message ?? e?.code ?? ''; }
+        if (si < best) { best = si; fid = id; msg = (e?.message ?? e?.code ?? '') + bodiesNote(e); }
       }
       errors.push({ line: steps[Math.max(0, best)].line, feature: fid, message: friendlyKernelMessage(msg || 'the kernel rejected this step') });
       keep = best; failed = true;
@@ -347,7 +349,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
       if (g && host.facts && g.faces.length > 0 && g.faces.length <= 600 && !cache.describe) cache.describe = (await host.facts({ describe: g.faces.map((f) => f.name) }).catch(() => ({} as KernelFacts))).faces ?? [];
       if (g && cache.describe) g.faces = exactFaces(g.faces, cache.describe);
       const m = cache.mass ?? {}, v = cache.validate ?? {};
-      return { ...EMPTY_FACTS, ...g, volume: m.volume ?? null, area: m.area ?? null, com: (m.com as Vec | null | undefined) ?? null, valid: v.valid ?? null, issues: v.issues ?? [] };
+      return { ...EMPTY_FACTS, ...g, volume: m.volume ?? null, area: m.area ?? null, com: (m.com as Vec | null | undefined) ?? null, inertia: m.inertia ?? null, valid: v.valid ?? null, issues: v.issues ?? [] };
     },
     fail: (message, line) => { errors.push({ line, message }); },
   };
@@ -429,10 +431,17 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   return { ops, document: doc, errors, warnings, stats };
 }
 
+/** A missing body reference (cut from / combine): the kernel lists the names the part has (`params`), so say them. */
+function bodiesNote(o: { code?: string; params?: Record<string, unknown> } | undefined): string {
+  const q = (o?.params ?? o ?? {}) as { name?: unknown; bodies?: unknown; nearest?: unknown };
+  const names = q.bodies ?? q.nearest;
+  if (o?.code !== 'missingReference' || typeof q.name !== 'string' || !Array.isArray(names)) return '';
+  return ` (no body named "${q.name}"; ${q.bodies ? 'the bodies in the part' : 'closest names'}: ${names.length ? names.join(', ') : 'none named'})`;
+}
 function errorsOf(r: EditResultLike): Array<{ feature?: string; message: string; code?: string }> {
   return (r.errors ?? []).map((e) => {
-    if (Array.isArray(e)) return { feature: e[0], message: e[1]?.message ?? e[1]?.code ?? 'error', code: e[1]?.code };
-    return { feature: e.feature, message: e.message ?? e.code ?? 'error', code: e.code };
+    if (Array.isArray(e)) return { feature: e[0], message: (e[1]?.message ?? e[1]?.code ?? 'error') + bodiesNote(e[1]), code: e[1]?.code };
+    return { feature: e.feature, message: (e.message ?? e.code ?? 'error') + bodiesNote(e), code: e.code };
   });
 }
 const firstMessage = (r: EditResultLike): string | undefined => errorsOf(r)[0]?.message;

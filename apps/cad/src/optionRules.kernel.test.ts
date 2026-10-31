@@ -7,8 +7,9 @@ import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import { edgeRefs } from './featureCommands';
 import {
-  KERNEL_END_REFERENCES, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii,
+  objectRefPatch, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
 } from './optionRules';
+import { pickValue } from './featureCommands';
 
 type Wire = Record<string, unknown>;
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number) => ({
@@ -32,7 +33,8 @@ async function measure(doc: PartDoc) {
   sessions.push(s);
   const report = await s.verify();
   const mass = (await s.massProps()) as { volume: number };
-  return { errors: report.regen.errors.map(([id, e]) => `${id}:${e.code}`), volume: mass.volume };
+  const params = Object.fromEntries(report.regen.errors.map(([id, e]) => [id, (e as { params?: Record<string, unknown> }).params ?? {}]));
+  return { errors: report.regen.errors.map(([id, e]) => `${id}:${e.code}`), params, volume: mass.volume };
 }
 /** The cut of the square F3 with the option patch applied (a cut goes against the sketch normal, so the cases flip into the body). */
 const cut = (patch: Wire) => measure(boxDoc([{ type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', end: 'blind', depth: 4, flip: true, ...patch }]));
@@ -69,14 +71,40 @@ describe('extrude end conditions against the kernel', { skip: !process.env.CK_WA
     expect(mid.errors).toEqual([]);
     near(mid.volume, 600);
   });
-  it('the reference ends are not cut yet: the form keeps them off until the kernel does', async () => {
-    const r = await cut({ end: 'upToFace', endFace: 'F2.C1' });
-    expect(r.errors.length).toBeGreaterThan(0);          // when this fails the kernel cuts it: set KERNEL_END_REFERENCES
-    expect(KERNEL_END_REFERENCES).toBe(false);
-    // a second depth is ignored too (no two-direction extrude): depth2 changes nothing
+  it('a second depth is ignored (no two-direction extrude): depth2 changes nothing', async () => {
     const one = await cut({});
     const two = await cut({ depth2: 3, end2: 'blind' });
     near(one.volume, two.volume);
+  });
+});
+
+describe('To object and From object against the kernel', { skip: !process.env.CK_WASM }, () => {
+  /** A Plane feature parallel to the front plane at z = `z` (the box runs z 0..10). */
+  const plane = (z: number | string) => ({ type: 'plane', id: 'P1', mode: 'offset', base: { kind: 'std', id: 'front' }, offset: z });
+  const cutWith = (patch: Wire, extra: Wire[] = []) => measure(boxDoc([...extra, { type: 'extrude', id: 'F4', op: 'cut', sketch: 'F3', flip: true, ...patch }]));
+  it('a cut to a Plane feature (chosen from the list) ends on it, and follows it when it moves', async () => {
+    for (const z of [6, 3]) {
+      const r = await cutWith({ ...patchEnd({ depth: 4 }, 'toObject'), depth: undefined, endRef: objectRefPatch('feature:P1') }, [plane(z)]);
+      expect(r.errors, String(z)).toEqual([]);
+      near(r.volume, 10000 - 100 * z);
+    }
+  });
+  it('a cut to a picked face, with an offset along the cut', async () => {
+    const endRef = pickValue('endRef', ['F2.C1'], []);
+    const r = await cutWith({ ...patchEnd({ depth: 4 }, 'toObject'), depth: undefined, endRef, endOffset: -3 });
+    expect(r.errors).toEqual([]);
+    near(r.volume, 10000 - 700);
+  });
+  it('an extrude from the box top (From object), blind 5', async () => {
+    const r = await measure(boxDoc([{ type: 'extrude', id: 'F4', op: 'add', sketch: 'F3', end: 'blind', depth: 5, ...patchStart('fromObject'), startRef: { kind: 'face', id: 'F2.C1' } }]));
+    expect(r.errors).toEqual([]);
+    near(r.volume, 10000 + 500);
+  });
+  it('a lost reference is refused with a hint, not guessed', async () => {
+    const r = await cutWith({ end: 'toObject', endRef: { kind: 'face', id: 'F9.C1', at: [10, 10, 10] } });
+    expect(r.errors).toEqual(['F4:missingReference']);
+    expect(String(r.params.F4?.hint ?? '')).toContain('F9.C1');
+    near(r.volume, 10000);
   });
 });
 

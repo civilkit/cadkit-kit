@@ -35,7 +35,7 @@ describe('reference dimensions', () => {
     const d = makeDriven(d0(), 'k1')!;
     const a = refAnnotations(d);
     expect(a).toHaveLength(1);
-    expect(a[0]).toMatchObject({ id: 'r1', text: '(10)', driven: true, kind: 'dimension' });
+    expect(a[0]).toMatchObject({ id: 'r1', text: '(10 mm)', driven: true, kind: 'dimension' });
     const back = fromFeature(toFeature(d));
     expect(refDimsOf(back)).toEqual(refDimsOf(d));
   });

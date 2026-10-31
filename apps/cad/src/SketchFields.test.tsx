@@ -63,3 +63,45 @@ describe('SketchFields', () => {
     expect(onField).not.toHaveBeenCalled();
   });
 });
+
+describe('SketchFields: relative angle switch', () => {
+  it('shows a labelled switch beside the angle box and sends the turn event', () => {
+    const onField = vi.fn();
+    const ang = { id: 'ang', label: 'app.sketch.field.angle', value: 30, locked: false, unit: 'angle' as const, toggle: { id: 'turn', on: false, label: 'app.sketch.field.turn', tip: 'app.sketch.field.turn.tipOff' } };
+    render(<SketchFields fields={[field, ang]} x={0} y={0} onField={onField} />);
+    const btn = screen.getByTestId('field-turn');
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    expect(btn.getAttribute('aria-label')).toBeTruthy();
+    fireEvent.click(btn);
+    expect(onField).toHaveBeenLastCalledWith('turn', 1, false);
+  });
+});
+
+describe('SketchFields: typing that starts with no field focused', () => {
+  const len = { id: 'len', label: 'app.sketch.field.length', value: 0, locked: false, unit: 'length' as const };
+  const ang = { id: 'ang', label: 'app.sketch.field.angle', value: -90, locked: false, unit: 'angle' as const };
+  it('the first field takes the whole seed, replacing its text, and has focus', () => {
+    const onField = vi.fn();
+    const { rerender } = render(<SketchFields fields={[len, ang]} x={0} y={0} onField={onField} seed={{ n: 0, text: '' }} />);
+    rerender(<SketchFields fields={[len, ang]} x={0} y={0} onField={onField} seed={{ n: 1, text: '1' }} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe('1');
+    // the next fast key arrives before the field had focus in the browser: the seed holds both characters
+    rerender(<SketchFields fields={[len, ang]} x={0} y={0} onField={onField} seed={{ n: 2, text: '10' }} />);
+    expect(input.value).toBe('10');
+    expect(onField).toHaveBeenLastCalledWith('len', 10, false);
+  });
+  it('a seed that is already there when the fields appear (first render) is applied too', () => {
+    render(<SketchFields fields={[len, ang]} x={0} y={0} onField={vi.fn()} seed={{ n: 3, text: '180' }} />);
+    expect((screen.getByLabelText('len') as HTMLInputElement).value).toBe('180');
+  });
+  it('every field selects its text when it gets focus, so typing replaces it', () => {
+    render(<SketchFields fields={[len, ang]} x={0} y={0} onField={vi.fn()} />);
+    const a = screen.getByLabelText('ang') as HTMLInputElement;
+    a.value = '-90';
+    a.focus();
+    expect(a.selectionStart).toBe(0);
+    expect(a.selectionEnd).toBe(a.value.length);
+  });
+});

@@ -80,8 +80,11 @@ needed), makes the whole sketch silently unsolved: `status.solved` is false and 
   blamed, so a just-added constraint is the one reported, `reportStatus(status, addedId).blamesAdded`); `redundant`
   lists implied ones; both make `state: 'over'`. `reportStatus` maps this to hints
   `app.sketch.hint.status.overConstrained | redundant | unsolved | fullyDefined`.
-- A degenerate pair is NOT reported: `horizontal` and `vertical` on the same line collapse the line to a point with
-  `dof 0` and no conflict. The tools refuse it up front (`app.sketch.hint.constraint.conflict`).
+- A solve that would shrink a line or circle to a point (`horizontal` and `vertical` on one line, a rectangle corner
+  made the midpoint of the opposite side, a dragged end put on its line's own midpoint) is not taken by the kernel:
+  the coordinates stay, `solved: false`, and `status.problems` carries `sketchCurveShrunk` naming the curve. The
+  controller then leaves the edit out and shows `app.sketch.problem.curveShrunk` (`problemHint`, `refusedBy`). The
+  tools also refuse the direct forms up front (`constraint.conflict`, `pick.ownEnd`, `pick.lineEnds`).
 - A 2D sketch uses `x`, `y` of the plane; a circle's unknown is `r`; `dof = free coordinates + radii - rank`.
 
 ## How the tools use these (constraint-tools.ts, dimension.ts)

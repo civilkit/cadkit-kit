@@ -27,6 +27,109 @@ export interface Annotation {
   driven?: boolean;
   /** Entity and point ids the constraint refers to. */
   refs: string[];
+  /** A dimension's drawing, in sketch coordinates: extension lines, an offset dimension line, an arc or a leader; with the arrowheads and the text position and slope. */
+  shape?: DimShape;
+}
+
+/** An arrowhead: its tip and the unit direction it points (outward along the line it ends). */
+export interface Arrow { at: Pt; dir: Pt }
+/** How a dimension is drawn. `text` is where its label sits (the middle of the dimension line), `slope` the reading angle of the text in radians (kept within -90..90 degrees). */
+export type DimShape =
+  | { kind: 'linear'; ext: Array<[Pt, Pt]>; line: [Pt, Pt]; arrows: Arrow[]; text: Pt; slope: number }
+  | { kind: 'angle'; c: Pt; r: number; a0: number; a1: number; arrows: Arrow[]; text: Pt; slope: number; /** a right angle drawn as a small square corner instead of an arc */ square?: boolean }
+  | { kind: 'leader'; line: [Pt, Pt]; arrows: Arrow[]; text: Pt; slope: number };
+
+export interface AnnotateOptions {
+  /** Sketch units per screen pixel: dimension lines sit a fixed number of pixels off the geometry. Without it the offset is a fraction of the length. */
+  upp?: number;
+  /** Draw a right angle as a square corner mark (default on). */
+  squareRight?: boolean;
+}
+/** How far a dimension line sits off the measured geometry, in pixels. */
+export const DIM_OFFSET_PX = 26;
+
+/** A number as shown in a dimension: at most two decimals, no trailing zeros, thousands separated by a space ('1 500'). */
+export function formatDimNumber(v: number): string {
+  const r = Math.round(Math.abs(v) * 100) / 100;
+  const [int, frac] = String(r).split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  return `${v < 0 && r !== 0 ? '-' : ''}${grouped}${frac ? '.' + frac : ''}`;
+}
+
+/** The label of a dimension: '1 500 mm', 'R12 mm', 'Ø8 mm', '110°'. */
+export function dimText(type: string, v: number): string {
+  const n = formatDimNumber(v);
+  return type === 'angle' ? `${n}°` : `${type === 'radius' ? 'R' : type === 'diameter' ? 'Ø' : ''}${n} mm`;
+}
+
+const slopeOf = (dx: number, dy: number): number => {
+  let a = Math.atan2(dy, dx);
+  if (a > Math.PI / 2 + 1e-9) a -= Math.PI; else if (a <= -Math.PI / 2 - 1e-9) a += Math.PI;
+  return a;
+};
+const unit = (a: Pt, b: Pt): Pt | null => { const l = Math.hypot(b.x - a.x, b.y - a.y); return l < 1e-12 ? null : { x: (b.x - a.x) / l, y: (b.y - a.y) / l }; };
+
+/** A length between two points drawn FreeCAD style: extension lines from both points to a dimension line `off` away (to the left of a -> b, or for
+ *  horizontal / vertical distances the side that is up / right), with arrowheads inside and the text centred on it. */
+export function linearShape(a: Pt, b: Pt, off: number, axis: 'free' | 'h' | 'v' = 'free'): DimShape | null {
+  let a2: Pt, b2: Pt;
+  if (axis === 'h') { const y = (off >= 0 ? Math.max(a.y, b.y) : Math.min(a.y, b.y)) + off; a2 = { x: a.x, y }; b2 = { x: b.x, y }; }
+  else if (axis === 'v') { const x = (off >= 0 ? Math.max(a.x, b.x) : Math.min(a.x, b.x)) + off; a2 = { x, y: a.y }; b2 = { x, y: b.y }; }
+  else { const u = unit(a, b); if (!u) return null; const n = { x: -u.y * off, y: u.x * off }; a2 = { x: a.x + n.x, y: a.y + n.y }; b2 = { x: b.x + n.x, y: b.y + n.y }; }
+  const u = unit(a2, b2);
+  if (!u) return null;
+  const over = Math.abs(off) * 0.15;   // the extension lines run a little past the dimension line
+  const past = (p: Pt, q: Pt): Pt => { const w = unit(p, q)!; return { x: q.x + w.x * over, y: q.y + w.y * over }; };
+  const text = { x: (a2.x + b2.x) / 2, y: (a2.y + b2.y) / 2 };
+  return { kind: 'linear', ext: [[a, past(a, a2)], [b, past(b, b2)]], line: [a2, b2], arrows: [{ at: a2, dir: { x: -u.x, y: -u.y } }, { at: b2, dir: u }], text, slope: slopeOf(u.x, u.y) };
+}
+
+/** An angle between two lines meeting at `c`: an arc of radius `r` inside the corner (the smaller way round) with arrowheads at its ends. */
+export function angleShape(c: Pt, p: Pt, q: Pt, r: number, square = false): DimShape | null {
+  if (!(r > 0)) return null;
+  let a0 = Math.atan2(p.y - c.y, p.x - c.x), a1 = Math.atan2(q.y - c.y, q.x - c.x);
+  let d = (((a1 - a0) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if (d > Math.PI) { [a0, a1] = [a1, a0]; d = 2 * Math.PI - d; }
+  if (d < 1e-9) return null;
+  a1 = a0 + d;
+  const at = (a: number, k = 1): Pt => ({ x: c.x + Math.cos(a) * r * k, y: c.y + Math.sin(a) * r * k });
+  const mid = a0 + d / 2;
+  // the arrowheads point along the arc's tangent, outward from its middle
+  const arrows: Arrow[] = [{ at: at(a0), dir: { x: Math.sin(a0), y: -Math.cos(a0) } }, { at: at(a1), dir: { x: -Math.sin(a1), y: Math.cos(a1) } }];
+  const isSquare = square && Math.abs(d - Math.PI / 2) < 1e-6;
+  return { kind: 'angle', c, r, a0, a1, arrows: isSquare ? [] : arrows, text: at(mid, 1.35), slope: 0, ...(isSquare ? { square: true } : {}) };
+}
+
+/** A radius or diameter: a leader from the centre (or across it) out through the circle at 45 degrees, ending past it where the text sits. */
+export function leaderShape(c: Pt, radius: number, diameter: boolean, extra: number, side: 1 | -1 = 1): DimShape | null {
+  if (!(radius > 0)) return null;
+  const u = { x: side * Math.SQRT1_2, y: Math.SQRT1_2 };
+  const edge: Pt = { x: c.x + u.x * radius, y: c.y + u.y * radius };
+  const end: Pt = { x: edge.x + u.x * extra, y: edge.y + u.y * extra };
+  const far: Pt = { x: c.x - u.x * radius, y: c.y - u.y * radius };
+  const from = diameter ? far : c;
+  const arrows: Arrow[] = [{ at: edge, dir: { x: -u.x, y: -u.y } }];
+  if (diameter) arrows.push({ at: far, dir: u });
+  return { kind: 'leader', line: [from, end], arrows, text: end, slope: 0 };
+}
+
+/** Separate labels (screen pixels, centre x / y and size) that overlap: each pair is pushed apart along the axis of least overlap, a few passes, keeping order stable. Pure. */
+export function nudgeLabels<T extends { x: number; y: number; w: number; h: number }>(items: T[], passes = 12): T[] {
+  const out = items.map((i) => ({ ...i }));
+  for (let pass = 0; pass < passes; pass++) {
+    let moved = false;
+    for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const a = out[i], b = out[j];
+      const ox = (a.w + b.w) / 2 - Math.abs(a.x - b.x), oy = (a.h + b.h) / 2 - Math.abs(a.y - b.y);
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      // vertical separation unless the boxes overlap much more in height than in width (then sideways)
+      if (oy <= ox) { const s = a.y <= b.y ? -1 : 1; a.y += s * (oy / 2 + 0.5); b.y -= s * (oy / 2 + 0.5); }
+      else { const s = a.x <= b.x ? -1 : 1; a.x += s * (ox / 2 + 0.5); b.x -= s * (ox / 2 + 0.5); }
+    }
+    if (!moved) break;
+  }
+  return out;
 }
 
 export const GLYPHS: Record<string, string> = {
@@ -35,10 +138,69 @@ export const GLYPHS: Record<string, string> = {
 };
 const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
 
-const fmt = (v: number) => String(Math.round(v * 100) / 100);
 const mid = (a: Pt, b: Pt): Pt => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
-export function annotate(draft: SketchDraft): Annotation[] {
+/** How far apart the two things a dimension measures are (or its value): the scale for an offset when the zoom is unknown. */
+export function measuredLength(draft: SketchDraft, type: string, refs: string[], value: number): number {
+  const e = endsOfRefs(draft, refs);
+  if (e && type !== 'radius' && type !== 'diameter' && type !== 'angle') return Math.hypot(e[1].x - e[0].x, e[1].y - e[0].y);
+  return Math.abs(value);
+}
+
+/** The ends of a line entity ref, or of two point refs. */
+function endsOfRefs(draft: SketchDraft, refs: string[]): [Pt, Pt] | null {
+  const pts = new Map(draft.points.map((p) => [p.id, p]));
+  if (refs.length === 2) { const a = pts.get(refs[0]), b = pts.get(refs[1]); return a && b ? [{ x: a.x, y: a.y }, { x: b.x, y: b.y }] : null; }
+  const e = refs.length === 1 ? draft.entities.find((x) => x.id === refs[0]) : undefined;
+  if (e?.type === 'line') { const a = pts.get(String(e.p1)), b = pts.get(String(e.p2)); return a && b ? [{ x: a.x, y: a.y }, { x: b.x, y: b.y }] : null; }
+  return null;
+}
+
+export interface ShapeOptions {
+  /** The distance (sketch units) of the first dimension line from the geometry; level n sits at n times it. */
+  off: number;
+  /** 1 (default), 2, 3 ...: how far out the dimension is placed (extension lines grow with it). */
+  level?: number;
+  /** Which side of the measured geometry: 1 is to the left of a -> b (up for a horizontal line), -1 the other. */
+  side?: 1 | -1;
+  /** A right angle becomes a square corner mark. */
+  squareRight?: boolean;
+}
+
+/** The drawing of one dimension (type, refs, value) at a chosen level and side. Null when the geometry is missing or degenerate (such a dimension keeps a plain label). */
+export function dimensionShape(draft: SketchDraft, type: string, refs: string[], value: number, o: ShapeOptions): DimShape | null {
+  const pts = new Map<string, Pt>(draft.points.map((p) => [p.id, { x: p.x, y: p.y }]));
+  const ents = new Map<string, DraftEntity>(draft.entities.map((e) => [e.id, e]));
+  const level = o.level ?? 1, side = o.side ?? 1;
+  if (type === 'distance' || type === 'hdist' || type === 'vdist') {
+    const e = endsOfRefs(draft, refs);
+    return e ? linearShape(e[0], e[1], side * o.off * level, type === 'hdist' ? 'h' : type === 'vdist' ? 'v' : 'free') : null;
+  }
+  if (type === 'radius' || type === 'diameter') {
+    const e = ents.get(refs[0]);
+    const extra = o.off * 0.7 * level;
+    if (e?.type === 'circle') { const c = pts.get(String(e.c)); return c ? leaderShape(c, Number(e.r), type === 'diameter', extra, side) : null; }
+    if (e?.type === 'arc') {
+      const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1));
+      return c && p1 ? leaderShape(c, Math.hypot(p1.x - c.x, p1.y - c.y), type === 'diameter', extra, side) : null;
+    }
+    return null;
+  }
+  if (type === 'angle' && refs.length === 2) {
+    const a = ents.get(refs[0]), b = ents.get(refs[1]);
+    if (!a || !b || a.type !== 'line' || b.type !== 'line') return null;
+    const corner = [a.p1, a.p2].find((id) => id === b.p1 || id === b.p2);
+    const c = corner ? pts.get(String(corner)) : undefined;
+    const far = (e: DraftEntity) => pts.get(String(e.p1 === corner ? e.p2 : e.p1));
+    const pa = far(a), pb = far(b);
+    if (!c || !pa || !pb) return null;
+    const shorter = Math.min(Math.hypot(pa.x - c.x, pa.y - c.y), Math.hypot(pb.x - c.x, pb.y - c.y));
+    return angleShape(c, pa, pb, Math.min(shorter * Math.min(0.9, 0.45 + 0.15 * level), o.off * 1.5 * level), o.squareRight === true);
+  }
+  return null;
+}
+
+export function annotate(draft: SketchDraft, opts: AnnotateOptions = {}): Annotation[] {
   const pts = new Map<string, Pt>(draft.points.map((p) => [p.id, { x: p.x, y: p.y }]));
   const ents = new Map<string, DraftEntity>(draft.entities.map((e) => [e.id, e]));
 
@@ -69,6 +231,12 @@ export function annotate(draft: SketchDraft): Annotation[] {
     return hit ? pts.get(hit) ?? null : null;
   };
 
+  const px = (v: number, len: number) => (opts.upp && opts.upp > 0 ? v * opts.upp : len * 0.2);
+  const shapeOf = (type: string, refs: string[], value: number): DimShape | null => {
+    const len = measuredLength(draft, type, refs, value);
+    return dimensionShape(draft, type, refs, value, { off: px(DIM_OFFSET_PX, len), squareRight: opts.squareRight !== false });
+  };
+
   const out: Annotation[] = [];
   for (const c of draft.constraints) {
     if (c.hidden === true) continue;   // placed by a tool (patterns) and not worth a label; the constraint list still shows it
@@ -87,8 +255,8 @@ export function annotate(draft: SketchDraft): Annotation[] {
         at = a && b ? mid(a, b) : a ?? b;
       } else if (refs.length === 1) at = anchorOf(refs[0]);
       if (!at) continue;
-      const prefix = c.type === 'radius' ? 'R' : c.type === 'diameter' ? 'Ø' : c.type === 'angle' ? '∠' : '';
-      out.push({ ...base, kind: 'dimension', text: `${prefix}${fmt(shown)}${c.type === 'angle' ? '°' : ''}`, at, value: shown, ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) });
+      const shape = shapeOf(c.type, refs, shown);
+      out.push({ ...base, kind: 'dimension', text: dimText(c.type, shown), at, value: shown, ...(shape ? { shape } : {}), ...(typeof c.expr === 'string' && c.expr ? { expr: c.expr } : {}) });
       continue;
     }
     const glyph = GLYPHS[c.type];

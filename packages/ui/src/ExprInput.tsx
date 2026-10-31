@@ -1,5 +1,5 @@
 import { createContext } from 'preact';
-import { useContext, useState } from 'preact/hooks';
+import { useContext, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { t } from './i18n';
 import { EMPTY_SCOPE, ERROR_TEXT, completions, evalExpr, isExprValue, parseAssignment, parseFieldText, type ExprCode, type Scope } from './expr';
@@ -35,11 +35,18 @@ export function ExprInput(p: {
   plain?: boolean;
   /** Accept `name = value`: it shows the value under the field and applies nothing while typing (the owner defines the parameter on Enter). */
   assign?: boolean;
+  /** Whole numbers only (a count): the keypad is the digit pad, `numeric`, and there is no sign key. */
+  integer?: boolean;
+  /** The Enter key's label on a phone keyboard: `next` when another field follows, else `done`. */
+  enterKeyHint?: 'done' | 'next' | 'go' | 'enter';
 }): JSX.Element {
   const scope = useScope();
   const [text, setText] = useState<string | null>(null);
   const [sel, setSel] = useState(0);
   const [open, setOpen] = useState(false);
+  // The digit keypad has no letters, so a formula or a variable name needs the full keyboard: "ƒ" switches to it (a driven field starts there).
+  const [full, setFull] = useState(() => isExprValue(p.value) && !p.plain);
+  const input = useRef<HTMLInputElement>(null);
   const driven = isExprValue(p.value) && !p.plain;
   const shown = text ?? (typeof p.value === 'number' ? fmt(p.value) : String(p.value));
   const parsed = parseFieldText(shown);
@@ -61,6 +68,14 @@ export function ExprInput(p: {
   const pick = (name: string): void => {
     apply(shown.replace(/([A-Za-z_][A-Za-z0-9_]*)$/, '') + name + (['sqrt', 'sin', 'cos', 'tan', 'abs'].includes(name) ? '(' : ''));
   };
+  // The digit keypad of many phones lacks a minus: this key flips the sign of the number (or of the whole expression) at the caret-free level.
+  const flip = (): void => {
+    const cur = shown.trim();
+    apply(cur.startsWith('-') ? cur.slice(1) : cur === '' ? '-' : '-' + cur);
+    input.current?.focus();
+  };
+  const canNegate = p.min === undefined || p.min < 0;
+  const keep = (e: Event): void => e.preventDefault();   // a key beside the field must not take the focus (the keyboard would close)
   return (
     <span class={'expr-field' + (driven ? ' driven' : '') + (err ? ' bad' : '') + (p.class ? ' ' + p.class : '')}>
       <span class="expr-row">
@@ -72,24 +87,31 @@ export function ExprInput(p: {
             onClick={() => { if (value !== null) { setText(null); p.onValue(value); } }}
           >fx</button>
         ) : null}
-        <input
-          type="text" inputMode="decimal" spellcheck={false} autocomplete="off"
-          aria-label={p.label} aria-invalid={err ? 'true' : undefined} disabled={p.disabled}
-          value={shown}
-          onInput={(e) => apply((e.currentTarget as HTMLInputElement).value)}
-          onChange={(e) => apply((e.currentTarget as HTMLInputElement).value)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => { setText(null); setOpen(false); }}
-          onKeyDown={(e) => {
-            if (items.length) {
-              if (e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % items.length); return; }
-              if (e.key === 'ArrowUp') { e.preventDefault(); setSel((sel + items.length - 1) % items.length); return; }
-              if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); pick(items[Math.min(sel, items.length - 1)].name); return; }
-              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); return; }
-            }
-          }}
-        />
-        {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
+        <span class="expr-box">
+          <input
+            ref={input} type="text" inputMode={full ? 'text' : p.integer ? 'numeric' : 'decimal'} enterKeyHint={p.enterKeyHint ?? 'done'} spellcheck={false} autocomplete="off"
+            aria-label={p.label} aria-invalid={err ? 'true' : undefined} disabled={p.disabled}
+            value={shown}
+            onInput={(e) => apply((e.currentTarget as HTMLInputElement).value)}
+            onChange={(e) => apply((e.currentTarget as HTMLInputElement).value)}
+            onFocus={() => setOpen(true)}
+            onBlur={() => { setText(null); setOpen(false); }}
+            onKeyDown={(e) => {
+              if (items.length) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % items.length); return; }
+                if (e.key === 'ArrowUp') { e.preventDefault(); setSel((sel + items.length - 1) % items.length); return; }
+                if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); pick(items[Math.min(sel, items.length - 1)].name); return; }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); return; }
+              }
+            }}
+          />
+          {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
+        </span>
+        {p.plain ? null : <button type="button" class={'expr-kb' + (full ? ' on' : '')} tabIndex={-1} disabled={p.disabled} aria-pressed={full} data-testid="expr-kb"
+          aria-label={full ? t('expr.kb.digits', undefined, 'Number keypad') : t('expr.kb.full', undefined, 'Full keyboard (formulas and variables)')}
+          onMouseDown={keep} onClick={() => { setFull(!full); input.current?.focus(); }}>{full ? '123' : 'ƒ'}</button>}
+        {p.integer || !canNegate || full ? null : <button type="button" class="expr-sign" tabIndex={-1} disabled={p.disabled} data-testid="expr-sign"
+          aria-label={t('expr.sign', undefined, 'Change sign')} onMouseDown={keep} onClick={flip}>{'±'}</button>}
       </span>
       {items.length ? (
         <ul class="expr-ac" role="listbox">

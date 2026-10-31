@@ -177,7 +177,13 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
       if (!x && Math.abs(p.x - at.x) <= tol) x = { id: p.id, x: p.x };
       if (!y && Math.abs(p.y - at.y) <= tol) y = { id: p.id, y: p.y };
     }
-    if (x || y) return { kind: 'align', at: { x: x ? x.x : at.x, y: y ? y.y : at.y }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
+    if (x || y) {
+      // an alignment fixes one coordinate; the other one still lands on the grid when the grid is on and close, so a point aligned with another
+      // sits on a grid point (not a raw pointer position that drifts a hundredth of a millimetre off it)
+      const g = opts.grid && opts.grid > 0 && on('grid') ? opts.grid : 0;
+      const free = (v: number) => { if (!g) return v; const r = Math.round(v / g) * g; return Math.abs(r - v) <= tol ? r : v; };
+      return { kind: 'align', at: { x: x ? x.x : free(at.x), y: y ? y.y : free(at.y) }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
+    }
   }
 
   // 8. grid

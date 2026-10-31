@@ -62,10 +62,19 @@ export function sketchOps(ctx: Ctx, spec: SketchSpec, ops: EditOp[]): string {
   return id;
 }
 
+/** from: 'Name' | ['A', 'B'] on a cut: the kernel's `target` (a list of body selections); the cut then changes only those bodies. */
+export function applyFrom(f: Record<string, unknown>, op: 'add' | 'cut', from: string | string[] | undefined, label: string, line: number): void {
+  if (from === undefined) return;
+  const names = Array.isArray(from) ? from : [from];
+  if (!names.length || names.some((n) => typeof n !== 'string' || !n.trim())) throw new H.SelectorError(`${label}(): from is a body name or a list of body names, e.g. from: 'Cup' (bodies are named by newBody: 'Name')`, line);
+  if (op !== 'cut') throw new H.SelectorError(`${label}(): from applies to a cut (it names the bodies the cut changes); an added solid joins what it touches, or use newBody`, line);
+  f.target = names.map((n) => ({ body: n.trim() }));
+}
+
 /** newBody: true | 'Name' on a solid-making feature: the kernel's `newBody` op (a separate body, not united with what it touches); a string names the body. */
 export function applyNewBody(f: Record<string, unknown>, op: 'add' | 'cut', newBody: boolean | string | undefined, label: string, line: number): void {
   if (newBody === undefined || newBody === false) return;
-  if (op === 'cut') throw new H.SelectorError(`${label}(): newBody applies to material you add, not to a cut (a cut hits every body that exists)`, line);
+  if (op === 'cut') throw new H.SelectorError(`${label}(): newBody applies to material you add, not to a cut (a cut hits every body it reaches; from: 'Name' limits it to named bodies)`, line);
   if (typeof newBody === 'string' && !newBody.trim()) throw new H.SelectorError(`${label}(): newBody must be true or a non-empty body name`, line);
   f.op = 'newBody';
   if (typeof newBody === 'string') f.body = newBody.trim();

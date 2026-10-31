@@ -71,4 +71,11 @@ describe('Inspector warnings', () => {
     const { container } = render(<Inspector feature={{ type: 'extrude', depth: 5 }} onSet={() => {}} />);
     expect(container.querySelector('.insp-warn')).toBeNull();
   });
+
+  it('number fields ask a phone for the decimal keypad', () => {
+    const { container } = render(<Inspector feature={{ type: 'extrude', id: 'F2', depth: 10 }} onSet={() => {}} />);
+    const i = container.querySelector('input[type="number"]')!;
+    expect(i.getAttribute('inputmode')).toBe('decimal');
+    expect(i.getAttribute('enterkeyhint')).toBe('done');
+  });
 });

@@ -111,7 +111,7 @@ export function Ribbon(p: {
     <div class={'ribbon' + (iconsOnly ? ' icons-only' : '')}>
       <div class="rb-tabs">
         {tabs.map((tab) => (
-          <button key={tab} class={'rb-tab' + (tab === p.activeTab ? ' on' : '')} onClick={() => p.onTab(tab)}>
+          <button key={tab} class={'rb-tab' + (tab === p.activeTab ? ' on' : '')} data-testid={'ribbon-tab-' + tab} aria-label={p.tabLabel?.(tab) ?? t('tab.' + tab, undefined, tab)} aria-selected={tab === p.activeTab} onClick={() => p.onTab(tab)}>
             {p.tabLabel?.(tab) ?? t('tab.' + tab, undefined, tab)}
           </button>
         ))}

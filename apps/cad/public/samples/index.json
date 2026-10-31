@@ -476,6 +476,12 @@
   "detail": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
  },
  {
+  "id": "pet-bottle",
+  "title": "PET bottle 500 ml",
+  "file": "pet-bottle.ckpart",
+  "detail": "PET bottle 500 ml: a 500 ml PET water bottle with a petaloid base, from a FreeCAD tutorial video, in 7 features (10 with the cap): a closed outline with a spline shoulder revolved, five drafted petal grooves cut with a circular pattern, then the whole bottle shelled to a 0.35 mm wall. Variables: WALL, FEET, GROOVE_UP, DRAFT; CAP=1 adds the screw cap"
+ },
+ {
   "id": "assembly-block-bolt",
   "title": "Assembly: block with a bolt",
   "file": "assembly-block-bolt.ckpart",

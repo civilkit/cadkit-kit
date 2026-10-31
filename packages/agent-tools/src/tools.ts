@@ -35,7 +35,7 @@ export async function summarize(a: AgentSession) {
   const s = a.session;
   const t0 = performance.now();
   const facts = await s.facts().catch(() => null);
-  let mass: { volume?: number; area?: number; com?: number[] } | null = null;
+  let mass: { volume?: number; area?: number; com?: number[]; principal?: number[]; axes?: number[][]; firstMoment?: number[]; inertia?: number[][]; inertiaOrigin?: number[][] } | null = null;
   try { mass = await s.massProps(); } catch { mass = null; }
   let validity: { ok: boolean | null; issues: unknown[] } = { ok: null, issues: [] };
   if (facts && facts.solids > 0) {
@@ -53,6 +53,12 @@ export async function summarize(a: AgentSession) {
     volume: round(mass?.volume ?? facts?.volume ?? null),
     area: round(mass?.area ?? null),
     centerOfMass: mass?.com ? mass.com.map((x) => round(x) as number) : null,
+    // unit density (volume-weighted: mm^4 first moment, mm^5 inertia), world axes, tensors as rows; multiply by the density in g/mm3 for g mm / g mm2
+    firstMoment: mass?.firstMoment ? mass.firstMoment.map((x) => round(x) as number) : null,
+    inertia: mass?.inertia ? mass.inertia.map((r) => r.map((x) => round(x) as number)) : null,
+    inertiaOrigin: mass?.inertiaOrigin ? mass.inertiaOrigin.map((r) => r.map((x) => round(x) as number)) : null,
+    principalMoments: mass?.principal ? mass.principal.map((x) => round(x) as number) : null,
+    principalAxes: mass?.axes ? mass.axes.map((a) => a.map((x) => round(x, 6) as number)) : null,
     bbox: box ? { min: box.min.map((x) => round(x)), max: box.max.map((x) => round(x)), size: box.max.map((x, i) => round(x - box.min[i])) } : null,
     faceCount: facts?.faces.length ?? 0,
     edgeCount: facts?.edges.length ?? 0,

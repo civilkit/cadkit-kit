@@ -136,7 +136,7 @@ const v = await p.volume();                        // mm3
 p.expectVolume(60 * 40 * 10).expectValid().expectBBox({ size: [60, 40, 10] });
 ```
 
-`await` reads: `volume()`, `area()`, `bbox()`, `centreOfMass()`, `faceCount()`, `edgeCount()`, `isValid()`, `issues()`, `faces()`, `edges()`. Assertions: `expectVolume`, `expectValid`, `expectBBox`, `expectFaceCount`. A failed assertion adds a "Line N" error, and the run continues.
+`await` reads: `volume()`, `area()`, `bbox()`, `centreOfMass()`, `inertia(density)` (mass, first moments, inertia tensor about the centre of mass and the origin, principal moments and axes; density in g/cm³), `faceCount()`, `edgeCount()`, `isValid()`, `issues()`, `faces()`, `edges()`. Assertions: `expectVolume`, `expectValid`, `expectBBox`, `expectFaceCount`. A failed assertion adds a "Line N" error, and the run continues.
 
 Each read rebuilds everything recorded so far, so read once after a group of features, never inside a loop that adds features.
 

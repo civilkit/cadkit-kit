@@ -7,6 +7,8 @@ export { Slot, slotMemory, shownItem, type SlotItem, type SlotProps, type SlotSi
 export { StatusBar, type StatusItem } from './StatusBar';
 export { CommandPalette } from './CommandPalette';
 export { Drawer, type DrawerTab } from './Drawer';
+export { ToolTray } from './ToolTray';
+export { Sheet, BottomNav, SPLIT_FRACTION, BROWSE_FRACTION, snapHeights, settleSnap, SHEET_SNAPS, type SheetProps, type SheetSnap, type NavItem } from './Sheet';
 export { Splitter, CornerGrip, resolveDrag, type SplitterProps, type DragLimits } from './Splitter';
 export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog';
 export { BusyOverlay } from './BusyOverlay';

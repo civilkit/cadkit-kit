@@ -8,9 +8,11 @@ import { miscFeatures } from './misc';
 import { screwFeatures } from './screw';
 import { shapeFeatures } from './shapes';
 import { sketchCurves } from './sketchCurves';
+import { sketchOffset } from './sketchOffset';
+import { sketchPattern } from './sketchPattern';
 
 export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...knurlFeatures, ...screwFeatures, ...bearingFeatures };
-export const sketchFeatures = { ...sketchCurves };
+export const sketchFeatures = { ...sketchCurves, ...sketchPattern, ...sketchOffset };
 
 declare module '../recorder' {
   interface PartBuilder extends PartMixin {}

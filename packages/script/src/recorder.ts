@@ -8,7 +8,7 @@ export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
 import type { ScrewOpts } from './features/screw';
 import type { BearingOpts } from './features/bearing';
-import { applyNewBody } from './features/h';
+import { applyFrom, applyNewBody } from './features/h';
 import type { CosmeticKnurl } from './cosmeticKnurl';
 import { CURATED_FONT_IDS, isKnownFont, unknownFontMessage } from './fonts';
 export type Plane = 'front' | 'top' | 'right';
@@ -100,8 +100,10 @@ export interface FaceFact {
   /** the feature that created the face */
   feature: string;
 }
+/** The kernel's unit-density inertia numbers (volume-weighted: mm^4 / mm^5), world axes, tensors as rows. */
+export interface InertiaFact { firstMoment: Vec; tensor: number[][]; tensorOrigin: number[][]; principal: Vec; axes: Vec[] }
 export interface Facts {
-  volume: number | null; area: number | null; com: Vec | null;
+  volume: number | null; area: number | null; com: Vec | null; inertia?: InertiaFact | null;
   valid: boolean | null; issues: Array<{ code: string; entity: string; detail: string }>;
   bbox: { min: Vec; max: Vec } | null;
   faceCount: number; edgeCount: number; faces: FaceFact[];
@@ -197,6 +199,8 @@ export class SketchBuilder {
   private np = 0;
   private ne = 0;
   axisId: string | null = null;
+  /** ids of arcs drawn clockwise (arc3 b-to-a): the entity is always counter-clockwise, this remembers the way it was drawn for offset(). Not written to the document. */
+  cwArcs = new Set<string>();
   private pt(x: number, y: number): string { const id = `p${++this.np}`; this.pointList.push({ id, x: +x.toFixed(10), y: +y.toFixed(10) }); return id; }
   private ent(e: Record<string, unknown>): void { this.entities.push({ id: `e${++this.ne}`, ...e }); }
   /**
@@ -308,7 +312,8 @@ export class SketchBuilder {
     const cy = (q(a) * (b[0] - m[0]) + q(m) * (a[0] - b[0]) + q(b) * (m[0] - a[0])) / d;
     const ccw = (m[0] - a[0]) * (b[1] - m[1]) - (m[1] - a[1]) * (b[0] - m[0]) > 0;   // a -> m -> b turns left
     const c = this.pt(cx, cy), pa = this.pt(...a), pb = this.pt(...b);
-    if (ccw) this.arcIds(c, pa, pb); else this.arcIds(c, pb, pa);
+    if (ccw) this.arcIds(c, pa, pb);
+    else { this.arcIds(c, pb, pa); this.cwArcs.add(String(this.entities[this.entities.length - 1].id)); }
     return this;
   }
   /**
@@ -503,7 +508,15 @@ export interface HoleOpts {
   /** tapped: cut the real helical groove instead of a cosmetic thread */
   modeled?: boolean;
 }
-export interface ExtrudeOpts { /** keep the solid as a SEPARATE body (op newBody) instead of uniting it with what it touches or overlaps; a string also names the body. Not for cuts. */ newBody?: boolean | string; /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: Num; direction?: 'into' | 'away' | 'both' | 'auto' }
+/** Thin-wall option: a thickness (wall centred on the profile) or { thickness, side } with side 'inside' (left of the profile's direction of travel) | 'outside' (right) | 'mid' (centred) | 'both' (thickness to the left and thickness2, default the same, to the right); ends 'flat' | 'round' and cornerStyle 'mitre' | 'round' as in the thin-wall card. */
+export type ThinOpt = Num | { thickness: Num; side?: 'inside' | 'outside' | 'mid' | 'both'; thickness2?: Num; ends?: 'flat' | 'round'; cornerStyle?: 'mitre' | 'round' };
+const THIN_SIDES = ['inside', 'outside', 'mid', 'both'];
+const thinOf = (t: ThinOpt): { thickness: unknown; side: string; thickness2?: unknown; ends?: string; cornerStyle?: string } => {
+  if (typeof t !== 'object' || t instanceof Expr) return { thickness: ref(t as Num), side: 'mid' };
+  if (t.side !== undefined && !THIN_SIDES.includes(t.side)) throw new Error(`thin: side is one of ${THIN_SIDES.join(', ')} (got ${JSON.stringify(t.side)})`);
+  return { thickness: ref(t.thickness), side: t.side ?? 'mid', ...(t.side === 'both' && t.thickness2 !== undefined ? { thickness2: ref(t.thickness2) } : {}), ...(t.ends ? { ends: t.ends } : {}), ...(t.cornerStyle ? { cornerStyle: t.cornerStyle } : {}) };
+};
+export interface ExtrudeOpts { /** keep the solid as a SEPARATE body (op newBody) instead of uniting it with what it touches or overlaps; a string also names the body. Not for cuts. */ newBody?: boolean | string; /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; /** cuts only: the body or bodies (named by newBody) the cut changes; the others stay as they are. Default: every body the cut reaches. */ from?: string | string[]; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: ThinOpt; direction?: 'into' | 'away' | 'both' | 'auto' }
 export type BodyFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const BODY_FINISHES: readonly BodyFinish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 /** Colour, opacity and finish of a body. `colour` is the same as `color`: '#rrggbb' or '#rgb'. */
@@ -522,6 +535,8 @@ export class PartBuilder {
   decor: Decor[] = [];
   /** cosmetic knurls (knurl({ mode: 'cosmetic' })): display records written to the document field cosmeticKnurls, no feature */
   cosmetic: CosmeticKnurl[] = [];
+  /** the view hint set by upAxis(): written to the document field upAxis */
+  up: 'y' | 'z' | undefined;
   variables: Array<{ name: string; expr: string }> = [];
   /** the folder name set by an enclosing group(); every feature added inside carries it */
   private curGroup: string | undefined;
@@ -641,6 +656,7 @@ export class PartBuilder {
       const through = typeof end === 'object' && 'through' in end;
       const f: Record<string, unknown> = { type: 'extrude', id, op, sketch: ctx.lastSketch };
       applyNewBody(f, op, o.newBody, label, this.line());
+      applyFrom(f, op, o.from, label, this.line());
       const dir = o.direction ?? (op === 'cut' && !o.flip && !o.mid && !o.symmetric ? 'auto' : undefined);
       if (dir !== undefined && !['into', 'away', 'both', 'auto'].includes(dir)) throw new SelectorError(`${label}(): direction must be 'into', 'away', 'both' or 'auto'`, this.line());
       const both = dir === 'both' || !!o.mid || !!o.symmetric;
@@ -652,7 +668,7 @@ export class PartBuilder {
       if (flip && !both) f.flip = true;
       if (dir === 'auto' && op === 'cut' && !flip) ctx.autoFlip?.add(id);
       if (o.draft) f.draft = o.draft;
-      if (o.thin !== undefined) f.thin = { thickness: ref(o.thin), side: 'mid', ends: 'flat', cornerStyle: 'mitre' };
+      if (o.thin !== undefined) f.thin = { ends: 'flat', cornerStyle: 'mitre', ...thinOf(o.thin) };
       ctx.lastFeature = id;
       ctx.lastSketch = null;
       return [{ op: 'add', feature: f }];
@@ -668,7 +684,7 @@ export class PartBuilder {
    * @param o.mid extrude half each way (same as direction: 'both'; symmetric: true is the same)
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
-   * @param o.thin wall thickness for a thin-walled extrude
+   * @param o.thin wall thickness for a thin-walled extrude (centred on the profile), or { thickness, side: 'inside' | 'outside' | 'mid' | 'both', thickness2, ends, cornerStyle }: the same options as the thin-wall card (the card starts at 'inside', a plain number here is 'mid')
    * @param o.newBody true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps
    * @example
    * part('Boss').sketch('front', (s) => s.rect(50, 50)).extrude(10)
@@ -679,16 +695,21 @@ export class PartBuilder {
   /**
    * Cut the last sketch out of the body: a depth or through().
    *
-   * Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin).
+   * Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin). A cut changes EVERY body it reaches; from: 'Name' (or a list) limits it to the bodies of that name (made with newBody: 'Name'), so no separate cutter body and combine are needed: an unknown name is an error that lists the bodies the part has.
    * @domain features
    * @param end depth in mm, or through()
    * @param o.direction 'auto' (default: into, flip once if nothing is cut) | 'into' | 'away' | 'both'
    * @param o.mid cut half each way
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
+   * @param o.from body name or list of names the cut changes (default: every body it reaches)
    * @example
    * part('Pocketed').sketch('front', (s) => s.rect(60, 40)).extrude(10)
    *   .sketch(face('>Z'), (s) => s.rect(30, 20)).cut(4);
+   * @example
+   * part('Cup and lid').sketch('front', (s) => s.circle(20)).extrude(30, { newBody: 'Cup' })
+   *   .sketch(at('front', 30), (s) => s.circle(20)).extrude(5, { newBody: 'Lid' })
+   *   .sketch('front', (s) => s.circle(8)).cut(35, { direction: 'away', from: 'Cup' });
    * @see through, part.extrude, part.hole
    */
   cut(end: EndSpec, o: ExtrudeOpts = {}): this { return this.solid('cut', 'cut', end, o); }
@@ -699,8 +720,9 @@ export class PartBuilder {
    * @domain features
    * @param angle degrees, default 360
    * @param o.op add (default) or cut
-   * @param o.thin wall thickness for a thin revolve
+   * @param o.thin wall thickness for a thin revolve (centred on the profile), or { thickness, side: 'inside' | 'outside' | 'mid' | 'both', thickness2 }: 'inside' grows the wall to the LEFT of the profile's direction of travel (the inside of a bend), 'outside' to the right, 'mid' (default) centres it; draw the profile the other way round to swap. A centred wall that would cross the axis (profileCrossesAxis) needs 'inside' or 'outside'
    * @param o.axis { from: [x, y], to: [x, y] } axis line in the sketch plane
+   * @param o.from with op 'cut': a body name or list of names (bodies made with newBody) the cut changes; the other bodies stay as they are
    * @param o.newBody true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps
    * @example
    * part('Flanged bush')
@@ -708,7 +730,7 @@ export class PartBuilder {
    *   .revolve(360);
    * @see sketch.polygon, sketch.axisAt
    */
-  revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: Num; axis?: { from: Pt; to: Pt }; newBody?: boolean | string } = {}): this {
+  revolve(angle: Num = 360, o: { name?: string; op?: 'add' | 'cut'; thin?: ThinOpt; axis?: { from: Pt; to: Pt }; newBody?: boolean | string; from?: string | string[] } = {}): this {
     const sk = [...this.steps].reverse().find((x) => x.sk)?.sk;
     if (sk && o.axis) sk.axisAt(o.axis.from, o.axis.to);
     else if (sk && !sk.axisId) sk.axis();
@@ -717,7 +739,8 @@ export class PartBuilder {
       const id = ctx.nextId();
       const f: Record<string, unknown> = { type: 'revolve', id, op: o.op ?? 'add', sketch: ctx.lastSketch, axis: sk?.axisId, angle: ref(angle) };
       applyNewBody(f, o.op ?? 'add', o.newBody, 'revolve', this.line());
-      if (o.thin !== undefined) f.thin = { thickness: ref(o.thin), side: 'mid' };
+      applyFrom(f, o.op ?? 'add', o.from, 'revolve', this.line());
+      if (o.thin !== undefined) f.thin = thinOf(o.thin);
       ctx.lastFeature = id;
       return [{ op: 'add', feature: f }];
     });
@@ -732,7 +755,7 @@ export class PartBuilder {
    * part('Tube').sketch('front', (s) => s.circle(20)).extrude(40).thin(2);
    * @see part.extrude, part.shell
    */
-  thin(thickness: Num): this {
+  thin(thickness: ThinOpt): this {
     const prev = this.steps.pop();
     if (!prev) throw new SelectorError('thin() needs an extrude or revolve before it', callerLine());
     const line = callerLine();
@@ -740,7 +763,7 @@ export class PartBuilder {
       const ops = prev.run(ctx);
       const f = ops[0]?.feature;
       if (!f || (f.type !== 'extrude' && f.type !== 'revolve')) throw new SelectorError('thin() applies to an extrude or revolve', line);
-      f.thin = { thickness: ref(thickness), side: 'mid', ...(f.type === 'extrude' ? { ends: 'flat', cornerStyle: 'mitre' } : {}) };
+      f.thin = { ...(f.type === 'extrude' ? { ends: 'flat', cornerStyle: 'mitre' } : {}), ...thinOf(thickness) };
       return ops;
     } });
     return this;
@@ -1053,6 +1076,23 @@ export class PartBuilder {
   }
 
   /**
+   * Z-up or Y-up view hint.
+   *
+   * 'z' for a model built along Z (a bottle, a motor). Stored in the document as the field upAxis, not geometry: the app opens with the camera Z-up (or Y-up) so the model stands upright. The kernel ignores it; View > Up axis still switches.
+   * @domain utilities
+   * @param axis 'y' or 'z'
+   * @example
+   * const p = part('PET bottle');
+   * p.upAxis('z');
+   * @see part
+   */
+  upAxis(axis: 'y' | 'z'): this {
+    if (axis !== 'y' && axis !== 'z') throw new SelectorError(`upAxis(): the axis is 'y' or 'z', got ${JSON.stringify(axis)}`, callerLine());
+    this.up = axis;
+    return this;
+  }
+
+  /**
    *   /**
    * Add a reference plane (workplane) feature without a sketch.
    *
@@ -1153,6 +1193,25 @@ export class PartBuilder {
    * @see part.volume
    */
   centreOfMass(): Promise<Vec> { return this.readStep('centre of mass', { mass: true }, (f) => f.com ?? [NaN, NaN, NaN]); }
+  /**
+   * Read the mass, first moments, inertia tensor and principal axes of the part built so far.
+   *
+   * Returns { mass (g), centreOfMass (mm), firstMoment (mass x centre about the origin, g mm), tensor (3x3 rows about the centre of mass, world axes, g mm2), tensorOrigin (the same about the origin), principal (the three principal moments, smallest first, g mm2), axes (the unit principal axes in the same order) }. Exact for the kernel's analytic faces. A hole removes mass and never changes the signs: the diagonal stays positive and the products of inertia are minus the integral of x*y. Forces a build and a mass-properties query, cached until the next feature. Needs await.
+   * @param density material density in g/cm3 (default 1)
+   * @domain utilities
+   * @example
+   * const p = part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20);
+   * const m = await p.inertia(7.85);   // steel: m.mass, m.tensor, m.principal, m.axes
+   * @see part.centreOfMass, part.volume
+   */
+  inertia(density = 1): Promise<{ mass: number; centreOfMass: Vec; firstMoment: Vec; tensor: number[][]; tensorOrigin: number[][]; principal: Vec; axes: Vec[] }> {
+    const k = density / 1000;   // g/cm3 -> g/mm3
+    return this.readStep('inertia', { mass: true }, (f) => {
+      if (!f.inertia || f.volume == null || !f.com) throw new SelectorError('inertia(): the kernel gave no inertia numbers (is the kernel build older than inertia support, or is there no solid?)', 0);
+      const i = f.inertia, sc = (m: number[][]) => m.map((r) => r.map((x) => x * k));
+      return { mass: f.volume * k, centreOfMass: f.com, firstMoment: i.firstMoment.map((x) => x * k) as Vec, tensor: sc(i.tensor), tensorOrigin: sc(i.tensorOrigin), principal: i.principal.map((x) => x * k) as Vec, axes: i.axes };
+    });
+  }
   /**
    * Read the number of faces of the part built so far.
    *
@@ -1489,6 +1548,7 @@ export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn
   if (Object.keys(appearance).length) doc.appearance = appearance; else delete doc.appearance;
   if (Object.keys(faceAppearance).length) doc.faceAppearance = faceAppearance; else delete doc.faceAppearance;
   if (Object.keys(bodyNames).length) doc.bodyNames = bodyNames; else delete doc.bodyNames;
+  if (part.up) doc.upAxis = part.up; else delete doc.upAxis;
   if (part.cosmetic.length) doc.cosmeticKnurls = part.cosmetic.map((k) => ({ ...k, center: [...k.center] })); else delete doc.cosmeticKnurls;
   // library fonts the text entities name: the app loads them by id when it opens the document
   const ids = new Set<string>();

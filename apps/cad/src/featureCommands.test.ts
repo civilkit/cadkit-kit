@@ -57,6 +57,22 @@ describe('selection to references', () => {
     expect(pickValue('sketch', ['F1'], edges)).toBe('F1');
     expect(pickValue('sketch', [], edges)).toBeNull();
   });
+  it('To object / From object: a face, a body or a corner becomes a reference object', () => {
+    expect(pickValue('endRef', ['A'], edges)).toEqual({ kind: 'face', id: 'A' });
+    expect(pickValue('endRef', ['@body:Lid'], edges)).toEqual({ kind: 'body', name: 'Lid' });
+    expect(pickValue('startRef', ['@body:Lid'], edges)).toBeNull();   // a start cannot be a body
+    // a corner: the faces of the edges that end there, so it follows the faces
+    const box = [
+      { key: 'A|B#0', faces: ['A', 'B'], pts: [[0, 0, 0], [10, 0, 0]] },
+      { key: 'A|C#0', faces: ['A', 'C'], pts: [[0, 0, 0], [0, 10, 0]] },
+      { key: 'B|C#0', faces: ['B', 'C'], pts: [[0, 0, 5], [0, 0, 0]] },
+      { key: 'A|D#0', faces: ['A', 'D'], pts: [[10, 0, 0], [10, 10, 0]] },
+    ];
+    expect(pickValue('endRef', ['v:0,0,0'], box)).toEqual({ kind: 'vertex', faces: ['A', 'B', 'C'], at: [0, 0, 0] });
+    expect(pickValue('endRef', ['v:50,50,50'], box)).toEqual({ kind: 'point', at: [50, 50, 50] });   // no edge ends there: a fixed point
+    expect(pickValue('endRef', ['A|B#0'], box)).toBeNull();
+    expect(pickValue('endRef', [], box)).toBeNull();
+  });
 });
 
 describe('text', () => {

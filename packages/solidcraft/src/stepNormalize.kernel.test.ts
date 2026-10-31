@@ -1,5 +1,6 @@
 // The original solid of a converted file is a STEP text. Some converters restate the geometry with a few faces turned: the kernel's importStep
-// message repairs that (healing), the importStep feature does not, so the same text gave a different volume in a part. The importer asks the
+// message repairs that (healing), the importStep feature does not, so the same text does not give the solid in a part (it used to give a solid
+// of the wrong volume; now the faces come in as a surface body that needs repair, never as a wrong solid). The importer asks the
 // kernel to normalise the text, and checks that the operations of the file rebuild the original before it hides the original behind them.
 // The STEP texts are made by the kernel from a box; "turned" flips the sense of one face.
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
@@ -44,7 +45,10 @@ describe('the original solid of a converted file', { skip: !process.env.CK_WASM,
   it('reads wrong as it is and right once the kernel has normalised it', async () => {
     const bad = turned(await boxStep());
     const plain = await importSolidcraftDocument(doc([{ id: 1, name: 'Original', type: 'import', suppressed: false, step: bad }]), 'p');
-    expect(await volumeOfPart(plain.part!)).toBeCloseTo(4000, 3);   // the problem: 6000 mm3 solid read as 4000
+    // the problem: as it is, the text is not the 6000 mm3 solid (it once read as a 4000 mm3 one); now it is a surface body marked as needing repair
+    const rep = await (await k()).request({ type: 'regen', tag: 'test-volume', part: plain.part, opts: { noView: true } });
+    const warnings = (rep.result as { warnings?: Array<[string, { code: string }]> }).warnings ?? [];
+    expect(warnings.some(([, w]) => w.code === 'importStepParts')).toBe(true);
     const tools = kernelStepTools(k);
     const fixed = await importSolidcraftDocument(doc([{ id: 1, name: 'Original', type: 'import', suppressed: false, step: bad }]), 'p', { normalizeStep: tools.normalizeStep });
     expect(fixed.geometryComplete, JSON.stringify(fixed.rows)).toBe(true);

@@ -4,6 +4,7 @@ import { autoCutFlip, cutProblem, defaultShellThickness, editorFixes, suggestedT
 import { shellOps } from './featureCommands';
 import { DiagnosticsCard } from './DiagnosticsCard';
 import { diagnose } from './errorSummary';
+import { adviceOf, maxSizeOf } from './diagnosticsText';
 import './i18n';
 
 afterEach(cleanup);
@@ -87,5 +88,59 @@ describe('cutProblem', () => {
     expect(cutProblem(cut, [{ code: 'noClosedProfile' }])).toBeNull();
     expect(cutProblem(cut, null)).toBeNull();
     expect(cutProblem(null, [{ code: 'nothingToCut' }])).toBeNull();
+  });
+});
+
+describe('the largest size that builds (kernel maxSize)', () => {
+  const max = (param: string, value: number, unit = 'mm') => ({ maxSize: { param, value, unit } });
+  it('reads a well-formed maxSize only', () => {
+    expect(maxSizeOf(max('thickness', 9.96))).toEqual({ param: 'thickness', value: 9.96, unit: 'mm' });
+    expect(maxSizeOf({ maxSize: { param: 'thickness', value: '9.96', unit: 'mm' } })).toBeNull();
+    expect(maxSizeOf({ maxSize: { param: '', value: 1, unit: 'mm' } })).toBeNull();
+    expect(maxSizeOf({ maxSize: { param: 'radius', value: Number.NaN, unit: 'mm' } })).toBeNull();
+    expect(maxSizeOf({ maxThickness: 2 })).toBeNull();
+    expect(maxSizeOf(undefined)).toBeNull();
+  });
+  it('the refusal message says it', () => {
+    const d = diagnose([{ id: 'F3', code: 'shellTooThick', params: max('thickness', 9.96) }], [{ id: 'F3', type: 'shell' }]);
+    expect(adviceOf(d.roots[0])).toMatch(/^The largest size that builds is 9\.96 mm\. /);
+    const a = diagnose([{ id: 'F3', code: 'draftTooLarge', params: max('angle', 44.5, 'deg') }], [{ id: 'F3', type: 'draft' }]);
+    expect(adviceOf(a.roots[0])).toMatch(/^The largest size that builds is 44\.5°\. /);
+    const plain = diagnose([{ id: 'F3', code: 'shellTooThick' }], [{ id: 'F3', type: 'shell' }]);
+    expect(adviceOf(plain.roots[0])).not.toMatch(/largest/);
+  });
+  it('offers Use the largest size for the refused field, for any feature', () => {
+    expect(editorFixes({ code: 'shellTooThick', params: { ...max('thickness', 9.96), maxThickness: 9.5 } }, { type: 'shell', thickness: 12 }).fixes)
+      .toEqual([{ key: 'maxSize', label: 'Use the largest size (9.96 mm)', path: 'thickness', value: 9.96 }]);
+    expect(editorFixes({ code: 'moveFaceFailed', params: max('distance', -9.93) }, { type: 'moveFace', distance: -12 }).fixes[0])
+      .toMatchObject({ path: 'distance', value: -9.93, label: 'Use the largest size (-9.93 mm)' });
+    expect(editorFixes({ code: 'draftTooLarge', params: max('draft', 26.4, 'deg') }, { type: 'extrude', op: 'add', draft: 40 }).fixes[0])
+      .toMatchObject({ path: 'draft', value: 26.4, label: 'Use the largest size (26.4°)' });
+  });
+  it('a nested field patches its parent object', () => {
+    const r = editorFixes({ code: 'thinTooThick', params: max('thin.thickness', 9.6) }, { type: 'extrude', thin: { thickness: 15, side: 'inside' } });
+    expect(r.fixes).toEqual([{ key: 'maxSize', label: 'Use the largest size (9.6 mm)', path: 'thin', value: { thickness: 9.6, side: 'inside' } }]);
+  });
+  it('fillet and chamfer: offered when the kernel gives maxSize, nothing changes without it', () => {
+    expect(editorFixes({ code: 'blendOverflow', params: { detail: 'F3.B0: spring leaves its face away from its edges' } }, { type: 'fillet', radius: 30 })).toEqual({ fixes: [] });
+    expect(editorFixes({ code: 'blendOverflow', params: max('radius', 4.98) }, { type: 'fillet', radius: 30 }).fixes[0]).toMatchObject({ path: 'radius', value: 4.98 });
+    expect(editorFixes({ code: 'blendTooLarge', params: max('distance', 3.2) }, { type: 'chamfer', distance: 6 }).fixes[0]).toMatchObject({ path: 'distance', value: 3.2 });
+    // a field the dialog does not hold as one number (a variable fillet's radii pair) is not overwritten
+    expect(editorFixes({ code: 'blendTooLarge', params: max('radii', 4) }, { type: 'fillet', filletType: 'variable', radii: [1, 9] })).toEqual({ fixes: [] });
+  });
+  it('not when the refusal is another feature broken by this edit', () => {
+    expect(editorFixes({ id: 'F9', code: 'shellTooThick', params: max('thickness', 2) }, { id: 'F2', type: 'extrude', depth: 30 }).fixes).toEqual([]);
+    expect(editorFixes({ id: 'F9', code: 'shellTooThick', params: max('thickness', 2) }, { id: 'F9', type: 'shell', thickness: 5 }).fixes[0]).toMatchObject({ value: 2 });
+  });
+  it('no fix when the field already holds that size', () => {
+    expect(editorFixes({ code: 'shellTooThick', params: max('thickness', 2) }, { type: 'shell', thickness: 2 })).toEqual({ fixes: [] });
+  });
+  it('the card button sets the value', () => {
+    const d = diagnose([{ id: 'F3', code: 'shellTooThick', params: max('thickness', 9.96) }], [{ id: 'F3', type: 'shell' }]);
+    const run = vi.fn();
+    const { container } = render(<DiagnosticsCard diagnosis={d} variant="editor" onSelect={() => {}} fixes={[{ key: 'maxSize', label: 'Use the largest size (9.96 mm)', run }]} />);
+    expect(container.querySelector('.diag-advice')!.textContent).toMatch(/largest size that builds is 9\.96 mm/);
+    fireEvent.click(container.querySelector('[data-fix="maxSize"]')!);
+    expect(run).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   planeCoords, planeToWorld, rayPlane, nearestSketchPoint,
-  sketchEditPolylines, sketchPointWorld, sketchFitView, lookAngleDeg,
+  sketchEditPolylines, sketchPointWorld, sketchFitView, sketchEditFit, lookAngleDeg,
 } from './sketchedit';
 import type { Frame } from './layers';
 
@@ -149,5 +149,28 @@ describe('sketchFitView (Fit inside a sketch)', () => {
     const v = sketchFitView(sk([O, { id: 'a', x: 5, y: 5 }]), FRONT);
     expect(v.center[0]).toBeCloseTo(5);
     expect(v.radius).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('sketchEditFit (what Fit does with the viewport\'s edit record)', () => {
+  const record = (points: unknown[], entities: unknown[]) => ({ featureId: 'F1', frame: FRONT, sketch: { points, entities } }) as never;
+  it('takes the record, not just its sketch: no throw (entities.map of undefined) and the same framing', () => {
+    const pts = [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: 10, y: 10 }, { id: 'b', x: 30, y: 20 }];
+    const ents = [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }];
+    const v = sketchEditFit(record(pts, ents));
+    expect(v.empty).toBe(false);
+    expect(v.center[0]).toBeCloseTo(20); expect(v.center[1]).toBeCloseTo(15);
+    expect(v).toEqual(sketchFitView({ points: pts, entities: ents, constraints: [] } as never, FRONT));
+  });
+  it('an empty edit frames 100 mm around the plane origin', () => {
+    const v = sketchEditFit(record([{ id: 'O', x: 0, y: 0, fixed: true }], []));
+    expect(v.empty).toBe(true);
+    expect(v.radius).toBe(50);
+  });
+  it('the viewport source passes the record\'s sketch part, never the record', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('packages/viewport/src/viewport.ts', 'utf8');
+    expect(src).not.toMatch(/sketchFitView\(this\.sketchEdit\b/);
+    expect(src).toMatch(/sketchEditFit\(\{ frame: this\.sketchEdit\.frame as never, sketch: this\.sketchEdit\.sketch \}\)/);
   });
 });

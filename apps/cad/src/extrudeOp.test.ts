@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, targetBodyOf, targetPatch, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
+import { defaultExtrudeOp, nextBodyName, opChoiceOf, opChoices, opPatch, planeTouchesBox, cutFromPatch, targetBodiesOf, targetBodyOf, targetPatch, KERNEL_SUPPORTS_NEW_BODY } from './extrudeOp';
 
 const box = { min: [0, 0, 0], max: [10, 10, 10] };
 const frame = (z: number) => ({ o: [0, 0, z], z: [0, 0, 1] });
@@ -50,5 +50,17 @@ describe('target body', () => {
     expect(targetBodyOf({ target: { body: 'Case' } })).toBe('Case');
     expect(targetPatch('Case')).toEqual({ target: { body: 'Case' } });
     expect(targetPatch('')).toEqual({ target: null });
+  });
+  it('Cut from: a list of bodies; none is every body the cut reaches', () => {
+    expect(cutFromPatch(['Cup', 'Lid'])).toEqual({ target: [{ body: 'Cup' }, { body: 'Lid' }] });
+    expect(cutFromPatch([])).toEqual({ target: null });
+    expect(targetBodiesOf({ target: [{ body: 'Cup' }, { body: 'Lid' }] })).toEqual(['Cup', 'Lid']);
+    expect(targetBodiesOf({ target: { body: 'Cup' } })).toEqual(['Cup']);
+    expect(targetBodiesOf({ target: [{ face: 'F2.C1' }] })).toEqual([]);
+    expect(targetBodyOf({ target: [{ body: 'Cup' }, { body: 'Lid' }] })).toBe('');
+  });
+  it('switching a cut of several bodies to an Add drops the list; one body carries over', () => {
+    expect(opPatch('add', { target: [{ body: 'A' }, { body: 'B' }] }, new Set())).toEqual({ op: 'add', flip: null, body: null, target: null });
+    expect(opPatch('add', { target: [{ body: 'A' }] }, new Set())).toEqual({ op: 'add', flip: null, body: null });
   });
 });

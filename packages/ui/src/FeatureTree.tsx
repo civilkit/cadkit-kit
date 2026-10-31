@@ -236,6 +236,7 @@ export function FeatureTree(p: {
             (i >= upTo ? ' rolled' : '')
           }
           data-id={r.id}
+          data-testid={'tree-row-' + r.id}
           title={dep.has(r.id) ? t('ui.tree.dependsOn', undefined, 'Depends on the selected feature') : undefined}
           draggable={!renamingThis}
           onMouseEnter={() => p.onHoverFeature?.(r.id)}

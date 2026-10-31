@@ -44,13 +44,13 @@ const SAME = 1e-9;
 const near = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y) < SAME;
 
 function view(cfg: PointListConfig, state: PointListState, draft: SketchDraft, hint?: string): ToolOutput<PointListState> {
-  if (!state.pts.length) return { state, draft, preview: [], fields: [], hint };
+  if (!state.pts.length) return { state, draft, preview: [], fields: [], hint: hint ?? 'app.sketch.hint.curveStart' };
   const at = state.pts.map((id) => pointOf(draft, id));
   const cursor = state.cursor;
   const closing = !!cursor && at.length >= cfg.minClosed(state) && !!state.snapPoint && state.snapPoint.id === state.pts[0];
   // the cursor is a tentative next point unless it sits on a point already picked
   const tentative = cursor && !at.some((q) => near(q, cursor)) ? cursor : undefined;
-  return { state, draft, preview: cfg.preview(state, at, tentative, closing), fields: [], hint, ...(closing ? { pending: ['close'] } : {}) };
+  return { state, draft, preview: cfg.preview(state, at, tentative, closing), fields: [], hint: hint ?? 'app.sketch.hint.curveNext', ...(closing ? { pending: ['close'] } : {}) };
 }
 
 function reset(state: PointListState): PointListState {

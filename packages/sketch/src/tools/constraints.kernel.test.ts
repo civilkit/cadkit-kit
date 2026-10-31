@@ -233,10 +233,11 @@ describe('every constraint type solves with the documented refs', { skip: !proce
     expect(dup.status).toMatchObject({ state: 'over', redundant: ['k2'], conflicts: [] });
     const bad = await regen([P('p1', 0, 0, true), P('p2', 10, 5, true)], [L('e1', 'p1', 'p2')], [K('k1', 'horizontal', ['e1'])], false);
     expect(bad.status).toMatchObject({ state: 'over', conflicts: ['k1'], solved: false });
-    // horizontal + vertical on ONE line is not reported at all: it collapses the line to a point (dof 0, no conflict)
+    // horizontal + vertical on ONE line can only hold by collapsing the line to a point: the kernel does not take
+    // that solve (the line keeps its length, solved false) and names the line (solve guard, solidcraft #8988)
     const collapsed = await regen(pts, [L('e1', 'p1', 'p2')], [K('k1', 'horizontal', ['e1']), K('k2', 'vertical', ['e1'])]);
-    expect(collapsed.status).toMatchObject({ state: 'full', conflicts: [], redundant: [] });
-    near(len(sub(collapsed.pts.p2, collapsed.pts.p1)), 0, 1e-5);
+    expect(collapsed.status).toMatchObject({ solved: false, problems: [{ code: 'sketchCurveShrunk', entity: 'e1' }] });
+    near(len(sub(collapsed.pts.p2, collapsed.pts.p1)), 10, 1e-9);
   });
 });
 

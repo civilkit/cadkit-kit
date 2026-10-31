@@ -5,6 +5,7 @@ import type { Session } from '@ck/session';
 import { meshFromBody } from '@ck/mesh';
 import type { BodyLookSpec, ViewBodyDef } from '@kit/viewport';
 import { base64Of, type StepImportResult } from './stepImport';
+import { parseParts } from './importReport';
 
 /** Which way up an imported SketchUp model is placed. SketchUp is Z up, the kit is Y up. 'y' stands the model upright ((x,y,z) -> (x,z,-y)),
  *  'z' keeps the file's own axes (the model lies on its side in the kit), 'yFlip' is 'y' turned upside down ((x,y,z) -> (-x,-z,-y)). */
@@ -113,5 +114,7 @@ export async function importSkpView(session: Pick<Session, 'importSkp'>, bytes: 
   };
   const look = skpLook(body.faces.map((f) => f.id), materials, im?.faceMaterials ?? []);
   const summary = skpSummary({ faces: body.faces.length, lumps: im?.lumps ?? 1, openEdges: im?.openEdges ?? 0, nonManifoldEdges: im?.nonManifoldEdges ?? 0, materials, hiddenSkipped: im?.hiddenSkipped ?? 0 });
-  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, look, summary, up: im?.up ?? opts.up ?? 'z' };
+  // what each piece is (a valid closed solid, or a surface with the reasons): the body keeps every piece, as a surface model
+  const parts = parseParts((im as { parts?: unknown } | undefined)?.parts);
+  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, parts, look, summary, up: im?.up ?? opts.up ?? 'z' };
 }

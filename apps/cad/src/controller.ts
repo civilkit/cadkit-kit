@@ -23,6 +23,7 @@ import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert }
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import { markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
+import type { InertiaFact } from '@kit/script';
 import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
 import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
@@ -31,7 +32,7 @@ import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
 import { planeTouchesBox } from './extrudeOp';
-import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
+import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
 export interface SketchEditView {
@@ -48,6 +49,8 @@ export interface SketchPreview {
   view?: SketchEditView;
   hint?: string;
   status?: SketchSolverStatus;
+  /** The kernel did not take the solve (it would shrink a curve to a point): nothing changed on screen. */
+  refused?: boolean;
 }
 
 /** The view with `smooth` set on its edges that have no crease (the Tangent chain skips those). */
@@ -324,7 +327,7 @@ export class Controller {
     return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
   }
   /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
-  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
+  async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; inertia?: InertiaFact | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
     if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
@@ -337,8 +340,9 @@ export class Controller {
     }
     if (need.mass) {
       const r = await k.request({ type: 'massProps', tag: this.scratchTag });
-      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[] } | null;
+      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[]; principal?: number[]; axes?: number[][]; firstMoment?: number[]; inertia?: number[][]; inertiaOrigin?: number[][] } | null;
       out.volume = m?.volume ?? null; out.area = m?.area ?? null; out.com = m?.com ?? null;
+      out.inertia = m?.inertia && m.inertiaOrigin && m.firstMoment && m.principal && m.axes ? { firstMoment: m.firstMoment as never, tensor: m.inertia, tensorOrigin: m.inertiaOrigin, principal: m.principal as never, axes: m.axes as never } : null;
     }
     if (need.validate) {
       const r = await k.request({ type: 'validate', tag: this.scratchTag });
@@ -785,9 +789,13 @@ export class Controller {
     if (this.realLoad) await this.whenReal();
     const open = this.sketchOpen;
     if (!open) return { ok: false, hint: 'no sketch open' };
-    open.undo.push(open.draft);
+    const prev = open.draft;
+    open.undo.push(prev);
     open.draft = draft;
-    return this.updateSketch(draft, 0);
+    const r = await this.updateSketch(draft, 0);
+    // a solve the kernel refused (it would shrink a curve to a point) leaves the edit out: the previous draft stays
+    if (r.refused && this.sketchOpen === open && open.draft === draft) { open.undo.pop(); open.draft = prev; }
+    return r;
   }
 
   /** Undo the last tool edit in the open sketch. False when there is nothing to undo. */
@@ -828,6 +836,9 @@ export class Controller {
     let res: Awaited<typeof running>;
     try { res = await running; } finally { if (this.sketchInflight === running) this.sketchInflight = null; }
     if (seq !== this.sketchSeq) return { ok: true, stale: true };
+    // A solve the kernel refused because it would shrink a curve to a point (a drag onto a line's own
+    // midpoint, a constraint that collapses a rectangle): keep the last good sketch and say why.
+    if (refusedBy(res.status)) return { ok: false, hint: problemHint(res.status), status: res.status, refused: true };
     // A drag the solver could not absorb comes back as a successful regen that
     // echoes the sketch unsolved (status.solved false): refuse it, keep the
     // last good solved sketch on screen (the point snaps back).
@@ -1113,6 +1124,17 @@ export class Controller {
     if (!k) return { ok: false, code: 'noSession', message: 'no document loaded' };
     this.store.busy.value = true;
     try { return await sldprtAsPart(k, bytes, name); } finally { this.store.busy.value = false; }
+  }
+
+  /** The bodies of the last view-only import (STEP, SolidWorks, SketchUp) as STEP text, its surface bodies included (null when there is
+   *  none or the kernel cannot write it): what Repair turns into an editable part. Imports live on the kernel's `imp` tag. */
+  async importedStep(name: string): Promise<string | null> {
+    const k = this.transport();
+    if (!k) return null;
+    try {
+      const r = await k.request({ type: 'step', tag: 'imp', name });
+      return r.ok && typeof r.result === 'string' && r.result.includes('ISO-10303-21') ? r.result : null;
+    } catch { return null; }
   }
 
   /** Show a SketchUp .skp file in the viewport (view only, like STEP): faces coloured by their SketchUp materials. `opts.hidden` also brings in hidden geometry. */

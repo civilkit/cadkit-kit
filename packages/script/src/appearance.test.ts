@@ -86,3 +86,18 @@ p.sweep({ on: 'front', draw: (s) => s.circle(2) }, { on: 'right', draw: (s) => s
     expect(bad.r.errors[0].message).toMatch(/newBody applies to material you add/);
   });
 });
+
+describe('upAxis()', () => {
+  it('writes the view hint into the document the app loads; absent without the call', async () => {
+    const { r, loaded } = await run(`part('x').upAxis('z').sketch('front', (s) => s.circle(20, [0, 0])).extrude(3);`);
+    expect(r.errors).toEqual([]);
+    expect((r.document as { upAxis?: string }).upAxis).toBe('z');
+    expect(loaded[0].upAxis).toBe('z');
+    const none = await run(BASE);
+    expect(Object.keys(none.r.document!)).not.toContain('upAxis');
+  });
+  it('refuses anything but y or z', async () => {
+    const { r } = await run(`part('x').upAxis('w');`);
+    expect(r.errors[0].message).toContain("'y' or 'z'");
+  });
+});

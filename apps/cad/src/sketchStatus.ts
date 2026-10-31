@@ -35,6 +35,8 @@ const PX_PER_MM_100 = 96 / 25.4;
 export function zoomPercent(upp: number): number {
   return Math.round((100 / Math.max(upp, 1e-9) / PX_PER_MM_100));
 }
+/** The inverse of zoomPercent: plane units (mm) per pixel at a zoom percentage. */
+export const uppForPercent = (percent: number): number => 100 / (Math.max(percent, 1e-6) * PX_PER_MM_100);
 export const formatZoom = (upp: number): string => `${zoomPercent(upp)}%`;
 
 /** '10 mm', '0.5 mm', '1/4 in' is not attempted: decimals only. */

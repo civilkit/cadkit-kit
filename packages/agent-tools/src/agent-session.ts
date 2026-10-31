@@ -3,7 +3,7 @@
 import { Session, referencers } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { repairHint } from './hints';
-import { runScript, type ScriptHost, type ScriptError } from '@kit/script';
+import { runScript, type InertiaFact, type ScriptHost, type ScriptError } from '@kit/script';
 import type { EditOp } from '@ck/session';
 import { ToolError } from './errors';
 import { defaultRegistry, type Registry } from './registry';
@@ -180,7 +180,7 @@ export class AgentSession {
   }
   /** Mass properties / validity of the document `scratchBuild` built last (a script's read-back). */
   async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }) {
-    const out: { text?: never; volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } = {};
+    const out: { text?: never; volume?: number | null; area?: number | null; com?: number[] | null; inertia?: InertiaFact | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> } = {};
     if (need.text) {
       const r = await this.transport.request({ type: 'textMetrics', ...need.text }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
       if (!r.ok) throw new Error(`text(): ${typeof r.error === 'string' ? r.error : r.error?.message ?? 'the kernel could not measure the text'}`);
@@ -188,8 +188,9 @@ export class AgentSession {
     }
     if (need.mass) {
       const r = await this.transport.request({ type: 'massProps', tag: this.scratchTag });
-      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[] } | null;
+      const m = (r.ok ? r.result : null) as { volume?: number; area?: number; com?: number[]; principal?: number[]; axes?: number[][]; firstMoment?: number[]; inertia?: number[][]; inertiaOrigin?: number[][] } | null;
       out.volume = m?.volume ?? null; out.area = m?.area ?? null; out.com = m?.com ?? null;
+      out.inertia = m?.inertia && m.inertiaOrigin && m.firstMoment && m.principal && m.axes ? { firstMoment: m.firstMoment as never, tensor: m.inertia, tensorOrigin: m.inertiaOrigin, principal: m.principal as never, axes: m.axes as never } : null;
     }
     if (need.validate) {
       const r = await this.transport.request({ type: 'validate', tag: this.scratchTag });

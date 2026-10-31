@@ -38,6 +38,8 @@ export type TrimRes = { ok: true; draft: SketchDraft; removed: PreviewShape[] } 
 function cutsOf(draft: SketchDraft, id: string, g: CurveG): Cut[] {
   const end = paramEnd(g);
   const tol = g.kind === 'line' ? TOL : TOL / g.r;
+  // a crossing found within rounding of the curve's own end is that end (a touch at a shared corner), not a place to cut
+  const endTol = tol * 10;
   const cuts: Cut[] = [];
   for (const e of draft.entities) {
     if (e.id === id) continue;
@@ -45,8 +47,8 @@ function cutsOf(draft: SketchDraft, id: string, g: CurveG): Cut[] {
     if (!other) continue;
     for (const p of intersect(g, other)) {
       let t = paramOf(g, p);
-      if (g.kind === 'arc' && t > TAU - tol) t = 0;
-      if (g.kind !== 'circle' && !(t > tol && t < end - tol)) continue;
+      if (g.kind === 'arc' && t > TAU - endTol) t = 0;
+      if (g.kind !== 'circle' && !(t > endTol && t < end - endTol)) continue;
       cuts.push({ t, at: p, cutter: e.id, cutterType: String(e.type) });
     }
   }

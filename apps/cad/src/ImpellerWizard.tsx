@@ -28,7 +28,7 @@ function Num(p: { name: string; label: string; value: number; unit?: string; min
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input type="number" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
+        <input type="number" inputMode="decimal" enterKeyHint="done" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
           onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>

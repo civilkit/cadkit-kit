@@ -1,6 +1,6 @@
 /** How the sketch editor takes input: user settings, remembered in the browser. They feed the tools' `ToolSettings`
  *  (auto constraints, tangent-arc switching, on-view value entry) plus the grid snap. */
-import { ALL_SNAPS, SNAP_KINDS, type SnapToggles, type ToolSettings } from '@kit/sketch';
+import { ALL_SNAPS, DIM_DISPLAYS, SNAP_KINDS, type DimDisplay, type SnapToggles, type ToolSettings } from '@kit/sketch';
 
 export interface SketchPrefs {
   /** Infer horizontal, vertical, coincident and tangent while drawing (Shift at a click suppresses it). */
@@ -9,7 +9,7 @@ export interface SketchPrefs {
   guideConstraints: boolean;
   /** Entering a sketch leaves the camera exactly where it is (Look normal turns it square to the plane). Off: the view squares up to the sketch plane on entry. */
   keepView: boolean;
-  /** Squares the view up to the sketch plane when a NEW sketch starts, even with keepView on. Off by default (the sketch bar offers a one-click `Look normal (N)` instead). */
+  /** Squares the view up to the sketch plane when a NEW sketch starts, even with keepView on. On by default; re-entering an existing sketch keeps the camera (the sketch bar offers `Look normal (N)` when it is angled). */
   autoLookNormal: boolean;
   /** How a line becomes a tangent arc: rest the pointer on the end (`hover`), keys and drag only (`keys`), or never (`off`). */
   arcSwitch: 'hover' | 'keys' | 'off';
@@ -25,6 +25,12 @@ export interface SketchPrefs {
   snaps: SnapToggles;
   /** What the sketch shows (the display popover). */
   show: SketchShow;
+  /** How many dimensions are drawn: all, only the driving ones, or those of what is selected or hovered (the Dimension tool shows all). */
+  dimDisplay: DimDisplay;
+  /** A typed angle in the Line tool also makes a driving angle dimension against the previous line. */
+  typedAngleDims: boolean;
+  /** A right angle dimension is drawn as a small square corner mark instead of an arc. */
+  rightAngleSquare: boolean;
 }
 
 /** The four show toggles the viewport Display menu offers while sketching. */
@@ -44,7 +50,7 @@ export interface SketchShow {
 }
 export const DEFAULT_SHOW: SketchShow = { dimensions: true, relations: true, reference: true, colours: true, panel: true };
 
-export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: false, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW };
+export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW, dimDisplay: 'all', typedAngleDims: true, rightAngleSquare: true };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
 
@@ -70,6 +76,9 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     gridSpacing: typeof r.gridSpacing === 'number' && r.gridSpacing >= 0 && Number.isFinite(r.gridSpacing) ? r.gridSpacing : 0,
     snaps: flags(r.snaps, ALL_SNAPS, SNAP_KINDS),
     show: flags(r.show, DEFAULT_SHOW, Object.keys(DEFAULT_SHOW) as Array<keyof SketchShow>),
+    dimDisplay: pick(r.dimDisplay, DIM_DISPLAYS, DEFAULT_SKETCH_PREFS.dimDisplay),
+    typedAngleDims: typeof r.typedAngleDims === 'boolean' ? r.typedAngleDims : DEFAULT_SKETCH_PREFS.typedAngleDims,
+    rightAngleSquare: typeof r.rightAngleSquare === 'boolean' ? r.rightAngleSquare : DEFAULT_SKETCH_PREFS.rightAngleSquare,
   };
 }
 
@@ -80,7 +89,7 @@ export const constrainsFromGuides = (p: Pick<SketchPrefs, 'autoConstraints' | 'g
 export const LOOK_CHIP_DEG = 5;
 export const lookChipNeeded = (angleDeg: number | null): boolean => angleDeg !== null && angleDeg > LOOK_CHIP_DEG;
 
-export const toToolSettings = (p: SketchPrefs): ToolSettings => ({ autoConstraints: p.autoConstraints, arcSwitch: p.arcSwitch, onViewValues: p.onViewValues });
+export const toToolSettings = (p: SketchPrefs): ToolSettings => ({ autoConstraints: p.autoConstraints, arcSwitch: p.arcSwitch, onViewValues: p.onViewValues, typedAngleDims: p.typedAngleDims });
 
 const KEY = 'cad.sketchPrefs';
 export function loadSketchPrefs(storage: Pick<Storage, 'getItem'> | null = typeof localStorage === 'undefined' ? null : localStorage): SketchPrefs {
@@ -89,3 +98,7 @@ export function loadSketchPrefs(storage: Pick<Storage, 'getItem'> | null = typeo
 export function saveSketchPrefs(p: SketchPrefs, storage: Pick<Storage, 'setItem'> | null = typeof localStorage === 'undefined' ? null : localStorage): void {
   try { storage?.setItem(KEY, JSON.stringify(p)); } catch { /* private window: keep the setting for this session only */ }
 }
+
+/** Escape leaves an EMPTY sketch (no curves, nothing but the origin point) as it always did, but never throws away a sketch that has geometry: the Cancel button is the way to discard that. */
+export const escapeCancelsSketch = (draft: { entities: unknown[]; points: Array<{ fixed?: boolean }> } | null): boolean =>
+  !draft || (draft.entities.length === 0 && draft.points.filter((p) => !p.fixed).length === 0);

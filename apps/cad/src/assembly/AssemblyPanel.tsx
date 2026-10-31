@@ -100,7 +100,7 @@ function DofBadge(p: { row: ComponentRow }): JSX.Element {
 function PlacementFields(p: { value: Placement; onChange(v: Placement): void }): JSX.Element {
   const v = p.value;
   const num = (k: 'dx' | 'dy' | 'dz' | 'angle') => (
-    <label class="asm-f"><span>{t('asm.place.' + k)}</span><input type="number" step="any" value={v[k]} aria-label={t('asm.place.' + k)} onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); p.onChange({ ...v, [k]: Number.isFinite(x) ? x : 0 }); }} /></label>
+    <label class="asm-f"><span>{t('asm.place.' + k)}</span><input type="number" inputMode="decimal" enterKeyHint="done" step="any" value={v[k]} aria-label={t('asm.place.' + k)} onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); p.onChange({ ...v, [k]: Number.isFinite(x) ? x : 0 }); }} /></label>
   );
   return (
     <div class="asm-place">
@@ -358,7 +358,7 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
           {(kdef?.params ?? []).filter((q) => !q.vec).map((q) => (
             <div key={q.key}>
               <label class="asm-f wide" title={t(q.drive ? 'asm.mate.ptip.drive' : 'asm.mate.ptip.' + q.key)}><span>{t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}{unitOf(q)}{q.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
-                <input type="number" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
+                <input type="number" inputMode="decimal" enterKeyHint="done" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
                   onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
               {q.drive ? (
                 <label class="asm-f wide"><span>{t('asm.mate.testDrive')} ({fmt(Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0, 4)}°)</span>

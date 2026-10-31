@@ -40,7 +40,7 @@ export function CornerHolesPanel(p: CornerHolesPanelProps): JSX.Element {
   const count = (name: string, label: string, value: number, set: (n: number) => void) => (
     <label class="fedit-fld" data-path={name}>
       <span class="fedit-fld-label">{label}</span>
-      <input type="number" min={2} step={1} value={value} title={t('cornerHoles.countTip')}
+      <input type="number" inputMode="numeric" enterKeyHint="done" min={2} step={1} value={value} title={t('cornerHoles.countTip')}
         onInput={(e) => set(Number((e.currentTarget as HTMLInputElement).value))}
         onKeyDown={(e) => { if ((e as KeyboardEvent).key === 'Enter') place(); }} />
     </label>

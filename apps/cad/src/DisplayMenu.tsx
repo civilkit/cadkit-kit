@@ -5,6 +5,7 @@ import type { AnalysisOptions } from '@kit/viewport';
 import { AnalysisSection } from './AnalysisControls';
 import { t } from './i18n';
 import { SKETCH_SHOW_KEYS, type SketchShow } from './sketchPrefs';
+import { DIM_DISPLAYS, type DimDisplay } from '@kit/sketch';
 
 /** The look half of the popover: display style, appearance of the part, lighting and background (see look.ts). */
 export interface LookControls {
@@ -22,7 +23,7 @@ export interface LookControls {
 export const DISPLAY_LAYERS: DisplayLayer[] = ['edges', 'sketches', 'curves', 'planes', 'axes', 'grid', 'relations', 'dimensions', 'threads', 'issues'];
 
 /** A button on the viewport that opens a small checklist of display layers. Hiding a layer never changes the document. */
-export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
+export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer, on: boolean): void; /** Given only while a sketch is open: the sketch's own show toggles, so there is one Display menu. */ sketch?: { show: SketchShow; onToggle(key: keyof SketchShow, on: boolean): void; /** how many dimensions are drawn */ dimDisplay?: DimDisplay; onDimDisplay?(v: DimDisplay): void; /** the Line tool's typed angles make dimensions; right angles as a square */ typedAngleDims?: boolean; rightAngleSquare?: boolean; onFlag?(key: 'typedAngleDims' | 'rightAngleSquare', on: boolean): void }; look?: LookControls; analysis?: { opts: AnalysisOptions; onChange(patch: Partial<AnalysisOptions>): void } }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -39,7 +40,7 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" /><circle cx="8" cy="8" r="2" />
         </svg>
-        {t('display.label')}
+        <span class="display-lab">{t('display.label')}</span>
       </button>
       {open ? (
         <div class="display-pop" role="group" aria-label={t('display.label')}>
@@ -54,6 +55,21 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
                   <span>{t('app.sketch.show.' + k)}</span>
                 </label>
               ))}
+              {p.sketch.onDimDisplay ? (
+                <div class="display-seg" role="radiogroup" aria-label={t('app.sketch.dimDisplay')} data-testid="dim-display">
+                  <span>{t('app.sketch.dimDisplay')}</span>
+                  {DIM_DISPLAYS.map((v) => (
+                    <button key={v} type="button" role="radio" aria-checked={p.sketch!.dimDisplay === v} class={'display-seg-btn' + (p.sketch!.dimDisplay === v ? ' on' : '')} data-dim-display={v}
+                      onClick={() => p.sketch!.onDimDisplay!(v)}>{v === 'all' ? t('app.sketch.dimDisplay.all') : v === 'driving' ? t('app.sketch.dimDisplay.driving') : t('app.sketch.dimDisplay.selected')}</button>
+                  ))}
+                </div>
+              ) : null}
+              {p.sketch.onFlag ? (['typedAngleDims', 'rightAngleSquare'] as const).map((k) => (
+                <label key={k} class="display-row">
+                  <input type="checkbox" data-sketch-flag={k} checked={p.sketch![k] !== false} onChange={(e) => p.sketch!.onFlag!(k, (e.currentTarget as HTMLInputElement).checked)} />
+                  <span>{k === 'typedAngleDims' ? t('app.sketch.typedAngleDims') : t('app.sketch.rightAngleSquare')}</span>
+                </label>
+              )) : null}
             </div>
           ) : null}
           {p.look || p.analysis ? <div class="display-head">{t('display.layers')}</div> : null}

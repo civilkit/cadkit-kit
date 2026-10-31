@@ -8,7 +8,7 @@ import { t } from './i18n';
 /** One entry of a slot: a command or a sketch tool, reduced to what a button needs. */
 export interface SlotItem { id: string; label: string; keys?: string; tip?: string; icon?: string; /** Why the item is disabled right now; the tooltip says so while it is. */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
 
-export type SlotSide = 'bottom' | 'right' | 'left';
+export type SlotSide = 'bottom' | 'right' | 'left' | 'top';
 
 /** Which item of a group each slot last ran, shared by every surface that shows the same slot (the ribbon, the tool
  *  palette) and kept in localStorage. Exported so tests can reset it. */
@@ -89,7 +89,7 @@ function SlotCell(p: SlotProps): JSX.Element {
 
   const openFlyout = () => {
     const r = box.current?.getBoundingClientRect();
-    if (r) setPos(side === 'right' ? { left: r.right + 6, top: r.top } : side === 'left' ? { right: Math.max(8, window.innerWidth - r.left + 6), top: r.top } : { left: r.left, top: r.bottom + 4 });
+    if (r) setPos(side === 'top' ? { left: r.left, top: r.top } : side === 'right' ? { left: r.right + 6, top: r.top } : side === 'left' ? { right: Math.max(8, window.innerWidth - r.left + 6), top: r.top } : { left: r.left, top: r.bottom + 4 });
     setOpen(true);
   };
   useEffect(() => {
@@ -125,7 +125,7 @@ function SlotCell(p: SlotProps): JSX.Element {
             const dis = !isOn(x);
             const pr = x.pressed?.();
             return (
-              <button key={x.id} class={'slot-row' + (x === shown && !p.menu ? ' shown' : '')} role={p.keepOpen ? 'menuitemcheckbox' : 'menuitem'} aria-label={x.label} aria-checked={p.keepOpen || pr !== undefined ? !!pr : undefined} aria-pressed={undefined} disabled={dis} onClick={() => run(x)}>
+              <button key={x.id} data-testid={'cmd-' + x.id} class={'slot-row' + (x === shown && !p.menu ? ' shown' : '')} role={p.keepOpen ? 'menuitemcheckbox' : 'menuitem'} aria-label={x.label} aria-checked={p.keepOpen || pr !== undefined ? !!pr : undefined} aria-pressed={undefined} disabled={dis} onClick={() => run(x)}>
                 <Icon name={x.icon ?? x.id} size={18} />
                 <span class="slot-name">{x.label}</span>
                 {x.keys ? <kbd>{x.keys}</kbd> : <span />}
@@ -145,7 +145,10 @@ function SlotCell(p: SlotProps): JSX.Element {
     const el = h.firstElementChild as HTMLElement | null;
     if (el) {
       const r = el.getBoundingClientRect();
-      if (r.bottom > window.innerHeight - 8) el.style.top = Math.max(8, window.innerHeight - 8 - r.height) + 'px';
+      const anchor = box.current?.getBoundingClientRect();
+      // above the button when asked (the tool strip stands at the bottom edge) or when there is no room below it
+      if (anchor && (side === 'top' || (side === 'bottom' && r.bottom > window.innerHeight - 8 && anchor.top - r.height - 4 >= 8))) el.style.top = Math.max(8, anchor.top - r.height - 4) + 'px';
+      else if (r.bottom > window.innerHeight - 8) el.style.top = Math.max(8, window.innerHeight - 8 - r.height) + 'px';
       if (r.right > window.innerWidth - 8) { el.style.left = Math.max(8, window.innerWidth - 8 - r.width) + 'px'; el.style.right = 'auto'; }
     }
     return () => { render(null, h); h.remove(); };
@@ -153,12 +156,13 @@ function SlotCell(p: SlotProps): JSX.Element {
 
   return (
     <div class={'slot ' + p.variant + (multi ? ' multi' : '') + (p.class ? ' ' + p.class : '')} data-side={side} data-slot={p.id} ref={box}>
-      <Tip label={name} keys={p.menu ? undefined : shown.keys} hint={p.menu ? undefined : on ? shown.tip : shown.why?.() ?? t('ui.slot.unavailable')} side={side === 'bottom' ? 'bottom' : side === 'right' ? 'right' : 'left'}>
+      <Tip label={name} keys={p.menu ? undefined : shown.keys} hint={p.menu ? undefined : on ? shown.tip : shown.why?.() ?? t('ui.slot.unavailable')} side={side === 'bottom' ? 'bottom' : side === 'top' ? 'top' : side === 'right' ? 'right' : 'left'}>
         <button
           class={'slot-btn' + (p.variant === 'ribbon' ? ' rb-btn' : ' stool') + (p.labels ? ' has-label' : ' icon-only')}
           disabled={!on}
           aria-pressed={pressed}
           aria-label={name}
+          data-testid={p.menu || multi ? 'slot-' + p.id : 'cmd-' + shown.id}
           aria-haspopup={multi ? 'true' : undefined}
           aria-expanded={multi ? open : undefined}
           onPointerDown={(e) => {

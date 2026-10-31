@@ -25,7 +25,7 @@ export { cvsplineTool, type CvSplineState } from './cvspline';
 export { bridgeTool, type BridgeState } from './bridge';
 export { dimensionTool, type DimensionState } from './dimension';
 export { makeConstraintTool, horizontalTool, verticalTool, coincidentTool, equalTool, parallelTool, perpendicularTool, collinearTool, midpointTool, tangentTool, symmetricTool, fixTool, concentricTool, type ConstraintTool, type ConstraintToolState } from './constraint-tools';
-export { pickOf, classify, resolve as resolveConstraint, refusal, angleSpec, appendSpec, reportStatus, type Pick, type PickKind, type Spec, type ConstraintKind, type StatusReport } from './constraints';
+export { pickOf, classify, resolve as resolveConstraint, refusal, angleSpec, appendSpec, reportStatus, problemHint, refusedBy, type SolveProblem, type Pick, type PickKind, type Spec, type ConstraintKind, type StatusReport } from './constraints';
 export { constructionTool, setConstruction, markNewAsConstruction, CONSTRUCTIBLE } from './construction';
 export { withExactEdges } from './exactEdges';
 export { projectTool, projectEdges, edgeCurve, projectCurves, referenceChain, chainCurves, classifyCurve, edgesFor, edgeNear, flatten, type Projected, type ProjectRes } from './project';

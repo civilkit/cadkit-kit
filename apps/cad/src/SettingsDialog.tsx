@@ -8,6 +8,7 @@ import type { NavPrefs } from './navPrefs';
 import { UP_AXES, ORBIT_MODES, ORBIT_PIVOTS } from '@kit/viewport';
 import type { TriPrefs } from './triball/triballPrefs';
 import { THEMES, type Theme } from './theme';
+import { LAYOUT_PREFS, type LayoutPref } from './layoutMode';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
 type Tab = 'general' | 'layout' | 'sketching' | 'positioning' | 'navigation' | 'kernel';
@@ -21,7 +22,9 @@ const languageName = (code: string, pseudo: string) => {
 };
 
 export function SettingsDialog(p: {
-  workspace: Workspace; onChange(patch: Partial<Workspace>): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
+  workspace: Workspace; onChange(patch: Partial<Workspace>): void;
+  /** The screen layout: automatic (by window size and pointer), or forced to phone, tablet or desktop. */
+  layoutPref?: LayoutPref; onLayoutPref?(v: LayoutPref): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
@@ -87,6 +90,14 @@ export function SettingsDialog(p: {
               <option value="minimal">{t('settings.preset.minimal')}</option>
             </select>
           </label>
+          {p.onLayoutPref ? (
+            <label class="set-row">
+              <span>{t('settings.layoutMode')}</span>
+              <select aria-label={t('settings.layoutMode')} value={p.layoutPref ?? 'auto'} onChange={(e) => p.onLayoutPref!((e.currentTarget as HTMLSelectElement).value as LayoutPref)}>
+                {LAYOUT_PREFS.map((v) => <option key={v} value={v}>{t('settings.layoutMode.' + v)}</option>)}
+              </select>
+            </label>
+          ) : null}
           {p.onResetLayout ? <div class="set-row"><span>{t('settings.resetLayout.hint')}</span><button class="rb-btn" onClick={p.onResetLayout}>{t('cmd.reset-layout')}</button></div> : null}
           {select('ribbon', ['off', 'compact', 'full'])}
           {select('leftPanel', ['docked', 'floating', 'hidden'])}
@@ -141,9 +152,9 @@ export function SettingsDialog(p: {
           <div class="set-section" role="group" aria-label={t('settings.triball.title')}>
             <b class="set-head">{t('settings.triball.title')}</b>
             <label class="set-row"><span>{t('settings.triball.distance')}</span>
-              <input type="number" min="0.001" step="any" aria-label={t('settings.triball.distance')} value={p.triPrefs.distance} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0) p.onTriPrefs!({ distance: n }); }} /></label>
+              <input type="number" inputMode="decimal" enterKeyHint="done" min="0.001" step="any" aria-label={t('settings.triball.distance')} value={p.triPrefs.distance} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0) p.onTriPrefs!({ distance: n }); }} /></label>
             <label class="set-row"><span>{t('settings.triball.angle')}</span>
-              <input type="number" min="0.001" max="180" step="any" aria-label={t('settings.triball.angle')} value={p.triPrefs.angle} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0 && n <= 180) p.onTriPrefs!({ angle: n }); }} /></label>
+              <input type="number" inputMode="decimal" enterKeyHint="done" min="0.001" max="180" step="any" aria-label={t('settings.triball.angle')} value={p.triPrefs.angle} onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0 && n <= 180) p.onTriPrefs!({ angle: n }); }} /></label>
             <div class="tb-note">{t('settings.triball.note')}</div>
           </div>
           ) : null}

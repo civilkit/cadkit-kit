@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from '../index';
-import { angleSpec, orientations, pickOf, reportStatus } from './constraints';
+import { angleSpec, orientations, pickOf, problemHint, refusedBy, reportStatus } from './constraints';
 import {
   coincidentTool, collinearTool, concentricTool, equalTool, fixTool, horizontalTool, midpointTool, parallelTool,
   perpendicularTool, symmetricTool, tangentTool, verticalTool, type ConstraintTool,
@@ -96,7 +96,12 @@ describe('constraint tools: picks make exactly one constraint with the verified 
     expect(run(tangentTool, [ent('e1'), ent('e2')]).hint).toBe('app.sketch.hint.pick.invalid');   // two lines are never tangent
     expect(run(equalTool, [ent('e1'), ent('e3')]).hint).toBe('app.sketch.hint.pick.invalid');     // a length is not a radius
     expect(run(coincidentTool, [pt('p1'), ent('e1')]).hint).toBe('app.sketch.hint.pick.invalid');
-    expect(run(midpointTool, [pt('p1'), ent('e1')]).hint).toBe('app.sketch.hint.pick.invalid');   // an end point is not the midpoint
+    expect(run(midpointTool, [pt('p1'), ent('e1')]).hint).toBe('app.sketch.hint.pick.ownEnd');    // an end point is not the midpoint (solidcraft #8562)
+    expect(run(midpointTool, [ent('e1'), pt('p2')]).hint).toBe('app.sketch.hint.pick.ownEnd');
+    // a line's two ends are never made coincident: the line would shrink to a point (solidcraft #8611)
+    const ends = run(coincidentTool, [pt('p2'), pt('p1')]);
+    expect(ends.hint).toBe('app.sketch.hint.pick.lineEnds');
+    expect(ends.draft.constraints).toHaveLength(0);
     expect(run(symmetricTool, [pt('p3'), pt('p4'), pt('p1')]).hint).toBe('app.sketch.hint.pick.invalid');
     expect(run(parallelTool, [ent('e1'), ent('e1')]).hint).toBe('app.sketch.hint.pick.same');
     expect(run(parallelTool, [{ type: 'click', at: { x: 0, y: 0 }, mods: M }]).hint).toBe('app.sketch.hint.pick.none');
@@ -253,6 +258,15 @@ describe('smart dimension', () => {
     expect(added(dimensionTool.step(o.state, value(75), o.draft, DEFAULT_SETTINGS), d)).toEqual([{ type: 'angle', refs: ['e1', 'e2'], value: 75 }]);
   });
 
+  it('two lines of one corner: their interior angle is offered at once as the value field, and a typed value becomes the dimension', () => {
+    const d: SketchDraft = { ...D, points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 0, y: 10 }],
+      entities: [{ id: 'e1', type: 'line', p1: 'b', p2: 'a' }, { id: 'e2', type: 'line', p1: 'a', p2: 'c' }] };
+    const o = dim([ent('e1'), ent('e2')], DEFAULT_SETTINGS, d);
+    expect(o.fields).toHaveLength(1);
+    expect(o.fields[0]).toMatchObject({ id: 'value', unit: 'angle', value: 90 });
+    expect(added(dimensionTool.step(o.state, value(60), o.draft, DEFAULT_SETTINGS), d)).toMatchObject([{ type: 'angle', value: 60 }]);
+  });
+
   it('refuses what cannot be dimensioned, a repeated dimension and bad values', () => {
     expect(dim([ent('e3'), ent('e1'), key('Enter')]).draft.constraints).toHaveLength(1); // circle then line: starts over with the line
     expect(dim([pt('p1'), ent('e3')]).state.picks).toEqual([{ kind: 'circle', id: 'e3' }]);
@@ -282,6 +296,19 @@ describe('reportStatus', () => {
     expect(reportStatus({ ...base, state: 'over', conflicts: ['k4'] }, 'k4')).toEqual({ level: 'conflict', hint: 'app.sketch.hint.status.overConstrained', ids: ['k4'], blamesAdded: true });
     expect(reportStatus({ ...base, state: 'over', redundant: ['k2'] }, 'k4')).toMatchObject({ level: 'redundant', blamesAdded: false });
     expect(reportStatus({ ...base, solved: false })).toMatchObject({ level: 'unsolved', hint: 'app.sketch.hint.status.unsolved' });
+  });
+
+  it('a coded kernel problem names why: the refused solve first, then the picks', () => {
+    const shrunk = { code: 'sketchCurveShrunk', message: 'that would shrink e8 to a point', entity: 'e8' };
+    const twice = { code: 'sketchSameCurveTwice', message: 'k1 picks e1 twice', constraint: 'k1', entity: 'e1' };
+    const st = { ...base, solved: false, problems: [twice, shrunk] };
+    expect(problemHint(st)).toBe('app.sketch.problem.curveShrunk');
+    expect(refusedBy(st)).toEqual(shrunk);
+    expect(reportStatus(st)).toMatchObject({ level: 'unsolved', hint: 'app.sketch.problem.curveShrunk' });
+    expect(problemHint({ ...base, problems: [twice] })).toBe('app.sketch.problem.sameCurveTwice');
+    expect(refusedBy({ ...base, problems: [twice] })).toBeUndefined();
+    expect(problemHint({ ...base, problems: [{ code: 'somethingNew', message: 'x' }] })).toBeUndefined();
+    expect(problemHint(base)).toBeUndefined();
   });
 });
 

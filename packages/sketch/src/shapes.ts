@@ -29,6 +29,31 @@ const endpoints = (e: { type?: string; [k: string]: unknown }): string[] => {
   return [e.p1, e.p2].filter((x): x is string => typeof x === 'string');
 };
 
+/** Two end points closer than this (mm) are one point when joining curves into loops and chains: the script layer and imports give every curve
+ *  its own end points, so a closed outline of several arcs often has several point ids at one place. */
+export const JOIN_TOL = 1e-5;
+
+/** Maps each point id to one representative id per place (points within JOIN_TOL join; the first in sketch order represents the group). */
+export function joinPoints(feature: FeatureLike | null | undefined, tol = JOIN_TOL): (id: string) => string {
+  const rep = new Map<string, string>();
+  const cells = new Map<string, string[]>();
+  const key = (i: number, j: number) => `${i},${j}`;
+  const at = new Map<string, { x: number; y: number }>();
+  for (const p of feature?.points ?? []) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    at.set(p.id, p);
+    const i = Math.floor(p.x / tol), j = Math.floor(p.y / tol);
+    let found: string | undefined;
+    for (let di = -1; di <= 1 && !found; di++) for (let dj = -1; dj <= 1 && !found; dj++) {
+      for (const q of cells.get(key(i + di, j + dj)) ?? []) { const o = at.get(q)!; if (Math.hypot(o.x - p.x, o.y - p.y) <= tol) { found = rep.get(q)!; break; } }
+    }
+    rep.set(p.id, found ?? p.id);
+    const k = key(i, j);
+    cells.set(k, [...(cells.get(k) ?? []), p.id]);
+  }
+  return (id) => rep.get(id) ?? id;
+}
+
 export function sketchShapes(feature: FeatureLike | null | undefined): SketchShape[] {
   const out: SketchShape[] = [];
   const chain = (feature?.entities ?? []).filter((e) => !e.construction);
@@ -36,11 +61,12 @@ export function sketchShapes(feature: FeatureLike | null | undefined): SketchSha
   const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; return r; };
   const union = (a: string, b: string) => { if (!parent.has(a)) parent.set(a, a); if (!parent.has(b)) parent.set(b, b); parent.set(find(a), find(b)); };
   const segs: Array<{ id: string; ends: string[] }> = [];
+  const join = joinPoints(feature);
   for (const e of chain) {
     if (e.type === 'circle') { out.push({ id: e.id, kind: 'circle', entityIds: [e.id], radius: typeof e.r === 'number' ? e.r : 0 }); continue; }
     if (e.type === 'ellipse') { out.push({ id: e.id, kind: 'ellipse', entityIds: [e.id], radius: 0 }); continue; }
     if (e.type === 'text') { out.push({ id: e.id, kind: 'text', entityIds: [e.id], radius: 0 }); continue; }
-    const ends = endpoints(e);
+    const ends = endpoints(e).map(join);
     if (ends.length === 2) { union(ends[0], ends[1]); segs.push({ id: e.id, ends }); }
   }
   const groups = new Map<string, Array<{ id: string; ends: string[] }>>();
@@ -73,8 +99,9 @@ export function sketchOpenChains(feature: FeatureLike | null | undefined): Sketc
   const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; return r; };
   const union = (a: string, b: string) => { if (!parent.has(a)) parent.set(a, a); if (!parent.has(b)) parent.set(b, b); parent.set(find(a), find(b)); };
   const segs: Array<{ id: string; ends: string[] }> = [];
+  const join = joinPoints(feature);
   for (const e of chain) {
-    const ends = endpoints(e);
+    const ends = endpoints(e).map(join);
     if (ends.length === 2) { union(ends[0], ends[1]); segs.push({ id: e.id, ends }); }
   }
   const groups = new Map<string, Array<{ id: string; ends: string[] }>>();

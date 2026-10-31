@@ -225,7 +225,7 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.volume).toBeCloseTo(base.volume - Math.PI * 3.3 * 3.3 * 10, 2);
   });
 
-  it('revolve: uses the first construction line as the axis; without one it only says so', async () => {
+  it('revolve: uses the first construction line as the axis; else a profile edge on the vertical axis; else adds the vertical axis line', async () => {
     const profile = (construction: boolean) => ({
       type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' },
       points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: 0, y: -20 }, { id: 'b', x: 0, y: 20 }, { id: 'c', x: 5, y: 0 }, { id: 'd', x: 15, y: 0 }, { id: 'e', x: 15, y: 10 }, { id: 'f', x: 5, y: 10 }],
@@ -241,12 +241,36 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.errors).toEqual([]);
     expect(after.volume).toBeCloseTo(Math.PI * (15 * 15 - 5 * 5) * 10, 3);
 
-    const none = await world(make(false));
-    const n = none.doc().features.length;
+    // no construction line: a profile edge on the sketch vertical axis is the axis and stays in the profile
+    const edgeOnAxis = { ...rect('F1', 0, 0, 15, 10) } as Record<string, unknown>;
+    const onAxis = await world({ ...emptyPart('R'), features: [edgeOnAxis], seq: 2 } as unknown as PartDoc);
+    await onAxis.run('add-revolve');
+    expect(lastFeature(onAxis)).toMatchObject({ type: 'revolve', sketch: 'F1', axis: 'e4' });
+    expect((onAxis.doc().features[0] as unknown as { entities: Array<{ construction?: boolean }> }).entities.some((e) => e.construction)).toBe(false);
+    const st = await onAxis.stats();
+    expect(st.errors).toEqual([]);
+    expect(st.volume).toBeCloseTo(Math.PI * 15 * 15 * 10, 3);
+
+    // no axis at all: one edit adds a construction line along the sketch Y axis, and the revolve uses it
+    const none = await world({ ...emptyPart('R'), features: [rect('F1', 5, 0, 15, 10)], seq: 2 } as unknown as PartDoc);
     await none.run('add-revolve');
-    expect(none.doc().features.length).toBe(n);
-    expect(none.notices).toEqual(['Draw a construction line for the axis']);
-    expect(revolveOps(revolveSketch({ doc: none.doc(), selection: [], mode: 'face', box: null, edges: [] })!)).toBeNull();
+    expect(none.notices).toEqual([]);
+    const added = (none.doc().features[0] as unknown as { entities: Array<{ id: string; construction?: boolean }> }).entities.filter((e) => e.construction);
+    expect(added.length).toBe(1);
+    expect(lastFeature(none)).toMatchObject({ type: 'revolve', axis: added[0].id });
+    const st2 = await none.stats();
+    expect(st2.errors).toEqual([]);
+    expect(st2.volume).toBeCloseTo(Math.PI * (15 * 15 - 5 * 5) * 10, 3);
+    await none.controller.undo();
+    expect(none.doc().features.length).toBe(1);   // one undo takes both the axis line and the revolve back
+    expect((none.doc().features[0] as unknown as { entities: unknown[] }).entities.length).toBe(4);
+
+    // a sketch with no profile: nothing is added and the message says what to do
+    const empty = await world({ ...emptyPart('R'), features: [{ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [] }], seq: 2 } as unknown as PartDoc);
+    await empty.run('add-revolve');
+    expect(empty.doc().features.length).toBe(1);
+    expect(empty.notices[0]).toMatch(/draw the profile/);
+    expect(revolveOps(revolveSketch({ doc: empty.doc(), selection: [], mode: 'face', box: null, edges: [] })!)).toBeNull();
   });
 
   const withHole = (): PartDoc => {

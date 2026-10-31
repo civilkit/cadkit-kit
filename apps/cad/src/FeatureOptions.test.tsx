@@ -25,9 +25,9 @@ const EXTRUDE = { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blin
 describe('extrude options', () => {
   it('lists the end conditions the kernel cuts, with labels', () => {
     const m = mount(EXTRUDE);
-    expect(m.texts(m.sel('end'))).toEqual(['Blind', 'Mid plane', 'Through all', 'Through all, both ways', 'Up to next']);
+    expect(m.texts(m.sel('end'))).toEqual(['Blind', 'Mid plane', 'Through all', 'Through all, both ways', 'Up to next', 'To object']);
     expect(m.num('depth').value).toBe('5');
-    expect(m.q('endFace')).toBeNull();
+    expect(m.q('endRef')).toBeNull();
     expect(m.q('sketch')).not.toBeNull();   // the generic profile section stays
     expect(m.container.querySelectorAll('[data-path="depth"]').length).toBe(1);   // not drawn twice
   });
@@ -69,17 +69,56 @@ describe('extrude options', () => {
   it('an end the editor does not offer stays selectable so the kernel can report it', () => {
     const m = mount({ ...EXTRUDE, end: 'upToFace' });
     expect(m.sel('end').value).toBe('upToFace');
-    expect(m.q('endFace')).not.toBeNull();   // its face pick shows (the pick machinery is ready for when the kernel cuts it)
   });
-  it('the face field has a Pick button that asks to pick, and shows what was picked', () => {
-    const m = mount({ ...EXTRUDE, end: 'upToFace', endFace: 'F2.C1' });
-    expect((m.q('endFace')!.querySelector('input') as HTMLInputElement).value).toBe('F2.C1');
-    fireEvent.click(m.q('endFace')!.querySelector('button')!);
-    expect(m.picks).toEqual(['endFace']);
+});
+
+describe('To object and From object', () => {
+  it('To object swaps the depth for a reference with a Pick button, a list of planes and bodies, and an offset', () => {
+    const m = mount(EXTRUDE);
+    fireEvent.change(m.sel('end'), { target: { value: 'toObject' } });
+    expect(m.drafts.at(-1)).toMatchObject({ end: 'toObject', depth: null });
+    expect(m.q('depth')).toBeNull();
+    expect(m.q('endRef')).not.toBeNull();
+    expect(m.q('endOffset')).not.toBeNull();
+    fireEvent.click(m.q('endRef')!.querySelector('button')!);
+    expect(m.picks).toEqual(['endRef']);
   });
-  it('a picked face lands in the draft', () => {
-    const m = mount({ ...EXTRUDE, end: 'upToFace' }, { picked: { path: 'endFace', value: 'F2.S.e1' } });
-    expect(m.drafts.at(-1)).toMatchObject({ endFace: 'F2.S.e1' });
+  it('a picked face lands in the draft as a reference and shows in words', () => {
+    const m = mount({ ...EXTRUDE, end: 'toObject' }, { picked: { path: 'endRef', value: { kind: 'face', id: 'F2.S.e1' } } });
+    expect(m.drafts.at(-1)).toMatchObject({ endRef: { kind: 'face', id: 'F2.S.e1' } });
+    const r = mount({ ...EXTRUDE, end: 'toObject', endRef: { kind: 'face', id: 'F2.C1' } });
+    expect(r.sel('endRef').value).toBe('picked');
+    expect(r.texts(r.sel('endRef'))[0]).toBe('Face F2.C1');
+  });
+  it('a plane from the list becomes the reference', () => {
+    const m = mount({ ...EXTRUDE, end: 'toObject' });
+    expect(m.texts(m.sel('endRef')).slice(0, 4)).toEqual(['Pick a face, corner or body, or choose', 'Front Plane', 'Top Plane', 'Right Plane']);
+    fireEvent.change(m.sel('endRef'), { target: { value: 'std:top' } });
+    expect(m.drafts.at(-1)).toEqual({ endRef: { kind: 'std', id: 'top' } });
+    fireEvent.change(m.num('endOffset'), { target: { value: '2' } });
+    expect(m.drafts.at(-1)).toMatchObject({ endOffset: 2 });
+  });
+  it('the start: the sketch plane by default, From object adds its own reference and offset', () => {
+    const m = mount(EXTRUDE);
+    expect(m.sel('start').value).toBe('sketch');
+    expect(m.q('startRef')).toBeNull();
+    fireEvent.change(m.sel('start'), { target: { value: 'fromObject' } });
+    expect(m.drafts.at(-1)).toMatchObject({ start: 'fromObject' });
+    expect(m.q('startRef')).not.toBeNull();
+    expect(m.q('startOffset')).not.toBeNull();
+    fireEvent.click(m.q('startRef')!.querySelector('button')!);
+    expect(m.picks).toEqual(['startRef']);
+    fireEvent.change(m.sel('start'), { target: { value: 'sketch' } });
+    expect(m.drafts.at(-1)).toMatchObject({ start: null, startRef: null, startOffset: null });
+  });
+  it('mid and through have no start choice', () => {
+    const m = mount({ ...EXTRUDE, end: 'mid' });
+    expect(m.q('start')).toBeNull();
+  });
+  it('a cut has the same choices', () => {
+    const m = mount({ ...EXTRUDE, op: 'cut', end: 'toObject', endRef: { kind: 'feature', id: 'P1' } });
+    expect(m.q('endRef')).not.toBeNull();
+    expect(m.sel('endRef').value).toBe('feature:P1');
   });
 });
 
@@ -296,5 +335,19 @@ describe('extrude target body', () => {
     const newBtn = [...m.container.querySelectorAll('[data-path="op"] button')].find((b) => b.textContent === 'New body') as HTMLElement;
     fireEvent.click(newBtn);
     expect(m.drafts.at(-1)).toMatchObject({ op: 'newBody', target: null });
+  });
+});
+
+describe('revolve axis in words', () => {
+  const doc = { features: [{ type: 'sketch', id: 'F1', points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 0, y: 9 }, { id: 'c', x: 4, y: 0 }], entities: [{ id: 'e14', type: 'line', p1: 'a', p2: 'b', construction: true }, { id: 'e15', type: 'line', p1: 'a', p2: 'c' }] }] } as never;
+  const REV = { type: 'revolve', id: 'F2', op: 'add', sketch: 'F1', axis: 'e14', end: 'blind', angle: 360 };
+  it('shows the sketch vertical axis, not the id, and lists the sketch lines', () => {
+    const m = mount(REV, { options: (a: never) => optionsFor(a, doc) });
+    expect(m.container.querySelectorAll('[data-path="axis"]').length).toBe(1);
+    expect(m.texts(m.sel('axis'))).toEqual(['Sketch vertical axis', 'Sketch horizontal axis (profile edge)']);
+    expect(m.sel('axis').value).toBe('e14');
+    expect(m.container.textContent).not.toContain('e14');
+    fireEvent.change(m.sel('axis'), { target: { value: 'e15' } });
+    expect(m.drafts.at(-1)).toEqual({ axis: 'e15' });
   });
 });

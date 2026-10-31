@@ -57,7 +57,12 @@ Each one has its conventions in its file header; the short version:
   ties an arc's ends to one radius). Copies follow the spacing, not later reshaping of the original.
 - `extend` (`extend.ts`): the counterpart of Trim. Click a line or arc near the end to lengthen: it runs on (a line straight,
   an arc round its own circle) to the nearest boundary line/arc/circle. A point already at that place is reused (so
-  outlines close with a shared point); otherwise a new point is bound with `pointOnLine` / `pointOnCircle`.
+  outlines close with a shared point); otherwise a new point is bound with `pointOnLine` / `pointOnCircle`. Shift-click one curve then another
+  (`extendToMeet`): both grow to where they cross and share one end point; refusals are status-line hints.
+- `fillet` / `chamfer` (`corner.ts`): two lines that share no end are first joined where they meet (`meetLines`; refused
+  when parallel, held by other geometry or a constraint, or sized). Shift-click lines or corner points to cut several
+  corners with one size (`pairCorners` pairs the lines, `applyCorners` is all or nothing). A fillet radius equal to what
+  is left of a line takes the line (half a side rounds both its corners). Lines in line (within 2e-6 rad) are no corner.
 - `mirror` (verified end to end, `mirror.kernel.test.ts`): selection is drawn highlighted so Enter reaches the tool (it used to
   confirm the sketch instead, so the axis step was unreachable); circle copies get `equal` radius; arc copies avoid the
   redundant constraint (see the header of `mirror.ts`).

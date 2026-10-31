@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultCutRegions, regionsFor, shapeAtPoint, sketchShapes } from './shapes';
+import { defaultCutRegions, regionsFor, shapeAtPoint, sketchOpenChains, sketchShapes } from './shapes';
 
 const rect = [
   { id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' },
@@ -85,5 +85,42 @@ describe('shapeAtPoint', () => {
     expect(shapeAtPoint(ring, shapes, 1, 1)?.id).toBe('in');
     expect(shapeAtPoint(ring, shapes, 20, 0)).toBeNull();
     expect(shapeAtPoint(null, shapes, 0, 0)).toBeNull();
+  });
+});
+
+/** Script-made lens shapes (as in the PET bottle sample): each lens is two arcs, and every arc has its own end points at the same places. */
+const lensSketch = (n: number, openLast = false) => {
+  const points: Array<{ id: string; x: number; y: number }> = [];
+  const entities: Array<{ id: string; type: string; c: string; p1: string; p2: string }> = [];
+  let k = 0;
+  const pt = (x: number, y: number) => { const id = 'p' + ++k; points.push({ id, x, y }); return id; };
+  for (let i = 0; i < n; i++) {
+    const x0 = i * 50, x1 = x0 + 30;
+    const arcs = openLast && i === n - 1 ? 1 : 2;
+    for (let a = 0; a < arcs; a++) {
+      const sy = a ? 1 : -1;
+      const c = pt(x0 + 15, sy * 10), b = pt(x1, 1e-11 * a), e = pt(x0, 0);   // the second arc's ends sit a hair off (rounding)
+      entities.push({ id: `e${entities.length + 1}`, type: 'arc', c, p1: b, p2: e });
+    }
+  }
+  return { points, entities };
+};
+
+describe('coincident end points join without sharing ids', () => {
+  it('five lens shapes (two arcs each, separate points) are five loops and no open chain', () => {
+    const sk = lensSketch(5);
+    expect(sketchShapes(sk).map((x) => x.entityIds.length)).toEqual([2, 2, 2, 2, 2]);
+    expect(sketchOpenChains(sk)).toEqual([]);
+  });
+  it('a lens missing its second arc is still an open chain, the others stay loops', () => {
+    const sk = lensSketch(3, true);
+    expect(sketchShapes(sk)).toHaveLength(2);
+    expect(sketchOpenChains(sk)).toHaveLength(1);
+  });
+  it('ends farther apart than the tolerance stay open', () => {
+    const sk = lensSketch(1);
+    sk.points.find((p) => p.id === 'p5')!.x += 0.01;
+    expect(sketchShapes(sk)).toEqual([]);
+    expect(sketchOpenChains(sk)).toHaveLength(1);
   });
 });

@@ -22,6 +22,8 @@ export interface HoleEditorProps {
   onConfirm(next: Wire, thread?: HoleThread | null): void;
   onCancel(): void;
   hint?: string | null;
+  /** A refused size the kernel named the largest working value of (`maxSize`): the sentence saying it and a button that puts it in the field. */
+  fix?: { note: string; label: string; path: string; value: unknown } | null;
   /** The thread features linked to this hole (one per position), if any: the Threaded box starts checked with the first one's settings. */
   linked?: Wire[];
   /** Thread tables and what the part shows for the thread; without it the editor has no Threaded option. */
@@ -165,6 +167,12 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
 
       {thread && !p.threads ? <Section id="thread" title={t('hole.section.thread')}><div class="hole-thread-slot" data-slot="thread">{thread}</div></Section> : null}
       {p.hint ? <div class="fedit-hint" role="alert">{p.hint}</div> : null}
+      {p.fix ? (
+        <div class="fedit-fix">
+          <p class="fedit-fix-note">{p.fix.note}</p>
+          <button type="button" class="btn diag-fix" data-fix="maxSize" onClick={() => change({ [p.fix!.path]: p.fix!.value })}>{p.fix.label}</button>
+        </div>
+      ) : null}
     </div>
   );
 }

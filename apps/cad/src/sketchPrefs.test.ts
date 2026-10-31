@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { constrainsFromGuides, lookChipNeeded, DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
+import { constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, DEFAULT_SKETCH_PREFS, loadSketchPrefs, sanitizeSketchPrefs, saveSketchPrefs, toToolSettings } from './sketchPrefs';
 
 describe('keep view when entering a sketch', () => {
   it('is on by default, can be turned off, ignores junk', () => {
@@ -64,7 +64,7 @@ describe('sketch preferences', () => {
     expect(() => saveSketchPrefs(DEFAULT_SKETCH_PREFS, { setItem: () => { throw new Error('quota'); } })).not.toThrow();
   });
   it('maps to the tools settings', () => {
-    expect(toToolSettings({ ...DEFAULT_SKETCH_PREFS, autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both', gridSnap: true })).toEqual({ autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both' });
+    expect(toToolSettings({ ...DEFAULT_SKETCH_PREFS, autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both', gridSnap: true })).toEqual({ autoConstraints: false, arcSwitch: 'keys', onViewValues: 'both', typedAngleDims: true });
   });
 });
 
@@ -76,9 +76,36 @@ describe('look normal on entry', () => {
     expect(lookChipNeeded(5.5)).toBe(true);
     expect(lookChipNeeded(55)).toBe(true);
   });
-  it('auto look normal is off by default and survives sanitising', () => {
-    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(false);
-    expect(sanitizeSketchPrefs({ autoLookNormal: true }).autoLookNormal).toBe(true);
-    expect(sanitizeSketchPrefs({ autoLookNormal: 1 }).autoLookNormal).toBe(false);
+  it('auto look normal is on by default and survives sanitising', () => {
+    expect(DEFAULT_SKETCH_PREFS.autoLookNormal).toBe(true);
+    expect(sanitizeSketchPrefs({ autoLookNormal: false }).autoLookNormal).toBe(false);
+    expect(sanitizeSketchPrefs({ autoLookNormal: 1 }).autoLookNormal).toBe(true);
+  });
+});
+
+describe('Escape and a sketch with geometry', () => {
+  it('only an empty sketch (nothing but the origin) is left by Escape; one with geometry is never discarded by a key', () => {
+    expect(escapeCancelsSketch(null)).toBe(true);
+    expect(escapeCancelsSketch({ entities: [], points: [{ fixed: true }] })).toBe(true);
+    expect(escapeCancelsSketch({ entities: [], points: [{ fixed: true }, {}] })).toBe(false);      // a lone point
+    expect(escapeCancelsSketch({ entities: [{}, {}], points: [{ fixed: true }, {}, {}] })).toBe(false);
+  });
+});
+
+describe('dimension density', () => {
+  it('is All by default, takes the three states and ignores junk', () => {
+    expect(DEFAULT_SKETCH_PREFS.dimDisplay).toBe('all');
+    for (const v of ['all', 'driving', 'selected'] as const) expect(sanitizeSketchPrefs({ dimDisplay: v }).dimDisplay).toBe(v);
+    expect(sanitizeSketchPrefs({ dimDisplay: 'some' }).dimDisplay).toBe('all');
+  });
+});
+
+describe('typed angles and right angles', () => {
+  it('both are on by default, are plain booleans, and typed angles reach the tools', () => {
+    expect(DEFAULT_SKETCH_PREFS.typedAngleDims).toBe(true);
+    expect(DEFAULT_SKETCH_PREFS.rightAngleSquare).toBe(true);
+    expect(sanitizeSketchPrefs({ typedAngleDims: false, rightAngleSquare: false })).toMatchObject({ typedAngleDims: false, rightAngleSquare: false });
+    expect(sanitizeSketchPrefs({ typedAngleDims: 'no' }).typedAngleDims).toBe(true);
+    expect(toToolSettings({ ...DEFAULT_SKETCH_PREFS, typedAngleDims: false }).typedAngleDims).toBe(false);
   });
 });

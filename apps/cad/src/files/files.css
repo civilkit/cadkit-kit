@@ -21,3 +21,17 @@
 
 .recover-list { max-height: 50vh; overflow: auto; display: grid; gap: 6px; }
 .recover-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* import report: one row per part of the file */
+.import-report { max-width: min(640px, 94vw); }
+.import-report .discard-body { max-height: 60vh; overflow: auto; }
+.import-summary { margin: 0 0 8px; }
+.import-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.import-part { border: 1px solid var(--line-soft); border-left-width: 3px; border-radius: 4px; padding: 6px 8px; }
+.import-part.solid { border-left-color: var(--ok, #3a9d5d); }
+.import-part.surface { border-left-color: var(--warn, #d08a1c); }
+.import-part.refused { border-left-color: var(--err, #c84b4b); }
+.import-outcome { opacity: .8; }
+.import-reasons { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+.import-reasons code { opacity: .6; font-size: 11px; }
+.import-note { display: block; margin-top: 8px; opacity: .75; }

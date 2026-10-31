@@ -13,9 +13,10 @@ const UNITS = ['', 'mm', '°'];
 const fmt = (v: number): string => String(Math.round(v * 1e6) / 1e6);
 
 /** One expression cell with variable-name completion; it keeps the text as typed (no `=`) and commits on Enter or blur. */
-function ExprCell(p: { value: string; vars: Variable[]; label: string; bad: boolean; onCommit(v: string): void }): JSX.Element {
+function ExprCell(p: { testid?: string; value: string; vars: Variable[]; label: string; bad: boolean; onCommit(v: string): void }): JSX.Element {
   const [text, setText] = useState<string | null>(null);
   const [sel, setSel] = useState(0);
+  const [full, setFull] = useState(() => /[A-Za-z_]/.test(p.value));   // a formula needs the letters: "ƒ" switches the phone keyboard between the digit pad and the full one
   const shown = text ?? p.value;
   const sc = resolveVariables(p.vars);
   const items = text !== null ? completions(shown, sc).slice(0, 6) : [];
@@ -24,7 +25,7 @@ function ExprCell(p: { value: string; vars: Variable[]; label: string; bad: bool
   return (
     <span class="expr-field">
       <input
-        type="text" spellcheck={false} autocomplete="off" aria-label={p.label} aria-invalid={p.bad ? 'true' : undefined} class={p.bad ? 'bad' : ''}
+        type="text" inputMode={full ? 'text' : 'decimal'} enterKeyHint="done" spellcheck={false} autocomplete="off" aria-label={p.label} data-testid={p.testid} aria-invalid={p.bad ? 'true' : undefined} class={p.bad ? 'bad' : ''}
         value={shown}
         onInput={(e) => { setText((e.currentTarget as HTMLInputElement).value); setSel(0); }}
         onFocus={() => setText(p.value)}
@@ -39,6 +40,8 @@ function ExprCell(p: { value: string; vars: Variable[]; label: string; bad: bool
           if (e.key === 'Escape') { e.preventDefault(); setText(null); (e.currentTarget as HTMLInputElement).blur(); }
         }}
       />
+      <button type="button" class={'expr-kb' + (full ? ' on' : '')} tabIndex={-1} aria-pressed={full} aria-label={full ? t('expr.kb.digits') : t('expr.kb.full')}
+        onMouseDown={(e) => e.preventDefault()} onClick={() => setFull(!full)}>{full ? '123' : 'ƒ'}</button>
       {items.length ? (
         <ul class="expr-ac" role="listbox">
           {items.map((it, i) => (
@@ -135,11 +138,11 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
             const uses = docVars[i] ? usesOf(doc, docVars[i].name) : [];
             return (
               <div class={'vars-row' + (err ? ' bad' : '')} role="row" key={i} data-var={v.name}>
-                <input class={'vars-name' + (err === 'badName' || err === 'duplicateName' ? ' bad' : '')} aria-label={t('vars.col.name')} spellcheck={false} value={v.name}
+                <input data-testid={'var-name-' + v.name} class={'vars-name' + (err === 'badName' || err === 'duplicateName' ? ' bad' : '')} aria-label={t('vars.col.name')} spellcheck={false} value={v.name}
                   onInput={(e) => setRows(rows.map((x, k) => (k === i ? { ...x, name: (e.currentTarget as HTMLInputElement).value } : x)))}
                   onBlur={(e) => rename(i, (e.currentTarget as HTMLInputElement).value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }} />
-                <ExprCell value={v.expr} vars={rows.filter((_, k) => k !== i)} label={t('vars.col.expr')} bad={err !== undefined && err !== 'badName' && err !== 'duplicateName'} onCommit={(x) => setField(i, { expr: x })} />
+                <ExprCell testid={'var-expr-' + v.name} value={v.expr} vars={rows.filter((_, k) => k !== i)} label={t('vars.col.expr')} bad={err !== undefined && err !== 'badName' && err !== 'duplicateName'} onCommit={(x) => setField(i, { expr: x })} />
                 <span class="vars-value" data-testid="vars-value" title={uses.length ? t('vars.usedBy', { uses: uses.join(', ') }) : undefined}>
                   {sc.values[v.name] !== undefined ? fmt(sc.values[v.name]) : '-'}{uses.length ? <sup class="vars-uses">{uses.length}</sup> : null}
                 </span>

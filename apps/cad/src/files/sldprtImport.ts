@@ -10,7 +10,7 @@ import { base64Of, viewOfImport, type StepImportResult } from './stepImport';
 export interface SldprtKernel { request(msg: Record<string, unknown>): Promise<{ ok?: boolean; trap?: string; error?: unknown; result?: unknown }> }
 
 export type SldprtPartResult =
-  | { ok: true; part: PartDoc; view: Extract<StepImportResult, { ok: true }>['view']; faces: number; volume: number }
+  | { ok: true; part: PartDoc; view: Extract<StepImportResult, { ok: true }>['view']; faces: number; volume: number; /** what became of each part of the file (see importReport.ts) */ parts: Extract<StepImportResult, { ok: true }>['parts'] }
   | { ok: false; code: string; message: string; /** the view-only body, when the file could be read but not turned into a part */ fallback?: Extract<StepImportResult, { ok: true }> };
 
 /** The body read from the file and the part built from it must agree to this fraction of the volume. */
@@ -22,10 +22,12 @@ async function sha256Hex(text: string): Promise<string> {
   return Array.from(h, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** The part that holds a STEP text as one imported body. */
-export async function partOfStep(step: string, name: string): Promise<PartDoc> {
+/** The part that holds a STEP text as one imported body (`feature`: the tree name of the import step). */
+export async function partOfStep(step: string, name: string, feature = 'SolidWorks body'): Promise<PartDoc> {
   const key = await sha256Hex(step);
-  return { ...emptyPart(name), blobs: { [key]: step }, features: [{ type: 'importStep', id: 'F1', name: 'SolidWorks body', blob: key }], seq: 2 } as unknown as PartDoc;
+  // `heal`: as the importStep message reads a file (edges that follow their faces only to the file's accuracy get a tolerance;
+  // a sound solid is left as it is). A part that is still not a valid solid comes in as a surface body, never as a solid.
+  return { ...emptyPart(name), blobs: { [key]: step }, features: [{ type: 'importStep', id: 'F1', name: feature, blob: key, heal: true }], seq: 2 } as unknown as PartDoc;
 }
 
 const volumeOf = async (k: SldprtKernel, tag: string): Promise<number | null> => {
@@ -45,8 +47,10 @@ export async function sldprtAsPart(k: SldprtKernel, bytes: Uint8Array, name: str
   const shown = viewOfImport({ ...(read.result as object), errors: (read.result as { errors?: unknown[] })?.errors ?? [] } as never);
   if (!shown.ok) return shown;
   const fail = (code: string, message: string): SldprtPartResult => ({ ok: false, code, message, fallback: shown });
-  const fileVolume = await volumeOf(k, SCRATCH.file);
-  if (!fileVolume || fileVolume <= 0) return fail('noVolume', 'the solid in the file has no volume');
+  // a file whose parts all came in as surface bodies has no solid to measure: the part holds the surface bodies (to repair)
+  const surfacesOnly = shown.parts.length > 0 && shown.parts.every((p) => p.outcome !== 'solid');
+  const fileVolume = surfacesOnly ? 0 : await volumeOf(k, SCRATCH.file);
+  if (!surfacesOnly && (!fileVolume || fileVolume <= 0)) return fail('noVolume', 'the solid in the file has no volume');
   let step: string;
   try {
     const out = await k.request({ type: 'step', tag: SCRATCH.file, name });
@@ -59,7 +63,8 @@ export async function sldprtAsPart(k: SldprtKernel, bytes: Uint8Array, name: str
   try { regen = await k.request({ type: 'regen', tag: SCRATCH.part, part, opts: { noView: true } }); } catch (e) { return fail('regen', (e as Error).message); }
   const errors = (regen.result as { errors?: unknown[] } | undefined)?.errors ?? [];
   if (!regen.ok || errors.length) return fail('regen', `the part built from the solid has errors (${JSON.stringify(errors[0] ?? regen.error ?? regen.trap).slice(0, 120)})`);
+  if (surfacesOnly) return { ok: true, part, view: shown.view, faces: shown.faces, volume: 0, parts: shown.parts };
   const partVolume = await volumeOf(k, SCRATCH.part);
-  if (!partVolume || Math.abs(partVolume - fileVolume) > VOLUME_TOLERANCE * fileVolume) return fail('volumeDiffers', `the part has volume ${partVolume ?? 'none'} where the file's solid has ${fileVolume}`);
-  return { ok: true, part, view: shown.view, faces: shown.faces, volume: partVolume };
+  if (!fileVolume || !partVolume || Math.abs(partVolume - fileVolume) > VOLUME_TOLERANCE * fileVolume) return fail('volumeDiffers', `the part has volume ${partVolume ?? 'none'} where the file's solid has ${fileVolume}`);
+  return { ok: true, part, view: shown.view, faces: shown.faces, volume: partVolume, parts: shown.parts };
 }

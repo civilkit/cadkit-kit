@@ -146,7 +146,11 @@ export interface Corner {
   t1: Pt; t2: Pt;
   /** fillet centre (undefined for a chamfer) */
   c?: Pt;
+  /** the fillet needs the whole of line A / B (within TOL): the line is used up and the arc ends on its far end */
+  wholeA?: boolean; wholeB?: boolean;
 }
+/** sin of the corner angle below which two lines count as in line (2e-6 rad) */
+export const PARALLEL_SIN = 2e-6;
 export type CornerFail = 'parallel' | 'tooLarge' | 'degenerate';
 
 /**
@@ -159,15 +163,18 @@ export function cornerGeometry(s: Pt, a: Pt, b: Pt, kind: 'fillet' | 'chamfer', 
   if (!(amount > EPS) || la < TOL || lb < TOL) return 'degenerate';
   const u = scale(sub(a, s), 1 / la), v = scale(sub(b, s), 1 / lb);
   const sinT = Math.abs(cross(u, v));
-  if (sinT < 1e-9) return 'parallel';
+  // lines lying on each other or in line (within PARALLEL_SIN) are no corner: the cut would be a hair long
+  if (sinT < PARALLEL_SIN) return 'parallel';
   const cosT = dot(u, v);
   const theta = Math.atan2(sinT, cosT);        // interior angle between the lines, (0, PI)
   const reach = kind === 'fillet' ? amount / Math.tan(theta / 2) : amount;
-  if (reach >= Math.min(la, lb) - TOL) return 'tooLarge';
-  const t1 = add(s, scale(u, reach)), t2 = add(s, scale(v, reach));
+  // a fillet that needs exactly what is left of a line (half a side after the first corner) takes that line
+  const wholeA = kind === 'fillet' && Math.abs(reach - la) <= TOL, wholeB = kind === 'fillet' && Math.abs(reach - lb) <= TOL;
+  if (kind === 'fillet' ? reach > Math.min(la, lb) + TOL : reach >= Math.min(la, lb) - TOL) return 'tooLarge';
+  const t1 = wholeA ? a : add(s, scale(u, reach)), t2 = wholeB ? b : add(s, scale(v, reach));
   if (kind === 'chamfer') return { u, v, t1, t2 };
   const w = scale(add(u, v), 1 / len(add(u, v)));
-  return { u, v, t1, t2, c: add(s, scale(w, amount / Math.sin(theta / 2))) };
+  return { u, v, t1, t2, c: add(s, scale(w, amount / Math.sin(theta / 2))), ...(wholeA ? { wholeA } : {}), ...(wholeB ? { wholeB } : {}) };
 }
 
 /** Polyline preview of a curve piece between two parameters (circle/arc), as line segments. */

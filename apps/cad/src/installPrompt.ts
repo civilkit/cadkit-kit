@@ -35,8 +35,9 @@ export function runsInstalled(): boolean {
   try { return matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true; } catch { return false; }
 }
 
-/** Registers the service worker of the published build. Does nothing on the dev server (no sw.js there) or without https / localhost. */
-export function registerServiceWorker(): void {
+/** Registers the service worker of the published build. Does nothing on the dev server (no sw.js there) or without https / localhost.
+ *  `lite` (a phone or tablet): the worker leaves the kernel wasm out of its install and caches it the first time it is used (tools/pages/sw.mjs). */
+export function registerServiceWorker(lite = false): void {
   if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return;
-  addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => { /* no worker: the app still runs, just not installable */ }); });
+  addEventListener('load', () => { navigator.serviceWorker.register(lite ? './sw.js?lite' : './sw.js').catch(() => { /* no worker: the app still runs, just not installable */ }); });
 }
