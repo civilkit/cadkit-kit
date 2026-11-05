@@ -38,6 +38,14 @@ describe('SketchFields', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onField).toHaveBeenLastCalledWith('len', 12.5, true);
   });
+  it('a phone check key that arrives as keyCode 13 under another key name locks the value too', () => {
+    const onField = vi.fn();
+    render(<SketchFields fields={[field]} x={0} y={0} onField={onField} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: '9' } });
+    fireEvent.keyDown(input, { key: 'Unidentified', keyCode: 13 });
+    expect(onField).toHaveBeenLastCalledWith('len', 9, true);
+  });
   it('shows the current value when nothing is being typed', () => {
     render(<SketchFields fields={[{ ...field, value: 3.14159 }]} x={0} y={0} onField={() => {}} />);
     expect((screen.getByLabelText('len') as HTMLInputElement).value).toBe('3.14');

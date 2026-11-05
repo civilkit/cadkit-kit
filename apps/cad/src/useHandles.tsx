@@ -68,6 +68,7 @@ export function useHandles(p: HandlesDeps) {
       cancelPreview: async () => { await ref.current.controller.cancelPreview(); ref.current.restorePreview?.(); },
       busy: (on) => { dragging.current = on; if (!on) setTick((n) => n + 1); },
       commit: async (c) => {
+        if (c.refused) { ref.current.store.notify(c.refused, 'warn'); await ref.current.controller.cancelPreview(); return; }
         // A shared sketch used to wait for an answer in a small dialog; a release that was not answered left the old document and the move was lost.
         // The move now applies to every user at once (undo puts it back) and says so.
         if (c.choices) { ref.current.store.notify(`${c.notice ?? ''} - ${t('sizebox.shared.applied')}`, 'warn'); await ref.current.commitInPlace(c.choices[0].ops); return; }

@@ -12,7 +12,30 @@ const POINTER_JS = `(() => {
       'transition:transform .12s ease-out;';
     document.documentElement.appendChild(d);
   };
-  window.__clipPtr = (x, y, down) => { make(); const d = document.getElementById('__clip_ptr'); d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.transform = down ? 'scale(.65)' : 'scale(1)'; };
+  let was = false;
+  window.__clipPtr = (x, y, down) => {
+    make(); const d = document.getElementById('__clip_ptr'); d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.transform = down ? 'scale(.65)' : 'scale(1)';
+    // a ring that spreads from the point of each press, so a click reads even when the pointer is small or the move is fast
+    if (down && !was) {
+      const r = document.createElement('div');
+      r.style.cssText = 'position:fixed;left:' + x + 'px;top:' + y + 'px;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:3px solid rgba(220,90,0,.9);pointer-events:none;z-index:2147483646;';
+      document.documentElement.appendChild(r);
+      r.animate([{ transform: 'scale(.6)', opacity: 1 }, { transform: 'scale(3.2)', opacity: 0 }], { duration: 650, easing: 'ease-out' }).onfinish = () => r.remove();
+    }
+    was = !!down;
+  };
+  // a caption bar at the bottom of the picture (part of the page, so it is in the frames and keeps its timing through cuts)
+  window.__clipCap = (text) => {
+    let c = document.getElementById('__clip_cap');
+    if (!text) { if (c) c.style.opacity = '0'; return; }
+    if (!c) {
+      c = document.createElement('div'); c.id = '__clip_cap';
+      c.style.cssText = 'position:fixed;left:50%;bottom:44px;transform:translateX(-50%);max-width:70%;padding:10px 22px;border-radius:10px;background:rgba(20,24,32,.88);color:#fff;' +
+        'font:600 21px/1.3 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;text-align:center;pointer-events:none;z-index:2147483645;transition:opacity .25s;opacity:0;';
+      document.documentElement.appendChild(c);
+    }
+    c.textContent = text; c.style.opacity = '1';
+  };
 })();`;
 
 export const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -69,6 +92,14 @@ export function makeRec(page, clock) {
             return r;
         },
         sleep,
+        /** Shows a caption at the bottom of the picture until the next caption() or caption('') call. */
+        async caption(text = '') { await page.evaluate((t) => window.__clipCap?.(t), text).catch(() => {}); },
+        /** Zoom spans for the encoder: from now until zoomOut() the picture is magnified `scale` times around (x, y) in page pixels. */
+        zooms: [],
+        zoom(x, y, scale = 1.8) { rec.zoomOut(); rec.zooms.push({ a: rec.now(), b: null, x, y, z: scale }); },
+        zoomOut() { const o = rec.zooms.at(-1); if (o && o.b == null) o.b = rec.now(); },
+        /** Zooms on the centre of a locator (or the given box side of it). */
+        async zoomOn(locator, scale = 1.8, dx = 0, dy = 0) { const c = await rec.centre(locator, dx, dy); rec.zoom(c.x, c.y, scale); },
         /** Debug aid: with CLIP_SHOTS=DIR a named screenshot is written (dry runs and failures). */
         async shot(name) { if (process.env.CLIP_SHOTS) await page.screenshot({ path: `${process.env.CLIP_SHOTS}/${name}.png` }).catch(() => {}); },
         /** Moves the pointer to (x, y) in a smooth arc of `steps` mouse moves. */

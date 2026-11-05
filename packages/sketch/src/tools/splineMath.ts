@@ -161,3 +161,43 @@ export function extentOf(pts: Pt[]): { min: Pt; max: Pt } {
   const xs = pts.map((q) => q.x); const ys = pts.map((q) => q.y);
   return { min: { x: Math.min(...xs), y: Math.min(...ys) }, max: { x: Math.max(...xs), y: Math.max(...ys) } };
 }
+
+/**
+ * Where on the interpolating spline through `input` the point nearest `at` is. `span` is the span it lies in (the one from data
+ * point `span` to the next, wrapping when closed), `pt` the point on the curve, `vertex` the data point's index when `pt` is
+ * (within `tol`) one of the data points. Null when the spline is invalid. Dense sampling, then a local refinement.
+ */
+export function fitLocate(input: Pt[], closed: boolean, at: Pt, tol = 1e-6): { span: number; pt: Pt; vertex?: number; dist: number } | null {
+  const m = fitModel(input, closed);
+  if (!m || m.p.length !== input.length) return null;   // the caller passes distinct points, so indexes line up
+  const { p, h, mx, my } = m;
+  const o = p.length;
+  const spans = closed ? o : o - 1;
+  const evalAt = (s: number, i: number): Pt => {
+    const a = h[s]; const n1 = (s + 1) % o; const l = a - i;
+    const f = (d: number, u: number, mc: number, mh: number) =>
+      (mc * l * l * l + mh * i * i * i) / (6 * a) + (d / a - (mc * a) / 6) * l + (u / a - (mh * a) / 6) * i;
+    return { x: f(p[s].x, p[n1].x, mx[s], mx[n1]), y: f(p[s].y, p[n1].y, my[s], my[n1]) };
+  };
+  const d2 = (q: Pt) => (q.x - at.x) ** 2 + (q.y - at.y) ** 2;
+  const N = 64;
+  let best = { s: 0, i: 0, d: Infinity };
+  for (let s = 0; s < spans; s++) for (let j = 0; j <= N; j++) {
+    const i = (h[s] * j) / N;
+    const d = d2(evalAt(s, i));
+    if (d < best.d) best = { s, i, d };
+  }
+  let lo = Math.max(0, best.i - h[best.s] / N), hi = Math.min(h[best.s], best.i + h[best.s] / N);
+  for (let k = 0; k < 60; k++) {
+    const a = lo + (hi - lo) / 3, b = hi - (hi - lo) / 3;
+    if (d2(evalAt(best.s, a)) < d2(evalAt(best.s, b))) hi = b; else lo = a;
+  }
+  let s = best.s, i = (lo + hi) / 2;
+  let pt = evalAt(s, i);
+  // on a data point (this span's start or end) within tol: report that vertex, exactly
+  const near = (q: Pt) => Math.hypot(q.x - pt.x, q.y - pt.y) <= tol;
+  let vertex: number | undefined;
+  if (near(p[s])) vertex = s; else if (near(p[(s + 1) % o])) vertex = (s + 1) % o;
+  if (vertex !== undefined) { pt = { ...p[vertex] }; s = vertex === s ? s : (s + 1) % o; i = 0; }
+  return { span: s, pt, ...(vertex !== undefined ? { vertex } : {}), dist: Math.sqrt(d2(pt)) };
+}

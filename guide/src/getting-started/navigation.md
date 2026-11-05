@@ -31,13 +31,29 @@ While a sketch is open the left button is used for drawing and picking, so the o
 
 ## The view cube
 
-The view cube sits in the top right corner of the viewport and follows the camera. It is labelled **RIGHT**, **LEFT**, **TOP**, **BOT**, **FRONT** and **BACK**, and has coloured arms for the +X, +Y and +Z axes.
+The view cube sits in the top right corner of the viewport and follows the camera. It is a chamfered cube labelled **RIGHT**, **LEFT**, **TOP**, **BOTTOM**, **FRONT** and **BACK**, with coloured arms for the +X, +Y and +Z axes. It has 26 targets, and the one under the pointer (or under your finger while you press) lights up in the accent colour:
 
-- Click a face of the cube to look at the model from that side.
-- Click near an edge or a corner of the cube to look from the diagonal direction.
+- Click a **face** to look at the model from that side.
+- Click an **edge** (the bevel between two faces) to look from 45 degrees between those two sides.
+- Click a **corner** (the small triangle where three faces meet) for an isometric-style view from that corner.
 - Drag the cube to orbit the model.
 
-![The view cube in the top right corner with the Fit and projection buttons beside it, the model in the Iso view.](../img/navigation-viewcube.png)
+Around the cube are the **arrow ring** buttons, in four groups you can switch on or off (see the menu below). On a phone only the left and right arrows are on to begin with, which keeps most of the drawing clear; a tablet and the desktop start with all four groups.
+
+| Button | What it does |
+| --- | --- |
+| Four triangles (left and right: **Turn left/right**; up and down: **Turn up/down**) | **Turn the view** one step. The model moves the way the arrow points, as it does when you drag that way: the right arrow brings the model's left side towards you. Click and hold to keep turning. |
+| Two curved arrows at the top corners (**Roll**) | **Roll the view** clockwise or counter-clockwise about the direction you look. Click and hold to keep rolling. |
+| Home (bottom left; **Home**) | The isometric view of the whole model. |
+| Menu (bottom right, three dots) | The checkboxes **Turn left/right**, **Turn up/down**, **Roll** and **Home** switch each group on or off (a group that is off takes no room; with all four off only the cube and the menu button remain); **Step** sets how far one click turns the view (15, 30, 45 or 90 degrees, 90 by default). **Look normal** is here too while a sketch is open. The groups and the step are kept for this browser. |
+
+From a face view, four 90 degree steps in the same direction come back to where you began. From an edge or corner view, left and right keep the tilt of the view and turn it to the next side; up and down tilt the view and stop on the Top or Bottom view rather than turning the model upside down. Once the view is rolled, or on Top or Bottom, the arrows turn about the screen's own axes. Dragging the cube or the model orbits from wherever the view is and takes the roll out again.
+
+Turning, snapping and Home are animated; with the system setting for reduced motion they jump.
+
+![The view cube in the top right corner with its arrow ring, and the Fit and projection buttons under it, the model in the Iso view.](../img/navigation-viewcube.png)
+
+The **Fit** and projection buttons sit under the ring (beside it on a narrow canvas of a desktop window). The cube, the ring and these buttons are laid out so they never cover each other or the selection readout.
 
 ## Standard views
 
@@ -60,7 +76,7 @@ The standard views follow the camera's up axis, not the names of the reference p
 
 ## Perspective and parallel projection
 
-Click the projection button under the view cube, click **Projection** in the **Views** group of the **View** tab, or press `P`, to switch between a perspective view and a parallel (orthographic) one. In a sketch, `P` is the **Project edges** tool instead; use the button there.
+Click the projection button under the view cube's arrow ring, click **Projection** in the **Views** group of the **View** tab, or press `P`, to switch between a perspective view and a parallel (orthographic) one. In a sketch, `P` is the **Project edges** tool instead; use the button there.
 
 ## Up axis, orbit mode and orbit centre
 

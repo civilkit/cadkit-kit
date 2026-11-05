@@ -1,0 +1,5286 @@
+{
+ "generatedBy": "corpus.kernel.test.ts",
+ "freecad": "1.1.4",
+ "totals": {
+  "EXACT": 49,
+  "CLOSE": 1,
+  "APPROX": 0,
+  "UNSUPPORTED": 33,
+  "MISMATCH": 1,
+  "FAILED": 0
+ },
+ "models": [
+  {
+   "model": "10_sketch_rect_pad",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Sketch.Constraints.Width",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "11_sketch_polyline_closed",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 2.021099337273174e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.021099337273174e-16,
+     "diff": {
+      "vol": 2.021099337273174e-16,
+      "area": 0,
+      "com": 4.440892098500626e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Sketch.Constraints.Wide",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "12_sketch_slot_arcs",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0032993311218944e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0032993311218944e-16,
+     "diff": {
+      "vol": 3.0032993311218944e-16,
+      "area": 2.0251616516520785e-16,
+      "com": 1.8320120704155593e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Sketch.Constraints.CapRadius, Sketch.Constraints.Centres",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "13_sketch_circle_ellipse",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.5743265226917902e-15,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5743265226917902e-15,
+     "diff": {
+      "vol": 1.5743265226917902e-15,
+      "area": 5.398199698280153e-7,
+      "com": 1.9595988358232623e-15,
+      "box": 0.0226532163398403,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "constraints:Sketch"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Sketch.Constraints.HoleDia",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "13_sketch_conics",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: ArcOfEllipse (geometry 0) is not mapped; geometry: ArcOfHyperbola (geometry 2) is not mapped; geometry: ArcOfParabola (geometry 3) is not mapped; sketchGeometry: 1 profile curve(s) of ArcOfEllipse cannot be mapped, so the sketch cannot be built)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: ArcOfEllipse (geometry 0) is not mapped; geometry: ArcOfHyperbola (geometry 2) is not mapped; geometry: ArcOfParabola (geometry 3) is not mapped; sketchGeometry: 1 profile curve(s) of ArcOfEllipse cannot be mapped, so the sketch cannot be built)",
+     "volDiff": null,
+     "warnings": [
+      "geometry:Sketch",
+      "geometry:Sketch",
+      "geometry:Sketch",
+      "sketchGeometry:Sketch",
+      "notImported:Pad",
+      "noFeatures:Body"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: ArcOfEllipse (geometry 0) is not mapped; geometry: ArcOfHyperbola (geometry 2) is not mapped; geometry: ArcOfParabola (geometry 3) is not mapped; sketchGeometry: 1 profile curve(s) of ArcOfEllipse cannot be mapped, so the sketch cannot be built)",
+    "change": "Pad.Length",
+    "problemB": "Body: Pad not imported"
+   }
+  },
+  {
+   "model": "14_sketch_bspline",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: BSplineCurve (geometry 0) is not mapped; sketchGeometry: 1 profile curve(s) of BSplineCurve cannot be mapped, so the sketch cannot be built)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: BSplineCurve (geometry 0) is not mapped; sketchGeometry: 1 profile curve(s) of BSplineCurve cannot be mapped, so the sketch cannot be built)",
+     "volDiff": null,
+     "warnings": [
+      "geometry:Sketch",
+      "sketchGeometry:Sketch",
+      "notImported:Pad",
+      "noFeatures:Body"
+     ]
+    }
+   ]
+  },
+  {
+   "model": "15_sketch_bspline_periodic",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: BSplineCurve (geometry 0) is not mapped; sketchGeometry: 1 profile curve(s) of BSplineCurve cannot be mapped, so the sketch cannot be built)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pad (Pad): notImported: its sketch Sketch cannot be built (geometry: BSplineCurve (geometry 0) is not mapped; sketchGeometry: 1 profile curve(s) of BSplineCurve cannot be mapped, so the sketch cannot be built)",
+     "volDiff": null,
+     "warnings": [
+      "geometry:Sketch",
+      "sketchGeometry:Sketch",
+      "notImported:Pad",
+      "noFeatures:Body"
+     ]
+    }
+   ]
+  },
+  {
+   "model": "16_sketch_constraint_zoo",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.6318339877249794e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.6318339877249794e-16,
+     "diff": {
+      "vol": 1.6318339877249794e-16,
+      "area": 0,
+      "com": 4.440892098500626e-16,
+      "box": 4.486552694338043e-17,
+      "boxOut": 4.486552694338043e-17,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "constraints:Sketch"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "MISMATCH",
+    "problemA": "",
+    "change": "Sketch.Constraints.Len, Sketch.Constraints.Dia",
+    "problemB": "Body: com 0.463mm, box out 0.702mm"
+   }
+  },
+  {
+   "model": "17_sketch_base_planes",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 9.094947017729285e-16,
+   "targets": [
+    {
+     "name": "BodyXY",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 4.872293045212117e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyXY"
+     ]
+    },
+    {
+     "name": "BodyXZ",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 0,
+      "com": 2.3914935841127266e-15,
+      "box": 5.958081967793456e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyXZ"
+     ]
+    },
+    {
+     "name": "BodyYZ",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.2737367544323197e-16,
+     "diff": {
+      "vol": 2.2737367544323197e-16,
+      "area": 1.6240976817373716e-16,
+      "com": 4.7207330545682824e-15,
+      "box": 7.529898907871222e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyYZ"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "SketchXZ.Constraints.Width",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "18_sketch_on_datum_plane",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (planeUnsupported: the sketch plane is not parallel to a standard plane (needs a custom plane frame in the kernel))",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pad (Pad): notImported: its sketch Sketch cannot be built (planeUnsupported: the sketch plane is not parallel to a standard plane (needs a custom plane frame in the kernel))",
+     "volDiff": null,
+     "warnings": [
+      "planeUnsupported:Sketch",
+      "notImported:Pad",
+      "noFeatures:Body"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: Pad (Pad): notImported: its sketch Sketch cannot be built (planeUnsupported: the sketch plane is not parallel to a standard plane (needs a custom plane frame in the kernel))",
+    "change": "DatumPlane.AttachmentOffset, Pad.Direction, Pad.Placement",
+    "problemB": "Body: Pad not imported"
+   }
+  },
+  {
+   "model": "19_sketch_attach_modes",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 7.579122514774402e-16,
+   "targets": [
+    {
+     "name": "Box",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 7.579122514774402e-16,
+     "diff": {
+      "vol": 7.579122514774402e-16,
+      "area": 2.0670334131202914e-16,
+      "com": 8.881784197001252e-16,
+      "box": 2.586911591606622e-7,
+      "boxOut": 2.586911591606622e-7,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "NA",
+    "problemA": "",
+    "change": "Box.Length, Box.Placement",
+    "problemB": "the importer has no parameter for Box.Placement"
+   }
+  },
+  {
+   "model": "19_sketch_external_geometry",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.442792672699819e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.442792672699819e-16,
+     "diff": {
+      "vol": 4.442792672699819e-16,
+      "area": 1.9579893265391804e-16,
+      "com": 5.617333549722722e-15,
+      "box": 0.01643431389517991,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "constraints:BossSketch"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "BossSketch.Constraints.CentreX",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "19_sketch_on_face",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.484728423567836e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.484728423567836e-16,
+     "diff": {
+      "vol": 1.484728423567836e-16,
+      "area": 1.855106537817269e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "BossSketch.Constraints.BossR",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "20_pad_side_types",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "BodyOne",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOne"
+     ]
+    },
+    {
+     "name": "BodyTwo",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTwo"
+     ]
+    },
+    {
+     "name": "BodySym",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 7.579122514774402e-17,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodySym"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    },
+    {
+     "name": "BodyNoRefine",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyNoRefine"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PadTwo.Length2, PadSym.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "21_pad_taper",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.5252962140236903e-16,
+   "targets": [
+    {
+     "name": "BodyPos",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3137121176816928e-16,
+     "diff": {
+      "vol": 1.3137121176816928e-16,
+      "area": 1.8367627147550954e-16,
+      "com": 2.6645352591003757e-15,
+      "box": 1.8841109504205303e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPos"
+     ]
+    },
+    {
+     "name": "BodyNeg",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.5252962140236903e-16,
+     "diff": {
+      "vol": 3.5252962140236903e-16,
+      "area": 1.148399879929246e-16,
+      "com": 3.076740298213702e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyNeg"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PadPos.TaperAngle",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "22_pad_up_to",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyUpToLast: PadUpToLast (Pad): endCondition: Pad end type 1 (up to last) is not mapped",
+   "volDiff": 1.4157509643073183e-16,
+   "targets": [
+    {
+     "name": "BodyUpToFirst",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.4157509643073183e-16,
+     "diff": {
+      "vol": 1.4157509643073183e-16,
+      "area": 1.831632548461624e-16,
+      "com": 6.705600017716362e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUpToFirst"
+     ]
+    },
+    {
+     "name": "BodyUpToLast",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PadUpToLast (Pad): endCondition: Pad end type 1 (up to last) is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyUpToLast",
+      "endCondition:PadUpToLast"
+     ]
+    },
+    {
+     "name": "BodyUpToFace",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.4157509643073183e-16,
+     "diff": {
+      "vol": 1.4157509643073183e-16,
+      "area": 0,
+      "com": 6.705600017716362e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUpToFace"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyUpToLast: PadUpToLast (Pad): endCondition: Pad end type 1 (up to last) is not mapped",
+    "change": "SketchUpToFirst.Constraints.R",
+    "problemB": "BodyUpToLast: PadUpToLast not imported"
+   }
+  },
+  {
+   "model": "23_pad_custom_direction",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyVector: PadVector (Pad): customVector: custom extrusion direction not mapped",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyVector",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PadVector (Pad): customVector: custom extrusion direction not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyVector",
+      "customVector:PadVector",
+      "noFeatures:BodyVector"
+     ]
+    },
+    {
+     "name": "BodyAxis",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PadAxis (Pad): customVector: extrusion along a reference axis is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyAxis",
+      "customVector:PadAxis",
+      "noFeatures:BodyAxis"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyVector: PadVector (Pad): customVector: custom extrusion direction not mapped",
+    "change": "PadVector.Direction",
+    "problemB": "BodyVector: PadVector not imported | BodyAxis: PadAxis not imported"
+   }
+  },
+  {
+   "model": "24_pad_refine",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.0231815394945446e-15,
+   "targets": [
+    {
+     "name": "BodyOn",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 4.263256414560602e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOn"
+     ]
+    },
+    {
+     "name": "BodyOff",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.0231815394945446e-15,
+     "diff": {
+      "vol": 1.0231815394945446e-15,
+      "area": 4.263256414560602e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": [
+       6,
+       10
+      ]
+     },
+     "warnings": [
+      "multipleBodies:BodyOff"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PadBOn.Length, PadBOff.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "25_pocket_types",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.772365956292604e-16,
+   "targets": [
+    {
+     "name": "BodyLength",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.544946049918581e-16,
+     "diff": {
+      "vol": 1.544946049918581e-16,
+      "area": 0,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyLength"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.544946049918581e-16,
+     "diff": {
+      "vol": 1.544946049918581e-16,
+      "area": 0,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    },
+    {
+     "name": "BodyThrough",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5524021160795766e-16,
+     "diff": {
+      "vol": 1.5524021160795766e-16,
+      "area": 1.9821196076921734e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyThrough"
+     ]
+    },
+    {
+     "name": "BodyThroughMid",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.772365956292604e-16,
+     "diff": {
+      "vol": 4.772365956292604e-16,
+      "area": 1.9500759324906956e-16,
+      "com": 4.351167857633658e-15,
+      "box": 7.105427357601002e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyThroughMid"
+     ]
+    },
+    {
+     "name": "BodyTwo",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5599304987085616e-16,
+     "diff": {
+      "vol": 1.5599304987085616e-16,
+      "area": 0,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTwo"
+     ]
+    },
+    {
+     "name": "BodyUpToFace",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.104804232159153e-16,
+     "diff": {
+      "vol": 3.104804232159153e-16,
+      "area": 0,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUpToFace"
+     ]
+    },
+    {
+     "name": "BodyMid",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0898920998371625e-16,
+     "diff": {
+      "vol": 3.0898920998371625e-16,
+      "area": 0,
+      "com": 3.552713678800501e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyMid"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PocketLength.Length, PocketTwo.Length2",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "26_pocket_taper_direction",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyDir: Pocket2 (Pocket): customVector: custom extrusion direction not mapped",
+   "volDiff": 6.303462152600735e-16,
+   "targets": [
+    {
+     "name": "BodyTaper",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.303462152600735e-16,
+     "diff": {
+      "vol": 6.303462152600735e-16,
+      "area": 2.864222184098375e-16,
+      "com": 8.881784197001252e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTaper"
+     ]
+    },
+    {
+     "name": "BodyDir",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pocket2 (Pocket): customVector: custom extrusion direction not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyDir",
+      "customVector:Pocket2"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyDir: Pocket2 (Pocket): customVector: custom extrusion direction not mapped",
+    "change": "Pocket.TaperAngle",
+    "problemB": "BodyDir: Pocket2 not imported"
+   }
+  },
+  {
+   "model": "27_pocket_up_to_first",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.4161980181081636e-16,
+   "targets": [
+    {
+     "name": "BodyFirst",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.4161980181081636e-16,
+     "diff": {
+      "vol": 3.4161980181081636e-16,
+      "area": 1.5535637301533479e-16,
+      "com": 3.972054645195637e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFirst"
+     ]
+    },
+    {
+     "name": "BodyFace",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.0866534900215662e-16,
+     "diff": {
+      "vol": 2.0866534900215662e-16,
+      "area": 1.4519637996665308e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFace"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "CutSketch2.Constraints.R",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "28_pad_up_to_shape",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyMain: Pad (Pad): endCondition: Pad end type 5 (up to shape) is not mapped",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "BodyRef",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRef"
+     ]
+    },
+    {
+     "name": "BodyMain",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pad (Pad): endCondition: Pad end type 5 (up to shape) is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyMain",
+      "endCondition:Pad"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyMain: Pad (Pad): endCondition: Pad end type 5 (up to shape) is not mapped",
+    "change": "Sketch.Constraints.R",
+    "problemB": "BodyMain: Pad not imported"
+   }
+  },
+  {
+   "model": "29_pad_profile_face",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: FacePad (Pad): profileFace: the profile is PartDesign::Pad Face6, not a sketch; profiles from faces of other features are not mapped",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "FacePad (Pad): profileFace: the profile is PartDesign::Pad Face6, not a sketch; profiles from faces of other features are not mapped",
+     "volDiff": null,
+     "warnings": [
+      "profileFace:FacePad"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: FacePad (Pad): profileFace: the profile is PartDesign::Pad Face6, not a sketch; profiles from faces of other features are not mapped",
+    "change": "FacePad.Length",
+    "problemB": "Body: FacePad not imported"
+   }
+  },
+  {
+   "model": "30_revolution_axes",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.0856293312728805e-15,
+   "targets": [
+    {
+     "name": "BodyFull",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.031274062627114e-16,
+     "diff": {
+      "vol": 6.031274062627114e-16,
+      "area": 5.654319433712919e-16,
+      "com": 9.348465190379244e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFull"
+     ]
+    },
+    {
+     "name": "BodyPart",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2062548125254228e-16,
+     "diff": {
+      "vol": 1.2062548125254228e-16,
+      "area": 0,
+      "com": 2.0350724194510405e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPart"
+     ]
+    },
+    {
+     "name": "BodyMid",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.206254812525423e-16,
+     "diff": {
+      "vol": 1.206254812525423e-16,
+      "area": 0,
+      "com": 8.963237016492668e-16,
+      "box": 2.4203234083586267e-8,
+      "boxOut": 2.4203234083586267e-8,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyMid"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.6187644375762683e-16,
+     "diff": {
+      "vol": 3.6187644375762683e-16,
+      "area": 0,
+      "com": 2.0350724194510405e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    },
+    {
+     "name": "BodyCons",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.618764437576268e-16,
+     "diff": {
+      "vol": 3.618764437576268e-16,
+      "area": 3.651680938932091e-16,
+      "com": 1.3830733964618713e-15,
+      "box": 0.008055467669482397,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyCons"
+     ]
+    },
+    {
+     "name": "BodyOrigin",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.6083397500338965e-16,
+     "diff": {
+      "vol": 1.6083397500338965e-16,
+      "area": 1.3007911708808042e-16,
+      "com": 4.965068306494546e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOrigin"
+     ]
+    },
+    {
+     "name": "BodyV",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.0856293312728805e-15,
+     "diff": {
+      "vol": 1.0856293312728805e-15,
+      "area": 3.3925916602277514e-16,
+      "com": 1.9936409136615358e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyV"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "RevPart.Angle, RevOrigin.Angle",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "31_groove",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 2.402499211668892e-15,
+   "targets": [
+    {
+     "name": "BodyFull",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5598122575759777e-15,
+     "diff": {
+      "vol": 1.5598122575759777e-15,
+      "area": 2.2065636814489441e-16,
+      "com": 1.1412720817036872e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFull"
+     ]
+    },
+    {
+     "name": "BodyPart",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.402499211668892e-15,
+     "diff": {
+      "vol": 2.402499211668892e-15,
+      "area": 1.257521768298925e-15,
+      "com": 2.026872268870214e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPart"
+     ]
+    },
+    {
+     "name": "BodyMid",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2012496058344458e-15,
+     "diff": {
+      "vol": 1.2012496058344458e-15,
+      "area": 3.4296048226334322e-16,
+      "com": 1.7021654155849968e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyMid"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.4740384674445084e-15,
+     "diff": {
+      "vol": 1.4740384674445084e-15,
+      "area": 8.183375607290361e-16,
+      "com": 1.9083345964064648e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "GroovePart.Angle",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "32_revolution_datum_edge_axis",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyEdge: Rev (Revolution): axisUnsupported: revolve axis Base.Edge2 is not a sketch axis, construction line or origin axis lying in the sketch plane",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyEdge",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Rev (Revolution): axisUnsupported: revolve axis Base.Edge2 is not a sketch axis, construction line or origin axis lying in the sketch plane",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyEdge",
+      "axisUnsupported:Rev"
+     ]
+    },
+    {
+     "name": "BodyDatum",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "RevDatum (Revolution): axisUnsupported: revolve axis AxisLine. is not a sketch axis, construction line or origin axis lying in the sketch plane",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyDatum",
+      "axisUnsupported:RevDatum",
+      "noFeatures:BodyDatum"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyEdge: Rev (Revolution): axisUnsupported: revolve axis Base.Edge2 is not a sketch axis, construction line or origin axis lying in the sketch plane",
+    "change": "Rev.Angle, RevDatum.Angle",
+    "problemB": "BodyEdge: Rev not imported | BodyDatum: RevDatum not imported"
+   }
+  },
+  {
+   "model": "33_groove_axes",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.5598122575759777e-15,
+   "targets": [
+    {
+     "name": "BodyCons",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5598122575759777e-15,
+     "diff": {
+      "vol": 1.5598122575759777e-15,
+      "area": 2.2065636814489441e-16,
+      "com": 1.1412720817036872e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyCons"
+     ]
+    },
+    {
+     "name": "BodyOrigin",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5598122575759777e-15,
+     "diff": {
+      "vol": 1.5598122575759777e-15,
+      "area": 4.4131273628978873e-16,
+      "com": 1.0260886853457494e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOrigin"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "GrooveCons.Angle, GrooveOrigin.Angle",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "35_fillet",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.6273239623947735e-11,
+   "targets": [
+    {
+     "name": "BodyVert",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.04909812746001e-16,
+     "diff": {
+      "vol": 3.04909812746001e-16,
+      "area": 4.212971088033643e-16,
+      "com": 3.66205343881779e-15,
+      "box": 6.280369834735101e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyVert"
+     ]
+    },
+    {
+     "name": "BodyAll",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 6.509228235548229e-16,
+      "com": 1.2047838252593954e-14,
+      "box": 2.220446049250313e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyAll"
+     ]
+    },
+    {
+     "name": "BodyTop",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.6273239623947735e-11,
+     "diff": {
+      "vol": 3.6273239623947735e-11,
+      "area": 3.681418399865611e-11,
+      "com": 2.4319168474452405e-10,
+      "box": 1.0010838596205482e-13,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTop"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "FilletVert.Radius, FilletAll.Radius",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "36_chamfer",
+   "cls": "CLOSE",
+   "problem": "BodyAll: vol 1.1e-4, area 7.6e-4, faces 18 vs 26",
+   "volDiff": 0.0001132759401902005,
+   "targets": [
+    {
+     "name": "BodyEqual",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5311358615705863e-16,
+     "diff": {
+      "vol": 1.5311358615705863e-16,
+      "area": 2.1044809160272525e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyEqual"
+     ]
+    },
+    {
+     "name": "BodyTwo",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5389081248272897e-16,
+     "diff": {
+      "vol": 1.5389081248272897e-16,
+      "area": 0,
+      "com": 8.881784197001252e-16,
+      "box": 1.7763568394002505e-15,
+      "boxOut": 1.7763568394002505e-15,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTwo"
+     ]
+    },
+    {
+     "name": "BodyTwoFlip",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5389081248272897e-16,
+     "diff": {
+      "vol": 1.5389081248272897e-16,
+      "area": 4.225949458848975e-16,
+      "com": 0,
+      "box": 3.4323523581325523e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTwoFlip"
+     ]
+    },
+    {
+     "name": "BodyAngle",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5311358615705863e-16,
+     "diff": {
+      "vol": 1.5311358615705863e-16,
+      "area": 2.1044809160272525e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 8.401134058386451e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyAngle"
+     ]
+    },
+    {
+     "name": "BodyAll",
+     "kind": "body",
+     "cls": "CLOSE",
+     "problem": "vol 1.1e-4, area 7.6e-4, faces 18 vs 26",
+     "volDiff": 0.0001132759401902005,
+     "diff": {
+      "vol": 0.0001132759401902005,
+      "area": 0.0007571870289919498,
+      "com": 7.742959950613001e-15,
+      "box": 6.478136672086374e-15,
+      "boxOut": 5.329070518200751e-15,
+      "solids": null,
+      "faces": [
+       18,
+       26
+      ]
+     },
+     "features": [
+      {
+       "fc": "BaseAll",
+       "cls": "EXACT",
+       "diff": ""
+      },
+      {
+       "fc": "ChAll",
+       "cls": "CLOSE",
+       "diff": "vol 1.1e-4, area 7.6e-4, faces 18 vs 26"
+      }
+     ],
+     "warnings": [
+      "multipleBodies:BodyAll"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "CLOSE",
+    "b": "CLOSE",
+    "problemA": "BodyAll: vol 1.1e-4, area 7.6e-4, faces 18 vs 26",
+    "change": "ChEqual.Size, ChTwo.Size2",
+    "problemB": "BodyAll: vol 1.1e-4, area 7.6e-4, faces 18 vs 26"
+   }
+  },
+  {
+   "model": "37_dressup_chain",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 2.176609945747827e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.176609945747827e-16,
+     "diff": {
+      "vol": 2.176609945747827e-16,
+      "area": 2.9808450730704337e-16,
+      "com": 1.1916163935586911e-14,
+      "box": 8.557258235464567e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Fillet.Radius, Chamfer.Size",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "38_fillet_cylinder_edges",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 8.852236508691034e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 8.852236508691034e-16,
+     "diff": {
+      "vol": 8.852236508691034e-16,
+      "area": 6.418981522105283e-16,
+      "com": 1.3296076157545056e-15,
+      "box": 1.1652016708726407,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Fillet.Radius, Chamfer.Size",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "39_hole_sketch_points",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.0542312116479659e-15,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.0542312116479659e-15,
+     "diff": {
+      "vol": 1.0542312116479659e-15,
+      "area": 1.7568017424928678e-16,
+      "com": 5.687116766346677e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Hole.Depth, Hole.Diameter",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "40_draft",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.632035678670159e-16,
+   "targets": [
+    {
+     "name": "BodyIn",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.632035678670159e-16,
+     "diff": {
+      "vol": 1.632035678670159e-16,
+      "area": 2.1818128990635698e-16,
+      "com": 2.5121479338940403e-15,
+      "box": 9.319092206696407e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyIn"
+     ]
+    },
+    {
+     "name": "BodyOut",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.4105834559738602e-16,
+     "diff": {
+      "vol": 1.4105834559738602e-16,
+      "area": 1.952124824126807e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0.0000011754538994077703,
+      "boxOut": 8.311714232434042e-7,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOut"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "DraftIn.Angle",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "41_thickness",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyArc: ThickArc (Thickness): thicknessJoin: an outward thickness with rounded (Arc) corners is not mapped; the kernel makes sharp corners",
+   "volDiff": 9.593825968068862e-16,
+   "targets": [
+    {
+     "name": "BodyIn",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.807595073150662e-16,
+     "diff": {
+      "vol": 6.807595073150662e-16,
+      "area": 0,
+      "com": 5.102196573270515e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyIn"
+     ]
+    },
+    {
+     "name": "BodyOut",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.593825968068862e-16,
+     "diff": {
+      "vol": 9.593825968068862e-16,
+      "area": 1.1300878501154674e-16,
+      "com": 3.552713678800501e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOut"
+     ]
+    },
+    {
+     "name": "BodyArc",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "ThickArc (Thickness): thicknessJoin: an outward thickness with rounded (Arc) corners is not mapped; the kernel makes sharp corners",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyArc",
+      "thicknessJoin:ThickArc"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyArc: ThickArc (Thickness): thicknessJoin: an outward thickness with rounded (Arc) corners is not mapped; the kernel makes sharp corners",
+    "change": "ThickIn.Value",
+    "problemB": "BodyArc: ThickArc not imported"
+   }
+  },
+  {
+   "model": "42_hole_simple",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.1005839440555894e-16,
+   "targets": [
+    {
+     "name": "BodyDepth",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.740720326189844e-16,
+     "diff": {
+      "vol": 2.740720326189844e-16,
+      "area": 1.2124021051716785e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyDepth"
+     ]
+    },
+    {
+     "name": "BodyThrough",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3911023266810445e-16,
+     "diff": {
+      "vol": 1.3911023266810445e-16,
+      "area": 2.3770215056029255e-16,
+      "com": 3.66205343881779e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyThrough"
+     ]
+    },
+    {
+     "name": "BodyAngled",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.744232626178461e-16,
+     "diff": {
+      "vol": 2.744232626178461e-16,
+      "area": 1.210881093897923e-16,
+      "com": 5.329070518200751e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyAngled"
+     ]
+    },
+    {
+     "name": "BodyAngledDepth",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.1005839440555894e-16,
+     "diff": {
+      "vol": 4.1005839440555894e-16,
+      "area": 1.2219365353635142e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyAngledDepth"
+     ]
+    },
+    {
+     "name": "BodyTwo",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.7524462150890643e-16,
+     "diff": {
+      "vol": 2.7524462150890643e-16,
+      "area": 1.2003375582170253e-16,
+      "com": 3.66205343881779e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTwo"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "HoleDepth.Depth, HoleDepth.Diameter",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "43_hole_cuts",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyDrill: HoleDrill (Hole): holeCut: counterdrill holes are not mapped",
+   "volDiff": 4.2097181218673494e-16,
+   "targets": [
+    {
+     "name": "BodyBore",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.2097181218673494e-16,
+     "diff": {
+      "vol": 4.2097181218673494e-16,
+      "area": 1.182684317895699e-16,
+      "com": 2.6645352591003757e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBore"
+     ]
+    },
+    {
+     "name": "BodySink",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.388100799404735e-16,
+     "diff": {
+      "vol": 1.388100799404735e-16,
+      "area": 1.2071608305429293e-16,
+      "com": 3.972054645195637e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodySink"
+     ]
+    },
+    {
+     "name": "BodyDrill",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HoleDrill (Hole): holeCut: counterdrill holes are not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyDrill",
+      "holeCut:HoleDrill"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyDrill: HoleDrill (Hole): holeCut: counterdrill holes are not mapped",
+    "change": "HoleBore.HoleCutDepth, HoleBore.HoleCutDiameter",
+    "problemB": "BodyDrill: HoleDrill not imported"
+   }
+  },
+  {
+   "model": "44_hole_thread_tyre",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.362777513630644e-16,
+   "targets": [
+    {
+     "name": "BodyTyre",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.362777513630644e-16,
+     "diff": {
+      "vol": 1.362777513630644e-16,
+      "area": 0,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "holeThread:HoleTyre"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "HoleTyre.Diameter",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "44_hole_threaded",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.169387507493019e-16,
+   "targets": [
+    {
+     "name": "BodyM6",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.368297114014372e-16,
+     "diff": {
+      "vol": 1.368297114014372e-16,
+      "area": 1.2093214006691314e-16,
+      "com": 4.351167857633658e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyM6",
+      "holeThread:HoleM6"
+     ]
+    },
+    {
+     "name": "BodyM8x1",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.169387507493019e-16,
+     "diff": {
+      "vol": 4.169387507493019e-16,
+      "area": 2.3769409823842106e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyM8x1",
+      "holeThread:HoleM8x1"
+     ]
+    },
+    {
+     "name": "BodyM6Left",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.368297114014372e-16,
+     "diff": {
+      "vol": 1.368297114014372e-16,
+      "area": 1.2093214006691314e-16,
+      "com": 4.351167857633658e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyM6Left",
+      "holeThread:HoleM6Left"
+     ]
+    },
+    {
+     "name": "BodyUNC",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 1.2082694770974336e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUNC",
+      "holeThread:HoleUNC"
+     ]
+    },
+    {
+     "name": "BodyNPT",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.8464146210860573e-16,
+     "diff": {
+      "vol": 2.8464146210860573e-16,
+      "area": 3.499244024634105e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyNPT",
+      "holeThread:HoleNPT"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "HoleM6.Diameter",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "44_hole_threaded_more",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.250575021411881e-16,
+   "targets": [
+    {
+     "name": "BodyUNF",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3509384625228515e-16,
+     "diff": {
+      "vol": 1.3509384625228515e-16,
+      "area": 2.480518616689777e-16,
+      "com": 2.6645352591003757e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUNF",
+      "holeThread:HoleUNF"
+     ]
+    },
+    {
+     "name": "BodyUNEF",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3930927577054688e-16,
+     "diff": {
+      "vol": 1.3930927577054688e-16,
+      "area": 1.1858918077211558e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyUNEF",
+      "holeThread:HoleUNEF"
+     ]
+    },
+    {
+     "name": "BodyBSP",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.250575021411881e-16,
+     "diff": {
+      "vol": 4.250575021411881e-16,
+      "area": 0,
+      "com": 4.070144838902081e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBSP",
+      "holeThread:HoleBSP"
+     ]
+    },
+    {
+     "name": "BodyBSW",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 1.2082694770974336e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBSW",
+      "holeThread:HoleBSW"
+     ]
+    },
+    {
+     "name": "BodyBSF",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3709936364089508e-16,
+     "diff": {
+      "vol": 1.3709936364089508e-16,
+      "area": 1.2061685983143364e-16,
+      "com": 2.6645352591003757e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBSF",
+      "holeThread:HoleBSF"
+     ]
+    }
+   ]
+  },
+  {
+   "model": "45_hole_threaded_modelled",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyM6: HoleM6 (Hole): holeThread: modelled threads are not mapped",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyM6",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HoleM6 (Hole): holeThread: modelled threads are not mapped",
+     "volDiff": null,
+     "warnings": [
+      "holeThread:HoleM6"
+     ]
+    }
+   ]
+  },
+  {
+   "model": "46_hole_tapered",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyTaper: HoleTaper (Hole): holeTapered: tapered holes are not mapped",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyTaper",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HoleTaper (Hole): holeTapered: tapered holes are not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyTaper",
+      "holeTapered:HoleTaper"
+     ]
+    },
+    {
+     "name": "BodyTaperDeep",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HoleTaperDeep (Hole): holeTapered: tapered holes are not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyTaperDeep",
+      "holeTapered:HoleTaperDeep"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyTaper: HoleTaper (Hole): holeTapered: tapered holes are not mapped",
+    "change": "HoleTaper.TaperedAngle",
+    "problemB": "BodyTaper: HoleTaper not imported | BodyTaperDeep: HoleTaperDeep not imported"
+   }
+  },
+  {
+   "model": "47_mirrored",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 6.821210263296963e-16,
+   "targets": [
+    {
+     "name": "BodyPlane",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.821210263296963e-16,
+     "diff": {
+      "vol": 6.821210263296963e-16,
+      "area": 5.684341886080803e-16,
+      "com": 2.542472432711151e-15,
+      "box": 3.774758283725532e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPlane"
+     ]
+    },
+    {
+     "name": "BodyAxis",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.821210263296963e-16,
+     "diff": {
+      "vol": 6.821210263296963e-16,
+      "area": 5.684341886080803e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyAxis"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Pad.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "48_linear_pattern",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.5158245029548813e-15,
+   "targets": [
+    {
+     "name": "BodyLength",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5158245029548813e-15,
+     "diff": {
+      "vol": 1.5158245029548813e-15,
+      "area": 5.052748343182936e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyLength"
+     ]
+    },
+    {
+     "name": "BodyOffset",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5158245029548813e-15,
+     "diff": {
+      "vol": 1.5158245029548813e-15,
+      "area": 5.052748343182936e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOffset"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5158245029548813e-15,
+     "diff": {
+      "vol": 1.5158245029548813e-15,
+      "area": 5.052748343182936e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    },
+    {
+     "name": "BodyY",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.821210263296964e-16,
+     "diff": {
+      "vol": 6.821210263296964e-16,
+      "area": 5.684341886080803e-16,
+      "com": 4.440892098500626e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyY"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PatternLength.Occurrences, PatternOffset.Offset",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "49_polar_pattern",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 9.046911093940674e-16,
+   "targets": [
+    {
+     "name": "BodyFull",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 7.539092578283894e-16,
+     "diff": {
+      "vol": 7.539092578283894e-16,
+      "area": 6.462079352814764e-16,
+      "com": 4.937031508890225e-15,
+      "box": 0.005591464971008264,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFull"
+     ]
+    },
+    {
+     "name": "BodyPart",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.261727773485168e-16,
+     "diff": {
+      "vol": 2.261727773485168e-16,
+      "area": 4.846559514611073e-16,
+      "com": 2.6645352591003757e-15,
+      "box": 0.0047851845925312945,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPart"
+     ]
+    },
+    {
+     "name": "BodyOffset",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.046911093940674e-16,
+     "diff": {
+      "vol": 9.046911093940674e-16,
+      "area": 2.1540264509382552e-16,
+      "com": 2.5510982866352577e-15,
+      "box": 0.0047851845925312945,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyOffset"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "PatternFull.Occurrences, PatternOffset.Offset",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "50_multitransform",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: LinearPattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane YZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped | MultiTransform (MultiTransform): unsupportedFeature: PartDesign::MultiTransform is not mapped yet",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "LinearPattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane YZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped | MultiTransform (MultiTransform): unsupportedFeature: PartDesign::MultiTransform is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "pattern:LinearPattern",
+      "mirror:Mirrored",
+      "unsupportedFeature:MultiTransform"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: LinearPattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane YZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped | MultiTransform (MultiTransform): unsupportedFeature: PartDesign::MultiTransform is not mapped yet",
+    "change": "LinearPattern.Occurrences",
+    "problemB": "Body: LinearPattern,Mirrored,MultiTransform not imported"
+   }
+  },
+  {
+   "model": "51_scaled",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Scaled (Scaled): unsupportedFeature: PartDesign::Scaled is not mapped yet",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Scaled (Scaled): unsupportedFeature: PartDesign::Scaled is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedFeature:Scaled"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: Scaled (Scaled): unsupportedFeature: PartDesign::Scaled is not mapped yet",
+    "change": "Scaled.Factor",
+    "problemB": "Body: Scaled not imported"
+   }
+  },
+  {
+   "model": "52_loft",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyAdd: Loft (AdditiveLoft): unsupportedFeature: PartDesign::AdditiveLoft is not mapped yet",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyAdd",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Loft (AdditiveLoft): unsupportedFeature: PartDesign::AdditiveLoft is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyAdd",
+      "unsupportedFeature:Loft",
+      "noFeatures:BodyAdd"
+     ]
+    },
+    {
+     "name": "Body3Ruled",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Loft3Ruled (AdditiveLoft): unsupportedFeature: PartDesign::AdditiveLoft is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:Body3Ruled",
+      "unsupportedFeature:Loft3Ruled",
+      "noFeatures:Body3Ruled"
+     ]
+    },
+    {
+     "name": "Body3Smooth",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Loft3Smooth (AdditiveLoft): unsupportedFeature: PartDesign::AdditiveLoft is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:Body3Smooth",
+      "unsupportedFeature:Loft3Smooth",
+      "noFeatures:Body3Smooth"
+     ]
+    },
+    {
+     "name": "BodySub",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "LoftSub (SubtractiveLoft): unsupportedFeature: PartDesign::SubtractiveLoft is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodySub",
+      "unsupportedFeature:LoftSub"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyAdd: Loft (AdditiveLoft): unsupportedFeature: PartDesign::AdditiveLoft is not mapped yet",
+    "change": "B.AttachmentOffset, C1.Constraints.R",
+    "problemB": "BodyAdd: Loft not imported | Body3Ruled: Loft3Ruled not imported | Body3Smooth: Loft3Smooth not imported | BodySub: LoftSub not imported"
+   }
+  },
+  {
+   "model": "53_pipe",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyLine: PipeLine (AdditivePipe): unsupportedFeature: PartDesign::AdditivePipe is not mapped yet",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyLine",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PipeLine (AdditivePipe): unsupportedFeature: PartDesign::AdditivePipe is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyLine",
+      "unsupportedFeature:PipeLine",
+      "noFeatures:BodyLine"
+     ]
+    },
+    {
+     "name": "BodyArc",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PipeArc (AdditivePipe): unsupportedFeature: PartDesign::AdditivePipe is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyArc",
+      "unsupportedFeature:PipeArc",
+      "noFeatures:BodyArc"
+     ]
+    },
+    {
+     "name": "BodyFrenet",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PipeFrenet (AdditivePipe): unsupportedFeature: PartDesign::AdditivePipe is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyFrenet",
+      "unsupportedFeature:PipeFrenet",
+      "noFeatures:BodyFrenet"
+     ]
+    },
+    {
+     "name": "BodySub",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "PipeSub (SubtractivePipe): unsupportedFeature: PartDesign::SubtractivePipe is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodySub",
+      "unsupportedFeature:PipeSub"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyLine: PipeLine (AdditivePipe): unsupportedFeature: PartDesign::AdditivePipe is not mapped yet",
+    "change": "ProfileLine.Constraints.R, ProfileSub.Constraints.R",
+    "problemB": "BodyLine: PipeLine not imported | BodyArc: PipeArc not imported | BodyFrenet: PipeFrenet not imported | BodySub: PipeSub not imported"
+   }
+  },
+  {
+   "model": "54_helix",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyPitchHeight: HelixPitchHeight (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "BodyPitchHeight",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HelixPitchHeight (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyPitchHeight",
+      "unsupportedFeature:HelixPitchHeight",
+      "noFeatures:BodyPitchHeight"
+     ]
+    },
+    {
+     "name": "BodyTurns",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HelixTurns (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyTurns",
+      "unsupportedFeature:HelixTurns",
+      "noFeatures:BodyTurns"
+     ]
+    },
+    {
+     "name": "BodyHeightTurns",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HelixHeightTurns (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyHeightTurns",
+      "unsupportedFeature:HelixHeightTurns",
+      "noFeatures:BodyHeightTurns"
+     ]
+    },
+    {
+     "name": "BodyLeft",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HelixLeft (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyLeft",
+      "unsupportedFeature:HelixLeft",
+      "noFeatures:BodyLeft"
+     ]
+    },
+    {
+     "name": "BodySub",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "HelixSub (SubtractiveHelix): unsupportedFeature: PartDesign::SubtractiveHelix is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodySub",
+      "unsupportedFeature:HelixSub"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyPitchHeight: HelixPitchHeight (AdditiveHelix): unsupportedFeature: PartDesign::AdditiveHelix is not mapped yet",
+    "change": "HelixPitchHeight.Pitch, HelixPitchHeight.Turns, HelixSub.Height, HelixSub.Turns",
+    "problemB": "BodyPitchHeight: HelixPitchHeight not imported | BodyTurns: HelixTurns not imported | BodyHeightTurns: HelixHeightTurns not imported | BodyLeft: HelixLeft not imported | BodySub: HelixSub not imported"
+   }
+  },
+  {
+   "model": "55_primitives_additive",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyWedge: AddWedge (AdditiveWedge): unsupportedFeature: PartDesign::AdditiveWedge is not mapped",
+   "volDiff": 1.3027551975274565e-15,
+   "targets": [
+    {
+     "name": "BodyBox",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 6.063298011819521e-16,
+     "diff": {
+      "vol": 6.063298011819521e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBox"
+     ]
+    },
+    {
+     "name": "BodyCylinder",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.3027551975274565e-15,
+     "diff": {
+      "vol": 1.3027551975274565e-15,
+      "area": 6.031274062627113e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyCylinder"
+     ]
+    },
+    {
+     "name": "BodySphere",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.769546289141947e-16,
+     "diff": {
+      "vol": 3.769546289141947e-16,
+      "area": 2.513030859427964e-16,
+      "com": 0,
+      "box": 0.0005025103545935593,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodySphere"
+     ]
+    },
+    {
+     "name": "BodyCone",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.962876942961739e-16,
+     "diff": {
+      "vol": 4.962876942961739e-16,
+      "area": 3.7089525858339892e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0.012037233687619367,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyCone"
+     ]
+    },
+    {
+     "name": "BodyTorus",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 5.119504427781562e-16,
+     "diff": {
+      "vol": 5.119504427781562e-16,
+      "area": 0,
+      "com": 0,
+      "box": 1.5147621721344333,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTorus"
+     ]
+    },
+    {
+     "name": "BodyWedge",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "AddWedge (AdditiveWedge): unsupportedFeature: PartDesign::AdditiveWedge is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyWedge",
+      "unsupportedFeature:AddWedge",
+      "noFeatures:BodyWedge"
+     ]
+    },
+    {
+     "name": "BodyPrism",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2155023400350428e-16,
+     "diff": {
+      "vol": 1.2155023400350428e-16,
+      "area": 2.0781363773178437e-16,
+      "com": 0,
+      "box": 2.643661183299173e-7,
+      "boxOut": 2.643661183299173e-7,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPrism"
+     ]
+    },
+    {
+     "name": "BodyEllipsoid",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "AddEllipsoid (AdditiveEllipsoid): unsupportedFeature: PartDesign::AdditiveEllipsoid is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyEllipsoid",
+      "unsupportedFeature:AddEllipsoid",
+      "noFeatures:BodyEllipsoid"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyWedge: AddWedge (AdditiveWedge): unsupportedFeature: PartDesign::AdditiveWedge is not mapped",
+    "change": "AddBox.Length, AddCylinder.Radius, AddSphere.Radius",
+    "problemB": "BodyWedge: AddWedge not imported | BodyEllipsoid: AddEllipsoid not imported"
+   }
+  },
+  {
+   "model": "56_primitives_subtractive",
+   "cls": "MISMATCH",
+   "problem": "BodyBox: first deviating feature SubBox (MISMATCH: area 0.0115, com 0.0699mm, faces 11 vs 12); area 0.0115, com 0.0699mm, faces 11 vs 12",
+   "volDiff": 4.0704657981445745e-16,
+   "targets": [
+    {
+     "name": "BodyBox",
+     "kind": "body",
+     "cls": "MISMATCH",
+     "problem": "first deviating feature SubBox (MISMATCH: area 0.0115, com 0.0699mm, faces 11 vs 12); area 0.0115, com 0.0699mm, faces 11 vs 12",
+     "volDiff": 4.0704657981445745e-16,
+     "diff": {
+      "vol": 4.0704657981445745e-16,
+      "area": 0.011494252873563218,
+      "com": 0.06993006993007711,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": [
+       11,
+       12
+      ]
+     },
+     "features": [
+      {
+       "fc": "BaseBox",
+       "cls": "EXACT",
+       "diff": ""
+      },
+      {
+       "fc": "SubBox",
+       "cls": "MISMATCH",
+       "diff": "area 0.0115, com 0.0699mm, faces 11 vs 12"
+      }
+     ],
+     "warnings": [
+      "multipleBodies:BodyBox"
+     ]
+    },
+    {
+     "name": "BodyCylinder",
+     "kind": "body",
+     "cls": "MISMATCH",
+     "problem": "first deviating feature SubCylinder (MISMATCH: area 0.00909, com 0.0548mm, faces 8 vs 9); area 0.00909, com 0.0548mm, faces 8 vs 9",
+     "volDiff": 2.0321831770994314e-16,
+     "diff": {
+      "vol": 2.0321831770994314e-16,
+      "area": 0.00909486769344195,
+      "com": 0.05484064846219994,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": [
+       8,
+       9
+      ]
+     },
+     "features": [
+      {
+       "fc": "BaseCylinder",
+       "cls": "EXACT",
+       "diff": ""
+      },
+      {
+       "fc": "SubCylinder",
+       "cls": "MISMATCH",
+       "diff": "area 0.00909, com 0.0548mm, faces 8 vs 9"
+      }
+     ],
+     "warnings": [
+      "multipleBodies:BodyCylinder"
+     ]
+    },
+    {
+     "name": "BodySphere",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.03387857324115e-16,
+     "diff": {
+      "vol": 2.03387857324115e-16,
+      "area": 0,
+      "com": 5.0242958677880805e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodySphere"
+     ]
+    },
+    {
+     "name": "BodyCone",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.0383536891229272e-16,
+     "diff": {
+      "vol": 2.0383536891229272e-16,
+      "area": 0,
+      "com": 7.105427357601002e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyCone"
+     ]
+    },
+    {
+     "name": "BodyTorus",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyTorus"
+     ]
+    },
+    {
+     "name": "BodyWedge",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "SubWedge (SubtractiveWedge): unsupportedFeature: PartDesign::SubtractiveWedge is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyWedge",
+      "unsupportedFeature:SubWedge"
+     ]
+    },
+    {
+     "name": "BodyPrism",
+     "kind": "body",
+     "cls": "MISMATCH",
+     "problem": "first deviating feature SubPrism (MISMATCH: area 0.00988, com 0.0598mm, faces 12 vs 13); area 0.00988, com 0.0598mm, faces 12 vs 13",
+     "volDiff": 2.033184797589296e-16,
+     "diff": {
+      "vol": 2.033184797589296e-16,
+      "area": 0.009881756135562797,
+      "com": 0.05979646865071331,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": [
+       12,
+       13
+      ]
+     },
+     "features": [
+      {
+       "fc": "BasePrism",
+       "cls": "EXACT",
+       "diff": ""
+      },
+      {
+       "fc": "SubPrism",
+       "cls": "MISMATCH",
+       "diff": "area 0.00988, com 0.0598mm, faces 12 vs 13"
+      }
+     ],
+     "warnings": [
+      "multipleBodies:BodyPrism"
+     ]
+    },
+    {
+     "name": "BodyEllipsoid",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "SubEllipsoid (SubtractiveEllipsoid): unsupportedFeature: PartDesign::SubtractiveEllipsoid is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyEllipsoid",
+      "unsupportedFeature:SubEllipsoid"
+     ]
+    }
+   ]
+  },
+  {
+   "model": "57_boolean_feature",
+   "cls": "UNSUPPORTED",
+   "problem": "MainCut: BoolCut (Boolean): unsupportedFeature: PartDesign::Boolean is not mapped yet",
+   "volDiff": 2.680566250056495e-16,
+   "targets": [
+    {
+     "name": "BodyToolCut",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.680566250056495e-16,
+     "diff": {
+      "vol": 2.680566250056495e-16,
+      "area": 3.3507078125706183e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0.013811241367768502,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyToolCut"
+     ]
+    },
+    {
+     "name": "MainCut",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "BoolCut (Boolean): unsupportedFeature: PartDesign::Boolean is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:MainCut",
+      "unsupportedFeature:BoolCut"
+     ]
+    },
+    {
+     "name": "BodyToolFuse",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.680566250056495e-16,
+     "diff": {
+      "vol": 2.680566250056495e-16,
+      "area": 3.3507078125706183e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0.013811241367768502,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyToolFuse"
+     ]
+    },
+    {
+     "name": "MainFuse",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "BoolFuse (Boolean): unsupportedFeature: PartDesign::Boolean is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:MainFuse",
+      "unsupportedFeature:BoolFuse"
+     ]
+    },
+    {
+     "name": "BodyToolCommon",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.680566250056495e-16,
+     "diff": {
+      "vol": 2.680566250056495e-16,
+      "area": 3.3507078125706183e-16,
+      "com": 1.7763568394002505e-15,
+      "box": 0.013811241367768502,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyToolCommon"
+     ]
+    },
+    {
+     "name": "MainCommon",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "BoolCommon (Boolean): unsupportedFeature: PartDesign::Boolean is not mapped yet",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:MainCommon",
+      "unsupportedFeature:BoolCommon"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "MainCut: BoolCut (Boolean): unsupportedFeature: PartDesign::Boolean is not mapped yet",
+    "change": "ToolSketchCut.Constraints.R",
+    "problemB": "MainCut: BoolCut not imported | MainFuse: BoolFuse not imported | MainCommon: BoolCommon not imported"
+   }
+  },
+  {
+   "model": "58_binders",
+   "cls": "UNSUPPORTED",
+   "problem": "BodyUse: SketchBinder (SubShapeBinder): unsupportedFeature: PartDesign::SubShapeBinder is not mapped yet | UsePad (Pad): profileFace: the profile is PartDesign::SubShapeBinder , not a sketch; profiles from faces of other features are not mapped | FaceBinder (ShapeBinder): unsupportedFeature: PartDesign::ShapeBinder is not mapped",
+   "volDiff": 9.094947017729285e-16,
+   "targets": [
+    {
+     "name": "BodySrc",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 4.263256414560602e-16,
+      "com": 2.5121479338940403e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodySrc"
+     ]
+    },
+    {
+     "name": "BodyUse",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "SketchBinder (SubShapeBinder): unsupportedFeature: PartDesign::SubShapeBinder is not mapped yet | UsePad (Pad): profileFace: the profile is PartDesign::SubShapeBinder , not a sketch; profiles from faces of other features are not mapped | FaceBinder (ShapeBinder): unsupportedFeature: PartDesign::ShapeBinder is not mapped",
+     "volDiff": null,
+     "warnings": [
+      "multipleBodies:BodyUse",
+      "unsupportedFeature:SketchBinder",
+      "profileFace:UsePad",
+      "unsupportedFeature:FaceBinder"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "BodyUse: SketchBinder (SubShapeBinder): unsupportedFeature: PartDesign::SubShapeBinder is not mapped yet | UsePad (Pad): profileFace: the profile is PartDesign::SubShapeBinder , not a sketch; profiles from faces of other features are not mapped | FaceBinder (ShapeBinder): unsupportedFeature: PartDesign::ShapeBinder is not mapped",
+    "change": "SrcSketch.Constraints.Width",
+    "problemB": "BodyUse: SketchBinder,UsePad,FaceBinder not imported"
+   }
+  },
+  {
+   "model": "59_datum_features",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "NA",
+    "problemA": "",
+    "change": "PlaneTop.AttachmentOffset, LineZ.AttachmentOffset",
+    "problemB": "the importer has no parameter for PlaneTop.AttachmentOffset, LineZ.AttachmentOffset"
+   }
+  },
+  {
+   "model": "60_part_primitives",
+   "cls": "UNSUPPORTED",
+   "problem": "CylinderPart: CylinderPart (Part::Cylinder): primitiveAngle: a partial cylinder / cone is not mapped; noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": 2.552554914073591e-15,
+   "targets": [
+    {
+     "name": "Box",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.547473508864641e-16,
+     "diff": {
+      "vol": 4.547473508864641e-16,
+      "area": 0,
+      "com": 4.440892098500626e-16,
+      "box": 7.86865300028694e-7,
+      "boxOut": 7.86865300028694e-7,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "Cylinder",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 8.685034650183042e-16,
+     "diff": {
+      "vol": 8.685034650183042e-16,
+      "area": 7.237528875152536e-16,
+      "com": 3.54587822790367e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "CylinderPart",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "CylinderPart (Part::Cylinder): primitiveAngle: a partial cylinder / cone is not mapped; noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle",
+      "primitiveAngle:CylinderPart",
+      "noFeatures:CylinderPart"
+     ]
+    },
+    {
+     "name": "Sphere",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.513030859427964e-16,
+     "diff": {
+      "vol": 2.513030859427964e-16,
+      "area": 2.513030859427964e-16,
+      "com": 1.6580186040286538e-16,
+      "box": 0.0005053558356664244,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "Cone",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2407192357404348e-16,
+     "diff": {
+      "vol": 1.2407192357404348e-16,
+      "area": 3.7089525858339892e-16,
+      "com": 1.3663068581307086e-15,
+      "box": 0.012032617801995422,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "Torus",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 7.679256641672341e-16,
+     "diff": {
+      "vol": 7.679256641672341e-16,
+      "area": 1.919814160418085e-16,
+      "com": 4.164934720752217e-16,
+      "box": 0.8420388652947624,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "Wedge",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Wedge (Part::Wedge): unsupportedObject: Part::Wedge is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle",
+      "unsupportedObject:Wedge",
+      "noFeatures:Wedge"
+     ]
+    },
+    {
+     "name": "Prism",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.552554914073591e-15,
+     "diff": {
+      "vol": 2.552554914073591e-15,
+      "area": 2.285950015049628e-15,
+      "com": 5.029545063878052e-16,
+      "box": 0.000007787989126444205,
+      "boxOut": 0.000007786406229115528,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle"
+     ]
+    },
+    {
+     "name": "Ellipsoid",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Ellipsoid (Part::Ellipsoid): unsupportedObject: Part::Ellipsoid is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle",
+      "unsupportedObject:Ellipsoid",
+      "noFeatures:Ellipsoid"
+     ]
+    },
+    {
+     "name": "Plane",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Plane (Part::Plane): unsupportedObject: Part::Plane is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle",
+      "unsupportedObject:Plane",
+      "noFeatures:Plane"
+     ]
+    },
+    {
+     "name": "Helix",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Helix (Part::Helix): unsupportedObject: Part::Helix is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Circle",
+      "unsupportedObject:Helix",
+      "noFeatures:Helix"
+     ]
+    },
+    {
+     "name": "Circle",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Circle (Part::Circle): unsupportedObject: Part::Circle is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cylinder",
+      "unsupportedObject:CylinderPart",
+      "unsupportedObject:Sphere",
+      "unsupportedObject:Cone",
+      "unsupportedObject:Torus",
+      "unsupportedObject:Wedge",
+      "unsupportedObject:Prism",
+      "unsupportedObject:Ellipsoid",
+      "unsupportedObject:Plane",
+      "unsupportedObject:Helix",
+      "unsupportedObject:Circle",
+      "noFeatures:Circle"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "CylinderPart: CylinderPart (Part::Cylinder): primitiveAngle: a partial cylinder / cone is not mapped; noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "Box.Length, Cylinder.Radius, CylinderPart.Angle",
+    "problemB": "CylinderPart: CylinderPart not imported | Wedge: Wedge not imported | Ellipsoid: Ellipsoid not imported | Plane: Plane not imported | Helix: Helix not imported | Circle: Circle not imported"
+   }
+  },
+  {
+   "model": "61_part_boolean",
+   "cls": "UNSUPPORTED",
+   "problem": "Cut: Cut (Part::Cut): unsupportedObject: Part::Cut is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Cut",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Cut (Part::Cut): unsupportedObject: Part::Cut is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Fuse",
+      "unsupportedObject:Common",
+      "unsupportedObject:MultiFuse",
+      "unsupportedObject:MultiCommon",
+      "unsupportedObject:Section",
+      "unsupportedObject:Cut",
+      "noFeatures:Cut"
+     ]
+    },
+    {
+     "name": "Fuse",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Fuse (Part::Fuse): unsupportedObject: Part::Fuse is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Cut",
+      "unsupportedObject:Common",
+      "unsupportedObject:MultiFuse",
+      "unsupportedObject:MultiCommon",
+      "unsupportedObject:Section",
+      "unsupportedObject:Fuse",
+      "noFeatures:Fuse"
+     ]
+    },
+    {
+     "name": "Common",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Common (Part::Common): unsupportedObject: Part::Common is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Cut",
+      "unsupportedObject:Fuse",
+      "unsupportedObject:MultiFuse",
+      "unsupportedObject:MultiCommon",
+      "unsupportedObject:Section",
+      "unsupportedObject:Common",
+      "noFeatures:Common"
+     ]
+    },
+    {
+     "name": "MultiFuse",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "MultiFuse (Part::MultiFuse): unsupportedObject: Part::MultiFuse is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Cut",
+      "unsupportedObject:Fuse",
+      "unsupportedObject:Common",
+      "unsupportedObject:MultiCommon",
+      "unsupportedObject:Section",
+      "unsupportedObject:MultiFuse",
+      "noFeatures:MultiFuse"
+     ]
+    },
+    {
+     "name": "MultiCommon",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "MultiCommon (Part::MultiCommon): unsupportedObject: Part::MultiCommon is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Cut",
+      "unsupportedObject:Fuse",
+      "unsupportedObject:Common",
+      "unsupportedObject:MultiFuse",
+      "unsupportedObject:Section",
+      "unsupportedObject:MultiCommon",
+      "noFeatures:MultiCommon"
+     ]
+    },
+    {
+     "name": "Section",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Section (Part::Section): unsupportedObject: Part::Section is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Cyl2",
+      "unsupportedObject:Cut",
+      "unsupportedObject:Fuse",
+      "unsupportedObject:Common",
+      "unsupportedObject:MultiFuse",
+      "unsupportedObject:MultiCommon",
+      "unsupportedObject:Section",
+      "noFeatures:Section"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Cut: Cut (Part::Cut): unsupportedObject: Part::Cut is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "Box.Height, Cyl.Radius",
+    "problemB": "Cut: Cut not imported | Fuse: Fuse not imported | Common: Common not imported | MultiFuse: MultiFuse not imported | MultiCommon: MultiCommon not imported | Section: Section not imported"
+   }
+  },
+  {
+   "model": "62_part_extrusion",
+   "cls": "UNSUPPORTED",
+   "problem": "ExStraight: ExStraight (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "ExStraight",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExStraight (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExTaper",
+      "unsupportedObject:ExSym",
+      "unsupportedObject:ExTwo",
+      "unsupportedObject:ExCustom",
+      "unsupportedObject:ExHollow",
+      "unsupportedObject:ExStraight",
+      "noFeatures:ExStraight"
+     ]
+    },
+    {
+     "name": "ExTaper",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExTaper (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExStraight",
+      "unsupportedObject:ExSym",
+      "unsupportedObject:ExTwo",
+      "unsupportedObject:ExCustom",
+      "unsupportedObject:ExHollow",
+      "unsupportedObject:ExTaper",
+      "noFeatures:ExTaper"
+     ]
+    },
+    {
+     "name": "ExSym",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExSym (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExStraight",
+      "unsupportedObject:ExTaper",
+      "unsupportedObject:ExTwo",
+      "unsupportedObject:ExCustom",
+      "unsupportedObject:ExHollow",
+      "unsupportedObject:ExSym",
+      "noFeatures:ExSym"
+     ]
+    },
+    {
+     "name": "ExTwo",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExTwo (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExStraight",
+      "unsupportedObject:ExTaper",
+      "unsupportedObject:ExSym",
+      "unsupportedObject:ExCustom",
+      "unsupportedObject:ExHollow",
+      "unsupportedObject:ExTwo",
+      "noFeatures:ExTwo"
+     ]
+    },
+    {
+     "name": "ExCustom",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExCustom (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExStraight",
+      "unsupportedObject:ExTaper",
+      "unsupportedObject:ExSym",
+      "unsupportedObject:ExTwo",
+      "unsupportedObject:ExHollow",
+      "unsupportedObject:ExCustom",
+      "noFeatures:ExCustom"
+     ]
+    },
+    {
+     "name": "ExHollow",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ExHollow (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:ExStraight",
+      "unsupportedObject:ExTaper",
+      "unsupportedObject:ExSym",
+      "unsupportedObject:ExTwo",
+      "unsupportedObject:ExCustom",
+      "unsupportedObject:ExHollow",
+      "noFeatures:ExHollow"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "ExStraight: ExStraight (Part::Extrusion): unsupportedObject: Part::Extrusion is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "ExStraight.LengthFwd, ExTaper.TaperAngle",
+    "problemB": "ExStraight: ExStraight not imported | ExTaper: ExTaper not imported | ExSym: ExSym not imported | ExTwo: ExTwo not imported | ExCustom: ExCustom not imported | ExHollow: ExHollow not imported"
+   }
+  },
+  {
+   "model": "63_part_revolution",
+   "cls": "UNSUPPORTED",
+   "problem": "Rev360: Rev360 (Part::Revolution): unsupportedObject: Part::Revolution is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Rev360",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Rev360 (Part::Revolution): unsupportedObject: Part::Revolution is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Rev90",
+      "unsupportedObject:RevShell",
+      "unsupportedObject:Rev360",
+      "noFeatures:Rev360"
+     ]
+    },
+    {
+     "name": "Rev90",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Rev90 (Part::Revolution): unsupportedObject: Part::Revolution is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Rev360",
+      "unsupportedObject:RevShell",
+      "unsupportedObject:Rev90",
+      "noFeatures:Rev90"
+     ]
+    },
+    {
+     "name": "RevShell",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "RevShell (Part::Revolution): unsupportedObject: Part::Revolution is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Rev360",
+      "unsupportedObject:Rev90",
+      "unsupportedObject:RevShell",
+      "noFeatures:RevShell"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Rev360: Rev360 (Part::Revolution): unsupportedObject: Part::Revolution is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "Rev90.Angle",
+    "problemB": "Rev360: Rev360 not imported | Rev90: Rev90 not imported | RevShell: RevShell not imported"
+   }
+  },
+  {
+   "model": "64_part_fillet_chamfer",
+   "cls": "UNSUPPORTED",
+   "problem": "FilletConst: FilletConst (Part::Fillet): unsupportedObject: Part::Fillet is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "FilletConst",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "FilletConst (Part::Fillet): unsupportedObject: Part::Fillet is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxA",
+      "unsupportedObject:BoxB",
+      "unsupportedObject:BoxC",
+      "unsupportedObject:BoxD",
+      "unsupportedObject:FilletVar",
+      "unsupportedObject:ChamferEq",
+      "unsupportedObject:ChamferTwo",
+      "unsupportedObject:FilletConst",
+      "noFeatures:FilletConst"
+     ]
+    },
+    {
+     "name": "FilletVar",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "FilletVar (Part::Fillet): unsupportedObject: Part::Fillet is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxA",
+      "unsupportedObject:BoxB",
+      "unsupportedObject:BoxC",
+      "unsupportedObject:BoxD",
+      "unsupportedObject:FilletConst",
+      "unsupportedObject:ChamferEq",
+      "unsupportedObject:ChamferTwo",
+      "unsupportedObject:FilletVar",
+      "noFeatures:FilletVar"
+     ]
+    },
+    {
+     "name": "ChamferEq",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ChamferEq (Part::Chamfer): unsupportedObject: Part::Chamfer is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxA",
+      "unsupportedObject:BoxB",
+      "unsupportedObject:BoxC",
+      "unsupportedObject:BoxD",
+      "unsupportedObject:FilletConst",
+      "unsupportedObject:FilletVar",
+      "unsupportedObject:ChamferTwo",
+      "unsupportedObject:ChamferEq",
+      "noFeatures:ChamferEq"
+     ]
+    },
+    {
+     "name": "ChamferTwo",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ChamferTwo (Part::Chamfer): unsupportedObject: Part::Chamfer is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxA",
+      "unsupportedObject:BoxB",
+      "unsupportedObject:BoxC",
+      "unsupportedObject:BoxD",
+      "unsupportedObject:FilletConst",
+      "unsupportedObject:FilletVar",
+      "unsupportedObject:ChamferEq",
+      "unsupportedObject:ChamferTwo",
+      "noFeatures:ChamferTwo"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "FilletConst: FilletConst (Part::Fillet): unsupportedObject: Part::Fillet is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "BoxA.Height, FilletConst.Edges",
+    "problemB": "FilletConst: FilletConst not imported | FilletVar: FilletVar not imported | ChamferEq: ChamferEq not imported | ChamferTwo: ChamferTwo not imported"
+   }
+  },
+  {
+   "model": "65_part_mirror",
+   "cls": "UNSUPPORTED",
+   "problem": "MirrorYZ: MirrorYZ (Part::Mirroring): unsupportedObject: Part::Mirroring is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "MirrorYZ",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "MirrorYZ (Part::Mirroring): unsupportedObject: Part::Mirroring is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:MirrorOblique",
+      "unsupportedObject:MirrorYZ",
+      "noFeatures:MirrorYZ"
+     ]
+    },
+    {
+     "name": "MirrorOblique",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "MirrorOblique (Part::Mirroring): unsupportedObject: Part::Mirroring is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:MirrorYZ",
+      "unsupportedObject:MirrorOblique",
+      "noFeatures:MirrorOblique"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "MirrorYZ: MirrorYZ (Part::Mirroring): unsupportedObject: Part::Mirroring is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "Box.Length, MirrorYZ.Base",
+    "problemB": "MirrorYZ: MirrorYZ not imported | MirrorOblique: MirrorOblique not imported"
+   }
+  },
+  {
+   "model": "66_part_loft",
+   "cls": "UNSUPPORTED",
+   "problem": "LoftRuled: LoftRuled (Part::Loft): unsupportedObject: Part::Loft is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "LoftRuled",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "LoftRuled (Part::Loft): unsupportedObject: Part::Loft is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:LoftOpen",
+      "unsupportedObject:LoftThreeSmooth",
+      "unsupportedObject:LoftRuled",
+      "noFeatures:LoftRuled"
+     ]
+    },
+    {
+     "name": "LoftOpen",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "LoftOpen (Part::Loft): unsupportedObject: Part::Loft is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:LoftRuled",
+      "unsupportedObject:LoftThreeSmooth",
+      "unsupportedObject:LoftOpen",
+      "noFeatures:LoftOpen"
+     ]
+    },
+    {
+     "name": "LoftThreeSmooth",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "LoftThreeSmooth (Part::Loft): unsupportedObject: Part::Loft is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:LoftRuled",
+      "unsupportedObject:LoftOpen",
+      "unsupportedObject:LoftThreeSmooth",
+      "noFeatures:LoftThreeSmooth"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "LoftRuled: LoftRuled (Part::Loft): unsupportedObject: Part::Loft is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "B.Placement",
+    "problemB": "LoftRuled: LoftRuled not imported | LoftOpen: LoftOpen not imported | LoftThreeSmooth: LoftThreeSmooth not imported"
+   }
+  },
+  {
+   "model": "67_part_sweep",
+   "cls": "UNSUPPORTED",
+   "problem": "SweepLine: SweepLine (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "SweepLine",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "SweepLine (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:SpineHelix",
+      "unsupportedObject:SweepArc",
+      "unsupportedObject:SweepArcFrenet",
+      "unsupportedObject:SweepHelix",
+      "unsupportedObject:SweepLine",
+      "noFeatures:SweepLine"
+     ]
+    },
+    {
+     "name": "SweepArc",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "SweepArc (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:SpineHelix",
+      "unsupportedObject:SweepLine",
+      "unsupportedObject:SweepArcFrenet",
+      "unsupportedObject:SweepHelix",
+      "unsupportedObject:SweepArc",
+      "noFeatures:SweepArc"
+     ]
+    },
+    {
+     "name": "SweepArcFrenet",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "SweepArcFrenet (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:SpineHelix",
+      "unsupportedObject:SweepLine",
+      "unsupportedObject:SweepArc",
+      "unsupportedObject:SweepHelix",
+      "unsupportedObject:SweepArcFrenet",
+      "noFeatures:SweepArcFrenet"
+     ]
+    },
+    {
+     "name": "SweepHelix",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "SweepHelix (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:SpineHelix",
+      "unsupportedObject:SweepLine",
+      "unsupportedObject:SweepArc",
+      "unsupportedObject:SweepArcFrenet",
+      "unsupportedObject:SweepHelix",
+      "noFeatures:SweepHelix"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "SweepLine: SweepLine (Part::Sweep): unsupportedObject: Part::Sweep is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "Profile.Constraints.R",
+    "problemB": "SweepLine: SweepLine not imported | SweepArc: SweepArc not imported | SweepArcFrenet: SweepArcFrenet not imported | SweepHelix: SweepHelix not imported"
+   }
+  },
+  {
+   "model": "68_part_offset",
+   "cls": "UNSUPPORTED",
+   "problem": "OffArc: OffArc (Part::Offset): unsupportedObject: Part::Offset is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "OffArc",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "OffArc (Part::Offset): unsupportedObject: Part::Offset is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:OffInter",
+      "unsupportedObject:OffIn",
+      "unsupportedObject:Off2D",
+      "unsupportedObject:Off2DInter",
+      "unsupportedObject:OffArc",
+      "noFeatures:OffArc"
+     ]
+    },
+    {
+     "name": "OffInter",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "OffInter (Part::Offset): unsupportedObject: Part::Offset is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:OffArc",
+      "unsupportedObject:OffIn",
+      "unsupportedObject:Off2D",
+      "unsupportedObject:Off2DInter",
+      "unsupportedObject:OffInter",
+      "noFeatures:OffInter"
+     ]
+    },
+    {
+     "name": "OffIn",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "OffIn (Part::Offset): unsupportedObject: Part::Offset is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:OffArc",
+      "unsupportedObject:OffInter",
+      "unsupportedObject:Off2D",
+      "unsupportedObject:Off2DInter",
+      "unsupportedObject:OffIn",
+      "noFeatures:OffIn"
+     ]
+    },
+    {
+     "name": "Off2D",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Off2D (Part::Offset2D): unsupportedObject: Part::Offset2D is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:OffArc",
+      "unsupportedObject:OffInter",
+      "unsupportedObject:OffIn",
+      "unsupportedObject:Off2DInter",
+      "unsupportedObject:Off2D",
+      "noFeatures:Off2D"
+     ]
+    },
+    {
+     "name": "Off2DInter",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "Off2DInter (Part::Offset2D): unsupportedObject: Part::Offset2D is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:OffArc",
+      "unsupportedObject:OffInter",
+      "unsupportedObject:OffIn",
+      "unsupportedObject:Off2D",
+      "unsupportedObject:Off2DInter",
+      "noFeatures:Off2DInter"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "OffArc: OffArc (Part::Offset): unsupportedObject: Part::Offset is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "OffInter.Value, Off2D.Value",
+    "problemB": "OffArc: OffArc not imported | OffInter: OffInter not imported | OffIn: OffIn not imported | Off2D: Off2D not imported | Off2DInter: Off2DInter not imported"
+   }
+  },
+  {
+   "model": "69_part_thickness",
+   "cls": "UNSUPPORTED",
+   "problem": "ThickIn: ThickIn (Part::Thickness): unsupportedObject: Part::Thickness is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "ThickIn",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ThickIn (Part::Thickness): unsupportedObject: Part::Thickness is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxIn",
+      "unsupportedObject:BoxOut",
+      "unsupportedObject:BoxArc",
+      "unsupportedObject:ThickOut",
+      "unsupportedObject:ThickArc",
+      "unsupportedObject:ThickIn",
+      "noFeatures:ThickIn"
+     ]
+    },
+    {
+     "name": "ThickOut",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ThickOut (Part::Thickness): unsupportedObject: Part::Thickness is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxIn",
+      "unsupportedObject:BoxOut",
+      "unsupportedObject:BoxArc",
+      "unsupportedObject:ThickIn",
+      "unsupportedObject:ThickArc",
+      "unsupportedObject:ThickOut",
+      "noFeatures:ThickOut"
+     ]
+    },
+    {
+     "name": "ThickArc",
+     "kind": "part",
+     "cls": "UNSUPPORTED",
+     "problem": "ThickArc (Part::Thickness): unsupportedObject: Part::Thickness is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+     "volDiff": null,
+     "warnings": [
+      "unsupportedObject:BoxIn",
+      "unsupportedObject:BoxOut",
+      "unsupportedObject:BoxArc",
+      "unsupportedObject:ThickIn",
+      "unsupportedObject:ThickOut",
+      "unsupportedObject:ThickArc",
+      "noFeatures:ThickArc"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "ThickIn: ThickIn (Part::Thickness): unsupportedObject: Part::Thickness is not imported (Part workbench objects other than the primitives are not mapped yet); noFeatures: no PartDesign feature could be mapped (the body may be built from a loft, pipe, binder, Part workbench objects or imported shapes)",
+    "change": "ThickIn.Value",
+    "problemB": "ThickIn: ThickIn not imported | ThickOut: ThickOut not imported | ThickArc: ThickArc not imported"
+   }
+  },
+  {
+   "model": "70_body_tip_rolled_back",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.772365956292604e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.772365956292604e-16,
+     "diff": {
+      "vol": 4.772365956292604e-16,
+      "area": 3.9001518649813916e-16,
+      "com": 3.972054645195637e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "afterTip:Body"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "NA",
+    "problemA": "",
+    "change": "",
+    "problemB": "no parameter change found in the dumps"
+   }
+  },
+  {
+   "model": "71_two_bodies_placed",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "BodyA",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyA",
+      "bodyPlacement:BodyA"
+     ]
+    },
+    {
+     "name": "BodyB",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyB",
+      "bodyPlacement:BodyB"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "NA",
+    "problemA": "",
+    "change": "PadA.Length, BodyB.Placement",
+    "problemB": "the importer has no parameter for BodyB.Placement"
+   }
+  },
+  {
+   "model": "72_app_part_nesting",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 9.094947017729285e-16,
+   "targets": [
+    {
+     "name": "BodyInSub",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyInSub",
+      "bodyPlacement:BodyInSub",
+      "unsupportedObject:Assembly",
+      "unsupportedObject:SubPart"
+     ]
+    },
+    {
+     "name": "BodyInAsm",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 5.684341886080803e-16,
+      "com": 1.2560739669470201e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyInAsm",
+      "unsupportedObject:Assembly",
+      "unsupportedObject:SubPart"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Assembly.Placement, PadInSub.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "73_link_scaled_placed",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Src",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:LinkA",
+      "unsupportedObject:LinkB",
+      "unsupportedObject:LinkC",
+      "unsupportedObject:LinkBox"
+     ]
+    }
+   ],
+   "note": "Part objects not compared in a Body model: Box",
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Pad.Length, LinkB.Scale, LinkB.ScaleVector",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "74_link_array",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Src",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Array",
+      "unsupportedObject:Array_i0",
+      "unsupportedObject:Array_i1",
+      "unsupportedObject:Array_i2",
+      "unsupportedObject:Group",
+      "unsupportedObject:InGroup1",
+      "unsupportedObject:InGroup2"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Pad.Length, Array.ElementCount, Array.ElementList, Array.VisibilityList",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "75_groups",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.0177774980683258e-15,
+   "targets": [
+    {
+     "name": "Box",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 5.684341886080803e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Sph"
+     ]
+    },
+    {
+     "name": "Cyl",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.0177774980683258e-15,
+     "diff": {
+      "vol": 1.0177774980683258e-15,
+      "area": 3.7695462891419464e-16,
+      "com": 6.559498433105244e-17,
+      "box": 0.004603773129516469,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Sph"
+     ]
+    },
+    {
+     "name": "Sph",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.1712586625457603e-16,
+     "diff": {
+      "vol": 2.1712586625457603e-16,
+      "area": 3.6187644375762673e-16,
+      "com": 1.655149810339735e-16,
+      "box": 0.00041979980808456606,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Box.Length, Cyl.Radius",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "76_link_to_part",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Inner",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Unit",
+      "unsupportedObject:Link1",
+      "unsupportedObject:Link2"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Unit.Placement",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "77_body_in_part_origin",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "bodyPlacement:Body",
+      "unsupportedObject:Part"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Part.Placement",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "78_compound_and_clone",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.0316490059097607e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "unsupportedObject:Compound",
+      "unsupportedObject:PlainShape"
+     ]
+    }
+   ],
+   "note": "Part objects not compared in a Body model: Compound, PlainShape",
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Box.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "79_whole_shape_pattern",
+   "cls": "UNSUPPORTED",
+   "problem": "Body: Pattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane XZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped",
+   "volDiff": null,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "UNSUPPORTED",
+     "problem": "Pattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane XZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped",
+     "volDiff": null,
+     "warnings": [
+      "pattern:Pattern",
+      "mirror:Mirrored"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "UNSUPPORTED",
+    "b": "UNSUPPORTED",
+    "problemA": "Body: Pattern (LinearPattern): pattern: pattern direction X_Axis. (only origin axes and sketch axes through the origin are mapped) or originals not mapped | Mirrored (Mirrored): mirror: mirror plane XZ_Plane. (only origin planes and sketch axes along a coordinate plane are mapped) or originals not mapped",
+    "change": "Pattern.Occurrences",
+    "problemB": "Body: Pattern,Mirrored not imported"
+   }
+  },
+  {
+   "model": "80_spreadsheet_params",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.772365956292604e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.772365956292604e-16,
+     "diff": {
+      "vol": 4.772365956292604e-16,
+      "area": 3.9001518649813916e-16,
+      "com": 3.972054645195637e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Params.alias:width, Params.alias:depth, Params.alias:hole",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "81_varset_params",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.5158245029548813e-15,
+   "targets": [
+    {
+     "name": "BodyBlock",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.0316490059097607e-16,
+     "diff": {
+      "vol": 3.0316490059097607e-16,
+      "area": 0,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyBlock"
+     ]
+    },
+    {
+     "name": "BodyPattern",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5158245029548813e-15,
+     "diff": {
+      "vol": 1.5158245029548813e-15,
+      "area": 5.052748343182936e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPattern"
+     ]
+    },
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2062548125254228e-16,
+     "diff": {
+      "vol": 1.2062548125254228e-16,
+      "area": 0,
+      "com": 2.0350724194510405e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Vars.Ang, Vars.Cnt, Vars.Wd",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "82_custom_property_refs",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 3.1579677144893343e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.1579677144893343e-16,
+     "diff": {
+      "vol": 3.1579677144893343e-16,
+      "area": 3.643808901333847e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box"
+     ]
+    }
+   ],
+   "note": "Part objects not compared in a Body model: Box",
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Settings.Count, Settings.Wall, Box.Scale",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "83_expr_units_functions",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 0,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 1.7490282726402469e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "unsupportedObject:Box",
+      "expressions:Pad2"
+     ]
+    }
+   ],
+   "note": "Part objects not compared in a Body model: Box",
+   "variant": {
+    "a": "EXACT",
+    "b": "MISMATCH",
+    "problemA": "",
+    "change": "Sketch.Constraints.Width, Pad.Length",
+    "problemB": "Body: vol 0.143, area 0.0676, com 0.951mm, box out 2.00mm"
+   }
+  },
+  {
+   "model": "84_expr_cross_object",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 4.81596347245395e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 4.81596347245395e-16,
+     "diff": {
+      "vol": 4.81596347245395e-16,
+      "area": 0,
+      "com": 6.217248937900877e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Sketch.Constraints.Width, Pad.Length",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "85_expr_other_features",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 9.094947017729285e-16,
+   "targets": [
+    {
+     "name": "BodyRev",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.2062548125254228e-16,
+     "diff": {
+      "vol": 1.2062548125254228e-16,
+      "area": 0,
+      "com": 2.0350724194510405e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyRev"
+     ]
+    },
+    {
+     "name": "BodyFillet",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5289491144764198e-16,
+     "diff": {
+      "vol": 1.5289491144764198e-16,
+      "area": 2.119973062607835e-16,
+      "com": 3.552713678800501e-15,
+      "box": 6.280369834735101e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyFillet"
+     ]
+    },
+    {
+     "name": "BodyHole",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 3.1504169259536103e-16,
+     "diff": {
+      "vol": 3.1504169259536103e-16,
+      "area": 0,
+      "com": 3.076740298213702e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyHole"
+     ]
+    },
+    {
+     "name": "BodyThick",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 8.668045763859216e-16,
+     "diff": {
+      "vol": 8.668045763859216e-16,
+      "area": 0,
+      "com": 7.588599744428075e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyThick"
+     ]
+    },
+    {
+     "name": "BodyChamfer",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5234417115124427e-16,
+     "diff": {
+      "vol": 1.5234417115124427e-16,
+      "area": 0,
+      "com": 5.329070518200751e-15,
+      "box": 4.432091043996111e-16,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyChamfer"
+     ]
+    },
+    {
+     "name": "BodyLift",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 4.263256414560602e-16,
+      "com": 1.2560739669470201e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyLift"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Params.alias:angle, Params.alias:radius, Params.alias:dia, Params.alias:lift",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "86_spreadsheet_formulas",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 2.078845032623836e-16,
+   "targets": [
+    {
+     "name": "Box",
+     "kind": "part",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.078845032623836e-16,
+     "diff": {
+      "vol": 2.078845032623836e-16,
+      "area": 1.9350951101551664e-16,
+      "com": 4.440892098500626e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": []
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Data.alias:a, Data.alias:w",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "87_expr_placement_parts",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.5158245029548813e-15,
+   "targets": [
+    {
+     "name": "Src",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 9.094947017729285e-16,
+     "diff": {
+      "vol": 9.094947017729285e-16,
+      "area": 5.684341886080803e-16,
+      "com": 6.280369834735101e-16,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:Src",
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Link"
+     ]
+    },
+    {
+     "name": "BodyPat",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.5158245029548813e-15,
+     "diff": {
+      "vol": 1.5158245029548813e-15,
+      "area": 5.052748343182936e-16,
+      "com": 0,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPat",
+      "unsupportedObject:Box",
+      "unsupportedObject:Cyl",
+      "unsupportedObject:Link"
+     ]
+    }
+   ],
+   "note": "Part objects not compared in a Body model: Box, Cyl",
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Params.alias:step, Params.alias:tilt, Params.alias:scale, Params.alias:span, Link.ScaleVector",
+    "problemB": ""
+   }
+  },
+  {
+   "model": "88_config_table",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 1.0395101263763248e-15,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 1.0395101263763248e-15,
+     "diff": {
+      "vol": 1.0395101263763248e-15,
+      "area": 2.0322095516761066e-16,
+      "com": 2.220446049250313e-15,
+      "box": 0,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "expressions:Config",
+      "expressions:Config",
+      "expressions:Config",
+      "expressions:Config"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "MISMATCH",
+    "problemA": "",
+    "change": "Config.alias:select",
+    "problemB": "Body: vol 0.875, area 0.750, com 22.9mm, box 45.0mm"
+   }
+  },
+  {
+   "model": "89_expr_angles_sketch",
+   "cls": "EXACT",
+   "problem": "",
+   "volDiff": 2.827159716856461e-16,
+   "targets": [
+    {
+     "name": "Body",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 0,
+     "diff": {
+      "vol": 0,
+      "area": 2.15966267434298e-16,
+      "com": 1.9860273225978185e-15,
+      "box": 8.812204086439124e-7,
+      "boxOut": 8.812204086439124e-7,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:Body"
+     ]
+    },
+    {
+     "name": "BodyPolar",
+     "kind": "body",
+     "cls": "EXACT",
+     "problem": "",
+     "volDiff": 2.827159716856461e-16,
+     "diff": {
+      "vol": 2.827159716856461e-16,
+      "area": 3.769546289141946e-16,
+      "com": 3.0144076252609888e-15,
+      "box": 6.217248937900877e-15,
+      "boxOut": 0,
+      "solids": null,
+      "faces": null
+     },
+     "warnings": [
+      "multipleBodies:BodyPolar"
+     ]
+    }
+   ],
+   "variant": {
+    "a": "EXACT",
+    "b": "EXACT",
+    "problemA": "",
+    "change": "Params.alias:ang, Params.alias:len, Params.alias:n",
+    "problemB": ""
+   }
+  }
+ ]
+}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultCutRegions, regionsFor, shapeAtPoint, sketchOpenChains, sketchShapes } from './shapes';
+import { ringPetals } from './tools/petals-fixture';
+import { defaultCutRegions, defaultShapeIds, regionsFor, shapeAtPoint, sketchOpenChains, sketchShapes, toggleRegion } from './shapes';
 
 const rect = [
   { id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' },
@@ -122,5 +123,150 @@ describe('coincident end points join without sharing ids', () => {
     sk.points.find((p) => p.id === 'p5')!.x += 0.01;
     expect(sketchShapes(sk)).toEqual([]);
     expect(sketchOpenChains(sk)).toHaveLength(1);
+  });
+});
+
+import { petalSketch } from './tools/petals-fixture';
+describe('loops that share end points (petals from one origin)', () => {
+  it('five petals meeting at the origin are five shapes, the construction ring is none', () => {
+    const sh = sketchShapes(petalSketch(5) as never);
+    expect(sh).toHaveLength(5);
+    expect(sh.map((s) => s.entityIds.slice().sort())).toEqual([0, 1, 2, 3, 4].map((i) => [`a${i}`, `l${i}a`, `l${i}b`].sort()));
+    expect(sh.every((s) => s.kind === 'loop' && s.inside === undefined)).toBe(true);
+    expect(new Set(sh.map((s) => s.id)).size).toBe(5);
+  });
+  it('the same when every line has its own point at the origin, and when petals are drawn in any order', () => {
+    expect(sketchShapes(petalSketch(5, { reuseOrigin: false }) as never)).toHaveLength(5);
+    const sk = petalSketch(5);
+    sk.entities.reverse();
+    expect(sketchShapes(sk as never)).toHaveLength(5);
+  });
+  it('a click inside a petal, also in the bulge of its round end, picks that petal and nothing else; off the petals picks nothing', () => {
+    const sk = petalSketch(5) as never;
+    const shapes = sketchShapes(sk);
+    for (let i = 0; i < 5; i++) {
+      const th = (i * 2 * Math.PI) / 5;
+      for (const d of [12, 25, 33]) {   // 33 is past the tangent points: only the round end covers it
+        const got = shapeAtPoint(sk, shapes, d * Math.cos(th), d * Math.sin(th));
+        expect(got?.entityIds).toContain(`a${i}`);
+      }
+    }
+    expect(shapeAtPoint(sk, shapes, 38, 0)).toBeNull();                       // beyond the end of the petal, inside the construction ring
+    expect(shapeAtPoint(sk, shapes, 30 * Math.cos(Math.PI / 5), 30 * Math.sin(Math.PI / 5))).toBeNull();   // the gap between two petals
+    expect(shapeAtPoint(sk, shapes, 0.2, 0)?.entityIds).toBeDefined();         // at the shared origin a petal is still chosen, not nothing
+  });
+  it('each petal toggles on its own: regionsFor names exactly its id', () => {
+    const shapes = sketchShapes(petalSketch(5) as never);
+    expect(regionsFor(shapes, new Set([shapes[2].id]))).toEqual([shapes[2].id]);
+    expect(regionsFor(shapes, new Set(shapes.map((s) => s.id)))).toBeNull();
+  });
+  it('a rectangle cut by a diagonal that shares its corners is two triangles, each named by a side of its own', () => {
+    const sk = { points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 10, y: 10 }, { id: 'd', x: 0, y: 10 }],
+      entities: [...rect, { id: 'e5', type: 'line', p1: 'a', p2: 'c' }] };
+    const sh = sketchShapes(sk as never);
+    expect(sh).toHaveLength(2);
+    expect(sh.every((s) => s.id !== 'e5' && s.entityIds.includes('e5'))).toBe(true);
+    expect(sketchOpenChains(sk as never)).toEqual([]);
+  });
+  it('dangling curves on a loop are ignored, and a figure of two loops joined at one point is two shapes', () => {
+    const pts = [{ id: 'o', x: 0, y: 0 }, { id: 'a', x: 10, y: 0 }, { id: 'b', x: 10, y: 10 }, { id: 'c', x: -10, y: 0 }, { id: 'd', x: -10, y: -10 }, { id: 'z', x: 0, y: -20 }];
+    const ents = [
+      { id: 'r1', type: 'line', p1: 'o', p2: 'a' }, { id: 'r2', type: 'line', p1: 'a', p2: 'b' }, { id: 'r3', type: 'line', p1: 'b', p2: 'o' },
+      { id: 'l1', type: 'line', p1: 'o', p2: 'c' }, { id: 'l2', type: 'line', p1: 'c', p2: 'd' }, { id: 'l3', type: 'line', p1: 'd', p2: 'o' },
+      { id: 'tail', type: 'line', p1: 'o', p2: 'z' }];
+    expect(sketchShapes({ points: pts, entities: ents } as never)).toHaveLength(2);
+  });
+});
+
+describe('petals whose ends sit on a closed ring circle (T-junctions)', () => {
+  const petalIds = (s: ReturnType<typeof sketchShapes>) => s.filter((x) => /^(s\d[ab]|e\d|ax\d)/.test(x.id));
+  for (const outer of ['circle', 'arcs'] as const) {
+    it(`offers every petal as its own shape (outer as ${outer})`, () => {
+      const f = ringPetals({ outer });
+      const s = sketchShapes(f);
+      const petals = petalIds(s);
+      expect(petals).toHaveLength(6);
+      expect(new Set(s.map((x) => x.id)).size).toBe(s.length);
+      for (const p of petals) expect(p.entityIds).toContain('ring');
+      // the outer circle, the hole and the ring's disc are there too
+      expect(s.map((x) => x.id)).toEqual(expect.arrayContaining(['hole', 'ring']));
+      expect(s.some((x) => x.id === 'outer' || x.id === 'out1')).toBe(true);
+    });
+  }
+  it('works when the ring is already cut at the petal bases', () => {
+    const s = sketchShapes(ringPetals({ ringArcs: true }));
+    expect(petalIds(s)).toHaveLength(6);
+  });
+  it('petals reaching the outer circle are still separate shapes', () => {
+    expect(petalIds(sketchShapes(ringPetals({ reach: 36 })))).toHaveLength(6);
+  });
+  it('a construction centre line is not a boundary; a real one splits each petal in two', () => {
+    expect(petalIds(sketchShapes(ringPetals({ axis: 'construction' })))).toHaveLength(6);
+    expect(petalIds(sketchShapes(ringPetals({ axis: 'line' })))).toHaveLength(12);
+  });
+  it('a ring with nothing touching it stays one circle shape', () => {
+    const s = sketchShapes({ points: [{ id: 'O', x: 0, y: 0 }], entities: [{ id: 'ring', type: 'circle', c: 'O', r: 20 }] });
+    expect(s.map((x) => [x.id, x.kind])).toEqual([['ring', 'circle']]);
+  });
+});
+
+describe('the view and the Shapes list agree on petals', () => {
+  it('pointing at a petal gives the petal shape the list offers, and the ring disc is still there under the base', () => {
+    const f = ringPetals();
+    const shapes = sketchShapes(f);
+    const hit = shapeAtPoint(f as never, shapes, 27, 0);   // inside the petal on the x axis (between ring and tip)
+    expect(hit && shapes.some((x) => x.id === hit.id)).toBe(true);
+    expect(hit!.entityIds).toContain('e0');
+    expect(shapeAtPoint(f as never, shapes, 10, 0)?.id).toBe('ring');
+    expect(shapeAtPoint(f as never, shapes, 0, 0)?.id).toBe('hole');
+  });
+  it('toggleRegion: all checked is null, one off is the rest, the last one cannot be switched off', () => {
+    const all = ['a', 'b', 'c'];
+    expect(toggleRegion(all, null, 'b')).toEqual(['a', 'c']);
+    expect(toggleRegion(all, ['a', 'c'], 'b')).toBeNull();
+    expect(toggleRegion(all, ['a'], 'a')).toBeUndefined();
+    expect(toggleRegion(all, ['a', 'zz'], 'c')).toEqual(['a', 'c']);
+  });
+});
+
+describe('the default ticks are the kernel default (even-odd nesting), and every box ticked fills the holes', () => {
+  const circle = (id: string, r: number) => ({ id, type: 'circle', c: 'O', r });
+  const at0 = [{ id: 'O', x: 0, y: 0 }];
+  it('a plate with a hole: the plate is ticked, the hole is not', () => {
+    const sk = { points: [{ id: 'a', x: -10, y: -10 }, { id: 'b', x: 10, y: -10 }, { id: 'c', x: 10, y: 10 }, { id: 'd', x: -10, y: 10 }, ...at0], entities: [...rect, circle('h', 3)] };
+    expect(defaultShapeIds(sketchShapes(sk as never))).toEqual(['e1']);
+  });
+  it('three concentric circles: the outer ring and the island in its hole', () => {
+    const sk = { points: at0, entities: [circle('c1', 30), circle('c2', 20), circle('c3', 10)] };
+    expect(defaultShapeIds(sketchShapes(sk as never))).toEqual(['c1', 'c3']);
+  });
+  it('petals sharing one origin are all one level: all ticked', () => {
+    const shapes = sketchShapes(petalSketch(5) as never);
+    expect(defaultShapeIds(shapes)).toEqual(shapes.map((x) => x.id));
+  });
+  it('a ring with six petals on it inside an outer circle, a hole in the middle: the outer circle and the hole are ticked', () => {
+    const shapes = sketchShapes(ringPetals());
+    expect(defaultShapeIds(shapes).sort()).toEqual(['hole', 'outer']);
+  });
+  it('a ring split by a chord ending on it is one level: neither half is a hole of the other', () => {
+    const sk = { points: [...at0, { id: 'u', x: -12, y: 16 }, { id: 'w', x: -12, y: -16 }], entities: [circle('outer', 40), circle('ring', 20), { id: 'ch', type: 'line', p1: 'u', p2: 'w' }, circle('hole', 4)] };
+    const shapes = sketchShapes(sk as never);
+    expect(shapes.length).toBe(4);   // the outer circle, the two parts of the ring's disc, the hole
+    expect(defaultShapeIds(shapes).sort()).toEqual(['hole', 'outer']);
+  });
+  it('regionsFor: the default ticks are null, every box ticked lists every shape, all but the hole lists the rest', () => {
+    const shapes = sketchShapes(ringPetals());
+    const all = shapes.map((x) => x.id);
+    const defaults = defaultShapeIds(shapes);
+    expect(regionsFor(shapes, new Set(defaults), defaults)).toBeNull();
+    expect(regionsFor(shapes, new Set(all), defaults)).toEqual(all);
+    expect(regionsFor(shapes, new Set(all.filter((x) => x !== 'hole')), defaults)).toEqual(all.filter((x) => x !== 'hole'));
+  });
+  it('toggleRegion: from no regions the defaults are ticked; ticking the hole lists everything; unticking it again is null', () => {
+    const all = ['plate', 'hole'];
+    expect(toggleRegion(all, undefined, 'hole', ['plate'])).toEqual(['plate', 'hole']);
+    expect(toggleRegion(all, ['plate', 'hole'], 'hole', ['plate'])).toBeNull();
+    expect(toggleRegion(all, undefined, 'plate', ['plate'])).toBeUndefined();   // the last ticked box stays
+    expect(toggleRegion(all, ['plate'], 'plate', ['plate'])).toBeUndefined();
   });
 });

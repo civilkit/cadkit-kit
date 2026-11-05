@@ -127,7 +127,7 @@ describe('import and export commands', () => {
   it('lists every format as its own command that exports that format', () => {
     const a = io();
     const cmds = buildCommands(actions({ io: a, hasDocument: () => true }));
-    expect(EXPORT_KINDS).toEqual(['stl', 'stl-ascii', 'obj', 'step', 'dxf-sketch', 'dxf-views']);
+    expect(EXPORT_KINDS).toEqual(['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views']);
     for (const k of EXPORT_KINDS) cmds.find((c) => c.id === `export-${k}`)!.run();
     expect((a.exportAs as ReturnType<typeof vi.fn>).mock.calls.map((x) => x[0])).toEqual(EXPORT_KINDS);
   });

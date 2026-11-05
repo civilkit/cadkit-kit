@@ -179,3 +179,67 @@ describe('a round shape shows one diameter', () => {
     expect(sh.diameter).toBe(false);
   });
 });
+
+// a dome-ended cylinder: the outline beside a vertical axis (line e1), a wall (e3) and two half-circle ends, revolved 360 degrees
+const domeSketch = (extra: unknown[] = [], over: Record<string, unknown> = {}) => ({ type: 'sketch', id: 'F2', plane: { kind: 'std', id: 'front' },
+  points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 0, y: 80 }, { id: 'p2', x: -70, y: 80 }, { id: 'p3', x: -35, y: 80 }, { id: 'p4', x: -70, y: 0 }, { id: 'p5', x: -35, y: 0 }],
+  entities: [{ id: 'e1', type: 'line', p1: 'O', p2: 'p1' }, { id: 'e2', type: 'arc', c: 'p3', p1: 'p1', p2: 'p2' }, { id: 'e3', type: 'line', p1: 'p2', p2: 'p4' }, { id: 'e4', type: 'arc', c: 'p5', p1: 'p4', p2: 'O' }],
+  constraints: [{ id: 'k1', type: 'vertical', refs: ['e1'] }, { id: 'k2', type: 'tangent', refs: ['e1', 'e2'], at: 'p1' }, { id: 'k3', type: 'vertical', refs: ['e3'] }, { id: 'k4', type: 'tangent', refs: ['e3', 'e4'], at: 'p4' }, ...extra], ...over });
+const domeDoc = (sk: unknown = domeSketch(), rev: Record<string, unknown> = {}): PartDoc => ({ format: 'ck-part', version: 1, name: 'x', material: 'steel', counters: {}, rollback: null, seq: 5,
+  features: [sk, { type: 'revolve', op: 'add', sketch: 'F2', axis: 'e1', end: 'blind', angle: 360, id: 'F3', ...rev }] }) as unknown as PartDoc;
+const domePlan = (d: PartDoc, mode: 'opposite' | 'symmetric' | 'anchor' = 'opposite') => planSizeBox({ doc: d, shapeId: 'F3', frameOf: () => frame, bodyBox: null, mode })!;
+const sketchOf = (c: { ops: unknown[] } | null) => (c!.ops[0] as { feature: any }).feature;
+const pt = (sk: any, id: string) => sk.points.find((p: any) => p.id === id);
+
+describe('a revolved dome-ended cylinder (the owner\'s kind of part)', () => {
+  it('its labels say what they measure: the radius (R70) and the length along the axis incl. the round ends (150), each on a handle that exists', () => {
+    const s = domePlan(domeDoc());
+    const lw = s.specs.find((x) => x.id === 'lw')!, ll = s.specs.find((x) => x.id === 'll')!;
+    expect(lw.text).toBe('R70'); expect(lw.forId).toBe('u0');
+    expect(ll.text).toBe('150'); expect(ll.forId).toBe('v1');
+    const ids = s.specs.map((x) => x.id);
+    expect(ids).toEqual(expect.arrayContaining(['u0', 'v0', 'v1'])); expect(ids).not.toContain('u1');   // no handle on the axis
+  });
+  it('typing a radius of 60 moves the wall and the round ends, keeps the axis, and the tangent / vertical constraints hold', () => {
+    const c = domePlan(domeDoc()).commit('u0', 60, [0, 0, 0])!;
+    expect(c.refused).toBeUndefined();
+    const sk = sketchOf(c);
+    expect(pt(sk, 'p2')).toMatchObject({ x: -60, y: 80 }); expect(pt(sk, 'p4')).toMatchObject({ x: -60, y: 0 });
+    expect(pt(sk, 'p3')).toMatchObject({ x: -30, y: 80 }); expect(pt(sk, 'p5')).toMatchObject({ x: -30, y: 0 });
+    expect(pt(sk, 'O')).toMatchObject({ x: 0, y: 0, fixed: true }); expect(pt(sk, 'p1').x).toBeCloseTo(0);
+    expect(sk.constraints.map((k: any) => k.id)).toEqual(['k1', 'k2', 'k3', 'k4']);
+  });
+  it('the same typed in any Resize about mode keeps the axis', () => {
+    for (const m of ['opposite', 'symmetric', 'anchor'] as const) {
+      const sk = sketchOf(domePlan(domeDoc(), m).commit('u0', 50, [0, 0, 0]));
+      expect(pt(sk, 'p4').x).toBe(-50); expect(pt(sk, 'O').x).toBe(0);
+    }
+  });
+  it('typing 170 for the length moves the far end (the round end with it) and nothing else; Symmetric would move the pinned origin and says so', () => {
+    const sk = sketchOf(domePlan(domeDoc()).commit('v1', 170, [0, 0, 0]));
+    for (const id of ['p1', 'p2', 'p3']) expect(pt(sk, id).y).toBe(100);
+    for (const id of ['O', 'p4', 'p5']) expect(pt(sk, id).y).toBe(0);
+    const c = domePlan(domeDoc(), 'symmetric').commit('v1', 170, [0, 0, 0])!;
+    expect(c.ops).toEqual([]); expect(c.refused).toMatch(/pinned/);
+  });
+  it('dimensions in the sketch follow the new radius', () => {
+    const d = domeDoc(domeSketch([{ id: 'k5', type: 'hdist', refs: ['p4', 'O'], value: 70 }, { id: 'k6', type: 'radius', refs: ['e2'], value: 35 }, { id: 'k7', type: 'vdist', refs: ['O', 'p1'], value: 80 }]));
+    const sk = sketchOf(domePlan(d).commit('u0', 60, [0, 0, 0]));
+    expect(sk.constraints.find((k: any) => k.id === 'k5').value).toBe(60);
+    expect(sk.constraints.find((k: any) => k.id === 'k6').value).toBe(30);
+    expect(sk.constraints.find((k: any) => k.id === 'k7').value).toBe(80);
+  });
+  it('a revolve this cannot resize (oblique axis) and a size below the minimum are refused with a reason, never silently', () => {
+    const oblique = domeSketch([], { points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 10, y: 80 }, { id: 'p2', x: -70, y: 80 }, { id: 'p3', x: -35, y: 80 }, { id: 'p4', x: -70, y: 0 }, { id: 'p5', x: -35, y: 0 }] });
+    const c = domePlan(domeDoc(oblique)).commit('u0', 50, [0, 0, 0])!;
+    expect(c.ops).toEqual([]); expect(c.refused).toMatch(/revolve/);
+    const z = domePlan(domeDoc()).commit('u0', 0, [0, 0, 0])!;
+    expect(z.refused).toMatch(/too small/);
+  });
+  it('an extrude whose pinned point would have to move is refused with a reason', () => {
+    const d = doc(); (d.features as any[])[0] = { ...rect, points: rect.points.map((p: any) => (p.id === 'p1' ? { ...p, fixed: true } : p)) };
+    const s = planSizeBox({ doc: d, shapeId: 'F2', frameOf: () => frame, bodyBox: null, mode: 'opposite' })!;
+    const c = s.commit('u0', 50, [0, 0, 0])!;
+    expect(c.refused).toMatch(/pinned/);
+  });
+});

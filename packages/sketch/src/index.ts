@@ -4,6 +4,7 @@
  * to an identical feature), plus temporary drag constraints that are dropped
  * on commit and only travel with speculative previews.
  */
+import { foldEquations, isEquation } from './equation';
 
 export interface DraftPoint {
   id: string;
@@ -92,6 +93,8 @@ export function movePoint(draft: SketchDraft, id: string, x: number, y: number):
  *  temp fixes, extras) is kept. The kernel regen only re-solves on `expr`
  *  changes, so a committed draft must carry the solved coordinates itself. */
 export function foldSolution(draft: SketchDraft, solved: { points: Array<{ id: string; x: number; y: number }>; entities: Array<{ id: string; r?: number }> }): SketchDraft {
+  // equation curves: their points are the kernel's, rebuilt from the formulas (equation.ts)
+  if (draft.entities.some(isEquation)) draft = foldEquations(draft, solved);
   const pts = new Map(solved.points.map((p) => [p.id, p]));
   const ents = new Map(solved.entities.map((e) => [e.id, e]));
   return {
@@ -132,6 +135,7 @@ export * from './annotations';
 export * from './extrude';
 export * from './shapes';
 export * from './define';
+export * from './equation';
 export * from './refdims';
 export * from './slotLength';
 export * from './text';

@@ -107,6 +107,8 @@ export function FeatureTree(p: {
   reveal?: { id: string; also?: string[]; n: number; force?: boolean } | null;
   /** A folder's "select all faces of this group" button; leave out to hide it. Gets the ids of the folder's features (and the sketches tucked under them). */
   onSelectGroup?(ids: string[], name: string): void;
+  /** A folder's switch (the eye on its row): suppress the whole folder, or bring it back when all of it is suppressed. Gets the ids of the folder's features (and the sketches tucked under them). Leave out to hide it. */
+  onToggleFolder?(ids: string[], name: string): void;
   /** A row's "select in viewport" button: pick the faces the feature made (not offered on sketches and planes). */
   onSelectFaces?(id: string): void;
 }): JSX.Element {
@@ -137,8 +139,10 @@ export function FeatureTree(p: {
   type Run = { group?: string; rows: FeatureRow[]; start: number };
   const runs: Run[] = [];
   top.forEach((r, k) => { const last = runs.at(-1); if (last && last.group !== undefined && last.group === r.group) last.rows.push(r); else runs.push({ group: r.group, rows: [r], start: k }); });
+  /** A run is a folder when it has two rows, or one row with a sketch tucked under it (a folder of two features, like a sketch and the extrude made from it). */
+  const isFolder = (run: Run): boolean => run.group !== undefined && (run.rows.length >= 2 || (run.rows.length === 1 && (childrenOf.get(run.rows[0].id)?.length ?? 0) > 0));
   const folderOfTop = new Map<string, string>();
-  for (const run of runs) if (run.group !== undefined && run.rows.length >= 2) for (const r of run.rows) folderOfTop.set(r.id, run.group);
+  for (const run of runs) if (isFolder(run)) for (const r of run.rows) folderOfTop.set(r.id, run.group!);
   /** Open whatever hides a row: the sketch parents it is tucked under, and its folder. */
   const expandFor = (id: string) => {
     const chain: string[] = [];
@@ -318,11 +322,11 @@ export function FeatureTree(p: {
     const rows = filtering ? run.rows.filter((r) => shown.has(r.id)) : run.rows;
     if (!rows.length) continue;
     if (marks && slot === run.start) flat.push({ kind: 'marker' });
-    if (run.group !== undefined && run.rows.length >= 2) {
+    if (run.group !== undefined && isFolder(run)) {
       // a folder holding the rollback marker stays open so the marker is never hidden in it
       const holdsMarker = marks && slot > run.start && slot < run.start + run.rows.length;
       const open = filtering || holdsMarker || (folderMap[run.group] ?? defaultOpen);
-      flat.push({ kind: 'folder', name: run.group, count: run.rows.length, open, ids: run.rows.flatMap((r) => [r.id, ...(childrenOf.get(r.id) ?? []).map((c) => c.id)]) });
+      flat.push({ kind: 'folder', name: run.group, count: run.rows.reduce((n, r) => n + 1 + (childrenOf.get(r.id)?.length ?? 0), 0), open, ids: run.rows.flatMap((r) => [r.id, ...(childrenOf.get(r.id) ?? []).map((c) => c.id)]) });
       if (open) rows.forEach((r) => { if (marks && r !== run.rows[0] && slot === run.start + run.rows.indexOf(r)) flat.push({ kind: 'marker' }); walk(r, 0, true); });
     } else rows.forEach((r) => walk(r, 0, false));
   }
@@ -394,6 +398,8 @@ export function FeatureTree(p: {
     const holdsReveal = e.ids.some((id) => revealIds.has(id));
     const renamingThis = renaming === '@g:' + e.name && !!p.onRenameFolder;
     const target: TreeDrop = { kind: 'folder', name: e.name };
+    const members = p.rows.filter((r) => e.ids.includes(r.id));
+    const off = members.length > 0 && members.every((r) => r.suppressed);   // the whole folder is switched off
     const head = (
       <>
         <span class="row-chev" aria-hidden="true"><Icon name="chevron" size={12} /></span>
@@ -406,7 +412,7 @@ export function FeatureTree(p: {
     );
     return (
       <div
-        class={'row folder' + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
+        class={'row folder' + (off ? ' suppressed' : '') + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
         data-group={e.name}
         draggable={!renamingThis && !!p.onDropOn}
         onClick={() => { if (!filtering && !renamingThis) setFolder(e.name, !e.open); }}
@@ -424,10 +430,12 @@ export function FeatureTree(p: {
         {renamingThis
           ? <div class="folder-toggle">{head}</div>
           : <button type="button" class="folder-toggle" aria-expanded={e.open} aria-label={`${e.name}, ${t('ui.tree.folderCount', { n: e.count }, String(e.count))}`}>{head}</button>}
-        {p.onSelectGroup && !renamingThis ? (
+        {(p.onSelectGroup || p.onToggleFolder) && !renamingThis ? (
           <span class="row-actions">
-            <button class="row-act" title={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')} aria-label={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')}
-              onClick={(ev) => { ev.stopPropagation(); p.onSelectGroup!(e.ids, e.name); }}><Icon name="sel-box" size={15} /></button>
+            {p.onSelectGroup ? <button class="row-act" title={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')} aria-label={t('ui.tree.selectGroup', undefined, 'Select all faces of this group')}
+              onClick={(ev) => { ev.stopPropagation(); p.onSelectGroup!(e.ids, e.name); }}><Icon name="sel-box" size={15} /></button> : null}
+            {p.onToggleFolder ? <button class="row-sup row-act folder-sup" aria-pressed={off} title={off ? t('ui.tree.folderOn', undefined, 'Switch the folder on') : t('ui.tree.folderOff', undefined, 'Switch the folder off')} aria-label={off ? t('ui.tree.folderOn', undefined, 'Switch the folder on') : t('ui.tree.folderOff', undefined, 'Switch the folder off')}
+              onClick={(ev) => { ev.stopPropagation(); p.onToggleFolder!(e.ids, e.name); }}><Icon name={off ? 'eye-off' : 'eye'} size={15} /></button> : null}
           </span>
         ) : null}
       </div>

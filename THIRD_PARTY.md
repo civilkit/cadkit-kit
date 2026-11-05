@@ -1,6 +1,6 @@
 # Third-party material
 
-Parametric shapes and geometry definitions that were ported or derived from other projects. Each row says what was taken, from where, and under which licence.
+Parametric shapes, geometry definitions and icons that were ported or derived from other projects. Each row says what was taken, from where, and under which licence.
 
 | What | Where it is used | Source | Licence |
 | --- | --- | --- | --- |
@@ -16,6 +16,7 @@ Parametric shapes and geometry definitions that were ported or derived from othe
 | Great Vibes (script) | `apps/cad/public/fonts/great-vibes/GreatVibes-Regular.ttf`, fetched on demand when picked in the Text panel; licence text beside it | https://github.com/googlefonts/great-vibes; Copyright 2010 The Great Vibes Pro Project Authors; sha256 `8d509802186f1b51572531ecf313e8098f9a5bfdfaca93f0c9b34467f9982d15` | SIL OFL 1.1 |
 | Satisfy (script) | `apps/cad/public/fonts/satisfy/Satisfy-Regular.ttf`, fetched on demand when picked in the Text panel; licence text beside it | https://fonts.google.com/specimen/Satisfy; Copyright (c) 2011 Font Diner, Inc.; sha256 `55bb141a0a23a32278d5fa7fd2e853824faa173b94774660ebeddb106be07c80` | Apache 2.0 |
 | Anton (display) | `apps/cad/public/fonts/anton/Anton-Regular.ttf`, fetched on demand when picked in the Text panel; licence text beside it | https://github.com/googlefonts/AntonFont; Copyright 2020 The Anton Project Authors; sha256 `a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab` | SIL OFL 1.1 |
+| SolidCraft UI icons (preview icon set): 127 unmodified SVG masters (64 grid, two-tone), plus the mapping from our icon names | `packages/ui/src/solidcraft/svg/` (inlined by `packages/ui/src/solidcraftIcons.ts` with their fixed colours replaced by theme variables at runtime; chosen in Settings, General, Icon set); per-file attribution rows in `packages/ui/src/solidcraft/ATTRIBUTION.md`, licence text in `packages/ui/src/solidcraft/LICENSE-MIT`; copied by `tools/vendor_solidcraft_icons.mjs` | SolidCraft, https://github.com/tangency-labs/solidcraft, `assets/icons/ui/design/svg/`, commit `58c64ca4d4d32201daef090b2046c77d757e95a3`; Copyright (c) 2026 SolidCraft contributors | MIT OR Apache-2.0 (used under MIT, text below) |
 
 The ten fonts above are the curated list of the Text tool (`apps/cad/public/fonts/fonts.json`). Each file is unmodified and
 travels with its licence text (`OFL.txt`, `LICENSE.txt` or `LICENSE.md`); they are not part of the JavaScript bundle. A document
@@ -50,4 +51,30 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## SolidCraft licence (MIT)
+
+```
+MIT License
+
+Copyright (c) 2026 SolidCraft contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```

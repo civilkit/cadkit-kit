@@ -20,31 +20,38 @@ export type ScrewDrive = 'none' | 'slotted' | 'hex' | 'cross' | 'torx';
 const HEADS: ScrewHead[] = ['pan', 'button', 'countersunk', 'cheese', 'hex'];
 const DRIVES: ScrewDrive[] = ['none', 'slotted', 'hex', 'cross', 'torx'];
 
-interface Dome { /** head diameter */ dk: number; /** head height */ k: number; /** fraction of the head height that is dome, the rest is a straight wall */ rise: number }
+interface Dome { /** head diameter */ dk: number; /** head height */ k: number; /** fraction of the head height that is dome, the rest is a straight wall */ rise: number; /** hex socket depth (minimum, the standard's t); the default socket depth when given */ t?: number }
 interface Flat { dk: number; k: number }
 export interface ScrewSize {
   /** nominal (major) diameter */ d: number;
   /** coarse pitch */ pitch: number;
-  pan: Dome; button: Dome; countersunk: Flat; cheese: Flat;
+  /** absent where the standard has no such size (ISO 1580 stops at M10): the head is then refused */ pan?: Dome;
+  button: Dome; countersunk: Flat;
+  /** absent where the standard has no such size (ISO 1207 stops at M10) */ cheese?: Flat;
   /** external hex head: dk is the width across flats */ hex: Flat;
   /** hex socket width across flats */ socket: number;
-  /** slot width */ slot: number;
-  /** overall span of the cross (Phillips) drive */ cross: number;
-  /** Torx: tip diameter A and valley diameter B (ISO 10664) */ torx: { A: number; B: number };
+  /** slot width; absent for the sizes with no slotted head in the standard */ slot?: number;
+  /** overall span of the cross (Phillips) drive; absent for the sizes with no cross-recess head in the standard */ cross?: number;
+  /** Torx: tip diameter A and valley diameter B (ISO 10664); absent where the table does not carry them */ torx?: { A: number; B: number };
 }
-/** Rounded nominal head dimensions of the metric sizes M2 to M8. */
+/** Head dimensions of the metric sizes M2 to M16: the button head from ISO 7380-1 (maximum dk and k, socket s, minimum socket depth t), the rest rounded nominal values. */
 export const SCREW_SIZES = {
   M2:   { d: 2,   pitch: 0.4,  pan: { dk: 4.0,  k: 1.6, rise: 0.25 }, button: { dk: 3.8,  k: 1.3,  rise: 0.8 }, countersunk: { dk: 3.8,  k: 1.2 },  cheese: { dk: 3.8, k: 1.3 }, hex: { dk: 4,  k: 1.4 }, socket: 1.5, slot: 0.5, cross: 1.8, torx: { A: 1.75, B: 1.27 } },
   'M2.5': { d: 2.5, pitch: 0.45, pan: { dk: 5.0,  k: 2.0, rise: 0.25 }, button: { dk: 4.6,  k: 1.5,  rise: 0.8 }, countersunk: { dk: 5.0,  k: 1.5 },  cheese: { dk: 4.5, k: 1.7 }, hex: { dk: 5,  k: 1.7 }, socket: 2,   slot: 0.6, cross: 2.4, torx: { A: 2.4,  B: 1.75 } },
-  M3:   { d: 3,   pitch: 0.5,  pan: { dk: 5.6,  k: 1.8, rise: 0.25 }, button: { dk: 5.7,  k: 1.65, rise: 0.8 }, countersunk: { dk: 6.72, k: 1.86 }, cheese: { dk: 5.5, k: 2.0 }, hex: { dk: 5.5, k: 2.0 }, socket: 2,  slot: 0.8, cross: 3.0, torx: { A: 2.8,  B: 2.05 } },
-  M4:   { d: 4,   pitch: 0.7,  pan: { dk: 8.0,  k: 2.4, rise: 0.25 }, button: { dk: 7.6,  k: 2.2,  rise: 0.8 }, countersunk: { dk: 8.96, k: 2.48 }, cheese: { dk: 7.0, k: 2.6 }, hex: { dk: 7,  k: 2.8 }, socket: 2.5, slot: 1.2, cross: 4.0, torx: { A: 3.86, B: 2.75 } },
-  M5:   { d: 5,   pitch: 0.8,  pan: { dk: 9.5,  k: 3.0, rise: 0.25 }, button: { dk: 9.5,  k: 2.75, rise: 0.8 }, countersunk: { dk: 11.2, k: 3.1 },  cheese: { dk: 8.5, k: 3.3 }, hex: { dk: 8,  k: 3.5 }, socket: 3,   slot: 1.2, cross: 5.0, torx: { A: 4.43, B: 3.17 } },
-  M6:   { d: 6,   pitch: 1,    pan: { dk: 12,   k: 3.6, rise: 0.25 }, button: { dk: 10.5, k: 3.3,  rise: 0.8 }, countersunk: { dk: 13.44, k: 3.72 }, cheese: { dk: 10, k: 3.9 },  hex: { dk: 10, k: 4.0 }, socket: 4,   slot: 1.6, cross: 6.2, torx: { A: 4.99, B: 3.6 } },
-  M8:   { d: 8,   pitch: 1.25, pan: { dk: 16,   k: 4.8, rise: 0.25 }, button: { dk: 14,   k: 4.4,  rise: 0.8 }, countersunk: { dk: 17.92, k: 4.96 }, cheese: { dk: 13, k: 5.0 },  hex: { dk: 13, k: 5.3 }, socket: 5,   slot: 2,   cross: 8.0, torx: { A: 6.2,  B: 4.5 } },
+  M3:   { d: 3,   pitch: 0.5,  pan: { dk: 5.6,  k: 1.8, rise: 0.25 }, button: { dk: 5.7,  k: 1.65, rise: 0.8, t: 1.04 }, countersunk: { dk: 6.72, k: 1.86 }, cheese: { dk: 5.5, k: 2.0 }, hex: { dk: 5.5, k: 2.0 }, socket: 2,  slot: 0.8, cross: 3.0, torx: { A: 2.8,  B: 2.05 } },
+  M4:   { d: 4,   pitch: 0.7,  pan: { dk: 8.0,  k: 2.4, rise: 0.25 }, button: { dk: 7.6,  k: 2.2,  rise: 0.8, t: 1.3 }, countersunk: { dk: 8.96, k: 2.48 }, cheese: { dk: 7.0, k: 2.6 }, hex: { dk: 7,  k: 2.8 }, socket: 2.5, slot: 1.2, cross: 4.0, torx: { A: 3.86, B: 2.75 } },
+  M5:   { d: 5,   pitch: 0.8,  pan: { dk: 9.5,  k: 3.0, rise: 0.25 }, button: { dk: 9.5,  k: 2.75, rise: 0.8, t: 1.56 }, countersunk: { dk: 11.2, k: 3.1 },  cheese: { dk: 8.5, k: 3.3 }, hex: { dk: 8,  k: 3.5 }, socket: 3,   slot: 1.2, cross: 5.0, torx: { A: 4.43, B: 3.17 } },
+  M6:   { d: 6,   pitch: 1,    pan: { dk: 12,   k: 3.6, rise: 0.25 }, button: { dk: 10.5, k: 3.3,  rise: 0.8, t: 2.08 }, countersunk: { dk: 13.44, k: 3.72 }, cheese: { dk: 10, k: 3.9 },  hex: { dk: 10, k: 4.0 }, socket: 4,   slot: 1.6, cross: 6.2, torx: { A: 4.99, B: 3.6 } },
+  M8:   { d: 8,   pitch: 1.25, pan: { dk: 16,   k: 4.8, rise: 0.25 }, button: { dk: 14,   k: 4.4,  rise: 0.8, t: 2.6 }, countersunk: { dk: 17.92, k: 4.96 }, cheese: { dk: 13, k: 5.0 },  hex: { dk: 13, k: 5.3 }, socket: 5,   slot: 2,   cross: 8.0, torx: { A: 6.2,  B: 4.5 } },
+  // M10 to M16: button head from ISO 7380-1 (dk, k, socket s, socket depth t); countersunk from ISO 10642, hex from ISO 4017; pan (ISO 1580) and cheese (ISO 1207) stop at M10;
+  // slot, cross and Torx sizes are not in this table
+  M10:  { d: 10,  pitch: 1.5,  pan: { dk: 20,   k: 6.0, rise: 0.25 }, button: { dk: 17.5, k: 5.5,  rise: 0.8, t: 3.12 }, countersunk: { dk: 22.4,  k: 6.2 },  cheese: { dk: 16, k: 6.0 },  hex: { dk: 16, k: 6.4 },  socket: 6, slot: 2.5, cross: 10 },
+  M12:  { d: 12,  pitch: 1.75, button: { dk: 21,   k: 6.6,  rise: 0.8, t: 4.16 }, countersunk: { dk: 26.88, k: 7.44 },  hex: { dk: 18, k: 7.5 },  socket: 8 },
+  M16:  { d: 16,  pitch: 2,    button: { dk: 28,   k: 8.8,  rise: 0.8, t: 5.2 },  countersunk: { dk: 33.6,  k: 8.8 },   hex: { dk: 24, k: 10 },   socket: 10 },
 } satisfies Record<string, ScrewSize>;
 
 export interface ScrewOpts {
-  /** metric size designation: M2, M2.5, M3, M4, M5, M6 or M8 (fills in every dimension below) */
+  /** metric size designation: M2, M2.5, M3, M4, M5, M6, M8, M10, M12 or M16 (fills in every dimension below) */
   size: keyof typeof SCREW_SIZES | string;
   /** shank length in mm, measured from the bearing face to the tip (a countersunk screw: from the flat top, the head included) */
   length: Num;
@@ -122,11 +129,11 @@ export const screwFeatures = {
   /**
    * A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.
    *
-   * Give the metric size (M2 to M8) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.
+   * Give the metric size (M2 to M16; M12 and M16 have button, countersunk and hex heads only, as the standards stop there) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.
    *
    * @domain features
    * @param o options object { size, length, head, drive, origin, axis, ... }, the fields below
-   * @param o.size 'M2' | 'M2.5' | 'M3' | 'M4' | 'M5' | 'M6' | 'M8'
+   * @param o.size 'M2' | 'M2.5' | 'M3' | 'M4' | 'M5' | 'M6' | 'M8' | 'M10' | 'M12' | 'M16'
    * @param o.length shank length in mm from the bearing face to the tip (countersunk: from the flat top)
    * @param o.head 'pan' (default) | 'button' | 'countersunk' | 'cheese' | 'hex'
    * @param o.drive 'slotted' | 'hex' | 'cross' | 'torx' | 'none' (default by head: pan cross, others hex socket, hex head none)
@@ -149,7 +156,7 @@ export const screwFeatures = {
     if (!o || typeof o !== 'object') fail('needs an options object { size, length, head, drive }');
     const sizes = SCREW_SIZES as Record<string, ScrewSize>;
     const row = sizes[String(o.size)];
-    if (!row) return fail(`size must be one of ${Object.keys(sizes).join(', ')} (M2 to M8), not ${JSON.stringify(o.size)}`);
+    if (!row) return fail(`size must be one of ${Object.keys(sizes).join(', ')} (M2 to M16), not ${JSON.stringify(o.size)}`);
     const head: ScrewHead = o.head ?? 'pan';
     if (!HEADS.includes(head)) fail(`head must be one of ${HEADS.join(', ')}, not ${JSON.stringify(o.head)}`);
     const drive: ScrewDrive = o.drive ?? (head === 'hex' ? 'none' : head === 'pan' ? 'cross' : 'hex');
@@ -160,13 +167,14 @@ export const screwFeatures = {
     const num = (n: Num | undefined, dflt: number): number => (n === undefined ? dflt : H.num(n));
     const Rs = num(o.diameter, row.d) / 2;
     const hr = row[head];
+    if (!hr) return fail(`size ${o.size} has no ${head} head in the table (${Object.entries(sizes).filter(([, r]) => r[head]).map(([n]) => n).join(', ')} have one)`);
     const Rh = num(o.headDiameter, hr.dk) / 2, k = num(o.headHeight, hr.k);
     if (!(Rs > 0) || !(Rh > 0) || !(k > 0)) fail('diameter, headDiameter and headHeight must be positive');
     if (head !== 'hex' && !(Rh > Rs)) fail(`the head diameter (${(2 * Rh).toFixed(2)}) must be larger than the shank (${(2 * Rs).toFixed(2)})`);
     if (head === 'countersunk' && !(L > k)) fail(`length (${L}) must exceed the head height (${k.toFixed(2)}) of a countersunk screw: its length includes the head`);
     const pitch = row.pitch;
     const ct = Math.min(pitch, 0.4 * Rs);   // tip chamfer
-    const rise = head === 'pan' || head === 'button' ? (row[head] as Dome).rise : 0;
+    const rise = head === 'pan' || head === 'button' ? (hr as Dome).rise : 0;
 
     const origin: V3 = [H.num(o.origin?.[0] ?? 0), H.num(o.origin?.[1] ?? 0), H.num(o.origin?.[2] ?? 0)];
     const ax: V3 = [H.num(o.axis?.[0] ?? 0), H.num(o.axis?.[1] ?? 0), H.num(o.axis?.[2] ?? -1)];
@@ -224,12 +232,16 @@ export const screwFeatures = {
     };
     if (drive === 'hex') {
       const af = num(o.driveSize, row.socket), R = af / Math.sqrt(3);
-      cutDrive(wantDepth(Math.min(0.55 * af, 0.6 * k)), (pen) => pen.poly(Array.from({ length: 6 }, (_, i): Pt => [R * Math.cos((Math.PI / 3) * i), R * Math.sin((Math.PI / 3) * i)])));
+      // a button head takes the standard's socket depth t (ISO 7380-1) where the table has it
+      const t = head === 'button' ? (hr as Dome).t : undefined;
+      cutDrive(wantDepth(t ?? Math.min(0.55 * af, 0.6 * k)), (pen) => pen.poly(Array.from({ length: 6 }, (_, i): Pt => [R * Math.cos((Math.PI / 3) * i), R * Math.sin((Math.PI / 3) * i)])));
     } else if (drive === 'slotted') {
-      const sw = num(o.driveSize, row.slot), half = 0.6 * Rh * 2;
+      if (o.driveSize === undefined && row.slot === undefined) fail(`size ${o.size} has no slot width in the table; give driveSize`);
+      const sw = num(o.driveSize, row.slot ?? 0), half = 0.6 * Rh * 2;
       cutDrive(wantDepth(0.5 * k), (pen) => pen.poly([[-half, -sw / 2], [half, -sw / 2], [half, sw / 2], [-half, sw / 2]]));
     } else if (drive === 'cross') {
-      const span = num(o.driveSize, row.cross), h = span / 2, a = Math.max(0.2, span * 0.1);
+      if (o.driveSize === undefined && row.cross === undefined) fail(`size ${o.size} has no cross-recess span in the table; give driveSize`);
+      const span = num(o.driveSize, row.cross ?? 0), h = span / 2, a = Math.max(0.2, span * 0.1);
       const depth = wantDepth(0.5 * k), flat = 0.1 * span;   // the blunt tip is 0.2 of the span wide (a knife edge makes the kernel's booleans fail)
       // the bit tip as a tool: ONE thin profile (a shoulder starting 1 mm above the head, the full span at the surface, flanks sloping in to a small flat),
       // extruded to the arm width (symmetric about the axis plane), copied at 90 degrees, and both subtracted
@@ -238,7 +250,9 @@ export const screwFeatures = {
       this.sketch(axial, bit, 'cross arm 1').cut(2 * a, { direction: 'both' });
       this.sketch(axial90, bit, 'cross arm 2').cut(2 * a, { direction: 'both' });
     } else {
-      const A = num(o.driveSize, row.torx.A), B = (A * row.torx.B) / row.torx.A;
+      if (!row.torx) fail(`size ${o.size} has no Torx size in the table (${Object.entries(sizes).filter(([, r]) => r.torx).map(([n]) => n).join(', ')} do)`);
+      const tx = row.torx as { A: number; B: number };
+      const A = num(o.driveSize, tx.A), B = (A * tx.B) / tx.A;
       cutDrive(wantDepth(0.5 * k), (pen) => { for (const a of torxOutline(A, B)) pen.arc(a.centre, a.from, a.to, a.ccw); });
     }
     return this;

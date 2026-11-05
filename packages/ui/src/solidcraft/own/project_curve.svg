@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Project curve</title>
+  <!-- Original drawing for this app in the style of the SolidCraft masters (64 grid, same palette and stroke weights); not copied or traced from any third-party artwork. -->
+  <path d="M9 43L32 56L32 62L9 49Z" fill="#b8c3cf"/>
+  <path d="M55 43L32 56L32 62L55 49Z" fill="#8e9faf"/>
+  <path d="M32 30L55 43L32 56L9 43Z" fill="#e2e8ef"/>
+  <path d="M32 30L55 43L55 49L32 62L9 49L9 43Z" fill="none" stroke="#34465b" stroke-width="2.55" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M9 43L32 56L55 43M32 56L32 62" fill="none" stroke="#34465b" stroke-width="2.55" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M17 46C24 37 33 49 47 39" fill="none" stroke="#236ead" stroke-width="4.25" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M17 16C24 7 33 19 47 9" fill="none" stroke="#8e9faf" stroke-width="4.25" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M17 24L17 33M47 17L47 27" fill="none" stroke="#6f879c" stroke-width="2.55" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.1 5"/>
+  <path d="M17 41L13.5 34L20.5 34Z" fill="#6f879c"/>
+  <path d="M47 34L43.5 27L50.5 27Z" fill="#6f879c"/>
+</svg>

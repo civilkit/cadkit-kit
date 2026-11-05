@@ -51,3 +51,19 @@ export function formatPoint3(p: readonly [number, number, number], unit: Display
   const d = unit === 'in' ? 3 : 1;
   return p.map((v) => formatLen(v, d, unit)).join(', ');
 }
+
+/** The pointer as the viewport reports it on the sketch plane (the part the cursor label needs). */
+export interface PlaneCursor { u: number; v: number; upp: number; x?: number; y?: number; w?: number; h?: number; touch?: boolean }
+
+/** What the label that follows the pointer says and where it sits (px in the viewport), or null when it is hidden: switched off, no pointer on the plane,
+ *  a finger (no hover), or a position the viewport did not report. `snap` is where the active snap put the point (the label shows what will be placed).
+ *  It sits a few px down and right of the pointer and flips to the other side near the right and bottom edges, so it is never cut off. */
+export function cursorLabel(c: PlaneCursor | null, snap: { x: number; y: number } | null, unit: DisplayUnit, enabled: boolean, size = { w: 90, h: 20 }): { text: string; left: number; top: number } | null {
+  if (!enabled || !c || c.touch || c.x === undefined || c.y === undefined) return null;
+  const OFF = 14;
+  const at = snap ?? { x: c.u, y: c.v };
+  let left = c.x + OFF, top = c.y + OFF;
+  if (c.w !== undefined && left + size.w > c.w) left = Math.max(0, c.x - OFF - size.w);
+  if (c.h !== undefined && top + size.h > c.h) top = Math.max(0, c.y - OFF - size.h);
+  return { text: formatCursor(at.x, at.y, c.upp, unit), left, top };
+}

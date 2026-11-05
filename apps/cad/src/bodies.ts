@@ -13,6 +13,7 @@
 //               of its faces (the feature that created the lump; later cuts and fillets do not change it). Scripts key by feature
 //               (the id is known while the script runs; the face names are not), and one entry covers a pattern's whole row of bodies.
 // A body key wins over a feature id; a user edit always writes the body key.
+import type { MeshBody } from '@kit/io';
 import type { Body } from './select/model';
 import { BODY_PREFIX } from './select/model';
 import { clampBodyOpacity, clampUnit, FINISHES, isHex, type BodyLookSpec, type BodyViewSpec, type Finish } from '@kit/viewport';
@@ -209,6 +210,40 @@ export function visibleMesh(mesh: { positions: ArrayLike<number>; triFace?: Arra
     for (let i = t * 9; i < t * 9 + 9; i++) out.push(mesh.positions[i]);
   }
   return out.length ? { positions: new Float32Array(out) } : null;
+}
+
+/** The mesh as one MeshBody per body (for 3MF and GLB): each body's triangles, its name and its look. Hidden bodies are left out when
+ *  `visibleOnly`. Triangles that belong to no row (or all of them when the mesh does not say which face a triangle belongs to, or there
+ *  are no rows) form one body called `fallback`. */
+export function splitBodies(
+  mesh: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } | null,
+  rows: readonly Pick<BodyRow, 'name' | 'hidden' | 'faces' | 'look'>[],
+  fallback: string,
+  visibleOnly: boolean,
+): MeshBody[] {
+  if (!mesh || !mesh.positions.length) return [];
+  const { triFace, faceIds, positions, normals } = mesh;
+  if (!triFace || !faceIds || !rows.length) return [{ name: fallback, positions, ...(normals ? { normals } : {}) }];
+  const owner = new Map<string, number>();
+  rows.forEach((r, i) => { for (const f of r.faces) owner.set(f, i); });
+  const pos: number[][] = rows.map(() => []), nor: number[][] = rows.map(() => []);
+  const restP: number[] = [], restN: number[] = [];
+  for (let t = 0; t < triFace.length; t++) {
+    const i = owner.get(faceIds[triFace[t]]);
+    const [p, n] = i === undefined ? [restP, restN] : [pos[i], nor[i]];
+    for (let k = t * 9; k < t * 9 + 9; k++) { p.push(positions[k]); if (normals) n.push(normals[k]); }
+  }
+  const out: MeshBody[] = [];
+  rows.forEach((r, i) => {
+    if (!pos[i].length || (visibleOnly && r.hidden)) return;
+    out.push({
+      name: r.name, positions: Float32Array.from(pos[i]), ...(normals ? { normals: Float32Array.from(nor[i]) } : {}),
+      ...(r.look.color ? { color: r.look.color } : {}), ...(r.look.opacity !== undefined ? { opacity: r.look.opacity } : {}),
+      ...(r.look.metallic !== undefined ? { metallic: r.look.metallic } : {}), ...(r.look.roughness !== undefined ? { roughness: r.look.roughness } : {}),
+    });
+  });
+  if (restP.length) out.push({ name: fallback, positions: Float32Array.from(restP), ...(normals ? { normals: Float32Array.from(restN) } : {}) });
+  return out;
 }
 
 /** What the viewport is given. */

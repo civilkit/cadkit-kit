@@ -14,11 +14,12 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { ViewCube } from './viewcube';
+import { offPolePose, poseOfQuaternion, poseQuaternion, rollPose, snapPose, turnPose, type ViewPose, type ViewRoll, type ViewTurn } from './viewnav';
 import { vertexName, parseVertexName, BODY } from '@kit/store';
 import { boxPick, type Project, type ScreenRect } from './boxselect';
 import { buildBoxDimensions, label as textLabel } from './dimensions';
 import { navButtons, wheelFactor, zoomAbout, zoomedDistance } from './navButtons';
-import { RefPlanes, type RefPlaneId } from './refplanes';
+import { RefPlanes, PLANE_PICK_TOL, type RefPlaneId } from './refplanes';
 import { HandleLayer } from './handleLayer';
 import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
 import type { HandleDragSink, HandleSpec } from './handles';
@@ -120,7 +121,8 @@ export interface ViewportOptions {
   /** The pointer moved over the sketch plane (any tool, at most once per frame): plane coordinates, plane units per pixel and the grid's minor spacing; null when it left. */
   /** The pointer over the model (not in a sketch): the world point on the surface under it, or null off the model. At most once per frame. */
   onHoverPoint?(p: [number, number, number] | null): void;
-  onPlaneCursor?(c: { u: number; v: number; upp: number; grid: number } | null): void;
+  /** The pointer on the sketch plane. `x`,`y` are its position in the viewport (px from its top left), `w`,`h` the viewport size and `touch` a finger (no hover). */
+  onPlaneCursor?(c: { u: number; v: number; upp: number; grid: number; x?: number; y?: number; w?: number; h?: number; touch?: boolean } | null): void;
   /** The sketch view's scale changed (zoom, pan, orbit, a new sketch): plane units per pixel and the grid's minor spacing; null when the sketch closed. Not tied to the pointer. */
   onSketchZoom?(v: { upp: number; grid: number } | null): void;
   /** The surface analysis on screen changed: what its colour legend shows (null when nothing is drawn). */
@@ -265,6 +267,8 @@ export class Viewport {
   private gridVisible = true;
   private sketchRefreshPending = false;
   private viewCube: ViewCube | null = null;
+  /** A running camera animation (a view change by the cube or the arrow ring): from the camera's pose at the start to `to`, over `ms`. */
+  private anim: { t0: number; ms: number; q0: THREE.Quaternion; q1: THREE.Quaternion; to: ViewPose; from: THREE.Vector3; target: THREE.Vector3; dist: number } | null = null;
   private readonly handleLayer: HandleLayer;
   private readonly triball: TriBallLayer;
   /** While set, a click on the body goes here (the name picked and the point on the surface) instead of selecting. */
@@ -302,6 +306,7 @@ export class Viewport {
       pickPoint: (x, y) => this.hit(x, y)?.point.clone() ?? null,
       selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
     });
+    this.controls.addEventListener('start', () => { this.anim = null; });   // a drag or a wheel turn takes the camera over from a running view animation
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); this.reportSketchZoom(); });
 
     this.scene.add(this.hemi);
@@ -312,7 +317,7 @@ export class Viewport {
     this.applyBackground();
 
     this.viewCube = new ViewCube(host, {
-      snapTo: (dir) => this.setViewDir(dir),
+      snapTo: (dir) => this.snapView(dir),
       orbit: (dx, dy) => this.orbitBy(dx, dy),
       onChange: () => { this.dirty = true; },
     });
@@ -560,6 +565,7 @@ export class Viewport {
     return { pos: [c.x, c.y, c.z], target: [t.x, t.y, t.z], zoom: this.camera.zoom, ortho: this.ortho };
   }
   setCameraState(s: { pos: [number, number, number]; target: [number, number, number]; zoom: number; ortho?: boolean }): void {
+    this.anim = null;
     if (s.ortho !== undefined && s.ortho !== this.ortho) this.setOrtho(s.ortho);
     this.controls.target.set(...s.target);
     this.camera.position.set(...s.pos);
@@ -1030,7 +1036,10 @@ export class Viewport {
     const e = this.lastPtr, v = this.sketchEdit;
     if (!e || !v) return;
     const uv = this.planeAt(e.clientX, e.clientY);
-    if (uv) this.opts.onPlaneCursor?.({ u: uv[0], v: uv[1], upp: this.sketchUnitsPerPixel(), grid: this.gridStep() });
+    if (uv) {
+      const r = this.dom.getBoundingClientRect();
+      this.opts.onPlaneCursor?.({ u: uv[0], v: uv[1], upp: this.sketchUnitsPerPixel(), grid: this.gridStep(), x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height, touch: e.pointerType === 'touch' });
+    }
     const ctx: CursorContext = { tool: this.sketchTool ? 'draw' : 'select', panHeld: this.spaceHeld };
     if (this.modPan?.moved || (e.buttons & 4)) ctx.drag = 'pan';
     else if (this.sketchDrag) ctx.drag = 'drag';
@@ -2030,6 +2039,7 @@ export class Viewport {
    *  tiny tilt for the straight-down and straight-up views so the camera never flips. */
   setViewDir(dir: [number, number, number]): void {
     if (dir[0] === 0 && dir[1] === 0 && dir[2] === 0) return;
+    this.anim = null;
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
     const t = this.controls.target;
     const pose = poseForDirection([t.x, t.y, t.z], dir, dist, this.upAxis);
@@ -2041,8 +2051,62 @@ export class Viewport {
     this.dirty = true;
   }
 
+  /** The pose the view is heading for: where a running animation ends, else the camera as it is (so quick repeated steps add up exactly). */
+  private currentPose(): ViewPose {
+    if (this.anim) return this.anim.to;
+    const d = this.camera.position.clone().sub(this.controls.target).normalize();
+    return { dir: [d.x, d.y, d.z], up: [this.camera.up.x, this.camera.up.y, this.camera.up.z] };
+  }
+
+  /** Turn the camera about the target to a pose (and move the target to `target`), animated unless the user prefers reduced motion. */
+  private animateTo(pose: ViewPose, target?: THREE.Vector3): void {
+    const to = offPolePose(pose, this.upAxis);
+    const goal = target ?? this.controls.target.clone();
+    const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
+    const q1 = poseQuaternion(to);
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.anim = { t0: performance.now(), ms: reduce ? 0 : 220, q0: this.camera.quaternion.clone(), q1, to: pose, from: this.controls.target.clone(), target: goal, dist };
+    this.stepAnim(this.anim.t0 + (reduce ? 1 : 0));
+  }
+
+  private stepAnim(now: number): void {
+    const a = this.anim;
+    if (!a) return;
+    const k = a.ms <= 0 ? 1 : Math.min(1, (now - a.t0) / a.ms);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;   // ease in and out
+    const pose = k >= 1 ? offPolePose(a.to, this.upAxis) : poseOfQuaternion(a.q0.clone().slerp(a.q1, e));
+    const t = a.from.clone().lerp(a.target, e);
+    this.controls.target.copy(t);
+    this.camera.up.set(...pose.up);
+    this.camera.position.copy(t).add(new THREE.Vector3(...pose.dir).normalize().multiplyScalar(a.dist));
+    this.camera.lookAt(t);
+    this.controls.update();
+    if (k >= 1) { this.anim = null; if (this.sketchEdit) this.rebuildSketchGrid(); }
+    this.dirty = true;
+  }
+
+  /** Snap to the view from a cube face, edge or corner (animated). The up axis stays up on screen. */
+  snapView(dir: [number, number, number]): void {
+    if (!dir[0] && !dir[1] && !dir[2]) return;
+    this.animateTo(snapPose(dir, this.upAxis));
+  }
+
+  /** The arrow ring: turn the view up, down, left or right by `stepDeg` (a drag in that direction moves the model the same way). */
+  turnView(turn: ViewTurn, stepDeg = 90): void {
+    this.animateTo(turnPose(this.currentPose(), turn, stepDeg, this.upAxis));
+  }
+
+  /** The roll arrows: turn the view about the direction of view, clockwise or counter-clockwise on screen. */
+  rollView(roll: ViewRoll, stepDeg = 90): void {
+    this.animateTo(rollPose(this.currentPose(), roll, stepDeg));
+  }
+
+  /** The home button: the isometric view of the whole model (animated). */
+  homeView(): void { this.setView('iso', true); }
+
   /** Orbit about the target by a drag of dx, dy pixels, in the current orbit mode (turntable about the up axis, or trackball). */
   orbitBy(dx: number, dy: number): void {
+    this.anim = null;
     this.rig.orbitBy(dx, dy);
     this.camera.lookAt(this.controls.target);
     this.dirty = true;
@@ -2095,9 +2159,11 @@ export class Viewport {
     this.dirty = true;
   }
 
-  setView(v: StdView): void {
+  setView(v: StdView, animate = false): void {
     const c = this.center();
     const dist = this.camera.position.distanceTo(this.controls.target) || this.radius() * 3;
+    if (animate) { this.animateTo(snapPose(viewDirection(v, this.upAxis), this.upAxis), c); return; }
+    this.anim = null;
     const pose = poseForDirection([c.x, c.y, c.z], viewDirection(v, this.upAxis), dist, this.upAxis);
     this.controls.target.copy(c);
     this.camera.position.copy(pose.position);
@@ -2108,6 +2174,7 @@ export class Viewport {
   }
 
   fit(): void {
+    this.anim = null;
     // in a sketch, Fit frames the SKETCH (its geometry, else a 100 mm view around the origin), never the reference planes or the body
     const sk = this.sketchEdit ? sketchEditFit({ frame: this.sketchEdit.frame as never, sketch: this.sketchEdit.sketch }) : null;
     const c = sk ? new THREE.Vector3(...sk.center) : this.center();
@@ -2130,6 +2197,25 @@ export class Viewport {
   lastPickPoint(): [number, number, number] | null { return this.lastPick; }
   private readonly refPlanes = new RefPlanes();
   private lastRefPlanes: [RefPlaneId[], RefPlaneId | null, Record<RefPlaneId, string>] | null = null;
+  private planePick = false;
+  /** Plane-picking mode (a sketch is being started): the sheets are drawn stronger, and a pointer near a sheet's outline picks it even where the exact ray misses
+   *  (an edge-on sheet), with a wider reach for a finger. The planes themselves are shown with `setRefPlanes`. */
+  setRefPlanePick(on: boolean): void {
+    if (on === this.planePick) return;
+    this.planePick = on;
+    this.refPlanes.emphasis = on;
+    this.dom.style.cursor = on ? 'pointer' : '';
+    if (!on) this.emitRefPlaneHover(null);
+    if (this.lastRefPlanes) this.setRefPlanes(...this.lastRefPlanes);
+  }
+  /** The reference plane at a client position: the exact ray hit, else in plane-picking mode the nearest outline within reach. */
+  private refPlaneUnder(cx: number, cy: number, touch: boolean): RefPlaneId | null {
+    this.raycaster.setFromCamera(this.ndc(cx, cy), this.camera);
+    const hit = this.refPlanes.pick(this.raycaster);
+    if (hit || !this.planePick) return hit;
+    const r = this.dom.getBoundingClientRect();
+    return this.refPlanes.pickNear((v) => { const p = v.clone().project(this.camera); return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height]; }, cx, cy, touch ? PLANE_PICK_TOL.touch : PLANE_PICK_TOL.mouse);
+  }
   /** Show reference planes: `show` faintly (an empty part shows all three), `highlight` in orange with its label. */
   setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
     this.lastRefPlanes = [show, highlight, labels];
@@ -2577,8 +2663,7 @@ export class Viewport {
     if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return; // a drag, not a click
     const hit0 = this.hit(e.clientX, e.clientY);
     if (!hit0 && (this.auto || this.mode !== 'edge') && this.refPlanes.group.visible) {
-      this.raycaster.setFromCamera(this.ndc(e.clientX, e.clientY), this.camera);
-      const plane = this.refPlanes.pick(this.raycaster);
+      const plane = this.refPlaneUnder(e.clientX, e.clientY, e.pointerType === 'touch');
       if (plane) { this.opts.onRefPlanePick?.(plane); return; }
     }
     if (!hit0 && this.layerOn('planes') && !this.pickIntercept) {
@@ -2652,6 +2737,7 @@ export class Viewport {
   private loop = (): void => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.loop);
+    if (this.anim) this.stepAnim(performance.now());
     if (this.hoverPending && !this.down && !this.sketchEdit) {
       const p = this.hoverPending;
       this.hoverPending = null;
@@ -2660,7 +2746,7 @@ export class Viewport {
       if (name !== this.lastHover) { this.lastHover = name; this.opts.onHover(name); this.setHover(name); }
       if (this.opts.onRefPlaneHover) {
         let rp: RefPlaneId | null = null;
-        if ((this.auto || this.mode !== 'edge') && this.refPlanes.group.visible && !this.pickIntercept && !this.hit(p.x, p.y)) { this.raycaster.setFromCamera(this.ndc(p.x, p.y), this.camera); rp = this.refPlanes.pick(this.raycaster); }
+        if ((this.auto || this.mode !== 'edge') && this.refPlanes.group.visible && !this.pickIntercept && !this.hit(p.x, p.y)) rp = this.refPlaneUnder(p.x, p.y, false);
         this.emitRefPlaneHover(rp);
       }
     }

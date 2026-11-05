@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { solidcraftArt, useIconSet } from './solidcraftIcons';
 
 /** The icon set: every icon is hand-drawn SVG path data on a 24x24 grid. See docs/icons.md for the visual grammar.
  *
@@ -51,6 +52,7 @@ const ICONS: Record<string, string> = {
   centerline: `<path d="M3.5 20.5 20.5 3.5" stroke-dasharray="7 2.5 1.5 2.5"/>`,
   spline: P('M3 16C7 4 11 4 12 12s5 8 9-4') + D(3, 16) + D(12, 12) + D(21, 8),
   cvspline: C('M4 18 8 5l8 0 4 13') + P('M4 18C8 5 16 5 20 18') + D(4, 18) + D(8, 5) + D(16, 5) + D(20, 18),
+  equation: C('M3 12h18M4 4v16') + P('M4 12c2.7-8 5.3-8 8 0s5.3 8 8 0'),
   bridge: C('M2.5 19H8M16 5h5.5') + P('M8 19C13 19 11 5 16 5') + D(8, 19) + D(16, 5),
   // ---- sketch: dimension and constraints
   dimension: T('M5 5v14M19 5v14') + P('M5 12h14M8.5 9 5 12l3.5 3M15.5 9 19 12l-3.5 3'),
@@ -70,6 +72,7 @@ const ICONS: Record<string, string> = {
   fillet: C('M4 12v8h8') + P('M4 4v8a8 8 0 008 8h8'),
   chamfer: C('M4 11v9h9') + P('M4 4v7l9 9h7'),
   trim: P('M12 3v18') + P('M3 12h9') + C('M12 12h9') + `<path d="m15.5 9 5 6M20.5 9l-5 6" stroke-width="1.5"/>`,
+  split: P('M3 12h18') + C('M12 4v16') + D(12, 12, 2.2) + `<path d="M12 12l-4-3M12 12l4 3" stroke-width="1.5"/>`,
   project: T('M4 4h16v6H4z') + C('M8 10v6M16 10v6') + P('M5 20h14') + D(8, 16, 1.4) + D(16, 16, 1.4),
   'pattern-linear': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + C('M17 8h4v8h-4z') + C('M3 20h18'),
   'pattern-circular': P('M10 3h4v4h-4z') + T('M17.5 10.5h4v4h-4z') + T('M3 14.5h4v-4H3z') + C('M12 21a7.5 7.5 0 100-10') + D(12, 13, 1.4),
@@ -96,6 +99,8 @@ const ICONS: Record<string, string> = {
   'export-stl': P(HEX) + T(Y) + C('M12 3 4.2 16.5M19.8 7.5 12 21'),
   'export-stl-ascii': P('M4.2 7.5 12 3l7.8 4.5v4M4.2 7.5v9L12 21') + T('M4.2 7.5 12 12l7.8-4.5M12 12v9') + A('M14.5 15h6M14.5 18h6M14.5 21h4'),
   'export-obj': P(HEX) + T(Y) + D(12, 3) + D(19.8, 7.5) + D(19.8, 16.5) + D(12, 21) + D(4.2, 16.5) + D(4.2, 7.5) + D(12, 12),
+  'export-3mf': P(HEX) + T(Y) + A('M8 10.5h3.5a1.5 1.5 0 0 1 0 3H8M8 13.5h3.8a1.5 1.5 0 0 1 0 3H8', 1.75),
+  'export-glb': P(HEX) + T(Y) + D(12, 3) + D(12, 21) + A('M7 12h10', 2),
   'export-step': P(HEX) + T(Y) + A('M12 12 19.8 7.5M12 12 4.2 7.5M12 12v9', 2.25),
   'export-dxf-sketch': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + O(11, 14, 2.5) + A('M8.5 18.5 16 18.5'),
   'export-dxf-views': P('M4 11h10v9H4z') + P('M4 4h10v5H4z') + P('M16 11h5v9h-5z') + A('M4 9v2M14 9v2', 1.15),
@@ -118,6 +123,7 @@ const ICONS: Record<string, string> = {
   'add-cut': P('M3 14h11v7H3z') + P('M3 14l4-4h11l-4 4') + P('M14 14l4-4v7l-4 4') + C('M7.5 13.5l2-2h3.5l-2 2z') + A('M10.5 2.5V9M8 6.5 10.5 9 13 6.5'),
   'sketch-new-top': plane('M12 4l9 5.5-9 5.5-9-5.5z') + AE(12, 9.5, 3.8, 2.1, 0) + D(12, 9.5, 1),
   'sketch-new-front': plane('M3 6l9 5.5v9L3 15z') + AE(7.5, 13.2, 2.4, 2.4, 0) + D(7.5, 13.2, 1),
+  'sketch-pick-plane': plane('M3 6l9 5.5v9L3 15z') + plane('M21 6l-9 5.5v9l9-5.5z') + plane('M12 3l7 4.2-7 4.2-7-4.2z'),
   'sketch-new-right': plane('M21 6l-9 5.5v9l9-5.5z') + AE(16.5, 13.2, 2.4, 2.4, 0) + D(16.5, 13.2, 1),
   'toggle-up-axis': P('M12 4v16') + T('M8 8l4-4 4 4M12 20l7-4M12 20l-7-4'),
   'toggle-projection': P('M4 8l8-3 8 3v8l-8 3-8-3z') + T('M4 8l8 3 8-3M12 11v8'),
@@ -148,6 +154,7 @@ const ICONS: Record<string, string> = {
   'end-open': P('M7 9v11h10V9') + C('M7 9h10') + A('M12 3v8M9 8l3 3 3-3'),
   'add-revolve': C('M12 3v18') + P('M12 6h5.5l2 3.5v5l-2 3.5H12') + A('M5 9.5c1.2-1.2 3-1.9 5-2M5 14.5c1.6 1.6 4.2 2.4 7 2.4'),
   'add-lpattern': P('M3 8h5v8H3z') + T('M10 8h5v8h-5z') + T('M17 8h4v8h-4z') + A('M4 20h15M16.5 18l2.5 2-2.5 2'),
+  'add-pathpattern': A('M3 19C7 19 9 7 13 7s6 6 8 6') + P('M2 14h3v3H2z') + T('M10 4h3v3h-3z') + T('M18 9h3v3h-3z'),
   'add-cpattern': CO(12, 12, 7.5) + O(12, 4.5, 2) + T('M20 16.5a2 2 0 11-4 0 2 2 0 014 0z') + T('M8 16.5a2 2 0 11-4 0 2 2 0 014 0z') + A('M12 12 12 6.5'),
   // ---- selection modes
   'sel-face': cubeDim + A(FACE.top, 2) + AP(12, 7.5, 1.8),
@@ -230,6 +237,9 @@ const ICONS: Record<string, string> = {
   'add-surface-loft': P('M4 18h7M13 8h7') + A('M4 18C6 12 11 12 13 8M11 18c2-6 7-6 9-10') + T('M7.5 15c2-1 4-3 5-5'),
   'add-fill': P('M4 6h16v12H4z') + T('M4 6l16 12M20 6 4 18') + A('M12 9.5 14.5 12 12 14.5 9.5 12z') + D(12, 12, 1.3),
   'add-extend': P('M4 17l4-9h7l-4 9z') + C('M15 8h5l-4 9h-5') + A('M14 17h6M18 15l2 2-2 2'),
+  'add-project-curve': P('M3 18C8 12 16 12 21 18') + C('M6 5h12') + A('M12 5v7M9.5 9.5 12 12l2.5-2.5') + T('M8 15.2c2.5 1 5.5 1 8 0'),
+  'add-edit-curve': P('M3 17C7 5 13 19 21 7') + C('M3 17 8 6l5 12 8-11') + D(8, 6) + D(13, 18),
+  'add-freeform': P('M4 9c3-2 5 2 8 0s5-2 8 0v8c-3-2-5 2-8 0s-5 2-8 0z') + T('M4 13c3-2 5 2 8 0s5-2 8 0M12 9v8') + A('M12 9V4M10 6l2-2 2 2'),
   'analysis-zebra': P('M4 6h16M4 10h16M4 14h16M4 18h16') + T('M3 4v16M21 4v16') + A('M6 20C9 8 15 8 18 4'),
   'analysis-gaussian': O(12, 12, 8) + T('M6 9c3 2 9 2 12 0M5 14c4 3 10 3 14 0') + A('M9 7l6 10') + D(12, 12, 1.6),
   'analysis-mean': O(12, 12, 8) + T('M4 12h16') + A('M7 8c3 3 7 3 10 0') + A('M7 16c3-3 7-3 10 0'),
@@ -300,6 +310,17 @@ const PLACEHOLDER = '<rect x="5" y="5" width="14" height="14" rx="2" stroke-dash
  *  placeholder and never throw. The icon is decorative (aria-hidden): the button that holds it carries the label. */
 export function Icon(p: { name: string; size?: number; class?: string }): JSX.Element {
   const size = p.size ?? 20;
+  const set = useIconSet();
+  const sc = set === 'solidcraft' ? solidcraftArt(p.name) : null;   // the preview set; a name it has no master for keeps our own icon
+  if (sc) {
+    return (
+      <svg
+        class={'icon icon-sc' + (p.class ? ' ' + p.class : '')} data-icon={p.name} data-sc={sc.accent}
+        viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" focusable="false"
+        dangerouslySetInnerHTML={{ __html: sc.inner }}
+      />
+    );
+  }
   return (
     <svg
       class={'icon' + (p.class ? ' ' + p.class : '')}
@@ -334,6 +355,9 @@ export function featureIconName(type: string, op?: string): string {
     case 'rib': case 'lip': return 'feature-rib';
     case 'mirror': return 'feature-mirror';
     case 'knit': return 'feature-knit';
+    case 'projectCurve': return 'add-project-curve';
+    case 'editCurve': return 'add-edit-curve';
+    case 'freeform': return 'add-freeform';
     case 'insertPart': case 'importStep': return 'feature-part';
     case 'surfacePlanar': case 'surfaceExtrude': case 'surfaceRevolve': case 'surfaceOffset': case 'trimSurface': case 'fill': case 'extend': case 'pipeCut':
     case 'sweep': case 'loft': case 'thicken': return 'feature-surface';

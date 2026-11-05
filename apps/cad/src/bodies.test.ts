@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SelModel } from './select/model';
 import { box, meshOf } from './select/fixtures';
-import { cleanLook, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh } from './bodies';
+import { cleanLook, faceVolumes, hideOthers, keyOf, listBodies, lookFor, originOf, readBodyFields, rowOfName, setHidden, solo, toggleHidden, viewSpec, withLook, withLooks, withName, visibleMesh, splitBodies } from './bodies';
 import { exportStl } from './exportFiles';
 
 // two separate boxes: F1 (10 x 10 x 10 at the origin) and F5 (20 x 5 x 5 apart from it)
@@ -170,5 +170,35 @@ describe('visibleMesh (export only visible bodies)', () => {
   });
   it('is null when every body is hidden', () => {
     expect(visibleMesh(mesh, [{ hidden: true, faces: ['F1.a'] }, { hidden: true, faces: ['F2.a'] }])).toBeNull();
+  });
+});
+
+describe('splitBodies (3MF and GLB: one object per body)', () => {
+  const mesh = { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0, 0, 6, 0, 0, 5, 1, 0, 9, 0, 0, 10, 0, 0, 9, 1, 0], triFace: [0, 1, 2], faceIds: ['F1.a', 'F2.a', 'F9.a'] };
+  const rows = [
+    { name: 'Plate', hidden: false, faces: ['F1.a'], look: { color: '#ff0000', opacity: 0.5, metallic: 1 } },
+    { name: 'Lens', hidden: true, faces: ['F2.a'], look: {} },
+  ];
+  it('splits by body with names and looks; triangles of no body go to the fallback body', () => {
+    const b = splitBodies(mesh, rows, 'Part', false);
+    expect(b.map((x) => x.name)).toEqual(['Plate', 'Lens', 'Part']);
+    expect(b[0]).toMatchObject({ color: '#ff0000', opacity: 0.5, metallic: 1 });
+    expect(Array.from(b[1].positions)).toEqual([5, 0, 0, 6, 0, 0, 5, 1, 0]);
+    expect(b[1].color).toBeUndefined();
+    expect(b.reduce((s, x) => s + x.positions.length, 0)).toBe(27);
+  });
+  it('leaves hidden bodies out when asked', () => {
+    expect(splitBodies(mesh, rows, 'Part', true).map((x) => x.name)).toEqual(['Plate', 'Part']);
+  });
+  it('is one body when the mesh has no face ids or there are no rows; nothing for no mesh', () => {
+    expect(splitBodies({ positions: mesh.positions }, rows, 'Part', true).map((x) => x.name)).toEqual(['Part']);
+    expect(splitBodies(mesh, [], 'Part', true)).toHaveLength(1);
+    expect(splitBodies(null, rows, 'Part', true)).toEqual([]);
+  });
+  it('carries per-corner normals along', () => {
+    const normals = mesh.positions.map((_, i) => (i % 3 === 2 ? 1 : 0));
+    const b = splitBodies({ ...mesh, normals }, rows, 'Part', false);
+    expect(b[0].normals).toHaveLength(9);
+    expect(Array.from(b[0].normals!).slice(0, 3)).toEqual([0, 0, 1]);
   });
 });

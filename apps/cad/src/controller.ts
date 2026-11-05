@@ -1,6 +1,6 @@
 import { isNewerPart, normalizePartFormat } from './partVersion';
 import { originalCandidates, originalsToHide, type LumpVolume } from './referenceBody';
-import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame } from '@ck/session';
+import { type Session, type EditRecord, type EditOp, type EditResult, type PreviewResult, type ViewFrame, type ExportMeshReport } from '@ck/session';
 import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } from '@ck/part-model';
 import { vertexName, BODY, type Store } from '@kit/store';
 import { SelModel } from './select/model';
@@ -10,6 +10,9 @@ import { importStepView, importSldprtView, type StepImportResult } from './files
 import { sldprtAsPart, type SldprtPartResult } from './files/sldprtImport';
 import { importSkpView, type SkpImportResult, type SkpLook, type SkpOrient } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
+import { buildFolder, frozenPart, FOLDER_TAG, type FolderFormat } from './folderExport';
+import { bakedDoc, recordsInFaces, type FaceFact } from './exportKnurl';
+import type { BakeCache } from './bakeCache';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import type { LumpInfo } from './bodies';
 import { drawingQuery } from './drawing/kernel';
@@ -20,10 +23,11 @@ import { t } from './i18n';
 import { clampDepthOps, clampToTip, editsDraft, limitsOf, mayHaveTip, tipErrors, type Tip } from './taperLimit';
 import { refLabel, syncNameOps } from './featureCreators';
 import { deleteOps, repairAnchor, rollbackCount as countOf, withRollbackInsert } from './treeActions';
+import { listPick } from './listPick';
 import { fetchSurfaces, hasSurfaceFeatures, mergedView, surfaceNames, toViewSurfaces, withSurfaces } from './surfaceView';
 import { markSmoothEdges } from './smoothEdges';
 import type { BodyMesh, ViewSurface } from '@kit/viewport';
-import type { InertiaFact } from '@kit/script';
+import type { CosmeticKnurl, InertiaFact } from '@kit/script';
 import { diagnose, summaryLine, diagnoseErrors as diagnoseErrorList, featureStatuses, type Diagnosis } from '@kit/viewdata';
 import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
@@ -32,9 +36,14 @@ import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
 import { pinOf, readDocFonts, textFontsUsed, type DocFont, type FontSource } from './fonts';
 import { planeTouchesBox } from './extrudeOp';
-import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData } from '@kit/sketch';
+import { defaultFlip, ensureTextOutlines, foldSolution, fromFeature, problemHint, refusedBy, toFeature, type SketchDraft, type TextOutlineData, type EquationResult, type EquationSpec } from '@kit/sketch';
 
 /** The solved sketch a viewport draws while a sketch feature is open for editing. */
+/** Why an export with its cosmetic knurls cut did not produce a file. */
+export type BakeFailure = 'cancelled' | 'timeout' | 'failed';
+/** The kernel tag the export copy with real knurl grooves is built on. */
+const BAKE_TAG = 'knurl-export';
+
 export interface SketchEditView {
   featureId: string;
   frame: ViewFrame;
@@ -81,6 +90,9 @@ export interface KernelFactory {
 /** One undoable change of the part's material, or (with `extra`) of a document field the session has no op for (the cosmetic knurls): no rebuild, ordered with the session's own steps. */
 interface MaterialStep { at: number; before: unknown; after: unknown; extra?: string }
 
+/** Feature types whose regen carries warnings or markers the Session does not pass on: threads (markers, carry warnings) and patterns (copies that miss, stand apart or overlap). */
+const hasExtras = (type: string | undefined): boolean => type === 'thread' || type === 'lpattern' || type === 'cpattern' || type === 'curvepattern';
+
 export class Controller {
   private readonly store: Store;
   private readonly view: ViewSink;
@@ -112,6 +124,7 @@ export class Controller {
 
   /** The session hands out a deep copy of the document on every `document` read (1.4 MB of JSON for a 500-feature part, ~0.3 s each).
    *  One copy is kept until the session changes; callers get the same object and must not mutate it. */
+  private readonly bakeCache: BakeCache | null;
   private snap: PartDoc | null = null;
   private sdoc(): PartDoc {
     if (!this.session) return this.cachedDoc!;   // the cached view is up and the kernel is still building the session
@@ -119,7 +132,8 @@ export class Controller {
   }
   private hasDoc(): boolean { return !!(this.session || this.cachedDoc); }
 
-  constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory; /** where curated fonts come from (default: none, so a document with a curated font opens without it) */ fonts?: FontSource; /** size above which a user font travels as a subset (tests) */ fontEmbedMax?: number }) {
+  constructor(deps: { store: Store; view: ViewSink; kernel: KernelFactory; /** where curated fonts come from (default: none, so a document with a curated font opens without it) */ fonts?: FontSource; /** size above which a user font travels as a subset (tests) */ fontEmbedMax?: number; /** results of the export bake, reused when the same part is exported again (default: none) */ bakeCache?: BakeCache }) {
+    this.bakeCache = deps.bakeCache ?? null;
     this.store = deps.store;
     this.view = deps.view;
     this.kernel = deps.kernel;
@@ -176,6 +190,7 @@ export class Controller {
         for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources', 'cosmeticKnurls']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
         this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
         this.tipNoteV = null; this.limits = new Map();
+        this.dropSketchSession();   // a sketch open on the old part has nothing to stand on in the new one
       };
       if (opts.cached && this.showCached(doc, opts.cached, reset)) {
         const mine = ++this.loadSeq;
@@ -309,7 +324,7 @@ export class Controller {
    * `load` of the same list finds it built. The document is completed with the defaults a loaded part has (the kernel's cache key
    * covers the material and the variables), or the later load would not find what was built here.
    */
-  async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
+  async scratchBuild(doc: PartDoc, view: boolean, tag: string = this.scratchTag): Promise<{ errors: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; geometry?: { mesh: ReturnType<Controller['bodyFaces']>; edges: ViewEdge[]; box: { min: number[]; max: number[] } | null } }> {
     if (this.realLoad) await this.whenReal();
     const k = this.transport();
     if (!k) throw new Error('no kernel');
@@ -317,14 +332,172 @@ export class Controller {
     const { fonts: _fonts, ...plain } = doc as PartDoc & { fonts?: unknown };
     const r = await k.request({ type: 'regen', tag, part: { ...emptyPart('script'), ...plain }, ...(view ? {} : { opts: { noView: true } }) });
     if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
-    const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; body?: Record<string, unknown> | null };
+    const res = r.result as { errors?: Array<[string, { code?: string; message?: string }]>; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]>; body?: Record<string, unknown> | null };
     const errors = res.errors ?? [];
-    if (!view) return { errors };
+    const warnings = res.warnings ?? [];
+    if (!view) return { errors, warnings };
     const body = res.body ?? null;
-    if (!body) return { errors, geometry: { mesh: null, edges: [], box: null } };
+    if (!body) return { errors, warnings, geometry: { mesh: null, edges: [], box: null } };
     const { meshFromBody } = await import('@ck/mesh');
     const mesh = meshFromBody(body as Parameters<typeof meshFromBody>[0]) as unknown as ReturnType<Controller['bodyFaces']>;
-    return { errors, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
+    return { errors, warnings, geometry: { mesh: mesh && mesh.positions.length > 0 ? mesh : null, edges: (body.edges as ViewEdge[] | undefined) ?? [], box: (body.box as { min: number[]; max: number[] } | undefined) ?? null } };
+  }
+  /**
+   * The geometry of a folder export: `doc` (the open document cut down to the folder's bodies, see folderExport.ts) built on a scratch
+   * tag and read back as STEP text, volume, lump count and display mesh, or as the frozen part that holds that STEP. Nothing of the
+   * open document, its history or the view changes. With `bake` the cosmetic knurls whose cylinder the folder holds are cut as real grooves
+   * in that scratch copy first (`baked` says how many); a failed, cancelled or timed-out cut comes back as `bake` and writes nothing.
+   */
+  async folderBuild(doc: PartDoc, source: PartDoc, name: string, format: FolderFormat, bake?: { recs: CosmeticKnurl[]; seconds: number; /** asked once the folder is known to hold `count` of the knurls (the busy overlay is down meanwhile); without it they are cut */ confirm?(count: number): Promise<'include' | 'plain' | 'cancel'> }): Promise<{ ok: true; data: string | { positions: ArrayLike<number> }; volume: number; solids: number; baked: number; /** the folder holds knurls that were chosen not to be cut */ left: number } | { ok: false; message: string; bake?: { reason: BakeFailure } }> {
+    const k = this.transport();
+    if (!k) return { ok: false, message: 'no kernel' };
+    let built;
+    try { built = await this.scratchBuild(doc, true, FOLDER_TAG); } catch (e) { return { ok: false, message: (e as Error).message }; }
+    if (built.errors.length) return { ok: false, message: `the folder's bodies could not be rebuilt (${built.errors[0][0]}: ${built.errors[0][1].message ?? built.errors[0][1].code ?? 'error'})` };
+    let baked = 0, left = 0;
+    if (bake?.recs.length) {
+      // the knurls this folder holds (the cylinder is on one of its bodies); a knurl of a body left out is not part of this file
+      const names = (built.geometry?.mesh as { faceIds?: string[] } | null | undefined)?.faceIds ?? [];
+      const d = names.length ? await k.request({ type: 'describe', tag: FOLDER_TAG, names }) : null;
+      const items = (d?.ok ? (d.result as { items?: FaceFact[] } | undefined)?.items : undefined) ?? [];
+      const mine = recordsInFaces(bake.recs, items);
+      let go: 'include' | 'plain' | 'cancel' = 'include';
+      if (mine.length && bake.confirm) {
+        const was = this.store.busy.value;
+        this.store.busy.value = false;
+        try { go = await bake.confirm(mine.length); } finally { this.store.busy.value = was; }
+      }
+      if (go === 'cancel') return { ok: false, message: 'cancelled', bake: { reason: 'cancelled' } };
+      if (go === 'plain') left = mine.length;
+      else if (mine.length) {
+        const plain = await k.request({ type: 'massProps', tag: FOLDER_TAG });
+        const pv = (plain.result as { volume?: unknown } | undefined)?.volume;
+        const r = await this.bakeScratch(bakedDoc(doc, mine, null), mine.length, FOLDER_TAG, typeof pv === 'number' ? pv : null, true, bake.seconds);
+        if (!r.ok) return { ok: false, message: r.message, bake: { reason: r.reason } };
+        built = r.data;
+        baked = mine.length;
+      }
+    }
+    const r = await buildFolder(k, name, built.geometry?.mesh ?? null);
+    if (!r.ok) return r;
+    const { step, volume, solids, mesh } = r.build;
+    if (format === 'step') return { ok: true, data: step, volume, solids, baked, left };
+    if (format === 'stl') return mesh ? { ok: true, data: mesh, volume, solids, baked, left } : { ok: false, message: "the folder's bodies have no triangles" };
+    const f = await frozenPart(k, source, name, r.build);
+    return f.ok ? { ok: true, data: JSON.stringify(f.part, null, 1), volume, solids, baked, left } : f;
+  }
+
+  /**
+   * Run `work` with the busy overlay, ended by the overlay's Cancel or by the time limit (`seconds`); a limit that runs out restarts the kernel as
+   * Cancel does, since a cut in the worker cannot be stopped any other way.
+   */
+  private async limited<T>(seconds: number, work: () => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; reason: 'cancelled' | 'timeout' }> {
+    const was = this.store.busy.value;
+    this.store.busy.value = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const run = work();
+      run.catch(() => { /* the race below reports it, or a cancelled run's late failure is of no interest */ });
+      const value = await Promise.race([
+        run,
+        new Promise<never>((_, reject) => { this.pendingCancel = () => reject(new Error('cancelled')); }),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), seconds * 1000); }),
+      ]);
+      return { ok: true, value };
+    } catch (e) {
+      const m = (e as Error).message;
+      if (m === 'cancelled') return { ok: false, reason: 'cancelled' };
+      if (m === 'timeout') { this.pendingCancel = null; await this.cancel(); return { ok: false, reason: 'timeout' }; }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+      this.pendingCancel = null;
+      this.store.busy.value = was;
+    }
+  }
+
+  /** Build the baked copy `doc` (cosmetic knurls cut) on scratch tag `tag`: errors, an empty result or a solid no smaller than `plainVolume` (the cut found nothing to cut) are failures. */
+  private async bakeScratch(doc: PartDoc, count: number, tag: string, plainVolume: number | null, view: boolean, seconds: number): Promise<{ ok: true; data: Awaited<ReturnType<Controller['scratchBuild']>> } | { ok: false; reason: BakeFailure; message: string }> {
+    const k = this.transport();
+    if (!k) return { ok: false, reason: 'failed', message: 'no kernel' };
+    let r;
+    try {
+      r = await this.limited(seconds, async () => {
+        const built = await this.scratchBuild(doc, view, tag);
+        if (built.errors.length) throw new Error(`${built.errors[0][0]}: ${built.errors[0][1].message ?? built.errors[0][1].code ?? 'error'}`);
+        const m = await k.request({ type: 'massProps', tag });
+        const v = m.ok ? (m.result as { volume?: unknown } | undefined)?.volume : undefined;
+        if (typeof v !== 'number' || !(v > 0)) throw new Error('the solid with the grooves has no volume');
+        if (plainVolume !== null && !(v < plainVolume)) throw new Error(`the ${count} knurl cut(s) removed nothing from the solid`);
+        // a solid the kernel calls invalid can still be written out as STEP, and then not read back: never offered as the export
+        const ok = await k.request({ type: 'validate', tag });
+        const check = ok.ok ? (ok.result as { ok?: boolean; issues?: Array<{ code: string }> } | undefined) : undefined;
+        if (check && check.ok === false) throw new Error(`the solid with the grooves is not valid (${check.issues?.[0]?.code ?? 'invalid'})`);
+        return built;
+      });
+    } catch (e) { return { ok: false, reason: 'failed', message: (e as Error).message.replace(/^knurl\(\): /, '') }; }
+    if (!r.ok) return { ok: false, reason: r.reason, message: r.reason === 'timeout' ? `the cutting took more than ${seconds} s` : 'cancelled' };
+    return { ok: true, data: r.value };
+  }
+
+  /**
+   * The open document with its cosmetic knurls cut as real grooves, built on a scratch tag, read back as STEP text or as the display mesh. The open
+   * document, its history, undo stack and the view are not touched. A cut that fails, is cancelled or runs past `seconds` comes back as `ok: false`
+   * (the caller offers the plain export); nothing is ever written from a half-baked copy.
+   */
+  async bakeBuild(recs: CosmeticKnurl[], want: 'step' | 'mesh', seconds: number): Promise<{ ok: true; step?: string; mesh?: { positions: ArrayLike<number> }; baked: number; /** the result of an earlier identical bake: the kernel was not asked to cut again */ cached?: boolean } | { ok: false; reason: BakeFailure; message: string }> {
+    if (this.realLoad) await this.whenReal();
+    const d = this.document();
+    if (!d || !this.transport()) return { ok: false, reason: 'failed', message: 'no kernel' };
+    const k = this.transport()!;
+    let doc: PartDoc;
+    try { doc = bakedDoc(d, recs, this.rollbackCount()); } catch (e) { return { ok: false, reason: 'failed', message: (e as Error).message.replace(/^knurl\(\): /, '') }; }
+    // the same scratch document, wanted the same way, on the same kernel build: the result of the earlier cut
+    const key = await this.bakeCache?.key(doc, want).catch(() => null) ?? null;
+    const hit = key ? await this.bakeCache!.get(key) : null;
+    if (hit?.step && want === 'step') return { ok: true, step: hit.step, baked: recs.length, cached: true };
+    if (hit?.mesh && want === 'mesh') return { ok: true, mesh: hit.mesh, baked: recs.length, cached: true };
+    const plain = (await this.massProps().catch(() => null))?.volume;
+    const r = await this.bakeScratch(doc, recs.length, BAKE_TAG, typeof plain === 'number' ? plain : null, want === 'mesh', seconds);
+    try {
+      if (!r.ok) return r;
+      if (want === 'mesh') {
+        const mesh = r.data.geometry?.mesh;
+        if (!mesh) return { ok: false, reason: 'failed', message: 'the solid with the grooves has no triangles' };
+        // only a bake that passed every check is kept (a failure or a time-out returned above)
+        if (key) await this.bakeCache!.put(key, { mesh: { positions: Float32Array.from(mesh.positions as ArrayLike<number>) } });
+        return { ok: true, mesh, baked: recs.length };
+      }
+      const out = await k.request({ type: 'step', tag: BAKE_TAG, name: d.name });
+      if (!out.ok || typeof out.result !== 'string' || !out.result.includes('ISO-10303-21')) return { ok: false, reason: 'failed', message: 'the kernel could not write the solid with the grooves as STEP' };
+      // the kernel can write a STEP of a cut it calls valid that it cannot read back (a round pyramid has done it): read it into a scratch tag first
+      const back = await k.request({ type: 'importStep', tag: `${BAKE_TAG}-check`, name: d.name, data: out.result });
+      const bad = !back.ok ? 'import failed' : ((back.result as { errors?: Array<[string, { code?: string }]> } | undefined)?.errors ?? [])[0]?.[1]?.code;
+      void this.scratchRelease(`${BAKE_TAG}-check`);
+      if (bad) return { ok: false, reason: 'failed', message: `the STEP of the solid with the grooves does not read back (${bad})` };
+      if (key) await this.bakeCache!.put(key, { step: out.result });
+      return { ok: true, step: out.result, baked: recs.length };
+    } finally { void this.scratchRelease(BAKE_TAG); }
+  }
+  /** Whether `bakeBuild(recs, want)` would be answered from the cache now (so the export need not warn that it can take a minute). */
+  async bakeCached(recs: CosmeticKnurl[], want: 'step' | 'mesh'): Promise<boolean> {
+    const d = this.document();
+    if (!d || !this.bakeCache) return false;
+    try {
+      const key = await this.bakeCache.key(bakedDoc(d, recs, this.rollbackCount()), want);
+      return !!key && await this.bakeCache.has(key);
+    } catch { return false; }
+  }
+  /** Whether an extracted folder builds as a part of its own, and its volume (null when it makes no solid). Scratch state only. */
+  async extractCheck(part: PartDoc): Promise<{ ok: true; volume: number | null } | { ok: false; message: string }> {
+    const k = this.transport();
+    if (!k) return { ok: false, message: 'no kernel' };
+    let built;
+    try { built = await this.scratchBuild(part, false, `${FOLDER_TAG}-extract`); } catch (e) { return { ok: false, message: (e as Error).message }; }
+    if (built.errors.length) return { ok: false, message: `${built.errors[0][0]}: ${built.errors[0][1].message ?? built.errors[0][1].code ?? 'error'}` };
+    const m = await k.request({ type: 'massProps', tag: `${FOLDER_TAG}-extract` });
+    const v = m.ok ? (m.result as { volume?: unknown } | undefined)?.volume : undefined;
+    return { ok: true, volume: typeof v === 'number' && Number.isFinite(v) ? v : null };
   }
   /** Kernel answers about the document `scratchBuild` built last (a script's read-back: volume, area, centre of mass, validity). */
   async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }): Promise<{ text?: never;  volume?: number | null; area?: number | null; com?: number[] | null; inertia?: InertiaFact | null; valid?: boolean | null; issues?: Array<{ code: string; entity: string; detail: string }>; faces?: Array<{ name: string; surface?: string; area?: number; radius?: number }> }> {
@@ -548,7 +721,9 @@ export class Controller {
       // the preview's own reply carries the surface bodies and thread markers: no second regen of the candidate
       const surfaces = r.surfaces !== undefined ? (hasSurfaceFeatures(cand as never) ? toViewSurfaces(r.surfaces) : []) : await this.surfacesFor(s, { ...this.sdoc(), features: cand } as unknown as PartDoc, upTo, '-psurf');
       if (seq !== this.previewSeq) return { ok: true, errors: [], hints: [], body: null, stale: true };
-      this.view.setBody(withSurfaces(r.body, surfaces));
+      const shown = withSurfaces(r.body, surfaces);
+      this.view.setBody(shown);
+      this.previewView = shown ? withSmoothEdges(mergedView(shown)) : null;
       await this.previewExtras(s, ops, seq, r.threads || r.warnings ? { threads: r.threads ?? [], warnings: r.warnings ?? [] } : undefined);
       return lim.tips.length ? { ...r, tip: lim.tips[0] } : r;
     }
@@ -561,12 +736,12 @@ export class Controller {
 
   /**
    * Warnings and cosmetic threads of a regen. The Session reports only `errors` today (verify() and preview() drop the
-   * rest of the regen reply), so when the document has a thread feature this asks the kernel for the reply itself; with a
+   * rest of the regen reply), so when the document has a thread or a pattern feature this asks the kernel for the reply itself; with a
    * Session that passes `threads` / `warnings` through, `report.regen` already has them and no request is made.
    */
   private async regenExtras(s: Session, doc: PartDoc, tag: string, from?: { threads?: unknown[]; warnings?: unknown[] }): Promise<{ threads: unknown[]; warnings: unknown[] }> {
     if (from && (from.threads || from.warnings)) return { threads: from.threads ?? [], warnings: from.warnings ?? [] };
-    if (!doc.features.some((f) => (f as { type?: string }).type === 'thread')) return { threads: [], warnings: [] };
+    if (!doc.features.some((f) => hasExtras((f as { type?: string }).type))) return { threads: [], warnings: [] };
     try {
       const k = (s as unknown as { kernel?: { request(m: unknown): Promise<{ ok?: boolean; result?: unknown }> } }).kernel;
       const modeled = doc.features.some((f) => (f as { type?: string; modeled?: unknown }).type === 'thread' && (f as { modeled?: unknown }).modeled === true);
@@ -593,12 +768,12 @@ export class Controller {
     this.view.setThreads?.(x.threads);
     this.store.featureWarnings.value = warningsById(x.warnings);
   }
-  /** After a preview of an edit that touches a thread: the warnings and markers of the candidate (restored by cancelPreview / the next refresh). */
+  /** After a preview of an edit to a part with a thread or a pattern: the warnings and markers of the candidate (restored by cancelPreview / the next refresh). */
   private async previewExtras(s: Session, ops: EditOp[], seq: number, reply?: { threads: unknown[]; warnings: unknown[] }): Promise<void> {
     const feats = applyOpsLocal(this.sdoc().features as unknown as Array<Record<string, unknown>>, ops);
     const hasThread = (feats ?? []).some((f) => f.type === 'thread');
     if (feats && !hasThread && this.committedExtras.threads.length) { this.applyExtras({ threads: [], warnings: [] }); return; }   // the candidate removes the last thread
-    if (!feats || !hasThread) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
+    if (!feats || !feats.some((f) => hasExtras(f.type as string | undefined))) { if (this.store.featureWarnings.value && Object.keys(this.store.featureWarnings.value).length) this.applyExtras(this.committedExtras); return; }
     const x = reply ?? (await this.regenExtras(s, { ...this.sdoc(), features: feats } as unknown as PartDoc, `${this.previewTagOf(s)}-x`));
     if (seq !== this.previewSeq) return;
     this.applyExtras(x);
@@ -642,6 +817,7 @@ export class Controller {
     if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
     this.previewWake?.();
     this.previewWake = null;
+    this.previewView = null;
     const s = this.session;
     if (!s) return;
     const body = await this.bodyNow(s).catch(() => null);
@@ -751,6 +927,7 @@ export class Controller {
     const feature = features[index] as unknown as Record<string, unknown>;
     if (feature.type !== 'sketch') return null;
     const draft = fromFeature(feature);
+    this.dropSketchSession();   // never start from a session left open
     this.sketchOpen = { featureId, upTo: index + 1, draft, baselineDof: null, isNew: false, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, index + 1, false);
@@ -773,6 +950,7 @@ export class Controller {
       points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [],
     });
     const upTo = (this.rollbackCount() ?? this.sdoc().features.length) + 1;
+    this.dropSketchSession();   // never start from a session left open: a new sketch begins from its own empty draft
     this.sketchOpen = { featureId: id, upTo, draft, baselineDof: null, isNew: true, undo: [], status: null };
     this.sketchSeq++;
     const res = await this.previewSketch(draft, upTo, true);
@@ -891,6 +1069,17 @@ export class Controller {
     if (!r.ok) throw new Error(typeof r.error === 'string' ? r.error : r.error?.message ?? 'textOutline failed');
     return r.result as TextOutlineData;
   }
+  /** The kernel's fit of an equation curve (docs/equation-curve.md, equationCurve) with the document's variables: the points, or
+   *  `{error: "<code>: <message>"}` when the kernel refuses the formulas. Throws only when there is no kernel. */
+  async fetchEquationCurve(spec: EquationSpec): Promise<EquationResult> {
+    if (this.realLoad) await this.whenReal();
+    const k = this.transport();
+    if (!k) throw new Error('no kernel');
+    const variables = ((this.document() as { variables?: unknown } | null)?.variables ?? []) as unknown[];
+    const r = await k.request({ type: 'equationCurve', ...spec, variables }) as { ok: boolean; result?: unknown; error?: { message?: string } | string };
+    if (!r.ok) return { error: typeof r.error === 'string' ? r.error : r.error?.message ?? 'equationCurve failed' };
+    return r.result as EquationResult;
+  }
   /** The plane frame of the open sketch (null when none is open). */
   sketchFrame(): ViewFrame | null {
     return this.sketchOpen ? this.sketchFrameNow : null;
@@ -921,8 +1110,27 @@ export class Controller {
   /** Close the sketch overlay without writing anything. */
   async cancelSketch(): Promise<void> {
     this.sketchOpen = null;
+    this.dropSketchSession();
     this.closeSketchPreview();
     this.view.setSketchEdit(null);
+  }
+
+  /** End the open sketch session (if any) and clear its overlay in the viewport; nothing is written to the document. */
+  private dropSketchSession(): void {
+    if (!this.sketchOpen) return;
+    this.sketchOpen = null;
+    this.closeSketchPreview();
+    this.view.setSketchEdit(null);
+  }
+
+  /** After the document changed under an open sketch (a delete, an undo, a redo): when the sketch's feature is gone the session
+   *  closes (its draft is dropped, the overlay cleared); otherwise its place in the tree is read again. A new, unsaved sketch has
+   *  no feature yet and stays. */
+  private reconcileSketchSession(ids: string[]): void {
+    const open = this.sketchOpen;
+    if (!open || open.isNew) return;
+    const at = ids.indexOf(open.featureId);
+    if (at < 0) this.dropSketchSession(); else open.upTo = at + 1;
   }
 
   private closeSketchPreview(): void {
@@ -1288,6 +1496,8 @@ export class Controller {
 
   /** The last body handed to the viewer, with its surface bodies kept apart (`lastView` has them merged in). */
   private shown: ShownBody | null = null;
+  /** The view of the preview on screen (null when the committed body is shown). */
+  private previewView: { edges?: ViewEdge[] } | null = null;
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
   private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; x?: number[]; y?: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
@@ -1362,9 +1572,55 @@ export class Controller {
     return this.session ? this.session.step() : null;
   }
 
+  /** The body meshed at an export quality / absolute chord height (the mesh on screen is not touched); null when nothing is loaded. */
+  async exportMesh(o: { quality?: 'coarse' | 'normal' | 'fine'; chord_mm?: number }): Promise<ExportMeshReport | null> {
+    if (this.realLoad) await this.whenReal();
+    return this.session ? this.session.exportMesh(o) : null;
+  }
+
   /** The edges of the body on screen: persistent key, the two faces they separate, and a point on each. */
   bodyEdges(): ViewEdge[] {
     return this.lastView?.edges ?? [];
+  }
+
+  /** The edges of the body drawn now: an editor's preview while one is on screen, else the body on screen (`bodyEdges`). What a click
+   *  in the viewport names. */
+  shownEdges(): ViewEdge[] {
+    return this.previewView?.edges ?? this.bodyEdges();
+  }
+
+  /** `edgesBefore`, kept per feature and document state: an edges field reads every pick on it. */
+  edgesBeforeCached(featureId: string): Promise<ViewEdge[]> {
+    const k = `${featureId}@${this.revision}`;
+    if (this.beforeCache?.k !== k) {
+      const p = this.edgesBefore(featureId);
+      this.beforeCache = { k, p };
+      p.catch(() => { if (this.beforeCache?.p === p) this.beforeCache = null; });
+    }
+    return this.beforeCache.p;
+  }
+  private beforeCache: { k: string; p: Promise<ViewEdge[]> } | null = null;
+
+  /** One click or box pick into a list field (`edges`, `faces`) of the editor of `featureId` (see listPick.ts). `names` are what was hit
+   *  on `shown` (the body drawn when the pick was made); the edges field of a Fillet or Chamfer in the document is read on the body that
+   *  feature is applied to. `current` and `selection` are read once that body is ready. Null when the pick changes nothing. */
+  async pickIntoList(featureId: string | null, path: string, current: () => unknown, selection: () => string[], names: string[], chain: boolean, addOnly: boolean, shown: ViewEdge[] = this.shownEdges()): Promise<{ value: unknown[]; selection: string[] } | null> {
+    const f = featureId && this.hasDoc() ? this.sdoc().features.find((x) => x.id === featureId) : undefined;
+    const round = f?.type === 'fillet' || f?.type === 'chamfer';   // the edge fields that round edges between two faces of the body
+    const before = path === 'edges' && round ? await this.edgesBeforeCached(featureId!).catch(() => null) : null;
+    return listPick(path, current(), selection(), names, shown, chain, addOnly, before);
+  }
+
+  /** The edges of the body feature `featureId` is applied to (the features before it, built on a scratch tag; `smooth` marked as on
+   *  screen). A feature that is not in the document yet is applied to the body on screen. */
+  async edgesBefore(featureId: string): Promise<ViewEdge[]> {
+    const d = this.hasDoc() ? this.sdoc() : null;
+    const at = d ? d.features.findIndex((f) => f.id === featureId) : -1;
+    if (!d || at < 0) return this.bodyEdges();
+    if (!this.canScratchBuild()) return [];
+    const built = await this.scratchBuild({ ...d, features: d.features.slice(0, at), rollback: null } as PartDoc, true, `${this.scratchTag}-chain`);
+    const g = built.geometry;
+    return g?.mesh && g.edges.length ? markSmoothEdges(g.mesh as unknown as BodyMesh, g.edges) : g?.edges ?? [];
   }
 
   /** Whether a new extrude of this sketch should be flipped so a cut goes into the material. */
@@ -1440,9 +1696,11 @@ export class Controller {
     const ids = this.sdoc().features.map((f) => f.id);
     this.rollbackAnchor = repairAnchor(this.rollbackAnchor, this.lastIds, ids);
     this.lastIds = ids;
+    this.reconcileSketchSession(ids);
     const body = await this.bodyNow(s);
     this.revision++;
     this.shown = body;
+    this.previewView = null;
     this.lastView = body ? withSmoothEdges(mergedView(body)) : null;   // solid and sheets as one mesh: what picking lists, measure and section read
     this.view.setBody(body);
     this.refreshLumps();

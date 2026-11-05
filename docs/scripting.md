@@ -30,7 +30,8 @@ Part methods (each adds one feature, in order):
 | `.holes.grid(face, {origin, pitch: [dx, dy], count: [nx, ny]}, {diameter, depth?})` | ONE hole feature at a grid of points |
 | `.holes.points(face, [[x, y], ...], {diameter, depth?})` | ONE hole feature at the listed points |
 | `.shell(face \| faces, t)` | shell, the face(s) are opened |
-| `.linearPattern([seed,] {count, spacing \| totalLength, direction, second})` | pattern of the last feature (or `seed`: handle, id, 'last', array) along x / y / z; `second` makes a 2D grid |
+| `.linearPattern([seed,] {count, spacing \| totalLength \| to, toOffset, direction, second})` | pattern of the last feature (or `seed`: handle, id, 'last', array) along x / y / z; `to` ends the last copy at a plane, flat face or point; `second` makes a 2D grid |
+| `.pathPattern([seed,] {path, count, spacing \| totalLength, start \| startFraction, flip, orientation})` | pattern along an open path sketch, moved (`'fixed'`) or turned with it (`'tangent'`) |
 | `.circularPattern([seed,] {count, axis, angle \| total, equalSpacing})` | pattern about a world axis through the origin |
 | `.workplane(base, offset, {rotate})` | a reference plane feature of its own (see Workplanes) |
 | `.handle()` | a handle on the feature recorded last (for `{of}` and patterns) |
@@ -117,6 +118,29 @@ So on `'top'` a point at sketch y = 10 is at world z = -10 (toward the back); Y 
 
 `flip: true` and `mid: true` still work and switch auto off. State the direction yourself in hot paths: the automatic retry costs an extra build.
 
+## Equation curves
+
+`s.equation({ x, y, t: [start, end], tol, name })` inside a sketch callback adds a curve from two formulas of `t`. The document stores
+the formulas; the kernel fits its spline (the fewest points within `tol`, default 0.01 mm) on every rebuild, so a curve that uses
+`variables()` follows them. Details: the kernel's `docs/equation-curve.md`.
+
+* The formulas use the expression syntax of dimensions (`+ - * / ^`, `sqrt sin cos tan abs`, `min max pow mod hypot atan2 round floor
+  ceil exp ln log10 asin acos atan`, `pi`). **Trigonometry is in degrees**: a full turn is `t: [0, 360]`. Any name other than `t` must
+  be a declared variable.
+* The ends of `t` are numbers, `expr('n*360')`, or formula strings.
+* A curve that ends where it starts is closed and extrudes on its own. An open curve needs lines that start and end exactly at its end
+  points (work them out from the formulas); its points are named `<name>_start`, `<name>_p1`.., `<name>_end`.
+* A bad formula stops the run with the kernel's message: `equationFormula` (unreadable, or an unknown name, which it names),
+  `equationNotFinite` (no value at some `t`, e.g. `sqrt(5 - t)` past 5), `equationRange`, `equationTolerance` (more than 200 points
+  needed), `equationDegenerate`. A curve that crosses itself warns `equationSelfIntersects`.
+
+```js
+const v = variables({ R: 20 });
+part('Disc').sketch('front', (s) => s.equation({ x: 'R*cos(t)', y: 'R*sin(t)', t: [0, 360] })).extrude(5);
+part('Wave').sketch('front', (s) => s.equation({ x: 't/9', y: '3*sin(t)', t: [0, 360] })
+  .polyline([[40, 0], [40, -10], [0, -10], [0, 0]])).extrude(5);
+```
+
 ## Lettering (engrave and emboss)
 
 `s.text(string, at, opts)` inside a sketch callback adds a text entity: the letters of a built-in font become closed loops that
@@ -196,7 +220,9 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
 
 ## Patterns, fillets, workplanes
 
-* `linearPattern([seed,] {count, spacing | totalLength, direction, reverse, second})`: `seed` is `'last'` (default), a handle, a feature id or an array of them (several features patterned together). `direction` is `'x'|'y'|'z'`, a vector or a straight edge, and must be parallel to a world axis. `second: {direction, count, spacing | totalLength}` makes a rectangular grid (a pattern of a pattern, seeded with the originals plus the first pattern: a pattern alone does not contain its own original: to pattern a pattern yourself pass `[original, patternHandle]`).
+* `linearPattern([seed,] {count, spacing | totalLength | to, toOffset, direction, reverse, second})`: `seed` is `'last'` (default), a handle, a feature id or an array of them (several features patterned together). Give one of `spacing` (between neighbours), `totalLength` (first to last: the kernel's `extent`, kept when the count changes) or `to` (the last copy reaches it, measured from the middle of what is patterned: `'front'|'top'|'right'`, `at(plane, offset)`, a flat `face(sel)` across the direction, or a point `[x, y, z]`; `toOffset` moves that end the way the copies go, negative stops short; `reverse` is not read with `to`). `direction` is `'x'|'y'|'z'`, a vector or a straight edge, and must be parallel to a world axis. `second: {direction, count, spacing | totalLength | to, toOffset, reverse}` makes a rectangular grid in the same feature (`dir2`, `count2`, ...).
+* `pathPattern([seed,] {path, count, spacing | totalLength, start | startFraction, flip, orientation})`: `path` is a sketch `{ on, draw }` with an open chain of lines and arcs. The path runs from its end nearest the seed (`flip`: from the other end); the seed sits `start` mm (or `startFraction` of the length) along it and copy k at `start + k * spacing`. `orientation: 'tangent'` turns the copies with the path; `'fixed'` (default) only moves them. A last copy past the path end is the kernel error `patternBeyondPath`, whose hint names the largest spacing that fits.
+* Pattern warnings: a run's `warnings` carry `patternCopiesNoEffect` (copies that miss the body or sit inside it), `patternCopiesApart` (boss copies that touch nothing) and `patternCopiesOverlap` (copies that overlap each other), each with the pattern's line.
 * `circularPattern([seed,] {count, axis, angle | total = 360, equalSpacing, reverse})`: `axis` is `'x'|'y'|'z'`, `[ox,oy,oz,dx,dy,dz]` or a straight edge, and must be a world axis through the origin. `equalSpacing` (default for 360) steps `angle / count`; false steps `angle / (count - 1)`.
 * `fillet(edges, {radius: 3 | [r per selected edge] | {[edge key]: r, '*': default}, variable: [near, far]})`: unequal radii become one fillet feature per distinct radius (increasing), i.e. sequential blends. `chamfer(edges, {distance, distance2})` / `{distance, angle}` emit the kernel's distanceDistance / angleDistance chamfers.
 * Workplanes: `at(base, offset = 0, {rotate: {axis, angle}, flip})` with `base` = `'front'|'top'|'right'` (moved along +Z / +Y / +X), `face(...)` (the face's plane, offset along its OUTWARD normal), a plane handle (`part.workplane(...)` then `part.handle()`), or `{origin: [x,y,z], normal: [x,y,z], xdir?}`. `rotate.axis` is `'x'|'y'|'z'` or an `edges(...)` selector; the plane passes through the axis line (an `offset` is applied first). `part.workplane(base, offset, opts)` adds the plane as a feature of its own.

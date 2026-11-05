@@ -30,6 +30,8 @@ still faces the camera); only the screen is turned so the new axis is up. A came
 Front under Y up, switched to Z up) is nudged a hair off the pole. With a sketch open, the camera is left looking normal to
 its plane.
 
+The view cube's arrow ring (see the guide, Moving around the model; its buttons are four switchable groups, a phone starting with turn left/right alone) turns the view about screen axes. Left and right turn about the world up axis while the view is upright, so an iso view stays at its elevation; up and down tilt about the screen's horizontal axis and stop on the pole view instead of crossing it from an off-axis view. A rolled view, or a pole view, turns rigidly about the screen's own axes, so four quarter turns always return exactly (`packages/viewport/src/viewnav.ts`). Poles are reached with the screen's up pointing away from the front on Top and towards it on Bottom.
+
 "Look normal" on a sketch plane points the camera along the plane normal with the sketch's own v axis up, on either setting.
 
 ## Orbit mode

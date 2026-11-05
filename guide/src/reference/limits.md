@@ -40,7 +40,7 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 
 - **STEP and SketchUp** files open as **view-only** bodies. You can look at them, measure them and section them, but they are not features of the part and are not saved with it. A **SolidWorks** part opens as an editable imported body that is saved with the part.
 - **STEP** import does not read assemblies, placements, colours or names. Shell-based surface models and open shells are not imported. A small share of files in real use import with defects.
-- **SolidWorks** import reads the geometry of the active configuration only, and has no feature tree. Sheet and wire bodies are refused. A file whose geometry the kernel cannot read to a closed solid is refused.
+- **SolidWorks** import reads the geometry of the active configuration only, and rebuilds the feature history only where the kernel can; otherwise the part opens as the file's exact solid with no feature tree. Sheet and wire bodies are refused. A file whose geometry the kernel cannot read to a closed solid is refused.
 - **SketchUp** import is a surface body of planar faces: no curves, dimensions, scenes or text. Files over 50,000 faces are refused by default.
 - **STL, OBJ and 3MF cannot be imported.** Ask for a STEP file.
 - **DXF** import reads ASCII DXF only, up to 20,000 entities and coordinates within 1,000,000 mm of the origin. Splines with a general knot vector become short line segments. Unsupported entity types, such as text and dimensions, are skipped and listed.
@@ -48,7 +48,7 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 
 ## Exporting
 
-- Model export formats are STEP, binary and ASCII STL, OBJ, and DXF (a sketch, or three views). Drawings have their own exports: PDF, SVG, DXF and print. The bill of materials saves as CSV. See [Exporting](../files/export.md) and [Drawings](../files/drawings.md).
+- Model export formats are STEP, binary and ASCII STL, OBJ, 3MF, glTF (GLB), and DXF (a sketch, or three views). Drawings have their own exports: PDF, SVG, DXF and print. The bill of materials saves as CSV. See [Exporting](../files/export.md) and [Drawings](../files/drawings.md).
 - **STEP** export writes geometry only: no colours, names, layers or assemblies.
 - **DXF** export of a sketch uses layer 0 and a CONSTRUCTION layer. The three-view model DXF has no hidden lines, dimensions or text and uses a single layer. The drawing DXF is richer, with one layer per line style (see [Drawings](../files/drawings.md)).
 - There is no 3MF export.

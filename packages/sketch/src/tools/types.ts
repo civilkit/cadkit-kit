@@ -76,6 +76,8 @@ export interface ToolOutput<S> {
   from?: Pt;
   /** The point the chain continues from: resting the pointer on it flips the line tool to a tangent arc. */
   anchor?: Pt;
+  /** Constraint kinds a tool had to drop because they cannot carry over (Split Entity): the hint names them (`{kinds}`). */
+  dropped?: string[];
   /** The mode of a tool that has more than one (the line tool: `line` or `arc`). */
   mode?: string;
 }

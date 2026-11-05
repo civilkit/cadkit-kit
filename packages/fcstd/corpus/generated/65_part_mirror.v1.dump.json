@@ -1,0 +1,16 @@
+{
+"format":1,
+"model":"65_part_mirror",
+"variant":"MirrorYZ.Base x 0 -> 3, Box.Length 10 -> 20 (volume 2000)",
+"freecad":{"version":"1.1.4","build":"20260928 (Git shallow)","revision":"4fd3bf320d9566a27e60069fc8387448aaa3a094","raw":["1","1","4","20260928 (Git shallow)","Unknown","2026/09/28 13:46:34","(HEAD detached at 4fd3bf320)","4fd3bf320d9566a27e60069fc8387448aaa3a094"]},
+"document":{"label":"65_part_mirror.v1","properties":{"Label":"65_part_mirror.v1","Material":{},"Meta":{},"ShowHidden":false,"Tip":null,"TipName":"","UnitSystem":{"enum":"Standard (mm, kg, s, °)","index":0,"items":"e51b4359a"},"UseHasher":true}},
+"objects":[
+{"name":"Box","label":"Box","typeId":"Part::Box","status":"Valid","properties":{"AttacherEngine":{"enum":"Engine 3D","index":0,"items":"e455cc279"},"AttacherType":"Attacher::AttachEngine3D","AttachmentOffset":{"pos":[0.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]},"AttachmentSupport":[],"Height":{"value":10.0,"unit":"Length"},"Label":"Box","Length":{"value":20.0,"unit":"Length"},"MapMode":{"enum":"Deactivated","index":0,"items":"e87607f94"},"MapPathParameter":0.0,"MapReversed":false,"Placement":{"pos":[5.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]},"Visibility":true,"Width":{"value":10.0,"unit":"Length"}},"outList":[],"parentGeoGroup":null,"expressions":[],"shape":{"null":false,"shapeType":"Solid","valid":true,"volume":1999.9999999999995,"area":999.9999999999999,"length":320.0,"centerOfMass":[15.0,5.0,5.0],"boundBox":{"min":[5.0,0.0,0.0],"max":[25.0,10.0,10.0]},"solids":1,"shells":1,"faces":6,"edges":12,"vertices":8,"placement":{"pos":[5.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]}}},
+{"name":"MirrorYZ","label":"MirrorYZ","typeId":"Part::Mirroring","status":"Valid","properties":{"Base":[3.0,0.0,0.0],"Label":"MirrorYZ","MirrorPlane":null,"Normal":[1.0,0.0,0.0],"Placement":{"pos":[0.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]},"Source":"Box","Visibility":true},"outList":["Box"],"parentGeoGroup":null,"expressions":[],"shape":{"null":false,"shapeType":"Solid","valid":true,"volume":1999.9999999999995,"area":999.9999999999999,"length":320.0,"centerOfMass":[-9.0,5.0,5.0],"boundBox":{"min":[-19.0,0.0,0.0],"max":[1.0,10.0,10.0]},"solids":1,"shells":1,"faces":6,"edges":12,"vertices":8,"placement":{"pos":[0.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]}}},
+{"name":"MirrorOblique","label":"MirrorOblique","typeId":"Part::Mirroring","status":"Valid","properties":{"Base":[0.0,0.0,0.0],"Label":"MirrorOblique","MirrorPlane":null,"Normal":[1.0,1.0,0.0],"Placement":{"pos":[0.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]},"Source":"Box","Visibility":true},"outList":["Box"],"parentGeoGroup":null,"expressions":[],"shape":{"null":false,"shapeType":"Solid","valid":true,"volume":1999.9999999999989,"area":999.9999999999997,"length":320.0,"centerOfMass":[-4.999999999999996,-14.999999999999995,5.0],"boundBox":{"min":[-9.999999999999998,-25.0,0.0],"max":[5.5511151231257835e-15,-4.9999999999999964,10.0]},"solids":1,"shells":1,"faces":6,"edges":12,"vertices":8,"placement":{"pos":[0.0,0.0,0.0],"rot":[0.0,0.0,0.0,1.0]}}}
+],
+"bodies":[],
+"parts":[],
+"links":[],
+"stripped":["Comment","Company","CreatedBy","CreationDate","FileName","Id","LastModifiedBy","LastModifiedDate","License","LicenseURL","ShapeMaterial","TransientDir","Uid","_ElementMapVersion"]
+}

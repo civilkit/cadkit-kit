@@ -83,9 +83,9 @@ Drag a row onto a folder to put it at the end of that folder. Drag it onto a row
 | Right-click on | Choices |
 |---|---|
 | A feature | Group into folder (Ctrl+G), Remove from folder (when in one), Rename (F2), Suppress / unsuppress (Ctrl+Shift+U), Delete |
-| A folder | Rename folder, Ungroup, Delete folder |
+| A folder | Rename folder, Ungroup, Export folder geometry (STEP, STL, part file), Extract folder as a part, Delete folder |
 
-**Ungroup** removes the folder and leaves the features where they are. **Delete folder** deletes its features, with the same rules and Undo notice as Delete.
+**Export folder geometry** and **Extract folder as a part** take a folder out of the model as a file or a new document; see [Exporting](../files/export.md#one-folder-as-a-file). **Ungroup** removes the folder and leaves the features where they are. **Delete folder** deletes its features, with the same rules and Undo notice as Delete.
 
 A folder action is refused when the rows are not neighbours ("Only features next to each other can be grouped; folders do not change the build order"), when it would put a feature before one it uses, when the name is taken, or when it would split another folder. Whether a folder is open or closed is remembered in your browser for each part; long parts start with their folders closed.
 

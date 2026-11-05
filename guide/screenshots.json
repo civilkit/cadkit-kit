@@ -93,7 +93,7 @@
   },
   "navigation-viewcube": {
     "file": "navigation-viewcube.png",
-    "caption": "The view cube in the top right corner with the Fit and projection buttons beside it, the model in the Iso view."
+    "caption": "The view cube in the top right corner with its arrow ring, and the Fit and projection buttons under it, the model in the Iso view."
   },
   "reference-plane": {
     "file": "reference-plane.png",

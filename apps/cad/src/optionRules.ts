@@ -5,6 +5,7 @@
 
 import { t } from './i18n';
 import { featureLabel } from './featureCreators';
+import { curveManaged } from './curveRules';
 
 type Wire = Record<string, unknown>;
 
@@ -38,15 +39,36 @@ export const patchStart = (start: StartCondition): Wire => (start === 'fromObjec
 /** Draft is cut for one-sided ends only (the kernel refuses a drafted mid-plane or through-both extrude). */
 export const endAllowsDraft = (end: string): boolean => end !== 'mid' && end !== 'throughBoth';
 
+/** Twist cannot go with Up to next (the kernel answers draftUnsupported), nor with a draft angle. */
+export const endAllowsTwist = (end: string): boolean => end !== 'upToNext';
+/** Twist in degrees over the full depth (0 = none). */
+export const twistOf = (eff: Wire): number | string => (typeof eff.twist === 'number' || (typeof eff.twist === 'string' && eff.twist !== '') ? eff.twist : 0);
+/** The twist axis through the sketch (x, y); the sketch origin when none is set. */
+export function twistCentreOf(eff: Wire): [number, number] {
+  const c = Array.isArray(eff.twistCentre) ? eff.twistCentre : [];
+  return [typeof c[0] === 'number' ? c[0] : 0, typeof c[1] === 'number' ? c[1] : 0];
+}
+/** Setting a twist of 0 removes it and its centre; a twist and a draft angle exclude each other (the kernel refuses both), so a twist drops the draft. */
+export function patchTwist(eff: Wire, deg: number | string): Wire {
+  if (deg === 0 || deg === '' || deg === null) return { twist: null, twistCentre: null };
+  return { twist: deg, draft: null, draftOut: null };
+}
+/** One coordinate of the twist axis; (0, 0) removes the field. */
+export function patchTwistCentre(eff: Wire, index: 0 | 1, value: number): Wire {
+  const c = twistCentreOf(eff);
+  c[index] = value;
+  return { twistCentre: c[0] === 0 && c[1] === 0 ? null : c };
+}
+
 /** The fields a form of this feature type owns; the generic editor hides them. */
 export function managedPaths(type: string): Set<string> {
   switch (type) {
-    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endRef', 'endOffset', 'start', 'startRef', 'startOffset', 'thin', 'op', 'body', 'target']);
+    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endRef', 'endOffset', 'start', 'startRef', 'startOffset', 'twist', 'twistCentre', 'thin', 'op', 'body', 'target']);
     case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op', 'body', 'target']);
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
-    case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape']);
+    case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape', 'side1', 'center', 'side2']);
     case 'shell': return new Set(['thickness', 'outward', 'inside']);
-    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'target', 'startNormal', 'endNormal']);
+    case 'loft': return new Set(['sketches', 'guides', 'surface', 'op', 'body', 'target', 'startNormal', 'endNormal', 'centreLine', 'connectors']);
     case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body', 'target']);
     case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
@@ -55,11 +77,14 @@ export function managedPaths(type: string): Set<string> {
     case 'deleteBody': return new Set(['bodies']);
     case 'fill': return new Set(['continuity', 'fairing', 'merge']);
     case 'extend': return new Set(['distance', 'shape', 'end']);
-    case 'lpattern': case 'cpattern': case 'mirror': return new Set(['carryThreads']);
+    case 'lpattern': return new Set(['carryThreads', ...['dir', 'count', 'spacing', 'reverse', 'distanceType', 'extent', 'to', 'toOffset'].flatMap((b) => [b, b + '2'])]);
+    case 'curvepattern': return new Set(['carryThreads', 'path', 'count', 'spacing', 'distanceType', 'extent', 'start', 'startFraction', 'flip', 'orientation']);
+    case 'cpattern': case 'mirror': return new Set(['carryThreads']);
     case 'knit': return new Set(['surfaces', 'solid']);
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
     case 'plane': return new Set(['base']);
-    default: return new Set();
+    case 'thicken': return new Set(['thickness', 'thicknessAt']);
+    default: return curveManaged(type);
   }
 }
 export const hasOptions = (type: string): boolean => managedPaths(type).size > 0;
@@ -70,6 +95,7 @@ export function patchEnd(eff: Wire, end: EndCondition): Wire {
   const depth = typeof eff.depth === 'number' ? eff.depth : 10;
   if (endNeedsDepth(end)) { if (typeof eff.depth !== 'number') p.depth = depth; } else p.depth = null;
   if (!endAllowsDraft(end)) { p.draft = null; p.draftOut = null; }
+  if (!endAllowsTwist(end)) { p.twist = null; p.twistCentre = null; }
   if (!endNeedsObject(end)) { p.endRef = null; p.endOffset = null; }
   if (!startAllowed(end)) { p.start = null; p.startRef = null; p.startOffset = null; }
   return p;
@@ -98,6 +124,16 @@ export type FilletProfile = 'circular' | 'conic' | 'chord' | 'curvature';
 export const FILLET_PROFILES: FilletProfile[] = ['circular', 'conic', 'chord', 'curvature'];
 export const filletProfileOf = (eff: Wire): FilletProfile => (FILLET_PROFILES as string[]).includes(String(eff.profile)) ? (eff.profile as FilletProfile) : 'circular';
 export const filletVariable = (eff: Wire): boolean => eff.filletType === 'variable';
+/** Full round: a ball tangent to three planar faces (side, centre, side) rolls between the sides and the centre face vanishes. */
+export const filletFullRound = (eff: Wire): boolean => eff.filletType === 'fullRound';
+export const FULL_ROUND_FACES = ['side1', 'center', 'side2'] as const;
+export type FullRoundFace = (typeof FULL_ROUND_FACES)[number];
+const noFullRound: Wire = { side1: null, center: null, side2: null };
+/** Full round on or off. On drops the variable radii and the profile (it reads none of them); the radius stays for when it is switched off. */
+export function patchFilletFullRound(eff: Wire, on: boolean): Wire {
+  if (on) return { filletType: 'fullRound', radii: null, profile: null, rho: null, shape: null };
+  return { filletType: null, ...noFullRound };
+}
 /** The two radii of a variable fillet (near, far); the constant radius for a missing one. */
 export function radiiOf(eff: Wire): [number, number] {
   const r = typeof eff.radius === 'number' ? eff.radius : 1;
@@ -107,7 +143,7 @@ export function radiiOf(eff: Wire): [number, number] {
 
 /** Variable radius on or off. Off keeps the first radius as the constant one. */
 export function patchFilletVariable(eff: Wire, on: boolean): Wire {
-  if (on) return { filletType: 'variable', radii: radiiOf(eff) };
+  if (on) return { filletType: 'variable', radii: radiiOf(eff), ...(filletFullRound(eff) ? noFullRound : {}) };
   return { filletType: null, radii: null, radius: radiiOf(eff)[0] };
 }
 export function patchRadii(eff: Wire, index: 0 | 1, value: number): Wire {

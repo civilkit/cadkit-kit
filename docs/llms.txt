@@ -87,6 +87,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.axisAt(from, to)`: Construction line used as the revolve axis when it is not the sketch Y axis.
 * `s.circle(r, at?)`: Circle given its RADIUS (not diameter).
 * `s.cvspline(pts, o?)`: Control-vertex spline: the points are the control polygon, not on the curve.
+* `s.equation(o)`: Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.
 * `s.grid(origin, pitch, count)`: Points on a rectangular grid.
 * `s.line(a, b)`: One line segment between two points.
 * `s.offset(distance, o?)`: Offset the chain drawn last.
@@ -142,6 +143,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.circularPattern(seed, o?)`: Repeat features around an axis.
 * `.linearPattern(seed, o?)`: Repeat features along a direction, optionally as a 2D grid.
 * `.mirror(plane, o?)`: Mirror the last feature (or the whole body) about a plane.
+* `.pathPattern(seed, o?)`: Repeat features along a path sketch, moved or turned with it.
 
 ### surfaces
 
@@ -160,7 +162,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 
 * `expr(text)`: A parameter written as an expression over the variables.
 * `group(name, build)`: Put the features recorded inside `build` in a named folder of the feature tree.
-* `part(name?)`: Start the part the script builds; returns the fluent builder.
+* `part(name?)`: Start a new part: the part the script builds; returns the fluent builder.
 * `.appearance(o)`: Colour, opacity and finish of the bodies a feature made (view only, no geometry change).
 * `.area()`: Read the total surface area (mm2) of the part built so far.
 * `.bbox()`: Read the bounding box of the part built so far.

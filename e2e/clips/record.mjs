@@ -35,9 +35,21 @@ const size = (f) => statSync(f).size;
 
 /** Cuts, crops and scales the raw recording; returns the bytes of each output. */
 function encode(raw, spec, id) {
-    const { crop, width, fps, skips, speed } = spec;
+    const { crop, width, fps, skips, speed, zooms = [], size: vs } = spec;
     const filters = [];
     if (crop) filters.push(`crop=${crop.w}:${crop.h}:${crop.x}:${crop.y}`);
+    // Zoom spans (times on the uncut timeline): the picture is magnified around a point with a smooth ease in and out, then cropped back to its size (the crop cannot use iw/ih: its input size is fixed when the graph is set up, so the scaled size is spelled out).
+    if (zooms.length) {
+        const W = crop ? crop.w : vs.width, H = crop ? crop.h : vs.height, E = 0.6;
+        const ramp = (z) => `(min(1,max(0,(t-${z.a.toFixed(3)})/${E}))*min(1,max(0,(${z.b.toFixed(3)}-t)/${E})))`;
+        const w = zooms.map(ramp);
+        const sum = w.join('+');
+        const Z = `(1+${zooms.map((z, i) => `${(z.z - 1).toFixed(3)}*${w[i]}`).join('+')})`;
+        const cx = `((${zooms.map((z, i) => `${(z.x - (crop?.x ?? 0)).toFixed(1)}*${w[i]}`).join('+')})+(1-min(1,${sum}))*${W / 2})`;
+        const cy = `((${zooms.map((z, i) => `${(z.y - (crop?.y ?? 0)).toFixed(1)}*${w[i]}`).join('+')})+(1-min(1,${sum}))*${H / 2})`;
+        filters.push(`scale=w='trunc(${W}*${Z}/2)*2':h='trunc(${H}*${Z}/2)*2':eval=frame:flags=bicubic`,
+            `crop=${W}:${H}:'min(max(0,${cx}*${Z}-${W / 2}),${W}*${Z}-${W})':'min(max(0,${cy}*${Z}-${H / 2}),${H}*${Z}-${H})'`);
+    }
     // JPEG frames are full range; players expect limited range yuv420p, flagged as such: a VP9 stream flagged full
     // range does not decode in Chromium's software decoder. Square pixels. (The rules: tools/normalize_clips.mjs.)
     filters.push(`scale=${width}:-2:flags=lanczos:in_range=pc:out_range=tv`, 'setsar=1', `fps=${fps}`);
@@ -146,7 +158,9 @@ for (const f of files) {
     const skips = rec.skips.map(([a, b]) => [a + offset - m.start, b + offset - m.start]).filter(([a, b]) => b > 0 && a < m.end - m.start).map(([a, b]) => [Math.max(0, a), Math.min(m.end - m.start, b)]);
     const cut = skips.reduce((t, [a, b]) => t + (b - a), 0);
     const speed = mod.maxSpeed ? Math.min(mod.maxSpeed, Math.max(1, (m.end - m.start - cut) / (mod.targetSeconds ?? 8))) : 1;
-    const spec = { speed, start: m.start, dur: m.end - m.start, crop: process.env.CLIP_FULL ? null : (mod.crop ?? null), width: mod.width ?? 1280, fps: mod.fps ?? 24, skips, maxBytes: mod.maxBytes };
+    // zoom spans relative to the start of the clip; one still open when the clip ends closes there
+    const zooms = rec.zooms.map((z) => ({ ...z, a: z.a - m.start, b: (z.b ?? m.end) - m.start })).filter((z) => z.b > 0 && z.a < m.end - m.start).map((z) => ({ ...z, a: Math.max(0, z.a), b: Math.min(m.end - m.start, z.b) }));
+    const spec = { speed, zooms, size: viewport, start: m.start, dur: m.end - m.start, crop: process.env.CLIP_FULL ? null : (mod.crop ?? null), width: mod.width ?? 1280, fps: mod.fps ?? 24, skips, maxBytes: mod.maxBytes };
     // The frames from `start` to `end` as a concat list; each frame lasts until the next one arrives.
     const list = join(framesDir, 'list.txt');
     const inside = frames.filter((fr) => fr.t < m.end);

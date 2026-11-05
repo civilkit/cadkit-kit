@@ -5,9 +5,11 @@ import { t } from './i18n';
 import { SketchPrefsSection } from './SketchPrefsSection';
 import type { SketchPrefs } from './sketchPrefs';
 import type { NavPrefs } from './navPrefs';
+import { KNURL_EXPORT_MODES, type ExportPrefs } from './exportPrefs';
 import { UP_AXES, ORBIT_MODES, ORBIT_PIVOTS } from '@kit/viewport';
 import type { TriPrefs } from './triball/triballPrefs';
 import { THEMES, type Theme } from './theme';
+import { ICON_SETS, type IconSet } from '@kit/ui';
 import { LAYOUT_PREFS, type LayoutPref } from './layoutMode';
 
 /** Workspace options as plain controls. Changing a control applies immediately and is remembered by the caller. */
@@ -27,15 +29,18 @@ export function SettingsDialog(p: {
   layoutPref?: LayoutPref; onLayoutPref?(v: LayoutPref): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
+  /** The icon set (a preview of SolidCraft's icons beside our own). */
+  iconSet?: IconSet; onIconSet?(set: IconSet): void;
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
   navPrefs?: NavPrefs; onNavPrefs?(patch: Partial<NavPrefs>): void;
+  exportPrefs?: ExportPrefs; onExportPrefs?(patch: Partial<ExportPrefs>): void;
   triPrefs?: TriPrefs; onTriPrefs?(patch: Partial<TriPrefs>): void;
   kernel?: { prefs: KernelPrefs; status: KernelStatus; onChange(patch: Partial<KernelPrefs>): void; onTest(v: { url: string; token: string }): Promise<TestOutcome>; onRetry(): void };
 }) {
   const w = p.workspace;
   // a tab appears only when it has something to show; the last one used is remembered
   const tabs: Tab[] = [
-    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme ? (['general'] as Tab[]) : []),
+    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme || p.onIconSet || (p.exportPrefs && p.onExportPrefs) ? (['general'] as Tab[]) : []),
     'layout',
     ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
     ...(p.navPrefs && p.onNavPrefs ? (['navigation'] as Tab[]) : []),
@@ -130,6 +135,24 @@ export function SettingsDialog(p: {
                 {THEMES.map((v) => <option key={v} value={v}>{t('settings.theme.' + v)}</option>)}
               </select>
             </label>
+          ) : null}
+          {p.onIconSet ? (
+            <label class="set-row"><span>{t('settings.iconSet')}</span>
+              <select aria-label={t('settings.iconSet')} value={p.iconSet ?? 'default'} onChange={(e) => p.onIconSet!((e.currentTarget as HTMLSelectElement).value as IconSet)}>
+                {ICON_SETS.map((v) => <option key={v} value={v}>{t('settings.iconSet.' + v)}</option>)}
+              </select>
+            </label>
+          ) : null}
+          {p.exportPrefs && p.onExportPrefs ? (
+          <div class="set-section" role="group" aria-label={t('settings.export.title')}>
+            <b class="set-head">{t('settings.export.title')}</b>
+            <label class="set-row"><span>{t('settings.export.knurl')}</span>
+              <select aria-label={t('settings.export.knurl')} value={p.exportPrefs.knurl} onChange={(e) => p.onExportPrefs!({ knurl: (e.currentTarget as HTMLSelectElement).value as ExportPrefs['knurl'] })}>
+                {KNURL_EXPORT_MODES.map((v) => <option key={v} value={v}>{t('settings.export.knurl.' + v)}</option>)}
+              </select>
+            </label>
+            <div class="tb-note">{t('settings.export.note')}</div>
+          </div>
           ) : null}
           </>) : null}
           {tab === 'sketching' ? (<>

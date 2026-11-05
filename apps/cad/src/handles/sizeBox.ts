@@ -77,6 +77,8 @@ interface Profile {
   round: boolean;
   /** Every outline is a full circle (not an arc or ellipse). */
   circles: boolean;
+  /** The outline has a full circle or an ellipse (their size is a radius, not points). */
+  loose: boolean;
 }
 
 function profileOf(sk: Wire, regions: unknown): Profile | null {
@@ -88,12 +90,13 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
   const pts = new Map<string, { x: number; y: number }>((sk.points ?? []).map((p: Wire) => [p.id, p]));
   const pointIds = new Set<string>();
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-  let round = false, circles = true;
+  let round = false, circles = true, loose = false;
   const add = (x: number, y: number) => { u0 = Math.min(u0, x); u1 = Math.max(u1, x); v0 = Math.min(v0, y); v1 = Math.max(v1, y); };
   const addPt = (id: unknown): { x: number; y: number } | null => { const p = pts.get(String(id)); if (!p) return null; pointIds.add(String(id)); add(p.x, p.y); return p; };
   for (const e of sk.entities ?? []) {
     if (!entityIds.has(e.id)) continue;
     if (e.type !== 'circle') circles = false;
+    if (e.type === 'circle' || e.type === 'ellipse') loose = true;
     if (e.type === 'circle') {
       round = true;
       const c = addPt(e.c); const r = num(e.r);
@@ -118,7 +121,7 @@ function profileOf(sk: Wire, regions: unknown): Profile | null {
     else { addPt(e.p1); addPt(e.p2); addPt(e.p); }
   }
   if (!Number.isFinite(u0)) return null;
-  return { pointIds, entityIds, box: { u0, u1, v0, v1 }, round, circles };
+  return { pointIds, entityIds, box: { u0, u1, v0, v1 }, round, circles, loose };
 }
 
 /** The centre of the footprint of the chosen regions (all of them when `regions` is absent) in the sketch plane, or null when there is no closed profile. */
@@ -150,6 +153,8 @@ export interface Shape {
   diameter: boolean;
   /** The sketch has no editable profile: width and length are shown only. */
   sizeEditable: boolean;
+  /** A revolve whose axis lies along the sketch's v (`axis: 'v'`, at u = `at`) or u direction with the outline touching it from one side (`side`): its radius is the outline's extent across the axis, its length the extent along it. Absent for another revolve (not resizable here). */
+  rev?: { axis: 'u' | 'v'; at: number; side: 1 | -1 };
   /** Other features that use the same sketch (moving it moves them too). */
   sharedWith: string[];
 }
@@ -162,6 +167,19 @@ function reach(frame: Frame3, box: { min: number[]; max: number[] } | null, dir:
     m = Math.max(m, dir * V.dot(V.sub([x, y, z], frame.o), frame.z));
   }
   return m > EPS ? m : fallback;
+}
+
+/** The axis of a revolve when the size box can resize it (see Shape.rev), else undefined. */
+function revolveAxis(f: Wire, sketch: Wire, profile: Profile): Shape['rev'] {
+  const e = (sketch.entities ?? []).find((x: Wire) => x.id === f.axis && x.type === 'line');
+  const a = e ? (sketch.points ?? []).find((q: Wire) => q.id === e.p1) : null;
+  const b = e ? (sketch.points ?? []).find((q: Wire) => q.id === e.p2) : null;
+  if (!a || !b || profile.loose) return undefined;
+  const tol = 1e-6, bx = profile.box;
+  const side = (lo: number, hi: number, at: number): 1 | -1 | 0 => (Math.abs(hi - at) < tol && lo < at - tol ? -1 : Math.abs(lo - at) < tol && hi > at + tol ? 1 : 0);
+  if (Math.abs(a.x - b.x) < tol) { const sd = side(bx.u0, bx.u1, a.x); return sd ? { axis: 'v', at: a.x, side: sd } : undefined; }
+  if (Math.abs(a.y - b.y) < tol) { const sd = side(bx.v0, bx.v1, a.y); return sd ? { axis: 'u', at: a.y, side: sd } : undefined; }
+  return undefined;
 }
 
 export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: string) => Frame3 | null, bodyBox: { min: number[]; max: number[] } | null): Shape | null {
@@ -196,10 +214,11 @@ export function shapeModel(doc: PartDoc | null, id: string, frameOf: (sketchId: 
     else if (f.end === 'mid' && dv !== null && dv > 0) { depth = 'mid'; d0 = -dv / 2; d1 = dv / 2; }
     else { const r = reach(frame, bodyBox, dir, 10); d0 = Math.min(0, dir * r); d1 = Math.max(0, dir * r); }
   }
+  const rev = f.type === 'revolve' ? revolveAxis(f, sketch, profile) : undefined;
   return {
-    id, kind: f.type, frame, sketch, profile,
+    id, kind: f.type, frame, sketch, profile, ...(rev ? { rev } : {}),
     // the anchor is the profile's own reference point (its footprint centre): it moves with the profile, not the fixed sketch origin
-    box: { ...profile.box, d0, d1 }, anchor: { u: (profile.box.u0 + profile.box.u1) / 2, v: (profile.box.v0 + profile.box.v1) / 2 }, dir, depth, uniform: profile.round, diameter: f.type === 'extrude' && profile.circles && Math.abs((profile.box.u1 - profile.box.u0) - (profile.box.v1 - profile.box.v0)) < 1e-6, sizeEditable: true, sharedWith: usersOf(doc, sketch.id, id),
+    box: { ...profile.box, d0, d1 }, anchor: { u: (profile.box.u0 + profile.box.u1) / 2, v: (profile.box.v0 + profile.box.v1) / 2 }, dir, depth, uniform: profile.round && !rev, diameter: f.type === 'extrude' && profile.circles && Math.abs((profile.box.u1 - profile.box.u0) - (profile.box.v1 - profile.box.v0)) < 1e-6, sizeEditable: true, sharedWith: usersOf(doc, sketch.id, id),
   };
 }
 
@@ -282,7 +301,7 @@ export interface SketchEdit { sketch: Wire; dropped: string[]; detached: string[
  * value; a geometric constraint the new coordinates break is dropped and named in `dropped`). Null when a fixed point
  * would have to move.
  */
-export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: Box): SketchEdit | null {
+export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: Box, map?: (p: { x: number; y: number }) => { x: number; y: number }): SketchEdit | null {
   const fu = mapper(from.u0, from.u1, to.u0, to.u1);
   const fv = mapper(from.v0, from.v1, to.v0, to.v1);
   const k = Math.abs((to.u1 - to.u0) > EPS && (from.u1 - from.u0) > EPS ? (to.u1 - to.u0) / (from.u1 - from.u0) : (to.v1 - to.v0) > EPS && (from.v1 - from.v0) > EPS ? (to.v1 - to.v0) / (from.v1 - from.v0) : 1);
@@ -290,7 +309,7 @@ export function transformSketch(sketch: Wire, profile: Profile, from: Box, to: B
   const moved = new Set<string>();
   for (const p of out.points ?? []) {
     if (!profile.pointIds.has(p.id)) continue;
-    const nx = fu(p.x), ny = fv(p.y);
+    const { x: nx, y: ny } = map ? map(p) : { x: fu(p.x), y: fv(p.y) };
     if (Math.abs(nx - p.x) < EPS && Math.abs(ny - p.y) < EPS) continue;
     if (p.fixed) return null;
     p.x = round3(nx); p.y = round3(ny);
@@ -394,8 +413,42 @@ export function translateSketch(shape: Shape, du: number, dv: number): SketchEdi
 
 const same = (a: number, b: number): boolean => Math.abs(a - b) < EPS;
 
-/** The edit that takes the shape from its box to `to`: the sketch and the depth / diameter. Null when nothing changes or it cannot be done. */
-export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[]; detached: string[] } | null {
+/** A revolve keeps its axis where it is: of the box only its extent across the axis (the radius) and along it change. */
+export function holdAxis(shape: Shape, b: Box): Box {
+  const r = shape.rev;
+  if (!r) return b;
+  const out = { ...b };
+  if (r.axis === 'v') { const w = b.u1 - b.u0; if (r.side < 0) { out.u1 = r.at; out.u0 = r.at - w; } else { out.u0 = r.at; out.u1 = r.at + w; } }
+  else { const w = b.v1 - b.v0; if (r.side < 0) { out.v1 = r.at; out.v0 = r.at - w; } else { out.v0 = r.at; out.v1 = r.at + w; } }
+  return out;
+}
+
+/**
+ * The revolve's sketch resized to `to`: the outline's distance from the axis is scaled by the new radius over the old (about the axis, so
+ * points on it stay), and the points in the far half of the outline along the axis move with the far end, the near half with the near end.
+ * Round ends whose centres share the end points' height (a dome) keep their tangent to the axis and the wall; the kernel's solve takes the rest.
+ */
+function revolveSketch(shape: Shape, to: Box): SketchEdit | null {
+  const rv = shape.rev, profile = shape.profile;
+  if (!rv || !profile) return null;
+  const from = shape.box, v = rv.axis === 'v';
+  const [r0, r1] = v ? [from.u1 - from.u0, to.u1 - to.u0] : [from.v1 - from.v0, to.v1 - to.v0];
+  const [a0, a1, b0, b1] = v ? [from.v0, from.v1, to.v0, to.v1] : [from.u0, from.u1, to.u0, to.u1];
+  if (r0 < EPS) return null;
+  const k = r1 / r0, mid = (a0 + a1) / 2;
+  const map = (p: { x: number; y: number }): { x: number; y: number } => {
+    const rad = v ? p.x : p.y, ax = v ? p.y : p.x;
+    const nr = rv.at + (rad - rv.at) * k, na = ax + (ax < mid ? b0 - a0 : b1 - a1);
+    return v ? { x: nr, y: na } : { x: na, y: nr };
+  };
+  return transformSketch(shape.sketch, profile, from, to, map);
+}
+
+/**
+ * The edit that takes the shape from its box to `to`: the sketch and the depth / diameter. Null when nothing changes or it cannot be done;
+ * `why.reason` then names the i18n key of the refusal when the edit was asked for and could not be made (never silent).
+ */
+export function opsFor(shape: Shape, to: Box, why: { reason?: string } = {}): { ops: EditOp[]; dropped: string[]; detached: string[] } | null {
   const from = shape.box;
   const ops: EditOp[] = [];
   let dropped: string[] = [];
@@ -410,7 +463,7 @@ export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[
       if (!same(cu, shape.anchor.u) || !same(cv, shape.anchor.v)) {
         const sk = structuredClone(shape.sketch) as Wire;
         const p = (sk.points ?? []).find((q: Wire) => q.id === shape.hole!.pointId);
-        if (!p || p.fixed) return null;
+        if (!p || p.fixed) { why.reason = 'sizebox.refused.fixed'; return null; }
         p.x = round3(cu); p.y = round3(cv);
         ops.push({ op: 'replace', id: sk.id, feature: sk } as EditOp);
       }
@@ -418,8 +471,9 @@ export function opsFor(shape: Shape, to: Box): { ops: EditOp[]; dropped: string[
   } else if (uv) {
     if (!shape.profile) return null;
     const pure = same(to.u1 - to.u0, from.u1 - from.u0) && same(to.v1 - to.v0, from.v1 - from.v0);
-    const r = pure ? translateSketch(shape, to.u0 - from.u0, to.v0 - from.v0) : transformSketch(shape.sketch, shape.profile, from, to);
-    if (!r) return null;
+    if (!pure && shape.kind === 'revolve' && !shape.rev) { why.reason = 'sizebox.refused.revolve'; return null; }
+    const r = pure ? translateSketch(shape, to.u0 - from.u0, to.v0 - from.v0) : shape.rev ? revolveSketch(shape, to) : transformSketch(shape.sketch, shape.profile, from, to);
+    if (!r) { why.reason = 'sizebox.refused.fixed'; return null; }
     dropped = r.dropped;
     detached = r.detached;
     ops.push({ op: 'replace', id: shape.sketch.id, feature: r.sketch } as EditOp);
@@ -453,6 +507,15 @@ export interface LayoutOpts {
   moving?: { guides: MoveResult['guides'] };
 }
 
+/** The handle of a revolve's radius: the face on the outline's far side from the axis (the near one is the axis itself and has no handle). */
+const radiusHandle = (r: NonNullable<Shape['rev']>): string => (r.axis === 'v' ? (r.side < 0 ? 'u0' : 'u1') : r.side < 0 ? 'v0' : 'v1');
+
+/** What the extent along sketch axis `a` is called: the revolve's radius / length along its axis, a round shape's diameter, else width / length. */
+function wording(shape: Shape, a: 'u' | 'v'): 'radius' | 'axial' | 'diameter' | 'width' | 'length' {
+  if (shape.rev) return shape.rev.axis === a ? 'axial' : 'radius';
+  return a === 'v' ? 'length' : shape.diameter ? 'diameter' : 'width';
+}
+
 /** Every spec of the size box for `box`: wire, face handles, corner handles, anchor marker, labels. */
 export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
   const f = shape.frame;
@@ -473,10 +536,13 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
     // a round shape: one handle on the +u side, it scales the circle uniformly (boxFor); the same number is width and length
     out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.diameter.tip'), width));
   } else if (edit) {
-    out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
-    out.push(face('u0', W(u0, vm, dm), neg(f.x), width, faceScale(u0, u1, 'lo', o.mode, shape.anchor.u), AXIS_COLOUR.u, t('sizebox.width.tip'), width));
-    out.push(face('v1', W(um, v1, dm), f.y, length, faceScale(v0, v1, 'hi', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
-    out.push(face('v0', W(um, v0, dm), neg(f.y), length, faceScale(v0, v1, 'lo', o.mode, shape.anchor.v), AXIS_COLOUR.v, t('sizebox.length.tip'), length));
+    const wu = wording(shape, 'u'), wv = wording(shape, 'v');
+    // a revolve: the face on its axis has no handle (the axis stays), the far face is the radius
+    const near = shape.rev ? (shape.rev.axis === 'v' ? (shape.rev.side < 0 ? 'u1' : 'u0') : shape.rev.side < 0 ? 'v1' : 'v0') : null;
+    if (near !== 'u1') out.push(face('u1', W(u1, vm, dm), f.x, width, faceScale(u0, u1, 'hi', o.mode, shape.anchor.u), AXIS_COLOUR.u, t(`sizebox.${wu}.tip`), width));
+    if (near !== 'u0') out.push(face('u0', W(u0, vm, dm), neg(f.x), width, faceScale(u0, u1, 'lo', o.mode, shape.anchor.u), AXIS_COLOUR.u, t(`sizebox.${wu}.tip`), width));
+    if (near !== 'v1') out.push(face('v1', W(um, v1, dm), f.y, length, faceScale(v0, v1, 'hi', o.mode, shape.anchor.v), AXIS_COLOUR.v, t(`sizebox.${wv}.tip`), length));
+    if (near !== 'v0') out.push(face('v0', W(um, v0, dm), neg(f.y), length, faceScale(v0, v1, 'lo', o.mode, shape.anchor.v), AXIS_COLOUR.v, t(`sizebox.${wv}.tip`), length));
   }
   const far = shape.dir > 0 ? d1 : d0;
   if (shape.depth === 'blind') out.push({ ...face('df', W(um, vm, far), V.mul(f.z, shape.dir), depth, 1, AXIS_COLOUR.d, t('sizebox.height.tip')), spanWorld: depth, showMinPx: DEPTH_MIN_PX });
@@ -509,8 +575,10 @@ export function layout(shape: Shape, box: Box, o: LayoutOpts): HandleSpec[] {
     // one number for a round shape: the diameter (not the radius), typed into it sets the diameter
     out.push({ ...lab('ld', W(um, v0, d0), width, edit ? 'u1' : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')), text: '\u00d8' + fmt(width) });
   } else {
-    out.push(lab('lw', W(um, v0, d0), width, edit ? 'u1' : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')));
-    out.push(lab('ll', W(u1, vm, d0), length, edit ? 'v1' : undefined, AXIS_COLOUR.v, t('sizebox.label.tip')));
+    const rh = shape.rev ? radiusHandle(shape.rev) : null;
+    const pre = (a: 'u' | 'v'): string => (wording(shape, a) === 'radius' ? 'R' : '');     // a radius reads R70, a length along the axis 150
+    out.push({ ...lab('lw', W(um, v0, d0), width, edit ? (rh?.[0] === 'u' ? rh : 'u1') : undefined, AXIS_COLOUR.u, t('sizebox.label.tip')), text: pre('u') + fmt(width) });
+    out.push({ ...lab('ll', W(u1, vm, d0), length, edit ? (rh?.[0] === 'v' ? rh : 'v1') : undefined, AXIS_COLOUR.v, t('sizebox.label.tip')), text: pre('v') + fmt(length) });
   }
   if (depth > EPS) out.push(lab('lh', W(u1, v0, dm), depth, shape.depth === 'blind' ? 'df' : shape.depth === 'mid' ? 'd1' : undefined, AXIS_COLOUR.d, t('sizebox.label.tip')));
   return out;
@@ -638,8 +706,8 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
   /** The box a handle reading stands for. `q` is the new dimension (faces) or the drag length (corner / anchor, which read `vec`). */
   const resolve = (id: string, q: number, vec: Vec3, mods: MoveMods = {}): { box: Box; text: string; anchorAt?: { u: number; v: number }; moved?: MoveResult; tip?: number } | null => {
     const f = shape.frame;
-    if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode), text: t(shape.diameter ? 'sizebox.diameter' : 'sizebox.width', { v: fmt(q) }) };
-    if (id === 'v1' || id === 'v0') return q < MIN_SIZE ? null : { box: boxFor(shape, { v: { side: id === 'v1' ? 'hi' : 'lo', dim: q } }, mode), text: t('sizebox.length', { v: fmt(q) }) };
+    if (id === 'u1' || id === 'u0') return q < MIN_SIZE ? null : { box: holdAxis(shape, boxFor(shape, { u: { side: id === 'u1' ? 'hi' : 'lo', dim: q } }, mode)), text: t(`sizebox.${wording(shape, 'u')}`, { v: fmt(q) }) };
+    if (id === 'v1' || id === 'v0') return q < MIN_SIZE ? null : { box: holdAxis(shape, boxFor(shape, { v: { side: id === 'v1' ? 'hi' : 'lo', dim: q } }, mode)), text: t(`sizebox.${wording(shape, 'v')}`, { v: fmt(q) }) };
     if (id === 'df') {
       // a tapered extrude that closes to a tip: the height stops there however far the pointer goes
       const k = clampToTip(q, c.tipLimit?.(shape.id));
@@ -657,16 +725,16 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
       const wsc = faceScale(b.u0, b.u1, su > 0 ? 'hi' : 'lo', mode, shape.anchor.u), lsc = faceScale(b.v0, b.v1, sv > 0 ? 'hi' : 'lo', mode, shape.anchor.v);
       const w = W + (su * V.dot(vec, f.x)) * wsc, l = L + (sv * V.dot(vec, f.y)) * lsc;
       if (w < MIN_SIZE || l < MIN_SIZE) return null;
-      const box = boxFor(shape, { u: { side: su > 0 ? 'hi' : 'lo', dim: w }, v: { side: sv > 0 ? 'hi' : 'lo', dim: l } }, mode);
+      const box = holdAxis(shape, boxFor(shape, { u: { side: su > 0 ? 'hi' : 'lo', dim: w }, v: { side: sv > 0 ? 'hi' : 'lo', dim: l } }, mode));
       return { box, text: t('sizebox.both', { w: fmt(box.u1 - box.u0), l: fmt(box.v1 - box.v0) }) };
     }
     return null;
   };
-  const edit = (id: string, q: number, vec: Vec3, mods?: MoveMods) => {
+  const edit = (id: string, q: number, vec: Vec3, mods?: MoveMods, why?: { reason?: string }) => {
     const r = resolve(id, q, vec, mods);
-    if (!r) return null;
+    if (!r) { if (why) why.reason = 'sizebox.refused.size'; return null; }
     last = r.text;
-    const o = opsFor(shape, r.box);
+    const o = opsFor(shape, r.box, why);
     return o ? { ...o, r } : null;
   };
   return {
@@ -678,12 +746,14 @@ export function planSizeBox(c: SizeBoxCtx): HandleSession | null {
         const r = resolve(id, q, vec, mods);
         return r?.moved ? moveCommit(c.doc, shape, r.moved.du, r.moved.dv) : null;
       }
-      const e = edit(id, q, vec, mods);
+      const why: { reason?: string } = {};
+      const e = edit(id, q, vec, mods, why);
+      if (!e && why.reason) return { ops: [], create: false, refused: t(why.reason) };     // the typed or dragged size could not be applied: say why (the label comes back as it was)
       const notice = e?.r.tip !== undefined ? t('tip.limited', { h: fmt(e.r.tip) }) : e ? noticeFor(e) : undefined;
       return e ? { ops: e.ops, create: false, ...(notice ? { notice } : {}) } : null;
     },
     live: (id, q, vec, mods) => { const r = resolve(id, q, vec, mods); if (r) last = r.text; return r ? layout(shape, r.box, { mode, anchorAt: r.anchorAt, ...(r.moved ? { moving: { guides: r.moved.guides } } : {}) }) : null; },
-    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t(shape.diameter ? 'sizebox.diameter' : 'sizebox.width', { v: fmt(q) }) : id.startsWith('v') ? t('sizebox.length', { v: fmt(q) }) : id === 'df' ? (() => { const k = clampToTip(q, c.tipLimit?.(shape.id)); return t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }); })() : t('sizebox.height', { v: fmt(q) })),
+    format: (id, q) => (id.startsWith('c') || id === 'anchor' || id === 'move' ? last : id.startsWith('u') ? t(`sizebox.${wording(shape, 'u')}`, { v: fmt(q) }) : id.startsWith('v') ? t(`sizebox.${wording(shape, 'v')}`, { v: fmt(q) }) : id === 'df' ? (() => { const k = clampToTip(q, c.tipLimit?.(shape.id)); return t(k.atTip ? 'sizebox.height.tipped' : 'sizebox.height', { v: fmt(k.value) }); })() : t('sizebox.height', { v: fmt(q) })),
     step: (id) => niceStep(id === 'u1' || id === 'u0' ? b.u1 - b.u0 : id === 'v1' || id === 'v0' ? b.v1 - b.v0 : id === 'df' || id === 'd1' || id === 'd0' ? b.d1 - b.d0 : Math.max(b.u1 - b.u0, b.v1 - b.v0)),
     move: {
       box: { u0: b.u0, u1: b.u1, v0: b.v0, v1: b.v1 }, host: candidates().host, step, to: (du, dv) => moveCommit(c.doc, shape, du, dv),

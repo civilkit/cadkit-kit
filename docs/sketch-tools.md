@@ -40,6 +40,16 @@ It does nothing when the sketch is already fully defined or has conflicts (it sa
 and the message says how many relations and dimensions were added, and how many degrees of freedom remain when no
 dimension could remove them (for example a spline). Tests: `define.kernel.test.ts`.
 
+## Equation curve
+
+The **Equation curve** tool (Draw palette, with the splines) adds a spline from formulas `x(t)`, `y(t)`: a click places a wave starting
+there and the panel (presets, x(t), y(t), t from / to, tolerance) edits it. Each change is checked with the kernel's `equationCurve`
+query (`Controller.fetchEquationCurve`, with the document's variables) and goes into the sketch only when it fits, so the panel shows
+the point count, warnings or the refusal in plain words while the sketch keeps its last good curve. The entity carries only the
+formulas (`spline {pts: [], equation}`); the kernel writes the points as fixed points `<id>_start`, `<id>_p<n>`, `<id>_end`, which
+`foldSolution` takes from the solved sketch. Deleting the curve deletes them. Code: `packages/sketch/src/equation.ts`,
+`tools/equation.ts`, `apps/cad/src/EquationPanel.tsx`. Guide: `guide/src/sketching/equation-curves.md`; kernel: `docs/equation-curve.md`.
+
 ## Text
 
 The **Text** tool (Draw palette, key `Q`) places a lettering entity; its panel (string, cap height, font, 3 x 3 anchor grid, angle,
@@ -77,7 +87,9 @@ horizontals, between the turned verticals) and one perpendicular, so a rectangle
 turn swaps them. Relations to geometry that did not move are kept, so the solver can pull the shape back; when
 it refuses, the usual solver hint appears and Ctrl+Z restores the sketch. A fixed point cannot be moved (the tool says so).
 Copies get fresh points and entities, and the constraints that live entirely inside the copied set (dimensions
-measured on the copy; `fix` never). Tests: `transform.test.ts`, `transform.kernel.test.ts` (move, rotate 30 and 90 degrees,
+measured on the copy; `fix` never). Constraints tied to the axes (horizontal, vertical, hdist, vdist) are copied only when they still hold: always for
+Move / Copy / Scale, and for Rotate only when the copy is a whole number of quarter turns from the original (swapped to the other axis on an odd number),
+so a rotated pattern is the original geometry turned by k times the angle and nothing pins it to the axes. Tests: `transform.test.ts`, `transform.kernel.test.ts` (move, rotate 30 and 90 degrees,
 scale, two copies, then Fully define on a copy).
 
 ## Selection
@@ -102,9 +114,9 @@ scale, two copies, then Fully define on a copy).
 | 5 | perpendicular foot / tangent point | right angle / circle on a line | from the start of the shape being drawn (the line tool's chain end); foot only on the span |
 | 6 | on curve | hourglass | nearest point of a line, circle or arc; names the entity (`entityId`) |
 | 7 | alignment | diamond + dotted guide | horizontal / vertical with another point (the inference lines) |
-| 8 | grid | small plus | the point lands on the displayed minor grid line crossing |
+| 8 | grid | small plus | the point lands on a displayed minor grid crossing when the pointer is within about 4 px of it (`gridCapture`: a third of the pick radius, at most a quarter of the step); between crossings the pointer is free |
 
-A snap shows its glyph and a name beside the pointer; Alt at a click turns snapping off for it. The **Snaps** popover in the aux
+A snap shows its glyph and a name beside the pointer; Alt or Ctrl turns snapping off for that move or click (Alt on the Rectangle tool also makes a square). Dragging a rectangle, circle, line or slot is free between grid crossings: the W / H (radius, length) boxes show the live value, and typing in one fixes only that one. The **Snaps** popover in the aux
 bar switches each kind on or off (kept in `cad.sketchPrefs`), and "Add constraints from snaps" (the old auto-constraints
 setting) decides whether a snapped click also writes the constraint (`snap-constraints.ts`): midpoint, alignment as before;
 on curve, perpendicular and tangent -> `pointOnLine` / `pointOnCircle`; intersection -> on both; quadrant -> on the circle plus
@@ -122,6 +134,10 @@ tangent, hourglass = on curve, small plus = grid point, diamond (with the dotted
 glyphs (endpoint, midpoint, centre, extent as a diamond) in cyan; the sketch's own are orange. The glyph is about 11 px across at
 every zoom (half size `MARKER_HALF_PX` times plane units per pixel), and the shade changes with the viewport background (darker on
 light, brighter on dark). The text tag beside the pointer stays.
+
+**Cursor label** (`CursorLabel` in `sketchReadout.tsx`; text and placement in `cursorLabel()`, `sketchStatus.ts`): the same coordinates as the status bar, in a small box 14 px down and right of the pointer
+(flipped at the right and bottom edges), drawn in `#vp-layer`. The viewport reports the pointer's position in `onPlaneCursor` (`x`, `y`, `w`, `h`, `touch`); a finger (`touch`) and the phone layout show
+nothing, and the setting `SketchPrefs.cursorLabel` (default on) turns it off. It shows the snapped point when a snap is active. The status bar fields stay.
 
 **Status bar** while a sketch is open (`SketchReadout`, `sketchReadout.tsx`; text in `sketchStatus.ts`). The slots never move: left to right
 **Snap**, **Grid**, **Zoom**, **Spacing**, then three fixed-width text boxes that are blank when there is nothing to show (`data-testid`
@@ -151,9 +167,19 @@ for the Line tool and both splines (double-click the last point or Enter finishe
 **Dimension graphics** (`annotations.ts`, pure, sketch coordinates; drawn by `SketchAnnotations` as SVG under the labels, projected by
 `dimGraphics.ts`): a length has extension lines, a dimension line 26 px off the geometry with arrowheads and the label centred on it (text
 along the line, kept upright); horizontal / vertical distances run on their axis; an angle between two lines is an arc inside the corner with
-the degrees beside it; a radius or diameter is a leader through the circle. Driving dimensions use the error colour token, reference ones the
-secondary text colour, dashed and in brackets. Labels are `1 500 mm`, `R12 mm`, `Ø8 mm`, `110°` (at most two decimals, space as thousands
-separator); labels that would overlap are pushed apart on screen (`nudgeLabels`). The label stays the hit target: double-click edits.
+the degrees beside it; a radius or diameter is a leader through the circle. Driving dimensions are pale violet (tokens `--dim-line`, `--dim-chip-bg`, `--dim-chip-text`, light and dark), reference ones the
+secondary text colour, dashed and in brackets; a conflicting dimension turns the error colour. Labels are `1 500 mm`, `R12 mm`, `Ø8 mm`, `110°` (at most two decimals, space as thousands
+separator); labels that would overlap are pushed apart on screen (`nudgeLabels`). The value is drawn as a **chip**: a dark rounded pill with the text in a monospace face (`Ø80.00 mm`, `40.00 mm`, `90.0°`). The chip stays the hit target:
+a click selects it (Delete removes the dimension), double-click edits, right-click opens the menu. In the phone and tablet layouts every chip has a
+44 px tap target (an invisible area around the chip; `annotChips.ts` `hitSize`) and the layout measures chips with the same box it draws them with (`labelBox`).
+
+**Constraint glyph chips** (`annotChips.ts`, drawn by `SketchAnnotations`): a geometric constraint is a small rounded square with an icon of its own
+(horizontal, vertical, tangent, equal, parallel, perpendicular, concentric, fix, midpoint, symmetric, collinear, point on line / circle, coincident), placed
+at the constrained point or entity. The chip is 14 px with a 1 px border and a 10 px glyph, in muted tokens (`--mark-bg`, `--mark-line`, `--mark-text`, light and dark) and semi-transparent until hovered. On a desktop pointer its hit target is 24 px; in the phone and tablet layouts it is 44 px (an invisible area around the chip; `hitSize`). Hover shows the constraint name as a tooltip and highlights what it names; click selects the chip and Delete
+(or Backspace) removes the constraint; Escape clears the selection. A chip that would sit on a dimension value or on another chip is moved clear
+(`separateMarks`). While a sketch tool is active the glyph chips let the pointer through, so they never take a click meant for the drawing.
+
+**Which chips show.** Settings, Sketching, **Constraint markers** (`constraintMarkers`): **Hovered or selected** (default) shows the chips of the entities under the pointer (kept a third of a second after it leaves, so a chip beside the line can be reached), of the selected entities and of the point under the pointer; **Always** shows every chip; **Off** hides them all. A constraint the solver reports as conflicting or redundant is always shown (red or amber), in every mode, and the chip you hover or select stays. When the horizontal and vertical locks only close a rectangle (four lines in a loop, every side locked to an axis, `rectangleAxisLocks`), their chips show for the hovered or selected side only, in every mode but Off, so a drawn rectangle carries no row of identical chips. The constraints are never hidden from the sketch Report and the constraint list; only their glyphs on the canvas follow the setting.
 
 **Placement of dimensions** (`dimLayout.ts`, pure, in pixels through the view's projection). Longest dimensions first; each tries the dimension line
 at 26, 52, 78 and 104 px on one side of its geometry, then on the other, and takes the first place where its label (an oriented rectangle, kept
@@ -200,6 +226,22 @@ handles, resize cursors for size-box handles, a rotate cursor over rings, not-al
 drag, grab while Space or the middle button is held (Space with a drag pans), text over typed fields. The sketch view and the
 handle layer apply it; the TriBall keeps its own for now.
 
+## Picking the sketch plane in the view
+
+`S` (`sketch-here`) with no face, plane or tree row selected, and the command `sketch-pick-plane`, call `beginPlanePick` (`main.tsx`): the pick state `planePick` shows the three origin planes through the existing
+`setRefPlanes` (`RefPlanes`, `refplanes.ts`: translucent sheets, axes, orange fill and edge plus label for the hovered one) and turns on the viewport's plane-picking mode, `setRefPlanePick(true)`, which draws the
+sheets stronger and adds a fallback to the exact ray test: `nearestSheet` takes the sheet whose screen outline is within `PLANE_PICK_TOL` px of the pointer (8 for a mouse, 28 for a finger), so an edge-on sheet can
+be hit. The click goes through the usual `onRefPlanePick`, which starts the sketch; a datum plane feature (`onPlaneFeaturePick`) and a flat face (the single selected face, face mode is set) start the sketch on
+that. `Esc` and the bar's Cancel end the mode; starting any sketch ends it. The tree and `Sketch on selected face or plane` work as before.
+
+## Sketch Report
+
+`sketchReport(draft, status)` (`reportData.ts`, pure) turns the draft and the solver status (`SketchSolverStatus`: dof, state, conflicts, redundant, problems) into counts: points, lines, arcs, circles, splines, other
+curves, construction entities, constraints by kind, driving dimensions (`DIM_TYPES` with a numeric value) and reference ones (`refDimsOf`), closed profiles (`sketchShapes`), open chains (`sketchOpenChains`) and the list of
+conflicting and redundant constraints. `reportState` ranks conflict over over-constrained over unsolved. `SketchReport.tsx` draws one body in `SketchReportWindow` (desktop, over `#vp`, not modal) or `SketchReportSheet`
+(phone and tablet, the shared `Sheet`). The button is `onReport` in `SketchStatus` (Status group); the command is `sketch-report` in the F search. Clicking an issue selects the entities the constraint names
+(`constraintTargets`); a constraint on points only is lit like a hovered row. It re-renders with the sketch, so it follows edits while open, and closes when the sketch ends.
+
 ## Display
 
 The **Display** popover: driving dimensions, relation glyphs (H, V, =, tangent ...), reference dimensions, colour by
@@ -241,3 +283,4 @@ The candidate list is built once per sketch session and again when the body, the
 
 With an Extrude or Revolve editor open on a sketch with two or more closed shapes, click a region of the sketch in the viewport to switch it on or off (the same toggle as the Shapes list); pointing at a region lights its outline.
 A click on the ring between an outer and an inner loop is the outer shape, a click inside the inner loop is the inner one. Outer alone is the filled disc, inner alone the inner disc, both the ring (the inner loop is a hole).
+Loops that share points are separate shapes too: five petals that all start at the sketch origin are five shapes, and each can be extruded alone. This needs the Extrude or Revolve editor, not the sketch open for drawing: finish the sketch first.

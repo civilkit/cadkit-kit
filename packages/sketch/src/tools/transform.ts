@@ -9,7 +9,9 @@
  *     back if they say so, and the tool reports it when the solver refuses.
  *   - copies: fresh points and entities (every point of a picked entity is copied, even one shared with an unpicked
  *     entity), and the constraints that live entirely inside the picked set are copied with them (dimensions re-measured).
- *     A `fix` is never copied.
+ *     Only constraints that still hold on the copy are copied: a `fix` never is, and for a rotation the axis-bound ones
+ *     (horizontal, vertical, hdist, vdist) are copied only when the copy is a whole quarter turn from the original
+ *     (swapped for an odd number of quarter turns); otherwise they would pin the copy to the axes and fight the rotation.
  *
  * The tools (move / copy / rotate / scale) share one flow: click entities (or have them selected beforehand) and press
  * Enter, click the base point (the centre for rotate), then move the pointer and click, or type the numbers:
@@ -108,6 +110,15 @@ export function measure(d: SketchDraft, c: DraftConstraint, old: SketchDraft): n
 
 const rounded = (v: number) => Math.round(v * 1e9) / 1e9;
 
+/** What an axis-bound constraint becomes on copy `k` of a transform: itself, its swapped twin, or null (do not copy). */
+function axisBound(x: Xform, k: number, type: string): string | null {
+  const swap: Record<string, string> = { horizontal: 'vertical', vertical: 'horizontal', hdist: 'vdist', vdist: 'hdist' };
+  if (!swap[type] || x.kind !== 'rotate') return type;
+  const q = (x.angleDeg * k) / 90;
+  if (Math.abs(q - Math.round(q)) > 1e-9) return null;
+  return Math.round(q) % 2 === 0 ? type : swap[type];
+}
+
 /** Re-measure the dimensions whose geometry changed. `touched` is the set of point ids that moved or were rescaled. */
 function resettle(old: SketchDraft, d: SketchDraft, touched: Set<string>, x: Xform): SketchDraft {
   const pointsOfRef = (r: string): string[] => { const e = entityOf(d, r); return e ? entityPoints(e) : [r]; };
@@ -193,11 +204,13 @@ export function applyTransform(draft: SketchDraft, ids: string[], x: Xform, copi
     for (const c of draft.constraints) {
       const refs = c.refs ?? [];
       if (c.type === 'fix' || !refs.length || !refs.every((r) => inside.has(r) && map(r))) continue;
+      const type = axisBound(x, k, c.type);
+      if (!type) continue;
       const { id: _cid, ...rest } = c;
       const extra: Record<string, unknown> = { ...rest };
-      delete extra.refs;
+      delete extra.refs; delete extra.type;
       if (typeof c.at === 'string') extra.at = map(c.at) ?? c.at;
-      d = withConstraint(d, c.type, refs.map((r) => map(r)!), extra);
+      d = withConstraint(d, type, refs.map((r) => map(r)!), extra);
     }
     // dimensions of the copy are measured on the copy
     d = { ...d, constraints: d.constraints.map((c, i) => {

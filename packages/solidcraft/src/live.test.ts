@@ -23,6 +23,7 @@ describe('expression text for the part', () => {
     expect(kernelExpr('t + 14 mm', names)).toBe('t+14');
     expect(kernelExpr('2 cm + w', names)).toBe('20+w');
     expect(kernelExpr('=sqrt(w ^ 2 + t ^ 2)', names)).toBe('sqrt(w^2+t^2)');
+    expect(kernelExpr('sinh(w) + atanh(0.5) + acosh(t) + cosh(1) + tanh(1) + asinh(2)', names)).toBe('sinh(w)+atanh(0.5)+acosh(t)+cosh(1)+tanh(1)+asinh(2)');
     expect(kernelExpr('2 * pi', names)).toBe('2*pi');
     expect(kernelExpr('max(w, t)', names)).toBe('max(w,t)');
     expect(kernelExpr('min(w, 2 cm, sqrt(t)) + round(t / 3)', names)).toBe('min(w,20,sqrt(t))+round(t/3)');

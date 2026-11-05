@@ -11,8 +11,9 @@ const volsPath = process.env.FCSTD_VOLS ?? '';
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 
-const files = (process.env.FCSTD_FILES ?? 'PartDesignExample.FCStd,TwoLengthsPadWithExpression.FCStd,PadTest.fcstd,PocketTest.fcstd').split(',');
-describe('real FCStd files', { skip: !process.env.CK_WASM || !dir || !existsSync(dir) }, () => {
+const files = (process.env.FCSTD_FILES ?? '').split(',').filter(Boolean);
+describe('real FCStd files (your own: FCSTD_DIR, FCSTD_FILES)', { skip: !process.env.CK_WASM || !dir || !existsSync(dir) || !files.length }, () => {
+  if (!files.length) it('needs FCSTD_DIR and FCSTD_FILES', () => {});
   for (const f of files) {
     it(f, async () => {
       const imp = await importFcstd(new Uint8Array(readFileSync(f.startsWith('/') ? f : `${dir}/${f}`)), f, { body: process.env.FCSTD_BODY });

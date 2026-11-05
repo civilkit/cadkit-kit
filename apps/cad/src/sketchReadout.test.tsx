@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, act } from '@testing-library/preact';
 import { StatusBar } from '@kit/ui';
-import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
+import { SketchReadout, ModelReadout, CursorLabel, readout, clearReadout } from './sketchReadout';
+import { cursorLabel } from './sketchStatus';
+import { DEFAULT_SKETCH_PREFS, sanitizeSketchPrefs } from './sketchPrefs';
 import './i18n';
 
 afterEach(() => { cleanup(); clearReadout(); readout.model.value = null; });
@@ -124,5 +126,41 @@ describe('status bar sketch readout', () => {
     expect(container.querySelector('.st-coords')).toBeNull();
     act(() => { readout.model.value = [10, 20.25, -3]; });
     expect(container.querySelector('.st-coords')?.textContent).toBe('10.0 mm, 20.3 mm, -3.0 mm');
+  });
+});
+
+describe('cursor-following coordinate label', () => {
+  const c = { u: 5.61, v: -7.13, upp: 0.01, grid: 1, x: 100, y: 80, w: 800, h: 600 };
+  it('says the sketch coordinates in the unit and sits down-right of the pointer', () => {
+    expect(cursorLabel(c, null, 'mm', true)).toEqual({ text: '5.61 mm, -7.13 mm', left: 114, top: 94 });
+    expect(cursorLabel(c, null, 'in', true)?.text).toBe('0.2209 in, -0.2807 in');
+  });
+  it('shows where the snap put the point', () => {
+    expect(cursorLabel(c, { x: 5, y: -7 }, 'mm', true)?.text).toBe('5.00 mm, -7.00 mm');
+  });
+  it('is hidden when off, with no pointer, for a finger, or without a reported position', () => {
+    expect(cursorLabel(c, null, 'mm', false)).toBeNull();
+    expect(cursorLabel(null, null, 'mm', true)).toBeNull();
+    expect(cursorLabel({ ...c, touch: true }, null, 'mm', true)).toBeNull();
+    expect(cursorLabel({ u: 1, v: 2, upp: 0.1 }, null, 'mm', true)).toBeNull();
+  });
+  it('flips to the other side near the right and bottom edges', () => {
+    const l = cursorLabel({ ...c, x: 780, y: 590 }, null, 'mm', true)!;
+    expect(l.left).toBeLessThan(780);
+    expect(l.top).toBeLessThan(590);
+    expect(l.left).toBeGreaterThanOrEqual(0);
+  });
+  it('the component follows the readout signal and leaves when the pointer does', () => {
+    const { container } = render(<CursorLabel enabled />);
+    expect(container.querySelector('[data-testid="cursor-label"]')).toBeNull();
+    act(() => { readout.cursor.value = c; });
+    expect(container.querySelector('[data-testid="cursor-label"]')?.textContent).toBe('5.61 mm, -7.13 mm');
+    act(() => { readout.cursor.value = null; });
+    expect(container.querySelector('[data-testid="cursor-label"]')).toBeNull();
+  });
+  it('the setting defaults on and survives sanitising', () => {
+    expect(DEFAULT_SKETCH_PREFS.cursorLabel).toBe(true);
+    expect(sanitizeSketchPrefs({ cursorLabel: false }).cursorLabel).toBe(false);
+    expect(sanitizeSketchPrefs({ cursorLabel: 'no' }).cursorLabel).toBe(true);
   });
 });

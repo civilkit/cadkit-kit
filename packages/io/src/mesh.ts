@@ -1,6 +1,31 @@
 /** The part of the viewer's mesh the writers need: three vertices per triangle, xyz per vertex, in millimetres. */
 export interface TriMesh { positions: ArrayLike<number> }
 
+/** One body of a multi-body export: its triangles (and the per-corner normals when the mesh has them) and how it looks. */
+export interface MeshBody {
+  name: string;
+  /** Three vertices per triangle, xyz, millimetres, Z up. */
+  positions: ArrayLike<number>;
+  /** Same layout as `positions`; absent: facet normals are used. */
+  normals?: ArrayLike<number>;
+  /** `#rrggbb` (or `#rgb`); absent: the file's default look. */
+  color?: string;
+  /** 0 to 1, default 1. */
+  opacity?: number;
+  /** 0 to 1; glTF only. */
+  metallic?: number;
+  /** 0 to 1; glTF only. */
+  roughness?: number;
+}
+
+/** `#rgb` or `#rrggbb` as 0..255 channels (sRGB); null when it is not a hex colour. */
+export function parseHexColor(s: string | undefined): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec((s ?? '').trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join('') : m[1];
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
 export interface MeshCheck {
   triangles: number;
   /** Distinct vertices after welding positions that agree to `tol`. */

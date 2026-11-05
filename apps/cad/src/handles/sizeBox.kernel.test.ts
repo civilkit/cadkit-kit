@@ -127,3 +127,49 @@ describe('size box against the real kernel', { skip: !process.env.CK_WASM }, () 
     expect(await w.errors()).toEqual([]);
   }, 60000);
 });
+
+// a dome-ended cylinder revolved about the sketch's vertical line: radius 70, wall 80 long, half-circle ends of radius 35
+const dome = { type: 'sketch', id: 'F2', plane: { kind: 'std', id: 'front' },
+  points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 0, y: 80 }, { id: 'p2', x: -70, y: 80 }, { id: 'p3', x: -35, y: 80 }, { id: 'p4', x: -70, y: 0 }, { id: 'p5', x: -35, y: 0 }],
+  entities: [{ id: 'e1', type: 'line', p1: 'O', p2: 'p1' }, { id: 'e2', type: 'arc', c: 'p3', p1: 'p1', p2: 'p2' }, { id: 'e3', type: 'line', p1: 'p2', p2: 'p4' }, { id: 'e4', type: 'arc', c: 'p5', p1: 'p4', p2: 'O' }],
+  constraints: [{ id: 'k1', type: 'vertical', refs: ['e1'] }, { id: 'k2', type: 'tangent', refs: ['e1', 'e2'], at: 'p1' }, { id: 'k3', type: 'vertical', refs: ['e3'] }, { id: 'k4', type: 'tangent', refs: ['e3', 'e4'], at: 'p4' }] };
+const domeDoc = (sk: unknown = dome): PartDoc => ({ ...emptyPart('Dome'), features: [sk, { type: 'revolve', id: 'F3', op: 'add', sketch: 'F2', axis: 'e1', end: 'blind', angle: 360 }], seq: 10 }) as unknown as PartDoc;
+/** Volume of the revolved outline: a wall of radius R and length H plus two half-disc ends of radius R / 2 (Pappus). */
+const domeVolume = (R: number, H: number): number => Math.PI * R * R * H + (Math.PI ** 2 * R ** 3) / 4;
+
+describe('size box on a revolve against the real kernel', { skip: !process.env.CK_WASM }, () => {
+  const near = (v: number, e: number) => expect(Math.abs(v / e - 1)).toBeLessThan(2e-3);
+  it('the label values are the real extents: radius 70 and 150 along the axis, and the model has that volume', async () => {
+    const w = await world(domeDoc());
+    const s = w.plan('F3');
+    expect(s.specs.find((x) => x.id === 'lw')!.text).toBe('R70');
+    expect(s.specs.find((x) => x.id === 'll')!.text).toBe('150');
+    expect(await w.errors()).toEqual([]);
+    near(await w.volume(), domeVolume(70, 80));
+  }, 60000);
+
+  it('a typed radius of 60 (the label of the cylinder face and of the end face alike): one edit, valid, dome still tangent (volume), undoable', async () => {
+    const w = await world(domeDoc());
+    const before = w.depth();
+    await w.drag(w.plan('F3'), 'u0', 60);
+    expect(w.depth()).toBe(before + 1);
+    expect(await w.errors()).toEqual([]);
+    near(await w.volume(), domeVolume(60, 80));
+    expect(w.plan('F3').specs.find((x) => x.id === 'lw')!.text).toBe('R60');
+    const sk = w.doc().features[0] as unknown as { points: Array<{ id: string; x: number }> };
+    expect(sk.points.find((p) => p.id === 'O')!.x).toBe(0);
+  }, 60000);
+
+  it('a typed length of 170 lengthens the wall by 20; a radius edit in a sketch that carries dimensions updates them', async () => {
+    const w = await world(domeDoc());
+    await w.drag(w.plan('F3'), 'v1', 170);
+    expect(await w.errors()).toEqual([]);
+    near(await w.volume(), domeVolume(70, 100));
+    const d = await world(domeDoc({ ...dome, constraints: [...dome.constraints, { id: 'k5', type: 'hdist', refs: ['p4', 'O'], value: 70 }, { id: 'k6', type: 'vdist', refs: ['O', 'p1'], value: 80 }] }));
+    await d.drag(d.plan('F3'), 'u0', 60);
+    expect(await d.errors()).toEqual([]);
+    near(await d.volume(), domeVolume(60, 80));
+    const sk = d.doc().features[0] as unknown as { constraints: Array<{ id: string; value?: number }> };
+    expect(sk.constraints.find((c) => c.id === 'k5')!.value).toBe(60);
+  }, 120000);
+});

@@ -260,7 +260,7 @@ export const SHOTS = [
       await c.key('F10'); await c.sleep(800);
       await p.mouse('mouseMoved', 635, 574); await c.sleep(400); await p.mouse('mousePressed', 635, 574); await c.sleep(200); for (let i = 1; i <= 8; i++) { await p.mouse('mouseMoved', 635 - i * 8, 574 + i * 2); await c.sleep(60); } await c.sleep(500);   // the X end dot at the left of the ball
     } },
-  { name: 'navigation-viewcube', caption: 'The view cube in the top right corner with the Fit and projection buttons beside it, the model in the Iso view.',
+  { name: 'navigation-viewcube', caption: 'The view cube in the top right corner with its arrow ring, and the Fit and projection buttons under it, the model in the Iso view.',
     async run(c) { await c.open({ sample: 'mounting-plate' }); await c.key('7'); await c.key('z'); await c.sleep(800); return { x: 300, y: 195, w: 1140, h: 520 }; } },
   { name: 'text-panel', caption: 'The Text tool open in a sketch with the text panel (characters, cap height, font, anchor grid, on an arc) and the lettering RPM x100 laid along an arc.',
     async run(c) {

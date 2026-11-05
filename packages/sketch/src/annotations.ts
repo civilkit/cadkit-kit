@@ -44,6 +44,8 @@ export interface AnnotateOptions {
   upp?: number;
   /** Draw a right angle as a square corner mark (default on). */
   squareRight?: boolean;
+  /** Also mark coincident constraints (a dot chip where the points meet). Off by default: they are the shared points themselves. */
+  coincident?: boolean;
 }
 /** How far a dimension line sits off the measured geometry, in pixels. */
 export const DIM_OFFSET_PX = 26;
@@ -134,7 +136,7 @@ export function nudgeLabels<T extends { x: number; y: number; w: number; h: numb
 
 export const GLYPHS: Record<string, string> = {
   horizontal: 'H', vertical: 'V', equal: '=', parallel: '∥', perpendicular: '⊥', collinear: '≡',
-  midpoint: 'M', tangent: 'T', symmetric: '⇄', fix: '⚓', concentric: '◎', pointOnLine: '⌖', pointOnCircle: '⌖',
+  coincident: '●', midpoint: 'M', tangent: 'T', symmetric: '⇄', fix: '⚓', concentric: '◎', pointOnLine: '⌖', pointOnCircle: '⌖',
 };
 const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
 
@@ -260,7 +262,7 @@ export function annotate(draft: SketchDraft, opts: AnnotateOptions = {}): Annota
       continue;
     }
     const glyph = GLYPHS[c.type];
-    if (!glyph) continue;
+    if (!glyph || (c.type === 'coincident' && !opts.coincident)) continue;
     let at: Pt | null = null;
     if (c.type === 'tangent' && refs.length === 2) {
       const a = ents.get(refs[0]), b = ents.get(refs[1]);
@@ -270,6 +272,44 @@ export function annotate(draft: SketchDraft, opts: AnnotateOptions = {}): Annota
       at = refs.length === 1 ? anchorOf(refs[0]) : refs.length === 2 ? (() => { const a = anchorOf(refs[0]), b = anchorOf(refs[1]); return a && b ? mid(a, b) : null; })() : null;
     } else at = refs.length ? anchorOf(refs[0]) : null;
     if (at) out.push({ ...base, kind: 'mark', text: glyph, at });
+  }
+  return out;
+}
+
+/** Horizontal / vertical constraints that only lock the sides of a closed rectangle (four lines in a loop, every side locked to an axis).
+ *  Such a rectangle would otherwise carry four near-identical glyphs; the chips for these show on hover only. Returns the constraint ids. */
+export function rectangleAxisLocks(draft: SketchDraft): Set<string> {
+  const lock = new Map<string, string[]>();   // line id -> its H / V constraint ids
+  for (const c of draft.constraints) {
+    if (c.hidden === true || (c.type !== 'horizontal' && c.type !== 'vertical') || (c.refs ?? []).length !== 1) continue;
+    const e = draft.entities.find((x) => x.id === c.refs![0]);
+    if (e?.type !== 'line') continue;
+    lock.set(e.id, [...(lock.get(e.id) ?? []), c.id]);
+  }
+  const lines = draft.entities.filter((e) => lock.has(e.id));
+  const parent = new Map<string, string>();
+  const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(a, r); return r; };
+  for (const e of lines) for (const k of [String(e.p1), String(e.p2)]) if (!parent.has(k)) parent.set(k, k);
+  for (const e of lines) parent.set(find(String(e.p1)), find(String(e.p2)));
+  const groups = new Map<string, DraftEntity[]>();
+  for (const e of lines) { const r = find(String(e.p1)); groups.set(r, [...(groups.get(r) ?? []), e]); }
+  const out = new Set<string>();
+  for (const g of groups.values()) {
+    if (g.length !== 4) continue;
+    const deg = new Map<string, number>();
+    for (const e of g) for (const k of [String(e.p1), String(e.p2)]) deg.set(k, (deg.get(k) ?? 0) + 1);
+    if (deg.size !== 4 || [...deg.values()].some((n) => n !== 2)) continue;   // a closed loop of four
+    for (const e of g) for (const id of lock.get(e.id)!) out.add(id);
+  }
+  return out;
+}
+
+/** The focus set plus the points of the focused entities (a chip on a point is shown when an entity through it is). */
+export function expandFocus(draft: SketchDraft, focus: Iterable<string>): Set<string> {
+  const out = new Set(focus);
+  for (const e of draft.entities) {
+    if (!out.has(e.id)) continue;
+    for (const k of ['p1', 'p2', 'c']) if (typeof e[k] === 'string') out.add(e[k] as string);
   }
   return out;
 }

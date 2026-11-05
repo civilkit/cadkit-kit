@@ -479,7 +479,7 @@
   "id": "pet-bottle",
   "title": "PET bottle 500 ml",
   "file": "pet-bottle.ckpart",
-  "detail": "PET bottle 500 ml: a 500 ml PET water bottle with a petaloid base, from a FreeCAD tutorial video, in 7 features (10 with the cap): a closed outline with a spline shoulder revolved, five drafted petal grooves cut with a circular pattern, then the whole bottle shelled to a 0.35 mm wall. Variables: WALL, FEET, GROOVE_UP, DRAFT; CAP=1 adds the screw cap"
+  "detail": "PET bottle 500 ml: a 500 ml PET water bottle with a soft, rounded petaloid base and a screw cap (separate body). The outline with its spline shoulder is revolved and shelled to a 0.35 mm tube; the base is two lofts (the outer solid and the cavity one wall inside it) through 14 round sections, each a closed loop of tangent arcs: five fat feet joined by five small valley ribs, curling under like the 9 mm base corner and running out vertical into the cylinder, with a rounded push-up centre. No fillet is used and no edge of the base is sharp. CAP=1 adds the cap and THREAD=1 gives the neck a real helical thread (28 mm finish: 25.5 mm root, 27.6 mm crest, 2.7 mm pitch, 2 turns, swept on a helix) and the cap the matching internal thread with 0.15 mm flank clearance, plus 30 grip ribs (GRIP). Variables: WALL, FEET (3 to 7), CAP, THREAD, PITCH, TURNS, CLR, GRIP; THREAD=0 keeps the light plain neck and cap"
  },
  {
   "id": "assembly-block-bolt",
@@ -510,6 +510,12 @@
   "title": "Assembly: hinge door",
   "file": "assembly-hinge-door.ckpart",
   "detail": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)"
+ },
+ {
+  "id": "assembly-nist-ftc-7-8-9-10",
+  "title": "NIST test assembly: FTC 7, 8, 9, 10",
+  "file": "assembly-nist-ftc-7-8-9-10.ckpart",
+  "detail": "NIST test assembly: FTC 7, 8, 9, 10, base, plate, component and lid from the NIST PMI test models, each with its SolidWorks history, placed by mates and saved as an exploded view. NIST MBE PMI test models 7 to 10 (US government public domain), assembled by CadKit; no SolidWorks forum files used"
  },
  {
   "id": "thin-wall-bracket",

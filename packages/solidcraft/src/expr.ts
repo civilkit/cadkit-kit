@@ -16,6 +16,9 @@ const FUNCTIONS: Record<string, { n: number; f: (...a: number[]) => number }> = 
   sin: { n: 1, f: (x) => Math.sin(x * RAD) }, cos: { n: 1, f: (x) => Math.cos(x * RAD) }, tan: { n: 1, f: (x) => Math.tan(x * RAD) },
   asin: { n: 1, f: (x) => Math.asin(x) / RAD }, acos: { n: 1, f: (x) => Math.acos(x) / RAD }, atan: { n: 1, f: (x) => Math.atan(x) / RAD },
   atan2: { n: 2, f: (y, x) => Math.atan2(y, x) / RAD },
+  // hyperbolic: plain numbers in and out (no degrees); a result outside the domain or past the double range is NaN / Infinity and is refused as not finite
+  sinh: { n: 1, f: Math.sinh }, cosh: { n: 1, f: Math.cosh }, tanh: { n: 1, f: Math.tanh },
+  asinh: { n: 1, f: Math.asinh }, acosh: { n: 1, f: Math.acosh }, atanh: { n: 1, f: Math.atanh },
   sqrt: { n: 1, f: Math.sqrt }, abs: { n: 1, f: Math.abs }, exp: { n: 1, f: Math.exp }, ln: { n: 1, f: Math.log }, log10: { n: 1, f: Math.log10 },
   floor: { n: 1, f: Math.floor }, ceil: { n: 1, f: Math.ceil }, trunc: { n: 1, f: Math.trunc },
   round: { n: 1, f: (x) => Math.sign(x) * Math.round(Math.abs(x)) },   // halves away from zero
@@ -119,6 +122,7 @@ export function evalExpr(src: string | number, vars: Record<string, number> = {}
         const fn = FUNCTIONS[x.v];
         if (fn.n ? args.length !== fn.n : false) throw new ExprError(`${x.v} takes ${fn.n} argument${fn.n === 1 ? '' : 's'} in "${src}"`);
         v = fn.f(...args);
+        if (!Number.isFinite(v)) throw new ExprError(`${x.v}(${args.join(', ')}) is not a finite number`);   // as the part's grammar: every call must give a finite value
       } else if (hasOwn(vars, x.v)) v = vars[x.v];
       else if (x.v === 'pi' || x.v === 'PI') v = PI;
       else throw new ExprError(`unknown parameter ${x.v}`);
@@ -140,7 +144,7 @@ export function evalExpr(src: string | number, vars: Record<string, number> = {}
 /** What the part's expression grammar has: the functions (`log` and `sign`, which this evaluator refuses too, have no counterpart there). */
 const KERNEL_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'abs']);
 /** The functions the part's grammar calls as `name(a, b, ...)`, where a comma separates the arguments. */
-const KERNEL_MULTI = new Set(['min', 'max', 'pow', 'mod', 'hypot', 'atan2', 'round', 'floor', 'ceil', 'trunc', 'exp', 'ln', 'log10', 'asin', 'acos', 'atan']);
+const KERNEL_MULTI = new Set(['min', 'max', 'pow', 'mod', 'hypot', 'atan2', 'round', 'floor', 'ceil', 'trunc', 'exp', 'ln', 'log10', 'asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh', 'asinh', 'acosh', 'atanh']);
 /** Names the part cannot use for a variable: `pi`, its functions and its units, in any letter case, and anything that is not letters, digits and `_`. */
 const RESERVED = new Set(['pi', 'sqrt', 'sin', 'cos', 'tan', 'abs', 'mm', 'cm', 'm', 'in', 'deg']);
 export const usableName = (n: string): boolean => /^[A-Za-z_][A-Za-z0-9_]*$/.test(n) && !RESERVED.has(n.toLowerCase());

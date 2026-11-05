@@ -53,6 +53,12 @@ describe('sketch preferences', () => {
     expect(sanitizeSketchPrefs({ arcSwitch: 'sideways', onViewValues: 3, autoConstraints: 'yes' })).toEqual(DEFAULT_SKETCH_PREFS);
     expect(sanitizeSketchPrefs(null)).toEqual(DEFAULT_SKETCH_PREFS);
   });
+  it('constraint markers default to hovered or selected and only accept the three modes', () => {
+    expect(DEFAULT_SKETCH_PREFS.constraintMarkers).toBe('hover');
+    expect(sanitizeSketchPrefs({ constraintMarkers: 'always' }).constraintMarkers).toBe('always');
+    expect(sanitizeSketchPrefs({ constraintMarkers: 'off' }).constraintMarkers).toBe('off');
+    expect(sanitizeSketchPrefs({ constraintMarkers: 'some' }).constraintMarkers).toBe('hover');
+  });
   it('round-trips through storage, and survives broken or missing storage', () => {
     const mem: Record<string, string> = {};
     const store = { getItem: (k: string) => mem[k] ?? null, setItem: (k: string, v: string) => { mem[k] = v; } };

@@ -7,6 +7,20 @@
   "analysis.mode.off",
   "analysis.mode.zebra"
  ],
+ "app.sketch.equation.+": [
+  "app.sketch.equation.t0",
+  "app.sketch.equation.t1",
+  "app.sketch.equation.x",
+  "app.sketch.equation.y"
+ ],
+ "app.sketch.equation.preset.+": [
+  "app.sketch.equation.preset.circle",
+  "app.sketch.equation.preset.ellipse",
+  "app.sketch.equation.preset.involute",
+  "app.sketch.equation.preset.lissajous",
+  "app.sketch.equation.preset.spiral",
+  "app.sketch.equation.preset.wave"
+ ],
  "check.${kind}.${n === 1 ? 'one' : 'other'}": [
   "check.afterEdit.hint",
   "check.chip.title",
@@ -164,6 +178,16 @@
   "opt.chamfer.type.distances",
   "opt.chamfer.type.equal"
  ],
+ "opt.fillet.+": [
+  "opt.fillet.center",
+  "opt.fillet.side1",
+  "opt.fillet.side2"
+ ],
+ "opt.thicken.axis.+": [
+  "opt.thicken.axis.x",
+  "opt.thicken.axis.y",
+  "opt.thicken.axis.z"
+ ],
  "opt.fillet.profile.+": [
   "opt.fillet.profile.chord",
   "opt.fillet.profile.circular",
@@ -219,11 +243,44 @@
   "feature.thread",
   "feature.trimSurface"
  ],
+ "opt.pattern.axis.+": [
+  "opt.pattern.axis.x",
+  "opt.pattern.axis.y",
+  "opt.pattern.axis.z"
+ ],
+ "opt.pattern.distanceType.+": [
+  "opt.pattern.distanceType.extent",
+  "opt.pattern.distanceType.spacing",
+  "opt.pattern.distanceType.toObject"
+ ],
+ "opt.pattern.orientation.+": [
+  "opt.pattern.orientation.fixed",
+  "opt.pattern.orientation.tangent"
+ ],
  "opt.fill.continuity.+": [
   "opt.fill.continuity.G0",
   "opt.fill.continuity.G1",
   "opt.fill.continuity.G2",
   "opt.fill.continuity.G3"
+ ],
+ "opt.projectCurve.direction.+": [
+  "opt.projectCurve.direction.both",
+  "opt.projectCurve.direction.forward",
+  "opt.projectCurve.direction.reverse"
+ ],
+ "opt.editCurve.method.+": [
+  "opt.editCurve.method.count",
+  "opt.editCurve.method.tolerance"
+ ],
+ "opt.editCurve.+": [
+  "opt.editCurve.dx",
+  "opt.editCurve.dy",
+  "opt.editCurve.dz"
+ ],
+ "opt.freeform.frame.+": [
+  "opt.freeform.frame.plane",
+  "opt.freeform.frame.surface",
+  "opt.freeform.frame.world"
  ],
  "opt.fill.fairing.+": [
   "opt.fill.fairing.curvature",
@@ -331,6 +388,8 @@
   "settings.rightPanel.off",
   "settings.sketch.arcSwitch",
   "settings.sketch.autoConstraints",
+  "settings.sketch.cursorLabel",
+  "settings.sketch.constraintMarkers",
   "settings.sketch.gridSnap",
   "settings.sketch.onViewValues",
   "settings.sketch.title",
@@ -353,6 +412,10 @@
   "settings.tab.layout",
   "settings.tab.positioning",
   "settings.tab.sketching"
+ ],
+ "settings.iconSet.+": [
+  "settings.iconSet.default",
+  "settings.iconSet.solidcraft"
  ],
  "settings.theme.+": [
   "settings.theme.auto",
@@ -410,6 +473,8 @@
  "settings.sketch.+": [
   "settings.sketch.arcSwitch",
   "settings.sketch.autoConstraints",
+  "settings.sketch.cursorLabel",
+  "settings.sketch.constraintMarkers",
   "settings.sketch.gridSnap",
   "settings.sketch.onViewValues",
   "settings.sketch.title"
@@ -418,6 +483,9 @@
   "settings.sketch.arcSwitch.hover",
   "settings.sketch.arcSwitch.keys",
   "settings.sketch.arcSwitch.off",
+  "settings.sketch.constraintMarkers.always",
+  "settings.sketch.constraintMarkers.hover",
+  "settings.sketch.constraintMarkers.off",
   "settings.sketch.onViewValues.both",
   "settings.sketch.onViewValues.dimensions",
   "settings.sketch.onViewValues.off"
@@ -472,6 +540,7 @@
   "app.sketch.tool.rotate",
   "app.sketch.tool.scale",
   "app.sketch.tool.slot",
+  "app.sketch.tool.split",
   "app.sketch.tool.spline",
   "app.sketch.tool.symmetric",
   "app.sketch.tool.tangent",
@@ -571,8 +640,10 @@
   "cmd.drawer",
   "cmd.explode",
   "cmd.export",
+  "cmd.export-3mf",
   "cmd.export-dxf-sketch",
   "cmd.export-dxf-views",
+  "cmd.export-glb",
   "cmd.export-obj",
   "cmd.export-step",
   "cmd.export-stl",
@@ -827,8 +898,10 @@
   "catalog.blocked.scriptFailed"
  ],
  "cmd.export-${k}": [
+  "cmd.export-3mf",
   "cmd.export-dxf-sketch",
   "cmd.export-dxf-views",
+  "cmd.export-glb",
   "cmd.export-obj",
   "cmd.export-step",
   "cmd.export-stl",
@@ -897,6 +970,34 @@
   "drawing.kind.proj",
   "drawing.kind.section",
   "drawing.kind.std"
+ ],
+ "sizebox.${wording(shape, 'u')}": [
+  "sizebox.axial",
+  "sizebox.diameter",
+  "sizebox.length",
+  "sizebox.radius",
+  "sizebox.width"
+ ],
+ "sizebox.${wording(shape, 'v')}": [
+  "sizebox.axial",
+  "sizebox.diameter",
+  "sizebox.length",
+  "sizebox.radius",
+  "sizebox.width"
+ ],
+ "sizebox.${wu}.tip": [
+  "sizebox.axial.tip",
+  "sizebox.diameter.tip",
+  "sizebox.length.tip",
+  "sizebox.radius.tip",
+  "sizebox.width.tip"
+ ],
+ "sizebox.${wv}.tip": [
+  "sizebox.axial.tip",
+  "sizebox.diameter.tip",
+  "sizebox.length.tip",
+  "sizebox.radius.tip",
+  "sizebox.width.tip"
  ],
  "sizebox.moveto.+": [
   "sizebox.moveto.apply",
@@ -1079,8 +1180,10 @@
   "rb.drawer",
   "rb.explode",
   "rb.explode-all",
+  "rb.export-3mf",
   "rb.export-dxf-sketch",
   "rb.export-dxf-views",
+  "rb.export-glb",
   "rb.export-obj",
   "rb.export-step",
   "rb.export-stl",
@@ -1183,6 +1286,11 @@
   "group.Views",
   "group.Workspace"
  ],
+ "export.quality.${q}": [
+  "export.quality.coarse",
+  "export.quality.fine",
+  "export.quality.normal"
+ ],
  "expr.error.+": [
   "expr.error.badExpression",
   "expr.error.badName",
@@ -1222,6 +1330,11 @@
   "settings.layoutMode.phone",
   "settings.layoutMode.tablet",
   "settings.layoutMode.desktop"
+ ],
+ "settings.export.knurl.+": [
+  "settings.export.knurl.on",
+  "settings.export.knurl.ask",
+  "settings.export.knurl.off"
  ],
  "settings.nav.+": [
   "settings.nav.upAxis",

@@ -11,14 +11,14 @@ const GROUPS: ToolGroup[] = ['draw', 'dimension', 'constrain', 'edit'];
 export const PALETTE_SLOTS: Record<ToolGroup, string[][]> = {
   draw: [
     ['line', 'centerline'], ['arc-three-point', 'arc-centre', 'arc-tangent'], ['circle', 'ellipse'],
-    ['rectangle', 'center-rectangle', 'slot', 'polygon'], ['spline', 'cvspline', 'bridge'], ['point'], ['text'],
+    ['rectangle', 'center-rectangle', 'slot', 'polygon'], ['spline', 'cvspline', 'bridge', 'equation'], ['point'], ['text'],
   ],
   dimension: [['dimension']],
   constrain: [
     ['horizontal', 'vertical'], ['coincident', 'midpoint', 'fix'], ['equal', 'parallel', 'perpendicular', 'collinear'],
     ['tangent', 'concentric', 'symmetric'],
   ],
-  edit: [['trim', 'extend'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
+  edit: [['trim', 'extend', 'split'], ['fillet', 'chamfer'], ['offset', 'mirror', 'pattern-linear', 'pattern-circular'], ['project', 'construction'], ['move', 'copy', 'rotate', 'scale']],
 };
 
 export interface PaletteSlot { id: string; tools: ToolEntry[] }
@@ -157,7 +157,7 @@ export function sketchRibbonGroups(p: {
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },
     { id: 'Modify', entries: edit.filter((sl) => !isRef(sl)).map(cell) },
     { id: 'Reference', entries: [...edit.filter(isRef).map(cell), ...(c ? [node('sk-construction', <SketchConstruction construction={c.construction} onConstruction={c.onConstruction} onToggleSelected={c.onToggleSelected} />)] : [])] },
-    { id: 'Status', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} onLookNormal={c.onLookNormal} lookChip={c.lookChip} />)] : [] },
+    { id: 'Status', entries: c ? [node('sk-status', <SketchStatus status={c.status} busy={c.busy} prefs={c.prefs} onPrefs={c.onPrefs} onFullyDefine={c.onFullyDefine} list={c.list} onLookNormal={c.onLookNormal} lookChip={c.lookChip} onReport={c.onReport} reportOpen={c.reportOpen} />)] : [] },
   ];
   return groups.filter((g) => g.entries.length);
 }

@@ -9,6 +9,7 @@ import type { Controller } from './controller';
 import { t } from './i18n';
 import { isShapeFeature } from './handles/sizeBox';
 import { dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
+import { folderToggleOps } from './historyFolder';
 import type { TreeActions } from './treeCommands';
 import type { MenuItem } from './menuModel';
 import { dropPlan, folderIds, folderOf, groupPlan, patchOf, removeFromFolderPlan, renameFolderPlan, ungroupPlan, type Plan, type Refusal } from './treeFolders';
@@ -28,6 +29,10 @@ export interface TreeInteractionDeps {
   startEditing(id: string): void;
   /** The rows the tree shows (read when an action runs, so it may be built later in the render). */
   rows(): FeatureRow[];
+  /** Write the geometry of a folder (the bodies its features made or changed) to a file. */
+  exportFolder(name: string, ids: string[], format: 'step' | 'stl' | 'ckpart'): void;
+  /** Open the folder's features as a part of its own in a new document. */
+  extractFolder(name: string, ids: string[]): void;
 }
 
 /** The short message for a refused folder action. */
@@ -118,11 +123,18 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
           { id: 'rename-folder', label: t('app.folder.menu.rename'), enabled: true },
           { id: 'ungroup', label: t('app.folder.menu.ungroup'), enabled: true },
           { id: '-', label: '', enabled: false, separator: true },
+          { id: 'export-folder-step', label: t('app.folder.menu.exportStep'), enabled: true },
+          { id: 'export-folder-stl', label: t('app.folder.menu.exportStl'), enabled: true },
+          { id: 'export-folder-ckpart', label: t('app.folder.menu.exportCkpart'), enabled: true },
+          { id: 'extract-folder', label: t('app.folder.menu.extract'), enabled: true },
+          { id: '-', label: '', enabled: false, separator: true },
           { id: 'delete-folder', label: t('app.folder.menu.delete'), enabled: true },
         ],
         run: (id) => {
           if (id === 'rename-folder') setRenaming('@g:' + name);
           else if (id === 'ungroup') ungroup(name);
+          else if (id.startsWith('export-folder-')) d.exportFolder(name, folderIds(rows, feats, name), id.slice('export-folder-'.length) as 'step' | 'stl' | 'ckpart');
+          else if (id === 'extract-folder') d.extractFolder(name, folderIds(rows, feats, name));
           else if (id === 'delete-folder') void deleteIds(folderIds(rows, feats, name));
         },
       });
@@ -188,6 +200,8 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       onRollback: (count: number | null) => void d.controller.setRollback(count).then(d.redraw),
       onRemove: (id: string) => void deleteIds(group(id)),
       onToggleSuppress: (id: string) => void suppressIds(group(id)),
+      /** The eye on a folder row: the whole folder off or on, and the stand-in body of an imported history the other way (historyFolder.ts). */
+      onToggleFolder: (ids: string[], name: string) => void d.edit(folderToggleOps(feats, ids, name)),
     },
     /** The tree's right-click menu (null when closed); main.tsx shows it with <ContextMenu>. */
     menu: menu ? { x: menu.x, y: menu.y, items: menu.items } : null,

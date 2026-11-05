@@ -61,6 +61,9 @@ export interface SketchControls {
   prefs: SketchPrefs;
   onPrefs(patch: Partial<SketchPrefs>): void;
   onFullyDefine(): void;
+  /** Open the Sketch Report (a window on a desktop, a sheet on a phone or tablet). Absent: no button. */
+  onReport?: () => void;
+  reportOpen?: boolean;
   selected: number;
   onClearSelection(): void;
   /** The full constraint list, drawn as a popover under the badge. */
@@ -105,7 +108,7 @@ export function LookNormalButton(p: Pick<SketchControls, 'onLookNormal' | 'lookC
 }
 
 /** The definition badge (click for the constraint list; the list opens by itself on a conflict), Fully define, Snaps, Look normal. */
-export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs' | 'onPrefs' | 'onFullyDefine' | 'list' | 'onLookNormal' | 'lookChip'>) {
+export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs' | 'onPrefs' | 'onFullyDefine' | 'list' | 'onLookNormal' | 'lookChip' | 'onReport' | 'reportOpen'>) {
   const level = defLevel(p.status);
   const [listOpen, setListOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
@@ -138,6 +141,7 @@ export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs'
       <Tip label={t('app.sketch.fullyDefine.tip')}>
         <button class="rb-btn" disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define">{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
       </Tip>
+      {p.onReport ? <Tip label={t('app.sketch.report.tip')}><button class="rb-btn" data-action="sketch-report" aria-pressed={!!p.reportOpen} onClick={p.onReport}>{t('app.sketch.report')}</button></Tip> : null}
       <Popover label={t('app.sketch.snaps')} tip={t('app.sketch.snaps.tip')}>
         <b class="aux-head">{t('app.sketch.snaps.title')}</b>
         {SNAP_KINDS.map((k) => (
@@ -178,7 +182,7 @@ export function SketchBar(p: SketchControls) {
         <span class="sb-sep" />
         <SketchConstruction construction={p.construction} onConstruction={p.onConstruction} onToggleSelected={p.onToggleSelected} />
         <span class="sb-sep" />
-        <SketchStatus status={p.status} busy={p.busy} prefs={p.prefs} onPrefs={p.onPrefs} onFullyDefine={p.onFullyDefine} list={p.list} onLookNormal={p.onLookNormal} lookChip={p.lookChip} />
+        <SketchStatus status={p.status} busy={p.busy} prefs={p.prefs} onPrefs={p.onPrefs} onFullyDefine={p.onFullyDefine} list={p.list} onLookNormal={p.onLookNormal} lookChip={p.lookChip} onReport={p.onReport} reportOpen={p.reportOpen} />
         <SketchNotes hint={null} selected={p.selected} onClearSelection={p.onClearSelection} />
       </div>
       {p.hint ? <span class="sketch-hint" role="status">{p.hint}</span> : null}

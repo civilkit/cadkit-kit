@@ -76,5 +76,22 @@ describe('transforms against the real kernel', { skip: !process.env.CK_WASM }, (
     await s.close().catch(() => {});
     expect(r.fully).toBe(true);
   });
+  it('rotate copies of a constrained petal: the solver leaves every copy exactly where the rotation put it', async () => {
+    const petal: SketchDraft = {
+      id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+      points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'A', x: 0, y: 10 }, { id: 'B', x: 0, y: 40 }, { id: 'M', x: 15, y: 40 }, { id: 'E', x: 30, y: 40 }],
+      entities: [{ id: 'e1', type: 'line', p1: 'A', p2: 'B' }, { id: 'e2', type: 'arc', c: 'M', p1: 'E', p2: 'B' }, { id: 'e3', type: 'line', p1: 'E', p2: 'A' }],
+      constraints: [
+        { id: 'k1', type: 'vertical', refs: ['e1'] }, { id: 'k2', type: 'distance', refs: ['A', 'B'], value: 30 }, { id: 'k3', type: 'tangent', refs: ['e1', 'e2'], at: 'B' },
+        { id: 'k4', type: 'hdist', refs: ['A', 'E'], value: 30 },
+      ],
+    };
+    const d = ok(applyTransform(petal, ['e1', 'e2', 'e3'], { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 72 }, 4));
+    const { status, pts } = await solved(d);
+    expect(status.conflicts).toEqual([]);
+    expect(status.redundant).toEqual([]);
+    expect(status.solved).toBe(true);
+    for (const p of d.points) { expect(pts[p.id][0]).toBeCloseTo(p.x, 4); expect(pts[p.id][1]).toBeCloseTo(p.y, 4); }
+  });
   it('unused import guard', () => { expect(typeof solveSketchOnly).toBe('function'); });
 });

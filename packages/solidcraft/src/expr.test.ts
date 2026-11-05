@@ -54,6 +54,21 @@ describe('parameter expressions', () => {
     expect(evalExpr('max(a, 1)', { a: 7 })).toBe(7);
     expect(evalExpr('max', { max: 9 })).toBe(9);   // a parameter may be called like a function
   });
+  it('hyperbolic functions and their inverses: unitless, like the part grammar', () => {
+    expect(evalExpr('sinh(1)')).toBeCloseTo(1.1752011936438014, 12);
+    expect(evalExpr('cosh(1)')).toBeCloseTo(1.5430806348152437, 12);
+    expect(evalExpr('tanh(1)')).toBeCloseTo(0.7615941559557649, 12);
+    expect(evalExpr('asinh(1)')).toBeCloseTo(0.881373587019543, 12);
+    expect(evalExpr('acosh(2)')).toBeCloseTo(1.3169578969248166, 12);
+    expect(evalExpr('atanh(0.5)')).toBeCloseTo(0.5493061443340549, 12);
+    expect(evalExpr('acosh(1)')).toBe(0);
+    expect(evalExpr('asinh(sinh(2.5)) + acosh(cosh(2.5)) + atanh(tanh(0.7))')).toBeCloseTo(5.7, 12);
+    expect(evalExpr('cosh(a) ^ 2 - sinh(a) ^ 2', { a: 1 })).toBeCloseTo(1, 12);
+    expect(evalExpr('sinh', { sinh: 4 })).toBe(4);   // a parameter may be called like a function
+  });
+  it('hyperbolic domain errors and overflow are refused', () => {
+    for (const bad of ['acosh(0.5)', 'acosh(-1)', 'atanh(1)', 'atanh(-1)', 'atanh(2)', 'sinh(1000)', 'cosh(1000)', 'sinh(-1000)', 'sinh()', 'sinh(1, 2)', 'asinh(1, 2)', 'Sinh']) expect(() => evalExpr(bad), bad).toThrow(ExprError);
+  });
   it('refuses what it cannot evaluate, never guesses', () => {
     for (const bad of ['', 'x', 'width', '1 +', '(1 + 2', '1 / 0', 'foo(1)', 'log(10)', 'sign(2)', 'max(', 'sqrt(1, 2)', 'atan2(1)', '2 mm mm', '3 $ 4', '1 2', '==3', '= =3', '2 ,5', '1.5,5', '3,']) expect(() => evalExpr(bad), bad).toThrow(ExprError);
     expect(() => evalExpr(NaN)).toThrow(ExprError);

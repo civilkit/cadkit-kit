@@ -1,5 +1,6 @@
 /** How the sketch editor takes input: user settings, remembered in the browser. They feed the tools' `ToolSettings`
  *  (auto constraints, tangent-arc switching, on-view value entry) plus the grid snap. */
+import { MARK_MODES, type MarkMode } from './annotChips';
 import { ALL_SNAPS, DIM_DISPLAYS, SNAP_KINDS, type DimDisplay, type SnapToggles, type ToolSettings } from '@kit/sketch';
 
 export interface SketchPrefs {
@@ -31,6 +32,10 @@ export interface SketchPrefs {
   typedAngleDims: boolean;
   /** A right angle dimension is drawn as a small square corner mark instead of an arc. */
   rightAngleSquare: boolean;
+  /** The pointer's sketch coordinates in a small label beside it (hover pointers only). */
+  cursorLabel: boolean;
+  /** Constraint markers (the small glyph chips): always, only for what is hovered or selected (default; conflicts always show), or off. */
+  constraintMarkers: MarkMode;
 }
 
 /** The four show toggles the viewport Display menu offers while sketching. */
@@ -50,7 +55,7 @@ export interface SketchShow {
 }
 export const DEFAULT_SHOW: SketchShow = { dimensions: true, relations: true, reference: true, colours: true, panel: true };
 
-export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW, dimDisplay: 'all', typedAngleDims: true, rightAngleSquare: true };
+export const DEFAULT_SKETCH_PREFS: SketchPrefs = { autoConstraints: true, guideConstraints: false, keepView: true, autoLookNormal: true, arcSwitch: 'hover', onViewValues: 'dimensions', gridSnap: true, snapOn: true, gridSpacing: 0, snaps: ALL_SNAPS, show: DEFAULT_SHOW, dimDisplay: 'all', typedAngleDims: true, rightAngleSquare: true, cursorLabel: true, constraintMarkers: 'hover' };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], fallback: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : fallback);
 
@@ -79,6 +84,8 @@ export function sanitizeSketchPrefs(raw: unknown): SketchPrefs {
     dimDisplay: pick(r.dimDisplay, DIM_DISPLAYS, DEFAULT_SKETCH_PREFS.dimDisplay),
     typedAngleDims: typeof r.typedAngleDims === 'boolean' ? r.typedAngleDims : DEFAULT_SKETCH_PREFS.typedAngleDims,
     rightAngleSquare: typeof r.rightAngleSquare === 'boolean' ? r.rightAngleSquare : DEFAULT_SKETCH_PREFS.rightAngleSquare,
+    cursorLabel: typeof r.cursorLabel === 'boolean' ? r.cursorLabel : DEFAULT_SKETCH_PREFS.cursorLabel,
+    constraintMarkers: pick(r.constraintMarkers, MARK_MODES, DEFAULT_SKETCH_PREFS.constraintMarkers),
   };
 }
 

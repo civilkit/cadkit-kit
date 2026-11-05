@@ -14,6 +14,7 @@ export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog'
 export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
 export { Icon, ICON_NAMES, hasIcon } from './icons';
+export { ICON_SETS, DEFAULT_ICON_SET, asIconSet, setIconSet, getIconSet, type IconSet } from './solidcraftIcons';
 export { Tip, placeTip, type TipSide } from './Tip';
 export { ExprInput, VarsContext, useScope, errorText } from './ExprInput';
 export * from './expr';

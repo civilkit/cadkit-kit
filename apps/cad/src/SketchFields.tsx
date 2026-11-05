@@ -45,7 +45,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
       onFocusIn={(e) => { const el = e.target as HTMLInputElement; if (el.select) el.select(); }}
       onKeyDown={(e) => {
         const el = e.target as HTMLInputElement;
-        if (e.key === 'Enter' || e.key === 'Tab') {
+        if (e.key === 'Enter' || e.keyCode === 13 || e.key === 'Tab') {   // a phone's check key may send keyCode 13 under another key name
           e.preventDefault();
           e.stopPropagation();
           const asg = p.onDefine ? parseAssignment(el.value) : null;
@@ -63,7 +63,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
           latest.current = null;
           const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
           if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
-        } else if (e.key === 'Escape') {
+        } else if (e.key === 'Escape' || e.keyCode === 27) {
           e.preventDefault();
           e.stopPropagation();
           latest.current = null;

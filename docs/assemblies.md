@@ -92,6 +92,19 @@ The editor, the list, the feature builder (`mateFeature`) and the validation (`d
 generator on two fixed shafts: a hinge each with a stop face on the plate, and a gear mate with `ratio` 2 = 40/20; 1 DOF left, set a Drive
 on the gear mate to turn them), `assembly-hinge-door` (a door leaf on a pin: hinge with stop, plus a `limits` mate of `of: angle` 0..110).
 
+`assembly-nist-ftc-7-8-9-10` (about 5 MB; on the public site, the size accepted by the owner): the NIST MBE PMI test models FTC 7 (enclosure base), 9 (plate), 10 (component) and 8
+(lid), public domain, each imported from its `.SLDPRT` (history folder kept) and stacked as in the NIST test assembly of the SOLIDWORKS MBD blog
+post: the lid's `z = 0` face on the base rim with its four 1/4 inch bolt holes over the base's, the 3.04 mm plate on the four standoffs, the component
+on the plate (its 140 x 57 mm hole pattern over the plate's). FTC 7 is fixed and turned half a turn about Y so that every other part needs one axis turn;
+each part has a coincident and a concentric mate and a `lock` (the parts are only 0.001 mm consistent, and the solver wants 1e-7, so a second concentric is
+a `mateConflict`; the lock keeps the pose the first two gave and shows in the DOF banner as redundant). Where the placements and hole names come from:
+`src/nist/nistAssembly.ts`; rebuilt with `apps/cad/scripts/genNistAssembly.ts` (needs the four `.SLDPRT` files, which are not in the repo); checked by
+`src/nist/nistAssembly.kernel.test.ts`. Source and licence: NIST MBE PMI test models 7 to 10, US government works in the public domain, assembled by CadKit; no SolidWorks forum files used.
+The file is saved with an exploded view (`NIST_EXPLODE` in `nistAssembly.ts`, so it opens exploded): spread 0 and per-component offsets along +Y, the lid's normal
+(plate +60, component +110, lid +80 mm; base fixed). Assembly panel > Exploded view > Reset collapses it; the offsets are display-only, the mates and the
+solved poses are untouched. The Interference section shows `booleanFailed` for every pair that includes FTC 7 or FTC 10 (the kernel boolean
+fails on those two bodies even against a plain block); the test uses the `distance` query instead.
+
 ## Interference
 
 Runs the kernel `interference` query and lists the pairs by component name with the shared volume. A pair the kernel could not compute

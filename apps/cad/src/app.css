@@ -26,6 +26,9 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .insp-wrap.floating { right: 12px; top: 12px; width: 260px; padding: 8px; max-height: 70%; }
 .selmodes { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; z-index: 4; display: flex; gap: 2px; padding: 4px; border-radius: 12px;
   background: rgba(var(--glass-rgb), var(--alpha)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
+.vp-notes { position: absolute; left: 14px; right: 12px; bottom: 12px; z-index: 6; display: flex; flex-wrap: wrap-reverse; justify-content: space-between; align-items: flex-end; gap: 6px; pointer-events: none; }
+.vp-notes > * { position: static !important; pointer-events: auto; }
+.vp-notes .quick-measure { margin-left: auto; pointer-events: none; }
 .quick-measure { position: absolute; right: 12px; bottom: 12px; z-index: 4; padding: 6px 10px; border-radius: 8px; pointer-events: none; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text); background: rgba(var(--glass-rgb), .92); border: 1px solid var(--line); }
 .selmodes button { display: flex; gap: 6px; align-items: center; border: 0; border-radius: 8px; padding: 5px 10px; background: none; color: var(--text); cursor: pointer; font: inherit; }
 .selmodes button[aria-pressed="true"] { background: var(--accent); color: #fff; }
@@ -120,6 +123,14 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .fedit-ref { display: flex; gap: 6px; align-items: center; }
 .fedit-pick { border: 1px solid var(--line); background: var(--chip); border-radius: 6px; padding: 4px 8px; cursor: pointer; font: inherit; font-size: 12px; flex: none; color: inherit; }
 .fedit-pick.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.fedit-chips { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.fedit-count { font-size: 12px; color: var(--text-2); margin-right: 2px; }
+.fedit-chip { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 1px 2px 1px 8px; font-size: 12px; }
+.fedit-chip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fedit-chip-x { border: 0; background: none; color: inherit; padding: 2px; border-radius: 999px; cursor: pointer; display: inline-flex; flex: none; }
+.fedit-chip-x:hover { background: var(--line); }
+@media (pointer: coarse) { .fedit-chip-x { padding: 8px; margin: -6px -2px -6px 0; } }   /* a fingertip-sized target for the x */
+.fedit-pick-note { font-size: 12px; color: var(--text-2); }
 .fedit-hint { color: var(--err); font-size: 12px; padding: 10px 12px; }
 .fedit-fix { padding: 0 12px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .fedit-fix-note { margin: 0; font-size: 12px; }
@@ -205,6 +216,8 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .set-row select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; }
 /* busy panel and toast */
 #vp-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.cursor-label { position: absolute; padding: 1px 6px; border-radius: 4px; font: 600 11px/18px system-ui; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); background: var(--panel); border: 1px solid var(--line); opacity: .92; pointer-events: none; }
+#app[data-layout="phone"] .cursor-label { display: none; }
 .busy-overlay { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 8px 10px 8px 14px; box-shadow: 0 4px 18px #0003; pointer-events: auto; }
 .busy-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -260,6 +273,13 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .stool:focus-visible, .tool-rail button:focus-visible, .selmodes button:focus-visible, .rb-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sketch-tools.icons-only .stool[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #fff6; }
 .icon { flex: none; display: block; }
+/* SolidCraft icon set (preview): the active ramp of each icon follows its workspace accent; plain icons keep the blue "solid" ramp */
+svg.icon-sc { --sc-a1: var(--sc-solid-1); --sc-a2: var(--sc-solid-2); --sc-a3: var(--sc-solid-3); }
+svg.icon-sc[data-sc="surface"] { --sc-a1: var(--sc-surface-1); --sc-a2: var(--sc-surface-2); --sc-a3: var(--sc-surface-3); }
+svg.icon-sc[data-sc="sketch"] { --sc-a1: var(--sc-sketch-1); --sc-a2: var(--sc-sketch-2); --sc-a3: var(--sc-sketch-3); }
+svg.icon-sc[data-sc="constraint"] { --sc-a1: var(--sc-constraint-1); --sc-a2: var(--sc-constraint-2); --sc-a3: var(--sc-constraint-3); }
+svg.icon-sc[data-sc="construction"] { --sc-a1: var(--sc-construction-1); --sc-a2: var(--sc-construction-2); --sc-a3: var(--sc-construction-3); }
+.stool[aria-pressed="true"] svg.icon-sc { background: var(--panel); border-radius: 4px; }   /* the two-tone art needs a light plate on the accent-filled pressed button */
 .rb-btn { display: inline-flex; align-items: center; gap: 6px; }
 .rb-btn.icon-only { width: 34px; height: 34px; padding: 0; justify-content: center; }
 .rb-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -279,14 +299,47 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 /* sketch annotations: dimension labels and constraint symbols over the sketch, and the constraints panel */
 .sketch-annots { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .annot { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; font: 600 11px ui-monospace, monospace; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
-.annot.dimension { background: var(--panel); color: var(--err); outline: 1px solid var(--err); cursor: text; }   /* driving dimensions: the error red token (light and dark variants) */
-.annot.mark { background: var(--panel-2); color: var(--text-2); outline: 1px solid var(--line); min-width: 15px; text-align: center; pointer-events: none; }   /* never covers what you click on */
+.annot.dimension { background: var(--dim-chip-bg); color: var(--dim-chip-text); outline: 1px solid var(--dim-line); border-radius: 11px; padding: 0 8px; line-height: 22px; height: 22px; box-sizing: border-box; cursor: text; }   /* a value chip: dark pill, monospace value, pale-violet rim */
+.annot.mark { display: grid; place-items: center; box-sizing: border-box; width: 14px; height: 14px; padding: 0; border-radius: 4px; background: var(--mark-bg); color: var(--mark-text); outline: 0; border: 1px solid var(--mark-line); opacity: .62; cursor: pointer; transition: opacity .12s; }   /* a glyph chip: small, calm, see-through until hovered */
+.annot.mark::before { content: ''; position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); }   /* a 24 px hit target on a desktop pointer */
+.annot.mark .glyph { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.annot.mark.inert { pointer-events: none; }   /* a tool is active: never covers what you click on */
+.annot.conflict { outline-color: var(--err); color: var(--err); }
+.annot.redundant { outline-color: var(--warn); }
+.annot.mark.conflict { border-color: var(--err); opacity: 1; }
+.annot.mark.redundant { border-color: var(--warn); color: var(--warn); opacity: 1; }
+.annot.mark:hover, .annot.mark.hot, .annot.mark.sel { opacity: 1; }
+.annot.sel { outline: 2px solid var(--accent); z-index: 2; }
+.annot.mark.sel { outline-width: 1px; outline-offset: 1px; border-color: var(--accent); }
 .annot.hot { background: var(--accent); color: #fff; outline-color: var(--accent); z-index: 1; }
+/* a finger needs 44 px: the chip keeps its look, an invisible area around it takes the tap */
+.sketch-annots.touch .annot::before { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 .sketch-cons { width: 236px; max-height: min(60vh, 420px); overflow: auto; border-radius: 10px; padding: 8px;
   background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; font-size: 12px; }
 .sketch-cons header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
 .sketch-cons ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .sketch-cons li { display: flex; gap: 6px; align-items: center; padding: 2px 4px; border-radius: 5px; }
+/* Sketch Report: a floating window on a desktop, the same body in a sheet on a phone or tablet */
+.sketch-report-win { position: absolute; right: 12px; top: 64px; z-index: 7; width: 264px; max-height: min(70vh, 520px); overflow: auto; padding: 8px 10px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); color: var(--text); }
+.sketch-report-win header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.sk-report { font-size: 12px; }
+.sk-report h4 { margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+.sk-report table { width: 100%; border-collapse: collapse; }
+.sk-report th { text-align: left; font-weight: 400; color: var(--text-2); padding: 1px 0; }
+.sk-report td { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sk-report .sr-state { margin: 2px 0 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sk-report .sr-state .chip { padding: 1px 8px; border-radius: 10px; background: var(--chip); }
+.sk-report .sr-state.ok .chip { color: var(--accent); }
+.sk-report .sr-state.warn .chip { color: var(--warn); }
+.sk-report .sr-state.bad .chip { color: var(--err); }
+.sk-report ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.sk-report .sr-kinds li { display: flex; justify-content: space-between; }
+.sk-report .sr-item { width: 100%; min-height: var(--tap, 28px); text-align: left; border: 0; border-radius: 6px; padding: 3px 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.sk-report .sr-item:hover { background: var(--accent-soft); }
+.sk-report li.bad .sr-item { color: var(--err); }
+.sk-report li.warn .sr-item { color: var(--warn); }
+.sk-report .crefs { color: var(--text-2); font: 11px ui-monospace, monospace; }
+.sk-report .none { color: var(--text-2); margin: 2px 0; }
 .sketch-cons li.hot, .sketch-cons li:hover { background: var(--accent-soft); }
 .sketch-cons .ctype { font-weight: 600; }
 .sketch-cons .crefs { color: var(--text-2); font: 11px ui-monospace, monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -306,7 +359,7 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .spal-group:first-child { border-top: 0; padding-top: 0; }
 .spal-name { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); padding-left: 2px; }
 .spal-grid { display: grid; grid-template-columns: repeat(2, 38px); gap: 2px; }
-.cube-tools { display: flex; gap: 6px; position: absolute; top: 54px; right: 130px; z-index: 4; }
+.cube-tools { display: flex; gap: 6px; position: absolute; top: var(--vn-top); right: calc(var(--vn-right) + var(--vn-w) + 8px); z-index: 4; }
 .cube-tools button { width: 32px; height: 32px; border: 0; border-radius: 8px; cursor: pointer; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); color: var(--text-2); outline: 1px solid var(--line); outline-offset: -1px; }
 .cube-tools button:hover { background: var(--accent-soft); color: var(--text); }
 .topbar .tb-icon { width: 32px; height: 30px; padding: 0; display: grid; place-items: center; }
@@ -363,6 +416,10 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .export-row { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .export-row:hover:not(:disabled) { background: var(--accent-soft); }
 .export-row:disabled { opacity: .4; cursor: default; }
+.export-opt select, .export-opt input[type=text] { font: inherit; color: inherit; background: var(--bg, transparent); border: 1px solid var(--border, currentColor); border-radius: 4px; padding: 2px 4px; }
+.export-opt input[type=text] { width: 6em; }
+.export-opt:has(select) { flex-direction: column; align-items: stretch; cursor: default; }
+.export-opt:has(select) label { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 
 /* Design check */
 .status .st-chip { font: inherit; color: inherit; background: none; border: 0; padding: 0 4px; border-radius: 5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
@@ -519,6 +576,42 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .thread-seg button.on { background: var(--accent); color: #fff; }
 .thread-seg button:focus-visible { outline-offset: -2px; }
 .fedit-fld input:disabled { opacity: .6; }
+/* the view cube and its arrow ring: the cube canvas sits in the middle, the buttons around it overlap its empty margin (the cube itself never reaches them) */
+/* --vn-c cube, --vn-b the touch target of a button, --vn-inset how much smaller it is drawn than hit, --vn-pad how far the ring's rows and columns reach beyond the cube canvas, --vn-foot the bottom row when only the menu button is in it.
+   ViewNav writes the groups in play to #vp[data-vn]: a side column exists only with turn left/right, roll, up/down or Home, a top row only with up/down or roll, a full bottom row only with up/down or Home, so a group that is off takes no space. */
+#vp { --vn-c: 112px; --vn-b: 32px; --vn-inset: 0px; --vn-pad: 20px; --vn-foot: var(--vn-pad); --vn-top: 54px; --vn-right: 12px; --vn-px: 0px; --vn-pt: 0px; --vn-pb: var(--vn-foot);
+  --vn-w: calc(var(--vn-c) + 2 * var(--vn-px)); --vn-h: calc(var(--vn-pt) + var(--vn-c) + var(--vn-pb)); }
+#app[data-layout="phone"] #vp, #app[data-layout="tablet"] #vp { --vn-c: 104px; --vn-b: var(--tap); --vn-pad: 28px; --vn-top: 60px; --vn-right: 8px; }
+#app[data-layout="phone"] #vp { --vn-c: 96px; --vn-inset: 6px; --vn-inset-more: 8px; --vn-pad: 32px; --vn-foot: 32px; }
+#vp[data-vn~="yaw"], #vp[data-vn~="pitch"], #vp[data-vn~="roll"], #vp[data-vn~="home"] { --vn-px: var(--vn-pad); }
+#vp[data-vn~="pitch"], #vp[data-vn~="roll"] { --vn-pt: var(--vn-pad); }
+#vp[data-vn~="pitch"], #vp[data-vn~="home"] { --vn-pb: var(--vn-pad); }
+#vp .viewcube { width: var(--vn-c); height: var(--vn-c); top: calc(var(--vn-top) + var(--vn-pt)); right: calc(var(--vn-right) + var(--vn-px)); }
+.viewnav { position: absolute; top: var(--vn-top); right: var(--vn-right); width: var(--vn-w); height: var(--vn-h); z-index: 5; pointer-events: none; }
+/* the button is the touch target; its face is drawn inset by --vn-inset (6px on a phone: 44px to hit, 32px to see) */
+.vn-btn { position: absolute; width: var(--vn-b); height: var(--vn-b); padding: 0; border: 0; border-radius: 10px; background: none; display: inline-flex; align-items: center; justify-content: center; line-height: 0; cursor: pointer; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; color: var(--text-2); outline: none; }
+.vn-btn::before { content: ""; position: absolute; inset: var(--vn-inset); border-radius: 10px; background: rgba(var(--glass-rgb), max(var(--alpha), .88)); outline: 1px solid var(--line); outline-offset: -1px; }
+.vn-btn > svg { position: relative; }
+.vn-btn:hover { color: var(--text); } .vn-btn:hover::before { background: var(--accent-soft); }
+.vn-btn:active, .vn-btn.on { color: #fff; } .vn-btn:active::before, .vn-btn.on::before { background: var(--accent); }
+.vn-btn:focus-visible::before { outline: 2px solid var(--accent); outline-offset: 1px; }
+.vn-more::before { inset: var(--vn-inset-more, var(--vn-inset)); }   /* the menu button is the quietest one */
+.vn-up { top: 0; left: calc(50% - var(--vn-b) / 2); } .vn-down { bottom: 0; left: calc(50% - var(--vn-b) / 2); }
+.vn-left { left: 0; top: calc(var(--vn-pt) + var(--vn-c) / 2 - var(--vn-b) / 2); } .vn-right { right: 0; top: calc(var(--vn-pt) + var(--vn-c) / 2 - var(--vn-b) / 2); }
+.vn-ccw { top: 0; left: 0; } .vn-cw { top: 0; right: 0; } .vn-home { bottom: 0; left: 0; } .vn-more { bottom: 0; right: 0; }
+.vn-down svg { transform: rotate(180deg); } .vn-left svg { transform: rotate(-90deg); } .vn-right svg { transform: rotate(90deg); } .vn-ccw svg { transform: scaleX(-1); }
+.vn-menu { position: absolute; top: calc(var(--vn-h) + 4px); right: 0; z-index: 8; min-width: 180px; display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 10px; pointer-events: auto; font-size: 13px;
+  background: rgba(var(--glass-rgb), max(var(--alpha), .95)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; box-shadow: 0 10px 30px #0003; }
+.vn-menu button { font: inherit; text-align: left; min-height: 32px; padding: 4px 10px; border: 0; border-radius: 7px; background: none; color: var(--text); cursor: pointer; }
+.vn-menu button:hover { background: var(--accent-soft); }
+.vn-menu button[aria-checked="true"]::before { content: "\2713\00a0"; color: var(--accent); }
+.vn-menu button[role="menuitemcheckbox"][aria-checked="false"]::before { content: "\00a0\00a0\00a0"; }
+.vn-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 2px 6px; color: var(--text-2); }
+.vn-steps span { flex: 1 0 100%; font-size: 12px; }
+.vn-steps button { flex: 1; min-height: 32px; padding: 4px 6px; text-align: center; }
+.vn-steps button.on { background: var(--accent); color: #fff; }
+.vn-steps button[aria-checked="true"]::before { content: none; }
+#app[data-layout="phone"] .vn-menu button, #app[data-layout="tablet"] .vn-menu button { min-height: var(--tap); }
 /* size box: the "resize about" menu (bottom left of the canvas) and the floating number labels */
 .sizebox-about { position: absolute; left: 14px; bottom: 14px; z-index: 6; display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: 8px; font-size: 12px;
   background: rgba(var(--glass-rgb), max(var(--alpha), .9)); color: var(--text); outline: 1px solid var(--line, rgba(128,128,128,.4)); outline-offset: -1px; }
@@ -651,7 +744,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .cfg-add { display: flex; flex-wrap: wrap; gap: 6px; }
 .cfg-add input { flex: 1 1 100%; font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: inherit; min-width: 0; }
 .vars .btn.sm { padding: 3px 8px; font-size: 12px; }
-.annot-fx { font: italic 600 10px/1 ui-serif, Georgia, serif; background: var(--accent); color: var(--on-accent, #fff); border-radius: 3px; padding: 1px 3px; margin-right: 3px; }
+.annot-fx { font: italic 600 10px/1 ui-serif, Georgia, serif; background: var(--accent); color: var(--on-accent, #fff); border-radius: 3px; padding: 1px 3px; margin-right: 3px; line-height: 10px; }
 .annot.driven { border-color: var(--accent); }
 /* ---- selection: filters popover, list panel, box select ---- */
 .selmodes .sel-sep { width: 1px; background: var(--line); margin: 3px 4px; }
@@ -952,6 +1045,8 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .tree-search-clear:hover { background: var(--chip); color: var(--text); }
 .tree .row mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .tree .row.folder { font-weight: 600; }
+.tree .row.folder .folder-sup { opacity: 1; }   /* the folder switch (an imported SolidWorks history) is always in sight */
+.tree .row.folder .folder-toggle { padding-right: 56px; }   /* room for the two buttons that sit over the right end of the row */
 .folder-toggle { flex: 1 1 auto; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 8px; border: 0; background: none; color: inherit; font: inherit; padding: 0; cursor: pointer; text-align: left; }
 .folder-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
 .folder-toggle[aria-expanded="false"] .row-chev svg { transform: none; }
@@ -1154,14 +1249,16 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 .tabbar .tab-list .tab-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar .tab-list .tab-dirty { width: 7px; height: 7px; border-radius: 50%; background: #f0b429; flex: none; }
 
-/* Dimension drawings under the labels: driving in red, reference (driven) in the secondary text colour */
+/* Dimension drawings under the chips: driving in pale violet, reference (driven) in the secondary text colour, dashed; a conflicting one in the error colour */
 .sketch-annots .annot-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-.annot-lines .dimg { stroke: var(--err); stroke-width: 1; fill: none; color: var(--err); }
-.annot-lines .dimg .arrow { fill: var(--err); stroke: none; }
+.annot-lines .dimg { stroke: var(--dim-line); stroke-width: 1; fill: none; color: var(--dim-line); }
+.annot-lines .dimg .arrow { fill: var(--dim-line); stroke: none; }
 .annot-lines .dimg.driven { stroke: var(--text-2); stroke-dasharray: 4 3; }
 .annot-lines .dimg.driven .arrow { fill: var(--text-2); }
+.annot-lines .dimg.bad { stroke: var(--err); }
+.annot-lines .dimg.bad .arrow { fill: var(--err); }
 .annot-lines .dimg.hot { stroke-width: 2; }
-.sketch-annots .annot.dimension.driven { color: var(--text-2); outline-color: var(--text-2); }
+.sketch-annots .annot.dimension.driven { color: var(--text-2); outline: 1px dashed var(--text-2); background: var(--panel); }
 .sketch-fields .fld-toggle { font: 600 10px ui-monospace, monospace; padding: 0 4px; margin-left: 2px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel-2); color: var(--text-2); cursor: pointer; }
 .sketch-fields .fld-toggle.on { background: var(--accent); color: var(--on-accent, #fff); border-color: var(--accent); }
 
@@ -1305,20 +1402,21 @@ html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce whil
 #app[data-layout="phone"] .discard-dlg, #app[data-layout="phone"] .tb-dlg { width: calc(100% - 16px); }
 #app[data-layout="phone"] .dlg.discard-dlg, #app[data-layout="phone"] .dlg.tb-dlg, #app[data-layout="tablet"] .dlg.discard-dlg, #app[data-layout="tablet"] .dlg.tb-dlg { height: auto; align-self: center; }   /* the dynamic-height rule for .dlg must not stretch a small question (Restore, Unsaved changes) */
 
-/* ---- phone and tablet: the canvas corners. Top left the selection modes and the measurement, top right the display button, the view cube and its two
-   buttons in a column under it; the bottom holds the start card and the selection list. Nothing shares a corner. */
+/* ---- phone and tablet: the canvas corners. Top left the selection modes and the measurement, top right the display button, the view cube with its arrow ring and the fit and projection buttons in a row under it; the bottom holds the start card and the selection list. Nothing shares a corner. */
 #app[data-layout="phone"] .selmodes, #app[data-layout="tablet"] .selmodes { left: 8px; top: 8px; transform: none; max-width: calc(100% - 72px); overflow-x: auto; scrollbar-width: none; }
 #app[data-layout="phone"] .display-menu, #app[data-layout="tablet"] .display-menu { top: 8px; right: 8px; bottom: 8px; }
-#app[data-layout="phone"] .viewcube, #app[data-layout="tablet"] .viewcube { width: 72px !important; height: 72px !important; top: 60px !important; right: 8px !important; }
-#app[data-layout="phone"] .cube-tools, #app[data-layout="tablet"] .cube-tools { flex-direction: column; top: 138px; right: 22px; }
-#app[data-layout="phone"] .quick-measure, #app[data-layout="tablet"] .quick-measure { top: 60px; left: 8px; right: auto; bottom: auto; max-width: calc(100% - 100px); }
-#app[data-layout="phone"] .sizebox-about, #app[data-layout="tablet"] .sizebox-about { top: 104px; bottom: auto; left: 8px; max-width: calc(100% - 100px); flex-wrap: wrap; }
+#app[data-layout="phone"] .cube-tools, #app[data-layout="tablet"] .cube-tools { top: calc(var(--vn-top) + var(--vn-h) + 8px); right: var(--vn-right); }   /* the fit and projection buttons sit in a row under the arrow ring */
+/* the selection readout and the "resize about" panel stack in one column under the selection modes (see .vp-notes), clear of the arrow ring */
+#app[data-layout="phone"] .vp-notes, #app[data-layout="tablet"] .vp-notes { top: 60px; bottom: auto; left: 8px; right: auto; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: flex-start; max-width: calc(100% - var(--vn-w) - var(--vn-right) - 16px); }
+#app[data-layout="phone"] .vp-notes .quick-measure, #app[data-layout="tablet"] .vp-notes .quick-measure { margin-left: 0; order: -1; }
+#app[data-layout="phone"] .vp-notes .sizebox-about, #app[data-layout="tablet"] .vp-notes .sizebox-about { flex-wrap: wrap; }
 #app[data-layout="phone"] .sel-list, #app[data-layout="tablet"] .sel-list { left: auto; right: 8px; bottom: 8px; width: min(320px, calc(100% - 16px)); max-height: 28%; }
 #app[data-layout="phone"] .face-sketch-chip, #app[data-layout="tablet"] .face-sketch-chip { top: auto; bottom: calc(28% + 16px); min-height: var(--tap); }
+#app[data-layout="phone"] .face-sketch-chip { left: 8px; transform: none; }   /* centred it would reach under the arrow ring when the canvas is short (a sheet is open) */
 #app[data-layout="phone"] .start-card { left: 8px; right: 8px; bottom: 8px; transform: none; max-width: none; }
 #app[data-layout="phone"] .toast { bottom: 12px; max-width: calc(100% - 24px); }
 #app[data-layout="phone"] .handle-hint { bottom: 8px; max-width: calc(100% - 16px); }
-#app[data-layout="phone"] .sketch-tools { left: 8px; right: 88px; top: 60px; }
+#app[data-layout="phone"] .sketch-tools { left: 8px; right: calc(var(--vn-w) + var(--vn-right) + 8px); top: 60px; }
 #app[data-layout="phone"] .text-panel { left: 8px; right: 8px; top: 8px; width: auto; max-height: calc(100% - 16px); overflow: auto; }
 #app[data-layout="phone"] .chole-float { top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; }
 
@@ -1397,9 +1495,6 @@ html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce whil
 @media (pointer: coarse) { .expr-kb, .expr-sign { display: inline-flex; align-items: center; justify-content: center; } }
 #app[data-layout="phone"] .expr-kb, #app[data-layout="phone"] .expr-sign, #app[data-layout="tablet"] .expr-kb, #app[data-layout="tablet"] .expr-sign { min-width: var(--tap); min-height: var(--tap); }
 
-/* the view cube: one finger orbits it, a tap on a face snaps to that view; large enough for a finger */
-#app[data-layout="phone"] .viewcube, #app[data-layout="tablet"] .viewcube { width: 80px !important; height: 80px !important; touch-action: none; }
-#app[data-layout="phone"] .cube-tools, #app[data-layout="tablet"] .cube-tools { top: 148px; }
 
 /* the busy pill: one line, never wrapped in the middle of a phrase; Cancel is its own button */
 .busy-overlay { width: max-content; max-width: calc(100% - 32px); }   /* an absolute box at left: 50% would only be offered half the width and wrap its words */

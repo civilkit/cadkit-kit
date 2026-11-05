@@ -17,30 +17,35 @@ import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
 import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY, nextBodyName } from './extrudeOp';
 import { featureLabel, loftMoveAfter } from './featureCreators';
-import { tangentChainOn, chainSelection } from './roundChain';
+import { tangentChainOn, chainSelection, chainRefs } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
-import { annotate, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { selectionInField } from './listPick';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   errorText, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
+import { setIconSet, type IconSet } from '@kit/ui';
 import { createWebPlatform, fileText } from '@kit/platform';
-import { Controller, type ViewSink } from './controller';
+import { Controller, type ViewEdge, type ViewSink } from './controller';
 import { TabSet } from './tabs/tabSet';
 import { TabStrip, type TabInfo } from './tabs/TabStrip';
 import { DocSwitcher } from './tabs/DocSwitcher';
 import { DiagnosticsCard } from './DiagnosticsCard';
+import { ViewNav } from './ViewNav';
 import { newBreakage, type DiagRoot, type Diagnosis } from './errorSummary';
 import { maxSizeOf, maxSizeText } from './diagnosticsText';
 import { dxfToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
-import { exportObj, exportSketchDxf, exportStep, exportStl, exportViewsDxf, type ExportNotice, type ExportResult } from './exportFiles';
+import { EXTRACT_KEYS, planExtract, planFolderExport, REFUSAL_KEYS, type ExtractRefusal, type FolderFormat } from './folderExport';
+import { fileStem, exportCkpart, exportGlb, exportObj, exportThreeMf, exportSketchDxf, exportStep, exportStl, exportViewsDxf, meshRequest, type ExportNotice, type ExportResult } from './exportFiles';
 import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
 import { useTreeInteraction } from './useTreeInteraction';
 import { treeKey } from './treeCommands';
-import { ExportMenu } from './ExportMenu';
+import { ExportMenu, MESH_QUALITIES, type MeshQuality } from './ExportMenu';
 import { ContextMenu } from './ContextMenu';
+import { HISTORY_FOLDER } from './historyFolder';
 import { toEntries, type Rejection } from './history';
 import { CheckPanel } from './CheckPanel';
 import { useDesignCheck } from './useDesignCheck';
@@ -49,6 +54,11 @@ import { useInspect } from './inspect/useInspect';
 import { QuickMeasure, useQuickMeasure } from './inspect/QuickMeasure';
 import { SamplesDialog, type SampleEntry } from './SamplesDialog';
 import { DiscardDialog } from './DiscardDialog';
+import { KnurlExportAsk, KnurlExportFailed } from './KnurlExportDialog';
+import { BakeCache, idbBakeBackend } from './bakeCache';
+import { chooseKnurlExport, type BakeRun } from './knurlExport';
+import { mayBeSlow } from './exportKnurl';
+import { KNURL_BAKE_SECONDS, loadExportPrefs, saveExportPrefs, type ExportPrefs } from './exportPrefs';
 import { FileManager } from './files/fileManager';
 import { seemsZUp } from './files/importOrient';
 import { SKP_DEFAULT_ORIENT, nextSkpOrient, skpImportOpts, skpNotices, type SkpOrient } from './files/skpImport';
@@ -63,13 +73,13 @@ import { cleanSigAfterSave, mayClearAutosave } from './files/saveState';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './files/FileDialogs';
 import { ImportReportDialog } from './files/ImportReportDialog';
 import { allSolid, importSummary, needsRepair, parseParts, parseRepairReport, repairOp, repairSummary, type ImportPart } from './files/importReport';
-import { partOfStep } from './files/sldprtImport';
+import { partOfStep, VOLUME_TOLERANCE } from './files/sldprtImport';
 import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
 import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend, embedSnapshot, checkEmbedded, takeEmbedded, type ViewData } from './files/viewCache';
 import { cachedChip } from './files/cachedChip';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, type DropKind } from './files/names';
-import { importFcstd, resolveEdges } from '@kit/fcstd';
+import { importFcstd, resolveReferences, fcstdResolvers } from '@kit/fcstd';
 import { importSolidcraft, kernelResolvers, kernelStepTools, type ScPart } from '@kit/solidcraft';
 import type { RecentEntry } from './files/recent';
 import { DisplayMenu } from './DisplayMenu';
@@ -79,7 +89,7 @@ import { createLookStore, effectiveAppearance, componentAppearances, componentKe
 import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
 import { combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
-import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
+import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, splitBodies, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { runsInPlace } from './scriptTarget';
 import { shouldWarnOnUnload } from './urlFlags';
@@ -121,18 +131,25 @@ import { selectionKind } from './menuModel';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields, appendSeed } from './SketchFields';
 import { TextPanel } from './TextPanel';
+import { EquationPanel } from './EquationPanel';
 import { makeFontsApi } from './textFonts';
 import { webFontSource } from './fonts';
 import { isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch } from '@kit/sketch';
-import { SketchReadout, ModelReadout, readout, clearReadout } from './sketchReadout';
+import { equationFields, equationSpec, isEquation, patchEquation, type EquationFields, type EquationResult } from '@kit/sketch';
+import { SketchReadout, ModelReadout, CursorLabel, readout, clearReadout } from './sketchReadout';
 import { uppForPercent } from './sketchStatus';
 import { DEFAULT_SKETCH_PREFS, constrainsFromGuides, escapeCancelsSketch, lookChipNeeded, loadSketchPrefs, saveSketchPrefs, toToolSettings, type SketchPrefs } from './sketchPrefs';
-import { SketchAnnotations } from './SketchAnnotations';
-import { projectShape } from './dimGraphics';
+import { SketchAnnotations, type AnnotationItem } from './SketchAnnotations';
+import { separateMarks, visibleChips } from './annotChips';
+import { useSketchSessionGone, useEditorGone } from './sessionGone';
+import { projectShape, labelBox } from './dimGraphics';
 import { SketchBar, SketchNotes, type SketchControls } from './SketchBar';
 import { SketchConstraintList } from './SketchConstraintList';
+import { SketchReportSheet, SketchReportWindow } from './SketchReport';
+import { sketchReport } from './reportData';
 import { SettingsDialog } from './SettingsDialog';
 import { applyTheme, asTheme, type Theme } from './theme';
+import { loadIconSet, chooseIconSet } from './iconSetPref';
 import { t } from './i18n';
 import { featureRows, refRows, treeKnurlRows } from './treeModel';
 import { runningBundle, watchForUpdate } from './updateCheck';
@@ -173,6 +190,8 @@ const files = new FileManager(platform, browserKV());
 /** True while a script run builds its part: nothing is autosaved meanwhile. */
 let scriptRunning = false;
 /** A SolidCraft import in progress (the file, how far it has read, and how to stop it); null when none runs. */
+/** The line the busy overlay shows instead of "Rebuilding model" while an export cuts knurl grooves. */
+const busyNote = signal<string | null>(null);
 const importing = signal<{ name: string; done: number; total: number; abort: () => void; /** 'reading' while the importer works, 'building' while the finished part is loaded into the kernel (it cannot be stopped) */ phase?: 'reading' | 'building' } | null>(null);
 const autosaver = createAutosaver(browserKV(), { busy: () => store.busy.value || scriptRunning || !!importing.value, onProblem: (r) => store.notify(t(`files.autosave.${r}`), 'warn') });
 /** Rolling snapshots of the open part (IndexedDB): whatever happens to the live document, an earlier state can be restored. */
@@ -185,10 +204,12 @@ const kernelBuild = (): Promise<string | null> => {
   if (kernelRouter.prefs.value.mode !== 'builtin') return Promise.resolve(null);
   return (wasmBuild ??= createBuildId(() => fetch(platform.wasmUrl()).then((r) => { if (!r.ok) throw new Error('wasm'); return r.arrayBuffer(); }))) ();
 };
+/** Results of the export bake (cosmetic knurls cut for a file): exporting the same part again does not cut again. Kept in IndexedDB where there is any. */
+const bakeCache = new BakeCache({ build: kernelBuild, backend: (() => { try { return idbBakeBackend(); } catch { return null; } })() });
 const startupAutosave: Autosave | null = (() => { const a = readAutosave(browserKV()); return worthRestoring(a) ? a : null; })();
 const read = (key: string): unknown => { try { return JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return null; } };
 const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private window */ } };
-import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, withExactEdges } from '@kit/sketch';
+import { sketchTools, sketchShapes, shapeAtPoint, sketchOpenChains, nextExtrudeTarget, defaultCutRegions, defaultShapeIds, toggleRegion, withExactEdges } from '@kit/sketch';
 import { defaultThickness } from './thinRules';
 /** The compact vertical rail at the left edge: history, then the feature tools. Views are not here (they are on the cube and the
  *  View tab); a button only appears if its command exists. */
@@ -200,6 +221,8 @@ const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, 
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
 applyTheme(savedTheme);
+const savedIconSet = loadIconSet();
+setIconSet(savedIconSet);
 if (typeof savedLocale === 'string') setLocale(savedLocale);
 layoutPref.value = asLayoutPref(read(LAYOUT_KEY));
 watchViewport();   // the layout (phone, tablet, desktop) follows the window, the pointer and Settings
@@ -311,6 +334,7 @@ const makeController = (tabId: number): Controller => {
       cancel() { kernelRouter.cancel(); },
     },
     fonts: fontSource,
+    bakeCache,
   });
   c.beforeUndo = (d) => { void snapshots.note(d, d.name, 'undo'); };   // every undo first keeps the state it leaves
   // Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
@@ -360,6 +384,7 @@ function App() {
   const host = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState('Home');
   const [theme, setTheme] = useState<Theme>(savedTheme);
+  const [iconSet, setIconSetState] = useState<IconSet>(savedIconSet);
   const [guard, setGuard] = useState<(() => void) | null>(null);
   const [guardSave, setGuardSave] = useState<(() => Promise<void>) | null>(null);   // what Save does in the unsaved-changes dialog when it is not the file save (a component tab: write back)
   const [stale, setStale] = useState(false);   // a newer build was deployed while this tab was open
@@ -408,6 +433,13 @@ function App() {
   const [picked, setPicked] = useState<{ path: string; value: unknown; once?: boolean } | null>(null);
   useEffect(() => { if (picked?.once) setPicked(null); }, [picked]);   // a one-click fix lands in the draft once; later typing in that field is not overridden
   const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  /** Set while an edge or face list field of the open editor is active: the viewport's picks go to it (see listPick.ts). */
+  const listPickRef = useRef<((names: string[], addOnly: boolean) => void) | null>(null);
+  const listSelRef = useRef<{ path: string | null; sel: string[] }>({ path: null, sel: [] });
+  const pickQueueRef = useRef<Promise<void>>(Promise.resolve());   // list picks apply in order, each after the body it is read on is ready
+  const beforeRef = useRef<{ id: string; edges: ViewEdge[] } | null>(null);   // the edges of the body the edited feature is applied to (edgesBeforeCached)
   const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
   // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
   const [previewDiag, setPreviewDiag] = useState<{ d: Diagnosis; fresh: DiagRoot[] } | null>(null);
@@ -444,6 +476,8 @@ function App() {
   const [fieldSeed, setFieldSeed] = useState<{ n: number; text: string | null }>({ n: 0, text: '' });
   // Select mode: the picked entity and the size field shown beside it.
   const textPickRef = useRef<string | null>(null);
+  /** The kernel's verdict on the equation curve being edited, for the fields it was asked about (`key`). */
+  const eqResultRef = useRef<{ key: string; r: EquationResult | null }>({ key: '', r: null });
   const [entityOut, setEntityOut] = useState<{ fields: FieldSpec[]; x: number; y: number } | null>(null);
   const selEntityRef = useRef<{ kind: 'entity' | 'point'; id: string; x: number; y: number } | null>(null);
   // Hover and constraint highlights, a dimension being edited in place, and a tick that re-projects labels when the camera moves.
@@ -451,6 +485,10 @@ function App() {
   const [sketchPrefs, setSketchPrefs] = useState<SketchPrefs>(loadSketchPrefs);
   const [triPrefs, setTriPrefs] = useState<TriPrefs>(loadTriPrefs);
   const [navPrefs, setNavPrefs] = useState<NavPrefs>(loadNavPrefs);
+  const [exportPrefs, setExportPrefs] = useState<ExportPrefs>(loadExportPrefs);
+  const changeExport = (patch: Partial<ExportPrefs>) => { const next = { ...exportPrefs, ...patch }; setExportPrefs(next); saveExportPrefs(next); };
+  const [knurlAsk, setKnurlAsk] = useState<{ count: number; resolve(c: 'include' | 'plain' | 'cancel'): void } | null>(null);
+  const [knurlFail, setKnurlFail] = useState<{ reason: 'timeout' | 'failed'; message: string; resolve(c: 'plain' | 'cancel'): void } | null>(null);
   const changeNav = (patch: Partial<NavPrefs>) => { const next = { ...navPrefs, ...patch }; setNavPrefs(next); saveNavPrefs(next); viewport?.setNavigation(next); };
   /** A document's own up axis (set by its script) is shown for as long as it is open; a document without one shows the user's saved setting. Camera only: nothing is saved. */
   const showDocUpAxis = (d: unknown): void => {
@@ -464,6 +502,18 @@ function App() {
   const prefsRef = useRef(sketchPrefs);
   prefsRef.current = sketchPrefs;
   const [hotConstraint, setHotConstraint] = useState<string | null>(null);
+  /** The entity or point under the pointer in Select mode, kept a moment after it leaves so a constraint chip beside it can be reached. */
+  const [hoverFocus, setHoverFocus] = useState<string | null>(null);
+  const hoverFocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The constraint chip last clicked on the canvas: Delete removes it. */
+  const [selConstraint, setSelConstraint] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  /** Starting a sketch with nothing chosen: the three origin planes are drawn in the 3D view to pick from (a click on one, on a flat face or on a datum plane starts the sketch). */
+  const [planePick, setPlanePick] = useState(false);
+  const planePickRef = useRef(false);
+  planePickRef.current = planePick;
+  const startOnFeatureRef = useRef<(id: string) => void>(() => {});
+  const [reportSnap, setReportSnap] = useState<SheetSnap>('half');
   // a small tip beside the pointer in Select mode: the value of what is under it, and that it can be edited
   const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [dimMenu, setDimMenu] = useState<{ id: string; type: string; driven: boolean; x: number; y: number } | null>(null);
@@ -478,6 +528,9 @@ function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportVisible, setExportVisibleState] = useState<boolean>(() => { try { return localStorage.getItem('cad.export.visible') === '1'; } catch { return false; } });
   const setExportVisible = (v: boolean) => { setExportVisibleState(v); try { localStorage.setItem('cad.export.visible', v ? '1' : '0'); } catch { /* private window */ } };
+  const [exportQuality, setExportQualityState] = useState<MeshQuality>(() => { try { const q = localStorage.getItem('cad.export.quality'); return MESH_QUALITIES.includes(q as MeshQuality) ? (q as MeshQuality) : 'normal'; } catch { return 'normal'; } });
+  const setExportQuality = (q: MeshQuality) => { setExportQualityState(q); try { localStorage.setItem('cad.export.quality', q); } catch { /* private window */ } };
+  const [exportChord, setExportChord] = useState('');   // mm, empty: the quality preset's own chord (not kept between sessions: an absolute tolerance belongs to one part)
   const bodyDoubleRef = useRef<((face: string) => void) | null>(null);
   const treeKeyRef = useRef<(e: KeyboardEvent, onCanvas: boolean) => boolean>(() => false);
   const sketchHoverRef = useRef<((ev: import('@kit/viewport').SketchPointerEvent) => void) | null>(null);
@@ -504,9 +557,10 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; });
   const stored = store.workspace.value;   // what Settings edits and what is saved; the layout draws a variant of it
   const phone = layout.value === 'phone';
+  const phoneOrTablet = layout.value !== 'desktop';
   const ws = effectiveWorkspace(stored, layout.value);
 
   useEffect(() => {
@@ -515,6 +569,8 @@ function App() {
         if (pickBlocked()) return;
         // auto pick: the selection takes the kind of what was clicked, and does not mix kinds
         if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
+        // an active edge or face list field: a click or tap adds to it or takes out, with or without a modifier key; empty space changes nothing
+        if (listPickRef.current) { listPickRef.current(names, false); return; }
         store.select(names, additive || measureRef.current);
         // a click on empty space also lets go of the selected feature: the properties panel and the handles close.
         // An open editor (editingId) keeps its feature, and a measuring click never deselects.
@@ -538,13 +594,14 @@ function App() {
         if (pickBlocked()) return;
         if (autoPickRef.current && mode !== store.mode.value) { store.mode.value = mode; viewport?.setPickMode(mode); additive = false; }
         if (!store.filters.value[MODE_FILTER[store.mode.value]]) return;
+        if (listPickRef.current) { listPickRef.current(names, true); return; }   // a box adds to an active list field, never takes out
         store.select(names, additive);
       },
-      onPlaneFeaturePick: (id) => { if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
+      onPlaneFeaturePick: (id) => { if (listPickRef.current) return; if (planePickRef.current) { startOnFeatureRef.current(id); return; } if (!store.filters.value.planes) return; setRefSel(null); store.select([]); setSelectedId(id); },
       // hovering lights a plane up; a plain click on it starts the sketch (while something else is being edited or measured, it only selects)
       onRefPlaneHover: (id) => setRefHover(id),
       onRefPlanePick: (id) => {
-        if (!store.filters.value.planes) return;
+        if (!store.filters.value.planes || listPickRef.current) return;   // an empty-space tap while edges are being picked must not clear them
         if (!editingIdRef.current && !measureRef.current) { setSelectedId(null); store.select([]); startSketchRef.current(id); return; }
         setRefSel(id); setSelectedId(null); store.select([]);
       },
@@ -575,13 +632,50 @@ function App() {
     const f = id ? controller.document()?.features.find((x) => x.id === id) : undefined;
     viewport?.setActivePlane(f?.type === 'plane' ? f.id : null);
   }, [viewport, editingId, selectedId]);
-  // A selection made while a reference field is in the picking state lands in that field's draft.
+  // A selection made while a reference field is in the picking state lands in that field's draft. A list field (edges, faces) takes the
+  // viewport's picks itself (listPickRef); what other tools add to the selection meanwhile (select a loop, select all) is added to it.
   useEffect(() => {
     if (!pickingPath) return;
-    const list = LIST_PATHS.has(pickingPath);
-    const value = pickValue(pickingPath, store.selection.value, controller.bodyEdges(), tangentChainOn());
-    if (value !== null) { setPicked({ path: pickingPath, value }); if (!list) setPickingPath(null); }
+    const sel = store.selection.value;
+    if (LIST_PATHS.has(pickingPath)) {
+      const prev = listSelRef.current;
+      listSelRef.current = { path: pickingPath, sel };
+      const added = prev.path === pickingPath ? sel.filter((n) => !prev.sel.includes(n)) : [];
+      if (added.length) listPickRef.current?.(added, true);
+      return;
+    }
+    const value = pickValue(pickingPath, sel, controller.bodyEdges(), tangentChainOn());
+    if (value !== null) { setPicked({ path: pickingPath, value }); setPickingPath(null); }
   }, [store.selection.value, pickingPath]);
+  // An edges field is read on the body its feature is applied to (the features before it), not the body on screen, which has the
+  // feature applied: an edge the feature shortened or split names the edge it was, and the tangent chain runs on the edges as they were
+  // (see listPick.ts). Built once when the editor opens; a pick made before it is ready waits for it.
+  useEffect(() => { if (editingId && controller.document()?.features.some((f) => f.id === editingId && (f.type === 'fillet' || f.type === 'chamfer'))) void controller.edgesBeforeCached(editingId).then((edges) => { beforeRef.current = { id: editingId, edges }; }, () => {}); }, [editingId, controller.revision]);
+  const fieldNow = (id: string | null, path: string): unknown => {
+    if (draftRef.current[path] !== undefined) return draftRef.current[path];
+    const f = id ? controller.document()?.features.find((x) => x.id === id) as unknown as Record<string, unknown> | undefined : undefined;
+    return f?.[path];
+  };
+  // the active list field's current value (the draft, else the feature's) with one pick applied; the selection lights up what is in it
+  listPickRef.current = pickingPath && LIST_PATHS.has(pickingPath) && editingId ? (names, addOnly) => {
+    const path = pickingPath, id = editingId, shown = controller.shownEdges();
+    pickQueueRef.current = pickQueueRef.current.then(async () => {
+      const r = await controller.pickIntoList(id, path, () => fieldNow(id, path), () => store.selection.value, names, tangentChainOn(), addOnly, shown).catch(() => null);
+      if (!r || editingIdRef.current !== id) return;
+      draftRef.current = { ...draftRef.current, [path]: r.value };
+      listSelRef.current = { path, sel: r.selection };   // this selection change is the pick itself, not something to add again
+      setPicked({ path, value: r.value });
+      store.select(r.selection);
+    });
+  } : null;
+  // an edge taken out of the field with its chip stops being lit
+  useEffect(() => {
+    if (!pickingPath || !LIST_PATHS.has(pickingPath) || draft[pickingPath] === undefined) return;
+    const sel = store.selection.value;
+    const before = beforeRef.current?.id === editingId ? beforeRef.current.edges : null;
+    const keep = selectionInField(pickingPath, sel, draft[pickingPath], controller.shownEdges(), tangentChainOn(), before);
+    if (keep.length !== sel.length) { listSelRef.current = { path: pickingPath, sel: keep }; store.select(keep); }
+  }, [draft, pickingPath]);
   useEffect(() => {
     const d = store.display.value;
     for (const k of Object.keys(d)) viewport?.setLayerVisible(k, d[k as DisplayLayer]);
@@ -686,6 +780,7 @@ function App() {
     setDrawingOpen(false);   // the drawing sheet belongs to the document being left
     setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
     setSelectedId(null); setRefSel(null); store.select([]); rejections.value = [];
+    viewport?.setSketchEdit(null);   // the sketch overlay belongs to the tab being left (a background tab's own clear never reaches the viewport)
   };
   /** The active tab (just changed in `tabSet`) takes over the app: its file, look, view and camera. */
   const showActive = async () => {
@@ -794,7 +889,7 @@ function App() {
       if (!o.keep) { files.opened(o.file ?? null); if (o.file) { files.noteFile(o.file); files.noteThumb(o.file, thumbnail); } }
       files.names.seen(doc.name);
       setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
-      setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; redraw((n) => n + 1);
+      setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; viewport?.setSketchEdit(null); redraw((n) => n + 1);
       store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
       if (rejected) store.notify(rejected === 'recipe' ? t('files.cache.rejected.recipe') : rejected === 'build' ? t('files.cache.rejected.build') : rejected === 'version' ? t('files.cache.rejected.version') : t('files.cache.rejected.corrupt'), 'info');
     } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
@@ -844,7 +939,15 @@ function App() {
     if (face) startNewSketch({ kind: 'face', id: face });
     else if (plane) startNewSketch(plane);
     else if (pf) startNewSketch({ kind: 'feature', id: pf.id });
+    else if (!editingIdRef.current && !measureRef.current && !sketchingRef.current) beginPlanePick();
     else store.notify(t('app.sketch.pickFirst'), 'error');
+  };
+  /** Show the origin planes as sheets to pick from; a flat face in the model can be picked too. */
+  const beginPlanePick = () => {
+    if (!controller.document()) return;
+    setSelectedId(null); setRefSel(null); store.select([]);
+    if (store.mode.value !== 'face') { store.mode.value = 'face'; viewport?.setPickMode('face'); }
+    setPlanePick(true);
   };
   /** Open (or, on a phone, raise as a sheet) the bottom drawer; `toggleSheet` is the bottom bar's button. */
   const toggleSheet = (id: 'tree' | 'props' | 'diag') => { setTray(false); setSheet((cur) => (cur === id ? null : id)); };
@@ -933,6 +1036,29 @@ function App() {
       redraw((n) => n + 1);
     } finally { store.busy.value = false; }
   };
+  /** Ask whether to include the cosmetic knurls; the tick keeps the answer as the Settings choice. */
+  const askKnurl = (count: number) => new Promise<'include' | 'plain' | 'cancel'>((resolve) => {
+    setKnurlAsk({ count, resolve: (c) => resolve(c) });
+  });
+  const answerKnurl = (a: { choice: 'include' | 'plain' | 'cancel'; remember: boolean }) => {
+    const ask = knurlAsk;
+    setKnurlAsk(null);
+    if (a.remember && a.choice !== 'cancel') changeExport({ knurl: a.choice === 'include' ? 'on' : 'off' });
+    ask?.resolve(a.choice);
+  };
+  const failKnurl = (reason: 'timeout' | 'failed', message: string) => new Promise<'plain' | 'cancel'>((resolve) => { setKnurlFail({ reason, message, resolve }); });
+  const chooseKnurl = (c: 'plain' | 'cancel') => { const f = knurlFail; setKnurlFail(null); f?.resolve(c); };
+  /** What an export does about the document's cosmetic knurls (see knurlExport.ts); `make` cuts them in a scratch copy and reads the geometry back. */
+  const knurlChoice = <T,>(recs: readonly unknown[], make: () => Promise<BakeRun<T>>, slow = false) => chooseKnurlExport<T>({
+    mode: loadExportPrefs().knurl, count: recs.length,
+    ask: () => askKnurl(recs.length),
+    run: async () => {
+      if (slow) store.notify(t('knurl.exportHeavy'), 'info');
+      busyNote.value = t('knurl.exportBaking');
+      try { return await make(); } finally { busyNote.value = null; }
+    },
+    failed: failKnurl,
+  });
   const exportAs = async (kind: ExportKind) => {
     await controller.settled();   // an export is never made from a stored view
     const d = controller.document();
@@ -941,25 +1067,130 @@ function App() {
       let r: ExportResult;
       const rows = exportVisible ? bodyRowsFor(false) : [];
       const anyHidden = rows.some((r) => r.hidden);
-      const mesh = anyHidden ? visibleMesh(controller.bodyFaces() ?? controller.bodyMesh(), rows) : controller.bodyMesh();
+      let mesh = anyHidden ? visibleMesh(controller.bodyFaces() ?? controller.bodyMesh(), rows) : controller.bodyMesh();
+      const bodyKind = kind === '3mf' || kind === 'glb';   // one object / node per body, so the mesh keeps its face ids and is split by body below
+      let full: Parameters<typeof splitBodies>[0] = bodyKind ? controller.bodyFaces() ?? controller.bodyMesh() : null;
+      const meshKind = kind === 'stl' || kind === 'stl-ascii' || kind === 'obj' || bodyKind;
+      const asked = meshKind && mesh ? meshRequest(exportQuality, exportChord) : ({ custom: false } as const);
+      if ('error' in asked) { showNotices([asked.error]); return; }
+      // cosmetic knurls: cut into a scratch copy that the file is made from (the open part stays as it is)
+      const recs = ['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step'].includes(kind) ? readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls) : [];
+      const hiddenMesh = anyHidden && kind !== 'step';   // the visible bodies cannot be told apart in the copy: the plain solid, with the warning
+      let bakedStep: string | null = null, bakedCount = 0, bakedCached = false;
+      if (recs.length && !hiddenMesh) {
+        const want = kind === 'step' ? 'step' : 'mesh';
+        const slow = mayBeSlow(recs) && !(await controller.bakeCached(recs, want));
+        const c = await knurlChoice(recs, async () => {
+          const b = await controller.bakeBuild(recs, want, KNURL_BAKE_SECONDS);
+          return b.ok ? { ok: true, value: b } : b;
+        }, slow);
+        if (c.kind === 'cancel') return;
+        if (c.kind === 'baked') {
+          bakedCount = c.value.baked;
+          bakedCached = !!c.value.cached;
+          if (kind === 'step') bakedStep = c.value.step ?? null;
+          else { mesh = c.value.mesh ?? mesh; if (bodyKind) full = c.value.mesh ?? full; if (asked.custom) showNotices([{ level: 'warn', key: 'knurl.exportMeshTol', params: { file: fileStem(d.name) } }]); }
+        }
+      }
+      if (asked.custom && !bakedCount) {
+        // meshed again at the asked tolerance: the kernel keeps the body, so the mesh on screen is not touched
+        store.busy.value = true;
+        try {
+          const rep = await controller.exportMesh({ quality: asked.quality, ...(asked.chord_mm !== undefined ? { chord_mm: asked.chord_mm } : {}) });
+          if (rep) {
+            mesh = visibleMesh(rep.mesh, anyHidden ? rows : []);
+            if (bodyKind) full = rep.mesh;
+            showNotices([{ level: 'info', key: 'io.meshTol', params: { chord: +rep.chord.toPrecision(3) } }, ...(rep.chordRaised ? [{ level: 'warn' as const, key: 'io.chordRaised', params: { chord: +rep.chord.toPrecision(3) } }] : [])]);
+          }
+        } finally { store.busy.value = false; }
+      }
       if (anyHidden && kind === 'step') store.notify(t('io.visibleStep'), 'warn');
       if (kind === 'stl') r = exportStl(mesh, d.name, true);
       else if (kind === 'stl-ascii') r = exportStl(mesh, d.name, false);
       else if (kind === 'obj') r = exportObj(mesh, d.name);
+      else if (bodyKind) {
+        // a knurl-cut copy has other faces than the open part, so it goes out as one body; otherwise the bodies keep their names and colours
+        const bodies = splitBodies(full, bakedCount ? [] : bodyRowsFor(false), d.name || fileStem(d.name), exportVisible);
+        if (kind === '3mf') { store.busy.value = true; try { r = await exportThreeMf(bodies, d.name); } finally { store.busy.value = false; } }
+        else r = exportGlb(bodies, d.name);
+      }
       else if (kind === 'dxf-sketch') r = exportSketchDxf(sketchToExport(), d.name);
       else if (kind === 'dxf-views') r = exportViewsDxf(controller.bodyEdges() as Array<{ pts: number[][] }>, controller.bodyBox(), d.name);
       else {
         store.busy.value = true;
-        try { r = exportStep(mesh ? await controller.exportStep() : null, d.name); } finally { store.busy.value = false; }
+        try { r = exportStep(bakedStep ?? (mesh ? await controller.exportStep() : null), d.name); } finally { store.busy.value = false; }
       }
       if (r.file) await platform.saveFile(r.file.name, r.file.data, r.file.mime);
       showNotices(r.notices);
-      // a cosmetic knurl is not in the exported geometry (mesh and STEP are the plain solid): say so, and offer the real cut
-      const cosmetic = r.file && ['stl', 'stl-ascii', 'obj', 'step'].includes(kind) ? readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls).length : 0;
-      if (cosmetic && r.file) store.notify(t('knurl.exportWarn', { count: cosmetic, file: r.file.name }), 'warn', { label: t('knurl.exportConvert'), run: () => { void convertCosmeticKnurls(); } });
+      if (bakedCount && r.file) store.notify(t(bakedCached ? 'knurl.exportIncludedCached' : 'knurl.exportIncluded', { count: bakedCount, file: r.file.name }), 'info');
+      // a cosmetic knurl that was not cut into the file (setting Off, the plain solid chosen, hidden bodies) is not in it: say so, and offer the real cut
+      else if (recs.length && r.file) store.notify(t(hiddenMesh ? 'knurl.exportHidden' : 'knurl.exportWarn', { count: recs.length, file: r.file.name }), 'warn', { label: t('knurl.exportConvert'), run: () => { void convertCosmeticKnurls(); } });
     } catch (e) {
       showNotices([{ level: 'error', key: 'io.failed', params: { message: (e as Error).message } }]);
     }
+  };
+
+  /** Right-click a folder > Export: the bodies its features made or changed, as STEP, STL or a frozen .ckpart. */
+  const exportFolder = async (name: string, ids: string[], format: FolderFormat) => {
+    await controller.settled();   // an export is never made from a stored view
+    const d = controller.document();
+    if (!d) return;
+    const plan = planFolderExport(d, name, ids, bodyRowsFor(false), controller.rollbackCount() !== null);
+    if (!plan.ok) { store.notify(`${t(REFUSAL_KEYS[plan.reason].message, plan.params)} ${t(REFUSAL_KEYS[plan.reason].hint)}`, 'warn'); return; }
+    store.busy.value = true;
+    try {
+      // the cosmetic knurls whose cylinder the folder holds are cut into the scratch copy the file is made from
+      const mode = loadExportPrefs().knurl;
+      const recs = mode === 'off' ? [] : readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls);
+      const bake = recs.length ? { recs, seconds: KNURL_BAKE_SECONDS, ...(mode === 'ask' ? { confirm: (n: number) => askKnurl(n) } : {}) } : undefined;
+      if (bake) busyNote.value = t('knurl.exportBaking');
+      let b = await controller.folderBuild(plan.doc, d, name, format, bake);
+      if (!b.ok && b.bake) {
+        if (b.bake.reason === 'cancelled') return;
+        store.busy.value = false;
+        const go = await failKnurl(b.bake.reason, b.message);
+        store.busy.value = true;
+        if (go === 'cancel') return;
+        b = await controller.folderBuild(plan.doc, d, name, format);
+      }
+      if (!b.ok) { showNotices([{ level: 'error', key: 'io.folder.failed', params: { name, message: b.message } }]); return; }
+      const stem = `${d.name} - ${name}`;
+      const r = format === 'stl' ? exportStl(b.data as { positions: ArrayLike<number> }, stem, true) : format === 'step' ? exportStep(b.data as string, stem) : exportCkpart(b.data as string, stem);
+      if (r.file) await platform.saveFile(r.file.name, r.file.data, r.file.mime);
+      showNotices(r.notices);
+      if (b.baked) store.notify(t('knurl.exportIncluded', { count: b.baked, file: r.file?.name ?? stem }), 'info');
+      else if (b.left && r.file) store.notify(t('knurl.exportWarn', { count: b.left, file: r.file.name }), 'warn', { label: t('knurl.exportConvert'), run: () => { void convertCosmeticKnurls(); } });
+      if (plan.shared) store.notify(t('io.folder.shared', { count: plan.shared }), 'info');
+    } catch (e) {
+      showNotices([{ level: 'error', key: 'io.failed', params: { message: (e as Error).message } }]);
+    } finally { busyNote.value = null; store.busy.value = false; }
+  };
+
+  /** Right-click a folder > Extract: its features (with the variables they use) become a new document. */
+  const extractFolder = async (name: string, ids: string[]) => {
+    await controller.settled();
+    const d = controller.document();
+    if (!d) return;
+    const rows = bodyRowsFor(false);
+    const geo = planFolderExport(d, name, ids, rows, controller.rollbackCount() !== null);
+    const plan = planExtract(d, name, ids, controller.rollbackCount() !== null, geo.ok ? geo.shared : 0);
+    const refuse = (reason: ExtractRefusal, params: Record<string, string | number>) => store.notify(`${t(EXTRACT_KEYS[reason].message, params)} ${t(EXTRACT_KEYS[reason].hint)}`, 'warn');
+    if (!plan.ok) { refuse(plan.reason, plan.params); return; }
+    store.busy.value = true;
+    try {
+      const built = await controller.extractCheck(plan.part);
+      if (!built.ok) { refuse('failed', { name, message: built.message }); return; }
+      // a folder that stands alone gives back the bodies it made (a feature that acts on outside geometry without naming it does not)
+      if (geo.ok && geo.shared === 0) {
+        const want = await controller.folderBuild(geo.doc, d, name, 'step');
+        if (want.ok && (built.volume === null || Math.abs(built.volume - want.volume) > VOLUME_TOLERANCE * want.volume)) { refuse('differs', { name, part: built.volume === null ? 0 : +built.volume.toFixed(3), folder: +want.volume.toFixed(3) }); return; }
+      }
+    } finally { store.busy.value = false; }
+    guarded(async () => {
+      await load(JSON.stringify(plan.part), { file: null });
+      store.notify(t('io.extract.done', { name, count: plan.part.features.length, vars: plan.variables.length }));
+      if (plan.shared) store.notify(t('io.extract.shared', { count: plan.shared }), 'info');
+    });
   };
 
   // ---- files: save, save as, open by type, STEP, drop ----
@@ -1027,14 +1258,14 @@ function App() {
     await load(JSON.stringify(await partOfStep(text, partNameOf(file), file)), { file: null });
     await repairImport('F1');
   };
-  /** A SolidWorks part into a new part named after the file: an editable imported body (see files/sldprtImport.ts); when that cannot be built, the solid is shown view only as for STEP. */
+  /** A SolidWorks part into a new part named after the file: its feature history when the kernel can rebuild it, else an editable imported body (see files/sldprtImport.ts); when that cannot be built, the solid is shown view only as for STEP. */
   const importSldprtBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
     const name = partNameOf(file);
     await load(JSON.stringify(emptyPart(name)), { file: null });
     const made = await controller.sldprtPart(bytes, name);
     if (made.ok) {
       await load(JSON.stringify(made.part), { file: null });
-      viewport?.fit(); store.notify(t('files.sldprt.part', { name: file, faces: made.faces })); offerZUp(made.view.mesh);
+      viewport?.fit(); store.notify(made.history && made.historyInfo ? t(made.historyInfo.complete ? 'files.sldprt.history' : 'files.sldprt.historyPartial', { name: file, features: made.historyInfo.rebuilt, faces: made.faces, folder: HISTORY_FOLDER }) : t('files.sldprt.part', { name: file, faces: made.faces })); offerZUp(made.view.mesh);
       reportImport(file, made.parts, false, () => void repairImport('F1'));
       return;
     }
@@ -1062,9 +1293,17 @@ function App() {
   });
   /** File menu "Rotate imported model": the shown SketchUp model again, in the next orientation. */
   const rotateSkp = () => { const k = skpShown.current; if (k && controller.importedLook()) importSkpBytes(k.bytes, k.file, k.hidden, nextSkpOrient(skpOrient.current)); };
+  /** A scratch session on the part built so far (only the rebuild: verify() also meshes and validates the whole body, which on a big file takes minutes per question; the kernel keeps the earlier states, so each question after the first costs a fraction of a second). */
+  const importSession = async (partBefore: unknown, tag = 'solidcraft-import') => {
+    const transport = await kernelRouter.transport();
+    const r = await transport.request({ type: 'regen', tag, part: partBefore, opts: { noView: true } });
+    if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
+    return new Session(partBefore as unknown as PartDoc, transport, 'import', tag);
+  };
   /** A FreeCAD file becomes a new part with the mapped features; what could not be mapped is listed in a notice (see packages/fcstd). */
   const importFcstdBytes = (bytes: Uint8Array, file: string) => guarded(async () => {
-    const r = await resolveEdges(await importFcstd(bytes, partNameOf(file)));   // no kernel resolver here yet: fillets / chamfers are left out and listed
+    // the kernel names the edges and faces FreeCAD's stored shapes point at (fillets, chamfers, Thickness, Draft, up to face, sketches on faces); a feature it cannot find them for is left out and listed
+    const r = await resolveReferences(await importFcstd(bytes, partNameOf(file)), fcstdResolvers((partBefore) => importSession(partBefore)));
     if (!r.part.features.length) { store.notify(t('files.fcstd.failed', { name: file, message: r.warnings[0]?.message ?? 'nothing to import' }), 'error'); return; }
     await load(JSON.stringify(r.part), { file: null });
     viewport?.fit();
@@ -1073,13 +1312,7 @@ function App() {
     else store.notify(t('files.fcstd.clean', { name: file, total }));
   });
   /** The kernel's answers for the importer (which edge, face or rim is at a position): the part built so far is regenerated on a scratch tag of its own, so the open part is untouched. */
-  const scResolvers = kernelResolvers(async (partBefore) => {
-    const transport = await kernelRouter.transport();
-    // only the rebuild: verify() also meshes and validates the whole body, which on a big file takes minutes per question; the kernel keeps the earlier states, so each question after the first costs a fraction of a second
-    const r = await transport.request({ type: 'regen', tag: 'solidcraft-import', part: partBefore, opts: { noView: true } });
-    if (r.trap || !r.ok) throw new Error(String(r.trap ?? r.error ?? 'the kernel could not rebuild the part'));
-    return new Session(partBefore as unknown as PartDoc, transport, 'import', 'solidcraft-import');
-  });
+  const scResolvers = kernelResolvers((partBefore) => importSession(partBefore));
   /** The kernel's answers about the original solid of a converted file: its STEP read to the right body, and the volume the operations of the file have to rebuild. */
   const scStep = kernelStepTools(() => kernelRouter.transport());
   /** Open a component's own part in a tab of its own (next to the assembly's); Done writes it back into the assembly, Cancel just closes the tab. */
@@ -1193,7 +1426,7 @@ function App() {
     if (!ops) { store.notify(t('app.thread.noTable'), 'error'); return; }
     await createFeature(ops);
   };
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows });
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -1234,6 +1467,7 @@ function App() {
     toggleDrawer,
     resetLayout: () => resetLayout(store),
     sketchHere,
+    sketchPickPlane: beginPlanePick,
     toggleProjection,
     toggleUpAxis: () => changeNav({ upAxis: navPrefs.upAxis === 'y' ? 'z' : 'y' }),
     toggleLeftPanel,
@@ -1365,7 +1599,10 @@ function App() {
     const sk = doc!.features.find((f) => f.id === ef.sketch);
     const all = sketchShapes(sk as never);
     // a thin wall can be made of open curves too: they are listed after the closed shapes
-    const chains = thinOf({ ...ef, ...draft } as Record<string, unknown>) ? sketchOpenChains(sk as never).map((c, i) => ({ id: c.id, label: t('app.shape.chain', { n: i + 1, count: c.entityIds.length }) })) : [];
+    const thin = !!thinOf({ ...ef, ...draft } as Record<string, unknown>);
+    const chains = thin ? sketchOpenChains(sk as never).map((c, i) => ({ id: c.id, label: t('app.shape.chain', { n: i + 1, count: c.entityIds.length }), byDefault: true })) : [];
+    // without `regions` the kernel extrudes by even-odd nesting (holes stay open): those are the boxes ticked by default (a thin wall uses every shape)
+    const byDefault = new Set(thin ? all.map((sh) => sh.id) : defaultShapeIds(all));
     return [...all.map((sh, i) => {
       const parent = all.find((o) => o.id === sh.inside);
       const holes = all.filter((o) => o.inside === sh.id);
@@ -1375,20 +1612,15 @@ function App() {
         : parent ? t('app.shape.insideShape', { m: all.indexOf(parent) + 1 })
         : holes.length ? t('app.shape.withHole', { n: i + 1, m: all.indexOf(holes[0]) + 1 })
         : t('app.shape.' + sh.kind, { n: i + 1, d: Math.round(sh.radius * 2 * 100) / 100, count: sh.entityIds.length });
-      return { id: sh.id, label };
+      return { id: sh.id, label, byDefault: byDefault.has(sh.id) };
     }), ...chains];
   })();
   const editingFeature = editingId && doc ? (doc.features.find((f) => f.id === editingId) as unknown as Record<string, unknown> | undefined) ?? null : null;
   // An Undo (or a delete) can remove the very feature whose editor is open. The editor then has nothing to show ("No feature
   // selected.") and must not stand in for the feature tree: close it once the feature that was there is gone.
-  const editorSeen = useRef<string | null>(null);
-  if (editingFeature) editorSeen.current = editingId; else if (!editingId) editorSeen.current = null;
-  const editorGone = !!editingId && !!doc && !editingFeature && editorSeen.current === editingId;
-  useEffect(() => {
-    if (!editorGone) return;
-    editorSeen.current = null;
+  const editorGone = useEditorGone(editingId, !!editingFeature, !!doc, () => {
     setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');
-  }, [editorGone]);
+  });
   // An Extrude / Cut / Revolve of an open sketch (no thin wall): the editor shows a hint card with three ways out instead of the kernel's dead-end error.
   const openCard = editingFeature && (editingFeature.type === 'extrude' || editingFeature.type === 'revolve') && !thinOf({ ...editingFeature, ...draft })
     ? openProfile(doc, editingFeature.sketch) : null;
@@ -1414,10 +1646,9 @@ function App() {
       const sh = shapeAtPoint(sk as never, sketchShapes(sk as never), u, v);
       if (!sh || !editShapes.some((x) => x.id === sh.id)) return false;
       const cur = (draft.regions !== undefined ? draft.regions : ef.regions) as string[] | null | undefined;
-      const checked = new Set(Array.isArray(cur) ? editShapes.filter((x) => cur.includes(x.id)).map((x) => x.id) : editShapes.map((x) => x.id));
-      if (checked.has(sh.id)) checked.delete(sh.id); else checked.add(sh.id);
-      if (!checked.size) return true;   // at least one stays
-      setPicked({ path: 'regions', value: checked.size === editShapes.length ? null : editShapes.filter((x) => checked.has(x.id)).map((x) => x.id) });
+      const value = toggleRegion(editShapes.map((x) => x.id), cur, sh.id, editShapes.filter((x) => x.byDefault !== false).map((x) => x.id));
+      if (value === undefined) return true;   // at least one stays
+      setPicked({ path: 'regions', value });
       return true;
     },
   };
@@ -1438,10 +1669,11 @@ function App() {
       if (!editingFeature) return;
       void timed(() => controller.commit([asSurfaceOp({ ...editingFeature, ...draft })], 'surfaceExtrude')).then(() => { setDraft({}); setPreviewHint(null); redraw((n) => n + 1); });
     },
+    chainEdges: async (eff: Record<string, unknown>) => chainRefs(eff.edges, await controller.edgesBeforeCached(String(eff.id ?? ''))),
   };
   const opsOne = (f: Record<string, unknown>, id: string, next0: Record<string, unknown>): EditOp[] => {
     const next = f.draftNew ? { ...next0, suppressed: null, draftNew: null } : next0;   // a draft loft (refused when made) becomes real with its first accepted edit
-    // `regions: null` means every shape again: the field is dropped, which a plain `set` cannot do
+    // `regions: null` means the default shapes again (every shape but the holes): the field is dropped, which a plain `set` cannot do
     // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
     if (Object.values(next).some((v) => v === null)) {
       const feature = { ...f, ...next } as Record<string, unknown>;
@@ -1471,7 +1703,7 @@ function App() {
     return thread !== undefined && editingFeature.type === 'hole' ? [...ops, ...holeThreadEditOps(editingId!, holeLinked, thread, holeWalls)] : ops;
   };
   const onDraft = (next: Record<string, unknown>, thread?: HoleThread | null) => {
-    setDraft(next);
+    setDraft(next); draftRef.current = next;
     const ops = opsFromDraft(next, thread);
     if (!ops.length) return;
     void controller.preview(ops).then((r) => {
@@ -1641,7 +1873,7 @@ function App() {
     }
     if (f?.type === 'sketch') {
       setEditingId(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
-      setSketchHint(null);
+      resetSketchShell();
       void (async () => {
         const view = await controller.beginSketch(id);
         if (!view) { store.notify(t('app.sketch.failed'), 'error'); return; }
@@ -1651,7 +1883,11 @@ function App() {
       return;
     }
     setEditingId(id);
-    setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null);
+    // a feature with an edges list (Fillet, Chamfer...) opens with that field active, so taps add edges without a modifier key
+    const now = (controller.document()?.features.find((x) => x.id === id) ?? f) as { edges?: unknown } | undefined;   // a feature just added is not in this render's doc yet
+    const withEdges = Array.isArray(now?.edges);
+    if (withEdges) store.select([]);
+    setDraft({}); setPicked(null); setPickingPath(withEdges ? 'edges' : null); setPreviewHint(null);
     setLeftTab('Editor');
   };
 
@@ -1738,16 +1974,17 @@ function App() {
     readout.snapName.value = snap && snap.kind !== 'grid' ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : snap ? t('app.sketch.snap.grid') : null;
     readout.from.value = out.from ?? out.anchor ?? null;
     setToolOut({ fields: out.fields, x: lastPosRef.current.x, y: lastPosRef.current.y, pending: out.pending, snapLabel: snap ? t('app.sketch.snap.' + (snap.model ?? (snap.kind === 'point' ? snap.role ?? 'point' : snap.kind))) : undefined, snapModel: !!snap?.model });
-    if (out.hint) setSketchHint(t(out.hint));
+    const toolHint = (): string => t(out.hint!, out.dropped ? { kinds: out.dropped.map((k) => t('app.sketch.constraint.' + k, undefined, k)).join(', ') } : undefined);
+    if (out.hint) setSketchHint(toolHint());
     if (out.draft !== draft) {
       if (['move', 'copy', 'rotate', 'scale'].includes(entry.id)) toolEntitiesRef.current = [];   // done: the next run picks again
       const before = new Set(draft.constraints.map((c) => c.id));
-      const placed = entry.id === 'text' && ev.type === 'click' ? (out.state as { placed?: string }).placed : undefined;
+      const placed = (entry.id === 'text' || entry.id === 'equation') && ev.type === 'click' ? (out.state as { placed?: string }).placed : undefined;
       void controller.applySketchDraft(out.draft).then((r) => {
-        setSketchHint(r.ok || r.stale ? (out.hint ? t(out.hint) : null) : (r.hint ? t(r.hint) : null));
+        setSketchHint(r.ok || r.stale ? (out.hint ? toolHint() : null) : (r.hint ? t(r.hint) : null));
         viewTick((n) => n + 1);   // the solver's answer (degrees of freedom, constraint list) arrives after the tool's own redraw
         if (r.ok && !r.stale) settleDimensions(before, r.status);
-        // a placed text is edited in its panel: back to Select mode with the new entity picked
+        // a placed text or equation curve is edited in its panel: back to Select mode with the new entity picked
         if (placed && r.ok) { selectTool(null); selectEntity(placed, lastPosRef.current.x, lastPosRef.current.y); }
         // a circle dragged out by a finger: it is picked and its radius field takes the focus (the digit keypad), so an exact size can be typed
         const prior = touchPlaceRef.current;
@@ -1789,6 +2026,7 @@ function App() {
   /** Pick (or clear) what is under a click in Select mode: highlight it and offer its size or position as editable fields. */
   const selectItem = (kind: 'entity' | 'point', id: string | null, x: number, y: number, focus = false) => {
     const draft = controller.sketchDraft();
+    if (id) setSelConstraint(null);   // one selection at a time: a picked entity replaces a picked constraint chip
     if (!id || !draft) {
       selEntityRef.current = null;
       setEntityOut(null);
@@ -1814,6 +2052,26 @@ function App() {
     void controller.applySketchDraft(next).then((r) => { setSketchHint(r.ok || r.stale ? null : (r.hint ? t(r.hint) : null)); applyHighlight(); viewTick((n) => n + 1); });
   };
   textEditRef.current = textEdit;
+  /** The equation curve picked in Select mode (its panel is open), else null. */
+  const selectedEquation = (): string | null => {
+    const sel = selEntityRef.current; const d = controller.sketchDraft();
+    return sel?.kind === 'entity' && d && d.entities.some((e) => e.id === sel.id && isEquation(e)) ? sel.id : null;
+  };
+  /** Ask the kernel about the fields of curve `id` (once per id and fields); `apply` puts them in the sketch when they fit. */
+  const checkEquation = (id: string, f: EquationFields, apply: boolean) => {
+    const spec = equationSpec(f);
+    const key = id + ' ' + JSON.stringify(spec);
+    if (eqResultRef.current.key === key && !apply) return;
+    eqResultRef.current = { key, r: null };
+    void controller.fetchEquationCurve(spec).then((r) => {
+      if (eqResultRef.current.key !== key) return;
+      eqResultRef.current = { key, r };
+      viewTick((n) => n + 1);
+      const d = controller.sketchDraft();
+      if (!apply || 'error' in r || !d || selectedEquation() !== id) return;
+      void controller.applySketchDraft(patchEquation(d, id, f)).then((res) => { setSketchHint(res.ok || res.stale ? null : (res.hint ? t(res.hint) : null)); applyHighlight(); viewTick((n) => n + 1); });
+    }).catch(() => {});
+  };
   controller.onExtraChange = () => { viewport?.setBodyView(bodyViewNow()); redraw((n) => n + 1); };
   controller.onLumps = () => { viewport?.setBodyView(bodyViewNow()); redraw((n) => n + 1); };
   controller.onTextOutlines = () => { applyHighlight(); viewTick((n) => n + 1); const id = selectedText(); const d = controller.sketchDraft(); const e = id && d ? d.entities.find((x) => x.id === id) : null; const note = e && d ? textNotes(textOutlineOf(d, e))[0] : null; if (note) setSketchHint(t(note.key, note.params ?? {})); };
@@ -1885,6 +2143,10 @@ function App() {
       if (f) tip = t(f.id === 'len' ? 'app.sketch.tip.length' : 'app.sketch.tip.radius', { value: r2(f.value) });
     }
     setHoverTip(tip ? { text: tip, x: ev.x + 14, y: ev.y + 16 } : null);
+    const nowId = pt?.pointId ?? (next as { entity?: string }).entity ?? null;
+    if (hoverFocusTimer.current) { clearTimeout(hoverFocusTimer.current); hoverFocusTimer.current = null; }
+    if (nowId) setHoverFocus(nowId);
+    else hoverFocusTimer.current = setTimeout(() => { hoverFocusTimer.current = null; setHoverFocus(null); }, 350);
     if (cur.point === next.point && cur.entity === (next as { entity?: string }).entity) return;
     hoverRef.current = { ...next, constraint: cur.constraint };
     applyHighlight();
@@ -1946,6 +2208,14 @@ function App() {
     hoverRef.current = { ...hoverRef.current, constraint: id ?? undefined };
     setHotConstraint(id);
     applyHighlight();
+  };
+  /** A Sketch Report item was clicked: select what the constraint names (several highlight together); a constraint of points only is lit like a hovered row. */
+  const selectConstraintTargets = (id: string) => {
+    const draft = controller.sketchDraft();
+    if (!draft) return;
+    const tg = constraintTargets(draft, id);
+    if (tg.entities.length) { hoverRef.current = { ...hoverRef.current, constraint: undefined }; setHotConstraint(null); setMultiSelection(tg.entities); }
+    else hoverConstraint(id);
   };
   const deleteConstraint = (id: string) => {
     const draft = controller.sketchDraft();
@@ -2070,7 +2340,7 @@ function App() {
     const draft = controller.sketchDraft();
     if (!draft) return;
     const at = { x: ev.u, y: ev.v };
-    let snap = ev.mods.alt ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snapOn ? prefsRef.current.snaps : OBJECT_SNAPS_OFF, ...(prefsRef.current.snapOn ? { model: modelSnapsNow() } : {}), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid } : {}) });
+    let snap = ev.mods.alt || ev.mods.ctrl ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snapOn ? prefsRef.current.snaps : OBJECT_SNAPS_OFF, ...(prefsRef.current.snapOn ? { model: modelSnapsNow() } : {}), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid, gridTol: gridCapture(ev.tol, ev.grid) } : {}) });
     // tools that pick a whole curve need the curve under the pointer, not only a midpoint snap
     if (ENTITY_PICK_TOOLS.has(sketchToolRef.current) && !snap?.entityId) {
       const entityId = pickEntity(draft, at, ev.tol);
@@ -2112,6 +2382,10 @@ function App() {
   sketchKeyRef.current = (e) => {
     if (!sketching) return false;
     const sel = selEntityRef.current;
+    if (!sketchToolRef.current && selConstraintRef.current && !sel && !multiSelRef.current.length) {
+      if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); const id = selConstraintRef.current; setSelConstraint(null); deleteConstraint(id); return true; }
+      if (e.key === 'Escape') { e.preventDefault(); setSelConstraint(null); return true; }
+    }
     if (!sketchToolRef.current && multiSelRef.current.length) {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const draft = controller.sketchDraft();
@@ -2167,10 +2441,23 @@ function App() {
     const sel = store.selection.value;
     return store.mode.value === 'face' && sel.length === 1 && sel[0] !== BODY ? sel[0] : null;
   };
+  /** Everything the shell keeps for one sketch session (tool, picked entities, chips, readout, hole mode). A session starts from this
+   *  and ends in it, so nothing of the last sketch can show in the next. */
+  const resetSketchShell = () => {
+    selectTool(null);
+    selectEntity(null, 0, 0);
+    setDimEdit(null); setDimMenu(null); hoverRef.current = {}; setHotConstraint(null);
+    holeSketchRef.current = false; setHoleCorner(null);
+    projectSelRef.current = [];
+    setSketching(null); setSketchHint(null); multiSelRef.current = []; toolEntitiesRef.current = [];
+    clearReadout();
+  };
   const startNewSketch = (plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string }, after?: () => Promise<void>) => {
     setRefSel(null); setRefHover(null);   // the chosen plane's highlight must not tint the sketch
+    setPlanePick(false);
     void (async () => {
-      setSketchHint(null);
+      const wasHole = holeSketchRef.current;   // set by the Hole tool just before it asks for a sketch
+      resetSketchShell(); holeSketchRef.current = wasHole;
       let view = await controller.beginNewSketch(plane);
       // A curved face (cylinder, sphere) has no flat sketch plane: sketch on a plane touching it at the clicked point.
       if (!view && typeof plane === 'object' && plane.kind === 'face') {
@@ -2200,6 +2487,7 @@ function App() {
     })();
   };
   startSketchRef.current = (plane) => startNewSketch(plane);
+  startOnFeatureRef.current = (id) => startNewSketch({ kind: 'feature', id });
   // Add an extrude (or cut) from the selected sketch, or the last sketch in the tree, and open it in the editor.
   // `cut` is only passed by the Cut commands (an explicit choice); `add` means "the default": nothing is remembered from the last extrude.
   const addExtrude = async (opArg: 'add' | 'cut', thin = false, sketchId?: string) => {
@@ -2293,7 +2581,7 @@ function App() {
     if (fromKey === true && !escapeCancelsSketch(controller.sketchDraft())) { setSketchHint(t('app.sketch.escapeKeeps')); return; }
     selectTool(null);
     selectEntity(null, 0, 0);
-    setDimEdit(null); hoverRef.current = {}; setHotConstraint(null);
+    setDimEdit(null); hoverRef.current = {}; setHotConstraint(null); setSelConstraint(null);
     await controller.cancelSketch();
     holeSketchRef.current = false; setHoleCorner(null);
     projectSelRef.current = [];
@@ -2301,8 +2589,13 @@ function App() {
     redraw((n) => n + 1);
   };
   sketchingRef.current = !!sketching;
+  const selConstraintRef = useRef<string | null>(null);
+  selConstraintRef.current = sketching ? selConstraint : null;
+  // The controller's session ended under the shell (the sketch's feature was deleted, or undone away, or another part opened): drop the
+  // shell's half too, so no points, chips, readout or tool outlive the sketch.
+  useSketchSessionGone(!!sketching, () => !!controller.sketchDraft(), () => resetSketchShell());
   useEffect(() => { viewport?.setSketchGrid({ base: sketchPrefs.gridSpacing, visible: sketchPrefs.gridSnap }); }, [viewport, sketching?.id, sketchPrefs.gridSpacing, sketchPrefs.gridSnap]);
-  useEffect(() => { if (!sketching) clearReadout(); }, [!!sketching]);
+  useEffect(() => { if (!sketching) { clearReadout(); setReportOpen(false); } }, [!!sketching]);
   sketchConfirmRef.current = confirmSketch;
   sketchCancelRef.current = cancelSketch;
   // Dimensions and constraint symbols, projected onto the screen for this frame.
@@ -2323,28 +2616,36 @@ function App() {
     }, 350);
     return () => { stale = true; clearTimeout(timer); };
   }, [defKey, sketchPrefs.show.colours]);
-  // curves and points a conflicting constraint names turn red at once, with or without the definition colouring
-  useEffect(() => { const d = controller.sketchDraft(); viewport?.setSketchConflicts(d && stForKey ? conflictingGeometry(d, stForKey) : null); }, [defKey, viewport]);
+  // curves and points a conflicting constraint names turn red at once, with or without the definition colouring.
+  // The conflict markers are constraint markers, so turning the relation glyphs off hides them too (B5).
+  useEffect(() => {
+    const d = controller.sketchDraft();
+    viewport?.setSketchConflicts(d && stForKey && sketchPrefs.show.relations ? conflictingGeometry(d, stForKey) : null);
+  }, [defKey, viewport, sketchPrefs.show.relations]);
   const show = sketchPrefs.show;
   const annotItems = sketchDraftNow ? (() => {
     const to = (u: number, v: number) => viewport?.sketchToScreen(u, v) ?? null;
-    const all = [...annotate(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare }), ...(show.reference ? refAnnotations(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare }) : [])]
+    const all = [...annotate(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare, coincident: true }), ...(show.reference ? refAnnotations(sketchDraftNow, { upp: viewport?.sketchViewInfo()?.upp, squareRight: sketchPrefs.rightAngleSquare }) : [])]
       .filter((a) => a.driven ? show.reference : a.kind === 'dimension' ? show.dimensions : show.relations);
     // where each dimension goes: no label over another, over a segment it does not measure, or over the view's controls (see dimLayout.ts)
     const host = document.getElementById('vp')?.getBoundingClientRect();
     const keepOut = host ? [...document.querySelectorAll<HTMLElement>('#vp .display-menu, #vp .viewcube, #vp button')].map((el) => el.getBoundingClientRect()).map((r) => ({ x: r.left - host.left - 4, y: r.top - host.top - 4, w: r.width + 8, h: r.height + 8 })) : [];
     const focus = new Set<string>([...store.selection.value, ...(selEntityRef.current ? [selEntityRef.current.id] : []), ...multiSelRef.current, ...(hoverRef.current.entity ? [hoverRef.current.entity] : [])]);
-    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, focus, dimensionTool: sketchToolRef.current === 'dimension' }).map((p) => [p.id, p]));
-    return all.flatMap((a) => {
+    // what the constraint chips follow: the above, the pointer's entity or point (a moment after it leaves) and the points of those
+    const markFocus = expandFocus(sketchDraftNow, [...focus, ...(hoverFocus && !sketchToolRef.current ? [hoverFocus] : []), ...(hoverRef.current.point ? [hoverRef.current.point] : [])]);
+    const axisLocks = rectangleAxisLocks(sketchDraftNow);
+    const placed = new Map(layoutDimensions(sketchDraftNow, all, { to, viewport: { w: host?.width ?? 1200, h: host?.height ?? 800 }, keepOut, display: sketchPrefs.dimDisplay, squareRight: sketchPrefs.rightAngleSquare, focus, dimensionTool: sketchToolRef.current === 'dimension', measure: (txt) => labelBox(txt) }).map((p) => [p.id, p]));
+    const bl = (id: string) => (stForKey?.conflicts.includes(id) ? { blame: 'conflict' as const } : stForKey?.redundant.includes(id) ? { blame: 'redundant' as const } : {});
+    return separateMarks(visibleChips(all.flatMap((a): AnnotationItem[] => {
       const pd = placed.get(a.id);
       if (a.kind === 'dimension' && pd) {
         if (pd.hidden && !pd.peek) return [];
         const dim = pd.shape ? projectShape(pd.shape, to, { outside: pd.outside, text: pd.label }) : null;
-        return [{ id: a.id, text: a.text, kind: a.kind, type: a.type, driven: !!a.driven, ...(a.expr ? { fx: true } : {}), ...(dim ? { dim } : {}), x: pd.label.x, y: pd.label.y }];
+        return [{ id: a.id, text: a.text, kind: a.kind, type: a.type, driven: !!a.driven, ...bl(a.id), ...(a.expr ? { fx: true } : {}), ...(dim ? { dim } : {}), x: pd.label.x, y: pd.label.y }];
       }
       const p = viewport?.sketchToScreen(a.at.x, a.at.y);
-      return p ? [{ id: a.id, text: a.text, kind: a.kind, type: a.type, driven: !!a.driven, ...(a.expr ? { fx: true } : {}), x: p.x, y: p.y + 14 }] : [];
-    });
+      return p ? [{ id: a.id, text: a.text, kind: a.kind, type: a.type, driven: !!a.driven, ...bl(a.id), ...(a.expr ? { fx: true } : {}), x: p.x, y: p.y + 10, refs: a.refs, ...(axisLocks.has(a.id) ? { axisLock: true } : {}) }] : [];
+    }), { mode: sketchPrefs.constraintMarkers, focus: markFocus, hot: hotConstraint, selected: selConstraint }));
   })() : [];
   const stNow = sketching ? controller.sketchStatus() : null;
   const blame = (id: string) => (stNow?.conflicts.includes(id) ? 'conflict' as const : stNow?.redundant.includes(id) ? 'redundant' as const : undefined);
@@ -2382,6 +2683,7 @@ function App() {
     status: stNow, busy: defining, prefs: sketchPrefs,
     onPrefs: updatePrefs,
     onFullyDefine: () => void fullyDefineNow(),
+    onReport: () => setReportOpen((v) => !v), reportOpen,
     selected: selectedEntityIds().length > 1 ? selectedEntityIds().length : 0,
     onClearSelection: () => setMultiSelection([]),
     list: <SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />,
@@ -2798,11 +3100,14 @@ function App() {
       onConfirm={onConfirm}
       onCancel={onCancel}
       onPickRequest={(path) => {
-        if (LIST_PATHS.has(path)) {   // edge and face lists: fill from the selection now, keep following it until Done
+        if (LIST_PATHS.has(path)) {   // edge and face lists: add the selection now, then each pick adds or takes out until Done
           if (pickingPath === path) { setPickingPath(null); return; }
-          const value = pickValue(path, store.selection.value, controller.bodyEdges(), tangentChainOn());
-          if (value !== null) setPicked({ path, value });
+          const id = editingId, sel = store.selection.value, shown = controller.shownEdges();
           setPickingPath(path);
+          pickQueueRef.current = pickQueueRef.current.then(async () => {
+            const r = await controller.pickIntoList(id, path, () => fieldNow(id, path), () => [], sel, tangentChainOn(), true, shown).catch(() => null);
+            if (r && editingIdRef.current === id) { draftRef.current = { ...draftRef.current, [path]: r.value }; setPicked({ path, value: r.value }); }
+          });
           return;
         }
         setPickingPath(path); store.select([]);
@@ -2881,6 +3186,7 @@ function App() {
     const declared = new Set(evaluateScript(code).state.varDefs.map((v) => v.name));
     if (!declared.size) return;   // this script has no variables to follow
     if (d.scriptSig !== featureSig(d.features)) { store.notify(t('script.varsStale'), 'warn'); return; }
+    if (readCosmeticKnurls((d as unknown as Record<string, unknown>).cosmeticKnurls).length) { store.notify(t('script.varsKnurl'), 'warn'); return; }   // a display record is not a feature: the signature does not see it, and the rebuilt document has none
     const all = d.variables ?? [];
     const vars = Object.fromEntries(all.filter((v) => declared.has(v.name)).map((v) => [v.name, v.expr]));
     const extras = all.filter((v) => !declared.has(v.name));   // variables added by hand are kept
@@ -3039,11 +3345,20 @@ function App() {
   const catPlane = catalogPlane.value, catActive = catalogActive.value;   // a catalog drag shows the planes as drop targets and lights the one under the pointer
   useEffect(() => {
     viewport?.setRefPlanes(
-      emptyPart1 || catActive ? [...planeIds] : [],
+      emptyPart1 || catActive || planePick ? [...planeIds] : [],
       sketching ? null : catPlane ?? refPlane(refHover) ?? refPlane(refSel),
       { front: t('app.ref.front') + ' (XY)', top: t('app.ref.top') + ' (XZ)', right: t('app.ref.right') + ' (ZY)' },
     );
-  }, [emptyPart1, sketching, refHover, refSel, !!doc, catPlane, catActive]);
+  }, [emptyPart1, sketching, refHover, refSel, !!doc, catPlane, catActive, planePick]);
+  useEffect(() => { viewport?.setRefPlanePick(planePick); return () => viewport?.setRefPlanePick(false); }, [planePick]);
+  useEffect(() => {   // Escape gives up picking a plane
+    if (!planePick) return;
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setPlanePick(false); } };
+    addEventListener('keydown', key, true);
+    return () => removeEventListener('keydown', key, true);
+  }, [planePick]);
+  const pickedFace = planePick ? selectedFace() : null;
+  useEffect(() => { if (pickedFace) startNewSketch({ kind: 'face', id: pickedFace }); }, [pickedFace]);   // a flat face clicked while picking starts the sketch on it
   useEffect(() => { if (!controller.document()) void (async () => { viewport?.requestFit(); await controller.load(emptyPart(files.names.next())); markClean(); redraw((n) => n + 1); })(); }, []);
   useEffect(() => installDismissGuard(), []);   // the click that closes a menu must not also start a sketch point
   // autosave: a changed part is written 400 ms after the last change, and at once when the page is hidden
@@ -3118,6 +3433,7 @@ function App() {
     { id: 'sketch-cancel', label: t('app.sketch.cancel'), tab: 'Sketch', group: 'Finish', run: () => void cancelSketch() },
     { id: 'sketch-fully-define', label: t('app.sketch.fullyDefine'), tip: t('app.sketch.fullyDefine.tip'), tab: 'Sketch', group: 'Sketch', run: () => void fullyDefineNow() },
     { id: 'sketch-construction', label: t('app.sketch.constructionMode'), tip: t('app.sketch.constructionMode.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => constructionMode, run: () => setConstructionMode(!constructionMode) },
+    { id: 'sketch-report', label: t('app.sketch.report'), tip: t('app.sketch.report.tip'), tab: 'Sketch', group: 'Sketch', pressed: () => reportOpen, run: () => setReportOpen((v) => !v) },
     { id: 'sketch-look-normal', label: t('app.sketch.lookNormal'), tab: 'Sketch', group: 'Sketch', keys: 'N', run: () => lookNormal() },
     { id: 'sketch-show-dimensions', label: t('app.sketch.show.dimensions'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.dimensions, run: () => sketchSetShow('dimensions') },
     { id: 'sketch-show-relations', label: t('app.sketch.show.relations'), tab: 'Sketch', group: 'Sketch', pressed: () => sketchPrefs.show.relations, run: () => sketchSetShow('relations') },
@@ -3159,6 +3475,9 @@ function App() {
     { id: 'rename', icon: 'rename', label: t('cmd.rename'), enabled: () => !!doc, run: () => { if (doc) ti.topRename.begin(); } },
     ...(installEv ? [{ id: 'install', icon: 'save', label: t('app.install.action'), run: () => { const ev = installEv; setInstallEv(null); void ev.prompt().then(() => ev.userChoice).catch(() => { /* closed without choosing */ }); } }] : []),
     { id: 'settings', icon: 'settings', label: t('app.settings.title'), run: () => setSettings(true) },
+    // the published site's floating Licences and Documentation links are hidden on a phone (they printed over the bottom bar); they are here instead
+    ...(document.getElementById('licences-link') ? [{ id: 'licences', icon: 'feature-generic', label: t('app.more.licences'), run: () => { window.open((document.getElementById('licences-link') as HTMLAnchorElement).href, '_blank', 'noopener'); } }] : []),
+    ...(document.getElementById('docs-link') ? [{ id: 'docs', icon: 'feature-generic', label: t('app.more.docs'), run: () => { window.open((document.getElementById('docs-link') as HTMLAnchorElement).href, '_blank', 'noopener'); } }] : []),
   ];
   const phoneBar = (
     <div class="topbar phone-bar">
@@ -3187,7 +3506,7 @@ function App() {
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon tb-new" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
-        <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} visibleOnly={{ on: exportVisible, onChange: setExportVisible }} />
+        <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} visibleOnly={{ on: exportVisible, onChange: setExportVisible }} meshQuality={{ quality: exportQuality, chord: exportChord, onQuality: setExportQuality, onChord: setExportChord }} />
         <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'embed-geometry', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
@@ -3220,7 +3539,7 @@ function App() {
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
       <div id="vp" ref={host}>
-        {handles.menuEl}{ti.menu ? <ContextMenu x={ti.menu.x} y={ti.menu.y} items={ti.menu.items} onRun={ti.runMenu} onClose={ti.closeMenu} /> : null}{handles.aboutEl}{handles.fieldsEl}{handles.askEl}{handles.hintEl}<QuickMeasure lines={quickText} />{tri.menuEl}{tri.dialogEl}{tri.statusEl}
+        {handles.menuEl}{ti.menu ? <ContextMenu x={ti.menu.x} y={ti.menu.y} items={ti.menu.items} onRun={ti.runMenu} onClose={ti.closeMenu} /> : null}{handles.fieldsEl}{handles.askEl}{handles.hintEl}<div class="vp-notes">{handles.aboutEl}<QuickMeasure lines={quickText} /></div>{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}
@@ -3265,7 +3584,7 @@ function App() {
         {sketching && holeSketchRef.current && holeCorner ? <CornerHolesPanel floating value={holeCorner.rec} plate={holeCorner.plate} holeDiameter={holeDiameter(newHole(sketching.id, false, loadHolePrefs()))} onPlace={placeCornerHolesInSketch} /> : null}
         {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
-        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} onMenu={(a, x, y) => setDimMenu({ id: a.id, type: a.type ?? '', driven: !!a.driven, x, y })} /> : null}
+        {sketching ? <SketchAnnotations items={annotItems} hot={hotConstraint} touch={layout.value !== 'desktop'} selected={selConstraint} inert={!!sketchToolId} onSelect={(id) => { setSelConstraint(id); selectEntity(null, 0, 0); }} onEdit={startDimEdit} onHover={hoverConstraint} onToggleDriven={toggleDriven} onMenu={(a, x, y) => setDimMenu({ id: a.id, type: a.type ?? '', driven: !!a.driven, x, y })} /> : null}
         {sketching && dimMenu ? <ContextMenu x={dimMenu.x} y={dimMenu.y} items={dimensionMenu(dimMenu.type, dimMenu.driven)} onRun={runDimMenu} onClose={() => setDimMenu(null)} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} onDefine={defineParam} /> : null}
         {chrome.rightPalette ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
@@ -3283,10 +3602,12 @@ function App() {
             <span class="start-or">{t('app.start.or')}</span>
           </div>
         ) : null}
+        <ViewNav phone={phone} onTurn={(d, step) => viewport?.turnView(d, step)} onRoll={(d, step) => viewport?.rollView(d, step)} onHome={() => viewport?.homeView()} {...(sketching ? { onLookNormal: lookNormal } : {})} />
         <div class="cube-tools">
           <Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip>
           <Tip label={ortho ? t('app.view.parallel') : t('app.view.perspective')} side="bottom"><button aria-label={t('cmd.toggle-projection')} aria-pressed={ortho} class={ortho ? 'on' : ''} onClick={toggleProjection}><Icon name={ortho ? 'projection-ortho' : 'toggle-projection'} size={18} /></button></Tip>
         </div>
+        {sketching && reportOpen && !phoneOrTablet && sketchDraftNow ? <SketchReportWindow report={sketchReport(sketchDraftNow, stNow)} onSelect={selectConstraintTargets} onClose={() => setReportOpen(false)} /> : null}
         {sketching && !sketchToolId && entityOut && entityOut.fields.length ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} onDefine={defineParam} /> : null}
         {sketching && !sketchToolId && selectedText() ? (() => {
           const d = controller.sketchDraft()!; const id = selectedText()!; const f = textFields(d, id); const e = d.entities.find((x) => x.id === id)!;
@@ -3295,10 +3616,26 @@ function App() {
             onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }}
             onPickCentre={() => { textPickRef.current = textPickRef.current === id ? null : id; viewTick((n) => n + 1); }} /> : null;
         })() : null}
+        {sketching && !sketchToolId && selectedEquation() ? (() => {
+          const d = controller.sketchDraft()!; const id = selectedEquation()!; const f = equationFields(d, id);
+          if (!f) return null;
+          checkEquation(id, f, false);
+          const k = eqResultRef.current;
+          return <EquationPanel fields={f} result={k.key.startsWith(id + ' ') ? k.r : null} onChange={(next) => checkEquation(id, next, true)}
+            onDone={() => selectEntity(null, 0, 0)}
+            onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }} />;
+        })() : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} onDefine={defineParam} seed={fieldSeed} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">
-          <BusyOverlay busy={store.busy.value} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
+          {planePick ? (
+            <div class="busy-overlay plane-pick-bar" role="status" data-testid="plane-pick-bar">
+              <span>{t('app.sketch.pickPlane')}</span>
+              <button class="busy-cancel" onClick={() => setPlanePick(false)}>{t('app.sketch.pickPlane.cancel')}</button>
+            </div>
+          ) : null}
+          {sketching ? <CursorLabel enabled={sketchPrefs.cursorLabel} /> : null}
+          <BusyOverlay busy={store.busy.value} label={busyNote.value ?? undefined} showElapsed={busyNote.value !== null} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <BusyOverlay busy={!!importing.value} delayMs={0} showElapsed cancelable={importing.value?.phase !== 'building'} label={importing.value ? (importing.value.phase === 'building' ? t('files.solidcraft.building', { name: importing.value.name }) : importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
           <Toast notices={store.notices.value} />
           {tabSet.active?.parent ? (
@@ -3362,6 +3699,7 @@ function App() {
           {sheet === 'tree' ? left : sheet === 'props' ? propsBody : sheet === 'diag' ? drawerEl() : null}
         </Sheet>
       ) : null}
+      {sketching && reportOpen && phoneOrTablet && sketchDraftNow ? <SketchReportSheet report={sketchReport(sketchDraftNow, stNow)} onSelect={selectConstraintTargets} onClose={() => setReportOpen(false)} snap={reportSnap} onSnap={setReportSnap} bottom={phone ? navH : 0} /> : null}
       {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
       {samples ? <SamplesDialog samples={samples} thumbBase={base} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
@@ -3378,13 +3716,17 @@ function App() {
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => { setGuard(null); setGuardSave(null); }}
         onDiscard={() => { const go = guard; setGuard(null); setGuardSave(null); void go(); }}
         onSave={async () => { const go = guard, sv = guardSave; setGuard(null); setGuardSave(null); if (sv) { await sv(); return; } await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
+      {knurlAsk ? <KnurlExportAsk count={knurlAsk.count} onAnswer={answerKnurl} /> : null}
+      {knurlFail ? <KnurlExportFailed reason={knurlFail.reason} message={knurlFail.message} onChoose={chooseKnurl} /> : null}
       {settings ? <SettingsDialog workspace={stored} layoutPref={layoutPref.value} onLayoutPref={(v) => { layoutPref.value = v; write(LAYOUT_KEY, v); }} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         navPrefs={navPrefs} onNavPrefs={changeNav}
+        exportPrefs={exportPrefs} onExportPrefs={changeExport}
         kernel={{ prefs: kernelRouter.prefs.value, status: kernelRouter.status.value, onChange: (patch) => kernelRouter.setPrefs(patch), onTest: (v) => kernelRouter.test(v), onRetry: () => kernelRouter.retry() }}
         triPrefs={triPrefs} onTriPrefs={(patch) => { const next = { ...triPrefs, ...patch }; setTriPrefs(next); saveTriPrefs(next); }}
         sketchPrefs={sketchPrefs} onSketchPrefs={(patch) => { const next = { ...sketchPrefs, ...patch }; setSketchPrefs(next); saveSketchPrefs(next); }}
+        iconSet={iconSet} onIconSet={(v) => { setIconSetState(v); chooseIconSet(v); }}
         theme={theme} onTheme={(v) => { setTheme(v); applyTheme(v); write('cad.theme', v); viewport?.refreshTheme(); }} /> : null}
     </div>
     </VarsContext.Provider>

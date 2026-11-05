@@ -17,6 +17,10 @@ A cosmetic knurl is drawn, not cut. It exists for diamond and pyramid patterns, 
   under a pixel fade out. Up to 4 per body. The record matches by geometry (axis, radius, band), not by face name, so it keeps
   working when feature ids change; a record whose cylinder is gone draws nothing. An exploded view moves the mesh but not the
   shading, so a knurl on an exploded component is not placed correctly.
-* Export: STL, OBJ and STEP contain the plain solid. When the part has cosmetic knurls the export still runs, and a warning toast
-  says so with a button "Convert to real cut". Convert clears the records and commits the cuts (two undo steps); export again
-  to include them. Mass properties, the check panel and drawings also see the plain cylinder.
+* Export: STEP, STL, OBJ and the folder exports (STEP, STL, frozen part file) bake the records into real cuts in a scratch copy of the document
+  (`bakedDoc` in `apps/cad/src/exportKnurl.ts`: the records are removed and the cuts `cosmeticToCutOps` makes are appended) and export the copy; the
+  open document, its history and its undo stack are untouched. Setting `cad.exportPrefs.knurl`: `on` (default), `ask`, `off`. A cut that fails or
+  runs past 120 s is never written silently: the app offers the plain export or Cancel. `off` keeps the plain solid and a warning toast with a
+  button "Convert to real cut" (clears the records and commits the cuts, two undo steps). A folder export cuts only the records whose cylinder
+  (same radius, face area covering the band) is on a body of the folder. STL and OBJ with hidden bodies keep the plain solid and the warning.
+  Mass properties, the check panel and drawings also see the plain cylinder.

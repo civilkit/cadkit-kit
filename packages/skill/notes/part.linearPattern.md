@@ -1,6 +1,7 @@
-- count includes the original; spacing is between instances in mm (or totalLength from first to last).
+- count includes the original; give ONE of spacing (between instances, mm), totalLength (first to last; kept when count changes) or to (the last copy reaches a plane, at(), a flat face(sel) square to the direction, or a point [x,y,z]; toOffset negative stops short).
 - The kernel patterns along WORLD x, y or z only: a vector or an edge must be parallel to an axis. Oblique directions are refused with a Line N error.
-- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing }`.
+- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing | totalLength | to }` (one feature).
+- Warnings `patternCopiesNoEffect` / `patternCopiesApart` / `patternCopiesOverlap` in the run result name copies that miss the body, stand alone, or overlap: fix the spacing or count.
 - To pattern a pattern yourself seed with [original, patternHandle].
 - A pattern can seed another pattern; the grid helper seeds the second pattern with the originals plus the first pattern (a pattern alone omits its own original).
 - Prefer holes.grid when the repeated thing is only drilled holes.

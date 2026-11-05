@@ -56,6 +56,7 @@ As you move the pointer, CadKit snaps to existing points and curves and shows a 
 | **Spline** | A smooth curve through the points you click. Press `Enter` or click the last point again to finish. Click the first point to close the curve. `Esc` cancels. |
 | **Control-point spline** | A curve shaped by control points; it passes through the first and last only. Same keys as the spline. The degree is 3; it cannot be changed in the interface. |
 | **Bridge curve** | Click a free end of one curve, then a free end of another. A smooth spline joins them. Press `1` for tangent continuity (the default) or `2` for curvature continuity. |
+| **Equation curve** | Click where the curve starts, then type formulas `x(t)` and `y(t)` in its panel. See [Equation curves](equation-curves.md). |
 | **Point** | Each click adds a point. Points mark where **Hole** will drill. |
 | **Text** (`Q`) | Click where the text goes. See [Text](text.md). |
 

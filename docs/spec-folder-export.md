@@ -1,8 +1,12 @@
 # Export a feature-tree folder as a part: spec
 
-Status: draft, 2026-10-17. Nothing here is built. Depends on first-class bodies
-(`docs/spec-bodies-materials-assemblies.md`, item C) for the geometry flavour. Folders themselves are being added to the
-GUI separately (group, rename, ungroup, move).
+Status: 2026-10-31. Built: flavour 1 (export the geometry as STEP, STL or frozen `.ckpart`) and flavour 2 up to the
+dependency check (Extract as part, refusing with the list of outside features, faces and bodies, plus a build and volume
+check). Not built: "include dependencies" (step 3) and the assembly link. Code: `apps/cad/src/folderExport.ts`; the menu is
+in `useTreeInteraction.ts`; guide: Exporting > One folder as a file; tests: `folderExport.test.ts`,
+`folderExport.kernel.test.ts`. The geometry flavour did not need stored body ids: the bodies are found from the face names
+of the built model (a face name carries the feature that made it) and the folder is cut out of a scratch copy with a
+`deleteBody` in keep mode. The bodies spec's item C (stored ids, `body: "new"`) is not needed for this.
 
 ## Why
 

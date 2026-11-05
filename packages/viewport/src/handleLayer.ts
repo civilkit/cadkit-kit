@@ -344,11 +344,19 @@ export class HandleLayer {
       }
       this.invalidate();
     };
+    // Enter, in every shape a keyboard sends it: a phone's check key may arrive as key "Enter", as keyCode 13 with a key of "Unidentified" or "Go" / "Done",
+    // only as a keyup, as a beforeinput line break, or as a change event; closing the keyboard blurs the box. Any of them commits, Escape cancels.
+    const enter = (e: KeyboardEvent) => e.key === 'Enter' || e.keyCode === 13 || e.key === 'Go' || e.key === 'Done';
+    const escape = (e: KeyboardEvent) => e.key === 'Escape' || e.keyCode === 27;
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      if (enter(e)) { e.preventDefault(); finish(true); } else if (escape(e)) { e.preventDefault(); finish(false); }
     });
-    input.addEventListener('blur', () => finish(false));
+    input.addEventListener('keyup', (e) => { e.stopPropagation(); if (enter(e)) finish(true); });
+    input.addEventListener('beforeinput', (e) => { if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') { e.preventDefault(); finish(true); } });
+    input.addEventListener('change', () => finish(true));
+    input.addEventListener('compositionend', (e) => { if (/[\n\r]/.test((e as CompositionEvent).data ?? '')) finish(true); });
+    input.addEventListener('blur', () => finish(true));
   }
 
   /** Replace the specs by id with the ones the sink says are current (positions, wire, label text). */

@@ -1,125 +1,132 @@
-# FreeCAD FCStd import: findings and prototype
+# FreeCAD FCStd import
 
-Status: prototype in `packages/fcstd` (about 600 lines, no dependencies). It reads `Document.xml` of an FCStd and maps one
-PartDesign Body to our feature JSON; what it cannot map becomes a warning, never a crash. `.FCStd` opens from the picker and
-by drop (`apps/cad/src/files`, `main.tsx` `importFcstdBytes`), behind the unsaved-changes guard.
+Status: `packages/fcstd` reads the `Document.xml` of an FCStd and maps a PartDesign Body to our feature JSON; what it cannot map becomes
+a warning that names the feature, never a crash and never a silent drop. `.FCStd` opens from the picker and by drop
+(`apps/cad/src/files`, `main.tsx` `importFcstdBytes`), behind the unsaved-changes guard; the app answers the importer's questions about
+edges and faces with the kernel (`resolveReferences` + `fcstdResolvers`).
+
+It is verified against FreeCAD itself: `packages/fcstd/corpus` holds 84 small documents saved by FreeCAD 1.1.4 (our own scripts, see
+`corpus/README.md`) and FreeCAD's measurements of the shape it stored for every object. `corpus.kernel.test.ts` imports every document,
+builds it with the kernel and compares volume, area, centre of mass and bounding box with those numbers; `corpus/RESULTS.md` is the
+current table and `corpus/ROADMAP.md` lists what is left by cause.
+
+| 84 models (226 Body Tips / Part results) | EXACT | CLOSE | UNSUPPORTED | MISMATCH | FAILED |
+|---|---|---|---|---|---|
+| before the oracle work (models) | 23 | 0 | 37 | 2 | 22 |
+| now (models) | 49 | 1 | 33 | 1 | 0 |
+| now (Tips and results) | 139 | 1 | 83 | 3 | 0 |
+
+(Class meaning, tolerances and how the gate works: "The oracle test" below.)
 
 ## What an FCStd is
 
-A ZIP (deflate) with `Document.xml` (objects and all their properties), `GuiDocument.xml` (visibility, colours), one cached
-`<Object>.Shape.brp` per shape-bearing object (OCCT BRep text; files from 0.14 to 0.16 call them `PartShape<N>.brp`) and
-small side files (`Map.txt` element-name tables, colour arrays). The feature tree lives only in `Document.xml`; the cached
-shapes are results, per feature, which is what makes per-step verification possible.
+A ZIP (deflate) with `Document.xml` (objects and all their properties), `GuiDocument.xml` (visibility, colours; only when saved from the
+GUI), one cached `<Object>.Shape.brp` per shape-bearing object (OCCT BRep text; files from 0.14 to 0.16 call them `PartShape<N>.brp`) and
+small side files (`Map.txt` element-name tables, colour arrays). The feature tree lives only in `Document.xml`; the cached shapes are
+results, per feature, which is what makes per-step verification possible.
 
-Facts that shaped the mapping:
+Facts that shaped the mapping (each was checked against the corpus):
 
-- FreeCAD is Z-up, our kernel is Y-up in the GUI but the kernel itself only has the three standard planes
-  (`front` = XY, `top` = XZ, `right` = ZY with `u = -z`). The importer keeps FreeCAD coordinates unrotated and maps each sketch to the
-  standard plane that has the same normal axis, plus an `offset` plane feature when the sketch is not through the origin.
-  A sketch whose normal is not a coordinate axis cannot be placed (the kernel has no custom plane frame): warning, feature skipped.
-- A sketch's `Placement` property is already the resolved attachment (support, map mode, datum planes, attachment offset), so
-  datum planes and `MapMode` need no handling when the result is axis aligned.
-- A reversed frame (normal opposite to ours) mirrors the sketch: arcs get their ends swapped, pads get `flip`.
-- Pad and Pocket both run against our conventions the same way (boss along the normal, cut against it), so one flip rule
-  serves both: `flip = Reversed xor (FreeCAD normal opposite to our plane normal)`.
-- FreeCAD 1.0 replaced `Midplane` by `SideType` (0 one side, 1 two sides, 2 symmetric); old files only have `Midplane`.
-  Pre-0.17 files have no Body `Group` (the order comes from the `BaseFeature` chain from the Tip back), the sketch link is
-  `Sketch` not `Profile`, and the pocket `Type` enum differs.
-- Pad `Length` can be negative (it runs the other way).
-- Edge and face references are names like `Edge12` into the cached shape of the base feature, in OCCT's
-  `TopExp::MapShapes` order. `brep.ts` reads the BRep text (locations, curves of type line and circle, the TShapes graph),
-  walks it in that order and returns the middle point of each edge; the kernel's `resolve` query (`near` + `within`) turns the point into a
-  `{faces, at}` edge reference. Verified against OCP: same 15 edges, same points.
-- Dimensional constraints with expressions or spreadsheets: the cached numeric values are used; parametric links are dropped
-  with a warning.
-
-## Files tried
-
-Local files were not checked in (licence unknown); the online files are from the FreeCAD repository (LGPL-2.1,
-`https://github.com/FreeCAD/FreeCAD`, downloaded to the scratch directory, parsed only as data, never executed). Two small ones
-are checked in as test fixtures under `packages/fcstd/fixtures` (see `SOURCE.txt`).
-
-| file | source / licence | size | objects | mapped | volume error vs FreeCAD cached shape (OCCT) |
-|---|---|---|---|---|---|
-| PartDesignExample.FCStd (Pozidriv bit) | FreeCAD `data/examples`, LGPL-2.1 | 244 KB | 1 Body, 7 sketches, Pad, Revolution, 3 Groove, 2 Pocket, Mirrored, 2 PolarPattern, 2 datum planes; 27 lines, 2 arcs, 1 circle | 10 of 10 mapped; 8 exact, 2 hit a kernel failure | Pad 1e-16, Groove 3e-9, Mirrored 8e-9, Revolution 7e-9, Pocket 2e-7, PolarPattern 2e-6, Pocket001 2e-6, PolarPattern001 2e-8; Groove001 and Groove002: 9e-4 (kernel `booleanFailed`) |
-| TwoLengthsPadWithExpression.FCStd | FreeCAD `tests/.../TestModels`, LGPL-2.1 | 118 KB | Body, 1 circle sketch with a diameter expression, Pad (two lengths) | 1 of 1 (expression value kept, warning) | 1e-15 |
-| TwoLengthsPadCrossObjectRef.FCStd | same | 24 KB | Body, 2 circle sketches, 2 Pad, expression | 2 of 2 | 4e-16 both steps |
-| ModelFromV021.FCStd (fixture) | same | 25 KB | Body, Pad, Revolution, Chamfer; 8 lines, circle, point | 3 of 3: the chamfer through BRep edge lookup plus the kernel | Pad 7e-16, Revolution 6e-16, Chamfer under 1e-7 (checked to 3 decimals of 15759.2146 mm3) |
-| PocketTest.fcstd (fixture) | FreeCAD `data/tests`, LGPL-2.1 | 50 KB | 0.14 file: Body, 3 sketches, Pad, 2 Pocket, 2 datum planes | 1 of 3 (Pad); the pockets are up-to-first / up-to-face | Pad 3e-16 |
-| PadTest.fcstd | same | 52 KB | 0.14 file: Body, 3 sketches, 3 Pad | 1 of 3 (Pad001 and Pad002 are up-to-last / up-to-face) | Pad 3e-16 |
-| EngineBlock.FCStd | FreeCAD `data/examples`, LGPL-2.1 | 87 KB | Part workbench only: Box x5, Cylinder x3, Extrusion x7, Cut x5, MultiFuse x3, Mirroring x3, Part2DObjectPython x8 | 0 (no PartDesign Body) | not applicable |
-| dressuptest.FCStd | FreeCAD CAM tests, LGPL-2.1 | 42 KB | Path (CAM) and Python feature objects, one Box | 0, out of scope | not applicable |
-| Universal Joint.FCStd | local, licence unknown | 406 KB | 12 Bodies, 5 App::Part, Assembly + joints, 11 sketches (69 lines, 25 arcs, 4 circles), 7 Pad, 2 Pocket, Revolution, Groove, Fillet, 2 Boolean, 3 SubShapeBinder, 5 clones, 5 Python features | Pad of two bodies exact (0); Body003 and Body005 limited by binders, booleans, axes taken from other objects | Pad 0, Pad001 0 (after the negative-length fix); a Pad on a binder cannot be compared (FreeCAD volume is of the fused result, and signed) |
-| hopper_shape.FCStd | local | 4.1 MB | Body with 4 sketches (53 lines, 31 circles, 5 B-splines, 21 points, 52 internal-alignment constraints) and one `Part::Feature` (a shape feature; no PartDesign features) | 0 | not applicable |
-| Spinfire_Core.FCStd | local | 3.2 MB | 94 `Part::Feature` shapes in 9 App::Part groups | 0 (shapes only) | not applicable |
-| Tropical Modern Living Space.FCStd | local | 84 KB | 30 Part::Feature, 9 Python features, 1 sketch | 0 | not applicable |
-| FRY002_..._ASM.STEP.FCStd | local | 2.4 KB | empty document | 0 | not applicable |
-
-Across the six files that have a PartDesign tree, 18 of the 22 FreeCAD features are mapped (4 are not: up-to-first / last / face
-end conditions) and 16 of the 18 regenerate to under 2e-6 relative volume error against FreeCAD's own cached shape of the
-same step. The last two Grooves of the Pozidriv example map but our boolean reports `booleanFailed` for them (cause not
-investigated), so the result is within 9e-4 of FreeCAD rather than exact. Per-step comparison is `packages/fcstd/src/real.kernel.test.ts` (set `CK_WASM`,
-`FCSTD_DIR`, `FCSTD_VOLS` = JSON of OCCT volumes by object name made with `OCP`, `FCSTD_FILES`).
+- FreeCAD is Z-up, the kernel only has the three standard planes (`front` = XY, `top` = XZ, `right` = ZY with `u = -z`). The importer keeps
+  FreeCAD coordinates unrotated and maps each sketch to the standard plane that has the same normal axis, plus an `offset` plane feature
+  when the sketch is not through the origin. A sketch whose normal is not a coordinate axis cannot be placed (no custom plane frame):
+  warning, feature skipped. Body placements are ignored and warned: a Body's features and its Tip shape are in body coordinates.
+- A sketch's `Placement` property is already the resolved attachment. A sketch attached to a planar face (`FlatFace`, no offset) is
+  additionally put on that face by the kernel once it can name it (`plane: {kind: 'face'}`; its points are rewritten in the frame the
+  kernel gives that plane), so it follows the face when the part is edited. The static placement stays when the face is not found.
+- A reversed frame (normal opposite to ours) mirrors the sketch: arcs get their ends swapped, pads get `flip`. Pad and Pocket share one flip
+  rule, `flip = Reversed xor (FreeCAD normal opposite to the plane normal)`; a Groove turns the other way round from a Revolution.
+- FreeCAD 1.0 replaced `Midplane` by `SideType`; old files only have `Midplane`. Pre-0.17 files have no Body `Group` (the order comes from
+  the `BaseFeature` chain from the Tip back), the sketch link is `Sketch` not `Profile`, and the pocket `Type` enum differs. Enumerations
+  are stored as indices into lists that change between releases; the importer reads the 1.1 lists (see ROADMAP: per-version tables).
+- The Body ends at its `Tip`: features after it are not part of the Body (FreeCAD rolled it back) and are reported, not imported.
+- 1.x writes mapped names next to index names: `<Sub value="Axis" shadowed="Axis0"/>`; the index name wins. The origin features of the
+  second and later Bodies are `X_Axis001`, `YZ_Plane002` ...; they are found by their role (the name without the number).
+- Edge and face references are names like `Edge12` / `Face6` into the cached shape of the base feature, in OCCT's `TopExp::MapShapes`
+  order. `brep.ts` reads the BRep text (locations, lines, circles, planes and the other analytic surfaces, the TShapes graph with
+  orientations), walks it in that order and returns the middle point of each edge and the outward normal and an inner point of each planar
+  face. The kernel's `resolve` query turns a point (and normal) into an edge reference or a face id.
+- Expressions: see "Expressions and parameters".
 
 ## What the importer supports
 
 | FreeCAD | ours | notes |
 |---|---|---|
-| Sketcher: line, circle, arc, ellipse, point (construction flag kept) | sketch entities | endpoints that meet are merged into shared points; coincident constraints that need no merge are kept |
-| coincident, horizontal, vertical, parallel, perpendicular, tangent, equal, radius, diameter, distance, distance X / Y | same names (`hdist`, `vdist`) | distances use absolute values with refs ordered; driven (reference) dimensions dropped |
-| point on object, symmetric, angle, block, internal alignment, snell, weight | dropped, counted in a warning | geometry keeps FreeCAD's solved positions, so the shape is right but dragging would not behave like FreeCAD |
-| B-spline, arc of ellipse, hyperbola, parabola | dropped, warning | |
-| Pad / Pocket: Length, Midplane / symmetric, two lengths, Reversed, negative length, Pocket through all | extrude add / cut: blind, mid, two extrudes, flip, through, throughBoth | taper, custom direction, up to first / last / face: warning, feature skipped |
-| Revolution / Groove: angle, axis = sketch V / H axis, a construction line, or an origin axis lying in the sketch plane | revolve with a construction line added to the sketch | partial angles and symmetric revolve: warning (direction not verified) |
-| Mirrored (about an origin plane) | mirror | other mirror planes: warning |
-| LinearPattern, PolarPattern (axis = origin or sketch axis) | lpattern, cpattern | extent / spacing modes; edge directions: warning |
-| Fillet, Chamfer (equal distance) | fillet, chamfer with `{faces, at}` edge refs | needs the cached BRep and a resolver (the kernel); `resolveEdges(imp, resolver)`. The app has no resolver yet, so there they are left out and listed |
-| Thickness, Draft, Hole, Boolean, loft / pipe / helix, multi-transform, binders, clones | warning, skipped | |
-| Datum plane / line / point, body Placement | used through sketch Placement; a non-identity Body placement is warned and ignored | |
+| Sketcher: line, circle, arc, ellipse, point (construction flag kept) | sketch entities | endpoints that meet are merged into shared points |
+| coincident, horizontal, vertical, parallel, perpendicular, tangent, equal, radius, diameter, distance, distance X / Y, angle between two lines | same names (`hdist`, `vdist`) | distances use absolute values with refs ordered; driven (reference) dimensions dropped |
+| point on object, symmetric, block, internal alignment, angle to an axis | dropped, counted in a warning | geometry keeps FreeCAD's solved positions, so the shape is right but dragging would not behave like FreeCAD |
+| B-spline, arc of ellipse, hyperbola, parabola as profile curves | the feature that uses the sketch is skipped, with the curve types named | construction curves of these types are dropped silently |
+| Pad / Pocket: Length, Midplane, two lengths, Reversed, negative length, taper (one-sided), through all, up to first, up to a planar face | extrude add / cut: blind, mid, two extrudes, flip, `draft` / `draftOut`, through, `upToNext`, `upToFace` | custom direction, reference axis, profile from a face, up to last / shape, offset from the face: warning, feature skipped |
+| Revolution / Groove: angle, Midplane, Reversed, axis = sketch H / V axis, a construction line (`Axis0`), or an origin axis lying in the sketch plane | revolve (`end: 'mid'`, `flip`) | up to face / two angles, datum or edge axes: warning |
+| Mirrored (origin plane, or a sketch axis along a coordinate plane) | mirror | other planes: warning |
+| LinearPattern, PolarPattern (axis = origin axis or sketch axis through the origin), Length / Offset modes | lpattern, cpattern | second direction, edge directions, MultiTransform, whole-shape mode: warning |
+| Fillet, Chamfer (equal, two distances, distance and angle), all edges | fillet, chamfer with `{faces, at}` edge refs | needs the cached BRep and the kernel; a feature whose edges are not found is removed and reported |
+| Thickness (planar faces to remove, inward, or outward with sharp corners), Draft (planar faces, neutral plane = a face) | shell, draft | outward Arc join, pull direction: warning |
+| Hole: diameter, depth or through all, flat / 118 degree drill point (`DrillForDepth`), counterbore, countersink, sketch circles / arcs / points | hole on a point sketch | the cosmetic thread is not imported (the stored tapped diameter is used); tapered, counterdrill, modelled thread: warning |
+| Additive / Subtractive Box, Cylinder, Sphere, Cone, Torus, Prism (also the Part workbench ones, by `opts.object`; a turn about Z is carried) | constrained sketch + extrude, revolve, or `sphere` | Wedge, Ellipsoid, partial cylinder, turns about other axes: warning |
+| Boolean, loft, pipe, helix, binders, Scaled, MultiTransform; Part workbench objects; App::Link / App::Part | warning, skipped | `unsupportedObject` names each Part object |
+| Datum plane / line / point | used through the sketch Placement | |
 
-Warnings carry `{object, code, message}`; the app shows the first in a notice and counts the rest. `FcImport.steps`
-records which of our feature ids each FreeCAD feature produced and its cached shape file; `skipped` lists the features left out.
+Warnings carry `{object, code, message}`; the app shows the first in a notice and counts the rest. `FcImport.steps` records which of our
+feature ids each FreeCAD feature produced and its cached shape file; `skipped` lists the features left out. The rule that no feature is
+dropped silently is a test (`import.corpus.test.ts`): every feature of every Body of the corpus is in `steps` or in `skipped` with a warning
+that names it.
 
-Only one Body is imported (the one with the most features, or `opts.body`); the others are listed in `bodies`.
+One Body is imported per call (the one with the most features, or `opts.body`); the others are listed in `bodies`.
+
+## Expressions and parameters
+
+`fcexpr.ts` parses FreeCAD's expression language (units, `Sheet.alias`, `Obj.Prop`, `Obj.Constraints.Name`, `<<Label>>.Prop`, ranges,
+functions with `;`, conditionals) and `fcparams.ts` turns the expressions that bind a property into part variables: spreadsheet cells and
+aliases, VarSet and custom properties, named sketch constraints and other bound properties become `part.variables`; a bound field holds the
+kernel expression over them (`"=depth"`), a bound sketch dimension its variable in `expr`. Every translation is evaluated and must give
+the value FreeCAD stored (1e-6 relative); otherwise the number is kept and the reason is reported. Expressions with no kernel form
+(conditionals, comparisons) keep the computed number.
+
+`FcImport.params` lists the editable parameters (`Pad.Length`, `Sketch.Constraints.Width`, `Params.alias:width`, `Vars.Wd`, ...), each with
+a `set(part, value)` that writes the value where it belongs (a variable, a field, or a constraint `expr`, which is what makes the kernel
+solve the sketch again). The corpus uses them to test "same recipe, different parameter".
+
+## The oracle test
+
+`packages/fcstd/src/corpus.kernel.test.ts` (helpers `corpusOracle.ts`, `corpusVariant.ts`), kernel-backed, run on the CI box:
+
+```
+tools/remote_vitest.sh --worktree <kit> --kernel <kernel> --wasm <ck_wasm.wasm> -- packages/fcstd
+UPDATE_CORPUS=1 tools/remote_vitest.sh ... -- packages/fcstd/src/corpus.kernel.test.ts > log && node packages/fcstd/tools/extract-results.mjs log
+```
+
+For each model it imports every Body (and, for models without a Body, every Part result object), builds it, and compares the Body Tip's
+(or the result's) volume, area, centre of mass and bounding box with the dump. The box counts one-sided (ours must not stick out of
+FreeCAD's: OCCT boxes of curved shapes are loose); face counts are shown, not gated. Classes: EXACT (relative 1e-5 on volume and area,
+1e-5 mm on centre and box), CLOSE (1e-3), APPROX (1e-2), UNSUPPORTED (the importer says which feature it cannot map), MISMATCH (builds but
+differs), FAILED (importer or kernel error, or a silent drop). Ranked in that order: an honest refusal beats a silently different shape.
+When a build is not EXACT the harness also builds the prefix after each imported feature and compares it with that feature's stored shape,
+to name the first feature that deviates.
+
+`corpus/expected.json` holds the class every model and every Tip reaches today. The test fails when one gets worse, notes when one gets
+better (run with `UPDATE_CORPUS=1` and review the diff), fails when a model is missing, and fails when a model of the `mustBeGood` set is
+not EXACT or CLOSE. The output ends with a totals line, e.g. `FCStd corpus models: 84 total, 49 EXACT, 1 CLOSE, ...`.
+
+Variants: for each model with a `.v1` file, (a) the `.v1.FCStd` is imported and compared with the v1 dump, and (b) the base file is
+imported, the parameter(s) that differ between the two dumps are changed through `FcImport.params`, and the result is compared with the v1
+dump. `NA` means the importer has no parameter for a change (placements, datum offsets, expression text).
 
 ## View-only fallback (not done)
 
-When a feature cannot be mapped, the idea is to show the cached `Shape.brp` as a view-only body, like our STEP import.
-The kernel's STEP importer cannot read it: BRep text is OCCT's own format (geometry tables for curves, pcurves, surfaces and a
-TShapes graph), not STEP. `brep.ts` reads only the topology and curve parts needed for edge points; a full reader must also parse
-surfaces (plane, cylinder, cone, sphere, torus, extrusion, revolution, B-spline and Bezier with weights and knots), pcurves and
-orientation, then build a kernel body (a "make body from faces" path, as STEP import does). That is the only way to open the six
-of thirteen files here that have no PartDesign tree (Part workbench, imported shapes, Python features).
-
-## Gaps, ranked by how many of the 13 files they block
-
-1. **BRep text to kernel body** (view-only import of the cached shapes): blocks 6 of 13 files completely (EngineBlock, dressuptest, hopper_shape, Spinfire_Core, Tropical, FRY002); also the fallback for any unmappable feature. About 600 to 900 lines for the reader plus a kernel entry that builds a body from analytic and B-spline faces (STEP import has most of it).
-2. **Multi-body, App::Part, binders, clones, assembly joints**: Universal Joint, Spinfire_Core and any real assembly. Needs one part per body with its placement, `SubShapeBinder` as a reference to another body, joints to our mates (coincident / revolute exist).
-3. **End conditions up to first / last / face (and through-all pockets in old files)**: PadTest, PocketTest and a Pad in Universal Joint. The kernel has `upToFace` / `offsetFromFace` / `upToNext`; the work is mapping the face name to a persistent face (same BRep lookup as edges, for faces) and the up-to-last / first semantics.
-4. **Sketch constraints and B-splines**: point on object, symmetric, angle, block, internal alignment appear in every file that has a sketch (PartDesignExample 14 point-on-object, Universal Joint 21 and 7 symmetric, hopper_shape 52 internal alignments); our solver has `pointOnCircle`, `midpoint`, `mate`; needs `pointOnLine` / symmetric / angle checked in the sketch schema, and B-spline entities with knots and weights (the `spline` entity takes through-points only; sampling loses editability). Does not change the volume, changes how the sketch behaves when edited.
-5. **Arbitrary sketch planes** (a custom frame: origin, x axis, normal): no file here needs it (all sketches are axis aligned), but any tilted datum plane does. A `plane` feature `mode:"frame"` (or 3 points) in the kernel removes the only placement restriction.
-
-Smaller: Thickness (needs face lookup, then `shell`), Draft, Hole (a cut with a circle sketch is enough for plain holes; threaded and counterbore map to `hole`/`thread`), Part workbench primitives (Box and Cylinder map to extrudes; Cut / Fuse / Common / Mirroring to booleans we do not expose as features), expressions and spreadsheets (map `Spreadsheet.A1` to our variables; cached values are used today), loft / pipe / helix, the boolean failure of `Groove001` / `Groove002` in the Pozidriv example (needs a kernel look).
-
-## Effort estimate for a full importer
-
-| piece | estimate |
-|---|---|
-| prototype as built (zip, XML, sketches, Pad/Pocket/Revolution/Groove/Mirrored/patterns, fillet and chamfer by BRep edge lookup, app hook) | done, about one day |
-| app wiring of the kernel edge resolver, face lookup, Thickness, Draft, up-to-face, Hole, plain Part primitives | 3 to 4 days |
-| sketch constraint completion, B-splines, custom plane frame in the kernel | 3 to 5 days (kernel side is most of it) |
-| multi-body, binders, assembly joints | 1 to 2 weeks |
-| full BRep text reader into a kernel body (view-only fallback, also useful for imported shapes) | 1 week |
-| loft / pipe / helix / multi-transform, expressions and spreadsheets to variables | 1 week |
-| conformance suite: more real files with per-step volume comparison (the harness exists) | ongoing, 1 file per hour once the harness is in place |
-
-Roughly 5 to 6 weeks for something that opens most single-part PartDesign files well; the semi-complex files tried here that stay inside
-Sketch + Pad/Pocket/Revolution/Groove/patterns/fillet/chamfer already regenerate exactly.
+When a feature cannot be mapped, the idea is to show the cached `Shape.brp` as a view-only body, like our STEP import. The kernel's STEP
+importer cannot read it: BRep text is OCCT's own format. `brep.ts` reads topology, lines, circles and the analytic surfaces; a full reader
+must also parse pcurves, B-spline and extrusion/revolution surfaces and build a kernel body (a "make body from faces" path, as STEP import
+does). It would also open the Part workbench files. See ROADMAP.
 
 ## Running it
 
 ```
 python3 -I packages/fcstd/tools/analyse.py file.FCStd ...        # objects, body sequences, sketch geometry and constraints
-CK_WASM=<ck_wasm.wasm> npx vitest run packages/fcstd              # unit tests, fixtures against the kernel
-CK_WASM=... FCSTD_DIR=<dir> FCSTD_VOLS=<vols.json> FCSTD_FILES=a.FCStd,b.FCStd npx vitest run packages/fcstd/src/real.kernel.test.ts
+npx vitest run packages/fcstd/src/import.test.ts packages/fcstd/src/import.corpus.test.ts packages/fcstd/src/brep.test.ts   # no kernel needed
+tools/remote_vitest.sh ... -- packages/fcstd                      # everything, on the CI box
+CK_WASM=... FCSTD_DIR=<dir> FCSTD_VOLS=<vols.json> FCSTD_FILES=a.FCStd,b.FCStd npx vitest run packages/fcstd/src/real.kernel.test.ts   # your own files, per-step volumes
 ```
+
+FreeCAD documents other than the corpus are not checked in (the two FreeCAD sample files this package used to carry were LGPL-2.1 and
+have been removed; their tests now use corpus models).

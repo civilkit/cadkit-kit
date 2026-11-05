@@ -64,3 +64,96 @@ describe('circular pattern: axis', () => {
     expect(mount({ type: 'lpattern', id: 'F8', seeds: ['F4'], count: 3, spacing: 10 }).container.querySelector('[data-path="axis"]')).toBeNull();
   });
 });
+
+describe('linear pattern: directions and distance types', () => {
+  const lp = { type: 'lpattern', id: 'F7', seeds: ['F4'], dir: { kind: 'axis', axis: 'x' }, count: 4, spacing: 10 };
+  const q = (m: ReturnType<typeof mount>, path: string, tag = 'select') => m.container.querySelector(`[data-path="${path}"] ${tag}`) as HTMLSelectElement;
+  it('Direction 1 shows its axis, count and Spacing; Direction 2 is off', () => {
+    const m = mount(lp);
+    expect(q(m, 'dir').value).toBe('x');
+    expect(q(m, 'distanceType').value).toBe('spacing');
+    expect(m.container.querySelector('[data-path="spacing"]')).not.toBeNull();
+    expect(q(m, 'dir2').value).toBe('');
+    expect(m.container.querySelector('[data-path="count2"]')).toBeNull();
+    expect(m.container.querySelector('[data-path="axis"]')).toBeNull();
+  });
+  it('Extent starts at the span the copies cover; back to Spacing drops it', () => {
+    const m = mount(lp);
+    fireEvent.change(q(m, 'distanceType'), { target: { value: 'extent' } });
+    expect(m.drafts.at(-1)).toMatchObject({ distanceType: 'extent', extent: 30, to: null });
+    expect(m.container.querySelector('[data-path="extent"]')).not.toBeNull();
+    expect(m.container.querySelector('[data-path="spacing"]')).toBeNull();
+    fireEvent.change(q(m, 'distanceType'), { target: { value: 'spacing' } });
+    expect(m.drafts.at(-1)).toMatchObject({ distanceType: null, extent: null });
+  });
+  it('To object offers the planes, writes the reference and hides Reverse', () => {
+    const m = mount({ ...lp, distanceType: 'toObject' });
+    expect(m.container.querySelector('[data-path="reverse"]')).toBeNull();
+    const to = q(m, 'to');
+    expect([...to.options].map((o) => o.value)).toEqual(['', 'std:front', 'std:top', 'std:right']);
+    fireEvent.change(to, { target: { value: 'std:right' } });
+    expect(m.drafts.at(-1)).toMatchObject({ to: { kind: 'std', id: 'right' } });
+    expect(m.container.querySelector('[data-path="toOffset"]')).not.toBeNull();
+  });
+  it('a picked face and a point show as what they are', () => {
+    const f = mount({ ...lp, distanceType: 'toObject', to: { kind: 'face', id: 'F2.S.e2' } });
+    expect(q(f, 'to').value).toBe('face:F2.S.e2');
+    expect(q(f, 'to').selectedOptions[0].textContent).toBe('Face F2.S.e2');
+    cleanup();
+    const p = mount({ ...lp, distanceType: 'toObject', to: [50, 0, 0] });
+    expect(q(p, 'to').selectedOptions[0].textContent).toBe('Point (50, 0, 0)');
+  });
+  it('the Pick button asks the viewport for a face under `to`', () => {
+    const asked: string[] = [];
+    const r = render(<FeatureEditor feature={{ ...lp, distanceType: 'toObject' }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => asked.push(p)} options={(a) => optionsFor(a, doc)} />);
+    fireEvent.click(r.container.querySelector('[data-path="to"] button.fedit-pick') as HTMLButtonElement);
+    expect(asked).toEqual(['to']);
+  });
+  it('Direction 2 turns on with an axis (2 copies at the spacing of direction 1) and None removes it', () => {
+    const m = mount(lp);
+    fireEvent.change(q(m, 'dir2'), { target: { value: 'y' } });
+    expect(m.drafts.at(-1)).toMatchObject({ dir2: { kind: 'axis', axis: 'y' }, count2: 2, spacing2: 10 });
+    expect(m.container.querySelector('[data-path="count2"]')).not.toBeNull();
+    fireEvent.change(q(m, 'distanceType2'), { target: { value: 'toObject' } });
+    expect(m.drafts.at(-1)).toMatchObject({ distanceType2: 'toObject' });
+    fireEvent.change(q(m, 'dir2'), { target: { value: '' } });
+    expect(m.drafts.at(-1)).toMatchObject({ dir2: null, count2: null, spacing2: null, distanceType2: null, to2: null });
+  });
+});
+
+describe('pattern on path', () => {
+  const sk = (id: string, ents: Wire[]) => ({ type: 'sketch', id, points: [], entities: ents });
+  const pdoc = { features: [...features, sk('F8', [{ type: 'line', id: 'e1', p1: 'a', p2: 'b' }]), sk('F9', [{ type: 'circle', id: 'e1', c: 'c', r: 2 }])] } as unknown as PartDoc;
+  const cp = { type: 'curvepattern', id: 'F10', seeds: ['F4'], path: { kind: 'sketch', id: 'F8' }, count: 3, spacing: 10 };
+  function mountP(feature: Wire) {
+    const drafts: Wire[] = [];
+    const r = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} options={(a) => optionsFor(a, pdoc)} />);
+    return { ...r, drafts };
+  }
+  const q = (m: ReturnType<typeof mountP>, path: string) => m.container.querySelector(`[data-path="${path}"] select, select[data-path="${path}"]`) as HTMLSelectElement;
+  it('lists the open sketches as paths and writes the path reference', () => {
+    const m = mountP(cp);
+    const path = m.container.querySelector('select[data-path="path"]') as HTMLSelectElement;
+    expect([...path.options].map((o) => o.value)).toEqual(['', 'F8']);
+    expect(path.value).toBe('F8');
+  });
+  it('start point as a distance or a fraction, flip and orientation', () => {
+    const m = mountP(cp);
+    expect(m.container.querySelector('[data-path="start"]')).not.toBeNull();
+    fireEvent.change(q(m, 'startMode'), { target: { value: 'fraction' } });
+    expect(m.drafts.at(-1)).toMatchObject({ start: null, startFraction: 0 });
+    expect(m.container.querySelector('[data-path="startFraction"]')).not.toBeNull();
+    fireEvent.click(m.container.querySelector('[data-path="flip"] input') as HTMLInputElement);
+    expect(m.drafts.at(-1)).toMatchObject({ flip: true });
+    fireEvent.change(q(m, 'orientation'), { target: { value: 'tangent' } });
+    expect(m.drafts.at(-1)).toMatchObject({ orientation: 'tangent' });
+    fireEvent.change(q(m, 'orientation'), { target: { value: 'fixed' } });
+    expect(m.drafts.at(-1)).toMatchObject({ orientation: null });
+  });
+  it('offers Spacing and Extent, not To object', () => {
+    const m = mountP(cp);
+    expect([...q(m, 'distanceType').options].map((o) => o.value)).toEqual(['spacing', 'extent']);
+    fireEvent.change(q(m, 'distanceType'), { target: { value: 'extent' } });
+    expect(m.drafts.at(-1)).toMatchObject({ distanceType: 'extent', extent: 20 });
+  });
+});

@@ -1,8 +1,8 @@
 // More feature-creation commands (reference plane and axis, draft, rib, lip, mirror, helix, pipe cut, delete body, and the simple
 // surface tools). Same pattern as featureCommands.ts: pure functions turn the document, the selection and the body on screen into
 // ONE edit, `creatorCommands` registers them as palette and ribbon commands, and the app opens the Editor on the new feature.
-// Features the kernel does not implement yet (moveFace, dome, scale, fillpattern, spattern, curvepattern, splitLine, surfaceOffset,
-// cutWithSurface) have no command; see docs/feature-commands.md.
+// moveFace and moveBody are made by the positioning ball (triball/ops.ts) and scale by add-scale below. dome, fillpattern, spattern,
+// splitLine, surfaceOffset and cutWithSurface have no command yet; see docs/feature-commands.md.
 import type { Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
@@ -211,6 +211,32 @@ export function mirrorOps(c: Ctx): EditOp[] | null {
   const faces = faceMode(c);
   const plane = faces.length === 1 ? { kind: 'face', id: faces[0] } : { kind: 'std', id: 'right' };
   return [{ op: 'add', feature: { type: 'mirror', seeds: [seed.id], plane, body: false } }];
+}
+/** Length of a sketch's open chain of lines and arcs (an arc runs anticlockwise from p1 to p2, as the kernel reads it); null with a spline. */
+export function chainLength(s: Feat): number | null {
+  const pts = new Map(((s.points as Array<{ id: string; x: number; y: number }> | undefined) ?? []).map((q) => [q.id, q]));
+  let len = 0;
+  for (const e of entitiesOf(s) as Array<Ent & { c?: string }>) {
+    const a = pts.get(e.p1 ?? ''), b = pts.get(e.p2 ?? '');
+    if (e.type === 'line' && a && b) len += Math.hypot(b.x - a.x, b.y - a.y);
+    else if (e.type === 'arc' && a && b) {
+      const c = pts.get(e.c ?? '');
+      if (!c) return null;
+      let ang = Math.atan2(b.y - c.y, b.x - c.x) - Math.atan2(a.y - c.y, a.x - c.x);
+      ang = ((ang % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      len += Math.hypot(a.x - c.x, a.y - c.y) * (ang < 1e-12 ? 2 * Math.PI : ang);
+    } else if (e.type !== 'point') return null;
+  }
+  return len > 0 ? len : null;
+}
+/** The feature (the one selected in the tree, else the last) repeated 3 times along the newest open sketch, spread over its whole length. */
+export function pathPatternOps(c: Ctx): EditOp[] | null {
+  const seed = patternSeed(c);
+  const path = sketchWhere(c, isOpenSketch);
+  if (!seed || !path) return null;
+  const len = chainLength(path);
+  const spread = len !== null ? { distanceType: 'extent', extent: +len.toFixed(6) } : { spacing: niceSize(c.box, 0.2) };
+  return [{ op: 'add', feature: { type: 'curvepattern', seeds: [seed.id], path: { kind: 'sketch', id: path.id }, count: 3, ...spread } }];
 }
 /** The whole part scaled to twice its size about its centre of mass: the options panel sets the factor (one number, or one per axis), the centre and which bodies. */
 export function scaleOps(c: Ctx): EditOp[] | null {
@@ -465,6 +491,38 @@ function surfaceBox(c: Ctx): Box | null {
   return { min, max };
 }
 
+// ---- curves: project curve, edit curve, freeform ----
+
+/** Curve features whose result is a curve a later feature can take (`curves[]` of the kernel result). */
+const curveFeatures = (c: Ctx): Feat[] => feats(c).filter((f) => f.type === 'editCurve' || f.type === 'projectCurve' || f.type === 'helix');
+const hasSurfaceBody = (c: Ctx): boolean => surfaceFeatures(c).length > 0;
+/** Project a sketch (the one selected in the tree, else the last that holds a curve) or a selected Edit / Project curve onto the picked faces; no face picked projects onto every face of the part. */
+export function projectCurveOps(c: Ctx): EditOp[] | null {
+  const curve = curveFeatures(c).find((f) => f.id === c.selectedId && f.type !== 'helix');
+  const sk = curve ? null : sketchWhere(c, hasCurves);
+  const src = curve ? { curve: curve.id } : sk ? { sketch: sk.id } : null;
+  return src ? [{ op: 'add', feature: { type: 'projectCurve', ...src, faces: faceMode(c), degree: 3, tolerance: 0.001, direction: 'both' } }] : null;
+}
+/** The curves an Edit curve starts from: the picked edges, else the curve feature selected in the tree, else the curves of the sketch (selected, else last), else the last curve feature. */
+export function editCurveOps(c: Ctx): EditOp[] | null {
+  // by tolerance, with corners kept: a chain with a corner (two lines, a rounded rectangle) is refused as "not smooth" otherwise, and a count could be too small for it
+  const defaults = { method: 'tolerance', degree: 3, tolerance: 0.01, keepEnds: true, keepCorners: true };
+  const edges = c.mode === 'edge' ? edgeRefs(c.selection, c.edges) : [];
+  if (edges.length) return [{ op: 'add', feature: { type: 'editCurve', curves: edges.map((e) => ({ kind: 'edge', faces: e.faces, at: e.at })), ...defaults } }];
+  const picked = curveFeatures(c).find((f) => f.id === c.selectedId);
+  const sk = picked ? null : sketchWhere(c, hasCurves);
+  const ref = picked ?? (sk ? null : curveFeatures(c).at(-1));
+  const curves = sk
+    ? entitiesOf(sk).filter((e) => e.type !== 'point').map((e) => ({ kind: 'sketchCurve', sketch: sk.id, entity: e.id }))
+    : ref ? [{ kind: 'curve', id: ref.id }] : [];
+  return curves.length ? [{ op: 'add', feature: { type: 'editCurve', curves, ...defaults } }] : null;
+}
+/** Reshape the picked face by the control points of its net: rebuilt as a cubic of 2 x 2 spans (a 5 x 5 net); the moves are added in the Editor. Several faces are rebuilt together but cannot be moved by points (the Editor says so). */
+export function freeformOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  return faces.length ? [{ op: 'add', feature: { type: 'freeform', faces, degreeU: 3, degreeV: 3, spansU: 2, spansV: 2, edits: [] } }] : null;
+}
+
 /** The plane a new gear sits on: the one picked planar face, else the selected reference plane, else the top plane. */
 export function gearPlane(c: Ctx): { kind: string; id: string } {
   const faces = faceMode(c);
@@ -501,10 +559,13 @@ export const CREATORS: Creator[] = [
   { id: 'add-rib', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && ok((x) => sketchWhere(x, isOpenSketch))(c), ops: ribOps },
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
+  { id: 'add-pathpattern', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c) && pathPatternOps(c) !== null, ops: pathPatternOps },
   { id: 'add-scale', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c), ops: scaleOps },
   { id: 'add-gear', tab: 'Features', group: 'Create', keys: 'Shift+Y', enabled: doc, ops: (c) => gearCreateOps(c) },
   { id: 'add-gear-pair', tab: 'Features', group: 'Create', enabled: doc, ops: (c) => gearCreateOps(c, true) },
   { id: 'add-helix', tab: 'Features', group: 'Curves', enabled: ok((c) => sketchWhere(c, hasCircle)), ops: helixOps },
+  { id: 'add-project-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => (hasSolid(c) || hasSurfaceBody(c)) && projectCurveOps(c) !== null, ops: projectCurveOps },
+  { id: 'add-edit-curve', tab: 'Features', group: 'Curves', tip: true, enabled: (c) => doc(c) && editCurveOps(c) !== null, ops: editCurveOps },
   { id: 'add-pipe-cut', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && pipeCutOps(c) !== null, ops: pipeCutOps },
   { id: 'add-delete-body', tab: 'Features', group: 'Bodies', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: deleteBodyOps },
   { id: 'add-surface-planar', tab: 'Surfaces', group: 'Create', tip: true, enabled: ok((c) => sketchWhere(c, isClosedSketch)), ops: surfacePlanarOps },
@@ -518,6 +579,7 @@ export const CREATORS: Creator[] = [
   { id: 'add-surface-loft', tab: 'Surfaces', group: 'Create', tip: true, enabled: (c) => doc(c) && loftOps(c, true) !== null, ops: (c) => loftOps(c, true) },
   { id: 'add-fill', tab: 'Surfaces', group: 'Edit', keys: 'Shift+I', tip: true, enabled: (c) => doc(c) && fillOps(c) !== null, ops: fillOps },
   { id: 'add-extend', tab: 'Surfaces', group: 'Edit', keys: 'Shift+X', tip: true, enabled: (c) => doc(c) && extendOps(c) !== null, ops: extendOps },
+  { id: 'add-freeform', tab: 'Surfaces', group: 'Edit', tip: true, enabled: (c) => (hasSolid(c) || hasSurfaceBody(c)) && faceMode(c).length > 0, ops: freeformOps },
   { id: 'add-delete-face', tab: 'Surfaces', group: 'Edit', enabled: (c) => hasSolid(c) && faceMode(c).length > 0, ops: deleteFaceOps },
 ];
 

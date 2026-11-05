@@ -71,6 +71,7 @@ export default {
     async run(rec) {
         const { page } = rec;
         await rec.begin();
+        await rec.caption('Sketch the outline: type each length and angle');
         await rec.click(page.getByRole('button', { name: /sketch on front plane/i }));
         await rec.skip(() => sleep(900));
         await rec.shot('01-sketch');
@@ -81,17 +82,20 @@ export default {
         await sleep(300);
         await rec.glide(780, 430, 400);
         // outline up the right side: base, standing ring, bevel, straight body
+        rec.zoom(780, 430, 1.7);         // the typed fields and dimensions follow the pointer
         await seg(rec, 5, 0);            // flat centre of the push-up
         await seg(rec, D, -45);          // push-up cone
         await seg(rec, 10, 0);           // standing ring
         await seg(rec, D, 45);           // base bevel
         await seg(rec, 120, 90);         // straight body up to y = 130
+        rec.zoomOut();
         await rec.shot('02-body');
         let lx, ly;
         if (process.env.NOSPLINE) {
             await seg(rec, Math.hypot(20, 50), Math.atan2(50, -20) * 180 / Math.PI);   // test variant: straight shoulder
         } else {
             // the shoulder is a spline: pick the tool, fit the view, then click grid points (the first on the end of the body line)
+            await rec.caption('The shoulder is one smooth spline');
             await rec.click(page.getByTestId('slot-spline'));
             await rec.click(page.locator('[aria-label="Fit" i], [title^="Fit" i]').first());
             await rec.skip(() => sleep(700));
@@ -116,6 +120,7 @@ export default {
 
         }
         // back to the Line tool: start on the spline's end point, then the neck, the support ring and the mouth
+        await rec.caption('Finish the neck, ring and mouth, then close on the axis');
         if (lx !== undefined) { await rec.click(page.getByTestId('slot-line')); await rec.clickAt(lx, ly, 450); }
         await seg(rec, 10, 90);          // neck up to y = 190
         await seg(rec, 5, 0);            // support ring out
@@ -130,11 +135,13 @@ export default {
         await page.keyboard.press('Escape'); await sleep(400);
         await rec.shot('06-closed');
         // Revolve the closed outline: the axis defaults to the sketch's vertical axis
+        await rec.caption('Revolve the closed outline around the axis');
         await rec.click(page.getByTestId('cmd-sketch-revolve'));
         await rec.skip(() => sleep(1200));
         await rec.shot('07-revolve-card');
         console.log('CARD:', ((await page.locator('.editor, [class*=editor], [data-testid=feature-card]').first().innerText().catch(() => '')) || '').replace(/\s+/g, ' ').slice(0, 600));
         console.log('OPEN:', await page.evaluate(() => { const hit = [...document.querySelectorAll('*')].filter((e) => /This profile is open/.test(e.textContent ?? '') && e.children.length < 8).sort((x, y) => (x.textContent ?? '').length - (y.textContent ?? '').length)[0]; return hit ? (hit.textContent ?? '').replace(/\s+/g, ' ').slice(0, 300) : 'none'; }));
+        await rec.zoomOn(page.getByTestId('feature-ok'), 1.6, -120, -80); await sleep(900); rec.zoomOut();
         await rec.click(page.getByTestId('feature-ok'));
         await rec.waitFor(/Features\s*[1-9]/);
         await rec.skip(() => sleep(800));
@@ -143,6 +150,7 @@ export default {
         await rec.click(page.locator('.tree-wrap *', { hasText: /^Top Plane/ }).first());
         await sleep(600);
         await rec.shot('09-top-selected');
+        await rec.caption('Petal base: two arcs, repeated five times');
         await rec.click(page.getByTestId('slot-new-sketch'));
         await rec.skip(() => sleep(1500));
         await rec.shot('10-petal-sketch');
@@ -183,6 +191,7 @@ export default {
         await page.keyboard.press('Enter'); await rec.skip(() => sleep(900));
         await rec.shot('17-pattern-done');
         // cut the petals into the base: Extrude from the petal sketch
+        await rec.caption('Cut the petals up into the base with a 10 degree draft');
         await rec.click(page.getByTestId('cmd-sketch-extrude'));
         await rec.skip(() => sleep(1500));
         await rec.shot('18-extrude-card');
@@ -222,6 +231,7 @@ export default {
         await rec.clickAt(800, 530, 600);
         await sleep(600);
         await rec.shot('23-face-picked');
+        await rec.caption('Shell the bottle from the mouth: 0.35 mm wall');
         await rec.click(page.getByTestId('cmd-add-shell'));
         await rec.skip(() => sleep(1200));
         await rec.shot('24-shell-card');
@@ -235,6 +245,7 @@ export default {
         await page.keyboard.press('7'); await rec.skip(() => sleep(900));
         await page.keyboard.press('z'); await rec.skip(() => sleep(1200));
         await rec.shot('26-done');
+        await rec.caption('A 500 ml PET bottle in seven features');
         rec.mark('poster');
         // a slow turn of the finished bottle
         await rec.glide(900, 600, 500);
@@ -242,6 +253,8 @@ export default {
         await rec.glide(1050, 560, 1500);
         await page.mouse.up();
         await sleep(1200);
+        await rec.caption('');
+        rec.zoomOut();
         await rec.finish();
     },
 };

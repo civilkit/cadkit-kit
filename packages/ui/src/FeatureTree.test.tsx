@@ -471,3 +471,36 @@ describe('FeatureTree automation hooks', () => {
     expect(container.querySelector('[data-testid="tree-row-F2"]')!.getAttribute('data-id')).toBe('F2');
   });
 });
+
+describe('FeatureTree folder switch', () => {
+  const props = { status: [], selectedId: null, onSelect: () => {}, onMove: () => {}, onRemove: () => {}, onToggleSuppress: () => {} };
+  const hist = (off = false) => [
+    { id: 'F1', type: 'sketch', group: 'History', suppressed: off }, { id: 'F2', type: 'extrude', group: 'History', uses: ['F1'], suppressed: off },
+    { id: 'F3', type: 'importBody', name: 'Imported remainder' },
+  ];
+  it('a folder of one row with its sketch tucked under it is shown as a folder, and the remainder stays outside it', () => {
+    const { container } = render(<FeatureTree {...props} rows={hist()} />);
+    const folder = container.querySelector('.row.folder') as HTMLElement;
+    expect(folder.getAttribute('data-group')).toBe('History');
+    expect(folder.textContent).toContain('2 features');
+    expect(container.textContent).toContain('Imported remainder');
+  });
+  it('the folder row has one switch that hands the ids of the folder to the app, and shows when the whole folder is off', () => {
+    const calls: Array<[string[], string]> = [];
+    const { container, rerender } = render(<FeatureTree {...props} rows={hist()} onToggleFolder={(ids, name) => calls.push([ids, name])} />);
+    expect(container.querySelector('.row.folder')!.className).not.toContain('suppressed');
+    const sw = container.querySelector('.row.folder .folder-sup') as HTMLButtonElement;
+    expect(sw.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(sw);
+    expect(calls).toEqual([[['F2', 'F1'], 'History']]);
+    rerender(<FeatureTree {...props} rows={hist(true)} onToggleFolder={(ids, name) => calls.push([ids, name])} />);
+    expect(container.querySelector('.row.folder')!.className).toContain('suppressed');
+    expect((container.querySelector('.row.folder .folder-sup') as HTMLElement).getAttribute('aria-pressed')).toBe('true');
+    // the remainder is not part of the folder, so it is not shown suppressed
+    expect(container.querySelector('[data-id="F3"]')!.className).not.toContain('suppressed');
+  });
+  it('without onToggleFolder there is no switch', () => {
+    const { container } = render(<FeatureTree {...props} rows={hist()} />);
+    expect(container.querySelector('.folder-sup')).toBeNull();
+  });
+});

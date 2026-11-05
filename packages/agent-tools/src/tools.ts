@@ -401,11 +401,12 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'export',
-      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed.",
-      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' } }, ['format']),
+      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed. Mesh formats (stl, glb) take `quality` (coarse | normal | fine, default normal: the viewer's mesh) and/or `chord_mm`, an absolute chord height in mm (the most a facet may sit off the true surface; it replaces the preset's chord; smaller means more triangles); the reply says the chord used and the triangle count.",
+      inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' }, quality: { type: 'string', enum: ['coarse', 'normal', 'fine'] }, chord_mm: { type: 'number', minimum: 0, maximum: 1000000 } }, ['format']),
       async handler(i, a) {
         const fmt = String(i.format);
         if (i.cache === true && fmt !== 'ckpart') throw new ToolError('bad_input', 'cache applies to the ckpart format only', 'drop cache, or use format ckpart');
+        if ((i.quality !== undefined || i.chord_mm !== undefined) && fmt !== 'stl' && fmt !== 'glb') throw new ToolError('bad_input', 'quality and chord_mm apply to the mesh formats stl and glb only', 'drop them, or use format stl or glb');
         const stem = (a.doc.name || 'part').replace(/[^\w\- ]+/g, '_').trim() || 'part';
         const path = resolvePath(typeof i.path === 'string' && i.path ? i.path : `${stem}.${fmt === 'ckpart' ? 'ckpart' : fmt}`);
         let bytes: Uint8Array | string;
@@ -422,8 +423,16 @@ export function createTools(): ToolDef[] {
         else {
           const v = await a.session.bodyForView();
           if (!v || !v.mesh.positions.length) throw new ToolError('no_body', 'the document has no solid to export', 'run_script first');
-          if (fmt === 'stl') { const r = meshToStl(v.mesh, { name: stem }); bytes = r.data; extra = { triangles: r.triangles, watertight: (r.check as { watertight?: boolean }).watertight }; }
-          else bytes = meshToGlb(v.mesh.positions, stem);
+          let mesh: { positions: Float32Array } = v.mesh;
+          if (i.quality !== undefined || i.chord_mm !== undefined) {
+            let rep;
+            try { rep = await a.session.exportMesh({ ...(i.quality !== undefined ? { quality: i.quality as 'coarse' | 'normal' | 'fine' } : {}), ...(i.chord_mm !== undefined ? { chord_mm: Number(i.chord_mm) } : {}) }); }
+            catch (e) { throw new ToolError('bad_input', (e as Error).message, 'quality is coarse, normal or fine; chord_mm is a positive number of millimetres'); }
+            mesh = rep.mesh;
+            extra = { chord_mm: rep.chord, ...(rep.chordRaised ? { chordRaised: true } : {}), ...(rep.failed.length ? { unmeshedFaces: rep.failed } : {}) };
+          }
+          if (fmt === 'stl') { const r = meshToStl(mesh, { name: stem }); bytes = r.data; extra = { ...extra, triangles: r.triangles, watertight: (r.check as { watertight?: boolean }).watertight }; }
+          else { bytes = meshToGlb(mesh.positions, stem); extra = { ...extra, triangles: mesh.positions.length / 9 }; }
         }
         mkdirSync(dirname(path), { recursive: true });
         writeFileSync(path, bytes);

@@ -12,7 +12,8 @@ export function installDismissGuard(doc: Document = document, viewportSelector =
   const onDown = (e: Event) => {
     const el = e.target as Element | null;
     if (!el?.closest?.(viewportSelector)) return;
-    if (popupOpen(doc)) e.stopPropagation();
+    // the view navigation ring is part of the viewport but not a place a click can land by mistake: its arrows keep working while its own menu is open
+    if (popupOpen(doc) && !el.closest('.viewnav')) e.stopPropagation();
   };
   doc.addEventListener('pointerdown', onDown, true);
   return () => doc.removeEventListener('pointerdown', onDown, true);

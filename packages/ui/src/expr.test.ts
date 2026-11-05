@@ -28,10 +28,37 @@ describe('expression evaluator (mirrors the kernel)', () => {
     expect(ev('=W', { w: 30 })).toEqual('unknownName');
     expect(evalExpr('=abc', {})).toEqual({ ok: false, code: 'unknownName', name: 'abc' });
   });
-  it('min, max and round are not kernel functions', () => {
-    expect(ev('max(1)')).toBe('unknownName');
-    expect(ev('round(1.4)')).toBe('unknownName');
-    expect(ev('min(1)')).toBe('unknownName');
+  it('the kernel\'s multi-argument and inverse functions', () => {
+    expect(ev('=max(1,5)')).toBe(5);   // a comma separates the arguments inside the call
+    expect(ev('max(1.5, 2) + 1,5')).toBe(3.5);   // and is a decimal point outside it
+    expect(ev('min(3, 1, 2)')).toBe(1);
+    expect(ev('mod(-7, 4)')).toBe(-3);
+    expect(ev('hypot(3, 4)')).toBe(5);
+    expect(ev('atan2(1, 1)')).toBeCloseTo(45, 12);
+    expect(ev('asin(0.5)')).toBeCloseTo(30, 12);
+    expect(ev('round(2.5) + round(-2.5) + round(2.4)')).toBe(2);   // halves away from zero
+    expect(ev('exp(0) + ln(1) + log10(1000)')).toBe(4);
+    expect(ev('max(sqrt(16), min(9, 7)) * 2 cm')).toBe(140);
+    expect(ev('sqrt(2,25)')).toBe(1.5);   // the older functions keep the decimal comma
+    for (const bad of ['max()', 'min(1,)', 'pow(2)', 'ln(0)', 'asin(2)', 'mod(1,0)', 'exp(1000)']) expect(ev(bad), bad).toBe('badExpression');
+    expect(ev('Max(1,2)')).toBe('unknownName');   // lower case only
+    expect(ev('max 1')).toBe('unknownName');   // a name that is not called is just a name
+    expect(ev('=max*2', { max: 7 })).toBe(14);   // a variable of that name still works
+    expect(ev('=max(1, 3)', { max: 7 })).toBe(3);
+  });
+  it('hyperbolic functions and their inverses (unitless, as in the kernel)', () => {
+    expect(ev('sinh(1)')).toBeCloseTo(1.1752011936438014, 12);
+    expect(ev('cosh(1)')).toBeCloseTo(1.5430806348152437, 12);
+    expect(ev('tanh(1)')).toBeCloseTo(0.7615941559557649, 12);
+    expect(ev('asinh(1)')).toBeCloseTo(0.881373587019543, 12);
+    expect(ev('acosh(2)')).toBeCloseTo(1.3169578969248166, 12);
+    expect(ev('atanh(0.5)')).toBeCloseTo(0.5493061443340549, 12);
+    expect(ev('acosh(1)')).toBe(0);
+    expect(ev('2 * sinh(1) + 1 cm')).toBeCloseTo(12.350402387287603, 12);
+    expect(ev('=sinh*2', { sinh: 3 })).toBe(6);
+    for (const bad of ['acosh(0.5)', 'acosh(-1)', 'atanh(1)', 'atanh(-1)', 'atanh(1.5)', 'sinh(1000)', 'cosh(1000)', 'sinh()', 'cosh(1,2)', 'asinh(1,2)']) expect(ev(bad), bad).toBe('badExpression');
+    expect(ev('sinh 1')).toBe('unknownName');
+    expect(ev('Sinh(1)')).toBe('unknownName');
   });
 });
 

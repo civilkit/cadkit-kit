@@ -25,7 +25,7 @@ The same app adapts to the screen. It chooses a layout from the window width and
 - **Numbers on a phone.** Every number field opens the digit keypad with a Done key. Fields that take a formula or a variable have an **ƒ** key beside them that switches to the full keyboard (and **123** back), and a **±** key where the keypad has no minus. The label on the drawing (for example "Depth 20 mm") is a button too: tap it to type an exact value in place.
 - **Sketching with a finger.** While a sketch tool is active, one finger belongs to the tool: press the first point (a circle's centre), drag to size the shape with a live preview and lift to place it, or tap, then tap, as before. Two fingers pan and pinch the sketch view. A circle dragged out this way is selected with its **radius** field focused, so you can type an exact size. A touch the system cancels, or a second finger that lands, drops whatever the first one began. The bar above the bottom bar has **Done**, **Cancel shape**, **Undo** and **Delete**, because a phone has no Enter, Escape or Delete key. Points are picked from twice as far as with a mouse.
 - **Tablet.** One top bar row, the ribbon compact (tabs, then its tools) and the tree and the properties docked at the sides, as on a desktop but narrower. A single open document has no tab strip.
-- **Touch on the model.** One finger orbits (or draws, with a sketch tool), two fingers pinch to zoom and pan, a tap selects. One finger dragging the view cube turns the model; a tap on a cube face snaps to that view. Putting a second finger down cancels whatever the first one began, so a pinch never selects or moves anything. Buttons are at least 44 px; the hide and suppress buttons of tree rows are always visible, since a finger cannot hover.
+- **Touch on the model.** One finger orbits (or draws, with a sketch tool), two fingers pinch to zoom and pan, a tap selects. One finger dragging the view cube turns the model; a tap on a cube face, an edge or a corner snaps to that view. The arrow ring around the cube has finger-sized buttons (44 px): four arrows that turn the view a step (hold to keep turning), two roll arrows and **Home**. On a phone it is open by default, 160 px square in the top right corner so the middle of the drawing stays clear; its menu button (three dots) hides the arrows when you want the room, and sets the step size. See [Moving around the model](navigation.md). Putting a second finger down cancels whatever the first one began, so a pinch never selects or moves anything. Buttons are at least 44 px; the hide and suppress buttons of tree rows are always visible, since a finger cannot hover.
 
 ## The top bar
 
@@ -118,7 +118,7 @@ On the right, the inspector shows the properties of the selected feature as plai
 
 The viewport shows the model. Over it you find:
 
-- The **view cube** in the top right corner, with the **Fit** and projection buttons under it. See [Moving around the model](navigation.md).
+- The **view cube** in the top right corner, with its arrow ring (turn, roll, home) and the **Fit** and projection buttons under it. See [Moving around the model](navigation.md).
 - The **Display** button (an eye icon), described below.
 - The **selection list** at the bottom right when something is selected. See [Selecting things](selection.md).
 - On-canvas handles: arrows and dots you can drag to change a depth, a fillet radius, a shell thickness or a hole diameter. They can be turned off in the settings.

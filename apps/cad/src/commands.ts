@@ -28,9 +28,9 @@ export interface IoActions {
   canExport(kind: ExportKind): boolean;
 }
 
-export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'obj' | 'dxf-sketch' | 'dxf-views';
+export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'obj' | '3mf' | 'glb' | 'dxf-sketch' | 'dxf-views';
 /** The export commands in menu order; each is the command `export-<kind>`. */
-export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', 'step', 'dxf-sketch', 'dxf-views'];
+export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views'];
 
 export interface Actions {
   io?: IoActions;
@@ -81,6 +81,8 @@ export interface Actions {
   resetLayout?(): void;
   /** Sketch on the selected face or plane (S). */
   sketchHere(): void;
+  /** Start a sketch by picking one of the origin planes (or a flat face) in the 3D view. */
+  sketchPickPlane?(): void;
   toggleProjection(): void;
   /** Swap the camera's up axis between Y (default) and Z. */
   toggleUpAxis?(): void;
@@ -147,6 +149,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'add-thin-extrude', label: t('cmd.add-thin-extrude'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('add', true) },
     { id: 'add-thin-cut', label: t('cmd.add-thin-cut'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: () => a.addExtrude('cut', true) },
     { id: 'sketch-here', label: t('cmd.sketch-here'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: a.sketchHere },
+    { id: 'sketch-pick-plane', label: t('cmd.sketch-pick-plane'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.sketchPickPlane?.() },
     { id: 'sketch-on-face', label: t('cmd.sketch-on-face'), tab: 'Home', group: 'Sketch', enabled: a.hasFaceSelection, run: a.sketchOnFace },
     { id: 'sketch-new-front', label: t('cmd.sketch-new-front'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('front') },
     { id: 'sketch-new-top', label: t('cmd.sketch-new-top'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: () => a.newSketch('top') },

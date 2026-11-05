@@ -50,6 +50,68 @@ export const tensionOf = (eff: Wire, key: 'startNormal' | 'endNormal'): number =
 };
 export const tensionPatch = (key: 'startNormal' | 'endNormal', v: number): Wire => ({ [key]: v > 0 ? v : null });
 
+/** The loft centre line: the id of the sketch (a planar open chain) the sections follow, or ''. */
+export const centreLineOf = (eff: Wire): string => ((eff.centreLine as { sketch?: unknown } | null | undefined)?.sketch as string | undefined) ?? '';
+export const centreLinePatch = (sketch: string): Wire => ({ centreLine: sketch ? { sketch } : null });
+
+/** Loft connectors, one per profile: the fraction (0 to 1) of a closed profile's length where its start point sits, null = chosen by the kernel. */
+export function connectorsOf(eff: Wire, n: number): Array<number | null> {
+  const a = Array.isArray(eff.connectors) ? (eff.connectors as unknown[]) : [];
+  return Array.from({ length: n }, (_, i) => (typeof a[i] === 'number' && Number.isFinite(a[i] as number) ? (a[i] as number) : null));
+}
+/** Sets the connector of profile `i`; none left set removes the field. */
+export function connectorPatch(eff: Wire, n: number, i: number, value: number | null): Wire {
+  const c = connectorsOf(eff, Math.max(n, i + 1));
+  c[i] = value === null || !Number.isFinite(value) ? null : Math.min(1, Math.max(0, value));
+  return { connectors: c.some((x) => x !== null) ? c : null };
+}
+
+// ---- thicken ----
+
+/** The ramp of a variable thicken: thickness = interpolation of `stops` [s, t] at s = point . along (docs/spec-agent-interface.md "Variable thickness"). */
+export const MAX_STOPS = 6;
+export const thickenVariable = (eff: Wire): boolean => !!eff.thicknessAt && typeof eff.thicknessAt === 'object';
+type Ramp = { along?: unknown; stops?: unknown };
+export function alongOf(eff: Wire): [number, number, number] {
+  const a = (eff.thicknessAt as Ramp | undefined)?.along;
+  const n = (i: number) => (Array.isArray(a) && typeof a[i] === 'number' ? (a[i] as number) : 0);
+  return Array.isArray(a) ? [n(0), n(1), n(2)] : [0, 0, 1];
+}
+export function stopsOf(eff: Wire): Array<[number, number]> {
+  const a = (eff.thicknessAt as Ramp | undefined)?.stops;
+  return (Array.isArray(a) ? a : []).map((x) => (Array.isArray(x) ? [Number(x[0]), Number(x[1])] as [number, number] : [0, 1]));
+}
+const constantOf = (eff: Wire): number => (typeof eff.thickness === 'number' && eff.thickness > 0 ? eff.thickness : 1);
+/** Variable thickness on or off. On starts a two-stop ramp from the constant thickness to half of it along Z; off keeps the first stop as the constant one. */
+export function patchThickenVariable(eff: Wire, on: boolean): Wire {
+  if (on) { const t = constantOf(eff); return { thickness: null, thicknessAt: { along: [0, 0, 1], stops: [[0, t], [10, t / 2]] } }; }
+  return { thicknessAt: null, thickness: stopsOf(eff)[0]?.[1] ?? constantOf(eff) };
+}
+export const THICKEN_AXES: Array<[string, number[]]> = [['x', [1, 0, 0]], ['y', [0, 1, 0]], ['z', [0, 0, 1]]];
+/** The axis name of `along` when it is X, Y or Z, else 'custom'. */
+export const thickenAxisOf = (eff: Wire): string => THICKEN_AXES.find(([, v]) => v.every((x, i) => x === alongOf(eff)[i]))?.[0] ?? 'custom';
+export const patchThickenAxis = (eff: Wire, axis: string): Wire => {
+  const v = THICKEN_AXES.find(([k]) => k === axis)?.[1];
+  return v ? { thicknessAt: { along: v, stops: stopsOf(eff) } } : {};
+};
+export function patchStop(eff: Wire, i: number, which: 0 | 1, value: number): Wire {
+  const stops = stopsOf(eff).map((s) => [...s] as [number, number]);
+  if (stops[i]) stops[i][which] = value;
+  return { thicknessAt: { along: alongOf(eff), stops } };
+}
+export function addStop(eff: Wire): Wire {
+  const stops = stopsOf(eff);
+  if (stops.length >= MAX_STOPS) return {};
+  const [s1, t1] = stops[stops.length - 1] ?? [0, constantOf(eff)];
+  const step = stops.length > 1 ? s1 - stops[stops.length - 2][0] : 10;
+  return { thicknessAt: { along: alongOf(eff), stops: [...stops, [s1 + (step > 0 ? step : 10), t1]] } };
+}
+export function removeStop(eff: Wire, i: number): Wire {
+  const stops = stopsOf(eff);
+  if (stops.length <= 2) return {};
+  return { thicknessAt: { along: alongOf(eff), stops: stops.filter((_, k) => k !== i) } };
+}
+
 // ---- sweep ----
 
 /** The curve entities (lines, arcs, splines, circles) of a sketch, for a guide curve reference. */

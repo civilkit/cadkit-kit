@@ -44,7 +44,22 @@ describe('ExportMenu', () => {
   it('shows an Only visible bodies checkbox when asked and reports its changes', () => {
     const onChange = vi.fn();
     render(<ExportMenu items={items()} open onOpenChange={() => {}} visibleOnly={{ on: false, onChange }} />);
-    fireEvent.click(screen.getByLabelText('Only visible bodies (STL, OBJ)'));
+    fireEvent.click(screen.getByLabelText('Only visible bodies (STL, OBJ, 3MF, GLB)'));
     expect(onChange).toHaveBeenCalledWith(true);
+  });
+  it('shows the mesh quality and chord rows when asked and reports their changes', () => {
+    const onQuality = vi.fn(), onChord = vi.fn();
+    render(<ExportMenu items={items()} open onOpenChange={() => {}} meshQuality={{ quality: 'normal', chord: '', onQuality, onChord }} />);
+    const sel = screen.getByLabelText('Mesh quality (STL, OBJ, 3MF, GLB)') as HTMLSelectElement;
+    expect(Array.from(sel.options).map((o) => o.value)).toEqual(['coarse', 'normal', 'fine']);
+    expect(sel.value).toBe('normal');
+    fireEvent.change(sel, { target: { value: 'coarse' } });
+    expect(onQuality).toHaveBeenCalledWith('coarse');
+    fireEvent.input(screen.getByLabelText('Chord tolerance (mm)'), { target: { value: '0.1' } });
+    expect(onChord).toHaveBeenCalledWith('0.1');
+  });
+  it('has no quality rows unless asked', () => {
+    render(<ExportMenu items={items()} open onOpenChange={() => {}} />);
+    expect(screen.queryByLabelText('Mesh quality (STL, OBJ, 3MF, GLB)')).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { DEFAULT_SETTINGS, pointTool } from '@kit/sketch';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
+import { chainRefs } from './roundChain';
 import { DEFAULT_PREFS } from './holeData';
 import { adviceOf } from './diagnosticsText';
 import './locales/en';
@@ -31,6 +32,27 @@ const rounded = (): PartDoc => {
     { id: 'e5', type: 'line', p1: 'a5', p2: 'a6' }, { id: 'e6', type: 'arc', c: 'c3', p1: 'a6', p2: 'a7' }, { id: 'e7', type: 'line', p1: 'a7', p2: 'a8' }, { id: 'e8', type: 'arc', c: 'c4', p1: 'a8', p2: 'a1' },
   ];
   return { ...emptyPart('Plate'), features: [{ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points, entities, constraints: [] }, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 10 }], seq: 3 } as unknown as PartDoc;
+};
+
+/** A ring of five petals on a hub (radial flank lines from the hub circle of radius 10 out to 30, each petal closed by a round end
+ *  tangent to both flanks, the hub arcs between the petals), extruded 10 on the top plane. Entities e1..e20: flank, round end, flank, hub arc. */
+const petalRing = (): PartDoc => {
+  const N = 5, Rc = 10, tm = 30, rho = 8.83044266165705;
+  const alpha = Math.atan2(rho, tm), d = Math.hypot(tm, rho), th0 = Math.PI / 2 - alpha;
+  const points: Array<{ id: string; x: number; y: number }> = [], entities: Array<Record<string, unknown>> = [], ids = new Map<string, string>();
+  const P = (p: number[]) => { const k = p.map((v) => v.toFixed(7)).join(','); if (!ids.has(k)) { ids.set(k, 'p' + (ids.size + 1)); points.push({ id: ids.get(k)!, x: p[0], y: p[1] }); } return ids.get(k)!; };
+  const at = (a: number, r: number) => [r * Math.cos(a), r * Math.sin(a)];
+  let n = 0;
+  const line = (a: number[], b: number[]) => entities.push({ type: 'line', id: 'e' + ++n, p1: P(a), p2: P(b) });
+  const arc = (c: number[], a: number[], b: number[]) => { const cid = 'c' + n; points.push({ id: cid, x: c[0], y: c[1] }); entities.push({ type: 'arc', id: 'e' + ++n, c: cid, p1: P(a), p2: P(b) }); };
+  for (let i = 0; i < N; i++) {
+    const th = th0 + (2 * Math.PI * i) / N, thn = th + (2 * Math.PI) / N;
+    line(at(th - alpha, Rc), at(th - alpha, tm));
+    arc(at(th, d), at(th - alpha, tm), at(th + alpha, tm));
+    line(at(th + alpha, tm), at(th + alpha, Rc));
+    arc([0, 0], at(th + alpha, Rc), at(thn - alpha, Rc));
+  }
+  return { ...emptyPart('Petals'), features: [{ type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'top' }, points, entities, constraints: [] }, { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 10 }], seq: 3 } as unknown as PartDoc;
 };
 
 const sessions: Session[] = [];
@@ -331,5 +353,34 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(faces).toEqual(['F2.C1', 'F2.S.e1']);
     expect((await w.controller.edit([{ op: 'set', id: shell, path: 'faces', value: faces }])).ok).toBe(true);
     expect((await w.stats()).errors).toEqual([]);
+  });
+
+  it('tangent chain switched on for a petal rim fillet picked without it: the round petal ends join the chain and the fillet runs round them', async () => {
+    // the rim of every flank and hub arc plus the concave wall edges at the hub, picked with the chain off: the round ends stay sharp
+    const isTip = (f: string) => /^F2\.S\.e(\d+)$/.test(f) && Number(f.slice(6)) % 4 === 2;
+    const plain = await world(petalRing());
+    const base = await plain.stats();
+    const edges = plain.controller.bodyEdges();
+    const top = edges.filter((e) => e.faces?.includes('F2.C1') && !e.faces.some(isTip));
+    const walls = edges.filter((e) => e.faces?.length === 2 && e.faces.every((f) => f.startsWith('F2.S.')) && !e.faces.some(isTip) && e.pts && Math.hypot(e.pts[0][0], e.pts[0][2]) < 10.01);
+    expect([top.length, walls.length]).toEqual([15, 10]);
+    const picked = [...top, ...walls].map((e) => ({ faces: [...e.faces!], at: [...e.mid!] }));
+    const fillet = (list: unknown[]) => ({ type: 'fillet', id: 'F3', radius: 0.8, edges: list });
+    const before = await world({ ...petalRing(), features: [...petalRing().features, fillet(picked)], seq: 4 } as unknown as PartDoc);
+    const b = await before.stats();
+    expect(b.errors).toEqual([]);
+
+    // what the editor's toggle does: the chain read on the body before the fillet adds the five round ends
+    const all = chainRefs(picked, await before.controller.edgesBefore('F3')) as Array<{ faces: string[] }>;
+    expect(all.length).toBe(30);
+    expect(all.slice(25).map((r) => r.faces.find(isTip)).sort()).toEqual(['F2.S.e10', 'F2.S.e14', 'F2.S.e18', 'F2.S.e2', 'F2.S.e6']);
+    const after = await world({ ...petalRing(), features: [...petalRing().features, fillet(all)], seq: 4 } as unknown as PartDoc);
+    const a = await after.stats();
+    expect(a.errors).toEqual([]);
+    // the reference result (rim fillets all round, a corner torus at each wall fillet): 62 faces, 22154.417 mm3
+    expect(a.faces).toBe(62);
+    expect(a.volume).toBeCloseTo(22154.417, 2);
+    expect(a.volume).toBeLessThan(b.volume - 15);
+    expect(base.faces).toBe(22);
   });
 });

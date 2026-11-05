@@ -17,6 +17,7 @@ Default size: about 5% of the smallest bounding-box dimension of the body on scr
 | Hole (`add-hole`) | a body exists and (exactly one face selected, or the document has a sketch with point entities) | kind `simple`, diameter = 10% of smallest dimension (nice), `end:'through'` | `hole {sketch, kind, diameter, end, flip?}` |
 | Revolve (`add-revolve`) | the document has a sketch (the one selected in the tree, else the last) | `op:'add'`, 360 degrees, axis = first construction line | `revolve {op, sketch, axis:<line id>, end:'blind', angle}` |
 | Linear pattern (`add-lpattern`) | a feature that is not a sketch or pattern exists | count 3, spacing = 20% of the body length along the longest world axis, direction = that axis | `lpattern {seeds:[id], dir:{kind:'axis',axis}, spacing, count}` |
+| Pattern on path (`add-pathpattern`) | a feature that is not a sketch or pattern, and an open sketch (lines and arcs) | count 3, spread over the whole path (`distanceType: 'extent'`, `extent` = the chain's length), the newest open sketch (or the one selected in the tree) | `curvepattern {seeds:[id], path:{kind:'sketch',id}, count, distanceType, extent}` |
 | Circular pattern (`add-cpattern`) | same | count 3, 360 degrees, equal spacing, axis = the world axis along the body's shortest dimension | `cpattern {seeds:[id], axis:{kind:'axis',axis}, count, angle, equal}` |
 
 The pattern repeats the feature selected in the tree, else the last feature that is not a sketch or pattern.
@@ -102,7 +103,7 @@ Not offered because the kernel does not read them (checked against `ck-model` an
 - Circular pattern turns about a world axis through the origin, not through the body centre or the seed's own axis; the
   Editor cannot yet edit the `dir`/`axis` objects (they are not primitive fields). Move the part or edit the JSON for a
   different axis. A seed that falls outside the body after rotation produces no change but no error.
-- Linear pattern is one direction, no second direction, no spacing-by-extent.
+- Linear pattern directions are world axes only (the Editor picks X, Y or Z per direction); Direction 2, Extent and To object are in the Editor.
 - Shell grows inward; `outward` can be set in the Editor.
 - The `seeds` field is a text list of feature ids (comma separated); it is not filled from the selection (features are not
   picked in the viewport).
@@ -141,11 +142,27 @@ The surface tools use the id of a surface feature as its name (the surface is re
 bodies are not drawn in the viewport yet (`Session.bodyForView` returns only the solid), so a surface made with these
 commands shows in the tree and Editor but not on screen, and its faces and edges cannot be picked.
 
+## Curves and freeform
+
+| Command | Enabled when | Defaults | Kernel fields |
+|---|---|---|---|
+| Project curve (`add-project-curve`, Features > Reference) | a body or surface exists, and a sketch that holds a curve (the one selected in the tree, else the last) or an Edit / Project curve selected in the tree | the picked faces (none: every face), degree 3, tolerance 0.001, direction both | `projectCurve {sketch \| curve, faces[], degree, tolerance, direction}` |
+| Edit curve (`add-edit-curve`, Features > Reference) | picked edges, a sketch with curves, or a curve feature | the picked edges, else the curve feature selected in the tree, else all curves of the sketch, else the last curve feature; fit by 6 control points, degree 3, ends kept | `editCurve {curves[], method, degree, count, tolerance, keepEnds, keepTangents, keepCorners, planar, plane, entries[]}` |
+| Freeform (`add-freeform`, Surfaces > Edit) | at least one picked face | the picked faces rebuilt as a cubic net of 2 x 2 spans (5 x 5 points), no moves | `freeform {faces[], degreeU, degreeV, spansU, spansV, edits[]}` |
+
+Each has a form in the Editor (rules in `curveRules.ts`, tests in `curveRules.test.tsx` and `curveCommands.kernel.test.ts`). Project curve takes its
+source from a list and its faces from the viewport selection (Use selection). Edit curve lists its curves (sketch curve rows, edges, earlier curves)
+and its control point edits (point number, offset along the world or the curve frame, weight, skip). Freeform lists its point moves (points as
+`column,row`, offset along the world axes, the face or a plane, spread to neighbours, mirror about a plane). Not done: dragging control points of a
+curve or net in the viewport (the forms take typed offsets), adding edges to an existing Edit curve (pick them before the command), the net's
+`of` mapping, and the point-reference (`ref`) of an Edit curve entry, which the kernel does not read yet.
+
 ## Editor only / not offered
 
 | Feature | Why there is no command |
 |---|---|
-| `moveFace`, `dome`, `scale`, `fillpattern`, `spattern`, `curvepattern`, `splitLine`, `surfaceOffset`, `cutWithSurface`, `moveBody` | The kernel answers `TODO(rebuild): <type> needs ck-ops` (probed with the shipped wasm). A command would always fail. The builders are one-liners once the kernel lands (field names are in `packages/part-model/src/features.ts`; `spattern` wants a point sketch, `curvepattern` a path sketch, `fillpattern` a planar face). |
+| `moveFace`, `moveBody`, `scale` | Not creator commands, and not missing: `moveFace` and `moveBody` are made by the positioning ball (`triball/ops.ts`: drag a face or a body), and `scale` has its own command (`add-scale`, Features > Modify) with the Scale form. |
+| `dome`, `fillpattern`, `spattern`, `splitLine`, `surfaceOffset`, `cutWithSurface` | No command yet. The kernel registers all of them; the builders are one-liners (field names are in `packages/part-model/src/features.ts`; `spattern` wants a point sketch, `fillpattern` a planar face). |
 | `fill`, `extend` | Need edges of a surface body; surface bodies are not in the viewport, so no edge can be picked. Add the feature by editing the document, or after surface display lands. |
 | `plane` modes other than offset / mid | Need axis / point / curve references (objects the Editor cannot pick yet). |
 | `deleteBody` on a surface body | Needs a surface to be pickable. |

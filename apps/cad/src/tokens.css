@@ -7,8 +7,18 @@
   --title: #0a1017; --title-text: #e9ecf1;
   --ok: #2da44e; --warn: #b58100; --err: #d1242f;
   --vp-top: #cfd8e4; --vp-bottom: #fbfcfd;
+  --dim-line: #7d6fd6; --dim-chip-bg: #2a2542; --dim-chip-text: #f1eefc;
+  --mark-bg: #eeecf8; --mark-line: #c4bfe3; --mark-text: #5f58a6;
   --chip: #dbe3e6; --glass-rgb: 255, 255, 255; --alpha: .62; --blur: 14px;
   --syn-kw: #a626a4; --syn-str: #2f7d32; --syn-num: #b35900; --syn-com: #7a8594; --syn-fn: #0b74dc;
+  /* SolidCraft icon set (preview): the fixed colours of its masters as theme variables, from its palette.toml (light and dark values) */
+  --sc-ink: #34465b; --sc-guide: #6f879c; --sc-gap: var(--panel);
+  --sc-p1: #e2e8ef; --sc-p2: #b8c3cf; --sc-p3: #8e9faf;
+  --sc-solid-1: #b9ddf8; --sc-solid-2: #328bd3; --sc-solid-3: #236ead;
+  --sc-surface-1: #f1d2af; --sc-surface-2: #c06f00; --sc-surface-3: #a45000;
+  --sc-sketch-1: #bfe2cc; --sc-sketch-2: #439a65; --sc-sketch-3: #057f45;
+  --sc-constraint-1: #f0cfca; --sc-constraint-2: #c1685f; --sc-constraint-3: #ca473d;
+  --sc-construction-1: #ecd3b6; --sc-construction-2: #b8741f; --sc-construction-3: #9c5600;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px; color: var(--text);
 }
@@ -21,8 +31,18 @@
   --title: #070a0e; --title-text: #e9ecf1;
   --ok: #3fb968; --warn: #e0b341; --err: #ff6b6b;
   --vp-top: #1d2630; --vp-bottom: #121a21;
+  --dim-line: #b7a9f6; --dim-chip-bg: #1e1a33; --dim-chip-text: #ece8ff;
+  --mark-bg: #25223a; --mark-line: #4b4673; --mark-text: #b4aee0;
   --chip: #232d37; --glass-rgb: 21, 27, 34;
   --syn-kw: #c792ea; --syn-str: #a5d6a7; --syn-num: #f2a65a; --syn-com: #6f7d8c; --syn-fn: #82aaff;
+
+  --sc-ink: #1f2021; --sc-guide: #8093a4; --sc-gap: var(--panel);
+  --sc-p1: #8da3c3; --sc-p2: #6d81a2; --sc-p3: #546782;
+  --sc-solid-1: #4ea1dc; --sc-solid-2: #3287d1; --sc-solid-3: #2976b8;
+  --sc-surface-1: #cc9362; --sc-surface-2: #bd750d; --sc-surface-3: #955a0e;
+  --sc-sketch-1: #7ab792; --sc-sketch-2: #3a965e; --sc-sketch-3: #128d45;
+  --sc-constraint-1: #b98c88; --sc-constraint-2: #c27267; --sc-constraint-3: #c16358;
+  --sc-construction-1: #b99a78; --sc-construction-2: #ad7023; --sc-construction-3: #a75d00;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -34,8 +54,18 @@
   --title: #070a0e; --title-text: #e9ecf1;
   --ok: #3fb968; --warn: #e0b341; --err: #ff6b6b;
   --vp-top: #1d2630; --vp-bottom: #121a21;
+  --dim-line: #b7a9f6; --dim-chip-bg: #1e1a33; --dim-chip-text: #ece8ff;
+  --mark-bg: #25223a; --mark-line: #4b4673; --mark-text: #b4aee0;
   --chip: #232d37; --glass-rgb: 21, 27, 34;
   --syn-kw: #c792ea; --syn-str: #a5d6a7; --syn-num: #f2a65a; --syn-com: #6f7d8c; --syn-fn: #82aaff;
+
+  --sc-ink: #1f2021; --sc-guide: #8093a4; --sc-gap: var(--panel);
+  --sc-p1: #8da3c3; --sc-p2: #6d81a2; --sc-p3: #546782;
+  --sc-solid-1: #4ea1dc; --sc-solid-2: #3287d1; --sc-solid-3: #2976b8;
+  --sc-surface-1: #cc9362; --sc-surface-2: #bd750d; --sc-surface-3: #955a0e;
+  --sc-sketch-1: #7ab792; --sc-sketch-2: #3a965e; --sc-sketch-3: #128d45;
+  --sc-constraint-1: #b98c88; --sc-constraint-2: #c27267; --sc-constraint-3: #c16358;
+  --sc-construction-1: #b99a78; --sc-construction-2: #ad7023; --sc-construction-3: #a75d00;
   color-scheme: dark;
   }
 }

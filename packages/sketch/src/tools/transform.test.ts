@@ -92,6 +92,54 @@ describe('applyTransform as copies', () => {
     expect(dist).toHaveLength(2);
     expect(dist[1].value).toBeCloseTo(10, 6);
   });
+  describe('rotate copies of a petal (vertical lock, length dimension, tangent arc)', () => {
+    const petal = (): SketchDraft => ({
+      id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+      points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'A', x: 0, y: 10 }, { id: 'B', x: 0, y: 40 }, { id: 'M', x: 15, y: 40 }, { id: 'E', x: 30, y: 40 }],
+      entities: [
+        { id: 'e1', type: 'line', p1: 'A', p2: 'B' }, { id: 'e2', type: 'arc', c: 'M', p1: 'E', p2: 'B' }, { id: 'e3', type: 'line', p1: 'E', p2: 'A' },
+        { id: 'e4', type: 'circle', c: 'O', r: 40, construction: true },
+      ],
+      constraints: [
+        { id: 'k1', type: 'vertical', refs: ['e1'] }, { id: 'k2', type: 'distance', refs: ['A', 'B'], value: 30 }, { id: 'k3', type: 'tangent', refs: ['e1', 'e2'], at: 'B' },
+        { id: 'k4', type: 'radius', refs: ['e4'], value: 40 }, { id: 'k5', type: 'hdist', refs: ['A', 'E'], value: 30 }, { id: 'k6', type: 'fix', refs: ['A'], value: [0, 10] },
+      ],
+    });
+    const sel = ['e1', 'e2', 'e3'];
+    const rot = (p: { x: number; y: number }, deg: number) => { const t = (deg * Math.PI) / 180; return { x: p.x * Math.cos(t) - p.y * Math.sin(t), y: p.x * Math.sin(t) + p.y * Math.cos(t) }; };
+    it('copies are the exact rotation of the original by k * angle', () => {
+      const r = ok(applyTransform(petal(), sel, { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 72 }, 4));
+      const d = r.draft;
+      expect(d.entities.filter((e) => e.type === 'line')).toHaveLength(10);
+      for (let k = 1; k <= 4; k++) {
+        const copies = d.entities.slice(4 + (k - 1) * 3, 4 + k * 3);
+        const line = copies[0]; const arc = copies[1];
+        for (const [id, orig] of [[line.p1, 'A'], [line.p2, 'B'], [arc.c, 'M'], [arc.p1, 'E']] as Array<[string, string]>) {
+          const want = rot(pt(petal(), orig), 72 * k), got = pt(d, id);
+          expect(Math.abs(got.x - want.x)).toBeLessThan(1e-6); expect(Math.abs(got.y - want.y)).toBeLessThan(1e-6);
+        }
+      }
+      expect(pt(d, 'O')).toMatchObject({ x: 0, y: 0, fixed: true });
+    });
+    it('no axis-bound constraint and no fix lands on an off-axis copy; invariant ones are copied', () => {
+      const d = ok(applyTransform(petal(), sel, { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 72 }, 4)).draft;
+      const n = (t: string) => d.constraints.filter((c) => c.type === t).length;
+      expect(n('vertical')).toBe(1); expect(n('hdist')).toBe(1); expect(n('fix')).toBe(1);
+      expect(n('distance')).toBe(5); expect(n('tangent')).toBe(5); expect(n('radius')).toBe(1);
+      expect(resolves(d)).toBe(true);
+    });
+    it('whole quarter turns keep the axis constraints, swapped on odd ones', () => {
+      const d = ok(applyTransform(petal(), sel, { kind: 'rotate', center: { x: 0, y: 0 }, angleDeg: 90 }, 3)).draft;
+      const n = (t: string) => d.constraints.filter((c) => c.type === t).length;
+      expect(n('vertical')).toBe(2); expect(n('horizontal')).toBe(2);   // original + copy 2 vertical; copies 1 and 3 horizontal
+      expect(n('hdist')).toBe(2); expect(n('vdist')).toBe(2);
+    });
+    it('a move keeps vertical / hdist on the copies', () => {
+      const d = ok(applyTransform(petal(), sel, { kind: 'move', dx: 100, dy: 0 }, 2)).draft;
+      expect(d.constraints.filter((c) => c.type === 'vertical')).toHaveLength(3);
+      expect(d.constraints.filter((c) => c.type === 'hdist')).toHaveLength(3);
+    });
+  });
   it('a scaled copy has the radius scaled', () => {
     const d0: SketchDraft = { id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], points: [{ id: 'p1', x: 5, y: 5 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 2 }], constraints: [{ id: 'k1', type: 'radius', refs: ['e1'], value: 2 }] };
     const r = ok(applyTransform(d0, ['e1'], { kind: 'scale', base: { x: 0, y: 0 }, factor: 3 }, 2));

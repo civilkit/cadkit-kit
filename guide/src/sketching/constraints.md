@@ -103,6 +103,15 @@ With **Colour by definition** on (the default), the geometry is coloured to matc
 
 An item is blue if it is not fully determined; one dimension can fix a line's length while its position stays free. CadKit works out the colours by testing each point against the solver, a moment after you stop editing, and never changes the sketch while doing so. A point that is fixed in only one direction, such as a point on a circle about a fixed centre, counts as under-defined.
 
+### Sketch Report
+
+**Sketch Report** (in the **Status** group, and in the command search) opens a summary of the sketch. On a desktop it is a small window over the view; on a phone or tablet it is a sheet from the bottom edge. Either stays open while you keep editing and follows the sketch.
+
+- The sketch name and its state: **Fully defined**, the number of degrees of freedom, **Over-constrained**, **Conflicting constraints** or **Does not solve**.
+- Counts of points, lines, arcs, circles, splines, construction entities, **Closed profiles** (the shapes Extrude can use) and **Open chains** (loose ends).
+- The number of constraints, then **Driving dimensions** and **Reference dimensions**, and the constraints counted by kind.
+- **Conflicting and redundant constraints**: click one to select the geometry it names in the sketch. Delete it from the **Constraints** list.
+
 ### Fully define
 
 **Fully define** in the **Status** group adds relations and dimensions until the degrees of freedom reach zero, but only the ones the solver accepts.

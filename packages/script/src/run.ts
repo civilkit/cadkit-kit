@@ -32,7 +32,7 @@ export interface KernelFacts {
   /** the kernel's textMetrics answer for need.text */
   text?: TextMetricsFact;
 }
-export interface BuildReply { errors: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>; geometry?: Geometry }
+export interface BuildReply { errors: Array<[string, { code?: string; message?: string; params?: Record<string, unknown> }]>; geometry?: Geometry; warnings?: Array<[string, { code?: string; params?: Record<string, unknown> }]> }
 export interface Progress { phase: 'building' | 'loading'; done: number; total: number; elapsedMs: number }
 export interface RunOptions {
   /** Variable expressions that replace the defaults written in `variables({...})` (the Variables tab after an edit). */
@@ -314,12 +314,18 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
       }
     }
     if (view) { geo = r.geometry ?? { mesh: null, edges: [], box: null }; geoAt = features.length; }
+    // a pattern whose copies miss the body, stand apart from it or overlap each other: the kernel's warning, on the pattern's line
+    for (const [id, w] of r.warnings ?? []) {
+      if (!w?.code?.startsWith('patternCopies')) continue;
+      const hint = typeof w.params?.hint === 'string' ? w.params.hint : '';
+      warn(`${w.code} (${id}): ${hint}`, steps[stepOfFeature.get(id) ?? 0]?.line ?? 0);
+    }
     if (r.errors.length) {
       // the earliest failing step is the cause; later errors are consequences
       let best = Infinity, fid = r.errors[0][0], msg = '';
       for (const [id, e] of r.errors) {
         const si = stepOfFeature.get(id) ?? upTo - 1;
-        if (si < best) { best = si; fid = id; msg = (e?.message ?? e?.code ?? '') + bodiesNote(e); }
+        if (si < best) { best = si; fid = id; msg = (e?.message ?? e?.code ?? '') + bodiesNote(e) + patternNote(e); }
       }
       errors.push({ line: steps[Math.max(0, best)].line, feature: fid, message: friendlyKernelMessage(msg || 'the kernel rejected this step') });
       keep = best; failed = true;
@@ -431,6 +437,11 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   return { ops, document: doc, errors, warnings, stats };
 }
 
+/** A pattern refusal says what would fit (the largest spacing along a path, why an object cannot be reached): its hint goes with the code. */
+function patternNote(e: { code?: string; params?: Record<string, unknown> } | undefined): string {
+  const hint = e?.params?.hint;
+  return e?.code?.startsWith('pattern') && typeof hint === 'string' && hint ? `: ${hint}` : '';
+}
 /** A missing body reference (cut from / combine): the kernel lists the names the part has (`params`), so say them. */
 function bodiesNote(o: { code?: string; params?: Record<string, unknown> } | undefined): string {
   const q = (o?.params ?? o ?? {}) as { name?: unknown; bodies?: unknown; nearest?: unknown };
@@ -440,8 +451,8 @@ function bodiesNote(o: { code?: string; params?: Record<string, unknown> } | und
 }
 function errorsOf(r: EditResultLike): Array<{ feature?: string; message: string; code?: string }> {
   return (r.errors ?? []).map((e) => {
-    if (Array.isArray(e)) return { feature: e[0], message: (e[1]?.message ?? e[1]?.code ?? 'error') + bodiesNote(e[1]), code: e[1]?.code };
-    return { feature: e.feature, message: (e.message ?? e.code ?? 'error') + bodiesNote(e), code: e.code };
+    if (Array.isArray(e)) return { feature: e[0], message: (e[1]?.message ?? e[1]?.code ?? 'error') + bodiesNote(e[1]) + patternNote(e[1]), code: e[1]?.code };
+    return { feature: e.feature, message: (e.message ?? e.code ?? 'error') + bodiesNote(e) + patternNote(e), code: e.code };
   });
 }
 const firstMessage = (r: EditResultLike): string | undefined => errorsOf(r)[0]?.message;

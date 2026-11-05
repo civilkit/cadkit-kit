@@ -1,6 +1,7 @@
 /** Dimension drawings on screen: the pure part. `projectShape` turns a dimension's geometry (sketch coordinates, see
  *  `DimShape` in @kit/sketch) into pixels with the viewport's projection; `SketchAnnotations` draws the result as SVG. */
 import type { DimShape } from '@kit/sketch';
+import { chipSize } from './annotChips';
 
 export type ToScreen = (u: number, v: number) => { x: number; y: number } | null;
 export interface ScreenDim {
@@ -70,5 +71,5 @@ export function projectShape(shape: DimShape, to: ToScreen, opt: ProjectOptions 
   return { lines, arc: [], arrows, text: { x: text.x, y: text.y, slopeDeg }, main };
 }
 
-/** The size a label takes, for keeping labels apart. */
-export const labelBox = (text: string): { w: number; h: number } => ({ w: text.length * 7 + 14, h: 20 });
+/** The size a dimension chip takes (the value in a monospace face on a rounded pill), for keeping labels apart. `fx`: it carries the fx badge. */
+export const labelBox = (text: string, fx = false): { w: number; h: number } => chipSize('dimension', text, fx);

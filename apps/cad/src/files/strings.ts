@@ -34,6 +34,8 @@ export const filesEn = {
   'files.drop.one': 'Drop one file at a time.',
   'files.dxf.target': 'DXF opens in a sketch: a new sketch on the front plane was started.',
   'files.sldprt.part': 'Opened {name} (SolidWorks): {faces} faces, as an editable body. The design history of the file is not read; the solid is kept in the part.',
+  'files.sldprt.history': 'Opened {name} (SolidWorks) with its feature history: {features} features, {faces} faces, in the folder "{folder}". Switch the folder off to see the plain imported body.',
+  'files.sldprt.historyPartial': 'Opened {name} (SolidWorks): {features} features rebuilt from its history, in the folder "{folder}"; the rest of the file is imported as one body. The final body is the file\'s own, so edits to the rebuilt features will not change it. Switch the folder off to see the plain imported body.',
   'files.sldprt.done': 'Imported {name} (SolidWorks): {faces} faces. Imported bodies are view only and are not saved with the part.',
   'files.skp.done': 'Imported {name} (SketchUp): {faces} faces in {pieces} pieces, {materials} materials. Imported bodies are view only and are not saved with the part.',
   'files.skp.open': 'SketchUp surface model: {open} open edges; solids operations may not apply. Convert to CAD is planned.',

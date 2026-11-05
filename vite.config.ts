@@ -3,6 +3,7 @@ import { configDefaults } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { fileURLToPath } from 'node:url'
 import { cpus, loadavg } from 'node:os'
+import { realpathSync } from 'node:fs'
 
 // the kernel repo checkout whose packages (session, part-model, kernel-client) the kit uses; CK_REBUILD overrides it
 const FW = process.env.CK_REBUILD ?? fileURLToPath(new URL('../kernel', import.meta.url))
@@ -85,7 +86,9 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     fs: {
-      allow: [here('.'), FW]
+      // the kernel checkout by the path given and by its real path: vite serves modules under their real path, so a CK_REBUILD reached through
+      // a symlink would otherwise refuse the kernel's worker module (403) and no part could open
+      allow: [here('.'), FW, ...(() => { try { return [realpathSync(FW)] } catch { return [] } })()]
     }
   }
 }))

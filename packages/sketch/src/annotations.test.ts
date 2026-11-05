@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { angleShape, annotate, constraintTargets, dimText, formatDimNumber, leaderShape, linearShape, nudgeLabels, removeConstraintById } from './annotations';
+import { angleShape, annotate, constraintTargets, dimText, expandFocus, rectangleAxisLocks, formatDimNumber, leaderShape, linearShape, nudgeLabels, removeConstraintById } from './annotations';
 
 const d = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
@@ -35,6 +35,10 @@ describe('annotate', () => {
   });
   it('does not draw coincident constraints, which are the shared points', () => {
     expect(annotate(d()).some((x) => x.type === 'coincident')).toBe(false);
+  });
+  it('marks coincident constraints with a dot only when asked', () => {
+    const m = annotate(d(), { coincident: true }).find((x) => x.type === 'coincident');
+    expect(m).toMatchObject({ id: 'k5', kind: 'mark', text: '●' });
   });
   it('skips constraints whose references are gone', () => {
     const draft = d();
@@ -174,5 +178,27 @@ describe('nudgeLabels', () => {
     const piled = [box('a', 5, 5), box('b', 5, 5)];
     nudgeLabels(piled);
     expect(piled[0].y).toBe(5);
+  });
+});
+
+describe('rectangle axis locks', () => {
+  const make = (lock: boolean[]): SketchDraft => ({
+    id: 'F', plane: {}, temp: [],
+    points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 0 }, { id: 'c', x: 10, y: 5 }, { id: 'd', x: 0, y: 5 }],
+    entities: [{ id: 'l1', type: 'line', p1: 'a', p2: 'b' }, { id: 'l2', type: 'line', p1: 'b', p2: 'c' }, { id: 'l3', type: 'line', p1: 'c', p2: 'd' }, { id: 'l4', type: 'line', p1: 'd', p2: 'a' }],
+    constraints: ['horizontal', 'vertical', 'horizontal', 'vertical'].flatMap((type, i) => (lock[i] ? [{ id: 'k' + (i + 1), type, refs: ['l' + (i + 1)] }] : [])),
+  });
+  it('finds the H / V locks of a closed four-sided loop', () => {
+    expect([...rectangleAxisLocks(make([true, true, true, true]))].sort()).toEqual(['k1', 'k2', 'k3', 'k4']);
+  });
+  it('leaves a partly locked loop and an open chain alone', () => {
+    expect(rectangleAxisLocks(make([true, true, true, false])).size).toBe(0);
+    const open = make([true, true, true, true]);
+    open.entities.pop();
+    expect(rectangleAxisLocks(open).size).toBe(0);
+  });
+  it('expandFocus adds the points of focused entities', () => {
+    const f = expandFocus(make([true, true, true, true]), ['l1']);
+    expect([...f].sort()).toEqual(['a', 'b', 'l1']);
   });
 });

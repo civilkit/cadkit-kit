@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { launchChrome, Page } from './cdp.mjs';
 import { diffPng, decodePng } from './png.mjs';
 import { startVite } from './vite.mjs';
+import { noPartReason } from './app.mjs';
+import { docsLink, licencesLink } from '../pages/siteLinks.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRATCH = fileURLToPath(new URL('../../../scratch-uxreview', import.meta.url));
@@ -60,7 +62,7 @@ const AUDIT = `(() => {
 
   // finger-sized targets: the top bar, ribbon, tool and view buttons, the bottom bar, the sheet and panel tabs, tree rows and their buttons
   const PRIMARY = ['.topbar button', '.topbar .search-btn', '.rb-tab', '.ribbon .slot-btn', '.selmodes button', '.cube-tools button', '.display-btn', '.bottom-nav button', '.ptabs .pt',
-    '.sheet-close', '.sheet-head', '.sheet .dtab', '.tree .row', '.tree .row-act', '.tabbar button', '.status .st-drawer', '.tt-tab', '.tool-tray .slot-btn', '.sa-btn', '.doc-item', '.doc-x', '.expr-kb', '.expr-sign'];
+    '.sheet-close', '.sheet-head', '.sheet .dtab', '.tree .row', '.tree .row-act', '.tabbar button', '.status .st-drawer', '.tt-tab', '.tool-tray .slot-btn', '.sa-btn', '.doc-item', '.doc-x', '.expr-kb', '.expr-sign', '.vn-btn'];
   const tiny = [];
   for (const sel of PRIMARY) for (const e of q(sel)) {
     if (cs(e).opacity < 0.05 || e.disabled && sel !== '.topbar button') continue;
@@ -70,9 +72,12 @@ const AUDIT = `(() => {
   const rowActs = q('.tree .row .row-hide, .tree .row .row-sup').map((e) => +cs(e).opacity);
 
   // overlays on the canvas must not overlap each other
-  const OVERLAYS = ['.selmodes', '.cube-tools', '.viewcube', '.display-btn', '.display-pop', '.sel-list', '.quick-measure', '.start-card', '.sketch-tools', '.text-panel', '.chole-float',
+  const OVERLAYS = ['.selmodes', '.cube-tools', '.viewcube', '.vn-btn', '.display-btn', '.display-pop', '.sel-list', '.quick-measure', '.start-card', '.sketch-tools', '.text-panel', '.chole-float',
     '.sizebox-about', '.face-sketch-chip', '.tool-rail', '.sketch-palette', '.tree-wrap.floating', '.insp-wrap.floating', '.toast', '.handle-hint', '.busy-overlay'];
-  const ovs = OVERLAYS.flatMap((sel) => q('#vp ' + sel).map((e) => ({ sel, e, r: e.getBoundingClientRect() })));
+  // the arrow ring's buttons overlap the empty margin of the cube's canvas by design: the cube is its drawn middle (the inner 70%), not the whole canvas
+  const rectOfOverlay = (sel, e) => { const r = e.getBoundingClientRect(); if (sel !== '.viewcube') return r; const k = 0.15; return new DOMRect(r.x + r.width * k, r.y + r.height * k, r.width * (1 - 2 * k), r.height * (1 - 2 * k)); };
+  // the bottom bar and the published site's floating links are compared with the canvas overlays too: nothing may print over them
+  const ovs = [...OVERLAYS.flatMap((sel) => q('#vp ' + sel).map((e) => ({ sel, e, r: rectOfOverlay(sel, e) }))), ...['.bottom-nav', '.site-link'].flatMap((sel) => q(sel).map((e) => ({ sel, e, r: e.getBoundingClientRect() })))];
   const overlaps = [];
   for (let i = 0; i < ovs.length; i++) for (let j = i + 1; j < ovs.length; j++) {
     const a = ovs[i], b = ovs[j]; if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
@@ -126,6 +131,7 @@ const AUDIT = `(() => {
     nav: (() => { const n = document.querySelector('.bottom-nav'); return n ? box(n) : null; })(),
     docked: { tree: !!q('.tree-wrap.docked').length, props: !!q('.insp-wrap.docked').length, ribbon: document.querySelector('.ribbon-wrap')?.className ?? null },
     selection: document.querySelectorAll('.sel-chip').length,
+    notes: (() => { const b = (sel) => { const e = q('#vp ' + sel)[0]; return e ? box(e) : null; }; return { card: b('.quick-measure'), panel: b('.sizebox-about'), ring: b('.viewcube'), siteLinks: q('.site-link').length }; })(),
   };
 })()`;
 
@@ -194,6 +200,9 @@ async function openSample(page, url) {
   for (let i = 0; i < 80 && !(await page.eval(`!!document.querySelector('.rb-btn, .tb-icon, .status')`)); i++) await sleep(150);
   for (let i = 0; i < 30; i++) { if (await rectOf(page, 'button', 'Restore')) { await tapOn(page, 'button', 'Restore'); break; } await sleep(150); }
   await idle(page); await sleep(700);
+  // stop here with the cause (the kernel worker did not load, the sample did not restore) rather than fail every later check
+  const why = await noPartReason(page);
+  if (why) throw new Error(why);
 }
 
 function common(profile, step, a, p) {
@@ -226,6 +235,184 @@ async function cubeFlows(page, id, p) {
   const c3 = await cam(page);
   check(id, 'cube', 'a tap on a face snaps to that view', camMoved(c2, c3));
   await page.eval(`window.__cad.viewport.setViewDir([1, 1, 1])`); await sleep(300);
+  // a finger resting on a region shows what a tap will do: the region lights up
+  const still = await page.screenshot();
+  await page.touch('touchStart', [{ x: cx, y: cy }]); await sleep(300);
+  const pressed = diffPng(still, await page.screenshot());
+  await shot(page, `${id}-cube-pressed`);
+  await page.touch('touchCancel'); await sleep(300);
+  check(id, 'cube', 'a finger pressing the cube lights the region under it', pressed.pct > 0.004, `diff ${pressed.pct}%`);
+  await ringFlows(page, id, p);
+}
+
+/** Camera pose as the page has it: the direction from the target to the camera and the screen's up vector. */
+const POSE = `(() => { const v = window.__cad.viewport; const c = v.camera, t = v.controls.target; const d = c.position.clone().sub(t).normalize(); return JSON.stringify({ d: [d.x, d.y, d.z], u: [c.up.x, c.up.y, c.up.z], t: [t.x, t.y, t.z] }); })()`;
+const pose = async (page) => JSON.parse(await page.eval(POSE));
+/** The pose once the view's animation has landed: a software-rendered page draws a frame in half a second or more, so it can take a while. */
+async function settled(page) {
+  await sleep(100);
+  for (let i = 0; i < 40 && !(await page.eval(`window.__cad.viewport.anim === null`)); i++) await sleep(250);
+  return pose(page);
+}
+const angle = (a, b) => (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180) / Math.PI;
+const near = (x, y, tol = 1.5) => Math.abs(x - y) <= tol;
+
+/** The arrow ring around the cube: finger-sized buttons that turn the view by the expected angle, never select the model under them, and a press that is held keeps turning. */
+async function ringFlows(page, id, p) {
+  const names = ['Turn view up', 'Turn view down', 'Turn view left', 'Turn view right', 'Roll view clockwise', 'Roll view counter-clockwise', 'Home view', 'View navigation options'];
+  const present = async () => { const r = {}; for (const n of names) r[n] = await rectOf(page, '.vn-btn', n); return r; };
+  const GROUPS = { 'Turn left/right': ['Turn view left', 'Turn view right'], 'Turn up/down': ['Turn view up', 'Turn view down'], Roll: ['Roll view clockwise', 'Roll view counter-clockwise'], Home: ['Home view'] };
+  const menuToggle = async (label) => { if (!(await page.eval(`!!document.querySelector('.vn-menu')`))) await tapOn(page, '.vn-btn', 'View navigation options'); await tapOn(page, '.vn-menu [role=menuitemcheckbox]', label); await sleep(300); };
+  const closeMenu = async () => { if (await page.eval(`!!document.querySelector('.vn-menu')`)) { await tapOn(page, '.vn-btn', 'View navigation options'); await sleep(200); } };
+  const footprint = () => rectOf(page, '.viewnav');
+  // a phone starts with the turn left/right arrows alone, a tablet and the desktop with every group
+  let rects = await present();
+  const want = p.layout === 'phone' ? ['Turn view left', 'Turn view right', 'View navigation options'] : names;
+  const got = names.filter((n) => rects[n]);
+  check(id, 'ring', p.layout === 'phone' ? 'a phone shows the turn left/right arrows and the menu button, nothing else' : 'a tablet shows every group by default', JSON.stringify(got) === JSON.stringify(names.filter((n) => want.includes(n))), got.join(', '));
+  const fp0 = await footprint();
+  console.log(`  [${id}] ring footprint ${fp0 && Math.round(fp0.w)}x${fp0 && Math.round(fp0.h)} px by default`);
+  check(id, 'ring', `every ring button's hit area is at least ${MIN_TARGET}px`, got.every((n) => rects[n].w >= MIN_TARGET - 0.5 && rects[n].h >= MIN_TARGET - 0.5), got.map((n) => `${n} ${rects[n].w}x${rects[n].h}`).join('; '));
+  if (p.layout === 'phone') {
+    const vis = await page.eval(`[...document.querySelectorAll('.vn-btn')].map((e) => { const b = getComputedStyle(e, '::before'); return Math.round(parseFloat(b.width)) + 'x' + Math.round(parseFloat(b.height)); }).join(' ')`);
+    check(id, 'ring', 'the arrows are drawn smaller than their touch target (32px faces)', /^32x32 32x32/.test(vis), vis);
+    check(id, 'ring', 'the default ring is about the cube plus two arrows wide and shorter than before', fp0.w <= 170 && fp0.h <= 132, `${fp0.w}x${fp0.h}`);
+  }
+  const aDef = await audit(page);
+  check(id, 'ring', 'the default ring does not overlap the display button, the fit button or the cube', aDef.overlaps.length === 0 && aDef.offscreen.length === 0, JSON.stringify([aDef.overlaps.slice(0, 3), aDef.offscreen.slice(0, 3)]));
+  await shot(page, `${id}-ring-default`);
+  if (p.layout === 'phone') {
+    // each group is switched on from the menu and shows its own buttons, the layout reflowing around it
+    for (const [label, ns] of Object.entries(GROUPS)) {
+      if (label === 'Turn left/right') continue;
+      await menuToggle(label);
+      rects = await present();
+      check(id, 'ring', `switching on ${label} in the menu shows ${ns.join(' and ')}`, ns.every((n) => rects[n]), JSON.stringify(ns.map((n) => !!rects[n])));
+      const a = await audit(page);
+      check(id, 'ring', `nothing overlaps with ${label} on`, a.overlaps.length === 0 && a.offscreen.length === 0, JSON.stringify([a.overlaps.slice(0, 3), a.offscreen.slice(0, 3)]));
+    }
+    check(id, 'ring', 'the choice is kept on the device', (await page.eval(`localStorage.getItem('cad.viewnav.groups')`)) === 'yaw,pitch,roll,home');
+    await closeMenu();
+  }
+  rects = await present();
+  check(id, 'ring', 'the four arrows, both rolls, home and the menu button are there with every group on', names.every((n) => rects[n]), names.filter((n) => !rects[n]).join(', '));
+  if (!names.every((n) => rects[n])) return;
+  const fpAll = await footprint();
+  console.log(`  [${id}] ring footprint ${Math.round(fpAll.w)}x${Math.round(fpAll.h)} px with every group on`);
+  check(id, 'ring', `every ring button is at least ${MIN_TARGET}px`, names.every((n) => rects[n].w >= MIN_TARGET - 0.5 && rects[n].h >= MIN_TARGET - 0.5), names.map((n) => `${n} ${rects[n].w}x${rects[n].h}`).join('; '));
+  const a0 = await audit(page);
+  check(id, 'ring', 'the full ring does not overlap the display button, the fit button or the cube', a0.overlaps.length === 0 && a0.offscreen.length === 0, JSON.stringify([a0.overlaps.slice(0, 3), a0.offscreen.slice(0, 3)]));
+  await shot(page, `${id}-ring-all`);
+  // the model is moved under the ring: a tap on a button must turn the view and select nothing
+  await page.eval(`window.__cad.viewport.setViewDir([0, 0, 1])`); await sleep(300);
+  const mid = rects['Home view'], top = rects['Turn view up'];
+  const ringCx = (rects['Turn view left'].x + rects['Turn view right'].x) / 2, ringCy = (top.y + rects['Turn view down'].y) / 2;
+  const vp = await page.eval(`(() => { const r = document.querySelector('#vp canvas').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })()`);
+  await page.eval(`window.__cad.viewport.panBy(${ringCx - vp[0]}, ${ringCy - vp[1]})`); await sleep(300);
+  await page.eval(`window.__cad.store.select([])`);
+  const t0 = (await pose(page)).t;
+  const turn = async (name, expect, what) => {
+    const before = await pose(page);
+    const r = await rectOf(page, '.vn-btn', name);
+    await page.tap(r.x, r.y);
+    const after = await settled(page);
+    check(id, 'ring', `${name}: ${what}`, expect(before, after), `dir ${before.d.map((v) => v.toFixed(2))} -> ${after.d.map((v) => v.toFixed(2))}, up ${before.u.map((v) => v.toFixed(2))} -> ${after.u.map((v) => v.toFixed(2))}`);
+  };
+  const turned = (b, a) => near(angle(b.d, a.d), 90) && near(angle(b.u, a.u), 90);   // about a screen axis both the direction and the up vector turn by 90
+  const rolled = (b, a) => near(angle(b.d, a.d), 0) && near(angle(b.u, a.u), 90);
+  for (const n of ['Turn view left', 'Turn view right', 'Turn view up', 'Turn view down']) await turn(n, (b, a) => near(angle(b.d, a.d), 90), 'one tap turns the view by 90 degrees');
+  await turn('Roll view clockwise', rolled, 'one tap rolls the view by 90 degrees about the view direction');
+  await turn('Roll view counter-clockwise', rolled, 'rolls back by 90 degrees');
+  const sel = (await audit(page)).selection;
+  check(id, 'ring', 'tapping the ring over the model selects nothing', sel === 0, `selection chips ${sel}`);
+  const back = await pose(page);
+  check(id, 'ring', 'tapping the ring does not move the target', Math.hypot(...back.t.map((v, i) => v - t0[i])) < 1e-3);
+  // a press that is held repeats
+  await page.eval(`(() => { const v = window.__cad.viewport; window.__turns = 0; const o = v.turnView.bind(v); v.turnView = (...a) => { window.__turns++; return o(...a); }; })()`);
+  const lr = await rectOf(page, '.vn-btn', 'Turn view right');
+  await page.touch('touchStart', [{ x: lr.x, y: lr.y }]); await sleep(3000); await page.touch('touchEnd'); await sleep(500);
+  const steps = await page.eval(`window.__turns`);
+  // a slow software-rendered page runs its timers late, so the count is a range: more than a tap, fewer than a runaway
+  check(id, 'ring', 'holding an arrow for 3 s keeps turning (more than the one step of a tap, no runaway)', steps >= 2 && steps <= 12, `${steps} steps`);
+  await sleep(1200);
+  check(id, 'ring', 'releasing stops it', (await page.eval(`window.__turns`)) === steps);
+  // home is the isometric view
+  await turn('Home view', (b, a) => near(angle(a.d, [0.5774, 0.4619, 0.5774]), 0, 2) || near(angle(a.d, [1, 0.8, 1].map((v) => v / Math.hypot(1, 0.8, 1))), 0, 2), 'goes to the isometric view');
+  // a tap on a cube face and then the arrow again: Front, then Right
+  await page.eval(`window.__cad.viewport.fit()`); await sleep(300);
+  // the menu: arrows can be hidden, the cube stays, the choice is kept
+  await tapOn(page, '.vn-btn', 'View navigation options');
+  await shot(page, `${id}-ring-menu`);
+  const menuOk = await page.eval(`[...document.querySelectorAll('.vn-menu [role=menuitemradio]')].map((e) => e.textContent.trim()).join(',')`);
+  check(id, 'ring', 'the menu offers the step sizes', menuOk === '15°,30°,45°,90°', menuOk);
+  const menuTargets = await page.eval(`[...document.querySelectorAll('.vn-menu button')].filter((e) => e.getBoundingClientRect().height < ${MIN_TARGET - 0.5}).length`);
+  check(id, 'ring', 'the menu rows are finger-sized', menuTargets === 0, `${menuTargets} rows under ${MIN_TARGET}px`);
+  await tapOn(page, '.vn-menu [role=menuitemradio]', '45');
+  await page.eval(`window.__cad.viewport.setViewDir([0, 0, 1])`); await sleep(300);
+  const b45 = await pose(page);
+  await tapOn(page, '.vn-btn', 'Turn view left');
+  const a45 = await settled(page);
+  check(id, 'ring', 'a 45 degree step size turns by 45 degrees', near(angle(b45.d, a45.d), 45), `${angle(b45.d, a45.d).toFixed(1)}`);
+  await tapOn(page, '.vn-menu [role=menuitemradio]', '90');
+  const menuBoxes = await page.eval(`[...document.querySelectorAll('.vn-menu [role=menuitemcheckbox]')].map((e) => e.textContent.trim()).join(',')`);
+  check(id, 'ring', 'the menu lists the four groups as checkboxes', menuBoxes === 'Turn left/right,Turn up/down,Roll,Home', menuBoxes);
+  for (const label of Object.keys(GROUPS)) await menuToggle(label);
+  const hidden = await page.eval(`!document.querySelector('.vn-turn') && !document.querySelector('.vn-roll') && !document.querySelector('.vn-home') && !!document.querySelector('.vn-more') && !!document.querySelector('#vp .viewcube')`);
+  await closeMenu();
+  await shot(page, `${id}-ring-collapsed`);
+  check(id, 'ring', 'with every group off the cube and the menu button remain', hidden);
+  const more = await rectOf(page, '.vn-btn', 'View navigation options'), fp1 = await footprint();
+  check(id, 'ring', `the menu button still has a ${MIN_TARGET}px target and the ring shrinks to the cube`, !!more && more.w >= MIN_TARGET - 0.5 && more.h >= MIN_TARGET - 0.5 && fp1.w <= fpAll.w - 40 && fp1.h < fpAll.h, `${fp1.w}x${fp1.h}`);
+  const a1 = await audit(page);
+  check(id, 'ring', 'nothing overlaps with every group off', a1.overlaps.length === 0 && a1.offscreen.length === 0, JSON.stringify(a1.overlaps.slice(0, 3)));
+  for (const label of Object.keys(GROUPS)) await menuToggle(label);
+  await closeMenu();
+  check(id, 'ring', 'switching the groups back on brings every button back', await page.eval(`document.querySelectorAll('.vn-turn').length === 4 && document.querySelectorAll('.vn-roll').length === 2 && !!document.querySelector('.vn-home')`));
+  await page.eval(`window.__cad.viewport.fit(); window.__cad.viewport.setViewDir([1, 1, 1])`); await sleep(400);
+}
+
+/** The selection readout and the "Resize about" panel: a feature selected in the tree, then a face tapped on the model. They stack, with no overlap, and neither covers the arrow ring. */
+async function notesFlows(page, id, p) {
+  if (p.layout === 'phone') {
+    await tapOn(page, '.bottom-nav button[data-nav="tree"]'); await sleep(500);
+    const row = await rectOf(page, '.sheet .tree .row', 'Extrude');
+    if (row) { await page.tap(row.x - row.w / 4, row.y); await sleep(500); }
+    await tapOn(page, '.sheet-close'); await sleep(400);
+  } else {
+    await tapOn(page, '.tree-wrap.docked .tree .row', 'Extrude'); await sleep(500);
+  }
+  let a = await audit(page);
+  const cv = a.canvasBox; const cx = cv[0] + cv[2] / 2, cy = cv[1] + cv[3] / 2;
+  await page.eval(`window.__cad.viewport.fit()`); await sleep(400);
+  let picked = false;
+  for (const [dx, dy] of [[0, 0], [20, 0], [-20, 0], [0, 25], [0, -25], [45, 15], [-45, 15], [60, 0], [-60, 0]]) {
+    await page.tap(cx + dx, cy + dy); await sleep(500);
+    a = await audit(page);
+    if (a.notes.card) { picked = true; break; }
+  }
+  await shot(page, `${id}-8-notes`);
+  check(id, 'notes', 'the selection readout card shows for a face', picked);
+  check(id, 'notes', 'the "Resize about" panel shows with it', !!a.notes.panel, JSON.stringify(a.notes));
+  if (a.notes.card && a.notes.panel) {
+    const [, cy0, , ch] = a.notes.card, [, py0] = a.notes.panel;
+    check(id, 'notes', 'the card and the panel do not overlap (the card is above the panel on a phone or tablet)', cy0 + ch <= py0 + 1, `card ${a.notes.card} panel ${a.notes.panel}`);
+  }
+  common(id, 'notes', a, p);
+  check(id, 'notes', 'nothing covers the bottom bar (no overlay or site link over it)', a.overlaps.every((o) => !/bottom-nav|site-link/.test(o.a + o.b)), JSON.stringify(a.overlaps));
+  await page.eval(`window.__cad.store.select([])`); await sleep(300);
+}
+
+/** The published site's Licences link: hidden on a phone and a tablet (it printed over the bottom bar), and listed in the more menu on a phone. */
+async function siteLinkFlows(page, id, p) {
+  const a = await audit(page);
+  check(id, 'site-links', 'the floating Licences and Documentation links are not shown on a phone or tablet', a.notes.siteLinks === 0, `${a.notes.siteLinks} shown`);
+  if (p.layout === 'phone') {
+    const ok = await tapOn(page, '.slot[data-slot="phone-more"] .slot-btn');
+    const rows = await page.eval(`[...document.querySelectorAll('.slot-flyout .slot-row')].map((e) => e.textContent.trim())`);
+    await shot(page, `${id}-9-more`);
+    check(id, 'site-links', 'the more menu lists Licences and Documentation', ok && rows.some((r) => /Licences/.test(r)) && rows.some((r) => /Documentation/.test(r)), JSON.stringify(rows));
+    await tapOn(page, '.slot[data-slot="phone-more"] .slot-btn'); await sleep(300);   // the same button closes the menu (a tap on the drawing would pick a face)
+  }
 }
 
 /** The "Rebuilding model" pill: one line, Cancel its own button, inside the canvas with a margin. */
@@ -419,6 +606,8 @@ async function runProfile(page, url, p) {
   const id = p.id;
   console.log(`\n== ${id} ${p.w}x${p.h}`);
   await page.setMobile(p.w, p.h, { dpr: DPR });
+  // the published site adds a Licences and a Documentation link to index.html; the dev server does not, so add the same ones to every page load
+  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `addEventListener('DOMContentLoaded', () => document.body.insertAdjacentHTML('beforeend', ${JSON.stringify(licencesLink() + docsLink())}))` });
   await page.goto(url);
   for (let i = 0; i < 100 && !(await page.eval(`!!document.querySelector('.status, .rb-btn')`).catch(() => false)); i++) await sleep(300);
   await openSample(page, url);
@@ -535,6 +724,8 @@ async function runProfile(page, url, p) {
   // 3b. the view cube, the busy pill, then (on a phone) the tool strip, the editor split sheet and the sketch drawn with a finger
   await cubeFlows(page, id, p);
   await busyFlows(page, id, p);
+  await notesFlows(page, id, p);
+  await siteLinkFlows(page, id, p);
   if (p.layout === 'phone') { await phoneFlows(page, id, p); await sketchFlows(page, id, p); }
 
   // 4. dialogs

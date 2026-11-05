@@ -226,6 +226,102 @@ describe('other features', () => {
   });
 });
 
+describe('full round fillet', () => {
+  const FI = { type: 'fillet', id: 'F3', radius: 2, edges: [] };
+  it('the box swaps the radius for three face fields with Pick buttons, and back', () => {
+    const m = mount(FI);
+    fireEvent.click(m.box('fullRound'));
+    expect(m.drafts.at(-1)).toMatchObject({ filletType: 'fullRound', radii: null });
+    expect(m.q('radius')).toBeNull();
+    expect(m.q('profile')).toBeNull();
+    expect(m.q('edges')).toBeNull();
+    for (const k of ['side1', 'center', 'side2']) expect(m.q(k)).not.toBeNull();
+    fireEvent.click(m.q('center')!.querySelector('button')!);
+    expect(m.picks).toEqual(['center']);
+  });
+  it('a full round shows the picked faces and unticking removes them', () => {
+    const m = mount({ ...FI, filletType: 'fullRound', side1: 'F2.C1', center: 'F2.S.e1', side2: 'F2.C0' });
+    expect((m.q('center')!.querySelector('input') as HTMLInputElement).value).toBe('F2.S.e1');
+    fireEvent.click(m.box('filletType'));
+    expect(m.drafts.at(-1)).toMatchObject({ filletType: null, side1: null, center: null, side2: null });
+  });
+});
+
+describe('extrude twist', () => {
+  it('twist shows its axis only once set, and excludes the draft', () => {
+    const m = mount(EXTRUDE);
+    expect(m.q('twistCentreX')).toBeNull();
+    fireEvent.change(m.num('twist'), { target: { value: '90' } });
+    expect(m.drafts.at(-1)).toMatchObject({ twist: 90, draft: null });
+    expect(m.q('twistCentreX')).not.toBeNull();
+    expect(m.q('draft')).toBeNull();
+    fireEvent.change(m.num('twistCentreX'), { target: { value: '5' } });
+    expect(m.drafts.at(-1)).toMatchObject({ twist: 90, twistCentre: [5, 0] });
+    fireEvent.change(m.num('twist'), { target: { value: '0' } });
+    expect(m.drafts.at(-1)).toMatchObject({ twist: null, twistCentre: null });
+  });
+  it('a draft hides the twist, up to next hides it, and it is not offered for a revolve', () => {
+    expect(mount({ ...EXTRUDE, draft: 5 }).q('twist')).toBeNull();
+    expect(mount({ ...EXTRUDE, end: 'upToNext', depth: undefined }).q('twist')).toBeNull();
+    expect(mount({ type: 'revolve', id: 'F2', sketch: 'F1', end: 'blind', angle: 360 }).q('twist')).toBeNull();
+  });
+});
+
+describe('loft centre line and connectors', () => {
+  const sk = (id: string, closed: boolean) => ({
+    type: 'sketch', id, name: id, plane: { kind: 'std', id: 'front' },
+    points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 1, y: 0 }, { id: 'c', x: 1, y: 1 }],
+    entities: closed ? [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }, { id: 'e2', type: 'line', p1: 'b', p2: 'c' }, { id: 'e3', type: 'line', p1: 'c', p2: 'a' }] : [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }],
+    constraints: [],
+  });
+  const doc = { features: [sk('S1', true), sk('S2', true), sk('S3', false)] } as never;
+  const LOFT = { type: 'loft', id: 'F4', sketches: ['S1', 'S2'] };
+  const mountLoft = (f: Wire) => mount(f, { options: (a: never) => optionsFor(a, doc) });
+  it('the centre line is a list of the open sketches; choosing one sets it, None removes it', () => {
+    const m = mountLoft(LOFT);
+    const sel = m.container.querySelector('select[data-path="centreLine"]') as HTMLSelectElement;
+    expect([...sel.options].map((o) => o.value)).toEqual(['', 'S3']);
+    fireEvent.change(sel, { target: { value: 'S3' } });
+    expect(m.drafts.at(-1)).toMatchObject({ centreLine: { sketch: 'S3' } });
+    fireEvent.change(sel, { target: { value: '' } });
+    expect(m.drafts.at(-1)).toMatchObject({ centreLine: null });
+  });
+  it('a connector per profile: a number sets it, blank removes it', () => {
+    const m = mountLoft(LOFT);
+    const inp = (i: number) => m.q('connectors.' + i)!.querySelector('input') as HTMLInputElement;
+    fireEvent.change(inp(1), { target: { value: '0.25' } });
+    expect(m.drafts.at(-1)).toMatchObject({ connectors: [null, 0.25] });
+    fireEvent.change(inp(1), { target: { value: '' } });
+    expect(m.drafts.at(-1)).toMatchObject({ connectors: null });
+  });
+});
+
+describe('variable thicken', () => {
+  const TH = { type: 'thicken', id: 'F3', surface: 'F2', thickness: 4, side: 'front' };
+  it('the box swaps the thickness for a ramp with stops', () => {
+    const m = mount(TH);
+    expect(m.num('thickness').value).toBe('4');
+    expect(m.q('surface')).not.toBeNull();   // the generic fields stay
+    fireEvent.click(m.box('thicknessAt'));
+    expect(m.drafts.at(-1)).toMatchObject({ thickness: null, thicknessAt: { along: [0, 0, 1], stops: [[0, 4], [10, 2]] } });
+    expect(m.q('thickness')).toBeNull();
+  });
+  it('edits stops, the axis, adds and removes', () => {
+    const at = { along: [0, 0, 1], stops: [[0, 4], [48, 1]] };
+    const m = mount({ ...TH, thickness: undefined, thicknessAt: at });
+    fireEvent.change(m.q('stop1t')!.querySelector('input')!, { target: { value: '2' } });
+    expect(m.drafts.at(-1)).toMatchObject({ thicknessAt: { stops: [[0, 4], [48, 2]] } });
+    fireEvent.change(m.sel('along'), { target: { value: 'x' } });
+    expect(m.drafts.at(-1)).toMatchObject({ thicknessAt: { along: [1, 0, 0] } });
+    expect((m.container.querySelector('[data-act="remove-stop"]') as HTMLButtonElement).disabled).toBe(true);   // two stops is the least
+    fireEvent.click(m.container.querySelector('[data-act="add-stop"]')!);
+    expect((m.drafts.at(-1)!.thicknessAt as { stops: unknown[] }).stops).toHaveLength(3);
+    expect((m.container.querySelector('[data-act="remove-stop"]') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(m.box('thicknessAt'));
+    expect(m.drafts.at(-1)).toMatchObject({ thicknessAt: null, thickness: 4 });
+  });
+});
+
 describe('tangent chain toggle (fillet and chamfer)', () => {
   const seeds = [{ faces: ['T', 'A'], at: [1, 0, 0] }];
   const all = [...seeds, { faces: ['T', 'B'], at: [2, 0, 0] }, { faces: ['T', 'C'], at: [3, 0, 0] }];
@@ -241,6 +337,22 @@ describe('tangent chain toggle (fillet and chamfer)', () => {
     fireEvent.click(m.box('tangentChain'));
     expect(m.drafts.at(-1)).toMatchObject({ edges: all });
     expect(tangentChainOn()).toBe(true);
+  });
+  it('switched on for an edge list of unknown origin, it follows the chain on the body the feature is applied to; off again restores the list', async () => {
+    try { localStorage.setItem('cad.tangentChain', '0'); } catch { /* */ }
+    const own = [{ faces: ['T', 'P'], at: [7, 0, 0] }];
+    const more = [...own, { faces: ['T', 'Q'], at: [8, 0, 0] }];
+    const asked: Wire[] = [];
+    const m = mount({ type: 'fillet', id: 'F7', radius: 1, edges: own }, { options: (a: never) => optionsFor(a, null, { closeWithLine() {}, asSurface() {}, chainEdges: async (eff) => { asked.push(eff); return more; } }) });
+    expect(m.box('tangentChain').checked).toBe(false);
+    fireEvent.click(m.box('tangentChain'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(asked.at(-1)).toMatchObject({ id: 'F7', edges: own });
+    expect(m.drafts.at(-1)).toMatchObject({ edges: more });
+    expect(tangentChainOn()).toBe(true);
+    m.rerender(<FeatureEditor feature={{ type: 'fillet', id: 'F7', radius: 1, edges: more }} onDraft={(d) => m.drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} options={(a: never) => optionsFor(a, null, { closeWithLine() {}, asSurface() {}, chainEdges: async () => null })} />);
+    fireEvent.click(m.box('tangentChain'));
+    expect(m.drafts.at(-1)).toMatchObject({ edges: own });
   });
   it('chamfer has it too; an edge list of unknown origin is left alone', () => {
     const m = mount({ type: 'chamfer', id: 'F4', chamferType: 'equal', distance: 1, edges: [{ faces: ['X', 'Y'], at: [9, 9, 9] }] });

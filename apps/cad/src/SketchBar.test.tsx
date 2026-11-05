@@ -179,3 +179,38 @@ describe('angle dimensions', () => {
     expect(onEdit).toHaveBeenCalledWith('k9');
   });
 });
+
+describe('constraint glyph chips and value chips', () => {
+  const marks = [
+    { id: 'k1', text: 'H', kind: 'mark' as const, type: 'horizontal', x: 20, y: 20 },
+    { id: 'k2', text: 'T', kind: 'mark' as const, type: 'tangent', x: 60, y: 20 },
+    { id: 'k3', text: '40 mm', kind: 'dimension' as const, type: 'distance', x: 100, y: 20 },
+  ];
+  it('a glyph chip is a labelled icon with the constraint name as its tooltip, and a click selects it', () => {
+    const onSelect = vi.fn();
+    const { container } = render(<SketchAnnotations items={marks} hot={null} onEdit={() => {}} onHover={() => {}} onSelect={onSelect} />);
+    const [h, tg] = [...container.querySelectorAll('.annot.mark')] as HTMLElement[];
+    expect(h.querySelector('svg.glyph path')).not.toBeNull();
+    expect(h.title).toBe('Horizontal'); expect(tg.title).toBe('Tangent');
+    expect(h.getAttribute('aria-label')).toBe('Horizontal');
+    fireEvent.click(tg); expect(onSelect).toHaveBeenCalledWith('k2');
+  });
+  it('the selected chip is marked, touch layout and tools are reflected, a blamed one is flagged', () => {
+    const { container, rerender } = render(<SketchAnnotations items={[{ ...marks[0], blame: 'conflict' as const }, marks[2]]} hot={null} selected="k1" onEdit={() => {}} onHover={() => {}} />);
+    expect(container.querySelector('.annot.sel')!.getAttribute('data-id')).toBe('k1');
+    expect(container.querySelector('.annot.conflict')).not.toBeNull();
+    expect(container.querySelector('.sketch-annots.touch')).toBeNull();
+    expect(container.querySelector('.annot.mark.inert')).toBeNull();
+    rerender(<SketchAnnotations items={marks} hot={null} touch inert onEdit={() => {}} onHover={() => {}} />);
+    expect(container.querySelector('.sketch-annots.touch')).not.toBeNull();
+    expect(container.querySelector('.annot.mark.inert')).not.toBeNull();
+    expect(container.querySelector('.annot.dimension.inert')).toBeNull();   // a value chip stays editable while a tool runs
+  });
+  it('a value chip keeps its text and still edits on double-click', () => {
+    const onEdit = vi.fn();
+    const { container } = render(<SketchAnnotations items={marks} hot={null} onEdit={onEdit} onHover={() => {}} />);
+    const d = container.querySelector('.annot.dimension')!;
+    expect(d.textContent).toBe('40 mm');
+    fireEvent.dblClick(d); expect(onEdit).toHaveBeenCalledWith('k3');
+  });
+});

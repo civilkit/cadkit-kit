@@ -2,9 +2,12 @@ import { useEffect, useRef } from 'preact/hooks';
 import { Icon, Tip, type Command } from '@kit/ui';
 import { t } from './i18n';
 
+export type MeshQuality = 'coarse' | 'normal' | 'fine';
+export const MESH_QUALITIES: MeshQuality[] = ['coarse', 'normal', 'fine'];
+
 /** The top bar's Export button and its list of formats. The list is the export commands themselves (so the menu, the
  *  ribbon and the command search never disagree); a format that cannot run now is shown disabled. */
-export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(open: boolean): void; keys?: string; disabled?: boolean; /** "Only visible bodies" for the mesh formats; absent: no such row. */ visibleOnly?: { on: boolean; onChange(on: boolean): void } }) {
+export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(open: boolean): void; keys?: string; disabled?: boolean; /** "Only visible bodies" for the mesh formats; absent: no such row. */ visibleOnly?: { on: boolean; onChange(on: boolean): void }; /** Mesh tolerance for STL and OBJ: a preset, and an absolute chord height in mm typed as text (empty: the preset's). Absent: no such rows. */ meshQuality?: { quality: MeshQuality; chord: string; onQuality(q: MeshQuality): void; onChord(text: string): void } }) {
   const box = useRef<HTMLDivElement>(null);
   const { open, onOpenChange } = p;
   useEffect(() => {
@@ -33,6 +36,20 @@ export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(op
               </button>
             );
           })}
+          {p.meshQuality ? (
+            <div class="export-row export-opt">
+              <label>
+                <span>{t('export.quality')}</span>
+                <select data-pref="exportQuality" aria-label={t('export.quality')} value={p.meshQuality.quality} onChange={(e) => p.meshQuality!.onQuality((e.currentTarget as HTMLSelectElement).value as MeshQuality)}>
+                  {MESH_QUALITIES.map((q) => <option key={q} value={q}>{t(`export.quality.${q}`)}</option>)}
+                </select>
+              </label>
+              <label>
+                <span>{t('export.chord')}</span>
+                <input type="text" inputMode="decimal" data-pref="exportChord" aria-label={t('export.chord')} placeholder={t('export.chordAuto')} value={p.meshQuality.chord} onInput={(e) => p.meshQuality!.onChord((e.currentTarget as HTMLInputElement).value)} />
+              </label>
+            </div>
+          ) : null}
           {p.visibleOnly ? (
             <label class="export-row export-opt">
               <input type="checkbox" data-pref="exportVisible" checked={p.visibleOnly.on} onChange={(e) => p.visibleOnly!.onChange((e.currentTarget as HTMLInputElement).checked)} />

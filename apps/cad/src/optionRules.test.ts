@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsObject, endsFor, filletProfileOf, hasOptions, managedPaths, objectRefChoices, objectRefLabel, objectRefPatch,
+  FULL_ROUND_FACES, chamferTypeOf, endAllowsDraft, endAllowsTwist, filletFullRound, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, endNeedsDepth, endNeedsObject, endsFor, filletProfileOf, hasOptions, managedPaths, objectRefChoices, objectRefLabel, objectRefPatch,
   objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart, radiiOf, startAllowed, startOf,
 } from './optionRules';
+import {
+  addStop, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, patchStop, patchThickenAxis, patchThickenVariable, removeStop, stopsOf, thickenAxisOf, thickenVariable,
+} from './surfaceRules';
 import './i18n';
 
 describe('end conditions', () => {
@@ -66,6 +69,53 @@ describe('fillet', () => {
     expect(patchFilletProfile({}, 'curvature')).toEqual({ profile: 'curvature', rho: null, shape: 0.5 });
     expect(patchFilletProfile({ profile: 'chord' }, 'circular')).toEqual({ profile: null, rho: null, shape: null });
     expect(filletProfileOf({ profile: 'bogus' })).toBe('circular');
+  });
+});
+
+describe('full round, twist, loft and thicken rules', () => {
+  it('full round replaces variable radius and carries three faces', () => {
+    expect(filletFullRound({ filletType: 'fullRound' })).toBe(true);
+    expect(patchFilletFullRound({ radius: 2 }, true)).toEqual({ filletType: 'fullRound', radii: null, profile: null, rho: null, shape: null });
+    expect(patchFilletFullRound({}, false)).toEqual({ filletType: null, side1: null, center: null, side2: null });
+    expect(patchFilletVariable({ radius: 2, filletType: 'fullRound' }, true)).toMatchObject({ filletType: 'variable', side1: null, center: null, side2: null });
+    for (const k of FULL_ROUND_FACES) expect(managedPaths('fillet').has(k)).toBe(true);
+  });
+  it('twist: zero removes it with its centre, a twist drops the draft, up to next refuses it', () => {
+    expect(patchTwist({}, 30)).toEqual({ twist: 30, draft: null, draftOut: null });
+    expect(patchTwist({ twist: 30 }, 0)).toEqual({ twist: null, twistCentre: null });
+    expect(patchTwistCentre({}, 0, 5)).toEqual({ twistCentre: [5, 0] });
+    expect(patchTwistCentre({ twistCentre: [5, 0] }, 0, 0)).toEqual({ twistCentre: null });
+    expect(twistCentreOf({})).toEqual([0, 0]);
+    expect(patchEnd({ twist: 30, depth: 4 }, 'upToNext')).toMatchObject({ twist: null, twistCentre: null });
+    expect(patchEnd({ twist: 30, depth: 4 }, 'mid')).not.toHaveProperty('twist');
+    expect(endAllowsTwist('upToNext')).toBe(false);
+    expect(managedPaths('extrude').has('twist') && managedPaths('extrude').has('twistCentre')).toBe(true);
+  });
+  it('loft centre line and connectors', () => {
+    expect(centreLinePatch('F5')).toEqual({ centreLine: { sketch: 'F5' } });
+    expect(centreLinePatch('')).toEqual({ centreLine: null });
+    expect(centreLineOf({ centreLine: { sketch: 'F5' } })).toBe('F5');
+    expect(connectorPatch({}, 3, 1, 0.25)).toEqual({ connectors: [null, 0.25, null] });
+    expect(connectorPatch({ connectors: [null, 0.25, null] }, 3, 1, null)).toEqual({ connectors: null });
+    expect(connectorPatch({}, 2, 0, 3)).toEqual({ connectors: [1, null] });   // clamped to the profile
+    expect(connectorsOf({ connectors: [0, null] }, 3)).toEqual([0, null, null]);
+    expect(managedPaths('loft').has('centreLine') && managedPaths('loft').has('connectors')).toBe(true);
+  });
+  it('variable thicken: ramp on and off, axis, stops between 2 and 6', () => {
+    const on = patchThickenVariable({ thickness: 4 }, true);
+    expect(on).toEqual({ thickness: null, thicknessAt: { along: [0, 0, 1], stops: [[0, 4], [10, 2]] } });
+    const eff = { thicknessAt: (on as { thicknessAt: unknown }).thicknessAt };
+    expect(thickenVariable(eff)).toBe(true);
+    expect(patchThickenVariable(eff, false)).toEqual({ thicknessAt: null, thickness: 4 });
+    expect(patchThickenAxis(eff, 'x')).toEqual({ thicknessAt: { along: [1, 0, 0], stops: [[0, 4], [10, 2]] } });
+    expect(thickenAxisOf({ thicknessAt: { along: [1, 1, 0], stops: [] } })).toBe('custom');
+    expect(patchStop(eff, 1, 1, 1)).toEqual({ thicknessAt: { along: [0, 0, 1], stops: [[0, 4], [10, 1]] } });
+    expect(addStop(eff)).toEqual({ thicknessAt: { along: [0, 0, 1], stops: [[0, 4], [10, 2], [20, 2]] } });
+    expect(removeStop(eff, 0)).toEqual({});   // two stops is the least
+    let e = eff as Record<string, unknown>;
+    for (let i = 0; i < 8; i++) e = { thicknessAt: { ...(e.thicknessAt as object), ...((addStop(e).thicknessAt as object | undefined) ?? {}) } };
+    expect(stopsOf(e)).toHaveLength(6);
+    expect(managedPaths('thicken').has('thicknessAt')).toBe(true);
   });
 });
 

@@ -9,11 +9,65 @@
 //   unit   := mm | cm | m | in | deg | °         scale to mm / degrees
 //
 // Variable names are case sensitive; `pi` and the functions sqrt sin cos tan abs are any case. Trig is in
-// degrees, a comma is a decimal point, a leading `=` is optional. min, max and round do not exist in the kernel.
+// degrees, a comma is a decimal point, a leading `=` is optional. The functions of MULTI (as the kernel's) are called only as
+// `name(` in lower case; inside their parentheses a comma separates the arguments, every argument and result must be finite, and
+// the inverse trigonometric ones return degrees while the hyperbolic ones (sinh cosh tanh asinh acosh atanh) are unitless.
 
 export type ExprCode = 'badExpression' | 'badName' | 'cyclicVariables' | 'unknownName' | 'duplicateName';
 
 export const FUNCTIONS = ['sqrt', 'sin', 'cos', 'tan', 'abs'] as const;
+/** Functions called as `name(args)`: (name, number of arguments; 0 = one or more). Same list and meaning as the kernel's `MULTI`. */
+const MULTI: Array<[string, number]> = [
+  ['min', 0], ['max', 0], ['pow', 2], ['mod', 2], ['hypot', 2], ['atan2', 2], ['round', 1], ['floor', 1], ['ceil', 1], ['trunc', 1],
+  ['exp', 1], ['ln', 1], ['log10', 1], ['asin', 1], ['acos', 1], ['atan', 1],
+  ['sinh', 1], ['cosh', 1], ['tanh', 1], ['asinh', 1], ['acosh', 1], ['atanh', 1],
+];
+const DEG = 180 / Math.PI;
+function callMulti(f: string, a: number[]): number {
+  switch (f) {
+    case 'min': return Math.min(...a);
+    case 'max': return Math.max(...a);
+    case 'pow': return Math.pow(a[0], a[1]);
+    case 'mod': return a[0] % a[1];
+    case 'hypot': return Math.hypot(a[0], a[1]);
+    case 'atan2': return Math.atan2(a[0], a[1]) * DEG;
+    case 'round': return Math.sign(a[0]) * Math.round(Math.abs(a[0]));   // halves away from zero
+    case 'floor': return Math.floor(a[0]);
+    case 'ceil': return Math.ceil(a[0]);
+    case 'trunc': return Math.trunc(a[0]);
+    case 'exp': return Math.exp(a[0]);
+    case 'ln': return Math.log(a[0]);
+    case 'log10': return Math.log10(a[0]);
+    case 'asin': return Math.asin(a[0]) * DEG;
+    case 'acos': return Math.acos(a[0]) * DEG;
+    case 'atan': return Math.atan(a[0]) * DEG;
+    case 'sinh': return Math.sinh(a[0]);
+    case 'cosh': return Math.cosh(a[0]);
+    case 'tanh': return Math.tanh(a[0]);
+    case 'asinh': return Math.asinh(a[0]);
+    case 'acosh': return Math.acosh(a[0]);
+    default: return Math.atanh(a[0]);
+  }
+}
+/** `,` is a decimal point except directly inside the parentheses of a call to a MULTI function, where it separates the arguments (the kernel's `decimal_commas`). */
+function decimalCommas(s: string): string {
+  const calls: boolean[] = [];
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '(') {
+      let j = i;
+      while (j > 0 && /\s/.test(s[j - 1])) j--;
+      const end = j;
+      while (j > 0 && isIdent(s[j - 1])) j--;
+      calls.push(j < end && MULTI.some(([m]) => m === s.slice(j, end)));
+      out += c;
+    } else if (c === ')') { calls.pop(); out += c; }
+    else if (c === ',') out += calls[calls.length - 1] ? ',' : '.';
+    else out += c;
+  }
+  return out;
+}
 const UNITS: Array<[string, number]> = [['mm', 1], ['cm', 10], ['m', 1e3], ['in', 25.4], ['deg', 1], ['°', 1]];
 
 const isIdentStart = (c: string | undefined): boolean => !!c && /[A-Za-z_]/.test(c);
@@ -55,6 +109,30 @@ class Parser {
     }
     return v;
   }
+  /** `name(a, b, ...)` of a MULTI function, the cursor just after the name; null when no `(` follows (the word is then read as before). */
+  multi(name: string): number | null {
+    const m = MULTI.find(([f]) => f === name);
+    if (!m) return null;
+    const at = this.n;
+    this.ws();
+    if (this.peek() !== '(') { this.n = at; return null; }
+    this.n++;
+    const args: number[] = [];
+    for (;;) {
+      const v = this.expr();
+      if (!Number.isFinite(v)) throw new Fail();
+      args.push(v);
+      this.ws();
+      const c = this.peek();
+      this.n++;
+      if (c === ')') break;
+      if (c !== ',') throw new Fail();
+    }
+    if (m[1] === 0 ? args.length === 0 : args.length !== m[1]) throw new Fail();
+    const r = callMulti(m[0], args);
+    if (!Number.isFinite(r)) throw new Fail();
+    return r;
+  }
   unary(): number {
     this.ws();
     const c = this.peek();
@@ -72,6 +150,8 @@ class Parser {
       const s = this.n;
       while (isIdent(this.peek())) this.n++;
       const id = this.t.slice(s, this.n);
+      const mv = this.multi(id);
+      if (mv !== null) return mv;
       if (this.vars && Object.prototype.hasOwnProperty.call(this.vars, id)) return this.vars[id];
       const low = id.toLowerCase();
       if (low === 'pi') return Math.PI;
@@ -113,7 +193,7 @@ export type EvalResult = { ok: true; value: number } | { ok: false; code: ExprCo
 export function evalExpr(src: string, values?: Values): EvalResult {
   let s = src.trim();
   if (s.startsWith('=')) s = s.slice(1);
-  s = s.replace(/,/g, '.');
+  s = decimalCommas(s);
   const unknown: string[] = [];
   const p = new Parser(s, values, unknown);
   try {

@@ -18,6 +18,7 @@
     "pages:leakcheck": "node tools/pages_leakcheck.mjs dist-pages",
     "skill:generate": "node packages/skill/tools/generate.mjs",
     "ux:shots": "node tools/ux/shots.mjs",
+    "ux:sketch": "node tools/ux/sketch.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "i18n:check": "node tools/i18n_check.mjs",
     "samples:thumbs:check": "node tools/library_thumbs.mjs apps/cad/public/samples --check",

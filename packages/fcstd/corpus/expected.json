@@ -1,0 +1,686 @@
+{
+ "models": {
+  "10_sketch_rect_pad": "EXACT",
+  "11_sketch_polyline_closed": "EXACT",
+  "12_sketch_slot_arcs": "EXACT",
+  "13_sketch_circle_ellipse": "EXACT",
+  "13_sketch_conics": "UNSUPPORTED",
+  "14_sketch_bspline": "UNSUPPORTED",
+  "15_sketch_bspline_periodic": "UNSUPPORTED",
+  "16_sketch_constraint_zoo": "EXACT",
+  "17_sketch_base_planes": "EXACT",
+  "18_sketch_on_datum_plane": "UNSUPPORTED",
+  "19_sketch_attach_modes": "EXACT",
+  "19_sketch_external_geometry": "EXACT",
+  "19_sketch_on_face": "EXACT",
+  "20_pad_side_types": "EXACT",
+  "21_pad_taper": "EXACT",
+  "22_pad_up_to": "UNSUPPORTED",
+  "23_pad_custom_direction": "UNSUPPORTED",
+  "24_pad_refine": "EXACT",
+  "25_pocket_types": "EXACT",
+  "26_pocket_taper_direction": "UNSUPPORTED",
+  "27_pocket_up_to_first": "EXACT",
+  "28_pad_up_to_shape": "UNSUPPORTED",
+  "29_pad_profile_face": "UNSUPPORTED",
+  "30_revolution_axes": "EXACT",
+  "31_groove": "EXACT",
+  "32_revolution_datum_edge_axis": "UNSUPPORTED",
+  "33_groove_axes": "EXACT",
+  "35_fillet": "EXACT",
+  "36_chamfer": "CLOSE",
+  "37_dressup_chain": "EXACT",
+  "38_fillet_cylinder_edges": "EXACT",
+  "39_hole_sketch_points": "EXACT",
+  "40_draft": "EXACT",
+  "41_thickness": "UNSUPPORTED",
+  "42_hole_simple": "EXACT",
+  "43_hole_cuts": "UNSUPPORTED",
+  "44_hole_thread_tyre": "EXACT",
+  "44_hole_threaded": "EXACT",
+  "44_hole_threaded_more": "EXACT",
+  "45_hole_threaded_modelled": "UNSUPPORTED",
+  "46_hole_tapered": "UNSUPPORTED",
+  "47_mirrored": "EXACT",
+  "48_linear_pattern": "EXACT",
+  "49_polar_pattern": "EXACT",
+  "50_multitransform": "UNSUPPORTED",
+  "51_scaled": "UNSUPPORTED",
+  "52_loft": "UNSUPPORTED",
+  "53_pipe": "UNSUPPORTED",
+  "54_helix": "UNSUPPORTED",
+  "55_primitives_additive": "UNSUPPORTED",
+  "56_primitives_subtractive": "MISMATCH",
+  "57_boolean_feature": "UNSUPPORTED",
+  "58_binders": "UNSUPPORTED",
+  "59_datum_features": "EXACT",
+  "60_part_primitives": "UNSUPPORTED",
+  "61_part_boolean": "UNSUPPORTED",
+  "62_part_extrusion": "UNSUPPORTED",
+  "63_part_revolution": "UNSUPPORTED",
+  "64_part_fillet_chamfer": "UNSUPPORTED",
+  "65_part_mirror": "UNSUPPORTED",
+  "66_part_loft": "UNSUPPORTED",
+  "67_part_sweep": "UNSUPPORTED",
+  "68_part_offset": "UNSUPPORTED",
+  "69_part_thickness": "UNSUPPORTED",
+  "70_body_tip_rolled_back": "EXACT",
+  "71_two_bodies_placed": "EXACT",
+  "72_app_part_nesting": "EXACT",
+  "73_link_scaled_placed": "EXACT",
+  "74_link_array": "EXACT",
+  "75_groups": "EXACT",
+  "76_link_to_part": "EXACT",
+  "77_body_in_part_origin": "EXACT",
+  "78_compound_and_clone": "EXACT",
+  "79_whole_shape_pattern": "UNSUPPORTED",
+  "80_spreadsheet_params": "EXACT",
+  "81_varset_params": "EXACT",
+  "82_custom_property_refs": "EXACT",
+  "83_expr_units_functions": "EXACT",
+  "84_expr_cross_object": "EXACT",
+  "85_expr_other_features": "EXACT",
+  "86_spreadsheet_formulas": "EXACT",
+  "87_expr_placement_parts": "EXACT",
+  "88_config_table": "EXACT",
+  "89_expr_angles_sketch": "EXACT"
+ },
+ "targets": {
+  "10_sketch_rect_pad/Body": "EXACT",
+  "11_sketch_polyline_closed/Body": "EXACT",
+  "12_sketch_slot_arcs/Body": "EXACT",
+  "13_sketch_circle_ellipse/Body": "EXACT",
+  "13_sketch_conics/Body": "UNSUPPORTED",
+  "14_sketch_bspline/Body": "UNSUPPORTED",
+  "15_sketch_bspline_periodic/Body": "UNSUPPORTED",
+  "16_sketch_constraint_zoo/Body": "EXACT",
+  "17_sketch_base_planes/BodyXY": "EXACT",
+  "17_sketch_base_planes/BodyXZ": "EXACT",
+  "17_sketch_base_planes/BodyYZ": "EXACT",
+  "18_sketch_on_datum_plane/Body": "UNSUPPORTED",
+  "19_sketch_attach_modes/Box": "EXACT",
+  "19_sketch_external_geometry/Body": "EXACT",
+  "19_sketch_on_face/Body": "EXACT",
+  "20_pad_side_types/BodyOne": "EXACT",
+  "20_pad_side_types/BodyTwo": "EXACT",
+  "20_pad_side_types/BodySym": "EXACT",
+  "20_pad_side_types/BodyRev": "EXACT",
+  "20_pad_side_types/BodyNoRefine": "EXACT",
+  "21_pad_taper/BodyPos": "EXACT",
+  "21_pad_taper/BodyNeg": "EXACT",
+  "22_pad_up_to/BodyUpToFirst": "EXACT",
+  "22_pad_up_to/BodyUpToLast": "UNSUPPORTED",
+  "22_pad_up_to/BodyUpToFace": "EXACT",
+  "23_pad_custom_direction/BodyVector": "UNSUPPORTED",
+  "23_pad_custom_direction/BodyAxis": "UNSUPPORTED",
+  "24_pad_refine/BodyOn": "EXACT",
+  "24_pad_refine/BodyOff": "EXACT",
+  "25_pocket_types/BodyLength": "EXACT",
+  "25_pocket_types/BodyRev": "EXACT",
+  "25_pocket_types/BodyThrough": "EXACT",
+  "25_pocket_types/BodyThroughMid": "EXACT",
+  "25_pocket_types/BodyTwo": "EXACT",
+  "25_pocket_types/BodyUpToFace": "EXACT",
+  "25_pocket_types/BodyMid": "EXACT",
+  "26_pocket_taper_direction/BodyTaper": "EXACT",
+  "26_pocket_taper_direction/BodyDir": "UNSUPPORTED",
+  "27_pocket_up_to_first/BodyFirst": "EXACT",
+  "27_pocket_up_to_first/BodyFace": "EXACT",
+  "28_pad_up_to_shape/BodyRef": "EXACT",
+  "28_pad_up_to_shape/BodyMain": "UNSUPPORTED",
+  "29_pad_profile_face/Body": "UNSUPPORTED",
+  "30_revolution_axes/BodyFull": "EXACT",
+  "30_revolution_axes/BodyPart": "EXACT",
+  "30_revolution_axes/BodyMid": "EXACT",
+  "30_revolution_axes/BodyRev": "EXACT",
+  "30_revolution_axes/BodyCons": "EXACT",
+  "30_revolution_axes/BodyOrigin": "EXACT",
+  "30_revolution_axes/BodyV": "EXACT",
+  "31_groove/BodyFull": "EXACT",
+  "31_groove/BodyPart": "EXACT",
+  "31_groove/BodyMid": "EXACT",
+  "31_groove/BodyRev": "EXACT",
+  "32_revolution_datum_edge_axis/BodyEdge": "UNSUPPORTED",
+  "32_revolution_datum_edge_axis/BodyDatum": "UNSUPPORTED",
+  "33_groove_axes/BodyCons": "EXACT",
+  "33_groove_axes/BodyOrigin": "EXACT",
+  "35_fillet/BodyVert": "EXACT",
+  "35_fillet/BodyAll": "EXACT",
+  "35_fillet/BodyTop": "EXACT",
+  "36_chamfer/BodyEqual": "EXACT",
+  "36_chamfer/BodyTwo": "EXACT",
+  "36_chamfer/BodyTwoFlip": "EXACT",
+  "36_chamfer/BodyAngle": "EXACT",
+  "36_chamfer/BodyAll": "CLOSE",
+  "37_dressup_chain/Body": "EXACT",
+  "38_fillet_cylinder_edges/Body": "EXACT",
+  "39_hole_sketch_points/Body": "EXACT",
+  "40_draft/BodyIn": "EXACT",
+  "40_draft/BodyOut": "EXACT",
+  "41_thickness/BodyIn": "EXACT",
+  "41_thickness/BodyOut": "EXACT",
+  "41_thickness/BodyArc": "UNSUPPORTED",
+  "42_hole_simple/BodyDepth": "EXACT",
+  "42_hole_simple/BodyThrough": "EXACT",
+  "42_hole_simple/BodyAngled": "EXACT",
+  "42_hole_simple/BodyAngledDepth": "EXACT",
+  "42_hole_simple/BodyTwo": "EXACT",
+  "43_hole_cuts/BodyBore": "EXACT",
+  "43_hole_cuts/BodySink": "EXACT",
+  "43_hole_cuts/BodyDrill": "UNSUPPORTED",
+  "44_hole_thread_tyre/BodyTyre": "EXACT",
+  "44_hole_threaded/BodyM6": "EXACT",
+  "44_hole_threaded/BodyM8x1": "EXACT",
+  "44_hole_threaded/BodyM6Left": "EXACT",
+  "44_hole_threaded/BodyUNC": "EXACT",
+  "44_hole_threaded/BodyNPT": "EXACT",
+  "44_hole_threaded_more/BodyUNF": "EXACT",
+  "44_hole_threaded_more/BodyUNEF": "EXACT",
+  "44_hole_threaded_more/BodyBSP": "EXACT",
+  "44_hole_threaded_more/BodyBSW": "EXACT",
+  "44_hole_threaded_more/BodyBSF": "EXACT",
+  "45_hole_threaded_modelled/BodyM6": "UNSUPPORTED",
+  "46_hole_tapered/BodyTaper": "UNSUPPORTED",
+  "46_hole_tapered/BodyTaperDeep": "UNSUPPORTED",
+  "47_mirrored/BodyPlane": "EXACT",
+  "47_mirrored/BodyAxis": "EXACT",
+  "48_linear_pattern/BodyLength": "EXACT",
+  "48_linear_pattern/BodyOffset": "EXACT",
+  "48_linear_pattern/BodyRev": "EXACT",
+  "48_linear_pattern/BodyY": "EXACT",
+  "49_polar_pattern/BodyFull": "EXACT",
+  "49_polar_pattern/BodyPart": "EXACT",
+  "49_polar_pattern/BodyOffset": "EXACT",
+  "50_multitransform/Body": "UNSUPPORTED",
+  "51_scaled/Body": "UNSUPPORTED",
+  "52_loft/BodyAdd": "UNSUPPORTED",
+  "52_loft/Body3Ruled": "UNSUPPORTED",
+  "52_loft/Body3Smooth": "UNSUPPORTED",
+  "52_loft/BodySub": "UNSUPPORTED",
+  "53_pipe/BodyLine": "UNSUPPORTED",
+  "53_pipe/BodyArc": "UNSUPPORTED",
+  "53_pipe/BodyFrenet": "UNSUPPORTED",
+  "53_pipe/BodySub": "UNSUPPORTED",
+  "54_helix/BodyPitchHeight": "UNSUPPORTED",
+  "54_helix/BodyTurns": "UNSUPPORTED",
+  "54_helix/BodyHeightTurns": "UNSUPPORTED",
+  "54_helix/BodyLeft": "UNSUPPORTED",
+  "54_helix/BodySub": "UNSUPPORTED",
+  "55_primitives_additive/BodyBox": "EXACT",
+  "55_primitives_additive/BodyCylinder": "EXACT",
+  "55_primitives_additive/BodySphere": "EXACT",
+  "55_primitives_additive/BodyCone": "EXACT",
+  "55_primitives_additive/BodyTorus": "EXACT",
+  "55_primitives_additive/BodyWedge": "UNSUPPORTED",
+  "55_primitives_additive/BodyPrism": "EXACT",
+  "55_primitives_additive/BodyEllipsoid": "UNSUPPORTED",
+  "56_primitives_subtractive/BodyBox": "MISMATCH",
+  "56_primitives_subtractive/BodyCylinder": "MISMATCH",
+  "56_primitives_subtractive/BodySphere": "EXACT",
+  "56_primitives_subtractive/BodyCone": "EXACT",
+  "56_primitives_subtractive/BodyTorus": "EXACT",
+  "56_primitives_subtractive/BodyWedge": "UNSUPPORTED",
+  "56_primitives_subtractive/BodyPrism": "MISMATCH",
+  "56_primitives_subtractive/BodyEllipsoid": "UNSUPPORTED",
+  "57_boolean_feature/BodyToolCut": "EXACT",
+  "57_boolean_feature/MainCut": "UNSUPPORTED",
+  "57_boolean_feature/BodyToolFuse": "EXACT",
+  "57_boolean_feature/MainFuse": "UNSUPPORTED",
+  "57_boolean_feature/BodyToolCommon": "EXACT",
+  "57_boolean_feature/MainCommon": "UNSUPPORTED",
+  "58_binders/BodySrc": "EXACT",
+  "58_binders/BodyUse": "UNSUPPORTED",
+  "59_datum_features/Body": "EXACT",
+  "60_part_primitives/Box": "EXACT",
+  "60_part_primitives/Cylinder": "EXACT",
+  "60_part_primitives/CylinderPart": "UNSUPPORTED",
+  "60_part_primitives/Sphere": "EXACT",
+  "60_part_primitives/Cone": "EXACT",
+  "60_part_primitives/Torus": "EXACT",
+  "60_part_primitives/Wedge": "UNSUPPORTED",
+  "60_part_primitives/Prism": "EXACT",
+  "60_part_primitives/Ellipsoid": "UNSUPPORTED",
+  "60_part_primitives/Plane": "UNSUPPORTED",
+  "60_part_primitives/Helix": "UNSUPPORTED",
+  "60_part_primitives/Circle": "UNSUPPORTED",
+  "61_part_boolean/Cut": "UNSUPPORTED",
+  "61_part_boolean/Fuse": "UNSUPPORTED",
+  "61_part_boolean/Common": "UNSUPPORTED",
+  "61_part_boolean/MultiFuse": "UNSUPPORTED",
+  "61_part_boolean/MultiCommon": "UNSUPPORTED",
+  "61_part_boolean/Section": "UNSUPPORTED",
+  "62_part_extrusion/ExStraight": "UNSUPPORTED",
+  "62_part_extrusion/ExTaper": "UNSUPPORTED",
+  "62_part_extrusion/ExSym": "UNSUPPORTED",
+  "62_part_extrusion/ExTwo": "UNSUPPORTED",
+  "62_part_extrusion/ExCustom": "UNSUPPORTED",
+  "62_part_extrusion/ExHollow": "UNSUPPORTED",
+  "63_part_revolution/Rev360": "UNSUPPORTED",
+  "63_part_revolution/Rev90": "UNSUPPORTED",
+  "63_part_revolution/RevShell": "UNSUPPORTED",
+  "64_part_fillet_chamfer/FilletConst": "UNSUPPORTED",
+  "64_part_fillet_chamfer/FilletVar": "UNSUPPORTED",
+  "64_part_fillet_chamfer/ChamferEq": "UNSUPPORTED",
+  "64_part_fillet_chamfer/ChamferTwo": "UNSUPPORTED",
+  "65_part_mirror/MirrorYZ": "UNSUPPORTED",
+  "65_part_mirror/MirrorOblique": "UNSUPPORTED",
+  "66_part_loft/LoftRuled": "UNSUPPORTED",
+  "66_part_loft/LoftOpen": "UNSUPPORTED",
+  "66_part_loft/LoftThreeSmooth": "UNSUPPORTED",
+  "67_part_sweep/SweepLine": "UNSUPPORTED",
+  "67_part_sweep/SweepArc": "UNSUPPORTED",
+  "67_part_sweep/SweepArcFrenet": "UNSUPPORTED",
+  "67_part_sweep/SweepHelix": "UNSUPPORTED",
+  "68_part_offset/OffArc": "UNSUPPORTED",
+  "68_part_offset/OffInter": "UNSUPPORTED",
+  "68_part_offset/OffIn": "UNSUPPORTED",
+  "68_part_offset/Off2D": "UNSUPPORTED",
+  "68_part_offset/Off2DInter": "UNSUPPORTED",
+  "69_part_thickness/ThickIn": "UNSUPPORTED",
+  "69_part_thickness/ThickOut": "UNSUPPORTED",
+  "69_part_thickness/ThickArc": "UNSUPPORTED",
+  "70_body_tip_rolled_back/Body": "EXACT",
+  "71_two_bodies_placed/BodyA": "EXACT",
+  "71_two_bodies_placed/BodyB": "EXACT",
+  "72_app_part_nesting/BodyInSub": "EXACT",
+  "72_app_part_nesting/BodyInAsm": "EXACT",
+  "73_link_scaled_placed/Src": "EXACT",
+  "74_link_array/Src": "EXACT",
+  "75_groups/Box": "EXACT",
+  "75_groups/Cyl": "EXACT",
+  "75_groups/Sph": "EXACT",
+  "76_link_to_part/Inner": "EXACT",
+  "77_body_in_part_origin/Body": "EXACT",
+  "78_compound_and_clone/Body": "EXACT",
+  "79_whole_shape_pattern/Body": "UNSUPPORTED",
+  "80_spreadsheet_params/Body": "EXACT",
+  "81_varset_params/BodyBlock": "EXACT",
+  "81_varset_params/BodyPattern": "EXACT",
+  "81_varset_params/BodyRev": "EXACT",
+  "82_custom_property_refs/Body": "EXACT",
+  "83_expr_units_functions/Body": "EXACT",
+  "84_expr_cross_object/Body": "EXACT",
+  "85_expr_other_features/BodyRev": "EXACT",
+  "85_expr_other_features/BodyFillet": "EXACT",
+  "85_expr_other_features/BodyHole": "EXACT",
+  "85_expr_other_features/BodyThick": "EXACT",
+  "85_expr_other_features/BodyChamfer": "EXACT",
+  "85_expr_other_features/BodyLift": "EXACT",
+  "86_spreadsheet_formulas/Box": "EXACT",
+  "87_expr_placement_parts/Src": "EXACT",
+  "87_expr_placement_parts/BodyPat": "EXACT",
+  "88_config_table/Body": "EXACT",
+  "89_expr_angles_sketch/Body": "EXACT",
+  "89_expr_angles_sketch/BodyPolar": "EXACT"
+ },
+ "variants": {
+  "10_sketch_rect_pad": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "11_sketch_polyline_closed": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "12_sketch_slot_arcs": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "13_sketch_circle_ellipse": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "13_sketch_conics": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "16_sketch_constraint_zoo": {
+   "a": "EXACT",
+   "b": "MISMATCH"
+  },
+  "17_sketch_base_planes": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "18_sketch_on_datum_plane": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "19_sketch_attach_modes": {
+   "a": "EXACT",
+   "b": "NA"
+  },
+  "19_sketch_external_geometry": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "19_sketch_on_face": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "20_pad_side_types": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "21_pad_taper": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "22_pad_up_to": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "23_pad_custom_direction": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "24_pad_refine": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "25_pocket_types": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "26_pocket_taper_direction": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "27_pocket_up_to_first": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "28_pad_up_to_shape": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "29_pad_profile_face": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "30_revolution_axes": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "31_groove": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "32_revolution_datum_edge_axis": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "33_groove_axes": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "35_fillet": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "36_chamfer": {
+   "a": "CLOSE",
+   "b": "CLOSE"
+  },
+  "37_dressup_chain": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "38_fillet_cylinder_edges": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "39_hole_sketch_points": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "40_draft": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "41_thickness": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "42_hole_simple": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "43_hole_cuts": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "44_hole_thread_tyre": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "44_hole_threaded": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "46_hole_tapered": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "47_mirrored": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "48_linear_pattern": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "49_polar_pattern": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "50_multitransform": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "51_scaled": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "52_loft": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "53_pipe": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "54_helix": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "55_primitives_additive": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "57_boolean_feature": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "58_binders": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "59_datum_features": {
+   "a": "EXACT",
+   "b": "NA"
+  },
+  "60_part_primitives": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "61_part_boolean": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "62_part_extrusion": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "63_part_revolution": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "64_part_fillet_chamfer": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "65_part_mirror": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "66_part_loft": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "67_part_sweep": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "68_part_offset": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "69_part_thickness": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "70_body_tip_rolled_back": {
+   "a": "EXACT",
+   "b": "NA"
+  },
+  "71_two_bodies_placed": {
+   "a": "EXACT",
+   "b": "NA"
+  },
+  "72_app_part_nesting": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "73_link_scaled_placed": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "74_link_array": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "75_groups": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "76_link_to_part": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "77_body_in_part_origin": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "78_compound_and_clone": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "79_whole_shape_pattern": {
+   "a": "UNSUPPORTED",
+   "b": "UNSUPPORTED"
+  },
+  "80_spreadsheet_params": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "81_varset_params": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "82_custom_property_refs": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "83_expr_units_functions": {
+   "a": "EXACT",
+   "b": "MISMATCH"
+  },
+  "84_expr_cross_object": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "85_expr_other_features": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "86_spreadsheet_formulas": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "87_expr_placement_parts": {
+   "a": "EXACT",
+   "b": "EXACT"
+  },
+  "88_config_table": {
+   "a": "EXACT",
+   "b": "MISMATCH"
+  },
+  "89_expr_angles_sketch": {
+   "a": "EXACT",
+   "b": "EXACT"
+  }
+ },
+ "mustBeGood": [
+  "10_sketch_rect_pad",
+  "11_sketch_polyline_closed",
+  "12_sketch_slot_arcs",
+  "13_sketch_circle_ellipse",
+  "16_sketch_constraint_zoo",
+  "17_sketch_base_planes",
+  "19_sketch_attach_modes",
+  "19_sketch_external_geometry",
+  "19_sketch_on_face",
+  "20_pad_side_types",
+  "21_pad_taper",
+  "24_pad_refine",
+  "25_pocket_types",
+  "27_pocket_up_to_first",
+  "30_revolution_axes",
+  "31_groove",
+  "33_groove_axes",
+  "35_fillet",
+  "36_chamfer",
+  "37_dressup_chain",
+  "38_fillet_cylinder_edges",
+  "39_hole_sketch_points",
+  "40_draft",
+  "42_hole_simple",
+  "44_hole_thread_tyre",
+  "44_hole_threaded",
+  "44_hole_threaded_more",
+  "47_mirrored",
+  "48_linear_pattern",
+  "49_polar_pattern",
+  "59_datum_features",
+  "70_body_tip_rolled_back",
+  "71_two_bodies_placed",
+  "72_app_part_nesting",
+  "73_link_scaled_placed",
+  "74_link_array",
+  "75_groups",
+  "76_link_to_part",
+  "77_body_in_part_origin",
+  "78_compound_and_clone",
+  "80_spreadsheet_params",
+  "81_varset_params",
+  "82_custom_property_refs",
+  "83_expr_units_functions",
+  "84_expr_cross_object",
+  "85_expr_other_features",
+  "86_spreadsheet_formulas",
+  "87_expr_placement_parts",
+  "88_config_table",
+  "89_expr_angles_sketch"
+ ]
+}

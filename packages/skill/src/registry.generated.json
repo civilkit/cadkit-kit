@@ -21,6 +21,7 @@
   "BodyFinish": "'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'",
   "AppearanceTarget": "LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle }",
   "PatternSeed": "'last' | string | FeatureHandle | Array<string | FeatureHandle>",
+  "ToObject": "Plane | OffsetPlane | FaceSel | [number, number, number]",
   "ScriptApi": "ReturnType<typeof makeApi>",
   "FaceRule": "{ dir?: string; normal?: Vec; planar?: boolean; at?: Vec; kind?: SurfaceKind | 'planar'; radius?: number; createdBy?: FeatureRefLike; of?: FeatureRefLike; areaGreater?: number; areaLess?: number; near?: Vec; within?: number; not?: FaceSel | FacesSel; union?: Array<FaceSel | FacesSel>; intersect?: Array<FaceSel | FacesSel>; difference?: Array<FaceSel | FacesSel>; }",
   "EdgeRule": "{ parallel?: 'X' | 'Y' | 'Z'; outside?: [Vec, Vec]; inside?: [Vec, Vec]; not?: EdgeSel; onFace?: FaceSel | FacesSel; createdBy?: FeatureRefLike; lengthGreater?: number; lengthLess?: number; near?: Vec; within?: number; union?: EdgeSel[]; intersect?: EdgeSel[]; difference?: EdgeSel[]; }",
@@ -391,6 +392,60 @@
    "example": "part('Fair').sketch('front', (s) => s.cvspline([[0, 0], [30, 0], [40, 20], [20, 40], [-10, 30]], { closed: true })).extrude(5);",
    "related": [
     "sketch.spline"
+   ]
+  },
+  {
+   "id": "sketch.equation",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.equation(o: { x: string; y: string; t: [Num | string, Num | string]; tol?: number; name?: string }): this",
+   "summary": "Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.",
+   "description": "Adds a spline entity that stores the formulas; the kernel evaluates them on every rebuild, so a curve written with variables follows them. Formulas use the expression syntax of dimensions: + - * / ^, sqrt sin cos tan abs, min max pow mod hypot atan2 round floor ceil exp ln log10 asin acos atan, pi; TRIGONOMETRY IS IN DEGREES (a full turn is t from 0 to 360); any name other than t must be a declared variable. `t` is [start, end] (numbers, expr(), or formula strings); `tol` is the largest distance in mm from the formulas (default 0.01). A curve that ends where it starts is closed (a region of its own); an open one needs lines to close it, starting and ending exactly at the curve's end points (compute them from the formulas). Errors name the formula (equationFormula, equationNotFinite, equationRange, equationTolerance, equationDegenerate); a curve that crosses itself warns equationSelfIntersects. `name` sets the entity id; its points are <name>_start, <name>_p1.., <name>_end.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ x: string; y: string; t: [Num | string, Num | string]; tol?: number; name?: string }",
+     "optional": false,
+     "description": "{ x: formula of t, y: formula of t, t: [start, end], tol?: mm, name? }",
+     "properties": [
+      {
+       "name": "x",
+       "type": "string",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "y",
+       "type": "string",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "t",
+       "type": "[Num | string, Num | string]",
+       "optional": false,
+       "description": ""
+      },
+      {
+       "name": "tol",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Wave').sketch('front', (s) => s.equation({ x: 't/9', y: '3*sin(t)', t: [0, 360] }).polyline([[40, 0], [40, -10], [0, -10], [0, 0]])).extrude(5);",
+   "related": [
+    "sketch.polyline",
+    "variables"
    ]
   },
   {
@@ -1336,7 +1391,7 @@
    "id": "part.loft",
    "kind": "method",
    "domain": "features",
-   "signature": ".loft(sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[] } = {})",
+   "signature": ".loft(sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[]; newBody?: boolean | string } = {})",
    "summary": "Loft a solid through two or more section sketches, optionally ending in a point.",
    "description": "Builds one sketch per section (on a standard plane, an at(plane, offset) plane or a face) and a loft feature through them in order. Sections are { on, draw } where draw(s) draws a closed outline with the sketch builder, or { on, point: [x, y] } for a single-point section. Only the FIRST and the LAST section may be a point (a bow, a cone tip); ends.first / ends.last say 'cap' (flat end, default) or 'point' and are checked against the sections. Optional guides are sketches the loft follows, centre is a straight centre-line sketch, startNormal / endNormal (true or a tension number) make the loft leave the end sections along their normals. Closed (ring) lofts are not supported by the kernel. Section outlines should have the same number of pieces and be simple closed curves; a hull is a row of arcs or polygons with growing size.",
    "parameters": [
@@ -1348,7 +1403,7 @@
     },
     {
      "name": "o",
-     "type": "{ ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[] }",
+     "type": "{ ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[]; newBody?: boolean | string }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
@@ -1394,6 +1449,12 @@
        "type": "string | string[]",
        "optional": true,
        "description": "with op 'cut': a body name or list of names (bodies made with newBody) the cut changes; the other bodies stay as they are"
+      },
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": "true or 'Name': keep the lofted solid as a separate body instead of fusing it with what it touches"
       }
      ]
     }
@@ -1518,7 +1579,7 @@
    "domain": "features",
    "signature": ".screw(o: ScrewOpts)",
    "summary": "A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.",
-   "description": "Give the metric size (M2 to M8) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.",
+   "description": "Give the metric size (M2 to M16; M12 and M16 have button, countersunk and hex heads only, as the standards stop there) and the shank length; head and drive sizes come from an ISO table and can be overridden. head: 'pan' (default), 'button', 'countersunk', 'cheese' or 'hex'. drive: 'slotted', 'hex' (socket), 'cross', 'torx' or 'none'. Cross is an approximation (two tapered wings with a small flat tip) and so is torx: fine for looks, fit checks and mass. origin is the centre of the bearing face and axis is the way the shank points (default [0, 0, -1]). The screw is its own body and does not merge with what it touches. thread: true is refused for now.",
    "parameters": [
     {
      "name": "o",
@@ -1725,7 +1786,7 @@
    "domain": "features",
    "signature": "screw(o: ScrewOpts): PartBuilder",
    "summary": "A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.",
-   "description": "The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M8 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.",
+   "description": "The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M16 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.",
    "parameters": [
     {
      "name": "o",
@@ -2463,7 +2524,7 @@
    "domain": "patterns",
    "signature": ".linearPattern(seed: PatternSeed | LinearOpts, o?: LinearOpts): this",
    "summary": "Repeat features along a direction, optionally as a 2D grid.",
-   "description": "linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), every spacing mm, or totalLength mm from first to last (spacing = totalLength / (count - 1)). direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength } adds a second direction: the original features plus the first pattern are patterned again (a pattern of a pattern, which the kernel supports) giving count x second.count instances, a rectangular grid.",
+   "description": "linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).",
    "parameters": [
     {
      "name": "seed",
@@ -2478,58 +2539,23 @@
      "description": "options object, see properties",
      "properties": [
       {
-       "name": "count",
-       "type": "number",
-       "optional": false,
-       "description": "total number of instances"
-      },
-      {
-       "name": "spacing",
-       "type": "Num",
-       "optional": true,
-       "description": "distance between instances in mm"
-      },
-      {
-       "name": "totalLength",
-       "type": "Num",
-       "optional": true,
-       "description": "first-to-last distance in mm instead of spacing"
-      },
-      {
-       "name": "direction",
-       "type": "'x' | 'y' | 'z' | Vec | EdgeSel",
-       "optional": true,
-       "description": "'x' | 'y' | 'z' | [x, y, z] | edges(...), default 'x'"
-      },
-      {
-       "name": "axis",
-       "type": "'x' | 'y' | 'z'",
-       "optional": true,
-       "description": "alias of direction ('x' | 'y' | 'z')"
-      },
-      {
-       "name": "reverse",
-       "type": "boolean",
-       "optional": true,
-       "description": "go the other way"
-      },
-      {
        "name": "second",
-       "type": "{ direction?: 'x' | 'y' | 'z' | Vec | EdgeSel; axis?: 'x' | 'y' | 'z'; count: number; spacing?: Num; totalLength?: Num; reverse?: boolean }",
+       "type": "LinearDir",
        "optional": true,
-       "description": "{ direction, count, spacing | totalLength, reverse? } the second grid direction"
+       "description": "{ direction, count, spacing | totalLength | to, toOffset?, reverse? } the second grid direction"
       }
      ]
     }
    ],
    "returns": "this",
-   "example": "part('Grid plate').sketch('front', (s) => s.rect(80, 60)).extrude(10)\n  .sketch(face('>Z'), (s) => s.circle(3, [-30, -20])).cut(through())\n  .linearPattern({ count: 4, spacing: 20, direction: 'x', second: { direction: 'y', count: 3, totalLength: 40 } });",
+   "example": "part('Grid plate').sketch('front', (s) => s.rect(80, 60)).extrude(10)\n  .sketch(face('>Z'), (s) => s.circle(3, [-30, -20])).cut(through())\n  .linearPattern({ count: 4, to: face('>X'), toOffset: -10, direction: 'x', second: { direction: 'y', count: 3, totalLength: 40 } });",
    "related": [
     "part.circularPattern",
+    "part.pathPattern",
     "part.holes.grid",
     "part.handle"
    ],
-   "notes": "- count includes the original; spacing is between instances in mm (or totalLength from first to last).\n- The kernel patterns along WORLD x, y or z only: a vector or an edge must be parallel to an axis. Oblique directions are refused with a Line N error.\n- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing }`.\n- To pattern a pattern yourself seed with [original, patternHandle].\n- A pattern can seed another pattern; the grid helper seeds the second pattern with the originals plus the first pattern (a pattern alone omits its own original).\n- Prefer holes.grid when the repeated thing is only drilled holes."
+   "notes": "- count includes the original; give ONE of spacing (between instances, mm), totalLength (first to last; kept when count changes) or to (the last copy reaches a plane, at(), a flat face(sel) square to the direction, or a point [x,y,z]; toOffset negative stops short).\n- The kernel patterns along WORLD x, y or z only: a vector or an edge must be parallel to an axis. Oblique directions are refused with a Line N error.\n- Several features: pass an array of handles ([a, b]) as the first argument. A 2D grid is `second: { direction, count, spacing | totalLength | to }` (one feature).\n- Warnings `patternCopiesNoEffect` / `patternCopiesApart` / `patternCopiesOverlap` in the run result name copies that miss the body, stand alone, or overlap: fix the spacing or count.\n- To pattern a pattern yourself seed with [original, patternHandle].\n- A pattern can seed another pattern; the grid helper seeds the second pattern with the originals plus the first pattern (a pattern alone omits its own original).\n- Prefer holes.grid when the repeated thing is only drilled holes."
   },
   {
    "id": "part.mirror",
@@ -2567,6 +2593,84 @@
     "part.circularPattern"
    ],
    "notes": "- Without body: true only the feature added just before is mirrored (a boss, pocket, hole); with body: true the whole body is reflected and united with the original.\n- The kernel always keeps the original: keepOriginal: false is an error, not a silent no-op.\n- The plane is the symmetry plane through the world origin ('right' = YZ, 'top' = XZ, 'front' = XY) or at(plane, offset). Design the half on one side of that plane so the copy lands on the other."
+  },
+  {
+   "id": "part.pathPattern",
+   "kind": "method",
+   "domain": "patterns",
+   "signature": ".pathPattern(seed: PatternSeed | PathOpts, o?: PathOpts): this",
+   "summary": "Repeat features along a path sketch, moved or turned with it.",
+   "description": "pathPattern(o) repeats the feature added just before it; pathPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). path is a sketch { on, draw } holding an open chain of lines and arcs (as a sweep path). The pattern runs from the path's end nearest the seed; flip runs it from the other end. The seed sits start mm along the path (or startFraction of its length, 0 to 1; default 0) and copy k sits start + k x spacing along it; totalLength instead of spacing spreads the copies first to last. orientation 'fixed' (default) moves the copies without turning them; 'tangent' turns them with the path (round an arc they turn about its centre). A last copy past the end of the path is the error patternBeyondPath, whose maxSpacing is the largest spacing that fits.",
+   "parameters": [
+    {
+     "name": "seed",
+     "type": "PatternSeed | PathOpts",
+     "optional": false,
+     "description": "'last', a handle, a feature id or an array of them (omit to repeat the last feature)"
+    },
+    {
+     "name": "o",
+     "type": "PathOpts",
+     "optional": true,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "path",
+       "type": "SketchSpec",
+       "optional": false,
+       "description": "the path sketch { on, draw } (an open chain)"
+      },
+      {
+       "name": "count",
+       "type": "number",
+       "optional": false,
+       "description": "total number of instances"
+      },
+      {
+       "name": "spacing",
+       "type": "Num",
+       "optional": true,
+       "description": "distance along the path between instances in mm"
+      },
+      {
+       "name": "totalLength",
+       "type": "Num",
+       "optional": true,
+       "description": "first-to-last distance along the path in mm instead of spacing"
+      },
+      {
+       "name": "start",
+       "type": "Num",
+       "optional": true,
+       "description": "where the seed sits along the path, mm (default 0)"
+      },
+      {
+       "name": "startFraction",
+       "type": "Num",
+       "optional": true,
+       "description": "where the seed sits as a fraction of the path length, 0 to 1"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "run the path from its other end"
+      },
+      {
+       "name": "orientation",
+       "type": "'fixed' | 'tangent'",
+       "optional": true,
+       "description": "'fixed' (default) or 'tangent'"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Rail').sketch('front', (s) => s.rect(100, 60)).extrude(5)\n  .sketch(face('>Z'), (s) => s.circle(2, [-40, -20])).cut(through())\n  .pathPattern({ path: { on: 'front', draw: (s) => s.polyline([[-40, -20], [40, -20], [40, 20]]) }, count: 7, totalLength: 120 });",
+   "related": [
+    "part.linearPattern",
+    "part.sweep"
+   ]
   },
   {
    "id": "part.knit",
@@ -2870,8 +2974,8 @@
    "kind": "function",
    "domain": "utilities",
    "signature": "part(name: string = 'Script part'): PartBuilder",
-   "summary": "Start the part the script builds; returns the fluent builder.",
-   "description": "Every script builds one part (the last wins). Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.",
+   "summary": "Start a new part: the part the script builds; returns the fluent builder.",
+   "description": "Every script builds one part (the last wins); call part() to start a new part. Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.",
    "parameters": [
     {
      "name": "name",

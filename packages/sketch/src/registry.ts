@@ -4,7 +4,7 @@ import {
   bridgeTool, centerlineTool, centerRectangleTool, centreArcTool, chamferTool, circleTool, circularPatternTool, constructionTool, coincidentTool, collinearTool,
   concentricTool, cvsplineTool, dimensionTool, ellipseTool, equalTool, extendTool, filletTool, fixTool, horizontalTool, lineTool, linearPatternTool,
   midpointTool, mirrorTool, offsetTool, parallelTool, perpendicularTool, pointTool, polygonTool, projectTool, rectangleTool, slotTool, splineTool,
-  symmetricTool, textTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, verticalTool,
+  symmetricTool, textTool, equationTool, moveTool, copyTool, rotateTool, scaleTool, tangentArcTool, tangentTool, threePointArcTool, trimTool, splitTool, verticalTool,
 } from './tools/index';
 import type { Tool } from './tools/types';
 
@@ -33,13 +33,13 @@ const build = (): ToolEntry[] => [
   e('draw', lineTool, 'l'), e('draw', rectangleTool, 'r'), e('draw', centerRectangleTool), e('draw', circleTool, 'c'),
   e('draw', centreArcTool), e('draw', threePointArcTool, 'a'), e('draw', tangentArcTool), e('draw', ellipseTool),
   e('draw', polygonTool), e('draw', slotTool), e('draw', pointTool), e('draw', textTool, 'q'), e('draw', centerlineTool), e('draw', splineTool),
-  e('draw', cvsplineTool), e('draw', bridgeTool),
+  e('draw', cvsplineTool), e('draw', bridgeTool), e('draw', equationTool),
   e('dimension', dimensionTool, 'd'),
   e('constrain', horizontalTool, 'h'), e('constrain', verticalTool, 'v'), e('constrain', coincidentTool),
   e('constrain', equalTool), e('constrain', parallelTool), e('constrain', perpendicularTool), e('constrain', collinearTool),
   e('constrain', midpointTool), e('constrain', tangentTool), e('constrain', symmetricTool), e('constrain', fixTool),
   e('constrain', concentricTool),
-  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', extendTool, 'e'), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'), e('edit', projectTool, 'p'), e('edit', linearPatternTool), e('edit', circularPatternTool),
+  e('edit', filletTool), e('edit', chamferTool), e('edit', trimTool, 't'), e('edit', extendTool, 'e'), e('edit', splitTool), e('edit', mirrorTool), e('edit', offsetTool, 'o'), e('edit', constructionTool, 'x'), e('edit', projectTool, 'p'), e('edit', linearPatternTool), e('edit', circularPatternTool),
   e('edit', moveTool), e('edit', copyTool), e('edit', rotateTool), e('edit', scaleTool),
 ];
 

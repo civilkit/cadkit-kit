@@ -151,7 +151,7 @@ describe('screw(): drives cut into the head', () => {
 });
 
 describe('screw(): sizes and overrides', () => {
-  it('every size M2..M8 builds a valid button head with a hex socket', async () => {
+  it('every size M2..M16 builds a valid button head with a hex socket', async () => {
     for (const size of Object.keys(SCREW_SIZES)) {
       const m = await build(`const p = part('S').screw({ size: '${size}', length: 10, head: 'button', drive: 'hex' });`);
       const d = SCREW_SIZES[size as keyof typeof SCREW_SIZES];
@@ -167,10 +167,13 @@ describe('screw(): sizes and overrides', () => {
     it(`matrix ${size}: every head x drive is valid and the drive removes material`, async () => {
       const d = SCREW_SIZES[size as keyof typeof SCREW_SIZES].d;
       const fails: string[] = [];
+      const row = SCREW_SIZES[size as keyof typeof SCREW_SIZES] as unknown as Record<string, unknown>;
       for (const head of ['pan', 'button', 'countersunk', 'cheese', 'hex']) {
+        if (!row[head]) continue;   // the standards stop at M10 for pan and cheese heads
         const src = (drive: string) => `const p = part('S').screw({ size: '${size}', length: ${4 * d}, head: '${head}', drive: '${drive}' });`;
         const v0 = (await build(src('none'))).vol;
         for (const drive of head === 'hex' ? [] : ['slotted', 'hex', 'cross', 'torx']) {
+          if (drive !== 'hex' && !row[{ slotted: 'slot', cross: 'cross', torx: 'torx' }[drive] as string]) continue;   // sizes without a table entry for that drive
           try {
             const m = await build(src(drive));
             console.log('SCREW matrix', size, head, drive, Math.round(m.ms), 'ms');
@@ -182,6 +185,12 @@ describe('screw(): sizes and overrides', () => {
       expect(fails).toEqual([]);
     }, 280_000);
   }
+
+  it('a size without a table entry for a head or a drive is refused with the sizes that have one', async () => {
+    await expect(build(`const p = part('S').screw({ size: 'M12', length: 30, head: 'pan' });`)).rejects.toThrow(/M12 has no pan head.*M2.*M10 have one/);
+    await expect(build(`const p = part('S').screw({ size: 'M16', length: 30, head: 'button', drive: 'torx' });`)).rejects.toThrow(/M16 has no Torx size/);
+    await expect(build(`const p = part('S').screw({ size: 'M12', length: 30, head: 'button', drive: 'cross' });`)).rejects.toThrow(/no cross-recess span/);
+  }, 120_000);
 
   it('every value can be overridden', async () => {
     const m = await build(`const p = part('S').screw({ size: 'M4', length: 8, head: 'cheese', drive: 'hex', diameter: 3.6, headDiameter: 9, headHeight: 3, driveSize: 3, driveDepth: 2 });`);
@@ -239,4 +248,31 @@ describe('screw(): thread', () => {
     try { const m = await build(screwSrc(`head: 'cheese', drive: 'hex', thread: true`)); msg = JSON.stringify(m.errors ?? m); } catch (e) { msg = (e as Error).message; }
     expect(msg).toMatch(/thread: true is not available yet/);
   }, 120_000);
+});
+
+// ISO 7380-1 button head socket screws (the 2011 edition's table; fasten.it and Westfield Fasteners print the same figures): maximum head diameter dk,
+// maximum head height k, hex socket width s and minimum socket depth t. A screw built from the table has them.
+const ISO_7380_1: Array<[size: string, d: number, pitch: number, dk: number, k: number, s: number, t: number]> = [
+  ['M3', 3, 0.5, 5.7, 1.65, 2, 1.04], ['M4', 4, 0.7, 7.6, 2.2, 2.5, 1.3], ['M5', 5, 0.8, 9.5, 2.75, 3, 1.56], ['M6', 6, 1, 10.5, 3.3, 4, 2.08],
+  ['M8', 8, 1.25, 14, 4.4, 5, 2.6], ['M10', 10, 1.5, 17.5, 5.5, 6, 3.12], ['M12', 12, 1.75, 21, 6.6, 8, 4.16], ['M16', 16, 2, 28, 8.8, 10, 5.2],
+];
+describe('screw(): ISO 7380-1 button head sizes', () => {
+  for (const [size, d, pitch, dk, k, s, t] of ISO_7380_1) {
+    it(`${size}: table row is the standard's, and the screw built from it has the head, socket and depth`, async () => {
+      const row = SCREW_SIZES[size as keyof typeof SCREW_SIZES];
+      const socketDepth = 't' in row.button ? row.button.t : undefined;
+      expect([row.d, row.pitch, row.button.dk, row.button.k, row.socket, socketDepth]).toEqual([d, pitch, dk, k, s, t]);
+      const L2 = 2.5 * d;
+      const plain = await build(`const p = part('S').screw({ size: '${size}', length: ${L2}, head: 'button', drive: 'none' });`);
+      const m = await build(`const p = part('S').screw({ size: '${size}', length: ${L2}, head: 'button', drive: 'hex' });`);
+      console.log('SCREW iso7380', size, JSON.stringify({ vol: +m.vol.toFixed(2), faces: m.faces, ms: m.ms }));
+      expect(plain.ok && m.ok).toBe(true);
+      expect(m.bbox.size[0]).toBeCloseTo(dk, 1);   // head diameter
+      expect(Math.abs(m.bbox.size[2] - (L2 + k))).toBeLessThan(0.1 + 0.15 * k);   // length plus head height (the mesh box can miss the apex of the dome)
+      // the socket removes the hex prism of width s and depth t, less what the curved top of the head already lacks
+      const removed = plain.vol - m.vol, prism = (Math.sqrt(3) / 2) * s * s * t;
+      expect(removed / prism).toBeGreaterThan(0.8);
+      expect(removed / prism).toBeLessThan(1.001);
+    }, 600_000);
+  }
 });

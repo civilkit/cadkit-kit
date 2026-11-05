@@ -21,6 +21,7 @@ export const shapeFeatures = {
    * @param o.endNormal true or a tension: arrive at the last section along its normal
    * @param o.op 'add' (default) or 'cut'
    * @param o.from with op 'cut': a body name or list of names (bodies made with newBody) the cut changes; the other bodies stay as they are
+   * @param o.newBody true or 'Name': keep the lofted solid as a separate body instead of fusing it with what it touches
    * @example
    * part('Cone').loft([
    *   { on: 'front', draw: (s) => s.circle(10) },
@@ -28,7 +29,7 @@ export const shapeFeatures = {
    * ], { ends: { last: 'point' } });
    * @see at, sketch.circle, part.sweep
    */
-  loft(this: PartBuilder, sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[] } = {}): PartBuilder {
+  loft(this: PartBuilder, sections: SketchSpec[], o: { ends?: { first?: End; last?: End }; guides?: SketchSpec[]; centre?: SketchSpec; startNormal?: boolean | Num; endNormal?: boolean | Num; op?: 'add' | 'cut'; from?: string | string[]; newBody?: boolean | string } = {}): PartBuilder {
     const line = H.callerLine();
     if (!Array.isArray(sections) || sections.length < 2) throw new H.SelectorError(`loft() needs at least two sections: ${SKETCH_SPEC}`, line);
     const secs = sections.map((s, i) => {
@@ -58,6 +59,7 @@ export const shapeFeatures = {
       if (o.startNormal !== undefined && o.startNormal !== false) f.startNormal = o.startNormal === true ? true : H.ref(o.startNormal);
       if (o.endNormal !== undefined && o.endNormal !== false) f.endNormal = o.endNormal === true ? true : H.ref(o.endNormal);
       applyFrom(f, o.op ?? 'add', o.from, 'loft', line);
+      applyNewBody(f, o.op ?? 'add', o.newBody, 'loft', line);
       ops.push({ op: 'add', feature: f });
       ctx.lastFeature = id; ctx.lastSketch = null;
       return ops;

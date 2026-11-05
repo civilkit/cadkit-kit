@@ -30,6 +30,8 @@ function setup() {
   const store = createStore();
   const notify = vi.spyOn(store, 'notify');
   const edits: EditOp[][] = [];
+  const exported: Array<{ name: string; ids: string[]; format: string }> = [];
+  const extracted: Array<{ name: string; ids: string[] }> = [];
   let api!: ReturnType<typeof useTreeInteraction>;
   let current: F[] = start();
   function Harness() {
@@ -47,6 +49,7 @@ function setup() {
         } } as never,
       store, viewport: () => null, selectedId, setSelectedId, setRefSel: () => {}, redraw: () => {},
       edit: async (ops) => { edits.push(ops); current = apply(ref.current, ops); setFeatures(current); }, startEditing: () => {}, rows: () => rows,
+      exportFolder: (name, ids, format) => { exported.push({ name, ids, format }); }, extractFolder: (name, ids) => { extracted.push({ name, ids }); },
     });
     return (
       <div>
@@ -62,7 +65,7 @@ function setup() {
   const feats = () => current;
   /** The name field of a row or folder in rename mode (it appears a render after the edit lands). */
   const field = () => waitFor(() => { const i = r.container.querySelector('input.inline-name'); if (!i) throw new Error('no field'); return i as HTMLInputElement; });
-  return { r, row, folder, menuRow, field, feats, edits, notify, api: () => api };
+  return { r, row, folder, menuRow, field, feats, edits, notify, exported, extracted, api: () => api };
 }
 
 describe('folders in the tree', () => {
@@ -132,6 +135,22 @@ describe('folders in the tree', () => {
     expect(w.folder('Folder')).toBeNull();
     expect(w.feats().map((f) => f.id)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']);
     expect(w.feats().some((f) => 'group' in f)).toBe(false);
+  });
+
+  it('the folder menu exports the folder\'s geometry in three formats and extracts it as a part, naming the folder and its rows', async () => {
+    const w = setup();
+    fireEvent.click(w.row('F2')); fireEvent.click(w.row('F4'), { ctrlKey: true });
+    await act(async () => { w.api().actions.groupSelected(); });
+    fireEvent.keyDown(await w.field(), { key: 'Escape' });
+    for (const label of ['Export folder geometry as STEP', 'Export folder geometry as STL', 'Export folder geometry as part file']) {
+      fireEvent.contextMenu(w.folder('Folder')!);
+      await act(async () => { fireEvent.click(w.menuRow(label)!); });
+    }
+    expect(w.exported.map((e) => e.format)).toEqual(['step', 'stl', 'ckpart']);
+    expect(w.exported[0]).toMatchObject({ name: 'Folder', ids: ['F1', 'F2', 'F3', 'F4'] });
+    fireEvent.contextMenu(w.folder('Folder')!);
+    await act(async () => { fireEvent.click(w.menuRow('Extract folder as a part')!); });
+    expect(w.extracted).toEqual([{ name: 'Folder', ids: ['F1', 'F2', 'F3', 'F4'] }]);
   });
 
   it('dragging a row onto a folder puts it in the folder', async () => {

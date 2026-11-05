@@ -198,6 +198,35 @@ describe('agent tools on the real kernel', () => {
     }
   });
 
+  it('export stl takes a quality preset and an absolute chord height', async () => {
+    const dir = join(process.cwd(), 'node_modules', '.cache', 'agent-tools-test');
+    await call('run_script', { code: PLATE, mode: 'new' });
+    const tris = async (extra: Record<string, unknown>) => {
+      const path = join(dir, 'q.stl');
+      const { json, r } = await call('export', { format: 'stl', path, ...extra });
+      expect(r.isError, JSON.stringify(json)).toBeFalsy();
+      rmSync(path);
+      return json as { triangles: number; chord_mm?: number; watertight?: boolean };
+    };
+    const normal = await tris({}), named = await tris({ quality: 'normal' }), coarse = await tris({ quality: 'coarse' }), fine = await tris({ quality: 'fine' });
+    expect(normal.chord_mm).toBeUndefined();   // no option: the viewer's mesh
+    expect(named.chord_mm).toBeGreaterThan(0);
+    expect(named.triangles).toBe(normal.triangles);
+    expect(coarse.triangles).toBeLessThan(normal.triangles);
+    expect(fine.triangles).toBeGreaterThan(normal.triangles);
+    const loose = await tris({ chord_mm: 0.5 }), tight = await tris({ chord_mm: 0.005 });
+    expect(loose.chord_mm).toBe(0.5);
+    expect(loose.triangles).toBeLessThan(tight.triangles);
+    expect(loose.watertight).toBe(true);
+    // refusals name the option
+    const bad = await call('export', { format: 'stl', chord_mm: 0 });
+    expect(bad.r.isError).toBe(true);
+    expect(JSON.stringify(bad.json)).toMatch(/chord_mm/);
+    const wrong = await call('export', { format: 'step', quality: 'fine' });
+    expect(wrong.r.isError).toBe(true);
+    expect(JSON.stringify(wrong.json)).toMatch(/mesh formats/);
+  }, 120_000);
+
   describe('export ckpart with cache', () => {
     const dir = join(process.cwd(), 'node_modules', '.cache', 'agent-tools-test');
     const wasmBuild = async () => 'wasm-sha256:' + createHash('sha256').update(readFileSync(WASM!)).digest('hex');

@@ -12,6 +12,8 @@ export interface HandleCommit {
   draft?: Record<string, unknown>;
   /** Said to the user after the edit (e.g. sketch constraints the new size broke were removed). */
   notice?: string;
+  /** The gesture was asked for and could not be applied (a typed value too small, a pinned point in the way, a revolve this cannot resize): the app says this to the user and edits nothing. */
+  refused?: string;
   /** The edit needs a decision first (a shared sketch: move every user, or give this shape its own copy). The app asks; `ops` is the first choice's edit. */
   choices?: Array<{ id: string; label: string; ops: EditOp[] }>;
 }

@@ -1,14 +1,14 @@
 import { signal } from '@preact/signals-core';
 import { useSignals } from './useSignals';
 import { t } from './i18n';
-import { formatCursor, formatPoint3, formatDelta, formatSpacing, formatZoom, zoomPercent, type DisplayUnit } from './sketchStatus';
+import { cursorLabel, formatCursor, formatPoint3, formatDelta, formatSpacing, formatZoom, zoomPercent, type DisplayUnit } from './sketchStatus';
 import { parseSpacing } from '@kit/viewport';
 import { useRef, useState } from 'preact/hooks';
 
 /** What the status bar shows about the pointer while sketching. Signals, so only the readout redraws on each pointer move. */
 export const readout = {
   /** The pointer on the sketch plane (raw) with the zoom and the grid's minor spacing. */
-  cursor: signal<{ u: number; v: number; upp: number; grid: number } | null>(null),
+  cursor: signal<{ u: number; v: number; upp: number; grid: number; x?: number; y?: number; w?: number; h?: number; touch?: boolean } | null>(null),
   /** The sketch view's scale and grid minor spacing, kept while the pointer is off the canvas (null outside a sketch). */
   view: signal<{ upp: number; grid: number } | null>(null),
   /** Where the active snap put the point, and its name (already translated). */
@@ -83,4 +83,12 @@ export function ModelReadout() {
   if (!m) return null;
   const unit = readout.unit.value;
   return <span class="st-sketch"><span class="st-coords" aria-label={t('app.status.model.cursor')}>{formatPoint3(m, unit)}</span></span>;
+}
+
+/** The coordinates beside the pointer while sketching (the status bar keeps its own). Drawn in the viewport layer; a finger has no hover, so touch shows nothing. */
+export function CursorLabel(p: { enabled: boolean }) {
+  useSignals(() => { readout.cursor.value; readout.snapAt.value; readout.unit.value; });
+  const l = cursorLabel(readout.cursor.value, readout.snapAt.value, readout.unit.value, p.enabled);
+  if (!l) return null;
+  return <div class="cursor-label" data-testid="cursor-label" aria-hidden="true" style={{ left: l.left + 'px', top: l.top + 'px' }}>{l.text}</div>;
 }

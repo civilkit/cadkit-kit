@@ -20,7 +20,8 @@ There are several ways in; all of them open the same sketch editor.
 | --- | --- |
 | A blank part | The **Start here** card offers **Sketch on Front Plane**, **Sketch on Top Plane** and **Sketch on Right Plane**. |
 | The ribbon | On the **Home** tab, in the **Sketch** group, click the sketch button. It holds **Sketch on selected face or plane**, **Sketch on selected face**, and **New sketch: front plane**, **top plane** and **right plane**, and **New sketch from DXF**. The button shows the one you used last. |
-| The keyboard | Select a plane (click its row in the tree) or a face, then press `S`. If nothing suitable is selected, CadKit says "Select a plane or a face first, then press S." |
+| The keyboard | Select a plane (click its row in the tree) or a face, then press `S`. If nothing is selected, the three origin planes appear in the view to pick from (see below). |
+| Pick in the view | Press `S` with nothing selected, or use **New sketch: pick a plane in the view** (the **Pick plane** entry of the sketch button, also in the command search). **Front**, **Top** and **Right** are drawn as translucent sheets at the origin with the axes; the sheet under the pointer turns orange and shows its name. Click a sheet to sketch on it. You can also click a flat face of the part, or a plane you made yourself. On a touch screen, tap: a tap near a sheet's outline counts, so an edge-on sheet is still easy to hit. `Esc` or **Cancel** in the bar at the top gives up. |
 | The viewport | Select a face and click the **Sketch on this face** chip that appears over the viewport. For a plane feature the chip says **Sketch on this plane**. |
 | The right-click menu | With a face selected, choose **Sketch on selected face**. With nothing selected, the menu offers the three **New sketch** commands. |
 
@@ -35,6 +36,7 @@ When you start a sketch from a face, edges and faces you had selected are rememb
 - The body is drawn faded, to a quarter of its opacity, so you can see the sketch in front of it.
 - Mouse buttons change: the left button draws and picks, the right button orbits, the middle button pans, and the wheel zooms towards the pointer. See [Moving around the model](../getting-started/navigation.md).
 - The status bar shows the pointer position on the sketch plane, the active snap, the **Snap** and **Grid** switches, the zoom and the grid **Spacing**.
+- A small label beside the pointer says the same position (for example `5.61 mm, -7.13 mm`), at the snapped point when a snap is active. It appears only for a mouse or pen, not for a finger, and goes when the pointer leaves the view. Turn it off with **Show the pointer position beside the pointer** under **Sketching** in the settings.
 - If the view is angled to the sketch, a **Look normal (N)** button is highlighted. Click it, or press `N`, to turn the view square to the plane. Turn on **Auto look normal for new sketches** in the settings to do this automatically, and turn off **Keep the view when entering a sketch** if you want the view to square up whenever a sketch opens.
 - If **Sketches** had been hidden in the Display menu, they are shown again so that you can see what you draw.
 

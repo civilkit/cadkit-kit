@@ -45,7 +45,7 @@ describe('sample plate (parameters, offset planes, a cut, a fillet)', { skip: !h
   it('evaluates parameter expressions: depth "thickness" is 8, the bore depth "thickness + 14 mm" is 22 and goes down', async () => {
     const r = await importSolidcraft(fixture('sample-plate'), 'plate', { placeholders: false });
     const ex = (r.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'extrude');
-    expect(ex.map((e) => [e.op, e.depth, !!e.flip])).toEqual([['add', 8, false], ['cut', 8, true], ['add', 14, false], ['cut', 22, false]]);
+    expect(ex.map((e) => [e.op, e.depth, !!e.flip])).toEqual([['add', '=thickness', false], ['cut', '=thickness', true], ['add', 14, false], ['cut', '=thickness+14', false]]);   // parameters stay live (4ddfbee): the depth is the expression; its value (8, 22) is checked against the kernel in import.kernel.test.ts
     // the boss and bore sketches sit on offset planes at 8 and 22
     const planes = (r.part!.features as Array<Record<string, any>>).filter((x) => x.type === 'plane').map((p) => p.offset);
     expect(planes).toEqual([8, 22]);

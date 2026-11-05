@@ -14,6 +14,7 @@ import { curveOf } from './tools/edit-draft';
 import { lineLine, paramEnd, sample } from './tools/edit-geom';
 import type { FieldSpec, Pt, PreviewShape } from './tools/types';
 import { textDistance, textLoops, textOutlineOf } from './text';
+import { isEquation, isEquationPoint } from './equation';
 
 const pointMap = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -130,7 +131,9 @@ export function deleteEntity(draft: SketchDraft, id: string): SketchDraft {
   for (const e of entities) for (const k of ['p1', 'p2', 'c', 'p']) if (typeof e[k] === 'string') used.add(e[k] as string);
   for (const e of entities) if (Array.isArray(e.pts)) for (const p of e.pts as string[]) used.add(p);
   for (const c of constraints) for (const r of c.refs ?? []) used.add(r);
-  const points = draft.points.filter((p) => p.fixed || used.has(p.id));
+  // an equation curve's points are the kernel's (fixed, but they go with the curve)
+  const eq = draft.entities.find((e) => e.id === id && isEquation(e)) ? id : null;
+  const points = draft.points.filter((p) => (p.fixed && !(eq && isEquationPoint(eq, p.id))) || used.has(p.id));
   // reference dimensions that mention the entity (or a point that went with it) go too
   const live = new Set([...points.map((p) => p.id), ...entities.map((e) => e.id)]);
   const refs = Array.isArray(draft.extras?.refDims) ? (draft.extras!.refDims as Array<{ refs?: string[] }>) : null;

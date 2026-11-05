@@ -153,6 +153,11 @@ describe('SettingsDialog: sketching', () => {
     expect(onSketchPrefs).toHaveBeenCalledWith({ arcSwitch: 'keys' });
     fireEvent.change(screen.getByLabelText('Values beside the pointer'), { target: { value: 'both' } });
     expect(onSketchPrefs).toHaveBeenCalledWith({ onViewValues: 'both' });
+    const markers = screen.getByLabelText('Constraint markers') as HTMLSelectElement;
+    expect(markers.value).toBe('hover');
+    expect([...markers.options].map((o) => o.textContent)).toEqual(['Hovered or selected', 'Always', 'Off']);
+    fireEvent.change(markers, { target: { value: 'off' } });
+    expect(onSketchPrefs).toHaveBeenCalledWith({ constraintMarkers: 'off' });
     fireEvent.click(screen.getByLabelText('Snap to the grid'));
     expect(onSketchPrefs).toHaveBeenCalledWith({ gridSnap: false });
     fireEvent.click(screen.getByLabelText(/Infer constraints/));
@@ -200,5 +205,38 @@ describe('SettingsDialog: tabs', () => {
     unmount();
     render(<SettingsDialog {...base} {...full} />);
     expect(screen.getByRole('tab', { name: 'Sketching' }).getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+describe('SettingsDialog, Export', () => {
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  it('offers On, Ask each time and Off for cosmetic knurls on the General tab and sends the choice', () => {
+    const onExportPrefs = vi.fn();
+    render(<SettingsDialog {...base} exportPrefs={{ knurl: 'on' }} onExportPrefs={onExportPrefs} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    const sel = screen.getByLabelText('Include cosmetic knurls in exports') as HTMLSelectElement;
+    expect(sel.value).toBe('on');
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['On: cut as real grooves in the file', 'Ask each time', 'Off: plain solid, as before']);
+    fireEvent.change(sel, { target: { value: 'ask' } });
+    expect(onExportPrefs).toHaveBeenLastCalledWith({ knurl: 'ask' });
+    fireEvent.change(sel, { target: { value: 'off' } });
+    expect(onExportPrefs).toHaveBeenLastCalledWith({ knurl: 'off' });
+  });
+  it('shows no Export section when the app passes none', () => {
+    render(<SettingsDialog {...base} />);
+    expect(screen.queryByRole('tab', { name: 'General' })).toBeNull();
+  });
+});
+
+describe('SettingsDialog, icon set', () => {
+  it('offers Default and SolidCraft (preview) on General and sends the choice', () => {
+    const onIconSet = vi.fn();
+    render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}} iconSet="default" onIconSet={onIconSet} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    const sel = screen.getByLabelText('Icon set') as HTMLSelectElement;
+    expect(sel.value).toBe('default');
+    expect(Array.from(sel.options).map((o) => o.textContent)).toEqual(['Default', 'SolidCraft (preview)']);
+    fireEvent.change(sel, { target: { value: 'solidcraft' } });
+    expect(onIconSet).toHaveBeenCalledWith('solidcraft');
   });
 });

@@ -105,8 +105,9 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[], 
     return all.length ? all : null;
   }
   if (path === 'faces') { const r = faceNames(selection); return r.length ? r : null; }
+  if (path === 'side1' || path === 'center' || path === 'side2') return faceNames(selection)[0] ?? null;   // a full round's faces
   // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
-  if (path === 'neutral' || path === 'plane') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }
+  if (path === 'neutral' || path === 'plane' || path === 'to' || path === 'to2') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }
   if (path === 'endRef' || path === 'startRef') return objectRef(selection, edges, path === 'endRef');
   return selection[0] ?? null;
 }
@@ -185,7 +186,7 @@ export const canRevolve = (c: Ctx): boolean => !!c.doc && revolveSketch(c) !== n
 
 /** The feature a pattern repeats: the one selected in the tree, else the last one that is not itself a sketch or pattern. */
 export function patternSeed(c: Ctx): Feat | null {
-  const list = feats(c.doc).filter((f) => !['sketch', 'sketch3d', 'lpattern', 'cpattern', 'plane', 'axis'].includes(f.type));
+  const list = feats(c.doc).filter((f) => !['sketch', 'sketch3d', 'lpattern', 'cpattern', 'curvepattern', 'plane', 'axis'].includes(f.type));
   return list.find((f) => f.id === c.selectedId) ?? list[list.length - 1] ?? null;
 }
 export const canPattern = (c: Ctx): boolean => !!c.doc && patternSeed(c) !== null;

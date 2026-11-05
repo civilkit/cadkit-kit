@@ -10,21 +10,30 @@ import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
-  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endNeedsObject, endOf, endsFor, filletProfileOf, filletVariable, managedPaths,
+  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
   objectRefChoices, objectRefPatch, objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
   planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf, startAllowed, startOf,
-  type ChamferType, type EndCondition, type FilletProfile, type StartCondition,
+  type ChamferType, type EndCondition, type FilletProfile, type FullRoundFace, type StartCondition,
 } from './optionRules';
 import {
   THIN_CORNERS, THIN_ENDS, THIN_SIDES, openProfile, patchThin, patchThinOn, thinOf, type OpenProfile, type ThinCorner, type ThinEnds, type ThinSide,
 } from './thinRules';
 import { sketchOpenChains } from '@kit/sketch';
 import { axisChoices } from './revolveAxis';
-import { roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
+import { rememberRoundPick, roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
 import { loftAutoOrder, loftPointIssue } from './featureCreators';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
-  CONTINUITIES, FAIRINGS, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, pathOf, pathPatch, removeAt, replaceAt,
+  AXES, DISTANCE_TYPES, ORIENTATIONS, PATH_DISTANCE_TYPES, axisOf, distanceTypeOf, orientationOf, patchDir2, patchDistanceType, patchStartMode, startModeOf, toChoices, toPatch, toValue,
+  type Axis, type DistanceType, type Sfx, type StartMode,
+} from './patternRules';
+import {
+  DEGREE_RANGE, EDIT_METHODS, FREEFORM_FRAMES, PROJECT_DIRECTIONS, addableCurves, curveRefLabel, curveRefs, curvesPatch, degreeOf, degreeOutOfRange, directionOf, edits as ffEdits, editsNeedOneFace,
+  entries as curveEntries, entriesPatch, entryFrameOf, faceList, frameOf, keepEndsOn, keepEndsPatch, methodOf, netSize, newEdit, newEntry, parsePoints, patchEntry, patchFrame, patchMethod,
+  planarOn, planarPatch, planeChoices, planeRef, planeValue, pointsText, retargetSketchCurve, sourceChoices, sourcePatch, sourceValue,
+} from './curveRules';
+import {
+  CONTINUITIES, FAIRINGS, MAX_STOPS, THICKEN_AXES, addStop, alongOf, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, continuityOf, curveEntities, fairingOf, guidesPatch, knitIds, loftGuides, loftProfiles, move, nextFree, patchStop, patchThickenAxis, patchThickenVariable, pathOf, pathPatch, removeAt, removeStop, replaceAt, stopsOf, thickenAxisOf, thickenVariable,
   sketchInfos, surfaceInfos, sweepGuides, sweepGuidesPatch, tensionOf, tensionPatch, toggleKnit, type CurveRef, type SketchInfo,
 } from './surfaceRules';
 
@@ -294,9 +303,16 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
       </Section>
       <Section id="options" title={t('opt.section.options')}>
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
-        {!p.revolve && endAllowsDraft(end) ? <>
+        {!p.revolve && endAllowsDraft(end) && twistOf(eff) === 0 ? <>
           <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" plain onChange={(v) => change(patchDraft(eff, Number(v)))} />
           {draftAngle > 0 ? <Check name="draftOut" label={t('opt.draftOut')} value={eff.draftOut} onChange={(v) => change({ draftOut: v ? true : null })} /> : null}
+        </> : null}
+        {!p.revolve && endAllowsTwist(end) && draftAngle === 0 ? <>
+          <Num name="twist" label={t('opt.twist')} value={twistOf(eff)} unit="°" onChange={(v) => change(patchTwist(eff, v))} />
+          {twistOf(eff) !== 0 ? <>
+            <Num name="twistCentreX" label={t('opt.twistCentreX')} value={twistCentreOf(eff)[0]} unit="mm" plain onChange={(v) => change(patchTwistCentre(eff, 0, Number(v)))} />
+            <Num name="twistCentreY" label={t('opt.twistCentreY')} value={twistCentreOf(eff)[1]} unit="mm" plain onChange={(v) => change(patchTwistCentre(eff, 1, Number(v)))} />
+          </> : null}
         </> : null}
       </Section>
       <ThinSection eff={eff} change={change} doc={p.doc} actions={p.actions} />
@@ -315,6 +331,8 @@ export interface ThinActions {
   asSurface(): void;
   /** The cut in the editor removed nothing: no body under the sketch (`nothing`) or a body it does not reach (`miss`). */
   cutProblem?: 'nothing' | 'miss' | null;
+  /** Fillet / chamfer: the feature's edge list with the edges that continue it tangentially, read on the body it is applied to (null: nothing to add). */
+  chainEdges?(eff: Wire): Promise<unknown[] | null>;
 }
 
 const ARCH = 'M3 14 Q12 0 21 14';
@@ -387,20 +405,33 @@ function ThinSection(p: { eff: Wire; change: Change; doc: PartDoc | null; action
   );
 }
 
-/** "Tangent chain" (fillet and chamfer): on, the edges that continue the picked ones tangentially are rounded too. Switching it re-applies the choice to the feature's own edge list when it came from a known pick. */
-function TangentChain(p: { eff: Wire; change: Change }): JSX.Element {
+/** "Tangent chain" (fillet and chamfer): on, the edges that continue the picked ones tangentially are rounded too. Switching it re-applies the choice to the feature's own edge list when it came from a known pick.
+ *  Switched on for an edge list of unknown origin (picked with the chain off, or in an earlier session), the chain is followed from that list on the body the feature is applied to. */
+function TangentChain(p: { eff: Wire; change: Change; actions?: ThinActions }): JSX.Element {
   const [on, setOn] = useState(tangentChainOn());
   const pick = roundPickOf(p.eff.edges);
   const added = pick && Array.isArray(p.eff.edges) ? Math.max(0, p.eff.edges.length - pick.seeds.length) : 0;
+  const toggle = (v: boolean) => {
+    setTangentChain(v); setOn(v);
+    if (pick) { p.change({ edges: v ? pick.all : pick.seeds }); return; }
+    const seeds = p.eff.edges;
+    if (v && Array.isArray(seeds) && p.actions?.chainEdges) {
+      void p.actions.chainEdges(p.eff).then((all) => {
+        if (!all || all.length <= seeds.length || !tangentChainOn()) return;
+        rememberRoundPick(seeds, all);
+        p.change({ edges: all });
+      }).catch(() => { /* the body could not be built: the list stays as picked */ });
+    }
+  };
   return (
     <>
-      <Check name="tangentChain" label={t('opt.round.chain')} value={on} onChange={(v) => { setTangentChain(v); setOn(v); if (pick) p.change({ edges: v ? pick.all : pick.seeds }); }} />
+      <Check name="tangentChain" label={t('opt.round.chain')} value={on} onChange={toggle} />
       {added > 0 ? <div class="fedit-note" data-path="tangentChainNote">{t('opt.round.chain.added', { n: String(added) })}</div> : null}
     </>
   );
 }
 
-function ChamferOptions(p: { eff: Wire; change: Change }): JSX.Element {
+function ChamferOptions(p: { eff: Wire; change: Change; actions?: ThinActions }): JSX.Element {
   const { eff, change } = p;
   const type = chamferTypeOf(eff);
   const first = type === 'equal' ? t('opt.chamfer.distance') : t('opt.chamfer.distance1');
@@ -410,13 +441,36 @@ function ChamferOptions(p: { eff: Wire; change: Change }): JSX.Element {
       <Num name="distance" label={first} value={eff.distance} unit="mm" onChange={(v) => change({ distance: v })} />
       {type === 'distances' ? <Num name="distance2" label={t('opt.chamfer.distance2')} value={eff.distance2} unit="mm" onChange={(v) => change({ distance2: v })} /> : null}
       {type === 'angle' ? <Num name="angle" label={t('opt.chamfer.angle')} value={eff.angle} unit="°" onChange={(v) => change({ angle: v })} /> : null}
-      <TangentChain eff={eff} change={change} />
+      <TangentChain eff={eff} change={change} actions={p.actions} />
     </Section>
   );
 }
 
-function FilletOptions(p: { eff: Wire; change: Change }): JSX.Element {
+/** A face name for a full round, taken from the view with Pick (a face name, shown read-only). */
+function FaceField(p: { name: string; label: string; value: unknown; picking: boolean; onPick?(path: string): void }): JSX.Element {
+  const text = typeof p.value === 'string' ? p.value : '';
+  return (
+    <label class={'fedit-fld ref' + (p.picking ? ' picking' : '') + (text ? '' : ' missing')} data-path={p.name}>
+      <span class="fedit-fld-label">{p.label}</span>
+      <span class="fedit-ref">
+        <input type="text" value={text} readonly />
+        {p.onPick ? <button type="button" class={'fedit-pick' + (p.picking ? ' on' : '')} aria-pressed={p.picking} onClick={() => p.onPick!(p.name)}>{p.picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
+      </span>
+    </label>
+  );
+}
+
+function FilletOptions(p: { eff: Wire; change: Change; actions?: ThinActions; pickingPath?: string | null; onPick?(path: string): void }): JSX.Element {
   const { eff, change } = p;
+  if (filletFullRound(eff)) {
+    return (
+      <Section id="fillet" title={t('opt.section.fillet')}>
+        <Check name="filletType" label={t('opt.fillet.fullRound')} value onChange={(v) => change(patchFilletFullRound(eff, v))} />
+        <div class="fedit-note" data-note="fullRound">{t('opt.fillet.fullRoundNote')}</div>
+        {FULL_ROUND_FACES.map((k: FullRoundFace) => <FaceField key={k} name={k} label={t('opt.fillet.' + k)} value={eff[k]} picking={p.pickingPath === k} onPick={p.onPick} />)}
+      </Section>
+    );
+  }
   const variable = filletVariable(eff);
   const profile = filletProfileOf(eff);
   const radii = radiiOf(eff);
@@ -424,6 +478,7 @@ function FilletOptions(p: { eff: Wire; change: Change }): JSX.Element {
   return (
     <Section id="fillet" title={t('opt.section.fillet')}>
       <Check name="filletType" label={t('opt.fillet.variable')} value={variable} onChange={(v) => change(patchFilletVariable(eff, v))} />
+      <Check name="fullRound" label={t('opt.fillet.fullRound')} value={false} onChange={(v) => change(patchFilletFullRound(eff, v))} />
       {variable ? <>
         <Num name="radii0" label={t(chord ? 'opt.fillet.chord0' : 'opt.fillet.radius0')} value={radii[0]} unit="mm" plain onChange={(v) => change(patchRadii(eff, 0, Number(v)))} />
         <Num name="radii1" label={t(chord ? 'opt.fillet.chord1' : 'opt.fillet.radius1')} value={radii[1]} unit="mm" plain onChange={(v) => change(patchRadii(eff, 1, Number(v)))} />
@@ -431,7 +486,7 @@ function FilletOptions(p: { eff: Wire; change: Change }): JSX.Element {
       <Select name="profile" label={t('opt.fillet.profile')} value={profile} options={FILLET_PROFILES.map((f): [string, string] => [f, t('opt.fillet.profile.' + f)])} onChange={(v) => change(patchFilletProfile(eff, v as FilletProfile))} />
       {profile === 'conic' ? <Num name="rho" label={t('opt.fillet.rho')} value={eff.rho ?? 0.5} unit="" onChange={(v) => change({ rho: v })} /> : null}
       {profile === 'curvature' ? <Num name="shape" label={t('opt.fillet.shape')} value={eff.shape ?? 0.5} unit="" onChange={(v) => change({ shape: v })} /> : null}
-      <TangentChain eff={eff} change={change} />
+      <TangentChain eff={eff} change={change} actions={p.actions} />
     </Section>
   );
 }
@@ -490,6 +545,9 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   const issue = surface ? (profiles.some(isPoint) ? 'loftPointSurface' : null) : loftPointIssue(profiles, isPoint) ?? (guides.length && profiles.some(isPoint) ? 'loftPointGuides' : null);
   const autoOrder = surface ? null : loftAutoOrder(p.doc, profiles);
   const guideChoices = all.filter((s) => s.open && !profiles.includes(s.id));
+  const centre = centreLineOf(eff);
+  const centreChoices = all.filter((s) => (s.open && !profiles.includes(s.id) && !guides.includes(s.id)) || s.id === centre);
+  const connectors = connectorsOf(eff, profiles.length);
   return (
     <>
       <Section id="loftProfiles" title={t('opt.loft.profiles')}>
@@ -500,6 +558,20 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
       <Section id="loftGuides" title={t('opt.loft.guides')}>
         <SketchList name="guides" label={t('opt.loft.guidesNote')} ids={guides} list={guideChoices} min={0} addLabel={t('opt.loft.addGuide')} onChange={(ids) => change(guidesPatch(ids))} />
       </Section>
+      <Section id="loftCentre" title={t('opt.loft.centreLine')}>
+        <SketchSelect name="centreLine" value={centre} list={centreChoices} blank={t('opt.loft.centreNone')} onChange={(id) => change(centreLinePatch(id))} />
+        <div class="fedit-note" data-note="centreLineNote">{t('opt.loft.centreNote')}</div>
+      </Section>
+      <Section id="loftConnectors" title={t('opt.loft.connectors')}>
+        <div class="fedit-note" data-note="connectorsNote">{t('opt.loft.connectorsNote')}</div>
+        {profiles.map((id, i) => (
+          <label class="fedit-fld" data-path={'connectors.' + i} key={id + ':' + i}>
+            <span class="fedit-fld-label">{t('opt.loft.connector', { name: all.find((s) => s.id === id)?.name ?? id })}</span>
+            <input type="number" min="0" max="1" step="0.05" placeholder={t('opt.loft.connectorAuto')} value={connectors[i] ?? ''}
+              onChange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; change(connectorPatch(eff, profiles.length, i, v === '' ? null : Number(v))); }} />
+          </label>
+        ))}
+      </Section>
       <Section id="loftOptions" title={t('opt.section.options')}>
         <Check name="surface" label={t('opt.loft.surface')} value={surface} onChange={(v) => change({ surface: v ? true : null })} />
         {!surface ? <Select name="op" label={t('opt.op')} value={opChoiceOf(eff.op)} options={opChoices().map((c) => [c, t('opt.op.' + c)] as [string, string])} onChange={(v) => change(opPatch(v as 'new' | 'add' | 'cut', eff, otherBodyNames(p.doc, eff)))} /> : null}
@@ -509,6 +581,32 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
         <Num name="endNormal" label={t('opt.loft.endTension')} value={tensionOf(eff, 'endNormal')} unit="" plain onChange={(v) => change(tensionPatch('endNormal', Number(v)))} />
       </Section>
     </>
+  );
+}
+
+function ThickenOptions(p: { eff: Wire; change: Change }): JSX.Element {
+  const { eff, change } = p;
+  const variable = thickenVariable(eff);
+  const stops = stopsOf(eff);
+  const axis = thickenAxisOf(eff);
+  const axes: Array<[string, string]> = THICKEN_AXES.map(([k]): [string, string] => [k, t('opt.thicken.axis.' + k)]);
+  if (axis === 'custom') axes.unshift(['custom', alongOf(eff).join(', ')]);
+  return (
+    <Section id="thickness" title={t('opt.section.thickness')}>
+      <Check name="thicknessAt" label={t('opt.thicken.variable')} value={variable} onChange={(v) => change(patchThickenVariable(eff, v))} />
+      {variable ? <>
+        <Select name="along" label={t('opt.thicken.along')} value={axis} options={axes} onChange={(v) => change(patchThickenAxis(eff, v))} />
+        <div class="fedit-note" data-note="stopsNote">{t('opt.thicken.stopsNote')}</div>
+        {stops.map(([s, th], i) => (
+          <div class="fedit-fld" data-path={'stop.' + i} key={i}>
+            <Num name={'stop' + i + 's'} label={t('opt.thicken.stopAt')} value={s} unit="mm" plain onChange={(v) => change(patchStop(eff, i, 0, Number(v)))} />
+            <Num name={'stop' + i + 't'} label={t('opt.thicken.stopThickness')} value={th} unit="mm" plain onChange={(v) => change(patchStop(eff, i, 1, Number(v)))} />
+            <button type="button" class="fedit-pick" data-act="remove-stop" disabled={stops.length <= 2} onClick={() => change(removeStop(eff, i))}>{t('opt.thicken.removeStop')}</button>
+          </div>
+        ))}
+        <button type="button" class="fedit-pick" data-act="add-stop" disabled={stops.length >= MAX_STOPS} onClick={() => change(addStop(eff))}>{t('opt.thicken.addStop')}</button>
+      </> : <Num name="thickness" label={t('opt.thicken.thickness')} value={eff.thickness} unit="mm" onChange={(v) => change({ thickness: v })} />}
+    </Section>
   );
 }
 
@@ -561,8 +659,90 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
   );
 }
 
-/** Pattern and mirror: the seeds as the user thinks of them ("Hole F4 + Thread F5") and the Carry threads switch. */
-function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+type PickArgs = { pickingPath?: string | null; onPick?(path: string): void };
+
+/** The object a To object direction reaches: a plane, an earlier Plane feature, or a face picked in the viewport (Pick). */
+function ToObjectField(p: { eff: Wire; change: Change; doc: PartDoc | null; sfx: Sfx } & PickArgs): JSX.Element {
+  const name = 'to' + p.sfx;
+  const picking = p.pickingPath === name;
+  return (
+    <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path={name}>
+      <span class="fedit-fld-label">{t('opt.pattern.to')}</span>
+      <span class="fedit-ref">
+        <select value={toValue(p.eff[name])} onChange={(e) => p.change(toPatch(p.sfx, (e.currentTarget as HTMLSelectElement).value, p.eff[name]))}>
+          {toChoices(p.doc, String(p.eff.id ?? ''), p.eff[name]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} title={t('opt.pattern.toPick')} onClick={() => p.onPick!(name)}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
+      </span>
+    </label>
+  );
+}
+
+/** One direction of a linear pattern (Direction 1, or Direction 2 with its None choice): axis, count, distance type and its value, reverse. */
+function PatternDirection(p: { eff: Wire; change: Change; doc: PartDoc | null; sfx: Sfx } & PickArgs): JSX.Element {
+  const { eff, change, sfx } = p;
+  const k = (b: string) => b + sfx;
+  const type = distanceTypeOf(eff, sfx);
+  const ax = axisOf(eff, sfx);
+  const axes: Array<[string, string]> = AXES.map((a) => [a, t('opt.pattern.axis.' + a)]);
+  return (
+    <Section id={'patternDir' + (sfx || '1')} title={t(sfx ? 'opt.pattern.dir2' : 'opt.pattern.dir1')}>
+      <Select name={k('dir')} label={t('opt.pattern.direction')} value={ax || (sfx ? '' : 'x')} options={sfx ? [['', t('opt.pattern.dirNone')], ...axes] : axes}
+        onChange={(v) => change(sfx ? patchDir2(eff, v as Axis | '') : { dir: { kind: 'axis', axis: v } })} />
+      {sfx && !ax ? null : (
+        <>
+          <Num name={k('count')} label={t('opt.pattern.count')} value={eff[k('count')]} unit="" onChange={(v) => change({ [k('count')]: v })} />
+          <Select name={k('distanceType')} label={t('opt.pattern.distanceType')} value={type} options={DISTANCE_TYPES.map((d): [string, string] => [d, t('opt.pattern.distanceType.' + d)])}
+            onChange={(v) => change(patchDistanceType(eff, sfx, v as DistanceType))} />
+          {type === 'spacing' ? <Num name={k('spacing')} label={t('opt.pattern.spacing')} value={eff[k('spacing')]} unit="mm" onChange={(v) => change({ [k('spacing')]: v })} /> : null}
+          {type === 'extent' ? <Num name={k('extent')} label={t('opt.pattern.extent')} value={eff[k('extent')]} unit="mm" onChange={(v) => change({ [k('extent')]: v })} /> : null}
+          {type === 'toObject' ? (
+            <>
+              <ToObjectField {...p} />
+              <Num name={k('toOffset')} label={t('opt.pattern.toOffset')} value={eff[k('toOffset')] ?? 0} unit="mm" onChange={(v) => change({ [k('toOffset')]: Number(v) === 0 ? null : v })} />
+              <div class="fedit-hint-line">{t('opt.pattern.toNote')}</div>
+            </>
+          ) : (
+            <Check name={k('reverse')} label={t('opt.pattern.reverse')} value={eff[k('reverse')]} onChange={(v) => change({ [k('reverse')]: v ? true : sfx ? null : false })} />
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
+/** A path pattern: the path sketch, the count and spacing (or extent) along it, where the seed sits, flip and orientation. */
+function PathPatternFields(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const all = sketchInfos(p.doc);
+  const path = pathOf(eff);
+  const type = distanceTypeOf(eff);
+  const mode = startModeOf(eff);
+  return (
+    <Section id="pathPattern" title={t('opt.pattern.path')}>
+      <label class="fedit-fld" data-path="path"><span class="fedit-fld-label">{t('opt.pattern.pathSketch')}</span>
+        <SketchSelect name="path" value={path} list={all.filter((s) => s.open || s.id === path)} blank={t('opt.none')} onChange={(v) => change(pathPatch(v))} /></label>
+      <Num name="count" label={t('opt.pattern.count')} value={eff.count} unit="" onChange={(v) => change({ count: v })} />
+      <Select name="distanceType" label={t('opt.pattern.distanceType')} value={type} options={PATH_DISTANCE_TYPES.map((d): [string, string] => [d, t('opt.pattern.distanceType.' + d)])}
+        onChange={(v) => change(patchDistanceType(eff, '', v as DistanceType))} />
+      {type === 'extent'
+        ? <Num name="extent" label={t('opt.pattern.extent')} value={eff.extent} unit="mm" onChange={(v) => change({ extent: v })} />
+        : <Num name="spacing" label={t('opt.pattern.spacing')} value={eff.spacing} unit="mm" onChange={(v) => change({ spacing: v })} />}
+      <Select name="startMode" label={t('opt.pattern.startMode')} value={mode} options={[['distance', t('opt.pattern.startMode.distance')], ['fraction', t('opt.pattern.startMode.fraction')]]}
+        onChange={(v) => change(patchStartMode(v as StartMode))} />
+      {mode === 'fraction'
+        ? <Num name="startFraction" label={t('opt.pattern.startFraction')} value={eff.startFraction ?? 0} unit="" onChange={(v) => change({ startFraction: v })} />
+        : <Num name="start" label={t('opt.pattern.start')} value={eff.start ?? 0} unit="mm" onChange={(v) => change({ start: Number(v) === 0 ? null : v })} />}
+      <Check name="flip" label={t('opt.pattern.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} />
+      <Select name="orientation" label={t('opt.pattern.orientation')} value={orientationOf(eff)} options={ORIENTATIONS.map((o): [string, string] => [o, t('opt.pattern.orientation.' + o)])}
+        onChange={(v) => change({ orientation: v === 'tangent' ? 'tangent' : null })} />
+      <div class="fedit-hint-line">{t('opt.pattern.pathNote')}</div>
+    </Section>
+  );
+}
+
+/** Pattern and mirror: the linear pattern's directions or the path pattern's path, the seeds as the user thinks of them ("Hole F4 + Thread F5") and the Carry threads switch. */
+function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element | null {
   const features = (p.doc?.features ?? []) as unknown as Wire[];
   const infos = seedInfos(features, p.eff);
   const carry = carriesThreads(p.eff);
@@ -576,10 +756,17 @@ function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): 
         onChange={(v) => p.change({ axis: { kind: 'axis', axis: v } })} />
     </Section>
   ) : null;
-  if (!infos.length && !anyThread) return axisNode;
+  const placeNode = p.eff.type === 'lpattern' ? (
+    <>
+      <PatternDirection {...p} sfx="" />
+      <PatternDirection {...p} sfx="2" />
+    </>
+  ) : p.eff.type === 'curvepattern' ? <PathPatternFields {...p} /> : null;
+  if (!infos.length && !anyThread) return axisNode || placeNode ? <>{axisNode}{placeNode}</> : null;
   return (
     <>
     {axisNode}
+    {placeNode}
     <Section id="patternThreads" title={t('opt.pattern.threads')}>
       <div class="fedit-seeds" data-testid="pattern-seeds">
         {infos.map((i) => <div key={i.id} class="fedit-seed" data-seed={i.id}>{seedLabel(i, name)}</div>)}
@@ -659,6 +846,163 @@ function PlaneOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
   );
 }
 
+// ---- curves: project curve, edit curve, freeform ----
+
+/** A list of face names: shown as text, set with Pick (the viewport selection fills it and keeps following it until Done). */
+function FacesField(p: { eff: Wire; label: string; pickingPath?: string | null; onPick?(path: string): void }): JSX.Element {
+  const picking = p.pickingPath === 'faces';
+  return (
+    <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path="faces">
+      <span class="fedit-fld-label">{p.label}</span>
+      <span class="fedit-ref">
+        <input type="text" value={faceList(p.eff).join(', ')} readonly />
+        {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => p.onPick!('faces')}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pickSelection')}</button> : null}
+      </span>
+    </label>
+  );
+}
+
+function ProjectCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element {
+  const { eff, change } = p;
+  const cur = sourceValue(eff);
+  const choices = sourceChoices(p.doc, String(eff.id ?? ''), eff);
+  return (
+    <Section id="projectCurve" title={t('opt.section.projectCurve')}>
+      <Select name="source" label={t('opt.projectCurve.source')} value={cur} options={cur ? choices : [['', t('opt.none')], ...choices]} onChange={(v) => { if (v) change(sourcePatch(v)); }} />
+      <FacesField eff={eff} label={t('opt.projectCurve.faces')} pickingPath={p.pickingPath} onPick={p.onPick} />
+      {faceList(eff).length ? null : <div class="fedit-hint-line" data-note="allFaces">{t('opt.projectCurve.allFaces')}</div>}
+      <Select name="direction" label={t('opt.projectCurve.direction')} value={directionOf(eff)} options={PROJECT_DIRECTIONS.map((d): [string, string] => [d, t('opt.projectCurve.direction.' + d)])} onChange={(v) => change({ direction: v === 'both' ? null : v })} />
+      <Num name="degree" label={t('opt.curve.degree')} value={eff.degree ?? 3} unit="" plain onChange={(v) => change({ degree: v })} />
+      {degreeOutOfRange(eff.degree) ? <div class="fedit-note fedit-warn" role="alert" data-note="degree">{t('opt.curve.degreeRange', { min: String(DEGREE_RANGE.min), max: String(DEGREE_RANGE.max) })}</div> : null}
+      <Num name="tolerance" label={t('opt.projectCurve.tolerance')} value={eff.tolerance ?? 0.001} unit="mm" plain onChange={(v) => change({ tolerance: v })} />
+      <div class="fedit-hint-line">{t('opt.projectCurve.note')}</div>
+    </Section>
+  );
+}
+
+/** One curve of an Edit curve: a sketch curve (sketch and entity lists), an edge or an earlier curve (shown in words); with a remove button. */
+function CurveRow(p: { i: number; refs: Wire[]; doc: PartDoc | null; change: Change }): JSX.Element {
+  const { i, refs, doc } = p;
+  const r = refs[i];
+  const sketches = sketchInfos(doc).filter((s) => curveEntities(doc, s.id).length > 0);
+  const set = (next: Wire[]) => p.change(curvesPatch(next));
+  return (
+    <div class="fedit-order-row" data-index={i}>
+      <span class="fedit-order-n">{i + 1}</span>
+      {r.kind === 'sketchCurve' ? (
+        <>
+          <SketchSelect name={`curves.${i}`} value={String(r.sketch)} list={sketches} onChange={(v) => set(retargetSketchCurve(doc, refs, i, { sketch: v }))} />
+          <select data-path={`curves.${i}.entity`} value={String(r.entity)} onChange={(e) => set(retargetSketchCurve(doc, refs, i, { entity: (e.currentTarget as HTMLSelectElement).value }))}>
+            {(() => { const ids = curveEntities(doc, String(r.sketch)); return (ids.includes(String(r.entity)) ? ids : [String(r.entity), ...ids]).map((id) => <option key={id} value={id}>{id}</option>); })()}
+          </select>
+        </>
+      ) : <span class="fedit-ref-text" data-path={`curves.${i}`}>{curveRefLabel(doc, r)}</span>}
+      <button type="button" class="fedit-mini" data-act="remove" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => set(refs.filter((_, k) => k !== i))}>×</button>
+    </div>
+  );
+}
+
+function EditCurveOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change, doc } = p;
+  const refs = curveRefs(eff);
+  const method = methodOf(eff);
+  const list = curveEntries(eff);
+  const free = addableCurves(doc, String(eff.id ?? ''), refs);
+  const setEntries = (next: Wire[]) => change(entriesPatch(next));
+  return (
+    <>
+      <Section id="editCurveCurves" title={t('opt.editCurve.curves')}>
+        <div class="fedit-order" data-path="curves">
+          <div class="fedit-fld-label">{t('opt.editCurve.curvesNote')}</div>
+          {refs.map((_, i) => <CurveRow key={i} i={i} refs={refs} doc={doc} change={change} />)}
+          <button type="button" class="fedit-pick" data-act="add" disabled={!free.length} onClick={() => free.length && change(curvesPatch([...refs, free[0]]))}>{t('opt.editCurve.addCurve')}</button>
+        </div>
+      </Section>
+      <Section id="editCurveFit" title={t('opt.editCurve.fit')}>
+        <Select name="method" label={t('opt.editCurve.method')} value={method} options={EDIT_METHODS.map((m): [string, string] => [m, t('opt.editCurve.method.' + m)])} onChange={(v) => change(patchMethod(eff, v as 'count' | 'tolerance'))} />
+        <Num name="degree" label={t('opt.curve.degree')} value={eff.degree ?? 5} unit="" plain onChange={(v) => change({ degree: v })} />
+        {degreeOutOfRange(eff.degree) ? <div class="fedit-note fedit-warn" role="alert" data-note="degree">{t('opt.curve.degreeRange', { min: String(DEGREE_RANGE.min), max: String(DEGREE_RANGE.max) })}</div> : null}
+        {method === 'count'
+          ? <Num name="count" label={t('opt.editCurve.count')} value={eff.count ?? degreeOf(eff) + 1} unit="" plain onChange={(v) => change({ count: v })} />
+          : <Num name="tolerance" label={t('opt.editCurve.tolerance')} value={eff.tolerance ?? 0.01} unit="mm" plain onChange={(v) => change({ tolerance: v })} />}
+        <Check name="keepEnds" label={t('opt.editCurve.keepEnds')} value={keepEndsOn(eff)} onChange={(v) => change(keepEndsPatch(v))} />
+        <Check name="keepTangents" label={t('opt.editCurve.keepTangents')} value={eff.keepTangents} onChange={(v) => change({ keepTangents: v ? true : null })} />
+        <Check name="keepCorners" label={t('opt.editCurve.keepCorners')} value={eff.keepCorners} onChange={(v) => change({ keepCorners: v ? true : null })} />
+        <Check name="planar" label={t('opt.editCurve.planar')} value={planarOn(eff)} onChange={(v) => change(planarPatch(eff, v))} />
+        {planarOn(eff) ? <Select name="plane" label={t('opt.editCurve.plane')} value={planeValue(eff.plane)} options={planeChoices(doc, String(eff.id ?? ''), eff.plane)} onChange={(v) => change({ plane: planeRef(v) })} /> : null}
+      </Section>
+      <Section id="editCurveEdits" title={t('opt.editCurve.edits')}>
+        <div class="fedit-order" data-path="entries">
+          <div class="fedit-fld-label">{t('opt.editCurve.editsNote')}</div>
+          {list.map((e, i) => (
+            <div class="fedit-edit" key={i} data-index={i}>
+              <div class="fedit-order-row">
+                <span class="fedit-order-n">{i + 1}</span>
+                <Num name={`entries.${i}.cv`} label={t('opt.editCurve.cv')} value={e.cv} unit="" plain onChange={(v) => setEntries(patchEntry(list, i, { cv: Number(v) }))} />
+                <button type="button" class="fedit-mini" data-act="remove" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => setEntries(list.filter((_, k) => k !== i))}>×</button>
+              </div>
+              <Select name={`entries.${i}.frame`} label={t('opt.editCurve.frame')} value={entryFrameOf(e)} options={[['world', t('opt.editCurve.frame.world')], ['curve', t('opt.editCurve.frame.curve')]]} onChange={(v) => setEntries(patchEntry(list, i, { frame: v === 'curve' ? 'curve' : null }))} />
+              {(['dx', 'dy', 'dz'] as const).map((k) => <Num key={k} name={`entries.${i}.${k}`} label={t('opt.editCurve.' + k)} value={e[k] ?? 0} unit="mm" onChange={(v) => setEntries(patchEntry(list, i, { [k]: v }))} />)}
+              <Num name={`entries.${i}.weight`} label={t('opt.editCurve.weight')} value={e.weight ?? 1} unit="" plain onChange={(v) => setEntries(patchEntry(list, i, { weight: Number(v) === 1 ? null : v }))} />
+              <Check name={`entries.${i}.disabled`} label={t('opt.editCurve.disabled')} value={e.disabled} onChange={(v) => setEntries(patchEntry(list, i, { disabled: v ? true : null }))} />
+            </div>
+          ))}
+          <button type="button" class="fedit-pick" data-act="add-edit" onClick={() => setEntries([...list, newEntry(list)])}>{t('opt.editCurve.addEdit')}</button>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function FreeformOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element {
+  const { eff, change, doc } = p;
+  const list = ffEdits(eff);
+  const [nu, nv] = netSize(eff);
+  const setEdits = (next: Wire[]) => change({ edits: next });
+  const patch = (i: number, q: Wire) => setEdits(patchEntry(list, i, q));
+  return (
+    <>
+      <Section id="freeformNet" title={t('opt.freeform.net')}>
+        <FacesField eff={eff} label={t('opt.freeform.faces')} pickingPath={p.pickingPath} onPick={p.onPick} />
+        <Num name="degreeU" label={t('opt.freeform.degreeU')} value={eff.degreeU ?? 3} unit="" plain onChange={(v) => change({ degreeU: v })} />
+        <Num name="degreeV" label={t('opt.freeform.degreeV')} value={eff.degreeV ?? 3} unit="" plain onChange={(v) => change({ degreeV: v })} />
+        <Num name="spansU" label={t('opt.freeform.spansU')} value={eff.spansU ?? 2} unit="" plain onChange={(v) => change({ spansU: v })} />
+        <Num name="spansV" label={t('opt.freeform.spansV')} value={eff.spansV ?? 2} unit="" plain onChange={(v) => change({ spansV: v })} />
+        <div class="fedit-hint-line" data-note="net">{t('opt.freeform.netNote', { nu: String(nu), nv: String(nv) })}</div>
+        {editsNeedOneFace(eff) ? <div class="fedit-note fedit-warn" role="alert" data-note="oneFace">{t('opt.freeform.oneFace')}</div> : null}
+      </Section>
+      <Section id="freeformEdits" title={t('opt.freeform.edits')}>
+        <div class="fedit-order" data-path="edits">
+          <div class="fedit-fld-label">{t('opt.freeform.editsNote')}</div>
+          {list.map((e, i) => {
+            const frame = frameOf(e);
+            const sym = planeValue(e.symmetric);
+            return (
+              <div class="fedit-edit" key={i} data-index={i}>
+                <div class="fedit-order-row">
+                  <span class="fedit-order-n">{i + 1}</span>
+                  <label class="fedit-fld" data-path={`edits.${i}.points`}>
+                    <span class="fedit-fld-label">{t('opt.freeform.points')}</span>
+                    <input type="text" value={pointsText(e.points)} placeholder="2,2; 2,3" onChange={(ev) => { const pts = parsePoints((ev.currentTarget as HTMLInputElement).value); if (pts) patch(i, { points: pts }); }} />
+                  </label>
+                  <button type="button" class="fedit-mini" data-act="remove" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => setEdits(list.filter((_, k) => k !== i))}>×</button>
+                </div>
+                {(['dx', 'dy', 'dz'] as const).map((k) => <Num key={k} name={`edits.${i}.${k}`} label={t('opt.editCurve.' + k)} value={e[k] ?? 0} unit="mm" onChange={(v) => patch(i, { [k]: v })} />)}
+                <Select name={`edits.${i}.frame`} label={t('opt.freeform.frame')} value={frame} options={FREEFORM_FRAMES.map((f): [string, string] => [f, t('opt.freeform.frame.' + f)])} onChange={(v) => patch(i, patchFrame(e, v as 'world' | 'surface' | 'plane'))} />
+                {frame === 'plane' ? <Select name={`edits.${i}.plane`} label={t('opt.freeform.plane')} value={planeValue(e.plane)} options={planeChoices(doc, String(eff.id ?? ''), e.plane)} onChange={(v) => patch(i, { plane: planeRef(v) })} /> : null}
+                <Num name={`edits.${i}.proportional`} label={t('opt.freeform.proportional')} value={e.proportional ?? 0} unit="" plain onChange={(v) => patch(i, { proportional: Number(v) > 0 ? v : null })} />
+                <Select name={`edits.${i}.symmetric`} label={t('opt.freeform.symmetric')} value={sym} options={[['', t('opt.none')], ...planeChoices(doc, String(eff.id ?? ''), e.symmetric)]} onChange={(v) => patch(i, { symmetric: v ? planeRef(v) : null })} />
+                <Check name={`edits.${i}.disabled`} label={t('opt.editCurve.disabled')} value={e.disabled} onChange={(v) => patch(i, { disabled: v ? true : null })} />
+              </div>
+            );
+          })}
+          <button type="button" class="fedit-pick" data-act="add-edit" onClick={() => setEdits([...list, newEdit(eff)])}>{t('opt.freeform.addEdit')}</button>
+        </div>
+      </Section>
+    </>
+  );
+}
+
 /** The `options` prop of FeatureEditor: the form for the feature's type, or null (the generic fields stay). `doc` feeds the sketch and surface lists. */
 export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null = null, actions?: ThinActions): OptionsResult | null {
   const type = String(a.eff.type ?? '');
@@ -668,8 +1012,8 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
   switch (type) {
     case 'extrude': return { hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve={false} doc={doc} actions={actions} /> };
     case 'revolve': return { hide: revolveAxisField(doc, a.eff) ? new Set([...hide, 'axis']) : hide, node: <ExtrudeOptions {...common} pickingPath={a.pickingPath} onPick={a.onPickRequest} revolve doc={doc} actions={actions} /> };
-    case 'chamfer': return { hide, node: <ChamferOptions {...common} /> };
-    case 'fillet': return { hide, node: <FilletOptions {...common} /> };
+    case 'chamfer': return { hide, node: <ChamferOptions {...common} actions={actions} /> };
+    case 'fillet': return { hide: filletFullRound(a.eff) ? new Set([...hide, 'edges']) : hide, node: <FilletOptions {...common} actions={actions} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'shell': return { hide, node: <ShellOptions {...common} /> };
     case 'loft': return { hide, node: <LoftOptions {...common} doc={doc} /> };
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
@@ -680,10 +1024,14 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };
     case 'extend': return { hide, node: <ExtendOptions {...common} /> };
-    case 'lpattern': case 'cpattern': case 'mirror': return { hide, node: <PatternOptions {...common} doc={doc} /> };
+    case 'lpattern': case 'cpattern': case 'mirror': case 'curvepattern': return { hide, node: <PatternOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'knit': return { hide, node: <KnitOptions {...common} doc={doc} /> };
+    case 'thicken': return { hide, node: <ThickenOptions {...common} /> };
     case 'plane': return { hide, node: <PlaneOptions {...common} doc={doc} /> };
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
+    case 'projectCurve': return { hide, node: <ProjectCurveOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
+    case 'editCurve': return { hide, node: <EditCurveOptions {...common} doc={doc} /> };
+    case 'freeform': return { hide, node: <FreeformOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     default: return null;
   }
 }

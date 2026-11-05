@@ -104,7 +104,7 @@ A sketch on a face has its normal pointing out of the body.
 | `.holes.points / .polar / .grid(...)` | One hole feature at many points. |
 | `.fillet(edges, radius)`, `.chamfer(edges, distance)` | Edge rounding. Different radii become one fillet per radius. |
 | `.shell(face or faces, t)` | Hollow out, opening the given faces. |
-| `.linearPattern({count, spacing, direction})`, `.circularPattern({count, axis, angle})` | Patterns of the last feature, or of seeds you name. Directions and axes follow the world axes. |
+| `.linearPattern({count, spacing, direction})`, `.circularPattern({count, axis, angle})`, `.pathPattern({path, count, spacing})` | Patterns of the last feature, or of seeds you name. Directions and axes follow the world axes. A linear pattern can use `totalLength` or `to` (a plane, face or point the last copy reaches) instead of `spacing`, and a `second` direction. A path pattern follows an open sketch. |
 | `.workplane(base, offset)` | A reference plane. |
 | `.loft(sections)`, `.sweep(profile, path)`, `.mirror(plane)`, `.rib(thickness)` | Loft, sweep, mirror and rib. |
 | `.gear({module, teeth, thickness, ...})` | The gear generator. |

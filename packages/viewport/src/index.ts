@@ -22,6 +22,8 @@ export type { BoxInput, ScreenRect, Project } from './boxselect';
 export { ANALYSIS_MODES, DEFAULT_ANALYSIS, sanitizeAnalysis, vertexCurvatures, gaussianOf, meanOf, percentileAbs, diverging, curvatureColors, draftColors, draftAngle, combSegments, DRAFT_COLORS } from './analysis';
 export type { AnalysisMode, AnalysisOptions, Legend } from './analysis';
 export * from './camerarig';
+export * from './viewnav';
+export { chamferCube, CUBE_HALF, CUBE_BEVEL, type CubeGeometry } from './viewcubeGeom';
 export { OrbitRig } from './orbitrig';
 export { markerStyleFor, markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX } from './snapMarks';
 export type { MarkerStyle, MarkerHit } from './snapMarks';

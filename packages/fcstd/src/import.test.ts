@@ -48,4 +48,15 @@ describe('FCStd importer', () => {
       expect(r.steps).toHaveLength(1);
     }
   });
+
+  it('reads the old layout (FreeCAD 0.14 to 0.16): no Body Group, the features follow the BaseFeature links back from the Tip, the pad names its sketch in `Sketch`', () => {
+    const legacy = DOC.replace('<Document SchemaVersion="4">', '<Document SchemaVersion="4" ProgramVersion="0.14R1234">')
+      .replace(/<Property name="Group"[\s\S]*?<\/Property>/, '')
+      .replace('<Link value="Pocket"/></Property>', '<Link value="Pad"/></Property>')
+      .replace('<Property name="Profile" type="App::PropertyLinkSub"><LinkSub value="Sketch" count="1"><Sub value=""/></LinkSub></Property>\n <Property name="Type" type="App::PropertyEnumeration"><Integer value="0"/>', '<Property name="Sketch" type="App::PropertyLink"><Link value="Sketch"/></Property>\n <Property name="Type" type="App::PropertyEnumeration"><Integer value="0"/>');
+    const r = importFcDocument(legacy, 'Legacy');
+    expect(r.warnings.map((w) => w.code)).toContain('legacyFormat');
+    expect(r.steps.map((s) => s.fc)).toEqual(['Pad']);
+    expect(r.part.features.map((f) => f.type)).toEqual(['sketch', 'extrude']);
+  });
 });

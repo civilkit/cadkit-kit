@@ -12,6 +12,7 @@ import { filterSamples, suspectSamples } from './pages/samples.mjs';
 import { filterKernelThirdParty, renderLicensesHtml } from './pages/licenses.mjs';
 import { scanDir } from './pages_leakcheck.mjs';
 import { buildId, precacheList, swSource } from './pages/sw.mjs';
+import { docsLink, licencesLink } from './pages/siteLinks.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
@@ -107,13 +108,14 @@ writeFileSync(join(OUT, 'licenses.html'), renderLicensesHtml({ kit: readFileSync
 
 // 5. a small link to the licences page, only in the published index.html (the app has no About dialog)
 const idx = join(OUT, 'index.html');
-const link = '<a id="licences-link" href="licenses.html">Licences</a><style>#licences-link{position:fixed;left:62%;bottom:4px;z-index:1;font:10px/1.4 system-ui,sans-serif;color:inherit;opacity:.45;text-decoration:none}#licences-link:hover{opacity:1;text-decoration:underline}</style>';
+// On a phone or a tablet the bottom bar is there and these floating links would print over it: the app hides them and lists them in its more menu instead (see tools/pages/siteLinks.mjs).
+const link = licencesLink();
 const html = readFileSync(idx, 'utf8');
 if (!html.includes('</body>')) die('index.html has no </body> to add the licences link to');
 // the documentation (5d below) is built only when PAGES_DOCS=1 (the /cad/ site: the books link to each other by absolute /cad/docs/ paths)
 const wantDocs = process.env.PAGES_DOCS === '1';
-const docsLink = wantDocs ? '<a id="docs-link" href="/docs/cad/">Documentation</a><style>#docs-link{position:fixed;left:70%;bottom:4px;z-index:1;font:10px/1.4 system-ui,sans-serif;color:inherit;opacity:.45;text-decoration:none}#docs-link:hover{opacity:1;text-decoration:underline}</style>' : '';
-writeFileSync(idx, html.replace('</body>', `${link}${docsLink}</body>`));
+const docsAnchor = wantDocs ? docsLink() : '';
+writeFileSync(idx, html.replace('</body>', `${link}${docsAnchor}</body>`));
 writeFileSync(join(OUT, '.nojekyll'), '');   // GitHub Pages: serve the assets/ folder as is
 
 // 5a. the web app manifest and its icons (the app build runs without a public folder, so they are copied here)

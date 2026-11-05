@@ -18,6 +18,7 @@
 - [Offsets and references](sketching/offset-reference.md)
 - [3D sketches](sketching/sketch-3d.md)
 - [Text](sketching/text.md)
+- [Equation curves](sketching/equation-curves.md)
 - [When a sketch will not solve](sketching/troubleshooting.md)
 
 # Modelling

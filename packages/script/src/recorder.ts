@@ -8,7 +8,7 @@ export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
 import type { ScrewOpts } from './features/screw';
 import type { BearingOpts } from './features/bearing';
-import { applyFrom, applyNewBody } from './features/h';
+import { applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './features/h';
 import type { CosmeticKnurl } from './cosmeticKnurl';
 import { CURATED_FONT_IDS, isKnownFont, unknownFontMessage } from './fonts';
 export type Plane = 'front' | 'top' | 'right';
@@ -437,6 +437,36 @@ export class SketchBuilder {
       if (!/^[A-Za-z][\w-]{0,40}$/.test(o.name)) throw new Error("text(): name must start with a letter and use letters, digits, '-' and '_'");
       if (this.entities.some((x) => x.id === o.name)) throw new Error(`text(): the name '${o.name}' is used twice in this sketch`);
       this.entities.push({ id: o.name, ...e });
+      return this;
+    }
+    this.ent(e);
+    return this;
+  }
+  /**
+   * Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.
+   *
+   * Adds a spline entity that stores the formulas; the kernel evaluates them on every rebuild, so a curve written with variables follows them. Formulas use the expression syntax of dimensions: + - * / ^, sqrt sin cos tan abs, min max pow mod hypot atan2 round floor ceil exp ln log10 asin acos atan, pi; TRIGONOMETRY IS IN DEGREES (a full turn is t from 0 to 360); any name other than t must be a declared variable. `t` is [start, end] (numbers, expr(), or formula strings); `tol` is the largest distance in mm from the formulas (default 0.01). A curve that ends where it starts is closed (a region of its own); an open one needs lines to close it, starting and ending exactly at the curve's end points (compute them from the formulas). Errors name the formula (equationFormula, equationNotFinite, equationRange, equationTolerance, equationDegenerate); a curve that crosses itself warns equationSelfIntersects. `name` sets the entity id; its points are <name>_start, <name>_p1.., <name>_end.
+   * @domain sketch
+   * @param o { x: formula of t, y: formula of t, t: [start, end], tol?: mm, name? }
+   * @example
+   * part('Wave').sketch('front', (s) => s.equation({ x: 't/9', y: '3*sin(t)', t: [0, 360] }).polyline([[40, 0], [40, -10], [0, -10], [0, 0]])).extrude(5);
+   * @see sketch.polyline, variables
+   */
+  equation(o: { x: string; y: string; t: [Num | string, Num | string]; tol?: number; name?: string }): this {
+    const f = o ?? ({} as typeof o);
+    if (typeof f.x !== 'string' || typeof f.y !== 'string' || !f.x.trim() || !f.y.trim()) throw new Error("equation(): x and y are formulas of t as strings, e.g. s.equation({ x: '20*cos(t)', y: '20*sin(t)', t: [0, 360] })");
+    if (!Array.isArray(f.t) || f.t.length !== 2) throw new Error('equation(): t is [start, end], e.g. t: [0, 360] (degrees for sin and cos)');
+    const end = (v: Num | string): number | string => (typeof v === 'string' ? (v.trim().startsWith('=') ? v.trim() : '=' + v.trim()) : ref(v));
+    const eq: Record<string, unknown> = { x: f.x, y: f.y, t: [end(f.t[0]), end(f.t[1])] };
+    if (f.tol !== undefined) {
+      if (!(typeof f.tol === 'number' && f.tol >= 1e-5 && f.tol <= 10)) throw new Error('equation(): tol is the largest distance from the formulas in mm, 0.00001 to 10 (default 0.01)');
+      eq.tol = f.tol;
+    }
+    const e: Record<string, unknown> = { type: 'spline', pts: [], equation: eq };
+    if (f.name !== undefined) {
+      if (!/^[A-Za-z][\w-]{0,40}$/.test(f.name)) throw new Error("equation(): name must start with a letter and use letters, digits, '-' and '_'");
+      if (this.entities.some((x) => x.id === f.name)) throw new Error(`equation(): the name '${f.name}' is used twice in this sketch`);
+      this.entities.push({ id: f.name, ...e });
       return this;
     }
     this.ent(e);
@@ -932,21 +962,23 @@ export class PartBuilder {
   /**
    * Repeat features along a direction, optionally as a 2D grid.
    *
-   * linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), every spacing mm, or totalLength mm from first to last (spacing = totalLength / (count - 1)). direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength } adds a second direction: the original features plus the first pattern are patterned again (a pattern of a pattern, which the kernel supports) giving count x second.count instances, a rectangular grid.
+   * linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).
    * @domain patterns
    * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
    * @param o.count total number of instances
    * @param o.spacing distance between instances in mm
    * @param o.totalLength first-to-last distance in mm instead of spacing
+   * @param o.to the object the last copy reaches instead of spacing: plane, at(plane, offset), face(sel) or [x, y, z]
+   * @param o.toOffset with to: mm past the object (negative: short of it)
    * @param o.direction 'x' | 'y' | 'z' | [x, y, z] | edges(...), default 'x'
    * @param o.axis alias of direction ('x' | 'y' | 'z')
    * @param o.reverse go the other way
-   * @param o.second { direction, count, spacing | totalLength, reverse? } the second grid direction
+   * @param o.second { direction, count, spacing | totalLength | to, toOffset?, reverse? } the second grid direction
    * @example
    * part('Grid plate').sketch('front', (s) => s.rect(80, 60)).extrude(10)
    *   .sketch(face('>Z'), (s) => s.circle(3, [-30, -20])).cut(through())
-   *   .linearPattern({ count: 4, spacing: 20, direction: 'x', second: { direction: 'y', count: 3, totalLength: 40 } });
-   * @see part.circularPattern, part.holes.grid, part.handle
+   *   .linearPattern({ count: 4, to: face('>X'), toOffset: -10, direction: 'x', second: { direction: 'y', count: 3, totalLength: 40 } });
+   * @see part.circularPattern, part.pathPattern, part.holes.grid, part.handle
    */
   linearPattern(seed: PatternSeed | LinearOpts, o?: LinearOpts): this {
     const opts = (o ?? seed) as LinearOpts;
@@ -954,17 +986,78 @@ export class PartBuilder {
     const line = callerLine();
     return this.add('linearPattern', (ctx) => {
       const ids = seedIds(seeds, ctx, line, 'linearPattern');
-      const mk = (id: string, sd: string[], d: LinearOpts): EditOp => {
+      const pre: EditOp[] = [];
+      const id = ctx.nextId();
+      const f: Record<string, unknown> = { type: 'lpattern', id, seeds: ids };
+      const dir = (d: LinearDir, sfx: '' | '2'): void => {
+        const who = sfx ? 'linearPattern() second' : 'linearPattern()';
         const ax = worldDir(d.direction ?? d.axis ?? 'x', ctx, line, 'linearPattern');
-        if (d.count === undefined) throw new SelectorError('linearPattern(): count is required', line);
-        const spacing = d.totalLength !== undefined ? (num(d.totalLength) / Math.max(1, d.count - 1)) : d.spacing;
-        if (spacing === undefined) throw new SelectorError('linearPattern(): give spacing or totalLength', line);
-        return { op: 'add', feature: { type: 'lpattern', id, seeds: sd, dir: { kind: 'axis', axis: ax.axis }, count: d.count, spacing: d.totalLength !== undefined ? spacing : ref(spacing as Num), reverse: ax.negative !== !!d.reverse } };
+        if (d.count === undefined) throw new SelectorError(`${who}: count is required`, line);
+        const given = [d.spacing, d.totalLength, d.to].filter((v) => v !== undefined).length;
+        if (given !== 1) throw new SelectorError(`${who}: give one of spacing, totalLength or to`, line);
+        if (d.toOffset !== undefined && d.to === undefined) throw new SelectorError(`${who}: toOffset goes with to`, line);
+        f['dir' + sfx] = { kind: 'axis', axis: ax.axis };
+        f['count' + sfx] = d.count;
+        if (d.to !== undefined) {
+          f['distanceType' + sfx] = 'toObject';
+          f['to' + sfx] = toObjectRef(ctx, d.to, pre, line);
+          if (d.toOffset !== undefined) f['toOffset' + sfx] = ref(d.toOffset);
+        } else if (d.totalLength !== undefined) {
+          f['distanceType' + sfx] = 'extent';
+          f['extent' + sfx] = ref(d.totalLength);
+        } else f['spacing' + sfx] = ref(d.spacing as Num);
+        const rev = ax.negative !== !!d.reverse;
+        if (!sfx) f.reverse = rev; else if (rev) f.reverse2 = true;
       };
-      const id = ctx.nextId(); ctx.lastFeature = id;
-      const out = [mk(id, ids, opts)];
-      if (opts.second) { const id2 = ctx.nextId(); ctx.lastFeature = id2; out.push(mk(id2, [...ids, id], opts.second)); }
-      return out;
+      dir(opts, '');
+      if (opts.second) dir(opts.second, '2');
+      ctx.lastFeature = id;
+      return [...pre, { op: 'add', feature: f }];
+    });
+  }
+  /**
+   * Repeat features along a path sketch, moved or turned with it.
+   *
+   * pathPattern(o) repeats the feature added just before it; pathPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). path is a sketch { on, draw } holding an open chain of lines and arcs (as a sweep path). The pattern runs from the path's end nearest the seed; flip runs it from the other end. The seed sits start mm along the path (or startFraction of its length, 0 to 1; default 0) and copy k sits start + k x spacing along it; totalLength instead of spacing spreads the copies first to last. orientation 'fixed' (default) moves the copies without turning them; 'tangent' turns them with the path (round an arc they turn about its centre). A last copy past the end of the path is the error patternBeyondPath, whose maxSpacing is the largest spacing that fits.
+   * @domain patterns
+   * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
+   * @param o.path the path sketch { on, draw } (an open chain)
+   * @param o.count total number of instances
+   * @param o.spacing distance along the path between instances in mm
+   * @param o.totalLength first-to-last distance along the path in mm instead of spacing
+   * @param o.start where the seed sits along the path, mm (default 0)
+   * @param o.startFraction where the seed sits as a fraction of the path length, 0 to 1
+   * @param o.flip run the path from its other end
+   * @param o.orientation 'fixed' (default) or 'tangent'
+   * @example
+   * part('Rail').sketch('front', (s) => s.rect(100, 60)).extrude(5)
+   *   .sketch(face('>Z'), (s) => s.circle(2, [-40, -20])).cut(through())
+   *   .pathPattern({ path: { on: 'front', draw: (s) => s.polyline([[-40, -20], [40, -20], [40, 20]]) }, count: 7, totalLength: 120 });
+   * @see part.linearPattern, part.sweep
+   */
+  pathPattern(seed: PatternSeed | PathOpts, o?: PathOpts): this {
+    const opts = (o ?? seed) as PathOpts;
+    const seeds = o ? (seed as PatternSeed) : 'last';
+    const line = callerLine();
+    if (!opts?.path?.on || !opts.path.draw) throw new SelectorError('pathPattern(): path is a sketch { on, draw } with an open chain of lines and arcs', line);
+    return this.add('pathPattern', (ctx) => {
+      const ids = seedIds(seeds, ctx, line, 'pathPattern');
+      if (opts.count === undefined) throw new SelectorError('pathPattern(): count is required', line);
+      if ((opts.spacing === undefined) === (opts.totalLength === undefined)) throw new SelectorError('pathPattern(): give spacing or totalLength', line);
+      if (opts.start !== undefined && opts.startFraction !== undefined) throw new SelectorError('pathPattern(): give start or startFraction, not both', line);
+      if (opts.orientation !== undefined && opts.orientation !== 'fixed' && opts.orientation !== 'tangent') throw new SelectorError("pathPattern(): orientation is 'fixed' or 'tangent'", line);
+      const ops: EditOp[] = [];
+      const pid = sketchOps(ctx, opts.path, ops);
+      const id = ctx.nextId();
+      const f: Record<string, unknown> = { type: 'curvepattern', id, seeds: ids, path: { kind: 'sketch', id: pid }, count: opts.count };
+      if (opts.totalLength !== undefined) { f.distanceType = 'extent'; f.extent = ref(opts.totalLength); } else f.spacing = ref(opts.spacing as Num);
+      if (opts.start !== undefined) f.start = ref(opts.start);
+      if (opts.startFraction !== undefined) f.startFraction = ref(opts.startFraction);
+      if (opts.flip) f.flip = true;
+      if (opts.orientation === 'tangent') f.orientation = 'tangent';
+      ops.push({ op: 'add', feature: f });
+      ctx.lastFeature = id;
+      return ops;
     });
   }
   /**
@@ -1352,14 +1445,27 @@ export class PartBuilder {
 }
 
 export type PatternSeed = 'last' | string | FeatureHandle | Array<string | FeatureHandle>;
-export interface LinearOpts {
-  count: number; spacing?: Num; totalLength?: Num;
+/** The object a To Object direction reaches: a plane, at(plane, offset), a flat face, or a point [x, y, z]. */
+export type ToObject = Plane | OffsetPlane | FaceSel | [number, number, number];
+export interface LinearDir {
+  count: number; spacing?: Num; totalLength?: Num; to?: ToObject; toOffset?: Num;
   direction?: 'x' | 'y' | 'z' | Vec | EdgeSel; axis?: 'x' | 'y' | 'z';
   reverse?: boolean;
-  second?: { direction?: 'x' | 'y' | 'z' | Vec | EdgeSel; axis?: 'x' | 'y' | 'z'; count: number; spacing?: Num; totalLength?: Num; reverse?: boolean };
+}
+export interface LinearOpts extends LinearDir { second?: LinearDir }
+export interface PathOpts {
+  path: SketchSpec; count: number; spacing?: Num; totalLength?: Num; start?: Num; startFraction?: Num; flip?: boolean; orientation?: 'fixed' | 'tangent';
 }
 export interface CircularOpts { count: number; axis?: 'x' | 'y' | 'z' | number[] | EdgeSel; angle?: number; total?: number; equalSpacing?: boolean; reverse?: boolean }
 
+/** The wire form of a To Object reference: a point stays [x, y, z]; planes and faces as a sketch plane takes them. */
+function toObjectRef(ctx: Ctx, to: ToObject, pre: EditOp[], line: number): unknown {
+  if (Array.isArray(to)) {
+    if (to.length !== 3 || to.some((v) => typeof v !== 'number' || !Number.isFinite(v))) throw new SelectorError('linearPattern(): to as a point is [x, y, z]', line);
+    return [...to];
+  }
+  return planeRef(ctx, to as Plane | OffsetPlane | FaceSel, pre);
+}
 function seedIds(seed: PatternSeed, ctx: Ctx, line: number, who: string): string[] {
   const list = Array.isArray(seed) ? seed : [seed];
   return list.map((x) => {
@@ -1420,9 +1526,9 @@ export function makeApi(state: ScriptState) {
   };
   return {
     /**
-     * Start the part the script builds; returns the fluent builder.
+     * Start a new part: the part the script builds; returns the fluent builder.
      *
-     * Every script builds one part (the last wins). Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.
+     * Every script builds one part (the last wins); call part() to start a new part. Chain sketch, extrude, cut, holes, fillet, ... on the result. The name appears as the document name.
      * @domain utilities
      * @param name part name, default "Script part"
      * @example
@@ -1486,7 +1592,7 @@ export function makeApi(state: ScriptState) {
     /**
      * A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
      *
-     * The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M8 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.
+     * The free-function form of part.screw: screw({ size: 'M3', length: 6, head: 'button', drive: 'hex' }) adds a screw to the current model and returns it. Sizes M2 to M16 fill in the head and drive; heads pan, button, countersunk, cheese, hex; drives slotted, hex, cross, torx, none. Cross and Torx are approximations. origin is the centre of the bearing face and axis the way the shank points (default [0, 0, -1]); thread: true is refused for now.
      * @domain features
      * @param o options object, see part.screw
      * @example

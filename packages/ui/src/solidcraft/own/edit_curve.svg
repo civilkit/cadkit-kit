@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Edit curve</title>
+  <!-- Original drawing for this app in the style of the SolidCraft masters (64 grid, same palette and stroke weights); not copied or traced from any third-party artwork. -->
+  <path d="M8 48C14 40 22 36 32 36C42 36 50 40 56 48" fill="none" stroke="#8e9faf" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.1 5.6"/>
+  <path d="M8 48L22 10L44 10L56 48" fill="none" stroke="#8e9faf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M8 48C16 12 48 12 56 48" fill="none" stroke="#236ead" stroke-width="4.25" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="8" cy="48" r="5.8" fill="#ffffff"/>
+  <circle cx="8" cy="48" r="3.4" fill="#236ead"/>
+  <circle cx="56" cy="48" r="5.8" fill="#ffffff"/>
+  <circle cx="56" cy="48" r="3.4" fill="#236ead"/>
+  <rect x="15.5" y="3.5" width="13" height="13" rx="2" fill="#ffffff"/>
+  <rect x="18.5" y="6.5" width="7" height="7" rx="1" fill="#236ead"/>
+  <rect x="37.5" y="3.5" width="13" height="13" rx="2" fill="#ffffff"/>
+  <rect x="40.5" y="6.5" width="7" height="7" rx="1" fill="#236ead"/>
+</svg>

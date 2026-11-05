@@ -31,6 +31,7 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   hole: { profile: ['sketch'], operation: ['kind', 'diameter', 'end', 'depth', 'tip', 'flip'] },
   lpattern: { seeds: ['seeds'], operation: ['count', 'spacing', 'reverse'] },
   cpattern: { seeds: ['seeds'], operation: ['count', 'angle', 'equal', 'reverse'] },
+  curvepattern: { seeds: ['seeds'] },
   plane: { operation: ['mode', 'offset', 'angle', 'flip'] },
   rib: { profile: ['sketch'], operation: ['thickness', 'flip'] },
   lip: { faces: ['faces'], edges: ['edges'], operation: ['kind', 'width', 'height'] },
@@ -191,8 +192,9 @@ export function FeatureEditor(p: {
   diag?: JSX.Element | null;
   /** The draft breaks the model: Confirm is greyed with this tooltip and only applies while Shift is held. */
   okBlocked?: string | null;
-  /** The closed shapes of the feature's sketch (extrude, revolve): checkboxes choose which ones are used. Fewer than two: no list. */
-  shapes?: Array<{ id: string; label: string }>;
+  /** The closed shapes of the feature's sketch (extrude, revolve): checkboxes choose which ones are used. Fewer than two: no list.
+   *  `byDefault: false` marks a shape the kernel leaves out when the feature names no `regions` (a hole): it shows unticked then. */
+  shapes?: Array<{ id: string; label: string; byDefault?: boolean }>;
   /** The pointer is over a shape's row (or left it: null), so the app can light it up in the view. */
   onShapeHover?(id: string | null): void;
   /** Optional form for the feature's options (end conditions, chamfer type...); its fields replace the generic ones. */
@@ -203,6 +205,7 @@ export function FeatureEditor(p: {
   const feature = p.feature;
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const seenInject = useRef(p.inject?.seq ?? 0);
+  const seenPicked = useRef<unknown>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
 
   if (!feature) {
@@ -216,13 +219,16 @@ export function FeatureEditor(p: {
   const featureId = feature.id;
   const shapes = (feature.type === 'extrude' || feature.type === 'revolve') ? (p.shapes ?? []) : [];
   const current = (draft.regions !== undefined ? draft.regions : feature.regions) as string[] | null | undefined;
-  const checkedShapes = new Set(Array.isArray(current) ? shapes.filter((s) => current.includes(s.id)).map((s) => s.id) : shapes.map((s) => s.id));
-  /** All checked means no `regions` field at all (every region, holes included), which is null in the draft. */
+  const defaultShapes = shapes.filter((s) => s.byDefault !== false).map((s) => s.id);
+  const checkedShapes = new Set(Array.isArray(current) ? shapes.filter((s) => current.includes(s.id)).map((s) => s.id) : defaultShapes);
+  /** The default ticks (every shape but the holes) mean no `regions` field at all, which is null in the draft. Any other set is
+   *  listed, so every box ticked fills the holes. */
   const toggleShape = (id: string): void => {
     const next = new Set(checkedShapes);
     if (next.has(id)) next.delete(id); else next.add(id);
     if (!next.size) return;
-    apply('regions', next.size === shapes.length ? null : shapes.filter((s) => next.has(s.id)).map((s) => s.id));
+    const isDefault = next.size === defaultShapes.length && defaultShapes.every((x) => next.has(x));
+    apply('regions', isDefault ? null : shapes.filter((s) => next.has(s.id)).map((s) => s.id));
   };
   const eff: Record<string, unknown> = { ...feature, ...draft };
   for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
@@ -252,9 +258,11 @@ export function FeatureEditor(p: {
     seenInject.current = p.inject.seq;
     apply2(p.inject.patch);
   }
-  if (p.picked && draft[p.picked.path] !== p.picked.value) {
-    // A picked value arriving through props lands in the draft.
-    applyPicked(p.picked.path, p.picked.value);
+  if (p.picked && p.picked !== seenPicked.current) {
+    // A picked value arriving through props lands in the draft, once per pick: the pick prop stays set after it, and re-applying it on
+    // every render would undo whatever the user then changes in that field (a Shapes checkbox after a click on a region of the view).
+    seenPicked.current = p.picked;
+    if (draft[p.picked.path] !== p.picked.value) applyPicked(p.picked.path, p.picked.value);
   }
 
   const confirm = (e?: { shiftKey?: boolean }): void => {
@@ -300,20 +308,39 @@ export function FeatureEditor(p: {
                 const enumList = ENUMS[enumKey];
                 const enums = !isRef && !isList && typeof value === 'string' && enumList
                   ? (enumList.includes(value) ? enumList : [value, ...enumList]) : null;
+                // the edges of a list field show as chips with the count: each chip's x takes that one edge out (a div, not a label:
+                // a label forwards a tap on its text to its first button, which would remove an edge)
+                const chips = isList && f.path === 'edges';
+                const items = chips && Array.isArray(draft[f.path] ?? feature[f.path]) ? (draft[f.path] ?? feature[f.path]) as unknown[] : [];
+                const Tag = chips ? 'div' : 'label';
                 return (
-                  <label class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
+                  <Tag class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
                     {isBool ? (
                       <input type="checkbox" checked={Boolean(value)} onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).checked)} />
                     ) : null}
                     <span class="fedit-fld-label">{labelOf(f)}</span>
                     {isList ? (
                       <span class="fedit-ref">
-                        <input
-                          type="text"
-                          value={refText}
-                          readonly={f.path === 'edges' || picking}
-                          onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value.split(',').map((x) => x.trim()).filter(Boolean))}
-                        />
+                        {chips ? (
+                          <span class="fedit-chips">
+                            <span class="fedit-count">{items.length === 1 ? t('ui.editor.edgeCount.one') : t('ui.editor.edgeCount', { n: String(items.length) })}</span>
+                            {items.map((it, i) => (
+                              <span class="fedit-chip" key={i}>
+                                <span class="fedit-chip-text">{listText('edges', [it])}</span>
+                                <button type="button" class="fedit-chip-x" aria-label={t('ui.editor.removeEdge')} title={t('ui.editor.removeEdge')} onClick={() => apply(f.path, items.filter((_, j) => j !== i))}>
+                                  <Icon name="close" size={12} />
+                                </button>
+                              </span>
+                            ))}
+                          </span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={refText}
+                            readonly={picking}
+                            onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value.split(',').map((x) => x.trim()).filter(Boolean))}
+                          />
+                        )}
                         {p.onPickRequest ? (
                           <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} onClick={() => p.onPickRequest!(f.path)}>
                             {picking ? t('ui.editor.pickDone') : t('ui.editor.pickSelection')}
@@ -349,7 +376,8 @@ export function FeatureEditor(p: {
                         onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value)}
                       />
                     )}
-                  </label>
+                    {chips && picking ? <span class="fedit-pick-note">{t('ui.editor.pickEdgesNote')}</span> : null}
+                  </Tag>
                 );
               })}
             </div>

@@ -1,5 +1,5 @@
-// Screws: every head (columns) with every drive (rows), plus an external hex bolt. M3 by default; change `size` ('M2' to 'M8') or `length`.
-// Paste into the Script tab and Run (about 10 s for the 17 screws). Each screw is its own body, head up, shank down, bearing face on the XY plane.
+// Screws: every head (columns) with every drive (rows), plus an external hex bolt. M3 by default; change `size` ('M2' to 'M8') or `length`. The last row is the ISO 7380-1 button head series, M3 to M16.
+// Paste into the Script tab and Run (about 15 s for the 25 screws). Each screw is its own body, head up, shank down, bearing face on the XY plane.
 // The cross (Phillips) and Torx drives are approximations: the cross is two crossed tapered arms with a blunt tip, the Torx a six-lobed outline of true arcs
 // with the ISO tip and valley diameters. Good for looks, fit checks and mass; not toleranced drives.
 const { length, spacing } = variables({ length: 6, spacing: 14 });
@@ -13,6 +13,14 @@ heads.forEach((head, i) => drives.forEach((drive, j) => {
 }));
 // the external hex head has no drive
 p.screw({ size, length, head: 'hex', origin: [heads.length * spacing, 0, 0] });
+
+// ISO 7380-1 button head cap screws M3 to M16 (dk, k, socket s and socket depth t from the standard), length 2.5 x d, side by side.
+let x = 0;
+for (const d of [3, 4, 5, 6, 8, 10, 12, 16]) {
+  x += 0.9 * d;                                        // the head is about 1.75 d across: leave room for half of it on each side
+  p.screw({ size: 'M' + d, length: 2.5 * d, head: 'button', drive: 'hex', origin: [x, -5 * spacing, 0] });
+  x += 0.9 * d + 3;
+}
 
 // A screw in a hole: origin is the bearing face, axis the direction the shank points. Uncomment to add a plate with a clearance hole and an M3 screw in it.
 // part('Plate').sketch('front', (s) => s.rect(30, 20)).extrude(4).hole(face('>Z'), [0, 0], { diameter: 3.4 })

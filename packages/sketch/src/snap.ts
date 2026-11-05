@@ -32,6 +32,8 @@ export interface SnapOptions {
   align?: boolean;
   /** Grid spacing in plane units; the pointer lands on the nearest grid point when nothing else snaps. */
   grid?: number;
+  /** Plane units within which the grid applies (default `tolerance`). The grid must catch only near a grid point: at the pick radius it would cover every position and lock the pointer to the grid. See `gridCapture`. */
+  gridTol?: number;
   /** Switch kinds off (all on when omitted). `midpoints: false` / `align: false` still work and win. */
   kinds?: Partial<SnapToggles>;
   /** The point the shape being drawn started from (the chain end): enables the perpendicular and tangent snaps. */
@@ -39,6 +41,9 @@ export interface SnapOptions {
   /** The body's edges and extents projected into the sketch plane (see modelSnaps.ts): they snap after the sketch's own points, crossings, quadrants and midpoints. */
   model?: ModelSnaps;
 }
+
+/** The grid's capture radius: about a third of the pick radius, and at most a quarter of the grid step, so between grid points the pointer is free. */
+export const gridCapture = (tolerance: number, grid: number): number => Math.min(tolerance * 0.35, grid * 0.25);
 
 type Cand = { d: number; at: Pt } & Partial<SnapHit>;
 const best = (list: Cand[]): Cand | undefined => list.reduce<Cand | undefined>((b, c) => (!b || c.d < b.d ? c : b), undefined);
@@ -181,7 +186,8 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
       // an alignment fixes one coordinate; the other one still lands on the grid when the grid is on and close, so a point aligned with another
       // sits on a grid point (not a raw pointer position that drifts a hundredth of a millimetre off it)
       const g = opts.grid && opts.grid > 0 && on('grid') ? opts.grid : 0;
-      const free = (v: number) => { if (!g) return v; const r = Math.round(v / g) * g; return Math.abs(r - v) <= tol ? r : v; };
+      const gtol = opts.gridTol ?? tol;
+      const free = (v: number) => { if (!g) return v; const r = Math.round(v / g) * g; return Math.abs(r - v) <= gtol ? r : v; };
       return { kind: 'align', at: { x: x ? x.x : free(at.x), y: y ? y.y : free(at.y) }, alignTo: { ...(x ? { x: x.id } : {}), ...(y ? { y: y.id } : {}) } };
     }
   }
@@ -191,7 +197,8 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     const g = opts.grid;
     const gx = Math.round(at.x / g) * g;
     const gy = Math.round(at.y / g) * g;
-    if (Math.abs(gx - at.x) <= tol && Math.abs(gy - at.y) <= tol) return { kind: 'grid', at: { x: gx, y: gy } };
+    const gtol = opts.gridTol ?? tol;
+    if (Math.abs(gx - at.x) <= gtol && Math.abs(gy - at.y) <= gtol) return { kind: 'grid', at: { x: gx, y: gy } };
   }
   return undefined;
 }

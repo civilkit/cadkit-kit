@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { snapAt } from './snap';
+import { gridCapture, snapAt } from './snap';
 
 const draft = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], constraints: [],
@@ -76,5 +76,30 @@ describe('snapAt: the richer kinds', () => {
     const d = rich();
     expect(snapAt(d, { x: 10.2, y: 0.1 }, { tolerance: 0.5, kinds: { intersection: false, oncurve: false, align: false, midpoint: false } })).toBeUndefined();
     expect(snapAt(d, { x: 0.1, y: 0 }, { tolerance: 0.5, kinds: { endpoint: false, oncurve: false, intersection: false, align: false } })).toBeUndefined();
+  });
+
+  describe('grid capture radius', () => {
+    // a 20 px grid step with the 12 px pick radius: the pick radius reaches past the middle between grid points, so every position snapped
+    const upp = 0.05, step = 1, pick = 12 * upp;
+    const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], constraints: [], points: [], entities: [] });
+    const sweep = (opts: Parameters<typeof snapAt>[2]) => { let n = 0, total = 0; for (let x = 3; x < 4; x += 0.013) for (let y = 7; y < 8; y += 0.013) { total++; if (snapAt(empty(), { x, y }, opts)) n++; } return n / total; };
+    it('with the pick radius as the grid radius the pointer is locked to the grid everywhere (the old behaviour)', () => {
+      expect(sweep({ tolerance: pick, grid: step })).toBe(1);
+    });
+    it('with the capture radius it catches only near a grid point and is free between them', () => {
+      const frac = sweep({ tolerance: pick, grid: step, gridTol: gridCapture(pick, step) });
+      expect(frac).toBeGreaterThan(0);
+      expect(frac).toBeLessThan(0.2);
+      expect(snapAt(empty(), { x: 3.52, y: 7.4 }, { tolerance: pick, grid: step, gridTol: gridCapture(pick, step) })).toBeUndefined();
+      expect(snapAt(empty(), { x: 3.03, y: 7.98 }, { tolerance: pick, grid: step, gridTol: gridCapture(pick, step) })).toEqual({ kind: 'grid', at: { x: 3, y: 8 } });
+    });
+    it('is a third of the pick radius, and a quarter of the step at most', () => {
+      expect(gridCapture(12, 100)).toBeCloseTo(4.2);
+      expect(gridCapture(12, 8)).toBe(2);
+    });
+    it('an alignment only rounds the other coordinate when it is within the grid radius', () => {
+      const d = draft();
+      expect(snapAt(d, { x: 10.1, y: 14.8 }, { tolerance: 0.5, grid: 5, gridTol: 0.1 })).toMatchObject({ kind: 'align', at: { x: 10, y: 14.8 } });
+    });
   });
 });

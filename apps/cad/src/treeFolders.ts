@@ -59,10 +59,10 @@ function runsOf(tops: string[], groupOf: (id: string) => string | undefined): Ru
   return runs;
 }
 
-/** The folders as the tree shows them (a run of two or more top-level rows with one name), in order. */
+/** The folders as the tree shows them (a run of two or more top-level rows with one name, or of one row with the sketch tucked under it), in order. */
 export function folderRuns(rows: FeatureRow[], features: Feat[]): Array<{ name: string; ids: string[] }> {
   const c = ctxOf(rows, features);
-  return runsOf(c.order.filter(c.isTop), (id) => c.groupOf.get(id)).filter((r) => r.name !== undefined && r.tops.length >= 2).map((r) => ({ name: r.name!, ids: r.tops.flatMap(c.family) }));
+  return runsOf(c.order.filter(c.isTop), (id) => c.groupOf.get(id)).filter((r) => r.name !== undefined && (r.tops.length >= 2 || r.tops.flatMap(c.family).length >= 2)).map((r) => ({ name: r.name!, ids: r.tops.flatMap(c.family) }));
 }
 
 /** Every feature id a folder holds (its rows and the sketches tucked under them); empty when there is no such folder. */

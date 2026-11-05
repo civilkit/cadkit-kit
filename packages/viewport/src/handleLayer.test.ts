@@ -187,4 +187,33 @@ describe('HandleLayer move pad and shape surface', () => {
     expect(t.sink.onStart).toHaveBeenCalledWith('c');
     t.dispose();
   });
+  it('a typed label value commits when the box loses focus (no Enter on a phone keyboard) and Escape still cancels', () => {
+    const label: HandleSpec = { id: 'l', kind: 'label', origin: [0, 0, 0], axis: [1, 0, 0], sizePx: 0, forId: 'a', text: '70 mm' };
+    const t = setup([arrow, label]);
+    const open = () => { (document.querySelector('.vp-size-label') as HTMLElement).click(); return document.querySelector('.vp-size-label input') as HTMLInputElement; };
+    let input = open();
+    input.value = '90';
+    input.dispatchEvent(new FocusEvent('blur'));
+    expect(t.sink.onCommit).toHaveBeenCalledWith('a', 90, [0, 0, 0]);
+    input = open();
+    input.value = '55';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(t.sink.onCommit).toHaveBeenCalledTimes(1);
+    t.dispose();
+  });
+  it('a typed label value commits from whichever event the phone keyboard sends, once, and Escape (key or code) cancels', () => {
+    const label: HandleSpec = { id: 'l', kind: 'label', origin: [0, 0, 0], axis: [1, 0, 0], sizePx: 0, forId: 'a', text: '70 mm' };
+    const t = setup([arrow, label]);
+    const open = (v: string) => { (document.querySelector('.vp-size-label') as HTMLElement).click(); const i = document.querySelector('.vp-size-label input') as HTMLInputElement; i.value = v; return i; };
+    const key = (i: HTMLInputElement, type: 'keydown' | 'keyup', init: KeyboardEventInit & { keyCode?: number }) => { const e = new KeyboardEvent(type, { bubbles: true, cancelable: true, ...init }); if (init.keyCode) Object.defineProperty(e, 'keyCode', { value: init.keyCode }); i.dispatchEvent(e); };
+    const commits = () => (t.sink.onCommit as ReturnType<typeof vi.fn>).mock.calls.length;
+    let i = open('61'); key(i, 'keydown', { key: 'Unidentified', keyCode: 13 }); expect(commits()).toBe(1);                // check key: keyCode 13 only
+    i = open('62'); key(i, 'keyup', { key: 'Enter' }); expect(commits()).toBe(2);                                          // only the keyup arrives
+    i = open('63'); i.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true })); expect(commits()).toBe(3);
+    i = open('64'); i.dispatchEvent(new Event('change', { bubbles: true })); expect(commits()).toBe(4);
+    i = open('65'); key(i, 'keydown', { key: 'Enter' }); key(i, 'keyup', { key: 'Enter' }); i.dispatchEvent(new FocusEvent('blur')); expect(commits()).toBe(5);   // all of them: still one commit
+    expect((t.sink.onCommit as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[1])).toEqual([61, 62, 63, 64, 65]);
+    i = open('66'); key(i, 'keydown', { key: 'Unidentified', keyCode: 27 }); expect(commits()).toBe(5);
+    t.dispose();
+  });
 });

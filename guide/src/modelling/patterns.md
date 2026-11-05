@@ -1,13 +1,13 @@
 # Patterns, mirror and scale
 
-Patterns repeat a feature in a row or around an axis. Mirror reflects a feature, or the whole body, about a plane. Scale makes the part larger or smaller. All three work on features and bodies that already exist.
+Patterns repeat a feature in a row, in a grid, around an axis or along a path. Mirror reflects a feature, or the whole body, about a plane. Scale makes the part larger or smaller. All three work on features and bodies that already exist.
 
 ## Seeds: what gets repeated
 
 Linear pattern, Circular pattern and Mirror copy **features**, not faces. The feature that is repeated is called the **seed**. A seed is a feature that made material or removed it: an extrude, a cut, a revolve, a hole, a sweep, a loft, or an earlier pattern.
 
 - The copies are combined with the body in the same way as the seed. Copies of a cut cut, and copies of a boss add.
-- A copy that falls outside the body does nothing, and it is not an error. If a pattern seems to do nothing, check that the copies actually land on the body.
+- A copy that falls outside the body does nothing. It is not an error, but the pattern gets a warning that lists those copies (see [When copies miss, stand apart or overlap](#when-copies-miss-stand-apart-or-overlap)).
 - A pattern of a pattern is allowed.
 
 The command chooses the seed for you: the feature selected in the feature tree, or if none is selected, the last feature that is not a sketch, plane, axis or pattern. Select the feature in the tree before you run the command if you want a different one. In the Editor the seed appears under **Features to repeat**, as a list of feature ids such as `F4`, separated by commas.
@@ -24,15 +24,30 @@ A linear pattern makes copies of the seed in a row.
 
 ![A bar with a pocket repeated three times along its length and the Linear pattern editor open showing Count and Spacing.](../img/linear-pattern.png)
 
+The Editor has a **Direction 1** and a **Direction 2** section. Each direction has the same options:
+
 | Option | What it does | Default |
 |---|---|---|
-| Features to repeat | The seeds, as feature ids. | The seed chosen as above |
-| Count | Number of instances **including the seed**. A count of 1 or less makes no copies. | 3 |
-| Spacing | Distance between neighbouring copies, in mm. | About 20% of the body length along the pattern direction, rounded to a tidy value (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8 or 10 times a power of ten), at least 1 mm |
-| Reverse direction | Copies go towards the negative direction. | Off |
-| Carry threads | Copy the threads of the seeds too (see below). Shown only when the part contains threads. | On |
+| Direction | The world axis the copies run along: X axis, Y axis or Z axis. Direction 2 also has **None**, which turns it off. | Direction 1: the axis along which the body is longest. Direction 2: None |
+| Count | Number of instances along this direction **including the seed**. A count of 1 or less makes no copies. | 3 (Direction 2: 2 when you turn it on) |
+| Distance type | **Spacing**: the distance between neighbouring copies. **Extent**: the distance from the seed to the last copy; the copies are spread evenly over it, and it stays the same when you change Count. **To object**: the last copy reaches a plane, a flat face or a point (see below). | Spacing |
+| Spacing | With Spacing: the distance between neighbours, in mm. | About 20% of the body length along the direction, rounded to a tidy value (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8 or 10 times a power of ten), at least 1 mm |
+| Extent | With Extent: seed to last copy, in mm. Must be above 0. | The span the copies covered when you switched |
+| Object | With To object: Front, Top or Right plane, an earlier Plane feature, or a face. Click **Pick** and click a flat face in the view. | None (pick one) |
+| Offset | With To object: moves the end the way the copies go. A negative offset stops short of the object. | 0 |
+| Reverse direction | Copies go towards the negative direction. Not shown for To object: the object sets the side. | Off |
 
-The direction is a world axis (X, Y or Z). A new pattern uses the axis along which the body is longest. The Editor does not let you change the direction. If you need a different one, use **Reverse direction** for the opposite way, or make the pattern with the move and rotate ball (see [Moving things](transforms.md)), which can make a row along any direction you aim it.
+The Editor also has **Features to repeat** (the seeds, as feature ids) and, when the part contains threads, **Carry threads** (see below).
+
+With Direction 2 on, the pattern is a grid: Count x Count 2 instances. The two directions must be different axes.
+
+### To object
+
+The last copy reaches the object, measured from the middle of what is repeated (the centre of the box around the seed). With a plane or a flat face, that is where a line from the middle along the direction meets it, so the face must lie across the direction, not along it. The copies follow the object: move the plane or the face and the copies spread out or close up to it. If the object lies behind the seed, the copies go the other way.
+
+The pattern is refused, with a message, when the object runs along the direction (no copy can reach it), when it lies at the middle of the seed or the offset takes the end back past the seed, or when the face is curved.
+
+The script API (see [Scripting](../automation/scripting.md)) can also give a point: `linearPattern({ count: 3, to: [50, 0, 0] })`.
 
 ## Circular pattern
 
@@ -55,6 +70,40 @@ Known limits of the circular pattern:
 - The axis is always a world axis through the origin. It is not the centre of the part, and not the seed's own axis. If your seed is not centred on the axis you want, put the part's origin there, or use the move and rotate ball's radial pattern. See [Moving things](transforms.md).
 - A seed that ends up outside the body after turning produces no change and no error.
 
+## Pattern on path
+
+A pattern on path repeats the seed along an open sketch: a chain of lines and arcs.
+
+1. Draw the path as a sketch. It must be open: a chain with two loose ends.
+2. Select the feature to repeat in the tree (optional).
+3. Choose **Home > Pattern > Pattern on path** (on the same button as Linear pattern).
+
+The command uses the newest open sketch, or the one selected in the tree, and spreads 3 instances over its whole length.
+
+| Option | What it does | Default |
+|---|---|---|
+| Path sketch | The open sketch the copies follow. | The newest open sketch |
+| Count | Number of instances including the seed. | 3 |
+| Distance type | **Spacing** between neighbours along the path, or **Extent** from the seed to the last copy. | Extent |
+| Spacing / Extent | In mm, measured along the path. | The path length |
+| Start point | **Distance along the path** (mm) or **Fraction of the path** (0 to 1). Where the seed sits along the path; the copies follow on from there. A fraction keeps its place when the path gets longer or shorter. | 0 |
+| Run from the other end | The path runs from its other end. | Off |
+| Orientation | **Fixed**: the copies are moved but not turned. **Follow the path**: the copies turn with the path, so a seed beside an arc stays beside it all the way round. | Fixed |
+
+The path runs from its end nearest the seed. The seed does not have to sit on the path: each copy keeps the seed's offset from the path (turned with it when Orientation is Follow the path).
+
+A last copy that would lie past the end of the path is refused, and the message gives the largest spacing that fits. A start point outside the path is refused too.
+
+## When copies miss, stand apart or overlap
+
+After a linear, circular or path pattern is built, the feature gets a warning (the triangle in the feature tree) when:
+
+- some copies change nothing: a cut copy misses the body, or a boss copy lies inside the material. The warning lists the copy numbers;
+- boss copies do not touch the body, so each stands as a body of its own;
+- copies overlap each other, because the spacing is smaller than the seed. For a linear pattern in one direction the warning gives the smallest spacing that keeps them apart.
+
+These are warnings, not errors: the pattern is still built.
+
 ## Mirror
 
 Mirror reflects the seed about a plane. The copy is the seed's mirror image on the other side.
@@ -65,7 +114,7 @@ Mirror reflects the seed about a plane. The copy is the seed's mirror image on t
 
 With exactly one face selected, the mirror plane is that face. Otherwise it is the Right plane. The Editor has **Features to repeat**, **Plane** (Pick sets it from a selected face), and a checkbox whose label is the raw field name, `body` (there is no friendlier text for it). Tick it to reflect the whole body made so far and unite it with itself. A reflection that lies clear of the body is added as a separate body.
 
-For the exact definitions of the three features, see the kernel book: [linear pattern](/docs/cad/kernel/format/features-patterns.html#lpattern), [circular pattern](/docs/cad/kernel/format/features-patterns.html#cpattern) and [mirror](/docs/cad/kernel/format/features-patterns.html#mirror).
+For the exact definitions of the features, see the kernel book: [linear pattern](/docs/cad/kernel/format/features-patterns.html#lpattern), [circular pattern](/docs/cad/kernel/format/features-patterns.html#cpattern), [pattern on path](/docs/cad/kernel/format/features-patterns.html#curvepattern) and [mirror](/docs/cad/kernel/format/features-patterns.html#mirror).
 
 ## Threads in patterns
 
@@ -99,8 +148,7 @@ Scale acts on the bodies as they are at that point in the history. Features adde
 
 These are known in the file format but cannot be built yet, so the app has no command for them:
 
-- Patterns driven by a sketch of points, a curve, or a fill of a face.
-- A second direction for a linear pattern, and spacing by total extent.
+- Patterns driven by a sketch of points or a fill of a face.
 - Dome, split line and offset surface.
 
 To copy whole bodies, use **Copy** in the Bodies panel. See [Bodies and combining](bodies.md).
@@ -109,7 +157,9 @@ To copy whole bodies, use **Copy** in the Bodies panel. See [Bodies and combinin
 
 | Symptom | Fix |
 |---|---|
-| The pattern shows no copies | Copies fall outside the body. Check Count, Spacing and Reverse direction. |
+| The pattern shows no copies | Copies fall outside the body; the warning on the feature lists them. Check Count, Spacing and Reverse direction. |
+| "the object runs along the pattern direction" | To object needs a plane or face across the direction. Pick another face, or a plane square to the direction. |
+| "the last copy lies past the end of the path" | Use the spacing the message gives, fewer copies, or an earlier start point. |
 | The wrong feature is repeated | Select the right feature in the tree before running the command, or edit Features to repeat. |
 | "a face or edge it uses no longer exists" | The seed was deleted or renamed by an earlier edit. See [The feature tree and history](history.md). |
 | Circular pattern rotates about the wrong centre | The axis goes through the origin. Move the part or use the radial pattern on the move and rotate ball. |

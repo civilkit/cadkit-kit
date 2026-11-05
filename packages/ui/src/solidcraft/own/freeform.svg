@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Freeform</title>
+  <!-- Original drawing for this app in the style of the SolidCraft masters (64 grid, same palette and stroke weights); not copied or traced from any third-party artwork. -->
+  <path d="M5 38C14 30 20 40 30 30C40 20 48 28 59 22L59 40C48 46 40 38 30 48C20 58 14 50 5 56Z" fill="#b9ddf8"/>
+  <path d="M5 47C14 40 20 49 30 39C40 29 48 34 59 31" fill="none" stroke="#236ead" stroke-width="2.55" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M17 34.5L17 53M30 30L30 48M44 27L44 44" fill="none" stroke="#236ead" stroke-width="2.55" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M5 38C14 30 20 40 30 30C40 20 48 28 59 22L59 40C48 46 40 38 30 48C20 58 14 50 5 56Z" fill="none" stroke="#236ead" stroke-width="3.19" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M30 24L30 9" fill="none" stroke="#236ead" stroke-width="4.25" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M30 5L24 13L36 13Z" fill="#236ead" stroke="#236ead" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="30" cy="30" r="5.8" fill="#ffffff"/>
+  <circle cx="30" cy="30" r="3.4" fill="#236ead"/>
+</svg>

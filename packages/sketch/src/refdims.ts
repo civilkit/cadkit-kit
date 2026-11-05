@@ -15,7 +15,7 @@ import { measure } from './tools/transform';
 import { shownValue, storedValue } from './slotLength';
 
 export interface RefDim { id: string; type: string; refs: string[]; s1?: number; s2?: number; /** the overall length across a slot's caps, see slotLength.ts */ overall?: boolean }
-const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
+export const DIM_TYPES = new Set(['distance', 'hdist', 'vdist', 'pldist', 'radius', 'diameter', 'angle']);
 
 export const refDimsOf = (d: SketchDraft): RefDim[] => (Array.isArray(d.extras?.refDims) ? (d.extras!.refDims as RefDim[]) : []);
 const withRefs = (d: SketchDraft, list: RefDim[]): SketchDraft => {

@@ -51,7 +51,7 @@ export function MoveFields(p: { info: MoveInfo; values: Values; onApply(du: numb
   };
   const key = (e: KeyboardEvent) => {
     e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); apply(); } else if (e.key === 'Escape') { e.preventDefault(); p.onClose(); }
+    if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); apply(); } else if (e.key === 'Escape' || e.keyCode === 27) { e.preventDefault(); p.onClose(); }
   };
   const cur = edge ? edgeDistance(p.info.box, p.info.host, edge) : null;
   return (

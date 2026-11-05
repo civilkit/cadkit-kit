@@ -35,7 +35,8 @@ Click a shape feature's row in the feature tree (with nothing selected in the vi
 
 ![An extruded block selected from the feature tree with its size box shown: face handles, corner handles, the anchor diamond and the three dimension labels.](../img/size-box.png)
 
-- Drag a face handle to change the width, length or height. Hover a handle to see its dimension. The three labels always show the numbers; click one and type an exact value, then press Enter.
+- Drag a face handle to change the width, length or height. Hover a handle to see its dimension. The three labels always show the numbers; click one and type an exact value, then press Enter, or the check or Done key of a phone keyboard (leaving the box also applies it; Escape cancels). If the value cannot be applied, a notice says why and the label keeps its old number.
+- **A revolve** shows **R70**, the radius (the outline's distance from the axis), and a length along the axis that includes the rounded ends (150 for a cylinder 80 long with domes of radius 35). Typing a radius moves the outline toward or away from the axis, which stays where it is, and the round ends follow it so they stay tangent (a dome that is half the radius shrinks with it, so the length changes too). Typing a length moves the far end and the round end with it. The same labels show on the cylinder face, the end faces and the revolve's row in the tree. Dimensions in the sketch follow the new size.
 - Drag a corner handle to change width and length together.
 - Shift or Ctrl snaps to a round step. Digits type a value.
 - A **Resize about** menu at the bottom left chooses what stays put when you change a width or length: **Anchor** (the profile scales about its anchor point), **Symmetric** (both faces move equally about the centre), or **Opposite face** (the opposite face stays; the default). The height always grows from the sketch plane.
