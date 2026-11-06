@@ -52,6 +52,9 @@ export interface Actions {
   knurl?(): void;
   /** Open the Screw wizard (see ScrewWizard.tsx). */
   screw?(): void;
+  /** Open the Frame panel (frame/FramePanel.tsx) and the cut list of the part's frames (frame/CutListDialog.tsx). */
+  frame?(): void;
+  cutList?(): void;
   /** Open the Bearing wizard (see BearingWizard.tsx). */
   bearing?(): void;
   /** Display styles, lighting, background, hide / show all (see lookCommands.ts). */
@@ -173,6 +176,8 @@ export function buildCommands(a: Actions): Command[] {
   if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.propeller) cmds.push({ id: 'add-propeller', label: t('cmd.add-propeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.propeller });
   if (a.knurl) cmds.push({ id: 'add-knurl', label: t('cmd.add-knurl'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.knurl });
+  if (a.frame) cmds.push({ id: 'add-frame', label: t('cmd.add-frame'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.frame });
+  if (a.cutList) cmds.push({ id: 'frame-cutlist', label: t('cmd.frame-cutlist'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.cutList });
   if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });

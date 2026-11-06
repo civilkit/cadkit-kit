@@ -1601,6 +1601,16 @@
   "knurl.method.boolean",
   "knurl.method.faceted"
  ],
+ "frame.family.+": [
+  "frame.family.aluTube",
+  "frame.family.angle",
+  "frame.family.chs",
+  "frame.family.flat",
+  "frame.family.rhs",
+  "frame.family.roundBar",
+  "frame.family.shs",
+  "frame.family.tslot"
+ ],
  "knurl.pattern.+": [
   "knurl.pattern.diamond",
   "knurl.pattern.pyramid",

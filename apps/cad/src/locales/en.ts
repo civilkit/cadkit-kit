@@ -9,6 +9,7 @@ import { propStrings } from './prop';
 import { marineStrings } from './marine';
 import { cornerHolesStrings } from './cornerHoles';
 import { knurlStrings } from './knurl';
+import { frameStrings } from './frame';
 import { screwStrings } from './screw';
 import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
@@ -1042,6 +1043,7 @@ export const en: Catalog = {
   ...marineStrings,
   ...cornerHolesStrings,
   ...knurlStrings,
+  ...frameStrings,
   ...screwStrings,
   ...bearingStrings,
   ...impellerStrings,

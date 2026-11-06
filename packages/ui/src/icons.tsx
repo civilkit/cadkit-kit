@@ -143,6 +143,8 @@ const ICONS: Record<string, string> = {
   'add-knurl': P('M6 6c0-1.4 2.7-2.5 6-2.5s6 1.1 6 2.5-2.7 2.5-6 2.5S6 7.4 6 6z') + P('M6 6v12c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6') + T('M8.2 10.5l7.6 7M8.2 14l7.6 5.6M15.8 10.5l-7.6 7M15.8 14l-7.6 5.6'),
   'add-screw': P('M5 4h14v3H5z') + P('M10 7h4v11l-2 3-2-3z') + T('M10 10l4 1.2M10 13l4 1.2M10 16l4 1.2'),
   'add-bearing': O(12, 12, 9) + O(12, 12, 4.2) + O(12, 4.6, 1.4) + O(12, 19.4, 1.4) + O(4.6, 12, 1.4) + O(19.4, 12, 1.4),
+  'add-frame': P('M3 4h18v16H3z') + P('M7 8h10v8H7z') + T('M3 4l4 4M21 4l-4 4M21 20l-4-4M3 20l4-4'),
+  'frame-cutlist': P('M5 3h14v18H5z') + T('M8 8h8M8 12h8M8 16h5'),
   'add-impeller': P('M12 9.6C10.2 7 10.3 4.2 12 3.2C13.7 4.2 13.8 7 12 9.6Z') + P('M14.1 13.2C17.2 12.9 19.6 14.4 19.6 16.4C17.9 17.4 15.4 16.1 14.1 13.2Z') + P('M9.9 13.2C8.6 16.1 6.1 17.4 4.4 16.4C4.4 14.4 6.8 12.9 9.9 13.2Z') + O(12, 12, 1.6),
   'add-gear-pair': P('M7 6.5l1.2.4.5 1 1.1-.2.8.8-.2 1.1 1 .5.4 1.2v1.1l-1.2.4-.5 1 .2 1.1-.8.8-1.1-.2-.5 1-1.2.4H6l-.4-1.2-1-.5-1.1.2-.8-.8.2-1.1-1-.5L2 12.6v-1.1l1.2-.4.5-1-.2-1.1.8-.8 1.1.2.5-1L6.4 6.5z') + O(6.5, 12, 2) + P('M17 11l1 .35.45.9 1-.2.7.7-.2 1 .9.45.35 1v1l-1 .35-.45.9.2 1-.7.7-1-.2-.45.9-1 .35h-1l-.35-1-.9-.45-1 .2-.7-.7.2-1-.9-.45L11 17.5v-1l1-.35.45-.9-.2-1 .7-.7 1 .2.45-.9 1-.35z') + O(15.5, 16.2, 1.5),
   'add-thread': P('M8 3h8v18H8z') + T('M8 7l8 2M8 11l8 2M8 15l8 2M8 19l8 2'),
@@ -338,6 +340,7 @@ export function featureIconName(type: string, op?: string): string {
   switch (type) {
     case 'sketch': return op === 'point' ? 'feature-sketch-point' : 'feature-sketch';
     case 'sketch3d': return 'feature-sketch';
+    case 'frame': return 'add-frame';
     case 'plane': return 'feature-plane';
     case 'extrude': return cut ? 'add-cut' : 'add-extrude';
     case 'revolve': return 'add-revolve';

@@ -806,6 +806,17 @@ export class Controller {
     return (await this.threadSizes(standard).catch(() => [])).find((r) => r.size === size) ?? null;
   }
   /** The markers and warnings of the last committed state, as the last refresh saw them. */
+  /** The cut-list report of the document's `frame` features (the regen reply's `frames`, frame/frameLib.ts reads it); empty without a frame. */
+  async frameReports(): Promise<unknown[]> {
+    const s = this.session;
+    const doc = s ? this.sdoc() : null;
+    if (!s || !doc?.features.some((f) => (f as { type?: string }).type === 'frame')) return [];
+    try {
+      const k = (s as unknown as { kernel?: { request(m: unknown): Promise<{ ok?: boolean; result?: unknown }> } }).kernel;
+      const r = await k?.request({ type: 'regen', tag: `${this.previewTagOf(s)}-x`, part: doc });
+      return ((r?.ok ? r.result : null) as { frames?: unknown[] } | null)?.frames ?? [];
+    } catch { return []; }
+  }
   threadsNow(): unknown[] { return this.committedExtras.threads; }
   /** The markers of what is on screen now: the committed ones, or the candidate of a preview in progress. */
   threadsShown(): unknown[] { return this.shownThreads; }

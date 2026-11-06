@@ -49,7 +49,8 @@ describe('NIST test assembly sample, on the real kernel', () => {
     const s = await open(sample());
     const m = await s.massProps({ bodies: true });
     const vols = (m as unknown as { bodies?: Array<{ volume: number }> }).bodies?.map((b) => b.volume).sort((a, b) => a - b);
-    const single = [136445.10482, 188320.07554, 503633.02056, 1728449.67108];
+    // FTC 7 (the base): the file's stored volume is about 1 726 000 mm3; since the B-spline seam reader the import reads it (1 726 408.4; it was 1 728 449.7 with four faces left out)
+    const single = [136445.10482, 188320.07554, 503633.02056, 1726408.39086];
     expect(vols).toBeDefined();
     vols!.forEach((v, i) => expect(Math.abs(v - single[i])).toBeLessThan(1e-4 * single[i]));
   }, 300_000);

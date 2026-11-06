@@ -18,7 +18,7 @@ export const SLOTS: Record<string, string[]> = {
   'edge-round': ['add-fillet', 'add-chamfer'],
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern', 'add-pathpattern'],
-  'loft-sweep': ['add-loft', 'add-sweep'],
+  'loft-sweep': ['add-loft', 'add-sweep', 'add-frame', 'frame-cutlist'],
   gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-bearing'],
   reference: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],

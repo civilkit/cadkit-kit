@@ -103,6 +103,9 @@ import { KnurlWizard } from './KnurlWizard';
 import { ScrewWizard } from './ScrewWizard';
 import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { BearingWizard } from './BearingWizard';
+import { FramePanel } from './frame/FramePanel';
+import { CutListDialog } from './frame/CutListDialog';
+import { DEFAULT_FRAME, frameFeature, frameOps, freeId, paramsFromFeature, readFrames, skeletons, toCsv, type FrameParams, type FrameReport } from './frame/frameLib';
 import { bearingIssue, bearingOps, DEFAULT_BEARING, seatOnFace, type BearingParams } from './bearing';
 import { knurlDependents, knurlOwner, knurlReplaceOps, paramsFromCosmetic, replaceCosmetic, type KnurlOwner } from './knurlEdit';
 import { DEFAULT_KNURL, cosmeticToCutOps, knurlCosmetic, knurlIssue, knurlOps, knurlTarget, readCosmeticKnurls, suggestCount, suggestDepth, type KnurlParams } from './knurl';
@@ -427,6 +430,9 @@ function App() {
   useEffect(() => { if (!knurlWiz && knurlHidden !== null) { knurlHidden = null; viewport?.setBodyView(bodyViewNow()); } }, [knurlWiz]);   // the saved cosmetic knurl comes back when the wizard closes
   const [screwWiz, setScrewWiz] = useState<{ params: ScrewParams } | null>(null);   // the Screw wizard: a fastener over the screw() helper
   const [bearingWiz, setBearingWiz] = useState<{ params: BearingParams } | null>(null);   // the Bearing wizard: a ball bearing over the bearing() helper
+  const [frameWiz, setFrameWiz] = useState<{ params: FrameParams; editId: string | null } | null>(null);   // the Frame panel: a new frame, or the frame `editId` being edited
+  const [cutList, setCutList] = useState<FrameReport[] | null>(null);   // the Cut list dialog, open with the frames' report
+  useEffect(() => { if (frameWiz && (propWiz || impWiz || knurlWiz || screwWiz || bearingWiz || editingId)) setFrameWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, bearingWiz, editingId]);   // another editor took the panel
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const [holeCorner, setHoleCorner] = useState<{ plate: PlateInfo; rec: CornerRecord } | null>(null);   // the Corner holes control of the open Hole-on-face sketch
   const holeSketchRef = useRef(false);   // the sketch being drawn is for a hole: Point tool, and a hole is added on confirm
@@ -1448,6 +1454,8 @@ function App() {
     knurl: () => openKnurl(),
     screw: () => openScrew(),
     bearing: () => openBearing(),
+    frame: () => openFrame(null),
+    cutList: () => void openCutList(),
     open: async () => { const f = await platform.openFile({ accept: ['.ckpart', '.ckpart', '.gz', '.json', '.step', '.stp', '.sldprt', '.skp', '.dxf', '.fcstd', '.solidcraft'] }); if (f) openByKind(f.name, async () => f.text, dropKind(f.name), async () => f.bytes ?? new Uint8Array()); },
     save: () => doSave(false),
     files: {
@@ -1862,6 +1870,7 @@ function App() {
       setLeftTab('Editor');
       return;
     }
+    if ((f as { type?: string } | undefined)?.type === 'frame') { openFrame(id); return; }   // a frame reopens the Frame panel on its parameters
     const knurl = knurlOwner((controller.document()?.features ?? []) as never, id);
     if (knurl) { openKnurlEdit({ owner: knurl }); return; }   // a knurl the wizard made (or a faceted band) reopens the Knurl wizard; unmarked ones stay on the generic editor
     const gear = gearOwner((controller.document()?.features ?? []) as unknown[], id);
@@ -3024,6 +3033,47 @@ function App() {
     setBearingWiz({ params: { ...DEFAULT_BEARING, ...(placed && face ? { origin: placed.origin, axis: placed.axis, placedOn: face, placedAt: { origin: placed.origin, axis: placed.axis } } : {}) } });
     setLeftTab('Editor');
   };
+  // The Frame panel: every change previews the frame; Create adds one `frame` feature (Update replaces the one being edited), one undo step.
+  const frameDraftOps = (next: FrameParams): EditOp[] | null => {
+    if (!doc || !frameWiz) return null;
+    const feat = frameFeature(frameWiz.editId ?? freeId(doc as never), next);
+    return feat ? frameOps(feat, !!frameWiz.editId) as EditOp[] : null;
+  };
+  const onFrameDraft = (next: FrameParams) => {
+    const ops = frameDraftOps(next);
+    if (ops) void controller.preview(ops, 400).then(onPreviewResult);
+  };
+  const onFrameCancel = async () => {
+    await controller.cancelPreview();
+    setFrameWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const onFrameApply = async (next: FrameParams) => {
+    const ops = frameDraftOps(next);
+    if (!ops) return;
+    const edit = !!frameWiz?.editId;
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, 'frame'));
+    if (!r.ok) { setPreviewHint(t('frame.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
+    store.notify(t(edit ? 'frame.updated' : 'frame.created'));
+    setFrameWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const openFrame = (editId: string | null) => {
+    if (!doc) return;
+    const f = editId ? (doc.features as unknown as Array<Record<string, unknown>>).find((x) => x.id === editId) : undefined;
+    const params = editId ? paramsFromFeature(f) : null;
+    if (editId && !params) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setScrewWiz(null); setBearingWiz(null);
+    setFrameWiz({ params: params ?? DEFAULT_FRAME, editId });
+    setLeftTab('Editor');
+  };
+  const openCutList = async () => {
+    if (!doc) return;
+    setCutList(readFrames(await controller.frameReports()));
+  };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
   const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
   const gearEditOps = (next: GearParams): EditOp[] => gearCommitOps(doc as never, next, gearRec?.roles);
@@ -3077,7 +3127,10 @@ function App() {
   const bearingEditor = bearingWiz && doc ? (
     <BearingWizard key="bearing" params={bearingWiz.params} onDraft={onBearingDraft} onApply={onBearingApply} onCancel={onBearingCancel} hint={previewHint} />
   ) : null;
-  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : bearingEditor ? bearingEditor : gearRec ? (
+  const frameEditor = frameWiz && doc ? (
+    <FramePanel key={'frame-' + (frameWiz.editId ?? 'new')} params={frameWiz.params} skeletons={skeletons(doc as never)} edit={!!frameWiz.editId} onDraft={onFrameDraft} onApply={onFrameApply} onCancel={onFrameCancel} hint={previewHint} />
+  ) : null;
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -3140,7 +3193,7 @@ function App() {
       loadVolume={async () => { const m = controller.hasSolid() ? await controller.massProps() : null; return typeof m?.volume === 'number' ? m.volume : null; }} />
   ) : null;
   const editor = materialEditor ?? featureEditor;
-  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || bearingWiz;
+  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || bearingWiz || frameWiz;
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingNow ? editor : tree;
   const catalog = useCatalog({
@@ -3713,6 +3766,7 @@ function App() {
         onSave={async (fileName, o) => { setSaveAsOpen(false); chooseEmbed(o.geometry); const d = controller.document(), v = controller.viewData(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d), ...embedOpt(o.geometry, v) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
+      {cutList ? <CutListDialog frames={cutList} onClose={() => setCutList(null)} onCsv={() => void platform.saveFile(`${doc?.name || 'part'} cut list.csv`, toCsv(cutList), 'text/csv')} /> : null}
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => { setGuard(null); setGuardSave(null); }}
         onDiscard={() => { const go = guard; setGuard(null); setGuardSave(null); void go(); }}
         onSave={async () => { const go = guard, sv = guardSave; setGuard(null); setGuardSave(null); if (sv) { await sv(); return; } await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}
