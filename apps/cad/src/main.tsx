@@ -104,8 +104,9 @@ import { ScrewWizard } from './ScrewWizard';
 import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { BearingWizard } from './BearingWizard';
 import { FramePanel } from './frame/FramePanel';
-import { CutListDialog } from './frame/CutListDialog';
-import { DEFAULT_FRAME, frameFeature, frameOps, freeId, paramsFromFeature, readFrames, skeletons, toCsv, type FrameParams, type FrameReport } from './frame/frameLib';
+import { frameDrawing, refreshTables } from './frame/frameDrawing';
+import { sanitizeDrawing } from './drawing/model';
+import { DEFAULT_FRAME, frameFeature, frameOps, freeId, paramsFromFeature, readFrames, skeletons, type FrameParams } from './frame/frameLib';
 import { bearingIssue, bearingOps, DEFAULT_BEARING, seatOnFace, type BearingParams } from './bearing';
 import { knurlDependents, knurlOwner, knurlReplaceOps, paramsFromCosmetic, replaceCosmetic, type KnurlOwner } from './knurlEdit';
 import { DEFAULT_KNURL, cosmeticToCutOps, knurlCosmetic, knurlIssue, knurlOps, knurlTarget, readCosmeticKnurls, suggestCount, suggestDepth, type KnurlParams } from './knurl';
@@ -431,7 +432,6 @@ function App() {
   const [screwWiz, setScrewWiz] = useState<{ params: ScrewParams } | null>(null);   // the Screw wizard: a fastener over the screw() helper
   const [bearingWiz, setBearingWiz] = useState<{ params: BearingParams } | null>(null);   // the Bearing wizard: a ball bearing over the bearing() helper
   const [frameWiz, setFrameWiz] = useState<{ params: FrameParams; editId: string | null } | null>(null);   // the Frame panel: a new frame, or the frame `editId` being edited
-  const [cutList, setCutList] = useState<FrameReport[] | null>(null);   // the Cut list dialog, open with the frames' report
   useEffect(() => { if (frameWiz && (propWiz || impWiz || knurlWiz || screwWiz || bearingWiz || editingId)) setFrameWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, bearingWiz, editingId]);   // another editor took the panel
   const [pickingPath, setPickingPath] = useState<string | null>(null);
   const [holeCorner, setHoleCorner] = useState<{ plate: PlateInfo; rec: CornerRecord } | null>(null);   // the Corner holes control of the open Hole-on-face sketch
@@ -3070,9 +3070,16 @@ function App() {
     setFrameWiz({ params: params ?? DEFAULT_FRAME, editId });
     setLeftTab('Editor');
   };
+  // Cut list: open the Drawings workspace on a drawing of the frame (views, numbered pieces, cut list and BOM tables). A sheet the user
+  // already has is kept: only its frame tables are replaced.
   const openCutList = async () => {
     if (!doc) return;
-    setCutList(readFrames(await controller.frameReports()));
+    const frames = readFrames(await controller.frameReports());
+    if (!frames.length) { store.notify(t('frame.cutlist.empty'), 'warn'); return; }
+    const fresh = await frameDrawing(frames, controller.drawingQuery(), { name: doc.name });
+    const cur = sanitizeDrawing((doc as unknown as { drawing?: unknown }).drawing, doc.name, '');
+    controller.setDocExtra('drawing', cur.views.length ? refreshTables(cur, fresh.doc) : fresh.doc);
+    setDrawingOpen(true);
   };
   // The Gear editor works on the whole parameter record: every draft regenerates the gear's features (preview), OK commits them as one edit.
   const gearRec = editingFeature?.type === 'sketch' ? readGear(editingFeature) : null;
@@ -3766,7 +3773,6 @@ function App() {
         onSave={async (fileName, o) => { setSaveAsOpen(false); chooseEmbed(o.geometry); const d = controller.document(), v = controller.viewData(); if (d) finishSave(await files.save(d, { saveAs: true, fileName, thumbnail: await saveThumbs.forSave(d), ...embedOpt(o.geometry, v) }), d); }} /> : null}
       {dragging ? <DropOverlay /> : null}
       <CatalogGhost hasSolid={controller.hasSolid()} />
-      {cutList ? <CutListDialog frames={cutList} onClose={() => setCutList(null)} onCsv={() => void platform.saveFile(`${doc?.name || 'part'} cut list.csv`, toCsv(cutList), 'text/csv')} /> : null}
       {guard ? <DiscardDialog name={doc?.name ?? ''} onCancel={() => { setGuard(null); setGuardSave(null); }}
         onDiscard={() => { const go = guard; setGuard(null); setGuardSave(null); void go(); }}
         onSave={async () => { const go = guard, sv = guardSave; setGuard(null); setGuardSave(null); if (sv) { await sv(); return; } await commands.find((c) => c.id === 'save')!.run(); if (!isDirty()) void go(); }} /> : null}

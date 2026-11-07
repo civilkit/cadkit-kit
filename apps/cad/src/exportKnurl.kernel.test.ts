@@ -44,7 +44,9 @@ async function readBack(step: string) {
   const built = await c.scratchBuild(part, true);
   const f = await c.scratchFacts({ mass: true, validate: true });
   if (!built.geometry?.mesh) console.log('read-back has no mesh', JSON.stringify(built.errors).slice(0, 300));
-  return { volume: f.volume as number, valid: f.valid, faces: (built.geometry?.mesh as { faceIds: string[] } | null)?.faceIds.length ?? -1 };
+  // the faces the file declares: a read-back that drops faces (an edge the reader refuses) leaves an open shell, so the count read must be the count written
+  const written = (step.match(/ADVANCED_FACE\(/g) ?? []).length;
+  return { volume: f.volume as number, valid: f.valid, faces: (built.geometry?.mesh as { faceIds: string[] } | null)?.faceIds.length ?? -1, written };
 }
 const meshVolume = (p: ArrayLike<number>): number => {
   let v = 0;
@@ -228,6 +230,9 @@ describe('export with cosmetic knurls against the real kernel', { skip: !process
     if (!b.ok) { console.log(`heavy ${label}: ${b.reason} after ${took} ms: ${b.message}`); expect(['failed', 'timeout']).toContain(b.reason); return; }
     const file = await readBack(b.step!);
     expect(file.valid).toBe(true);
+    expect(file.written).toBeGreaterThan(3);
+    expect(file.faces).toBeGreaterThanOrEqual(file.written);   // not empty, no face dropped (the mesh can split a face, never merge)
+    expect(file.volume).toBeGreaterThan(0);
     console.log(`heavy ${label}: volume ${file.volume.toFixed(1)} (plain ${PLAIN.toFixed(1)}), ${file.faces} faces, valid ${file.valid}, ${took} ms`);
     expect(file.volume).toBeLessThan(PLAIN);
   }, 300000);

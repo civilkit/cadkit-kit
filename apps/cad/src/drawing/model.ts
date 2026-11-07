@@ -56,9 +56,12 @@ export interface DDim {
 /** `text`, a surface finish symbol (text = the roughness, e.g. `Ra 1.6`) or a feature control frame (cells split by `|`, e.g. `POS|0.1|A`) */
 export interface DNote { id: string; view?: string; text: string; pos: V2; leader?: V2; style?: 'text' | 'finish' | 'fcf' }
 export interface DBalloon { id: string; view: string; at: V2; pos: V2; n: number }
+/** A table block on the sheet (a cut list, a parts list ...): `x`,`y` the top-left corner in mm, `cols` the column widths, an optional bold title above it. */
+export interface DTable { id: string; title?: string; x: number; y: number; cols: number[]; head: string[]; rows: string[][]; rowH?: number; textSize?: number }
 export interface DrawingDoc {
   v: 1; sheet: Sheet; title: TitleBlock; views: DView[]; dims: DDim[]; notes: DNote[]; balloons: DBalloon[];
   bom: { show: boolean; pos: V2 | null };
+  tables?: DTable[];
 }
 
 export const DEFAULT_SHEET: Sheet = { size: 'A3', orientation: 'landscape', units: 'mm', scale: '1:1', projection: 'third', margin: 10 };
@@ -201,6 +204,7 @@ export function sanitizeDrawing(raw: unknown, fallbackName = '', material = ''):
     sheet: { ...base.sheet, ...(r.sheet ?? {}) }, title: { ...base.title, ...(r.title ?? {}) },
     views: Array.isArray(r.views) ? r.views.filter((v) => v && Array.isArray(v.x) && Array.isArray(v.y) && Array.isArray(v.pos)) : [],
     dims: Array.isArray(r.dims) ? r.dims : [], notes: Array.isArray(r.notes) ? r.notes : [], balloons: Array.isArray(r.balloons) ? r.balloons : [],
+    tables: Array.isArray(r.tables) ? r.tables.filter((x) => x && Array.isArray(x.cols) && Array.isArray(x.head) && Array.isArray(x.rows)) : [],
     bom: { ...base.bom, ...(r.bom ?? {}) },
   };
   if (!SHEET_SIZES[d.sheet.size]) d.sheet.size = 'A3';

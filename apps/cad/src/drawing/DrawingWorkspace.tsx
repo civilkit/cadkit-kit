@@ -14,7 +14,7 @@ import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, t
 import { hitAnnotation } from './hit';
 import { holeInfos } from './kernel';
 import { massText } from '../inspect/mass';
-import { printSvg, toDxf, toPdf } from './output';
+import { printSvg, tablesCsv, toDxf, toPdf } from './output';
 import { componentOfName, insertIds } from '../assembly/model';
 import { projectedFrame } from './model';
 
@@ -40,7 +40,7 @@ export interface DrawingHost {
 }
 
 type Tool = 'select' | 'dim' | 'proj' | 'section' | 'detail' | 'aux' | 'note' | 'balloon' | 'finish' | 'fcf';
-type Sel = { kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label'; id: string } | null;
+type Sel = { kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table'; id: string } | null;
 const PX = 3.7795;      // css pixels per mm at zoom 1
 
 const stem = (s: string): string => (s || 'drawing').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || 'drawing';
@@ -232,6 +232,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (sel.kind === 'dim') return { ...d, dims: d.dims.filter((x) => x.id !== sel.id) };
       if (sel.kind === 'note') return { ...d, notes: d.notes.filter((x) => x.id !== sel.id) };
       if (sel.kind === 'balloon') return { ...d, balloons: d.balloons.filter((x) => x.id !== sel.id) };
+      if (sel.kind === 'table') return { ...d, tables: (d.tables ?? []).filter((x) => x.id !== sel.id) };
       if (sel.kind === 'bom') return { ...d, bom: { ...d.bom, show: false } };
       return d;
     });
@@ -241,6 +242,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     pdf: async () => { await host.save(`${stem(doc.title.title || host.partName)}.pdf`, toPdf(prims, size), 'application/pdf'); },
     svg: async () => { await host.save(`${stem(doc.title.title || host.partName)}.svg`, toSvg(prims, size), 'image/svg+xml'); },
     dxf: async () => { await host.save(`${stem(doc.title.title || host.partName)}.dxf`, toDxf(prims, size), 'image/vnd.dxf'); },
+    csv: async () => { await host.save(`${stem(doc.title.title || host.partName)} tables.csv`, tablesCsv(doc.tables ?? []), 'text/csv'); },
     print: async () => { printSvg(toSvg(prims, size), size); },
   };
   const out = (k: keyof typeof files) => async () => { if (!doc.views.length) { note('drawing.msg.noViews', 'warn'); return; } try { await files[k](); } catch (e) { host.notify((e as Error).message, 'error'); } };
@@ -371,6 +373,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         docRef.current = next; setDoc(next);
       } else if (s.kind === 'note') { const next = { ...b, notes: b.notes.map((n) => (n.id === s.id ? { ...n, pos: [n.pos[0] + dx, n.pos[1] + dy] as V2 } : n)) }; docRef.current = next; setDoc(next); }
       else if (s.kind === 'balloon') { const next = { ...b, balloons: b.balloons.map((n) => (n.id === s.id ? { ...n, pos: [n.pos[0] + dx, n.pos[1] + dy] as V2 } : n)) }; docRef.current = next; setDoc(next); }
+      else if (s.kind === 'table') { const next = { ...b, tables: (b.tables ?? []).map((n) => (n.id === s.id ? { ...n, x: n.x + dx, y: n.y + dy } : n)) }; docRef.current = next; setDoc(next); }
       else if (s.kind === 'dim') { const next = { ...b, dims: b.dims.map((x) => (x.id === s.id ? dragDim(x, b, dataRef.current, pt) : x)) }; docRef.current = next; setDoc(next); }
       return;
     }
@@ -478,6 +481,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <button class="dwg-btn" onClick={out('pdf')}>{t('drawing.exportPdf')}</button>
         <button class="dwg-btn" onClick={out('svg')}>{t('drawing.exportSvg')}</button>
         <button class="dwg-btn" onClick={out('dxf')}>{t('drawing.exportDxf')}</button>
+        {doc.tables?.length ? <button class="dwg-btn" title={t('drawing.exportCsv.tip')} onClick={() => void files.csv().catch((e) => host.notify((e as Error).message, 'error'))}>{t('drawing.exportCsv')}</button> : null}
         <button class="dwg-btn" onClick={out('print')}>{t('drawing.print')}</button>
         <span class="dwg-sep" />
         <button class="dwg-btn" onClick={() => { userCam.current = false; fit(); }}>{t('drawing.fit')}</button>

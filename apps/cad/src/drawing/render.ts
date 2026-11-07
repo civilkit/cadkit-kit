@@ -1,10 +1,10 @@
 // Draws the sheet as a flat list of primitives (millimetres on the sheet, y down); SVG, PDF and DXF are written from that list,
 // so the three outputs agree. Nothing here touches the DOM.
-import { fmtAngle, fmtLength, dimText, sheetSize, toSheet, viewCentre, viewScale, type DDim, type DrawingDoc, type DView, type V2, type ViewData, scaleText } from './model';
+import { fmtAngle, fmtLength, dimText, sheetSize, toSheet, viewCentre, viewScale, type DDim, type DrawingDoc, type DTable, type DView, type V2, type ViewData, scaleText } from './model';
 import { shownLines, edgeShape, refreshDim } from './geom';
 
 export type Layer = 'border' | 'visible' | 'hidden' | 'thin' | 'center' | 'dim' | 'text' | 'hatch';
-export interface Tag { id: string; kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' }
+export interface Tag { id: string; kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table' }
 export type Prim =
   | { t: 'poly'; pts: number[]; w: number; layer: Layer; dash?: number[]; fill?: boolean; closed?: boolean; tag?: Tag }
   | { t: 'circle'; c: V2; r: number; w: number; layer: Layer; dash?: number[]; tag?: Tag }
@@ -148,6 +148,7 @@ export function renderSheet(ctx: RenderCtx): Prim[] {
     }
   }
   if (doc.bom.show && ctx.bom && ctx.bom.length) bomTable(ctx, out, sw - m, sh - m);
+  for (const t of doc.tables ?? []) tableBlock(out, t);
   return out;
 }
 
@@ -381,6 +382,7 @@ function titleBlock(ctx: RenderCtx, out: Prim[], right: number, bottom: number):
     out.push({ t: 'text', x: x0 + cw * c + 1.5, y: y0 + r * 10 + 8, s: fit(value, (cw * span - 3) / (big ? 2.4 : 1.9)), size: big ? 5 : 3.5, anchor: 'start', rot: 0, bold: big, layer: 'text', tag });
   };
   out.push({ t: 'text', x: x0, y: y0 - 2.5, s: doc.sheet.projection === 'third' ? 'THIRD ANGLE PROJECTION' : 'FIRST ANGLE PROJECTION', size: 2.4, anchor: 'start', rot: 0, layer: 'text', tag });
+  out.push({ t: 'text', x: right - 1, y: y0 - 2.5, s: `UNITS: ${doc.sheet.units === 'in' ? 'INCH' : 'MM'}`, size: 2.4, anchor: 'end', rot: 0, layer: 'text', tag });
   cell(0, 0, 'Title', t.title, 3, true);
   cell(0, 1, 'Part number', t.partNo); cell(1, 1, 'Revision', t.revision); cell(2, 1, 'Scale', doc.sheet.scale);
   cell(0, 2, 'Material', t.material); cell(1, 2, 'Mass', t.mass); cell(2, 2, 'Date', t.date);
@@ -404,6 +406,24 @@ function bomTable(ctx: RenderCtx, out: Prim[], right: number, bottom: number): v
   const put = (r: number, vals: string[]) => { let xx = x0; vals.forEach((s, i) => { out.push({ t: 'text', x: xx + 1.2, y: y0 + rh * r + 4.2, s: fit(s, cols[i] / 1.9), size: 3, anchor: 'start', rot: 0, bold: r === 0, layer: 'text', tag }); xx += cols[i]; }); };
   put(0, head);
   rows.forEach((b, i) => put(i + 1, [String(b.no), b.part, String(b.qty), b.material, b.mass]));
+}
+
+/** A grid table: header row in bold, one line per row, cells cut to their column. Returns the bottom edge (mm). */
+export function tableBlock(out: Prim[], t: DTable): number {
+  const rh = t.rowH ?? 5.5, size = t.textSize ?? 3, w = t.cols.reduce((a, b) => a + b, 0);
+  const tag: Tag = { id: t.id, kind: 'table' };
+  let y = t.y;
+  if (t.title) { out.push({ t: 'text', x: t.x, y: y + 3.6, s: t.title, size: 4, anchor: 'start', rot: 0, bold: true, layer: 'text', tag }); y += 6; }
+  const all = [t.head, ...t.rows], yb = y + rh * all.length;
+  out.push({ t: 'poly', pts: [t.x, y, t.x + w, y, t.x + w, yb, t.x, yb], closed: true, w: 0.5, layer: 'border', tag });
+  for (let r = 1; r < all.length; r++) out.push({ t: 'poly', pts: [t.x, y + rh * r, t.x + w, y + rh * r], w: W.med, layer: 'border', tag });
+  let x = t.x;
+  t.cols.forEach((c, i) => { if (i) out.push({ t: 'poly', pts: [x, y, x, yb], w: W.med, layer: 'border', tag }); x += c; });
+  all.forEach((vals, r) => {
+    let xx = t.x;
+    vals.forEach((s, i) => { out.push({ t: 'text', x: xx + 1.2, y: y + rh * r + rh * 0.72, s: fit(s, t.cols[i] / (size * 0.6)), size, anchor: 'start', rot: 0, bold: r === 0, layer: 'text', tag }); xx += t.cols[i]; });
+  });
+  return yb;
 }
 
 // ---- outputs --------------------------------------------------------------------------------------------------------------

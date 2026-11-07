@@ -40,6 +40,8 @@ export const drawingStrings: Catalog = {
   'drawing.exportPdf': 'PDF',
   'drawing.exportSvg': 'SVG',
   'drawing.exportDxf': 'DXF',
+  'drawing.exportCsv': 'Tables CSV',
+  'drawing.exportCsv.tip': 'Save the tables on the sheet (cut list, bill of materials) as one CSV file',
   'drawing.print': 'Print',
   'drawing.fit': 'Fit sheet',
   'drawing.delete': 'Delete',

@@ -52,7 +52,7 @@ export interface Actions {
   knurl?(): void;
   /** Open the Screw wizard (see ScrewWizard.tsx). */
   screw?(): void;
-  /** Open the Frame panel (frame/FramePanel.tsx) and the cut list of the part's frames (frame/CutListDialog.tsx). */
+  /** Open the Frame panel (frame/FramePanel.tsx) and the drawing of the part's frames with the cut list and bill of materials (frame/frameDrawing.ts). */
   frame?(): void;
   cutList?(): void;
   /** Open the Bearing wizard (see BearingWizard.tsx). */

@@ -405,12 +405,7 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .discard-dlg { width: min(420px, 92vw); height: auto; }
 .discard-body { padding: 14px 16px; }
 .discard-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 0 16px 14px; }
-/* Frame: the cut list dialog (frame/CutListDialog.tsx) and the member checkboxes of the Frame panel */
-.cutlist-dlg { width: min(720px, 94vw); height: auto; max-height: 86vh; display: flex; flex-direction: column; }
-.cutlist-body { padding: 10px 16px; overflow: auto; }
-.cutlist-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-bottom: 10px; }
-.cutlist-table th, .cutlist-table td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line, rgba(127,127,127,.25)); }
-.cutlist-dlg .dlg-sub { margin: 6px 0; }
+/* Frame: the member checkboxes of the Frame panel */
 .frame-seg-list { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .frame-seg { display: inline-flex; align-items: center; gap: 3px; }
 .doc-dirty { color: var(--accent); }

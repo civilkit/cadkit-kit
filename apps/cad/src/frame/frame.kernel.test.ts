@@ -6,6 +6,7 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory, type ViewSink } from '../controller';
 import { bom, cutList, frameFeature, frameOps, readFrames } from './frameLib';
+import { drawingPdf, frameDrawing } from './frameDrawing';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -58,5 +59,27 @@ describe('frame tool against the real kernel', { skip: !process.env.CK_WASM }, (
     const b = bom(frames);
     expect(b.find((x) => x.id === 'bracket-20')?.qty).toBe(4);
     expect(b.find((x) => x.id === 'tnut-m5-20')?.qty).toBe(8);
+  }, 300000);
+
+  it('makes the PDF sheet from the real views: balloons carry the cut-list row numbers, the pdf holds the tables', async () => {
+    const c = await world();
+    const feat = frameFeature('F2', { sketch: 'F1', segments: null, profile: 'shs-40x40x2', corner: 'mitre', rotate: 0 })!;
+    expect((await c.commit(frameOps(feat, false) as never, 'frame')).ok).toBe(true);
+    const frames = readFrames(await c.frameReports());
+    const sh = await frameDrawing(frames, c.drawingQuery(), { name: 'Rect', date: '2026-11-07' });
+    expect(Object.keys(sh.data)).toHaveLength(3);
+    const rows = cutList(frames);
+    for (const v of sh.doc.views) {
+      const bs = sh.doc.balloons.filter((b) => b.view === v.id);
+      expect(bs.length, v.label).toBeGreaterThan(0);
+      for (const b of bs) expect(b.n).toBeGreaterThanOrEqual(1), expect(b.n).toBeLessThanOrEqual(rows.length);
+    }
+    // the iso view shows every piece: one balloon per member, each row as often as its quantity
+    const iso = sh.doc.balloons.filter((b) => b.view === 'V1');
+    expect(iso.map((b) => b.n).sort()).toEqual(rows.flatMap((r, i) => Array(r.qty).fill(i + 1)).sort());
+    const txt = Array.from(drawingPdf(sh.doc, sh.data).pdf, (b) => String.fromCharCode(b)).join('');
+    expect(txt.startsWith('%PDF-1.4')).toBe(true);
+    for (const w of ['(Rect)', '(Cut list)', '(Bill of materials)', '(640)', '(440)', '(45 / 45)']) expect(txt).toContain(w);
+    if (process.env.FRAME_SHEET_OUT) (await import('node:fs')).writeFileSync(process.env.FRAME_SHEET_OUT, drawingPdf(sh.doc, sh.data).svg);
   }, 300000);
 });

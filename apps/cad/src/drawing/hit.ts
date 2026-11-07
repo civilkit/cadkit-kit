@@ -28,7 +28,7 @@ export function hitAnnotation(prims: Prim[], p: V2, tol: number): Tag | null {
   for (const pr of prims) {
     const tag = pr.tag;
     if (!tag || tag.kind === 'view') continue;
-    if (tag.kind === 'title' || tag.kind === 'bom') continue;
+    if (tag.kind === 'title' || tag.kind === 'bom' || tag.kind === 'table') continue;
     const d = distToPrim(p, pr);
     if (d <= tol && (!best || d < best.d)) best = { tag, d };
   }
@@ -39,6 +39,11 @@ export function hitAnnotation(prims: Prim[], p: V2, tol: number): Tag | null {
       const xs = poly.pts.filter((_, i) => i % 2 === 0), ys = poly.pts.filter((_, i) => i % 2 === 1);
       if (p[0] >= Math.min(...xs) && p[0] <= Math.max(...xs) && p[1] >= Math.min(...ys) && p[1] <= Math.max(...ys)) return poly.tag!;
     }
+  }
+  for (const poly of prims) {   // table blocks: inside the outline
+    if (poly.t !== 'poly' || poly.tag?.kind !== 'table' || !poly.closed) continue;
+    const xs = poly.pts.filter((_, i) => i % 2 === 0), ys = poly.pts.filter((_, i) => i % 2 === 1);
+    if (p[0] >= Math.min(...xs) && p[0] <= Math.max(...xs) && p[1] >= Math.min(...ys) && p[1] <= Math.max(...ys)) return poly.tag;
   }
   return null;
 }

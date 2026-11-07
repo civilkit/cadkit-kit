@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
 import { FramePanel } from './FramePanel';
-import { CutListDialog } from './CutListDialog';
 import { DEFAULT_FRAME, type FrameParams } from './frameLib';
 import '../i18n';
 
@@ -37,19 +36,5 @@ describe('FramePanel', () => {
     expect(m.r.getByTestId('frame-no-skeleton')).toBeTruthy();
     expect((m.r.getByTestId('frame-apply') as HTMLButtonElement).disabled).toBe(true);
     expect(m.drafts).toHaveLength(0);
-  });
-});
-
-describe('CutListDialog', () => {
-  it('shows the grouped pieces and the bill of materials', () => {
-    const frames = [{ id: 'F2', members: [1, 2].map((k) => ({ segment: 'e' + k, body: 'F2 M' + k, profile: 'tslot-2020', label: 'T-slot 20 x 20', length: 500, angles: [0, 0] as [number, number], ends: ['free', 'free'] as [string, string], volume: 1000 })) }];
-    let csv = 0;
-    const r = render(<CutListDialog frames={frames} onClose={() => {}} onCsv={() => { csv++; }} />);
-    const rows = r.getByTestId('cutlist-table').querySelectorAll('tbody tr');
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain('500');
-    expect(r.getByTestId('bom-table').textContent).toContain('End cap 20 x 20');
-    fireEvent.click(r.getByTestId('cutlist-csv'));
-    expect(csv).toBe(1);
   });
 });

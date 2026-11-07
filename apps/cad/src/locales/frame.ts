@@ -1,9 +1,9 @@
-// Strings of the Frame tool (frame/FramePanel.tsx, frame/CutListDialog.tsx).
+// Strings of the Frame tool (frame/FramePanel.tsx, frame/frameDrawing.ts).
 export const frameStrings: Record<string, string | Record<string, string>> = {
   'cmd.add-frame': 'Frame',
   'tip.add-frame': 'Structural frame: pick a sketch of lines as the skeleton and a stock profile (T-slot, steel tube, angle, flat bar); every line becomes a member with mitred or butted corners. The Cut list command lists the pieces and the hardware.',
   'cmd.frame-cutlist': 'Cut list',
-  'tip.frame-cutlist': 'Cut list and bill of materials of the frames in this part: lengths, cut angles, quantities, mass, and the brackets, nuts, bolts and end caps the profiles need. Saves as CSV.',
+  'tip.frame-cutlist': 'Cut list and bill of materials of the frames in this part: lengths, cut angles, quantities, mass, and the brackets, nuts, bolts and end caps the profiles need. Opens a drawing of the frame with the pieces numbered, the cut list and the bill of materials; export it as PDF, SVG, DXF, or the tables as CSV.',
   'feature.frame': 'Frame',
   'frame.title': 'Frame',
   'frame.titleEdit': 'Edit frame',
@@ -40,5 +40,4 @@ export const frameStrings: Record<string, string | Record<string, string>> = {
   'frame.cutlist.bom': 'Bill of materials',
   'frame.cutlist.part': 'Part',
   'frame.cutlist.detail': 'Detail',
-  'frame.cutlist.csv': 'Save CSV',
 };
