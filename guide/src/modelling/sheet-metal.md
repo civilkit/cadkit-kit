@@ -144,6 +144,10 @@ A slot that crosses a bend shows in the flat pattern and the DXF as a hole acros
 
 Both walls of the corner must be free of bends, the corner convex, and the walls at least as long as the radius or distance. A corner next to a bend is refused. The round is a true cylinder face in the solid and an arc in the DXF.
 
+## Mirror
+
+A sheet metal part stays a sheet when you mirror it. In a script, `mirror` with `body: true` mirrors the whole part. Add `replace: true` to turn the part into its mirror image: it works about any plane, including a flat face of the sheet, and the flat pattern and bend table stay the same. Leave `replace` out to join the mirror image to the sheet: that works when the plane is square to the base plate and runs along a free, straight end of it with no bend, so an L-bracket mirrored about its far end becomes one channel whose flat pattern is twice as long and unfolds as a whole. A plane that cannot give one sheet (a face of the sheet, a plane parallel to the plate or tilted, a plane through a bend, or a flange that reaches the plane) is refused with the reason, and the part is unchanged.
+
 ## Unfold and refold
 
 **Unfold** flattens the body to its flat sheet; **Refold** bends it back from the bend table. Neither has an editor, and each is one edit. While the sheet is unfolded, flanges, hems and folds are refused with **The sheet is unfolded: refold it first**. Unfold then Refold gives the same solid back.

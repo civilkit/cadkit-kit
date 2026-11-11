@@ -39,7 +39,7 @@ export function sanitizeLook(raw: unknown): Look {
   if (r.appearances && typeof r.appearances === 'object') {
     for (const [k, v] of Object.entries(r.appearances as Record<string, unknown>)) {
       const a = sanitizeAppearance(v);
-      if (a.color !== DEFAULT_APPEARANCE.color || a.material !== 'default') appearances[k] = a;
+      if (a.color !== DEFAULT_APPEARANCE.color || a.material !== 'default' || a.pbr || a.look || a.texture) appearances[k] = a;
     }
   }
   const fresh = r.v === LOOK_VERSION;
@@ -63,12 +63,13 @@ export function effectiveAppearance(look: Look, part: string | undefined, materi
   const a = appearanceOf(look, part);
   if (!useMaterialColour || !materialColor) return a;
   const m = typeof materialColor === 'string' ? { color: materialColor, material: a.material } : materialColor;
-  const pbr = a.pbr ?? m.pbr, grain = a.look ?? m.look;
+  const pbr = a.pbr ?? m.pbr, grain = a.look ?? m.look, texture = a.texture ?? m.texture;
   return {
     color: a.color === DEFAULT_APPEARANCE.color ? m.color : a.color,
     material: a.material === 'default' ? m.material : a.material,
     ...(pbr ? { pbr } : {}),
     ...(grain ? { look: grain } : {}),
+    ...(texture ? { texture } : {}),
   };
 }
 
@@ -97,7 +98,7 @@ export const bodyLook = (look: Look, part: string | undefined): BodyLook => ({ s
 export function withAppearance(look: Look, part: string, patch: Partial<Appearance>): Look {
   const a = sanitizeAppearance({ ...appearanceOf(look, part), ...patch });
   const appearances = { ...look.appearances };
-  if (a.color === DEFAULT_APPEARANCE.color && a.material === 'default' && !a.pbr && !a.look) delete appearances[part];
+  if (a.color === DEFAULT_APPEARANCE.color && a.material === 'default' && !a.pbr && !a.look && !a.texture) delete appearances[part];
   else appearances[part] = a;
   return { ...look, appearances };
 }

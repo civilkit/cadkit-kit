@@ -23,12 +23,16 @@
   "PatternSeed": "'last' | string | FeatureHandle | Array<string | FeatureHandle>",
   "ToObject": "Plane | OffsetPlane | FaceSel | [number, number, number]",
   "ScriptApi": "ReturnType<typeof makeApi>",
-  "FaceRule": "{ dir?: string; normal?: Vec; planar?: boolean; at?: Vec; kind?: SurfaceKind | 'planar'; radius?: number; createdBy?: FeatureRefLike; of?: FeatureRefLike; areaGreater?: number; areaLess?: number; near?: Vec; within?: number; not?: FaceSel | FacesSel; union?: Array<FaceSel | FacesSel>; intersect?: Array<FaceSel | FacesSel>; difference?: Array<FaceSel | FacesSel>; }",
-  "EdgeRule": "{ parallel?: 'X' | 'Y' | 'Z'; outside?: [Vec, Vec]; inside?: [Vec, Vec]; not?: EdgeSel; onFace?: FaceSel | FacesSel; createdBy?: FeatureRefLike; lengthGreater?: number; lengthLess?: number; near?: Vec; within?: number; union?: EdgeSel[]; intersect?: EdgeSel[]; difference?: EdgeSel[]; }",
+  "FaceRule": "{ dir?: string; normal?: Vec; planar?: boolean; at?: Vec; kind?: SurfaceKind | 'planar'; radius?: number; createdBy?: FeatureRefLike; of?: FeatureRefLike; areaGreater?: number; areaLess?: number; near?: Vec; within?: number; not?: FaceSel | FacesSel; union?: Array<FaceSel | FacesSel>; intersect?: Array<FaceSel | FacesSel>; difference?: Array<FaceSel | FacesSel>; sortBy?: PosKey; group?: GroupSpec; }",
+  "EdgeRule": "{ parallel?: 'X' | 'Y' | 'Z'; outside?: [Vec, Vec]; inside?: [Vec, Vec]; not?: EdgeSel; onFace?: FaceSel | FacesSel; createdBy?: FeatureRefLike; lengthGreater?: number; lengthLess?: number; near?: Vec; within?: number; union?: EdgeSel[]; intersect?: EdgeSel[]; difference?: EdgeSel[]; sortBy?: PosKey; group?: GroupSpec; pick?: EdgePick; }",
   "SketchSpec": "{ on: 'front' | 'top' | 'right' | at(plane, offset) | face(sel); draw?: (s) => void; point?: [x, y]; name?: string }",
   "FaceSel": "the result of face(sel)",
   "FacesSel": "the result of faces(sel)",
-  "EdgeSel": "the result of edges(sel)"
+  "EdgeSel": "the result of edges(sel)",
+  "EdgesSel": "the result of edges(sel): an EdgeSel with .sortBy(key) .groupBy(key, { tol }) .nth(i) .first(n) .last(n)",
+  "PosKey": "'>Z' (highest first) | '<Z' or 'Z' (lowest first) | likewise X, Y | [x, y, z] direction | { along: edges(...) } (distance along a rail edge)",
+  "GroupSpec": "{ by: PosKey; tol?: number (mm, default 0.001); nth?: number; at?: number (position along the key) }",
+  "EdgePick": "{ nth: number } | { first: number } | { last: number }"
  },
  "methods": [
   {
@@ -2592,9 +2596,9 @@
    "id": "edges",
    "kind": "function",
    "domain": "selectors",
-   "signature": "edges(sel: string | EdgeRule): EdgeSel",
+   "signature": "edges(sel: string | EdgeRule): EdgesSel",
    "summary": "Select edges of the current body by direction, extreme plane, or a rule object.",
-   "description": "edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches.",
+   "description": "edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches. Choose by POSITION, not by generated names: .sortBy(key) orders the edges by midpoint along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge from its start, the rail being one edge), then .nth(i) (0 first, -1 last), .first(n) and .last(n) take edges in that order: edges({ parallel: 'Y' }).sortBy({ along: edges('|X') }).nth(2) is the third rung along the rail. .groupBy(key, { tol }) gathers the edges at the same position (tol default 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group: edges({ parallel: 'X' }).groupBy('>Z').first() is the edges of the top height, edges('all').groupBy('Z').at(12) those at height 12. Ties are broken by x, y, z, so the choice does not depend on the order the kernel lists edges in, and it is made again when the model is rebuilt. Rule keys sortBy, group and pick do the same in an object. Picking without sortBy or groupBy is refused.",
    "parameters": [
     {
      "name": "sel",
@@ -2603,10 +2607,11 @@
      "description": "a selector string, or an EdgeRule object"
     }
    ],
-   "returns": "EdgeSel",
-   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)\n  .fillet(edges('|Z'), 3)\n  .chamfer(edges({ onFace: face('>Z') }), 1);",
+   "returns": "EdgesSel",
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)\n  .fillet(edges('|Z'), 3)\n  .chamfer(edges({ onFace: face('>Z') }), 1)\n  .fillet(edges({ parallel: 'X' }).groupBy('<Z').nth(1), 1);",
    "related": [
     "face",
+    "faces",
     "part.fillet",
     "part.chamfer"
    ],
@@ -2660,7 +2665,7 @@
    "domain": "selectors",
    "signature": "faces(sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FacesSel",
    "summary": "Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.",
-   "description": "faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole().",
+   "description": "faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole(). To choose by POSITION instead of by the body's face order (which changes when the model is rebuilt): .sortBy(key) orders the faces by centroid along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge), then .nth(i) / .first() / .last() count in that order: faces({ normal: [0, 0, 1] }).sortBy('Z').nth(1) is the second face facing up from the bottom. .groupBy(key, { tol }) gathers the faces at the same position (default tol 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group, returned as faces(): faces({ normal: [0, 0, 1] }).groupBy('Z').at(18) is every upward face at height 18. Rule keys sortBy and group do the same in an object.",
    "parameters": [
     {
      "name": "sel",

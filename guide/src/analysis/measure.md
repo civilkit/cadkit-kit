@@ -31,6 +31,8 @@ Open the Inspect tab and the mass card computes at once, or press **Compute**. I
 
 Mass depends on the **Density** field (g/cm³). It starts from the part's material (steel is 7.85, aluminium 2.70 and so on). A note under the field says which material it took the density from. If the part has no material, or one whose density is not known, the field starts at 1 and the note asks you to set a density. You can type any value, and the mass and moments follow at once. To change the material itself see [Materials and appearance](../assemblies/appearance.md).
 
+**Settings > General > Mass display** chooses how a mass is shown: automatic (grams below one kilogram, kilograms above), grams, kilograms, pounds or ounces, with 3 to 6 significant digits. It applies wherever a mass appears (this card, the material editor, the bill of materials and drawing tables). The values are the same; only the unit and the digits change, and it is kept on this device.
+
 A part made of several solid bodies lists volume and mass per body in a table. Surface bodies have no volume; they are left out of the mass, and a note says so.
 
 Once you have a result it stays current: after an edit the card shows "Out of date: the part changed." and recomputes. **Copy** puts the numbers on the clipboard as tab-separated lines for pasting into a spreadsheet.

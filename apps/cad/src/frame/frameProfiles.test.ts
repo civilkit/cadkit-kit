@@ -235,7 +235,7 @@ describe('cut list and bill of materials with catalogue stock', () => {
     expect(lines.find((b) => b.id === 'shs-40x40x2')!.standard).toBeUndefined();
     expect(lines.find((b) => b.id === 'shs-40x40x2')).toMatchObject({ material: 'Mild steel' });
     expect(lines.find((b) => b.id === 'shs-40x40x2')!.massKg).toBeCloseTo(1.193, 3);
-    const csv = toCsv(rep).split('\n');
+    const csv = toCsv(rep).split('\r\n');   // rows end CR LF
     const head = csv.findIndex((l) => l.startsWith('Item,Part'));
     expect(csv[head]).toBe('Item,Part,Qty,Unit,Type,Standard,Grade,Material,Mass (kg),Detail');
     expect(csv[head + 1]).toContain(',AS/NZS 1163,C350L0,');

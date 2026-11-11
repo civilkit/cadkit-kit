@@ -1,3 +1,4 @@
+import { SurfaceControls, type LibraryControls } from './SurfaceControls';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DisplayLayer, Display } from '@kit/store';
 import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE_WIDTHS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type EdgeWidth, type Appearance } from '@kit/viewport';
@@ -16,6 +17,8 @@ export interface LookControls {
   componentName?: string;
   onLook(patch: { style?: DisplayStyle; ghostOpacity?: number; light?: LightPreset; background?: BackgroundMode; intensity?: number; reflections?: boolean; edgeWidth?: EdgeWidth; silhouette?: boolean }): void;
   onAppearance(patch: Partial<Appearance>): void;
+  /** the online texture library, when the app has one */
+  library?: LibraryControls;
   anyHidden: boolean;
   onShowAll(): void;
 }
@@ -113,6 +116,7 @@ function LookSections({ look }: { look: LookControls }) {
         ))}
       </div>
       {pick(t('display.material'), 'dm-material', MATERIAL_PRESETS as readonly MaterialPreset[], look.appearance.material, 'material.', (v) => look.onAppearance({ material: v }))}
+      <SurfaceControls appearance={look.appearance} onAppearance={look.onAppearance} {...(look.library ? { library: look.library } : {})} />
       <div class="display-head">{t('display.scene')}</div>
       <div class="preset-row" role="group" aria-label={t('display.lighting')}>
         {LIGHT_PRESETS.map((l) => (

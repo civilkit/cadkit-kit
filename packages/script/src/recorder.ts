@@ -1,6 +1,6 @@
 // The recorder: a fluent API whose calls are REMEMBERED (with the script line) and later compiled to EditOps by the runner.
 // Selectors (face(), edges()) are resolved at compile time against the body as it is just before that step.
-import { resolveEdgeInfos, resolveEdges, resolveFace, resolveFaceSel, resolveFacesSel, SelectorError, type EdgeRule, type EdgeSel, type FaceInfo, type FacePick, type FaceRule, type FaceSel, type FacesSel, type FeatureRefLike, type Geometry, type SurfaceKind, type Vec } from './selectors';
+import { resolveEdgeInfos, resolveEdges, resolveFace, resolveFaceSel, resolveFacesSel, SelectorError, type EdgeGroups, type EdgePick, type EdgeRule, type EdgesSel, type FaceGroups, type EdgeSel, type GroupSpec, type PosKey, type FaceInfo, type FacePick, type FaceRule, type FaceSel, type FacesSel, type FeatureRefLike, type Geometry, type SurfaceKind, type Vec } from './selectors';
 import { Expr, num, ref } from './num';
 import { buildPlane, type PlaneBase, type PlaneOpts, type PlaneRotate, type PlaneSpec } from './planes';
 export { Expr };
@@ -148,7 +148,7 @@ export const face = (sel: string | FaceRule, opts: { of?: FeatureRefLike } = {})
 /**
  * Select SEVERAL faces (a set) of the current body, or choose one of them by order, size or position.
  *
- * faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole().
+ * faces(sel, opts) takes the same specs as face() but returns every match: faces({ kind: 'cylinder', radius: 5 }) is every R5 cylindrical face, faces({ createdBy: h }) every face a feature created, faces('>Z') every face facing +Z. Use it where several faces are wanted (shell(faces(...), t) opens them all, edges({ onFace: faces(...) })), or chain one pick: .nth(i) (position in the body's face list), .largest(), .smallest(), .first(), .last(), .near([x, y, z]) (centroid nearest the point); each returns a face() you can pass to sketch() or hole(). To choose by POSITION instead of by the body's face order (which changes when the model is rebuilt): .sortBy(key) orders the faces by centroid along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge), then .nth(i) / .first() / .last() count in that order: faces({ normal: [0, 0, 1] }).sortBy('Z').nth(1) is the second face facing up from the bottom. .groupBy(key, { tol }) gathers the faces at the same position (default tol 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group, returned as faces(): faces({ normal: [0, 0, 1] }).groupBy('Z').at(18) is every upward face at height 18. Rule keys sortBy and group do the same in an object.
  * @domain selectors
  * @param sel a direction, a face name or prefix ('F3.*'), or a FaceRule (see face)
  * @param opts { of: feature handle or id } restrict to the faces that feature created
@@ -161,23 +161,43 @@ export const face = (sel: string | FaceRule, opts: { of?: FeatureRefLike } = {})
  */
 export const faces = (sel: string | FaceRule, opts: { of?: FeatureRefLike } = {}): FacesSel => {
   const line = callerLine();
-  const base = { sel, line, ...(opts.of !== undefined ? { of: opts.of } : {}) };
+  return facesChain(sel, line, opts.of);
+};
+const facesChain = (sel: string | FaceRule, line: number, of: FeatureRefLike | undefined): FacesSel => {
+  const base = { sel, line, ...(of !== undefined ? { of } : {}) };
   const one = (pick: FacePick): FaceSel => ({ kind: 'face', ...base, pick });
-  return { kind: 'faces', ...base, nth: (i) => one({ nth: i }), largest: () => one('largest'), smallest: () => one('smallest'), first: () => one('first'), last: () => one('last'), near: (p) => one({ near: p }) };
+  // the same faces as a rule with an order or a group: a string spec is wrapped so that the rule keys can be added
+  const rule = (extra: FaceRule): FacesSel => facesChain({ ...(typeof sel === 'string' ? { intersect: [{ kind: 'faces', sel, line, ...(of !== undefined ? { of } : {}) } as FacesSel] } : sel), ...extra }, line, undefined);
+  const group = (by: PosKey, o: { tol?: number } = {}): FaceGroups => {
+    const g = (x: Partial<GroupSpec>): FacesSel => rule({ group: { by, ...(o.tol !== undefined ? { tol: o.tol } : {}), ...x } });
+    return { nth: (i) => g({ nth: i }), first: () => g({ nth: 0 }), last: () => g({ nth: -1 }), at: (v) => g({ at: v }) };
+  };
+  return { kind: 'faces', ...base, nth: (i) => one({ nth: i }), largest: () => one('largest'), smallest: () => one('smallest'), first: () => one('first'), last: () => one('last'), near: (p) => one({ near: p }), sortBy: (key) => rule({ sortBy: key }), groupBy: group };
 };
 /**
  * Select edges of the current body by direction, extreme plane, or a rule object.
  *
- * edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches.
+ * edges(sel) is resolved against the body just before the step that uses it. Strings: 'all'; '|X' '|Y' '|Z' straight edges parallel to that axis; '>X' ... '<Z' edges lying in the extreme plane along that axis. A rule object ANDs its keys: parallel ('X'|'Y'|'Z'), outside / inside (box [[x0,y0,z0],[x1,y1,z1]] tested on the edge midpoint), not (another edges()), onFace (a face() or faces()), createdBy (edges that bound a face a feature created: a handle or id), lengthGreater, lengthLess, near + within (radius), and union / intersect / difference (arrays of edges()). It fails with a line number when nothing matches. Choose by POSITION, not by generated names: .sortBy(key) orders the edges by midpoint along key ('>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) } for the distance along a rail edge from its start, the rail being one edge), then .nth(i) (0 first, -1 last), .first(n) and .last(n) take edges in that order: edges({ parallel: 'Y' }).sortBy({ along: edges('|X') }).nth(2) is the third rung along the rail. .groupBy(key, { tol }) gathers the edges at the same position (tol default 0.001 mm) and .nth(i) / .first() / .last() / .at(position) choose a group: edges({ parallel: 'X' }).groupBy('>Z').first() is the edges of the top height, edges('all').groupBy('Z').at(12) those at height 12. Ties are broken by x, y, z, so the choice does not depend on the order the kernel lists edges in, and it is made again when the model is rebuilt. Rule keys sortBy, group and pick do the same in an object. Picking without sortBy or groupBy is refused.
  * @domain selectors
  * @param sel a selector string, or an EdgeRule object
  * @example
  * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20)
  *   .fillet(edges('|Z'), 3)
- *   .chamfer(edges({ onFace: face('>Z') }), 1);
- * @see face, part.fillet, part.chamfer
+ *   .chamfer(edges({ onFace: face('>Z') }), 1)
+ *   .fillet(edges({ parallel: 'X' }).groupBy('<Z').nth(1), 1);
+ * @see face, faces, part.fillet, part.chamfer
  */
-export const edges = (sel: string | EdgeRule): EdgeSel => ({ kind: 'edges', sel, line: callerLine() });
+export const edges = (sel: string | EdgeRule): EdgesSel => edgesChain(sel, callerLine());
+const edgesChain = (sel: string | EdgeRule, line: number): EdgesSel => {
+  // the same edges as a rule with an order, a group or a pick: a string spec is wrapped so that the rule keys can be added
+  const rule = (extra: EdgeRule): EdgesSel => edgesChain({ ...(typeof sel === 'string' ? { intersect: [{ kind: 'edges', sel, line } as EdgeSel] } : sel), ...extra }, line);
+  const pick = (p: EdgePick): EdgesSel => rule({ pick: p });
+  const group = (by: PosKey, o: { tol?: number } = {}): EdgeGroups => {
+    const g = (x: Partial<GroupSpec>): EdgesSel => rule({ group: { by, ...(o.tol !== undefined ? { tol: o.tol } : {}), ...x } });
+    return { nth: (i) => g({ nth: i }), first: () => g({ nth: 0 }), last: () => g({ nth: -1 }), at: (v) => g({ at: v }) };
+  };
+  return { kind: 'edges', sel, line, sortBy: (key) => rule({ sortBy: key }), groupBy: group, nth: (i) => pick({ nth: i }), first: (n = 1) => pick({ first: n }), last: (n = 1) => pick({ last: n }) };
+};
 /**
  * End condition for cut(): through all material.
  *

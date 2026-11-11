@@ -88,6 +88,7 @@ const GENERIC_MATERIALS: readonly MaterialDef[] = [
   panel('chipboard-p5', 'Chipboard P5', 650, '#d8be92', 2.4, 'Particleboard P5 (EN 312): bending modulus about 2.4 GPa for 18 mm board (EGGER Eurospan E1 P5 data, EN 310); density is a typical value'),
   panel('osb3', 'OSB/3', 600, '#c9a56b', 3.5, 'OSB/3 (EN 300): mean bending modulus 3.5 GPa along the major axis (EN 310; the EN 12369-1 characteristic value is 4.93 GPa), density the stated minimum (EGGER OSB data)'),
   panel('plywood-birch', 'Plywood - birch', 680, '#e3c79a', 10.05, 'Finnish birch plywood, 18 mm, face grain along the span: mean bending modulus 10.05 GPa, mean density 680 kg/m3 (UPM WISA-Form Birch declaration of performance)'),
+  panel('plywood-eucalyptus', 'Plywood - eucalyptus', 650, '#d6a583', 7.0, 'Eucalyptus film-faced plywood, 18 mm (EN 636-2S, EN 636-3S): density about 650 kg/m3 and bending stiffness class E70/60, i.e. a mean modulus of 7000 N/mm2 along the face grain (a distributor declaration of performance); the film face does not change the figures used here'),
   m('rubber', 'Rubber', 'Rubber', 1100, '#2f3236', 0.01, 0.49),
   m('gasket', 'Gasket material', 'Rubber', 1400, '#e8802a', 0.5, 0.45),
   m('glass', 'Glass', 'Glass', 2500, '#bfe3ea', 70, 0.22),

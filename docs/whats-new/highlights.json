@@ -1,4 +1,21 @@
 {
+  "0.6.1": [
+    {
+      "id": "surface-controls",
+      "title": "Roughness, metalness, clear coat and wood grain",
+      "blurb": "The Display menu's Surface group sets how a part catches the light, and draws a wood grain with the ring spacing, contrast and colour you choose."
+    },
+    {
+      "id": "poly-haven-textures",
+      "title": "Textures from Poly Haven",
+      "blurb": "Pick a wood texture from the free Poly Haven library in the Display menu and the part is drawn with it, with roughness, a size slider and the author credited. Online libraries are off until you allow them."
+    },
+    {
+      "id": "mass-display",
+      "title": "Choose the mass unit and digits",
+      "blurb": "Settings > General > Mass display shows a mass in grams, kilograms, pounds or ounces with 3 to 6 digits, everywhere a mass appears."
+    }
+  ],
   "0.6.0": [
     {
       "id": "fold-across-window",

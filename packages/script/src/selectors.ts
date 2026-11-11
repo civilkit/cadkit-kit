@@ -44,6 +44,10 @@ export interface FaceRule {
   union?: Array<FaceSel | FacesSel>; intersect?: Array<FaceSel | FacesSel>;
   /** first minus all the others */
   difference?: Array<FaceSel | FacesSel>;
+  /** order the matches by their centroid along a direction (see PosKey); .nth / .first / .last then count in that order */
+  sortBy?: PosKey;
+  /** keep one group of faces at the same position (see GroupSpec) */
+  group?: GroupSpec;
 }
 export type FacePick = 'largest' | 'smallest' | 'first' | 'last' | { nth: number } | { near: Vec };
 /** One face: a direction ('>Z'), a persistent name ('F3.C1') or a FaceRule; `of` restricts to the faces of one feature; `pick` chooses among several matches. */
@@ -52,7 +56,28 @@ export type FaceSel = { kind: 'face'; sel: string | FaceRule; line: number; of?:
 export interface FacesSel {
   kind: 'faces'; sel: string | FaceRule; line: number; of?: FeatureRefLike;
   nth(i: number): FaceSel; largest(): FaceSel; smallest(): FaceSel; first(): FaceSel; last(): FaceSel; near(p: Vec): FaceSel;
+  /** the same faces ordered by their centroid along key (see PosKey); .nth / .first / .last then count in that order */
+  sortBy(key: PosKey): FacesSel;
+  /** the faces at the same position along key, in the order of the key: choose a group with .nth(i) / .first() / .last() / .at(position) */
+  groupBy(key: PosKey, o?: { tol?: number }): FaceGroups;
 }
+/** The groups of faces at the same position; each choice is a faces() of that group. */
+export interface FaceGroups { nth(i: number): FacesSel; first(): FacesSel; last(): FacesSel; at(position: number): FacesSel }
+/** The result of edges(): an EdgeSel with chained choices by position. */
+export interface EdgesSel extends EdgeSel {
+  /** the same edges ordered by their midpoint along key (see PosKey) */
+  sortBy(key: PosKey): EdgesSel;
+  /** the edges at the same position along key, in the order of the key: choose a group with .nth(i) / .first() / .last() / .at(position) */
+  groupBy(key: PosKey, o?: { tol?: number }): EdgeGroups;
+  /** the i-th edge of the order (0 is the first, -1 the last); needs sortBy or groupBy before it */
+  nth(i: number): EdgesSel;
+  /** the first n edges of the order (default 1) */
+  first(n?: number): EdgesSel;
+  /** the last n edges of the order (default 1) */
+  last(n?: number): EdgesSel;
+}
+/** The groups of edges at the same position; each choice is an edges() of that group. */
+export interface EdgeGroups { nth(i: number): EdgesSel; first(): EdgesSel; last(): EdgesSel; at(position: number): EdgesSel }
 /** A rule over the live edges: keys AND together. */
 export interface EdgeRule {
   parallel?: 'X' | 'Y' | 'Z';
@@ -67,8 +92,19 @@ export interface EdgeRule {
   union?: EdgeSel[]; intersect?: EdgeSel[];
   /** first minus all the others */
   difference?: EdgeSel[];
+  /** order the matches by their midpoint along a direction (see PosKey); `pick` then counts in that order */
+  sortBy?: PosKey;
+  /** keep one group of edges at the same position (see GroupSpec) */
+  group?: GroupSpec;
+  /** keep the n-th edge ({nth: i}, negative counts from the end), the first n ({first: n}) or the last n ({last: n}) of the order (needs sortBy or group) */
+  pick?: EdgePick;
 }
 export type EdgeSel = { kind: 'edges'; sel: string | EdgeRule; line: number };
+/** What an order or a group is measured along: '>Z' (highest first), '<Z' or 'Z' (lowest first), likewise X and Y; a direction [x, y, z] (smallest first); or { along: edges(...) } (the distance along a rail edge from its start; the selection must be one edge). */
+export type PosKey = string | Vec | { along: EdgeSel };
+/** Items at the same position along a key (within tol mm, default 0.001), in the order of the key. Choose one group by index (nth, negative counts from the end) or by its position (at: the coordinate along the key, in mm, e.g. the height). */
+export interface GroupSpec { by: PosKey; tol?: number; nth?: number; at?: number }
+export type EdgePick = { nth: number } | { first: number } | { last: number };
 
 const AXES: Record<string, Vec> = { X: [1, 0, 0], Y: [0, 1, 0], Z: [0, 0, 1] };
 const TOL = 1e-3;
@@ -253,6 +289,7 @@ export function matchFaces(sel: string | FaceRule, of: FeatureRefLike | undefine
   if (r.intersect) for (const x of sub(r.intersect)) out = out.filter((f) => x.has(f.id));
   if (r.difference?.length) { const [a, ...rest] = sub(r.difference); const ex = new Set(rest.flatMap((x) => [...x])); out = out.filter((f) => a.has(f.id) && !ex.has(f.id)); }
   if (r.dir) out = extremeFaces(out, r.dir);
+  if (r.sortBy !== undefined || r.group) out = orderByPosition(out, (f) => f.centroid, r, geo, line, warn, 'faces(...)');
   return out;
 }
 
@@ -329,6 +366,75 @@ const straightAlong = (e: EdgeInfo, axis: Vec): boolean => {
 const edgeLength = (e: EdgeInfo): number => { const p = e.pts ?? []; let s = 0; for (let i = 0; i + 1 < p.length; i++) s += Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1], p[i + 1][2] - p[i][2]); return s; };
 const inBox = (p: ArrayLike<number>, b: [Vec, Vec]) => [0, 1, 2].every((k) => p[k] >= Math.min(b[0][k], b[1][k]) - 1e-6 && p[k] <= Math.max(b[0][k], b[1][k]) + 1e-6);
 
+
+// ---- order and group by position -------------------------------------------------------------------------------------------------------------
+interface Measure { raw: (p: ArrayLike<number>) => number; sign: 1 | -1; label: string }
+const fmt = (v: number): string => String(+v.toFixed(3));
+function measureOf(key: PosKey, geo: Geometry, line: number, warn: WarnFn | undefined, what: string): Measure {
+  if (typeof key === 'string') {
+    const m = /^([<>]?)([XYZxyz])$/.exec(key.trim());
+    if (!m) throw new SelectorError(`${what}: '${key}' is not a position key (use '>Z' highest first, '<Z' or 'Z' lowest first, likewise X and Y, a direction [x, y, z], or { along: edges(...) })`, line);
+    const ax = AXES[m[2].toUpperCase()];
+    return { raw: (p) => dot(p, ax), sign: m[1] === '>' ? -1 : 1, label: `${m[1] === '>' ? 'descending ' : ''}${m[2].toUpperCase()}` };
+  }
+  if (Array.isArray(key)) {
+    const l = Math.hypot(key[0], key[1], key[2]);
+    if (!(l > 1e-12)) throw new SelectorError(`${what}: a zero vector is not a direction`, line);
+    const d: Vec = [key[0] / l, key[1] / l, key[2] / l];
+    return { raw: (p) => dot(p, d), sign: 1, label: `along [${key.map(fmt).join(', ')}]` };
+  }
+  const rail = resolveEdgeInfos(key.along.sel, geo, key.along.line || line, warn);
+  if (rail.length !== 1) throw new SelectorError(`${what}: { along } needs one edge, the selection matches ${rail.length} (narrow it, e.g. with a rule or .nth(i) after .sortBy(...))`, line);
+  const pts = rail[0].pts ?? [];
+  if (pts.length < 2) throw new SelectorError(`${what}: the edge to measure along has no points`, line);
+  const a = pts[0], b = pts[pts.length - 1], l = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  if (l < 1e-9) throw new SelectorError(`${what}: the edge to measure along is closed (its ends meet); use a straight rail`, line);
+  const d: Vec = [(b[0] - a[0]) / l, (b[1] - a[1]) / l, (b[2] - a[2]) / l];
+  return { raw: (p) => dot(sub3(p, a), d), sign: 1, label: 'along the rail edge' };
+}
+
+/** Order, group and pick items by position. Ties are broken by x, y, z of the position, so the order does not depend on the order the kernel lists edges or faces in (it changes when the model is rebuilt). */
+function orderByPosition<T>(items: T[], pos: (t: T) => ArrayLike<number>, spec: { sortBy?: PosKey; group?: GroupSpec; pick?: EdgePick }, geo: Geometry, line: number, warn: WarnFn | undefined, what: string): T[] {
+  let out = items;
+  const rank = (m: Measure, list: T[]) => list.map((t) => ({ t, v: m.raw(pos(t)) * m.sign, p: pos(t) }))
+    .sort((a, b) => (Math.abs(a.v - b.v) > 1e-6 ? a.v - b.v : Math.abs(a.p[0] - b.p[0]) > 1e-6 ? a.p[0] - b.p[0] : Math.abs(a.p[1] - b.p[1]) > 1e-6 ? a.p[1] - b.p[1] : a.p[2] - b.p[2]));
+  if (spec.sortBy !== undefined) out = rank(measureOf(spec.sortBy, geo, line, warn, `${what}.sortBy`), out).map((r) => r.t);
+  const g = spec.group;
+  if (g) {
+    const m = measureOf(g.by, geo, line, warn, `${what}.groupBy`);
+    const tol = g.tol ?? 1e-3;
+    const groups: Array<{ at: number; items: T[] }> = [];
+    let first = NaN;
+    for (const r of rank(m, out)) {
+      const raw = r.v * m.sign;
+      if (groups.length && Math.abs(r.v - first) <= tol) groups[groups.length - 1].items.push(r.t);
+      else { groups.push({ at: raw, items: [r.t] }); first = r.v; }
+    }
+    const where = `${groups.length} group(s) at ${m.label} = ${groups.map((x) => fmt(x.at)).join(', ')}`;
+    let hit: typeof groups[number] | undefined;
+    if (g.at !== undefined) {
+      hit = groups.find((x) => Math.abs(x.at - g.at!) <= Math.max(tol, 1e-3));
+      if (!hit) throw new SelectorError(`${what}.groupBy(...).at(${fmt(g.at)}): no group there; ${where}`, line);
+    } else if (g.nth !== undefined) {
+      const i = g.nth < 0 ? groups.length + g.nth : g.nth;
+      if (!Number.isInteger(i) || i < 0 || i >= groups.length) throw new SelectorError(`${what}.groupBy(...).nth(${g.nth}): only ${where}`, line);
+      hit = groups[i];
+    } else throw new SelectorError(`${what}.groupBy(...): say which group (.nth(i), .first(), .last() or .at(position)); ${where}`, line);
+    out = hit.items;
+  }
+  const pk = spec.pick;
+  if (pk) {
+    if (spec.sortBy === undefined && !g) throw new SelectorError(`${what}: picking by position needs .sortBy(...) first (the kernel's own order changes when the model is rebuilt)`, line);
+    if ('nth' in pk) {
+      const i = pk.nth < 0 ? out.length + pk.nth : pk.nth;
+      if (!Number.isInteger(i) || i < 0 || i >= out.length) throw new SelectorError(`${what}.nth(${pk.nth}): only ${out.length} match(es)`, line);
+      out = [out[i]];
+    } else if ('first' in pk) out = out.slice(0, Math.max(0, pk.first));
+    else out = out.slice(Math.max(0, out.length - Math.max(0, pk.last)));
+  }
+  return out;
+}
+
 /** The usable edges (two faces, a midpoint) that a selector or rule matches; may be empty. */
 function matchEdges(sel: string | EdgeRule, geo: Geometry, usable: EdgeInfo[], line: number, warn?: WarnFn): EdgeInfo[] {
   if (typeof sel !== 'string') {
@@ -349,6 +455,7 @@ function matchEdges(sel: string | EdgeRule, geo: Geometry, usable: EdgeInfo[], l
     if (sel.union) { const u = new Set(sel.union.flatMap(sub)); out = out.filter((e) => u.has(e)); }
     if (sel.intersect) for (const s of sel.intersect) { const u = new Set(sub(s)); out = out.filter((e) => u.has(e)); }
     if (sel.difference?.length) { const [a, ...rest] = sel.difference; const base = new Set(sub(a)); const ex = new Set(rest.flatMap(sub)); out = out.filter((e) => base.has(e) && !ex.has(e)); }
+    if (sel.sortBy !== undefined || sel.group || sel.pick) out = orderByPosition(out, (e) => e.mid!, sel, geo, line, warn, 'edges(...)');
     return out;
   }
   if (sel.trim().toLowerCase() === 'all') return usable;

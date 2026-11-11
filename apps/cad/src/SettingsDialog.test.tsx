@@ -242,3 +242,34 @@ describe('SettingsDialog, icon set', () => {
     expect(onIconSet).toHaveBeenCalledWith('solidcraft');
   });
 });
+
+describe('SettingsDialog, online libraries', () => {
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  it('has the setting off as given, reports a change, and clears the downloads only when there are some', () => {
+    localStorage.setItem('cad.settingsTab', 'general');
+    const onEnabled = vi.fn(), onClear = vi.fn();
+    const { rerender } = render(<SettingsDialog {...base} online={{ enabled: false, cacheBytes: 0, onEnabled, onClear }} />);
+    const box = screen.getByLabelText('Use online libraries') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    fireEvent.click(box);
+    expect(onEnabled).toHaveBeenCalledWith(true);
+    expect((screen.getByTestId('online-clear') as HTMLButtonElement).disabled).toBe(true);
+    rerender(<SettingsDialog {...base} online={{ enabled: true, cacheBytes: 2.5 * 1048576, onEnabled, onClear }} />);
+    expect(screen.getByText('Downloaded: 2.5 MB')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('online-clear'));
+    expect(onClear).toHaveBeenCalled();
+  });
+});
+
+describe('SettingsDialog, mass display', () => {
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  it('offers the unit and the digits and reports a change', () => {
+    localStorage.setItem('cad.settingsTab', 'general');
+    const onMassPrefs = vi.fn();
+    render(<SettingsDialog {...base} massPrefs={{ unit: 'auto', digits: 5 }} onMassPrefs={onMassPrefs} />);
+    fireEvent.change(screen.getByLabelText('Mass unit'), { target: { value: 'lb' } });
+    expect(onMassPrefs).toHaveBeenCalledWith({ unit: 'lb' });
+    fireEvent.change(screen.getByLabelText('Significant digits'), { target: { value: '3' } });
+    expect(onMassPrefs).toHaveBeenLastCalledWith({ digits: 3 });
+  });
+});

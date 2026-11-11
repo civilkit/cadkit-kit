@@ -26,6 +26,7 @@ import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, edgePixels, HIDDEN_EDGE_OPACITY, effectiveLight, backgroundColors, materialParams, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode, type EdgeWidth, type Appearance } from './styles';
 import { installLook, type LookUniforms } from './lookshader';
+import { onTexturesChanged } from './textures';
 import { buildStudioEnv } from './studioEnv';
 const TECHNICAL_FACE = '#f2f4f7';
 import { makeHullMaterial } from './hull';
@@ -239,6 +240,7 @@ export class Viewport {
 
   private mode: PickMode = 'face';
   private dirty = true;
+  private offTextures: (() => void) | null = null;
   private raf = 0;
   private disposed = false;
   private down: { x: number; y: number } | null = null;
@@ -312,6 +314,7 @@ export class Viewport {
       selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
     });
     this.controls.addEventListener('start', () => { this.anim = null; });   // a drag or a wheel turn takes the camera over from a running view animation
+    this.offTextures = onTexturesChanged(() => { this.applyMeshLook(); this.dirty = true; });   // an image texture finished loading
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); this.reportSketchZoom(); });
 
     this.scene.add(this.hemi);
@@ -2344,6 +2347,7 @@ export class Viewport {
   }
 
   dispose(): void {
+    this.offTextures?.(); this.offTextures = null;
     this.disposed = true;
     this.refMeshes.dispose();
     cancelAnimationFrame(this.raf);

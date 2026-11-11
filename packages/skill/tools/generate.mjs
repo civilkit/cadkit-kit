@@ -55,6 +55,10 @@ export function generate() {
   types.FaceSel = 'the result of face(sel)';
   types.FacesSel = 'the result of faces(sel)';
   types.EdgeSel = 'the result of edges(sel)';
+  types.EdgesSel = 'the result of edges(sel): an EdgeSel with .sortBy(key) .groupBy(key, { tol }) .nth(i) .first(n) .last(n)';
+  types.PosKey = "'>Z' (highest first) | '<Z' or 'Z' (lowest first) | likewise X, Y | [x, y, z] direction | { along: edges(...) } (distance along a rail edge)";
+  types.GroupSpec = '{ by: PosKey; tol?: number (mm, default 0.001); nth?: number; at?: number (position along the key) }';
+  types.EdgePick = '{ nth: number } | { first: number } | { last: number }';
 
   const methods = [];
   const members = (typeNode, aliases) => {

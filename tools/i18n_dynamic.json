@@ -418,6 +418,13 @@
   "settings.iconSet.default",
   "settings.iconSet.solidcraft"
  ],
+ "settings.mass.unit.+": [
+  "settings.mass.unit.auto",
+  "settings.mass.unit.g",
+  "settings.mass.unit.kg",
+  "settings.mass.unit.lb",
+  "settings.mass.unit.oz"
+ ],
  "settings.theme.+": [
   "settings.theme.auto",
   "settings.theme.dark",

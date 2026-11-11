@@ -2,6 +2,7 @@
 // need WebGL (materials, colours). The Viewport applies them; the app stores them (see apps/cad/src/look.ts).
 import * as THREE from 'three';
 import { makeLookUniforms, type LookUniforms } from './lookshader';
+import { textureFor } from './textures';
 
 export type DisplayStyle = 'shaded' | 'shadedEdges' | 'wireframe' | 'hiddenLines' | 'ghost';
 export const DISPLAY_STYLES: readonly DisplayStyle[] = ['shaded', 'shadedEdges', 'wireframe', 'hiddenLines', 'ghost'];
@@ -45,8 +46,11 @@ export interface PbrParams { roughness?: number; metalness?: number; opacity?: n
 export const PBR_KEYS: readonly (keyof PbrParams)[] = ['roughness', 'metalness', 'opacity', 'clearcoat', 'clearcoatRoughness'];
 /** A procedural look drawn over the colour: wood grain. `scale` is the spacing of the growth rings in mm, `contrast` 0..1, `tone` the colour of the dark rings,
  *  `axis` the grain direction in the part's own coordinates (default: the longest side of the body). */
-export interface ProceduralLook { kind: 'wood'; scale?: number; contrast?: number; tone?: string; axis?: 'x' | 'y' | 'z' }
-export interface Appearance { color: string; material: MaterialPreset; pbr?: PbrParams; look?: ProceduralLook }
+export interface ProceduralLook { kind: 'wood'; scale?: number; contrast?: number; tone?: string; axis?: 'x' | 'y' | 'z'; /** the user turned the grain off (a wood material would otherwise bring its own) */ off?: boolean }
+/** An image texture from an online library, drawn triplanar over the colour. `id` is the library's asset id, `scale` the size of one tile in mm
+ *  (the asset's real-world size when the picker applied it), `name` and `author` the credit shown next to it. */
+export interface SurfaceTexture { source: 'polyhaven'; id: string; scale?: number; name?: string; author?: string }
+export interface Appearance { color: string; material: MaterialPreset; pbr?: PbrParams; look?: ProceduralLook; texture?: SurfaceTexture }
 export const DEFAULT_APPEARANCE: Appearance = { color: '#c3ccd8', material: 'default' };
 /** The palette offered in the popover (hex). The first is the default body colour. */
 export const PALETTE: readonly string[] = ['#c3ccd8', '#d9dde3', '#5b6573', '#e8730c', '#d0463b', '#3f8f5f', '#2f6fd0', '#e0b030'];
@@ -80,16 +84,25 @@ export function sanitizeProceduralLook(raw: unknown): ProceduralLook | undefined
   if (r.kind !== 'wood') return undefined;
   const num = (v: unknown, lo: number, hi: number): number | undefined => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
   const scale = num(r.scale, 0.5, 50), contrast = num(r.contrast, 0, 1);
-  return { kind: 'wood', ...(scale !== undefined ? { scale } : {}), ...(contrast !== undefined ? { contrast } : {}), ...(isHex(r.tone) ? { tone: r.tone.toLowerCase() } : {}), ...(r.axis === 'x' || r.axis === 'y' || r.axis === 'z' ? { axis: r.axis } : {}) };
+  return { kind: 'wood', ...(scale !== undefined ? { scale } : {}), ...(contrast !== undefined ? { contrast } : {}), ...(isHex(r.tone) ? { tone: r.tone.toLowerCase() } : {}), ...(r.axis === 'x' || r.axis === 'y' || r.axis === 'z' ? { axis: r.axis } : {}), ...(r.off === true ? { off: true } : {}) };
+}
+export function sanitizeTexture(raw: unknown): SurfaceTexture | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.source !== 'polyhaven' || typeof r.id !== 'string' || !/^[a-z0-9_]{1,80}$/.test(r.id)) return undefined;
+  const txt = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined);
+  const scale = typeof r.scale === 'number' && isFinite(r.scale) ? Math.min(5000, Math.max(10, r.scale)) : undefined;
+  return { source: 'polyhaven', id: r.id, ...(scale !== undefined ? { scale } : {}), ...(txt(r.name) ? { name: txt(r.name)! } : {}), ...(txt(r.author) ? { author: txt(r.author)! } : {}) };
 }
 export function sanitizeAppearance(raw: unknown): Appearance {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const pbr = sanitizePbr(r.pbr), look = sanitizeProceduralLook(r.look);
+  const pbr = sanitizePbr(r.pbr), look = sanitizeProceduralLook(r.look), texture = sanitizeTexture(r.texture);
   return {
     color: isHex(r.color) ? r.color.toLowerCase() : DEFAULT_APPEARANCE.color,
     material: (MATERIAL_PRESETS as readonly unknown[]).includes(r.material) ? (r.material as MaterialPreset) : 'default',
     ...(pbr ? { pbr } : {}),
     ...(look ? { look } : {}),
+    ...(texture ? { texture } : {}),
   };
 }
 
@@ -106,6 +119,7 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
   mat.color.set(look.appearance.color);
   mat.roughness = p.roughness; mat.metalness = p.metalness * (look.metalScale ?? 1);
   setLook(mat, spec.faces === 'white' ? undefined : look.appearance.look);
+  setTexture(mat, spec.faces === 'white' ? undefined : look.appearance.texture);
   if (mat instanceof THREE.MeshPhysicalMaterial) { mat.clearcoat = spec.faces === 'white' ? 0 : o.clearcoat ?? 0; mat.clearcoatRoughness = o.clearcoatRoughness ?? 0.1; }
   mat.emissive.set(0x000000); mat.emissiveIntensity = 1;
   mat.colorWrite = true; mat.depthWrite = true;
@@ -129,13 +143,26 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
 function setLook(mat: THREE.MeshStandardMaterial, l: ProceduralLook | undefined): void {
   const u = mat.userData.lookU as LookUniforms | undefined;
   if (!u) return;
-  u.uLookKind.value = l ? 1 : 0;
-  if (!l) return;
+  u.uLookKind.value = l && !l.off ? 1 : 0;
+  if (!l || l.off) return;
   u.uLookScale.value = l.scale ?? 4;
   u.uLookContrast.value = l.contrast ?? 0.5;
   u.uLookTone.value.set(l.tone ?? '#3a2616');
   const ax = l.axis ?? (mat.userData.longAxis as 'x' | 'y' | 'z' | undefined) ?? 'x';
   u.uLookAxis.value.set(ax === 'x' ? 1 : 0, ax === 'y' ? 1 : 0, ax === 'z' ? 1 : 0);
+}
+
+/** Show an image texture when its images are loaded (the load starts here and the viewport redraws when it is done); otherwise the plain colour. */
+function setTexture(mat: THREE.MeshStandardMaterial, tx: SurfaceTexture | undefined): void {
+  const u = mat.userData.lookU as LookUniforms | undefined;
+  if (!u) return;
+  const ready = tx ? textureFor(tx.id) : null;
+  u.uTexOn.value = ready ? 1 : 0;
+  if (!tx || !ready) return;
+  u.uTexScale.value = tx.scale ?? 400;
+  u.uTexMap.value = ready.map;
+  u.uTexRough.value = ready.rough;
+  u.uTexRoughOn.value = ready.rough ? 1 : 0;
 }
 
 export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THREE.MeshPhysicalMaterial {

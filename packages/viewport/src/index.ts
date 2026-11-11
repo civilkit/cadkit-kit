@@ -34,3 +34,4 @@ export type { GridSpec } from './gridSpacing';
 export * from './bodyview';
 export { packKnurls, grooveField, KNURL_MAX, type KnurlView } from './knurlview';
 export { MeshLayer, type MeshView } from './meshlayer';
+export * from './textures';

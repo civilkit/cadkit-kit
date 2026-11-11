@@ -175,8 +175,8 @@ describe('steel grades from the standards', () => {
 
 describe('wood and panel materials', () => {
   const SOLID = ['Birch', 'Cedar', 'Cherry', 'Douglas fir', 'Eucalyptus', 'Maple', 'Oak', 'Pine', 'Teak', 'Walnut'];
-  const PANELS = ['Chipboard P5', 'MDF', 'OSB/3', 'Plywood - birch'];
-  it('has ten solid woods and four panels in the Wood category, each with density and stiffness', () => {
+  const PANELS = ['Chipboard P5', 'MDF', 'OSB/3', 'Plywood - birch', 'Plywood - eucalyptus'];
+  it('has ten solid woods and five panels in the Wood category, each with density and stiffness', () => {
     for (const n of [...SOLID, ...PANELS]) {
       const d = findMaterial(n);
       expect(d, n).toBeTruthy();

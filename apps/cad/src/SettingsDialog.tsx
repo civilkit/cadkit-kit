@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { MASS_DIGITS, MASS_UNITS, type MassPrefs } from './massPrefs';
 import { statusText, failText, type KernelPrefs, type KernelStatus, type TestOutcome } from './kernelService';
 import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
@@ -34,16 +35,20 @@ export function SettingsDialog(p: {
   iconSet?: IconSet; onIconSet?(set: IconSet): void;
   sketchPrefs?: SketchPrefs; onSketchPrefs?(patch: Partial<SketchPrefs>): void;
   navPrefs?: NavPrefs; onNavPrefs?(patch: Partial<NavPrefs>): void;
+  /** how a mass is shown (unit and digits) */
+  massPrefs?: MassPrefs; onMassPrefs?(patch: Partial<MassPrefs>): void;
   exportPrefs?: ExportPrefs; onExportPrefs?(patch: Partial<ExportPrefs>): void;
   triPrefs?: TriPrefs; onTriPrefs?(patch: Partial<TriPrefs>): void;
   /** The agent link: let a local MCP agent see (and, if allowed, change) the open document. */
   agent?: AgentLinkProps;
+  /** The online libraries (textures): off by default; what is downloaded is kept in the browser. */
+  online?: { enabled: boolean; cacheBytes: number; onEnabled(v: boolean): void; onClear(): void };
   kernel?: { prefs: KernelPrefs; status: KernelStatus; onChange(patch: Partial<KernelPrefs>): void; onTest(v: { url: string; token: string }): Promise<TestOutcome>; onRetry(): void };
 }) {
   const w = p.workspace;
   // a tab appears only when it has something to show; the last one used is remembered
   const tabs: Tab[] = [
-    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme || p.onIconSet || (p.exportPrefs && p.onExportPrefs) ? (['general'] as Tab[]) : []),
+    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme || p.onIconSet || (p.exportPrefs && p.onExportPrefs) || p.online || (p.massPrefs && p.onMassPrefs) ? (['general'] as Tab[]) : []),
     'layout',
     ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
     ...(p.navPrefs && p.onNavPrefs ? (['navigation'] as Tab[]) : []),
@@ -126,6 +131,16 @@ export function SettingsDialog(p: {
             <input type="range" min="0" max="30" value={w.blur} aria-label={t('settings.blur')} onInput={(e) => p.onChange({ blur: Number((e.currentTarget as HTMLInputElement).value) })} /></label>
           </>) : null}
           {tab === 'general' ? (<>
+          {p.online ? (
+            <div class="set-section" role="group" aria-label={t('settings.online.title')} data-testid="online-section">
+              <b class="set-head">{t('settings.online.title')}</b>
+              <label class="set-row"><span>{t('settings.online.use')}</span>
+                <input type="checkbox" checked={p.online.enabled} aria-label={t('settings.online.use')} onChange={(e) => p.online!.onEnabled((e.currentTarget as HTMLInputElement).checked)} /></label>
+              <div class="tb-note">{t('settings.online.note')}</div>
+              <div class="set-row"><span>{t('settings.online.cache', { size: p.online.cacheBytes < 1048576 ? `${Math.round(p.online.cacheBytes / 1024)} KB` : `${(p.online.cacheBytes / 1048576).toFixed(1)} MB` })}</span>
+                <button class="rb-btn" data-testid="online-clear" disabled={p.online.cacheBytes === 0} onClick={p.online.onClear}>{t('settings.online.clear')}</button></div>
+            </div>
+          ) : null}
           {p.locales && p.locales.length > 1 && p.onLocale ? (
             <label class="set-row"><span>{t('settings.language')}</span>
               <select aria-label={t('settings.language')} value={p.locale} onChange={(e) => p.onLocale!((e.currentTarget as HTMLSelectElement).value)}>
@@ -146,6 +161,22 @@ export function SettingsDialog(p: {
                 {ICON_SETS.map((v) => <option key={v} value={v}>{t('settings.iconSet.' + v)}</option>)}
               </select>
             </label>
+          ) : null}
+          {p.massPrefs && p.onMassPrefs ? (
+          <div class="set-section" role="group" aria-label={t('settings.mass.title')} data-testid="mass-section">
+            <b class="set-head">{t('settings.mass.title')}</b>
+            <label class="set-row"><span>{t('settings.mass.unit')}</span>
+              <select aria-label={t('settings.mass.unit')} value={p.massPrefs.unit} onChange={(e) => p.onMassPrefs!({ unit: (e.currentTarget as HTMLSelectElement).value as MassPrefs['unit'] })}>
+                {MASS_UNITS.map((v) => <option key={v} value={v}>{t('settings.mass.unit.' + v)}</option>)}
+              </select>
+            </label>
+            <label class="set-row"><span>{t('settings.mass.digits')}</span>
+              <select aria-label={t('settings.mass.digits')} value={String(p.massPrefs.digits)} onChange={(e) => p.onMassPrefs!({ digits: Number((e.currentTarget as HTMLSelectElement).value) })}>
+                {MASS_DIGITS.map((v) => <option key={v} value={String(v)}>{String(v)}</option>)}
+              </select>
+            </label>
+            <div class="tb-note">{t('settings.mass.note')}</div>
+          </div>
           ) : null}
           {p.exportPrefs && p.onExportPrefs ? (
           <div class="set-section" role="group" aria-label={t('settings.export.title')}>

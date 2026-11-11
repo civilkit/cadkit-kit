@@ -1670,3 +1670,11 @@ html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce whil
 .size-picker-row:hover { background: var(--accent-soft); }
 .size-picker-row.on { background: var(--accent); color: #fff; }
 .size-picker-empty { color: var(--text-2); font-size: 12px; padding: 8px; }
+
+/* the texture picker in the Display menu (Surface group) */
+.surface-controls .tex-pop { margin-top: 6px; }
+.surface-controls .tex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 220px; overflow: auto; margin: 6px 0; }
+.surface-controls .tex-item { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--line, #3a4252); border-radius: 6px; background: transparent; color: inherit; font-size: 11px; cursor: pointer; }
+.surface-controls .tex-item img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 4px; background: #0003; }
+.surface-controls .tex-item.on, .surface-controls .tex-item:focus-visible { outline: 2px solid var(--accent, #5aa9ff); outline-offset: 1px; }
+.surface-controls .tex-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

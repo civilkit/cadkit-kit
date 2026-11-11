@@ -4,6 +4,16 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.6.1 - 2026-11-11
+
+- **Mirroring a sheet metal part keeps it a sheet.** With `replace` the mirror image takes the part's place and unfolds the same, about any plane including a flat face; without it the image joins the sheet along a bend-free end of the base plate and the result unfolds as one sheet. Other planes are refused with the reason.
+- **Scripts can pick edges and faces by position.** `edges(...)` and `faces(...)` gain `.sortBy`, `.groupBy`, `.nth`, `.first` and `.last`, so a script can ask for "the two highest edges", "every edge at height 12" or "the third rung along the rail" and does not depend on generated names.
+- **Choose the mass unit and digits.** **Settings > General > Mass display** shows masses in automatic (g or kg), grams, kilograms, pounds or ounces, with 3 to 6 significant digits, in the Inspect panel, the material editor, the bill of materials and drawing tables. The values themselves do not change.
+- **Eucalyptus plywood in the Material list.** **Plywood - eucalyptus** (EN 636 structural, 18 mm: 650 kg/m3, stiffness class E70/60) joins the wood panels, marked unverified until checked against a product standard. Pine and spruce plywood are still missing: no declared figures were found yet.
+- **Textures from the Poly Haven library.** In the Display menu's Surface group, **Choose a texture...** lists the library's wood textures with thumbnails and a search; picking one draws it on the part (colour and roughness, mapped from all three sides, so any shape works), with a size slider and the author's credit. The textures are public domain (CC0).
+- **An "Online libraries" setting, off by default.** **Settings > General > Use online libraries** lets the app download textures from Poly Haven; nothing is contacted until you turn it on (or press **Allow online libraries** in the texture list), only the names of the textures you look at are sent, and the files are kept in this browser so they work offline. **Clear downloaded textures** empties the cache (at most 120 MB is kept).
+- **Surface controls for roughness, metalness, clear coat and the wood grain.** The Display menu's appearance section gains **Roughness**, **Metalness** and **Clear coat** sliders and, for woods (or when you tick **Wood grain**), the ring spacing, contrast, colour and direction of the grain, with **Reset surface** to go back to what the material gives. They are kept on this device with the rest of the part's look.
+
 ## 0.6.0 - 2026-11-11
 
 - **The Washer wizard can put a washer on a hole.** Click "Washer on a hole", then a hole's wall or circular edge: the wizard picks the standard size whose ISO 273 clearance hole fits, and seats the washer coaxial on the face the hole opens on (the counterbore floor for a counterbored hole). Countersunk holes are refused with a message.

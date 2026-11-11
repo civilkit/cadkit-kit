@@ -204,6 +204,8 @@ import { insertPart, openText, downloadName } from './library/actions';
 import { catalogActive, catalogPlane, setShapeSelector } from './catalog/state';
 import { useTriBall } from './triball/useTriBall';
 import { docUpAxis, loadNavPrefs, saveNavPrefs, type NavPrefs } from './navPrefs';
+import { loadMassPrefs, saveMassPrefs, setMassPrefs, type MassPrefs } from './massPrefs';
+import { cacheSize, clearOnlineCache, library as onlineLibrary, online, setOnlineEnabled, startOnlineTextures } from './onlineRuntime';
 import { loadTriPrefs, saveTriPrefs, type TriPrefs } from './triball/triballPrefs';
 import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assembly/AssemblyPanel';
 import { createAssemblyState } from './assembly/state';
@@ -483,6 +485,7 @@ tabSet.add(newTabRec());
 /** The Text panel's font picker; `apply` goes to the text edit of the current render. */
 const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {} };
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
+startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
 const agentLink = createAgentLink({ controller, store: store as never });
 const fontsApi = makeFontsApi({ controller, source: fontSource, apply: (p) => textEditRef.current(p) });
 if (import.meta.env.DEV) {
@@ -636,6 +639,8 @@ function App() {
   const [sketchPrefs, setSketchPrefs] = useState<SketchPrefs>(loadSketchPrefs);
   const [triPrefs, setTriPrefs] = useState<TriPrefs>(loadTriPrefs);
   const [navPrefs, setNavPrefs] = useState<NavPrefs>(loadNavPrefs);
+  const [massPrefs, setMassPrefsState] = useState<MassPrefs>(() => { const v = loadMassPrefs(); setMassPrefs(v); return v; });
+  const changeMass = (patch: Partial<MassPrefs>) => { const next = { ...massPrefs, ...patch }; setMassPrefs(next); setMassPrefsState(next); saveMassPrefs(next); };
   const [exportPrefs, setExportPrefs] = useState<ExportPrefs>(loadExportPrefs);
   const changeExport = (patch: Partial<ExportPrefs>) => { const next = { ...exportPrefs, ...patch }; setExportPrefs(next); saveExportPrefs(next); };
   const [knurlAsk, setKnurlAsk] = useState<{ count: number; resolve(c: 'include' | 'plain' | 'cancel'): void } | null>(null);
@@ -4293,6 +4298,7 @@ function App() {
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} {...(sketching ? { sketch: { show: sketchPrefs.show, onToggle: (k, on) => updatePrefs({ show: { ...sketchPrefs.show, [k]: on } }), dimDisplay: sketchPrefs.dimDisplay, onDimDisplay: (v) => updatePrefs({ dimDisplay: v }), typedAngleDims: sketchPrefs.typedAngleDims, rightAngleSquare: sketchPrefs.rightAngleSquare, onFlag: (k, on) => updatePrefs({ [k]: on }) } } : {})} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
           onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
+          library: { enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood') },
           componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
@@ -4439,6 +4445,8 @@ function App() {
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         navPrefs={navPrefs} onNavPrefs={changeNav}
+        massPrefs={massPrefs} onMassPrefs={changeMass}
+        online={{ enabled: online.value.enabled, cacheBytes: cacheSize.value, onEnabled: setOnlineEnabled, onClear: () => { void clearOnlineCache(); } }}
         exportPrefs={exportPrefs} onExportPrefs={changeExport}
         agent={{ state: agentLink.state.value, allowEdit: agentLink.allowEdit.value, onConnect: agentLink.connect, onDisconnect: agentLink.disconnect, onAllowEdit: agentLink.setAllowEdit }}
         kernel={{ prefs: kernelRouter.prefs.value, status: kernelRouter.status.value, onChange: (patch) => kernelRouter.setPrefs(patch), onTest: (v) => kernelRouter.test(v), onRetry: () => kernelRouter.retry() }}

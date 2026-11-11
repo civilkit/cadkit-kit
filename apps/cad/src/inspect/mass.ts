@@ -1,6 +1,7 @@
 // Mass properties: what the kernel returns (volume, area, centre and principal moments for unit density) turned into
 // the numbers an engineer reads. Lengths are millimetres, density is g/cm3, mass is grams.
 import { densityGcm3 } from '../materials';
+import { getMassPrefs, GRAMS_PER, type MassPrefs } from '../massPrefs';
 
 export interface MassRaw {
   volume?: number; area?: number; com?: number[];
@@ -59,9 +60,10 @@ export function massView(raw: MassRaw, density: number): MassView {
   };
 }
 
-/** "12.5 g", "1.25 kg": grams below 1000. */
-export function massText(g: number): string {
-  const f = (x: number) => String(+x.toPrecision(5));
+/** "12.5 g", "1.25 kg": grams below 1000 when the unit is automatic; otherwise the unit and the digits of the display setting (massPrefs.ts). */
+export function massText(g: number, prefs: MassPrefs = getMassPrefs()): string {
+  const f = (x: number) => String(+x.toPrecision(prefs.digits));
+  if (prefs.unit !== 'auto') return `${f(g / GRAMS_PER[prefs.unit])} ${prefs.unit}`;
   return Math.abs(g) >= 1000 ? `${f(g / 1000)} kg` : `${f(g)} g`;
 }
 
