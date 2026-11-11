@@ -6,7 +6,7 @@ A part is saved as a `.ckpart` file. It is plain text (JSON) that holds the reci
 
 ## The file controls
 
-New, Open, Save, Export and Samples are buttons at the left of the top bar. The rest of the file actions are in the **More file actions** menu next to Export.
+New, Open, Save, Export and Library are buttons at the left of the top bar. The rest of the file actions are in the **More file actions** menu next to Export.
 
 | Action | Where | Shortcut |
 |---|---|---|
@@ -18,7 +18,7 @@ New, Open, Save, Export and Samples are buttons at the left of the top bar. The 
 | Recover earlier versions... | More file actions | |
 | Import STEP / SolidWorks / SketchUp | More file actions | |
 | Export | Top bar | Ctrl+E |
-| Samples | Top bar | |
+| Library | Top bar | |
 
 Some browsers reserve Ctrl+N and Ctrl+O for themselves; the buttons always work. The same actions are in the command search (press **F**). The name of the open part is shown in the top bar. Double-click it to rename the part. A dot after the name means there are changes since the last save.
 
@@ -28,9 +28,9 @@ Some browsers reserve Ctrl+N and Ctrl+O for themselves; the buttons always work.
 
 ## Open
 
-**Open** shows the browser's file picker. It accepts parts (`.ckpart`, `.json`, and compressed `.gz` parts), STEP (`.step`, `.stp`), SolidWorks (`.sldprt`), SketchUp (`.skp`), DXF (`.dxf`), FreeCAD (`.FCStd`) and SolidCraft (`.solidcraft`) files. The app decides by the extension. What each foreign format becomes is described in [Importing](import.md).
+**Open** shows the browser's file picker. It accepts parts (`.ckpart`, `.json`, and compressed `.gz` parts), STEP (`.step`, `.stp`), SolidWorks (`.sldprt`), SketchUp (`.skp`), DXF (`.dxf`), SVG (`.svg`), FreeCAD (`.FCStd`) and SolidCraft (`.solidcraft`) files. The app decides by the extension. What each foreign format becomes is described in [Importing](import.md).
 
-You can also drag one file onto the window; a dashed overlay shows while you drag. Dropping more than one file at a time is refused ("Drop one file at a time."). A DXF opens into the sketch you are editing, or as a new sketch on the front plane. STL files cannot be imported.
+You can also drag one file onto the window; a dashed overlay shows while you drag. Dropping more than one file at a time is refused ("Drop one file at a time."). A DXF or an SVG opens into the sketch you are editing, or as a new sketch on the front plane. STL files cannot be imported.
 
 Files saved by earlier versions of the app still open, and are written in the current format the next time you save.
 
@@ -68,9 +68,9 @@ While a part has unsaved changes, the app copies it into your browser's storage 
 - **Start new** forgets the stored session.
 - **Earlier versions...** opens the list described below.
 
-The dialog does not close on Escape, so a stray key cannot discard it. Save, Open, Samples and New clear the stored session.
+The dialog does not close on Escape, so a stray key cannot discard it. Save, Open, Library and New clear the stored session.
 
-Limits: autosave skips a part whose text is over about 3 MB, and a notice tells you to save to a file. It also warns if the browser has no room or has autosave switched off. Undo history is not stored: a restored part starts with a clean history. Component tabs (see [Assemblies and mates](../assemblies/assemblies.md)) are not stored.
+Imported meshes and STEP data are stored compressed (see [Imported meshes and STEP data in the file](#imported-meshes-and-step-data-in-the-file)), so a part with a scan still fits. Limits: autosave skips a part whose text is over about 3 MB, and a notice tells you to save to a file. When only the packed meshes are too big for the browser's storage (about 2 MB of them), the backup leaves the meshes out, says so once, and keeps the rest; the STEP data of an imported solid is always kept. It also warns if the browser has no room or has autosave switched off. Undo history is not stored: a restored part starts with a clean history. Component tabs (see [Assemblies and mates](../assemblies/assemblies.md)) are not stored.
 
 ### Recover earlier versions
 
@@ -78,7 +78,9 @@ The app also keeps a rolling set of snapshots of the open part in the browser (t
 
 ## Recent files and samples
 
-**Samples** opens a searchable list of sample parts with a **Recent** section above it: the last eight samples and files you opened or saved, with their age and a preview.
+**Library** opens a searchable list of parts (the sample parts and the libraries you added) with a **Recent** section above it: the last eight samples and files you opened or saved, with their age and a preview.
+
+When you save a part, a small picture of it (a PNG of about 20 KB or less) is written into the file as an optional `thumbnail` field, together with a hash of the part. That picture is what the Recent card shows. If the part has changed since, the next save draws it again; a picture that does not match the part is never shown. If the picture cannot be drawn (no solid, or it takes too long), the file is saved without one. A file with a damaged `thumbnail` field still opens normally.
 
 Clicking a sample opens it as a new part. Clicking a recent file reopens it if the browser still has permission for it. That works for files that you saved through the picker. A file that you opened with the plain Open dialog is listed but the browser kept no access to it, and a notice asks you to use **Open** again. If the permission is refused or the file is gone, the notice says so.
 
@@ -100,6 +102,16 @@ Ctrl+Tab and Ctrl+W are reserved by browsers; in the installed app (see [Install
 You can have 32 tabs. Switching away from a sketch in progress finishes the sketch and keeps it; if it cannot be finished, it stays open and a notice says so. An open feature editor is closed when you switch. Closing the last tab leaves a blank part. The Drawing view closes when you switch tabs.
 
 ![The top bar and tab strip with three open parts, the first marked as changed.](../img/tab-strip.png)
+
+## Imported meshes and STEP data in the file
+
+A reference mesh (an STL or SketchUp import) and the STEP text of an imported solid are the heavy parts of a file, so they are stored packed:
+
+- **Meshes** are stored as one compressed block each: the vertices on a grid of at most one micron (finer for small models), written as differences between neighbours, the triangle corners as small numbers, the SketchUp colours as runs, then deflated. A 500,000 triangle scan is about 1.2 MB in the file, against about 12 MB for the raw numbers and about 24 MB for the same data as a JSON list of numbers. The rounding to a micron is the only loss: it is far below what a scan or a sketch resolves, and saving a mesh again does not move it further. A model with a value that cannot be put on a grid (not a number, or enormous) is stored exactly instead.
+- **STEP text** is stored deflated, about eight times smaller than the text.
+- Files written by earlier versions (meshes as plain base64, STEP text as plain text) open as they are and are packed the next time you save. A file saved by this version and opened in an older one loses its meshes and cannot rebuild the imported solid; nothing else is affected.
+- A mesh that is damaged or cut off in the file is left out with a notice naming it; the rest of the part opens. A damaged STEP block leaves the imported-solid feature with an error that says its data is missing.
+- Compression and decompression run in the browser's own streams, and the rest in slices of a few milliseconds, so a large part does not freeze the page. The picking tree of a big mesh is built in slices too.
 
 ## Compressed parts
 

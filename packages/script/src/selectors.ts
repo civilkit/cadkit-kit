@@ -2,7 +2,7 @@
 export type Vec = [number, number, number];
 export interface Mesh { positions: ArrayLike<number>; normals: ArrayLike<number>; triFace: ArrayLike<number>; faceIds: string[] }
 export interface EdgeInfo { key?: string; faces?: string[]; mid?: number[]; pts?: number[][] }
-export interface Geometry { mesh: Mesh | null; edges: EdgeInfo[]; box: { min: number[]; max: number[] } | null }
+export interface Geometry { mesh: Mesh | null; edges: EdgeInfo[]; box: { min: number[]; max: number[] } | null; /** with several bodies: face id -> index of the body (lump) it belongs to, in the order of the kernel's body list */ faceLumps?: Record<string, number> }
 export type SurfaceKind = 'plane' | 'cylinder' | 'sphere' | 'cone' | 'torus' | 'other';
 export interface FaceInfo {
   id: string; normal: Vec; centroid: Vec; area: number; planar: boolean;

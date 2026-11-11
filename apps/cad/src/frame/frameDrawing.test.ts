@@ -89,7 +89,7 @@ describe('frame drawing', () => {
 
 describe('csv still has the same rows as the sheet', () => {
   it('lists one row per cut-list line', () => {
-    const lines = toCsv(frames).trim().split('\n');
+    const lines = toCsv(frames).trim().split('\r\n');
     const m = sheetModel(frames);
     expect(lines.slice(1, 1 + m.cut.length).map((l) => l.split(',')[0])).toEqual(m.cut.map((r) => r[0]));
     expect(lines[1]).toContain('640,45,45,2');
@@ -105,7 +105,7 @@ describe('drawing content', () => {
     const back = sanitizeDrawing(JSON.parse(JSON.stringify(doc)));
     expect(back.tables).toEqual(doc.tables);
     expect(back.balloons).toHaveLength(15);
-    const csv = tablesCsv(doc.tables!).trim().split('\n');
+    const csv = tablesCsv(doc.tables!).trim().split('\r\n');
     expect(csv[1]).toBe(['#', ...model.head.slice(1)].map((c) => (/[",]/.test(c) ? `"${c}"` : c)).join(','));
     expect(csv[2].split(',')[0]).toBe('1');
   });

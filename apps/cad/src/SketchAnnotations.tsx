@@ -26,7 +26,7 @@ export function SketchAnnotations(p: { items: AnnotationItem[]; hot: string | nu
           class={`annot ${a.kind}${a.driven ? ' driven' : ''}${a.blame ? ' ' + a.blame : ''}${p.hot === a.id ? ' hot' : ''}${p.selected === a.id ? ' sel' : ''}${a.kind === 'mark' && p.inert ? ' inert' : ''}`}
           data-id={a.id}
           data-type={a.type}
-          title={a.kind === 'dimension' ? (a.driven ? t('app.sketch.driving.tip') : t('app.sketch.driven.tip')) : t('app.sketch.constraint.' + (a.type ?? ''), undefined, a.type ?? a.text)}
+          title={a.kind === 'dimension' ? (a.driven ? t('app.sketch.driving.tip') : t('app.sketch.dim.editTip')) : t('app.sketch.constraint.' + (a.type ?? ''), undefined, a.type ?? a.text)}
           aria-label={a.kind === 'mark' ? t('app.sketch.constraint.' + (a.type ?? ''), undefined, a.type ?? a.text) : undefined}
           onContextMenu={(e) => { if (a.kind === 'dimension' && p.onMenu) { e.preventDefault(); e.stopPropagation(); p.onMenu(a, e.clientX, e.clientY); } else if (a.kind === 'dimension' && p.onToggleDriven) { e.preventDefault(); e.stopPropagation(); p.onToggleDriven(a.id, !!a.driven); } }}
           style={{ left: a.x + 'px', top: a.y + 'px', ...(a.dim && a.dim.text.slopeDeg ? { transform: `translate(-50%, -50%) rotate(${a.dim.text.slopeDeg}deg)` } : {}) }}

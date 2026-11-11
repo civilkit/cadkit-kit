@@ -1,0 +1,108 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Sheet metal 3 contour hat channel",
+ "features": [
+  {
+   "type": "sheetRules",
+   "id": "R1",
+   "name": "Steel 2 mm",
+   "thickness": 2,
+   "kFactor": 0.44,
+   "bendRadius": 2,
+   "reliefWidth": 2,
+   "reliefDepth": 1,
+   "cornerRelief": 8,
+   "cornerReliefShape": "notch",
+   "hemGap": 0.01,
+   "gap": 2
+  },
+  {
+   "type": "sketch",
+   "id": "S1",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p2",
+     "x": 20,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 20,
+     "y": 15
+    },
+    {
+     "id": "p4",
+     "x": 50,
+     "y": 15
+    },
+    {
+     "id": "p5",
+     "x": 50,
+     "y": 0
+    },
+    {
+     "id": "p6",
+     "x": 70,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "id": "e1",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "type": "line",
+     "id": "e2",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "type": "line",
+     "id": "e3",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "type": "line",
+     "id": "e4",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "type": "line",
+     "id": "e5",
+     "p1": "p5",
+     "p2": "p6"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "contourFlange",
+   "id": "C1",
+   "sketch": "S1",
+   "distance": 40
+  },
+  {
+   "type": "unfold",
+   "id": "U1"
+  },
+  {
+   "type": "refold",
+   "id": "U2"
+  }
+ ]
+}

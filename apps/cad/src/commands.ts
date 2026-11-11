@@ -12,6 +12,7 @@ import { inspectCommands, type InspectActions } from './inspect/inspectCommands'
 import { treeCommands, type TreeActions } from './treeCommands';
 import { assemblyCommands, type AssemblyActions } from './assembly/assemblyCommands';
 import { analysisCommands, type AnalysisActions } from './analysisCommands';
+import { sheetCommands, type SheetActions } from './sheet/sheetCommands';
 
 /** Import and export of files other than the part itself (see ioCommands in this file). */
 export interface IoActions {
@@ -19,6 +20,10 @@ export interface IoActions {
   importDxf(): void;
   /** Open a DXF file as a new sketch on the selected plane or face (front when none). */
   sketchFromDxf(): void;
+  /** Add the geometry of an SVG file to the sketch being edited. */
+  importSvg(): void;
+  /** Open an SVG file as a new sketch on the selected plane or face (front when none). */
+  sketchFromSvg(): void;
   isSketching(): boolean;
   /** Write the current part or sketch to a file in this format. */
   exportAs(kind: ExportKind): void;
@@ -52,6 +57,10 @@ export interface Actions {
   knurl?(): void;
   /** Open the Screw wizard (see ScrewWizard.tsx). */
   screw?(): void;
+  /** Open the Washer wizard (see WasherWizard.tsx). */
+  washer?(): void;
+  /** Open the 3D Sketch tool (sketch3d/Sketch3dPanel.tsx). */
+  sketch3d?(): void;
   /** Open the Frame panel (frame/FramePanel.tsx) and the drawing of the part's frames with the cut list and bill of materials (frame/frameDrawing.ts). */
   frame?(): void;
   cutList?(): void;
@@ -61,6 +70,8 @@ export interface Actions {
   look?: LookActions;
   /** Measure, mass properties, interference and section view (see inspect/inspectCommands.ts). */
   inspect?: InspectActions;
+  /** The Sheet metal tab: rules, flanges, hem, fold, unfold / refold, flat pattern and its exports (see sheet/sheetCommands.ts). */
+  sheet?: SheetActions;
   /** Zebra, curvature maps, draft analysis and the curvature comb (see analysisCommands.ts). */
   analysis?: AnalysisActions;
   /** Insert part, mate, interference, bill of materials and exploded view (see assembly/). */
@@ -176,15 +187,18 @@ export function buildCommands(a: Actions): Command[] {
   if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.propeller) cmds.push({ id: 'add-propeller', label: t('cmd.add-propeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.propeller });
   if (a.knurl) cmds.push({ id: 'add-knurl', label: t('cmd.add-knurl'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.knurl });
-  if (a.frame) cmds.push({ id: 'add-frame', label: t('cmd.add-frame'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.frame });
-  if (a.cutList) cmds.push({ id: 'frame-cutlist', label: t('cmd.frame-cutlist'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.cutList });
+  if (a.sketch3d) cmds.push({ id: 'add-sketch3d', label: t('cmd.add-sketch3d'), tab: 'Home', group: 'Sketch', enabled: a.hasDocument, run: a.sketch3d });
+  if (a.frame) cmds.push({ id: 'add-frame', label: t('cmd.add-frame'), tab: 'Frame', group: 'Frame', enabled: a.hasDocument, run: a.frame });
+  if (a.cutList) cmds.push({ id: 'frame-cutlist', label: t('cmd.frame-cutlist'), tab: 'Frame', group: 'Frame', enabled: a.hasDocument, run: a.cutList });
   if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
+  if (a.washer) cmds.push({ id: 'add-washer', label: t('cmd.add-washer'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.washer });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });
   if (a.script) cmds.push({ id: 'open-script', label: t('cmd.open-script'), tab: 'Home', group: 'Features', run: a.script });
   if (a.variables) cmds.push({ id: 'open-variables', label: t('cmd.open-variables'), tab: 'Home', group: 'Features', enabled: a.hasDocument, run: a.variables });
   if (a.triball) { const tb = a.triball; cmds.push({ id: 'triball', label: t('cmd.triball'), tab: 'Select', group: 'Position', keys: 'F10', enabled: tb.canToggle, pressed: tb.isOn, run: tb.toggle }); }
   if (a.features) cmds.push(...featureCommands(a.features), ...creatorCommands(a.features));
+  if (a.sheet) cmds.push(...sheetCommands(a.sheet));
   if (a.look) cmds.push(...lookCommands(a.look));
   if (a.inspect) cmds.push(...inspectCommands(a.inspect));
   if (a.assembly) cmds.push(...assemblyCommands(a.assembly));
@@ -215,8 +229,10 @@ export function buildCommands(a: Actions): Command[] {
 function ioCommands(io: IoActions, hasDocument: () => boolean): Command[] {
   return [
     { id: 'sketch-import-dxf', label: t('cmd.sketch-import-dxf'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, run: io.importDxf },
+    { id: 'sketch-import-svg', label: t('cmd.sketch-import-svg'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, run: io.importSvg },
     { id: 'export', label: t('cmd.export'), tab: 'Home', group: 'File', enabled: hasDocument, run: io.openExportMenu },
     ...EXPORT_KINDS.map((k): Command => ({ id: `export-${k}`, label: t(`cmd.export-${k}`), tab: 'Home', group: 'Export', enabled: () => io.canExport(k), run: () => io.exportAs(k) })),
     { id: 'sketch-from-dxf', label: t('cmd.sketch-from-dxf'), tab: 'Home', group: 'Sketch', enabled: hasDocument, run: io.sketchFromDxf },
+    { id: 'sketch-from-svg', label: t('cmd.sketch-from-svg'), tab: 'Home', group: 'Sketch', enabled: hasDocument, run: io.sketchFromSvg },
   ];
 }

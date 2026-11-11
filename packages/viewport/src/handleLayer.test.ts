@@ -29,6 +29,48 @@ function setup(specs: HandleSpec[]) {
 }
 
 const arrow: HandleSpec = { id: 'a', kind: 'arrow', origin: [0, 0, 0], axis: [1, 0, 0], sizePx: 70, base: 10, scale: 2 };
+const dotAt0: HandleSpec = { id: 'd', kind: 'cube', look: 'diamond', drag: 'plane', origin: [0, 0, 0], axis: [0, 0, 1], sizePx: 4.5, hitPx: 14 };
+
+describe('HandleLayer hover and click', () => {
+  it('a rebuild of the same handles keeps the hover and the cursor (no flicker while a tool redraws on every pointer move)', () => {
+    const t = setup([dotAt0]);
+    t.ev('pointermove', 408, 300);
+    expect(t.dom.style.cursor).not.toBe('');
+    for (let i = 0; i < 5; i++) { t.layer.set([{ ...dotAt0 }], t.sink); t.ev('pointermove', 408 + (i % 2), 300); expect(t.dom.style.cursor).not.toBe(''); expect((t.layer as unknown as { hover: string | null }).hover).toBe('d'); }
+    t.layer.set([{ ...dotAt0, id: 'other' }], t.sink);    // the hovered handle is gone: hover and cursor clear
+    expect((t.layer as unknown as { hover: string | null }).hover).toBeNull();
+    expect(t.dom.style.cursor).toBe('');
+    t.dispose();
+  });
+
+  it('picks within hitPx (at least 12 px) of the centre and not beyond', () => {
+    const t = setup([dotAt0]);
+    t.ev('pointerdown', 400 + 13, 300);
+    expect(t.sink.onStart).toHaveBeenCalledWith('d');
+    t.ev('pointerup', 413, 300);
+    (t.sink.onStart as ReturnType<typeof vi.fn>).mockClear();
+    t.ev('pointerdown', 400 + 16, 300);
+    expect(t.sink.onStart).not.toHaveBeenCalled();
+    t.dispose();
+  });
+
+  it('a press and release without a drag calls onClick (not onCancel); a drag still commits', () => {
+    const t = setup([dotAt0]);
+    const onClick = vi.fn();
+    t.layer.set([dotAt0], { ...t.sink, onClick });
+    t.ev('pointerdown', 401, 300);
+    t.ev('pointerup', 401, 300);
+    expect(onClick).toHaveBeenCalledWith('d', expect.objectContaining({ shift: false }));
+    expect(t.sink.onCancel).not.toHaveBeenCalled();
+    t.ev('pointerdown', 401, 300);
+    t.ev('pointermove', 430, 300);
+    t.ev('pointerup', 430, 300);
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(t.sink.onCommit).toHaveBeenCalledTimes(1);
+    t.dispose();
+  });
+});
+
 const pxPerUnit = 600 / (2 * 100 * Math.tan((45 * Math.PI) / 360));
 
 describe('HandleLayer interaction', () => {

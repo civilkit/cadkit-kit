@@ -8,6 +8,7 @@ import type { EditOp } from '@ck/session';
 import { t } from './i18n';
 import { SURFACE_TYPES } from '@kit/viewdata';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
+import { isSplinePath } from './sketch3d/model';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
@@ -38,12 +39,14 @@ const chainEntities = (ents: Ent[]) => ents.filter((e) => e.type === 'line' || e
 const hasCircle = (s: Feat): boolean => entitiesOf(s).some((e) => e.type === 'circle' || e.type === 'ellipse' || e.type === 'text');   // lettering is closed loops too
 /** A chain of lines / arcs with two loose ends (what a rib is drawn from). */
 export const isOpenSketch = (s: Feat): boolean => {
+  if (s.type === 'sketch3d') return isSplinePath(s);   // a 3D sketch is a path when it holds one open spline (the only 3D path the kernel sweeps)
   const ents = entitiesOf(s);
   const chain = chainEntities(ents);
   return chain.length > 0 && !hasCircle(s) && [...degrees(ents).values()].some((n) => n === 1);
 };
 /** Something that bounds a region: a circle / ellipse, or lines and arcs that all meet in pairs. */
 export const isClosedSketch = (s: Feat): boolean => {
+  if (s.type === 'sketch3d') return false;
   const ents = entitiesOf(s);
   if (hasCircle(s)) return true;
   const d = degrees(ents);
@@ -51,15 +54,16 @@ export const isClosedSketch = (s: Feat): boolean => {
 };
 /** A sketch whose only (non-construction) entity is one point: a loft can end in it (the apex). */
 export const isPointSketch = (s: Feat): boolean => {
+  if (s.type === 'sketch3d') return false;
   const ents = entitiesOf(s);
   return ents.length === 1 && ents[0].type === 'point';
 };
-export const hasCurves = (s: Feat): boolean => hasCircle(s) || chainEntities(entitiesOf(s)).length > 0;
+export const hasCurves = (s: Feat): boolean => s.type !== 'sketch3d' && (hasCircle(s) || chainEntities(entitiesOf(s)).length > 0);
 const hasAxisLine = (s: Feat): boolean => isClosedSketch(s) && axisLine(s) !== null;
 
 /** The sketch a command uses: the one selected in the tree if it fits, else the last that fits. */
-export function sketchWhere(c: Ctx, fits: (s: Feat) => boolean): Feat | null {
-  const list = feats(c).filter((f) => f.type === 'sketch' && fits(f));
+export function sketchWhere(c: Ctx, fits: (s: Feat) => boolean, with3d = false): Feat | null {
+  const list = feats(c).filter((f) => (f.type === 'sketch' || (with3d && f.type === 'sketch3d')) && fits(f));
   return list.find((f) => f.id === c.selectedId) ?? list[list.length - 1] ?? null;
 }
 
@@ -232,7 +236,7 @@ export function chainLength(s: Feat): number | null {
 /** The feature (the one selected in the tree, else the last) repeated 3 times along the newest open sketch, spread over its whole length. */
 export function pathPatternOps(c: Ctx): EditOp[] | null {
   const seed = patternSeed(c);
-  const path = sketchWhere(c, isOpenSketch);
+  const path = sketchWhere(c, isOpenSketch, true);
   if (!seed || !path) return null;
   const len = chainLength(path);
   const spread = len !== null ? { distanceType: 'extent', extent: +len.toFixed(6) } : { spacing: niceSize(c.box, 0.2) };
@@ -254,6 +258,13 @@ export function pipeCutOps(c: Ctx): EditOp[] | null {
   if (faces.length) return [{ op: 'add', feature: { type: 'pipeCut', radius, edges: [], faces } }];
   const edges = c.mode === 'edge' ? edgeRefs(c.selection, c.edges) : [];
   return edges.length ? [{ op: 'add', feature: { type: 'pipeCut', radius, edges, faces: [] } }] : null;
+}
+/** What to tell the user after a pipe cut: it turns a solid into a surface body, and when no face changed it did nothing. `diff` is the edit result's body diff. */
+export function pipeCutNotice(diff: { faces: { added: string[]; removed: string[] }; solids: { before: number; after: number }; volume: { before: number | null; after: number | null } } | undefined): 'surface' | 'nothing' | null {
+  if (!diff) return null;
+  if (diff.solids.after < diff.solids.before) return 'surface';
+  if (!diff.faces.added.length && !diff.faces.removed.length && diff.volume.before === diff.volume.after) return 'nothing';
+  return null;
 }
 /** Delete the bodies that hold the picked faces. */
 export function deleteBodyOps(c: Ctx): EditOp[] | null {
@@ -325,9 +336,9 @@ export function usedSketches(c: Ctx): Set<string> {
   }
   return used;
 }
-const freeSketches = (c: Ctx, fits: (s: Feat) => boolean): Feat[] => {
+const freeSketches = (c: Ctx, fits: (s: Feat) => boolean, with3d = false): Feat[] => {
   const used = usedSketches(c);
-  return feats(c).filter((f) => f.type === 'sketch' && fits(f) && !used.has(f.id));
+  return feats(c).filter((f) => (f.type === 'sketch' || (with3d && f.type === 'sketch3d')) && fits(f) && !used.has(f.id));
 };
 
 const STD_AXIS: Record<string, number> = { right: 0, top: 1, front: 2 };   // the world axis a standard plane is normal to
@@ -431,7 +442,7 @@ export function loftOps(c: Ctx, surface = false): EditOp[] | null {
 /** A sweep of the newest unused closed sketch along the newest unused open one. */
 export function sweepOps(c: Ctx): EditOp[] | null {
   const profile = freeSketches(c, isClosedSketch).at(-1);
-  const path = freeSketches(c, isOpenSketch).at(-1);
+  const path = freeSketches(c, isOpenSketch, true).at(-1);   // a path may be a 3D sketch with one spline
   return profile && path ? [{ op: 'add', feature: { type: 'sweep', op: 'add', sketch: profile.id, path: { kind: 'sketch', id: path.id } } }] : null;
 }
 

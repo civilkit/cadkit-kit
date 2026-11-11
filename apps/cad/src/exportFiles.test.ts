@@ -77,3 +77,13 @@ describe('3MF and GLB export', () => {
     expect(exportGlb(null, 'x').file).toBeUndefined();
   });
 });
+
+describe('exportObj with bodies', () => {
+  it('a coloured body goes out with vertex colours, several bodies as several objects', () => {
+    const one = exportObj({ positions: cube() }, 'P', [{ name: 'a', positions: cube(), color: '#00ff00' }]);
+    expect(String(one.file?.data)).toMatch(/\nv [^\n]* 0 1 0\n/);
+    const two = exportObj({ positions: cube() }, 'P', [{ name: 'a', positions: cube() }, { name: 'b', positions: cube(3) }]);
+    expect(String(two.file?.data).match(/^o /gm)).toHaveLength(2);
+    expect(String(exportObj({ positions: cube() }, 'P', [{ name: 'a', positions: cube() }]).file?.data)).toContain('o P');
+  });
+});

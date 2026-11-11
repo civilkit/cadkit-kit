@@ -17,9 +17,12 @@ export const sketchPattern = {
    * @param o.start rotation of the first copy in degrees (default 0)
    * @example
    * part('Petals').sketch('front', (s) => s.polar(5, (c) => { c.arc3([9, 0], [22, 7.5], [38, 0]); c.arc3([38, 0], [22, -7.5], [9, 0]); })).extrude(2);
-   * @see sketch.arc3, part.circularPattern
+   * @see sketch.arc3, part.circularPattern, sketch.polarCurve
    */
-  polar(this: SketchBuilder, count: number, draw: (s: SketchBuilder) => void, o: { about?: Pt; angle?: number; start?: number } = {}): SketchBuilder {
+  polar(this: SketchBuilder, count: number | ((angle: number) => number), draw?: ((s: SketchBuilder) => void) | { count?: number; closed?: boolean; from?: number; to?: number; center?: Pt }, o: { about?: Pt; angle?: number; start?: number } = {}): SketchBuilder {
+    // polar((angle) => radius, { count, closed }) is the polar CURVE (see sketch.polarCurve); polar(count, draw) is the pattern
+    if (typeof count === 'function') return this.polarCurve(count, (draw && typeof draw === 'object' ? draw : {}));
+    if (typeof draw === 'object') throw new Error('polar: the second argument is a function that draws one copy, e.g. polar(5, (s) => s.circle(3, [20, 0]))');
     if (!Number.isInteger(count) || count < 1) throw new Error('polar: count must be a whole number of at least 1');
     if (typeof draw !== 'function') throw new Error('polar: the second argument is a function that draws one copy, e.g. polar(5, (s) => s.circle(3, [20, 0]))');
     const p = this as unknown as Priv;

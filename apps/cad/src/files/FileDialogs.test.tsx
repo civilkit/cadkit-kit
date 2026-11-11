@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
 import { RestoreDialog, RecoverDialog, SaveAsDialog, DropOverlay } from './FileDialogs';
-import { SamplesDialog } from '../SamplesDialog';
+import { LibraryDialog } from '../LibraryDialog';
 import { buildCommands, matchShortcut, type Actions } from '../commands';
 import { dragHasFiles, planDrop } from './drop';
 import '../i18n';
@@ -96,18 +96,18 @@ describe('DropOverlay and drop planning', () => {
   });
 });
 
-describe('Recent section of the Samples dialog', () => {
+describe('Recent section of the Library dialog', () => {
   const samples = [{ id: 'bolt', title: 'Bolt', url: '/s/bolt' }];
   it('lists recent entries with their kind and picks one; hidden while filtering', () => {
     const onPickRecent = vi.fn();
     const recent = [{ kind: 'file' as const, id: 'a.ckpart', name: 'a.ckpart', at: Date.now(), handle: true }, { kind: 'sample' as const, id: 'bolt', name: 'Bolt', at: Date.now() - 3 * 3600_000, url: '/s/bolt' }];
-    render(<SamplesDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={recent} onPickRecent={onPickRecent} />);
+    render(<LibraryDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={recent} onPickRecent={onPickRecent} />);
     const block = screen.getByLabelText('Recent');
     expect(block.textContent).toContain('a.ckpart');
     expect(block.textContent).toContain('3 h ago');
     fireEvent.click(screen.getByText('a.ckpart'));
     expect(onPickRecent).toHaveBeenCalledWith(recent[0]);
-    fireEvent.input(screen.getByPlaceholderText('Filter samples'), { target: { value: 'bol' } });
+    fireEvent.input(screen.getByPlaceholderText('Filter parts'), { target: { value: 'bol' } });
     expect(screen.queryByLabelText('Recent')).toBeNull();
   });
   it('shows a small lazy picture on each recent card (sample file, saved picture), and the category icon when there is none or it fails', () => {
@@ -118,8 +118,8 @@ describe('Recent section of the Samples dialog', () => {
       { kind: 'sample' as const, id: 'bolt', name: 'Bolt', at: Date.now(), url: '/s/bolt' },
       { kind: 'sample' as const, id: 'gone', name: 'Gone', at: Date.now(), url: '/s/gone' },
     ];
-    render(<SamplesDialog samples={samples} thumbBase="/app/" onPick={() => {}} onClose={() => {}} recent={recent} recentThumbs={{ 'a.ckpart': png }} />);
-    fireEvent.input(screen.getByPlaceholderText('Filter samples'), { target: { value: '' } });   // the filter text outlives a close
+    render(<LibraryDialog samples={samples} thumbBase="/app/" onPick={() => {}} onClose={() => {}} recent={recent} recentThumbs={{ 'a.ckpart': png }} />);
+    fireEvent.input(screen.getByPlaceholderText('Filter parts'), { target: { value: '' } });   // the filter text outlives a close
     const block = screen.getByLabelText('Recent');
     const imgs = Array.from(block.querySelectorAll('img'));
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual([png, '/app/samples/thumbs/bolt.webp', '/app/samples/thumbs/gone.webp']);
@@ -131,7 +131,7 @@ describe('Recent section of the Samples dialog', () => {
     expect(block.querySelectorAll('[data-fallback]').length).toBe(2);
   });
   it('has no Recent section when there is nothing recent', () => {
-    render(<SamplesDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={[]} />);
+    render(<LibraryDialog samples={samples} thumbBase="/" onPick={() => {}} onClose={() => {}} recent={[]} />);
     expect(screen.queryByLabelText('Recent')).toBeNull();
   });
 });
@@ -148,7 +148,7 @@ describe('file commands', () => {
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
     expect([saveAs.mock.calls.length, save.mock.calls.length]).toEqual([1, 1]);
-    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / SolidWorks / SketchUp');
+    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / STL / SolidWorks / SketchUp');
   });
   it('Rotate imported model is a file command, enabled only while a SketchUp model is shown', () => {
     const rotateSkp = vi.fn(); let shown = false;

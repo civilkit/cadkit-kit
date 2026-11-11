@@ -34,7 +34,9 @@ export function featureStatuses(features: Array<{ id: string }>, errors: Readonl
     const hint = hints.find((h) => h.feature === f.id && h.code === err.code);
     const root = diag.roots.find((r) => r.id === f.id);
     const text = root && (!hint?.hint || hint.hint.includes('see the features field table')) ? adviceOf(root) : hint?.hint;
-    return { id: f.id, ok: false, code: err.code, hint: text, params: err.params, blockedBy: diag.blockedBy[f.id] };
+    // a reference that no longer resolves: the kernel says which name is gone and what the model has instead (face ids to pick from)
+    const own = (err.code === 'missingReference' || err.code === 'missingEdge') && root && typeof err.params?.hint === 'string' ? err.params.hint : '';
+    return { id: f.id, ok: false, code: err.code, hint: own ? (text ? `${text} ${own}` : own) : text, params: err.params, blockedBy: diag.blockedBy[f.id] };
   });
 }
 

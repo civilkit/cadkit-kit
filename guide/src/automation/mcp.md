@@ -1,11 +1,11 @@
 # Agents and the MCP server
 
-CadKit includes a local server that lets an AI coding assistant build and check parts by writing scripts. It speaks the Model Context Protocol (MCP), so any MCP client can use it: Claude Code, Cursor, Claude Desktop, Codex and others. This chapter takes you from nothing to a first successful tool call, then lists every tool, error code, flag and limit.
+CivilKit CAD includes a local server that lets an AI coding assistant build and check parts by writing scripts. It speaks the Model Context Protocol (MCP), so any MCP client can use it: Claude Code, Cursor, Claude Desktop, Codex and others. This chapter takes you from nothing to a first successful tool call, then lists every tool, error code, flag and limit.
 
 ## What it is, and what it is not
 
-- It is a separate program that runs on your computer, started from a checkout of the CadKit application repository. It is **not** a panel inside the browser app.
-- It has its own document and its own copy of the geometry kernel. It does not read the part you have open in the browser, and the browser does not show what the agent builds. There is no live link between them. (The "GUI bridge" in the project notes is a design, not a feature.)
+- It is a separate program that runs on your computer, started from a checkout of the CivilKit CAD application repository. It is **not** a panel inside the browser app.
+- It has its own document and its own copy of the geometry kernel. By default it does not read the part you have open in the browser, and the browser does not show what the agent builds. You can link the two on purpose with the **agent link** (see [Linking the open app](#linking-the-open-app)): then the agent can read, take pictures of and, if you allow it, add to the part you have open. It is off until you turn it on.
 - No tool or resource can load an existing part into the server. The agent starts from an empty document and builds everything with scripts, so none of your hand edits are involved or preserved.
 - Everything on one machine shares **one** open document: there is one background process, one `daemon.json` and one port. Two assistants, or two projects, that use the server at the same time overwrite each other's work.
 - Work moves between the two by file. The agent calls `export` to write a `.ckpart` file (or STEP, STL, GLB), and you open it in the app with **Open** (see [Saving and opening](../files/files.md)).
@@ -206,6 +206,26 @@ part('L').loft([{ on: at('front', 0), draw: (s) => s.rect(20, 20) }, { on: at('f
 
 Point your assistant at [Scripting](scripting.md) or give it the method names directly when you want these.
 
+## Linking the open app
+
+The agent link lets an assistant see, and if you allow it change, the part you have open in the browser app. It runs only on your computer and is off until you turn it on.
+
+1. Make sure the server is running and the assistant is connected. If the app is not served from your own computer (for example the hosted app), start the server with `--allow-origin https://<the app's address>`; Safari does not allow a secure page to reach your computer, so use a local copy there.
+2. Ask the assistant to call `bridge_pair`. It gives you a code like `52311-ABCD-EFGH-JKMN-PQRS`, valid for 10 minutes and usable once.
+3. In the app open **Settings, Agent link**, paste the code and press **Turn on**. The status bar now shows **Agent: linked, view only**.
+4. Optional: tick **Allow the agent to change this document**. Without it the agent can only read and take pictures. Untick it or press **Turn off** at any time; closing the page also ends the link, and nothing is remembered for next time.
+
+| Tool | What it does | Needs the edit box |
+| --- | --- | --- |
+| `bridge_pair` | Gives the one-time pairing code. Calling it again ends any current link. | no |
+| `app_status` | Whether an app is linked and whether changes are allowed. | no |
+| `app_state` | The open part: name, features with their errors, variables, selection and counts. `detail: "full"` adds the whole document. | no |
+| `app_screenshot` | A PNG of the model (`view`, `size`). It is a rendering of the part, not a copy of your screen. | no |
+| `app_run_script` | Runs a script on the open part in attach mode: its features are added after yours as **one undo step**, and the app shows a notice. | yes |
+| `app_undo`, `app_redo` | Step the app's undo history. | yes |
+
+Failures come back as ordinary error results: `app_not_connected` (nothing linked: call `bridge_pair`), `edit_not_allowed`, `app_timeout` (the tab did not answer in 60 seconds), `no_document`, `no_body`. What is not there yet: the other tools (`facts`, `probe`, `section`, `export`...) on the open part, and a chat inside the app.
+
 ## Resources
 
 Besides tools, the server offers read-only resources:
@@ -251,7 +271,7 @@ Pass flags after `ck-mcp.mjs`. In a client configuration they go in the `args` a
 | `--status`, `--stop` | Report on, or stop, the background process. |
 | `--idle-seconds N` | The background process exits after N idle seconds (default 1800). |
 | `--wasm PATH` | The kernel binary to use. |
-| `--allow-origin URL[,URL]` | Let a specific web page call the process (for a future browser link). Off by default. |
+| `--allow-origin URL[,URL]` | Let a specific web page use the agent link routes (a page served from your own computer is always allowed there). Everything else still refuses web pages. |
 
 | Variable | What it does |
 | --- | --- |
@@ -266,13 +286,13 @@ The state folder is created with mode 0700. Inside it, `daemon.json` (mode 0600)
 - The background process listens on `127.0.0.1` only, on a random port.
 - Every request must carry a 256-bit random token, made at start and held in `daemon.json`, as an `Authorization: Bearer` header.
 - The `Host` header must be `127.0.0.1` or `localhost` with the right port, which blocks DNS rebinding.
-- Any request with an `Origin` header is refused unless you listed that origin with `--allow-origin`. A web page always sends one, so a page cannot reach the process by guessing the port.
+- Any request with an `Origin` header is refused, except the agent link routes (`/bridge/...`), which accept a page from your own computer or an origin you listed with `--allow-origin`, and only with a one-time pairing code you pasted yourself and the session it buys. That session cannot call anything else in the process.
 - Any other program running as your user can read `daemon.json`. Treat the process as trusted by that user.
 - Scripts run in a restricted environment that stops accidents. It is **not** a security boundary. Do not run scripts you do not trust.
 
 ## Limits
 
-- One document per process. `run_script` with `mode: "new"` replaces it; `undo` brings it back.
+- One document per process, and one linked app at a time (the agent link does not change the process's own document). `run_script` with `mode: "new"` replaces it; `undo` brings it back.
 - Checkpoints (20) and history (50 states) are in memory and end when the process stops.
 - The process exits after its idle time (30 minutes by default). The next call starts a new one, with an empty document.
 - The first start takes a few seconds. Later starts are fast.

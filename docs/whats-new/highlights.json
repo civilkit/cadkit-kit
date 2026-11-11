@@ -1,0 +1,66 @@
+{
+  "0.6.0": [
+    {
+      "id": "fold-across-window",
+      "title": "A fold can cross a window",
+      "blurb": "A fold line through a window or hole of a sheet metal part now bends the part and cuts the window through the bend."
+    },
+    {
+      "id": "delete-both",
+      "title": "Delete both",
+      "blurb": "Delete something others use and the notice names what depends on it, with a Delete both button that removes them together in one step."
+    },
+    {
+      "id": "bom-text",
+      "title": "The BOM as plain text",
+      "blurb": "Copy as text and Save as text give the bill of materials as aligned columns, ready for an e-mail, next to Save CSV."
+    },
+    {
+      "id": "wood-materials",
+      "title": "More woods and panels",
+      "blurb": "Birch, cedar, cherry, Douglas fir, eucalyptus, maple, teak and walnut join the Material list, each with its own colour, density and source."
+    },
+    {
+      "id": "washer-wizard",
+      "title": "A Washer wizard",
+      "blurb": "Pick a flat or spring washer size from ISO 7089, ISO 7093-1 or DIN 127 B, or type your own, and it lands in the tree as one folder."
+    }
+  ],
+  "0.5.0": [
+    {
+      "id": "sheet-metal-tab",
+      "title": "A Sheet metal tab",
+      "blurb": "Convert a solid to sheet, add edge flanges, hems and corner reliefs, cut across bends and round or chamfer corners. Edge flange, Hem and Corner open with their pick list ready: tap the edges or corners in the model, tap again to take one out."
+    },
+    {
+      "id": "sheet-flange-shapes",
+      "title": "Flanges on part of an edge, with shaped legs",
+      "blurb": "An edge flange can cover the whole edge, a start and length along it, or the span between two points you pick, with shaped legs, holes and relief. Bases with rounded corners take flanges too."
+    },
+    {
+      "id": "solidworks-sheet-metal",
+      "title": "SolidWorks sheet metal opens as editable sheet metal",
+      "blurb": "Open an SLDPRT sheet metal part and its flanges come back as editable Edge flange features, with partial-width and sketched-profile flanges, leg rounds, slots and holes."
+    },
+    {
+      "id": "arc-slot",
+      "title": "Arc slot",
+      "blurb": "A curved slot in the sketch tools: pick the centre, the start of the slot and its end, then set the radius and width."
+    },
+    {
+      "id": "dimension-to-edge",
+      "title": "Dimension to the part's own edge",
+      "blurb": "With the Dimension tool, click an outer edge of the part to set how far a slot or hole sits from it."
+    },
+    {
+      "id": "library",
+      "title": "Library",
+      "blurb": "Samples is now Library: every library in one picker, a Manage libraries list, pictures on saved parts, and Insert into this part on each card."
+    },
+    {
+      "id": "library-filter",
+      "title": "One filter for the Library",
+      "blurb": "A category menu and tags with counts narrow the Library cards, and Clear brings everything back."
+    }
+  ]
+}

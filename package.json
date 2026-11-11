@@ -1,6 +1,6 @@
 {
   "name": "kit",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite apps/cad --config vite.config.ts",
     "build:pages": "node tools/build_pages.mjs",
+    "release": "node tools/release.mjs",
     "stack:status": "node tools/stack_status.mjs",
     "build": "vite build apps/cad --config vite.config.ts",
     "test": "vitest run",

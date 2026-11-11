@@ -7,7 +7,7 @@ This chapter covers three ways of building a sketch from geometry that already e
 **Offset** (`O`, in the **Modify** group) draws a copy of a curve at a set distance. It is the quickest way to make a wall, a pocket inside an outline, or a clearance around a shape.
 
 1. Choose **Offset**.
-2. Click a line, arc, circle or spline. For lines and arcs, CadKit selects the whole chain of lines and arcs connected end to end with it (with no branches). Click the chain again to unselect it. `Shift`-click toggles a single entity, which must stay connected to the rest.
+2. Click a line, arc, circle or spline. For lines and arcs, CivilKit CAD selects the whole chain of lines and arcs connected end to end with it (with no branches). Click the chain again to unselect it. `Shift`-click toggles a single entity, which must stay connected to the rest.
 3. Press `Enter`.
 4. Move the pointer to the side you want. The distance from the chain to the pointer is the offset distance, and the side the pointer is on is the direction. Or type digits: the one field, `dist`, takes them, and `Enter` (or `Tab`) locks the value. Then click on the side. `F` flips the side.
 5. Click to place the copy.
@@ -30,7 +30,7 @@ You can offset things that are not yet in the sketch:
 
 - **Edges of the part.** Hover an edge of the part. The whole outline of edges in the same plane, joined end to end, lights up. Click it to project it into the sketch and select it, then continue as above: `Enter`, side, distance.
 - **Curves of other sketches**, including sketches an extrude has already used. These are not drawn in the 3D view, but Offset and Project can still pick them.
-- **The outline of the face you are sketching on.** If you started the sketch from a planar face, choose **Offset** and CadKit takes that face's outer outline, inward, with a distance of 1 mm. The hint reads "Face outline offset inward: type a distance, press F to flip the side, Enter to apply". `Enter` applies, a typed value changes the distance, and `Esc` drops the typed value so the pointer drives the distance.
+- **The outline of the face you are sketching on.** If you started the sketch from a planar face, choose **Offset** and CivilKit CAD takes that face's outer outline, inward, with a distance of 1 mm. The hint reads "Face outline offset inward: type a distance, press F to flip the side, Enter to apply". `Enter` applies, a typed value changes the distance, and `Esc` drops the typed value so the pointer drives the distance.
 
 The projected outline is fixed and counts as a real edge of the sketch's shapes (it is not construction), so the ring between the outline and its offset is a region you can extrude or cut.
 

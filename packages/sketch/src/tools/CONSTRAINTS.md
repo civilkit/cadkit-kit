@@ -100,7 +100,7 @@ needed), makes the whole sketch silently unsolved: `status.solved` is false and 
 | tangent | two of line/circle/arc, not two lines | `[A, B]` + `internal` / `at` as above |
 | symmetric | two points and a line, any order | `[pointA, pointB, line]` |
 | fix | a point | `[point]` + `value: [x, y]` from the draft |
-| dimension | see `dimension.ts` header | `distance`, `hdist`, `vdist`, `pldist`, `radius`, `diameter`, `angle` |
+| dimension | see `dimension.ts` header (a circle/arc picked with a point, line or circle is its centre) | `distance`, `hdist`, `vdist`, `pldist`, `radius`, `diameter`, `angle` |
 
 Refusals (nothing is added, a hint key is returned): `app.sketch.hint.constraint.exists` (already there, also a
 different order of the same refs), `.redundant` (implied through coincident groups, equal chains, parallel and

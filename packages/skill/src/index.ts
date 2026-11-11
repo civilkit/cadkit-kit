@@ -9,6 +9,7 @@ import type { DocsResult, IndexEntry, MethodDoc, Recipe, Registry, SearchHit, Se
 export * from './types';
 export { RECIPES } from './recipes';
 export { GUIDE } from './guide';
+export { SHEET_GUIDE, SHEET_RECIPE, SHEET_COMING } from './sheetGuide';
 export { SYNONYM_GROUPS } from './synonyms';
 export { stem, tokenize, synonymsOf } from './search';
 

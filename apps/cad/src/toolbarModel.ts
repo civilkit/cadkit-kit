@@ -10,7 +10,7 @@ export const PLANNED: string[] = [];
 /** THE table: slot id -> its commands in order (first is the default). The ribbon (`RIBBON_LAYOUT`) and the tool palette
  *  (`RAIL_SECTIONS`) only say where each slot goes, so adding a command is one id in one slot below (plus its icon). Families of commands that share one button. The first id is the default; the button then shows the one used last. */
 export const SLOTS: Record<string, string[]> = {
-  'new-sketch': ['sketch-here', 'sketch-pick-plane', 'sketch-on-face', 'sketch-new-front', 'sketch-new-top', 'sketch-new-right', 'sketch-from-dxf'],
+  'new-sketch': ['sketch-here', 'sketch-pick-plane', 'sketch-on-face', 'sketch-new-front', 'sketch-new-top', 'sketch-new-right', 'sketch-from-dxf', 'sketch-from-svg'],
   extrude: ['add-extrude', 'add-cut'],
   thin: ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'],
   hole: ['add-hole', 'add-thread'],
@@ -18,8 +18,8 @@ export const SLOTS: Record<string, string[]> = {
   'edge-round': ['add-fillet', 'add-chamfer'],
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern', 'add-pathpattern'],
-  'loft-sweep': ['add-loft', 'add-sweep', 'add-frame', 'frame-cutlist'],
-  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-bearing'],
+  'loft-sweep': ['add-loft', 'add-sweep'],
+  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-washer', 'add-bearing'],
   reference: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],
   'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft'],
@@ -46,7 +46,7 @@ const slot = (id: string, extra: Partial<Extract<RibbonEntry, object>> = {}): Ri
 /** The ribbon: tabs of titled groups. Group titles are `group.<id>` in the catalogue. */
 export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEntry[] }>> = {
   Home: [
-    { id: 'Sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
+    { id: 'Sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
     { id: 'Create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell'] },
     { id: 'Pattern', entries: [slot('pattern')] },
@@ -57,6 +57,17 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Create', entries: [slot('gear')] },
     { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-scale', 'add-pipe-cut'] },
     { id: 'Bodies', entries: [slot('delete-geom')] },
+  ],
+  // Frame is its own tab (a phone's tool sheet shows the same tabs): plain buttons, no dropdown. Add the bracket and connector tools to this group.
+  Frame: [
+    { id: 'Frame', entries: ['add-frame', 'frame-cutlist'] },
+  ],
+  // Sheet metal: plain buttons in four groups. A command a layout does not place is appended to its own tab and group (resolveLayout), so a new sheet tool needs only its registry entry (sheet/sheetCommands.ts).
+  Sheet: [
+    { id: 'Rules', entries: ['sheet-rules'] },
+    { id: 'Create', entries: ['add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner'] },
+    { id: 'Flatten', entries: ['sheet-unfold', 'sheet-refold', 'sheet-flat'] },
+    { id: 'FlatExport', entries: ['sheet-dxf', 'sheet-bends-csv', 'sheet-bends-json'] },
   ],
   Surfaces: [
     { id: 'Create', entries: [slot('surface-new'), slot('surface-reshape')] },
@@ -87,9 +98,11 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
  *  command in this build is skipped. Above these the palette adds a "For selection" slot when something is selected. */
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
-  { id: 'sketch', entries: [slot('new-sketch'), 'sketch-import-dxf'] },
+  { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'add-scale', 'triball', 'add-pipe-cut', slot('delete-geom')] },
+  { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },
+  { id: 'sheet', entries: ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat'] },
   { id: 'surfaces', entries: [slot('surface-new'), slot('surface-reshape'), slot('surface-edit')] },
   { id: 'pattern', entries: [slot('pattern')] },
   { id: 'inspect', entries: [slot('measure'), slot('surface-check')] },
@@ -100,7 +113,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
 /** Commands that have no cell on the palette on purpose: files, export, camera and display settings live in the ribbon
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
-  /^(layer-|export|view-|style-|light-|bg-)/.test(id) ||
+  /^(layer-|export|view-|style-|light-|bg-|sheet-(dxf|bends))/.test(id) ||
   ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
@@ -129,8 +142,9 @@ export function tabForKindChange(prev: DocKind | null, next: DocKind, userTab: s
 
 /** Ids of the commands that make or change geometry (the Sketch, Create, Modify, Pattern, Reference, Bodies and Components groups of the model tabs). */
 export const MODEL_COMMANDS: ReadonlySet<string> = new Set(
-  Object.entries(RIBBON_LAYOUT).filter(([tab]) => ['Home', 'Features', 'Surfaces', 'Assembly'].includes(tab))
-    .flatMap(([tab, gs]) => gs.filter((g) => !(tab === 'Home' && g.id === 'Edit') && g.id !== 'Review').flatMap((g) => g.entries.flatMap((e) => (typeof e === 'string' ? [e] : 'ids' in e ? e.ids : [])))),
+  Object.entries(RIBBON_LAYOUT).filter(([tab]) => ['Home', 'Features', 'Frame', 'Sheet', 'Surfaces', 'Assembly'].includes(tab))
+    .flatMap(([tab, gs]) => gs.filter((g) => !(tab === 'Home' && g.id === 'Edit') && g.id !== 'Review' && !(tab === 'Sheet' && g.id === 'FlatExport')).flatMap((g) => g.entries.flatMap((e) => (typeof e === 'string' ? [e] : 'ids' in e ? e.ids : []))))
+    .filter((id) => id !== 'sheet-flat'),   // the flat pattern view and the exports only read the sheet
 );
 
 /** While a feature editor is open the model commands are greyed out (Undo, Redo, view, selection and inspection stay). */

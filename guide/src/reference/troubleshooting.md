@@ -75,7 +75,7 @@ Drop or open a file, or use **Import STEP / SolidWorks / SketchUp** in the **Mor
 
 | Message | Fix |
 | --- | --- |
-| "Cannot open *name*: only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf, .FCStd and .solidcraft files are supported." | Convert the file to a supported format. |
+| "Cannot open *name*: only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf, .svg, .FCStd and .solidcraft files are supported." | Convert the file to a supported format. |
 | "STL files cannot be imported yet (mesh import is not available). Use a STEP file instead." | Ask for or export a STEP file from the source program. |
 | "Drop one file at a time." | Drop the files one after another. |
 | "Open or create a part first, then import the STEP file." | Use **New part**, then import. |
@@ -94,6 +94,19 @@ DXF import into a sketch:
 | "The DXF has coordinates beyond *max* mm from the origin; move the drawing near the origin and try again" | Move the drawing close to the origin in your drawing program. |
 | "Nothing to import: the DXF has no lines, arcs, circles, polylines or splines" | The file has only entities the importer does not read, such as text or dimensions. |
 | "The DXF uses a unit code (*n*) that is not converted; read as millimetres" | Check the size, and scale if needed. |
+
+SVG import into a sketch:
+
+| Message | Fix |
+| --- | --- |
+| "Open a sketch first (or use New sketch from SVG)" | Open a sketch, or use **New sketch from SVG**. |
+| "That file is not an SVG drawing" | The file is not text SVG (a compressed `.svgz`, or another format). Save it again as plain SVG. |
+| "The SVG declares entities, which are not read. Save it again as plain SVG" | Export the drawing again without a custom DOCTYPE. |
+| "The SVG has *n* entities; the limit is *max*." and "The SVG file is larger than *n* MB" | Simplify the drawing. The limits are 20,000 entities and 10 MB. |
+| "The SVG has coordinates beyond *max* mm from the origin; make the drawing smaller or move it near the origin and try again" | Scale the drawing down or move it close to the origin in your drawing program. |
+| "Nothing to import: the SVG has no paths, rectangles, circles, ellipses, lines or polygons" | The file has only text, images or other content the importer does not read. Convert text to outlines first. |
+| "The SVG has no size in mm, cm, in or pt, so 1 px = *n* mm (96 dpi) was assumed" | Check the size of the sketch and scale it if needed, or give the SVG a width and height in mm and a viewBox. |
+| "*n* element(s) use a clip path, mask or filter, which is ignored" | The whole shape was imported. Trim the sketch yourself where the clip would have cut it. |
 | "The imported geometry could not be solved" | Check the drawing for overlapping or contradictory geometry. |
 
 For FreeCAD files, the message says how many features were mapped and lists the first warning. Features that the app cannot convert are listed. See [File formats at a glance](../files/formats.md).

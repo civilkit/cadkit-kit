@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BUILTIN_MATERIALS, CATEGORIES, CUSTOM_KEY, densityGcm3, findMaterial, groupMaterials, loadCustom, loadUseColour, massGrams, removeCustom, saveUseColour, upsertCustom } from './materials';
+import { BUILTIN_MATERIALS, CATEGORIES, CUSTOM_KEY, densityGcm3, findMaterial, groupMaterials, loadCustom, loadUseColour, massGrams, removeCustom, saveUseColour, subgroups, upsertCustom } from './materials';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { densityOf } from './inspect/mass';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* none */ } });
@@ -93,5 +97,119 @@ describe('material looks', () => {
     expect(steel.material).toBe('default');
     expect(parseInt(steel.color.slice(1, 3), 16)).toBeGreaterThan(0x8d);
     expect(appearanceOfMaterial('unobtainium')).toBeNull();
+  });
+});
+
+describe('steel grades from the standards', () => {
+  const grades = BUILTIN_MATERIALS.filter((m) => m.standard);
+  const byId = (id: string) => BUILTIN_MATERIALS.find((m) => m.id === id)!;
+  it('holds the fifteen verified grades with every property', () => {
+    expect(grades.map((m) => m.id).sort()).toEqual([
+      'as-nzs-3679.1-300', 'as-nzs-3679.1-350', 'astm-a36', 'astm-a500-grb-round', 'astm-a500-grb-shaped', 'astm-a500-grc-round', 'astm-a500-grc-shaped', 'astm-a53-grb', 'astm-a572-gr50', 'astm-a992',
+      'en-10025-2-s235', 'en-10025-2-s275', 'en-10025-2-s355', 'en-10210-s355j2h', 'en-10219-s355j2h',
+    ]);
+    for (const m of grades) {
+      expect(m.category, m.id).toBe('Steel');
+      expect(m.density, m.id).toBe(7850);
+      for (const k of ['youngs', 'shear', 'poisson', 'yield', 'ultimate'] as const) expect(m[k], `${m.id}.${k}`).toBeGreaterThan(0);
+      expect(['AU', 'US', 'EU']).toContain(m.region);
+      expect(m.standard && m.grade && m.note, m.id).toBeTruthy();
+      expect(typeof m.verified, m.id).toBe('boolean');
+      expect(m.ultimate!, m.id).toBeGreaterThan(m.yield!);
+      expect(Math.abs(m.shear! - m.youngs! / (2 * (1 + m.poisson!))) / m.shear!, `${m.id} G = E / 2(1+nu)`).toBeLessThan(0.04);
+    }
+    expect(new Set(BUILTIN_MATERIALS.map((m) => m.name.toLowerCase())).size).toBe(BUILTIN_MATERIALS.length);
+  });
+  it('carries the verified values: strengths in MPa, moduli in GPa, expansion in 1e-6/K', () => {
+    expect(byId('en-10025-2-s355')).toMatchObject({ name: 'EN 10025-2 S355', region: 'EU', standard: 'EN 10025-2', grade: 'S355', yield: 355, ultimate: 470, youngs: 210, shear: 81, poisson: 0.3, expansion: 12, verified: true });
+    expect(byId('astm-a992')).toMatchObject({ name: 'ASTM A992', region: 'US', yield: 345, ultimate: 450, youngs: 200, shear: 77.2, verified: true });
+    expect(byId('astm-a36')).toMatchObject({ yield: 250, ultimate: 400 });
+    expect(byId('astm-a572-gr50')).toMatchObject({ yield: 345, ultimate: 450, verified: true });
+    expect(byId('en-10210-s355j2h')).toMatchObject({ yield: 355, ultimate: 470 });
+    expect(byId('as-nzs-3679.1-300')).toMatchObject({ region: 'AU', yield: 280, ultimate: 440, shear: 80, expansion: 11.7, verified: false });
+    expect(byId('as-nzs-3679.1-350')).toMatchObject({ yield: 330, ultimate: 480 });
+    expect(byId('astm-a36').expansion).toBeUndefined();   // US thermal expansion is not in the record
+  });
+  it('A500 Gr C round keeps 46 ksi (315 MPa) with the 50 ksi (345 MPa) of the 2021 edition as an alternate; unverified grades are flagged', () => {
+    expect(byId('astm-a500-grc-round')).toMatchObject({ yield: 315, yieldAlt: 345, verified: false });
+    expect(byId('astm-a500-grc-shaped')).toMatchObject({ yield: 345, ultimate: 425, verified: true });
+    expect(byId('astm-a500-grb-round')).toMatchObject({ yield: 290, ultimate: 400 });
+    expect(byId('astm-a500-grb-shaped')).toMatchObject({ yield: 315 });
+    expect(grades.filter((m) => m.verified === false).map((m) => m.id).sort()).toEqual(['as-nzs-3679.1-300', 'as-nzs-3679.1-350', 'astm-a500-grc-round', 'astm-a53-grb']);
+    expect(grades.filter((m) => m.yieldAlt !== undefined).map((m) => m.id)).toEqual(['astm-a500-grc-round']);
+  });
+  it('the general materials keep their entries, ids and numbers; a part naming "Mild steel" or "steel" still resolves', () => {
+    expect(findMaterial('Mild steel')).toMatchObject({ id: 'steel-mild', density: 7850, youngs: 205, yield: 250 });
+    expect(findMaterial('steel')?.id).toBe('steel-mild');
+    expect(findMaterial('Stainless steel 316')?.id).toBe('steel-316');
+    expect(findMaterial('Aluminium 6061')?.density).toBe(2700);
+    expect(findMaterial('Mild steel')!.standard).toBeUndefined();
+    expect(BUILTIN_MATERIALS.slice(0, 4).map((m) => m.id)).toEqual(['steel-mild', 'steel-304', 'steel-316', 'steel-tool']);   // catalogue order unchanged, grades after the general steels
+    // grades resolve by name, id (any case) and Inspect uses their density
+    expect(findMaterial('ASTM A992')?.id).toBe('astm-a992');
+    expect(findMaterial('en-10025-2-S355')?.id).toBe('en-10025-2-s355');
+    expect(densityGcm3('EN 10025-2 S355')).toBeCloseTo(7.85);
+  });
+  it('an old saved part (material by name) reads the same density and colour as before', () => {
+    const old = JSON.parse('{"format":"ck-part","version":1,"name":"P","material":"Mild steel","features":[]}') as { material: string };
+    expect(findMaterial(old.material)).toMatchObject({ density: 7850, color: '#8d97a5' });
+    expect(densityOf(old.material)).toBeCloseTo(7.85);
+    expect(densityOf('steel')).toBeCloseTo(7.85);
+  });
+  it('searches by standard, grade and region, and splits Steel into general / region and standard', () => {
+    const ids = (q: string) => groupMaterials([...BUILTIN_MATERIALS], q).flatMap((g) => g.items.map((i) => i.id));
+    expect(ids('s355')).toEqual(['en-10025-2-s355', 'en-10210-s355j2h', 'en-10219-s355j2h']);
+    expect(ids('astm a500')).toHaveLength(4);
+    expect(ids('australia')).toEqual([]);   // regions are searched by code (AU), not their long name
+    expect(ids('au')).toEqual(expect.arrayContaining(['as-nzs-3679.1-300']));
+    const steel = groupMaterials([...BUILTIN_MATERIALS], '')[0];
+    expect(steel.category).toBe('Steel');
+    expect(subgroups(steel.items).map((g) => g.key)).toEqual(['general', 'AU|AS/NZS 3679.1', 'US|ASTM A36', 'US|ASTM A992', 'US|ASTM A572', 'US|ASTM A53', 'US|ASTM A500', 'EU|EN 10025-2', 'EU|EN 10210', 'EU|EN 10219']);
+    expect(subgroups(steel.items)[0].items.map((m) => m.id)).toEqual(['steel-mild', 'steel-304', 'steel-316', 'steel-tool']);
+  });
+  it('the committed catalogue file is what the build script makes from the verified record', () => {
+    expect(() => execFileSync('node', [join(dirname(fileURLToPath(import.meta.url)), '../../../tools/build_steel_materials.mjs'), '--check'], { stdio: 'pipe' })).not.toThrow();
+    expect(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'materials.steel.json'), 'utf8')).toContain('"astm-a992"');
+  });
+});
+
+describe('wood and panel materials', () => {
+  const SOLID = ['Birch', 'Cedar', 'Cherry', 'Douglas fir', 'Eucalyptus', 'Maple', 'Oak', 'Pine', 'Teak', 'Walnut'];
+  const PANELS = ['Chipboard P5', 'MDF', 'OSB/3', 'Plywood - birch'];
+  it('has ten solid woods and four panels in the Wood category, each with density and stiffness', () => {
+    for (const n of [...SOLID, ...PANELS]) {
+      const d = findMaterial(n);
+      expect(d, n).toBeTruthy();
+      expect(d!.category, n).toBe('Wood');
+      expect(d!.density, n).toBeGreaterThan(300);
+      expect(d!.density, n).toBeLessThan(900);
+      expect(d!.youngs, n).toBeGreaterThan(1);
+    }
+  });
+  it('keeps the earlier wood densities, so the mass of existing parts does not change', () => {
+    expect(findMaterial('Oak')!.density).toBe(750);
+    expect(findMaterial('Pine')!.density).toBe(500);
+    expect(findMaterial('MDF')!.density).toBe(750);
+  });
+  it('solid woods carry their source, the panels are marked unverified', () => {
+    expect(findMaterial('Walnut')!.note).toContain('wood-database.com');
+    expect(findMaterial('Walnut')!.verified).toBe(true);
+    expect(findMaterial('OSB/3')!.verified).toBe(false);
+    expect(findMaterial('OSB/3')!.note).toContain('EN');
+  });
+  it('every wood has its own colour and a matte finish', () => {
+    const colours = [...SOLID, ...PANELS].map((n) => appearanceOfMaterial(n)!.color);
+    expect(new Set(colours).size).toBe(colours.length);
+    for (const n of [...SOLID, ...PANELS]) expect(appearanceOfMaterial(n)!.material, n).toBe('matte');
+  });
+});
+
+describe('wood appearance carries PBR values', () => {
+  it('woods are a little more satin than the matte preset', () => {
+    expect(appearanceOfMaterial('Walnut')!.pbr).toEqual({ roughness: 0.6 });
+    expect(appearanceOfMaterial('Walnut')!.look).toEqual({ kind: 'wood', tone: '#32231a', contrast: 0.55 });
+    expect(appearanceOfMaterial('MDF')!.look).toBeUndefined();
+    expect(appearanceOfMaterial('steel')!.look).toBeUndefined();
+    expect(appearanceOfMaterial('steel')!.pbr).toBeUndefined();
   });
 });

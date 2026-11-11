@@ -23,9 +23,9 @@ type Tr = (key: string, params?: Record<string, string | number>) => string;
 
 /** The notices after a SketchUp import, in order: what came in and how it is oriented (with the "Flip orientation" button), the hidden
  *  faces left out (with "Show hidden geometry", only when they were left out), and the open-surface warning. */
-export function skpNotices(s: SkpSummary, o: { file: string; up: SkpOrient; hidden: boolean }, tr: Tr, act: { flip(): void; showHidden(): void }): SkpNotice[] {
+export function skpNotices(s: SkpSummary, o: { file: string; up: SkpOrient; hidden: boolean; /** the model went in as a reference mesh of this many triangles */ mesh?: number }, tr: Tr, act: { flip(): void; showHidden(): void }): SkpNotice[] {
   const out: SkpNotice[] = [{
-    text: tr('files.skp.done', { name: o.file, faces: s.faces, pieces: s.pieces, materials: s.materials }) + ' ' + tr(`files.skp.orient.${o.up}`),
+    text: (o.mesh !== undefined ? tr('files.skp.mesh.done', { name: o.file, faces: s.faces, tris: o.mesh.toLocaleString(), materials: s.materials }) : tr('files.skp.done', { name: o.file, faces: s.faces, pieces: s.pieces, materials: s.materials })) + ' ' + tr(`files.skp.orient.${o.up}`),
     level: s.closed ? 'info' : 'warn',
     action: { label: tr('files.skp.flip'), run: act.flip },
   }];
@@ -54,7 +54,7 @@ export interface SkpLook {
 export interface SkpSummary { faces: number; pieces: number; openEdges: number; nonManifoldEdges: number; materials: number; hiddenSkipped: number; closed: boolean }
 
 export type SkpImportResult =
-  | (Extract<StepImportResult, { ok: true }> & { look: SkpLook; summary: SkpSummary; /** the orientation the kernel applied */ up: SkpOrient })
+  | (Extract<StepImportResult, { ok: true }> & { look: SkpLook; summary: SkpSummary; /** the kernel's materials and the material of each face (the reference-mesh path builds its triangle colours from these) */ facts: Pick<SkpFacts, 'materials' | 'faceMaterials'>; /** the orientation the kernel applied */ up: SkpOrient })
   | Extract<StepImportResult, { ok: false }>;
 
 const hex2 = (n: number): string => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
@@ -116,5 +116,5 @@ export async function importSkpView(session: Pick<Session, 'importSkp'>, bytes: 
   const summary = skpSummary({ faces: body.faces.length, lumps: im?.lumps ?? 1, openEdges: im?.openEdges ?? 0, nonManifoldEdges: im?.nonManifoldEdges ?? 0, materials, hiddenSkipped: im?.hiddenSkipped ?? 0 });
   // what each piece is (a valid closed solid, or a surface with the reasons): the body keeps every piece, as a surface model
   const parts = parseParts((im as { parts?: unknown } | undefined)?.parts);
-  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, parts, look, summary, up: im?.up ?? opts.up ?? 'z' };
+  return { ok: true, view, faces: body.faces.length, edges: view.edges.length, parts, look, summary, facts: { materials, faceMaterials: im?.faceMaterials ?? [] }, up: im?.up ?? opts.up ?? 'z' };
 }

@@ -1,0 +1,442 @@
+{
+ "open": {
+  "by_family": {
+   "IPEO": {
+    "n": 13
+   },
+   "IPE": {
+    "n": 18
+   },
+   "IPEA": {
+    "n": 18
+   },
+   "IPEAA": {
+    "n": 14
+   },
+   "HEM": {
+    "n": 24
+   },
+   "HEB": {
+    "n": 24
+   },
+   "HEA": {
+    "n": 24
+   },
+   "HEAA": {
+    "n": 24
+   },
+   "IPN": {
+    "n": 21
+   },
+   "UPN": {
+    "n": 18
+   }
+  },
+  "worst_pct": {
+   "IPEO": {
+    "mass_area": 0.377,
+    "A": 0.113,
+    "Iy_strong": 0.045,
+    "Iz_weak": 0.08,
+    "Iw": 0.554,
+    "J_ratio_min": 1.173,
+    "J_ratio_max": 1.339
+   },
+   "IPE": {
+    "mass_area": 0.57,
+    "A": 0.575,
+    "Iy_strong": 0.078,
+    "Iz_weak": 0.063,
+    "Iw": 1.488,
+    "J_ratio_min": 1.179,
+    "J_ratio_max": 1.395
+   },
+   "IPEA": {
+    "mass_area": 0.753,
+    "A": 0.379,
+    "Iy_strong": 0.075,
+    "Iz_weak": 0.06,
+    "Iw": 1.41,
+    "J_ratio_min": 1.233,
+    "J_ratio_max": 1.516
+   },
+   "IPEAA": {
+    "mass_area": 0.92,
+    "A": 0.501,
+    "Iy_strong": 0.081,
+    "Iz_weak": 0.062,
+    "Iw": 1.381,
+    "J_ratio_min": 1.26,
+    "J_ratio_max": 1.55
+   },
+   "HEM": {
+    "mass_area": 0.238,
+    "A": 0.071,
+    "Iy_strong": 0.056,
+    "Iz_weak": 0.082,
+    "Iw": 0.529,
+    "J_ratio_min": 1.058,
+    "J_ratio_max": 1.102
+   },
+   "HEB": {
+    "mass_area": 0.3,
+    "A": 0.146,
+    "Iy_strong": 0.087,
+    "Iz_weak": 0.084,
+    "Iw": 0.449,
+    "J_ratio_min": 1.104,
+    "J_ratio_max": 1.288
+   },
+   "HEA": {
+    "mass_area": 0.349,
+    "A": 0.179,
+    "Iy_strong": 0.065,
+    "Iz_weak": 0.084,
+    "Iw": 0.371,
+    "J_ratio_min": 1.136,
+    "J_ratio_max": 1.464
+   },
+   "HEAA": {
+    "mass_area": 0.434,
+    "A": 0.248,
+    "Iy_strong": 0.084,
+    "Iz_weak": 0.047,
+    "Iw": 0.561,
+    "J_ratio_min": 1.241,
+    "J_ratio_max": 1.781
+   },
+   "IPN": {
+    "mass_area": 1.106,
+    "A": 2.008,
+    "Iy_strong": 1.991,
+    "Iz_weak": 5.336,
+    "Iw": 4.063,
+    "J_ratio_min": 1.152,
+    "J_ratio_max": 1.23
+   },
+   "UPN": {
+    "mass_area": 0.495,
+    "A": 3.087,
+    "Iy_strong": 2.747,
+    "Iz_weak": 4.841,
+    "J_ratio_min": 1.032,
+    "J_ratio_max": 1.104
+   }
+  },
+  "failed": []
+ },
+ "hollow": {
+  "duplicate_ids": [],
+  "by_group": {
+   "hot-finished-CHS": {
+    "n": 157
+   },
+   "hot-finished-SHS": {
+    "n": 146
+   },
+   "hot-finished-RHS": {
+    "n": 247
+   },
+   "cold-formed-CHS": {
+    "n": 106,
+    "hybox_datasheet_compared": 73,
+    "not_in_hybox_datasheet": 33
+   },
+   "cold-formed-SHS": {
+    "n": 96,
+    "hybox_datasheet_compared": 90,
+    "not_in_hybox_datasheet": 6
+   },
+   "cold-formed-RHS": {
+    "n": 136,
+    "hybox_datasheet_compared": 122,
+    "not_in_hybox_datasheet": 14,
+    "hybox_mass_mismatch": 2
+   }
+  },
+  "worst_pct": {
+   "hot-finished-CHS": {
+    "mass_area": 0.598,
+    "A": 0.393,
+    "I": 0.45
+   },
+   "hot-finished-SHS": {
+    "mass_area": 0.598,
+    "A": 0.373,
+    "Iy": 0.443,
+    "Iz": 0.443
+   },
+   "hot-finished-RHS": {
+    "mass_area": 0.598,
+    "A": 0.42,
+    "Iy": 0.467,
+    "Iz": 0.453
+   },
+   "cold-formed-CHS": {
+    "mass_area": 0.598,
+    "A": 0.391,
+    "I": 0.45,
+    "hybox_mass_diff_pct": 0.407
+   },
+   "cold-formed-SHS": {
+    "mass_area": 0.575,
+    "A": 0.469,
+    "Iy": 0.403,
+    "Iz": 0.403,
+    "hybox_mass_diff_pct": 0
+   },
+   "cold-formed-RHS": {
+    "mass_area": 0.575,
+    "A": 0.469,
+    "Iy": 0.423,
+    "Iz": 0.505,
+    "hybox_mass_diff_pct": 27.434
+   }
+  },
+  "failed": [],
+  "hybox_mass_disagreements": [
+   [
+    "EU-EN10219-RHS100x50x5",
+    10.3,
+    10.5,
+    1.9
+   ],
+   [
+    "EU-EN10219-RHS200x100x8",
+    43.2,
+    33.9,
+    27.43
+   ]
+  ]
+ },
+ "candidate": {
+  "tolerance_pct": 3.0,
+  "by_category": {
+   "IPE-family": {
+    "cand": 51,
+    "matched": 48,
+    "dropped_absent": [
+     "IPE750×147",
+     "IPE750×173+",
+     "IPE750×196+"
+    ],
+    "compared": 336,
+    "mism_values": 6,
+    "mism_sections": 6,
+    "worst_pct": 6.06,
+    "worst": [
+     "IPEA100",
+     "J_mm4",
+     7700,
+     7260.0
+    ],
+    "mism_names": [
+     "IPEA100",
+     "IPEA120",
+     "IPEA360",
+     "IPEA400",
+     "IPEA450",
+     "IPEA550"
+    ]
+   },
+   "HEA": {
+    "cand": 24,
+    "matched": 24,
+    "dropped_absent": [],
+    "compared": 168,
+    "mism_values": 3,
+    "mism_sections": 3,
+    "worst_pct": 4.04,
+    "worst": [
+     "HEA260",
+     "J_mm4",
+     520000,
+     541900.0
+    ],
+    "mism_names": [
+     "HEA260",
+     "HEA280",
+     "HEA300"
+    ]
+   },
+   "HEB": {
+    "cand": 24,
+    "matched": 24,
+    "dropped_absent": [],
+    "compared": 168,
+    "mism_values": 0,
+    "mism_sections": 0,
+    "worst_pct": 0.9,
+    "worst": [
+     "HEB300",
+     "J_mm4",
+     1874000,
+     1891000.0
+    ],
+    "mism_names": []
+   },
+   "Square Hollow Section": {
+    "cand": 6,
+    "matched": 6,
+    "dropped_absent": [],
+    "compared": 42,
+    "mism_values": 24,
+    "mism_sections": 5,
+    "worst_pct": 5.85,
+    "worst": [
+     "150x150x8 SHS",
+     "Zx_mm3",
+     199000.0,
+     188000
+    ],
+    "mism_names": [
+     "60x60x4 SHS",
+     "80x80x5 SHS",
+     "100x100x6 SHS",
+     "150x150x8 SHS",
+     "200x200x10 SHS"
+    ]
+   },
+   "Rectangular Hollow Section": {
+    "cand": 5,
+    "matched": 5,
+    "dropped_absent": [],
+    "compared": 35,
+    "mism_values": 16,
+    "mism_sections": 4,
+    "worst_pct": 6.89,
+    "worst": [
+     "200x100x8 RHS",
+     "Ix_mm4",
+     22340000,
+     20900000
+    ],
+    "mism_names": [
+     "100x50x4 RHS",
+     "120x80x5 RHS",
+     "200x100x8 RHS",
+     "250x150x8 RHS"
+    ]
+   },
+   "Circular Hollow Section": {
+    "cand": 6,
+    "matched": 6,
+    "dropped_absent": [],
+    "compared": 42,
+    "mism_values": 0,
+    "mism_sections": 0,
+    "worst_pct": 0.49,
+    "worst": [
+     "88.9x5 CHS",
+     "massPerMetre_kgm",
+     10.35,
+     10.3
+    ],
+    "mism_names": []
+   },
+   "HEAA": {
+    "cand": 24,
+    "matched": 24,
+    "dropped_absent": [],
+    "compared": 168,
+    "mism_values": 18,
+    "mism_sections": 18,
+    "worst_pct": 7.96,
+    "worst": [
+     "HEAA100",
+     "J_mm4",
+     25100,
+     23250.0
+    ],
+    "mism_names": [
+     "HEAA100",
+     "HEAA120",
+     "HEAA140",
+     "HEAA240",
+     "HEAA300",
+     "HEAA320",
+     "HEAA340",
+     "HEAA360",
+     "HEAA400",
+     "HEAA450",
+     "HEAA500",
+     "HEAA550",
+     "HEAA600",
+     "HEAA650",
+     "HEAA700",
+     "HEAA800",
+     "HEAA900",
+     "HEAA1000"
+    ]
+   },
+   "HEM": {
+    "cand": 24,
+    "matched": 24,
+    "dropped_absent": [],
+    "compared": 168,
+    "mism_values": 0,
+    "mism_sections": 0,
+    "worst_pct": 0.42,
+    "worst": [
+     "HEM900",
+     "J_mm4",
+     16890000,
+     16820000.0
+    ],
+    "mism_names": []
+   },
+   "HE": {
+    "cand": 16,
+    "matched": 0,
+    "dropped_absent": [
+     "HE 600 × 337dot",
+     "HE 600 × 399dot",
+     "HE 650 × 343dot",
+     "HE 650 × 407dot",
+     "HE 700 × 352dot",
+     "HE 700 × 418dot",
+     "HE 800 × 373dot",
+     "HE 800 × 444dot",
+     "HE 900 × 391dot",
+     "HE 900 × 466dot",
+     "HE 1000 × 249dot",
+     "HE 1000 × 393dot",
+     "HE 1000 × 415dot",
+     "HE 1000 × 438dot",
+     "HE 1000 × 494dot",
+     "HE 1000 × 584dot"
+    ],
+    "compared": 0,
+    "mism_values": 0,
+    "mism_sections": 0,
+    "worst_pct": 0.0,
+    "worst": null,
+    "mism_names": []
+   },
+   "IPN": {
+    "cand": 21,
+    "matched": 21,
+    "dropped_absent": [],
+    "compared": 147,
+    "mism_values": 0,
+    "mism_sections": 0,
+    "worst_pct": 0.55,
+    "worst": [
+     "IPN140",
+     "area_mm2",
+     1830,
+     1820.0
+    ],
+    "mism_names": []
+   }
+  },
+  "primary_sections_not_in_candidate": {
+   "IPEAA": 14,
+   "IPEA": 1,
+   "UPN": 18,
+   "CHS": 257,
+   "SHS": 236,
+   "RHS": 378
+  }
+ }
+}

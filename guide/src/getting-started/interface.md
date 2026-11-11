@@ -1,8 +1,8 @@
 # The interface
 
-This chapter is a tour of the CadKit window: the top bar, the ribbon, the feature tree and other side panels, the viewport, the status bar, the bottom drawer, command search, the Display menu and document tabs. It describes the default layout; [Units and settings](settings.md) shows how to rearrange it.
+This chapter is a tour of the CivilKit CAD window: the top bar, the ribbon, the feature tree and other side panels, the viewport, the status bar, the bottom drawer, command search, the Display menu and document tabs. It describes the default layout; [Units and settings](settings.md) shows how to rearrange it.
 
-![The default CadKit window with a small part open: top bar, ribbon, feature tree, viewport with view cube, and status bar.](../img/interface-overview.png)
+![The default CivilKit CAD window with a small part open: top bar, ribbon, feature tree, viewport with view cube, and status bar.](../img/interface-overview.png)
 
 ## Layout at a glance
 
@@ -21,7 +21,7 @@ All three side areas can be resized by dragging the thin handle between them and
 
 The same app adapts to the screen. It chooses a layout from the window width and the pointer: a phone (narrower than 700 px, or a touch device whose short side is under 500 px), a tablet (narrower than 1100 px, or any touch device) or a desktop. Change it in **Settings > Layout > Screen layout** if the automatic choice is wrong for you; the choice is remembered, and your panel settings are not changed by it.
 
-- **Phone.** The drawing takes the screen: one slim bar at the top and one bar at the bottom, nothing else. The top bar has the **file menu** (new, open, save, export, samples ...), the **title** of the document (a dot after it means unsaved changes; tap it for the list of open documents and New part), **undo**, **redo** and **more** (search commands, Part or Drawing, rename, settings). The bottom bar has **Tools**, **Tree**, **Properties** and **Diagnostics**. **Tools** opens the ribbon as one strip just above the bar: the tabs as chips, then the tools of the chosen tab in a single row with their names that you scroll sideways; picking a tool, or tapping the drawing, closes it again. The tree, the properties (or the editor while you edit a feature) and the diagnostics open as **sheets** that share the screen with the drawing: the drawing shrinks to the room above the sheet and keeps its framing, so the model stays in view and updates while you change a value. A sheet that edits something rises to about 60% of the screen at most; the tree and diagnostics lists can go higher. Drag the handle at the top of a sheet to move it between its heights, drag it down to close it, or use its close button. When the on-screen keyboard is up the bars give way, and the sheet and the field you are typing in stay visible above the keyboard. Dialogs such as Samples and Settings fill the screen, and the Settings tabs scroll sideways.
+- **Phone.** The drawing takes the screen: one slim bar at the top and one bar at the bottom, nothing else. The top bar has the **file menu** (new, open, save, export, library ...), the **title** of the document (a dot after it means unsaved changes; tap it for the list of open documents and New part), **undo**, **redo** and **more** (search commands, Part or Drawing, rename, settings). The bottom bar has **Tools**, **Tree**, **Properties** and **Diagnostics**. **Tools** opens the ribbon as one strip just above the bar: the tabs as chips, then the tools of the chosen tab in a single row with their names that you scroll sideways; picking a tool, or tapping the drawing, closes it again. The tree, the properties (or the editor while you edit a feature) and the diagnostics open as **sheets** that share the screen with the drawing: the drawing shrinks to the room above the sheet and keeps its framing, so the model stays in view and updates while you change a value. A sheet that edits something rises to about 60% of the screen at most; the tree and diagnostics lists can go higher. Drag the handle at the top of a sheet to move it between its heights, drag it down to close it, or use its close button. When the on-screen keyboard is up the bars give way, and the sheet and the field you are typing in stay visible above the keyboard. Dialogs such as Samples and Settings fill the screen, and the Settings tabs scroll sideways.
 - **Numbers on a phone.** Every number field opens the digit keypad with a Done key. Fields that take a formula or a variable have an **ƒ** key beside them that switches to the full keyboard (and **123** back), and a **±** key where the keypad has no minus. The label on the drawing (for example "Depth 20 mm") is a button too: tap it to type an exact value in place.
 - **Sketching with a finger.** While a sketch tool is active, one finger belongs to the tool: press the first point (a circle's centre), drag to size the shape with a live preview and lift to place it, or tap, then tap, as before. Two fingers pan and pinch the sketch view. A circle dragged out this way is selected with its **radius** field focused, so you can type an exact size. A touch the system cancels, or a second finger that lands, drops whatever the first one began. The bar above the bottom bar has **Done**, **Cancel shape**, **Undo** and **Delete**, because a phone has no Enter, Escape or Delete key. Points are picked from twice as far as with a mouse.
 - **Tablet.** One top bar row, the ribbon compact (tabs, then its tools) and the tree and the properties docked at the sides, as on a desktop but narrower. A single open document has no tab strip.
@@ -38,7 +38,7 @@ From left to right:
 | **Save** (`Ctrl+S`) | Saves the part. |
 | **Export** (`Ctrl+E`) | Opens the Export menu. See [Exporting](../files/export.md). |
 | **More file actions** | A menu with **Save as**, **Save geometry in file**, **Recover earlier versions…**, **Import STEP / SolidWorks / SketchUp**, **Import SketchUp with hidden geometry** and **Rotate imported model**. |
-| **Samples** | Opens the sample parts. |
+| **Library** | Opens the Library picker: the sample parts and the libraries you added. |
 | Part name | Double-click to rename the part. A dot after the name means unsaved changes. |
 | **Part** / **Drawing** | Switches the document between the model and its drawing. See [Drawings](../files/drawings.md). |
 | **Search commands** (`F`) | Opens command search. |
@@ -68,11 +68,15 @@ The ribbon is a row of tabs; each tab holds groups of buttons. Many buttons stan
 | --- | --- |
 | **Home** | **Sketch**, **Create**, **Modify**, **Pattern**, **Edit** |
 | **Features** | **Reference**, **Create**, **Modify**, **Bodies** |
+| **Frame** | **Frame** (**Frame** and **Cut list**) |
+| **Sheet metal** | **Rules**, **Create**, **Flatten**, **Export** |
 | **Surfaces** | **Create**, **Edit** |
 | **View** | **Views**, **Display style**, **Appearance** (lighting, background and **Show**), **Workspace** |
 | **Select** | **Pick**, **Expand**, **Position** |
 | **Evaluate** | **Measure**, **Surface analysis** |
 | **Assembly** | **Components**, **Review** |
+
+The **Frame** tab is where the structural Frame tool lives: **Frame** builds a frame from a sketch of lines and a stock profile, and **Cut list** opens a drawing of it with the numbered pieces, the cut list and the bill of materials. On a phone the same tab is in the tool sheet.
 
 The **Assembly** tab appears when the part contains inserted components, and opens by itself when you open an assembly.
 
@@ -83,6 +87,30 @@ Three things change the ribbon:
 - **A command that cannot run** is greyed, and its tooltip says why: for example **Fillet** says "Select edges, or two or more faces, to round".
 
 The ribbon has two sizes, **Full** and **Compact**, and can be turned off, in which case you reach every command through command search. File commands are in the top bar, not on a ribbon tab.
+
+## The tool rail
+
+The tool rail is a column of tools down the left edge of the view: the modelling commands without the ribbon. It is off on a first visit. Turn it on with **Tool rail** in Settings > **Layout** (the presets set it: **Plasticity-style** has it on, **Classic ribbon** and **Minimal** leave it off).
+
+![The tool rail down the left edge of the view, with the Create section opened on its flyout.](../img/tool-rail.png)
+
+- **Sections** run down the rail: **Edit**, **Sketch**, **Create**, **Modify**, **Frame**, **Surfaces**, **Pattern**, **Inspect**, **Assembly** and **Select**. A section that would be empty in this build is skipped.
+- **One cell per family.** A cell shows the tool you used last from that family (the Extrude cell is fixed and always shows Extrude); the rest open from it with a long press, a flick to the right, a right click, or the triangle in its corner. The last tool is remembered per family and shared with the ribbon.
+- **For selection** sits at the top while something is selected: the commands that apply to what is selected, most relevant first, in the order of the right-click menu among the commands that can run now; commands that cannot run move to the end. Its memory is per kind of selection, so the tools you used on a face come back when you pick another face.
+- **Button labels** (Settings > Layout) switches the rail between **Icons and text** and **Icons only (label on hover)**, as it does the ribbon.
+
+While a sketch is open the rail keeps **Edit** and, when the ribbon is off, gains the sketch sections (**Select**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference**); with the ribbon on the sketch tools stay on the ribbon. See [Starting a sketch](../sketching/start.md).
+
+File, export, camera and display commands have no cell on the rail: they stay in the top bar, on the View tab and in command search.
+
+### Common problems
+
+| Symptom | Fix |
+|---| ---|
+| There is no rail | It is off by default. Settings > **Layout** > **Tool rail** |
+| A family opens a tool you did not want | The cell opens on the last tool of that family. Long press, right click or press the corner triangle to pick another |
+| The rail is missing while sketching | With the ribbon on, only **Edit** is shown there; the sketch tools are on the ribbon. Turn the ribbon off to carry them on the rail |
+| A command you look for is not on the rail | File, export, view, layer and display commands are not on it by design. Use the top bar, the View tab or command search (**F**) |
 
 ## The left panel
 

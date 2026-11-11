@@ -7,6 +7,7 @@ export const SNAP_KEEP = 10;
 export const SNAP_EVERY = 30_000;
 export const SNAP_HOLD = 24 * 3600_000;
 
+const hasMeshes = (doc: unknown): boolean => Array.isArray((doc as { meshes?: unknown } | null)?.meshes) && ((doc as { meshes: unknown[] }).meshes.length > 0);
 export const featureCount = (doc: unknown): number => { const f = (doc as { features?: unknown } | null)?.features; return Array.isArray(f) ? f.length : 0; };
 
 /** Which snapshots to drop: all but the newest SNAP_KEEP, except that the richest one younger than SNAP_HOLD always stays. */
@@ -63,7 +64,7 @@ export function createSnapshots(backend: SnapBackend | null, opts: { now?: () =>
       if (!backend || !doc) return Promise.resolve();
       const features = featureCount(doc);
       const t = now();
-      if (features === 0 || (reason === 'auto' && t - lastTime < SNAP_EVERY)) return Promise.resolve();
+      if ((features === 0 && !hasMeshes(doc)) || (reason === 'auto' && t - lastTime < SNAP_EVERY)) return Promise.resolve();
       let key: string;
       try { key = JSON.stringify(doc); } catch { return Promise.resolve(); }
       if (key === lastKey) return Promise.resolve();

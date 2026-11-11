@@ -62,7 +62,18 @@ If the tool no longer crosses the sheet, the trim fails with "the surfaces do no
 - The Editor lists the surfaces with a checkbox each.
 - **Make a solid when the result is closed** turns a sealed shell into a solid. It is off by default. If the shell still has open edges, the Editor reports that it is not closed.
 
-**Thicken.** Thicken turns a sheet into a solid. The Editor has Surface, Thickness (about 10% of the body size at first, or 1 mm with no body), Side (Front, Back or Both) and Operation (Add or Cut).
+**Thicken.** Thicken turns a sheet into a solid. The Editor has Surface, **Thickness**, Side (Front, Back or Both) and Operation (Add or Cut). Thickness starts at about 10% of the body size at first, or 1 mm with no body.
+
+Tick **Variable thickness** and the single thickness becomes a ramp: the sheet is thick at one end and thin at the other, which is what a blade or a tapered plate needs.
+
+| Control | What it does | Default |
+|---|---|---|
+| Ramp along | **X axis**, **Y axis** or **Z axis**: the direction the positions are measured along. A direction that is none of those (set by a script, say) is shown as its vector | Z axis |
+| Position | Where a stop sits, in millimetres along that direction | 0, then 10 |
+| Thickness | How thick the sheet is at that stop, in millimetres | The thickness you had, then half of it |
+| Add stop, Remove | Stops are added at the end and removed from anywhere: 2 to 6 in all | Two stops |
+
+The note in the editor gives the rules: "Thickness at positions along the axis (2 to 6, rising). The stops must cover the whole surface." Between two stops the thickness is interpolated, so the sheet changes smoothly. Positions run from the smallest to the largest, and stops that do not reach across the whole sheet are refused.
 
 **Delete face.** Select faces in Face mode and choose **Features > Bodies > Delete face**. The faces are removed; deleting a face of a solid leaves a sheet.
 
@@ -85,9 +96,8 @@ Pipe cut rolls a ball of a given radius along edges and cuts away everything it 
 
 ## Not available
 
-- **Project curve** onto a surface has no command. Inside a sketch, the Project tool projects model edges onto the sketch plane. See [Offsets and references](../sketching/offset-reference.md).
+- **Project curve**, **Edit curve** and **Freeform** are covered in [Curves on faces](curves.md). Inside a sketch, the Project tool is a different thing: it projects model edges onto the sketch plane. See [Offsets and references](../sketching/offset-reference.md).
 - Offset surface, cut with surface, split line and dome are not built yet.
-- Free-form surface editing (control points) and curve editing have no tools.
 - Guide curves and strength for Fill are not offered.
 
 For the exact definitions, see [Surfaces and curves](/docs/cad/kernel/format/features-surfaces.html) in the kernel book: [knit](/docs/cad/kernel/format/features-surfaces.html#knit), [fill](/docs/cad/kernel/format/features-surfaces.html#fill), [trim surface](/docs/cad/kernel/format/features-surfaces.html#trimsurface), [thicken](/docs/cad/kernel/format/features-surfaces.html#thicken), [extend](/docs/cad/kernel/format/features-surfaces.html#extend).
@@ -109,6 +119,7 @@ Use only one colour mode at a time; the comb can be added to it. The analysis re
 ## Next
 
 - [Extrude, revolve, sweep and loft](solids.md)
+- [Curves on faces](curves.md)
 - [Bodies and combining](bodies.md)
 - [Measure and inspect](../analysis/measure.md)
 - [Offsets and references](../sketching/offset-reference.md)

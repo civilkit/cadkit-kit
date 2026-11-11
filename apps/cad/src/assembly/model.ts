@@ -1,5 +1,6 @@
 // Assembly logic without DOM or kernel: which component a face or edge name belongs to, the component rows, the operations that
 // insert / place / delete components, the bill of materials and the exploded-view offsets.
+import { alignedText, csvText } from '../tableText';
 import type { EditOp } from '@ck/session';
 import { densityOf } from '../inspect/mass';
 
@@ -156,15 +157,26 @@ export function bomItems(doc: DocLike | null, volumeOf: (part: unknown) => numbe
 
 export const bomTotal = (items: BomItem[]): number | null => (items.length && items.every((i) => i.massTotal !== null) ? items.reduce((s, i) => s + (i.massTotal ?? 0), 0) : null);
 
-const csvCell = (v: string | number): string => { const s = String(v); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const fix = (g: number | null): string => (g === null ? '' : String(+g.toPrecision(6)));
 
-/** The BOM as CSV (RFC 4180): No., Part, Qty, Material, Mass each (g), Mass total (g), and a Total row. */
-export function bomCsv(items: BomItem[], head = ['No.', 'Part', 'Qty', 'Material', 'Mass each (g)', 'Mass total (g)'], totalLabel = 'Total'): string {
-  const lines = [head.map(csvCell).join(',')];
-  for (const i of items) lines.push([i.no, i.part, i.qty, i.material, fix(i.massEach), fix(i.massTotal)].map(csvCell).join(','));
-  lines.push(['', totalLabel, items.reduce((s, i) => s + i.qty, 0), '', '', fix(bomTotal(items))].map(csvCell).join(','));
-  return lines.join('\r\n') + '\r\n';
+/** The BOM rows: No., Part, Qty, Material, Mass each, Mass total, then a Total row. */
+function bomRows(items: BomItem[], totalLabel: string): Array<Array<string | number>> {
+  return [
+    ...items.map((i) => [i.no, i.part, i.qty, i.material, fix(i.massEach), fix(i.massTotal)]),
+    ['', totalLabel, items.reduce((s, i) => s + i.qty, 0), '', '', fix(bomTotal(items))],
+  ];
+}
+
+const BOM_HEAD = ['No.', 'Part', 'Qty', 'Material', 'Mass each (g)', 'Mass total (g)'];
+
+/** The BOM as CSV (RFC 4180, CR LF line ends, text cells safe from spreadsheet formulas): No., Part, Qty, Material, Mass each (g), Mass total (g), and a Total row. */
+export function bomCsv(items: BomItem[], head = BOM_HEAD, totalLabel = 'Total'): string {
+  return csvText([head, ...bomRows(items, totalLabel)]);
+}
+
+/** The BOM as aligned plain text for an e-mail: the same columns as the CSV. */
+export function bomText(items: BomItem[], head = BOM_HEAD, totalLabel = 'Total'): string {
+  return alignedText(head, bomRows(items, totalLabel));
 }
 
 // ---- exploded view ---------------------------------------------------------------------------------------------------------

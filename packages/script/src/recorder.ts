@@ -7,6 +7,7 @@ export { Expr };
 export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
 import type { ScrewOpts } from './features/screw';
+import type { WasherOpts } from './features/washer';
 import type { BearingOpts } from './features/bearing';
 import { applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './features/h';
 import type { CosmeticKnurl } from './cosmeticKnurl';
@@ -85,9 +86,11 @@ export interface ReadRuntime {
   facts(need: FactNeed): Promise<Facts>;
   /** Report a failed expectation on a script line (the run goes on). */
   fail(message: string, line: number): void;
+  /** an expectation held: reported as a passing row in the run's checks */
+  pass?(label: string, line: number): void;
 }
 export interface TextMetricsFact { advance: number; bbox: [number, number, number, number]; width: number; capHeight: number; chars: number; advances: number[]; warnings: unknown[] }
-export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean; /** measure a string (the kernel's textMetrics) */ text?: { string: string; font?: string; height: number; spacing?: number } }
+export interface FactNeed { mass?: boolean; validate?: boolean; geometry?: boolean; /** answer `bbox` for the body of this name (needs mass) instead of the whole part */ body?: string; /** measure a string (the kernel's textMetrics) */ text?: { string: string; font?: string; height: number; spacing?: number } }
 export interface FaceFact {
   /** persistent face name, usable in face('F3.C1') */
   name: string;
@@ -99,11 +102,17 @@ export interface FaceFact {
   radius?: number;
   /** the feature that created the face */
   feature: string;
+  /** with several bodies: the index of the body (in Facts.bodies) the face belongs to */
+  lump?: number;
 }
 /** The kernel's unit-density inertia numbers (volume-weighted: mm^4 / mm^5), world axes, tensors as rows. */
 export interface InertiaFact { firstMoment: Vec; tensor: number[][]; tensorOrigin: number[][]; principal: Vec; axes: Vec[] }
 export interface Facts {
   volume: number | null; area: number | null; com: Vec | null; inertia?: InertiaFact | null;
+  /** the kernel's body list (one per solid, named by newBody): volume and area each */
+  bodies: Array<{ name?: string; volume: number; area: number }>;
+  /** the display-mesh box of each body, by index in `bodies`; empty with one body */
+  bodyBoxes: Array<{ min: Vec; max: Vec } | null>;
   valid: boolean | null; issues: Array<{ code: string; entity: string; detail: string }>;
   bbox: { min: Vec; max: Vec } | null;
   faceCount: number; edgeCount: number; faces: FaceFact[];
@@ -551,9 +560,9 @@ export type BodyFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const BODY_FINISHES: readonly BodyFinish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 /** Colour, opacity and finish of a body. `colour` is the same as `color`: '#rrggbb' or '#rgb'. */
 export interface LookOpts { colour?: string; color?: string; opacity?: number; finish?: BodyFinish }
-export type AppearanceTarget = LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle };
+export type AppearanceTarget = LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle; /** with `face: handle`: limit it to these faces of the feature by role, for example 'S.e3' (the side made by sketch entity e3), 'C1' (cap 1), 'B*' (the blend faces) */ only?: string | string[] };
 /** What appearance() and bodyName() recorded; applied to the document once the feature ids are known (see applyDecor). */
-export interface Decor { line: number; ref?: string | FeatureHandle; face?: string; /** every face the feature `ref` created */ allFaces?: boolean; look?: { color?: string; opacity?: number; finish?: BodyFinish }; name?: string }
+export interface Decor { line: number; ref?: string | FeatureHandle; face?: string; /** every face the feature `ref` created */ allFaces?: boolean; /** with allFaces: only these roles of the feature (`S.e3`, `C1`, `B*`), so no feature id is written by hand */ only?: string[]; look?: { color?: string; opacity?: number; finish?: BodyFinish }; name?: string }
 function hex6(c: unknown, line: number): string {
   const m = typeof c === 'string' ? /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim()) : null;
   if (!m) throw new SelectorError(`appearance(): colour must be '#rrggbb' or '#rgb', got ${JSON.stringify(c)}`, line);
@@ -1119,10 +1128,12 @@ export class PartBuilder {
    * appearance({ feature: handle, colour: '#1a1a1a', opacity: 0.18, finish: 'glass' }) styles the body (lump) the feature created; when the feature made several bodies (a pattern) all of them, and for a pattern the seed's own body too. feature is a handle from part.handle() or an id like 'F12' (body is the same). colour (or color) is '#rrggbb' or '#rgb'; opacity is 0.05 to 1 (below 1 the body is drawn as glass in the transparent pass; a click passes through a body below 0.35); finish is 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'. { face: 'F3.C1' } or { face: 'F3.*' } (a persistent face name or prefix) or { face: handle } (all the faces a feature created) sets colour and finish of single faces; the opacity of a face is ignored. Stored in the document (appearance, faceAppearance), so the app, the snapshot renderer and a saved file show it. The part's own material is the default for bodies without an appearance.
    * @domain utilities
    * @param o { feature | body | face, colour?, opacity?, finish? }
+   * @param o.only with `face: handle`: only these faces of the feature, by role, so no feature id is written by hand and an inserted feature cannot shift it: 'S.e3' (the side made by sketch entity e3), 'C1' (cap 1), 'B*' (the blend faces); one role or a list
    * @example
    * p.sketch('front', (s) => s.circle([0, 0], 30)).extrude(3);
    * const lens = p.handle();
    * p.appearance({ feature: lens, colour: '#b9c7d6', opacity: 0.18, finish: 'glass' });
+   * p.appearance({ face: lens, only: ['C0', 'C1'], colour: '#222222' });   // just the two end caps of that feature
    * @see part.bodyName, part.handle
    */
   appearance(o: AppearanceTarget): this {
@@ -1141,7 +1152,12 @@ export class PartBuilder {
       look.finish = o.finish;
     }
     if (!Object.keys(look).length) throw new SelectorError('appearance(): give a colour, an opacity or a finish', line);
-    if (o.face instanceof FeatureHandle) this.decor.push({ line, ref: o.face, allFaces: true, look });
+    if (o.only !== undefined && !(o.face instanceof FeatureHandle)) throw new SelectorError("appearance(): `only` goes with `face: handle` (a handle from part.handle()); a face name already says which face", line);
+    if (o.face instanceof FeatureHandle) {
+      const only = o.only === undefined ? undefined : (Array.isArray(o.only) ? o.only : [o.only]);
+      if (only && (!only.length || only.some((x) => typeof x !== 'string' || !/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z0-9*]+)*\*?$/.test(x)))) throw new SelectorError(`appearance(): \`only\` must be face roles like 'S.e3', 'C1' or 'B*', got ${JSON.stringify(o.only)}`, line);
+      this.decor.push({ line, ref: o.face, allFaces: true, ...(only ? { only } : {}), look });
+    }
     else if (o.face !== undefined) {
       if (typeof o.face !== 'string' || !/^F\d+[.:|#*]/.test(o.face)) throw new SelectorError(`appearance(): face must be a persistent face name like 'F3.C1' or a prefix like 'F3.*', got ${JSON.stringify(o.face)}`, line);
       this.decor.push({ line, face: o.face, look });
@@ -1372,29 +1388,31 @@ export class PartBuilder {
    */
   edges(): Promise<Array<{ key: string; mid: Vec; length: number; faces: string[] }>> { return this.readStep('edges', { geometry: true }, (f) => f.edges); }
 
-  private expectStep(label: string, need: FactNeed, check: (f: Facts) => string | null): this {
+  private expectStep(label: string, need: FactNeed, check: (f: Facts) => string | null, what: string = label): this {
     const line = callerLine();
-    this.steps.push({ line, label: `expect ${label}`, run: () => [], read: async (rt) => { const msg = check(await rt.facts(need)); if (msg) rt.fail(msg, line); } });
+    this.steps.push({ line, label: `expect ${label}`, run: () => [], read: async (rt) => { const msg = check(await rt.facts(need)); if (msg) rt.fail(msg, line); else rt.pass?.(what, line); } });
     return this;
   }
   /**
    * Check the volume of the part built so far; a mismatch is reported as an error with this line.
    *
-   * expectVolume(v, { tol }) compares with relative tolerance tol (default 1e-3), or { abs } in mm3. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors as 'Line N: expected volume V, got W' and the run goes on. The volume is the kernel's exact value, so analytic references (boxes, cylinders) match to 1e-6.
+   * expectVolume(v, { tolerance }) compares the kernel's exact volume (mm3, all bodies together) with v: |got - v| <= v * tolerance, a RELATIVE tolerance, default 1e-3 (0.1 %). { abs } gives an absolute tolerance in mm3 instead; { body: 'Name' } measures one body made with newBody (an unknown name is an error that lists the bodies). tol is a short name for tolerance. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors, as 'Line N: expected volume 48000, got 47961.37 (tolerance 1e-6 relative)', so the run reports an error; later checks still run and are listed too. Analytic references (boxes, cylinders) match to 1e-6; a lofted or swept body only to the tolerance you can justify (0.5 % is typical).
    * @domain utilities
    * @param v expected volume in mm3
-   * @param o.tol relative tolerance, default 1e-3
-   * @param o.abs absolute tolerance in mm3 (instead of tol)
+   * @param o.tolerance relative tolerance, default 1e-3 (alias tol)
+   * @param o.abs absolute tolerance in mm3 (instead of tolerance)
+   * @param o.body check one named body instead of all bodies
    * @example
-   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectVolume(24000, { tol: 1e-6 });
-   * @see part.volume, part.expectValid, part.expectBBox
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectVolume(24000, { tolerance: 1e-6 });
+   * @see part.volume, part.expectValid, part.expectBBox, part.expectMinFaceArea
    */
-  expectVolume(v: number, o: { tol?: number; abs?: number } = {}): this {
+  expectVolume(v: number, o: { tolerance?: number; tol?: number; abs?: number; body?: string } = {}): this {
     return this.expectStep('volume', { mass: true }, (f) => {
-      const got = f.volume ?? NaN;
-      const tol = o.abs !== undefined ? o.abs : Math.abs(v) * (o.tol ?? 1e-3);
-      return Math.abs(got - v) <= tol ? null : `expected volume ${v} (tolerance ${+tol.toPrecision(3)}), got ${+got.toPrecision(8)}`;
-    });
+      const b = pickBody(f, o.body);
+      const got = (b ? b.volume : f.volume) ?? NaN;
+      const rel = o.tolerance ?? o.tol ?? 1e-3, tol = o.abs !== undefined ? o.abs : Math.abs(v) * rel;
+      return Math.abs(got - v) <= tol ? null : `expected ${o.body ? `volume of body '${o.body}'` : 'volume'} ${v}, got ${+got.toPrecision(8)} (tolerance ${o.abs !== undefined ? `${o.abs} mm3 absolute` : `${fmtTol(rel)} relative`})`;
+    }, `volume ${o.body ? `of '${o.body}' ` : ''}${v} (${o.abs !== undefined ? `${o.abs} mm3` : fmtTol(o.tolerance ?? o.tol ?? 1e-3)})`);
   }
   /**
    * Check that the part built so far passes the kernel's validity check.
@@ -1411,25 +1429,51 @@ export class PartBuilder {
   /**
    * Check the bounding box of the part built so far.
    *
-   * expectBBox({ min, max, size }, { tol }) checks the keys you give (each [x, y, z]) to an absolute tol in mm (default 1e-3). Use size to check the extents without caring where the part sits. No await needed.
+   * expectBBox({ min, max, size }, { tolerance }) checks the keys you give (each [x, y, z], world mm) to an ABSOLUTE tolerance in mm, default 1e-3 (tol is a short name). size checks the extents without caring where the part sits; { body: 'Name' } measures one body made with newBody. The box is the kernel's display box: the display mesh joined with the edge curves, never the control polygon of a spline or loft (a lofted body trimmed by a cylinder, the tapered disc, reads x and z within 60, y 0 to 18). It can fall short of a round or free-form face by the mesh's chord error: about 1e-3 on a radius-10 sphere, 5e-3 on a free-form extrusion, and up to 0.05 mm for a radius-5 cylinder inside a multi-body part (a per-body box comes from the mesh vertices and edge curves of that body's faces), so give the tolerance you can justify (0.05 for round bodies). No await needed. A failure is a run error: 'Line N: expected bbox max [60, 18, 60], got [60, 17.5, 60] (tolerance 0.001)'.
    * @domain utilities
    * @param box { min?, max?, size? } each [x, y, z]
-   * @param o.tol absolute tolerance in mm, default 1e-3
+   * @param o.tolerance absolute tolerance in mm, default 1e-3 (alias tol)
+   * @param o.body check one named body instead of the whole part
    * @example
    * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectBBox({ size: [40, 30, 20], min: [-20, -15, 0] });
-   * @see part.bbox, plane
+   * @see part.bbox, plane, part.expectVolume
    */
-  expectBBox(box: { min?: Vec; max?: Vec; size?: Vec }, o: { tol?: number } = {}): this {
-    const tol = o.tol ?? 1e-3;
-    return this.expectStep('bbox', { geometry: true }, (f) => {
-      if (!f.bbox) return 'there is no body to measure';
-      const got: Record<string, Vec> = { min: f.bbox.min, max: f.bbox.max, size: [0, 1, 2].map((k) => f.bbox!.max[k] - f.bbox!.min[k]) as Vec };
+  expectBBox(box: { min?: Vec; max?: Vec; size?: Vec }, o: { tolerance?: number; tol?: number; body?: string } = {}): this {
+    const tol = o.tolerance ?? o.tol ?? 1e-3;
+    return this.expectStep('bbox', { geometry: true, mass: !!o.body, ...(o.body !== undefined ? { body: o.body } : {}) }, (f) => {
+      pickBody(f, o.body);
+      const bb = f.bbox;
+      if (!bb) return o.body ? `body '${o.body}' has no geometry to measure (a per-body box needs the batched run)` : 'there is no body to measure';
+      const got: Record<string, Vec> = { min: bb.min, max: bb.max, size: [0, 1, 2].map((k) => bb.max[k] - bb.min[k]) as Vec };
       for (const key of ['min', 'max', 'size'] as const) {
         const want = box[key];
-        if (want && want.some((w, k) => Math.abs(w - got[key][k]) > tol)) return `expected bbox ${key} [${want.join(', ')}] (tolerance ${tol}), got [${got[key].map((x) => +x.toFixed(4)).join(', ')}]`;
+        if (want && want.some((w, k) => Math.abs(w - got[key][k]) > tol)) return `expected ${o.body ? `bbox of body '${o.body}'` : 'bbox'} ${key} [${want.join(', ')}], got [${got[key].map((x) => +x.toFixed(4)).join(', ')}] (tolerance ${tol})`;
       }
       return null;
-    });
+    }, `bbox ${(['min', 'max', 'size'] as const).filter((k) => box[k]).map((k) => `${k} [${box[k]!.join(', ')}]`).join(', ')} (${tol} mm)`);
+  }
+  /**
+   * Check that no face of the part is smaller than a given area (no slivers).
+   *
+   * expectMinFaceArea(a) fails and names the smallest face when it is smaller than a mm2 (the kernel's exact face areas; all faces of all bodies, or { body: 'Name' }). Use it after fillets, trims and booleans, which leave sliver faces when the numbers nearly coincide. Choose a from the part: 0.01 mm2 catches slivers of a machined part; a printed part may allow less. No await needed. A failure is a run error: 'Line N: expected every face to be at least 0.01 mm2, the smallest is face F12.S.l3 with 0.0004 mm2'.
+   * @domain utilities
+   * @param a smallest allowed face area in mm2
+   * @param o.body check the faces of one named body instead of all faces
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectMinFaceArea(1);
+   * @see part.faces, part.expectFaceCount, part.expectValid
+   */
+  expectMinFaceArea(a: number, o: { body?: string } = {}): this {
+    if (typeof a !== 'number' || !(a >= 0)) throw new Error('expectMinFaceArea(a): a is the smallest allowed face area in mm2, a number of 0 or more');
+    return this.expectStep('min face area', { geometry: true, mass: !!o.body, ...(o.body !== undefined ? { body: o.body } : {}) }, (f) => {
+      const b = pickBody(f, o.body);
+      const idx = b ? f.bodies.indexOf(b) : -1;
+      if (o.body && !f.faces.some((x) => x.lump !== undefined)) { if (f.bodies.length > 1) return `expectMinFaceArea: the faces of body '${o.body}' are not known to this host (a per-body check needs the batched run)`; }
+      const faces = b && f.bodies.length > 1 ? f.faces.filter((x) => x.lump === idx) : f.faces;
+      if (!faces.length) return o.body ? `body '${o.body}' has no faces to measure` : 'there is no body to measure';
+      const small = faces.reduce((m, x) => (x.area < m.area ? x : m));
+      return small.area >= a ? null : `expected every ${o.body ? `face of body '${o.body}'` : 'face'} to be at least ${a} mm2, the smallest is face ${small.name} with ${+small.area.toPrecision(4)} mm2`;
+    }, `every face at least ${a} mm2`);
   }
   /**
    * Check the number of faces of the part built so far.
@@ -1442,6 +1486,17 @@ export class PartBuilder {
    * @see part.faceCount
    */
   expectFaceCount(n: number): this { return this.expectStep('face count', { geometry: true }, (f) => (f.faceCount === n ? null : `expected ${n} faces, got ${f.faceCount}`)); }
+}
+
+/** A tolerance as written by a person: 0.001, 1e-6. */
+const fmtTol = (x: number): string => (x >= 1e-3 ? String(x) : x.toExponential().replace('e+', 'e'));
+
+/** The body a { body: 'Name' } option names, from the kernel's body list; no option: null (the whole part). Throws, listing the bodies, for an unknown name. */
+function pickBody(f: Facts, name: string | undefined): Facts['bodies'][number] | null {
+  if (name === undefined) return null;
+  const b = f.bodies.find((x) => x.name === name);
+  if (!b) throw new SelectorError(`no body named '${name}': the part has ${f.bodies.length ? f.bodies.map((x, i) => `'${x.name ?? `Body ${i + 1}`}'`).join(', ') : 'no named bodies (name them with newBody: \'Name\')'}`, 0);
+  return b;
 }
 
 export type PatternSeed = 'last' | string | FeatureHandle | Array<string | FeatureHandle>;
@@ -1605,6 +1660,21 @@ export function makeApi(state: ScriptState) {
       return p.screw(o);
     },
     /**
+     * A flat or split spring washer as its own body, placed by an origin and an axis.
+     *
+     * The free-function form of part.washer: washer({ inner: 8.4, outer: 16, thickness: 1.6 }) adds a flat washer to the current model (a new part when there is none) and returns it. kind: 'spring' splits it with a straight gap of width `gap` (no lift). The thickness runs from the centre `origin` along `axis` (default [0, 0, -1], so a washer at a screw's origin lies under its head).
+     * @domain features
+     * @param o options object, see part.washer
+     * @example
+     * washer({ inner: 8.4, outer: 16, thickness: 1.6, origin: [0, 0, 4], axis: [0, 0, 1] });
+     * @see part.washer
+     */
+    washer: (o: WasherOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Washer'); state.parts.push(p); }
+      return p.washer(o);
+    },
+    /**
      * A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
      *
      * The free-function form of the bearing method: bearing({ designation: '608', seal: '2RS' }) adds a bearing to the current part (a new one when there is none) and returns it. Give a preset designation ('608', '6204', 'MR63', 'R2') or bore, od and width in mm. seal is '2Z' (default), '2RS' or 'open' (visible balls). origin is the centre of the first face and axis the way the bearing extends from it (default [0, 0, 1]). Each ring and ball is its own body.
@@ -1642,7 +1712,7 @@ export function applyDecor(doc: Record<string, unknown>, part: PartBuilder, warn
   for (const d of part.decor) {
     if (d.face !== undefined) { faceAppearance[d.face] = { ...faceAppearance[d.face], ...d.look }; continue; }
     const id = typeof d.ref === 'string' ? d.ref : d.ref?.id ?? null;
-    if (id && d.allFaces) { faceAppearance[id + '.*'] = { ...faceAppearance[id + '.*'], ...d.look }; continue; }
+    if (id && d.allFaces) { for (const key of (d.only ?? ['*']).map((r) => id + '.' + r)) faceAppearance[key] = { ...faceAppearance[key], ...d.look }; continue; }
     if (!id) { warn?.('appearance / bodyName: the feature handle is not resolved (take part.handle() after the feature)', d.line); continue; }
     if (d.look) {
       // a pattern's copies are the pattern's bodies, the seed's own body belongs to the seed feature: style the seeds too (a look given to a seed itself wins)

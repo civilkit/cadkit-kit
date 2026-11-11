@@ -161,13 +161,17 @@ export function makeTransport(s: Source, d: TransportDeps): Transport {
   return { manifest: () => get('index.json', MANIFEST_MAX_BYTES), read: get };
 }
 
-/** The bundled samples list (`[{id, title, file}]`) as a manifest object (category from the id prefix). */
+/** The bundled samples list (`[{id, title, file, category?, tags?}]`) as a manifest object. The index gives each sample its category and
+ *  tags (like a manifest part); an entry without them gets its category from the id prefix and no tags. */
 export function samplesManifest(raw: unknown, name: string, licence: string): unknown {
   const list = Array.isArray(raw) ? raw : [];
   return {
     format: 'fwlib', version: 1, name, licence,
-    parts: list.filter((e) => e && typeof e.id === 'string' && typeof e.file === 'string').map((e: { id: string; title?: string; file: string }) => ({
-      id: e.id, title: e.title ?? e.id, category: e.id.includes('-') ? e.id.split('-')[0] : 'samples', tags: [], file: e.file, thumb: `thumbs/${e.id}.webp`,
+    parts: list.filter((e) => e && typeof e.id === 'string' && typeof e.file === 'string').map((e: { id: string; title?: string; file: string; category?: unknown; tags?: unknown }) => ({
+      id: e.id, title: e.title ?? e.id,
+      category: typeof e.category === 'string' && e.category.trim() && e.category.length <= 40 ? e.category : e.id.includes('-') ? e.id.split('-')[0] : 'samples',
+      tags: Array.isArray(e.tags) && e.tags.length <= 20 && e.tags.every((x) => typeof x === 'string' && x.trim() && x.length <= 40) ? e.tags : [],
+      file: e.file, thumb: `thumbs/${e.id}.webp`,
     })),
   };
 }

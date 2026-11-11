@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Test drawing for the SVG import: a gear-like outline with a bore (one path, two subpaths), a rounded rectangle, a circle,
+     and content the importer skips (text, a gradient). 120 x 80 mm, one user unit = 1 mm. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120mm" height="80mm" viewBox="0 0 120 80">
+  <defs>
+    <linearGradient id="shade"><stop offset="0" stop-color="#ccc"/><stop offset="1" stop-color="#888"/></linearGradient>
+  </defs>
+  <g fill="url(#shade)" stroke="black" stroke-width="0.5">
+    <path id="gear" d="M 58.794677 36.867371 A 24 24 0 0 1 58.794677 43.132629 L 52.502659 44.202017 A 18 18 0 0 1 50.347523 49.404974 L 54.040480 54.610274 A 24 24 0 0 1 49.610274 59.040480 L 44.404974 55.347523 A 18 18 0 0 1 39.202017 57.502659 L 38.132629 63.794677 A 24 24 0 0 1 31.867371 63.794677 L 30.797983 57.502659 A 18 18 0 0 1 25.595026 55.347523 L 20.389726 59.040480 A 24 24 0 0 1 15.959520 54.610274 L 19.652477 49.404974 A 18 18 0 0 1 17.497341 44.202017 L 11.205323 43.132629 A 24 24 0 0 1 11.205323 36.867371 L 17.497341 35.797983 A 18 18 0 0 1 19.652477 30.595026 L 15.959520 25.389726 A 24 24 0 0 1 20.389726 20.959520 L 25.595026 24.652477 A 18 18 0 0 1 30.797983 22.497341 L 31.867371 16.205323 A 24 24 0 0 1 38.132629 16.205323 L 39.202017 22.497341 A 18 18 0 0 1 44.404974 24.652477 L 49.610274 20.959520 A 24 24 0 0 1 54.040480 25.389726 L 50.347523 30.595026 A 18 18 0 0 1 52.502659 35.797983 L 58.794677 36.867371 Z M 29 40 a 6 6 0 1 0 12 0 a 6 6 0 1 0 -12 0 Z"/>
+    <rect id="plate" x="75" y="10" width="40" height="30" rx="4"/>
+    <circle id="boss" cx="95" cy="60" r="8"/>
+  </g>
+  <text x="5" y="78" font-size="4">gear, plate and boss</text>
+</svg>

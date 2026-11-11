@@ -215,7 +215,11 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
 * Accessors (all `await`): `volume() area() bbox() centreOfMass() inertia(density) faceCount() edgeCount() isValid() issues() faces() edges()`. `faces()` areas and surface kinds are the kernel's exact values; `edges()` gives the keys the per-edge `fillet` form takes.
 * A script that uses `await` runs as an async function (top-level `await` is allowed). The runner builds everything recorded so far on the scratch kernel when the read is reached, answers, and the script goes on recording. Only await the read-backs.
 * **Cost.** Every read forces a regeneration of ALL features recorded so far (a headless build; a view build for bbox / faces / counts) plus a kernel query. Results are cached until the next feature is added, so several reads in a row cost one build. Read once after a group of features; never inside a loop that adds features.
-* `expectVolume(v, {tol = 1e-3 | abs})`, `expectValid()`, `expectBBox({min, max, size}, {tol = 1e-3})`, `expectFaceCount(n)` are steps like any other (no await). A failure is an error `{line, message}` (`Line 4: expected volume 25000 (tolerance 0.025), got 24000`), the run goes on, and the agent layer does not replace the open document when the run has errors.
+* **Assertions** are steps like any other (no await), checked when the runner reaches them. Every one reads the whole part (all bodies together) unless you give `{ body: 'Name' }` (a body made with `newBody`; an unknown name is an error that lists the bodies). A failure is an error `{ line, message }` such as `Line 4: expected volume 25000, got 24000 (tolerance 1e-6 relative)`; the run reports it, later checks still run, and the agent layer does not replace the open document when the run has errors.
+  * `expectVolume(v, { tolerance = 1e-3, abs, body })`: the kernel's exact volume in mm3. `tolerance` is RELATIVE (`|got - v| <= v * tolerance`, default 1e-3 = 0.1 %; `tol` is a short name); `abs` is an absolute tolerance in mm3 instead. Analytic shapes (boxes, cylinders) match to 1e-6; lofted and swept bodies only to what you can justify, 0.5 % is typical.
+  * `expectBBox({ min, max, size }, { tolerance = 1e-3, body })`: world coordinates in mm, ABSOLUTE tolerance in mm, only the keys you give are checked (`size` ignores where the part sits). The box is the kernel's display box (the display mesh joined with the edge curves), never the control polygon of a spline or loft: the tapered disc (a loft trimmed by a cylinder) reads x and z within 60, y 0 to 18, not larger. It can fall short of round and free-form faces by the mesh's chord error (about 1e-3 on a sphere of radius 10, 5e-3 on a spline-bounded extrusion, up to 0.05 on a radius-5 cylinder inside a multi-body part, where the per-body box is built from the mesh vertices and edge curves of that body), so choose a tolerance you can justify.
+  * `expectMinFaceArea(a, { body })`: no face smaller than `a` mm2 (the kernel's exact face areas); the message names the smallest face. Use it to catch sliver faces after fillets, trims and booleans (0.01 mm2 for machined parts).
+  * `expectValid()` (the kernel validity check) and `expectFaceCount(n)`.
 * Step accounting: every read or expect is a step (label `read ...` / `expect ...`) that adds no feature, so `ops`, ids and progress counts are those of the features only.
 
 ## Patterns, fillets, workplanes
@@ -239,9 +243,38 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
 | patterns of patterns | supported | the 2D grid uses it |
 | face selection by cone / torus kind | the display-mesh fit knows plane, cylinder, sphere only | `kind: 'other'` for the rest in selectors; `part.faces()` reports the kernel's exact `cone` / `torus` |
 
+## Curves from a function
+
+When the curve is easier to write as JavaScript than as a formula string, sample it: the function is called at equal steps and the points become one interpolating spline.
+
+* `s.curve((t) => [x, y], { from: 0, to: 1, count: 48, closed: false })` samples `t` from `from` to `to` in `count` steps. Open: `count + 1` points, the last at `to`. `closed: true` makes a loop **without repeating the end point** (`t` stops just short of `to`, so a full turn is `from: 0, to: 2 * Math.PI`); use it for an extrude profile or a loft section. Defaults: from 0, to 1, count 48. `count` is 2 to 2000 (3 or more when closed).
+* `s.polar((angle) => radius, { count: 96, closed: true })` draws a radius against an angle round the origin (`center: [x, y]` moves it): waves, cams, petals, rounded stars. The angle is in **radians** (JS `Math.sin`; unlike `s.equation`, which uses degrees), from 0 to `2 * Math.PI` unless you give `from` / `to` (then the curve is open, a sector). `s.polar(count, draw)` with a number first is the unrelated polar pattern (copies of a drawing round a centre); the function form is also named `s.polarCurve`.
+* Points are rounded to 0.0001 mm. A function that returns something other than two finite numbers (or a radius that is not finite) stops the run at that line. The spline passes through the points, so use about 8 points per wave and more for sharp features.
+* The sampling happens when the script runs and is stored as points. Use `s.equation` instead when the curve should stay a formula the kernel refits (and follow `variables()` without rerunning the script).
+
+```js
+// a wavy disc: radius 30 with 12 waves 3 mm deep
+part('Wavy').sketch('front', (s) => s.polar((a) => 30 + 1.5 * Math.cos(12 * a), { count: 120 })).extrude(5);
+
+// a closed spline as a loft section: the same wave at two radii, tapering to a smaller ring
+const wave = (r) => (s) => s.polar((a) => r * (1 - 0.1 * (1 - Math.cos(8 * a)) / 2), { count: 96 });
+part('Taper').loft([{ on: at('top', 0), draw: wave(30) }, { on: at('top', 20), draw: wave(18) }], { newBody: 'Taper' });
+
+// any parametric curve: a closed egg
+part('Egg').sketch('front', (s) => s.curve((a) => [20 * Math.cos(a), 26 * Math.sin(a) * (1 + 0.15 * Math.cos(a))], { from: 0, to: 2 * Math.PI, count: 60, closed: true })).extrude(8);
+```
+
+The Tapered disc sample uses `s.polar` for its twelve-ridge wave sections.
+
 ## Result and errors
 
 `runScript(code, host)` returns `{ ops, document, errors, warnings }`: `ops` are the `EditOp`s applied, `document` the recorded document (with `script`), `errors` a list of `{ line, message, feature? }`, `warnings` a list of `{ line, message }` (ambiguous face selections, a cut direction flipped automatically). A thrown error, a bad selector or a kernel rejection stops the run at that line; features that were kept but failed to regenerate are listed and the run continues. `host` is `{ load(doc), edit(ops), geometry(), build?(doc, view), release?(), facts?(need) }` (the app passes the Controller): `build` gives the batched run, `facts` ({mass, validate, describe}) answers the read-backs.
+
+## Reserved names
+
+These names are the script API helpers, given to every script: `at`, `bearing`, `edges`, `expr`, `face`, `faces`, `group`, `part`, `plane`, `screw`, `through`, `variables`, `washer`. Do not declare a variable, function or parameter-less constant with one of them (`const plane = ...` fails with "Identifier 'plane' has already been declared"). The run reports it as "'plane' is a script API helper ... rename your variable" on the line of the declaration; rename it (`plane1`, `myPlane`). The list is also available as `reservedNames()` from `@kit/script`.
+
+In the app a run error is shown in a red banner above the code box, with the line number, until the next Run; the failing line is tinted in the box and clicking the message selects it. A clean run shows the number of features built and a pass / fail row per `expect...` check (the result's `checks`: `{ line, ok, message }`); a script that cannot start at all leaves the open part untouched.
 
 ## Limits and safety
 

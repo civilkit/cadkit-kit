@@ -1,6 +1,7 @@
 // Repair hints. The kernel driver's hintFor covers most codes; the kit adds the ones agents trip over most, with the facts they need
 // (sketch frames for cutNoEffect, the half-profile rule for profileCrossesAxis).
 import { hintFor } from '@ck/driver-verify';
+import { sheetHint } from './sheetHints';
 
 export const FRAMES: Record<string, string> = {
   front: "'front': sketch x = world +X, sketch y = world +Y, normal +Z",
@@ -20,6 +21,8 @@ export function sketchFrameText(doc: { features: Array<Record<string, unknown>> 
 }
 
 export function repairHint(feature: string, code: string, params: Record<string, unknown>, doc?: { features: Array<Record<string, unknown>> }): string {
+  const sheet = sheetHint(feature, doc?.features.find((x) => x.id === feature)?.type, code, params);
+  if (sheet) return sheet;
   if (code === 'profileCrossesAxis') return `${feature}: the revolve profile lies on both sides of the axis. Draw HALF of the profile, from the axis outwards (every point at x >= 0 for the default sketch-y axis, or all on one side of the axis line you gave), and revolve 360 degrees for the other half`;
   if (code === 'cutNoEffect' || code === 'nothingToCut') {
     const base = hintFor(feature, code, params).hint;

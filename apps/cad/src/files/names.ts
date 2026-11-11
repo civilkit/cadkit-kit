@@ -1,4 +1,5 @@
 // File names and part names.
+import { acceptFor, fileKindOf } from '@kit/platform';
 
 export const PART_EXT = '.ckpart';
 
@@ -29,16 +30,14 @@ export function createNameCounter(start = 1) {
   };
 }
 
-export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'stl' | 'fcstd' | 'solidcraft' | 'unknown';
+export type DropKind = 'part' | 'step' | 'sldprt' | 'skp' | 'dxf' | 'svg' | 'stl' | 'fcstd' | 'solidcraft' | 'unknown';
 export function dropKind(fileName: string): DropKind {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
   if (ext === 'ckpart' || ext === 'ckpart' || ext === 'json' || isCompressedName(fileName)) return 'part';
-  if (ext === 'step' || ext === 'stp') return 'step';
-  if (ext === 'sldprt') return 'sldprt';
-  if (ext === 'skp') return 'skp';
-  if (ext === 'dxf') return 'dxf';
-  if (ext === 'stl') return 'stl';
-  if (ext === 'fcstd') return 'fcstd';
-  if (ext === 'solidcraft') return 'solidcraft';
-  return 'unknown';
+  const k = fileKindOf(fileName);
+  return k && k !== 'part' ? k : 'unknown';
 }
+
+/** Picker lists, from the shared kinds table. */
+export const OPEN_ACCEPT = acceptFor('part', 'step', 'stl', 'sldprt', 'skp', 'dxf', 'svg', 'fcstd', 'solidcraft');
+export const IMPORT_ACCEPT = acceptFor('step', 'stl', 'sldprt', 'skp');

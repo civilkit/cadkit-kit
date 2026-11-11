@@ -159,6 +159,6 @@ describe('createWebPlatform openFile', () => {
   it('still reads a part as text', async () => {
     const r = await pick({ name: 'p.ckpart', text: '{"a":1}' });
     expect(r?.text).toBe('{"a":1}');
-    expect(r?.bytes).toBeUndefined();
+    expect(Array.from(r?.bytes ?? [])).toEqual(Array.from(new TextEncoder().encode('{"a":1}')));   // bytes always come with the text
   });
 });

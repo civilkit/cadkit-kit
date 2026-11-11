@@ -38,11 +38,11 @@ export const NIST_MATES: NistMate[] = [
 
 /**
  * The exploded view saved in the sample: the base stays, everything else is lifted along +Y (the lid's normal, the way the stack is
- * built) in stages, the plate first, then the component, then the lid, with the gaps below (mm, from the part boxes: base 311 x 136 x 222,
- * lid 311 x 48 x 222 on the rim at y = 12.7, plate 279 x 3 x 190 at y = -104.14, component 158 x 31 x 75 on the plate).
- *   plate     +60  : 60 above the standoffs, still inside the base
- *   component +110 : 50 above the lifted plate
- *   lid       +80  : 53 above the lifted component, 80 above the rim
- * Offsets are world-space and stay within the +-150 mm range of the panel's slider. `spread` is 0: only these offsets move parts.
+ * built) in stages, the plate first, then the component, then the lid (mm, from the part boxes: base 311 x 136 x 222 with its rim at
+ * y = 12.7, lid 311 x 48 x 222 on the rim, plate 279 x 3 x 190 on the standoffs at y = -104.14, component 158 x 31 x 75 on the plate).
+ *   plate     +125 : lifted out of the base, its underside 8 above the rim
+ *   component +150 : 25 above the lifted plate
+ *   lid       +110 : 43 above the lifted component, 110 above the rim
+ * Offsets are world-space and within the +-150 mm range of the panel's slider. `spread` is 0: only these offsets move parts.
  */
-export const NIST_EXPLODE = { spread: 0, dir: 'auto', manual: { F2: [0, 80, 0], F3: [0, 60, 0], F4: [0, 110, 0] } } as const;
+export const NIST_EXPLODE = { spread: 0, dir: 'auto', manual: { F2: [0, 110, 0], F3: [0, 125, 0], F4: [0, 150, 0] } } as const;

@@ -20,6 +20,11 @@ export function viewOwner(name: string, inserts: ReadonlySet<string>): string | 
   return faceOwner(name);
 }
 
+/** The face / edge names (of `names`) that belong to the component `insertId`, for lighting up a selected component row. */
+export function componentNames(names: readonly string[], insertId: string, inserts: ReadonlySet<string>): string[] {
+  return names.filter((n) => viewOwner(n, inserts) === insertId);
+}
+
 /** The tree rows to show for a picked face / edge / corner name. The owning feature is the id before the first dot (`F62.S.e3`, `F62.C0`);
  *  a patterned or mirrored name carries the feature that repeated it after an `@` (`F4.S.h1@F9.2`): the seed `F4` is the primary row and
  *  `F9` comes with it. A corner name `v:...` or a body name has no owner. Only ids in `rows` count; null when none of them is. */
@@ -122,6 +127,14 @@ export function deleteOps(features: Feat[], ids: string[]): EditOp[] {
     const users = d.get(f.id) ?? [];
     return { op: 'remove' as const, id: f.id, ...(users.length && users.every((u) => sel.has(u)) ? { cascade: true } : {}) };
   });
+}
+
+/** The features that block a delete, read from the session's refusal ("F3 is still referenced by F4, F7 (use cascade to remove them too)"):
+ *  their ids, without the ones already being deleted. Empty when the refusal is about something else. */
+export function blockingFeatures(refusal: string | undefined | null, deleting: string[]): string[] {
+  const m = /still referenced by (.+?) \(use cascade/.exec(refusal ?? '');
+  if (!m) return [];
+  return m[1].split(',').map((x) => x.trim()).filter((x) => x && !deleting.includes(x));
 }
 
 /** Ops to toggle suppression on all of these: if every one is suppressed they come back, else they are all suppressed. */

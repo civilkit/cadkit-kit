@@ -130,3 +130,57 @@ describe('studio look', () => {
     expect(displayColor('#8d97a5', 0)).toBe('#8d97a5');
   });
 });
+
+describe('PBR overrides', () => {
+  it('a missing pbr keeps the preset; the keys override it', () => {
+    const base = makeBodyMaterial(look({ appearance: { color: '#c3ccd8', material: 'plastic' } }));
+    expect(base.roughness).toBeCloseTo(0.42);
+    expect(base.clearcoat).toBe(0);
+    const tuned = makeBodyMaterial(look({ appearance: { color: '#c3ccd8', material: 'plastic', pbr: { roughness: 0.1, metalness: 0.5, clearcoat: 0.8 } } }));
+    expect(tuned.roughness).toBeCloseTo(0.1);
+    expect(tuned.metalness).toBeCloseTo(0.5);
+    expect(tuned.clearcoat).toBeCloseTo(0.8);
+  });
+  it('an opacity override makes the body see-through; hidden lines stay flat paper', () => {
+    const m = makeBodyMaterial(look({ appearance: { color: '#ffffff', material: 'default', pbr: { opacity: 0.4 } } }));
+    expect(m.transparent).toBe(true);
+    expect(m.opacity).toBeCloseTo(0.4);
+    const h = makeBodyMaterial(look({ style: 'hiddenLines', appearance: { color: '#c3ccd8', material: 'default', pbr: { clearcoat: 1, roughness: 0.1 } } }));
+    expect(h.clearcoat).toBe(0);
+    expect(h.roughness).toBe(1);
+  });
+  it('sanitising keeps the valid keys, clamps them and drops the rest', () => {
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', pbr: { roughness: 2, metalness: -1, clearcoat: 0.5, opacity: 0, bogus: 1, clearcoatRoughness: 'x' } }))
+      .toEqual({ color: '#abcdef', material: 'matte', pbr: { roughness: 1, metalness: 0, clearcoat: 0.5, opacity: 0.05 } });
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', pbr: {} })).toEqual({ color: '#abcdef', material: 'matte' });
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', pbr: 'rough' })).toEqual({ color: '#abcdef', material: 'matte' });
+  });
+});
+
+describe('procedural looks', () => {
+  it('sanitising keeps a valid wood look and drops anything else', () => {
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', look: { kind: 'wood', scale: 99, contrast: 0.3, tone: '#ABC123', axis: 'y', junk: 1 } }).look)
+      .toEqual({ kind: 'wood', scale: 50, contrast: 0.3, tone: '#abc123', axis: 'y' });
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', look: { kind: 'marble' } }).look).toBeUndefined();
+    expect(sanitizeAppearance({ color: '#abcdef', material: 'matte', look: 'wood' }).look).toBeUndefined();
+  });
+  it('a look reaches the shader uniforms; none switches it off; hidden lines never show it', () => {
+    const w = look({ appearance: { color: '#b98b52', material: 'matte', look: { kind: 'wood', scale: 6, contrast: 0.8, tone: '#402010', axis: 'z' } } });
+    const m = makeBodyMaterial(w);
+    const u = m.userData.lookU as { uLookKind: { value: number }; uLookScale: { value: number }; uLookContrast: { value: number }; uLookAxis: { value: { z: number } } };
+    expect(u.uLookKind.value).toBe(1);
+    expect(u.uLookScale.value).toBe(6);
+    expect(u.uLookContrast.value).toBeCloseTo(0.8);
+    expect(u.uLookAxis.value.z).toBe(1);
+    applyBodyLook(m, look({ appearance: { color: '#b98b52', material: 'matte' } }));
+    expect(u.uLookKind.value).toBe(0);
+    applyBodyLook(m, look({ style: 'hiddenLines', appearance: w.appearance }));
+    expect(u.uLookKind.value).toBe(0);
+  });
+  it('the grain axis falls back to the longest side the viewport recorded', () => {
+    const m = makeBodyMaterial(look({ appearance: { color: '#b98b52', material: 'matte', look: { kind: 'wood' } } }));
+    m.userData.longAxis = 'y';
+    applyBodyLook(m, look({ appearance: { color: '#b98b52', material: 'matte', look: { kind: 'wood' } } }));
+    expect((m.userData.lookU as { uLookAxis: { value: { y: number } } }).uLookAxis.value.y).toBe(1);
+  });
+});

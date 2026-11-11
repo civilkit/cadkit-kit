@@ -2,11 +2,11 @@
 // wasm comes from. The web implementation is in ./web; desktop and mobile
 // (Tauri, Capacitor) will add their own behind this interface.
 export interface Platform {
-  /** Pick one file and read it as text. `accept` limits the picker to those extensions (like ['.step', '.stp']); without it every file shows. */
+  /** Pick one file and read it as bytes, plus text for the text kinds (see kinds.ts). `accept` limits the picker to those extensions (like ['.step', '.stp']); without it every file shows. */
   openFile(opts?: { accept?: string[] }): Promise<{ name: string; text: string; bytes?: Uint8Array } | null>;
   /** Download a file. Text goes out as UTF-8; bytes as they are. `mime` defaults from the file extension. */
   saveFile(name: string, data: string | Uint8Array, mime?: string): Promise<void>;
-  listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string }>>;
+  listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string; category?: string; tags?: string[] }>>;
   wasmUrl(): string;
   /** True when a save can overwrite a file the user picked (File System Access API). */
   canOverwrite?(): boolean;
@@ -31,4 +31,5 @@ export interface HandleStore {
 
 export { createWebPlatform } from './web';
 export { saveDocumentWith, readHandleWith, idbHandleStore, type FsEnv } from './fsaccess';
+export { FILE_KINDS, fileKindOf, isBinaryName, acceptFor, type FileKind } from './kinds';
 export { gzipText, bytesText, fileText, isGzip, wantsGzip } from './gzip';

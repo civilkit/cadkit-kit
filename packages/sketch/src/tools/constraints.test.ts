@@ -268,8 +268,8 @@ describe('smart dimension', () => {
   });
 
   it('refuses what cannot be dimensioned, a repeated dimension and bad values', () => {
-    expect(dim([ent('e3'), ent('e1'), key('Enter')]).draft.constraints).toHaveLength(1); // circle then line: starts over with the line
-    expect(dim([pt('p1'), ent('e3')]).state.picks).toEqual([{ kind: 'circle', id: 'e3' }]);
+    expect(dim([ent('e3'), ent('e1'), key('Enter')]).draft.constraints).toMatchObject([{ type: 'pldist' }]); // circle then line: its centre's distance to the line
+    expect(dim([pt('p1'), ent('e3')]).state.pending?.spec.type).toBe('distance'); // point then circle: to the circle's centre
     const have: SketchDraft = { ...D, constraints: [{ id: 'k1', type: 'distance', refs: ['p2', 'p1'], value: 5 }] };
     const o = dim([ent('e1'), key('Enter')], DEFAULT_SETTINGS, have);
     expect(o.hint).toBe('app.sketch.hint.dimension.exists');

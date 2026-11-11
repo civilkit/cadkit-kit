@@ -5,11 +5,18 @@
  *                                               beside it vertical, anywhere else aligned, see `orientFromCursor`)
  *   line                distance [p1, p2]      (its length; a second click refines it, see below)
  *   point, line         pldist [point, line]   (distance to the infinite line)
+ *   circle/arc, point|line|circle   the circle or arc stands for its centre: pldist [centre, line], distance [centre, point] (H / V: hdist / vdist),
+ *                       distance between two centres. Either order. Another line replaces the line of a pending point/circle + line pair
+ *                       (the inset from the top edge, then from the side edge).
  *   circle              diameter [circle]      (key R: radius instead; the `radius` state flag)
  *   arc                 radius [arc]
  *   arc, arc            distance [A, B] with `overall: true`, when the two arcs are a slot's end caps: the value is the overall
  *                       length of the slot (see slotLength.ts); any other pair of arcs starts over with the second arc
  *   line, line          angle [A, B] in degrees (the angle at their shared vertex, see `angleSpec`)
+ * Any pick may also be a body edge (an edge of the part the sketch is on, not sketch geometry): clicking one that is not
+ * in the sketch yet projects it first, as fixed reference geometry exactly as the Project tool does (never twice: an edge
+ * already projected is reused), and the projected entity is the pick. An edge square-on to the plane has no projection and
+ * says so (`app.sketch.hint.dimension.edgeSquareOn`).
  * The value field is `value`: Enter or Tab (key) commits the default, which is the measured value; a field event
  * with `commit` commits the typed number; without `commit` it only previews. A dimension that already exists
  * for the same refs is refused with `app.sketch.hint.dimension.exists`. Escape clears the typed value, then the picks.
@@ -20,7 +27,8 @@
  */
 import type { SketchDraft } from '../index';
 import { capsOverall, storedValue } from '../slotLength';
-import { angleSpec, appendSpec, centerId, lineEnds, pickOf, radiusOf, refusal, xy, type Pick, type Spec } from './constraints';
+import { angleSpec, appendSpec, centerId, classify, lineEnds, pickOf, radiusOf, refusal, xy, type Pick, type Spec } from './constraints';
+import { projectEdgeAt } from './project';
 import type { FieldSpec, Pt, PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
 
 export type DimOrient = 'aligned' | 'horizontal' | 'vertical';
@@ -57,10 +65,18 @@ export function orientFromCursor(u: Pt, v: Pt, at: Pt): DimOrient {
   return outY && !outX ? 'horizontal' : outX && !outY ? 'vertical' : 'aligned';
 }
 const dist = (a: Pt, b: Pt) => Math.hypot(b.x - a.x, b.y - a.y);
+const isCurve = (p: Pick) => p.kind === 'circle' || p.kind === 'arc';
 
 /** What the picks (1 or 2) measure, or a hint key when the pair is not dimensionable. */
-function resolveDim(d: SketchDraft, picks: readonly Pick[], radius: boolean, orient: DimOrient): { pending: Pending } | { more: true } | { hint: string } {
-  const [a, b] = picks;
+function resolveDim(d: SketchDraft, picks0: readonly Pick[], radius: boolean, orient: DimOrient): { pending: Pending } | { more: true } | { hint: string } {
+  let picks = picks0;
+  let [a, b] = picks;
+  // against a point, a line or another circle a circle or arc stands for its centre (the kernel reads a curve ref that way too)
+  if (b && !(a.kind === 'arc' && b.kind === 'arc') && !(a.kind === 'line' && b.kind === 'line') && !(isCurve(a) && isCurve(b) && (a.kind === 'arc' || b.kind === 'arc'))) {
+    const toCentre = (p: Pick): Pick => { const c = isCurve(p) ? centerId(d, p.id) : undefined; return c ? { kind: 'point', id: c } : p; };
+    [a, b] = [toCentre(a), toCentre(b)];
+    picks = [a, b];
+  }
   const bad = { hint: 'app.sketch.hint.pick.invalid' };
   const length = (spec: Spec, measured: number, line?: [Pt, Pt]): { pending: Pending } => ({
     pending: { spec, measured, unit: 'length', label: `app.sketch.field.${spec.type}`, preview: line ? [{ kind: 'line', a: line[0], b: line[1] }] : [] },
@@ -140,7 +156,8 @@ function commit(state: DimensionState, draft: SketchDraft, settings: ToolSetting
 export const dimensionTool: Tool<DimensionState> = {
   id: 'dimension',
   start: () => ({ picks: [], radius: false, orient: 'aligned' }),
-  step(state, ev, draft, settings) {
+  step(state, ev, draft0, settings, env) {
+    let draft = draft0;
     switch (ev.type) {
       case 'move': {
         // two points picked and no key pressed: the pointer's side of their box picks horizontal, vertical or aligned
@@ -150,20 +167,35 @@ export const dimensionTool: Tool<DimensionState> = {
         return orient === state.orient ? view(state, draft, settings) : refresh({ ...state, orient, live: undefined }, draft, settings);
       }
       case 'click': {
-        const pick = pickOf(draft, ev.snap);
-        if (!pick) return view(state, draft, settings, 'app.sketch.hint.pick.none');
+        let pick = pickOf(draft, ev.snap);
+        if (!pick) {
+          // a body edge (not sketch geometry) is projected into the sketch as fixed reference geometry and used as the pick
+          const hit = projectEdgeAt(draft, env, ev.at);
+          if ('none' in hit) return view(state, draft0, settings, 'app.sketch.hint.pick.none');
+          if ('squareOn' in hit) return view(state, draft0, settings, `${H}.edgeSquareOn`);
+          draft = hit.draft;
+          pick = classify(draft, hit.id);
+          if (!pick) return view(state, draft0, settings, 'app.sketch.hint.pick.none');
+        }
         // a finished dimension (or two picks) starts over
         const fresh0 = state.orientFixed ? state : { ...state, orient: 'aligned' as const };
         const base = state.picks.length >= 2 ? { ...fresh0, picks: [], pending: undefined, live: undefined } : fresh0;
-        if (base.picks.some((p) => p.id === pick.id)) return view(state, draft, settings, 'app.sketch.hint.pick.same');
+        if (base.picks.some((p) => p.id === pick.id)) return view(state, draft0, settings, 'app.sketch.hint.pick.same');
+        const invalid = (o: ToolOutput<DimensionState>) => o.hint === 'app.sketch.hint.pick.invalid';
         const attempt = (picks: Pick[]) => refresh({ ...base, picks, pending: undefined, live: undefined }, draft, settings);
         // a lone circle or arc already has its dimension; a new pick starts over. A line may be refined by a second pick.
-        const refining = base.picks.length === 1 && (base.picks[0].kind === 'point' || base.picks[0].kind === 'line' || (base.picks[0].kind === 'arc' && pick.kind === 'arc'));
-        const invalid = (o: ToolOutput<DimensionState>) => o.hint === 'app.sketch.hint.pick.invalid';
+        // a circle or arc takes a point, a line or a circle as its second pick (the centre is measured)
+        const refining = base.picks.length === 1 && (base.picks[0].kind === 'point' || base.picks[0].kind === 'line' || (isCurve(base.picks[0]) && (pick.kind === 'point' || pick.kind === 'line' || isCurve(pick))));
+        // a point or circle with a line already picked: another line replaces that line (the side after the top)
+        const [first, second] = state.picks;
+        if (state.picks.length === 2 && pick.kind === 'line' && second.kind === 'line' && (first.kind === 'point' || isCurve(first))) {
+          const swapped = attempt([first, pick]);
+          if (!invalid(swapped)) return swapped;
+        }
         const next = refining ? attempt([...base.picks, pick]) : attempt([pick]);
         if (!invalid(next)) return next;
         const fresh = attempt([pick]); // the pair does not fit: try the new pick on its own
-        return invalid(fresh) ? view(state, draft, settings, fresh.hint) : fresh;
+        return invalid(fresh) ? view(state, draft0, settings, fresh.hint) : fresh;
       }
       case 'field': {
         if (ev.id !== 'value' || !state.pending) return view(state, draft, settings);

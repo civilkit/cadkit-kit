@@ -1,10 +1,10 @@
 // Draws the sheet as a flat list of primitives (millimetres on the sheet, y down); SVG, PDF and DXF are written from that list,
 // so the three outputs agree. Nothing here touches the DOM.
 import { fmtAngle, fmtLength, dimText, sheetSize, toSheet, viewCentre, viewScale, type DDim, type DrawingDoc, type DTable, type DView, type V2, type ViewData, scaleText } from './model';
-import { shownLines, edgeShape, refreshDim } from './geom';
+import { shownLines, refreshDim, centerFeatures } from './geom';
 
 export type Layer = 'border' | 'visible' | 'hidden' | 'thin' | 'center' | 'dim' | 'text' | 'hatch';
-export interface Tag { id: string; kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table' }
+export interface Tag { id: string; kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table' | 'center'; /** center: the view it belongs to */ view?: string }
 export type Prim =
   | { t: 'poly'; pts: number[]; w: number; layer: Layer; dash?: number[]; fill?: boolean; closed?: boolean; tag?: Tag }
   | { t: 'circle'; c: V2; r: number; w: number; layer: Layer; dash?: number[]; tag?: Tag }
@@ -169,67 +169,27 @@ function viewPrims(ctx: RenderCtx, v: DView, g: ViewData, out: Prim[]): void {
     }
   }
   if (clip) out.push({ t: 'circle', c: v.pos, r: clip.r * scaleOf(doc, v), w: W.med, layer: 'visible', tag });
-  if (v.centerlines) centerMarks(ctx, v, g, P, out, tag);
+  if (v.centerlines) centerMarks(ctx, v, g, P, out);
   if (v.showLabel) {
     const b = viewBox(doc, v, g);
-    const below = ctx.doc.dims.some((d) => d.view === v.id && d.kind === 'linear' && d.orient !== 'v' && d.offset >= 0);
-    out.push({ t: 'text', x: (b.x0 + b.x1) / 2, y: b.y1 + (below ? 21 : 9), s: viewLabel(doc, v), size: 4, anchor: 'middle', rot: 0, bold: true, layer: 'text', tag: { id: v.id, kind: 'label' } });
+    // the label sits under the lowest dimension line of the view (the usual 21 mm clears one, a stacked second one pushes it further)
+    const sc = scaleOf(doc, v);
+    const reach = ctx.doc.dims.filter((d) => d.view === v.id && d.kind === 'linear' && d.orient !== 'v' && d.offset >= 0)
+      .map((d) => d.offset - (d.b && d.orient === 'h' ? (Math.min(d.a[1], d.b[1]) - g.min[1]) * sc : 0));
+    const lowest = reach.length ? Math.max(...reach) : -1;
+    out.push({ t: 'text', x: (b.x0 + b.x1) / 2, y: b.y1 + (lowest < 0 ? 9 : Math.max(21, lowest + 7)), s: viewLabel(doc, v), size: 4, anchor: 'middle', rot: 0, bold: true, layer: 'text', tag: { id: v.id, kind: 'label' } });
   }
 }
 
-function centerMarks(ctx: RenderCtx, v: DView, g: ViewData, P: (u: number, w: number) => V2, out: Prim[], tag: Tag): void {
-  const s = scaleOf(ctx.doc, v);
-  for (const [p, q] of axisLines(g, v)) {
-    const a = P(p[0], p[1]), b = P(q[0], q[1]);
-    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, e: V2 = [((b[0] - a[0]) / L) * 2.5, ((b[1] - a[1]) / L) * 2.5];
-    if (v.kind === 'detail' && v.circle && Math.hypot(p[0] - v.circle.c[0], p[1] - v.circle.c[1]) > v.circle.r) continue;
-    out.push({ t: 'poly', pts: [a[0] - e[0], a[1] - e[1], b[0] + e[0], b[1] + e[1]], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
-  }
-  const seen = new Set<string>();
-  const edges = new Set<number>();
-  for (const l of shownLines(g, v)) if (l.v && l.e !== undefined && l.k === 'e') edges.add(l.e);
-  for (const e of edges) {
-    const sh = edgeShape(g, e);
-    if (!sh || sh.kind !== 'circle' || !sh.full) continue;
-    const key = `${sh.c[0].toFixed(3)},${sh.c[1].toFixed(3)},${sh.r.toFixed(3)}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const c = P(sh.c[0], sh.c[1]);
-    const r = sh.r * s;
-    if (r < 0.8) continue;
-    if (v.kind === 'detail' && v.circle && Math.hypot(sh.c[0] - v.circle.c[0], sh.c[1] - v.circle.c[1]) + sh.r > v.circle.r) continue;
-    const ext = r * 1.25 + 1.5;
-    out.push({ t: 'poly', pts: [c[0] - ext, c[1], c[0] + ext, c[1]], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
-    out.push({ t: 'poly', pts: [c[0], c[1] - ext, c[0], c[1] + ext], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
-  }
-}
-
-/** Axes of cylinders seen from the side: two parallel silhouette lines that overlap along their length get a centre line between them. */
-function axisLines(g: ViewData, v: DView): Array<[V2, V2]> {
-  const segs = shownLines(g, v).filter((l) => l.k === 'o' && l.v && l.p.length === 4);
-  const out: Array<[V2, V2]> = [];
-  const used = new Set<number>();
-  for (let i = 0; i < segs.length; i++) {
-    if (used.has(i)) continue;
-    const a = segs[i].p, da: V2 = [a[2] - a[0], a[3] - a[1]], la = Math.hypot(...da);
-    if (la < 1e-6) continue;
-    const u: V2 = [da[0] / la, da[1] / la], n: V2 = [-u[1], u[0]];
-    for (let j = i + 1; j < segs.length; j++) {
-      if (used.has(j)) continue;
-      const b = segs[j].p, db: V2 = [b[2] - b[0], b[3] - b[1]], lb = Math.hypot(...db);
-      if (lb < 1e-6 || Math.abs(u[0] * db[1] - u[1] * db[0]) > 1e-6 * lb) continue;
-      const off = (b[0] - a[0]) * n[0] + (b[1] - a[1]) * n[1];
-      if (Math.abs(off) < 0.5) continue;
-      const t0 = Math.max(Math.min(0, la), Math.min((b[0] - a[0]) * u[0] + (b[1] - a[1]) * u[1], (b[2] - a[0]) * u[0] + (b[3] - a[1]) * u[1]));
-      const t1 = Math.min(la, Math.max((b[0] - a[0]) * u[0] + (b[1] - a[1]) * u[1], (b[2] - a[0]) * u[0] + (b[3] - a[1]) * u[1]));
-      const lo = Math.min(0, la);
-      if (t1 - t0 < 0.7 * Math.min(la, lb) || t0 < lo - 1e-9) continue;
-      used.add(i); used.add(j);
-      out.push([[a[0] + n[0] * off / 2 + u[0] * t0, a[1] + n[1] * off / 2 + u[1] * t0], [a[0] + n[0] * off / 2 + u[0] * t1, a[1] + n[1] * off / 2 + u[1] * t1]]);
-      break;
+/** Centre lines and marks: each is drawn under its own tag (kind `center`) so it can be picked, selected and dimensioned on its own. */
+function centerMarks(ctx: RenderCtx, v: DView, g: ViewData, P: (u: number, w: number) => V2, out: Prim[]): void {
+  for (const f of centerFeatures(g, v, scaleOf(ctx.doc, v))) {
+    const tag: Tag = { id: f.id, kind: 'center', view: v.id };
+    for (const sg of f.segs) {
+      const a = P(sg[0][0], sg[0][1]), b = P(sg[1][0], sg[1][1]);
+      out.push({ t: 'poly', pts: [a[0], a[1], b[0], b[1]], w: W.thin, layer: 'center', dash: DASH_CEN, tag });
     }
   }
-  return out;
 }
 
 function cutLine(ctx: RenderCtx, v: DView, out: Prim[]): void {

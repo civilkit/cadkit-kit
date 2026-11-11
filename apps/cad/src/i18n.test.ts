@@ -50,7 +50,7 @@ describe('i18n catalogues', () => {
     expect(pseudo.every((l) => l.startsWith('[!! '))).toBe(true);
   });
   it('every feature type the kernel model knows has a display name', () => {
-    const types = ['sketch', 'sketch3d', 'extrude', 'revolve', 'sweep', 'loft', 'fillet', 'chamfer', 'draft', 'shell', 'hole', 'helix', 'rib', 'lip', 'lpattern', 'cpattern', 'curvepattern', 'fillpattern', 'spattern', 'mirror', 'trimSurface', 'surfacePlanar', 'surfaceRevolve', 'surfaceExtrude', 'surfaceOffset', 'knit', 'fill', 'insertPart', 'mate', 'plane', 'deleteBody', 'deleteFace', 'thicken', 'cutWithSurface', 'pipeCut', 'freeform', 'editCurve', 'projectCurve', 'extend', 'dome', 'splitLine', 'moveFace', 'moveBody', 'scale', 'axis'];
+    const types = ['sketch', 'sketch3d', 'extrude', 'revolve', 'sweep', 'loft', 'fillet', 'chamfer', 'draft', 'shell', 'hole', 'helix', 'rib', 'lip', 'lpattern', 'cpattern', 'curvepattern', 'fillpattern', 'spattern', 'mirror', 'trimSurface', 'surfacePlanar', 'surfaceRevolve', 'surfaceExtrude', 'surfaceOffset', 'knit', 'fill', 'insertPart', 'mate', 'plane', 'deleteBody', 'deleteFace', 'thicken', 'cutWithSurface', 'pipeCut', 'freeform', 'editCurve', 'projectCurve', 'extend', 'dome', 'splitLine', 'moveFace', 'moveBody', 'scale', 'axis', 'sheetRules', 'baseFlange', 'edgeFlange', 'hem', 'fold', 'contourFlange', 'unfold', 'refold', 'sheetConvert', 'sheetCut', 'sheetCorner'];
     expect(types.filter((x) => !(`feature.${x}` in all))).toEqual([]);
   });
   it('reports nothing missing when running in English', () => {

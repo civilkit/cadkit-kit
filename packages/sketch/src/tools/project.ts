@@ -276,6 +276,22 @@ export function edgeNear(env: ToolEnv, at: Pt): BodyEdge | null {
   return best?.e ?? null;
 }
 
+/** What a click on a body edge gives another tool (Dimension): the edge's projection as a fixed reference entity in the
+ *  sketch (found when it is already there, added when not, so it is never duplicated), or why there is nothing to use.
+ *  `none`: no body edge under the pointer. `squareOn`: one is, but it is square-on to the plane and projects to a point. */
+export type EdgePick = { draft: SketchDraft; id: string } | { none: true } | { squareOn: true };
+export function projectEdgeAt(draft: SketchDraft, env: ToolEnv | undefined, at: Pt): EdgePick {
+  if (!env?.body) return { none: true };
+  const e = edgeNear(env, at);
+  if (e) {
+    const r = projectEdges(draft, env.body.frame, [e]);
+    return r.ids.length ? { draft: r.draft, id: r.ids[0] } : { none: true };
+  }
+  const tol = env.tol ?? 0;
+  const under = env.body.edges.some((x) => distToPolyline(at, flatten(env.body!.frame, x.pts).pts) <= tol);
+  return under ? { squareOn: true } : { none: true };
+}
+
 export type ProjectState = Record<string, never>;
 const view = (draft: SketchDraft, hint?: string, preview: PreviewShape[] = [], fields: FieldSpec[] = []): ToolOutput<ProjectState> =>
   ({ state: {}, draft, preview, fields, ...(hint ? { hint } : {}) });

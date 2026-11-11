@@ -153,3 +153,16 @@ describe('component appearances', () => {
     expect(new Set([...m.values()].map((a) => a.color))).toEqual(new Set(['#c3ccd8']));
   });
 });
+
+
+describe('PBR values travel with the appearance', () => {
+  it('a material\'s pbr shows unless the user chose their own, and a pbr-only change is kept', async () => {
+    const { effectiveAppearance, withAppearance, appearanceOf, sanitizeLook } = await import('./look');
+    const l = sanitizeLook({});
+    const m = { color: '#5b4030', material: 'matte' as const, pbr: { roughness: 0.6 } };
+    expect(effectiveAppearance(l, 'P', m).pbr).toEqual({ roughness: 0.6 });
+    const own = withAppearance(l, 'P', { pbr: { roughness: 0.2, clearcoat: 0.7 } });
+    expect(appearanceOf(own, 'P').pbr).toEqual({ roughness: 0.2, clearcoat: 0.7 });
+    expect(effectiveAppearance(own, 'P', m).pbr).toEqual({ roughness: 0.2, clearcoat: 0.7 });
+  });
+});

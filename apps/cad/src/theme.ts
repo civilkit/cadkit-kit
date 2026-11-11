@@ -1,5 +1,5 @@
-export type Theme = 'auto' | 'light' | 'dark';
-export const THEMES: Theme[] = ['auto', 'light', 'dark'];
+export type Theme = 'auto' | 'light' | 'dark' | 'solarized-dark';
+export const THEMES: Theme[] = ['auto', 'light', 'dark', 'solarized-dark'];
 
 /** Apply a theme choice to the page. 'auto' follows the system setting. */
 export function applyTheme(theme: Theme, root: HTMLElement = document.documentElement): void {

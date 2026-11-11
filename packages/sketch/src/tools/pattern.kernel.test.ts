@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SketchDraft } from '../index';
-import { applyCircular, applyLinear } from './pattern';
+import { applyCircular, applyGrid, applyLinear } from './pattern';
 import { rectDraft, resolves } from './edit-fixtures';
 import { boxSize, closeSessions, solveDraft } from './kernel-fixtures';
 
@@ -107,5 +107,77 @@ describe('sketch patterns solve in the real kernel', { skip: !process.env.CK_WAS
     const q1 = pts[String(copySide.p1)], q2 = pts[String(copySide.p2)];
     expect(Math.hypot(q2[0] - q1[0], q2[1] - q1[1])).toBeCloseTo(10, 5);
     void anchor; void cornersOf;
+  });
+
+  describe('grid', () => {
+    const hole = (): SketchDraft => ({
+      id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+      points: [{ id: 'p1', x: 0, y: 0 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 3 }], constraints: [],
+    });
+    const grid = (g: Partial<Parameters<typeof applyGrid>[2]> = {}) => ok(applyGrid(hole(), ['e1'], { n1: 3, spacing1: 20, angle1: 0, n2: 2, spacing2: 20, angle2: 90, ...g }));
+
+    it('3 columns x 2 rows of a circle: solves, no conflicts, no new freedom, six solids', async () => {
+      const d = grid().draft;
+      expect(resolves(d)).toBe(true);
+      const { r, facts, status, pts } = await solveDraft(d, 2, { solve: true });
+      expect(r.errors).toEqual([]);
+      expect(status!.conflicts).toEqual([]);
+      expect(status!.redundant).toEqual([]);
+      expect(status!.solved).toBe(true);
+      expect(status!.dof).toBe(3);                                   // the original circle: x, y, radius. The 5 copies add none
+      for (const p of d.points) { expect(pts[p.id][0]).toBeCloseTo(p.x, 5); expect(pts[p.id][1]).toBeCloseTo(p.y, 5); }
+      expect(facts.volume!).toBeCloseTo(6 * 2 * Math.PI * 9, 3);
+      expect(facts.solids).toBe(6);
+    });
+
+    it('editing spacing 2 (20 to 35) moves the whole second row; editing the first spacing 1 step moves that column of both rows', async () => {
+      const g0 = grid().draft;
+      const d = { ...g0, points: g0.points.map((p) => (p.id === 'p1' ? { ...p, fixed: true } : p)) };   // the original stays put, so the copies' positions can be read off
+      const dims = d.constraints.filter((c) => !c.hidden && (c.type === 'hdist' || c.type === 'vdist'));
+      const vdim = dims.find((c) => c.type === 'vdist')!;
+      const edit = (id: string, v: number) => ({ ...d, constraints: d.constraints.map((c) => (c.id === id ? { ...c, value: v, expr: String(v) } : c)) });
+      let s = await solveDraft(edit(vdim.id, 35), 2, { solve: true });
+      expect(s.status!.conflicts).toEqual([]);
+      const centres = d.entities.filter((e) => e.type === 'circle').map((e) => String(e.c));
+      expect(centres.map((c) => Math.round(s.pts[c][1]) + 0)).toEqual([0, 0, 0, 35, 35, 35]);
+      expect(centres.map((c) => Math.round(s.pts[c][0]) + 0)).toEqual([0, 20, 40, 0, 20, 40]);
+      const hdims = dims.filter((c) => c.type === 'hdist');
+      s = await solveDraft(edit(hdims[0].id, 30), 2, { solve: true });
+      expect(s.status!.conflicts).toEqual([]);
+      expect(Math.round(s.pts[centres[1]][0])).toBe(30);
+      expect(Math.round(s.pts[centres[4]][0])).toBe(30);             // row 2 follows row 1 column by column
+    });
+
+    it('a tilted grid of rectangles (corners placed against the anchor): solves with the same freedom as the original', async () => {
+      const d0 = rectDraft(10, 5);
+      const base = await solveDraft(d0, 2, { solve: true });
+      const d = ok(applyGrid(d0, all4, { n1: 3, spacing1: 18, angle1: 20, n2: 3, spacing2: 15, angle2: 115 })).draft;
+      const { r, status, pts } = await solveDraft(d, 2, { solve: true });
+      expect(r.errors).toEqual([]);
+      expect(status!.conflicts).toEqual([]);
+      expect(status!.redundant).toEqual([]);
+      expect(status!.dof).toBe(base.status!.dof);
+      for (const p of d.points) { expect(pts[p.id][0]).toBeCloseTo(p.x, 4); expect(pts[p.id][1]).toBeCloseTo(p.y, 4); }
+    });
+
+    it('one column of four rows, and a grid of half discs, also solve with no added freedom', async () => {
+      const col = grid({ n1: 1, n2: 4 }).draft;
+      let s = await solveDraft(col, 2, { solve: true });
+      expect(s.status!.conflicts).toEqual([]);
+      expect(s.status!.redundant).toEqual([]);
+      expect(s.status!.dof).toBe(3);
+      const arcs: SketchDraft = {
+        id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [],
+        points: [{ id: 'p1', x: -5, y: 0 }, { id: 'p2', x: 5, y: 0 }, { id: 'p3', x: 0, y: 0 }],
+        entities: [{ id: 'e1', type: 'line', p1: 'p1', p2: 'p2' }, { id: 'e2', type: 'arc', c: 'p3', p1: 'p2', p2: 'p1' }], constraints: [],
+      };
+      const base = await solveDraft(arcs, 1, { solve: true });
+      const d = ok(applyGrid(arcs, ['e1', 'e2'], { n1: 2, spacing1: 15, angle1: 0, n2: 2, spacing2: 12, angle2: 90 })).draft;
+      s = await solveDraft(d, 1, { solve: true });
+      expect(s.status!.conflicts).toEqual([]);
+      expect(s.status!.redundant).toEqual([]);
+      expect(s.status!.dof).toBe(base.status!.dof);
+      for (const p of d.points) { expect(s.pts[p.id][0]).toBeCloseTo(p.x, 4); expect(s.pts[p.id][1]).toBeCloseTo(p.y, 4); }
+    });
   });
 });

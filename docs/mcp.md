@@ -42,7 +42,7 @@ host (Claude Code ...) --stdio--> ck-mcp.mjs (shim) --HTTP 127.0.0.1:<random por
 ```
 
 * ONE daemon per machine. Several hosts (or several windows of one host) share the same kernel and the same open document, which is what makes the optional GUI mirror possible.
-* The state file `daemon.json` (0600) holds `{port, token, pid}`. The token is 256 random bits, made at daemon start. Every request needs `Authorization: Bearer <token>` (constant-time compare), a `Host` of `127.0.0.1:<port>` or `localhost:<port>` (DNS-rebinding guard), and NO `Origin` header (a web page always sends one, so a page cannot call the daemon even if it guessed the port). `--allow-origin` is the only way to let a specific page in (the GUI bridge, below).
+* The state file `daemon.json` (0600) holds `{port, token, pid}`. The token is 256 random bits, made at daemon start. Every request needs `Authorization: Bearer <token>` (constant-time compare), a `Host` of `127.0.0.1:<port>` or `localhost:<port>` (DNS-rebinding guard), and NO `Origin` header (a web page always sends one, so a page cannot call the daemon even if it guessed the port). `--allow-origin` lets a specific page into `/bridge/*` only (the agent link, `docs/agent-bridge.md`), which takes a pairing code and session token instead of this token.
 * The shim starts the daemon when no live one answers `/health` (a lock file keeps simultaneous shims from starting two), and starts a new one once if the daemon idled out mid-session. The daemon exits after the idle period and removes its state file.
 * Tool calls run strictly one at a time (`SerialQueue`); `run_script` is atomic (any error leaves the document unchanged).
 
@@ -153,7 +153,11 @@ Nothing changed; fix line 4 and run again. `undo` and `restore {"name": "v1"}` a
 * `@kit/snapshot` (branch `kit-snapshot`): the tool imports it dynamically by name and calls `snapshotOf(session, opts)` (else `renderSnapshot`), passing the kernel `Session`. The result may be PNG bytes, a base64 string, or an object with `png` / `data` / `image`; other fields are returned as text. Until the package exists the tool answers `snapshot package not installed`. `vite.config.ts` already has the `@kit/snapshot` alias (a merge conflict there is trivial). Tests use `src/testing/placeholder-snapshot.ts`, a bounding-box PNG, injected through `AgentSession.open({ snapshotFn })`.
 * `@kit/skill` (branch `kit-skill`): `list_methods` and `docs` read an injectable `Registry` (`methods()`, `recipes()`, `search(q)`, `get(name)`, `guide()`). `defaultRegistry()` is a minimal hand-written one (from `docs/scripting.md`; recipes from the Script tab examples). Swap with `AgentSession.open({ registry })` and pass it in `cli.ts`.
 
-## GUI bridge (design; daemon side implemented)
+## GUI bridge
+
+Built as the agent link: see `docs/agent-bridge.md` (pairing code, loopback long poll, `app_*` tools, edit permission). The earlier design below (mirror the daemon's document into the app) is not built.
+
+### Earlier design (not built; daemon side of `/events` and `/document` exists)
 
 Goal: the running app (`apps/cad`) mirrors the agent's document live, the "docked GUI".
 

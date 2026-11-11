@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { revealTargets, viewOwner, faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
+import { revealTargets, componentNames, viewOwner, faceOwner, dependents, dependentsOf, nextSelection, rollbackCount, repairAnchor, withRollbackInsert, renameOps, deleteOps, suppressOps } from './treeActions';
 
 const feats = [
   { id: 'F1', type: 'sketch', name: 'F2' },
@@ -119,4 +119,28 @@ describe('revealTargets', () => {
     expect(revealTargets('F620.C0', rows)).toBeNull();
   });
   it('takes an array of ids as well', () => expect(revealTargets('F4.C0', ['F4'])).toEqual({ id: 'F4', also: [] }));
+});
+
+describe('componentNames', () => {
+  const ins = new Set(['F1', 'F2']);
+  it('keeps faces and edges of the named component only', () => {
+    const names = ['E1.C0@F1.1', 'E1.S.e1@F1.1', 'E1.C0@F1.2', 'E1.C0@F2.1', 'F5.C0', 'E1.C0@F1.1|E1.S.e1@F1.1'];
+    expect(componentNames(names, 'F1', ins)).toEqual(['E1.C0@F1.1', 'E1.S.e1@F1.1', 'E1.C0@F1.2', 'E1.C0@F1.1|E1.S.e1@F1.1']);
+    expect(componentNames(names, 'F2', ins)).toEqual(['E1.C0@F2.1']);
+    expect(componentNames(names, 'F9', ins)).toEqual([]);
+  });
+});
+
+describe('blockingFeatures', () => {
+  it('reads the features that block a delete from the refusal, leaving out those already being deleted', async () => {
+    const { blockingFeatures } = await import('./treeActions');
+    expect(blockingFeatures('F3 is still referenced by F4 (use cascade to remove them too)', ['F3'])).toEqual(['F4']);
+    expect(blockingFeatures('F3 is still referenced by F4, F7 (use cascade to remove them too)', ['F3'])).toEqual(['F4', 'F7']);
+    expect(blockingFeatures('F3 is still referenced by F4, F7 (use cascade to remove them too)', ['F3', 'F4'])).toEqual(['F7']);
+  });
+  it('is empty for any other refusal', async () => {
+    const { blockingFeatures } = await import('./treeActions');
+    expect(blockingFeatures('unknown feature F9', ['F9'])).toEqual([]);
+    expect(blockingFeatures(undefined, ['F1'])).toEqual([]);
+  });
 });

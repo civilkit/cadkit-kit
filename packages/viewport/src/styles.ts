@@ -1,6 +1,7 @@
 // Display styles, appearance, lighting and background: pure data plus small factories for three.js objects that do not
 // need WebGL (materials, colours). The Viewport applies them; the app stores them (see apps/cad/src/look.ts).
 import * as THREE from 'three';
+import { makeLookUniforms, type LookUniforms } from './lookshader';
 
 export type DisplayStyle = 'shaded' | 'shadedEdges' | 'wireframe' | 'hiddenLines' | 'ghost';
 export const DISPLAY_STYLES: readonly DisplayStyle[] = ['shaded', 'shadedEdges', 'wireframe', 'hiddenLines', 'ghost'];
@@ -39,7 +40,13 @@ export function styleSpec(style: DisplayStyle): StyleSpec {
 
 export const clampOpacity = (v: unknown, fallback = 0.35): number => (typeof v === 'number' && isFinite(v) ? Math.min(1, Math.max(0.05, v)) : fallback);
 
-export interface Appearance { color: string; material: MaterialPreset }
+/** Optional physically based overrides on top of the finish preset; a missing key keeps the preset's value. All 0..1. */
+export interface PbrParams { roughness?: number; metalness?: number; opacity?: number; clearcoat?: number; clearcoatRoughness?: number }
+export const PBR_KEYS: readonly (keyof PbrParams)[] = ['roughness', 'metalness', 'opacity', 'clearcoat', 'clearcoatRoughness'];
+/** A procedural look drawn over the colour: wood grain. `scale` is the spacing of the growth rings in mm, `contrast` 0..1, `tone` the colour of the dark rings,
+ *  `axis` the grain direction in the part's own coordinates (default: the longest side of the body). */
+export interface ProceduralLook { kind: 'wood'; scale?: number; contrast?: number; tone?: string; axis?: 'x' | 'y' | 'z' }
+export interface Appearance { color: string; material: MaterialPreset; pbr?: PbrParams; look?: ProceduralLook }
 export const DEFAULT_APPEARANCE: Appearance = { color: '#c3ccd8', material: 'default' };
 /** The palette offered in the popover (hex). The first is the default body colour. */
 export const PALETTE: readonly string[] = ['#c3ccd8', '#d9dde3', '#5b6573', '#e8730c', '#d0463b', '#3f8f5f', '#2f6fd0', '#e0b030'];
@@ -56,11 +63,33 @@ export function materialParams(m: MaterialPreset): MaterialParams {
 }
 
 export function isHex(v: unknown): v is string { return typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v); }
+/** The valid keys of a PBR record, each clamped to 0..1 (opacity not below 0.05); undefined when nothing valid is left. */
+export function sanitizePbr(raw: unknown): PbrParams | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const out: PbrParams = {};
+  for (const k of PBR_KEYS) {
+    const v = r[k];
+    if (typeof v === 'number' && isFinite(v)) out[k] = Math.min(1, Math.max(k === 'opacity' ? 0.05 : 0, v));
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+export function sanitizeProceduralLook(raw: unknown): ProceduralLook | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.kind !== 'wood') return undefined;
+  const num = (v: unknown, lo: number, hi: number): number | undefined => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : undefined);
+  const scale = num(r.scale, 0.5, 50), contrast = num(r.contrast, 0, 1);
+  return { kind: 'wood', ...(scale !== undefined ? { scale } : {}), ...(contrast !== undefined ? { contrast } : {}), ...(isHex(r.tone) ? { tone: r.tone.toLowerCase() } : {}), ...(r.axis === 'x' || r.axis === 'y' || r.axis === 'z' ? { axis: r.axis } : {}) };
+}
 export function sanitizeAppearance(raw: unknown): Appearance {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const pbr = sanitizePbr(r.pbr), look = sanitizeProceduralLook(r.look);
   return {
     color: isHex(r.color) ? r.color.toLowerCase() : DEFAULT_APPEARANCE.color,
     material: (MATERIAL_PRESETS as readonly unknown[]).includes(r.material) ? (r.material as MaterialPreset) : 'default',
+    ...(pbr ? { pbr } : {}),
+    ...(look ? { look } : {}),
   };
 }
 
@@ -70,10 +99,14 @@ export interface BodyLook { style: DisplayStyle; ghostOpacity: number; appearanc
  *  `fade` (the sketch editor) caps the opacity and so composes with every style. */
 export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, fade = 1, tinted = false): void {
   const spec = styleSpec(look.style);
-  const p = materialParams(look.appearance.material);
+  const preset = materialParams(look.appearance.material);
+  const o = look.appearance.pbr ?? {};
+  const p = { roughness: o.roughness ?? preset.roughness, metalness: o.metalness ?? preset.metalness, opacity: o.opacity ?? preset.opacity };
   let opacity = p.opacity;
   mat.color.set(look.appearance.color);
   mat.roughness = p.roughness; mat.metalness = p.metalness * (look.metalScale ?? 1);
+  setLook(mat, spec.faces === 'white' ? undefined : look.appearance.look);
+  if (mat instanceof THREE.MeshPhysicalMaterial) { mat.clearcoat = spec.faces === 'white' ? 0 : o.clearcoat ?? 0; mat.clearcoatRoughness = o.clearcoatRoughness ?? 0.1; }
   mat.emissive.set(0x000000); mat.emissiveIntensity = 1;
   mat.colorWrite = true; mat.depthWrite = true;
   mat.vertexColors = tinted && spec.faces !== 'white';   // surface bodies carry a tint per vertex; hidden-line white stays plain
@@ -92,11 +125,25 @@ export function applyBodyLook(mat: THREE.MeshStandardMaterial, look: BodyLook, f
   mat.needsUpdate = true;
 }
 
-export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({
+/** Write a procedural look into the uniforms the material carries (kind 0 when there is none). The axis falls back to the body's longest side (`userData.longAxis`, set by the viewport). */
+function setLook(mat: THREE.MeshStandardMaterial, l: ProceduralLook | undefined): void {
+  const u = mat.userData.lookU as LookUniforms | undefined;
+  if (!u) return;
+  u.uLookKind.value = l ? 1 : 0;
+  if (!l) return;
+  u.uLookScale.value = l.scale ?? 4;
+  u.uLookContrast.value = l.contrast ?? 0.5;
+  u.uLookTone.value.set(l.tone ?? '#3a2616');
+  const ax = l.axis ?? (mat.userData.longAxis as 'x' | 'y' | 'z' | undefined) ?? 'x';
+  u.uLookAxis.value.set(ax === 'x' ? 1 : 0, ax === 'y' ? 1 : 0, ax === 'z' ? 1 : 0);
+}
+
+export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THREE.MeshPhysicalMaterial {
+  const m = new THREE.MeshPhysicalMaterial({
     side: THREE.DoubleSide,
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,   // faces sit a hair behind sketches and edges lying on them
   });
+  m.userData.lookU = makeLookUniforms();   // the shader hook is added last by the viewport (installLook), after the analysis and knurl hooks
   applyBodyLook(m, look, fade, tinted);
   return m;
 }

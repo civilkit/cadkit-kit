@@ -25,7 +25,9 @@ Other buttons in the Script tab:
 | **Save** | Downloads the script as a file. |
 | **Format** | Tidies the indentation (**Shift+Alt+F**). It never changes what the script builds. |
 
-Errors are listed under the box as "Line N: message". Click one to select that line.
+A run that fails shows a red banner above the code box with the message and the line number ("Line N: message"). The banner stays until the next **Run**, the failing line is tinted in the box, and clicking the message selects that line. Opening the **Script** tab puts the cursor in the box, and the cursor returns there after a run, so what you type never reaches the viewport's single-key shortcuts. A clean run shows a green line with the number of features built, and under it one row per `expect...` check: a tick and what was checked, or a cross and the failure (which is also in the banner). Clicking a row selects its line. If the script cannot start at all (a syntax error, a name clash such as `const plane = ...`), nothing is replaced and the part that was open stays as it was.
+
+Some names belong to the script itself and cannot be used for your own variables: `at`, `bearing`, `edges`, `expr`, `face`, `faces`, `group`, `part`, `plane`, `screw`, `through` and `variables`. Declaring one (`const plane = ...`) stops the run with a message that names the line and suggests a new name.
 
 ![The Script tab in the left panel with the bracket example in the code box and the Run button, and the resulting plate with two holes and rounded edges in the viewport.](../img/script-tab.png)
 
@@ -77,10 +79,25 @@ Sketch builder methods:
 | `polygon(points)`, `polyline(points)`, `line(a, b)` | A closed polygon, an open chain, a single line. |
 | `arc(centre, start, end)`, `arc3(a, mid, b)` | An arc, counter-clockwise from start to end, or through three points. |
 | `spline(points, {closed})`, `cvspline(points, {closed, degree})` | An interpolating or control-point spline. |
+| `curve(fn, {from, to, count, closed})` (short names `t0`, `t1`, `n`) | A spline through a JavaScript function `t => [x, y]` sampled `count` times (default 48). With `closed: true` it is a loop that does not repeat the end point. |
+| `polar(fn, {count, closed, center})` (`n` for `count`) | A polar curve: `fn(angle)` returns the radius, the angle is in radians, a full turn by default (96 points, closed). Waves, cams, petals, rounded stars. |
 | `point([x, y])`, `points(list)` | Point entities, which holes use. |
 | `polarPoints(centre, radius, n, startAngle)`, `grid(origin, [dx, dy], [nx, ny])` | Points on a circle or grid. |
 | `axis()`, `axisAt(from, to)` | A construction line used as a revolve axis. |
 | `text(string, at, options)` | Letters as closed profiles. See [Text](../sketching/text.md). |
+
+For example, a wavy disc outline and a closed section for a loft:
+
+```js
+// radius 30 with 12 waves, 3 mm deep
+part('Wavy').sketch('front', (s) => s.polar((a) => 30 + 1.5 * Math.cos(12 * a), { count: 120 })).extrude(5);
+
+// a closed spline as a loft section, at two sizes
+const wave = (r) => (s) => s.polar((a) => r * (1 - 0.1 * (1 - Math.cos(8 * a)) / 2), { count: 96 });
+part('Taper').loft([{ on: at('top', 0), draw: wave(30) }, { on: at('top', 20), draw: wave(18) }], { newBody: 'Taper' });
+```
+
+The function is sampled when the script runs and the points are stored. To keep the curve as a formula the kernel refits (and that follows variables without rerunning), use `equation({ x, y, t })` instead; its formulas are text and use degrees. A polar curve takes radians, like JavaScript's `Math.sin`. (`polar(count, draw)` with a number first is the polar pattern, which repeats a drawing round a centre.)
 
 Sketch planes use these axes:
 
@@ -136,7 +153,16 @@ const v = await p.volume();                        // mm3
 p.expectVolume(60 * 40 * 10).expectValid().expectBBox({ size: [60, 40, 10] });
 ```
 
-`await` reads: `volume()`, `area()`, `bbox()`, `centreOfMass()`, `inertia(density)` (mass, first moments, inertia tensor about the centre of mass and the origin, principal moments and axes; density in g/cm³), `faceCount()`, `edgeCount()`, `isValid()`, `issues()`, `faces()`, `edges()`. Assertions: `expectVolume`, `expectValid`, `expectBBox`, `expectFaceCount`. A failed assertion adds a "Line N" error, and the run continues.
+`await` reads: `volume()`, `area()`, `bbox()`, `centreOfMass()`, `inertia(density)` (mass, first moments, inertia tensor about the centre of mass and the origin, principal moments and axes; density in g/cm³), `faceCount()`, `edgeCount()`, `isValid()`, `issues()`, `faces()`, `edges()`. Assertions check the result without `await`; a failed one adds a "Line N: expected volume 25000, got 24000 (tolerance 1e-6 relative)" style error and the run continues:
+
+| Assertion | Checks | Tolerance |
+| --- | --- | --- |
+| `expectVolume(v, {tolerance, abs, body})` | The exact volume in mm³. | Relative, default 0.001 (0.1 %); `abs` in mm³ instead. |
+| `expectBBox({min, max, size}, {tolerance, body})` | The bounding box, in mm, for the keys you give. It is the display box, not the control polygon of a spline or loft, and can fall short of curved faces by a few thousandths of a mm (more for small round bodies). | Absolute in mm, default 0.001. |
+| `expectMinFaceArea(a, {body})` | No face smaller than `a` mm², so no slivers; the message names the smallest face. | None: `a` is the limit. |
+| `expectValid()`, `expectFaceCount(n)` | The validity check, the number of faces. | None. |
+
+All of them read every body together; give `{ body: 'Name' }` (a body made with `newBody`) to check one body. Volumes of lofted and swept bodies are best checked to about 0.5 %: `expectVolume(78968, { tolerance: 0.005 })`.
 
 Each read rebuilds everything recorded so far, so read once after a group of features, never inside a loop that adds features.
 

@@ -8,7 +8,7 @@ import type { FeatureRow, TreeDrop } from '@kit/ui';
 import type { Controller } from './controller';
 import { t } from './i18n';
 import { isShapeFeature } from './handles/sizeBox';
-import { dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
+import { blockingFeatures, dependentsOf, faceOwner, nextSelection, renameOps, suppressOps } from './treeActions';
 import { folderToggleOps } from './historyFolder';
 import type { TreeActions } from './treeCommands';
 import type { MenuItem } from './menuModel';
@@ -85,6 +85,13 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
     if (r?.ok) {
       setMulti([]); d.setSelectedId(null);
       d.store.notify(t('app.notice.deleted', { names: list.join(', ') }), 'info', { label: t('app.notice.undo'), run: () => { void d.controller.undo().then(d.redraw); } });
+    } else if (r) {
+      // blocked by features that use it: say which, and offer to delete them together (they go in one step, undone in one step)
+      const direct = blockingFeatures(r.schemaError, list);
+      if (direct.length) {
+        const all = [...new Set([...direct, ...direct.flatMap((id) => dependentsOf(feats, id))])].filter((x) => !list.includes(x));
+        d.store.notify(t('app.notice.deleteBlocked', { names: list.join(', '), deps: all.join(', ') }), 'warn', { label: t('app.notice.deleteBoth'), run: () => { void deleteIds([...list, ...all]); } });
+      }
     }
   };
   const suppressIds = (list: string[]) => d.edit(suppressOps(feats, list));

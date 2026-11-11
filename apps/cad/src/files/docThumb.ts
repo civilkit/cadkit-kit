@@ -3,6 +3,7 @@
 // written and taken off again when a file is read, so it never reaches the kernel session, the history, the dirty signature or the
 // autosave. A thumbnail whose hash no longer matches the document is stale and is drawn again on the next save.
 import type { PartDoc } from '@ck/part-model';
+import { lightDoc } from './assets';
 
 /** Largest PNG kept in a file (bytes, before base64). */
 export const THUMB_MAX_BYTES = 40_000;
@@ -41,7 +42,7 @@ function cyrb53(s: string, seed: number): number {
 export function docHash(doc: unknown): string {
   const o = { ...(doc as Record<string, unknown>) };
   for (const k of IGNORED) delete o[k];
-  const text = canonical(o);
+  const text = canonical(lightDoc(o));   // the weight of meshes and STEP text is left out (their signature and size stand for them)
   return cyrb53(text, 0).toString(16).padStart(14, '0') + cyrb53(text, 1).toString(16).padStart(14, '0');
 }
 

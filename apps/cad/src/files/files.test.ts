@@ -129,7 +129,7 @@ describe('names', () => {
     expect(c.next()).toBe('Part8');
   });
   it('classifies dropped files', () => {
-    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'm.skp', 'N.SKP', 'a.skp.bak', 'd.dxf', 'm.stl', 'p.png', 'noext', 'a.FCStd', 'p.SolidCraft'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'skp', 'skp', 'unknown', 'dxf', 'stl', 'unknown', 'unknown', 'fcstd', 'solidcraft']);
+    expect(['a.ckpart', 'a.JSON', 'x.step', 'x.STP', 'm.skp', 'N.SKP', 'a.skp.bak', 'd.dxf', 'v.SVG', 'm.stl', 'p.png', 'noext', 'a.FCStd', 'p.SolidCraft'].map(dropKind)).toEqual(['part', 'part', 'step', 'step', 'skp', 'skp', 'unknown', 'dxf', 'svg', 'stl', 'unknown', 'unknown', 'fcstd', 'solidcraft']);
   });
 });
 
@@ -147,5 +147,19 @@ describe('autosave of several parts (document tabs)', async () => {
     expect(worthRestoring(tabs(0, 0))).toBe(false);
     expect(worthRestoring(tabs(0, 2))).toBe(true);
     expect(worthRestoring({ name: 'A', doc: part('A', 0), savedAt: 1 })).toBe(false);
+  });
+});
+
+describe('autosave with imported meshes', () => {
+  it('names the meshes it had to leave out, once, and a mesh-only session is worth restoring', () => {
+    const kv = fakeKV();
+    const problems: string[] = [];
+    const timers = { set: (f: () => void) => { f(); return 1; }, clear() {} };
+    const a = createAutosaver(kv, { timers, onProblem: (r) => problems.push(r) });
+    a.schedule(() => ({ name: 'P', doc: { features: [{ id: 'F1' }] }, omitted: ['scan'] }));
+    a.schedule(() => ({ name: 'P', doc: { features: [{ id: 'F1' }, { id: 'F2' }] }, omitted: ['scan'] }));
+    expect(problems).toEqual(['assets']);
+    expect(worthRestoring({ name: 'Scan', doc: { features: [], meshes: [{ id: 'mesh1' }] }, savedAt: 1 })).toBe(true);
+    expect(worthRestoring({ name: 'Blank', doc: { features: [] }, savedAt: 1 })).toBe(false);
   });
 });

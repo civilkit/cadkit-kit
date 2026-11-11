@@ -53,22 +53,23 @@ With a view selected, the panel edits:
 | Scale | The view's own scale, or the sheet's. |
 | Hidden lines | Shows hidden edges as dashed lines. |
 | Tangent edges | Shows the lines where smooth faces meet. |
-| Centre marks | Draws centre marks on round holes and cylinder axes. |
+| Centre lines and marks | Draws centre lines on cylinders seen from the side and centre marks on round holes. They can be picked, selected and dimensioned. |
 | Align to parent | Snaps a projected or section view back into line. |
 
 **Delete** (or the Delete key) removes the selected view together with the views made from it and their dimensions.
 
 ## Dimensions
 
-Choose **Dimension** (or press **D**), then click an edge in a view.
+Choose **Dimension** (or press **D**), then click an edge or a centre line in a view.
 
 - A straight edge gives its length.
 - A full circle gives a diameter; hold **Shift** on the pick to get a radius instead. An arc gives a radius.
 - Click two edges for a distance (parallel edges), an angle (edges that meet), a centre distance (two circles) or the distance from a circle centre to a line. Press **Enter** to finish a one-edge dimension; a second click completes a two-edge one.
+- Centre lines and centre marks work as references: click two parallel centre lines (for example the axes of two shafts) for the distance between them, a centre line and an edge for the distance from the axis to the edge, two centre marks for the distance between the hole centres, or two centre lines that meet for the angle. The dimension line is placed outside the view, beyond any dimension already there. Clicking a centre line with the Select tool selects just that line, and dragging it still moves its view.
 - Drag a dimension to move its line, or the leader of a round one.
 - In the panel, edit the text. Use `<>` for the measured value, for example `<> +0.1 / -0` or `4 HOLES <>`. Leave it empty to show the measured value. A radius or diameter has a toggle to switch between the two.
 
-A dimension remembers the two faces of the edge it was made on, so it finds the edge again after the model changes. If an edge disappears, the dimension stays where it was and the status line says how many were lost.
+A dimension remembers the two faces of the edge it was made on (for a centre line, of both silhouette edges of the cylinder), so it finds the edge again after the model changes. If an edge disappears, the dimension stays where it was and the status line says how many were lost.
 
 **Auto dimension** adds overall width and height, one diameter per hole position, and the hole callouts below, for the selected view (or all views except the isometric if none is selected).
 

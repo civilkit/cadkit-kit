@@ -29,6 +29,17 @@ describe('buildViewData', () => {
     const d = diagnoseErrors(errs, [], feats);
     expect(featureStatuses(feats, errs, [], d)[2].blockedBy).toBe('F2');
   });
+  it('adds the kernel\'s own sentence for a gone face or edge, so the reference can be repaired from the status', () => {
+    const own = 'face F1.S.e9 no longer exists; the faces of F1 now are F1.S.e1, F1.C0, F1.C1';
+    const errs: Array<[string, { code: string; params: Record<string, unknown> }]> = [['F2', { code: 'missingReference', params: { ref: 'F1.S.e9', candidates: ['F1.S.e1'], hint: own } }]];
+    const d = diagnoseErrors(errs, [], feats);
+    const h = featureStatuses(feats, errs, [], d)[1].hint ?? '';
+    expect(h).toContain(own);
+    expect(h).toContain(diagStrings['diag.advice.missingReference']);
+    // other codes keep their text, and a missingReference without the sentence keeps the plain advice
+    const plain: Array<[string, { code: string; params: Record<string, unknown> }]> = [['F2', { code: 'missingReference', params: { field: 'endRef' } }]];
+    expect(featureStatuses(feats, plain, [], diagnoseErrors(plain, [], feats))[1].hint).toBe(diagStrings['diag.advice.missingReference']);
+  });
   it('keeps limits only for a document that can have a tip, and drops malformed ones', () => {
     const drafted = [{ id: 'F1', type: 'extrude', draft: 5 }];
     expect(buildViewData(drafted, { ...reply(), limits: [['F1', { maxHeight: 3 }], ['F9', { maxHeight: -1 }], 'x'] }).limits).toEqual([['F1', 3]]);

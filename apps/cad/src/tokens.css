@@ -45,8 +45,31 @@
   --sc-construction-1: #b99a78; --sc-construction-2: #ad7023; --sc-construction-3: #a75d00;
   color-scheme: dark;
 }
+/* Solarized Dark (Ethan Schoonover's public palette): base03 #002b36, base02 #073642, base01 #586e75, base0 #839496, base1 #93a1a1; accents blue, green, yellow, red, violet. */
+:root[data-theme="solarized-dark"] {
+  --accent: #268bd2; --accent-soft: #0a3f52;
+  --bg: #00212b; --panel: #002b36; --panel-2: #073642;
+  --line: #124b59; --line-soft: #0a3d4a;
+  --text: #93a1a1; --text-2: #839496;
+  --title: #001c24; --title-text: #eee8d5;
+  --ok: #859900; --warn: #b58900; --err: #dc322f;
+  --vp-top: #0a3a47; --vp-bottom: #00232d;
+  --dim-line: #6c71c4; --dim-chip-bg: #073642; --dim-chip-text: #eee8d5;
+  --mark-bg: #073642; --mark-line: #586e75; --mark-text: #93a1a1;
+  --chip: #0a3d4a; --glass-rgb: 0, 43, 54;
+  --syn-kw: #859900; --syn-str: #2aa198; --syn-num: #d33682; --syn-com: #586e75; --syn-fn: #268bd2;
+
+  --sc-ink: #1f2021; --sc-guide: #8093a4; --sc-gap: var(--panel);
+  --sc-p1: #8da3c3; --sc-p2: #6d81a2; --sc-p3: #546782;
+  --sc-solid-1: #4ea1dc; --sc-solid-2: #3287d1; --sc-solid-3: #2976b8;
+  --sc-surface-1: #cc9362; --sc-surface-2: #bd750d; --sc-surface-3: #955a0e;
+  --sc-sketch-1: #7ab792; --sc-sketch-2: #3a965e; --sc-sketch-3: #128d45;
+  --sc-constraint-1: #b98c88; --sc-constraint-2: #c27267; --sc-constraint-3: #c16358;
+  --sc-construction-1: #b99a78; --sc-construction-2: #ad7023; --sc-construction-3: #a75d00;
+  color-scheme: dark;
+}
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]):not([data-theme="solarized-dark"]) {
   --accent: #4da3ff; --accent-soft: #16304d;
   --bg: #0e1318; --panel: #151b22; --panel-2: #1a222b;
   --line: #2a343f; --line-soft: #212a33;

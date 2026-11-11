@@ -45,6 +45,11 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   extend: { edges: ['edges'], operation: ['distance'] },
   importStep: { body: ['body'] },
   thicken: { operation: ['surface', 'thickness', 'side', 'op'] },
+  baseFlange: { profile: ['sketch'] },
+  contourFlange: { profile: ['sketch'] },
+  edgeFlange: { edges: ['edges'] },
+  hem: { edges: ['edges'] },
+  sheetCut: { profile: ['sketch'] },
 };
 
 /** Fields the editor does not offer: the STEP data of an imported body is replaced by importing again, not by typing. */
@@ -118,10 +123,22 @@ export const geomText = (v: unknown): string => {
   return o && typeof o === 'object' ? [o.kind, o.id ?? o.axis].filter(Boolean).join(' ') : '';
 };
 
+/** One edge pick: its two faces, or (sheet metal) a role such as `P2.tip`, a ring edge of a panel, or a point. */
+function edgeText(e: unknown): string {
+  if (typeof e === 'string') return e;
+  if (Array.isArray(e)) return e.map((v) => +(+v).toFixed(2)).join(', ');
+  const o = (e ?? {}) as { faces?: string[]; role?: string; edge?: number; panel?: number; at?: unknown };
+  if (o.faces) return o.faces.join('|');
+  if (typeof o.role === 'string') return o.role;
+  if (typeof o.edge === 'number') return typeof o.panel === 'number' ? `P${o.panel} edge ${o.edge}` : `edge ${o.edge}`;
+  if (Array.isArray(o.at)) return o.at.map((v) => +(+v).toFixed(2)).join(', ');   // an edge named by a point on it (an import)
+  return '';
+}
+
 /** The text shown in a list field: edge refs by their two faces, everything else by name. */
 export function listText(path: string, value: unknown): string {
   if (!Array.isArray(value)) return '';
-  if (path === 'edges') return value.map((e) => ((e as { faces?: string[] }).faces ?? []).join('|')).join(', ');
+  if (path === 'edges') return value.map(edgeText).join(', ');
   return value.join(', ');
 }
 
@@ -217,7 +234,7 @@ export function FeatureEditor(p: {
   }
 
   const featureId = feature.id;
-  const shapes = (feature.type === 'extrude' || feature.type === 'revolve') ? (p.shapes ?? []) : [];
+  const shapes = (feature.type === 'extrude' || feature.type === 'revolve' || feature.type === 'sheetCut') ? (p.shapes ?? []) : [];
   const current = (draft.regions !== undefined ? draft.regions : feature.regions) as string[] | null | undefined;
   const defaultShapes = shapes.filter((s) => s.byDefault !== false).map((s) => s.id);
   const checkedShapes = new Set(Array.isArray(current) ? shapes.filter((s) => current.includes(s.id)).map((s) => s.id) : defaultShapes);
@@ -384,6 +401,7 @@ export function FeatureEditor(p: {
           )}
         </div>
       ))}
+      {feature.type === 'pipeCut' ? <div class="fedit-shapes-note" style={{ padding: "4px 12px 8px" }} data-note="pipeCut">{t('ui.editor.pipeCutNote')}</div> : null}
       {opts ? opts.node : null}
       {shapes.length > 1 ? (
         <div class="fedit-sec">

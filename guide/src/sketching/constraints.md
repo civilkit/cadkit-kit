@@ -1,6 +1,6 @@
 # Constraints and dimensions
 
-Constraints and dimensions are the rules that hold a sketch in shape. A constraint such as **Parallel** or **Tangent** relates two pieces of geometry; a dimension fixes a size or a distance. This chapter lists every constraint and dimension, shows how to add, change and delete them, and explains how CadKit tells you how well defined a sketch is.
+Constraints and dimensions are the rules that hold a sketch in shape. A constraint such as **Parallel** or **Tangent** relates two pieces of geometry; a dimension fixes a size or a distance. This chapter lists every constraint and dimension, shows how to add, change and delete them, and explains how CivilKit CAD tells you how well defined a sketch is.
 
 ![A dimensioned bracket sketch with relation glyphs in the view and the Constraints list opened from the status chip.](../img/constraints-list-open.png)
 
@@ -8,11 +8,11 @@ Constraints and dimensions are the rules that hold a sketch in shape. A constrai
 
 A sketch with no constraints is only a drawing: drag one point and the shape distorts. Constraints let the sketch keep its meaning when you change a value. A rectangle that stays a rectangle, a hole that stays centred and a slot that stays 10 mm wide are all constraints at work. In a parametric part you change a dimension and everything after it follows.
 
-You do not have to constrain everything. A sketch can be extruded while it still has freedom. But a fully defined sketch behaves predictably, and CadKit marks it as such.
+You do not have to constrain everything. A sketch can be extruded while it still has freedom. But a fully defined sketch behaves predictably, and CivilKit CAD marks it as such.
 
 ## Geometric constraints
 
-Geometric constraints are in the **Constrain** group of the **Editing** tab. Choose a tool, click what it needs, and CadKit adds one constraint and waits for the next set of picks. Picks can be points or curves; a click on an existing point wins over a click on a curve.
+Geometric constraints are in the **Constrain** group of the **Editing** tab. Choose a tool, click what it needs, and CivilKit CAD adds one constraint and waits for the next set of picks. Picks can be points or curves; a click on an existing point wins over a click on a curve.
 
 | Tool | Picks | What it does |
 | --- | --- | --- |
@@ -52,12 +52,15 @@ The **Dimension** tool (`D`) is a smart dimension: you click what to measure and
 | A circle | **Diameter** | Press `R` to dimension the **Radius** instead. |
 | An arc | **Radius** | |
 | Two lines | **Angle** between them, in degrees | The angle at the point where they meet. |
+| An edge of the part | The edge is projected into the sketch first, then measured like a line, arc or circle | Click a point or circle of the sketch and then the part's outer edge to dimension its position from that edge. |
 
 To set the dimension:
 
 1. Click what you want to measure.
 2. Type the value you want, or leave the measured one.
 3. Press `Enter` or `Tab`. The geometry moves to the new value.
+
+A body edge you click is projected as fixed, dashed reference geometry (the same as [Project edges](offset-reference.md)), once only: a second dimension to the same edge reuses it, and it adds no degrees of freedom. An edge square-on to the sketch plane has no line in it and cannot be used.
 
 `Esc` first clears a typed value, then the picks. A dimension that already exists for the same things is refused. A value must be a positive length, or an angle of 0 up to but not including 360 degrees.
 
@@ -75,7 +78,7 @@ When you change an **Angle** dimension by a lot (more than about 90 degrees from
 
 A reference dimension measures but does not constrain. It shows in italic brackets, for example `(20)`. It is a way to read a size that other constraints already fix.
 
-- When you add a dimension that the sketch already fixes, or that would conflict, CadKit adds it as a reference dimension and tells you.
+- When you add a dimension that the sketch already fixes, or that would conflict, CivilKit CAD adds it as a reference dimension and tells you.
 - To turn a driving dimension into a reference one, click the arrows button on its row in the **Constraints** list, or right-click its label.
 - To turn a reference dimension back into a driving one at its present value, double-click its label, or click the button again.
 
@@ -101,7 +104,7 @@ With **Colour by definition** on (the default), the geometry is coloured to matc
 | Dark (light on a dark background) | Fully defined. Nothing can move. |
 | Red | A constraint that names it conflicts with others. |
 
-An item is blue if it is not fully determined; one dimension can fix a line's length while its position stays free. CadKit works out the colours by testing each point against the solver, a moment after you stop editing, and never changes the sketch while doing so. A point that is fixed in only one direction, such as a point on a circle about a fixed centre, counts as under-defined.
+An item is blue if it is not fully determined; one dimension can fix a line's length while its position stays free. CivilKit CAD works out the colours by testing each point against the solver, a moment after you stop editing, and never changes the sketch while doing so. A point that is fixed in only one direction, such as a point on a circle about a fixed centre, counts as under-defined.
 
 ### Sketch Report
 
@@ -142,7 +145,7 @@ Relation glyphs (H, V, =, tangent and so on) are drawn on the geometry, and driv
 
 - You cannot edit a constraint's picks. Delete it and add it again.
 - The glyph switches work per kind (dimensions, relations, reference), not per type of constraint.
-- A fully defined sketch cannot be changed by dragging. CadKit says so: remove a constraint first.
+- A fully defined sketch cannot be changed by dragging. CivilKit CAD says so: remove a constraint first.
 - Constraints between a sketch and the part itself are a snapshot, not a live link. See [Offsets and references](offset-reference.md).
 
 ## Next

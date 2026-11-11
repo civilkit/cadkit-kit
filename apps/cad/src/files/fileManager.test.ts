@@ -109,3 +109,21 @@ describe('FileManager recent', () => {
     expect(f.store.m.size).toBe(0);
   });
 });
+
+describe('FileManager save with assets', () => {
+  it('writes meshes and STEP text packed, and the document it was given is untouched', async () => {
+    const { meshToStl } = await import('@kit/io');
+    const { headLike } = await import('../../../../packages/io/src/testmesh');
+    const { buildRecord } = await import('../meshes/meshImport');
+    const rec = buildRecord(meshToStl({ positions: headLike(30, 30) }).data as Uint8Array, 'h.stl', 'mm', [], null).rec;
+    const doc = { name: 'Scan', features: [], meshes: [rec], blobs: { abc: 'ISO-10303-21;'.repeat(500) } };
+    const f = fake(); const m = new FileManager(f.platform, kv());
+    expect((await m.save(doc as never)).ok).toBe(true);
+    const w = JSON.parse(f.writes[0].data);
+    expect(w).toMatchObject({ assets: 2, meshes: [{ fmt: 2, tris: rec.tris }], blobsZ: { abc: { n: 6500 } } });
+    expect(w.meshes[0].v).toBeUndefined();
+    expect(w.blobs).toBeUndefined();
+    expect(doc.meshes[0].v).toBe(rec.v);   // the open document keeps its raw arrays
+    expect(doc.blobs.abc.length).toBe(6500);
+  });
+});

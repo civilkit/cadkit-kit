@@ -19,7 +19,7 @@
   "Pt": "[number, number]",
   "ThinOpt": "Num | { thickness: Num; side?: 'inside' | 'outside' | 'mid' | 'both'; thickness2?: Num; ends?: 'flat' | 'round'; cornerStyle?: 'mitre' | 'round' }",
   "BodyFinish": "'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed'",
-  "AppearanceTarget": "LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle }",
+  "AppearanceTarget": "LookOpts & { feature?: string | FeatureHandle; body?: string | FeatureHandle; face?: string | FeatureHandle; /** with `face: handle`: limit it to these faces of the feature by role, for example 'S.e3' (the side made by sketch entity e3), 'C1' (cap 1), 'B*' (the blend faces) */ only?: string | string[] }",
   "PatternSeed": "'last' | string | FeatureHandle | Array<string | FeatureHandle>",
   "ToObject": "Plane | OffsetPlane | FaceSel | [number, number, number]",
   "ScriptApi": "ReturnType<typeof makeApi>",
@@ -354,6 +354,79 @@
    "notes": "- RADIUS, not diameter: a 10 mm bore is circle(5).\n- To drill, prefer part.hole / holes.* over a circle + cut: they carry the hole kind and are one feature."
   },
   {
+   "id": "sketch.curve",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.curve(f: (t: number) => Pt, o: { from?: number; to?: number; count?: number; closed?: boolean; t0?: number; t1?: number; n?: number } = {})",
+   "summary": "Curve from a JavaScript function t -> [x, y], sampled into a fitted spline.",
+   "description": "s.curve((t) => [x, y], { from: 0, to: 1, count: 48, closed: false }) calls the function at count equal steps of t from `from` to `to` and draws one interpolating spline through the points (units: mm, JS maths: sin and cos take radians). Open (the default): count + 1 points, the last at t = to. closed: true makes a full loop WITHOUT repeating the end point: t runs from `from` up to but not including `to` (so for a circle use from 0, to 2 * Math.PI), count points, and the spline closes on itself, which is what a loft section or an extrude profile needs. The function may use the script's variables and any JS; it is sampled when the script runs, so for a curve the kernel should keep as formulas (editable, refitted to a tolerance) use s.equation. Fewer than 3 points, a function that does not return two finite numbers, or count above 2000 stops the run with the line. Defaults: from 0, to 1, count 48, points rounded to 0.0001 mm.",
+   "parameters": [
+    {
+     "name": "f",
+     "type": "(t: number) => Pt",
+     "optional": false,
+     "description": "function of t returning [x, y]"
+    },
+    {
+     "name": "o",
+     "type": "{ from?: number; to?: number; count?: number; closed?: boolean; t0?: number; t1?: number; n?: number }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "from",
+       "type": "number",
+       "optional": true,
+       "description": "first t, default 0"
+      },
+      {
+       "name": "to",
+       "type": "number",
+       "optional": true,
+       "description": "last t (excluded when closed), default 1"
+      },
+      {
+       "name": "count",
+       "type": "number",
+       "optional": true,
+       "description": "number of steps, default 48 (alias n; from / to are also t0 / t1)"
+      },
+      {
+       "name": "closed",
+       "type": "boolean",
+       "optional": true,
+       "description": "close the curve into a loop, default false"
+      },
+      {
+       "name": "t0",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "t1",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "n",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "// a closed loft section: an egg shape, 60 points\npart('Egg').sketch('front', (s) => s.curve((a) => [20 * Math.cos(a), 26 * Math.sin(a) * (1 + 0.15 * Math.cos(a))], { from: 0, to: 2 * Math.PI, count: 60, closed: true })).extrude(8);",
+   "related": [
+    "sketch.polar",
+    "sketch.equation",
+    "sketch.spline"
+   ]
+  },
+  {
    "id": "sketch.cvspline",
    "kind": "method",
    "domain": "sketch",
@@ -595,20 +668,20 @@
    "id": "sketch.polar",
    "kind": "method",
    "domain": "sketch",
-   "signature": "s.polar(count: number, draw: (s: SketchBuilder) => void, o: { about?: Pt; angle?: number; start?: number } = {})",
+   "signature": "s.polar(count: number | ((angle: number) => number), draw?: ((s: SketchBuilder) => void) | { count?: number; closed?: boolean; from?: number; to?: number; center?: Pt }, o: { about?: Pt; angle?: number; start?: number } = {})",
    "summary": "Repeat a drawing around a centre.",
    "description": "polar(count, draw) runs `draw(s)` count times; copy i is rotated by i * 360 / count degrees about `about` (default the sketch origin). Draw the first copy where you want it and write the shapes once: a petal, a spoke, a tooth. The copies are separate loops, so a sketch with five petals extrudes or cuts as five regions. angle spreads the copies over a part of a turn instead (angle: 90 with count 4 gives 0, 30, 60 and 90 degrees), start turns the first copy.",
    "parameters": [
     {
      "name": "count",
-     "type": "number",
+     "type": "number | ((angle: number) => number)",
      "optional": false,
      "description": "number of copies, at least 1"
     },
     {
      "name": "draw",
-     "type": "(s: SketchBuilder) => void",
-     "optional": false,
+     "type": "((s: SketchBuilder) => void) | { count?: number; closed?: boolean; from?: number; to?: number; center?: Pt }",
+     "optional": true,
      "description": "function that draws one copy with the same sketch builder"
     },
     {
@@ -642,7 +715,75 @@
    "example": "part('Petals').sketch('front', (s) => s.polar(5, (c) => { c.arc3([9, 0], [22, 7.5], [38, 0]); c.arc3([38, 0], [22, -7.5], [9, 0]); })).extrude(2);",
    "related": [
     "sketch.arc3",
-    "part.circularPattern"
+    "part.circularPattern",
+    "sketch.polarCurve"
+   ]
+  },
+  {
+   "id": "sketch.polarCurve",
+   "kind": "method",
+   "domain": "sketch",
+   "signature": "s.polarCurve(f: (angle: number) => number, o: { count?: number; n?: number; closed?: boolean; from?: number; to?: number; center?: Pt } = {})",
+   "summary": "Polar curve from a function angle -> radius (waves, cams, petals).",
+   "description": "Call it as s.polar((angle) => radius, o), the same as s.polarCurve: waves, cams, petals, rounded stars. s.polar((angle) => radius, { count: 96, closed: true }) draws r(angle) round the sketch origin (or `center`) as one interpolating spline. The angle is in RADIANS (JS Math.sin / Math.cos), measured from the sketch x axis counter-clockwise, from 0 to 2 * Math.PI by default; closed: true (the default for a full turn) makes a loop without repeating the end point, ready to extrude or to use as a loft section. Give from / to for a sector (open spline, closed: false). The radius must be a finite number (negative values draw on the opposite side). count defaults to 96 points: use about 8 points per wave of the function, more for sharp features; the spline passes through the points, so a coarse count rounds corners. Points are rounded to 0.0001 mm. Use sketch.curve for anything that is not a radius against an angle.",
+   "parameters": [
+    {
+     "name": "f",
+     "type": "(angle: number) => number",
+     "optional": false,
+     "description": "function of the angle in radians returning the radius in mm"
+    },
+    {
+     "name": "o",
+     "type": "{ count?: number; n?: number; closed?: boolean; from?: number; to?: number; center?: Pt }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "count",
+       "type": "number",
+       "optional": true,
+       "description": "number of points, default 96 (alias n)"
+      },
+      {
+       "name": "n",
+       "type": "number",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "closed",
+       "type": "boolean",
+       "optional": true,
+       "description": "close the loop, default true for a full turn and false when from / to are given"
+      },
+      {
+       "name": "from",
+       "type": "number",
+       "optional": true,
+       "description": "first angle in radians, default 0"
+      },
+      {
+       "name": "to",
+       "type": "number",
+       "optional": true,
+       "description": "last angle in radians (excluded when closed), default 2 * Math.PI"
+      },
+      {
+       "name": "center",
+       "type": "Pt",
+       "optional": true,
+       "description": "[x, y] centre, default [0, 0]"
+      }
+     ]
+    }
+   ],
+   "example": "// a wavy disc outline: radius 30 with 12 waves 3 mm deep\npart('Wavy').sketch('front', (s) => s.polar((a) => 30 + 1.5 * Math.cos(12 * a), { count: 120 })).extrude(5);",
+   "related": [
+    "sketch.curve",
+    "sketch.equation",
+    "sketch.polar"
    ]
   },
   {
@@ -961,6 +1102,49 @@
    ]
   },
   {
+   "id": "part.baseFlange",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".baseFlange(o: { rule?: string; flip?: boolean; regions?: unknown[] } = {})",
+   "summary": "Sheet base plate from the last closed sketch.",
+   "description": "Adds a baseFlange from the last sketch (which it consumes, as extrude does). The sketch must hold ONE closed outline (holes inside it are allowed); the sheet extends along the sketch normal (against it with flip), the sketch plane is the front face and the opposite face the back (cap) face. The thickness comes from the rule (rule name, else the latest sheetRules, else 2.5 mm). One base flange per part, as the first body feature. After it, edgeFlange, hem or fold shape the part, and the flat pattern is read with the sheet_info tool.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ rule?: string; flip?: boolean; regions?: unknown[] }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "rule",
+       "type": "string",
+       "optional": true,
+       "description": "name of a sheetRules rule (default: the active rule)"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "extrude against the sketch normal"
+      },
+      {
+       "name": "regions",
+       "type": "unknown[]",
+       "optional": true,
+       "description": "which sketch regions to use, as for extrude (default: the one closed region)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Plate').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange({ rule: 'S2' });",
+   "related": [
+    "part.sheetRules",
+    "part.edgeFlange",
+    "part.contourFlange"
+   ]
+  },
+  {
    "id": "part.bearing",
    "kind": "method",
    "domain": "features",
@@ -1061,6 +1245,59 @@
    ]
   },
   {
+   "id": "part.contourFlange",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".contourFlange(o: { distance: Num | string; curves?: string[]; rule?: string; flip?: boolean; reverse?: boolean })",
+   "summary": "Sheet base from an open chain of sketch lines.",
+   "description": "Adds a contourFlange from the last sketch, used INSTEAD of baseFlange. The sketch holds an open chain of lines; curves lists their ids (default every line); distance is the extrusion in mm. The material lies to the right of the direction of travel (left with flip); reverse extrudes against the sketch normal. Corners become bends of the rule's radius; a segment must be at least as long as its two setbacks. Arcs in the chain and further flanges on it come later.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ distance: Num | string; curves?: string[]; rule?: string; flip?: boolean; reverse?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "distance",
+       "type": "Num | string",
+       "optional": false,
+       "description": "extrusion length of the section in mm (required)"
+      },
+      {
+       "name": "curves",
+       "type": "string[]",
+       "optional": true,
+       "description": "ids of the sketch lines to chain (default: every line)"
+      },
+      {
+       "name": "rule",
+       "type": "string",
+       "optional": true,
+       "description": "sheetRules rule name (default: the active rule)"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "material on the left of the direction of travel"
+      },
+      {
+       "name": "reverse",
+       "type": "boolean",
+       "optional": true,
+       "description": "extrude against the sketch normal"
+      }
+     ]
+    }
+   ],
+   "example": "part('Angle').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => { s.line([0, 0], [0, 20]); s.line([0, 20], [30, 20]); })\n  .contourFlange({ distance: 40, rule: 'S2' });",
+   "related": [
+    "part.sheetRules",
+    "part.baseFlange"
+   ]
+  },
+  {
    "id": "part.cut",
    "kind": "method",
    "domain": "features",
@@ -1146,6 +1383,120 @@
     "part.hole"
    ],
    "notes": "- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.\n- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.\n- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way.\n- A cut applies to EVERY body that exists when it runs (not only the one you are looking at). A through-cut for holes in a base plate also slits any earlier body it crosses. Build the parts the cut must not touch AFTER the cut, or keep clearance, or limit the cut depth. run_script reports a warning ('cut F7 changed N bodies') when one cut changed several bodies."
+  },
+  {
+   "id": "part.edgeFlange",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".edgeFlange(edges: SheetPick | SheetPick[], o: { height?: Num | string; angle?: Num | string; radius?: Num | string; heightFrom?: HeightFrom; position?: BendPosition; flip?: boolean; then?: Array<{ angle?: Num | string; height: Num | string; flip?: boolean }>; start?: Num | string; length?: Num | string; from?: P3; to?: P3; profile?: SheetProfile; holes?: unknown[]; relief?: SheetRelief })",
+   "summary": "Bent flange on edges of the base plate.",
+   "description": "Adds an edgeFlange on the straight outline edges you pick. An edge is a world point ON it ([x, y, z]; the nearest outline edge wins; its height only chooses the side), { edge: n } (index into the outline, counter-clockwise from the sketch), or a role such as { role: 'P0.side.e2' } / { curve: 'e2' } (follows the sketch curve when the sketch changes). On the panel tree any panel takes a flange: 'P2.tip' (free end of leg 2), 'P1.side.start', { edge: n, panel: k }. A point on the cap (back) face bends the flange towards the cap (direction up in the bend table), a point on the front face bends it the other way; flip reverses. Object picks may carry their own height, angle, radius, heightFrom, position and flip. height is measured from heightFrom (outer virtual sharp by default); it must reach the end of the bend (flangeHeightTooLow otherwise). Several edges in one call stay `gap` apart at the corners. then chains further bends on the far edge of the leg.",
+   "parameters": [
+    {
+     "name": "edges",
+     "type": "SheetPick | SheetPick[]",
+     "optional": false,
+     "description": "a pick or a list of picks: [x, y, z] | { at } | { edge: n } | { role } | { curve } | 'P0.side.e2'"
+    },
+    {
+     "name": "o",
+     "type": "{ height?: Num | string; angle?: Num | string; radius?: Num | string; heightFrom?: HeightFrom; position?: BendPosition; flip?: boolean; then?: Array<{ angle?: Num | string; height: Num | string; flip?: boolean }>; start?: Num | string; length?: Num | string; from?: P3; to?: P3; profile?: SheetProfile; holes?: unknown[]; relief?: SheetRelief }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "height",
+       "type": "Num | string",
+       "optional": true,
+       "description": "flange height in mm (required)"
+      },
+      {
+       "name": "angle",
+       "type": "Num | string",
+       "optional": true,
+       "description": "angle the leg turns through in degrees, 0 < angle < 180 (default 90)"
+      },
+      {
+       "name": "radius",
+       "type": "Num | string",
+       "optional": true,
+       "description": "inside bend radius in mm (default the rule's)"
+      },
+      {
+       "name": "heightFrom",
+       "type": "HeightFrom",
+       "optional": true,
+       "description": "'outer' (default) | 'inner' | 'tangent': where the height is measured from"
+      },
+      {
+       "name": "position",
+       "type": "BendPosition",
+       "optional": true,
+       "description": "'inside' (default, the flange's outer face stays within the outline) | 'outside' (the bend starts at the outline edge) | 'middle'"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "bend the other way"
+      },
+      {
+       "name": "then",
+       "type": "Array<{ angle?: Num | string; height: Num | string; flip?: boolean }>",
+       "optional": true,
+       "description": "chained bends after the first, at most 16: [{ angle?, height, flip? }]"
+      },
+      {
+       "name": "start",
+       "type": "Num | string",
+       "optional": true,
+       "description": "part of the edge: mm along the picked edge from its start vertex (the outline runs counter-clockwise); alone it runs to the end of the edge"
+      },
+      {
+       "name": "length",
+       "type": "Num | string",
+       "optional": true,
+       "description": "part of the edge: how far the flange runs from start (default from the vertex)"
+      },
+      {
+       "name": "from",
+       "type": "P3",
+       "optional": true,
+       "description": "part of the edge: a world point [x, y, z] on the edge (with to; any order, projected onto the edge)"
+      },
+      {
+       "name": "to",
+       "type": "P3",
+       "optional": true,
+       "description": "part of the edge: the other world point"
+      },
+      {
+       "name": "profile",
+       "type": "SheetProfile",
+       "optional": true,
+       "description": "a shaped leg: 'sketch' (the last sketch, consumed: its outer loop is the leg, circles inside it are holes; x along the flange from the lower left corner, y outward from the height line), { sketch: id }, or an inline closed loop of lines and arcs in (v, h). height is then the top of the outline"
+      },
+      {
+       "name": "holes",
+       "type": "unknown[]",
+       "optional": true,
+       "description": "holes in a shaped leg: [{ circle: { center: [v, h], radius } }, ...] (or loops), in the profile's frame, beyond the end of the bend"
+      },
+      {
+       "name": "relief",
+       "type": "SheetRelief",
+       "optional": true,
+       "description": "the notch beside a partial flange: 'none' (default), 'rectangular' (the rule's reliefWidth x reliefDepth) or { width, depth }"
+      }
+     ]
+    }
+   ],
+   "example": "part('Tray').sheetRules({ name: 'S2', thickness: 2, bendRadius: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .edgeFlange([[50, 0, 2], [50, 60, 2], [0, 30, 2], [100, 30, 2]], { height: 15 });",
+   "related": [
+    "part.baseFlange",
+    "part.hem",
+    "part.fold"
+   ]
   },
   {
    "id": "part.extrude",
@@ -1288,6 +1639,77 @@
    "notes": "- A radius that is too big for the neighbouring faces gives `blendOverflow`: halve it. Radius equal to half a face width is already a limit.\n- Fillet before shell and before small holes; fillet edges('|Z') for the vertical edges of a block, or draw sketch.rrect instead.\n- A fillet selected by edges() of faces that do not exist yet fails with a Line N selector error: select at the point in the chain where the edge exists.\n- Different radii on edges that meet at a corner are applied as SEQUENTIAL fillets (one per distinct radius, increasing) and can fail with blendFailed where a simultaneous blend would not; use one radius there, or fillet the corners in a sketch (rrect).\n- { variable: [near, far] } works on isolated edges; edge junctions (all four edges of a face) fail with blendFailed."
   },
   {
+   "id": "part.fold",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".fold(o: { points?: [P3, P3]; curve?: string; angle?: Num | string; radius?: Num | string; position?: 'centerline' | 'start' | 'end' | 'mould'; fixed?: P3 | string; panel?: number; flip?: boolean })",
+   "summary": "Fold the base along a line.",
+   "description": "Adds a fold. The line is two world points ([x, y, z], extended across the base) or { curve } of the last sketch (a sketch line, followed when the sketch changes). angle (default 90) is the angle the moving side turns through; position says where the line sits in the bend zone (centerline default, start, end, mould). fixed names the side that stays (a point on it or a wall role; default the larger side); flip turns the moving side down. The flat pattern keeps its size. Folds, flanges and hems combine in any order.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ points?: [P3, P3]; curve?: string; angle?: Num | string; radius?: Num | string; position?: 'centerline' | 'start' | 'end' | 'mould'; fixed?: P3 | string; panel?: number; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "points",
+       "type": "[P3, P3]",
+       "optional": true,
+       "description": "two world points [[x, y, z], [x, y, z]] that give the fold line (oblique lines are fine)"
+      },
+      {
+       "name": "curve",
+       "type": "string",
+       "optional": true,
+       "description": "id of a line in the last sketch (instead of points)"
+      },
+      {
+       "name": "angle",
+       "type": "Num | string",
+       "optional": true,
+       "description": "degrees the moving side turns through, 0 < angle < 180 (default 90)"
+      },
+      {
+       "name": "radius",
+       "type": "Num | string",
+       "optional": true,
+       "description": "inside bend radius in mm (default the rule's)"
+      },
+      {
+       "name": "position",
+       "type": "'centerline' | 'start' | 'end' | 'mould'",
+       "optional": true,
+       "description": "'centerline' (default) | 'start' | 'end' | 'mould'"
+      },
+      {
+       "name": "fixed",
+       "type": "P3 | string",
+       "optional": true,
+       "description": "a point [x, y, z] on the side that stays, or a wall role such as 'P0.side.e4'"
+      },
+      {
+       "name": "panel",
+       "type": "number",
+       "optional": true,
+       "description": "panel number the line is on, for folds on folded panels when the points are ambiguous"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "turn the moving side towards the bottom"
+      }
+     ]
+    }
+   ],
+   "example": "part('Fold').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .fold({ points: [[40, 0, 2], [40, 60, 2]], angle: 60 });",
+   "related": [
+    "part.baseFlange",
+    "part.unfold"
+   ]
+  },
+  {
    "id": "part.gear",
    "kind": "method",
    "domain": "features",
@@ -1364,6 +1786,77 @@
     "part.hole"
    ],
    "notes": "- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).\n- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z)."
+  },
+  {
+   "id": "part.hem",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".hem(edges: SheetPick | SheetPick[], o: { length: Num | string; gap?: Num | string; flip?: boolean; start?: Num | string; from?: P3; to?: P3; relief?: SheetRelief })",
+   "summary": "180 degree hem on an edge.",
+   "description": "Adds a hem on the picked outline edges (picks as for edgeFlange). length is measured to the OUTER face of the hem, so the leg is length - (gap + thickness) and length must be at least gap + thickness (flangeHeightTooLow otherwise). gap is the inside radius of the bend (default the rule's hemGap, 0.01). A point on the cap face curls the hem towards the bottom. Hems on neighbouring edges, or beside an edge flange, are refused.",
+   "parameters": [
+    {
+     "name": "edges",
+     "type": "SheetPick | SheetPick[]",
+     "optional": false,
+     "description": "a pick or a list of picks (see edgeFlange)"
+    },
+    {
+     "name": "o",
+     "type": "{ length: Num | string; gap?: Num | string; flip?: boolean; start?: Num | string; from?: P3; to?: P3; relief?: SheetRelief }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "length",
+       "type": "Num | string",
+       "optional": false,
+       "description": "length to the outer face of the hem in mm (required)"
+      },
+      {
+       "name": "gap",
+       "type": "Num | string",
+       "optional": true,
+       "description": "inside radius of the hem in mm (default the rule's hemGap)"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "curl the other way"
+      },
+      {
+       "name": "start",
+       "type": "Num | string",
+       "optional": true,
+       "description": "part of the edge: mm along the picked edge from its start vertex; the hem then runs to the end of the edge"
+      },
+      {
+       "name": "from",
+       "type": "P3",
+       "optional": true,
+       "description": "part of the edge: a world point on the edge (with to; any order)"
+      },
+      {
+       "name": "to",
+       "type": "P3",
+       "optional": true,
+       "description": "part of the edge: the other world point"
+      },
+      {
+       "name": "relief",
+       "type": "SheetRelief",
+       "optional": true,
+       "description": "the notch beside a partial hem: 'none' (default), 'rectangular' or { width, depth }"
+      }
+     ]
+    }
+   ],
+   "example": "part('Lip').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .hem([[50, 0, 2]], { length: 10 });",
+   "related": [
+    "part.edgeFlange",
+    "part.baseFlange"
+   ]
   },
   {
    "id": "part.knurl",
@@ -1466,6 +1959,19 @@
     "part.sweep"
    ],
    "notes": "- Sections are { on, draw } objects, not previously recorded sketches: loft() builds the sketches itself. Put the sections on parallel planes with at('right', x) (stations along X), at('front', z) (along Z) or at('top', y). On 'right' the sketch x axis points to -Z and y is up.\n- Same outline kind in every section (all splines, or all arc+line pieces); a closed spline per station is the robust hull recipe (boat-hull-loft).\n- A point end is { on, point: [x, y] } with ends: { last: 'point' }: first OR last, never both and never in the middle; no guides with a point end. A point in the middle is a script error with the line number.\n- The result is checked by the kernel: a self-crossing section is loftProfileSelfIntersect, a degenerate result loftInvalidResult. Fix the section, not the loft.\n- No closed (ring) loft in the kernel. Guides must touch every section (loftGuideMiss); a centre line must run through the sections (loftCentreLineReach: it runs along the loft axis, mind the direction of the plane axes)."
+  },
+  {
+   "id": "part.refold",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".refold()",
+   "summary": "Refold an unfolded sheet.",
+   "description": "Adds a refold directly after an unfold; it rebuilds the folded solid from the bend table, so unfold and refold round-trip exactly (volume, faces, box). A refold of a sheet that is not unfolded is refused (sheetMetalUnsupported).",
+   "parameters": [],
+   "example": "part('Tray').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .edgeFlange([[50, 0, 2]], { height: 20 })\n  .unfold().refold();",
+   "related": [
+    "part.unfold"
+   ]
   },
   {
    "id": "part.revolve",
@@ -1593,6 +2099,216 @@
     "screw",
     "part.thread",
     "part.revolve"
+   ]
+  },
+  {
+   "id": "part.sheetConvert",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sheetConvert(o: { thickness?: Num | string; rule?: string } = {})",
+   "summary": "Turn a bent-plate solid into a sheet metal part.",
+   "description": "Adds a sheetConvert: the solid (planar panels, straight cylindrical bends, constant thickness) becomes a sheet with a panel tree, flat pattern and bend table, so edgeFlange, fold, sheetCut, sheet_info and sheet_export work on it. thickness is read from the body unless given; rule names the rule that supplies the k-factor (the converted rule is named Converted and becomes active). Refused with sheetMetalUnsupported for sharp corners between panels, cones, tori, free-form bends, reliefs or embossed features (the rebuilt sheet must match the volume within 1 %).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ thickness?: Num | string; rule?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "thickness",
+       "type": "Num | string",
+       "optional": true,
+       "description": "sheet thickness in mm (default: read from the body)"
+      },
+      {
+       "name": "rule",
+       "type": "string",
+       "optional": true,
+       "description": "name of a sheetRules rule for the k-factor (default: the active rule)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Tray').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .edgeFlange([[0, -30, 2]], { height: 20 }).sheetConvert();",
+   "related": [
+    "part.sheetRules",
+    "part.sheetCut"
+   ]
+  },
+  {
+   "id": "part.sheetCorner",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sheetCorner(corners: SheetCorner | SheetCorner[], o: { mode?: 'round' | 'chamfer'; radius?: Num | string; distance?: Num | string; size?: Num | string } = {})",
+   "summary": "Round or chamfer free convex corners of the sheet.",
+   "description": "Adds a sheetCorner. corners are world points (the nearest panel vertex wins) or { panel: k, vertex: i }. mode is 'round' (default, needs radius) or 'chamfer' (needs distance); size works for either. Both walls of the corner must be free (no bend beside them), the corner convex, and the walls at least as long as the tangent length. The fillet is a cylinder face in the solid and an arc in the DXF.",
+   "parameters": [
+    {
+     "name": "corners",
+     "type": "SheetCorner | SheetCorner[]",
+     "optional": false,
+     "description": "a corner or a list: [x, y, z] | { panel, vertex }"
+    },
+    {
+     "name": "o",
+     "type": "{ mode?: 'round' | 'chamfer'; radius?: Num | string; distance?: Num | string; size?: Num | string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "mode",
+       "type": "'round' | 'chamfer'",
+       "optional": true,
+       "description": "'round' (default) | 'chamfer'"
+      },
+      {
+       "name": "radius",
+       "type": "Num | string",
+       "optional": true,
+       "description": "fillet radius in mm (mode round)"
+      },
+      {
+       "name": "distance",
+       "type": "Num | string",
+       "optional": true,
+       "description": "chamfer distance in mm (mode chamfer)"
+      },
+      {
+       "name": "size",
+       "type": "Num | string",
+       "optional": true,
+       "description": "radius or distance in mm, for either mode"
+      }
+     ]
+    }
+   ],
+   "example": "part('Plate').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .sheetCorner([[50, 30, 2], [-50, 30, 2]], { mode: 'round', radius: 5 });",
+   "related": [
+    "part.baseFlange",
+    "part.sheetCut"
+   ]
+  },
+  {
+   "id": "part.sheetCut",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sheetCut(o: { regions?: unknown[] } = {})",
+   "summary": "Cut closed sketch regions out of the sheet, across bends too.",
+   "description": "Adds a sheetCut from the last sketch (which it consumes). The sketch is read in the FLAT layout: draw it on the plane of the base (or parallel), in flat coordinates. A region is subtracted from every panel it meets and from the flat pattern, so a slot across a bend shows in the DXF; the bend solid loses the matching wedge. Refused if a region misses the sheet, removes or splits a panel, or has an island. Use it instead of a plain cut, which breaks the sheet.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ regions?: unknown[] }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "regions",
+       "type": "unknown[]",
+       "optional": true,
+       "description": "which sketch regions to cut, as for extrude (default: all)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Slot').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .sketch('front', (s) => s.rect(10, 4)).sheetCut();",
+   "related": [
+    "part.baseFlange",
+    "part.sheetCorner"
+   ]
+  },
+  {
+   "id": "part.sheetRules",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sheetRules(o: { name?: string; thickness?: Num | string; kFactor?: Num | string; bendRadius?: Num | string; reliefWidth?: Num | string; reliefDepth?: Num | string; cornerRelief?: Num | string; cornerReliefShape?: 'notch' | 'round' | 'rectangular' | 'tear'; hemGap?: Num | string; gap?: Num | string; active?: boolean } = {})",
+   "summary": "Sheet stock rule: thickness, k-factor, bend radius.",
+   "description": "Adds a sheetRules feature. The rule named by baseFlange (or the active rule, the latest one) gives the part its thickness and the bend arithmetic (bend allowance BA = (r + k t) angle). Lengths in mm; any value may be an expression string such as \"=Thickness*4\" (Thickness is this rule's thickness) or a number with a unit (\"2 mm\"). Defaults follow the thickness (2.5 when none is given): bendRadius = thickness, kFactor 0.44, reliefWidth = thickness, reliefDepth = thickness / 2, cornerRelief = 4 x thickness, gap = thickness, hemGap 0.01. Put it before the sketch of the base flange.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ name?: string; thickness?: Num | string; kFactor?: Num | string; bendRadius?: Num | string; reliefWidth?: Num | string; reliefDepth?: Num | string; cornerRelief?: Num | string; cornerReliefShape?: 'notch' | 'round' | 'rectangular' | 'tear'; hemGap?: Num | string; gap?: Num | string; active?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": "rule name (a rule with an existing name replaces it); baseFlange({ rule }) names it"
+      },
+      {
+       "name": "thickness",
+       "type": "Num | string",
+       "optional": true,
+       "description": "stock thickness in mm (default 2.5)"
+      },
+      {
+       "name": "kFactor",
+       "type": "Num | string",
+       "optional": true,
+       "description": "neutral line position 0..1 (default 0.44)"
+      },
+      {
+       "name": "bendRadius",
+       "type": "Num | string",
+       "optional": true,
+       "description": "default inside bend radius in mm (default = thickness)"
+      },
+      {
+       "name": "reliefWidth",
+       "type": "Num | string",
+       "optional": true,
+       "description": "bend relief width in mm (default = thickness)"
+      },
+      {
+       "name": "reliefDepth",
+       "type": "Num | string",
+       "optional": true,
+       "description": "bend relief depth in mm (default thickness / 2)"
+      },
+      {
+       "name": "cornerRelief",
+       "type": "Num | string",
+       "optional": true,
+       "description": "corner relief size in mm (default 4 x thickness)"
+      },
+      {
+       "name": "cornerReliefShape",
+       "type": "'notch' | 'round' | 'rectangular' | 'tear'",
+       "optional": true,
+       "description": "'notch' (default) | 'round' | 'rectangular' | 'tear'; the others are stored but built as notch for now"
+      },
+      {
+       "name": "hemGap",
+       "type": "Num | string",
+       "optional": true,
+       "description": "default inside radius of a hem in mm (default 0.01)"
+      },
+      {
+       "name": "gap",
+       "type": "Num | string",
+       "optional": true,
+       "description": "gap between the legs of flanges on neighbouring edges made in one feature, mm (default = thickness)"
+      },
+      {
+       "name": "active",
+       "type": "boolean",
+       "optional": true,
+       "description": "make this the rule of the next base flange (default true)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Tray').sheetRules({ name: 'Steel2', thickness: 2, kFactor: 0.44, bendRadius: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange({ rule: 'Steel2' });",
+   "related": [
+    "part.baseFlange",
+    "part.edgeFlange"
    ]
   },
   {
@@ -1781,6 +2497,42 @@
    "notes": "- Cosmetic by default: the geometry does not change, the thread appears in the regen threads list and drawings. modeled: true cuts the helix; it may fall back to cosmetic with a threadModelFallback warning.\n- The hole should be the tap drill of the thread (M6 -> 5.0): hole(..., { kind: 'tapped', thread: 'M6' }) does both. A mismatch is the warning threadDiameterMismatch with the diameter to drill.\n- on: 'hole' means the last hole feature (all its positions); a face name must be the persistent name of a cylindrical face."
   },
   {
+   "id": "part.unfold",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".unfold()",
+   "summary": "Unfold the sheet to its flat body.",
+   "description": "Adds an unfold directly after the sheet features. The body becomes the flat sheet (the flat pattern extruded by the thickness); while unfolded, flanges, hems and folds are refused until refold. The flat pattern itself (outline, bend lines) is always available from sheet_info, folded or not; unfold is for exporting or checking the flat solid.",
+   "parameters": [],
+   "example": "part('Tray').sheetRules({ name: 'S2', thickness: 2 })\n  .sketch('front', (s) => s.rect(100, 60)).baseFlange()\n  .edgeFlange([[50, 0, 2]], { height: 20 })\n  .unfold();",
+   "related": [
+    "part.refold",
+    "part.edgeFlange"
+   ]
+  },
+  {
+   "id": "part.washer",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".washer(o: WasherOpts)",
+   "summary": "A flat or split spring washer as its own body, placed by an origin and an axis.",
+   "description": "kind 'flat' (default) is a ring with the given inner and outer diameter and thickness. kind 'spring' is the same ring split by a straight gap of width `gap` (default the thickness) on the +X side of the placement frame; it is flat (no lift). origin is the centre of the washer's first side and the thickness runs from it along axis (default [0, 0, -1], so a washer at a screw's origin lies under its head, around the shank). The washer does not merge with what it touches. For standard sizes (ISO 7089, ISO 7093-1, DIN 127 B) see the Washer wizard in the app.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "WasherOpts",
+     "optional": false,
+     "description": "options object { kind, inner, outer, thickness, gap, origin, axis, name }, the fields below"
+    }
+   ],
+   "example": "part('Plate').sketch('front', (s) => s.rect(30, 30)).extrude(4)\n  .washer({ inner: 8.4, outer: 16, thickness: 1.6, origin: [0, 0, 4], axis: [0, 0, 1] });",
+   "related": [
+    "screw",
+    "part.sketch",
+    "part.extrude"
+   ]
+  },
+  {
    "id": "screw",
    "kind": "function",
    "domain": "features",
@@ -1813,6 +2565,27 @@
    "example": "part('Tube').sketch('front', (s) => s.circle(20)).extrude(30)\n  .sketch(face('>Z'), (s) => s.circle(12)).cut(through());",
    "related": [
     "part.cut"
+   ]
+  },
+  {
+   "id": "washer",
+   "kind": "function",
+   "domain": "features",
+   "signature": "washer(o: WasherOpts): PartBuilder",
+   "summary": "A flat or split spring washer as its own body, placed by an origin and an axis.",
+   "description": "The free-function form of part.washer: washer({ inner: 8.4, outer: 16, thickness: 1.6 }) adds a flat washer to the current model (a new part when there is none) and returns it. kind: 'spring' splits it with a straight gap of width `gap` (no lift). The thickness runs from the centre `origin` along `axis` (default [0, 0, -1], so a washer at a screw's origin lies under its head).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "WasherOpts",
+     "optional": false,
+     "description": "options object, see part.washer"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "washer({ inner: 8.4, outer: 16, thickness: 1.6, origin: [0, 0, 4], axis: [0, 0, 1] });",
+   "related": [
+    "part.washer"
    ]
   },
   {
@@ -3008,7 +3781,7 @@
     }
    ],
    "returns": "this",
-   "example": "p.sketch('front', (s) => s.circle([0, 0], 30)).extrude(3);\nconst lens = p.handle();\np.appearance({ feature: lens, colour: '#b9c7d6', opacity: 0.18, finish: 'glass' });",
+   "example": "p.sketch('front', (s) => s.circle([0, 0], 30)).extrude(3);\nconst lens = p.handle();\np.appearance({ feature: lens, colour: '#b9c7d6', opacity: 0.18, finish: 'glass' });\np.appearance({ face: lens, only: ['C0', 'C1'], colour: '#222222' });   // just the two end caps of that feature",
    "related": [
     "part.bodyName",
     "part.handle"
@@ -3119,9 +3892,9 @@
    "id": "part.expectBBox",
    "kind": "method",
    "domain": "utilities",
-   "signature": ".expectBBox(box: { min?: Vec; max?: Vec; size?: Vec }, o: { tol?: number } = {}): this",
+   "signature": ".expectBBox(box: { min?: Vec; max?: Vec; size?: Vec }, o: { tolerance?: number; tol?: number; body?: string } = {}): this",
    "summary": "Check the bounding box of the part built so far.",
-   "description": "expectBBox({ min, max, size }, { tol }) checks the keys you give (each [x, y, z]) to an absolute tol in mm (default 1e-3). Use size to check the extents without caring where the part sits. No await needed.",
+   "description": "expectBBox({ min, max, size }, { tolerance }) checks the keys you give (each [x, y, z], world mm) to an ABSOLUTE tolerance in mm, default 1e-3 (tol is a short name). size checks the extents without caring where the part sits; { body: 'Name' } measures one body made with newBody. The box is the kernel's display box: the display mesh joined with the edge curves, never the control polygon of a spline or loft (a lofted body trimmed by a cylinder, the tapered disc, reads x and z within 60, y 0 to 18). It can fall short of a round or free-form face by the mesh's chord error: about 1e-3 on a radius-10 sphere, 5e-3 on a free-form extrusion, and up to 0.05 mm for a radius-5 cylinder inside a multi-body part (a per-body box comes from the mesh vertices and edge curves of that body's faces), so give the tolerance you can justify (0.05 for round bodies). No await needed. A failure is a run error: 'Line N: expected bbox max [60, 18, 60], got [60, 17.5, 60] (tolerance 0.001)'.",
    "parameters": [
     {
      "name": "box",
@@ -3151,16 +3924,28 @@
     },
     {
      "name": "o",
-     "type": "{ tol?: number }",
+     "type": "{ tolerance?: number; tol?: number; body?: string }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
       {
+       "name": "tolerance",
+       "type": "number",
+       "optional": true,
+       "description": "absolute tolerance in mm, default 1e-3 (alias tol)"
+      },
+      {
        "name": "tol",
        "type": "number",
        "optional": true,
-       "description": "absolute tolerance in mm, default 1e-3"
+       "description": ""
+      },
+      {
+       "name": "body",
+       "type": "string",
+       "optional": true,
+       "description": "check one named body instead of the whole part"
       }
      ]
     }
@@ -3169,7 +3954,8 @@
    "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectBBox({ size: [40, 30, 20], min: [-20, -15, 0] });",
    "related": [
     "part.bbox",
-    "plane"
+    "plane",
+    "part.expectVolume"
    ]
   },
   {
@@ -3194,6 +3980,44 @@
    ]
   },
   {
+   "id": "part.expectMinFaceArea",
+   "kind": "method",
+   "domain": "utilities",
+   "signature": ".expectMinFaceArea(a: number, o: { body?: string } = {}): this",
+   "summary": "Check that no face of the part is smaller than a given area (no slivers).",
+   "description": "expectMinFaceArea(a) fails and names the smallest face when it is smaller than a mm2 (the kernel's exact face areas; all faces of all bodies, or { body: 'Name' }). Use it after fillets, trims and booleans, which leave sliver faces when the numbers nearly coincide. Choose a from the part: 0.01 mm2 catches slivers of a machined part; a printed part may allow less. No await needed. A failure is a run error: 'Line N: expected every face to be at least 0.01 mm2, the smallest is face F12.S.l3 with 0.0004 mm2'.",
+   "parameters": [
+    {
+     "name": "a",
+     "type": "number",
+     "optional": false,
+     "description": "smallest allowed face area in mm2"
+    },
+    {
+     "name": "o",
+     "type": "{ body?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "body",
+       "type": "string",
+       "optional": true,
+       "description": "check the faces of one named body instead of all faces"
+      }
+     ]
+    }
+   ],
+   "returns": "this",
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectMinFaceArea(1);",
+   "related": [
+    "part.faces",
+    "part.expectFaceCount",
+    "part.expectValid"
+   ]
+  },
+  {
    "id": "part.expectValid",
    "kind": "method",
    "domain": "utilities",
@@ -3212,9 +4036,9 @@
    "id": "part.expectVolume",
    "kind": "method",
    "domain": "utilities",
-   "signature": ".expectVolume(v: number, o: { tol?: number; abs?: number } = {}): this",
+   "signature": ".expectVolume(v: number, o: { tolerance?: number; tol?: number; abs?: number; body?: string } = {}): this",
    "summary": "Check the volume of the part built so far; a mismatch is reported as an error with this line.",
-   "description": "expectVolume(v, { tol }) compares with relative tolerance tol (default 1e-3), or { abs } in mm3. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors as 'Line N: expected volume V, got W' and the run goes on. The volume is the kernel's exact value, so analytic references (boxes, cylinders) match to 1e-6.",
+   "description": "expectVolume(v, { tolerance }) compares the kernel's exact volume (mm3, all bodies together) with v: |got - v| <= v * tolerance, a RELATIVE tolerance, default 1e-3 (0.1 %). { abs } gives an absolute tolerance in mm3 instead; { body: 'Name' } measures one body made with newBody (an unknown name is an error that lists the bodies). tol is a short name for tolerance. No await needed: it is a step, checked when the runner reaches it (a build of what is recorded so far, cached with other reads). A failure is listed in the run errors, as 'Line N: expected volume 48000, got 47961.37 (tolerance 1e-6 relative)', so the run reports an error; later checks still run and are listed too. Analytic references (boxes, cylinders) match to 1e-6; a lofted or swept body only to the tolerance you can justify (0.5 % is typical).",
    "parameters": [
     {
      "name": "v",
@@ -3224,32 +4048,45 @@
     },
     {
      "name": "o",
-     "type": "{ tol?: number; abs?: number }",
+     "type": "{ tolerance?: number; tol?: number; abs?: number; body?: string }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
      "properties": [
       {
+       "name": "tolerance",
+       "type": "number",
+       "optional": true,
+       "description": "relative tolerance, default 1e-3 (alias tol)"
+      },
+      {
        "name": "tol",
        "type": "number",
        "optional": true,
-       "description": "relative tolerance, default 1e-3"
+       "description": ""
       },
       {
        "name": "abs",
        "type": "number",
        "optional": true,
-       "description": "absolute tolerance in mm3 (instead of tol)"
+       "description": "absolute tolerance in mm3 (instead of tolerance)"
+      },
+      {
+       "name": "body",
+       "type": "string",
+       "optional": true,
+       "description": "check one named body instead of all bodies"
       }
      ]
     }
    ],
    "returns": "this",
-   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectVolume(24000, { tol: 1e-6 });",
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 30)).extrude(20).expectVolume(24000, { tolerance: 1e-6 });",
    "related": [
     "part.volume",
     "part.expectValid",
-    "part.expectBBox"
+    "part.expectBBox",
+    "part.expectMinFaceArea"
    ],
    "notes": "- tol is relative (default 1e-3); pass { abs } for mm3. A failed expectation is an error with its line; the run goes on, but an agent run with errors does not replace the document."
   },

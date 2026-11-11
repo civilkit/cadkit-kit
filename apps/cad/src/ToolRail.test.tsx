@@ -15,7 +15,7 @@ describe('ToolRail', () => {
   it('has a titled section per family and a cell for each family of commands', () => {
     const { container } = render(<ToolRail commands={commands} kind="none" />);
     const titles = [...container.querySelectorAll('.rail-title')].map((x) => x.textContent);
-    expect(titles).toEqual(['Edit', 'Sketch', 'Create', 'Modify', 'Surfaces', 'Pattern', 'Inspect', 'Assembly', 'Select']);
+    expect(titles).toEqual(['Edit', 'Sketch', 'Create', 'Modify', 'Frame', 'Sheet metal', 'Surfaces', 'Pattern', 'Inspect', 'Assembly', 'Select']);
     expect(container.querySelector('.rail-context')).toBeNull();
     expect(container.querySelectorAll('.slot').length).toBeGreaterThanOrEqual(30);
   });

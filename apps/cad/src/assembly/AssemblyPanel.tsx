@@ -7,7 +7,7 @@ import type { EditOp } from '@ck/session';
 import { InlineName } from '@kit/ui';
 import { t } from '../i18n';
 import {
-  bomCsv, bomItems, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps,
+  bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps,
   type ComponentRow, type DocLike, type ExplodeDir, type ExplodeState, type Placement, type V3,
 } from './model';
 import { KIND_GROUPS, MATE_KINDS, draftOf, draftProblem, limitsAreAngles, mateChanges, mateDropsField, mateFeature, mateKind, newDraft, type MateDraft, type MateParam, type RefKey } from './mateKinds';
@@ -465,6 +465,14 @@ function BomSection({ host }: { host: AsmHost }): JSX.Element {
     await host.saveFile(t('asm.bom.file'), csv, 'text/csv');
     host.notify(t('asm.bom.saved', { name: t('asm.bom.file') }));
   };
+  const head = () => [t('asm.bom.no'), t('asm.bom.part'), t('asm.bom.qty'), t('asm.bom.material'), `${t('asm.bom.massEach')} (g)`, `${t('asm.bom.massTotal')} (g)`];
+  const copyText = async () => {
+    try { await navigator.clipboard.writeText(bomText(items, head(), t('asm.bom.total'))); host.notify(t('asm.bom.copied')); } catch { host.notify(t('asm.bom.copyFailed')); }
+  };
+  const saveText = async () => {
+    await host.saveFile(t('asm.bom.fileText'), bomText(items, head(), t('asm.bom.total')), 'text/plain');
+    host.notify(t('asm.bom.saved', { name: t('asm.bom.fileText') }));
+  };
   const selectItem = (comps: string[]) => { const ins = insertIds(doc); host.select(host.faceNames().filter((n) => { const c = componentOfName(n, ins); return !!c && comps.includes(c); })); };
   return (
     <div class="asm-sec">
@@ -472,20 +480,24 @@ function BomSection({ host }: { host: AsmHost }): JSX.Element {
         <h4>{t('asm.bom.title')}</h4>
         {items.length === 0 ? <div class="empty">{t('asm.bom.empty')}</div> : (
           <table class="asm-bom">
-            <thead><tr><th>{t('asm.bom.no')}</th><th>{t('asm.bom.part')}</th><th>{t('asm.bom.qty')}</th><th>{t('asm.bom.massEach')}</th><th>{t('asm.bom.massTotal')}</th></tr></thead>
+            <thead><tr><th class="no">{t('asm.bom.no')}</th><th>{t('asm.bom.part')}</th><th class="num">{t('asm.bom.qty')}</th><th class="num">{t('asm.bom.massEach')}</th><th class="num">{t('asm.bom.massTotal')}</th></tr></thead>
             <tbody>
               {items.map((it) => (
                 <tr key={it.no} class="asm-bom-row" tabIndex={0} onClick={() => selectItem(it.components)} onKeyDown={(e) => { if (e.key === 'Enter') selectItem(it.components); }}>
-                  <td>{it.no}</td><td>{it.part}</td><td>{it.qty}</td><td>{it.massEach === null ? '–' : massText(it.massEach)}</td><td>{it.massTotal === null ? '–' : massText(it.massTotal)}</td>
+                  <td class="no">{it.no}</td><td>{it.part}</td><td class="num">{it.qty}</td><td class="num">{it.massEach === null ? '–' : massText(it.massEach)}</td><td class="num">{it.massTotal === null ? '–' : massText(it.massTotal)}</td>
                 </tr>
               ))}
             </tbody>
-            <tfoot><tr><td></td><td>{t('asm.bom.total')}</td><td>{items.reduce((s, i) => s + i.qty, 0)}</td><td></td><td>{total === null ? '–' : massText(total)}</td></tr></tfoot>
+            <tfoot><tr><td></td><td>{t('asm.bom.total')}</td><td class="num">{items.reduce((s, i) => s + i.qty, 0)}</td><td></td><td class="num">{total === null ? '–' : massText(total)}</td></tr></tfoot>
           </table>
         )}
         {busy ? <div class="asm-note">{t('asm.bom.measuring')}</div> : null}
         {items.some((i) => i.massEach === null) && !busy && items.length ? <div class="asm-note">{t('asm.bom.noMass')}</div> : null}
-        <div class="asm-bar"><button class="btn" disabled={!items.length} onClick={() => void save()}>{t('asm.bom.csv')}</button></div>
+        <div class="asm-bar asm-bom-actions">
+          <button class="btn" disabled={!items.length} onClick={() => void save()}>{t('asm.bom.csv')}</button>
+          <button class="btn" disabled={!items.length} onClick={() => void copyText()}>{t('asm.bom.copyText')}</button>
+          <button class="btn" disabled={!items.length} onClick={() => void saveText()}>{t('asm.bom.saveText')}</button>
+        </div>
       </section>
     </div>
   );

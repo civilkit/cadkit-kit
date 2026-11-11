@@ -94,8 +94,8 @@ describe('the one list', () => {
     expect(cards().every((c) => c.dataset.origin === 'included')).toBe(true);
     expect(cards()).toHaveLength(BOSL_ENTRIES.length + 2);
     fireEvent.click(screen.getByRole('tab', { name: 'All' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: 'plates' } });
-    expect(ids()).toEqual(['plate-gpl']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: 'other' } });   // 'plates' has one part: categories under 3 parts fold into Other
+    expect(ids()).toContain('plate-gpl');
     fireEvent.change(screen.getByRole('combobox', { name: 'Category' }), { target: { value: 'round' } });
     expect(ids().sort()).toEqual(['spheroid', 'torus']);       // BOSL2's own categories sit in the same filter
   });

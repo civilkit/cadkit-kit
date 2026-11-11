@@ -63,9 +63,12 @@ export function effectiveAppearance(look: Look, part: string | undefined, materi
   const a = appearanceOf(look, part);
   if (!useMaterialColour || !materialColor) return a;
   const m = typeof materialColor === 'string' ? { color: materialColor, material: a.material } : materialColor;
+  const pbr = a.pbr ?? m.pbr, grain = a.look ?? m.look;
   return {
     color: a.color === DEFAULT_APPEARANCE.color ? m.color : a.color,
     material: a.material === 'default' ? m.material : a.material,
+    ...(pbr ? { pbr } : {}),
+    ...(grain ? { look: grain } : {}),
   };
 }
 
@@ -94,7 +97,7 @@ export const bodyLook = (look: Look, part: string | undefined): BodyLook => ({ s
 export function withAppearance(look: Look, part: string, patch: Partial<Appearance>): Look {
   const a = sanitizeAppearance({ ...appearanceOf(look, part), ...patch });
   const appearances = { ...look.appearances };
-  if (a.color === DEFAULT_APPEARANCE.color && a.material === 'default') delete appearances[part];
+  if (a.color === DEFAULT_APPEARANCE.color && a.material === 'default' && !a.pbr && !a.look) delete appearances[part];
   else appearances[part] = a;
   return { ...look, appearances };
 }

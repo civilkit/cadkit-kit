@@ -11,6 +11,17 @@ export const rectSketch = (id, name, plane, w, h, { fixed = false, dims = true, 
 export const newDoc = (name, features, extra = {}) => ({ format: 'ck-part', version: 1, name, features, seq: features.length + 1, rollback: null, material: 'steel', counters: {}, ...extra });
 
 export const SHOTS = [
+  { name: 'settings-kernel', caption: 'Workspace settings, Kernel tab, with Local service chosen: the service address, an access token field (the token is hidden; the picture uses a made-up one), Test connection and the status line.',
+    async run(c) {
+      await c.open({ sample: 'mounting-plate' });
+      await c.page.eval(`localStorage.setItem('cad.settingsTab', JSON.stringify('kernel')); 0`);
+      if (!(await c.click('button', 'Workspace settings'))) c.skip('no settings button'); await c.sleep(600);
+      if (!(await c.click('[role=tab], button', 'Kernel'))) c.skip('no Kernel tab'); await c.sleep(400);
+      if (!(await c.selectOption('Kernel to use', 'Local service (faster, runs on this computer)'))) c.skip('no kernel select'); await c.sleep(500);
+      if (!(await c.fillField('Access token', 'example-token-not-real'))) c.skip('no token field'); await c.sleep(400);
+      const r = await c.rect('[role=dialog]'); if (!r) c.skip('no dialog');
+      return { x: r.x - 8, y: r.y - 8, w: r.w + 16, h: r.h - 28 };
+    } },
   { name: 'interface-overview', caption: 'The default CadKit window with a small part open: top bar, ribbon, feature tree, viewport with view cube, and status bar.',
     async run(c) { await c.open({ sample: 'mounting-plate' }); await c.sleep(4500); } },
   { name: 'first-part-start', caption: 'A new empty part with the Start here card offering three Sketch on plane buttons.',
@@ -271,6 +282,176 @@ export const SHOTS = [
       if (!(await c.click('label', 'On an arc'))) c.skip('no On an arc'); await c.sleep(1000);
       return { x: 0, y: 80, w: 1440, h: 788 };
     } },
+
+  // ---- pages written after the audit: bodies (Cut from), curves, measure, history, surfaces, interface, wizards ----
+
+  { name: 'cut-from', caption: 'The Extrude editor with Operation set to Cut and a Cut from group listing All bodies the shape reaches and one tick per named body.',
+    async run(c) {
+      const plate = rectSketch('F1', 'Plate outline', 'front', 80, 50, { cx: -40, cy: -25 });
+      const block = rectSketch('F3', 'Block outline', 'front', 24, 24, { cx: 60, cy: -12 });
+      // a pocket sketched on the block's top face: the cut reaches the named body it is aimed at
+      const pocket = { type: 'sketch', id: 'F5', name: 'Pocket outline', plane: { kind: 'face', id: 'F4.C1' },
+        points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'a', x: -6, y: -4 }, { id: 'b', x: 6, y: -4 }, { id: 'c', x: 6, y: 4 }, { id: 'd', x: -6, y: 4 }],
+        entities: [['e1', 'a', 'b'], ['e2', 'b', 'c'], ['e3', 'c', 'd'], ['e4', 'd', 'a']].map(([i, p, q]) => ({ id: i, type: 'line', p1: p, p2: q })), constraints: [] };
+      const f = [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 8 },
+        block, { type: 'extrude', id: 'F4', name: 'Block', op: 'newBody', body: 'Block', sketch: 'F3', end: 'blind', depth: 24 },
+        pocket, { type: 'extrude', id: 'F6', name: 'Pocket', op: 'cut', sketch: 'F5', end: 'blind', depth: 4, flip: true, target: [{ body: 'Block' }] }];
+      await c.open({ doc: newDoc('Cut from', f) });
+      if (!(await c.editRow('Pocket'))) c.skip('no Pocket row'); await c.settle(1200);
+      await c.scrollPanel('top');
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'edit-curve-editor', caption: 'A two-line chain rebuilt as one smooth curve, with the Edit curve editor open showing the Curves list, Rebuild and Control point edits.',
+    async run(c) {
+      const plate = rectSketch('F1', 'Plate outline', 'front', 60, 40, { cx: -30, cy: -20 });
+      // the chain floats on a plane above the plate, so the rebuilt curve is in front of the solid
+      const chain = { type: 'sketch', id: 'F4', name: 'Corner chain', plane: { kind: 'feature', id: 'F3' },
+        points: [{ id: 'a', x: 5, y: 5 }, { id: 'b', x: 20, y: 20 }, { id: 'c', x: 35, y: 5 }],
+        entities: [['k1', 'a', 'b'], ['k2', 'b', 'c']].map(([i, p, q]) => ({ id: i, type: 'line', p1: p, p2: q })), constraints: [] };
+      const f = [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 10 },
+        { type: 'plane', id: 'F3', name: 'Plane 1', mode: 'offset', base: { kind: 'face', id: 'F2.C1' }, offset: 2 }, chain,
+        { type: 'editCurve', id: 'F5', name: 'Edit curve', curves: [{ kind: 'sketchCurve', sketch: 'F4', entity: 'k1' }, { kind: 'sketchCurve', sketch: 'F4', entity: 'k2' }],
+          method: 'tolerance', degree: 3, tolerance: 0.01, keepEnds: true, keepCorners: true, entries: [{ cv: 2, dx: 0, dy: 0, dz: 6 }] }];
+      await c.open({ doc: newDoc('Curve chain', f) });
+      if (!(await c.editRow('Edit curve'))) c.skip('no Edit curve row'); await c.settle(1200);
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'project-curve-editor', caption: 'A plate with one face picked and the Project curve editor open, showing Project, Onto faces, Direction, Degree and Fit tolerance.',
+    async run(c) {
+      const plate = rectSketch('F1', 'Plate outline', 'front', 80, 50, { cx: -40, cy: -25 });
+      const polyline = { type: 'sketch', id: 'F3', name: 'Curve sketch', plane: { kind: 'std', id: 'front' },
+        points: [{ id: 'a', x: 5, y: 5 }, { id: 'b', x: 20, y: 20 }, { id: 'c', x: 35, y: 5 }],
+        entities: [['k1', 'a', 'b'], ['k2', 'b', 'c']].map(([i, p, q]) => ({ id: i, type: 'line', p1: p, p2: q })), constraints: [] };
+      const f = [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 10 }, polyline,
+        { type: 'projectCurve', id: 'F4', name: 'Project curve', sketch: 'F3', faces: ['F2.C1'], degree: 3, tolerance: 0.001, direction: 'both' }];
+      await c.open({ doc: newDoc('Projected curve', f) });
+      if (!(await c.editRow('Project curve'))) c.skip('no Project curve row'); await c.settle(1200);
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'freeform-editor', caption: 'A wavy surface with one face picked, the Freeform editor open on the left, and the face rebuilt as a net with a control point lifted.',
+    async run(c) {
+      // The kernel returns the rebuilt face's net as a marker, but the viewport draws no markers (ViewBody.markers is only
+      // typed, never read: packages/viewport/src/viewport.ts:59), so "the net with a control point lifted" cannot be shown.
+      c.skip('the Freeform control net is not drawn in the view: markers are not rendered');
+    } },
+
+  { name: 'quick-measure', caption: 'The bottom-right corner of the view with the quick readout card showing the diameter, radius and circumference of a picked circular edge.',
+    async run(c) {
+      const plate = rectSketch('F1', 'Plate outline', 'front', 80, 50, { cx: -40, cy: -25 });
+      const hole = { type: 'sketch', id: 'F3', name: 'Hole centre', plane: { kind: 'face', id: 'F2.C1' },
+        points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'c', x: 0, y: 0 }], entities: [{ id: 'k1', type: 'circle', c: 'c', r: 10 }], constraints: [] };
+      await c.open({ doc: newDoc('Quick measure', [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 8 },
+        hole, { type: 'extrude', id: 'F4', name: 'Hole', op: 'cut', sketch: 'F3', end: 'through', flip: true }]) });
+      // face-on: the hole's rim is a closed circle centred in the view, so a ray from the centre crosses it first
+      await c.key('2'); await c.key('z'); await c.settle(900); await c.key('e'); await c.settle(400);
+      const cv = await c.canvasRect(); if (!cv) c.skip('no canvas');
+      const cx = cv.x + cv.w / 2, cy = cv.y + cv.h / 2;
+      let hit = null;
+      for (let d = 3; d < Math.min(cv.w, cv.h) * 0.45 && !hit; d += 2) {
+        await c.page.mouse('mouseMoved', cx + d, cy); await c.sleep(70);
+        if (await c.page.eval(`!!document.querySelector('.st-hover')`)) hit = { x: cx + d, y: cy };
+      }
+      if (!hit) c.skip('no edge under the pointer ray');
+      const cardText = () => c.page.eval(`(document.querySelector('.quick-measure')?.textContent || '').replace(/\\s+/g, ' ')`);
+      let got = false;
+      for (const dx of [0, -3, 3, -6, 6]) {
+        await c.page.click(hit.x + dx, hit.y); await c.settle(700);
+        if ((await cardText()).includes('Circumference')) { got = true; break; }
+        await c.key('Escape'); await c.settle(300);
+      }
+      if (!got) c.skip('the quick readout did not answer for a circular edge');
+      const vp = await c.rect('#vp');
+      return vp ? { x: Math.max(0, vp.x + vp.w - 620), y: Math.max(0, vp.y + vp.h - 330), w: 620, h: 330 } : null;
+    } },
+
+  { name: 'repeat-last', keepPointer: true, caption: "The Home ribbon's Edit group with the cursor on Repeat last command, after a fillet was applied.",
+    async run(c) {
+      await c.open({ doc: tutorialPlate({ hole: false }) });
+      await c.key('e'); await c.page.click(920, 465); await c.sleep(400);
+      if (!(await c.click('button', 'Fillet'))) c.skip('no fillet button'); await c.settle(800);
+      if (!(await c.fillField('Radius', '5'))) c.skip('no radius field'); await c.settle(800);
+      if (!(await c.click('button', 'Confirm'))) c.skip('no confirm'); await c.settle(1000);
+      const r = await c.find('button', 'Repeat last command'); if (!r) c.skip('no Repeat last command button');
+      await c.page.mouse('mouseMoved', r.x, r.y); await c.sleep(700);
+      return { x: 0, y: 80, w: 1440, h: 190 };
+    } },
+
+  { name: 'thicken-variable', caption: 'The Thicken editor with Variable thickness ticked, Ramp along set to Z axis, and two stops: position 0 at 4 mm and position 10 at 2 mm.',
+    async run(c) {
+      const wave = { type: 'sketch', id: 'F1', name: 'Blade curve', plane: { kind: 'std', id: 'front' },
+        points: [{ id: 'w1', x: -30, y: -12 }, { id: 'w2', x: -15, y: -4 }, { id: 'w3', x: 0, y: -16 }, { id: 'w4', x: 15, y: 2 }, { id: 'w5', x: 30, y: -10 }],
+        entities: [{ id: 'sp', type: 'spline', pts: ['w1', 'w2', 'w3', 'w4', 'w5'], closed: false }], constraints: [] };
+      // thickness 4 is the ramp's first stop; the second is half of it (surfaceRules.ts:87, patchThickenVariable)
+      const f = [wave, { type: 'surfaceExtrude', id: 'F2', name: 'Blade sheet', sketch: 'F1', end: 'blind', depth: 10 },
+        { type: 'thicken', id: 'F3', name: 'Thicken', surface: 'F2', thickness: 4, side: 'front', thicknessAt: { along: [0, 0, 1], stops: [[0, 4], [10, 2]] } }];
+      await c.open({ doc: newDoc('Tapered sheet', f) });
+      if (!(await c.editRow('Thicken'))) c.skip('no Thicken row'); await c.settle(1500);
+      await c.scrollPanel('top');
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'tool-rail', caption: 'The tool rail down the left edge of the view, with the Create section opened on its flyout.',
+    async run(c) {
+      await c.open({ sample: 'mounting-plate', workspace: 'plasticity' }); await c.settle(900);
+      const r = await c.find('button', 'More tools like Extrude'); if (!r) c.skip('no flyout arrow on the rail'); await c.page.click(r.x, r.y); await c.sleep(700);
+      return { x: 260, y: 55, w: 470, h: 700 };
+    } },
+
+  { name: 'wizard-screw', caption: 'The Screw wizard open in the left panel with an M3 pan-head screw previewed on the top plane, showing Size, Length, Head, Drive, Bearing face centre and Shank points.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Screw'))) c.skip('no Screw button'); await c.settle(2500);
+      await c.key('z'); await c.settle(1200);
+    } },
+
+  { name: 'wizard-washer', caption: 'The Washer wizard open in the left panel with the Standard list filtered to M8 and an M8 flat washer previewed.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Washer'))) c.skip('no Washer button'); await c.settle(2500);
+      const f = await c.find('[data-testid="washer-size-filter"]'); if (!f) c.skip('no size filter'); await c.page.click(f.x, f.y); await c.type('M8'); await c.settle(800);
+      await c.click('[data-row="iso7089-M8"]'); await c.settle(1500);
+      await c.page.eval(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.title === 'Fit'); if (b) b.click(); return 0; })()`); await c.settle(800);
+    } },
+
+  // ---- sheet metal: the chapter's rule, flange, flat pattern and DXF options ----
+
+  { name: 'sheet-rule-editor', caption: 'The Rules editor on the Sheet metal tab: the Stock section (rule name, thickness, k-factor, bend radius) and the Relief section (relief width and depth, corner relief and its shape, the gaps).',
+    async run(c) {
+      await c.open({ doc: sheetTray() });
+      if (!(await c.editRow('Tray 2 mm'))) c.skip('no rule row'); await c.settle(1200);
+      await c.scrollPanel('top');
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'sheet-edge-flange-editor', caption: 'The Edge flange editor with four edges picked: Height, Angle, Bend radius, Height measured and Flange position, with the four legs previewed on the plate.',
+    async run(c) {
+      await c.open({ doc: sheetTray() });
+      if (!(await c.editRow('Edge flange'))) c.skip('no edge flange row'); await c.settle(1200);
+      return { x: 0, y: 80, w: 1160, h: 790 };
+    } },
+
+  { name: 'sheet-flat-pattern', caption: 'The flat pattern panel for the tray: the blank outline and bend zones, the bend lines B1 to B5 with their angles, the blank size and rule, the bend table and the three export buttons.',
+    async run(c) {
+      await c.open({ doc: sheetTray({ hem: true }) }); await c.settle(900);
+      if (!(await c.click('.rb-tab', 'Sheet metal'))) c.skip('no Sheet metal tab');
+      if (!(await c.click('button', 'Flat pattern'))) c.skip('no Flat pattern button'); await c.settle(2000);
+      const r = await c.rect('.sheet-flat'); if (!r) c.skip('no flat pattern panel');
+      const top = Math.max(0, r.y - 8);
+      return { x: Math.max(0, r.x - 8), y: top, w: r.w + 16, h: Math.min(r.h + 16, 892 - top) };
+    } },
+
+  { name: 'sheet-dxf-options', caption: 'The Flat pattern DXF dialog: DXF version, units, layers, layer names, bend lines, tangent lines and bend notes.',
+    async run(c) {
+      await c.open({ doc: sheetTray({ hem: true }) }); await c.settle(900);
+      if (!(await c.click('.rb-tab', 'Sheet metal'))) c.skip('no Sheet metal tab');
+      if (!(await c.click('button', 'Flat pattern'))) c.skip('no Flat pattern button'); await c.settle(2000);
+      if (!(await c.click('button', 'Flat pattern DXF'))) c.skip('no DXF button'); await c.settle(800);
+      const r = await c.rect('.sheet-dxf-dlg'); if (!r) c.skip('no DXF dialog');
+      return { x: Math.max(0, r.x - 8), y: Math.max(0, r.y - 8), w: r.w + 16, h: r.h - 28 };
+    } },
 ];
 
 
@@ -285,6 +466,15 @@ export const boxWithCircle = () => {
   const base = rectSketch('F1', 'Block outline', 'front', 80, 50, { cx: -40, cy: -25 });
   const circ = { type: 'sketch', id: 'F3', name: 'Circle', plane: { kind: 'face', id: 'F2.C1' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'k', x: 0, y: 0 }], entities: [{ id: 'k1', type: 'circle', c: 'k', r: 12 }], constraints: [] };
   return newDoc('Block', [base, { type: 'extrude', id: 'F2', name: 'Block', op: 'add', sketch: 'F1', end: 'blind', depth: 20 }, circ]);
+};
+
+/** The tray of the sheet metal chapter: 100 x 60 of 2 mm stock, four 15 mm edge flanges and, optionally, a hem on the first leg's tip. */
+export const sheetTray = ({ hem = false, relief = 'round' } = {}) => {
+  const rule = { type: 'sheetRules', id: 'R1', name: 'Tray 2 mm', thickness: 2, kFactor: 0.44, bendRadius: 2, reliefWidth: 2, reliefDepth: 1, cornerRelief: 4, cornerReliefShape: relief, gap: 2, hemGap: 0.01, active: true };
+  const base = { type: 'baseFlange', id: 'B1', name: 'Base flange', sketch: 'S1', rule: 'Tray 2 mm' };
+  const flange = { type: 'edgeFlange', id: 'E1', name: 'Edge flange', edges: [[50, 0, 2], [100, 30, 2], [50, 60, 2], [0, 30, 2]], height: 15, angle: 90, radius: 2, heightFrom: 'outer', position: 'inside' };
+  const rim = { type: 'hem', id: 'H1', name: 'Hem', edges: ['P1.tip'], length: 5, gap: 0.01 };
+  return newDoc('Tray', [rectSketch('S1', 'Tray outline', 'front', 100, 60), rule, base, flange, ...(hem ? [rim] : [])]);
 };
 
 /** A bracket plate with two holes (one threaded), a rim fillet and, optionally, a failing extra hole or a broken first extrude. */

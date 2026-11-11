@@ -4,7 +4,7 @@ This chapter lists every command in the app with its exact label, where to find 
 
 ## How to find a command
 
-- **Ribbon.** The tabs at the top: **Home**, **Features**, **Surfaces**, **View**, **Select**, **Evaluate** and **Assembly**. While a sketch is open, the ribbon shows a **Sketch** tab instead.
+- **Ribbon.** The tabs at the top: **Home**, **Features**, **Frame**, **Sheet metal**, **Surfaces**, **View**, **Select**, **Evaluate** and **Assembly**. While a sketch is open, the ribbon shows a **Sketch** tab instead.
 - **Command search.** Press **F**, or choose **Search commands** in the top bar, and type any part of a command's name. Every command in this chapter is there with its shortcut. Press **Enter** to run the highlighted one.
 - **Top bar.** File commands (New, Open, Save, Export and more) live in the bar above the ribbon, not on a tab.
 - **Right-click menu.** The menu on the canvas lists the commands that suit what you have selected.
@@ -40,6 +40,8 @@ Start a sketch. See [Starting a sketch](../sketching/start.md).
 | New sketch: right plane | Right |  |  |
 | New sketch from DXF | DXF sketch |  | An open document |
 | Import DXF into sketch | Import DXF |  | A sketch open |
+| New sketch from SVG | SVG sketch |  | An open document |
+| Import SVG into sketch | Import SVG |  | A sketch open |
 
 #### Create
 
@@ -88,6 +90,7 @@ See [The feature tree and history](../modelling/history.md).
 | --- | --- | --- | --- |
 | Undo |  | `Ctrl+Z` | An open document |
 | Redo |  | `Ctrl+Shift+Z` | An open document |
+| Repeat last command |  |  | After a command has run that can run again |
 | Rebuild |  | `Ctrl+B` | Not while sketching |
 | Rename |  | `F2` | Not while sketching |
 | Suppress / unsuppress | Suppress | `Ctrl+Shift+U` | Features selected |
@@ -99,17 +102,19 @@ See [The feature tree and history](../modelling/history.md).
 
 #### Reference
 
-Reference geometry. See [Reference geometry](../modelling/reference-geometry.md).
+Reference geometry. See [Reference geometry](../modelling/reference-geometry.md) and [Curves on faces](../modelling/curves.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
 | Plane |  | `Shift+N` | An open document |
 | Axis |  | `Shift+A` | An open document |
 | Helix |  |  | A sketch with a circle |
+| Project curve | Project |  | A solid or a surface, and a sketch or curve to project |
+| Edit curve |  |  | A document with a curve to rebuild: picked edges, or a sketch or curve feature |
 
 #### Create
 
-One button holds Gear, Gear pair, Propeller and Impeller. See [Parametric wizards](../library/wizards.md).
+One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw and Bearing. See [Parametric wizards](../library/wizards.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
@@ -117,6 +122,9 @@ One button holds Gear, Gear pair, Propeller and Impeller. See [Parametric wizard
 | Gear pair |  |  | An open document |
 | Propeller |  |  | An open document |
 | Impeller |  |  | An open document |
+| Knurl |  |  | An open document |
+| Screw |  |  | An open document |
+| Bearing |  |  | An open document |
 
 #### Modify
 
@@ -140,6 +148,45 @@ See [Bodies and combining](../modelling/bodies.md).
 | Delete body | Del. body |  | A solid and a face selected |
 | Delete face | Del. face |  | A solid and a face selected |
 
+### Sheet metal tab
+
+The tab between **Frame** and **Surfaces**. See [Sheet metal](../modelling/sheet-metal.md).
+
+#### Rules
+
+| Command | Ribbon caption | Shortcut | Available when |
+| --- | --- | --- | --- |
+| Rules | Rules |  | An open document |
+
+#### Create
+
+| Command | Ribbon caption | Shortcut | Available when |
+| --- | --- | --- | --- |
+| Base flange | Base |  | No first plate yet, and a closed sketch (selected or the last) |
+| Edge flange | Edge |  | A sheet that is not unfolded |
+| Contour flange | Contour |  | No first plate yet, and an open chain of sketch lines |
+| Convert to sheet | Convert |  | No sheet yet, and a solid body |
+| Hem | Hem |  | A sheet that is not unfolded |
+| Fold | Fold |  | A sheet that is not unfolded, and a sketch with a line |
+| Cut | Cut |  | A sheet that is not unfolded, and a closed sketch on a plane parallel to the base |
+| Corner | Corner |  | A sheet that is not unfolded |
+
+#### Flatten
+
+| Command | Ribbon caption | Shortcut | Available when |
+| --- | --- | --- | --- |
+| Unfold | Unfold |  | A sheet that is not unfolded |
+| Refold | Refold |  | An unfolded sheet |
+| Flat pattern | Flat |  | A sheet |
+
+#### Export
+
+| Command | Ribbon caption | Shortcut | Available when |
+| --- | --- | --- | --- |
+| Flat pattern DXF | DXF |  | A sheet |
+| Bend table (CSV) | Bends CSV |  | A sheet |
+| Bend table (JSON) | Bends JSON |  | A sheet |
+
 ### Surfaces tab
 
 #### Create
@@ -157,13 +204,14 @@ See [Surfaces](../modelling/surfaces.md).
 
 #### Edit
 
-See [Surfaces](../modelling/surfaces.md).
+See [Surfaces](../modelling/surfaces.md) and [Curves on faces](../modelling/curves.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
 | Trim surface | Trim |  |  |
 | Knit |  |  | At least one surface |
 | Thicken |  |  | A surface |
+| Freeform |  |  | A solid or a surface, and faces selected |
 
 ### View tab
 
@@ -330,7 +378,7 @@ These commands are not on a ribbon tab.
 | Open | **Open** button | `Ctrl+O` |
 | Save | **Save** button | `Ctrl+S` |
 | Export | **Export** menu | `Ctrl+E` |
-| Samples | **Samples** button | |
+| Library | **Library** button | |
 | Search commands | **Search commands** button | `F` |
 | Workspace settings | Gear icon at the right | |
 
@@ -370,7 +418,7 @@ Sketch tools have their own single-letter shortcuts, active while a sketch is op
 
 | Group | Tools (shortcut) |
 | --- | --- |
-| Draw | Line (`L`), Rectangle (`R`), Centre rectangle, Circle (`C`), Centre arc, 3-point arc (`A`), Tangent arc, Ellipse, Polygon, Slot, Point, Text (`Q`), Centreline, Spline, Control-point spline, Bridge curve |
+| Draw | Line (`L`), Rectangle (`R`), Centre rectangle, Circle (`C`), Centre arc, 3-point arc (`A`), Tangent arc, Ellipse, Polygon, Slot, Arc slot, Point, Text (`Q`), Centreline, Spline, Control-point spline, Bridge curve |
 | Dimension | Dimension (`D`) |
 | Constrain | Horizontal (`H`), Vertical (`V`), Coincident, Midpoint, Fix, Equal, Parallel, Perpendicular, Collinear, Tangent, Concentric, Symmetric |
 | Modify | Trim (`T`), Extend (`E`), Fillet, Chamfer, Offset (`O`), Mirror, Linear pattern, Circular pattern, Move entities, Copy entities, Rotate entities, Scale entities |

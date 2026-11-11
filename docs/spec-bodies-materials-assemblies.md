@@ -1,6 +1,6 @@
 # Bodies, materials and assemblies: spec
 
-Status: discussion draft, 2026-10-17. Nothing here is built, except what is marked "exists".
+Status: discussion draft, 2026-10-17; checked against the code 2026-10-31. Mostly built, in a slightly different shape. A material library: built, for the whole document (material editor, catalogue with custom materials, `docs/materials.md`); a per-body material (`bodyMaterial`) is not built. B per-body mass: the kernel half is built (`massProps` takes `densities`, one per lump, and returns per-body mass); the kit still applies one density to the whole part. C first-class bodies: partly built (`op: newBody` with a `body` name on extrude, revolve, loft, sweep and sphere, a Target body control, Combine in the Bodies panel, `docs/bodies-appearance.md`); the kit still keys body names and looks by face name or feature id, and a warning when two bodies overlap was not found. D wires and layered parts: the bearing wizard builds rings and balls as separate bodies; a wire with core and sleeve is not done. E assemblies: built (insert part, mates, bill of materials, explode, interference; `docs/assemblies.md`). Remaining: per-body material and its picker, per-body density in the kit's mass read-out, stable body ids, overlap warning (not found), the wire sample.
 
 ## Why
 

@@ -1,6 +1,6 @@
 // Builds the files the Export commands download from what the controller shows. Pure: no DOM, no platform; the
 // caller saves `file` and shows `notices` (message key + params, translated by the caller).
-import { checkMesh, meshToGlb, meshToObj, meshToStl, meshToThreeMf, sketchToDxf, viewsToDxf, type MeshBody, type MeshCheck, type SketchLike } from '@kit/io';
+import { bodiesToObj, checkMesh, meshToGlb, meshToObj, meshToStl, meshToThreeMf, sketchToDxf, viewsToDxf, type MeshBody, type MeshCheck, type SketchLike } from '@kit/io';
 
 export interface ExportNotice { level: 'info' | 'warn' | 'error'; key: string; params?: Record<string, string | number> }
 export interface ExportFile { name: string; data: string | Uint8Array; mime: string }
@@ -41,9 +41,16 @@ export function exportStl(mesh: MeshSource | null, partName: string | undefined,
   return { file: { name: `${stem}.stl`, data: r.data, mime: 'model/stl' }, notices: meshNotices(r.check, `${stem}.stl`, stem) };
 }
 
-export function exportObj(mesh: MeshSource | null, partName: string | undefined): ExportResult {
+/** OBJ: one object, or, given the bodies (named, coloured when the body has a colour), one object per body with the colours on its vertices. */
+export function exportObj(mesh: MeshSource | null, partName: string | undefined, bodies?: readonly MeshBody[] | null): ExportResult {
   if (!mesh) return { notices: [noBody] };
   const stem = fileStem(partName);
+  if (bodies && bodies.length && (bodies.length > 1 || bodies[0].color)) {
+    const r = bodiesToObj(bodies);
+    if (!r.triangles) return { notices: [noBody] };
+    const name = `${stem}.obj`;
+    return { file: { name, data: r.data, mime: 'model/obj' }, notices: meshNotices(checkMesh({ positions: allTriangles(bodies) }), name, stem) };
+  }
   const r = meshToObj(mesh, { name: stem });
   return { file: { name: `${stem}.obj`, data: r.data, mime: 'model/obj' }, notices: meshNotices(checkMesh(mesh), `${stem}.obj`, stem) };
 }

@@ -1,6 +1,6 @@
 # Plan: a local native kernel service, selectable from the browser app
 
-Status: plan, 2026-10-19. Nothing here is built. Related: kernel `docs/spec-agent-interface.md` (the protocol), `docs/regen-cache.md` (why a warm process matters), `docs/robustness.md` (budgets), kit `docs/future-cad-llm.md` and `docs/plan-agent-layer.md` (an agent drives the same service).
+Status: plan, 2026-10-19; checked against the code 2026-10-31. Phases 1 and 2 are built: the `ck-native` service in the kernel repo (HTTP on 127.0.0.1, token, origin and host checks, limits, per-session threads, `GET /version`, plus pairing and `/ping` from the later spec), and in the kit the Local service setting, status chip, version handshake and automatic fall back to the built-in kernel (`apps/cad/src/kernelService.ts`, guide in `docs/local-kernel-service.md`); the kernel test suites can run against a service through `CK_KERNEL_URL`. Phase 3 is partly built: `--pair` exists, but gzip, binary mesh buffers instead of JSON number arrays, cancel of a running regen, WebSocket, multi-core tessellation and the launch agent or install script do not. Phase 4 is partly built: a byte-for-byte comparison script against the wasm exists (`tools/native_diff.mjs` in the kernel repo) but a CI gate that builds `ck-native` was not found. Phase 5 is partly built (a service can be used by the MCP session through `CK_KERNEL_URL`, not by default). See `docs/spec-local-kernel-module.md` for the next steps.
 
 ## Why
 

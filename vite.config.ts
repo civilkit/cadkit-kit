@@ -58,6 +58,7 @@ export default defineConfig(({ command }) => ({
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@kit/agent-tools': here('./packages/agent-tools/src/index.ts'),
       '@kit/mcp': here('./packages/mcp/src/index.ts'),
+      '@kit/agent-link': here('./packages/agent-link/src/index.ts'),
       '@kit/snapshot': here('./packages/snapshot/src/index.ts'),
       '@kit/viewdata': here('./packages/viewdata/src/index.ts'),
       // the app's headless drawing layer (views, dimensions, callouts, SVG / PDF / DXF); the MCP `drawing` tool imports it on demand

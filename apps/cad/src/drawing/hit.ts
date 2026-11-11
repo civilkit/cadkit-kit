@@ -22,14 +22,15 @@ export function distToPrim(p: V2, pr: Prim): number {
   return Math.hypot(dx, dy);
 }
 
-/** The annotation nearest to a point within `tol` mm (dimensions, notes, balloons, view labels), or null. The title block and BOM count when the point is inside. */
+/** The annotation nearest to a point within `tol` mm (dimensions, notes, balloons, view labels, centre lines and marks), or null. The title block and BOM count when the point is inside. */
 export function hitAnnotation(prims: Prim[], p: V2, tol: number): Tag | null {
   let best: { tag: Tag; d: number } | null = null;
   for (const pr of prims) {
     const tag = pr.tag;
     if (!tag || tag.kind === 'view') continue;
     if (tag.kind === 'title' || tag.kind === 'bom' || tag.kind === 'table') continue;
-    const d = distToPrim(p, pr);
+    // a centre line sits inside the part, so a dimension or note that is about as near wins; both beat the view behind
+    const d = distToPrim(p, pr) + (tag.kind === 'center' ? tol * 0.3 : 0);
     if (d <= tol && (!best || d < best.d)) best = { tag, d };
   }
   if (best) return best.tag;

@@ -47,7 +47,18 @@ A body that the part names (from the Operation control, a copy or a combine) sho
 
 ## Which body an Add or Cut acts on
 
-An Add fuses with every body the new solid touches or overlaps; a Cut removes material from every body it reaches. An Add that reaches no body makes a separate one, and the first solid of a part just adds. Once the part names a body, the Extrude editor shows a **Target body** control for Add and Cut: **Automatic** is the behaviour above, and choosing a body aims the operation at that body alone (the other bodies are left as they are). The control is not shown for New body.
+An Add fuses with every body the new solid touches or overlaps; a Cut removes material from every body it reaches. An Add that reaches no body makes a separate one, and the first solid of a part just adds.
+
+Once the part names at least one other body, the editors of **Extrude**, **Revolve**, **Loft** and **Sweep** show a control for it, and what it is called depends on the operation:
+
+| Operation | Control | Choices |
+|---|---|---|
+| Add | **Target body** | **Automatic (every body the shape reaches)**, or one named body, which the operation then acts on alone (the others are left as they are) |
+| Cut | **Cut from** | **All bodies the shape reaches**, or a ticked list of the named bodies: only the ticked ones lose material |
+
+Neither control is shown for **New body**, and neither appears until the part has a body it names. A body that the part no longer names stays in the list, so the feature still shows what it points at.
+
+![The Extrude editor with Operation set to Cut and a Cut from group listing All bodies the shape reaches and one tick per named body.](../img/cut-from.png)
 
 ### Parts converted from another CAD system
 

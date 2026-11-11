@@ -1,6 +1,6 @@
 # Text
 
-Lettering on a part, such as dial numerals, captions, nameplates and part numbers, is a text item in a sketch. This chapter covers placing and editing text, choosing a font and adding your own, laying text along a circle, and turning it into an engraving or a raised emboss. It also says plainly what CadKit cannot do with text yet: wrap it onto a curved face.
+Lettering on a part, such as dial numerals, captions, nameplates and part numbers, is a text item in a sketch. This chapter covers placing and editing text, choosing a font and adding your own, laying text along a circle, and turning it into an engraving or a raised emboss. It also says plainly what CivilKit CAD cannot do with text yet: wrap it onto a curved face.
 
 ## How text works
 
@@ -67,7 +67,7 @@ The **Font** list has three groups.
 Below the list are two ways to add more:
 
 - **Add font file...** loads a `.ttf`, `.otf` or `.ttc` file (the first face of a collection) from your disk.
-- **System fonts...** lists the fonts installed on your computer, with a filter. This needs the browser's Local Font Access feature, which only Chrome and Edge have. In other browsers CadKit says so, and you should use **Add font file...** instead. The browser asks for your permission when you click the button, never before.
+- **System fonts...** lists the fonts installed on your computer, with a filter. This needs the browser's Local Font Access feature, which only Chrome and Edge have. In other browsers CivilKit CAD says so, and you should use **Add font file...** instead. The browser asks for your permission when you click the button, never before.
 
 A font file you add is stored inside the part file, so the part opens anywhere. A font larger than 1.5 MB is stored as a subset that holds only the letters the part's text uses; the panel then says so. If you later type characters that were not in the subset, add the font file again. A library font is stored as a reference only, and fetched again when the part opens. If it cannot be fetched (you are offline), the part still opens; the lettering reports that the font is not loaded until you open the part online or pick the font again.
 
@@ -92,7 +92,7 @@ A script can place text with `s.text(...)`, choosing the font, height, anchor an
 
 ## Limits
 
-- **Text is flat.** It lies on the plane of its sketch. CadKit cannot yet wrap lettering around a cylinder or a cone. A cut from a flat sketch removes material straight along the cut direction, so lettering cut into a curved face is not bent to follow it.
+- **Text is flat.** It lies on the plane of its sketch. CivilKit CAD cannot yet wrap lettering around a cylinder or a cone. A cut from a flat sketch removes material straight along the cut direction, so lettering cut into a curved face is not bent to follow it.
 - Text is one line per item.
 - Kerning and ligatures are ignored; letters are placed with their plain advance widths. Bold and italic are separate font files.
 - Fonts whose strokes overlap inside a letter, and connected script faces, can fail validation when engraved.

@@ -92,8 +92,14 @@ export function buildInsert(doc: PartDoc, part: PartDoc, meta: InsertMeta, place
     ...partVars.map((v) => ({ ...structuredClone(v), name: prefix + v.name, expr: renameVars(v.expr, varMap, varRe) })),
   ];
   const entry: SourceEntry = { ...meta, features: placed.map((f) => String(f.id)), variablePrefix: prefix, at: meta.at ?? Date.now() };
+  // an imported body (importStep / importBody) names its STEP text by key in the part's `blobs`: the texts come along (the keys are hashes, so nothing clashes)
+  const keys = new Set<string>();
+  const collect = (f: Obj): void => { if (typeof f.blob === 'string') keys.add(f.blob); };
+  placed.forEach(collect);
+  const partBlobs = ((part as unknown as { blobs?: Record<string, unknown> }).blobs ?? {});
+  const blobs = Object.fromEntries([...keys].flatMap((k) => (typeof partBlobs[k] === 'string' ? [[k, partBlobs[k] as string]] : [])));
   return {
-    patch: { variables, append: placed, seq: start + placed.length },
+    patch: { variables, append: placed, seq: start + placed.length, ...(Object.keys(blobs).length ? { blobs } : {}) },
     entry, idMap: Object.fromEntries(idMap), variableMap: Object.fromEntries(varMap),
   };
 }

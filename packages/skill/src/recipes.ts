@@ -271,6 +271,19 @@ part('Channel bracket')
 6. If anything is off, edit the script and re-run: do not patch the numbers. State what you checked and what you did not.`,
   },
   {
+    id: 'sheet-metal-tray',
+    title: 'Sheet metal tray: rules, base flange, four flanges, flat pattern, DXF',
+    intent: ['sheet metal', 'sheetmetal', 'tray', 'bend', 'bent', 'flange', 'edge flange', 'base flange', 'flat pattern', 'unfold', 'dxf', 'laser', 'k-factor', 'bend allowance'],
+    description: 'A 100 x 60 x 2 mm plate with four 15 mm edge flanges. Rules first (thickness, k-factor, bend radius), then ONE closed outline as the base flange, then flanges picked by a world point on each edge (rect is centred on the origin: edges at x +-50, y +-30; z = 2 is the cap face). Read the flat pattern with sheet_info (flat 123.0478 x 83.0478, four bends of allowance 4.5239) and write the DXF with sheet_export.',
+    kind: 'script',
+    code: `part('Tray')
+  .sheetRules({ name: 'Steel2', thickness: 2, kFactor: 0.44, bendRadius: 2 })
+  .sketch('front', (s) => s.rect(100, 60))
+  .baseFlange({ rule: 'Steel2' })
+  .edgeFlange([[0, -30, 2], [0, 30, 2], [-50, 0, 2], [50, 0, 2]], { height: 15 });`,
+    expected: { volume: 18721.43, volumeTol: 0.001, features: 4, valid: true, notes: 'volume of the folded tray as the kernel reports it (not an independent check); the flat pattern numbers are checked in packages/agent-tools/src/sheet.kernel.test.ts' },
+  },
+  {
     id: 'common-errors',
     title: 'Common errors and what to do about them',
     intent: ['error', 'fail', 'booleanFailed', 'offsetUnsupported', 'loftFailed', 'nothingToCut', 'shellFailed', 'fix', 'problem', 'invalid', 'hint'],

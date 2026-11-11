@@ -132,7 +132,7 @@ export function generate() {
   }
   // feature mixins: documented object methods exported from features/*.ts (partFeatures spread of shapeFeatures, miscFeatures; sketchCurves for the sketch builder)
   const featDir = path.join(scriptSrc, 'features');
-  const MIXINS = { shapeFeatures: 'part', miscFeatures: 'part', knurlFeatures: 'part', screwFeatures: 'part', bearingFeatures: 'part', sketchCurves: 'sketch', sketchPattern: 'sketch', sketchOffset: 'sketch' };
+  const MIXINS = { shapeFeatures: 'part', miscFeatures: 'part', knurlFeatures: 'part', screwFeatures: 'part', washerFeatures: 'part', bearingFeatures: 'part', sheetFeatures: 'part', sketchCurves: 'sketch', sketchPattern: 'sketch', sketchOffset: 'sketch' };
   for (const file of fs.existsSync(featDir) ? fs.readdirSync(featDir).filter((f) => f.endsWith('.ts')).sort() : []) {
     const fsrc = fs.readFileSync(path.join(featDir, file), 'utf8');
     for (const n of parseTs(fsrc).program.body) {

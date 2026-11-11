@@ -32,9 +32,9 @@ try {
   });
   await page.goto(base);
   const waitFor = async (expr, what, ms = 60000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await page.eval(expr).catch(() => false)) return; await sleep(200); } throw new Error(`timed out waiting for ${what}`); };
-  await waitFor(`!!document.querySelector('button[aria-label="Samples"]')`, 'the app to render');
+  await waitFor(`!!document.querySelector('button[aria-label="Library"]')`, 'the app to render');
   console.log('app rendered at', base);
-  await page.eval(`document.querySelector('button[aria-label="Samples"]').click()`);
+  await page.eval(`document.querySelector('button[aria-label="Library"]').click()`);
   await waitFor(`document.querySelectorAll('.dlg-item').length > 0`, 'the samples dialog');
   const listed = await page.eval(`document.querySelectorAll('.dlg-item').length`);
   console.log('samples listed:', listed);

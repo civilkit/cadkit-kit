@@ -1,18 +1,32 @@
-# The library and samples
+# The Library
 
-This chapter covers the bundled sample parts, the Libraries tab of the Catalog (parts you can drop into a model), how to add libraries of your own, and how licences and thumbnails work.
+This chapter covers the **Library** picker in the top bar (the bundled sample parts and the libraries you added, in one list), the Libraries tab of the Catalog (parts you can drop into a model), how to add libraries of your own, and how licences and thumbnails work.
 
-## Samples
+## The Library picker
 
-Samples are complete example parts that ship with the app. Use them to see how a feature is built or as a starting point.
+The **Library** button in the top bar is the place to open a whole part. It lists the bundled samples and the parts of every library you added, grouped by library. Samples are complete example parts that ship with the app: use them to see how a feature is built or as a starting point.
 
-1. Click the **Samples** button in the top bar (the icon right of the file menu), or press **F** to open command search and type "samples".
-2. Type in the filter box to narrow the list. Every word must appear in the sample's title or id. The filter text is kept when you close and reopen the dialog.
-3. Click a sample. It opens as a new document. If the current document has unsaved changes, the app asks first what to do with them.
+1. Click the **Library** button in the top bar (the icon right of the file menu), or press **F** to open command search and type "library".
+2. Narrow the list with the [filter bar](#the-filter-bar) above it (search, category, tags). The same bar is in the Catalog's Libraries tab.
+3. Click a part. It opens as a new document (click the card itself; this stays the default). If the current document has unsaved changes, the app asks first what to do with them. A part from a library whose licence you have not confirmed yet asks for that confirmation first (see [Licences](#licences)).
 
-When the filter box is empty, the dialog also lists your recent files and samples above the list, newest first. Press **Esc** or **Close** to leave the dialog.
+To put a part into the document you already have open, press **Insert into this part** under its card instead. The Library closes and the part is armed exactly as if you had clicked it in the Catalog's Libraries tab: move over the model, click a face or plane to place it there (the Placement options and **Esc** work as in the Catalog), and the whole insertion is one undo step. The button is greyed out when no document is open. A part from a library whose licence you have not confirmed yet asks for that confirmation first.
+
+When the filter box is empty, the dialog also lists your recent files and samples above the list, newest first, each with a picture. A file you saved from the app carries a small picture of itself, so its card shows the part instead of a placeholder. Press **Esc** or **Close** to leave the dialog.
 
 A sample is an ordinary part. Edit it, save it under a new name with **Save as**, and the sample itself is never changed.
+
+### Manage libraries
+
+**Manage libraries** (in the Library picker, and in the Catalog's Libraries tab) lists every library with its part count and licence. For each one you can:
+
+- **Disable** or **Enable** it. A disabled library stays in the list but its parts are hidden from the Library picker and from the Catalog.
+- **Refresh** it (an added library): fetch its list again.
+- **Remove** it (an added library): drop it and the files kept for it on this device.
+
+**+ Add library** in the same place adds a library from a `github:owner/repo` address, an https address or a folder, with a preview and the licence confirmation before anything is added.
+
+The two places overlap. The **Library** picker opens a part as a new document, or hands it to the same placement as the Catalog (**Insert into this part**). The Catalog's **Libraries** tab adds a part to the document you have open: drag a card onto a face or plane, or click it and then a face.
 
 ## The Catalog and its two tabs
 
@@ -21,7 +35,7 @@ Parts you drop into a model live in the **Catalog** panel. Open it with the **Ca
 The Catalog has two tabs:
 
 - **Primitives**: plain shapes (block, cylinder, hole and so on) that you drop onto faces. See [Catalog parts](catalog.md).
-- **Libraries**: one searchable list of parametric parts, bundled samples, and the libraries you have added.
+- **Libraries**: one searchable list of parametric parts, bundled samples, and the libraries you have added (the same libraries as the Library picker).
 
 Each library entry is a card with a picture, a name and a mark:
 
@@ -36,10 +50,17 @@ Add-on cards also show a cloud icon while the part is not stored on your device,
 
 ### Finding a part
 
-- The search box covers every library at once: title, id, category and tags. Type several words and every one must match.
-- The chips **All**, **Included** and **Add-ons** limit the list by origin.
-- The **Category** menu limits it to one category.
-- The list shows 60 cards at a time; choose **Show more** for the next page.
+The search box, the category list and the tag chips are the same in the Library picker and in the Libraries tab (see [The filter bar](#the-filter-bar)). The chips **All**, **Included** and **Add-ons** (Libraries tab) limit the list by origin. The list shows 60 cards at a time; choose **Show more** for the next page.
+
+### The filter bar
+
+One bar, two places: above the list in the **Library** picker and at the top of the Catalog's **Libraries** tab.
+
+- **Search.** Type words; every word must appear in the part's title, id, category (the category as the library wrote it, and its group name such as "Pipe & fluid"), tags or, for samples, description. The text in the box is kept when you close and reopen the picker.
+- **Category.** The menu lists the categories with the number of parts in each, for what the other filters leave (so choosing a tag updates the counts). The bundled samples use twelve groups: Fasteners, Power transmission, Motors & electronics, Pipe & fluid, Fans & impellers, Mechanisms, Brackets & structure, Enclosures, Sheet metal, Consumer products, 3D printing and Marine. A library's own category (say "tubing & pipe" or "fasteners") is shown as the library wrote it, and is also filed under the matching group above when its name matches one of a small set of known words (case, "&" versus "and" and plurals do not matter). A category the app does not recognise stays as it is. A category with fewer than three parts folds into **Other** in the menu; those parts keep their own category and search still finds them by it.
+- **Tags.** Under the menu, the tags of the parts now shown appear as chips with a count. Click a chip to require that tag; click several and a part must have all of them. Twelve chips show at first; **More tags** shows the rest. **Clear filters** appears as soon as something is set and clears the search, the category and the tags.
+- **Remembered.** The last category and tags are remembered on this device, separately for the picker and for the Libraries tab. If the browser blocks storage the bar simply starts clean each time. A remembered category or tag that no library offers any more is ignored.
+- **Make one with a wizard.** With **Fasteners** chosen (or the tag **bearing** selected), a link above the chips opens the wizard that builds that kind of part, the Screw wizard or the Bearing wizard. It needs an open document, like the wizards themselves.
 
 ## Putting a part in your model
 
@@ -101,7 +122,7 @@ If you need a different orientation on a face, drop or insert the part and then 
 
 You can add a library from a GitHub repository, a web address, or a folder on your computer. A library is data only: part files and a list. Nothing downloaded from a library is ever run.
 
-1. On the Libraries tab, choose **+ Add library**.
+1. On the Libraries tab, or under **Manage libraries** in the Library picker, choose **+ Add library**.
 2. Enter one of:
    - `github:owner/repo`, optionally with `@branch-or-tag` (for example `github:owner/repo@v1.0`).
    - The `https` address of a `library.json` file.
@@ -141,7 +162,7 @@ For any other licence, or none at all, the app asks you once per library and lic
 Each card has a picture:
 
 - The parametric catalog parts and the bundled samples have pictures prepared in advance.
-- Add-on parts use the picture the library lists.
+- Add-on parts use the picture the library lists. When it lists none, a part file saved by this app carries its own picture (its `thumbnail` field) and that is used once the part is on your device, as long as it still matches the part.
 - A part with no picture gets one drawn on your device once it is installed, in the background when the browser is idle. Until then, and for parts that are not installed, the card shows a placeholder with its category icon.
 
 A library without pictures still works. It only looks plainer.

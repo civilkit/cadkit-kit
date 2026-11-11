@@ -84,4 +84,52 @@ describe('MaterialEditor', () => {
     const m = mount({ loadVolume: async () => null });
     await waitFor(() => expect(m.getByTestId('material-mass').textContent).toContain('No solid'));
   });
+
+  it('groups the Steel category by region and standard, general steels first', () => {
+    const m = mount();
+    const subs = [...m.container.querySelectorAll('.mat-sub')].map((e) => e.textContent);
+    expect(subs).toEqual(['General', 'Australia / AS/NZS 3679.1', 'United States / ASTM A36', 'United States / ASTM A992', 'United States / ASTM A572', 'United States / ASTM A53', 'United States / ASTM A500', 'Europe / EN 10025-2', 'Europe / EN 10210', 'Europe / EN 10219']);
+    expect(m.container.querySelectorAll('.mat-cat')).toHaveLength(11);   // sub-headings are not categories
+    fireEvent.input(m.getByLabelText('Search materials'), { target: { value: 'aluminium' } });
+    expect(m.container.querySelectorAll('.mat-sub')).toHaveLength(0);   // a category with no regional grades has no sub-headings
+  });
+  it('shows ultimate strength, shear modulus, expansion, standard, grade and region for a steel grade, and applies its name', async () => {
+    const m = mount();
+    fireEvent.click(m.item('en-10025-2-s355'));
+    const t = m.container.querySelector('.mat-props')!.textContent!;
+    for (const want of ['355 MPa', '470 MPa', '210 GPa', '81 GPa', '0.3', '12 x 10⁻⁶ /K', 'EN 10025-2 / S355', 'Europe']) expect(t, want).toContain(want);
+    expect(m.getByTestId('material-verified').textContent).toContain('checked');
+    expect(m.container.querySelector('[data-testid="material-unverified-badge"]')).not.toBeNull();   // other grades in the list wear the badge, this one does not
+    await waitFor(() => expect(m.getByTestId('material-mass').textContent).toContain('7.85 g'));
+    fireEvent.click(m.getByTestId('material-ok'));
+    expect(m.applied).toEqual([expect.objectContaining({ name: 'EN 10025-2 S355' })]);
+  });
+  it('an unverified grade wears a badge in the list and a warning with its note; A500 Gr C round shows the alternate yield', () => {
+    const m = mount();
+    const badge = (id: string) => m.item(id).querySelector('[data-testid="material-unverified-badge"]');
+    expect(badge('astm-a53-grb')?.textContent).toBe('unverified');
+    expect(badge('as-nzs-3679.1-300')).not.toBeNull();
+    expect(badge('astm-a992')).toBeNull();
+    expect(badge('steel-mild')).toBeNull();   // the general materials make no claim either way
+    fireEvent.click(m.item('astm-a500-grc-round'));
+    expect(m.getByTestId('material-verified').textContent).toContain('Unverified');
+    expect(m.getByTestId('material-note').textContent).toContain('2021 revision');
+    expect(m.getByTestId('material-yield-alt').textContent).toBe('345 MPa');
+    expect(m.container.querySelector('.mat-props')!.textContent).toContain('315 MPa');
+    fireEvent.click(m.item('steel-mild'));
+    expect(m.container.querySelector('[data-testid="material-verified"]')).toBeNull();
+    expect(m.container.querySelector('.mat-props')!.textContent).not.toContain('Ultimate');
+  });
+  it('searches the grades by standard or grade', () => {
+    const m = mount();
+    fireEvent.input(m.getByLabelText('Search materials'), { target: { value: 's355' } });
+    expect([...m.container.querySelectorAll('.mat-item[data-material]')].map((e) => e.getAttribute('data-material')).filter((x) => x !== 'custom:new')).toEqual(['en-10025-2-s355', 'en-10210-s355j2h', 'en-10219-s355j2h']);
+    fireEvent.input(m.getByLabelText('Search materials'), { target: { value: 'a992' } });
+    expect([...m.container.querySelectorAll('.mat-item[data-material]')].map((e) => e.getAttribute('data-material')).filter((x) => x !== 'custom:new')).toEqual(['astm-a992']);
+  });
+  it('a part that names a steel grade opens on it', () => {
+    const m = mount({ current: 'ASTM A992' });
+    expect(m.item('astm-a992').getAttribute('aria-selected')).toBe('true');
+    expect(m.getByTestId('material-swatch').getAttribute('data-color')).toBe('#8d97a5');
+  });
 });

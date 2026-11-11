@@ -41,16 +41,16 @@ kernel's volume times the material density, rewritten when the part changes whil
 
 Select tool: click a view to select it, drag to move it. Projected and section views move only along the axis they share with the parent
 (so they stay aligned); moving a parent carries its dependants. The right panel edits the selected view: label, scale (own or the
-sheet's), Hidden lines, Tangent edges, Centre marks, Label, and Align to parent. Delete removes a view with its dependants and their
+sheet's), Hidden lines, Tangent edges, Centre lines and marks, Label, and Align to parent. Delete removes a view with its dependants and their
 dimensions. Mouse wheel zooms at the cursor, dragging empty space pans, right or middle drag also pans, Fit sheet resets.
 
-Centre marks are drawn on round holes and on cylinder axes (two parallel silhouette lines that overlap along their length).
+Centre marks are drawn on round holes and centre lines on cylinder axes (two parallel silhouette lines that overlap along their length). Both are pick targets of their own (`centerFeatures` in `geom.ts`, drawn under a `center` tag): Select highlights only the line, and the Dimension tool measures from them like from an edge. A centre line is stored in a dimension's `refs` as its two silhouette edges (`axis`), a centre mark as the circle edge (`mark`).
 
 ## Annotations
 
-- **Dimension** (D): click an edge of a view. A straight edge gives its length (horizontal, vertical or aligned), a full circle a
+- **Dimension** (D): click an edge or a centre line / mark of a view. A straight edge gives its length (horizontal, vertical or aligned), a full circle a
   diameter, an arc a radius (Shift on the pick makes a full circle a radius). Two edges give a distance (parallel edges), an angle (edges
-  that meet), a centre distance (two circles) or the distance from a circle centre to a line. Enter finishes a one-edge dimension, a second
+  that meet), a centre distance (two circles) or the distance from a circle centre to a line; centre lines count as straight edges (two parallel ones: the distance between the axes, placed outside the view) and centre marks as circle centres. Enter finishes a one-edge dimension, a second
   click completes a two-edge one. Dragging a dimension moves its line (leader angle and length for round ones). The panel edits the text:
   `<>` stands for the measured value, e.g. `<> +0.1 / -0` or `4 HOLES <>`; leaving it empty shows the measured value.
 - **Auto dimension**: the selected view (all views but the isometric if none): overall width and height, one diameter per hole position

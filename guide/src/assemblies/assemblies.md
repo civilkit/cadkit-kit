@@ -112,7 +112,7 @@ Only the edited component changes. Other instances of the same part are separate
 
 Choose **Bill of materials**. The list has one line per distinct part: No., Part, Qty, Material, Mass each and Mass total, plus a Total row. Components of the same inserted part count as one line; copies made by a component pattern count too, suppressed components do not. A click on a row selects the bodies of those components.
 
-Mass each is the volume of the part alone times the density of its material. If the material has no known density, the mass is left blank and a note says so. **Save CSV** writes `bom.csv` with the columns `No.,Part,Qty,Material,Mass each (g),Mass total (g)`.
+Mass each is the volume of the part alone times the density of its material. If the material has no known density, the mass is left blank and a note says so. **Save CSV** writes `bom.csv` with the columns `No.,Part,Qty,Material,Mass each (g),Mass total (g)`; its rows end with CR LF, and a text that starts with `=`, `+`, `-` or `@` is written so that a spreadsheet shows it as text and never runs it as a formula. **Copy text** puts the same table on the clipboard as aligned plain text, ready to paste into an e-mail, and **Save text** writes it as `bom.txt`.
 
 ## Exploded view
 
@@ -133,7 +133,7 @@ Choose **Interference check** and press **Check**. The result lists pairs of com
 
 ## Samples
 
-Three sample assemblies are in the Samples dialog (titles starting "Assembly:"): a bolt in a block (coincident and concentric mates), a gear train (two gears on shafts with a gear mate of ratio 2; set a Drive on the gear mate to turn them) and a hinged door (a hinge with a stop and a limits mate of 0 to 110 degrees).
+Three sample assemblies are in the Library picker (titles starting "Assembly:"): a bolt in a block (coincident and concentric mates), a gear train (two gears on shafts with a gear mate of ratio 2; set a Drive on the gear mate to turn them) and a hinged door (a hinge with a stop and a limits mate of 0 to 110 degrees).
 
 ## Not available
 

@@ -50,7 +50,7 @@ Suppressing a feature builds the part as if it were not there, without deleting 
 
 Select one or more features and press **Delete** or **Backspace**, or click its Remove button. A "Deleted F5" notice appears with an **Undo** button.
 
-If a feature you did not select still uses the one you are deleting (a sketch used by an extrude, a seed used by a pattern), the delete is refused and the message names what uses it. Select those too and they go together. Deleting is one undo step.
+If a feature you did not select still uses the one you are deleting (a sketch used by an extrude, a seed used by a pattern), the delete is refused and the notice names what uses it, with a **Delete both** button that removes them together. You can also select them all first. Deleting is one undo step, and one Undo brings everything back.
 
 ## Reorder
 
@@ -97,9 +97,12 @@ Every change is one undo step: a new feature, an edit confirmed in the Editor, a
 |---|---|---|
 | Undo | Ctrl+Z (Cmd+Z) | Home > Edit |
 | Redo | Ctrl+Shift+Z or Ctrl+Y | Home > Edit |
+| Repeat last command |  | Home > Edit |
 | Rebuild | Ctrl+B | Home > Edit |
 
 Rebuild builds the part again from the document and shows "Rebuilt". Use it when something looks stale. The kernel does not keep a cache, so every build is a full rebuild.
+
+**Repeat last command** runs the last command you ran again: the last feature you made, the last fillet, the last export, the last view. Press **Enter** to run it when nothing is in progress (no sketch open, no feature being edited, no dialog); the button has no other shortcut, and it says "No command has been run yet" until something has run. The command search itself is not remembered as a last command, and Repeat last command never becomes the last one either. The button is greyed out while the last command cannot run now.
 
 **The History log.** Open the drawer (**View > Workspace > Toggle drawer**, or the backslash key) and choose **History** for a log of every edit. Filter by All, You, Agent (edits made through the MCP server, see [Agents and the MCP server](../automation/mcp.md)) or Failed. Click an entry to go back to that step: the later steps are undone, and Redo can bring them back. A "model is here" line shows where you are. Rejected edits appear in the log marked failed, so you can see what was refused.
 

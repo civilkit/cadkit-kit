@@ -24,6 +24,9 @@ export function SketchConstraintList(p: {
   rows: ConstraintRow[];
   status: SketchSolverStatus | null;
   hot: string | null;
+  /** the row picked by a click (Delete removes it; its geometry is selected) */
+  selected?: string | null;
+  onSelect?(id: string): void;
   onHover(id: string | null): void;
   onDelete(id: string): void;
   onEdit(id: string): void;
@@ -41,16 +44,18 @@ export function SketchConstraintList(p: {
           {p.rows.map((r) => (
             <li
               key={r.id}
-              class={[p.hot === r.id ? 'hot' : '', r.blame === 'conflict' ? 'bad' : r.blame === 'redundant' ? 'warn' : '', r.driven ? 'driven' : ''].filter(Boolean).join(' ')}
+              class={[p.hot === r.id ? 'hot' : '', p.selected === r.id ? 'sel' : '', r.blame === 'conflict' ? 'bad' : r.blame === 'redundant' ? 'warn' : '', r.driven ? 'driven' : ''].filter(Boolean).join(' ')}
               onPointerEnter={() => p.onHover(r.id)}
               onPointerLeave={() => p.onHover(null)}
+              onClick={() => p.onSelect?.(r.id)}
+              data-id={r.id}
               onDblClick={() => { if (r.driven) p.onToggleDriven?.(r.id, true); else if (r.value !== undefined) p.onEdit(r.id); }}
             >
               <span class="ctype">{r.driven ? '(' : ''}{t('app.sketch.constraint.' + r.type, undefined, r.type)}{r.driven ? ')' : ''}</span>
               <span class="crefs">{r.refs.join(' · ')}</span>
-              {r.value !== undefined ? <span class="cval" title={r.expr ? '=' + r.expr : undefined}>{r.expr ? <i class="annot-fx">fx</i> : null}{Math.round(r.value * 100) / 100}</span> : null}
-              {r.value !== undefined || r.driven ? <button class="cdrv" title={r.driven ? t('app.sketch.driving.tip') : t('app.sketch.driven.tip')} aria-label={r.driven ? t('app.sketch.driving.tip') : t('app.sketch.driven.tip')} aria-pressed={!!r.driven} onClick={() => p.onToggleDriven?.(r.id, !!r.driven)}>⇄</button> : null}
-              <button class="cdel" title={t('app.sketch.deleteConstraint')} aria-label={t('app.sketch.deleteConstraint')} onClick={() => p.onDelete(r.id)}>×</button>
+              {r.value !== undefined ? <span class="cval" title={r.expr ? '=' + r.expr : r.driven ? undefined : t('app.sketch.dim.editTip')}>{r.expr ? <i class="annot-fx">fx</i> : null}{Math.round(r.value * 100) / 100}</span> : null}
+              {r.value !== undefined || r.driven ? <button class="cdrv" title={r.driven ? t('app.sketch.driving.tip') : t('app.sketch.driven.tip')} aria-label={r.driven ? t('app.sketch.driving.tip') : t('app.sketch.driven.tip')} aria-pressed={!!r.driven} onClick={(e) => { e.stopPropagation(); p.onToggleDriven?.(r.id, !!r.driven); }}>⇄</button> : null}
+              <button class="cdel" title={t('app.sketch.deleteConstraint')} aria-label={t('app.sketch.deleteConstraint')} onClick={(e) => { e.stopPropagation(); p.onDelete(r.id); }}>×</button>
             </li>
           ))}
         </ul>

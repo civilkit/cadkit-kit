@@ -1,6 +1,6 @@
 # Library browser: spec
 
-Status: draft, 2026-10-17. Phase 1 is being built; later phases are todo.
+Status: draft, 2026-10-17; checked against the code 2026-10-31. Phase 1 is built (all seven items below; it ships as the Libraries tab of the Catalog, described in `docs/library-browser.md`, with more than the spec asked for: drag-and-drop placement, Install for offline use, generated thumbnails). The later phases are not built: adapters for foreign formats, script parts in a sandboxed Worker, tokens for private repositories, and "Export as library part". The default list still has no GitHub-hosted library (the repository decision is still open).
 
 ## Why
 
@@ -94,13 +94,13 @@ bundled samples. A GitHub-hosted default (our own public parts repository) needs
 
 ## Phase 1 (build now)
 
-1. Manifest types and validation, source parsing (`github:`, HTTPS, local), fetch with size limits and sha check.
-2. IndexedDB cache and offline mode.
-3. Registry: add, remove, refresh, defaults data file, licence confirmation state.
-4. UI: Libraries section in the Catalog tab with search, cards, detail panel.
-5. Actions: Open as new document, Download, Insert (attach-mode patch).
-6. Provenance in the document and in the UI.
-7. Tests against a local fixture library (no network in tests).
+1. Manifest types and validation, source parsing (`github:`, HTTPS, local), fetch with size limits and sha check. (built)
+2. IndexedDB cache and offline mode. (built)
+3. Registry: add, remove, refresh, defaults data file, licence confirmation state. (built)
+4. UI: Libraries section in the Catalog tab with search, cards, detail panel. (built)
+5. Actions: Open as new document, Download, Insert (attach-mode patch). (built)
+6. Provenance in the document and in the UI. (built)
+7. Tests against a local fixture library (no network in tests). (built)
 
 ## Tests
 

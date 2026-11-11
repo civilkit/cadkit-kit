@@ -12,4 +12,12 @@ describe('sketch tool text', () => {
     ].filter((k) => !keys.has(k));
     expect(missing).toEqual([]);
   });
+
+  it('has the prompts of every constraint tool (shown in the status bar while picking)', () => {
+    const keys = new Set(Object.keys(en));
+    const kinds = ['horizontal', 'vertical', 'coincident', 'equal', 'parallel', 'perpendicular', 'collinear', 'midpoint', 'tangent', 'symmetric', 'fix', 'concentric'];
+    // a tool asks `.pick` before the first click and `.more` after it; a one-click tool (fix) never asks `.more` after a pick but may on Escape
+    const missing = kinds.flatMap((k) => [`app.sketch.hint.${k}.pick`, `app.sketch.hint.${k}.more`]).filter((k) => !keys.has(k));
+    expect(missing).toEqual([]);
+  });
 });

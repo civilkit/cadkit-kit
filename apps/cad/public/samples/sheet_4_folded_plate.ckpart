@@ -1,0 +1,150 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Sheet metal 4 folded plate",
+ "features": [
+  {
+   "type": "sheetRules",
+   "id": "R1",
+   "name": "Steel 2 mm",
+   "thickness": 2,
+   "kFactor": 0.44,
+   "bendRadius": 2,
+   "reliefWidth": 2,
+   "reliefDepth": 1,
+   "cornerRelief": 8,
+   "cornerReliefShape": "notch",
+   "hemGap": 0.01,
+   "gap": 2
+  },
+  {
+   "type": "sketch",
+   "id": "S1",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p2",
+     "x": 100,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 100,
+     "y": 60
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": 60
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "id": "e1",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "type": "line",
+     "id": "e2",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "type": "line",
+     "id": "e3",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "type": "line",
+     "id": "e4",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "baseFlange",
+   "id": "B1",
+   "sketch": "S1"
+  },
+  {
+   "type": "fold",
+   "id": "F1",
+   "points": [
+    [
+     30,
+     0,
+     2
+    ],
+    [
+     30,
+     60,
+     2
+    ]
+   ],
+   "angle": 60,
+   "fixed": [
+    90,
+    30,
+    2
+   ]
+  },
+  {
+   "type": "sketch",
+   "id": "S2",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 75,
+     "y": -10
+    },
+    {
+     "id": "p2",
+     "x": 75,
+     "y": 70
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "id": "e1",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "type": "line",
+     "id": "e2",
+     "p1": "p2",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "fold",
+   "id": "F2",
+   "line": {
+    "sketch": "S2",
+    "curve": "e1"
+   },
+   "angle": 90,
+   "flip": true
+  }
+ ]
+}

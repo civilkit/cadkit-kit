@@ -1,6 +1,8 @@
 // licenses.html for the static site: the kit's THIRD_PARTY.md, the kernel's THIRD_PARTY.md (filtered), the licence texts that travel with
 // the kernel binary, and the licences of the npm packages bundled into the app. Pure functions here; tools/build_pages.mjs reads the files.
 
+import { siteFooter, siteHeadLinks, siteHeader } from './siteChrome.mjs';
+
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const inline = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\b(https?:\/\/[^\s<)|,;]+[^\s<)|,;.])/g, '<a href="$1" rel="noopener noreferrer">$1</a>');
 
@@ -53,10 +55,11 @@ export const KERNEL_ROW_RULES = [
   { re: /crates\/ck-sldprt\/src\/\{xt/, keep: true },
   { re: /crates\/ck-sldprt\/src\/container\.rs \(format facts\), crates\/ck-sldprt\/LICENSE-MIT/, keep: true },
   { re: /cadmpeg/, keep: true },
+  { re: /crates\/ck-skp\/src\//, keep: true },
   { re: /tools\/bench\/brepjs/, keep: true, note: 'the kit sample parts named brepjs-* are translations of these examples' },
-  { re: /sat\/\{mod,parse,build\}|SGRebuild/, keep: false, why: 'names a private project (the author\'s own code)' },
+  { re: /sat\/\{mod,parse,build\}/, keep: false, why: 'names a private project (the author\'s own code)' },
   { re: /ck-tess\/src\/cdt\.rs|sectionprops-rs/, keep: false, why: 'names a private project (the author\'s own code)' },
-  { re: /sldprt\/tests\/fixtures/, keep: false, why: 'test fixtures, not shipped' },
+  { re: /(sldprt|skp)\/tests\/fixtures/, keep: false, why: 'test fixtures, not shipped' },
   { re: /nist_ftc_11|step_nist_reference/, keep: false, why: 'test input, not shipped' },
   { re: /build_wasm\.sh/, keep: false, why: 'build tool, not distributed' },
   { re: /ck-text\/src\/(ttf|sha256)\.rs/, keep: false, why: 'own code, nothing to attribute' },
@@ -90,13 +93,11 @@ export function filterKernelThirdParty(md) {
   return { md: kept.join('\n'), filtered };
 }
 
-const CSS = `:root{color-scheme:light dark;--bg:#fff;--fg:#1d2127;--mut:#5b6572;--line:#d9dee5;--code:#f2f4f7}
-@media (prefers-color-scheme:dark){:root{--bg:#16191d;--fg:#e4e8ed;--mut:#9aa5b1;--line:#2c333b;--code:#1f242a}}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:62rem;margin:0 auto;padding:1.5rem 16px 4rem}h1{font-size:1.5rem}h2{font-size:1.2rem;margin-top:2.2rem}h3{font-size:1rem;margin-top:1.6rem}
-a{color:inherit}code,pre{font:12.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);border-radius:4px}code{padding:.05em .3em;word-break:break-word}
-pre{padding:.8rem 1rem;overflow:auto;white-space:pre-wrap;word-break:break-word}.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{border:1px solid var(--line);padding:.4rem .55rem;text-align:left;vertical-align:top}.mut{color:var(--mut)}`;
+// only what the shared site stylesheet (/styles.css, loaded by the page) does not cover: tables and licence text blocks, in its colours
+const CSS = `.page h2{font-size:26px;letter-spacing:-.02em;margin:40px 0 10px}.page h3{font-size:19px;margin:28px 0 8px}
+.page pre{font:12.5px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.8rem 1rem;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.page code{word-break:break-word}.tw{overflow-x:auto}.page table{border-collapse:collapse;width:100%;font-size:14px}
+.page th,.page td{border:1px solid var(--line);padding:.4rem .6rem;text-align:left;vertical-align:top}.page th{background:var(--panel)}.mut{color:var(--muted)}`;
 
 /**
  * @param {{kit:string, kernel?:string, licences:Array<{title:string,text:string}>, deps:Array<{name:string,version:string,license:string,copyright?:string}>}} p
@@ -119,5 +120,18 @@ export function renderLicensesHtml(p) {
     parts.push('<h2>Licence texts</h2>');
     for (const l of p.licences) parts.push(`<h3>${esc(l.title)}</h3><pre>${esc(l.text.trim())}</pre>`);
   }
-  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Licences</title><style>${CSS}</style></head>\n<body><main>\n${parts.join('\n')}\n</main></body></html>\n`;
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Open-source licences: CivilKit CAD</title>
+<meta name="description" content="Open-source licences and attributions for CivilKit CAD, its geometry kernel and the packages bundled into the app.">
+<link rel="canonical" href="https://civilkit.io/cad/licenses.html">
+${siteHeadLinks()}
+<style>${CSS}</style></head>
+<body>
+${siteHeader('cad')}
+<main id="main"><div class="wrap page">
+${parts.join('\n')}
+</div></main>
+${siteFooter()}
+</body></html>
+`;
 }

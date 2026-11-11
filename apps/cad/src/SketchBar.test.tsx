@@ -2,7 +2,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, screen } from '@testing-library/preact';
 import type { SketchSolverStatus } from '@ck/part-model';
 import { DEFAULT_SKETCH_PREFS } from './sketchPrefs';
-import { SketchBar, defLevel } from './SketchBar';
+import { SketchBar, SketchNotes, defLevel } from './SketchBar';
 import { SketchAnnotations } from './SketchAnnotations';
 import { SketchConstraintList } from './SketchConstraintList';
 import './i18n';
@@ -212,5 +212,36 @@ describe('constraint glyph chips and value chips', () => {
     const d = container.querySelector('.annot.dimension')!;
     expect(d.textContent).toBe('40 mm');
     fireEvent.dblClick(d); expect(onEdit).toHaveBeenCalledWith('k3');
+  });
+});
+
+describe('the constraint list is reachable without the ribbon', () => {
+  it('the status-bar notes carry the definition badge, which opens the list upward', () => {
+    const { container } = render(<SketchNotes hint={null} selected={0} onClearSelection={() => {}} status={st({})} list={<div class="the-list">list</div>} />);
+    const chip = container.querySelector('.dof-chip[data-where="status"]') as HTMLElement;
+    expect(chip.textContent).toBe('3 DOF');
+    expect(document.querySelector('.the-list')).toBeNull();
+    fireEvent.click(chip);
+    expect(document.querySelector('.sb-list .the-list')).not.toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.querySelector('.the-list')).toBeNull();
+  });
+  it('without a status or list the notes show no badge (the floating bar keeps its own)', () => {
+    const { container } = render(<SketchNotes hint="x" selected={0} onClearSelection={() => {}} />);
+    expect(container.querySelector('.dof-chip')).toBeNull();
+  });
+  it('a row click selects the constraint (Delete then removes it); the buttons do not also select', () => {
+    const onSelect = vi.fn(), onDelete = vi.fn();
+    const { container } = render(<SketchConstraintList rows={[{ id: 'k1', type: 'distance', refs: ['a', 'b'], value: 10 }]} status={st({})} hot={null} selected="k1" onSelect={onSelect} onHover={() => {}} onDelete={onDelete} onEdit={() => {}} />);
+    expect(container.querySelector('li.sel')).not.toBeNull();
+    fireEvent.click(container.querySelector('li')!);
+    expect(onSelect).toHaveBeenCalledWith('k1');
+    fireEvent.click(container.querySelector('.cdel')!);
+    expect(onDelete).toHaveBeenCalledWith('k1');
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+  it('a dimension chip tells how to edit it', () => {
+    const { container } = render(<SketchAnnotations items={[{ id: 'k1', text: '40 mm', kind: 'dimension', type: 'distance', x: 10, y: 10 }]} hot={null} onEdit={() => {}} onHover={() => {}} />);
+    expect((container.querySelector('.annot') as HTMLElement).title).toMatch(/Double-click/);
   });
 });

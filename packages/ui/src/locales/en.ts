@@ -86,6 +86,7 @@ export const en: Catalog = {
   'ui.editor.edgeCount': '{n} edges',
   'ui.editor.edgeCount.one': '1 edge',
   'ui.editor.removeEdge': 'Remove this edge',
+  'ui.editor.pipeCutNote': 'Rolls a ball along the picked edges and leaves a surface body, not a solid. For a round hole use Hole, or a sketch and a cut.',
   'ui.editor.pickEdgesNote': 'Click or tap edges to add them; click or tap one again to remove it.',
   'ui.editor.section.faces': 'Faces',
   'ui.editor.section.seeds': 'Features to repeat',

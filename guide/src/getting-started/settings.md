@@ -1,6 +1,6 @@
 # Units and settings
 
-This chapter explains the units CadKit works in and every setting in the settings dialog: theme and language, the layout of the window, sketching, navigation, the move ball and the geometry kernel. It also covers automatic backup, which has no setting.
+This chapter explains the units CivilKit CAD works in and every setting in the settings dialog: theme and language, the layout of the window, sketching, navigation, the move ball and the geometry kernel. It also covers automatic backup, which has no setting.
 
 Open the dialog by clicking **Settings** (the gear) at the right of the top bar, by choosing **Workspace settings** in command search, or from the **Workspace** group of the **View** tab. Changes apply at once. The dialog remembers the tab you used last.
 
@@ -8,9 +8,9 @@ All settings are kept in your browser, for this site only. They are not saved in
 
 ## Units
 
-CadKit works in **millimetres** and **degrees**. There is no unit setting. Part files store millimetres, and sizes in editors and on the status bar are shown in millimetres.
+CivilKit CAD works in **millimetres** and **degrees**. There is no unit setting. Part files store millimetres, and sizes in editors and on the status bar are shown in millimetres.
 
-You can still type a value in another unit. A number field accepts a unit after the number: `mm`, `cm`, `m`, `in` for lengths, and `deg` or `°` for angles. CadKit converts it to millimetres. For example `2 in` becomes 50.8 mm, and `1.5 cm` becomes 15 mm. A field also accepts simple arithmetic and variable names, such as `=width*2+3`. See [Equations and variables](../modelling/equations.md).
+You can still type a value in another unit. A number field accepts a unit after the number: `mm`, `cm`, `m`, `in` for lengths, and `deg` or `°` for angles. CivilKit CAD converts it to millimetres. For example `2 in` becomes 50.8 mm, and `1.5 cm` becomes 15 mm. A field also accepts simple arithmetic and variable names, such as `=width*2+3`. See [Equations and variables](../modelling/equations.md).
 
 The grid **Spacing** field in the status bar accepts units in the same way, for example `0.25 in`.
 
@@ -92,7 +92,7 @@ Hold `Ctrl` while dragging a handle of the ball to move in whole steps of these 
 
 ## Kernel tab
 
-The geometry kernel is the part of CadKit that builds solids. By default it runs inside your browser. See [The local kernel service](../automation/local-kernel.md) for how to run the faster service.
+The geometry kernel is the part of CivilKit CAD that builds solids. By default it runs inside your browser. See [The local kernel service](../automation/local-kernel.md) for how to run the faster service.
 
 | Setting | What it does |
 | --- | --- |
@@ -106,7 +106,7 @@ Switching kernels reopens the open part on the other kernel. If the service stop
 
 ## Backup and saving
 
-There is no autosave setting. A moment after you change a part, CadKit writes a backup of every changed part to the browser's storage, and again when the page is hidden. After a crash or reload the app offers **Restore your last session**, with **Restore**, **Start new** and **Earlier versions…**. Each changed part returns in its own tab.
+There is no autosave setting. A moment after you change a part, CivilKit CAD writes a backup of every changed part to the browser's storage, and again when the page is hidden. After a crash or reload the app offers **Restore your last session**, with **Restore**, **Start new** and **Earlier versions…**. Each changed part returns in its own tab.
 
 The backup has limits you may meet:
 

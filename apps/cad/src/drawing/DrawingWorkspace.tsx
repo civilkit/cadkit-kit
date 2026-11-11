@@ -8,7 +8,7 @@ import {
   SCALES, SHEET_NAMES, STD_FRAMES, STD_NAMES, emptyDrawing, fmtLength, newId, removeView, sanitizeDrawing, sheetSize, viewScale, fromSheet,
   type DDim, type DrawingDoc, type DView, type V2, type ViewData,
 } from './model';
-import { autoBalloons, autoDims, dimFromPicks, edgeShape, pickEdge, type HoleInfo } from './geom';
+import { autoBalloons, autoDims, centerFeatures, dimFromPicks, pickPolys, pickShape, pickTarget, samePick, type DimPick, type HoleInfo } from './geom';
 import { cacheViews, addAux, addDetail, addProjected, addSection, fetchViews, moveView, nudgeClear, sideOfPoint, standardViews, type DrawingQuery } from './layout';
 import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, type BomRow, type Prim } from './render';
 import { hitAnnotation } from './hit';
@@ -40,7 +40,7 @@ export interface DrawingHost {
 }
 
 type Tool = 'select' | 'dim' | 'proj' | 'section' | 'detail' | 'aux' | 'note' | 'balloon' | 'finish' | 'fcf';
-type Sel = { kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table'; id: string } | null;
+type Sel = { kind: 'view' | 'dim' | 'note' | 'balloon' | 'title' | 'bom' | 'label' | 'table' | 'center'; id: string; /** center: the view it is on */ view?: string } | null;
 const PX = 3.7795;      // css pixels per mm at zoom 1
 
 const stem = (s: string): string => (s || 'drawing').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').trim() || 'drawing';
@@ -59,8 +59,9 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const [lost, setLost] = useState(0);
   const [pitches, setPitches] = useState<Record<string, number>>({});
   const [bom, setBom] = useState<BomRow[]>([]);
-  const [hover, setHover] = useState<{ view: string; e: number } | null>(null);
-  const [pend, setPend] = useState<{ view: string; picks: number[]; radial: boolean } | null>(null);
+  const [hover, setHover] = useState<{ view: string; pick: DimPick } | null>(null);
+  const [hoverCenter, setHoverCenter] = useState<string | null>(null);
+  const [pend, setPend] = useState<{ view: string; picks: DimPick[]; radial: boolean } | null>(null);
   const [ghost, setGhost] = useState<{ kind: string; pts: number[]; r?: number; c?: V2 } | null>(null);
   const [cam, setCam] = useState<{ x: number; y: number; k: number }>({ x: 20, y: 20, k: 1 });
   const camRef = useRef(cam); camRef.current = cam;
@@ -234,6 +235,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (sel.kind === 'balloon') return { ...d, balloons: d.balloons.filter((x) => x.id !== sel.id) };
       if (sel.kind === 'table') return { ...d, tables: (d.tables ?? []).filter((x) => x.id !== sel.id) };
       if (sel.kind === 'bom') return { ...d, bom: { ...d.bom, show: false } };
+      // a centre line belongs to its view (switch them off in the view's properties)
       return d;
     });
     setSel(null);
@@ -268,9 +270,11 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     const hit = hitAnnotation(prims, pt, tol());
     const v = viewAt(pt);
     if (tool === 'select') {
-      const target: Sel = hit ? { kind: hit.kind, id: hit.id } : v ? { kind: 'view', id: v.id } : null;
+      const target: Sel = hit ? { kind: hit.kind, id: hit.id, ...(hit.view ? { view: hit.view } : {}) } : v ? { kind: 'view', id: v.id } : null;
       setSel(target);
-      if (target) { drag.current = { kind: 'item', sel: target, start: pt, moved: false, base: d }; }
+      // a centre line is selected on its own, but dragging it still moves its view
+      const dragSel: Sel = target?.kind === 'center' ? { kind: 'view', id: target.view ?? v?.id ?? '' } : target;
+      if (target && dragSel) { drag.current = { kind: 'item', sel: dragSel, start: pt, moved: false, base: d }; }
       else drag.current = { kind: 'pan', x: e.clientX, y: e.clientY, cx: camRef.current.x, cy: camRef.current.y };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
@@ -278,11 +282,11 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     if (tool === 'dim') {
       if (!v) { if (pend) finishDim(); return; }
       const g = dataOf({ doc: d, data: dataRef.current }, v)!;
-      const hitE = pickEdge(g, v, toView(v, pt), tol() / viewScale(d, v));
+      const hitE = pickTarget(g, v, toView(v, pt), tol() / viewScale(d, v), viewScale(d, v));
       if (!hitE) { if (pend) finishDim(); else note('drawing.msg.noEdge', 'warn'); return; }
-      if (!edgeShape(g, hitE.e)) { note('drawing.msg.cantDim', 'warn'); return; }
-      const cur = pend && pend.view === v.id ? pend : { view: v.id, picks: [] as number[], radial: e.shiftKey };
-      const picks = [...cur.picks, hitE.e];
+      if (!pickShape(g, v, hitE.pick)) { note('drawing.msg.cantDim', 'warn'); return; }
+      const cur = pend && pend.view === v.id ? pend : { view: v.id, picks: [] as DimPick[], radial: e.shiftKey };
+      const picks = [...cur.picks, hitE.pick];
       if (picks.length >= 2) { setPend(null); addDim(v, picks, cur.radial); } else setPend({ ...cur, picks });
       return;
     }
@@ -328,8 +332,8 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       commit(moveView(r.doc, all, r.view.id, pt)); setSel({ kind: 'view', id: r.view.id }); setGhost(null); setTool('select');
     } else if (tool === 'aux' && v) {
       const g = dataOf({ doc: d, data: dataRef.current }, v)!;
-      const hitE = pickEdge(g, v, toView(v, pt), tol() / viewScale(d, v));
-      const sh = hitE && edgeShape(g, hitE.e);
+      const hitE = pickTarget(g, { ...v, centerlines: false }, toView(v, pt), tol() / viewScale(d, v));
+      const sh = hitE && pickShape(g, v, hitE.pick);
       if (!sh || sh.kind !== 'line') { note('drawing.msg.noEdge', 'warn'); return; }
       const q = needQuery(); if (!q) return;
       const r = await addAux(d, q, dataRef.current, v.id, Math.atan2(sh.b[1] - sh.a[1], sh.b[0] - sh.a[0]));
@@ -340,12 +344,12 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     }
   };
 
-  const addDim = (v: DView, picks: number[], radial: boolean) => {
+  const addDim = (v: DView, picks: DimPick[], radial: boolean) => {
     const g = dataOf({ doc: docRef.current, data: dataRef.current }, v)!;
-    const nd = dimFromPicks(g, v.id, picks, { radial });
+    const nd = dimFromPicks(g, v.id, picks, { radial, v, scale: viewScale(docRef.current, v), others: docRef.current.dims.filter((x) => x.view === v.id) });
     if (!nd) { note('drawing.msg.cantDim', 'warn'); return; }
     // a circle that belongs to a hole or thread feature gets the callout text
-    const e0 = g.edges[picks[0]];
+    const e0 = typeof picks[0] === 'number' ? g.edges[picks[0]] : undefined;
     const hole = picks.length === 1 && nd.r !== undefined && e0 ? holesNow().find((h) => h.faces.some((f) => e0.faces.some((x) => x === f || x.startsWith(f + '.') || x.startsWith(f + '~')))) : undefined;
     const dim = hole && !radial ? { ...nd, kind: 'callout' as const, feature: hole.feature } : nd;
     update((d) => ({ ...d, dims: [...d.dims, dim] }));
@@ -386,8 +390,14 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     if (tool === 'dim' || tool === 'aux') {
       const v = viewAt(pt);
       const g = v && dataOf({ doc: d, data: dataRef.current }, v);
-      const h = v && g ? pickEdge(g, v, toView(v, pt), tol() / viewScale(d, v)) : null;
-      setHover((o) => (h && v ? (o && o.e === h.e && o.view === v.id ? o : { view: v.id, e: h.e }) : o ? null : o));
+      const h = v && g ? pickTarget(g, tool === 'aux' ? { ...v, centerlines: false } : v, toView(v, pt), tol() / viewScale(d, v), viewScale(d, v)) : null;
+      setHover((o) => (h && v ? (o && samePick(o.pick, h.pick) && o.view === v.id ? o : { view: v.id, pick: h.pick }) : o ? null : o));
+      return;
+    }
+    if (tool === 'select' && !dr) {
+      const h = hitAnnotation(prims, pt, tol());
+      const id = h?.kind === 'center' ? h.id : null;
+      setHoverCenter((o) => (o === id ? o : id));
       return;
     }
     if (tool === 'section') {
@@ -449,6 +459,11 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const selDim = sel?.kind === 'dim' ? doc.dims.find((v) => v.id === sel.id) : undefined;
   const selNote = sel?.kind === 'note' ? doc.notes.find((v) => v.id === sel.id) : undefined;
   const selBal = sel?.kind === 'balloon' ? doc.balloons.find((v) => v.id === sel.id) : undefined;
+  const selCenter = (() => {
+    if (sel?.kind !== 'center') return undefined;
+    const v = doc.views.find((x) => x.id === sel.view); const g = v && dataOf({ doc, data }, v);
+    return v && g ? centerFeatures(g, v, viewScale(doc, v)).find((f) => f.id === sel.id) : undefined;
+  })();
   const setView = (id: string, patch: Partial<DView>) => update((d) => ({ ...d, views: d.views.map((v) => (v.id === id ? { ...v, ...patch } : v)) }));
   const tb = (id: Tool, label: string, tip: string, onPick?: () => void) => (
     <button class={'dwg-btn' + (tool === id ? ' on' : '')} aria-pressed={tool === id} title={tip} onClick={() => { projParent.current = null; setPend(null); setGhost(null); setTool(id); onPick?.(); }}>{label}</button>
@@ -494,12 +509,13 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <svg class="dwg-over" style={{ width: size[0] * PX + 'px', height: size[1] * PX + 'px', transform: `translate(${cam.x}px,${cam.y}px) scale(${cam.k})` }} viewBox={`0 0 ${size[0]} ${size[1]}`}>
           {ghost && ghost.kind === 'line' ? <polyline points={ghost.pts.join(' ')} fill="none" stroke="#0b74dc" stroke-width="0.5" stroke-dasharray="3 1.5" /> : null}
           {ghost && ghost.kind === 'circle' && ghost.c ? (() => { const v = doc.views.find((x) => x.id === (drag.current as { view?: string } | null)?.view); const g = v && dataOf({ doc, data }, v); if (!v || !g) return null; const P = placer(doc, v, g)(ghost.c![0], ghost.c![1]); return <circle cx={P[0]} cy={P[1]} r={(ghost.r ?? 0) * viewScale(doc, v)} fill="#0b74dc22" stroke="#0b74dc" stroke-width="0.4" />; })() : null}
-          {[...(pend ? pend.picks.map((e) => ({ view: pend.view, e, w: 0.9 })) : []), ...(hover && (tool === 'dim' || tool === 'aux') ? [{ view: hover.view, e: hover.e, w: 0.6 }] : [])].map((h, i) => {
+          {[...(pend ? pend.picks.map((pick) => ({ view: pend.view, pick, w: 0.9 })) : []), ...(hover && (tool === 'dim' || tool === 'aux') ? [{ view: hover.view, pick: hover.pick, w: 0.6 }] : [])].map((h, i) => {
             const v = doc.views.find((x) => x.id === h.view); const g = v && dataOf({ doc, data }, v);
             if (!v || !g) return null;
             const P = placer(doc, v, g);
-            return <g key={i}>{g.lines.filter((l) => l.e === h.e).map((l, j) => { const o: number[] = []; for (let q = 0; q < l.p.length; q += 2) { const z = P(l.p[q], l.p[q + 1]); o.push(z[0], z[1]); } return <polyline key={j} points={o.join(' ')} fill="none" stroke="#0b74dc" stroke-width={h.w} />; })}</g>;
+            return <g key={i}>{pickPolys(g, v, h.pick, viewScale(doc, v)).map((l, j) => <polyline key={j} points={l.map((q) => P(q[0], q[1]).join(',')).join(' ')} fill="none" stroke="#0b74dc" stroke-width={h.w} />)}</g>;
           })}
+          {tool === 'select' && hoverCenter ? prims.filter((q) => q.tag?.id === hoverCenter && q.t === 'poly').map((q, i) => <polyline key={'hc' + i} points={(q as Extract<Prim, { t: 'poly' }>).pts.join(' ')} fill="none" stroke="#0b74dc" stroke-width="0.6" />) : null}
         </svg>
         {!doc.views.length && !busy ? <div class="dwg-empty">{host.hasBody ? t('drawing.empty') : t('drawing.noPart')}</div> : null}
         <div class="dwg-status">{busy ? t('drawing.status.loading') : lost ? t('drawing.status.lost', { count: lost }) : hint}</div>
@@ -539,6 +555,15 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
           <>
             <h4>{t('drawing.note')}</h4>
             <label>{selNote.style === 'fcf' ? t('drawing.fcf.text') : selNote.style === 'finish' ? t('drawing.finish.text') : t('drawing.note.text')}<textarea data-focus rows={selNote.style ? 1 : 3} value={selNote.text} onInput={(e) => update((d) => ({ ...d, notes: d.notes.map((x) => (x.id === selNote.id ? { ...x, text: (e.target as HTMLTextAreaElement).value } : x)) }), true)} /></label>
+          </>
+        ) : null}
+        {selCenter ? (
+          <>
+            <h4>{selCenter.kind === 'axis' ? t('drawing.center.line') : t('drawing.center.mark')}</h4>
+            <div class="dwg-hint">{selCenter.kind === 'axis'
+              ? t('drawing.center.lineInfo', { len: fmtLength(Math.hypot(selCenter.q[0] - selCenter.p[0], selCenter.q[1] - selCenter.p[1]), doc.sheet.units) })
+              : t('drawing.center.markInfo', { dia: fmtLength(selCenter.r * 2, doc.sheet.units) })}</div>
+            <div class="dwg-hint">{t('drawing.center.dimHint')}</div>
           </>
         ) : null}
         {selBal ? (

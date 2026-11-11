@@ -1,6 +1,6 @@
 # Your first part
 
-In this tutorial you build a small plate: you sketch a rectangle, give it dimensions, extrude it into a solid, drill a hole, round one edge and save the part. It takes about ten minutes and uses the main ideas of CadKit. The steps assume the application's default layout, with the ribbon along the top.
+In this tutorial you build a small plate: you sketch a rectangle, give it dimensions, extrude it into a solid, drill a hole, round one edge and save the part. It takes about ten minutes and uses the main ideas of CivilKit CAD. The steps assume the application's default layout, with the ribbon along the top.
 
 ![A new empty part with the Start here card offering three Sketch on plane buttons.](../img/first-part-start.png)
 
@@ -32,7 +32,7 @@ A dimension fixes a size. You will fix the width and the height.
 
 ![A rectangle sketch on the Front plane with 60 and 40 dimensions and the status chip showing the remaining degrees of freedom.](../img/first-part-dimensioned.png)
 
-The rectangle's sides were already kept horizontal and vertical when you drew it. Two freedoms are left: where the rectangle sits on the plane. They do not matter for this tutorial, but you can remove them. Click **Fully define** in the **Status** group. CadKit adds the relations and dimensions it needs to pin the rectangle down and reports how many it added. The chip then reads **Fully defined** and the lines turn dark.
+The rectangle's sides were already kept horizontal and vertical when you drew it. Two freedoms are left: where the rectangle sits on the plane. They do not matter for this tutorial, but you can remove them. Click **Fully define** in the **Status** group. CivilKit CAD adds the relations and dimensions it needs to pin the rectangle down and reports how many it added. The chip then reads **Fully defined** and the lines turn dark.
 
 If a sketch does not behave the way you expect, see [When a sketch will not solve](../sketching/troubleshooting.md).
 
@@ -76,11 +76,11 @@ The corner is now rounded. If you picked the wrong edge, click **Undo** in the *
 
 To save under another name, open **More file actions** (the three-dot button in the top bar) and choose **Save as**.
 
-CadKit also keeps an automatic backup in the browser while you work. After a crash it offers **Restore your last session**. The backup is a safety net, not a replacement for saving to a file. See [Saving and opening](../files/files.md).
+CivilKit CAD also keeps an automatic backup in the browser while you work. After a crash it offers **Restore your last session**. The backup is a safety net, not a replacement for saving to a file. See [Saving and opening](../files/files.md).
 
 ## What you did
 
-Each step is a feature in the tree on the left: the sketch, the Extrude, the hole's point sketch and Hole, and the Fillet. Double-click any of them to reopen its editor and change a value. CadKit rebuilds everything after it. Try it now: open the Extrude's chevron in the tree to reveal its sketch, double-click the sketch to reopen it, double-click the `60` label, type `80`, press `Enter`, and finish the sketch. CadKit rebuilds the plate and every feature after it.
+Each step is a feature in the tree on the left: the sketch, the Extrude, the hole's point sketch and Hole, and the Fillet. Double-click any of them to reopen its editor and change a value. CivilKit CAD rebuilds everything after it. Try it now: open the Extrude's chevron in the tree to reveal its sketch, double-click the sketch to reopen it, double-click the `60` label, type `80`, press `Enter`, and finish the sketch. CivilKit CAD rebuilds the plate and every feature after it.
 
 ## Next
 
