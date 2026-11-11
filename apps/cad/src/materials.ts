@@ -89,6 +89,8 @@ const GENERIC_MATERIALS: readonly MaterialDef[] = [
   panel('osb3', 'OSB/3', 600, '#c9a56b', 3.5, 'OSB/3 (EN 300): mean bending modulus 3.5 GPa along the major axis (EN 310; the EN 12369-1 characteristic value is 4.93 GPa), density the stated minimum (EGGER OSB data)'),
   panel('plywood-birch', 'Plywood - birch', 680, '#e3c79a', 10.05, 'Finnish birch plywood, 18 mm, face grain along the span: mean bending modulus 10.05 GPa, mean density 680 kg/m3 (UPM WISA-Form Birch declaration of performance)'),
   panel('plywood-eucalyptus', 'Plywood - eucalyptus', 650, '#d6a583', 7.0, 'Eucalyptus film-faced plywood, 18 mm (EN 636-2S, EN 636-3S): density about 650 kg/m3 and bending stiffness class E70/60, i.e. a mean modulus of 7000 N/mm2 along the face grain (a distributor declaration of performance); the film face does not change the figures used here'),
+  panel('plywood-pine', 'Plywood - pine', 570, '#e0c08a', 5.0, 'Pine plywood, 18 mm, 7 plies (EN 636-2S, EN 13986): density 570 kg/m3 (EN 323 type testing) and a mean bending modulus of 5000 N/mm2 along the face grain (EN 12369-2 / EN 636), from the manufacturer declaration of performance DoP MRP-CE-13/CE2+ (Elliotis)'),
+  panel('plywood-spruce', 'Plywood - spruce', 460, '#ecd9a8', 8.131, 'Structural spruce plywood, 18 mm (WISA-Spruce): mean density 460 kg/m3 and a mean bending modulus of 8131 N/mm2 along the face grain, from the UPM Plywood declaration for structural spruce plywood 12-30 mm (UPM027CPR)'),
   m('rubber', 'Rubber', 'Rubber', 1100, '#2f3236', 0.01, 0.49),
   m('gasket', 'Gasket material', 'Rubber', 1400, '#e8802a', 0.5, 0.45),
   m('glass', 'Glass', 'Glass', 2500, '#bfe3ea', 70, 0.22),

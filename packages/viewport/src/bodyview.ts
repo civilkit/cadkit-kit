@@ -3,12 +3,14 @@
 // faces a hidden body takes with it, and which hit of a ray is the one a click means (pass-through below PICK_OPACITY).
 import type { BodyMesh } from './meshgeom';
 import type { KnurlView } from './knurlview';
+import type { SurfaceTexture } from './styles';
 
 export type Finish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const FINISHES: readonly Finish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 
-/** `metallic` and `roughness` (0..1) are the PBR values of the material: they replace the finish's own when set. */
-export interface BodyLookSpec { color?: string; opacity?: number; finish?: Finish; metallic?: number; roughness?: number }
+/** `metallic` and `roughness` (0..1) are the PBR values of the material: they replace the finish's own when set. `clearcoat` (0..1) is a glossy layer on top and
+ *  `texture` an image from the online library: those two are drawn with a material of their own (see `separateBodies`). */
+export interface BodyLookSpec { color?: string; opacity?: number; finish?: Finish; metallic?: number; roughness?: number; clearcoat?: number; texture?: SurfaceTexture }
 export interface ViewBodyDef { key: string; faces: string[]; edges?: string[] }
 /** What the viewport needs to draw bodies individually: the bodies, the look of those that have one (keyed by body key), the hidden keys. */
 export interface BodyViewSpec {
@@ -48,6 +50,22 @@ export const looksTinted = (l: BodyLookSpec | undefined): boolean => !!l && (l.c
 
 /** The opacity a look draws with (1 when it sets none). */
 export const lookOpacity = (l: BodyLookSpec | undefined): number => clampBodyOpacity(l?.opacity ?? 1);
+
+/** Whether a look needs a material of its own: a texture or a clear coat (neither fits the one material with per-vertex tints). */
+export const needsOwnMaterial = (l: BodyLookSpec | undefined): boolean => !!l && (l.texture !== undefined || (l.clearcoat !== undefined && l.clearcoat > 0));
+
+/** The bodies that are drawn as meshes of their own: first those with a texture or clear coat (opaque, visible), then the transparent ones (see `transparentBodies`).
+ *  Every other body stays in the shared mesh (rank 0). `keys` lists both groups in rank order, `own` says how many of them are the first group; `rank` is face -> 1-based index. */
+export function separateBodies(spec: BodyViewSpec): { keys: string[]; own: number; rank: Map<string, number> } {
+  const hid = new Set(spec.hidden);
+  const mine = spec.bodies.filter((b) => !hid.has(b.key) && lookOpacity(spec.looks[b.key]) >= 1 && needsOwnMaterial(spec.looks[b.key]));
+  const t = transparentBodies(spec);
+  const keys = [...mine.map((b) => b.key), ...t.keys];
+  const rank = new Map<string, number>();
+  mine.forEach((b, i) => { for (const f of b.faces) rank.set(f, i + 1); });
+  for (const [f, r] of t.rank) rank.set(f, r + mine.length);
+  return { keys, own: mine.length, rank };
+}
 
 /** Faces that belong to a hidden body, and the edge keys with them. */
 export function hiddenSets(spec: BodyViewSpec): { faces: Set<string>; edges: Set<string> } {

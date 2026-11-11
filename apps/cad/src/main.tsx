@@ -877,6 +877,7 @@ function App() {
     vp.setLook({ style: lk.style, ghostOpacity: lk.ghostOpacity, appearance });
     vp.setComponentLooks(compParts.length ? componentAppearances(lk, partName, compParts, appearanceOfMaterial, useMatColour) : null);
     vp.setLighting(lk.light, lk.intensity, lk.reflections);
+    vp.setEnvironment(lk.environment?.id ?? null);
     vp.setEdges(lk.edgeWidth, lk.silhouette);
     vp.setBackground(lk.background);
     write(LOOK_KEY, lk);
@@ -3928,7 +3929,7 @@ function App() {
   const setHiddenBodies = (keys: string[]): void => setBodyField('view', keys.length ? { hiddenBodies: keys } : null);
   const bodyRows = leftTab === 'Bodies' ? bodyRowsFor(true) : [];
   const bodyFields = readBodyFields(doc);
-  const bodiesPanel = <BodiesPanel rows={bodyRows}
+  const bodiesPanel = <BodiesPanel rows={bodyRows} library={{ enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood') }}
     madeBy={(o) => { const f = (controller.document()?.features ?? []).find((x) => x.id === o.split('@')[0]) as { name?: string; type?: string } | undefined; return f ? f.name || f.type || o : null; }}
     selected={[...new Set(store.selection.value.map((n) => rowOfName(bodyRows, n)?.key).filter((k): k is string => !!k))]}
     onSelect={(key, add) => store.select([key], add)}
@@ -4297,8 +4298,8 @@ function App() {
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} {...(sketching ? { sketch: { show: sketchPrefs.show, onToggle: (k, on) => updatePrefs({ show: { ...sketchPrefs.show, [k]: on } }), dimDisplay: sketchPrefs.dimDisplay, onDimDisplay: (v) => updatePrefs({ dimDisplay: v }), typedAngleDims: sketchPrefs.typedAngleDims, rightAngleSquare: sketchPrefs.rightAngleSquare, onFlag: (k, on) => updatePrefs({ [k]: on }) } } : {})} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
-          onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
-          library: { enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood') },
+          ...(lk.environment ? { environment: lk.environment } : {}), onEnvironment: (e) => lookStore.set(e ? { environment: e } : { environment: undefined as never }), onLook: (patch) => lookStore.set(patch), onAppearance: (patch) => lookStore.setAppearance(selComp ? componentKey(partName, selComp.id) : partName || 'part', patch),
+          library: { enabled: online.value.enabled, onEnable: () => setOnlineEnabled(true), list: () => onlineLibrary.list('wood'), listHdris: () => onlineLibrary.listHdris() },
           componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />

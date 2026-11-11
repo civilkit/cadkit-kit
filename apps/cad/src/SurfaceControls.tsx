@@ -2,10 +2,10 @@
 // the procedural grain: ring spacing, contrast, tone and direction. Each change is a patch of the appearance's `pbr` / `look`; a value
 // not touched is not stored, so a later change of material still brings its own values.
 import type { JSX } from 'preact';
-import { materialParams, type Appearance, type PbrParams, type ProceduralLook } from '@kit/viewport';
+import { DEFAULT_RELIEF, materialParams, type Appearance, type PbrParams, type ProceduralLook } from '@kit/viewport';
 import { useEffect, useState } from 'preact/hooks';
 import { t } from './i18n';
-import { POLY, type TextureAsset } from './onlineLibrary';
+import { POLY, type HdriAsset, type TextureAsset } from './onlineLibrary';
 
 const pct = (v: number): number => Math.round(v * 100);
 export const GRAIN_DEFAULTS = { scale: 4, contrast: 0.5, tone: '#3a2616' } as const;
@@ -25,9 +25,9 @@ export function grainPatch(a: Appearance, change: GrainChange | null): Partial<A
 }
 
 /** What the texture picker needs from the online library (see onlineRuntime.ts). */
-export interface LibraryControls { enabled: boolean; onEnable(): void; list(): Promise<TextureAsset[]> }
+export interface LibraryControls { enabled: boolean; onEnable(): void; list(): Promise<TextureAsset[]>; /** the HDRI environments, when the library has them */ listHdris?(): Promise<HdriAsset[]> }
 
-function TexturePicker(p: { appearance: Appearance; onAppearance(patch: Partial<Appearance>): void; library: LibraryControls }): JSX.Element {
+export function TexturePicker(p: { appearance: Appearance; onAppearance(patch: Partial<Appearance>): void; library: LibraryControls }): JSX.Element {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<TextureAsset[] | null>(null);
   const [err, setErr] = useState(false);
@@ -49,6 +49,9 @@ function TexturePicker(p: { appearance: Appearance; onAppearance(patch: Partial<
           <label class="display-field"><span>{t('surface.texture.size')}</span>
             <input type="range" aria-label={t('surface.texture.size')} min={50} max={2000} step={10} value={tx.scale ?? 400} aria-valuetext={`${tx.scale ?? 400} mm`}
               onInput={(e) => p.onAppearance({ texture: { ...tx, scale: Number((e.currentTarget as HTMLInputElement).value) } })} /></label>
+          <label class="display-field"><span>{t('surface.texture.relief')}</span>
+            <input type="range" aria-label={t('surface.texture.relief')} min={0} max={1} step={0.01} value={tx.relief ?? DEFAULT_RELIEF} aria-valuetext={`${pct(tx.relief ?? DEFAULT_RELIEF)}%`}
+              onInput={(e) => p.onAppearance({ texture: { ...tx, relief: Number((e.currentTarget as HTMLInputElement).value) } })} /></label>
           <button type="button" class="display-reset" onClick={() => p.onAppearance({ texture: undefined })}>{t('surface.texture.remove')}</button>
         </div>
       ) : null}

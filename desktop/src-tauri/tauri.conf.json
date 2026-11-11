@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CivilKit CAD",
+  "version": "../package.json",
+  "identifier": "io.civilkit.cad",
+  "build": {
+    "frontendDist": "../../dist-pages-civilkit"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://dl.polyhaven.org https://cdn.polyhaven.com; connect-src 'self' blob: data: ipc: http://ipc.localhost https://api.polyhaven.com https://dl.polyhaven.org https://cdn.polyhaven.com; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.png"],
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Parametric CAD",
+    "copyright": "CivilKit",
+    "fileAssociations": [
+      { "ext": ["ckpart"], "name": "CivilKit part", "description": "CivilKit part file", "mimeType": "application/x-civilkit-part", "role": "Editor" }
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "signingIdentity": "-"
+    }
+  }
+}

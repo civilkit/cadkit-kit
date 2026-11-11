@@ -99,6 +99,17 @@ describe('texture picker', () => {
     fireEvent.click(screen.getByText(t('surface.texture.remove')));
     expect(on).toHaveBeenCalledWith({ texture: undefined });
   });
+  it('the relief slider changes only the relief of the texture, and the value is clamped when stored', () => {
+    const on = vi.fn();
+    const texture = { source: 'polyhaven' as const, id: 'oak_plank', name: 'Oak Plank' };
+    render(<SurfaceControls appearance={{ ...DEFAULT_APPEARANCE, texture }} onAppearance={on} library={{ enabled: false, onEnable: () => {}, list: async () => [] }} />);
+    const s = screen.getByLabelText(t('surface.texture.relief')) as HTMLInputElement;
+    expect(s.value).toBe('0.5');
+    fireEvent.input(s, { target: { value: '0.8' } });
+    expect(on).toHaveBeenCalledWith({ texture: { ...texture, relief: 0.8 } });
+    expect(sanitizeAppearance({ color: '#aabbcc', material: 'default', texture: { ...texture, relief: 7 } }).texture?.relief).toBe(1);
+    expect(sanitizeAppearance({ color: '#aabbcc', material: 'default', texture: { ...texture, relief: 'x' } }).texture?.relief).toBeUndefined();
+  });
   it('an unsafe texture id or an unknown source is dropped when stored', () => {
     expect(sanitizeAppearance({ color: '#aabbcc', material: 'default', texture: { source: 'polyhaven', id: '../x' } }).texture).toBeUndefined();
     expect(sanitizeAppearance({ color: '#aabbcc', material: 'default', texture: { source: 'other', id: 'x' } }).texture).toBeUndefined();

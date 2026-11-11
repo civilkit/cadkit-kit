@@ -1,0 +1,15 @@
+[Desktop Entry]
+# UNTESTED: no Linux build of the Tauri shell has been run. Adapted from the VectorCraft packaging.
+Type=Application
+Name=CivilKit CAD
+GenericName=Parametric CAD
+Comment=Parametric CAD with a verifiable kernel
+Exec=civilkit-cad %F
+TryExec=civilkit-cad
+Icon=io.civilkit.cad
+Terminal=false
+StartupNotify=true
+StartupWMClass=CivilKit CAD
+Categories=Graphics;3DGraphics;Engineering;
+Keywords=cad;parametric;3d;step;stl;sketch;
+MimeType=application/x-civilkit-part;

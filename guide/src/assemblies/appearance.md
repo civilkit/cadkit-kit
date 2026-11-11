@@ -19,7 +19,7 @@ The values are textbook figures that are good for estimating mass. They are not 
 
 ### Woods and panels
 
-The **Wood** category lists ten solid woods (birch, cedar, cherry, Douglas fir, eucalyptus, maple, oak, pine, teak and walnut) and five panels (MDF, chipboard P5, OSB/3, birch plywood and eucalyptus plywood). Each solid wood has its density at about 12% moisture and its stiffness along the grain from a named source (the species and a link are in the material's note), and its own colour. A part with a solid wood material shows growth rings and fine streaks in a darker tone of that colour, running along the longest side of the part; the panels have no grain. The panels are marked **unverified**: their figures are typical manufacturer values until each is checked against its product standard.
+The **Wood** category lists ten solid woods (birch, cedar, cherry, Douglas fir, eucalyptus, maple, oak, pine, teak and walnut) and seven panels (MDF, chipboard P5, OSB/3, and birch, eucalyptus, pine and spruce plywood). Each solid wood has its density at about 12% moisture and its stiffness along the grain from a named source (the species and a link are in the material's note), and its own colour. A part with a solid wood material shows growth rings and fine streaks in a darker tone of that colour, running along the longest side of the part; the panels have no grain. The panels are marked **unverified**: their figures are typical manufacturer values until each is checked against its product standard.
 
 ### Surface controls
 
@@ -29,7 +29,7 @@ Tick **Wood grain** to draw growth rings on any part (a solid wood material has 
 
 ### Textures from Poly Haven
 
-Under the Surface group, **Choose a texture...** opens a list of wood textures from the [Poly Haven](https://polyhaven.com) library (search by name; the thumbnail shows the look). Pick one and the part is drawn with it: the colour image and, when the texture has one, its roughness image, projected onto the part from the three axes, so it works on any shape without texture coordinates. **Texture size** sets how large one tile of the image is in millimetres (it starts at the real size of the sheet the texture was photographed from), and **Remove texture** goes back to the colour and the grain. The author is credited under the texture. Poly Haven textures are public domain (CC0), so they may be used in any work.
+Under the Surface group, **Choose a texture...** opens a list of wood textures from the [Poly Haven](https://polyhaven.com) library (search by name; the thumbnail shows the look). Pick one and the part is drawn with it: the colour image and, when the texture has them, its roughness image and its normal map, projected onto the part from the three axes, so it works on any shape without texture coordinates. **Texture size** sets how large one tile of the image is in millimetres (it starts at the real size of the sheet the texture was photographed from), and **Texture relief** sets how strongly the texture's normal map (its fine bumps and grooves, shown by the light) is drawn, from 0 (flat) to 1 (strong, the middle is the texture as photographed). **Remove texture** goes back to the colour and the grain. The author is credited under the texture. Poly Haven textures are public domain (CC0), so they may be used in any work.
 
 Textures come from the internet, so they depend on **Settings > General > Use online libraries**, which is **off** until you turn it on (or press **Allow online libraries** in the list). With it off the app contacts nothing; with it on it contacts `api.polyhaven.com`, `dl.polyhaven.org` and `cdn.polyhaven.com` and sends only which texture you are looking at, never your part. Each downloaded texture (about 1.5 MB at 1K) is kept in the browser, up to 120 MB with the oldest removed first, so a part that uses it still shows it offline; **Clear downloaded textures** in the same Settings section empties the cache. A part opened on a computer that has not downloaded its texture shows its plain colour until online libraries are on. The texture choice is kept on this device with the part's other appearance settings, not in the part file.
 
@@ -102,6 +102,8 @@ Picking and hover highlights work in every style. While you edit a sketch, the b
 
 Light strength scales every light. With Reflections off, metals lose their metal look, and the Flat and Technical presets never have it. The default background is the gradient, which follows the light or dark theme.
 
+Under the presets, **Choose an environment...** replaces the built-in studio light with a real-world light environment (an HDRI) from the [Poly Haven](https://polyhaven.com) library, so metal and varnish reflect a room, a street or a sky instead of the studio softboxes. The list has thumbnails and a search, and **Studio (built in)** goes back to the default. Only the reflections and the image based light change, not the background. An environment has the same rules as a texture: it needs **Settings > General > Use online libraries** (off until you turn it on), only the 1K version (about 1.5 MB) is downloaded, it is kept in the same browser cache with the same 120 MB limit, and the author is credited under the choice. The Flat preset and the Reflections switch still turn the reflections off. The choice is kept on this device with the other display settings.
+
 ### Edges and silhouette
 
 Edge lines are drawn at a fixed pixel width (Thin by default) in a colour darker than the faces. The **Silhouette outline** (on by default) also outlines the rim of curved faces where no edge line lies. It is switched off in a section view, in Wireframe and Ghost, and for translucent bodies.
@@ -133,9 +135,11 @@ Below the list, the selected body has an **Appearance** group:
 | Opacity | 5 to 100 percent. A body below 100 percent is drawn in a separate transparent pass. |
 | Finish | Part material (no override), Matte, Plastic, Chrome, Glass or Brushed metal. |
 | Metallic, Roughness | Fine control over the finish. |
-| Glass, Chrome, Reset | Presets, and a button that removes the override. |
+| Clear coat | 0 to 100 percent: a thin glossy layer on top of this body only (a varnished or painted body next to a bare one). |
+| Choose a texture... | A [Poly Haven](https://polyhaven.com) texture on this body only, with its size, relief and the author's credit, the same as the part's texture under [Textures from Poly Haven](#textures-from-poly-haven). It needs **Use online libraries** like any other texture. |
+| Glass, Chrome, Reset | Presets, and a button that removes the override (the clear coat and the texture too). |
 
-Appearance set here is saved with the part and is not an undo step. Very clear bodies (below about a third opaque) are skipped by a click when something lies behind them, so you can pick what you see through the glass.
+A body with a texture or a clear coat is drawn on its own, so a texture shows only on a body that is not see-through (a body below 100 percent opacity keeps its plain colour), and while a section view or a surface analysis (zebra, curvature, draft) is on, such a body is drawn with the colour and finish only. Textures and clear coats are set per body, not per face. Appearance set here is saved with the part and is not an undo step. Very clear bodies (below about a third opaque) are skipped by a click when something lies behind them, so you can pick what you see through the glass.
 
 ![The Bodies tab with several bodies listed and one body selected after choosing the Glass preset, with its Appearance group visible.](../img/bodies-glass.png)
 

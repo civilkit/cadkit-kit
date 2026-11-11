@@ -1,7 +1,8 @@
 import { SurfaceControls, type LibraryControls } from './SurfaceControls';
+import { EnvironmentPicker } from './EnvironmentPicker';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { DisplayLayer, Display } from '@kit/store';
-import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE_WIDTHS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type EdgeWidth, type Appearance } from '@kit/viewport';
+import { DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, MATERIAL_PRESETS, EDGE_WIDTHS, PALETTE, type DisplayStyle, type LightPreset, type BackgroundMode, type MaterialPreset, type EdgeWidth, type Appearance, type SceneEnvironment } from '@kit/viewport';
 import type { AnalysisOptions } from '@kit/viewport';
 import { AnalysisSection } from './AnalysisControls';
 import { t } from './i18n';
@@ -13,6 +14,9 @@ export interface LookControls {
   style: DisplayStyle; ghostOpacity: number; light: LightPreset; background: BackgroundMode;
   intensity: number; reflections: boolean; edgeWidth: EdgeWidth; silhouette: boolean;
   appearance: Appearance;
+  /** the HDRI environment for the reflections (none: the built-in studio light) */
+  environment?: SceneEnvironment;
+  onEnvironment?(e: SceneEnvironment | undefined): void;
   /** the component an appearance change applies to (an assembly's selected component), if any */
   componentName?: string;
   onLook(patch: { style?: DisplayStyle; ghostOpacity?: number; light?: LightPreset; background?: BackgroundMode; intensity?: number; reflections?: boolean; edgeWidth?: EdgeWidth; silhouette?: boolean }): void;
@@ -127,6 +131,7 @@ function LookSections({ look }: { look: LookControls }) {
           </button>
         ))}
       </div>
+      {look.library?.listHdris && look.onEnvironment ? <EnvironmentPicker environment={look.environment} onEnvironment={look.onEnvironment} library={look.library} /> : null}
       <label class="display-field">
         <span>{t('display.intensity')}</span>
         <input type="range" aria-label={t('display.intensity')} min="0.3" max="2" step="0.05" value={look.intensity}

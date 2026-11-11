@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UNTESTED. AppStream metadata; the manifest substitutes @VERSION@ and @DATE@ (adapted from the VectorCraft packaging). Validate with appstreamcli before use. -->
+<component type="desktop-application">
+  <id>io.civilkit.cad</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license> <!-- TODO: set to the licence the public repository carries -->
+  <name>CivilKit CAD</name>
+  <summary>Parametric CAD with a verifiable kernel</summary>
+  <developer id="io.civilkit"><name>CivilKit</name></developer>
+  <description>
+    <p>CivilKit CAD is a parametric CAD application: sketch, extrude, revolve, fillet, shell, sheet metal, drawings, and a script tab. It opens and saves its own part files and imports and exports STEP, STL, OBJ, 3MF, glTF and DXF. It runs entirely on your computer and works offline.</p>
+  </description>
+  <launchable type="desktop-id">io.civilkit.cad.desktop</launchable>
+  <icon type="stock">io.civilkit.cad</icon>
+  <url type="homepage">https://civilkit.io/cad/</url>
+  <url type="help">https://civilkit.io/docs/cad/</url>
+  <categories><category>Graphics</category><category>3DGraphics</category><category>Engineering</category></categories>
+  <keywords><keyword>cad</keyword><keyword>parametric</keyword><keyword>step</keyword><keyword>stl</keyword></keywords>
+  <mimetypes><mimetype>application/x-civilkit-part</mimetype></mimetypes>
+  <requires><display_length compare="ge">900</display_length></requires>
+  <supports><control>keyboard</control><control>pointing</control></supports>
+  <provides><binary>civilkit-cad</binary></provides>
+  <content_rating type="oars-1.1"/>
+  <releases><release version="@VERSION@" date="@DATE@"/></releases>
+  <!-- TODO: add a <screenshots> block with a public image URL before a Flathub submission -->
+</component>

@@ -3,10 +3,10 @@
 // so no texture coordinates are needed. Until the images are there, or when there is no provider, the body keeps its plain colour.
 import * as THREE from 'three';
 
-/** Image URLs of one texture: the colour map and, if there is one, the roughness map (both usually JPEG, 1K). */
-export interface TextureMaps { map: string; rough?: string }
+/** Image URLs of one texture: the colour map and, if there are any, the roughness map and the OpenGL normal map (all usually JPEG, 1K). */
+export interface TextureMaps { map: string; rough?: string; normal?: string }
 export type TextureProvider = (id: string) => Promise<TextureMaps | null>;
-export interface LoadedTexture { map: THREE.Texture; rough: THREE.Texture | null }
+export interface LoadedTexture { map: THREE.Texture; rough: THREE.Texture | null; normal: THREE.Texture | null }
 
 let provider: TextureProvider | null = null;
 const loaded = new Map<string, LoadedTexture | null>();   // null: asked for and not available
@@ -16,7 +16,7 @@ const listeners = new Set<() => void>();
 /** The app's way to get images; set once at start. Clears what a previous provider gave. */
 export function setTextureProvider(p: TextureProvider | null): void {
   provider = p;
-  for (const v of loaded.values()) { v?.map.dispose(); v?.rough?.dispose(); }
+  for (const v of loaded.values()) { v?.map.dispose(); v?.rough?.dispose(); v?.normal?.dispose(); }
   loaded.clear(); pending.clear();
   for (const l of listeners) l();
 }
@@ -45,8 +45,9 @@ export function textureFor(id: string): LoadedTexture | null {
   const p = provider;
   void p(id).then(async (m) => {
     if (!m || p !== provider) return null;
-    const [map, rough] = await Promise.all([load(m.map, true), m.rough ? load(m.rough, false) : Promise.resolve(null)]);
-    return { map, rough } as LoadedTexture;
+    // the roughness and normal maps are extras: when one does not load, the texture still shows without it
+    const [map, rough, normal] = await Promise.all([load(m.map, true), m.rough ? load(m.rough, false).catch(() => null) : Promise.resolve(null), m.normal ? load(m.normal, false).catch(() => null) : Promise.resolve(null)]);
+    return { map, rough, normal } as LoadedTexture;
   }).catch(() => null).then((t) => {
     if (p !== provider) return;
     pending.delete(id); loaded.set(id, t);

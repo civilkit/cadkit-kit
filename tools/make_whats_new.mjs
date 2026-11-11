@@ -84,7 +84,7 @@ function clipHtml(h) {
   if (!has(`posters/${h.id}.png`)) return '';
   const webm = true, mp4 = true;
   const poster = ` poster="posters/${esc(h.id)}.png"`;
-  return `<span class="frame"><video class="clip" muted loop playsinline preload="none"${poster} width="960" height="540" aria-label="${esc(h.title)}" data-autoplay>${webm ? `<source src="clips/${esc(h.id)}.webm" type="video/webm">` : ''}${mp4 ? `<source src="clips/${esc(h.id)}.mp4" type="video/mp4">` : ''}</video></span>`;
+  return `<span class="frame"><video class="clip" muted loop playsinline preload="none"${poster} width="1920" height="1080" aria-label="${esc(h.title)}" data-autoplay>${webm ? `<source src="clips/${esc(h.id)}.webm" type="video/webm">` : ''}${mp4 ? `<source src="clips/${esc(h.id)}.mp4" type="video/mp4">` : ''}</video></span>`;
 }
 
 export function renderPage(changelog, highlights) {

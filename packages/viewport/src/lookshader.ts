@@ -14,10 +14,13 @@ export interface LookUniforms {
   uTexMap: { value: THREE.Texture | null };
   uTexRough: { value: THREE.Texture | null };
   uTexRoughOn: { value: number };
+  uTexNormal: { value: THREE.Texture | null };
+  uTexNormalOn: { value: number };
+  uTexRelief: { value: number };
 }
 export const makeLookUniforms = (): LookUniforms => ({
   uLookKind: { value: 0 }, uLookScale: { value: 4 }, uLookContrast: { value: 0.5 }, uLookTone: { value: new THREE.Color(0x000000) }, uLookAxis: { value: new THREE.Vector3(1, 0, 0) },
-  uTexOn: { value: 0 }, uTexScale: { value: 200 }, uTexMap: { value: null }, uTexRough: { value: null }, uTexRoughOn: { value: 0 },
+  uTexOn: { value: 0 }, uTexScale: { value: 200 }, uTexMap: { value: null }, uTexRough: { value: null }, uTexRoughOn: { value: 0 }, uTexNormal: { value: null }, uTexNormalOn: { value: 0 }, uTexRelief: { value: 1 },
 });
 
 const DECL = /* glsl */ `
@@ -29,6 +32,10 @@ uniform float uTexScale;
 uniform sampler2D uTexMap;
 uniform sampler2D uTexRough;
 uniform int uTexRoughOn;
+uniform sampler2D uTexNormal;
+uniform int uTexNormalOn;
+uniform float uTexRelief;
+varying mat3 vLNMat;
 vec4 triSample(sampler2D tex, vec3 p, vec3 n) {
   vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z + 1e-5);
   vec3 q = p / uTexScale;
@@ -66,18 +73,38 @@ const ROUGH = /* glsl */ `
   if (uTexOn == 1 && uTexRoughOn == 1) roughnessFactor = clamp(triSample(uTexRough, vLPos, normalize(vLNrm)).g, 0.04, 1.0);
 `;
 
+/** Normal map, triplanar with the whiteout blend: each projection's tangent-space normal is bent by the geometric normal, the three are blended in object
+ *  space and moved to view space with the object's normal matrix (passed from the vertex shader). `faceDirection` flips the normal on a back face. */
+const NORMAL = /* glsl */ `
+  if (uTexOn == 1 && uTexNormalOn == 1) {
+    vec3 gn = normalize(vLNrm) * faceDirection;
+    vec3 bw = pow(abs(gn), vec3(4.0)); bw /= (bw.x + bw.y + bw.z + 1e-5);
+    vec3 tq = vLPos / uTexScale;
+    vec3 nx = texture2D(uTexNormal, tq.yz).xyz * 2.0 - 1.0;
+    vec3 ny = texture2D(uTexNormal, tq.xz).xyz * 2.0 - 1.0;
+    vec3 nz = texture2D(uTexNormal, tq.xy).xyz * 2.0 - 1.0;
+    nx.xy *= uTexRelief; ny.xy *= uTexRelief; nz.xy *= uTexRelief;
+    nx = vec3(nx.xy + gn.zy, abs(nx.z) * gn.x);
+    ny = vec3(ny.xy + gn.xz, abs(ny.z) * gn.y);
+    nz = vec3(nz.xy + gn.xy, abs(nz.z) * gn.z);
+    vec3 on = normalize(nx.zyx * bw.x + ny.xzy * bw.y + nz.xyz * bw.z);
+    normal = normalize(vLNMat * on);
+  }
+`;
+
 /** Add the hook after any earlier one (the analysis layer's, the knurl layer's). Call once per material, last. */
 export function installLook(mat: THREE.MeshStandardMaterial, u: LookUniforms): void {
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey?.bind(mat);
   mat.onBeforeCompile = (sh, r) => {
     prev?.call(mat, sh, r);
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying vec3 vLPos;\nvarying vec3 vLNrm;\nvoid main() {\n  vLPos = position;\n  vLNrm = normal;');
+    sh.vertexShader = sh.vertexShader.replace('void main() {', 'varying vec3 vLPos;\nvarying vec3 vLNrm;\nvarying mat3 vLNMat;\nvoid main() {\n  vLPos = position;\n  vLNrm = normal;\n  vLNMat = normalMatrix;');
     sh.fragmentShader = sh.fragmentShader
       .replace('void main() {', `${DECL}\nvoid main() {`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${BODY}`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>\n${NORMAL}`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${ROUGH}`);
   };
-  mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}+look-v2`;
+  mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}+look-v3`;
   mat.needsUpdate = true;
 }

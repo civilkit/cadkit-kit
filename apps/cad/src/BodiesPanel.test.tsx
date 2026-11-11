@@ -83,6 +83,28 @@ describe('BodiesPanel', () => {
     expect(showAll.disabled).toBe(true);
     expect(hideOthers.disabled).toBe(true);
   });
+  it('a body has a clear coat slider, and a texture choice when the app has the online library', () => {
+    const { p, r } = setup({ selected: ['@body:a'] });
+    const group = r.container.querySelector('.body-look')!;
+    const coat = group.querySelector('input[id$="-cc"]') as HTMLInputElement;
+    expect(coat.value).toBe('0');
+    fireEvent.input(coat, { target: { value: '40' } });
+    expect(p.onLook).toHaveBeenLastCalledWith('@body:a', { clearcoat: 0.4 });
+    fireEvent.input(coat, { target: { value: '0' } });
+    expect(p.onLook).toHaveBeenLastCalledWith('@body:a', { clearcoat: undefined });
+    expect(r.container.querySelector('[data-testid=body-texture]')).toBeNull();   // no library: no half-working picker
+    cleanup();
+    const lib = { enabled: false, onEnable: vi.fn(), list: async () => [] };
+    const t2 = setup({ selected: ['@body:a'], rows: [row('@body:a', 'Panel', { look: { texture: { source: 'polyhaven', id: 'oak_plank', name: 'Oak Plank' } } })], library: lib });
+    const box = t2.r.container.querySelector('[data-testid=body-texture]')!;
+    expect(box.textContent).toContain('Oak Plank');
+    fireEvent.click(Array.from(box.querySelectorAll('button')).find((b) => b.textContent === 'Remove texture')!);
+    expect(t2.p.onLook).toHaveBeenLastCalledWith('@body:a', { texture: undefined });
+  });
+  it('says that a texture shows only on a body that is not see-through', () => {
+    const { r } = setup({ selected: ['@body:a'], rows: [row('@body:a', 'Panel', { look: { opacity: 0.5, texture: { source: 'polyhaven', id: 'oak_plank' } } })], library: { enabled: false, onEnable: () => {}, list: async () => [] } });
+    expect(r.container.querySelector('[data-testid=body-texture]')!.textContent).toContain('not see-through');
+  });
   it('the selected body shows its appearance: colour, opacity and finish go to onLook; Glass sets all three', () => {
     const { p, r } = setup({ selected: ['@body:b'] });
     const group = r.container.querySelector('.body-look')!;

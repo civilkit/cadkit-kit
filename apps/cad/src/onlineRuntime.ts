@@ -1,6 +1,6 @@
 // The one online library of the running app: the setting (off by default), the browser cache behind it, and the texture provider handed to the viewport.
 import { signal } from '@preact/signals-core';
-import { retryTextures, setTextureProvider } from '@kit/viewport';
+import { retryHdris, retryTextures, setHdriProvider, setTextureProvider } from '@kit/viewport';
 import { CACHE_NAME, createOnlineLibrary, loadOnlinePrefs, saveOnlinePrefs, type OnlinePrefs } from './onlineLibrary';
 
 export const online = signal<OnlinePrefs>(loadOnlinePrefs());
@@ -23,7 +23,7 @@ export const library = createOnlineLibrary({ fetch: (u) => fetch(u, { credential
 export function setOnlineEnabled(enabled: boolean): void {
   online.value = { enabled };
   saveOnlinePrefs(online.value);
-  if (enabled) retryTextures();
+  if (enabled) { retryTextures(); retryHdris(); }
 }
 export async function clearOnlineCache(): Promise<void> { await library.clear(); cacheSize.value = 0; }
 
@@ -31,4 +31,5 @@ export async function clearOnlineCache(): Promise<void> { await library.clear();
 export function startOnlineTextures(): void {
   cacheSize.value = library.cacheBytes();
   setTextureProvider(async (id) => { try { const m = await library.maps(id); cacheSize.value = library.cacheBytes(); return m; } catch { return null; } });
+  setHdriProvider(async (id) => { try { const u = await library.hdri(id); cacheSize.value = library.cacheBytes(); return u; } catch { return null; } });
 }

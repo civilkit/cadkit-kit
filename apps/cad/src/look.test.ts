@@ -22,6 +22,21 @@ describe('look state', () => {
   });
 });
 
+describe('environment', () => {
+  it('keeps a valid library environment and drops an unsafe id or another source', () => {
+    expect(sanitizeLook({ environment: { source: 'polyhaven', id: 'studio_small_03', name: 'Studio Small 03', author: 'G Author' } }).environment).toEqual({ source: 'polyhaven', id: 'studio_small_03', name: 'Studio Small 03', author: 'G Author' });
+    expect(sanitizeLook({ environment: { source: 'polyhaven', id: '../x' } }).environment).toBeUndefined();
+    expect(sanitizeLook({ environment: { source: 'polyhaven', id: 'A_b' } }).environment).toBeUndefined();
+    expect(sanitizeLook({ environment: { source: 'polyhaven', id: 'a'.repeat(81) } }).environment).toBeUndefined();
+    expect(sanitizeLook({ environment: { source: 'other', id: 'x' } }).environment).toBeUndefined();
+    expect('environment' in sanitizeLook({})).toBe(false);
+  });
+  it('round-trips through JSON', () => {
+    const l = sanitizeLook({ ...DEFAULT_LOOK, environment: { source: 'polyhaven', id: 'sky_01' } });
+    expect(sanitizeLook(JSON.parse(JSON.stringify(l))).environment?.id).toBe('sky_01');
+  });
+});
+
 describe('material colour', () => {
   it('shows the material colour unless the user picked one in Display > Appearance, or the toggle is off', () => {
     expect(effectiveAppearance(DEFAULT_LOOK, 'a', '#c8774a').color).toBe('#c8774a');

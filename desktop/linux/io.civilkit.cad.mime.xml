@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UNTESTED: adapted from the VectorCraft packaging. -->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-civilkit-part">
+    <comment>CivilKit part</comment>
+    <icon name="io.civilkit.cad"/>
+    <glob pattern="*.ckpart"/>
+    <glob pattern="*.ckpart"/>
+  </mime-type>
+</mime-info>

@@ -42,8 +42,8 @@ export class Page {
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
     return r.result.value;
   }
-  async setViewport(width, height, dark) {
-    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+  async setViewport(width, height, dark, dpr = 1) {
+    await this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: false });
     await this.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
   }
   /** Phone or tablet: mobile metrics (device pixel ratio, orientation), touch events, and so a coarse pointer without hover. */

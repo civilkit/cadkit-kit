@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { Icon } from '@kit/ui';
-import { FINISHES, PICK_OPACITY, finishParams } from '@kit/viewport';
+import { DEFAULT_APPEARANCE, FINISHES, PICK_OPACITY, finishParams } from '@kit/viewport';
 import { t } from './i18n';
+import { TexturePicker, type LibraryControls } from './SurfaceControls';
 import { FINISH_LABEL_KEY, GLASS_PRESET, SWATCH_DEFAULT, type BodyLookSpec, type BodyRow, type Finish } from './bodies';
 
 export interface BodiesPanelProps {
@@ -20,6 +21,8 @@ export interface BodiesPanelProps {
   onRemove?(keys: string[]): void;
   onCombine?(op: 'union' | 'cut' | 'intersect', keys: string[]): void;
   onLook(key: string, patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void;
+  /** The online texture library, when the app has one: a body's texture is chosen from it. Without it the texture choice is not shown. */
+  library?: LibraryControls;
   /** The name of the feature that made a body (its `origin`), shown under the body's name; without it the line is not shown. */
   madeBy?(origin: string): string | null;
 }
@@ -39,7 +42,7 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
   const commit = (): void => { if (renaming) p.onRename(renaming, draft); setRenaming(null); };
 
   const hint = p.rows.length ? <div class="bodies-hint">{t('bodies.pick')}</div> : null;
-  const detail = cur ? <LookEditor row={cur} onLook={(patch) => p.onLook(cur.key, patch)} /> : hint;
+  const detail = cur ? <LookEditor row={cur} onLook={(patch) => p.onLook(cur.key, patch)} {...(p.library ? { library: p.library } : {})} /> : hint;
   return (
     <section class="bodies" aria-label={t('bodies.title')}>
       <header class="bodies-head">
@@ -102,11 +105,12 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
   );
 }
 
-function LookEditor(p: { row: BodyRow; onLook(patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void }): JSX.Element {
+function LookEditor(p: { row: BodyRow; library?: LibraryControls; onLook(patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void }): JSX.Element {
   const l = p.row.look;
   const op = Math.round((l.opacity ?? 1) * 100);
   const fp = finishParams(l.finish);   // what the finish gives; the sliders override it (a file's PBR values come in this way)
   const met = Math.round((l.metallic ?? fp.metalness) * 100), rough = Math.round((l.roughness ?? fp.roughness) * 100);
+  const coat = Math.round((l.clearcoat ?? 0) * 100);
   const NO_PBR = { metallic: undefined, roughness: undefined };
   const id = 'body-look-' + p.row.key.replace(/\W/g, '_');
   return (
@@ -134,10 +138,20 @@ function LookEditor(p: { row: BodyRow; onLook(patch: Partial<Record<keyof BodyLo
         <input id={id + '-r'} type="range" min={0} max={100} step={1} value={rough} aria-valuetext={`${rough}%`} onInput={(e) => p.onLook({ roughness: Number((e.currentTarget as HTMLInputElement).value) / 100 })} />
         <output>{rough}%</output>
       </label>
+      <label class="body-field" for={id + '-cc'}><span>{t('bodies.clearcoat')}</span>
+        <input id={id + '-cc'} type="range" min={0} max={100} step={1} value={coat} aria-valuetext={`${coat}%`} onInput={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value) / 100; p.onLook({ clearcoat: v > 0 ? v : undefined }); }} />
+        <output>{coat}%</output>
+      </label>
+      {p.library ? (
+        <div class="body-texture surface-controls" data-testid="body-texture">
+          <TexturePicker appearance={{ ...DEFAULT_APPEARANCE, ...(l.texture ? { texture: l.texture } : {}) }} onAppearance={(patch) => p.onLook({ texture: patch.texture })} library={p.library} />
+          {l.texture && op < 100 ? <div class="bodies-hint">{t('bodies.texture.clear')}</div> : null}
+        </div>
+      ) : null}
       <div class="body-presets">
         <button type="button" class="bodies-btn" onClick={() => p.onLook({ ...GLASS_PRESET, ...NO_PBR })}>{t('bodies.preset.glass')}</button>
         <button type="button" class="bodies-btn" onClick={() => p.onLook({ color: '#e4e7ea', finish: 'chrome', opacity: undefined, ...NO_PBR })}>{t('bodies.preset.chrome')}</button>
-        <button type="button" class="bodies-btn" disabled={!Object.keys(l).length} onClick={() => p.onLook({ color: undefined, opacity: undefined, finish: undefined, ...NO_PBR })}>{t('bodies.reset')}</button>
+        <button type="button" class="bodies-btn" disabled={!Object.keys(l).length} onClick={() => p.onLook({ color: undefined, opacity: undefined, finish: undefined, clearcoat: undefined, texture: undefined, ...NO_PBR })}>{t('bodies.reset')}</button>
       </div>
     </div>
   );

@@ -27,7 +27,9 @@ OBJ and DWG cannot be imported yet. "View only" means you can look at the body a
 | CivilKit CAD part | `.ckpart`, `.ckpart.gz` | Save, Save as | The recipe and the app's own data | Nothing |
 | STEP | `.step` | Export | The exact solid | Colours, history |
 | STL (binary or ASCII) | `.stl` | Export | A triangle mesh | The exact surfaces, colours, history |
-| OBJ | `.obj` | Export | A triangle mesh | The exact surfaces, colours, history |
+| OBJ | `.obj` | Export | A triangle mesh, one object per body | The exact surfaces, history |
+| 3MF | `.3mf` | Export | A triangle mesh for 3D printing, one object per body, with body colours | The exact surfaces, history |
+| glTF binary | `.glb` | Export | A triangle mesh for viewers and the web, one node per body | The exact surfaces, history |
 | DXF, sketch | `.dxf` | Export | One sketch as R12 2D geometry | Constraints, dimensions |
 | DXF, three views | `.dxf` | Export | Front, top and right views of the edges | Hidden lines, dimensions |
 | Drawing | `.pdf`, `.svg`, `.dxf` | Drawing view | The sheet as drawn | The link to the part |

@@ -1,0 +1,39 @@
+# UNTESTED. Written without flatpak-builder or WebKitGTK available; never built or run. Not for Flathub as is.
+# Adapted from the VectorCraft packaging (MIT OR Apache-2.0) for a Tauri app: the shell uses the system WebKitGTK, so the GNOME
+# runtime (org.gnome.Platform, which carries WebKitGTK 4.1) is used instead of the freedesktop one.
+#
+# Repackages a Linux build of the Tauri app (tauri build --bundles deb, then the binary from src-tauri/target/release/civilkit-cad).
+# desktop/linux/stage/ must contain: civilkit-cad (the binary) and version.txt. Then:
+#   flatpak install flathub org.gnome.Platform//47 org.gnome.Sdk//47
+#   cd desktop/linux && flatpak-builder --user --install --force-clean build-dir io.civilkit.cad.yml && flatpak run io.civilkit.cad
+# To check on a first build: WebGL in WebKitGTK (--device=dri), the file chooser portal, the .ckpart association.
+id: io.civilkit.cad
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+command: civilkit-cad
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=network   # only the Poly Haven libraries, when the user turns them on
+  - --talk-name=org.freedesktop.portal.Desktop
+modules:
+  - name: civilkit-cad
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 stage/civilkit-cad /app/bin/civilkit-cad
+      - install -Dm644 io.civilkit.cad.desktop /app/share/applications/io.civilkit.cad.desktop
+      - install -Dm644 io.civilkit.cad.mime.xml /app/share/mime/packages/io.civilkit.cad.xml
+      - install -Dm644 icon-512.png /app/share/icons/hicolor/512x512/apps/io.civilkit.cad.png
+      - >-
+        install -d /app/share/metainfo;
+        sed -e "s/@VERSION@/$(cat stage/version.txt)/" -e "s/@DATE@/$(date -u +%Y-%m-%d)/"
+        io.civilkit.cad.metainfo.xml.in > /app/share/metainfo/io.civilkit.cad.metainfo.xml
+    sources:
+      - type: dir
+        path: .
+      - type: file
+        path: ../src-tauri/icons/icon.png
+        dest-filename: icon-512.png

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { backToFront, hiddenSets, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
+import { backToFront, hiddenSets, needsOwnMaterial, pickThrough, rangeCentre, separateBodies, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace } from './meshgeom';
 
 const tri = (z: number): number[] => [0, 0, z, 1, 0, z, 0, 1, z];
@@ -71,5 +71,34 @@ describe('metallic and roughness of a look', () => {
     expect(lookMaterial({ metallic: 0.2 })).toEqual({ roughness: null, metalness: 0.2 });
     expect(looksTinted({ opacity: 0.5 })).toBe(false);
     expect(looksTinted({ roughness: 0.3 })).toBe(true);
+  });
+});
+
+describe('bodies with a material of their own', () => {
+  const tex = { source: 'polyhaven' as const, id: 'oak_plank' };
+  it('a texture or a clear coat needs its own material; a colour, finish or zero clear coat does not', () => {
+    expect(needsOwnMaterial({ texture: tex })).toBe(true);
+    expect(needsOwnMaterial({ clearcoat: 0.4 })).toBe(true);
+    expect(needsOwnMaterial({ clearcoat: 0 })).toBe(false);
+    expect(needsOwnMaterial({ color: '#ffffff', finish: 'chrome', roughness: 0.2 })).toBe(false);
+    expect(needsOwnMaterial(undefined)).toBe(false);
+  });
+  it('ranks the own bodies first, then the transparent ones, and leaves the rest in the shared mesh', () => {
+    const s = separateBodies(spec({ A: { texture: tex }, B: { opacity: 0.3 }, C: { clearcoat: 0.5 } }));
+    expect(s.keys).toEqual(['A', 'C', 'B']);
+    expect(s.own).toBe(2);
+    expect([...s.rank]).toEqual([['f0', 1], ['f1', 1], ['f3', 2], ['f2', 3]]);
+    const g = groupByFace(mesh(), (n) => s.rank.get(n) ?? 0);
+    expect(g.ranges.map((r) => r.name)).toEqual(['f0', 'f1', 'f3', 'f2']);   // A's faces, then C, then the clear B; no opaque plain body here
+  });
+  it('a hidden body, or a see-through one (the clear pass has no texture), is not an own body', () => {
+    const s = separateBodies(spec({ A: { texture: tex }, B: { texture: tex, opacity: 0.4 } }, ['A']));
+    expect(s.own).toBe(0);
+    expect(s.keys).toEqual(['B']);
+  });
+  it('with none of them the result is the transparent pass alone', () => {
+    const s = separateBodies(spec({ B: { opacity: 0.2 }, C: { color: '#ff0000' } }));
+    expect(s).toMatchObject({ keys: ['B'], own: 0 });
+    expect([...s.rank]).toEqual([['f2', 1]]);
   });
 });

@@ -15,3 +15,8 @@ guide/civilkit-*.css
 # What's new clips are recorded with tools/clips/record.mjs and added to the deploy build; only the posters are committed
 apps/cad/public/whats-new/clips/
 guide/civilkit-nav-*.js
+desktop/node_modules
+desktop/dist
+desktop/out
+desktop/src-tauri/target
+desktop/src-tauri/gen

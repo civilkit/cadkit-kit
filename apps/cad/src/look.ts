@@ -4,8 +4,8 @@
 // the session.
 import { signal } from '@preact/signals-core';
 import {
-  DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, EDGE_WIDTHS, DEFAULT_APPEARANCE, clampOpacity, clampIntensity, sanitizeAppearance,
-  type EdgeWidth, type DisplayStyle, type LightPreset, type BackgroundMode, type Appearance, type BodyLook,
+  DISPLAY_STYLES, LIGHT_PRESETS, BACKGROUND_MODES, EDGE_WIDTHS, DEFAULT_APPEARANCE, clampOpacity, clampIntensity, sanitizeAppearance, sanitizeEnvironment,
+  type EdgeWidth, type DisplayStyle, type LightPreset, type BackgroundMode, type Appearance, type BodyLook, type SceneEnvironment,
 } from '@kit/viewport';
 
 export interface Look {
@@ -15,6 +15,8 @@ export interface Look {
   background: BackgroundMode;
   /** lighting strength, 0.3 to 2 */
   intensity: number;
+  /** an HDRI from the online library for the reflections; none: the built-in studio light */
+  environment?: SceneEnvironment;
   /** studio reflections on metal */
   reflections: boolean;
   edgeWidth: EdgeWidth;
@@ -43,6 +45,7 @@ export function sanitizeLook(raw: unknown): Look {
     }
   }
   const fresh = r.v === LOOK_VERSION;
+  const environment = sanitizeEnvironment(r.environment);
   return {
     style: oneOf(r.style, DISPLAY_STYLES, DEFAULT_LOOK.style),
     ghostOpacity: clampOpacity(r.ghostOpacity, DEFAULT_LOOK.ghostOpacity),
@@ -52,6 +55,7 @@ export function sanitizeLook(raw: unknown): Look {
     reflections: typeof r.reflections === 'boolean' ? r.reflections : DEFAULT_LOOK.reflections,
     edgeWidth: oneOf(r.edgeWidth, EDGE_WIDTHS, DEFAULT_LOOK.edgeWidth),
     silhouette: typeof r.silhouette === 'boolean' ? r.silhouette : DEFAULT_LOOK.silhouette,
+    ...(environment ? { environment } : {}),
     v: LOOK_VERSION,
     appearances,
   };

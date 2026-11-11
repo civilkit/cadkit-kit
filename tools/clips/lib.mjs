@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, statSync, rmSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MAX_BYTES, MP4_CRFS, WEBM_CRFS, mp4Args, vfTail, webmArgs } from './encode.mjs';
+import { MAX_BYTES, POSTER_MAX, MP4_CRFS, WEBM_CRFS, mp4Args, vfTail, webmArgs } from './encode.mjs';
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const now = () => Date.now() / 1000;
@@ -15,7 +15,7 @@ const POINTER = `(() => { const d = document.createElement('div'); d.id = '__ptr
   addEventListener('mousemove', (e) => { add(); d.style.left = e.clientX + 'px'; d.style.top = e.clientY + 'px'; }, true); })();`;
 
 export class Rec {
-  constructor(page, { width = 960, fps = 22, crop = null } = {}) {
+  constructor(page, { width = 1920, fps = 22, crop = null } = {}) {
     this.page = page; this.width = width; this.fps = fps; this.crop = crop;
     this.frames = []; this.marks = {}; this.skips = []; this.x = 640; this.y = 360; this.live = false;
     this.onMsg = (m) => {
@@ -75,11 +75,11 @@ export class Rec {
     // poster: the frame nearest the 'poster' mark (else the middle), as a palette PNG of at most 60 KB
     const pt = this.marks.poster ?? (t0 + t1) / 2; const pf = fr.reduce((b, f, i) => (Math.abs(f.t - pt) < Math.abs(fr[b].t - pt) ? i : b), 0);
     const png = join(posterDir, `${id}.png`);
-    for (const w of [this.width, 800, 720, 640]) {
+    for (const w of [1280, 960, 800, 640]) {
       const pv = [this.crop ? `crop=${this.crop.join(':')}` : null, `scale=${w}:-2:flags=lanczos`].filter(Boolean).join(',');
       spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', join(dir, `f${pf}.jpg`), '-vf', pv, '-frames:v', '1', png]);
       spawnSync('pngquant', ['--force', '--quality', '40-80', '--output', png, png]);
-      if (statSync(png).size <= 60 * 1024) { report.poster = `${Math.round(statSync(png).size / 1024)} KB at ${w}px`; break; }
+      if (statSync(png).size <= POSTER_MAX) { report.poster = `${Math.round(statSync(png).size / 1024)} KB at ${w}px`; break; }
     }
     rmSync(dir, { recursive: true });
     return report;

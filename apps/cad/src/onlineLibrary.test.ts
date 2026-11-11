@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { createOnlineLibrary, sanitizeOnlinePrefs, loadOnlinePrefs, OnlineOff, type Deps } from './onlineLibrary';
 
 const LIST = { walnut_veneer_02: { name: 'Walnut Veneer 02', authors: { 'A Author': 'All' }, dimensions: [1000, 1000] }, 'bad id!': {}, oak_plank: { name: 'Oak Plank', authors: {}, dimensions: [2000, 2000] } };
-const FILES = { Diffuse: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/diff.jpg' } } }, Rough: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/rough.jpg' } } } };
+const HDRIS = { studio_small_03: { name: 'Studio Small 03', authors: { 'G Author': 'All' } }, 'bad id!': {} };
+const HDRI_FILES = { hdri: { '1k': { hdr: { url: 'https://dl.polyhaven.org/h/s.hdr' }, exr: { url: 'https://dl.polyhaven.org/h/s.exr' } }, '4k': { hdr: { url: 'https://dl.polyhaven.org/h/s4.hdr' } } } };
+const FILES = { Diffuse: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/diff.jpg' } } }, Rough: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/rough.jpg' } } }, nor_gl: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/nor.jpg' } } }, nor_dx: { '1k': { jpg: { url: 'https://dl.polyhaven.org/x/nordx.jpg' } } } };
 
 function memoryCache(): NonNullable<Deps['cache']> & { store: Map<string, Response> } {
   const store = new Map<string, Response>();
@@ -12,8 +14,12 @@ function setup(enabled = true, cap?: number) {
   const calls: string[] = [];
   const net = new Map<string, () => Response>([
     ['https://api.polyhaven.com/assets?t=textures&c=wood', () => new Response(JSON.stringify(LIST))],
+    ['https://api.polyhaven.com/assets?t=hdris', () => new Response(JSON.stringify(HDRIS))],
+    ['https://api.polyhaven.com/files/studio_small_03', () => new Response(JSON.stringify(HDRI_FILES))],
+    ['https://dl.polyhaven.org/h/s.hdr', () => new Response(new Uint8Array(900), { headers: { 'content-type': 'application/octet-stream' } })],
     ['https://api.polyhaven.com/files/walnut_veneer_02', () => new Response(JSON.stringify(FILES))],
     ['https://dl.polyhaven.org/x/diff.jpg', () => new Response(new Uint8Array(1000), { headers: { 'content-type': 'image/jpeg' } })],
+    ['https://dl.polyhaven.org/x/nor.jpg', () => new Response(new Uint8Array(700), { headers: { 'content-type': 'image/jpeg' } })],
     ['https://dl.polyhaven.org/x/rough.jpg', () => new Response(new Uint8Array(500), { headers: { 'content-type': 'image/jpeg' } })],
   ]);
   const state = { on: enabled }, cache = memoryCache(); let idx: Record<string, { size: number; t: number }> = {}; let t = 0;
@@ -47,13 +53,36 @@ describe('online library', () => {
   it('fetches the 1K colour and roughness maps once, then serves them from the cache, also when the libraries are turned off', async () => {
     const { lib, calls, state } = setup();
     const m = await lib.maps('walnut_veneer_02');
-    expect(m?.map).toMatch(/^blob:/); expect(m?.rough).toMatch(/^blob:/);
-    expect(calls.filter((u) => u.endsWith('.jpg'))).toHaveLength(2);
+    expect(m?.map).toMatch(/^blob:/); expect(m?.rough).toMatch(/^blob:/); expect(m?.normal).toMatch(/^blob:/);
+    expect(calls.filter((u) => u.endsWith('.jpg'))).toHaveLength(3);   // the OpenGL normal map, not the DirectX one
     state.on = false;
     const again = await lib.maps('walnut_veneer_02');
     expect(again?.map).toBe(m?.map);
-    expect(calls.filter((u) => u.endsWith('.jpg'))).toHaveLength(2);
-    expect(lib.cacheBytes()).toBeGreaterThan(1400);
+    expect(calls.filter((u) => u.endsWith('.jpg'))).toHaveLength(3);
+    expect(lib.cacheBytes()).toBeGreaterThan(2100);
+  });
+  it('lists the HDRI environments with their credit, skipping unsafe ids', async () => {
+    const { lib } = setup();
+    const l = await lib.listHdris();
+    expect(l).toHaveLength(1);
+    expect(l[0]).toMatchObject({ id: 'studio_small_03', name: 'Studio Small 03', authors: ['G Author'] });
+    expect(l[0]!.thumb).toContain('cdn.polyhaven.com/asset_img/thumbs/studio_small_03.png');
+  });
+  it('downloads only the 1K .hdr of an environment, once, and serves it from the cache when the libraries are off', async () => {
+    const { lib, calls, state } = setup();
+    const u = await lib.hdri('studio_small_03');
+    expect(u).toMatch(/^blob:/);
+    expect(calls.filter((c) => /\.(hdr|exr)$/.test(c))).toEqual(['https://dl.polyhaven.org/h/s.hdr']);
+    state.on = false;
+    expect(await lib.hdri('studio_small_03')).toBe(u);
+    expect(calls.filter((c) => c.endsWith('.hdr'))).toHaveLength(1);
+    expect(lib.cacheBytes()).toBeGreaterThanOrEqual(900);
+  });
+  it('an environment that is not cached cannot be fetched while the libraries are off, and a foreign host is refused', async () => {
+    const { lib, cache } = setup(false);
+    await expect(lib.hdri('studio_small_03')).rejects.toBeInstanceOf(OnlineOff);
+    cache.store.set('https://api.polyhaven.com/files/evil_sky', new Response(JSON.stringify({ hdri: { '1k': { hdr: { url: 'https://evil.example/x.hdr' } } } })));
+    expect(await lib.hdri('evil_sky')).toBeNull();
   });
   it('refuses a download host that is not the library\'s', async () => {
     const { lib, cache } = setup();

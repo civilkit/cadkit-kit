@@ -4,6 +4,15 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.6.2 - 2026-11-11
+
+- **Very thin or small parts mesh again.** A plain extrude with a tiny or thin result (a disc under a tenth of a millimetre, for example) no longer fails with an open tessellation: the kernel's vertex snapping now scales down with the size of the face.
+- **CivilKit CAD as a Mac app.** Download CivilKit CAD for macOS (Apple silicon or Intel) and run it in its own window without a browser; it works offline, saves with a native Save dialog, and double-clicking a `.ckpart` opens it. The download is not signed yet, so the first start needs one extra step (see the guide); Linux and Windows builds are not available yet, use the browser's Install button there.
+- **Clear coat and textures on a single body.** In the Bodies tab, the selected body's Appearance gets a **Clear coat** slider and **Choose a texture...** (Poly Haven, with size, relief and credit), saved with the part like the body's colour and finish. A texture shows on bodies that are not see-through, and is replaced by the plain colour in a section view or a surface analysis.
+- **Pine and spruce plywood in the Material list.** **Plywood - pine** (570 kg/m3, bending modulus 5000 N/mm2) and **Plywood - spruce** (460 kg/m3, 8131 N/mm2) join the wood panels, each from a named manufacturer declaration of performance and marked unverified until checked against a product standard.
+- **Light the part with a real-world environment.** **Display > Choose an environment...** lists the HDRI environments of the Poly Haven library (public domain) and uses the chosen one for the reflections instead of the built-in studio light; **Studio (built in)** goes back. It uses the same "Use online libraries" setting and download cache as the textures.
+- **Poly Haven textures now have relief.** A texture's normal map is drawn on the part too, mapped from all three sides, so the grain catches the light; the new **Texture relief** slider (Display menu, Surface) sets how strong it is, and 0 turns it off.
+
 ## 0.6.1 - 2026-11-11
 
 - **Mirroring a sheet metal part keeps it a sheet.** With `replace` the mirror image takes the part's place and unfolds the same, about any plane including a flat face; without it the image joins the sheet along a bend-free end of the base plate and the result unfolds as one sheet. Other planes are refused with the reason.

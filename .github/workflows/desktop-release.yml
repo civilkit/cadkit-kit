@@ -1,0 +1,77 @@
+# NOT YET USED. Drafted for the public repository, modelled on the VectorCraft release workflow (MIT OR Apache-2.0). The working repositories have no GitHub Actions.
+# Only runs by hand (workflow_dispatch). The macOS job is the one that matches what was built and tested locally; the Linux job is UNTESTED
+# (no Linux build of the Tauri shell has been run). Windows is not included. It creates or updates a DRAFT release; a maintainer publishes it in the GitHub UI.
+name: Desktop release (draft, unused)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to label the release (default: version in package.json)
+        required: false
+permissions:
+  contents: write
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y wabt
+      # TODO: the gated kernel wasm and the kernel checkout come from the kernel repository's release; fetch them here.
+      - name: Build the static web app
+        run: PAGES_OUT=dist-pages-civilkit/cad WASM_SRC="$RUNNER_TEMP/ck_wasm.wasm" CK_REBUILD="$RUNNER_TEMP/kernel" npm run build:pages
+      - uses: actions/upload-artifact@v4
+        with: { name: web, path: dist-pages-civilkit }
+  macos:
+    needs: web
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: 'aarch64-apple-darwin,x86_64-apple-darwin' }
+      - uses: actions/download-artifact@v4
+        with: { name: web, path: dist-pages-civilkit }
+      - name: Build (ad-hoc signed)
+        working-directory: desktop
+        run: |
+          npm ci
+          npm run build:mac
+      - uses: actions/upload-artifact@v4
+        with: { name: desktop-macos, path: 'desktop/src-tauri/target/*/release/bundle/dmg/*.dmg' }
+  linux:   # UNTESTED
+    needs: web
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: desktop/package-lock.json }
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - uses: actions/download-artifact@v4
+        with: { name: web, path: dist-pages-civilkit }
+      - working-directory: desktop
+        run: |
+          npm ci
+          npx tauri build --bundles deb,appimage
+      - uses: actions/upload-artifact@v4
+        with: { name: desktop-linux, path: 'desktop/src-tauri/target/release/bundle/*/*' }
+  draft-release:
+    needs: [macos]   # add `linux` once it is tested
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { pattern: desktop-*, path: out, merge-multiple: true }
+      - name: Checksums
+        working-directory: out
+        run: sha256sum * > SHA256SUMS
+      - name: Create or update the draft release
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          v="${{ inputs.version }}"; [ -n "$v" ] || v=$(node -p "require('./package.json').version")
+          gh release view "v$v" >/dev/null 2>&1 && gh release upload "v$v" out/* --clobber \
+            || gh release create "v$v" out/* --draft --title "CivilKit CAD v$v" --notes "Desktop build (macOS). Unsigned: see docs/desktop.md for how to open it."

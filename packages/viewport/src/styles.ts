@@ -49,7 +49,8 @@ export const PBR_KEYS: readonly (keyof PbrParams)[] = ['roughness', 'metalness',
 export interface ProceduralLook { kind: 'wood'; scale?: number; contrast?: number; tone?: string; axis?: 'x' | 'y' | 'z'; /** the user turned the grain off (a wood material would otherwise bring its own) */ off?: boolean }
 /** An image texture from an online library, drawn triplanar over the colour. `id` is the library's asset id, `scale` the size of one tile in mm
  *  (the asset's real-world size when the picker applied it), `name` and `author` the credit shown next to it. */
-export interface SurfaceTexture { source: 'polyhaven'; id: string; scale?: number; name?: string; author?: string }
+export interface SurfaceTexture { source: 'polyhaven'; id: string; scale?: number; /** strength of the normal map's relief, 0 (flat) to 1 (strong); 0.5 when not set */ relief?: number; name?: string; author?: string }
+export const DEFAULT_RELIEF = 0.5;
 export interface Appearance { color: string; material: MaterialPreset; pbr?: PbrParams; look?: ProceduralLook; texture?: SurfaceTexture }
 export const DEFAULT_APPEARANCE: Appearance = { color: '#c3ccd8', material: 'default' };
 /** The palette offered in the popover (hex). The first is the default body colour. */
@@ -92,7 +93,17 @@ export function sanitizeTexture(raw: unknown): SurfaceTexture | undefined {
   if (r.source !== 'polyhaven' || typeof r.id !== 'string' || !/^[a-z0-9_]{1,80}$/.test(r.id)) return undefined;
   const txt = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined);
   const scale = typeof r.scale === 'number' && isFinite(r.scale) ? Math.min(5000, Math.max(10, r.scale)) : undefined;
-  return { source: 'polyhaven', id: r.id, ...(scale !== undefined ? { scale } : {}), ...(txt(r.name) ? { name: txt(r.name)! } : {}), ...(txt(r.author) ? { author: txt(r.author)! } : {}) };
+  const relief = typeof r.relief === 'number' && isFinite(r.relief) ? Math.min(1, Math.max(0, r.relief)) : undefined;
+  return { source: 'polyhaven', id: r.id, ...(scale !== undefined ? { scale } : {}), ...(relief !== undefined ? { relief } : {}), ...(txt(r.name) ? { name: txt(r.name)! } : {}), ...(txt(r.author) ? { author: txt(r.author)! } : {}) };
+}
+/** A light environment (HDRI) from an online library, used for the reflections instead of the built-in studio light. `name` and `author` are the credit. */
+export interface SceneEnvironment { source: 'polyhaven'; id: string; name?: string; author?: string }
+export function sanitizeEnvironment(raw: unknown): SceneEnvironment | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.source !== 'polyhaven' || typeof r.id !== 'string' || !/^[a-z0-9_]{1,80}$/.test(r.id)) return undefined;
+  const txt = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined);
+  return { source: 'polyhaven', id: r.id, ...(txt(r.name) ? { name: txt(r.name)! } : {}), ...(txt(r.author) ? { author: txt(r.author)! } : {}) };
 }
 export function sanitizeAppearance(raw: unknown): Appearance {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
@@ -163,6 +174,9 @@ function setTexture(mat: THREE.MeshStandardMaterial, tx: SurfaceTexture | undefi
   u.uTexMap.value = ready.map;
   u.uTexRough.value = ready.rough;
   u.uTexRoughOn.value = ready.rough ? 1 : 0;
+  u.uTexNormal.value = ready.normal;
+  u.uTexNormalOn.value = ready.normal ? 1 : 0;
+  u.uTexRelief.value = (tx.relief ?? DEFAULT_RELIEF) * 2;   // the slider's middle is the map as photographed
 }
 
 export function makeBodyMaterial(look: BodyLook, fade = 1, tinted = false): THREE.MeshPhysicalMaterial {

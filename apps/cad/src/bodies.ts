@@ -2,7 +2,7 @@
 // edges), found by the selection model. Nothing here touches the kernel or the feature history.
 //
 // Document fields (viewer state, not features, not undo steps; saved with the part):
-//   appearance: { [key]: { color?: '#rrggbb', opacity?: 0.05..1, finish?: 'matte'|'plastic'|'chrome'|'glass'|'brushed', metallic?: 0..1, roughness?: 0..1 } }
+//   appearance: { [key]: { color?: '#rrggbb', opacity?: 0.05..1, finish?: 'matte'|'plastic'|'chrome'|'glass'|'brushed', metallic?: 0..1, roughness?: 0..1, clearcoat?: 0..1, texture?: { source: 'polyhaven', id, scale?, relief?, name?, author? } } }
 //   bodyNames:  { [key]: string }
 //   view:       { hiddenBodies: string[] }       (body keys, or feature ids: every body made by that feature)
 // KEY RULE. A key is either a BODY key or a FEATURE id.
@@ -16,7 +16,7 @@
 import type { MeshBody } from '@kit/io';
 import type { Body } from './select/model';
 import { BODY_PREFIX } from './select/model';
-import { clampBodyOpacity, clampUnit, FINISHES, isHex, type BodyLookSpec, type BodyViewSpec, type Finish } from '@kit/viewport';
+import { clampBodyOpacity, clampUnit, FINISHES, isHex, sanitizeTexture, type BodyLookSpec, type BodyViewSpec, type Finish } from '@kit/viewport';
 
 export type { BodyLookSpec, Finish };
 export const FEATURE_KEY = /^F\d+$/;
@@ -66,7 +66,7 @@ export function originOf(faces: readonly string[]): string | null {
 
 export const keyOf = (faces: readonly string[]): string => BODY_PREFIX + [...faces].sort()[0];
 
-/** Keep only what a look may hold: a hex colour, an opacity in 0.05..1, a known finish. */
+/** Keep only what a look may hold: a hex colour, an opacity in 0.05..1, a known finish, PBR values, a clear coat and a library texture (strictly checked). */
 export function cleanLook(raw: unknown): BodyLookSpec {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const out: BodyLookSpec = {};
@@ -77,6 +77,9 @@ export function cleanLook(raw: unknown): BodyLookSpec {
   const m = clampUnit(r.metallic), g = clampUnit(r.roughness);
   if (m !== undefined) out.metallic = m;
   if (g !== undefined) out.roughness = g;
+  const cc = clampUnit(r.clearcoat), tx = sanitizeTexture(r.texture);
+  if (cc !== undefined && cc > 0) out.clearcoat = cc;
+  if (tx) out.texture = tx;
   return out;
 }
 
@@ -249,7 +252,7 @@ export function splitBodies(
 /** What the viewport is given. */
 export function viewSpec(rows: readonly BodyRow[], faces?: Record<string, BodyLookSpec>): BodyViewSpec {
   const looks: Record<string, BodyLookSpec> = {};
-  for (const r of rows) if (r.look.color !== undefined || r.look.opacity !== undefined || r.look.finish !== undefined || r.look.metallic !== undefined || r.look.roughness !== undefined) looks[r.key] = r.look;
+  for (const r of rows) if (r.look.color !== undefined || r.look.opacity !== undefined || r.look.finish !== undefined || r.look.metallic !== undefined || r.look.roughness !== undefined || r.look.clearcoat !== undefined || r.look.texture !== undefined) looks[r.key] = r.look;
   return { bodies: rows.map((r) => ({ key: r.key, faces: r.faces, edges: r.edges })), looks, hidden: rows.filter((r) => r.hidden).map((r) => r.key), ...(faces && Object.keys(faces).length ? { faces } : {}) };
 }
 

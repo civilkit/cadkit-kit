@@ -19,6 +19,9 @@ export function saveOnlinePrefs(p: OnlinePrefs, storage: Pick<Storage, 'setItem'
 /** What one library asset needs to be listed and credited. `scale` is the real-world size of one tile in mm. */
 export interface TextureAsset { id: string; name: string; authors: string[]; scale: number; thumb: string }
 
+/** What one HDRI environment needs to be listed and credited. */
+export interface HdriAsset { id: string; name: string; authors: string[]; thumb: string }
+
 export const POLY = {
   api: 'https://api.polyhaven.com',
   thumb: (id: string): string => `https://cdn.polyhaven.com/asset_img/thumbs/${encodeURIComponent(id)}.png?width=128&height=128`,
@@ -93,7 +96,26 @@ export function createOnlineLibrary(d: Deps) {
       }
       return out.sort((a, b) => a.name.localeCompare(b.name));
     },
-    /** Object URLs of a texture's colour and roughness maps (1K JPEG). Throws OnlineOff when they are not cached and the libraries are off. */
+    /** The HDRI environments of the library (1K only is ever downloaded). */
+    async listHdris(): Promise<HdriAsset[]> {
+      const raw = await json(`${POLY.api}/assets?t=hdris`);
+      if (!isObj(raw)) return [];
+      const out: HdriAsset[] = [];
+      for (const [id, v] of Object.entries(raw)) {
+        if (!/^[a-z0-9_]{1,80}$/.test(id) || !isObj(v)) continue;
+        out.push({ id, name: typeof v.name === 'string' ? v.name : id, authors: isObj(v.authors) ? Object.keys(v.authors) : [], thumb: POLY.thumb(id) });
+      }
+      return out.sort((a, b) => a.name.localeCompare(b.name));
+    },
+    /** The object URL of an environment's 1K Radiance .hdr (about 1.5 MB), cached like the textures. Throws OnlineOff when it is not cached and the libraries are off. */
+    async hdri(id: string): Promise<string | null> {
+      const files = await json(`${POLY.api}/files/${encodeURIComponent(id)}`);
+      if (!isObj(files)) return null;
+      const f = files.hdri; const one = isObj(f) && isObj(f['1k']) ? f['1k'] : null; const hdr = one && isObj(one.hdr) ? one.hdr : null;
+      if (!hdr || typeof hdr.url !== 'string' || !(POLY.hosts as readonly string[]).includes(new URL(hdr.url).host)) return null;
+      return objectUrl(hdr.url);
+    },
+    /** Object URLs of a texture's colour, roughness and OpenGL normal maps (1K JPEG). Throws OnlineOff when they are not cached and the libraries are off. */
     async maps(id: string): Promise<TextureMaps | null> {
       const files = await json(`${POLY.api}/files/${encodeURIComponent(id)}`);
       if (!isObj(files)) return null;
@@ -101,10 +123,10 @@ export function createOnlineLibrary(d: Deps) {
         const f = files[k]; const one = isObj(f) && isObj(f['1k']) ? f['1k'] : null; const jpg = one && isObj(one.jpg) ? one.jpg : null;
         return jpg && typeof jpg.url === 'string' && (POLY.hosts as readonly string[]).includes(new URL(jpg.url).host) ? jpg.url : null;
       };
-      const diff = pick('Diffuse'), rough = pick('Rough');
+      const diff = pick('Diffuse'), rough = pick('Rough'), nor = pick('nor_gl');
       if (!diff) return null;
-      const [map, r] = await Promise.all([objectUrl(diff), rough ? objectUrl(rough).catch(() => undefined) : Promise.resolve(undefined)]);
-      return { map, ...(r ? { rough: r } : {}) };
+      const [map, r, n] = await Promise.all([objectUrl(diff), rough ? objectUrl(rough).catch(() => undefined) : Promise.resolve(undefined), nor ? objectUrl(nor).catch(() => undefined) : Promise.resolve(undefined)]);
+      return { map, ...(r ? { rough: r } : {}), ...(n ? { normal: n } : {}) };
     },
     cacheBytes(): number { return Object.values(d.index.read()).reduce((a, e) => a + e.size, 0); },
     async clear(): Promise<void> {

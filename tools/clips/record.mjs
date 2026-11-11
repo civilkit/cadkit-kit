@@ -34,8 +34,8 @@ try {
     const page = await Page.open(chrome.port);
     try {
       const vp = m.viewport ?? [1280, 720];
-      await page.setViewport(vp[0], vp[1], false);
-      const rec = new Rec(page, { width: m.width ?? 960, fps: m.fps ?? 22, crop: m.crop ?? null });
+      await page.setViewport(vp[0], vp[1], false, m.dpr ?? 2);   // retina: the page is rendered at twice the pixels
+      const rec = new Rec(page, { width: m.width ?? 1920, fps: m.fps ?? 22, crop: m.crop ?? null });
       await rec.install();
       const ctx = {
         page, base, rec, outDir, posterDir,

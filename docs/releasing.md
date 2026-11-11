@@ -17,7 +17,7 @@ change that stops old files opening MAJOR. The document format has its own numbe
 
 ## Cutting a release
 
-1. Check kit `main` is what you want to ship, with the kernel wasm you intend to publish (the one that passed its gate).
+1. Check kit `main` is what you want to ship, with the kernel wasm you intend to publish (the one that passed its gate). Run the kit's tests against the kernel checkout you ship: the kit resolves the kernel's TypeScript packages (`@ck/*`) from `../rebuild`, which other sessions leave on any branch, so a stale one fails tests that are not broken (`sheetHints`, the skill `registry` test). Use `CK_REBUILD=<kernel checkout> npx vitest run`, or fast-forward `../rebuild` to the kernel main first.
 2. `node tools/release.mjs minor --dry-run` shows the version, the number of entries and the notes it would write.
 3. `node tools/release.mjs minor --kernel-repo /path/to/kernel-checkout` (or `patch`, `major`, or an explicit `X.Y.Z`):
    runs the i18n check, moves Unreleased under `## X.Y.Z - date`, bumps `package.json`, commits `Release X.Y.Z`, tags `vX.Y.Z`
@@ -28,7 +28,7 @@ change that stops old files opening MAJOR. The document format has its own numbe
 
 ## What's new clips
 
-Each highlight in `docs/whats-new/highlights.json` can have a short looping clip. `node tools/clips/record.mjs --dir dist-pages-civilkit/cad --profile <scratch dir> [--only <id>]` records the clips of `tools/clips/NN-name.mjs` against a built pages app (headless Chrome, CDP screencast, ffmpeg with VP9 and H.264, at most 1 MB each, 960 px wide). The clip files (`apps/cad/public/whats-new/clips/`) are not committed: the build copies them into the deploy. The posters (`posters/<id>.png`, at most 60 KB) are committed. List clips made ahead of a release under the key "Unreleased" and rename the key when you cut the release. Look at every clip before it ships.
+Each highlight in `docs/whats-new/highlights.json` can have a short looping clip. `node tools/clips/record.mjs --dir dist-pages-civilkit/cad --profile <scratch dir> [--only <id>]` records the clips of `tools/clips/NN-name.mjs` against a built pages app (headless Chrome at a device pixel ratio of 2, so retina: CDP screencast, ffmpeg with VP9 and H.264, 1920 px wide, at most 4 MB each; the encode of one clip takes a few minutes). The clip files (`apps/cad/public/whats-new/clips/`) are not committed: the build copies them into the deploy. The posters (`posters/<id>.png`, at most 120 KB) are committed. List clips made ahead of a release under the key "Unreleased" and rename the key when you cut the release. Look at every clip before it ships.
 
 ## Keeping the guide current
 

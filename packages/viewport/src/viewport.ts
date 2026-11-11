@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
 import { TouchGuard } from './touchguard';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
-import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, transparentBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
+import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, separateBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
 import { pickFace, nearestEdge } from './pick';
 import { sketchPolylines, curvePolylines, planeOutlines, axisLines, type Polyline } from './layers';
@@ -28,6 +28,7 @@ import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, edgePixels, HIDD
 import { installLook, type LookUniforms } from './lookshader';
 import { onTexturesChanged } from './textures';
 import { buildStudioEnv } from './studioEnv';
+import { loadHdri, onHdriProviderChanged } from './hdri';
 const TECHNICAL_FACE = '#f2f4f7';
 import { makeHullMaterial } from './hull';
 import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
@@ -209,6 +210,11 @@ export class Viewport {
   private bodyView: BodyViewSpec = { bodies: [], looks: {}, hidden: [] };
   private glass: Array<{ mesh: THREE.Mesh; key: string; opacity: number; centre: THREE.Vector3 }> = [];
   private glassFaces = new Set<string>();
+  /** the bodies with a texture or clear coat: a mesh and a material of their own over their range of the shared buffer (see separateBodies) */
+  private own: Array<{ mesh: THREE.Mesh; key: string }> = [];
+  /** vertices of the shared buffer up to the end of the own bodies (the opaque ones come first): what the main mesh draws while the own meshes are folded back in */
+  private ownEnd = 0;
+  private opaqueEnd = 0;
   private faceLookMap = new Map<string, { color: string | null; roughness: number | null; metalness: number | null }>();
   private edgeMats: LineMaterial[] = [];
   private edgeWidth: EdgeWidth = 'thin';
@@ -219,6 +225,11 @@ export class Viewport {
   private reflections = true;
   private compLooks = new Map<string, Appearance>();
   private envTex: THREE.Texture | null = null;
+  /** the chosen HDRI environment (an id), the ones loaded so far (null: not available) and the ones being loaded */
+  private hdriId: string | null = null;
+  private readonly hdris = new Map<string, THREE.Texture | null>();
+  private readonly hdriPending = new Set<string>();
+  private offHdri: (() => void) | null = null;
   private readonly sunOffset = new THREE.Vector3();
   private highlight: THREE.Mesh | null = null;
   private sketchLines: THREE.LineSegments | LineSegments2 | null = null;
@@ -313,6 +324,7 @@ export class Viewport {
       pickPoint: (x, y) => this.hit(x, y)?.point.clone() ?? null,
       selectionCentre: () => { const b = namesBox(this.grouped, this.edges, [...this.selectedNames]); return b ? new THREE.Vector3((b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2) : null; },
     });
+    this.offHdri = onHdriProviderChanged(() => { for (const [k, v] of [...this.hdris]) if (v === null) this.hdris.delete(k); this.setLighting(this.lightPreset); this.dirty = true; });
     this.controls.addEventListener('start', () => { this.anim = null; });   // a drag or a wheel turn takes the camera over from a running view animation
     this.offTextures = onTexturesChanged(() => { this.applyMeshLook(); this.dirty = true; });   // an image texture finished loading
     this.controls.addEventListener('change', () => { if (this.ortho) this.updateClip(); this.dirty = true; this.scheduleSketchRefresh(); this.reportSketchZoom(); });
@@ -1368,7 +1380,7 @@ export class Viewport {
     const merged0 = mergeBodies(solidShown ? solidMesh : null, surfaces);
     const hid = hiddenSets(this.bodyView);
     const merged = hid.faces.size ? { ...merged0, ...withoutFaces(merged0.mesh, merged0.edges, hid.faces, hid.edges) } : merged0;
-    const tb = transparentBodies(this.bodyView);
+    const tb = separateBodies(this.bodyView);
     if (body.mesh.triFace.length > 0 || body.surfaces?.length) {
       // Fit frames what is drawn: bodies the document hides (a file's ground strip, a helper body) must not stretch the view
       const anyHidden = hid.faces.size > 0 || this.hiddenIds.size > 0;
@@ -1469,9 +1481,10 @@ export class Viewport {
   }
 
   /** Transparent bodies: one mesh each over its contiguous range of the shared vertex buffer. Returns the geometry the silhouette hull uses. */
-  private buildGlass(geo: THREE.BufferGeometry, g: Grouped, tb: { keys: string[]; rank: Map<string, number> }): THREE.BufferGeometry {
-    this.glass = [];
-    this.glassFaces = new Set(tb.rank.keys());
+  private buildGlass(geo: THREE.BufferGeometry, g: Grouped, tb: { keys: string[]; own: number; rank: Map<string, number> }): THREE.BufferGeometry {
+    this.glass = []; this.own = [];
+    this.glassFaces = new Set([...tb.rank].filter(([, r]) => r > tb.own).map(([f]) => f));
+    this.ownEnd = this.opaqueEnd = g.positions.length / 3;
     if (!tb.keys.length) return geo;
     const share = (start: number, count: number): THREE.BufferGeometry => {
       const x = new THREE.BufferGeometry();
@@ -1487,8 +1500,20 @@ export class Viewport {
       ext[k].start = Math.min(ext[k].start, r.start); ext[k].end = Math.max(ext[k].end, r.start + r.count);
     }
     geo.setDrawRange(0, opaque);   // the opaque mesh draws and picks only its own part of the buffer
+    this.opaqueEnd = opaque;
+    this.ownEnd = tb.keys.slice(0, tb.own).reduce((m, _, k) => (isFinite(ext[k].start) ? Math.max(m, ext[k].end) : m), opaque);
     tb.keys.forEach((key, k) => {
       if (!isFinite(ext[k].start)) return;
+      if (k < tb.own) {   // a texture or clear coat: the body's own mesh, drawn with the look shader like the shared one
+        const mat = makeBodyMaterial(this.shownLook(), this.bodyFade(), false);
+        this.knurls.install(mat);
+        installLook(mat, mat.userData.lookU as LookUniforms);
+        const mesh = new THREE.Mesh(share(ext[k].start, ext[k].end - ext[k].start), mat);
+        mesh.userData.bodyKey = key;
+        this.scene.add(mesh);
+        this.own.push({ mesh, key });
+        return;
+      }
       const look = this.bodyView.looks[key];
       const op = lookOpacity(look), gl = lookMaterial(look), glassFp = finishParams('glass'), fp = { roughness: gl.roughness ?? glassFp.roughness, metalness: gl.metalness ?? glassFp.metalness };
       const mat = new THREE.MeshStandardMaterial({ color: look?.color ?? '#9fb4c4', roughness: fp.roughness, metalness: fp.metalness * this.metalScale, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
@@ -1500,7 +1525,31 @@ export class Viewport {
       this.glass.push({ mesh, key, opacity: op, centre: new THREE.Vector3(c[0], c[1], c[2]) });
     });
     this.applyGlassStyle();
-    return share(0, opaque);   // the outline hull covers the opaque bodies only: a clear body has no outline over what is behind it
+    this.applyOwnBodies();
+    return share(0, this.ownEnd);   // the outline hull covers the opaque bodies (the textured ones too) only: a clear body has no outline over what is behind it
+  }
+
+  /** The look of a body that has a mesh of its own: the part's appearance with the body's colour, finish, clear coat and texture over it. */
+  private ownLook(key: string): BodyLook {
+    const base = this.shownLook(), l = this.bodyView.looks[key];
+    if (this.lightPreset === 'technical') return base;   // technical paints every face matte white
+    const m = lookMaterial(l), a = base.appearance;
+    const pbr = { ...(a.pbr ?? {}), ...(m.roughness !== null ? { roughness: m.roughness } : {}), ...(m.metalness !== null ? { metalness: m.metalness } : {}), ...(l?.clearcoat !== undefined ? { clearcoat: l.clearcoat } : {}) };
+    const { texture: _t, ...rest } = a;
+    return { ...base, appearance: { ...rest, color: l?.color ?? a.color, ...(Object.keys(pbr).length ? { pbr } : {}), ...(l?.texture ? { texture: l.texture } : {}) } };
+  }
+  /** Dress the own meshes with the current look, or fold them back into the shared mesh where that mesh has to draw everything (a section view or a surface analysis). */
+  private applyOwnBodies(): void {
+    if (!this.own.length) return;
+    const fold = this.sectionView.active || this.analysisOpts.mode !== 'off';
+    if (this.mesh) this.mesh.geometry.setDrawRange(0, fold ? this.ownEnd : this.opaqueEnd);
+    const axis = (this.mesh?.material as THREE.Material | undefined)?.userData.longAxis;
+    for (const o of this.own) {
+      o.mesh.visible = !fold;
+      const mat = o.mesh.material as THREE.MeshStandardMaterial;
+      if (axis) mat.userData.longAxis = axis;
+      applyBodyLook(mat, this.ownLook(o.key), this.bodyFade(), false);
+    }
   }
 
   /** The transparent bodies follow the display style: shaded and ghost draw them (ghost caps the opacity), hidden-line paints them white, wireframe not at all. */
@@ -1554,6 +1603,7 @@ export class Viewport {
     }
     if (this.hiddenEdgeLines) this.hiddenEdgeLines.visible = edgesOn && spec.hiddenEdges;
     this.applyAnalysis();
+    this.applyOwnBodies();
     this.applyGlassStyle();
     this.dirty = true;
   }
@@ -1562,6 +1612,7 @@ export class Viewport {
   setAnalysis(o: Partial<AnalysisOptions>): void {
     this.analysisOpts = sanitizeAnalysis({ ...this.analysisOpts, ...o });
     this.applyAnalysis();
+    this.applyOwnBodies();
     this.dirty = true;
   }
   getAnalysis(): AnalysisOptions { return this.analysisOpts; }
@@ -1572,13 +1623,37 @@ export class Viewport {
     this.analysis.apply({ mesh: this.mesh, grouped: this.grouped, faces, tints: this.baseTints, o: this.analysisOpts, lines: this.combLines, size, combVisible: true });
   }
 
+  /** The environment of the reflections: the HDRI when one is chosen and loaded (loading starts here), else the built-in studio light. */
+  private activeEnv(): THREE.Texture | null {
+    const id = this.hdriId;
+    if (!id) return this.envTex;
+    if (this.hdris.has(id)) return this.hdris.get(id) ?? this.envTex;
+    if (!this.hdriPending.has(id)) {
+      this.hdriPending.add(id);
+      void loadHdri(id, this.renderer).then((t) => {
+        this.hdriPending.delete(id);
+        if (this.disposed) { t?.dispose(); return; }
+        this.hdris.set(id, t);
+        if (this.hdriId === id) { this.setLighting(this.lightPreset); this.dirty = true; }
+      });
+    }
+    return this.envTex;
+  }
+  /** Use an HDRI environment (a library id) for the reflections instead of the studio light; null goes back to the studio. */
+  setEnvironment(id: string | null): void {
+    if (id === this.hdriId) return;
+    this.hdriId = id;
+    this.setLighting(this.lightPreset); this.dirty = true;
+  }
+
   /** Light preset (studio, flat, high contrast, technical), the intensity slider (0.3 to 2) and the reflections switch. */
   setLighting(p: LightPreset, intensity = this.lightIntensity, reflections = this.reflections): void {
     this.lightPreset = p; this.lightIntensity = intensity; this.reflections = reflections;
     const l = effectiveLight(p, intensity, reflections);
     this.hemi.color.set(l.sky); this.hemi.groundColor.set(l.ground); this.hemi.intensity = l.hemi;
     this.sun.intensity = l.sun;
-    this.scene.environment = this.envTex && l.env > 0 ? this.envTex : null;
+    const env = this.activeEnv();
+    this.scene.environment = env && l.env > 0 ? env : null;
     this.scene.environmentIntensity = l.env;
     this.metalScale = Math.min(1, l.env);
     this.renderer.toneMappingExposure = l.exposure;
@@ -2348,6 +2423,9 @@ export class Viewport {
 
   dispose(): void {
     this.offTextures?.(); this.offTextures = null;
+    this.offHdri?.(); this.offHdri = null;
+    for (const t of this.hdris.values()) t?.dispose();
+    this.hdris.clear();
     this.disposed = true;
     this.refMeshes.dispose();
     cancelAnimationFrame(this.raf);
@@ -2416,6 +2494,8 @@ export class Viewport {
     if (this.hiddenEdgeLines) { this.scene.remove(this.hiddenEdgeLines); (this.hiddenEdgeLines.material as THREE.Material).dispose(); this.hiddenEdgeLines = null; }
     for (const gl of this.glass) { this.scene.remove(gl.mesh); gl.mesh.geometry.dispose(); (gl.mesh.material as THREE.Material).dispose(); }
     this.glass = [];
+    for (const o of this.own) { this.scene.remove(o.mesh); o.mesh.geometry.dispose(); (o.mesh.material as THREE.Material).dispose(); }
+    this.own = [];
     for (const o of [this.mesh, this.edgeLines, this.highlight]) {
       if (!o) continue;
       this.scene.remove(o);
@@ -2442,9 +2522,9 @@ export class Viewport {
   private hit(x: number, y: number): THREE.Intersection | null {
     if (!this.mesh) return null;
     this.raycaster.setFromCamera(this.ndc(x, y), this.camera);
-    if (!this.glass.length) return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
+    if (!this.glass.length && !this.own.length) return this.raycaster.intersectObject(this.mesh, false)[0] ?? null;
     // transparent bodies are hit too, but a click on a clear one (below PICK_OPACITY) means what is behind it
-    const hits = this.raycaster.intersectObjects([this.mesh, ...this.glass.filter((gl) => gl.mesh.visible).map((gl) => gl.mesh)], false);
+    const hits = this.raycaster.intersectObjects([this.mesh, ...this.own.filter((o) => o.mesh.visible).map((o) => o.mesh), ...this.glass.filter((gl) => gl.mesh.visible).map((gl) => gl.mesh)], false);
     if (!hits.length) return null;
     const op = hits.map((h) => ({ opacity: (h.object.userData.bodyOpacity as number | undefined) ?? 1 }));
     return hits[pickThrough(op, PICK_OPACITY)];

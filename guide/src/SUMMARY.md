@@ -9,6 +9,7 @@
 - [Moving around the model](getting-started/navigation.md)
 - [Selecting things](getting-started/selection.md)
 - [Units and settings](getting-started/settings.md)
+- [The Mac app](getting-started/desktop.md)
 
 # Sketching
 

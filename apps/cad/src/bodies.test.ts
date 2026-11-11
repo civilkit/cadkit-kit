@@ -51,6 +51,17 @@ describe('look edits', () => {
   it('cleans a look: hex colour, opacity 0.05 to 1, known finish; British spelling accepted', () => {
     expect(cleanLook({ colour: '#ABCDEF', opacity: 0, finish: 'chrome' })).toEqual({ color: '#abcdef', opacity: 0.05, finish: 'chrome' });
     expect(cleanLook({ color: 'red', opacity: 9, finish: 'wood' })).toEqual({ opacity: 1 });
+    expect(cleanLook({ clearcoat: 3, texture: { source: 'polyhaven', id: 'oak_plank', scale: 9e9, relief: -1, junk: 1 } })).toEqual({ clearcoat: 1, texture: { source: 'polyhaven', id: 'oak_plank', scale: 5000, relief: 0 } });
+    expect(cleanLook({ clearcoat: 0, texture: { source: 'polyhaven', id: '../x' } })).toEqual({});
+    expect(cleanLook({ texture: { source: 'other', id: 'x' } })).toEqual({});
+  });
+  it('a clear coat and a texture are saved in the body entry and removed with undefined, and reach the view spec', () => {
+    const tex = { source: 'polyhaven' as const, id: 'oak_plank', name: 'Oak Plank' };
+    const a = withLook({}, rows[0], { clearcoat: 0.6, texture: tex });
+    expect(a[rows[0].key]).toEqual({ clearcoat: 0.6, texture: tex });
+    const r0 = { ...rows[0], look: a[rows[0].key] };
+    expect(viewSpec([r0]).looks[rows[0].key]).toEqual({ clearcoat: 0.6, texture: tex });
+    expect(withLook({ appearance: a }, r0, { clearcoat: undefined, texture: undefined })).toEqual({});
   });
   it('merges a patch into the body entry and drops an emptied entry', () => {
     const a = withLook({}, rows[0], { opacity: 0.3 });
