@@ -70,7 +70,7 @@ function* walk(dir) {
 
 /**
  * @param {string} dir built site
- * @param {Array<{id:string, file?:string, match?:string, reason:string}>} allow allow-listed false positives: `match` is an exact matched string, `file` a path prefix or substring
+ * @param {Array<{id:string, file?:string, match?:string, context?:string, reason:string}>} allow allow-listed false positives: `match` is an exact matched string, `file` a path prefix or substring, `context` a substring of the text around the match
  */
 export function scanDir(dir, allow = []) {
   for (const a of allow) if (!a.reason || !a.id) throw new Error('leak-check allow entry needs "id" and "reason": ' + JSON.stringify(a));
@@ -88,7 +88,7 @@ export function scanDir(dir, allow = []) {
     else if (TEXT_EXT.has(ext)) text = readFileSync(p, 'utf8');
     else { text = extractStrings(readFileSync(p)); }   // unknown type: treat as binary
     for (const h of scanText(text)) {
-      const a = allow.find((x) => x.id === h.id && (!x.match || x.match === h.match) && (!x.file || rel.includes(x.file)));
+      const a = allow.find((x) => x.id === h.id && (!x.match || x.match === h.match) && (!x.file || rel.includes(x.file)) && (!x.context || h.context.includes(x.context)));
       (a ? allowed : hits).push({ file: rel, ...h, ...(a ? { reason: a.reason } : {}) });
     }
   }

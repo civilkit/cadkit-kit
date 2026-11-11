@@ -52,10 +52,36 @@ export function validate(s: Schema, v: unknown, path = '$'): string[] {
       for (const [k, x] of Object.entries(o)) {
         const sub = s.properties?.[k];
         if (sub) { if (x !== undefined) out.push(...validate(sub, x, `${path}.${k}`)); }
-        else if (s.additionalProperties === false) out.push(`${path}.${k}: unknown field (allowed: ${Object.keys(s.properties ?? {}).join(', ') || 'none'})`);
+        else if (s.additionalProperties === false) {
+          const allowed = Object.keys(s.properties ?? {});
+          const near = closest(k, allowed);
+          out.push(`${path}.${k}: unknown field${near ? ` (did you mean ${near}?)` : ''} (allowed: ${allowed.join(', ') || 'none'}; parameters go at the top level of the input)`);
+        }
       }
       break;
     }
   }
   return out;
+}
+
+/** The allowed name closest to a misspelt one (edit distance of at most 2, or a prefix/substring match), or undefined. */
+function closest(k: string, names: string[]): string | undefined {
+  const lk = k.toLowerCase();
+  let best: string | undefined, bd = 3;
+  for (const n of names) {
+    const ln = n.toLowerCase();
+    const d = ln === lk ? 0 : (ln.includes(lk) || lk.includes(ln)) && Math.min(ln.length, lk.length) >= 3 ? 1 : editDistance(lk, ln);
+    if (d < bd) { bd = d; best = n; }
+  }
+  return best;
+}
+
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
 }

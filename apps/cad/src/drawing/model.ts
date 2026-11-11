@@ -47,7 +47,7 @@ export interface DDim {
   angle?: number;
   text?: string;
   /** persistent reference: faces (and a model point) of the edge(s) it was made on, so a regenerated view finds them again */
-  refs?: Array<{ faces: string[]; at: V3 }>;
+  refs?: Array<{ faces: string[]; at: V3; /** a centre line: the second silhouette edge it lies between (faces / at are the first's) */ axis?: { faces: string[]; at: V3 }; /** a centre mark: faces / at are the circle edge it marks */ mark?: boolean }>;
   /** callout: the hole or thread feature it speaks for */
   feature?: string;
   /** overall width / height of the view: follows the view's bounds instead of an edge */

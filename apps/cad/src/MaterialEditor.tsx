@@ -7,7 +7,7 @@ import { Icon } from '@kit/ui';
 import { t } from './i18n';
 import { massText } from './inspect/mass';
 import {
-  allMaterials, findMaterial, groupMaterials, loadCustom, massGrams, removeCustom, saveUseColour, upsertCustom,
+  allMaterials, findMaterial, groupMaterials, loadCustom, massGrams, removeCustom, saveUseColour, subgroups, upsertCustom,
   type MaterialDef,
 } from './materials';
 
@@ -90,12 +90,18 @@ export function MaterialEditor(p: MaterialEditorProps): JSX.Element {
           {groups.map((g) => (
             <div key={g.category} data-category={g.category}>
               <div class="mat-cat">{t('material.cat.' + g.category)}</div>
-              {g.items.map((m) => (
-                <div key={m.id} class="mat-item" role="option" tabIndex={-1} aria-selected={sel === m.id} data-material={m.id} onClick={() => pick(m)} onDblClick={() => { pick(m); choose(); }}>
-                  <span class="mat-chip" style={{ background: m.color }} />
-                  <span>{m.name}</span>
-                  <span class="mat-dens">{dens(m.density)}</span>
-                  {m.custom ? <button type="button" class="ref-edit" style={{ opacity: 1 }} aria-label={t('material.remove', { name: m.name })} title={t('material.remove', { name: m.name })} onClick={(e) => { e.stopPropagation(); setCustom(removeCustom(m.id)); if (sel === m.id) setSel(NEW); }}><Icon name="close" size={12} /></button> : null}
+              {subgroups(g.items).map((sg, _i, all) => (
+                <div key={sg.key} data-subgroup={sg.key}>
+                  {all.length > 1 ? <div class="mat-sub">{sg.region ? `${t('material.region.' + sg.region)} / ${sg.standard}` : t('material.general')}</div> : null}
+                  {sg.items.map((m) => (
+                    <div key={m.id} class="mat-item" role="option" tabIndex={-1} aria-selected={sel === m.id} data-material={m.id} onClick={() => pick(m)} onDblClick={() => { pick(m); choose(); }}>
+                      <span class="mat-chip" style={{ background: m.color }} />
+                      <span>{m.name}</span>
+                      {m.verified === false ? <span class="mat-badge" data-testid="material-unverified-badge" title={t('material.unverified.tip')}>{t('material.unverified')}</span> : null}
+                      <span class="mat-dens">{dens(m.density)}</span>
+                      {m.custom ? <button type="button" class="ref-edit" style={{ opacity: 1 }} aria-label={t('material.remove', { name: m.name })} title={t('material.remove', { name: m.name })} onClick={(e) => { e.stopPropagation(); setCustom(removeCustom(m.id)); if (sel === m.id) setSel(NEW); }}><Icon name="close" size={12} /></button> : null}
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
@@ -141,7 +147,18 @@ export function MaterialEditor(p: MaterialEditorProps): JSX.Element {
             {shown.youngs !== undefined ? <><dt>{t('material.youngs')}</dt><dd>{shown.youngs} GPa</dd></> : null}
             {shown.poisson !== undefined ? <><dt>{t('material.poisson')}</dt><dd>{shown.poisson}</dd></> : null}
             {shown.yield !== undefined ? <><dt>{t('material.yield')}</dt><dd>{shown.yield} MPa</dd></> : null}
+            {shown.yieldAlt !== undefined ? <><dt>{t('material.yieldAlt')}</dt><dd data-testid="material-yield-alt">{shown.yieldAlt} MPa</dd></> : null}
+            {shown.ultimate !== undefined ? <><dt>{t('material.ultimate')}</dt><dd>{shown.ultimate} MPa</dd></> : null}
+            {shown.shear !== undefined ? <><dt>{t('material.shear')}</dt><dd>{shown.shear} GPa</dd></> : null}
+            {shown.expansion !== undefined ? <><dt>{t('material.expansion')}</dt><dd>{shown.expansion} x 10⁻⁶ /K</dd></> : null}
+            {shown.standard ? <><dt>{t('material.standard')}</dt><dd>{[shown.standard, shown.grade].filter(Boolean).join(' / ')}</dd></> : null}
+            {shown.region ? <><dt>{t('material.region')}</dt><dd>{t('material.region.' + shown.region)}</dd></> : null}
           </dl>
+        ) : null}
+        {shown && shown.verified !== undefined ? (
+          <div class={'mat-verify' + (shown.verified ? '' : ' is-unverified')} data-testid="material-verified" role={shown.verified ? undefined : 'note'}>
+            {shown.verified ? t('material.verified') : t('material.unverified.note')}{shown.note ? <div class="mat-hint" data-testid="material-note">{shown.note}</div> : null}
+          </div>
         ) : null}
         <label class="fedit-check" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <input type="checkbox" checked={useColour} onChange={(e) => setUseColour((e.currentTarget as HTMLInputElement).checked)} data-testid="material-use-colour" />

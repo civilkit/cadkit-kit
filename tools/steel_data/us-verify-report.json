@@ -1,0 +1,383 @@
+{
+ "families": {
+  "primary_counts": {
+   "W": 283,
+   "S": 28,
+   "C": 32,
+   "MC": 40,
+   "L": 137,
+   "RHS": 281,
+   "SHS": 107,
+   "CHS": 128,
+   "PIPE": 51
+  }
+ },
+ "candidate": {
+  "tolerance_pct": 2.0,
+  "by_family": {
+   "W": {
+    "cand": 283,
+    "matched": 283,
+    "dropped_absent_in_primary": [],
+    "compared": 1698,
+    "mismatch_values": 2,
+    "mismatch_sections": 2,
+    "worst_pct": 2.77,
+    "worst": [
+     "W6x8.5",
+     "massPerMetre_kgm",
+     13,
+     12.649
+    ]
+   },
+   "S": {
+    "cand": 28,
+    "matched": 28,
+    "dropped_absent_in_primary": [],
+    "compared": 168,
+    "mismatch_values": 0,
+    "mismatch_sections": 0,
+    "worst_pct": 0.79,
+    "worst": [
+     "S5x10",
+     "massPerMetre_kgm",
+     15,
+     14.882
+    ]
+   },
+   "C": {
+    "cand": 32,
+    "matched": 32,
+    "dropped_absent_in_primary": [],
+    "compared": 192,
+    "mismatch_values": 2,
+    "mismatch_sections": 2,
+    "worst_pct": 4.31,
+    "worst": [
+     "C5x6.7",
+     "massPerMetre_kgm",
+     10.4,
+     9.9707
+    ]
+   },
+   "MC": {
+    "cand": 40,
+    "matched": 40,
+    "dropped_absent_in_primary": [],
+    "compared": 240,
+    "mismatch_values": 0,
+    "mismatch_sections": 0,
+    "worst_pct": 0.79,
+    "worst": [
+     "MC10x22",
+     "massPerMetre_kgm",
+     33,
+     32.74
+    ]
+   },
+   "L": {
+    "cand": 137,
+    "matched": 137,
+    "dropped_absent_in_primary": [],
+    "compared": 822,
+    "mismatch_values": 2,
+    "mismatch_sections": 2,
+    "worst_pct": 2.63,
+    "worst": [
+     "L2-1/2x2x3/16",
+     "massPerMetre_kgm",
+     4.2,
+     4.0925
+    ]
+   },
+   "RHS": {
+    "cand": 388,
+    "matched": 388,
+    "dropped_absent_in_primary": [],
+    "compared": 2328,
+    "mismatch_values": 0,
+    "mismatch_sections": 0,
+    "worst_pct": 0.92,
+    "worst": [
+     "HSS3-1/2x2-1/2x5/16",
+     "massPerMetre_kgm",
+     15.6,
+     15.745
+    ]
+   },
+   "CHS": {
+    "cand": 128,
+    "matched": 128,
+    "dropped_absent_in_primary": [],
+    "compared": 768,
+    "mismatch_values": 0,
+    "mismatch_sections": 0,
+    "worst_pct": 0.48,
+    "worst": [
+     "HSS1.900x0.120",
+     "Ix_mm4",
+     104000,
+     104500.0
+    ]
+   },
+   "PIPE": {
+    "cand": 51,
+    "matched": 51,
+    "dropped_absent_in_primary": [],
+    "compared": 306,
+    "mismatch_values": 0,
+    "mismatch_sections": 0,
+    "worst_pct": 0.47,
+    "worst": [
+     "Pipe10xxS",
+     "Zx_mm3",
+     1080000,
+     1075000.0
+    ]
+   }
+  },
+  "primary_not_in_candidate_by_family": {},
+  "mismatch_section_names": [
+   "W14x38",
+   "W6x8.5",
+   "C5x9",
+   "C5x6.7",
+   "L2-1/2x2x3/16",
+   "L2x2x1/8"
+  ]
+ },
+ "checks": {
+  "aisc_si_vs_converted_imperial_tol1.5pct": {
+   "W": {
+    "n": 2264,
+    "bad": 2,
+    "worst_pct": 2.697,
+    "worst": [
+     "W6X8.5",
+     "W"
+    ]
+   },
+   "S": {
+    "n": 224,
+    "bad": 0,
+    "worst_pct": 0.789,
+    "worst": [
+     "S5X10",
+     "W"
+    ]
+   },
+   "C": {
+    "n": 256,
+    "bad": 2,
+    "worst_pct": 4.128,
+    "worst": [
+     "C5X6.7",
+     "W"
+    ]
+   },
+   "MC": {
+    "n": 320,
+    "bad": 0,
+    "worst_pct": 0.789,
+    "worst": [
+     "MC10X22",
+     "W"
+    ]
+   },
+   "L": {
+    "n": 1096,
+    "bad": 2,
+    "worst_pct": 2.561,
+    "worst": [
+     "L2-1/2X2X3/16",
+     "W"
+    ]
+   },
+   "RHS": {
+    "n": 2248,
+    "bad": 0,
+    "worst_pct": 0.928,
+    "worst": [
+     "HSS3-1/2X2-1/2X5/16",
+     "W"
+    ]
+   },
+   "SHS": {
+    "n": 856,
+    "bad": 0,
+    "worst_pct": 0.77,
+    "worst": [
+     "HSS2-1/2X2-1/2X1/4",
+     "W"
+    ]
+   },
+   "CHS": {
+    "n": 1024,
+    "bad": 0,
+    "worst_pct": 0.456,
+    "worst": [
+     "HSS1.900X0.120",
+     "Ix"
+    ]
+   },
+   "PIPE": {
+    "n": 408,
+    "bad": 0,
+    "worst_pct": 0.464,
+    "worst": [
+     "Pipe10XXS",
+     "Sx"
+    ]
+   }
+  },
+  "mass_vs_area_x7850": {
+   "W": {
+    "n": 283,
+    "min": 0.9854,
+    "max": 1.0093,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "S": {
+    "n": 28,
+    "min": 0.9977,
+    "max": 1.0089,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "C": {
+    "n": 32,
+    "min": 0.9436,
+    "max": 1.0081,
+    "outside_3pct": 1,
+    "examples": [
+     "US-C3X3.5"
+    ]
+   },
+   "MC": {
+    "n": 40,
+    "min": 0.9795,
+    "max": 1.0062,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "L": {
+    "n": 137,
+    "min": 0.9838,
+    "max": 1.0126,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "RHS": {
+    "n": 281,
+    "min": 1.0528,
+    "max": 1.0763,
+    "outside_3pct": 281,
+    "examples": [
+     "US-HSS24X12X3/4",
+     "US-HSS24X12X5/8",
+     "US-HSS24X12X1/2",
+     "US-HSS20X12X3/4",
+     "US-HSS20X12X5/8"
+    ]
+   },
+   "SHS": {
+    "n": 107,
+    "min": 1.0528,
+    "max": 1.0766,
+    "outside_3pct": 107,
+    "examples": [
+     "US-HSS22X22X7/8",
+     "US-HSS22X22X3/4",
+     "US-HSS20X20X7/8",
+     "US-HSS20X20X3/4",
+     "US-HSS20X20X5/8"
+    ]
+   },
+   "CHS": {
+    "n": 128,
+    "min": 1.063,
+    "max": 1.0797,
+    "outside_3pct": 128,
+    "examples": [
+     "US-HSS20.000X0.500",
+     "US-HSS20.000X0.375",
+     "US-HSS18.000X0.500",
+     "US-HSS18.000X0.375",
+     "US-HSS16.000X0.625"
+    ]
+   },
+   "PIPE": {
+    "n": 51,
+    "min": 1.0349,
+    "max": 1.112,
+    "outside_3pct": 51,
+    "examples": [
+     "US-Pipe26STD",
+     "US-Pipe24STD",
+     "US-Pipe20STD",
+     "US-Pipe18STD",
+     "US-Pipe16STD"
+    ]
+   }
+  },
+  "hss_area_formula_ro2t_ri1t_tdes": {
+   "n": 388,
+   "worst_pct": 0.381,
+   "worst": "US-HSS12X10X5/16",
+   "bad_gt1pct": 0
+  },
+  "hss_flat_width_eq_B_minus_3t": {
+   "n": 776,
+   "bad": 0,
+   "worst_abs_mm": 1.195
+  },
+  "hollow_mass_vs_area_at_t_nom_x7850": {
+   "RHS": {
+    "n": 281,
+    "min": 0.9994,
+    "max": 1.0026,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "SHS": {
+    "n": 107,
+    "min": 0.9995,
+    "max": 1.0022,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "CHS": {
+    "n": 128,
+    "min": 0.9951,
+    "max": 1.0022,
+    "outside_3pct": 0,
+    "examples": []
+   },
+   "PIPE": {
+    "n": 51,
+    "min": 0.9968,
+    "max": 1.0036,
+    "outside_3pct": 0,
+    "examples": []
+   }
+  },
+  "W_area_vs_geometry_with_fillets": {
+   "n": 283,
+   "worst_pct": 0.722,
+   "worst": "US-W18X192"
+  },
+  "angle_label_vs_legs": {
+   "n": 137,
+   "bad": 0,
+   "examples": []
+  },
+  "local_mirror_csv_vs_workbook": {
+   "rows_in_mirror": 1087,
+   "rows_in_workbook": 1087,
+   "missing_in_mirror": 0,
+   "value_diffs": 0,
+   "checked_values": 10412
+  }
+ }
+}

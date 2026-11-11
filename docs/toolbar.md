@@ -48,11 +48,13 @@ Reference, Create, Modify, Bodies on Features; and so on). Rules:
   between groups, tooltips with name and key.
 - A command that the layout does not place is appended to a group of its own tab (`resolveLayout`), so a new command is
   never hidden; a unit test (`toolbarModel.test.ts`) fails until it is placed.
+- The Sketch group on Home holds the 2D import commands: `sketch-import-dxf` and `sketch-import-svg` as buttons, and `sketch-from-dxf` and
+  `sketch-from-svg` as the last entries of the `new-sketch` slot (`SLOTS`).
 
 ## The tool palette (`RAIL_SECTIONS`, `ToolRail.tsx`)
 
 The vertical palette at the left edge of the viewport is the primary way to reach modelling commands: sections Edit,
-Sketch, Create, Modify, Surfaces, Pattern, Inspect, Assembly and Select, each a grid of slots (two columns; a name under
+Sketch, Create, Modify, Frame, Sheet metal (see sheet-metal.md), Surfaces, Pattern, Inspect, Assembly and Select, each a grid of slots (two columns; a name under
 each icon in the text mode, icons only in the icons-only mode).
 
 - **For selection**: when a face, edge, corner or body is selected, the first section is a slot holding the commands that
@@ -76,7 +78,7 @@ whole command table (every optional command included) and fails for a command wi
 
 ## Contextual ribbon (Onshape style)
 
-- **File actions live in the top bar only** (New, Open, Save, Export, Samples, and a "more" menu with Save as and Import STEP). The
+- **File actions live in the top bar only** (New, Open, Save, Export, Library, and a "more" menu with Save as and Import STEP). The
   ribbon no longer has File / Import-Export groups: `isFileCommand` (toolbarModel.ts) lists them and the ribbon's `hidden` prop keeps
   `resolveLayout` from appending them to a tab. Chosen over a second app-menu button because the top bar already had the group.
 - **Home** holds the model commands: Sketch, Create (extrude, thin, revolve, loft / sweep, hole, catalog), Modify (fillet, chamfer,

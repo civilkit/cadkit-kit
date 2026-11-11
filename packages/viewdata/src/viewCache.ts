@@ -55,9 +55,9 @@ export async function sha256Hex(data: string | Uint8Array | ArrayBuffer): Promis
   return hex(await crypto.subtle.digest('SHA-256', bytes as BufferSource));
 }
 
-/** What the kernel is given of a document: the fonts and the file's picture travel beside it, not in it. */
+/** What the kernel is given of a document: the fonts, the reference meshes (megabytes the kernel never reads) and the file's picture travel beside it, not in it. */
 export function recipeOf(doc: unknown): unknown {
-  const { fonts: _f, thumbnail: _t, [EMBED_FIELD]: _v, ...rest } = doc as Record<string, unknown>;
+  const { fonts: _f, meshes: _m, thumbnail: _t, [EMBED_FIELD]: _v, ...rest } = doc as Record<string, unknown>;
   return rest;
 }
 /** SHA-256 of the canonical recipe. */

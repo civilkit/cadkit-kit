@@ -139,7 +139,7 @@ A full 360 degree turn has no end caps. A profile that crosses the axis fails wi
 
 Sweep moves a closed profile along an open path.
 
-1. Draw the **path** as an open chain of lines and arcs in one sketch.
+1. Draw the **path** as an open chain of lines and arcs in one sketch, or, for a path that bends in all three directions, as one spline in a [3D sketch](../sketching/sketch-3d.md).
 2. Draw the **profile** as a closed shape in a second sketch on a plane that is perpendicular to the path at its start.
 3. Choose **Home > Create > Sweep** (Shift+W), or pick it from the Loft button's list.
 

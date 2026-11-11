@@ -101,3 +101,26 @@ describe('upAxis()', () => {
     expect(r.errors[0].message).toContain("'y' or 'z'");
   });
 });
+
+describe('appearance() face roles', () => {
+  it('a handle with `only` colours named faces of that feature by role, so no feature id is written by hand', async () => {
+    const { r } = await run(BASE + `p.appearance({ face: cap, only: ['S.e1', 'C1'], colour: '#333333' }); p.appearance({ face: lens, only: 'C0', colour: '#444444' });`);
+    expect(r.errors).toEqual([]);
+    expect((r.document as { faceAppearance: unknown }).faceAppearance).toEqual({ 'F4.S.e1': { color: '#333333' }, 'F4.C1': { color: '#333333' }, 'F2.C0': { color: '#444444' } });
+  });
+  it('`only` follows the feature when ids move: insert a feature above and the roles still land on the same feature', async () => {
+    const a = await run(BASE + `p.appearance({ face: cap, only: 'S.e1', colour: '#333333' });`);
+    const b = await run(`const p = part('x');\np.sketch('front', (s) => s.circle(3, [0, 0])).extrude(1);\n` + BASE.replace("const p = part('x');\n", '') + `p.appearance({ face: cap, only: 'S.e1', colour: '#333333' });`);
+    const ka = Object.keys((a.r.document as { faceAppearance: Record<string, unknown> }).faceAppearance);
+    const kb = Object.keys((b.r.document as { faceAppearance: Record<string, unknown> }).faceAppearance);
+    expect(ka).toEqual(['F4.S.e1']);
+    expect(kb[0]).not.toBe(ka[0]);          // the feature id moved
+    expect(kb[0]).toMatch(/^F\d+\.S\.e1$/);
+  });
+  it('`only` is refused with anything but a feature handle, and with a malformed role', async () => {
+    const a = await run(BASE + `p.appearance({ face: 'F2.S1', only: 'C0', colour: '#111111' });`);
+    expect(a.r.errors[0]?.message).toMatch(/only/);
+    const b = await run(BASE + `p.appearance({ face: lens, only: 'S e1', colour: '#111111' });`);
+    expect(b.r.errors[0]?.message).toMatch(/only/);
+  });
+});

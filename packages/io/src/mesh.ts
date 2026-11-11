@@ -71,31 +71,35 @@ export function weld(positions: ArrayLike<number>, tol = 1e-5): { index: Int32Ar
 /** Is the skin closed? Counts the edges used once (open), more than twice (non-manifold) and walked twice in the same direction. */
 export function checkMesh(m: TriMesh, tol = 1e-5): MeshCheck {
   const { index, verts } = weld(m.positions, tol);
+  return checkIndexed(index, verts.length / 3);
+}
+
+/** The same report for an indexed mesh (3 vertex indices per triangle, `nv` vertices). Sort based, so a million triangles take well under a second. */
+export function checkIndexed(index: ArrayLike<number>, nv: number): MeshCheck {
   const triangles = Math.floor(index.length / 3);
-  const edges = new Map<number, { n: number; fwd: number; back: number }>();
-  const N = verts.length / 3;
-  let degenerate = 0;
+  const keys = new Float64Array(triangles * 3);
+  let n = 0, degenerate = 0;
   for (let t = 0; t < triangles; t++) {
-    const c = [index[t * 3], index[t * 3 + 1], index[t * 3 + 2]];
-    const [a, b, d] = c;
+    const a = index[t * 3], b = index[t * 3 + 1], d = index[t * 3 + 2];
     if (a === b || b === d || a === d) { degenerate++; continue; }
+    const c = [a, b, d];
     for (let k = 0; k < 3; k++) {
       const u = c[k], v = c[(k + 1) % 3];
-      const lo = Math.min(u, v), hi = Math.max(u, v);
-      const key = lo * N + hi;
-      const e = edges.get(key) ?? { n: 0, fwd: 0, back: 0 };
-      e.n++;
-      if (u < v) e.fwd++; else e.back++;
-      edges.set(key, e);
+      // (low, high) of the edge, times two, plus 1 when it is walked from the higher to the lower vertex
+      keys[n++] = (Math.min(u, v) * nv + Math.max(u, v)) * 2 + (u < v ? 0 : 1);
     }
   }
+  const sorted = keys.subarray(0, n).sort();
   let openEdges = 0, nonManifoldEdges = 0, inconsistentEdges = 0;
-  for (const e of edges.values()) {
-    if (e.n === 1) openEdges++;
-    else if (e.n > 2) nonManifoldEdges++;
-    else if (e.fwd !== 1) inconsistentEdges++;
+  for (let i = 0; i < n;) {
+    const e = Math.floor(sorted[i] / 2);
+    let cnt = 0, fwd = 0;
+    while (i < n && Math.floor(sorted[i] / 2) === e) { cnt++; if (sorted[i] % 2 === 0) fwd++; i++; }
+    if (cnt === 1) openEdges++;
+    else if (cnt > 2) nonManifoldEdges++;
+    else if (fwd !== 1) inconsistentEdges++;
   }
-  return { triangles, vertices: N, openEdges, nonManifoldEdges, inconsistentEdges, degenerate, watertight: triangles > 0 && openEdges === 0 && nonManifoldEdges === 0 };
+  return { triangles, vertices: nv, openEdges, nonManifoldEdges, inconsistentEdges, degenerate, watertight: triangles > 0 && openEdges === 0 && nonManifoldEdges === 0 };
 }
 
 /** Facet normal of triangle `t` (unit; zero vector for a degenerate triangle). */

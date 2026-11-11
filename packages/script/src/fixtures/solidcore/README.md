@@ -1,0 +1,1 @@
+Regression scripts derived from the public issue trackers and fixtures of tangency-labs/solidcore (Apache-2.0): dimensions and closed-form expected volumes only, no code adopted. Each script carries its expectation on a `// EXPECT {...}` line (volume, tolRel, valid, solids, or refused). Run by `solidcore.kernel.test.ts`.

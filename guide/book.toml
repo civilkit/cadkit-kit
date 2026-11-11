@@ -1,7 +1,7 @@
 [book]
-title = "CadKit user guide"
-description = "How to model, import, export and check parts in CadKit."
-authors = ["The CadKit authors"]
+title = "CivilKit CAD user guide"
+description = "How to model, import, export and check parts in CivilKit CAD."
+authors = ["The CivilKit authors"]
 language = "en"
 src = "src"
 
@@ -13,6 +13,8 @@ create-missing = false
 site-url = "/docs/cad/"
 default-theme = "light"
 preferred-dark-theme = "navy"
+additional-css = ["civilkit.css"]
+additional-js = ["civilkit-nav.js"]
 
 [output.html.search]
 enable = true

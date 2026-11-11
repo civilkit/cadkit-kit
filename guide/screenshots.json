@@ -27,6 +27,10 @@
     "file": "corner-holes.png",
     "caption": "A rectangular plate seen face-on with the hole sketch open, the Corner holes card at the top right of the canvas, and four hole points placed in the corners."
   },
+  "cut-from": {
+    "file": "cut-from.png",
+    "caption": "The Extrude editor with Operation set to Cut and a Cut from group listing All bodies the shape reaches and one tick per named body."
+  },
   "display-menu": {
     "file": "display-menu.png",
     "caption": "The Display popover open on a part, showing Style, Appearance swatches, Scene presets and the Show list."
@@ -38,6 +42,10 @@
   "edit-breaks-model": {
     "file": "edit-breaks-model.png",
     "caption": "The Extrude editor with the depth reduced to 2 mm: a note says the edit would break the rim fillet that comes later, and the Confirm tick is greyed."
+  },
+  "edit-curve-editor": {
+    "file": "edit-curve-editor.png",
+    "caption": "A two-line chain rebuilt as one smooth curve, with the Edit curve editor open showing the Curves list, Rebuild and Control point edits."
   },
   "expression-field": {
     "file": "expression-field.png",
@@ -67,6 +75,10 @@
     "file": "first-part-start.png",
     "caption": "A new empty part with the Start here card offering three Sketch on plane buttons."
   },
+  "freeform-editor": {
+    "file": "freeform-editor.png",
+    "caption": "A wavy surface with one face picked, the Freeform editor open on the left, and the face rebuilt as a net with a control point lifted."
+  },
   "inspect-drawer": {
     "file": "inspect-drawer.png",
     "caption": "The Inspect tab of the drawer under a part, showing the Mass properties card and the result of measuring the distance between two corners."
@@ -91,13 +103,29 @@
     "file": "mate-editor.png",
     "caption": "The Mates section with a Gear mate being edited: both references picked, the ratio filled in and the Test drive slider visible."
   },
+  "move-rotate-ball": {
+    "file": "move-rotate-ball.png",
+    "caption": "A block selected whole with the move and rotate ball at its centre, shown while dragging an axis end dot, with the Distance readout above the ball."
+  },
   "navigation-viewcube": {
     "file": "navigation-viewcube.png",
     "caption": "The view cube in the top right corner with its arrow ring, and the Fit and projection buttons under it, the model in the Iso view."
   },
+  "project-curve-editor": {
+    "file": "project-curve-editor.png",
+    "caption": "A plate with one face picked and the Project curve editor open, showing Project, Onto faces, Direction, Degree and Fit tolerance."
+  },
+  "quick-measure": {
+    "file": "quick-measure.png",
+    "caption": "The bottom-right corner of the view with the quick readout card showing the diameter, radius and circumference of a picked circular edge."
+  },
   "reference-plane": {
     "file": "reference-plane.png",
     "caption": "A block with a reference plane drawn 10 mm above its top face and the Plane editor open showing Mode, Offset and Base plane."
+  },
+  "repeat-last": {
+    "file": "repeat-last.png",
+    "caption": "The Home ribbon's Edit group with the cursor on Repeat last command, after a fillet was applied."
   },
   "ribbon-tabs": {
     "file": "ribbon-tabs.png",
@@ -107,9 +135,41 @@
     "file": "script-tab.png",
     "caption": "The Script tab in the left panel with the bracket example in the code box and the Run button, and the resulting plate with two holes and rounded edges in the viewport."
   },
+  "sheet-dxf-options": {
+    "file": "sheet-dxf-options.png",
+    "caption": "The Flat pattern DXF dialog: DXF version, units, layers, layer names, bend lines, tangent lines and bend notes."
+  },
+  "sheet-edge-flange-editor": {
+    "file": "sheet-edge-flange-editor.png",
+    "caption": "The Edge flange editor with four edges picked: Height, Angle, Bend radius, Height measured and Flange position, with the four legs previewed on the plate."
+  },
+  "sheet-flat-pattern": {
+    "file": "sheet-flat-pattern.png",
+    "caption": "The flat pattern panel for the tray: the blank outline and bend zones, the bend lines B1 to B5 with their angles, the blank size and rule, the bend table and the three export buttons."
+  },
+  "sheet-rule-editor": {
+    "file": "sheet-rule-editor.png",
+    "caption": "The Rules editor on the Sheet metal tab: the Stock section (rule name, thickness, k-factor, bend radius) and the Relief section (relief width and depth, corner relief and its shape, the gaps)."
+  },
   "size-box": {
     "file": "size-box.png",
     "caption": "An extruded block selected from the feature tree with its size box shown: face handles, corner handles, the anchor diamond and the three dimension labels."
+  },
+  "sk3d-on-mesh": {
+    "file": "sk3d-on-mesh.png",
+    "caption": "A spline fitted to the surface of an imported mesh, with the Mesh section of the 3D Sketch panel showing Draw on the imported mesh surface and Fit curves."
+  },
+  "sk3d-panel": {
+    "file": "sk3d-panel.png",
+    "caption": "The 3D Sketch panel at the top: the Draw buttons with Spline chosen and its hint, a header with the help button and close, and Cancel and Create in a bar at the bottom."
+  },
+  "sk3d-pipe": {
+    "file": "sk3d-pipe.png",
+    "caption": "A circle swept along the 3D spline to make a pipe, with the Sweep editor open on the left showing Profile and Path."
+  },
+  "sk3d-spiral-path": {
+    "file": "sk3d-spiral-path.png",
+    "caption": "A spline through six points that climb in a loose spiral, with the Points table of the 3D Sketch panel showing each point's X, Y and Z."
   },
   "sketch-editor-open": {
     "file": "sketch-editor-open.png",
@@ -131,9 +191,17 @@
     "file": "text-panel.png",
     "caption": "The Text tool open in a sketch with the text panel (characters, cap height, font, anchor grid, on an arc) and the lettering RPM x100 laid along an arc."
   },
+  "thicken-variable": {
+    "file": "thicken-variable.png",
+    "caption": "The Thicken editor with Variable thickness ticked, Ramp along set to Z axis, and two stops: position 0 at 4 mm and position 10 at 2 mm."
+  },
   "thin-wall": {
     "file": "thin-wall.png",
     "caption": "A C-shaped open spline extruded as a thin wall, with the Thin wall section of the Extrude editor open showing Wall thickness, Side and End caps."
+  },
+  "tool-rail": {
+    "file": "tool-rail.png",
+    "caption": "The tool rail down the left edge of the view, with the Create section opened on its flyout."
   },
   "tree-error": {
     "file": "tree-error.png",
@@ -147,8 +215,12 @@
     "file": "wizard-propeller.png",
     "caption": "The Propeller wizard open in the left panel on its Blade step, with the live preview of a three-blade propeller in the viewport."
   },
-  "move-rotate-ball": {
-    "file": "move-rotate-ball.png",
-    "caption": "A block selected whole with the move and rotate ball at its centre, shown while dragging an axis end dot, with the Distance readout above the ball."
+  "wizard-screw": {
+    "file": "wizard-screw.png",
+    "caption": "The Screw wizard open in the left panel with an M3 pan-head screw previewed on the top plane, showing Size, Length, Head, Drive, Bearing face centre and Shank points."
+  },
+  "wizard-washer": {
+    "file": "wizard-washer.png",
+    "caption": "The Washer wizard open in the left panel with the Standard list filtered to M8 and an M8 flat washer previewed."
   }
 }

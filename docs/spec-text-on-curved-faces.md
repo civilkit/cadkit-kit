@@ -1,6 +1,6 @@
 # Text on curved faces: spec
 
-Status: draft, 2026-10-17. Nothing here is built. Todo after the font work (fonts from bytes, own TTF).
+Status: draft, 2026-10-17; checked against the code 2026-10-31. Still nothing here is built: there is no wrap or project mode, no "Follow face" choice in the text panel and no kernel surface mapping for text (text is flat on its sketch plane, as `docs/text.md` and the guide say). The fonts work this was waiting on is done (fonts from bytes, font picker, fonts saved with the document). The motor samples fake the effect by placing each letter flat on its own tangent plane; that is a workaround, not this feature. Remaining: everything below (surface mapping, outline to curves on the face, tool body, boolean, project mode, GUI).
 
 ## Why
 

@@ -3,6 +3,7 @@
 import { MANIFEST_MAX_BYTES, PART_MAX_BYTES, THUMB_MAX_BYTES, licenceClass, validateManifest, effectiveLicence, type LibraryManifest, type LibraryPart } from './manifest';
 import { LibraryError, makeTransport, parseSource, samplesManifest, sourceKey, type FetchLike, type LocalFiles, type Source, type Transport } from './source';
 import { parsePart, sha256Hex } from './partFile';
+import { isFresh, readThumbnail, base64ToBytes } from '../files/docThumb';
 import type { CacheStore } from './cache';
 import type { PartDoc } from '@ck/part-model';
 
@@ -36,11 +37,11 @@ export interface Preview { record: LibraryRecord; manifest: LibraryManifest; /**
 export interface ManifestState { manifest: LibraryManifest; offline: boolean }
 export interface PartData { part: LibraryPart; doc: PartDoc; bytes: Uint8Array; sha256: string; licence: string | undefined; fromCache: boolean }
 
-interface Stored { v: 1; libs: LibraryRecord[]; removed: string[]; confirmed: Record<string, string[]> }
+interface Stored { v: 1; libs: LibraryRecord[]; removed: string[]; /** libraries switched off: kept in the list, left out of the Library picker and the Catalog */ disabled: string[]; confirmed: Record<string, string[]> }
 const KEY = 'ck.libraries.v1';
 
 export class LibraryRegistry {
-  private st: Stored = { v: 1, libs: [], removed: [], confirmed: {} };
+  private st: Stored = { v: 1, libs: [], removed: [], disabled: [], confirmed: {} };
   private local = new Map<string, LocalFiles>();
   private parsed = new Map<string, LibraryManifest>();
   private listeners = new Set<() => void>();
@@ -48,7 +49,7 @@ export class LibraryRegistry {
   rev = 0;
 
   constructor(private d: RegistryDeps) {
-    try { const raw = d.kv?.getItem(KEY); if (raw) { const s = JSON.parse(raw) as Stored; if (s && s.v === 1 && Array.isArray(s.libs)) this.st = { v: 1, libs: s.libs.filter(okRecord), removed: Array.isArray(s.removed) ? s.removed.filter((x) => typeof x === 'string') : [], confirmed: s.confirmed && typeof s.confirmed === 'object' ? s.confirmed : {} }; } } catch { /* start empty */ }
+    try { const raw = d.kv?.getItem(KEY); if (raw) { const s = JSON.parse(raw) as Stored; if (s && s.v === 1 && Array.isArray(s.libs)) this.st = { v: 1, libs: s.libs.filter(okRecord), removed: Array.isArray(s.removed) ? s.removed.filter((x) => typeof x === 'string') : [], disabled: Array.isArray(s.disabled) ? s.disabled.filter((x) => typeof x === 'string') : [], confirmed: s.confirmed && typeof s.confirmed === 'object' ? s.confirmed : {} }; } } catch { /* start empty */ }
   }
 
   subscribe(f: () => void): () => void { this.listeners.add(f); return () => { this.listeners.delete(f); }; }
@@ -65,6 +66,15 @@ export class LibraryRegistry {
     return [...defaults, ...this.st.libs];
   }
   get(id: string): LibraryRecord | undefined { return this.list().find((l) => l.id === id); }
+  /** Whether a library is switched on (a disabled one stays in the list but is not browsed). */
+  enabled(id: string): boolean { return !this.st.disabled.includes(id); }
+  /** The libraries that are switched on: what the Library picker and the Catalog browse. */
+  listEnabled(): LibraryRecord[] { return this.list().filter((l) => this.enabled(l.id)); }
+  setEnabled(id: string, on: boolean): void {
+    if (!this.get(id) || this.enabled(id) === on) return;
+    this.st.disabled = on ? this.st.disabled.filter((x) => x !== id) : [...this.st.disabled, id];
+    this.save();
+  }
 
   private transport(rec: LibraryRecord): Transport {
     if (rec.builtin) return makeTransport({ kind: 'bundled', base: this.bundledBase(rec.source) }, { fetch: this.d.fetch });
@@ -123,6 +133,7 @@ export class LibraryRegistry {
     if (!rec) return;
     if (rec.builtin) { if (!this.st.removed.includes(id)) this.st.removed.push(id); }
     else this.st.libs = this.st.libs.filter((l) => l.id !== id);
+    this.st.disabled = this.st.disabled.filter((x) => x !== id);
     delete this.st.confirmed[id];
     this.local.delete(id); this.parsed.delete(id);
     this.save();
@@ -242,6 +253,24 @@ export class LibraryRegistry {
   }
   /** Download, verify and save one part for offline use (the same checks as Insert). */
   async install(id: string, partId: string): Promise<PartData> { return this.part(id, partId); }
+  /** The picture a saved part carries in its own `thumbnail` field, when the part's file is saved on this device and the picture still
+   *  matches the part. Reads the device copy only (never the network); null when there is none, it is stale, or the file cannot be read. */
+  async embeddedThumb(id: string, partId: string): Promise<Uint8Array | null> {
+    const rec = this.get(id);
+    if (!rec || rec.builtin) return null;
+    try {
+      const part = (await this.manifest(id)).manifest.parts.find((p) => p.id === partId);
+      const c = part ? await this.d.cache.get(this.partKey(rec, part)) : null;
+      if (!c) return null;
+      const doc = JSON.parse(new TextDecoder().decode(c.bytes)) as Record<string, unknown>;
+      const th = readThumbnail(doc);
+      if (!th) return null;
+      const { thumbnail: _t, ...rest } = doc;
+      if (!isFresh(th, rest)) return null;
+      const bytes = base64ToBytes(th.data);
+      return imageType(bytes) === 'image/png' ? bytes : null;
+    } catch { return null; }
+  }
   /** The thumbnail rendered here for a part, if there is one (keyed by the part's sha256 so a changed part is rendered again). */
   async generatedThumb(id: string, partId: string): Promise<Uint8Array | null> {
     const rec = this.get(id);

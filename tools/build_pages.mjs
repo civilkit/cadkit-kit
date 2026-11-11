@@ -4,10 +4,11 @@
 // Env: PAGES_OUT output dir (default dist-pages), CK_REBUILD kernel repo checkout, WASM_SRC wasm to publish (default apps/cad/public/kernel/ck_wasm.wasm),
 //      WASM_STRIP path of wasm-strip, KERNEL_THIRD_PARTY kernel THIRD_PARTY.md.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { siteFooter, siteHeadLinks, siteHeader } from './pages/siteChrome.mjs';
 import { filterSamples, suspectSamples } from './pages/samples.mjs';
 import { filterKernelThirdParty, renderLicensesHtml } from './pages/licenses.mjs';
 import { scanDir } from './pages_leakcheck.mjs';
@@ -18,14 +19,24 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, process.env.PAGES_OUT || 'dist-pages');
 // the page at /docs/: where the documentation sets are listed
 const docsHubHtml = () => `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CadKit documentation</title>
-<style>:root{color-scheme:light dark}body{font:16px/1.55 system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:0 1rem}h1{font-size:1.6rem}a{color:#1a5fb4}li{margin:.5rem 0}small{opacity:.7}</style></head>
-<body><h1>CadKit documentation</h1>
-<ul>
-<li><a href="/docs/cad/"><strong>CadKit user guide</strong></a><br><small>Modelling, sketching, importing and exporting, drawings, checks, scripting and agents.</small></li>
-<li><a href="/docs/cad/kernel/"><strong>Kernel reference</strong></a><br><small>The part format, the protocol, how the kernel works, and how results are validated.</small></li>
-<li><a href="/cad/"><strong>Open CadKit</strong></a></li>
-</ul></body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CivilKit documentation: user guides and kernel reference</title>
+<meta name="description" content="User guides for CivilKit Calcs and CivilKit CAD, and the CAD kernel reference.">
+<link rel="canonical" href="https://civilkit.io/docs/">
+${siteHeadLinks()}</head>
+<body>
+${siteHeader('docs')}
+<main id="main"><div class="wrap page">
+<h1>CivilKit documentation</h1>
+<p class="lede">User guides for both apps, and the reference for the CAD kernel.</p>
+<ul class="linklist">
+<li><a href="/docs/cad/">CAD user guide</a><p>Modelling, sketching, sheet metal, importing and exporting, drawings, checks, scripting and agents.</p></li>
+<li><a href="/calcs/guide/">Calcs user guide</a><p>Sheets, units, Python blocks, charts and the rest of the calculation app.</p></li>
+<li><a href="/docs/cad/kernel/">CAD kernel reference</a><p>The part format, the protocol, how the kernel works, and how results are validated.</p></li>
+<li><a href="/cad/whats-new/">What's new in CAD</a><p>Release notes for every version.</p></li>
+</ul>
+</div></main>
+${siteFooter()}
+</body></html>
 `;
 const FW = process.env.CK_REBUILD || fileURLToPath(new URL('../../kernel', import.meta.url));
 const die = (m) => { console.error(`build:pages: ${m}`); process.exit(1); };
@@ -96,6 +107,8 @@ addText('Apache License 2.0: brepkit, sldprt2step', cr('ck-check/LICENSE-APACHE'
 addText('Notice: SolidWorks part reader', cr('ck-sldprt/NOTICE'));
 addText('Notice: sldprt2step', cr('ck-sldprt/NOTICE-sldprt2step'));
 addText('MIT licence: sldprt-format-research', cr('ck-sldprt/LICENSE-MIT-sldprt-format-research'));
+addText('Notice: SketchUp file reader (OpenSKP)', cr('ck-skp/NOTICE'));
+addText('MIT licence: OpenSKP (Copyright (c) 2024-2026 Ahsan Mehmood)', cr('ck-skp/LICENSE-MIT-openskp'));
 const deps = ['preact', '@preact/signals', '@preact/signals-core', 'three'].flatMap((name) => {
   const dir = ['node_modules', '../kit/node_modules'].map((d) => join(ROOT, d, name)).find((d) => existsSync(join(d, 'package.json')));
   if (!dir) { console.warn(`warning: package ${name} not found for the licences page`); return []; }
@@ -122,6 +135,8 @@ writeFileSync(join(OUT, '.nojekyll'), '');   // GitHub Pages: serve the assets/ 
 mkdirSync(join(OUT, 'icons'), { recursive: true });
 copyFileSync(join(ROOT, 'apps/cad/public/manifest.webmanifest'), join(OUT, 'manifest.webmanifest'));
 for (const f of readdirSync(join(ROOT, 'apps/cad/public/icons'))) copyFileSync(join(ROOT, 'apps/cad/public/icons', f), join(OUT, 'icons', f));
+// the What's new page (tools/make_whats_new.mjs writes it; its clips and posters sit beside it): served at <site>/whats-new/
+if (existsSync(join(ROOT, 'apps/cad/public/whats-new'))) cpSync(join(ROOT, 'apps/cad/public/whats-new'), join(OUT, 'whats-new'), { recursive: true });
 
 // 5d. documentation (PAGES_DOCS=1): the user guide at <site>/docs/cad/ and the kernel book at <site>/docs/cad/kernel/ (mdBook), where <site> is the folder that
 // holds the app folder (so the app at <site>/cad/ and the books at <site>/docs/cad/). The books link to each other by absolute /docs/cad/ paths.
@@ -132,16 +147,21 @@ if (wantDocs) {
   if (have.status !== 0) {
     die(`PAGES_DOCS=1 but ${mdbook} did not run. Install mdBook (cargo install mdbook) or set MDBOOK=/path/to/mdbook.`);
   } else {
-    const book = (src, dest, label) => {
+    const book = (src, dest, label, env = {}) => {
       if (!existsSync(join(src, 'book.toml'))) die(`${label}: ${src}/book.toml not found`);
-      const b = spawnSync(mdbook, ['build', src, '--dest-dir', dest], { encoding: 'utf8' });
+      const b = spawnSync(mdbook, ['build', src, '--dest-dir', dest], { encoding: 'utf8', env: { ...process.env, ...env } });
       if (b.status !== 0) die(`${label}: mdbook build failed\n${b.stderr || b.stdout}`);
       if (/\bWARN|\bERROR/.test(b.stderr || '')) console.warn(`${label}: mdbook reported:\n${b.stderr}`);
     };
     const docsOut = join(dirname(OUT), 'docs');
     if (!docsOut.startsWith(ROOT + '/')) die(`the documentation folder ${docsOut} must be inside the repository`);
     book(join(ROOT, 'guide'), join(docsOut, 'cad'), 'user guide');
-    book(join(FW, 'book'), join(docsOut, 'cad', 'kernel'), 'kernel book');
+    // the kernel book lives in the kernel repo: it gets the guide's CivilKit theme through a copy of guide/civilkit.css in its folder for the build
+    // (mdBook writes the path of an additional stylesheet into every page, so it must be a relative name), removed again afterwards
+    const kcss = join(FW, 'book', 'civilkit.css'), kjs = join(FW, 'book', 'civilkit-nav.js');
+    copyFileSync(join(ROOT, 'guide', 'civilkit.css'), kcss);
+    copyFileSync(join(ROOT, 'guide', 'civilkit-nav.js'), kjs);
+    try { book(join(FW, 'book'), join(docsOut, 'cad', 'kernel'), 'kernel book', { MDBOOK_OUTPUT__HTML__ADDITIONAL_CSS: '["civilkit.css"]', MDBOOK_OUTPUT__HTML__ADDITIONAL_JS: '["civilkit-nav.js"]' }); } finally { rmSync(kcss, { force: true }); rmSync(kjs, { force: true }); }
     writeFileSync(join(docsOut, 'index.html'), docsHubHtml());
     // the documentation lives outside the app folder, so the leak check below would not see it: scan it here with the same allow list
     let docsAllow = [];
@@ -162,7 +182,17 @@ writeFileSync(join(OUT, 'sw.js'), swSource(buildId(built), shell));
 console.log(`service worker: ${shell.length} files stored at install`);
 // 5c. version.json: which commit the app bundle was built from (tools/stack_status.mjs reads it; written after the service worker so it is not stored at install)
 const kitRev = (() => { const g = (a) => spawnSync('git', a, { cwd: ROOT, encoding: 'utf8' }).stdout.trim(); const r = g(['rev-parse', '--short=12', 'HEAD']); return r ? r + (g(['status', '--porcelain', '--untracked-files=no']) ? '-dirty' : '') : ''; })();
-writeFileSync(join(OUT, 'version.json'), JSON.stringify({ kit: kitRev }) + '\n');
+// the product version is the one in package.json (tools/release.mjs bumps it); the kernel is the build the wasm reports about itself
+const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+const kernelBuild = await (async () => {
+  try {
+    const { Kernel } = await import(pathToFileURL(join(FW, 'tools', 'kernel.mjs')).href);
+    const k = new Kernel(new WebAssembly.Module(readFileSync(join(OUT, 'kernel/ck_wasm.wasm'))));
+    return JSON.parse(k.request(JSON.stringify({ id: 1, msg: { type: 'ping' } })).json).result?.build ?? '';
+  } catch { return ''; }
+})();
+writeFileSync(join(OUT, 'version.json'), JSON.stringify({ version, kit: kitRev, kernel: kernelBuild }) + '\n');
+console.log(`version.json: ${version}, kit ${kitRev}, kernel ${kernelBuild || '(unknown)'}`);
 
 // 6. leak check: the build fails on any hit
 let allowList = [];

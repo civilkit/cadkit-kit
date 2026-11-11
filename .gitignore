@@ -9,3 +9,9 @@ dist-local/
 .serve-local-*
 .DS_Store
 dist-docshots/
+dist-guide/
+guide/civilkit-*.css
+
+# What's new clips are recorded with tools/clips/record.mjs and added to the deploy build; only the posters are committed
+apps/cad/public/whats-new/clips/
+guide/civilkit-nav-*.js

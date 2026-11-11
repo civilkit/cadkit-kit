@@ -1,22 +1,22 @@
 # Install as an app and work offline
 
-This chapter covers installing CadKit as an app in its own window, using it without a network, how updates arrive, and what the app keeps on your device.
+This chapter covers installing CivilKit CAD as an app in its own window, using it without a network, how updates arrive, and what the app keeps on your device.
 
-CadKit runs in the browser. After the first visit it can also start without a network, because the app files are saved on your device. Installing it is optional and only changes how it looks and starts.
+CivilKit CAD runs in the browser. After the first visit it can also start without a network, because the app files are saved on your device. Installing it is optional and only changes how it looks and starts.
 
 ## Install it
 
-Browsers that support installing a site offer it once the site qualifies (it is served over https and has its app files saved). When the app is installable, an **Install** button appears in the top bar. Its tooltip reads "Install CadKit as an app: its own window, and it opens without the browser."
+Browsers that support installing a site offer it once the site qualifies (it is served over https and has its app files saved). When the app is installable, an **Install** button appears in the top bar. Its tooltip reads "Install CivilKit CAD as an app: its own window, and it opens without the browser."
 
 1. Choose **Install** in the top bar.
 2. Confirm in the browser's own install dialog.
-3. CadKit opens in its own window, and it gets an icon you can start from like any other app.
+3. CivilKit CAD opens in its own window, and it gets an icon you can start from like any other app.
 
 Notes:
 
 - The button shows only in browsers that offer installation, and only while the app is not already installed. If you do not see it, look for an install option in your browser's menu or address bar.
 - Some browsers do not send the install offer the **Install** button depends on. There, use the browser's own menu if it has an install or add-to-home-screen option.
-- The installed app has the name "CadKit" and runs in a standalone window without the browser's address bar.
+- The installed app has the name "CivilKit CAD" and runs in a standalone window without the browser's address bar.
 - Uninstall it from your browser's app list or your system's app list. Your saved parts are files on your computer and are not removed.
 
 ## Work offline
@@ -54,7 +54,7 @@ All of this stays in your browser's storage for this site. The app has no accoun
 | Autosave of the open part | Local storage | Restoring your work after a crash or a closed tab. Documents over about 3 MB of text are not autosaved. |
 | Rolling snapshots of the open part | Browser database | Up to ten earlier states, taken at most every 30 seconds while you work, for **Recover earlier versions...**. |
 | A saved picture of the model's view | Browser database | Shows a part before the kernel has rebuilt it. It is a cache and is rebuilt when stale. |
-| Recent files and samples (names and thumbnails) | Local storage | The recent list in the Samples dialog. |
+| Recent files and samples (names and thumbnails) | Local storage | The recent list in the Library picker. |
 | Workspace settings, theme, language, navigation and sketch preferences | Local storage | Remembered between visits. |
 | Libraries you added, installed library parts and licence confirmations | Local storage and browser database | See [The library and samples](../library/library.md). |
 | Local kernel service address and access token | Local storage | Only if you use the service. |

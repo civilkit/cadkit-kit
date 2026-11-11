@@ -49,6 +49,8 @@ export interface HandleSpec {
   /** The widget hides (and cannot be hit) while `spanWorld` is smaller than `showMinPx` on screen, so crowded handles clear off a small shape. */
   spanWorld?: number;
   showMinPx?: number;
+  /** Dot, cube and pad: the pick radius in pixels around the centre when that is larger than the drawn size plus the usual margin (finger-sized targets on touch). */
+  hitPx?: number;
 }
 
 /** Whether a widget is shown at a view where one pixel is `worldPerPx` world units. */
@@ -75,6 +77,8 @@ export interface HandleDragSink {
   live?(id: string, q: number, vec: Vec3, mods?: HandleMods): HandleSpec[] | null;
   /** A double click on a handle (the move pad opens its typed fields). */
   onActivate?(id: string): void;
+  /** A press and release on a handle without a drag (a click). When present it runs instead of `onCancel`. */
+  onClick?(id: string, mods: HandleMods): void;
 }
 
 /** Modifier keys held at a drag step (the move handle reads them itself: Shift one axis, Ctrl grid, Alt no snapping). */
@@ -266,7 +270,7 @@ export function hitHandle(specs: HandleSpec[], project: Project, px: number, py:
     if (!shownAt(s, w)) continue;
     if (s.kind === 'dot' || s.kind === 'cube' || s.kind === 'pad') {
       const c = project(restPosition(s, w));
-      if (c) { const e = Math.hypot(px - c[0], py - c[1]) - size; d = e <= tol ? Math.max(0, e) : null; }
+      if (c) { const e = Math.hypot(px - c[0], py - c[1]) - size; d = e <= Math.max(tol, (s.hitPx ?? 0) - size) ? Math.max(0, e) : null; }
     } else if (s.kind === 'arrow') {
       const a = project(s.origin), b = project(V.add(s.origin, V.mul(axis, size * w)));
       if (a && b) { const e = distToSegment(px, py, a, b); d = e <= tol ? e : null; }

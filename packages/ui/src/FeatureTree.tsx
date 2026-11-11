@@ -5,7 +5,7 @@ import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 import { InlineName } from './InlineName';
 
-export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string }
+export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string; /** shown or hidden: an eye on the row (needs `onToggleRef`); absent: no eye */ shown?: boolean }
 
 export interface FeatureRow { id: string; type: string; name?: string; op?: string; suppressed?: boolean; /** ids of the sketches this feature is built from; they are shown tucked under it */ uses?: string[]; /** a feature this row hangs under (a thread under its hole); ignored unless that row exists */ under?: string; /** folder name: consecutive rows with the same group are shown under one collapsible folder row */ group?: string; /** small muted text after the name, e.g. `patterned by F7` */ note?: string }
 
@@ -103,6 +103,8 @@ export function FeatureTree(p: {
   onSelectRef?(id: string | null): void;
   onHoverRef?(id: string | null): void;
   onOpenRef?(id: string): void;
+  /** The eye of a reference row that has one (`shown` set): show or hide what it stands for. */
+  onToggleRef?(id: string): void;
   /** Show a feature: the app asks for it when a face / edge / corner is picked in the view (or the chip's name is clicked, `force`). The row, and `also` (a pattern that repeats it), get a calm marker and a short pulse; the tree opens what hides them and scrolls only if the row is out of view and the pointer is not on the tree. `n` changes with every request. */
   reveal?: { id: string; also?: string[]; n: number; force?: boolean } | null;
   /** A folder's "select all faces of this group" button; leave out to hide it. Gets the ids of the folder's features (and the sketches tucked under them). */
@@ -545,6 +547,7 @@ export function FeatureTree(p: {
           <Icon name={r.icon} size={18} class="row-icon" />
           <span class="row-name">{r.label}{r.swatch ? <span class="ref-chip" data-swatch={r.swatch} style={{ background: r.swatch }} /> : null}</span>
           {r.tag ? <span class="row-id ref-tag">{r.tag}</span> : null}
+          {r.shown !== undefined && p.onToggleRef ? <button type="button" class={'ref-eye' + (r.shown ? '' : ' on')} data-act="toggle-ref" aria-pressed={!r.shown} title={r.shown ? t('ui.tree.hide', undefined, 'Hide (view only)') : t('ui.tree.show', undefined, 'Show')} aria-label={r.shown ? t('ui.tree.hide', undefined, 'Hide (view only)') : t('ui.tree.show', undefined, 'Show')} onClick={(e) => { e.stopPropagation(); p.onToggleRef!(r.id); }}><Icon name={r.shown ? 'eye' : 'eye-off'} size={15} /></button> : null}
           {r.editable ? <button type="button" class="ref-edit" aria-label={r.editLabel ?? 'Edit'} title={r.editLabel ?? 'Edit'} onClick={(e) => { e.stopPropagation(); p.onOpenRef?.(r.id); }}><Icon name="edit" size={14} /></button> : null}
         </div>
       ))}

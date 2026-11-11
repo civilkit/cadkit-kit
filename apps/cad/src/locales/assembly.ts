@@ -76,7 +76,7 @@ export const assemblyStrings: Record<string, string> = {
   'asm.int.count': '{n} pair(s) interfere', 'asm.int.pair': '{a} ∩ {b}', 'asm.int.failed': 'could not be checked ({code})',
   // bom
   'asm.bom.title': 'Bill of materials', 'asm.bom.empty': 'No components to list.', 'asm.bom.no': 'No.', 'asm.bom.part': 'Part', 'asm.bom.qty': 'Qty', 'asm.bom.material': 'Material',
-  'asm.bom.massEach': 'Mass each', 'asm.bom.massTotal': 'Mass total', 'asm.bom.total': 'Total', 'asm.bom.csv': 'Save CSV', 'asm.bom.saved': 'Saved {name}.', 'asm.bom.measuring': 'Measuring parts...',
+  'asm.bom.massEach': 'Mass each', 'asm.bom.massTotal': 'Mass total', 'asm.bom.total': 'Total', 'asm.bom.csv': 'Save CSV', 'asm.bom.copyText': 'Copy text', 'asm.bom.saveText': 'Save text', 'asm.bom.copied': 'Copied the bill of materials as text.', 'asm.bom.copyFailed': 'Could not copy.', 'asm.bom.fileText': 'bom.txt', 'asm.bom.saved': 'Saved {name}.', 'asm.bom.measuring': 'Measuring parts...',
   'asm.bom.noMass': 'No density known for the part material: mass is not shown.', 'asm.bom.file': 'bom.csv',
   // explode
   'asm.exp.title': 'Exploded view', 'asm.exp.spread': 'Spread', 'asm.exp.dir': 'Direction', 'asm.exp.auto': 'Away from the middle', 'asm.exp.x': 'X axis', 'asm.exp.y': 'Y axis', 'asm.exp.z': 'Z axis',

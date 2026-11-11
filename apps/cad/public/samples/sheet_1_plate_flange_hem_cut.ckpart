@@ -1,0 +1,151 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Sheet metal 1 plate flange hem cut",
+ "features": [
+  {
+   "type": "sheetRules",
+   "id": "R1",
+   "name": "Steel 2 mm",
+   "thickness": 2,
+   "kFactor": 0.44,
+   "bendRadius": 2,
+   "reliefWidth": 2,
+   "reliefDepth": 1,
+   "cornerRelief": 8,
+   "cornerReliefShape": "notch",
+   "hemGap": 0.01,
+   "gap": 2
+  },
+  {
+   "type": "sketch",
+   "id": "S1",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p2",
+     "x": 100,
+     "y": 0
+    },
+    {
+     "id": "p3",
+     "x": 100,
+     "y": 60
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": 60
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "id": "e1",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "type": "line",
+     "id": "e2",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "type": "line",
+     "id": "e3",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "type": "line",
+     "id": "e4",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "baseFlange",
+   "id": "B1",
+   "sketch": "S1"
+  },
+  {
+   "type": "edgeFlange",
+   "id": "E1",
+   "edges": [
+    [
+     50,
+     0,
+     2
+    ]
+   ],
+   "height": 25,
+   "angle": 90,
+   "then": [
+    {
+     "angle": 90,
+     "height": 12
+    }
+   ]
+  },
+  {
+   "type": "hem",
+   "id": "H1",
+   "edges": [
+    [
+     50,
+     60,
+     2
+    ]
+   ],
+   "length": 8
+  },
+  {
+   "type": "sketch",
+   "id": "S2",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "c",
+     "x": 30,
+     "y": 30
+    }
+   ],
+   "entities": [
+    {
+     "type": "circle",
+     "id": "e1",
+     "c": "c",
+     "r": 6
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sheetCut",
+   "id": "X1",
+   "sketch": "S2"
+  },
+  {
+   "type": "unfold",
+   "id": "U1"
+  },
+  {
+   "type": "refold",
+   "id": "U2"
+  }
+ ]
+}

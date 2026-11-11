@@ -54,6 +54,41 @@ Use hole FEATURES (`hole`, `holes.points`, `holes.polar`, `holes.grid`) for anyt
 5. `checkpoint` before a risky change, `undo` / `restore` after. Use `mode: 'attach'` to ADD to what the user has built by hand (their features are kept).
 6. Export with `export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }`. For a `.ckpart` that opens at once in the app, add `cache: true`: the built view is stored in the file (refused with `view_unavailable` for a part with a curated or embedded font (text in the built-in fonts is fine), or a rolled-back part).
 
+## Sheet metal
+
+Sheet metal parts are ordinary script features: sheetRules (stock), baseFlange or contourFlange (first plate) or sheetConvert (from a solid), edgeFlange, hem, fold, sheetCut, sheetCorner, then unfold / refold. The flat pattern, bend table and DXF are results of those features, read with sheet_info and sheet_export. sheet_reference { feature } documents each feature with defaults and units. A sheet feature error carries the kernel code (flangeHeightTooLow, invalidValue with a field, sheetMetalUnsupported, nothingToCut) and a repair hint.
+
+Sheet metal recipe: rules -> base flange -> flanges / hems -> flat pattern -> DXF
+
+1. run_script: define the stock, draw ONE closed outline, make the base flange, then flange the edges.
+   Edges are picked by a WORLD point on them (rect(100, 60) on 'front' is centred on the origin: edges at x = +-50, y = +-30; z = the thickness is the cap face, z = 0 the front face).
+
+   part('Tray')
+     .sheetRules({ name: 'Steel2', thickness: 2, kFactor: 0.44, bendRadius: 2 })
+     .sketch('front', (s) => s.rect(100, 60))
+     .baseFlange({ rule: 'Steel2' })
+     .edgeFlange([[0, -30, 2], [0, 30, 2], [-50, 0, 2], [50, 0, 2]], { height: 15 });
+
+2. sheet_info: the rule, the flat pattern after the last sheet feature (flatSize = width, length, thickness; bends with direction, angle, radius, allowance, line; bend zones) and advice on the rule. Tray above: flat 123.0478 x 83.0478 x 2, four 90 degree bends of allowance 4.5239 each.
+3. facts / bodies: the folded solid (bodies lists the sheet metal summary on the base body).
+4. sheet_export { format: 'dxf', path } writes the flat pattern DXF (layers CUT_OUTER, CUT_INNER, BEND_UP, BEND_DOWN; bendNotes, tangentLines, units, version options); { format: 'csv' | 'json' } returns the bend table.
+5. Part of an edge, shaped legs: edgeFlange (and hem, for the first three) take start / length (mm along the picked edge from its start vertex, the outline runs counter-clockwise) or from / to (two world points on the edge, any order), relief ('none' | 'rectangular' | { width, depth }, the notch beside a partial flange), profile (the leg outline: 'sketch' = the last sketch, or { sketch: id }, or an inline loop of { line } / { arc } in the flange's own frame: v along the flange from the start of the span, h outward from the height line; circles inside a sketch outline are holes, inline holes go in holes: [{ circle: { center: [v, h], radius } }]):
+
+   .edgeFlange([[50, 0, 2]], { height: 20, start: 20, length: 40, relief: 'rectangular' })      // 40 mm of the edge
+   .sketch('front', (s) => s.rect(40, 20)).edgeFlange([[50, 0, 2]], { profile: 'sketch', from: [20, 0, 1], to: [60, 0, 1] })   // leg from a sketch (x = v, y = h)
+
+6. Optional: add .unfold() to turn the body into the flat sheet (refold() undoes it), or .hem(...) for a 180 degree edge.
+
+Rules of thumb
+* Flat length = sum of the legs and flats + one bend allowance per bend, BA = (radius + kFactor x thickness) x angle (radians).
+* heightFrom 'outer' (default) measures a flange height to the outer virtual sharp: leg = height - (radius + thickness) x tan(angle / 2). The height must reach the end of the bend (flangeHeightTooLow).
+* A flange may cover part of an edge (start / length or from / to); the edge is then split in pieces and a later pick names the piece it is nearest to, so give later flanges from / to. A span must lie inside one free piece of the edge. With a profile the height is the top of the outline (leave height out), the outline must reach down to the bend line (the part below the end of the bend is the bend), and from / to must run along the edge's direction (counter-clockwise outline) or the outline comes out mirrored and fails with 'the profile does not reach beyond the bend': swap from and to and mirror it. A hole is listed once: a sketch's own inner loops already are holes. A hem takes start / from / to and relief, not length (its length is the hem's size).
+* One flange per edge. Folds, flanges and hems combine in any order (panel tree); pick a flange edge on a leg with 'P2.tip' or { edge, panel }. Holes and slots go in with sheetCut (sketch in the flat layout, works across bends); a plain cut or hole breaks the sheet. Corners: sheetCorner round / chamfer; reliefs: cornerReliefShape notch | round | rectangular | tear on the rule. A solid bent plate becomes a sheet with sheetConvert.
+* Keep bendRadius >= thickness and reliefWidth >= thickness: smaller values build, but crack in real stock (sheet_info reports them as advice).
+* Picks by role ({ role: 'P0.side.e2' }) follow the sketch curve when the outline changes; points do not.
+
+Limits (not in the kernel yet, do not script them): flanges on curved edges (a base outline with arcs takes flanges on its straight edges), relief shapes other than a rectangle for partial flanges, arcs or several chains in a contour flange, a zig-zag fold chain on a concave base, sheetCorner across bends, sheetConvert of cones, tori or free-form bends, sheetCut that splits a panel. sheet_reference lists the status of every feature.
+
 ## Common errors and what to do
 
 | code | meaning | fix |
@@ -65,6 +100,9 @@ Use hole FEATURES (`hole`, `holes.points`, `holes.polar`, `holes.grid`) for anyt
 | booleanFailed | the union / cut could not be completed | move the tool by 0.01 mm, avoid coincident faces, unite touching bodies first |
 | unsupported selector / Line N | a face()/edges() selector found nothing | selectors resolve against the body just before that step; print `tree` and use `find` for names |
 | unknown method | not in the API | `list_methods { query }` |
+| flangeHeightTooLow | a sheet flange is shorter than its bend | raise the height (the error gives minHeight) or reduce radius / angle |
+| invalidValue (field) | a sheet feature value or pick is wrong | the hint names the field; edges are world points on the base outline |
+| sheetMetalUnsupported | a sheet case the kernel does not build yet | the hint says what to reorder (flange before cuts, fold before flanges) |
 
 ## Performance
 
@@ -86,6 +124,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.axis()`: Construction line along the sketch Y axis (the default revolve axis).
 * `s.axisAt(from, to)`: Construction line used as the revolve axis when it is not the sketch Y axis.
 * `s.circle(r, at?)`: Circle given its RADIUS (not diameter).
+* `s.curve(f, o?)`: Curve from a JavaScript function t -> [x, y], sampled into a fitted spline.
 * `s.cvspline(pts, o?)`: Control-vertex spline: the points are the control polygon, not on the curve.
 * `s.equation(o)`: Curve from formulas x(t), y(t): the kernel fits a spline with the fewest points within the tolerance.
 * `s.grid(origin, pitch, count)`: Points on a rectangular grid.
@@ -93,7 +132,8 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `s.offset(distance, o?)`: Offset the chain drawn last.
 * `s.point(at)`: A single point (a hole centre).
 * `s.points(pts)`: Several points (hole centres).
-* `s.polar(count, draw, o?)`: Repeat a drawing around a centre.
+* `s.polar(count, draw?, o?)`: Repeat a drawing around a centre.
+* `s.polarCurve(f, o?)`: Polar curve from a function angle -> radius (waves, cams, petals).
 * `s.polarPoints(center, radius, n, startAngle?)`: Points on a circle: a bolt circle of centres.
 * `s.polygon(pts)`: Closed polygon through the points.
 * `s.polyline(pts)`: Open chain of lines through the points.
@@ -105,25 +145,38 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 ### features
 
 * `bearing(o)`: A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
+* `.baseFlange(o?)`: Sheet base plate from the last closed sketch.
 * `.bearing(o)`: A ball bearing as separate bodies: two rings (with shields or seals) and, when open, the balls.
 * `.chamfer(on, distance)`: Bevel edges: equal distance, two distances, or distance and angle.
 * `.combine(op, target, tools, o?)`: Boolean between whole bodies: union, cut or intersect.
+* `.contourFlange(o)`: Sheet base from an open chain of sketch lines.
 * `.cut(end, o?)`: Cut the last sketch out of the body: a depth or through().
+* `.edgeFlange(edges, o)`: Bent flange on edges of the base plate.
 * `.extrude(depth, o?)`: Extrude the last sketch into a solid (adds material).
 * `.feature(json)`: Append any kernel feature as raw JSON (escape hatch for features without a helper).
 * `.fillet(on, radius)`: Round edges: one radius, a radius per edge, or a variable radius.
+* `.fold(o)`: Fold the base along a line.
 * `.gear(o)`: Involute spur or helical gear (profile, body extrude, bore) from module and teeth.
+* `.hem(edges, o)`: 180 degree hem on an edge.
 * `.knurl(o)`: Knurl a cylinder: cut straight, diamond or pyramid grooves into it.
 * `.loft(sections, o?)`: Loft a solid through two or more section sketches, optionally ending in a point.
+* `.refold()`: Refold an unfolded sheet.
 * `.revolve(angle?, o?)`: Revolve the last sketch about an axis (lathe parts: pulleys, bushings, flanges).
 * `.rib(thickness, o?)`: Rib: a web of a given thickness from an open sketch line, grown to the body.
 * `.screw(o)`: A screw or bolt as its own body: head, drive and shank, placed by an origin and an axis.
+* `.sheetConvert(o?)`: Turn a bent-plate solid into a sheet metal part.
+* `.sheetCorner(corners, o?)`: Round or chamfer free convex corners of the sheet.
+* `.sheetCut(o?)`: Cut closed sketch regions out of the sheet, across bends too.
+* `.sheetRules(o?)`: Sheet stock rule: thickness, k-factor, bend radius.
 * `.shell(open, thickness)`: Hollow the body to a wall thickness, opening the selected face(s).
 * `.sweep(profile, path, o?)`: Sweep a closed profile along a path sketch (pipes, rails, handles).
 * `.thin(thickness)`: Make the previous extrude or revolve a thin-walled one.
 * `.thread(on, o)`: Add a cosmetic or modeled screw thread to a bore or cylinder.
+* `.unfold()`: Unfold the sheet to its flat body.
+* `.washer(o)`: A flat or split spring washer as its own body, placed by an origin and an axis.
 * `screw(o)`: A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
 * `through()`: End condition for cut(): through all material.
+* `washer(o)`: A flat or split spring washer as its own body, placed by an origin and an axis.
 
 ### selectors
 
@@ -172,6 +225,7 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.edges()`: Read the edges of the part built so far: key, midpoint, length, adjacent faces.
 * `.expectBBox(box, o?)`: Check the bounding box of the part built so far.
 * `.expectFaceCount(n)`: Check the number of faces of the part built so far.
+* `.expectMinFaceArea(a, o?)`: Check that no face of the part is smaller than a given area (no slivers).
 * `.expectValid()`: Check that the part built so far passes the kernel's validity check.
 * `.expectVolume(v, o?)`: Check the volume of the part built so far; a mismatch is reported as an error with this line.
 * `.faceCount()`: Read the number of faces of the part built so far.
@@ -205,4 +259,5 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `counterbored-plate`: Plate with a centre bore and four counterbored screw holes
 * `mirrored-bracket`: Channel bracket: build half, mirror the body
 * `verification`: How to verify a part (numbers first, then eyes)
+* `sheet-metal-tray`: Sheet metal tray: rules, base flange, four flanges, flat pattern, DXF
 * `common-errors`: Common errors and what to do about them

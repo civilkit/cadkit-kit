@@ -64,5 +64,6 @@ export const SYNONYM_GROUPS: string[][] = [
   ['dimension line', 'size', 'overall', 'extent', 'bounding box', 'bbox'],
   ['union', 'combine', 'merge', 'fuse', 'add', 'join'],
   ['difference', 'subtract', 'minus', 'exclude', 'not'],
+  ['sheet metal', 'sheetmetal', 'bend', 'bent', 'brake', 'tray', 'k-factor', 'flat pattern', 'unfold', 'laser cut', 'dxf'],
   ['stack', 'layered', 'layers', 'tiered', 'stepped', 'step'],
 ];

@@ -1,8 +1,9 @@
 import type { Platform } from './index';
 import { idbHandleStore, readHandleWith, saveDocumentWith, type FsEnv } from './fsaccess';
-import { fileText } from './gzip';
+import { bytesText } from './gzip';
+import { isBinaryName } from './kinds';
 
-const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json', gz: 'application/gzip' };
+const MIME: Record<string, string> = { stl: 'model/stl', obj: 'model/obj', dxf: 'image/vnd.dxf', svg: 'image/svg+xml', step: 'model/step', stp: 'model/step', ckpart: 'application/json', json: 'application/json', gz: 'application/gzip' };
 const mimeFor = (name: string) => MIME[name.split('.').pop()?.toLowerCase() ?? ''] ?? 'application/octet-stream';
 
 export function createWebPlatform(opts: { base?: string } = {}): Platform {
@@ -17,8 +18,9 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
         input.onchange = async () => {
           const f = input.files?.[0];
           if (!f) return resolve(null);
-          if (/\.(fcstd|sldprt|skp|solidcraft)$/i.test(f.name)) return resolve({ name: f.name, text: '', bytes: new Uint8Array(await f.arrayBuffer()) });   // binary container: text would be garbage
-          resolve({ name: f.name, text: await fileText(f) });
+          // bytes always (a binary container read as text is garbage, an STL arrives empty); text only for the text kinds
+          const bytes = new Uint8Array(await f.arrayBuffer());
+          resolve({ name: f.name, text: isBinaryName(f.name) ? '' : await bytesText(bytes), bytes });
         };
         // Cancel has no change event; a later focus with no selection means cancel.
         input.oncancel = () => resolve(null);
@@ -35,12 +37,12 @@ export function createWebPlatform(opts: { base?: string } = {}): Platform {
       URL.revokeObjectURL(url);
       return Promise.resolve();
     },
-    async listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string }>> {
+    async listSamples(): Promise<Array<{ id: string; title: string; url: string; detail?: string; category?: string; tags?: string[] }>> {
       try {
         const r = await fetch(`${base}samples/index.json`);
         if (!r.ok) return [];
-        const entries = (await r.json()) as Array<{ id: string; title: string; file: string; detail?: string }>;
-        return entries.map((e) => ({ id: e.id, title: e.title, detail: e.detail, url: `${base}samples/${e.file}` }));
+        const entries = (await r.json()) as Array<{ id: string; title: string; file: string; detail?: string; category?: string; tags?: string[] }>;
+        return entries.map((e) => ({ id: e.id, title: e.title, detail: e.detail, category: e.category, tags: e.tags, url: `${base}samples/${e.file}` }));
       } catch {
         return [];
       }

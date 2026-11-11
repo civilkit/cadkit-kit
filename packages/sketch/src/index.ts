@@ -138,5 +138,6 @@ export * from './define';
 export * from './equation';
 export * from './refdims';
 export * from './slotLength';
+export * from './arcSlotEdit';
 export * from './text';
 export * from './dimLayout';

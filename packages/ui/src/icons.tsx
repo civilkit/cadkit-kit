@@ -47,6 +47,7 @@ const ICONS: Record<string, string> = {
   ellipse: `<ellipse cx="12" cy="12" rx="9" ry="5.5" transform="rotate(-30 12 12)"/>` + C('M5 17 19 7') + D(12, 12),
   polygon: P('M20 12l-4 6.9H8L4 12l4-6.9h8z') + CO(12, 12, 8) + D(12, 12),
   slot: P('M7 8h10a4 4 0 010 8H7a4 4 0 010-8z') + C('M7 12h10') + D(7, 12) + D(17, 12),
+  'arc-slot': P('M4.6 14.5a8 8 0 0 1 14.8 0a2.2 2.2 0 0 1-3.5 2.2a4.6 4.6 0 0 0-7.8 0a2.2 2.2 0 0 1-3.5-2.2z') + C('M6.3 15.6a6.2 6.2 0 0 1 11.4 0') + D(6.3, 15.6) + D(17.7, 15.6),
   point: C('M12 3v5M12 16v5M3 12h5M16 12h5') + D(12, 12, 2.6),
   text: P('M6 6h12M12 6v13M9.5 19h5') + C('M4 6v13'),
   centerline: `<path d="M3.5 20.5 20.5 3.5" stroke-dasharray="7 2.5 1.5 2.5"/>`,
@@ -94,7 +95,10 @@ const ICONS: Record<string, string> = {
   samples: P('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4z') + A('M13 13h7v7h-7z'),
   // ---- import and export: a page for a drawing file, the cube for a solid, an accent arrow for the direction
   'sketch-import-dxf': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M9.5 17.5 12 12.5l2.5 5z'),
+  'sketch-import-svg': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + A('M8.5 17c1.5-4 3-4 3.5-1s2 2 3.5-2'),
+  'add-sketch3d': T('M4 19V5M4 19h16M4 19l5-4') + A('M6 15c2-7 6-1 8-6s3-2 4-4') + D(6, 15) + D(18, 5),
   'sketch-from-dxf': C('M3 20l4-5h14l-4 5z') + P('M8 3h6l3 3v8H8z') + A('M12 8.5v3.5M10.2 10.5 12 12.3l1.8-1.8'),
+  'sketch-from-svg': C('M3 20l4-5h14l-4 5z') + P('M8 3h6l3 3v8H8z') + A('M9.8 11.5c.8-2.4 1.8-2.4 2.2-.8s1.3 1.2 2.2-1'),
   export: P('M5 14v6h14v-6') + A('M12 15V4M8 8l4-4 4 4'),
   'export-stl': P(HEX) + T(Y) + C('M12 3 4.2 16.5M19.8 7.5 12 21'),
   'export-stl-ascii': P('M4.2 7.5 12 3l7.8 4.5v4M4.2 7.5v9L12 21') + T('M4.2 7.5 12 12l7.8-4.5M12 12v9') + A('M14.5 15h6M14.5 18h6M14.5 21h4'),
@@ -142,7 +146,24 @@ const ICONS: Record<string, string> = {
   'add-propeller': P('M12 9.6C10.2 7 10.3 4.2 12 3.2C13.7 4.2 13.8 7 12 9.6Z') + P('M14.1 13.2C17.2 12.9 19.6 14.4 19.6 16.4C17.9 17.4 15.4 16.1 14.1 13.2Z') + P('M9.9 13.2C8.6 16.1 6.1 17.4 4.4 16.4C4.4 14.4 6.8 12.9 9.9 13.2Z') + O(12, 12, 1.6),
   'add-knurl': P('M6 6c0-1.4 2.7-2.5 6-2.5s6 1.1 6 2.5-2.7 2.5-6 2.5S6 7.4 6 6z') + P('M6 6v12c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6') + T('M8.2 10.5l7.6 7M8.2 14l7.6 5.6M15.8 10.5l-7.6 7M15.8 14l-7.6 5.6'),
   'add-screw': P('M5 4h14v3H5z') + P('M10 7h4v11l-2 3-2-3z') + T('M10 10l4 1.2M10 13l4 1.2M10 16l4 1.2'),
+  'add-washer': O(12, 12, 8.5) + O(12, 12, 3.6) + T('M3.5 12v2.2c0 4.7 3.8 6.8 8.5 6.8s8.5-2.1 8.5-6.8V12'),
   'add-bearing': O(12, 12, 9) + O(12, 12, 4.2) + O(12, 4.6, 1.4) + O(12, 19.4, 1.4) + O(4.6, 12, 1.4) + O(19.4, 12, 1.4),
+  // ---- sheet metal (the Sheet tab; the tree uses the same names, see featureIconName)
+  'sheet-rules': P('M3 12h13v4H3z') + T('M3 12l3-3h13l-3 3M16 16l3-3v-4') + A('M20.5 13v6M19 14.5l1.5-1.5 1.5 1.5M19 17.5l1.5 1.5 1.5-1.5'),
+  'add-base-flange': P('M4 15l4-6h13l-4 6z') + T('M4 15v3h13v-3M17 18l4-6V9') + A('M8 9l-4 6'),
+  'add-edge-flange': P('M3 19h11a5 5 0 005-5V4') + T('M3 16h10.3a2.7 2.7 0 002.7-2.7V4') + AP(19, 4, 1.6),
+  'add-contour-flange': P('M3 18h4l3-10h4l3 10h4') + T('M3 15h2.4l3-10h7.2l3 10H21'),
+  'add-hem': P('M3 9h13a4 4 0 010 8H7') + T('M3 12h12.6a1.2 1.2 0 010 2.4H7') + A('M9.5 14.6 7 17l2.5 2.4'),
+  'add-fold': P('M3 18h9l7-7') + C('M12 5v16') + A('M16 8l3 3-3 3') + D(12, 18, 1.6),
+  'add-sheet-convert': P('M3 3.5h8.5v8.5H3z') + T('M3 3.5l2.5-1.5H14L11.5 3.5M11.5 12 14 10.5V2') + A('M14.5 8h5M17.2 5.6 19.6 8l-2.4 2.4') + P('M3 15.5h18V20H3z') + C('M9 15.5V20M15 15.5V20'),
+  'add-sheet-cut': P('M3 5h18v14H3z') + C('M9.2 5v14M14.8 5v14') + A('M6.5 9.7h11a1.3 1.3 0 011.3 1.3v2a1.3 1.3 0 01-1.3 1.3h-11a1.3 1.3 0 01-1.3-1.3v-2a1.3 1.3 0 011.3-1.3z'),
+  'add-sheet-corner': P('M3.5 4h17v10.5a5.5 5.5 0 01-5.5 5.5H3.5z') + T('M3.5 4v16') + A('M20.5 14.5A5.5 5.5 0 0115 20') + D(20.5, 20, 1.2),
+  'sheet-unfold': P('M3 19h18') + T('M3 16h18') + A('M5 11a7 7 0 0112-3M17 5v3.5h-3.5'),
+  'sheet-refold': P('M3 19h10a5 5 0 005-5V6') + A('M3 11a7 7 0 017-6M10 2.5 12.5 5 10 7.5'),
+  'sheet-flat': P('M4 5h16v14H4z') + C('M9.5 5v14M14.5 5v14') + D(9.5, 12, 1.4) + D(14.5, 12, 1.4),
+  'sheet-dxf': P('M6 3h9l4 4v14H6z') + T('M15 3v4h4') + A('M9 12h6v5H9z'),
+  'sheet-bends-csv': P('M6 3h9l4 4v14H6z') + T('M15 3v4h4M9 11h7M9 14h7M9 17h7') + A('M9 11v6'),
+  'sheet-bends-json': P('M6 3h9l4 4v14H6z') + T('M15 3v4h4') + A('M11 10c-1.4 0-1 1.6-1 2.5s.1 2-1 2c1.1 0 1 1.1 1 2s-.4 2.5 1 2.5M14 10c1.4 0 1 1.6 1 2.5s-.1 2 1 2c-1.1 0-1 1.1-1 2s.4 2.5-1 2.5'),
   'add-frame': P('M3 4h18v16H3z') + P('M7 8h10v8H7z') + T('M3 4l4 4M21 4l-4 4M21 20l-4-4M3 20l4-4'),
   'frame-cutlist': P('M5 3h14v18H5z') + T('M8 8h8M8 12h8M8 16h5'),
   'add-impeller': P('M12 9.6C10.2 7 10.3 4.2 12 3.2C13.7 4.2 13.8 7 12 9.6Z') + P('M14.1 13.2C17.2 12.9 19.6 14.4 19.6 16.4C17.9 17.4 15.4 16.1 14.1 13.2Z') + P('M9.9 13.2C8.6 16.1 6.1 17.4 4.4 16.4C4.4 14.4 6.8 12.9 9.9 13.2Z') + O(12, 12, 1.6),
@@ -341,6 +362,17 @@ export function featureIconName(type: string, op?: string): string {
     case 'sketch': return op === 'point' ? 'feature-sketch-point' : 'feature-sketch';
     case 'sketch3d': return 'feature-sketch';
     case 'frame': return 'add-frame';
+    case 'sheetRules': return 'sheet-rules';
+    case 'baseFlange': return 'add-base-flange';
+    case 'edgeFlange': return 'add-edge-flange';
+    case 'contourFlange': return 'add-contour-flange';
+    case 'hem': return 'add-hem';
+    case 'fold': return 'add-fold';
+    case 'sheetConvert': return 'add-sheet-convert';
+    case 'sheetCut': return 'add-sheet-cut';
+    case 'sheetCorner': return 'add-sheet-corner';
+    case 'unfold': return 'sheet-unfold';
+    case 'refold': return 'sheet-refold';
     case 'plane': return 'feature-plane';
     case 'extrude': return cut ? 'add-cut' : 'add-extrude';
     case 'revolve': return 'add-revolve';

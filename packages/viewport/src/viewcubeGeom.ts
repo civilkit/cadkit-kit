@@ -16,7 +16,7 @@ export interface CubeGeometry {
 
 /** Half the cube's width, and how deep the chamfer cuts at an edge. */
 export const CUBE_HALF = 0.8;
-export const CUBE_BEVEL = 0.26;
+export const CUBE_BEVEL = 0.34;
 
 /** Where a face's text reads upright: screen-up on the face (the world up axis, or on Top and Bottom the way the front points) and screen-right (up x normal). */
 function faceFrame(n: THREE.Vector3, up: UpAxis): { right: THREE.Vector3; up: THREE.Vector3 } {

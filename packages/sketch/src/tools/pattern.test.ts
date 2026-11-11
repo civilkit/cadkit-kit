@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from '../index';
 import { annotate } from '../annotations';
 import { DEFAULT_SETTINGS, type Tool, type ToolEvent, type ToolOutput } from './types';
-import { applyCircular, applyLinear, circularPatternTool, linearPatternTool } from './pattern';
+import { applyCircular, applyGrid, applyLinear, circularPatternTool, linearPatternTool, type GridSpec } from './pattern';
 import { rectDraft, resolves } from './edit-fixtures';
 
 const M = { shift: false, ctrl: false, alt: false };
@@ -143,10 +143,11 @@ describe('linear pattern tool', () => {
     expect(o.draft.entities).toHaveLength(4 + 2);                       // e1 only, n = 3 -> two copies
     expect(o.draft.entities.length).toBe(6);
   });
-  it('Enter in the set phase with no spacing hints; Escape steps back', () => {
+  it('Enter in the set phase with nothing typed and no pointer uses the default spacing (a gap past the shape); Escape steps back', () => {
     const d0 = rectDraft(10, 5);
-    let o = run(linearPatternTool, d0, [clickOn('e1'), key('Enter'), key('Enter')]);
-    expect(o.hint).toBe('app.sketch.hint.patternPlace');
+    let o = run(linearPatternTool, d0, [clickOn('e1'), key('Enter')]);
+    expect(o.hint).toBe('app.sketch.hint.patternSetLinear');
+    expect(o.fields[1].value).toBeCloseTo(15, 9);                      // 1.5 x the 10 mm line
     o = linearPatternTool.step(o.state, key('Escape'), o.draft, DEFAULT_SETTINGS);
     expect(o.state.phase).toBe('select');
     o = linearPatternTool.step(o.state, key('Escape'), o.draft, DEFAULT_SETTINGS);
@@ -188,5 +189,206 @@ describe('circular pattern tool', () => {
     expect(o.hint).toBe('app.sketch.hint.pickCenter');
     o = circularPatternTool.step(o.state, key('Escape'), o.draft, DEFAULT_SETTINGS);
     expect(o.state.phase).toBe('select');
+  });
+});
+
+describe('pattern tools: the natural gesture', () => {
+  const circleDraft = (): SketchDraft => ({ id: 'F1', plane: {}, temp: [], points: [{ id: 'c', x: 5, y: 5 }], entities: [{ id: 'e1', type: 'circle', c: 'c', r: 2.5 }], constraints: [] });
+  const env = (ids: string[]) => ({ entities: ids });
+
+  it('every step carries a hint, so the user is told what to do next', () => {
+    let o = run(linearPatternTool, circleDraft(), []);
+    o = linearPatternTool.step(o.state, move(1, 1), o.draft, DEFAULT_SETTINGS);
+    expect(o.hint).toBe('app.sketch.hint.patternPick');
+    o = linearPatternTool.step(o.state, clickOn('e1'), o.draft, DEFAULT_SETTINGS);
+    expect(o.hint).toBe('app.sketch.hint.patternPickMore');
+    o = linearPatternTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
+    expect(o.hint).toBe('app.sketch.hint.patternSetLinear');
+    expect(o.fields.map((f) => f.id)).toEqual(['n', 'd', 'a']);
+  });
+  it('linear: a circle selected in Select mode first goes straight to the copies: fields, preview, click makes them', () => {
+    const d = circleDraft();
+    let o = linearPatternTool.step(linearPatternTool.start(), move(0, 0), d, DEFAULT_SETTINGS, env(['e1']));
+    expect(o.state.phase).toBe('set');
+    o = linearPatternTool.step(o.state, move(25, 5), o.draft, DEFAULT_SETTINGS, env(['e1']));
+    expect(o.fields.map((f) => f.id)).toEqual(['n', 'd', 'a']);
+    expect(o.preview.length).toBeGreaterThan(1);
+    o = linearPatternTool.step(o.state, clickAt(25, 5), o.draft, DEFAULT_SETTINGS, env(['e1']));
+    expect(o.draft.entities.filter((e) => e.type === 'circle')).toHaveLength(3);
+  });
+  it('linear: pick the circle, then a click on empty space is the direction (no Enter needed); the next click makes the pattern', () => {
+    let o = run(linearPatternTool, circleDraft(), [clickOn('e1'), clickAt(25, 5)]);
+    expect(o.state.phase).toBe('set');
+    expect(o.preview.length).toBeGreaterThan(1);
+    o = linearPatternTool.step(o.state, clickAt(25, 5), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.entities.filter((e) => e.type === 'circle')).toHaveLength(3);
+    expect(resolves(o.draft)).toBe(true);
+  });
+  it('linear: a click on empty space with nothing selected still hints to pick', () => {
+    expect(run(linearPatternTool, circleDraft(), [clickAt(25, 5)]).hint).toBe('app.sketch.hint.pickEntity');
+  });
+  it('circular: preselected goes to the centre; a click on empty space after picking is the centre', () => {
+    const d = circleDraft();
+    let o = circularPatternTool.step(circularPatternTool.start(), move(0, 0), d, DEFAULT_SETTINGS, env(['e1']));
+    expect(o.state.phase).toBe('center');
+    expect(o.hint).toBe('app.sketch.hint.pickCenter');
+    o = run(circularPatternTool, d, [clickOn('e1'), clickAt(0, 0)]);
+    expect(o.state.phase).toBe('set');
+    expect(o.fields.map((f) => f.id)).toEqual(['n', 'a']);
+    o = circularPatternTool.step(o.state, field('n', 4), o.draft, DEFAULT_SETTINGS);
+    o = circularPatternTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.entities.filter((e) => e.type === 'circle')).toHaveLength(4);
+  });
+});
+
+describe('grid pattern geometry', () => {
+  const circle = (): SketchDraft => ({ id: 'F1', plane: {}, temp: [], points: [{ id: 'c', x: 0, y: 0 }], entities: [{ id: 'e1', type: 'circle', c: 'c', r: 3 }], constraints: [] });
+  const grid = (over: Partial<GridSpec> = {}): GridSpec => ({ n1: 3, spacing1: 20, angle1: 0, n2: 2, spacing2: 20, angle2: 90, ...over });
+  const made = (d: SketchDraft, g: GridSpec) => { const r = applyGrid(d, ['e1'], g); if (!r.ok) throw new Error(r.hint); return r.draft; };
+
+  it('3 columns x 2 rows of a circle: six circles at the grid positions, row by row', () => {
+    const d = made(circle(), grid());
+    const cs = d.entities.filter((e) => e.type === 'circle').map((e) => pt(d, String(e.c)));
+    expect(cs.map((c) => [Math.round(c.x), Math.round(c.y)])).toEqual([[0, 0], [20, 0], [40, 0], [0, 20], [20, 20], [40, 20]]);
+    expect(resolves(d)).toBe(true);
+  });
+  it('writes two spacing dimensions for the first row and ONE for the rows; the rest is parallel + equal to that step', () => {
+    const d = made(circle(), grid());
+    const visible = d.constraints.filter((c) => !c.hidden);
+    expect(visible.filter((c) => c.type === 'hdist').map((c) => c.value)).toEqual([20, 20]);   // spacing 1, one per step
+    expect(visible.filter((c) => c.type === 'vdist').map((c) => c.value)).toEqual([20]);       // spacing 2, once
+    expect(visible.filter((c) => c.type === 'vertical')).toHaveLength(1);
+    expect(d.constraints.filter((c) => c.type === 'parallel')).toHaveLength(2);                 // copies (1,1) and (2,1) repeat step 2
+    expect(d.constraints.filter((c) => c.type === 'parallel').every((c) => c.hidden)).toBe(true);
+    expect(d.entities.filter((e) => e.construction)).toHaveLength(3);                           // the step itself + one per further copy
+  });
+  it('rows only (one column) and a three-row stack write the same single spacing dimension', () => {
+    const d = made(circle(), grid({ n1: 1, n2: 4, angle2: 90 }));
+    expect(d.constraints.filter((c) => !c.hidden && (c.type === 'vdist' || c.type === 'hdist'))).toHaveLength(1);
+    expect(d.entities.filter((e) => e.type === 'circle')).toHaveLength(4);
+  });
+  it('a tilted grid and a second direction off the perpendicular are placed where asked', () => {
+    const d = made(circle(), grid({ n1: 2, n2: 2, angle1: 30, angle2: 100 }));
+    const cs = d.entities.filter((e) => e.type === 'circle').map((e) => pt(d, String(e.c)));
+    expect(cs[3].x).toBeCloseTo(20 * Math.cos(Math.PI / 6) + 20 * Math.cos((100 * Math.PI) / 180), 9);
+    expect(cs[3].y).toBeCloseTo(20 * Math.sin(Math.PI / 6) + 20 * Math.sin((100 * Math.PI) / 180), 9);
+  });
+  it('refuses a single instance, too many, no spacing, and two parallel directions', () => {
+    expect(applyGrid(circle(), ['e1'], grid({ n1: 1, n2: 1 }))).toEqual({ ok: false, hint: 'app.sketch.hint.patternCount' });
+    expect(applyGrid(circle(), ['e1'], grid({ n1: 20, n2: 20 }))).toEqual({ ok: false, hint: 'app.sketch.hint.patternTooMany' });
+    expect(applyGrid(circle(), ['e1'], grid({ spacing2: 0 }))).toEqual({ ok: false, hint: 'app.sketch.hint.degenerate' });
+    expect(applyGrid(circle(), ['e1'], grid({ angle2: 180 }))).toEqual({ ok: false, hint: 'app.sketch.hint.patternParallel' });
+  });
+});
+
+describe('linear pattern tool: the panel', () => {
+  const circleDraft = (): SketchDraft => ({ id: 'F1', plane: {}, temp: [], points: [{ id: 'c', x: 5, y: 5 }], entities: [{ id: 'e1', type: 'circle', c: 'c', r: 2.5 }], constraints: [] });
+  const rowIds = (o: ToolOutput<unknown>, g: string) => o.panel!.groups.find((x) => x.id === g)!.rows.map((r) => r.id);
+  const cnt = (d: SketchDraft) => d.entities.filter((e) => e.type === 'circle').length;
+
+  it('appears once the shapes are picked and Enter pressed: direction 1 in full, direction 2 (rows) off at count 1', () => {
+    const o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter')]);
+    expect(o.panel?.canApply).toBe(true);
+    expect(rowIds(o, 'dir1')).toEqual(['n', 'a', 'tot1', 'd', 'pick1']);
+    expect(rowIds(o, 'dir2')).toEqual(['n2']);
+    expect(o.panel!.groups[1].rows[0]).toMatchObject({ value: 1 });
+    expect(run(linearPatternTool, circleDraft(), [clickOn('e1')]).panel).toBeUndefined();
+  });
+  it('rows: a count above 1 shows the second direction, perpendicular by default, and previews the whole grid', () => {
+    const o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('n2', 2), field('d', 20), field('d2', 20)]);
+    expect(rowIds(o, 'dir2')).toEqual(['n2', 'a2', 'tot2', 'd2', 'pick2']);
+    expect(o.panel!.groups[1].rows.find((r) => r.id === 'a2')).toMatchObject({ value: 90 });
+    expect(o.preview.filter((s) => s.kind === 'circle').length).toBe(6);   // the original (highlighted) and the five copies of a 3 x 2 grid
+  });
+  it('3 columns x 2 rows at 20 mm: Enter makes six circles with the spacing dimensions', () => {
+    const o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('n', 3), field('d', 20), field('a', 0), field('n2', 2), field('d2', 20), key('Enter')]);
+    expect(cnt(o.draft)).toBe(6);
+    expect(o.state).toMatchObject({ phase: 'select', selected: [], n: 3, n2: 1 });
+    expect(resolves(o.draft)).toBe(true);
+  });
+  it('total length: the spacing is the whole run divided by the steps; the toggle keeps the step', () => {
+    let o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('n', 5), field('d', 8), field('tot1', 1)]);
+    expect(o.panel!.groups[0].rows.find((r) => r.id === 'd')).toMatchObject({ value: 32, label: 'app.sketch.pattern.totalLength' });
+    o = linearPatternTool.step(o.state, field('d', 40), o.draft, DEFAULT_SETTINGS);
+    o = linearPatternTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
+    const xs = o.draft.entities.filter((e) => e.type === 'circle').map((e) => pt(o.draft, String(e.c)).x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(40, 9);
+    expect(cnt(o.draft)).toBe(5);
+  });
+  it('a count change in total mode keeps the total (the step follows)', () => {
+    const o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('tot1', 1), field('d', 30), field('n', 4)]);
+    expect(o.panel!.groups[0].rows.find((r) => r.id === 'd')).toMatchObject({ value: 30 });
+  });
+  it('pick a line of the sketch for the direction: its angle is taken; a click on anything else is refused', () => {
+    const d: SketchDraft = { ...circleDraft(), points: [...circleDraft().points, { id: 'a', x: 0, y: 0 }, { id: 'b', x: 10, y: 10 }], entities: [...circleDraft().entities, { id: 'e2', type: 'line', p1: 'a', p2: 'b' }] };
+    let o = run(linearPatternTool, d, [clickOn('e1'), key('Enter'), field('pick1', 1)]);
+    expect(o.hint).toBe('app.sketch.hint.patternPickLine');
+    expect(o.panel!.groups[0].rows.find((r) => r.id === 'pick1')).toMatchObject({ active: true });
+    o = linearPatternTool.step(o.state, clickAt(30, 30), o.draft, DEFAULT_SETTINGS);
+    expect(o.hint).toBe('app.sketch.hint.patternPickLine');
+    expect(cnt(o.draft)).toBe(1);                                     // the click did not make the pattern
+    o = linearPatternTool.step(o.state, clickOn('e2'), o.draft, DEFAULT_SETTINGS);
+    expect(o.panel!.groups[0].rows.find((r) => r.id === 'a')).toMatchObject({ value: 45, locked: true });
+    expect(o.panel!.groups[0].rows.find((r) => r.id === 'pick1')).toMatchObject({ active: false });
+    // Escape while picking only stops the picking
+    o = run(linearPatternTool, d, [clickOn('e1'), key('Enter'), field('pick1', 1), key('Escape')]);
+    expect(o.state.phase).toBe('set');
+    expect((o.state as { pick?: number }).pick).toBeUndefined();
+  });
+  it('the click gesture still works: the pointer sets direction 1 until the panel is used (freeze keeps what it set)', () => {
+    let o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), move(25, 5)]);
+    expect(o.fields.map((f) => f.value)).toEqual([3, 20, 0]);
+    o = linearPatternTool.step(o.state, field('freeze', 1, false), o.draft, DEFAULT_SETTINGS);
+    o = linearPatternTool.step(o.state, move(60, 60), o.draft, DEFAULT_SETTINGS);
+    expect(o.fields.map((f) => f.value)).toEqual([3, 20, 0]);          // the pointer no longer moves it
+    o = linearPatternTool.step(o.state, field('n2', 2), o.draft, DEFAULT_SETTINGS);
+    o = linearPatternTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
+    expect(cnt(o.draft)).toBe(6);
+  });
+  it('refuses counts that leave one instance or too many, with a hint, and keeps the state', () => {
+    let o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('n', 1)]);
+    expect(o.hint).toBe('app.sketch.hint.patternCount');
+    o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('n', 50), field('n2', 50)]);
+    expect(o.hint).toBe('app.sketch.hint.patternTooMany');
+    expect((o.state as { n2: number }).n2).toBe(1);
+  });
+  it('Escape clears every typed value, then goes back a step; OK is not offered when nothing would be made', () => {
+    let o = run(linearPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), field('d', 20), field('d2', 7), key('Escape')]);
+    expect(o.state.phase).toBe('set');
+    expect(o.fields[1].locked).toBe(false);
+    o = linearPatternTool.step(o.state, key('Escape'), o.draft, DEFAULT_SETTINGS);
+    expect(o.state.phase).toBe('select');
+  });
+});
+
+describe('circular pattern tool: the panel', () => {
+  const circleDraft = (): SketchDraft => ({ id: 'F1', plane: {}, temp: [], points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: 20, y: 0 }], entities: [{ id: 'e1', type: 'circle', c: 'p1', r: 3 }], constraints: [] });
+  const set = (...e: ToolEvent[]) => run(circularPatternTool, circleDraft(), [clickOn('e1'), key('Enter'), clickAt(0, 0, 'O'), ...e]);
+  const row = (o: ToolOutput<unknown>, id: string) => o.panel!.groups[0].rows.find((r) => r.id === id)!;
+
+  it('shows count, angle type and angle once the centre is picked; the angle starts as the step 360 / n', () => {
+    const o = set();
+    expect(o.panel!.groups[0].rows.map((r) => r.id)).toEqual(['n', 'tot', 'a']);
+    expect(row(o, 'a')).toMatchObject({ value: 60, label: 'app.sketch.pattern.stepAngle' });
+    expect(o.panel!.canApply).toBe(true);
+  });
+  it('total angle: 120 degrees over 4 copies is a 40 degree step; 360 spreads the copies round (360 / n)', () => {
+    let o = set(field('n', 4), field('tot', 1), field('a', 120));
+    expect(row(o, 'a')).toMatchObject({ value: 120, label: 'app.sketch.pattern.totalAngle' });
+    o = circularPatternTool.step(o.state, key('Enter'), o.draft, DEFAULT_SETTINGS);
+    expect(o.draft.constraints.filter((c) => c.type === 'angle').map((c) => c.value)).toEqual([40, 40, 40]);
+    o = set(field('n', 4), field('tot', 1), field('a', 360), key('Enter'));
+    expect(o.draft.constraints.filter((c) => c.type === 'angle').map((c) => c.value)).toEqual([90, 90, 90]);
+  });
+  it('switching to total shows the default as 360 and a typed step keeps its step', () => {
+    let o = set(field('n', 4), field('tot', 1));
+    expect((row(o, 'a') as { value: number }).value).toBeCloseTo(360, 9);
+    o = set(field('n', 4), field('a', 30), field('tot', 1));
+    expect((row(o, 'a') as { value: number }).value).toBeCloseTo(90, 9);
+    o = circularPatternTool.step(o.state, field('tot', 0), o.draft, DEFAULT_SETTINGS);
+    expect((row(o, 'a') as { value: number }).value).toBeCloseTo(30, 9);
+  });
+  it('has no panel before the centre is picked', () => {
+    expect(run(circularPatternTool, circleDraft(), [clickOn('e1'), key('Enter')]).panel).toBeUndefined();
   });
 });

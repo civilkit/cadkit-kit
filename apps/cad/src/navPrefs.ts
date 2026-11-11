@@ -2,8 +2,9 @@
  *  camera only; the model, its sketches, planes and files are the same on either setting. Remembered in the browser. */
 import { ORBIT_MODES, ORBIT_PIVOTS, UP_AXES, type OrbitMode, type OrbitPivot, type UpAxis } from '@kit/viewport';
 
-export interface NavPrefs { upAxis: UpAxis; orbitMode: OrbitMode; orbitPivot: OrbitPivot }
-export const DEFAULT_NAV_PREFS: NavPrefs = { upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre' };
+export interface NavPrefs { upAxis: UpAxis; orbitMode: OrbitMode; orbitPivot: OrbitPivot; /** how far one wheel turn zooms, relative to the default (1) */ zoomSpeed: number }
+export const ZOOM_SPEEDS: readonly number[] = [0.5, 0.75, 1, 1.5, 2, 3];
+export const DEFAULT_NAV_PREFS: NavPrefs = { upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre', zoomSpeed: 1 };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], d: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : d);
 
@@ -13,6 +14,7 @@ export function sanitizeNavPrefs(raw: unknown): NavPrefs {
     upAxis: pick(r.upAxis, UP_AXES, DEFAULT_NAV_PREFS.upAxis),
     orbitMode: pick(r.orbitMode, ORBIT_MODES, DEFAULT_NAV_PREFS.orbitMode),
     orbitPivot: pick(r.orbitPivot, ORBIT_PIVOTS, DEFAULT_NAV_PREFS.orbitPivot),
+    zoomSpeed: typeof r.zoomSpeed === 'number' && ZOOM_SPEEDS.includes(r.zoomSpeed) ? r.zoomSpeed : DEFAULT_NAV_PREFS.zoomSpeed,
   };
 }
 

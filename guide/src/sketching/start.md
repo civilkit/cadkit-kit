@@ -8,7 +8,7 @@ Every sketch sits on one of:
 
 - **A reference plane.** A new part has three: **Front Plane** (the XY plane), **Top Plane** (XZ) and **Right Plane** (ZY). They are the first rows of the feature tree, below **Material**.
 - **A plane feature** that you made yourself with **Plane** (Features tab, **Reference** group): an offset plane, an angled plane, a plane through three points and so on.
-- **A flat face** of a body. Cylinders and spheres also work: CadKit makes a plane that touches the surface at the point you clicked and sketches on that. For any other curved face, make a plane first.
+- **A flat face** of a body. Cylinders and spheres also work: CivilKit CAD makes a plane that touches the surface at the point you clicked and sketches on that. For any other curved face, make a plane first.
 
 A body that was imported from STEP, SolidWorks or SketchUp is view-only. You cannot sketch on its faces, only on reference planes. See [Importing](../files/import.md).
 
@@ -19,7 +19,7 @@ There are several ways in; all of them open the same sketch editor.
 | From | How |
 | --- | --- |
 | A blank part | The **Start here** card offers **Sketch on Front Plane**, **Sketch on Top Plane** and **Sketch on Right Plane**. |
-| The ribbon | On the **Home** tab, in the **Sketch** group, click the sketch button. It holds **Sketch on selected face or plane**, **Sketch on selected face**, and **New sketch: front plane**, **top plane** and **right plane**, and **New sketch from DXF**. The button shows the one you used last. |
+| The ribbon | On the **Home** tab, in the **Sketch** group, click the sketch button. It holds **Sketch on selected face or plane**, **Sketch on selected face**, and **New sketch: front plane**, **top plane** and **right plane**, **New sketch from DXF** and **New sketch from SVG**. The button shows the one you used last. |
 | The keyboard | Select a plane (click its row in the tree) or a face, then press `S`. If nothing is selected, the three origin planes appear in the view to pick from (see below). |
 | Pick in the view | Press `S` with nothing selected, or use **New sketch: pick a plane in the view** (the **Pick plane** entry of the sketch button, also in the command search). **Front**, **Top** and **Right** are drawn as translucent sheets at the origin with the axes; the sheet under the pointer turns orange and shows its name. Click a sheet to sketch on it. You can also click a flat face of the part, or a plane you made yourself. On a touch screen, tap: a tap near a sheet's outline counts, so an edge-on sheet is still easy to hit. `Esc` or **Cancel** in the bar at the top gives up. |
 | The viewport | Select a face and click the **Sketch on this face** chip that appears over the viewport. For a plane feature the chip says **Sketch on this plane**. |
@@ -48,7 +48,7 @@ If the ribbon is off, the sketch controls sit in a small bar at the top of the v
 | --- | --- |
 | Keep the sketch | Click the check mark in the **Finish** group (**Confirm sketch**), or press `Enter` when no tool is in the middle of a shape. |
 | Keep the sketch and extrude it | Click **Extrude** in the **Make** group. The sketch is finished and the **Extrude** editor opens on it. |
-| Keep the sketch and revolve it | Click **Revolve** in the **Make** group. The sketch needs a construction line for the axis; if it has none, CadKit says "Draw a construction line for the axis." Draw one with the **Centreline** tool. |
+| Keep the sketch and revolve it | Click **Revolve** in the **Make** group. The sketch needs a construction line for the axis; if it has none, CivilKit CAD says "Draw a construction line for the axis." Draw one with the **Centreline** tool. |
 | Throw away this session of editing | Click the cross in the **Finish** group (**Cancel sketch**). |
 
 `Esc` steps out in stages. While a tool is in the middle of a shape, `Esc` abandons that shape. With a tool chosen but idle, `Esc` returns to the **Select** tool. With nothing chosen and nothing selected, `Esc` cancels the whole sketch, discarding what you did since you entered it. If that is not what you want, use `Ctrl+Z` to undo steps inside the sketch instead.
@@ -60,9 +60,9 @@ Switching to another document tab while a sketch is open finishes the sketch and
 ## Reopen and reuse a sketch
 
 - **Edit it again.** Double-click the sketch's row in the feature tree. A sketch that a feature uses is tucked under that feature; the features that depend on it rebuild when you finish.
-- **Use it again.** **Extrude** and the other sketch-based commands use the sketch selected in the tree, or else the last sketch that no feature uses yet. If every sketch is already used, CadKit says so: select a sketch in the tree to use it again, or draw a new one (`S`).
+- **Use it again.** **Extrude** and the other sketch-based commands use the sketch selected in the tree, or else the last sketch that no feature uses yet. If every sketch is already used, CivilKit CAD says so: select a sketch in the tree to use it again, or draw a new one (`S`).
 - **Rename it.** Select the row and press `F2`.
-- **Delete it.** Select the row and press `Delete`. If a feature uses it, CadKit refuses and names the features that depend on it.
+- **Delete it.** Select the row and press `Delete`. If a feature uses it, CivilKit CAD refuses and names the features that depend on it.
 
 ## Show and hide sketches
 

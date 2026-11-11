@@ -30,6 +30,18 @@ describe('registry covers the whole script API', () => {
     expect(reg.get('circularPattern')!.signature).toContain('PatternSeed');
     expect(reg.get('at')!.notes).toContain('sketch y (v) = normal x u');
   });
+  it('the sheet metal methods are documented with a worked example, and the guide carries the recipe', () => {
+    for (const n of ['sheetRules', 'baseFlange', 'edgeFlange', 'hem', 'fold', 'contourFlange', 'unfold', 'refold', 'sheetConvert', 'sheetCut', 'sheetCorner']) {
+      const m = reg.get(n);
+      expect(m, n).toBeDefined();
+      expect(m!.example, n).toContain('part(');
+    }
+    expect(reg.get('edgeFlange')!.parameters!.map((p) => p.name)).toEqual(['edges', 'o']);
+    expect(reg.search('sheet metal flat pattern', 20).map((m) => m.name)).toEqual(expect.arrayContaining(['baseFlange']));
+    expect(reg.guide()).toContain('## Sheet metal');
+    expect(reg.guide()).toContain('flangeHeightTooLow');
+    expect(reg.recipes().map((r) => r.id)).toContain('sheet-metal-tray');
+  });
   it('names resolve with or without the part. / sketch. prefix and unknown names get suggestions', () => {
     expect(reg.get('part.extrude')?.name).toBe('extrude');
     expect(reg.get('sketch.rect')?.name).toBe('s.rect');

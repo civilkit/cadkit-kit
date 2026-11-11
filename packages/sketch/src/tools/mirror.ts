@@ -26,7 +26,7 @@ import type { DraftEntity, SketchDraft } from '../index';
 import { entityShape } from '../select';
 import { arcSweep, distToLine, reflect, sample, TOL, type CurveG } from './edit-geom';
 import { curveOf, entityOf, entityPoints, ptOf, withConstraint, withEntity, withPoint } from './edit-draft';
-import type { PreviewShape, Tool, ToolOutput, ToolSettings } from './types';
+import type { PreviewShape, Tool, ToolEnv, ToolOutput, ToolSettings } from './types';
 
 export interface MirrorState {
   phase: 'select' | 'line';
@@ -131,12 +131,18 @@ function previewOf(draft: SketchDraft, ids: string[], lineId: string | undefined
 /** The selection is always drawn highlighted. Besides telling the user what is selected, this is what lets Enter reach the tool:
  *  the app only routes keys to a tool that has something on show (a preview or a field), otherwise Enter confirms the sketch. */
 const view = (state: MirrorState, draft: SketchDraft, settings: ToolSettings, hint?: string, preview: PreviewShape[] = []): ToolOutput<MirrorState> =>
-  ({ state, draft, preview: [...state.selected.flatMap((id) => entityShape(draft, id) as PreviewShape[]), ...preview], fields: [], ...(hint ? { hint } : {}) });
+  ({ state, draft, preview: [...state.selected.flatMap((id) => entityShape(draft, id) as PreviewShape[]), ...preview], fields: [],
+    hint: hint ?? (state.phase === 'line' ? 'app.sketch.hint.mirrorLine' : state.selected.length ? 'app.sketch.hint.mirrorPickMore' : 'app.sketch.hint.mirrorPick') });
 
 export const mirrorTool: Tool<MirrorState> = {
   id: 'mirror',
   start: () => ({ phase: 'select', selected: [] }),
-  step(state, ev, draft, settings) {
+  step(state, ev, draft, settings, env?: ToolEnv) {
+    // entities selected in Select mode before the tool was chosen: on to the mirror line
+    if (state.phase === 'select' && !state.selected.length) {
+      const pre = (env?.entities ?? []).filter((i) => { const e = entityOf(draft, i); return e && MIRRORABLE.has(String(e.type)); });
+      if (pre.length) state = { phase: 'line', selected: pre };
+    }
     switch (ev.type) {
       case 'move': {
         if (state.phase === 'line' && ev.snap?.entityId) return view(state, draft, settings, undefined, previewOf(draft, state.selected, ev.snap.entityId));

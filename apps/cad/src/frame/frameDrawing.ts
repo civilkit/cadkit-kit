@@ -6,7 +6,7 @@ import { fetchViews, type DrawingQuery } from '../drawing/layout';
 import { SCALES, STD_FRAMES, emptyDrawing, parseScale, sheetSize, viewExtent, type DBalloon, type DrawingDoc, type DTable, type DView, type V2, type ViewData } from '../drawing/model';
 import { toPdf } from '../drawing/output';
 import { placer, renderSheet, toSvg, viewBox, type Prim } from '../drawing/render';
-import { MATERIALS, bom, cutList, profileById, type FrameReport } from './frameLib';
+import { bom, cutList, profileById, profileMaterialLabel, type FrameReport } from './frameLib';
 
 const kg = (v: number): string => (Math.round(v * 1000) / 1000).toString();
 
@@ -29,12 +29,12 @@ export function sheetModel(frames: FrameReport[]): SheetModel {
   const rowOf = new Map<string, number>();
   cl.forEach((l, i) => l.members.forEach((b) => rowOf.set(b, i + 1)));
   const mats = new Set<string>();
-  for (const fr of frames) for (const m of fr.members) { const mat = MATERIALS[profileById(m.profile)?.material ?? '']?.label; if (mat) mats.add(mat); }
+  for (const fr of frames) for (const m of fr.members) { const mat = profileMaterialLabel(profileById(m.profile)); if (mat) mats.add(mat); }
   return {
     head: ['#', t('frame.cutlist.profile'), t('frame.cutlist.length'), t('frame.cutlist.angles'), t('frame.cutlist.qty'), t('frame.cutlist.mass')],
     cut: cl.map((l, i) => [String(i + 1), l.label, String(l.length), `${l.angles[0]} / ${l.angles[1]}`, String(l.qty), kg(l.massKg / l.qty)]),
-    bomHead: ['#', t('frame.cutlist.part'), t('frame.cutlist.qty'), t('frame.cutlist.detail')],
-    bom: bom(frames).map((b, i) => [String(i + 1), b.label, `${b.qty} ${b.unit}`, b.detail]),
+    bomHead: ['#', t('frame.cutlist.part'), t('frame.cutlist.qty'), t('frame.cutlist.type'), t('frame.cutlist.standard'), t('frame.cutlist.grade'), t('frame.cutlist.massTotal'), t('frame.cutlist.detail')],
+    bom: bom(frames).map((b, i) => [String(i + 1), b.label, `${b.qty} ${b.unit}`, t('frame.group.' + b.group), b.standard ?? '', b.grade ?? '', b.massKg !== undefined ? kg(b.massKg) : '', b.detail]),
     rowOf, pieces: cl.reduce((s, l) => s + l.qty, 0), massKg: cl.reduce((s, l) => s + l.massKg, 0), materials: [...mats],
   };
 }
@@ -69,7 +69,7 @@ export function memberAnchor(g: ViewData, body: string): V2 | null {
 
 const TABLE_W = 142;
 const COLS_CUT = [8, 38, 24, 32, 10, 30];
-const COLS_BOM = [8, 38, 24, 72];
+const COLS_BOM = [7, 32, 13, 17, 19, 11, 13, 30];
 const ROW_H = 5.5;
 const tableHeight = (rows: number): number => 6 + ROW_H * (rows + 1);
 

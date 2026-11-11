@@ -84,7 +84,7 @@ After a drop, the shape is selected and shows its size box: drag a handle to res
 
 ## Parametric parts
 
-On the **Libraries** tab, the cards marked **Included** in the library named **BOSL2 parts** are parametric. The app builds each one as exact geometry (cylinders, cones, spheres and tori are true surfaces, not polygon meshes). The detail panel names the source and licence of each part.
+On the **Libraries** tab, the cards marked **Included** in the library named **BOSL2-based parts** are parametric. The app builds each one as exact geometry (cylinders, cones, spheres and tori are true surfaces, not polygon meshes). The detail panel names the source and licence of each part.
 
 Use the **Category** menu to filter: **Blocks**, **Cylinders**, **Round**, **Profiles**, **Edge masks**. The search understands everyday words: "pipe" finds Tube, "hexagon" finds Regular prism, "ramp" finds Wedge, "donut" finds Torus, and "printable hole" finds Teardrop. Matches from this set appear first.
 
@@ -152,7 +152,13 @@ Take a Cuboid with a Rounding of 3 dropped on a face. The app adds a variables b
 
 ## Credits
 
-The parametric parts are ported from BOSL2, an OpenSCAD library, used under the BSD 2-Clause licence.
+The parametric parts are based on [BOSL2](https://github.com/BelfrySCAD/BOSL2) (the Belfry OpenSCAD Library, version 2) by Revar Desmera and contributors. The app re-expresses the shape definitions and parameter meanings of a set of BOSL2 modules as feature scripts for its own geometry kernel; no OpenSCAD code is copied or run. The library is named **BOSL2-based parts** because it follows BOSL2's shapes and parameters but is not BOSL2 itself, and BOSL2's authors do not endorse this app.
+
+BOSL2 is used under the BSD 2-Clause licence:
+
+> Copyright (c) 2017-2019, Revar Desmera. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the copyright notice, the list of conditions and the disclaimer are retained. The software is provided "as is", without warranty. The full licence text is in the app's licences page and in `THIRD_PARTY.md`.
+
+The library row and each part's detail panel in the Libraries tab repeat this credit.
 
 ## Next
 

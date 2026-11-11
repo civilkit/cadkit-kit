@@ -177,6 +177,13 @@ describe('every constraint type solves with the documented refs', { skip: !proce
     near(r.pts.p3[1], 6);
   });
 
+  it('pldist [circle centre, line]: the inset of a hole from the top edge and from the side edge', async () => {
+    const pts = [P('a', -20, 20, true), P('b', 20, 20, true), P('c', -20, -20, true), P('o', -16.35, 14.62)];
+    const ents = [L('top', 'a', 'b'), L('side', 'a', 'c'), C('hole', 'o', 2.5)];
+    const r = await regen(pts, ents, [K('k1', 'pldist', ['o', 'top'], { value: 4 }), K('k2', 'pldist', ['o', 'side'], { value: 4 })]);
+    near(r.pts.o[0], -16); near(r.pts.o[1], 16);
+  });
+
   it('radius [circle|arc], diameter [circle|arc]', async () => {
     let r = await regen([P('c', 0, 0, true)], [C('e1', 'c', 3)], [K('k1', 'radius', ['e1'], { value: 5 })]);
     near(r.ents.e1.r as number, 5);

@@ -15,7 +15,7 @@ A body is a connected set of faces. Two solids that do not touch are two bodies,
 
 ## Auto pick, and picking one kind
 
-By default CadKit is in **Auto** mode: as you move the pointer, the corner, edge or face nearest to it lights up, and a click selects it. The selection takes the kind of what you clicked, and does not mix kinds.
+By default CivilKit CAD is in **Auto** mode: as you move the pointer, the corner, edge or face nearest to it lights up, and a click selects it. The selection takes the kind of what you clicked, and does not mix kinds.
 
 To pick only one kind, press its key or choose it on the **Select** tab in the **Pick** group: **Face**, **Edge**, **Corner** or **Body**. Choosing a kind turns Auto off. The pick buttons are also on the optional **Selection mode bar**, together with an **Auto** button, a **Box select** button and a filter button. Turn the bar on in **Settings > Layout**.
 

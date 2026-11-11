@@ -582,7 +582,7 @@ async function sketchFlows(page, id, p) {
   check(id, 'sketch', 'the sketch bar goes away with the sketch', await page.eval(`!document.querySelector('.sketch-actions')`));
 }
 
-/** A fresh start (nothing stored), a sample from the Samples list: it takes the empty first part, so one document is open and no empty second tab appears. */
+/** A fresh start (nothing stored), a sample from the Library picker: it takes the empty first part, so one document is open and no empty second tab appears. */
 async function freshSample(page, url, id, p) {
   await page.eval(`localStorage.clear(); localStorage.setItem('cad.theme', '"light"'); 0`);
   await page.send('Page.reload'); await sleep(1000);
@@ -590,7 +590,7 @@ async function freshSample(page, url, id, p) {
   await idle(page); await sleep(500);
   const before = await page.eval(`window.__cad.controller.document()?.features.length ?? -1`);
   check(id, 'fresh', 'a fresh start opens one empty part', before === 0, `features ${before}`);
-  if (p.layout === 'phone') await pickMenu(page, 'phone-file', 'samples'); else await tapOn(page, '.topbar button', 'samples');
+  if (p.layout === 'phone') await pickMenu(page, 'phone-file', 'library'); else await tapOn(page, '.topbar button', 'library');
   await sleep(600);
   await tapOn(page, '.dlg-list .dlg-item');
   await idle(page); await sleep(2500);
@@ -729,7 +729,7 @@ async function runProfile(page, url, p) {
   if (p.layout === 'phone') { await phoneFlows(page, id, p); await sketchFlows(page, id, p); }
 
   // 4. dialogs
-  check(id, 'samples', 'the samples dialog opens', p.layout === 'phone' ? await pickMenu(page, 'phone-file', 'samples') : await tapOn(page, '.topbar button', 'samples'));
+  check(id, 'samples', 'the Library dialog opens', p.layout === 'phone' ? await pickMenu(page, 'phone-file', 'library') : await tapOn(page, '.topbar button', 'library'));
   a = await page.eval(`(() => { const d = document.querySelector('.dlg'); if (!d) return null; const r = d.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight, list: !!document.querySelector('.dlg-list') }; })()`);
   await shot(page, `${id}-4-samples`);
   check(id, 'samples', p.layout === 'phone' ? 'fills the screen' : 'fits the screen', !!a && a.x >= -1 && a.y >= -1 && a.x + a.w <= a.vw + 1 && a.y + a.h <= a.vh + 1 && (p.layout !== 'phone' || (a.w >= a.vw - 2 && a.h >= a.vh - 2)), JSON.stringify(a));

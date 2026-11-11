@@ -6,6 +6,8 @@ import { sourceLink, parseSource } from './source';
 import { openableText } from './partFile';
 import { buildInsert, withSource, type InsertMeta, type SourceEntry } from './insert';
 import type { Controller } from '../controller';
+import { unpackDoc } from '../files/assets';
+import { MESH_KEY, meshesOf, nextMeshId } from '../meshes/meshDoc';
 
 export function metaOf(lib: LibraryRecord, data: PartData): InsertMeta {
   let url: string | undefined = data.part.source;
@@ -31,12 +33,21 @@ export function openText(lib: LibraryRecord, data: PartData): string {
 export const downloadName = (data: PartData): string => `${data.part.id.replace(/[^A-Za-z0-9._-]/g, '_')}.ckpart`;
 
 /** Insert the part into the open document as one undo step and record where it came from. */
-export async function insertPart(c: Pick<Controller, 'document' | 'applyDocPatch' | 'setDocExtra'>, lib: LibraryRecord, data: PartData): Promise<{ ok: true; entry: SourceEntry } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
+export async function insertPart(c: Pick<Controller, 'document' | 'applyDocPatch' | 'setDocExtra' | 'setUndoableExtra'>, lib: LibraryRecord, data: PartData): Promise<{ ok: true; entry: SourceEntry; /** reference meshes of the part that came along */ meshes: number } | { ok: false; errors: Array<{ feature: string; code: string }> }> {
   const cur = c.document();
   if (!cur) return { ok: false, errors: [] };
-  const ins = buildInsert(cur, data.doc, metaOf(lib, data));
+  // a part stored with packed assets (meshes, STEP text) is read as the app holds it: its STEP texts travel with its imported-body features
+  const { doc: part } = await unpackDoc(data.doc);
+  const ins = buildInsert(cur, part, metaOf(lib, data));
   const r = await c.applyDocPatch(ins.patch, 'library.insert');
   if (!r.ok) return r;
   c.setDocExtra('sources', withSource(c.document()!, ins.entry));
-  return { ok: true, entry: ins.entry };
+  // its reference meshes (a scan to draw on) are added to the document's, with ids that cannot clash
+  const theirs = meshesOf(part);
+  if (theirs.length) {
+    const have = meshesOf(c.document());
+    const added = theirs.reduce<typeof have>((acc, m) => [...acc, { ...m, id: nextMeshId([...have, ...acc]) }], []);
+    c.setUndoableExtra(MESH_KEY, [...have, ...added]);
+  }
+  return { ok: true, entry: ins.entry, meshes: theirs.length };
 }

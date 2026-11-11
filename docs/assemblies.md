@@ -101,7 +101,7 @@ a `mateConflict`; the lock keeps the pose the first two gave and shows in the DO
 `src/nist/nistAssembly.ts`; rebuilt with `apps/cad/scripts/genNistAssembly.ts` (needs the four `.SLDPRT` files, which are not in the repo); checked by
 `src/nist/nistAssembly.kernel.test.ts`. Source and licence: NIST MBE PMI test models 7 to 10, US government works in the public domain, assembled by CadKit; no SolidWorks forum files used.
 The file is saved with an exploded view (`NIST_EXPLODE` in `nistAssembly.ts`, so it opens exploded): spread 0 and per-component offsets along +Y, the lid's normal
-(plate +60, component +110, lid +80 mm; base fixed). Assembly panel > Exploded view > Reset collapses it; the offsets are display-only, the mates and the
+(plate +125, component +150, lid +110 mm; the plate clears the base rim; base fixed). Assembly panel > Exploded view > Reset collapses it; the offsets are display-only, the mates and the
 solved poses are untouched. The Interference section shows `booleanFailed` for every pair that includes FTC 7 or FTC 10 (the kernel boolean
 fails on those two bodies even against a plain block); the test uses the `distance` query instead.
 

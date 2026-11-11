@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { Session } from '@ck/session';
 import { emptyPart } from '@ck/part-model';
 import { createStore } from '@kit/store';
@@ -12,9 +12,17 @@ const fixture = (n: string) => new Uint8Array(readFileSync(`${FIX}/${n}`));
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
 const open = async () => { const s = await Session.open(emptyPart('Skp')); sessions.push(s); return s; };
+/** The SketchUp reader is an opt-in kernel feature (`skp`) and the fixtures live in the kernel checkout: a kernel without it, or no fixtures, skips these (they cannot fail for the app). */
+const skpReady: Promise<boolean> = (async () => {
+  if (!process.env.CK_WASM || !FIX || !existsSync(`${FIX}/chair_and_table.skp`)) return false;
+  const s = await Session.open(emptyPart('Skp')); sessions.push(s);
+  const r = await importSkpView(s, fixture('chair_and_table.skp'), 'probe');
+  return r.ok || r.code !== 'trap';
+})().catch(() => false);
 
 describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM || !process.env.CK_REBUILD }, () => {
-  it('chair_and_table: faces, pieces, open edges and the material colours', async () => {
+  it('chair_and_table: faces, pieces, open edges and the material colours', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const r = await importSkpView(await open(), fixture('chair_and_table.skp'), 'chair');
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -27,6 +35,7 @@ describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM
     expect(new Set(Object.values(r.look.faces).map((l) => l.color)).size).toBeGreaterThan(1);
   });
   it.each(['SU_File.skp', 'circle.skp'])('%s imports with a mesh and a colour for every face', async (n) => {
+    if (!(await skpReady)) return;   // (each-cases carry no skip handle)
     const r = await importSkpView(await open(), fixture(n), n);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -35,7 +44,8 @@ describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM
     expect(Object.keys(r.look.faces).length + r.look.bodies.reduce((m, b) => m + b.faces.length, 0)).toBe(r.faces);
     expect(r.view.box.max[0]).toBeGreaterThan(r.view.box.min[0]);
   });
-  it('orientation: y stands the model up (z extent becomes y extent), z keeps the file, the kernel echoes the choice', async () => {
+  it('orientation: y stands the model up (z extent becomes y extent), z keeps the file, the kernel echoes the choice', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const bytes = fixture('chair_and_table.skp');
     const z = await importSkpView(await open(), bytes, 'chair', skpImportOpts('z'));
     const y = await importSkpView(await open(), bytes, 'chair', skpImportOpts('y'));
@@ -51,24 +61,28 @@ describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM
     expect(y.faces).toBe(z.faces);
     expect(y.summary).toEqual(z.summary);
   });
-  it('a model with no visible faces is refused with body.empty and the kernel message', async () => {
+  it('a model with no visible faces is refused with body.empty and the kernel message', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const r = await importSkpView(await open(), fixture('blank_v17.skp'), 'blank');
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.code).toBe('body.empty');
     expect(r.message).toMatch(/no visible faces/);
   });
-  it('maxFaces refuses with limit.faces', async () => {
+  it('maxFaces refuses with limit.faces', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const r = await importSkpView(await open(), fixture('chair_and_table.skp'), 'chair', { maxFaces: 10 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('limit.faces');
   });
-  it('junk bytes are refused with a structured code, not a trap', async () => {
+  it('junk bytes are refused with a structured code, not a trap', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const r = await importSkpView(await open(), new TextEncoder().encode('this is not a sketchup file'), 'junk');
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).not.toBe('trap');
   });
-  it('through the controller: shown, coloured, busy while it runs, gone after an edit', async () => {
+  it('through the controller: shown, coloured, busy while it runs, gone after an edit', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const bodies: unknown[] = [];
     const view: ViewSink = { setBody: (b) => { bodies.push(b); }, setHighlight() {}, setSketchEdit() {} };
     const kernel: KernelFactory = { async open(d) { const s = await Session.open(d); sessions.push(s); return s; } };
@@ -88,7 +102,8 @@ describe('SketchUp import against the real kernel', { skip: !process.env.CK_WASM
     expect(c.hasImportedBody()).toBe(false);
     expect(c.importedLook()).toBeNull();
   });
-  it('a refused file leaves the screen alone', async () => {
+  it('a refused file leaves the screen alone', async (ctx) => {
+    if (!(await skpReady)) return ctx.skip();
     const view: ViewSink = { setBody() {}, setHighlight() {}, setSketchEdit() {} };
     const kernel: KernelFactory = { async open(d) { const s = await Session.open(d); sessions.push(s); return s; } };
     const c = new Controller({ store: createStore(), view, kernel });

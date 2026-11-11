@@ -1,18 +1,18 @@
 # Parametric wizards
 
-This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
+This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, screws, washers, knurls, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
 
 All of these are about geometry only. The app does not calculate strength, lubrication, or aerodynamic or hydrodynamic performance.
 
 ## What the wizards have in common
 
-- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller** and **Impeller** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
+- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller**, **Impeller**, **Knurl**, **Screw**, **Washer** and **Bearing** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
 - You need an open document. The commands are greyed out without one.
 - A live preview shows in the viewport while you change values.
 - A readout and checks show the derived numbers. Errors stop the build. Warnings do not.
 - The settings are stored on the part, so you can reopen the wizard later and change them. The features are regenerated from the settings, keeping their ids, so later features that refer to them keep working.
 
-Whether a wizard's result moves when you edit the part it sits on depends on the wizard. A bearing added from a selected flat face stays on that face (see [Bearings](#bearings)), and a knurl cut into a cylinder keeps its distance from the cylinder's end face (see [Knurl](#knurl)). The other wizards (Gear, Propeller, Impeller, Screw) are built at the numbers you gave.
+Whether a wizard's result moves when you edit the part it sits on depends on the wizard. A bearing added from a selected flat face stays on that face (see [Bearings](#bearings)), and a knurl cut into a cylinder keeps its distance from the cylinder's end face (see [Knurl](#knurl)). The other wizards (Gear, Propeller, Impeller, Screw, Washer) are built at the numbers you gave.
 
 Parts built by a wizard are not locked. You can add fillets, cuts and patterns on top. What you cannot do is edit the generated profile sketch by hand while it is still tied to its wizard (see each section).
 
@@ -269,6 +269,76 @@ What does not follow: a bearing placed by typing its numbers without a selected 
 
 In the Script tab: `part('Housing').bearing({ designation: '608', seal: '2RS', origin: [0, 0, 10], axis: [0, 0, -1], seat: true })`; add `onFace: 'F2.C1'` (the face the bearing sits on) to build it from the face as the wizard does. The **Bearings** example shows a row of them.
 
+## Screws
+
+**Screw** adds a screw or bolt as ordinary features: one body for the head and shank, then cuts for the drive. Start it from **Features > Create**, command search, or the Catalog: **Primitives** tab, **Generators**, **Screw**. The preview shows the screw as you change the fields; **Add screw** keeps it as one undo step, and **Escape** or the cross cancels. It needs an open document, but no solid: the screw is placed at the numbers you give.
+
+![The Screw wizard open in the left panel with an M3 pan-head screw previewed on the top plane, showing Size, Length, Head, Drive, Bearing face centre and Shank points.](../img/wizard-screw.png)
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Size | The metric size from the list, M2 to M16. | M3 |
+| Length | The shank, in millimetres, from the underside of the head to the tip (a countersunk screw: from its flat top). | 8 mm |
+| Head | **Pan**, **Button (dome)**, **Countersunk**, **Cheese (cylindrical)** or **External hex**. Picking a head sets the drive to the usual one for it. | Pan |
+| Drive | **Cross (approximate)**, **Hex socket**, **Slotted**, **Torx (approximate)** or **None**. Not shown for an external hex head: that one is turned from outside. | Cross |
+| Bearing face centre X, Y, Z | Where the screw sits: the centre of the underside of the head (a countersunk screw: of its flat top), in millimetres. | 0, 0, 0 |
+| Shank points | Which way the shank points: **Down (-Z)**, **Up (+Z)**, -X, +X, -Y or +Y. | Down (-Z) |
+
+Cross and Torx are approximations: the cross is two tapered arms with a blunt tip rather than real Phillips wings, and the Torx is a star that looks the part. They are good for looks, fit checks and mass, not for toleranced drives.
+
+The screw is its own body and does not merge with what it touches; it is listed as *Screw* in the Bodies panel. Not every size has every head: the table follows the standards, so M12 and M16 have button, countersunk and hex heads only, and a head the size has no row for is refused with the kernel's message.
+
+There is no thread option: a helical thread on a shank does not build yet. Add one afterwards with **Home > Create > Thread** on the shank, as for any cylinder (see [Holes and threads](../modelling/holes.md)).
+
+The wizard always starts from the defaults: it does not reopen from the tree. To change a screw, delete the features it made in the *Screw* folder and add it again.
+
+In the Script tab: `screw({ size: 'M5', length: 12, head: 'countersunk', origin: [0, 0, 10], axis: [0, 0, -1] })`.
+
+### Common problems
+
+| Symptom | Fix |
+| --- | --- |
+| The length is refused | It must be more than 0, and a countersunk screw's length includes its head, so it must exceed the head height |
+| A hex head shows no Drive row | A hex head takes no drive: it is turned from outside |
+| "size M12 has no pan head in the table" | Not every size has every head. Pick one the size has: M12 and M16 take button, countersunk and hex |
+| The screw sits in the wrong place | The bearing face centre is the middle of the face it sits on. Check it, and which way the shank points |
+| You want a thread on the shank | Not in the wizard: add it with **Home > Create > Thread** afterwards |
+
+## Washers
+
+**Washer** adds a flat or a spring (split) washer as ordinary features: one sketch and one extrude, a separate body, all in one tree folder named *Washer* (the next one *Washer 2*). Start it from **Features > Create**, command search, or the Catalog: **Primitives** tab, **Generators**, **Washer**. The preview shows the washer as you change the fields; **Add washer** keeps it as one undo step, and **Escape** or the cross cancels. It needs an open document, but no solid.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Kind | **Flat**, or **Spring (split)**. | Flat |
+| Standard / Custom | **Standard** shows a list of sizes with a filter box above it: type `M8`, `8` or `7089` (every word you type must appear in the row), click a row, or press **Enter** when one row is left. Picking a row fills the three diameters and the thickness. **Custom** hides the list. Editing any of the numbers switches to Custom by itself. | Standard, M8 |
+| Inner diameter, Outer diameter, Thickness | The size in millimetres. | 8.4, 16, 1.6 |
+| Gap width | Spring only: the width of the split, across it. | The thickness |
+| First face centre X, Y, Z | The centre of the washer's first side, in millimetres. Give a screw the same position and axis and the washer lies under its head. | 0, 0, 0 |
+| Thickness runs | Which way the thickness extends from that side: **Down (-Z)**, **Up (+Z)**, -X, +X, -Y or +Y. | Down (-Z) |
+
+### Washer on a hole
+
+Click **Washer on a hole** in the wizard, then click the wall of a hole on the part (or its circular edge: press **E** for edge picking). The wizard reads the hole's diameter and axis and the flat face it opens on, takes the standard size whose medium clearance hole (ISO 273) the hole contains (a 6.6 mm hole gives M6, 9 mm gives M8, 11 mm gives M10), and places the washer coaxial with the hole, touching that face, in the usual *Washer* folder. If the hole is smaller than the smallest clearance hole of the standard, the nearest size is used and the panel says so. You can still pick another size, change the kind (the spring washer reads the same hole), choose Custom, and set an **Offset from the face** to lift the washer off the seat. In a through hole the washer sits on the end you picked, or the upper one; **Seat on the other end** switches. In a blind hole it sits on the open end, and in a counterbored hole on the counterbore floor. A countersunk or chamfered hole, a hole that is not along the X, Y or Z axis, and a face that is not a hole are refused with a message instead of a guess. Editing the position fields by hand leaves the hole. A screw, washer and nut stack on a hole is not part of this: add the screw separately.
+
+The standard lists are ISO 7089 (normal series, M1.6 to M64; DIN 125 form A has the same sizes), ISO 7093-1 (large series, M3 to M36; DIN 9021 has the same sizes over this range) for flat washers, and DIN 127 B (spring lock washer, M2 to M36) for spring washers: each row shows `M8 - 8.4 x 16 x 1.6 (ISO 7089)`, inner x outer x thickness. A size the tables could not confirm is left out: use Custom.
+
+The spring washer is a flat split ring. The lift (the helical twist of a real one) is not modelled, and the gap is cut square.
+
+The wizard always starts from the defaults: it does not reopen from the tree. To change a washer, delete the features it made in the *Washer* folder and add it again.
+
+In the Script tab: `washer({ inner: 8.4, outer: 16, thickness: 1.6, origin: [0, 0, 4], axis: [0, 0, 1] })`, or `kind: 'spring', gap: 2` for the split ring.
+
+![The Washer wizard open in the left panel with the Standard list filtered to M8 and an M8 flat washer previewed.](../img/wizard-washer.png)
+
+### Common problems
+
+| Symptom | Fix |
+| --- | --- |
+| The list shows "No standard size matches" | Clear the filter, or switch to Custom and type the size |
+| The outer diameter is refused | It must be larger than the inner diameter |
+| The gap is refused | It must be more than 0 and smaller than the hole |
+
 ## Corner holes
 
 Corner holes put mounting holes on a plate in one step, instead of placing each point by hand.
@@ -315,7 +385,7 @@ In the Script tab: `knurl({ radius: 10, from: 15, to: 25, count: 24, depth: 0.5,
 
 ## Samples
 
-The **Samples** list includes ready-made examples to open and study: *Spur gear*, *Gear pair*, *Herringbone pair*, *Marine propeller*, *Turbo impeller*, and a plate with rounded corners and four corner holes. Samples made by these wizards reopen in the same editor. Hand-modelled samples (a bevel gear, helical gear, a four-blade propeller) do not.
+The **Library** picker lists ready-made examples to open and study: *Spur gear*, *Gear pair*, *Herringbone pair*, *Marine propeller*, *Turbo impeller*, and a plate with rounded corners and four corner holes. Samples made by these wizards reopen in the same editor. Hand-modelled samples (a bevel gear, helical gear, a four-blade propeller) do not.
 
 ## Next
 

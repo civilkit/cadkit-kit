@@ -1,6 +1,6 @@
 # Spec: the local kernel module (installable service shared by our apps)
 
-Status: draft for review, 2026-10-20. Builds on what exists: kernel `docs/native-service.md` (`ck-native`, phase 1), kit `docs/plan-local-kernel-service.md` and `docs/local-kernel-service.md` (the settings tab, router, fallback), and `docs/spec-agent-interface.md` (the protocol). Nothing new is built by this document.
+Status: draft for review, 2026-10-20; checked against the code 2026-10-31. Builds on what exists: kernel `docs/native-service.md` (`ck-native`), kit `docs/plan-local-kernel-service.md` and `docs/local-kernel-service.md` (the settings tab, router, fallback), and `docs/spec-agent-interface.md` (the protocol). Built so far: the service with transport v1 (HTTP on 127.0.0.1), `GET /ping`, one-time-code pairing with per-client tokens, `clients` and `revoke`, per-client origin allow-list, request and session limits (milestone 1, kernel side), and the kit's Settings tab, version handshake and fall back to the built-in kernel; the kernel test suites can run against a service through `CK_KERNEL_URL`. Not built: transport v2 (WebSocket, gzip, cancel, events, memory cap, fairness), the hub, shared sessions, the blob cache, the schema registry and conformance script, the installer and update command, `--tls`, the kit's pairing UI and port probing, and sections 12 to 14 (contracts, branching, links). Open questions are still open.
 
 ## 1. Purpose
 
@@ -90,11 +90,11 @@ Problem: CivilKit and cadkit run in different origins, so `BroadcastChannel` and
 
 ## 10. Milestones
 
-1. **v1.1 (small):** `/ping`, pairing and per-client tokens, revoke, origin allow-list per client, the CI gate above. Kit: Settings shows the paired state; discovery probes the port list.
-2. **v2:** WebSocket, gzip, cancel, events, per-session memory cap, fairness. Kit: previews cancel stale requests; progress in the status bar.
-3. **Hub:** channels, consent prompt, shared sessions; kit bridge module with the three transports; CivilKit "Open in CAD kit" and the live parameter link.
-4. **Packaging:** signed macOS installer and launch agent, update command, uninstall.
-5. **Agent use:** the MCP server in `packages/session` targets the service by default when it is present (warm cache across calls).
+1. **v1.1 (small) (kernel side built; kit pairing UI and port probing not built; the CI gate is not built):** `/ping`, pairing and per-client tokens, revoke, origin allow-list per client, the CI gate above. Kit: Settings shows the paired state; discovery probes the port list.
+2. **v2 (not built):** WebSocket, gzip, cancel, events, per-session memory cap, fairness. Kit: previews cancel stale requests; progress in the status bar.
+3. **Hub (not built):** channels, consent prompt, shared sessions; kit bridge module with the three transports; CivilKit "Open in CAD kit" and the live parameter link.
+4. **Packaging (not built):** signed macOS installer and launch agent, update command, uninstall.
+5. **Agent use (partly: the session package and the kernel tests can use a service when `CK_KERNEL_URL` is set; it is not the default):** the MCP server in `packages/session` targets the service by default when it is present (warm cache across calls).
 
 ## 11. Open questions
 

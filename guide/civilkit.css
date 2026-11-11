@@ -1,0 +1,51 @@
+/* The CivilKit palette and type (the same values as https://civilkit.io/styles.css) on the mdBook themes, so the guide matches the rest of the site. */
+.light, html:not(.js) {
+    --bg: #FFFFFF;
+    --fg: #14181F;
+    --sidebar-bg: #F5F7FA;
+    --sidebar-fg: #3A4350;
+    --sidebar-non-existant: #8A93A0;
+    --sidebar-active: #0B6BCB;
+    --sidebar-spacer: #DDE2EA;
+    --links: #0B6BCB;
+    --inline-code-color: #14181F;
+    --theme-popup-bg: #FFFFFF;
+    --theme-popup-border: #DDE2EA;
+    --theme-hover: #EEF1F5;
+    --quote-bg: #F5F7FA;
+    --quote-border: #DDE2EA;
+    --table-border-color: #DDE2EA;
+    --table-header-bg: #F5F7FA;
+    --table-alternate-bg: #FAFBFC;
+}
+.navy, .coal, .ayu {
+    --bg: #101318;
+    --fg: #D5DAE1;
+    --sidebar-bg: #171B22;
+    --sidebar-fg: #AEB7C3;
+    --sidebar-non-existant: #6A7380;
+    --sidebar-active: #5AA9FF;
+    --sidebar-spacer: #272D37;
+    --links: #5AA9FF;
+    --inline-code-color: #E3E8EF;
+    --theme-popup-bg: #171B22;
+    --theme-popup-border: #272D37;
+    --theme-hover: #1F252E;
+    --quote-bg: #171B22;
+    --quote-border: #272D37;
+    --table-border-color: #272D37;
+    --table-header-bg: #1B2029;
+    --table-alternate-bg: #14181F;
+}
+html { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.content main { line-height: 1.6; }
+.content h1, .content h2, .content h3 { letter-spacing: -.02em; }
+.menu-title { font-weight: 800; letter-spacing: -.01em; }
+.content a, .content a:visited { text-underline-offset: .15em; }
+
+/* the suite navigation in the menu bar (civilkit-nav.js) */
+.ck-nav { display: flex; align-items: center; gap: 16px; margin: 0 10px; font-size: 14px; flex: none; }
+.ck-nav a { color: var(--icons); text-decoration: none; white-space: nowrap; }
+.ck-nav a:hover, .ck-nav a[aria-current="page"] { color: var(--links); }
+.ck-nav .ck-brand { font-weight: 700; color: var(--fg); }
+@media (max-width: 1100px) { .ck-nav a:not(.ck-brand) { display: none; } }

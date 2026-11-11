@@ -6,7 +6,7 @@ import { ICON_NAMES } from '@kit/ui';
 import { Controller, type KernelFactory, type ViewSink } from './controller';
 import type { Ctx, FeatureActions } from './featureCommands';
 import { pickValue } from './featureCommands';
-import { CREATORS, creatorCommands, isClosedSketch, isOpenSketch } from './featureCreators';
+import { CREATORS, creatorCommands, isClosedSketch, isOpenSketch, pipeCutNotice } from './featureCreators';
 
 type Wire = Record<string, unknown>;
 const lines = (ids: string[][]) => ids.map(([i, a, b]) => ({ id: i, type: 'line', p1: a, p2: b }));
@@ -245,6 +245,14 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     await w.run('add-pipe-cut');
     expect(last(w)).toMatchObject({ type: 'pipeCut', radius: 1, faces: [] });
     expect((await w.stats()).errors).toEqual([]);
+  });
+
+  it('pipe cut: the edit result says the solid became a surface body', async () => {
+    const w = await world(box());
+    const sess = sessions.at(-1)!;
+    const r = await sess.edit([{ op: 'add', feature: { type: 'pipeCut', radius: 1, edges: [], faces: ['F2.C1'] } }] as never) as { diff?: Parameters<typeof pipeCutNotice>[0] };
+    expect(pipeCutNotice(r.diff)).toBe('surface');
+    void w;
   });
 
   it('planar surface and extruded surface from the closed sketch; a circle too', async () => {

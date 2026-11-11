@@ -3,7 +3,7 @@
 import { Session, referencers } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { repairHint } from './hints';
-import { runScript, type InertiaFact, type ScriptHost, type ScriptError } from '@kit/script';
+import { runScript, SHEET_FEATURE_TYPES, type InertiaFact, type ScriptHost, type ScriptError } from '@kit/script';
 import type { EditOp } from '@ck/session';
 import { ToolError } from './errors';
 import { defaultRegistry, type Registry } from './registry';
@@ -34,6 +34,27 @@ export interface ScriptRunReport {
 
 let tagSeq = 0;
 
+const SHEET_TYPES = new Set<string>(SHEET_FEATURE_TYPES);
+/** One entry of the kernel's `sheetMetal` regen result (docs/sheet-metal.md): the rule and, for a sheet feature, the flat pattern and the role names. */
+export interface SheetEntry {
+  id: string;
+  type: string;
+  rule: SheetRule;
+  flatPattern?: FlatPattern;
+  roles?: { faces: Array<{ role: string; face: string | null }>; edges: Array<{ role: string; faces: string[]; mid: number[] }> };
+}
+export interface SheetRule { name: string; thickness: number; kFactor: number; bendRadius: number; reliefWidth: number; reliefDepth: number; cornerRelief: number; cornerReliefShape: string; hemGap: number; gap: number }
+export interface FlatPattern {
+  rule: string; thickness: number; kFactor: number;
+  /** width, length (in the plane of the base sketch), thickness; mm */
+  flatSize: number[];
+  /** outer loop (CCW) then the holes; points [x, y] in the flat plane */
+  outline: number[][][];
+  bends: Array<{ bend: number; role?: string; feature: string; direction: string; angleDeg: number; includedAngleDeg: number; radius: number; allowance: number; length: number; start: number[]; end: number[] }>;
+  bendZones: number[][];
+  unfolded: boolean;
+}
+
 /** Features whose JSON mentions `id` or one of its persistent names (F2.C1, F2.S.e1|F5.B0#30): faces and edges are strings in refs. */
 export function usersOf(doc: PartDoc, id: string): string[] {
   const hit = (v: unknown): boolean => {
@@ -60,6 +81,7 @@ export class AgentSession {
   scriptRuns = 0;
   private readonly tag = `agent-main-${++tagSeq}`;
   private readonly scratchTag = `agent-scratch-${tagSeq}`;
+  private sheetMemo: { version: number; entries: SheetEntry[] } | null = null;
   private ownsTransport = false;
   private listeners = new Set<(e: { version: number; label: string; doc: PartDoc }) => void>();
   version = 0;
@@ -177,6 +199,35 @@ export class AgentSession {
     const res = r.result as { limits?: unknown; components?: unknown };
     await this.transport.request({ type: 'regen', tag: `${this.scratchTag}-view`, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
     return { limits: res.limits, components: Array.isArray(res.components) ? res.components : [] };
+  }
+  /**
+   * The `sheetMetal` list of a regen reply of the open document (one entry per sheet feature, in document order: its rule, the flat pattern with
+   * the bend table after that feature, and the role names), which the kernel Session drops. Empty without sheet features. Kept per document version.
+   */
+  async sheetMetal(): Promise<SheetEntry[]> {
+    const feats = this.doc.features as unknown as Array<{ id: string; type: string }>;
+    if (!feats.some((f) => SHEET_TYPES.has(f.type))) return [];
+    if (this.sheetMemo?.version === this.version) return this.sheetMemo.entries;
+    const tag = `${this.scratchTag}-sheet`;   // a scratch tag: the open document's own kernel state is untouched
+    const r = await this.transport.request({ type: 'regen', tag, part: this.doc, opts: { noView: true } });
+    await this.transport.request({ type: 'regen', tag, part: { format: 'ck-part', version: 1, name: 'scratch', features: [], seq: 1, rollback: null }, opts: { noView: true } }).catch(() => null);
+    if (r.trap || !r.ok || !r.result) throw new Error(r.trap ?? (typeof r.error === 'string' ? r.error : 'regen failed'));
+    const raw = ((r.result as { sheetMetal?: SheetEntry[] }).sheetMetal ?? []).slice();
+    const order = new Map(feats.map((f, i) => [f.id, i]));
+    raw.sort((x, y) => (order.get(x.id) ?? 0) - (order.get(y.id) ?? 0));
+    this.sheetMemo = { version: this.version, entries: raw };
+    return raw;
+  }
+  /** A stateless kernel request about a flat pattern (sheetDxf, sheetBendTable): the reply's result, or a ToolError with the kernel's refusal. */
+  async sheetRequest(msg: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const r = await this.transport.request(msg);
+    if (r.trap) throw new ToolError('kernel_trap', r.trap, 'the kernel failed on this request; retry, or restore a checkpoint');
+    if (!r.ok || !r.result) {
+      const e = r.error as { message?: string; field?: string; detail?: string; hint?: string } | string | undefined;
+      const text = typeof e === 'string' ? e : e ? [e.message, e.detail].filter(Boolean).join(': ') : 'refused';
+      throw new ToolError('bad_input', `${String(msg.type)}: ${text}`, (typeof e === 'object' && e?.hint) || (typeof e === 'object' && e?.field ? `check the field ${e.field}` : 'check the options'));
+    }
+    return r.result as Record<string, unknown>;
   }
   /** Mass properties / validity of the document `scratchBuild` built last (a script's read-back). */
   async scratchFacts(need: { mass?: boolean; validate?: boolean; describe?: string[]; text?: { string: string; font?: string; height: number; spacing?: number } }) {

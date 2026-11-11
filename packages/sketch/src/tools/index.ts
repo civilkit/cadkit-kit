@@ -11,6 +11,7 @@ export { centerlineTool, type CenterlineState } from './centerline';
 export { ellipseTool, type EllipseState } from './ellipse';
 export { polygonTool, polygonVertices, type PolygonState, type PolygonMode } from './polygon';
 export { slotTool, type SlotState } from './slot';
+export { arcSlotTool, type ArcSlotState } from './arcSlot';
 export { circleTool, type CircleState } from './circle';
 export { centreArcTool, type CentreArcState } from './centreArc';
 export { threePointArcTool, type ThreePointArcState } from './threePointArc';

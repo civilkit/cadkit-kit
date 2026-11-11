@@ -400,6 +400,7 @@
   "settings.theme.auto",
   "settings.theme.dark",
   "settings.theme.light",
+  "settings.theme.solarized-dark",
   "settings.toolLabels.icons",
   "settings.toolLabels.icons-and-text",
   "settings.triball.angle",
@@ -420,7 +421,8 @@
  "settings.theme.+": [
   "settings.theme.auto",
   "settings.theme.dark",
-  "settings.theme.light"
+  "settings.theme.light",
+  "settings.theme.solarized-dark"
  ],
  "app.sketch.snapkind.+": [
   "app.sketch.snapkind.align",
@@ -504,6 +506,7 @@
  ],
  "app.sketch.tool.+": [
   "app.sketch.tool.arc-centre",
+  "app.sketch.tool.arc-slot",
   "app.sketch.tool.arc-tangent",
   "app.sketch.tool.arc-three-point",
   "app.sketch.tool.bridge",
@@ -690,8 +693,10 @@
   "cmd.settings",
   "cmd.show-all",
   "cmd.sketch-from-dxf",
+  "cmd.sketch-from-svg",
   "cmd.sketch-here",
   "cmd.sketch-import-dxf",
+  "cmd.sketch-import-svg",
   "cmd.sketch-new-front",
   "cmd.sketch-new-right",
   "cmd.sketch-new-top",
@@ -1216,8 +1221,10 @@
   "rb.select-tangent",
   "rb.settings",
   "rb.sketch-from-dxf",
+  "rb.sketch-from-svg",
   "rb.sketch-here",
   "rb.sketch-import-dxf",
+  "rb.sketch-import-svg",
   "rb.sketch-new-front",
   "rb.sketch-new-right",
   "rb.sketch-new-top",
@@ -1415,6 +1422,24 @@
   "catalog.bosl.param.y2",
   "catalog.bosl.param.z"
  ],
+ "library.core.+": [
+  "library.core.brackets-structural",
+  "library.core.consumer-products",
+  "library.core.enclosures",
+  "library.core.fans-impellers",
+  "library.core.fasteners",
+  "library.core.marine",
+  "library.core.mechanisms",
+  "library.core.motors-electronics",
+  "library.core.pipe-fluid",
+  "library.core.power-transmission",
+  "library.core.printing",
+  "library.core.sheet-metal"
+ ],
+ "library.wizard.+": [
+  "library.wizard.bearing",
+  "library.wizard.screw"
+ ],
  "library.err.+": [
   "library.err.exists",
   "library.err.http",
@@ -1601,15 +1626,64 @@
   "knurl.method.boolean",
   "knurl.method.faceted"
  ],
+ "frame.corner.+": [
+  "frame.corner.butt.short",
+  "frame.corner.mitre.short",
+  "frame.corner.tee"
+ ],
  "frame.family.+": [
   "frame.family.aluTube",
   "frame.family.angle",
   "frame.family.chs",
   "frame.family.flat",
+  "frame.family.pfc",
   "frame.family.rhs",
   "frame.family.roundBar",
   "frame.family.shs",
-  "frame.family.tslot"
+  "frame.family.tslot",
+  "frame.family.ub",
+  "frame.family.ubp",
+  "frame.family.uc",
+  "frame.family.w",
+  "frame.family.s",
+  "frame.family.c",
+  "frame.family.mc",
+  "frame.family.pipe",
+  "frame.family.ipe",
+  "frame.family.ipea",
+  "frame.family.ipeo",
+  "frame.family.ipeaa",
+  "frame.family.hea",
+  "frame.family.heb",
+  "frame.family.hem",
+  "frame.family.heaa",
+  "frame.family.ipn",
+  "frame.family.upn"
+ ],
+ "frame.region.+": [
+  "frame.region.AU",
+  "frame.region.EU",
+  "frame.region.US",
+  "frame.region.all",
+  "frame.region.generic"
+ ],
+ "material.region.+": [
+  "material.region.AU",
+  "material.region.EU",
+  "material.region.US"
+ ],
+ "frame.group.+": [
+  "frame.group.connector",
+  "frame.group.end",
+  "frame.group.fastener",
+  "frame.group.process",
+  "frame.group.stock"
+ ],
+ "frame.hw.+": [
+  "frame.hw.cap",
+  "frame.hw.corner3",
+  "frame.hw.foot",
+  "frame.hw.joint"
  ],
  "knurl.pattern.+": [
   "knurl.pattern.diamond",
@@ -1653,6 +1727,31 @@
   "screw.issue.length",
   "screw.issue.size"
  ],
+ "washer.hole.refused.+": [
+  "washer.hole.refused.countersink",
+  "washer.hole.refused.noGeometry",
+  "washer.hole.refused.noOpening",
+  "washer.hole.refused.notHole",
+  "washer.hole.refused.oblique"
+ ],
+ "washer.kind.+": [
+  "washer.kind.flat",
+  "washer.kind.spring"
+ ],
+ "washer.axis.+": [
+  "washer.axis.nx",
+  "washer.axis.ny",
+  "washer.axis.nz",
+  "washer.axis.px",
+  "washer.axis.py",
+  "washer.axis.pz"
+ ],
+ "washer.issue.+": [
+  "washer.issue.gap",
+  "washer.issue.inner",
+  "washer.issue.outer",
+  "washer.issue.thickness"
+ ],
  "bearing.seal.+": [
   "bearing.seal.open",
   "bearing.seal.seal",
@@ -1673,6 +1772,28 @@
  ],
  "bearing.issue.+": [
   "bearing.issue.size"
+ ],
+ "mesh.err.+": [
+  "mesh.err.allDegenerate",
+  "mesh.err.badNumber",
+  "mesh.err.empty",
+  "mesh.err.noFacets",
+  "mesh.err.tooShort"
+ ],
+ "mesh.import.format.+": [
+  "mesh.import.format.ascii",
+  "mesh.import.format.binary"
+ ],
+ "mesh.pick.+": [
+  "mesh.pick.front",
+  "mesh.pick.normal",
+  "mesh.pick.right",
+  "mesh.pick.top"
+ ],
+ "mesh.unit.+": [
+  "mesh.unit.cm",
+  "mesh.unit.in",
+  "mesh.unit.m",
+  "mesh.unit.mm"
  ]
-
 }

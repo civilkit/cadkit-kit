@@ -4,6 +4,7 @@
 // A patch value of null means "remove this field" (the same protocol as holeData.ts and main.tsx opsFromDraft).
 
 import { t } from './i18n';
+import { sheetManagedPaths } from './sheet/options';
 import { featureLabel } from './featureCreators';
 import { curveManaged } from './curveRules';
 
@@ -84,7 +85,7 @@ export function managedPaths(type: string): Set<string> {
     case 'trimSurface': return new Set(['surface', 'toolSurface', 'flip', 'mutual', 'deleteTool']);
     case 'plane': return new Set(['base']);
     case 'thicken': return new Set(['thickness', 'thicknessAt']);
-    default: return curveManaged(type);
+    default: { const sheet = sheetManagedPaths(type); return sheet.size ? sheet : curveManaged(type); }
   }
 }
 export const hasOptions = (type: string): boolean => managedPaths(type).size > 0;

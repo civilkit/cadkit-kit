@@ -1,0 +1,22 @@
+// Strings of the shared Library filter bar (the Library picker and the Catalog's Libraries tab).
+export const libraryFilterStrings: Record<string, string | Record<string, string>> = {
+  'library.cat.other': 'Other',
+  'library.core.fasteners': 'Fasteners',
+  'library.core.power-transmission': 'Power transmission',
+  'library.core.motors-electronics': 'Motors & electronics',
+  'library.core.pipe-fluid': 'Pipe & fluid',
+  'library.core.fans-impellers': 'Fans & impellers',
+  'library.core.mechanisms': 'Mechanisms',
+  'library.core.brackets-structural': 'Brackets & structure',
+  'library.core.enclosures': 'Enclosures',
+  'library.core.sheet-metal': 'Sheet metal',
+  'library.core.consumer-products': 'Consumer products',
+  'library.core.printing': '3D printing',
+  'library.core.marine': 'Marine',
+  'library.filter.clear': 'Clear filters',
+  'library.filter.tags': 'Tags',
+  'library.filter.more': 'More tags ({count})',
+  'library.filter.fewer': 'Fewer tags',
+  'library.wizard.screw': 'Make one with the Screw wizard',
+  'library.wizard.bearing': 'Make one with the Bearing wizard',
+};

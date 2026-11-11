@@ -11,10 +11,12 @@ export const defLevel = (s: SketchSolverStatus | null): 'under' | 'full' | 'over
 
 /** A menu that drops below its button. It is placed with `position: fixed` from the button's rectangle so the ribbon's
  *  `overflow: hidden` row cannot clip it. */
-function Drop(p: { open: boolean; anchor: preact.RefObject<HTMLElement>; class?: string; label?: string; children: preact.ComponentChildren }) {
+function Drop(p: { open: boolean; anchor: preact.RefObject<HTMLElement>; class?: string; label?: string; /** open upward (an anchor at the bottom of the window) */ up?: boolean; children: preact.ComponentChildren }) {
   if (!p.open) return null;
   const r = p.anchor.current?.getBoundingClientRect();
-  const style = r ? { position: 'fixed', top: Math.round(r.bottom + 6) + 'px', left: Math.round(r.left) + 'px' } as const : undefined;
+  // kept inside the window: a button at the far right of an overflowing ribbon must not push its list off screen
+  const left = r ? Math.max(4, Math.min(Math.round(r.left), window.innerWidth - 260)) : 0;
+  const style = r ? { position: 'fixed', ...(p.up ? { bottom: Math.round(window.innerHeight - r.top + 6) + 'px' } : { top: Math.round(r.bottom + 6) + 'px' }), left: left + 'px' } as const : undefined;
   return <div class={p.class ?? 'aux-menu'} role="group" aria-label={p.label} style={style}>{p.children}</div>;
 }
 
@@ -107,8 +109,9 @@ export function LookNormalButton(p: Pick<SketchControls, 'onLookNormal' | 'lookC
   );
 }
 
-/** The definition badge (click for the constraint list; the list opens by itself on a conflict), Fully define, Snaps, Look normal. */
-export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs' | 'onPrefs' | 'onFullyDefine' | 'list' | 'onLookNormal' | 'lookChip' | 'onReport' | 'reportOpen'>) {
+/** The definition badge ("3 DOF", "Fully defined", "Over-constrained"): a click opens the constraint list. With `autoOpen` the list opens by
+ *  itself on a conflict so the culprit can be removed. Shown in the ribbon's Status group and, always reachable, in the status bar. */
+export function DofBadge(p: Pick<SketchControls, 'status' | 'list'> & { autoOpen?: boolean; up?: boolean }) {
   const level = defLevel(p.status);
   const [listOpen, setListOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
@@ -116,7 +119,7 @@ export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs'
   const prevBad = useRef(0);
   // a conflict or an over-defined sketch opens the list so the culprit can be removed; it never reopens by itself while the problem lasts
   useEffect(() => {
-    if ((bad > 0 || level === 'over') && prevBad.current === 0) setListOpen(true);
+    if (p.autoOpen && (bad > 0 || level === 'over') && prevBad.current === 0) setListOpen(true);
     prevBad.current = bad > 0 || level === 'over' ? 1 : 0;
   }, [bad, level]);
   useEffect(() => {
@@ -127,17 +130,25 @@ export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs'
     document.addEventListener('keydown', key);
     return () => { document.removeEventListener('pointerdown', away, true); document.removeEventListener('keydown', key); };
   }, [listOpen]);
+  return (
+    <span class="sk-badge" ref={wrap}>
+      {p.status ? (
+        <button class={`dof-chip ${level}`} data-level={level} data-where={p.up ? 'status' : 'ribbon'} aria-expanded={listOpen} aria-haspopup="true" onClick={() => setListOpen(!listOpen)}
+          title={t('app.sketch.defstate.' + (level === 'none' ? 'under' : level)) + ' - ' + t('app.sketch.constraints')}>{badgeText(p.status)}</button>
+      ) : null}
+      <Drop open={listOpen && !!p.list && !!p.status} anchor={wrap} class="sb-list" up={p.up}>{p.list}</Drop>
+    </span>
+  );
+}
+
+/** The definition badge, Fully define, Snaps, Look normal. */
+export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs' | 'onPrefs' | 'onFullyDefine' | 'list' | 'onLookNormal' | 'lookChip' | 'onReport' | 'reportOpen'>) {
+  const level = defLevel(p.status);
   const snapOn = (k: SnapToggle) => (k === 'grid' ? p.prefs.gridSnap : p.prefs.snaps[k]);
   const setSnap = (k: SnapToggle, on: boolean) => (k === 'grid' ? p.onPrefs({ gridSnap: on }) : p.onPrefs({ snaps: { ...p.prefs.snaps, [k]: on } }));
   return (
     <>
-      <span class="sk-badge" ref={wrap}>
-        {p.status ? (
-          <button class={`dof-chip ${level}`} data-level={level} aria-expanded={listOpen} aria-haspopup="true" onClick={() => setListOpen(!listOpen)}
-            title={t('app.sketch.defstate.' + (level === 'none' ? 'under' : level)) + ' - ' + t('app.sketch.constraints')}>{badgeText(p.status)}</button>
-        ) : null}
-        <Drop open={listOpen && !!p.list && !!p.status} anchor={wrap} class="sb-list">{p.list}</Drop>
-      </span>
+      <DofBadge status={p.status} list={p.list} autoOpen />
       <Tip label={t('app.sketch.fullyDefine.tip')}>
         <button class="rb-btn" disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define">{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
       </Tip>
@@ -158,9 +169,10 @@ export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs'
 }
 
 /** The hint line and the selection count with Clear. In the status bar when the ribbon carries the controls, under the pill otherwise. */
-export function SketchNotes(p: Pick<SketchControls, 'hint' | 'selected' | 'onClearSelection'>) {
+export function SketchNotes(p: Pick<SketchControls, 'hint' | 'selected' | 'onClearSelection'> & Partial<Pick<SketchControls, 'status' | 'list'>>) {
   return (
     <>
+      {p.status && p.list ? <DofBadge status={p.status} list={p.list} up /> : null}
       {p.hint ? <span class="sketch-hint" role="status">{p.hint}</span> : null}
       {p.selected > 0 ? (
         <span class="aux-sel">{t('app.sketch.selected', { count: p.selected })} <button class="rb-btn" onClick={p.onClearSelection}>{t('app.sketch.clearSelection')}</button></span>

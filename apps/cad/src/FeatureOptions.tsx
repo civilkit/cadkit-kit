@@ -21,6 +21,7 @@ import {
 import { sketchOpenChains } from '@kit/sketch';
 import { axisChoices } from './revolveAxis';
 import { rememberRoundPick, roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
+import { sheetOptionsFor } from './sheet/SheetOptions';
 import { loftAutoOrder, loftPointIssue } from './featureCreators';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
@@ -40,7 +41,7 @@ import {
 type Wire = Record<string, unknown>;
 type Change = (patch: Wire) => void;
 
-function Select(p: { name: string; label: string; value: string; options: Array<[string, string]>; onChange(v: string): void }): JSX.Element {
+export function Select(p: { name: string; label: string; value: string; options: Array<[string, string]>; onChange(v: string): void }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
@@ -51,7 +52,7 @@ function Select(p: { name: string; label: string; value: string; options: Array<
   );
 }
 
-function Num(p: { name: string; label: string; value: unknown; unit: string; plain?: boolean; onChange(v: number | string): void }): JSX.Element {
+export function Num(p: { name: string; label: string; value: unknown; unit: string; plain?: boolean; onChange(v: number | string): void }): JSX.Element {
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
@@ -62,7 +63,7 @@ function Num(p: { name: string; label: string; value: unknown; unit: string; pla
   );
 }
 
-function Check(p: { name: string; label: string; value: unknown; onChange(v: boolean): void }): JSX.Element {
+export function Check(p: { name: string; label: string; value: unknown; onChange(v: boolean): void }): JSX.Element {
   return (
     <label class="fedit-fld bool" data-path={p.name}>
       <input type="checkbox" checked={Boolean(p.value)} onChange={(e) => p.onChange((e.currentTarget as HTMLInputElement).checked)} />
@@ -540,13 +541,13 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
   const surface = eff.surface === true;
   const profiles = loftProfiles(eff);
   const guides = loftGuides(eff);
-  const profileChoices = all.filter((s) => (surface ? s.closed || s.open : s.closed || s.point) || profiles.includes(s.id)).map((s) => (s.point ? { ...s, name: `${t('opt.loft.pointTag')}: ${s.name}` } : s));
+  const profileChoices = all.filter((s) => !s.d3 && (surface ? s.closed || s.open : s.closed || s.point) || profiles.includes(s.id)).map((s) => (s.point ? { ...s, name: `${t('opt.loft.pointTag')}: ${s.name}` } : s));
   const isPoint = (id: string) => all.some((s) => s.id === id && s.point);
   const issue = surface ? (profiles.some(isPoint) ? 'loftPointSurface' : null) : loftPointIssue(profiles, isPoint) ?? (guides.length && profiles.some(isPoint) ? 'loftPointGuides' : null);
   const autoOrder = surface ? null : loftAutoOrder(p.doc, profiles);
-  const guideChoices = all.filter((s) => s.open && !profiles.includes(s.id));
+  const guideChoices = all.filter((s) => !s.d3 && s.open && !profiles.includes(s.id));
   const centre = centreLineOf(eff);
-  const centreChoices = all.filter((s) => (s.open && !profiles.includes(s.id) && !guides.includes(s.id)) || s.id === centre);
+  const centreChoices = all.filter((s) => !s.d3 && ((s.open && !profiles.includes(s.id) && !guides.includes(s.id)) || s.id === centre));
   const connectors = connectorsOf(eff, profiles.length);
   return (
     <>
@@ -616,7 +617,7 @@ function SweepOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JS
   const profile = typeof eff.sketch === 'string' ? eff.sketch : '';
   const path = pathOf(eff);
   const guides = sweepGuides(eff);
-  const guideSketches = all.filter((s) => s.id !== profile && s.id !== path);
+  const guideSketches = all.filter((s) => !s.d3 && s.id !== profile && s.id !== path);
   const setGuide = (i: number, g: CurveRef) => change(sweepGuidesPatch(replaceAt(guides, i, g)));
   const addGuide = () => {
     const sk = guideSketches.find((s) => !guides.some((g) => g.sketch === s.id));
@@ -1027,6 +1028,8 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'lpattern': case 'cpattern': case 'mirror': case 'curvepattern': return { hide, node: <PatternOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'knit': return { hide, node: <KnitOptions {...common} doc={doc} /> };
     case 'thicken': return { hide, node: <ThickenOptions {...common} /> };
+    case 'sheetRules': case 'baseFlange': case 'contourFlange': case 'edgeFlange': case 'hem': case 'fold': case 'sheetConvert': case 'sheetCut': case 'sheetCorner':
+      return sheetOptionsFor(type, { ...common, doc, pickingPath: a.pickingPath, onPick: a.onPickRequest });
     case 'plane': return { hide, node: <PlaneOptions {...common} doc={doc} /> };
     case 'trimSurface': return { hide, node: <TrimOptions {...common} doc={doc} /> };
     case 'projectCurve': return { hide, node: <ProjectCurveOptions {...common} doc={doc} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };

@@ -26,3 +26,29 @@ export function cylinder(r = 5, h = 10, n = 32): Float32Array {
   }
   return Float32Array.from(out);
 }
+
+/** A head-like closed surface: an ellipsoid (70 x 90 x 100 mm half axes) with a nose, brow, chin and two ears pushed out of it,
+ *  `nLat` rings of `nLon` quads (about 2 x nLat x nLon triangles), outward counter-clockwise, as a triangle soup. Synthetic, so tests
+ *  and demos need no scan. Z is up, the face looks along +Y. */
+export function headLike(nLat = 224, nLon = 224): Float32Array {
+  const bump = (x: number, y: number, z: number, cx: number, cy: number, cz: number, s: number, h: number) => h * Math.exp(-((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) / (2 * s * s));
+  const vert = (i: number, j: number): [number, number, number] => {
+    const th = (Math.PI * i) / nLat, ph = (2 * Math.PI * (j % nLon)) / nLon;
+    const pole = i === 0 || i === nLat;   // exact poles, so the fan shares one vertex bit for bit
+    const ux = pole ? 0 : Math.sin(th) * Math.cos(ph), uy = pole ? 0 : Math.sin(th) * Math.sin(ph), uz = pole ? (i === 0 ? 1 : -1) : Math.cos(th);
+    const x = 70 * ux, y = 90 * uy, z = 100 * uz;
+    const grow = 1 + (bump(x, y, z, 0, 90, -10, 14, 0.30) + bump(x, y, z, 0, 80, 45, 22, 0.08) + bump(x, y, z, 0, 75, -70, 18, 0.10)
+      + bump(x, y, z, 70, 0, 0, 14, 0.18) + bump(x, y, z, -70, 0, 0, 14, 0.18));
+    return [x * grow, y * grow, z * grow];
+  };
+  const out: number[] = [];
+  const tri = (a: number[], b: number[], c: number[]) => { for (const q of [a, b, c]) { out.push(q[0], q[1], q[2]); } };
+  const rows: Array<Array<[number, number, number]>> = [];
+  for (let i = 0; i <= nLat; i++) { const r: Array<[number, number, number]> = []; for (let j = 0; j <= nLon; j++) r.push(vert(i, j)); rows.push(r); }
+  for (let i = 0; i < nLat; i++) for (let j = 0; j < nLon; j++) {
+    const v00 = rows[i][j], v01 = rows[i][j + 1], v10 = rows[i + 1][j], v11 = rows[i + 1][j + 1];
+    if (i > 0) tri(v00, v10, v01);
+    if (i < nLat - 1) tri(v10, v11, v01);
+  }
+  return Float32Array.from(out);
+}

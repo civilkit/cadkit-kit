@@ -17,7 +17,7 @@ The **Evaluate** ribbon tab has them. Mass properties, Measure, Interference che
 | Draft analysis | Draft analysis | Alt+D |
 | Curvature comb | Curvature comb | Alt+C |
 
-The commands need a solid on screen. There is no separate probe tool: to read a position, pick a corner with Measure.
+The commands need a solid on screen. There is no separate probe tool: to read a position, pick a corner with Measure. The size of what you have selected appears in a small card in the corner of the view (a lone corner has a position, not a size, so it shows no card): see [The quick readout](#the-quick-readout).
 
 ![The Inspect tab of the drawer under a part, showing the Mass properties card and the result of measuring the distance between two corners.](../img/inspect-drawer.png)
 
@@ -55,6 +55,31 @@ Picks add up instead of replacing each other. A third pick keeps the last two. *
 | A face with a face or an edge | Minimum distance, normal distance and the angle between them, from the exact surface |
 
 Distances that involve corners and edges are taken from the lines drawn on screen, so on a curved edge they are as fine as the display. Anything with a face uses the exact surface. If a pair cannot be measured the card says "No measurement for this pair."
+
+## The quick readout
+
+A small card in the corner of the view shows the size of the selection as you make it. It needs no tool and no drawer: pick something with the usual selection modes and the card is there. It shows only the value lines, with no visible heading.
+
+| You pick | The card shows |
+|---|---|
+| One straight edge | Length |
+| One circular edge | Diameter, radius and circumference. A curved edge shows its length instead |
+| One face | Area. A round face also gives its radius and diameter |
+| Two items | The minimum distance between them, and the angle when there is one (two straight edges or two circular edges; two corners give the distance alone) |
+| Three or more | How many items are selected |
+
+The numbers are in the units of the rest of the app (millimetres and degrees) and follow the selection as you add and remove picks. On a phone or a tablet the card sits at the top left of the view instead of the bottom right.
+
+It is hidden while a sketch is open and while the Measure tool is running: Measure draws its own leader with the value in the view, and its card in the drawer holds the full result.
+
+### Common problems
+
+| Symptom | Fix |
+|---|---|
+| The card is not there | Nothing is selected, a sketch is open, or Measure is running. Pick something with Measure stopped |
+| The card and the selection list overlap | They share the bottom-right corner, and the card is drawn over the list. Collapse the list with its arrow button |
+| It shows a count instead of a size | It gives sizes for one or two items; with three or more it shows the selection summary: the count with the total area or length, for example "3 edges, 60 mm" |
+| A curved edge shows no diameter | A curve that is not a circle has no diameter: the card shows its length |
 
 ## Section view
 

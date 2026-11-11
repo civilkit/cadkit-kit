@@ -63,8 +63,28 @@ export interface FieldSpec {
   toggle?: { id: string; on: boolean; /** i18n keys */ label: string; tip: string };
 }
 
+/** One row of a tool's side panel. Every edit goes back to the tool as a `field` event with the row's id: a number row sends its value,
+ *  a choice row the index of the option picked, a pick row 1 (start picking) or 0 (stop). */
+export type PanelRow =
+  | { kind: 'number'; id: string; /** i18n key */ label: string; value: number; unit: 'length' | 'angle' | 'count'; /** the user typed it (as opposed to a default or the pointer) */ locked?: boolean }
+  | { kind: 'choice'; id: string; label: string; value: number; /** i18n keys */ options: string[] }
+  | { kind: 'pick'; id: string; label: string; active: boolean; /** i18n key of the button text */ button: string };
+
+/** A side panel in the style of the feature editors (titled groups of rows, an OK and a Cancel): set while a tool wants more than a pointer-following field or two. */
+export interface PanelSpec {
+  /** i18n key */
+  title: string;
+  groups: Array<{ id: string; /** i18n key, omitted for an untitled group */ title?: string; rows: PanelRow[] }>;
+  /** i18n key of a line of explanation under the groups */
+  note?: string;
+  /** OK is offered only when the tool would make something */
+  canApply: boolean;
+}
+
 export interface ToolOutput<S> {
   state: S;
+  /** The tool's side panel, when it has one. */
+  panel?: PanelSpec;
   draft: SketchDraft;
   preview: PreviewShape[];
   fields: FieldSpec[];

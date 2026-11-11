@@ -78,7 +78,7 @@ describe('ribbon commands', () => {
 
 import { matchShortcut, SHORTCUTS } from './commands';
 describe('shortcuts', () => {
-  const ioStub = { importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true };
+  const ioStub = { importDxf: vi.fn(), sketchFromDxf: vi.fn(), importSvg: vi.fn(), sketchFromSvg: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true };
   const key = (k: string, mods: Partial<{ shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({ key: k, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...mods });
   const cmds = buildCommands(actions({ io: ioStub, selectBody: vi.fn() }));
   it('every shortcut belongs to a command and no two commands share one', () => {
@@ -113,11 +113,11 @@ describe('undo and redo keys', () => {
 import { EXPORT_KINDS, type IoActions } from './commands';
 import { hasIcon } from '@kit/ui';
 describe('import and export commands', () => {
-  const io = (over: Partial<IoActions> = {}): IoActions => ({ importDxf: vi.fn(), sketchFromDxf: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true, ...over });
+  const io = (over: Partial<IoActions> = {}): IoActions => ({ importDxf: vi.fn(), sketchFromDxf: vi.fn(), importSvg: vi.fn(), sketchFromSvg: vi.fn(), isSketching: () => false, exportAs: vi.fn(), openExportMenu: vi.fn(), canExport: () => true, ...over });
   it('are absent without io actions and present with them, each with an icon', () => {
     expect(buildCommands(actions()).some((c) => c.id.startsWith('export'))).toBe(false);
     const cmds = buildCommands(actions({ io: io(), hasDocument: () => true }));
-    const ids = ['export', 'sketch-import-dxf', 'sketch-from-dxf', ...EXPORT_KINDS.map((k) => `export-${k}`)];
+    const ids = ['export', 'sketch-import-dxf', 'sketch-from-dxf', 'sketch-import-svg', 'sketch-from-svg', ...EXPORT_KINDS.map((k) => `export-${k}`)];
     for (const id of ids) {
       const c = cmds.find((x) => x.id === id);
       expect(c, id).toBeDefined();
@@ -137,6 +137,9 @@ describe('import and export commands', () => {
     expect(cmds.find((c) => c.id === 'export-stl')!.enabled!()).toBe(true);
     expect(cmds.find((c) => c.id === 'sketch-import-dxf')!.enabled!()).toBe(false);
     expect(buildCommands(actions({ io: io({ isSketching: () => true }) })).find((c) => c.id === 'sketch-import-dxf')!.enabled!()).toBe(true);
+    expect(cmds.find((c) => c.id === 'sketch-import-svg')!.enabled!()).toBe(false);
+    expect(buildCommands(actions({ io: io({ isSketching: () => true }) })).find((c) => c.id === 'sketch-import-svg')!.enabled!()).toBe(true);
+    expect(cmds.find((c) => c.id === 'sketch-from-svg')!.enabled!()).toBe(true);
     expect(buildCommands(actions({ io: io() })).find((c) => c.id === 'export')!.enabled!()).toBe(false);
   });
   it('Ctrl+E opens the Export menu', () => {

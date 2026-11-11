@@ -11,11 +11,31 @@ Two things are easy to confuse, so here is the rule up front:
 
 The first row of the feature tree reads "Material: steel" (or whatever the part uses), with a colour chip. Click it, press Enter or F2 on it, or use the pencil that shows when you point at it. The Material editor opens in the left panel, with **OK** and **Cancel**. Enter applies and Escape cancels.
 
-1. Type in the search box, or scroll the list. Materials are grouped as Steel, Aluminium, Copper alloys, Titanium, Cast iron, Plastics, Wood, Rubber, Glass, Concrete and Custom. Search matches a word of the name or of the category.
-2. Click a material. The editor shows a swatch, its density, a default colour and, where usual, Young's modulus, Poisson's ratio and yield strength, and the mass of the current part at that density ("was ..." shows the mass it has now).
+1. Type in the search box, or scroll the list. Materials are grouped as Steel, Aluminium, Copper alloys, Titanium, Cast iron, Plastics, Wood, Rubber, Glass, Concrete and Custom. Search matches a word of the name, the category, the standard, the grade or the region code (`s355`, `a992`, `en 10025`, `au`). Inside Steel the general steels come first, then the grades of the standards, grouped by region and standard.
+2. Click a material. The editor shows a swatch, its density, a default colour and, where usual, Young's modulus, Poisson's ratio and yield strength, and the mass of the current part at that density ("was ..." shows the mass it has now). Steel grades from the standards also show ultimate strength, shear modulus, thermal expansion, the standard and grade, and the region, with a line saying whether the strengths were verified.
 3. Press **OK** to apply it.
 
 The values are textbook figures that are good for estimating mass. They are not for certifying a design.
+
+### Woods and panels
+
+The **Wood** category lists ten solid woods (birch, cedar, cherry, Douglas fir, eucalyptus, maple, oak, pine, teak and walnut) and four panels (MDF, chipboard P5, OSB/3 and birch plywood). Each solid wood has its density at about 12% moisture and its stiffness along the grain from a named source (the species and a link are in the material's note), and its own colour. A part with a solid wood material shows growth rings and fine streaks in a darker tone of that colour, running along the longest side of the part; the panels have no grain. The panels are marked **unverified**: their figures are typical manufacturer values until each is checked against its product standard.
+
+## Steel grades from the standards
+
+The Steel category holds fifteen grades from standards, with fy (yield), fu (ultimate), E, G, Poisson's ratio, density and, where known, thermal expansion:
+
+| Region | Grades |
+| --- | --- |
+| Europe | EN 10025-2 S235, S275, S355; EN 10210 S355J2H (hot-finished); EN 10219 S355J2H (cold-formed) |
+| United States | ASTM A36, A992, A572 Gr 50, A53 Gr B, A500 Gr B and Gr C (round and shaped each) |
+| Australia | AS/NZS 3679.1 grade 300 and 350 |
+
+Strengths are minimum values in MPa (US figures are the ksi values converted: 36 ksi is 250 MPa). For thickness-dependent grades the figure is the thinnest band (S355: 355 MPa up to 16 mm); the note under the values says how it falls with thickness. **The Australian yields (280 and 330 MPa) are conservative lower bounds**, not a per-thickness table: the mill catalogue shows 280 to 320 MPa for 300PLUS and 340 to 360 MPa for grade 350 depending on flange or web thickness, so design yield depends on thickness.
+
+A grade wears an **unverified** badge when a value rests on one secondary source or the editions of the standard disagree: ASTM A53 Gr B, ASTM A500 Gr C round and the two Australian grades. For A500 Gr C round the older editions give 46 ksi (315 MPa), which is the stored yield; the 2021 revision is reported to give 50 ksi (345 MPa) for all shapes, which the editor shows as "Yield strength, other edition". Check the current edition of the standard before relying on either. US elastic constants (E 200 GPa, G 77.2 GPa) are the AISC 360 values and US thermal expansion is not given. Sources are listed in [Frame stock data and sources](../modelling/frame-stock-data.md#materials).
+
+Files that name a material by name keep working: "Mild steel", "steel" and the other general entries are unchanged, and the new grades are looked up by their names (for example `ASTM A992`, `EN 10025-2 S355`) or ids.
 
 **Custom material...** takes a name, a density and a colour. Custom materials are stored in your browser and listed under Custom with a remove button. A custom name cannot be the same as a built-in one. A file that names a custom material keeps the name when you open it on another computer, but there the material is unknown: Mass properties then asks for a density.
 

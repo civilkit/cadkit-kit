@@ -3,560 +3,1243 @@
   "id": "mounting-plate",
   "title": "Mounting plate",
   "file": "mounting-plate.ckpart",
-  "detail": "Mounting plate (4 countersunk corner holes)"
+  "detail": "Mounting plate (4 countersunk corner holes)",
+  "category": "brackets-structural",
+  "tags": [
+   "plate",
+   "beginner"
+  ]
  },
  {
   "id": "parametric-bracket",
   "title": "Parametric bracket",
   "file": "parametric-bracket.ckpart",
-  "detail": "Parametric bracket (4 variables, 3 configurations)"
+  "detail": "Parametric bracket (4 variables, 3 configurations)",
+  "category": "brackets-structural",
+  "tags": [
+   "bracket",
+   "beginner",
+   "parametric"
+  ]
  },
  {
   "id": "threaded-bolt",
   "title": "Threaded bolt and tapped block",
   "file": "threaded-bolt.ckpart",
-  "detail": "Threaded bolt and tapped block (M10 shaft thread, M8 tapped hole)"
+  "detail": "Threaded bolt and tapped block (M10 shaft thread, M8 tapped hole)",
+  "category": "fasteners",
+  "tags": [
+   "bolt",
+   "nut",
+   "threaded",
+   "chamfer"
+  ]
  },
  {
   "id": "threaded-bolt-helix",
   "title": "Threaded bolt: real helical M10 thread",
-  "file": "threaded-bolt-helix.ckpart"
+  "file": "threaded-bolt-helix.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "bolt",
+   "threaded",
+   "chamfer"
+  ]
  },
  {
   "id": "patterned-threaded-holes",
   "title": "Plate with six threaded M5 holes",
   "file": "patterned-threaded-holes.ckpart",
-  "detail": "Plate with six threaded M5 holes (one hole, one thread, a circular pattern: the copies are threaded too)"
+  "detail": "Plate with six threaded M5 holes (one hole, one thread, a circular pattern: the copies are threaded too)",
+  "category": "fasteners",
+  "tags": [
+   "plate",
+   "threaded",
+   "pattern"
+  ]
  },
  {
   "id": "surface-patch",
   "title": "Surface patch",
   "file": "surface-patch.ckpart",
-  "detail": "Surface patch: plate with a wavy surface wall and a planar patch"
+  "detail": "Surface patch: plate with a wavy surface wall and a planar patch",
+  "category": "brackets-structural",
+  "tags": [
+   "plate",
+   "surface"
+  ]
  },
  {
   "id": "spur-gear",
   "title": "Spur gear",
   "file": "spur-gear.ckpart",
-  "detail": "Spur gear: 24 teeth, module 2, bore with keyway and hub (Gear command)"
+  "detail": "Spur gear: 24 teeth, module 2, bore with keyway and hub (Gear command)",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "extrude"
+  ]
  },
  {
   "id": "gear-pair",
   "title": "Gear pair",
   "file": "gear-pair.ckpart",
-  "detail": "Gear pair: 20 and 40 teeth, module 2, at the centre distance (Gear pair command)"
+  "detail": "Gear pair: 20 and 40 teeth, module 2, at the centre distance (Gear pair command)",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "extrude"
+  ]
  },
  {
   "id": "herringbone-pair",
   "title": "Herringbone pair",
   "file": "herringbone-pair.ckpart",
-  "detail": "Herringbone pair: 20 and 40 teeth, module 2, 30 degree helix, 6 mm centre groove (Gear pair command)"
+  "detail": "Herringbone pair: 20 and 40 teeth, module 2, 30 degree helix, 6 mm centre groove (Gear pair command)",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "extrude"
+  ]
  },
  {
   "id": "turbo-impeller",
   "title": "Turbo impeller",
   "file": "turbo-impeller.ckpart",
-  "detail": "Turbo impeller: 7 + 7 blades, 45 mm exducer, 75 degree wrap (Impeller command)"
+  "detail": "Turbo impeller: 7 + 7 blades, 45 mm exducer, 75 degree wrap (Impeller command)",
+  "category": "fans-impellers",
+  "tags": [
+   "propeller",
+   "loft",
+   "revolve",
+   "pattern"
+  ]
  },
  {
   "id": "marine-propeller",
   "title": "Marine propeller",
   "file": "marine-propeller.ckpart",
-  "detail": "Marine propeller: 3 blades, 250 mm, 10 degree rake, 15 % progressive pitch (Propeller command, marine family)"
+  "detail": "Marine propeller: 3 blades, 250 mm, 10 degree rake, 15 % progressive pitch (Propeller command, marine family)",
+  "category": "fans-impellers",
+  "tags": [
+   "propeller",
+   "boat",
+   "loft",
+   "pattern"
+  ]
  },
  {
   "id": "bench-ball_knob",
   "title": "Ball Knob",
-  "file": "bench-ball_knob.ckpart"
+  "file": "bench-ball_knob.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "knob",
+   "revolve"
+  ]
  },
  {
   "id": "bench-bellows",
   "title": "Bellows",
-  "file": "bench-bellows.ckpart"
+  "file": "bench-bellows.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "revolve"
+  ]
  },
  {
   "id": "bench-bevel_gear",
   "title": "Bevel Gear",
-  "file": "bench-bevel_gear.ckpart"
+  "file": "bench-bevel_gear.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "loft"
+  ]
  },
  {
   "id": "bench-bolt",
   "title": "Bolt",
-  "file": "bench-bolt.ckpart"
+  "file": "bench-bolt.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "bolt",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-bucket",
   "title": "Bucket",
-  "file": "bench-bucket.ckpart"
+  "file": "bench-bucket.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "container",
+   "revolve"
+  ]
  },
  {
   "id": "bench-cable_routing_panel",
   "title": "Cable Routing Panel",
-  "file": "bench-cable_routing_panel.ckpart"
+  "file": "bench-cable_routing_panel.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "cable",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-cam",
   "title": "Cam",
-  "file": "bench-cam.ckpart"
+  "file": "bench-cam.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "cam",
+   "extrude"
+  ]
  },
  {
   "id": "bench-clevis",
   "title": "Clevis",
-  "file": "bench-clevis.ckpart"
+  "file": "bench-clevis.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "bracket",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-coil_spring",
   "title": "Coil Spring",
-  "file": "bench-coil_spring.ckpart"
+  "file": "bench-coil_spring.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "spring",
+   "sweep"
+  ]
  },
  {
   "id": "bench-dome_cap",
   "title": "Dome Cap",
-  "file": "bench-dome_cap.ckpart"
+  "file": "bench-dome_cap.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "revolve",
+   "fillet"
+  ]
  },
  {
   "id": "bench-dovetail_slide",
   "title": "Dovetail Slide",
-  "file": "bench-dovetail_slide.ckpart"
+  "file": "bench-dovetail_slide.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "slide",
+   "joint",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-duct_elbow",
   "title": "Duct Elbow",
-  "file": "bench-duct_elbow.ckpart"
+  "file": "bench-duct_elbow.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "sweep"
+  ]
  },
  {
   "id": "bench-enclosure",
   "title": "Enclosure",
-  "file": "bench-enclosure.ckpart"
+  "file": "bench-enclosure.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "shell",
+   "fillet"
+  ]
  },
  {
   "id": "bench-eyebolt",
   "title": "Eyebolt",
-  "file": "bench-eyebolt.ckpart"
+  "file": "bench-eyebolt.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "bolt",
+   "loft",
+   "revolve"
+  ]
  },
  {
   "id": "bench-fan_shroud",
   "title": "Fan Shroud",
-  "file": "bench-fan_shroud.ckpart"
+  "file": "bench-fan_shroud.ckpart",
+  "category": "fans-impellers",
+  "tags": [
+   "fan",
+   "extrude"
+  ]
  },
  {
   "id": "bench-gridfinity_bin",
   "title": "Gridfinity Bin",
-  "file": "bench-gridfinity_bin.ckpart"
+  "file": "bench-gridfinity_bin.ckpart",
+  "category": "printing",
+  "tags": [
+   "gridfinity",
+   "container",
+   "fillet"
+  ]
  },
  {
   "id": "bench-heat_sink",
   "title": "Heat Sink",
-  "file": "bench-heat_sink.ckpart"
+  "file": "bench-heat_sink.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-helical_gear",
   "title": "Helical Gear",
-  "file": "bench-helical_gear.ckpart"
+  "file": "bench-helical_gear.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "loft"
+  ]
  },
  {
   "id": "bench-hex_nut",
   "title": "Hex Nut",
-  "file": "bench-hex_nut.ckpart"
+  "file": "bench-hex_nut.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "nut",
+   "extrude"
+  ]
  },
  {
   "id": "bench-hinge",
   "title": "Hinge",
-  "file": "bench-hinge.ckpart"
+  "file": "bench-hinge.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "hinge",
+   "extrude"
+  ]
  },
  {
   "id": "bench-i_beam",
   "title": "I Beam",
-  "file": "bench-i_beam.ckpart"
+  "file": "bench-i_beam.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "profile",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-j_hook",
   "title": "J Hook",
-  "file": "bench-j_hook.ckpart"
+  "file": "bench-j_hook.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "hook",
+   "revolve"
+  ]
  },
  {
   "id": "bench-motor_end_cap",
   "title": "Motor End Cap",
-  "file": "bench-motor_end_cap.ckpart"
+  "file": "bench-motor_end_cap.ckpart",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "pattern",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-nozzle",
   "title": "Nozzle",
-  "file": "bench-nozzle.ckpart"
+  "file": "bench-nozzle.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "nozzle",
+   "revolve",
+   "pattern"
+  ]
  },
  {
   "id": "bench-pan_head_screw",
   "title": "Pan Head Screw",
-  "file": "bench-pan_head_screw.ckpart"
+  "file": "bench-pan_head_screw.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "screw",
+   "helix",
+   "sweep",
+   "fillet"
+  ]
  },
  {
   "id": "bench-pan_head_screw_top_slot",
   "title": "Pan Head Screw Top Slot",
-  "file": "bench-pan_head_screw_top_slot.ckpart"
+  "file": "bench-pan_head_screw_top_slot.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "screw",
+   "helix",
+   "sweep",
+   "fillet"
+  ]
  },
  {
   "id": "bench-pipe_elbow",
   "title": "Pipe Elbow",
-  "file": "bench-pipe_elbow.ckpart"
+  "file": "bench-pipe_elbow.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "sweep"
+  ]
  },
  {
   "id": "bench-pulley",
   "title": "Pulley",
-  "file": "bench-pulley.ckpart"
+  "file": "bench-pulley.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "pulley",
+   "revolve"
+  ]
  },
  {
   "id": "bench-round_flange",
   "title": "Round Flange",
-  "file": "bench-round_flange.ckpart"
+  "file": "bench-round_flange.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "flange",
+   "extrude"
+  ]
  },
  {
   "id": "bench-sheet_metal_tray",
   "title": "Sheet Metal Tray",
-  "file": "bench-sheet_metal_tray.ckpart"
+  "file": "bench-sheet_metal_tray.ckpart",
+  "category": "sheet-metal",
+  "tags": [
+   "enclosure",
+   "shell",
+   "chamfer"
+  ]
+ },
+ {
+  "id": "sheet_1_plate_flange_hem_cut",
+  "title": "Sheet metal: plate, flange, hem, cut",
+  "file": "sheet_1_plate_flange_hem_cut.ckpart",
+  "detail": "Sheet metal: plate, flange, hem, cut. A 100 x 60 x 2 mm plate with an edge flange and a chained second bend (an L lip), a hem on the opposite edge, a hole cut through the flat pattern, then unfolded and refolded",
+  "category": "sheet-metal",
+  "tags": [
+   "flange",
+   "sheet-metal"
+  ]
+ },
+ {
+  "id": "sheet_2_box_round_corner_reliefs",
+  "title": "Sheet metal: box with round corner reliefs",
+  "file": "sheet_2_box_round_corner_reliefs.ckpart",
+  "detail": "Sheet metal: box with round corner reliefs. A plate with a 20 mm flange on all four edges, round corner reliefs set in the rule, and chamfered leg corners",
+  "category": "sheet-metal",
+  "tags": [
+   "enclosure",
+   "flange",
+   "sheet-metal"
+  ]
+ },
+ {
+  "id": "sheet_3_contour_hat_channel",
+  "title": "Sheet metal: hat channel",
+  "file": "sheet_3_contour_hat_channel.ckpart",
+  "detail": "Sheet metal: hat channel. A hat channel made from an open chain of sketch lines, 40 mm long, unfolded and refolded",
+  "category": "sheet-metal",
+  "tags": [
+   "profile",
+   "sheet-metal"
+  ]
+ },
+ {
+  "id": "sheet_4_folded_plate",
+  "title": "Sheet metal: folded plate",
+  "file": "sheet_4_folded_plate.ckpart",
+  "detail": "Sheet metal: folded plate. A 100 x 60 plate folded along a line given by two points and along a sketch line",
+  "category": "sheet-metal",
+  "tags": [
+   "sheet-metal",
+   "plate"
+  ]
  },
  {
   "id": "bench-spline_hub",
   "title": "Spline Hub",
-  "file": "bench-spline_hub.ckpart"
+  "file": "bench-spline_hub.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "coupling",
+   "extrude"
+  ]
  },
  {
   "id": "bench-spur_gear",
   "title": "Spur Gear",
-  "file": "bench-spur_gear.ckpart"
+  "file": "bench-spur_gear.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "extrude"
+  ]
  },
  {
   "id": "bench-t_pipe_fitting",
   "title": "T Pipe Fitting",
-  "file": "bench-t_pipe_fitting.ckpart"
+  "file": "bench-t_pipe_fitting.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "extrude"
+  ]
  },
  {
   "id": "bench-tapered_boss",
   "title": "Tapered Boss",
-  "file": "bench-tapered_boss.ckpart"
+  "file": "bench-tapered_boss.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "bracket",
+   "loft",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-torsion_spring",
   "title": "Torsion Spring",
-  "file": "bench-torsion_spring.ckpart"
+  "file": "bench-torsion_spring.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "spring",
+   "helix",
+   "sweep"
+  ]
  },
  {
   "id": "bench-torus_link",
   "title": "Torus Link",
-  "file": "bench-torus_link.ckpart"
+  "file": "bench-torus_link.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "revolve",
+   "extrude"
+  ]
  },
  {
   "id": "bench-twisted_drill",
   "title": "Twisted Drill",
-  "file": "bench-twisted_drill.ckpart"
+  "file": "bench-twisted_drill.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "helix",
+   "revolve"
+  ]
  },
  {
   "id": "bench-u_channel",
   "title": "U Channel",
-  "file": "bench-u_channel.ckpart"
+  "file": "bench-u_channel.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "profile",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-venturi_tube",
   "title": "Venturi Tube",
-  "file": "bench-venturi_tube.ckpart"
+  "file": "bench-venturi_tube.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "nozzle",
+   "revolve"
+  ]
  },
  {
   "id": "bench-washer",
   "title": "Washer",
-  "file": "bench-washer.ckpart"
+  "file": "bench-washer.ckpart",
+  "category": "fasteners",
+  "tags": [
+   "washer",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-worm_screw",
   "title": "Worm Screw",
-  "file": "bench-worm_screw.ckpart"
+  "file": "bench-worm_screw.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "sweep"
+  ]
  },
  {
   "id": "bench-propeller",
   "title": "Propeller",
   "file": "bench-propeller.ckpart",
-  "detail": "Propeller (4 twisted blades)"
+  "detail": "Propeller (4 twisted blades)",
+  "category": "fans-impellers",
+  "tags": [
+   "propeller",
+   "loft",
+   "revolve",
+   "pattern"
+  ]
  },
  {
   "id": "bench-ratchet_sector",
   "title": "Ratchet Sector",
-  "file": "bench-ratchet_sector.ckpart"
+  "file": "bench-ratchet_sector.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "cam",
+   "extrude"
+  ]
  },
  {
   "id": "bench-shaft_collar",
   "title": "Shaft Collar",
-  "file": "bench-shaft_collar.ckpart"
+  "file": "bench-shaft_collar.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "coupling",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-pipe_flange",
   "title": "Pipe Flange",
-  "file": "bench-pipe_flange.ckpart"
+  "file": "bench-pipe_flange.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "flange",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-piston",
   "title": "Piston",
-  "file": "bench-piston.ckpart"
+  "file": "bench-piston.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "slide",
+   "revolve",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-pull_handle",
   "title": "Pull Handle",
-  "file": "bench-pull_handle.ckpart"
+  "file": "bench-pull_handle.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "handle",
+   "extrude"
+  ]
  },
  {
   "id": "bench-vented_panel",
   "title": "Vented Panel",
-  "file": "bench-vented_panel.ckpart"
+  "file": "bench-vented_panel.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "vented",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-waffle_plate",
   "title": "Waffle Plate",
-  "file": "bench-waffle_plate.ckpart"
+  "file": "bench-waffle_plate.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "plate",
+   "chamfer"
+  ]
  },
  {
   "id": "bench-rect_frame",
   "title": "Rect Frame",
-  "file": "bench-rect_frame.ckpart"
+  "file": "bench-rect_frame.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "profile",
+   "fillet"
+  ]
  },
  {
   "id": "bench-snap_clip",
   "title": "Snap Clip",
-  "file": "bench-snap_clip.ckpart"
+  "file": "bench-snap_clip.ckpart",
+  "category": "printing",
+  "tags": [
+   "snap-fit",
+   "clip",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-axial_fan",
   "title": "Brepjs Axial Fan",
-  "file": "brepjs-axial_fan.ckpart"
+  "file": "brepjs-axial_fan.ckpart",
+  "category": "fans-impellers",
+  "tags": [
+   "fan",
+   "loft",
+   "pattern",
+   "fillet"
+  ]
  },
  {
   "id": "brepjs-button_top_battery_cell",
   "title": "Brepjs Button Top Battery Cell",
-  "file": "brepjs-button_top_battery_cell.ckpart"
+  "file": "brepjs-button_top_battery_cell.ckpart",
+  "category": "motors-electronics",
+  "tags": [
+   "battery",
+   "revolve",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-conduit_snap_clip",
   "title": "Brepjs Conduit Snap Clip",
-  "file": "brepjs-conduit_snap_clip.ckpart"
+  "file": "brepjs-conduit_snap_clip.ckpart",
+  "category": "printing",
+  "tags": [
+   "snap-fit",
+   "clip",
+   "revolve",
+   "fillet"
+  ]
  },
  {
   "id": "brepjs-conical_pour_funnel",
   "title": "Brepjs Conical Pour Funnel",
-  "file": "brepjs-conical_pour_funnel.ckpart"
+  "file": "brepjs-conical_pour_funnel.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "nozzle",
+   "revolve"
+  ]
  },
  {
   "id": "brepjs-dovetail_joint",
   "title": "Brepjs Dovetail Joint",
-  "file": "brepjs-dovetail_joint.ckpart"
+  "file": "brepjs-dovetail_joint.ckpart",
+  "category": "printing",
+  "tags": [
+   "joint",
+   "extrude"
+  ]
  },
  {
   "id": "brepjs-fan_guard",
   "title": "Brepjs Fan Guard",
-  "file": "brepjs-fan_guard.ckpart"
+  "file": "brepjs-fan_guard.ckpart",
+  "category": "fans-impellers",
+  "tags": [
+   "fan",
+   "fillet"
+  ]
  },
  {
   "id": "brepjs-finger_tab_split_joint",
   "title": "Brepjs Finger Tab Split Joint",
-  "file": "brepjs-finger_tab_split_joint.ckpart"
+  "file": "brepjs-finger_tab_split_joint.ckpart",
+  "category": "printing",
+  "tags": [
+   "joint",
+   "snap-fit",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-flanged_tee",
   "title": "Brepjs Flanged Tee",
-  "file": "brepjs-flanged_tee.ckpart"
+  "file": "brepjs-flanged_tee.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "extrude"
+  ]
  },
  {
   "id": "brepjs-fluted_knob",
   "title": "Brepjs Fluted Knob",
-  "file": "brepjs-fluted_knob.ckpart"
+  "file": "brepjs-fluted_knob.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "knob",
+   "revolve",
+   "pattern"
+  ]
  },
  {
   "id": "brepjs-gridfinity_bin",
   "title": "Brepjs Gridfinity Bin",
-  "file": "brepjs-gridfinity_bin.ckpart"
+  "file": "brepjs-gridfinity_bin.ckpart",
+  "category": "printing",
+  "tags": [
+   "gridfinity",
+   "container",
+   "loft"
+  ]
  },
  {
   "id": "brepjs-gt2_pulley",
   "title": "Brepjs Gt2 Pulley",
-  "file": "brepjs-gt2_pulley.ckpart"
+  "file": "brepjs-gt2_pulley.ckpart",
+  "category": "power-transmission",
+  "tags": [
+   "pulley",
+   "extrude"
+  ]
  },
  {
   "id": "brepjs-hobby_rc_servo",
   "title": "Brepjs Hobby Rc Servo",
-  "file": "brepjs-hobby_rc_servo.ckpart"
+  "file": "brepjs-hobby_rc_servo.ckpart",
+  "category": "motors-electronics",
+  "tags": [
+   "servo",
+   "motor",
+   "fillet",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-knuckle_hinge",
   "title": "Brepjs Knuckle Hinge",
-  "file": "brepjs-knuckle_hinge.ckpart"
+  "file": "brepjs-knuckle_hinge.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "hinge",
+   "multi-body",
+   "revolve"
+  ]
  },
  {
   "id": "brepjs-l_angle_gusset_bracket",
   "title": "Brepjs L Angle Gusset Bracket",
-  "file": "brepjs-l_angle_gusset_bracket.ckpart"
+  "file": "brepjs-l_angle_gusset_bracket.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "bracket",
+   "extrude"
+  ]
  },
  {
   "id": "brepjs-linear_bearing_block",
   "title": "Brepjs Linear Bearing Block",
-  "file": "brepjs-linear_bearing_block.ckpart"
+  "file": "brepjs-linear_bearing_block.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "bearing",
+   "slide"
+  ]
  },
  {
   "id": "brepjs-modular_hose_segment",
   "title": "Brepjs Modular Hose Segment",
-  "file": "brepjs-modular_hose_segment.ckpart"
+  "file": "brepjs-modular_hose_segment.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "revolve"
+  ]
  },
  {
   "id": "brepjs-nema_stepper",
   "title": "Brepjs Nema Stepper",
-  "file": "brepjs-nema_stepper.ckpart"
+  "file": "brepjs-nema_stepper.ckpart",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "stepper",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-o_ring",
   "title": "Brepjs O Ring",
-  "file": "brepjs-o_ring.ckpart"
+  "file": "brepjs-o_ring.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "seal",
+   "revolve"
+  ]
  },
  {
   "id": "brepjs-pipe_saddle_p_clamp",
   "title": "Brepjs Pipe Saddle P Clamp",
-  "file": "brepjs-pipe_saddle_p_clamp.ckpart"
+  "file": "brepjs-pipe_saddle_p_clamp.ckpart",
+  "category": "pipe-fluid",
+  "tags": [
+   "pipe",
+   "fillet"
+  ]
  },
  {
   "id": "brepjs-rotary_potentiometer",
   "title": "Brepjs Rotary Potentiometer",
-  "file": "brepjs-rotary_potentiometer.ckpart"
+  "file": "brepjs-rotary_potentiometer.ckpart",
+  "category": "motors-electronics",
+  "tags": [
+   "knob",
+   "revolve",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-rubber_foot",
   "title": "Brepjs Rubber Foot",
-  "file": "brepjs-rubber_foot.ckpart"
+  "file": "brepjs-rubber_foot.ckpart",
+  "category": "consumer-products",
+  "tags": [
+   "revolve",
+   "fillet"
+  ]
  },
  {
   "id": "brepjs-tripod_rc2_plate",
   "title": "Brepjs Tripod Rc2 Plate",
-  "file": "brepjs-tripod_rc2_plate.ckpart"
+  "file": "brepjs-tripod_rc2_plate.ckpart",
+  "category": "brackets-structural",
+  "tags": [
+   "plate",
+   "chamfer"
+  ]
  },
  {
   "id": "brepjs-v_groove_slider_rail",
   "title": "Brepjs V Groove Slider Rail",
-  "file": "brepjs-v_groove_slider_rail.ckpart"
+  "file": "brepjs-v_groove_slider_rail.ckpart",
+  "category": "mechanisms",
+  "tags": [
+   "slide",
+   "extrude"
+  ]
  },
  {
   "id": "brepjs-vented_louvre_case",
   "title": "Brepjs Vented Louvre Case",
-  "file": "brepjs-vented_louvre_case.ckpart"
+  "file": "brepjs-vented_louvre_case.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "vented"
+  ]
  },
  {
   "id": "brepjs-wall_mount_flanged_junction_box",
   "title": "Brepjs Wall Mount Flanged Junction Box",
-  "file": "brepjs-wall_mount_flanged_junction_box.ckpart"
+  "file": "brepjs-wall_mount_flanged_junction_box.ckpart",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "extrude"
+  ]
  },
  {
   "id": "motor-outrunner-2212",
   "title": "Outrunner drone motor 2212",
   "file": "motor-outrunner-2212.ckpart",
-  "detail": "Outrunner drone motor 2212 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
+  "detail": "Outrunner drone motor 2212 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "reference-model",
+   "threaded",
+   "sweep",
+   "revolve"
+  ]
  },
  {
   "id": "motor-inrunner-2430",
   "title": "Inrunner motor 2430",
   "file": "motor-inrunner-2430.ckpart",
-  "detail": "Inrunner motor 2430 (own model, typical dimensions; set EXPLODE=11 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
+  "detail": "Inrunner motor 2430 (own model, typical dimensions; set EXPLODE=11 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "reference-model",
+   "threaded",
+   "sweep",
+   "revolve"
+  ]
  },
  {
   "id": "motor-outrunner-2306",
   "title": "Outrunner drone motor 2306",
   "file": "motor-outrunner-2306.ckpart",
-  "detail": "Outrunner drone motor 2306 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
+  "detail": "Outrunner drone motor 2306 (own model, typical dimensions; set EXPLODE=14 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "reference-model",
+   "threaded",
+   "sweep",
+   "revolve"
+  ]
  },
  {
   "id": "motor-outrunner-5010",
   "title": "Outrunner motor 5010",
   "file": "motor-outrunner-5010.ckpart",
-  "detail": "Outrunner motor 5010 (own model, typical dimensions; set EXPLODE=20 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
+  "detail": "Outrunner motor 5010 (own model, typical dimensions; set EXPLODE=20 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "reference-model",
+   "threaded",
+   "sweep",
+   "revolve"
+  ]
  },
  {
   "id": "motor-gimbal-2804",
   "title": "Gimbal motor 2804",
   "file": "motor-gimbal-2804.ckpart",
-  "detail": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)"
+  "detail": "Gimbal motor 2804 (own model, typical dimensions, hollow shaft; set EXPLODE=10 in Variables to spread the parts, SCREWS=1 adds the screws, LETTERS=0 removes the lettering)",
+  "category": "motors-electronics",
+  "tags": [
+   "motor",
+   "reference-model",
+   "threaded",
+   "sweep",
+   "revolve"
+  ]
  },
  {
   "id": "pet-bottle",
   "title": "PET bottle 500 ml",
   "file": "pet-bottle.ckpart",
-  "detail": "PET bottle 500 ml: a 500 ml PET water bottle with a soft, rounded petaloid base and a screw cap (separate body). The outline with its spline shoulder is revolved and shelled to a 0.35 mm tube; the base is two lofts (the outer solid and the cavity one wall inside it) through 14 round sections, each a closed loop of tangent arcs: five fat feet joined by five small valley ribs, curling under like the 9 mm base corner and running out vertical into the cylinder, with a rounded push-up centre. No fillet is used and no edge of the base is sharp. CAP=1 adds the cap and THREAD=1 gives the neck a real helical thread (28 mm finish: 25.5 mm root, 27.6 mm crest, 2.7 mm pitch, 2 turns, swept on a helix) and the cap the matching internal thread with 0.15 mm flank clearance, plus 30 grip ribs (GRIP). Variables: WALL, FEET (3 to 7), CAP, THREAD, PITCH, TURNS, CLR, GRIP; THREAD=0 keeps the light plain neck and cap"
+  "detail": "PET bottle 500 ml: a 500 ml PET water bottle with a soft, rounded petaloid base and a screw cap (separate body). The outline with its spline shoulder is revolved and shelled to a 0.35 mm tube; the base is two lofts (the outer solid and the cavity one wall inside it) through 14 round sections, each a closed loop of tangent arcs: five fat feet joined by five small valley ribs, curling under like the 9 mm base corner and running out vertical into the cylinder, with a rounded push-up centre. No fillet is used and no edge of the base is sharp. CAP=1 adds the cap and THREAD=1 gives the neck a real helical thread (28 mm finish: 25.5 mm root, 27.6 mm crest, 2.7 mm pitch, 2 turns, swept on a helix) and the cap the matching internal thread with 0.15 mm flank clearance, plus 30 grip ribs (GRIP). Variables: WALL, FEET (3 to 7), CAP, THREAD, PITCH, TURNS, CLR, GRIP; THREAD=0 keeps the light plain neck and cap",
+  "category": "consumer-products",
+  "tags": [
+   "bottle",
+   "container",
+   "helix",
+   "loft",
+   "sweep"
+  ]
+ },
+ {
+  "id": "pet-bottle-curved",
+  "title": "PET bottle, curved petals",
+  "file": "pet-bottle-curved.ckpart",
+  "detail": "PET bottle, curved petals: the same 500 ml bottle with the five base grooves swept along 3D splines instead of cut as straight lens shapes. Each groove is a round tube (a circle swept along a sketch3d spline, kept as its own body) that starts in the push-up cone, runs out under the standing ring, curves round the base corner and up the side wall and fades out in the wall; the cavity is cut by the same paths 0.35 mm wider, so the wall stays 0.35 mm thick all round. Variables: WALL, FEET, GROOVE_R (groove radius), SWIRL (degrees the grooves twist round the bottle on the way up), CAP",
+  "category": "consumer-products",
+  "tags": [
+   "bottle",
+   "container",
+   "sweep",
+   "revolve",
+   "parametric"
+  ]
+ },
+ {
+  "id": "tapered-disc",
+  "title": "Tapered spinning disc",
+  "file": "tapered-disc.ckpart",
+  "detail": "Tapered spinning disc: a flat disc (Y up) that slopes up from a thin edge to a low cone pointing up at the centre, with 12 smooth ridges running straight from the centre out to a plain circular edge that rises and falls round the rim, so a ball rolling off it drops into a tube. One lofted body through wave-shaped spline sections (no seams, nothing added on top), trimmed by a cylinder. Variables: N (number of ridges, 12), K (ridge depth, 0.28), R (disc radius, 60), T0 (minimum edge thickness, 3), POCKET (1 hollows the underside with a round recess for a lighter print), SKIN (material left above the recess, 2), RIM (flat ring left at the edge, 8)",
+  "category": "printing",
+  "tags": [
+   "printable",
+   "loft",
+   "parametric"
+  ]
  },
  {
   "id": "assembly-block-bolt",
   "title": "Assembly: block with a bolt",
   "file": "assembly-block-bolt.ckpart",
-  "detail": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)"
+  "detail": "Assembly: block with a bolt (insert part, two mates, 1 DOF left)",
+  "category": "fasteners",
+  "tags": [
+   "bolt",
+   "mates",
+   "assembly"
+  ]
  },
  {
   "id": "loft-bottle",
   "title": "Loft bottle",
   "file": "loft-bottle.ckpart",
-  "detail": "Loft bottle (a circle lofted to a rounded rectangle)"
+  "detail": "Loft bottle (a circle lofted to a rounded rectangle)",
+  "category": "consumer-products",
+  "tags": [
+   "bottle",
+   "beginner",
+   "loft"
+  ]
  },
  {
   "id": "swept-handle",
   "title": "Swept handle",
   "file": "swept-handle.ckpart",
-  "detail": "Swept handle (a round section swept along a U-shaped path)"
+  "detail": "Swept handle (a round section swept along a U-shaped path)",
+  "category": "brackets-structural",
+  "tags": [
+   "handle",
+   "beginner",
+   "sweep"
+  ]
  },
  {
   "id": "assembly-gear-train",
   "title": "Assembly: gear train",
   "file": "assembly-gear-train.ckpart",
-  "detail": "Assembly: gear train (20T and 40T gears on fixed shafts, hinge + gear mate with ratio 2)"
+  "detail": "Assembly: gear train (20T and 40T gears on fixed shafts, hinge + gear mate with ratio 2)",
+  "category": "power-transmission",
+  "tags": [
+   "gear",
+   "mates",
+   "assembly"
+  ]
  },
  {
   "id": "assembly-hinge-door",
   "title": "Assembly: hinge door",
   "file": "assembly-hinge-door.ckpart",
-  "detail": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)"
+  "detail": "Assembly: hinge door (hinge with stops, swing limit 0 to 110 degrees)",
+  "category": "mechanisms",
+  "tags": [
+   "hinge",
+   "assembly"
+  ]
  },
  {
   "id": "assembly-nist-ftc-7-8-9-10",
   "title": "NIST test assembly: FTC 7, 8, 9, 10",
   "file": "assembly-nist-ftc-7-8-9-10.ckpart",
-  "detail": "NIST test assembly: FTC 7, 8, 9, 10, base, plate, component and lid from the NIST PMI test models, each with its SolidWorks history, placed by mates and saved as an exploded view. NIST MBE PMI test models 7 to 10 (US government public domain), assembled by CadKit; no SolidWorks forum files used"
+  "detail": "NIST test assembly: FTC 7, 8, 9, 10, base, plate, component and lid from the NIST PMI test models, each with its SolidWorks history, placed by mates and saved as an exploded view. NIST MBE PMI test models 7 to 10 (US government public domain), assembled by CadKit; no SolidWorks forum files used",
+  "category": "brackets-structural",
+  "tags": [
+   "exploded",
+   "assembly"
+  ]
  },
  {
   "id": "thin-wall-bracket",
   "title": "Thin wall bracket",
   "file": "thin-wall-bracket.ckpart",
-  "detail": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)"
+  "detail": "Thin wall bracket (an open spline arc extruded as a wall, a sleeve revolved from an open profile)",
+  "category": "brackets-structural",
+  "tags": [
+   "bracket",
+   "revolve"
+  ]
  },
  {
   "id": "matx-case",
   "title": "mATX tower case",
   "file": "heavy/matx-case.ckpart",
-  "detail": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)"
+  "detail": "mATX tower case (script-built, 618 features, SLOW: about 3 minutes to rebuild; see docs/matx-case.md)",
+  "category": "enclosures",
+  "tags": [
+   "enclosure",
+   "large",
+   "parametric"
+  ]
  },
  {
   "id": "speedboat-dash",
   "title": "Speedboat analog dash cluster",
   "file": "speedboat-dash.ckpart",
-  "detail": "Speedboat analog dash cluster (script-built)"
+  "detail": "Speedboat analog dash cluster (script-built)",
+  "category": "marine",
+  "tags": [
+   "enclosure",
+   "revolve",
+   "fillet",
+   "parametric",
+   "large"
+  ]
  },
  {
   "id": "tinnie-hull",
   "title": "Tinnie boat",
   "file": "tinnie-hull.ckpart",
-  "detail": "Tinnie boat (3.5 m aluminium)"
+  "detail": "Tinnie boat (3.5 m aluminium)",
+  "category": "marine",
+  "tags": [
+   "boat",
+   "assembly",
+   "loft",
+   "revolve",
+   "shell"
+  ]
  },
  {
   "id": "grab-handle",
   "title": "Grab handle",
   "file": "grab-handle.ckpart",
-  "detail": "Grab handle (swept U loop, inserted twice in the Tinnie boat)"
+  "detail": "Grab handle (swept U loop, inserted twice in the Tinnie boat)",
+  "category": "marine",
+  "tags": [
+   "handle",
+   "boat",
+   "sweep",
+   "scripted"
+  ]
  },
  {
   "id": "fan-shroud-filleted",
   "title": "Fan shroud",
   "file": "fan-shroud-filleted.ckpart",
-  "detail": "Fan shroud (cone on plate, rim and notch fillets)"
+  "detail": "Fan shroud (cone on plate, rim and notch fillets)",
+  "category": "fans-impellers",
+  "tags": [
+   "fan",
+   "revolve",
+   "pattern",
+   "fillet",
+   "scripted"
+  ]
  },
  {
   "id": "corner-holes-plate",
   "title": "Plate with rounded corners and 4 corner holes",
   "file": "corner-holes-plate.ckpart",
-  "detail": "Plate with rounded corners and 4 corner holes (inset = fillet radius)"
+  "detail": "Plate with rounded corners and 4 corner holes (inset = fillet radius)",
+  "category": "brackets-structural",
+  "tags": [
+   "plate",
+   "beginner"
+  ]
  }
 ]

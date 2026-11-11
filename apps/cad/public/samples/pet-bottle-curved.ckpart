@@ -1,0 +1,2036 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "PET bottle 500 ml, curved petals",
+ "features": [
+  {
+   "type": "plane",
+   "id": "F1",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F2",
+   "name": "Upper profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F1"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 13.8,
+     "y": -205
+    },
+    {
+     "id": "p2",
+     "x": 13.8,
+     "y": -192
+    },
+    {
+     "id": "p3",
+     "x": 17.5,
+     "y": -192
+    },
+    {
+     "id": "p4",
+     "x": 17.5,
+     "y": -190
+    },
+    {
+     "id": "p5",
+     "x": 14.6,
+     "y": -190
+    },
+    {
+     "id": "p6",
+     "x": 14.6,
+     "y": -184
+    },
+    {
+     "id": "p7",
+     "x": 14.6,
+     "y": -184
+    },
+    {
+     "id": "p8",
+     "x": 19,
+     "y": -177
+    },
+    {
+     "id": "p9",
+     "x": 27,
+     "y": -165
+    },
+    {
+     "id": "p10",
+     "x": 32.2,
+     "y": -150
+    },
+    {
+     "id": "p11",
+     "x": 33,
+     "y": -135
+    },
+    {
+     "id": "p12",
+     "x": 33,
+     "y": -135
+    },
+    {
+     "id": "p13",
+     "x": 33,
+     "y": -44.5
+    },
+    {
+     "id": "p14",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p15",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p5",
+     "p2": "p6"
+    },
+    {
+     "id": "e6",
+     "type": "spline",
+     "pts": [
+      "p7",
+      "p8",
+      "p9",
+      "p10",
+      "p11"
+     ]
+    },
+    {
+     "id": "e7",
+     "type": "line",
+     "p1": "p12",
+     "p2": "p13"
+    },
+    {
+     "id": "e8",
+     "type": "line",
+     "p1": "p14",
+     "p2": "p15",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F3",
+   "op": "newBody",
+   "sketch": "F2",
+   "axis": "e8",
+   "angle": 360,
+   "body": "Upper",
+   "thin": {
+    "thickness": 0.35,
+    "side": "inside"
+   },
+   "name": "Revolve Upper profile"
+  },
+  {
+   "type": "plane",
+   "id": "F4",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F5",
+   "name": "Cup profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F4"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": -9
+    },
+    {
+     "id": "p2",
+     "x": 4,
+     "y": -9
+    },
+    {
+     "id": "p3",
+     "x": 15,
+     "y": 0
+    },
+    {
+     "id": "p4",
+     "x": 24,
+     "y": 0
+    },
+    {
+     "id": "p5",
+     "x": 24.0001330472,
+     "y": -8.9998669528
+    },
+    {
+     "id": "p6",
+     "x": 24,
+     "y": 0
+    },
+    {
+     "id": "p7",
+     "x": 33,
+     "y": -9
+    },
+    {
+     "id": "p8",
+     "x": 33,
+     "y": -9
+    },
+    {
+     "id": "p9",
+     "x": 33,
+     "y": -45
+    },
+    {
+     "id": "p10",
+     "x": 33,
+     "y": -45
+    },
+    {
+     "id": "p11",
+     "x": 0,
+     "y": -45
+    },
+    {
+     "id": "p12",
+     "x": 0,
+     "y": -9
+    },
+    {
+     "id": "p13",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p14",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "arc",
+     "c": "p5",
+     "p1": "p7",
+     "p2": "p6"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p8",
+     "p2": "p9"
+    },
+    {
+     "id": "e6",
+     "type": "line",
+     "p1": "p10",
+     "p2": "p11"
+    },
+    {
+     "id": "e7",
+     "type": "line",
+     "p1": "p11",
+     "p2": "p12"
+    },
+    {
+     "id": "e8",
+     "type": "line",
+     "p1": "p13",
+     "p2": "p14",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F6",
+   "op": "newBody",
+   "sketch": "F5",
+   "axis": "e8",
+   "angle": 360,
+   "body": "Cup",
+   "name": "Revolve Cup profile"
+  },
+  {
+   "type": "plane",
+   "id": "F7",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F8",
+   "name": "Cavity profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F7"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p5",
+     "x": 24.0001330472,
+     "y": -8.9998669528
+    },
+    {
+     "id": "p10",
+     "x": 0,
+     "y": -9.35
+    },
+    {
+     "id": "p11",
+     "x": 4.124937182360352,
+     "y": -9.35
+    },
+    {
+     "id": "p12",
+     "x": 15.124937182360354,
+     "y": -0.34999999999999787
+    },
+    {
+     "id": "p13",
+     "x": 24.0001330472,
+     "y": -0.35
+    },
+    {
+     "id": "p14",
+     "x": 32.65,
+     "y": -8.9998669528
+    },
+    {
+     "id": "p15",
+     "x": 32.65,
+     "y": -46
+    },
+    {
+     "id": "p16",
+     "x": 32.65,
+     "y": -46
+    },
+    {
+     "id": "p17",
+     "x": 0,
+     "y": -46
+    },
+    {
+     "id": "p18",
+     "x": 0,
+     "y": -9.35
+    },
+    {
+     "id": "p19",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p20",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "type": "line",
+     "p1": "p10",
+     "p2": "p11",
+     "id": "e6"
+    },
+    {
+     "type": "line",
+     "p1": "p11",
+     "p2": "p12",
+     "id": "e7"
+    },
+    {
+     "type": "line",
+     "p1": "p12",
+     "p2": "p13",
+     "id": "e8"
+    },
+    {
+     "type": "arc",
+     "c": "p5",
+     "p1": "p14",
+     "p2": "p13",
+     "id": "e9"
+    },
+    {
+     "type": "line",
+     "p1": "p14",
+     "p2": "p15",
+     "id": "e10"
+    },
+    {
+     "id": "e11",
+     "type": "line",
+     "p1": "p16",
+     "p2": "p17"
+    },
+    {
+     "id": "e12",
+     "type": "line",
+     "p1": "p17",
+     "p2": "p18"
+    },
+    {
+     "id": "e13",
+     "type": "line",
+     "p1": "p19",
+     "p2": "p20",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F9",
+   "op": "newBody",
+   "sketch": "F8",
+   "axis": "e13",
+   "angle": 360,
+   "body": "Cavity",
+   "name": "Revolve Cavity profile"
+  },
+  {
+   "type": "sketch3d",
+   "id": "groove1path",
+   "name": "Groove path 1",
+   "points": [
+    {
+     "id": "p0",
+     "x": 9,
+     "y": 0,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 16.9971,
+     "y": 0.3115,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 24.9657,
+     "y": 1.3084,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 31.3274,
+     "y": 3.2926,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 34.174,
+     "y": 5.4126,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 35.7024,
+     "y": 7.5888,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 37.0916,
+     "y": 9.9387,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "groove1plane",
+   "mode": "normal",
+   "path": "groove1path"
+  },
+  {
+   "type": "plane",
+   "id": "F10",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "groove1plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F11",
+   "name": "Groove profile 1",
+   "plane": {
+    "kind": "feature",
+    "id": "F10"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.2
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Groove 1",
+   "sketch": "F11",
+   "path": {
+    "kind": "sketch",
+    "id": "groove1path"
+   },
+   "id": "F12"
+  },
+  {
+   "type": "sketch3d",
+   "id": "groove2path",
+   "name": "Groove path 2",
+   "points": [
+    {
+     "id": "p0",
+     "x": 2.7812,
+     "y": 8.5595,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 4.9561,
+     "y": 16.2615,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 6.4705,
+     "y": 24.1481,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 6.5492,
+     "y": 30.8116,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 5.4126,
+     "y": 34.174,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 3.8153,
+     "y": 36.3,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 2.0097,
+     "y": 38.3474,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "groove2plane",
+   "mode": "normal",
+   "path": "groove2path"
+  },
+  {
+   "type": "plane",
+   "id": "F13",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "groove2plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F14",
+   "name": "Groove profile 2",
+   "plane": {
+    "kind": "feature",
+    "id": "F13"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.2
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Groove 2",
+   "sketch": "F14",
+   "path": {
+    "kind": "sketch",
+    "id": "groove2path"
+   },
+   "id": "F15"
+  },
+  {
+   "type": "sketch3d",
+   "id": "groove3path",
+   "name": "Groove path 3",
+   "points": [
+    {
+     "id": "p0",
+     "x": -7.2812,
+     "y": 5.2901,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": -13.9341,
+     "y": 9.7386,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": -20.9668,
+     "y": 13.616,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": -27.2798,
+     "y": 15.75,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": -30.8288,
+     "y": 15.7081,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": -33.3444,
+     "y": 14.8459,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": -35.8495,
+     "y": 13.7613,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "groove3plane",
+   "mode": "normal",
+   "path": "groove3path"
+  },
+  {
+   "type": "plane",
+   "id": "F16",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "groove3plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F17",
+   "name": "Groove profile 3",
+   "plane": {
+    "kind": "feature",
+    "id": "F16"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.2
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Groove 3",
+   "sketch": "F17",
+   "path": {
+    "kind": "sketch",
+    "id": "groove3path"
+   },
+   "id": "F18"
+  },
+  {
+   "type": "sketch3d",
+   "id": "groove4path",
+   "name": "Groove path 4",
+   "points": [
+    {
+     "id": "p0",
+     "x": -7.2812,
+     "y": -5.2901,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": -13.5679,
+     "y": -10.2427,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": -19.4286,
+     "y": -15.733,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": -23.4091,
+     "y": -21.0776,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": -24.4659,
+     "y": -24.4659,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": -24.4233,
+     "y": -27.1248,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": -24.1659,
+     "y": -29.8424,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "groove4plane",
+   "mode": "normal",
+   "path": "groove4path"
+  },
+  {
+   "type": "plane",
+   "id": "F19",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "groove4plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F20",
+   "name": "Groove profile 4",
+   "plane": {
+    "kind": "feature",
+    "id": "F19"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.2
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Groove 4",
+   "sketch": "F20",
+   "path": {
+    "kind": "sketch",
+    "id": "groove4path"
+   },
+   "id": "F21"
+  },
+  {
+   "type": "sketch3d",
+   "id": "groove5path",
+   "name": "Groove path 5",
+   "points": [
+    {
+     "id": "p0",
+     "x": 2.7812,
+     "y": -8.5595,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 5.5487,
+     "y": -16.069,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 8.9592,
+     "y": -23.3395,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 12.8122,
+     "y": -28.7767,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 15.7081,
+     "y": -30.8288,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 18.25,
+     "y": -31.6099,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 20.9141,
+     "y": -32.2049,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "groove5plane",
+   "mode": "normal",
+   "path": "groove5path"
+  },
+  {
+   "type": "plane",
+   "id": "F22",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "groove5plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F23",
+   "name": "Groove profile 5",
+   "plane": {
+    "kind": "feature",
+    "id": "F22"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.2
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Groove 5",
+   "sketch": "F23",
+   "path": {
+    "kind": "sketch",
+    "id": "groove5path"
+   },
+   "id": "F24"
+  },
+  {
+   "type": "sketch3d",
+   "id": "rib1path",
+   "name": "Rib path 1",
+   "points": [
+    {
+     "id": "p0",
+     "x": 9,
+     "y": 0,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 16.9971,
+     "y": 0.3115,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 24.9657,
+     "y": 1.3084,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 31.3274,
+     "y": 3.2926,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 34.174,
+     "y": 5.4126,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 35.7024,
+     "y": 7.5888,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 37.0916,
+     "y": 9.9387,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "rib1plane",
+   "mode": "normal",
+   "path": "rib1path"
+  },
+  {
+   "type": "plane",
+   "id": "F25",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "rib1plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F26",
+   "name": "Rib profile 1",
+   "plane": {
+    "kind": "feature",
+    "id": "F25"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.55
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Rib 1",
+   "sketch": "F26",
+   "path": {
+    "kind": "sketch",
+    "id": "rib1path"
+   },
+   "id": "F27"
+  },
+  {
+   "type": "sketch3d",
+   "id": "rib2path",
+   "name": "Rib path 2",
+   "points": [
+    {
+     "id": "p0",
+     "x": 2.7812,
+     "y": 8.5595,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 4.9561,
+     "y": 16.2615,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 6.4705,
+     "y": 24.1481,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 6.5492,
+     "y": 30.8116,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 5.4126,
+     "y": 34.174,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 3.8153,
+     "y": 36.3,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 2.0097,
+     "y": 38.3474,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "rib2plane",
+   "mode": "normal",
+   "path": "rib2path"
+  },
+  {
+   "type": "plane",
+   "id": "F28",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "rib2plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F29",
+   "name": "Rib profile 2",
+   "plane": {
+    "kind": "feature",
+    "id": "F28"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.55
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Rib 2",
+   "sketch": "F29",
+   "path": {
+    "kind": "sketch",
+    "id": "rib2path"
+   },
+   "id": "F30"
+  },
+  {
+   "type": "sketch3d",
+   "id": "rib3path",
+   "name": "Rib path 3",
+   "points": [
+    {
+     "id": "p0",
+     "x": -7.2812,
+     "y": 5.2901,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": -13.9341,
+     "y": 9.7386,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": -20.9668,
+     "y": 13.616,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": -27.2798,
+     "y": 15.75,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": -30.8288,
+     "y": 15.7081,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": -33.3444,
+     "y": 14.8459,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": -35.8495,
+     "y": 13.7613,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "rib3plane",
+   "mode": "normal",
+   "path": "rib3path"
+  },
+  {
+   "type": "plane",
+   "id": "F31",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "rib3plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F32",
+   "name": "Rib profile 3",
+   "plane": {
+    "kind": "feature",
+    "id": "F31"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.55
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Rib 3",
+   "sketch": "F32",
+   "path": {
+    "kind": "sketch",
+    "id": "rib3path"
+   },
+   "id": "F33"
+  },
+  {
+   "type": "sketch3d",
+   "id": "rib4path",
+   "name": "Rib path 4",
+   "points": [
+    {
+     "id": "p0",
+     "x": -7.2812,
+     "y": -5.2901,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": -13.5679,
+     "y": -10.2427,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": -19.4286,
+     "y": -15.733,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": -23.4091,
+     "y": -21.0776,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": -24.4659,
+     "y": -24.4659,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": -24.4233,
+     "y": -27.1248,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": -24.1659,
+     "y": -29.8424,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "rib4plane",
+   "mode": "normal",
+   "path": "rib4path"
+  },
+  {
+   "type": "plane",
+   "id": "F34",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "rib4plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F35",
+   "name": "Rib profile 4",
+   "plane": {
+    "kind": "feature",
+    "id": "F34"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.55
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Rib 4",
+   "sketch": "F35",
+   "path": {
+    "kind": "sketch",
+    "id": "rib4path"
+   },
+   "id": "F36"
+  },
+  {
+   "type": "sketch3d",
+   "id": "rib5path",
+   "name": "Rib path 5",
+   "points": [
+    {
+     "id": "p0",
+     "x": 2.7812,
+     "y": -8.5595,
+     "z": 0.8
+    },
+    {
+     "id": "p1",
+     "x": 5.5487,
+     "y": -16.069,
+     "z": 0.8
+    },
+    {
+     "id": "p2",
+     "x": 8.9592,
+     "y": -23.3395,
+     "z": 1.6
+    },
+    {
+     "id": "p3",
+     "x": 12.8122,
+     "y": -28.7767,
+     "z": 6
+    },
+    {
+     "id": "p4",
+     "x": 15.7081,
+     "y": -30.8288,
+     "z": 15
+    },
+    {
+     "id": "p5",
+     "x": 18.25,
+     "y": -31.6099,
+     "z": 28
+    },
+    {
+     "id": "p6",
+     "x": 20.9141,
+     "y": -32.2049,
+     "z": 44
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "spline",
+     "pts": [
+      "p0",
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+      "p5",
+      "p6"
+     ]
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "plane",
+   "id": "rib5plane",
+   "mode": "normal",
+   "path": "rib5path"
+  },
+  {
+   "type": "plane",
+   "id": "F37",
+   "mode": "offset",
+   "base": {
+    "kind": "feature",
+    "id": "rib5plane"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F38",
+   "name": "Rib profile 5",
+   "plane": {
+    "kind": "feature",
+    "id": "F37"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 4.55
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "sweep",
+   "op": "newBody",
+   "body": "Rib 5",
+   "sketch": "F38",
+   "path": {
+    "kind": "sketch",
+    "id": "rib5path"
+   },
+   "id": "F39"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Groove 1"
+    }
+   ],
+   "id": "F40"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cavity"
+   },
+   "tools": [
+    {
+     "body": "Rib 1"
+    }
+   ],
+   "id": "F41"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Groove 2"
+    }
+   ],
+   "id": "F42"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cavity"
+   },
+   "tools": [
+    {
+     "body": "Rib 2"
+    }
+   ],
+   "id": "F43"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Groove 3"
+    }
+   ],
+   "id": "F44"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cavity"
+   },
+   "tools": [
+    {
+     "body": "Rib 3"
+    }
+   ],
+   "id": "F45"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Groove 4"
+    }
+   ],
+   "id": "F46"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cavity"
+   },
+   "tools": [
+    {
+     "body": "Rib 4"
+    }
+   ],
+   "id": "F47"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Groove 5"
+    }
+   ],
+   "id": "F48"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cavity"
+   },
+   "tools": [
+    {
+     "body": "Rib 5"
+    }
+   ],
+   "id": "F49"
+  },
+  {
+   "type": "combine",
+   "op": "cut",
+   "target": {
+    "body": "Cup"
+   },
+   "tools": [
+    {
+     "body": "Cavity"
+    }
+   ],
+   "id": "F50"
+  },
+  {
+   "type": "combine",
+   "op": "union",
+   "target": {
+    "body": "Upper"
+   },
+   "tools": [
+    {
+     "body": "Cup"
+    }
+   ],
+   "id": "F51"
+  },
+  {
+   "type": "plane",
+   "id": "F52",
+   "mode": "offset",
+   "base": {
+    "kind": "std",
+    "id": "top"
+   },
+   "offset": 0
+  },
+  {
+   "type": "sketch",
+   "id": "F53",
+   "name": "Cap profile",
+   "plane": {
+    "kind": "feature",
+    "id": "F52"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 14,
+     "y": -192.4
+    },
+    {
+     "id": "p2",
+     "x": 15.4,
+     "y": -192.4
+    },
+    {
+     "id": "p3",
+     "x": 15.4,
+     "y": -207.4
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": -207.4
+    },
+    {
+     "id": "p5",
+     "x": 0,
+     "y": -206
+    },
+    {
+     "id": "p6",
+     "x": 14,
+     "y": -206
+    },
+    {
+     "id": "p7",
+     "x": 0,
+     "y": 0
+    },
+    {
+     "id": "p8",
+     "x": 0,
+     "y": -1
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p5",
+     "p2": "p6"
+    },
+    {
+     "id": "e6",
+     "type": "line",
+     "p1": "p6",
+     "p2": "p1"
+    },
+    {
+     "id": "e7",
+     "type": "line",
+     "p1": "p7",
+     "p2": "p8",
+     "construction": true
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "revolve",
+   "id": "F54",
+   "op": "newBody",
+   "sketch": "F53",
+   "axis": "e7",
+   "angle": 360,
+   "body": "Cap",
+   "name": "Revolve Cap profile"
+  }
+ ],
+ "seq": 55,
+ "rollback": null,
+ "variables": [
+  {
+   "name": "WALL",
+   "expr": "0.35"
+  },
+  {
+   "name": "FEET",
+   "expr": "5"
+  },
+  {
+   "name": "GROOVE_R",
+   "expr": "4.2"
+  },
+  {
+   "name": "SWIRL",
+   "expr": "15"
+  },
+  {
+   "name": "CAP",
+   "expr": "1"
+  }
+ ],
+ "script": "// Own work: the 500 ml PET bottle with CURVED petal grooves instead of straight lens-shaped ones. Each foot gap is a round groove swept along a 3D spline: it starts in the push-up cone, runs out under the standing ring, curves round the base corner and up the side wall, and fades out in the wall.\n// Axis = Z, the bottle stands on z = 0, mm. Variables: WALL (wall thickness), FEET (number of feet), GROOVE_R (groove radius), SWIRL (degrees the grooves twist round the bottle on the way up, 0 = straight up in a radial plane), CAP = 1 adds the screw cap.\n// How it is built: as the grooved bottle (pet-bottle.script.ts): the upper part is ONE thin-walled revolve, the base a solid cup and a cavity body (the cup's outside offset by the wall) that is cut out of it, then united. Here each groove is a tube\n// (a circle swept along a sketch3d spline, kept as its own body): the cup is cut by tubes of radius GROOVE_R, the cavity by tubes GROOVE_R + WALL wide along the same paths, so the wall stays WALL thick all round.\nconst V = variables({ WALL: 0.35, FEET: 5, GROOVE_R: 4.2, SWIRL: 15, CAP: 1 });\nconst P = part('PET bottle 500 ml, curved petals');\nP.upAxis('z');   // the part is built along Z: the app opens it Z-up\nconst t = V.WALL, JOIN = 45, pr = (r, z) => [r, -z];                    // top sketch: x = radius, y = -z\nconst REV = { axis: { from: [0, 0], to: [0, -1] } };\n// ---- upper part: the profile runs from the finish down and is the OUTSIDE surface: side inside = left of travel = towards the axis ----\nP.sketch(at('top', 0), (s) => {\n  s.polyline([pr(13.8, 205), pr(13.8, 192), pr(17.5, 192), pr(17.5, 190), pr(14.6, 190), pr(14.6, 184)]);   // finish, support ring, neck\n  s.spline([pr(14.6, 184), pr(19, 177), pr(27, 165), pr(32.2, 150), pr(33, 135)]);                          // shoulder: one smooth curve\n  s.polyline([pr(33, 135), pr(33, JOIN - 0.5)]);                                                            // straight body, overlaps the cup a little\n}, 'Upper profile');\nP.revolve(360, { thin: { thickness: t, side: 'inside' }, newBody: 'Upper', ...REV });\nconst UPPER = P.handle();\n// ---- base cup and cavity: solid revolves; the cavity profile is the cup's outline offset by the wall ----\nconst outer = (s, top) => {\n  s.polyline([pr(0, 9), pr(4, 9), pr(15, 0), pr(24, 0)]);                                                   // flat centre, push-up cone, standing ring\n  s.arc3(pr(24, 0), pr(30.364, 2.636), pr(33, 9));                                                          // corner radius 9\n  s.polyline([pr(33, 9), pr(33, top)]);\n};\nP.sketch(at('top', 0), (s) => { outer(s, JOIN); s.polyline([pr(33, JOIN), pr(0, JOIN), pr(0, 9)]); }, 'Cup profile');\nP.revolve(360, { newBody: 'Cup', ...REV });\nP.sketch(at('top', 0), (s) => { outer(s, JOIN + 1); s.offset(-t, { keep: false }); s.polyline([pr(33 - t, JOIN + 1), pr(0, JOIN + 1), pr(0, 9 + t)]); }, 'Cavity profile');\nP.revolve(360, { newBody: 'Cavity', ...REV });\n// ---- the groove path: [radius, height, share of SWIRL]; it starts horizontal in the push-up cone (the profile plane stands upright there) and ends outside the wall, so the groove fades out ----\nconst PATH = [[9, 0.8, 0], [17, 0.8, 0.07], [25, 1.6, 0.2], [31.5, 6, 0.4], [34.6, 15, 0.6], [36.5, 28, 0.8], [38.4, 44, 1]];\nconst groove = (k, rad, name) => {\n  const a0 = 360 * k / V.FEET, id = name.toLowerCase() + (k + 1);\n  const pts = PATH.map(([r, z, f], i) => { const a = (a0 + f * V.SWIRL) * Math.PI / 180; return { id: 'p' + i, x: +(r * Math.cos(a)).toFixed(4), y: +(r * Math.sin(a)).toFixed(4), z }; });\n  P.feature({ type: 'sketch3d', id: id + 'path', name: name + ' path ' + (k + 1), points: pts, entities: [{ id: 'e1', type: 'spline', pts: pts.map((p) => p.id) }], constraints: [] });\n  P.feature({ type: 'plane', id: id + 'plane', mode: 'normal', path: id + 'path' });                         // the plane normal to the start of the path carries the round profile\n  const plane = P.handle();\n  P.sketch(at(plane), (s) => s.circle(rad), name + ' profile ' + (k + 1));\n  P.feature({ type: 'sweep', op: 'newBody', body: name + ' ' + (k + 1), sketch: '$sketch', path: { kind: 'sketch', id: id + 'path' } });\n};\nfor (let k = 0; k < V.FEET; k++) groove(k, V.GROOVE_R, 'Groove');\nfor (let k = 0; k < V.FEET; k++) groove(k, V.GROOVE_R + t, 'Rib');\nfor (let k = 1; k <= V.FEET; k++) { P.combine('cut', 'Cup', 'Groove ' + k); P.combine('cut', 'Cavity', 'Rib ' + k); }\nP.combine('cut', 'Cup', 'Cavity');\nP.combine('union', 'Upper', 'Cup');\nP.appearance({ feature: UPPER, colour: '#5b9bd5', opacity: 0.55, finish: 'glass' });\n// ---- screw cap (separate body) ----\nif (V.CAP) {\n  P.sketch(at('top', 0), (s) => s.polygon([pr(14.0, 192.4), pr(15.4, 192.4), pr(15.4, 207.4), pr(0, 207.4), pr(0, 206.0), pr(14.0, 206.0)]), 'Cap profile');\n  P.revolve(360, { newBody: 'Cap', ...REV });\n  P.appearance({ feature: P.handle(), colour: '#f2f2f2', finish: 'plastic' });\n}\n// Check that runs with the script (a failed one is listed as an error): the bottle fills its 66 mm round from the base to the top of the finish.\nP.expectBBox({ min: [-33, -33, 0], max: [33, 33, 205] }, { body: 'Upper', tolerance: 0.01 });\n",
+ "appearance": {
+  "F3": {
+   "color": "#5b9bd5",
+   "opacity": 0.55,
+   "finish": "glass"
+  },
+  "F54": {
+   "color": "#f2f2f2",
+   "finish": "plastic"
+  }
+ },
+ "upAxis": "z"
+}

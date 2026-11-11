@@ -17,6 +17,8 @@ export interface DocPatch {
   /** features appended at the end (with `seq` the document's next feature number): the parts library adds its features together with the variables they use, as ONE step */
   append?: Array<Record<string, unknown>>;
   seq?: number;
+  /** STEP texts (key = SHA-256 of the text) added to the document's `blobs` table, for imported-body features that arrive in `append` */
+  blobs?: Record<string, string>;
 }
 
 interface Internals {
@@ -53,6 +55,7 @@ export function patched(doc: PartDoc, patch: DocPatch): PartDoc {
   }
   if (patch.append?.length) d.features = [...d.features, ...clone(patch.append) as typeof d.features];
   if (patch.seq !== undefined) d.seq = patch.seq;
+  if (patch.blobs && Object.keys(patch.blobs).length) (d as unknown as { blobs: Record<string, string> }).blobs = { ...((d as unknown as { blobs?: Record<string, string> }).blobs ?? {}), ...clone(patch.blobs) };
   return d;
 }
 

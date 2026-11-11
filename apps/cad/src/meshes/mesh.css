@@ -1,0 +1,29 @@
+/* STL import dialog and the mesh panel */
+.mesh-import { max-width: min(520px, 94vw); height: auto; max-height: 90vh; }
+.mesh-import-body { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; }
+.mesh-import-body p { margin: 0; }
+.mesh-import-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mesh-import-row select { min-width: 160px; }
+.mesh-import-note.warn, .mesh-import-checks li.warn { color: var(--warn, #b8741a); }
+.mesh-import-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; }
+.mesh-import-checks li.ok { color: var(--ok, #2e8b57); }
+.mesh-import-check { display: flex; align-items: center; gap: 8px; }
+.mesh-panel .fedit-fld.sk3d-add { flex-direction: column; align-items: stretch; gap: 4px; }
+.mesh-panel .mesh-xyz { display: flex; gap: 4px; flex-wrap: wrap; }
+.mesh-panel .mesh-xyz input { width: 64px; min-width: 0; padding-inline: 4px; font-variant-numeric: tabular-nums; }
+.mesh-panel input[type="range"] { flex: 1; min-width: 80px; }
+.mesh-panel .mesh-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mesh-panel .mesh-actions .fedit-card-btn { flex: 1 1 auto; min-height: 32px; }
+.mesh-panel .mesh-danger { color: var(--err, #c84b4b); }
+.mesh-pick-chip { position: absolute; left: 50%; transform: translateX(-50%); bottom: 64px; z-index: 20; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; max-width: min(560px, 94vw); padding: 8px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 4px 16px #0004; }
+.mesh-pick-chip .mesh-pick-text { flex: 1 1 100%; text-align: center; font-size: 12.5px; }
+.ref-eye { background: none; border: 0; padding: 2px 4px; color: var(--muted, inherit); cursor: pointer; border-radius: 4px; margin-left: auto; display: inline-flex; }
+.ref-eye + .ref-edit { margin-left: 0; }
+.ref-eye:hover { background: var(--panel-2); }
+.ref-eye.on { opacity: .55; }
+@media (max-width: 600px) {
+  .mesh-import-row { flex-direction: column; align-items: stretch; }
+  .mesh-import-row select { width: 100%; }
+  .mesh-panel .mesh-xyz input { width: calc(33% - 4px); }
+  .mesh-pick-chip { bottom: 84px; }
+}

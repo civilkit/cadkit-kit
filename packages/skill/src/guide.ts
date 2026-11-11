@@ -1,6 +1,8 @@
 // The long-form guide an LLM reads first (the MCP resource ck://docs/guide, and the head of docs/llms.txt). Facts here are checked
 // against the recorder and the kernel; the per-method detail lives in registry.generated.json (docs / list_methods tools).
 
+import { SHEET_GUIDE } from './sheetGuide';
+
 export const GUIDE = `# CadKit script API: guide for LLM agents
 
 CadKit builds parametric solids from a short JavaScript script. Every call on the part chain adds ONE normal feature (sketch, extrude, cut, hole, fillet, pattern ...) to a history tree; the kernel regenerates it and returns exact numbers. You never write geometry kernel calls: you write \`part('Name').sketch(...).extrude(...)\`, run it with \`run_script\`, and then PROVE the result with \`facts\`, \`bodies\`, \`probe\`, \`section(s)\` and \`snapshot\`.
@@ -57,6 +59,7 @@ Use hole FEATURES (\`hole\`, \`holes.points\`, \`holes.polar\`, \`holes.grid\`) 
 5. \`checkpoint\` before a risky change, \`undo\` / \`restore\` after. Use \`mode: 'attach'\` to ADD to what the user has built by hand (their features are kept).
 6. Export with \`export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }\`. For a \`.ckpart\` that opens at once in the app, add \`cache: true\`: the built view is stored in the file (refused with \`view_unavailable\` for a part with a curated or embedded font (text in the built-in fonts is fine), or a rolled-back part).
 
+${SHEET_GUIDE}
 ## Common errors and what to do
 
 | code | meaning | fix |
@@ -68,6 +71,9 @@ Use hole FEATURES (\`hole\`, \`holes.points\`, \`holes.polar\`, \`holes.grid\`) 
 | booleanFailed | the union / cut could not be completed | move the tool by 0.01 mm, avoid coincident faces, unite touching bodies first |
 | unsupported selector / Line N | a face()/edges() selector found nothing | selectors resolve against the body just before that step; print \`tree\` and use \`find\` for names |
 | unknown method | not in the API | \`list_methods { query }\` |
+| flangeHeightTooLow | a sheet flange is shorter than its bend | raise the height (the error gives minHeight) or reduce radius / angle |
+| invalidValue (field) | a sheet feature value or pick is wrong | the hint names the field; edges are world points on the base outline |
+| sheetMetalUnsupported | a sheet case the kernel does not build yet | the hint says what to reorder (flange before cuts, fold before flanges) |
 
 ## Performance
 

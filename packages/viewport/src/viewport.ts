@@ -25,12 +25,14 @@ import { TriBallLayer, type TriSink, type TriView } from './triballLayer';
 import type { HandleDragSink, HandleSpec } from './handles';
 export type { RefPlaneId } from './refplanes';
 import { applyBodyLook, makeBodyMaterial, styleSpec, edgeColor, edgePixels, HIDDEN_EDGE_OPACITY, effectiveLight, backgroundColors, materialParams, DEFAULT_APPEARANCE, type BodyLook, type LightPreset, type BackgroundMode, type EdgeWidth, type Appearance } from './styles';
+import { installLook, type LookUniforms } from './lookshader';
 import { buildStudioEnv } from './studioEnv';
 const TECHNICAL_FACE = '#f2f4f7';
 import { makeHullMaterial } from './hull';
 import { mergeBodies, mergedBox, SURFACE_TINT, type ViewSurface } from './surfaces';
 import { AnalysisLayer } from './analysisLayer';
 import { KnurlLayer } from './knurlview';
+import { MeshLayer, type MeshView } from './meshlayer';
 import { DEFAULT_ANALYSIS, sanitizeAnalysis, type AnalysisOptions, type Legend } from './analysis';
 import { markerSegments, markerColor, MARKER_HALF_PX, ANCHOR_HALF_PX, type MarkerStyle } from './snapMarks';
 import { cursorFor, type CursorContext } from './cursorPolicy';
@@ -187,11 +189,14 @@ export class Viewport {
   private readonly controls: OrbitControls;
   private readonly rig: OrbitRig;
   private upAxis: UpAxis = 'y';
+  /** Preference: how far a wheel turn zooms, relative to the default (1). */
+  private zoomSpeed = 1;
   private readonly raycaster = new THREE.Raycaster();
   private readonly dom: HTMLCanvasElement;
 
   private mesh: THREE.Mesh | null = null;
   private readonly knurls = new KnurlLayer();
+  private readonly refMeshes = new MeshLayer();
   private readonly analysis = new AnalysisLayer(this.scene, (l) => this.opts.onAnalysisLegend?.(l));
   private analysisOpts: AnalysisOptions = DEFAULT_ANALYSIS;
   /** The colour attribute of the mesh without analysis (surface tints), and the polylines a comb is drawn over. */
@@ -312,6 +317,7 @@ export class Viewport {
     this.scene.add(this.hemi);
     this.sun.position.set(1, 2, 1.5);
     this.scene.add(this.sun);
+    this.scene.add(this.refMeshes.group);
     try { this.envTex = buildStudioEnv(this.renderer); this.scene.environment = this.envTex; } catch { this.envTex = null; }   // no float targets: lit by the lamps alone
     this.setLighting(this.lightPreset);
     this.applyBackground();
@@ -436,7 +442,7 @@ export class Viewport {
     const uv = this.planeAt(e.clientX, e.clientY);
     const v = this.sketchEdit;
     const anchor = uv ? new THREE.Vector3(...planeToWorld(v.frame as never, uv[0], uv[1])) : this.controls.target.clone();
-    const z = zoomAbout(this.camera.position, this.controls.target, anchor, wheelFactor(e.deltaY, e.deltaMode, e.ctrlKey));
+    const z = zoomAbout(this.camera.position, this.controls.target, anchor, wheelFactor(e.deltaY, e.deltaMode, e.ctrlKey) ** this.zoomSpeed);
     this.camera.position.copy(z.position);
     this.controls.target.copy(z.target);
     this.updateClip();
@@ -1296,6 +1302,22 @@ export class Viewport {
   }
 
   /** Show a body, or clear the scene when body is null (empty or failed document). */
+  /** Show the document's reference meshes (an imported STL): shaded, placed by a matrix, optionally translucent or with edges. They are not part of the body: no picking, no section. */
+  setMeshes(list: readonly MeshView[]): void {
+    if (this.refMeshes.set(list)) this.dirty = true;
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const m of list) if (m.box) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], m.box.min[i]); hi[i] = Math.max(hi[i], m.box.max[i]); }
+    this.meshFrame = list.some((m) => m.box) ? { min: lo, max: hi } : null;
+  }
+  /** World box of the reference meshes: Fit frames them with the body (a part with only a mesh has no body box). */
+  private meshFrame: { min: number[]; max: number[] } | null = null;
+  private framing(): { min: number[]; max: number[] } | null {
+    const b = this.box, m = this.meshFrame;
+    if (!m) return b;
+    if (!b) return m;
+    return { min: b.min.map((v, i) => Math.min(v, m.min[i])), max: b.max.map((v, i) => Math.max(v, m.max[i])) };
+  }
+
   setBody(body: ViewBody | null): void {
     this.lastBody = body;
     this.clearBody();
@@ -1361,6 +1383,13 @@ export class Viewport {
     const bodyMat = makeBodyMaterial(this.shownLook(), this.bodyFade(), this.baseTints !== null);
     this.analysis.install(bodyMat);
     this.knurls.install(bodyMat);
+    installLook(bodyMat, bodyMat.userData.lookU as LookUniforms);   // last: it chains the hooks above
+    geo.computeBoundingBox();
+    if (geo.boundingBox) {   // the grain runs along the longest side unless the look names an axis
+      const sz = geo.boundingBox.getSize(new THREE.Vector3());
+      bodyMat.userData.longAxis = sz.x >= sz.y && sz.x >= sz.z ? 'x' : sz.y >= sz.z ? 'y' : 'z';
+      applyBodyLook(bodyMat, this.shownLook(), this.bodyFade(), this.baseTints !== null);
+    }
     this.analysis.reset();
     this.mesh = new THREE.Mesh(geo, bodyMat);
     this.scene.add(this.mesh);
@@ -2115,7 +2144,8 @@ export class Viewport {
   /** The camera conventions: which axis is up on screen, how a drag orbits and what it orbits around. Only the camera
    *  changes; the model, its sketches and planes stay where they are. Switching the up axis keeps the target, the
    *  distance and the side of the model the camera is on, and only turns the screen so the new axis is up. */
-  setNavigation(n: { upAxis?: UpAxis; orbitMode?: OrbitMode; orbitPivot?: OrbitPivot }): void {
+  setNavigation(n: { upAxis?: UpAxis; orbitMode?: OrbitMode; orbitPivot?: OrbitPivot; zoomSpeed?: number }): void {
+    if (n.zoomSpeed !== undefined && n.zoomSpeed > 0) { this.zoomSpeed = n.zoomSpeed; this.controls.zoomSpeed = n.zoomSpeed; }
     if (n.orbitMode) this.rig.mode = n.orbitMode;
     if (n.orbitPivot) this.rig.pivot = n.orbitPivot;
     if (n.upAxis && n.upAxis !== this.upAxis) {
@@ -2315,6 +2345,7 @@ export class Viewport {
 
   dispose(): void {
     this.disposed = true;
+    this.refMeshes.dispose();
     cancelAnimationFrame(this.raf);
     this.dom.removeEventListener('pointerdown', this.onTouchDown, true);
     window.removeEventListener('pointerup', this.onTouchEnd);
@@ -2356,14 +2387,16 @@ export class Viewport {
   // ---- internals ----
 
   private center(): THREE.Vector3 {
-    if (!this.box) return new THREE.Vector3();
-    const { min, max } = this.box;
+    const fb = this.framing();
+    if (!fb) return new THREE.Vector3();
+    const { min, max } = fb;
     return new THREE.Vector3((min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2);
   }
 
   private radius(): number {
-    if (!this.box) return 50;
-    const { min, max } = this.box;
+    const fb = this.framing();
+    if (!fb) return 50;
+    const { min, max } = fb;
     return Math.max(Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2, 1e-3);
   }
 

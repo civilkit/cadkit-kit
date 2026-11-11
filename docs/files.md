@@ -6,7 +6,7 @@ Code: `apps/cad/src/files/*`, `packages/platform/src/{fsaccess,web}.ts`. Wiring 
 - `cad.autosave.v1` in localStorage holds `{name, doc, savedAt}`, written 400 ms after the last change while the part is changed
   since the last save/open, and at once on `pagehide` / hidden tab.
 - A document over 2 MB of JSON is skipped, and a quota error is caught; each problem is announced once (notice).
-- Save, Open, Samples and New clear it. On start, a stored session with at least one feature opens the "Restore your last
+- Save, Open, Library and New clear it. On start, a stored session with at least one feature opens the "Restore your last
   session?" dialog (Restore / Start new). Escape does nothing there, so a stray key cannot discard it. A restored part counts
   as changed (it was never saved to a file).
 
@@ -22,15 +22,30 @@ Code: `apps/cad/src/files/*`, `packages/platform/src/{fsaccess,web}.ts`. Wiring 
 Parts used to be `.ckpart` with the format name `ck-part` (and `ck-part` before that). All three names are read: Open, drag and drop, the recent list and the library accept `.ckpart` and `.ckpart.gz`, and `normalizePartFormat` turns an old format name into `ck-part` in the document, so the next save writes the new names. Save As and downloads write `.ckpart` only.
 
 ## Recent
-- The Samples dialog has a Recent section (last 8 samples and files, with age). Names and times are in `cad.recent.v1`;
+- The Library dialog (was Samples) has a Recent section (last 8 samples and files, with age). Names and times are in `cad.recent.v1`;
   handles of saved files are in IndexedDB (`cad.handles.v1`). Clicking a file reopens it if the browser still grants
   permission; otherwise a notice says to use Open. Files opened through the plain Open dialog have no handle (the API used there
   is an `<input>`); they are listed but explained, not reopened.
 
 ## Drag and drop, Open by type
 Dropping one file (or choosing it in Open) routes by extension: `.ckpart`/`.json` load with the unsaved-changes guard;
-`.step`/`.stp` import as a new part; `.dxf` goes into the open sketch, else a new sketch on the front plane; `.stl` says mesh
+`.step`/`.stp` import as a new part; `.dxf` and `.svg` go into the open sketch, else a new sketch on the front plane; `.stl` says mesh
 import is not available; anything else gets a notice. More than one file: notice. A dashed overlay shows while dragging.
+
+## Imported meshes and STEP in the file (assets)
+`apps/cad/src/files/assets.ts`, codec `packages/io/src/meshPack.ts`. In memory a mesh is a `doc.meshes` record (base64 of raw Float32 / Uint32 arrays, optional `mats` and `m` for SketchUp
+materials) and the STEP text of an `importStep` feature is `doc.blobs[<sha256>]`; the kernel needs the blobs, never the meshes. Everything that leaves the app is packed and everything that comes in is unpacked:
+- `packDoc` (file save, folder export of a frozen part, library) writes `meshes[i] = { ...settings, fmt: 2, z, n, crc, c }` (z = base64 of deflate-raw of the payload, n = payload bytes, crc = FNV-1a, c = 1 deflated) and
+  `blobsZ[key] = { z, n, c }` in place of `blobs`, plus `assets: 2`. Payload: vertices on a grid of min(1e-3 mm, 1e-5 of the size) in decades, zigzag-varint deltas; indices as zigzag-varint distance below the highest index used; material run-lengths.
+  A non-finite or huge coordinate stores the float bytes (byte planes). Indices and materials are exact; vertices are within half a grid step (the only loss) and a second save gives identical bytes.
+- `unpackDoc` (every open, restore, recover) reverses it. A record that fails (cut base64, inflate error, size or checksum mismatch, index out of range, `fmt` newer than 2) is left out and listed (`AssetProblem`); a blob whose text does not hash to its key is dropped. Raw meshes and plain `blobs` (earlier versions) pass through.
+- Backups (autosave, snapshots) use `packDocCached`: what `warmPackCache` has already packed (called after open and import), raw otherwise; autosave leaves meshes out past 2 MB of packed data and says so once.
+- `lightDoc` stands in for the document in the "changed since save" signature and the thumbnail hash; the recipe key of the stored view excludes `meshes`.
+- Measured (500,000 triangles + a 240 KB STEP): file 1.2 MB, about 5% of the JSON-number-array size and 10% of the first version's base64 form; pack 0.15-0.4 s, unpack 0.2-0.4 s, no main-thread stall over about 60 ms in Chrome; the picking tree builds in 8 ms slices (about 0.5 s total).
+
+## STEP import
+`Import STEP` (command) and Open/drop ask: **Part feature** (default; `partOfStep`: an `importStep` feature with the text in `blobs`, so it is saved, rebuilds on open and later features can use it; falls back to view only
+with the reason when the part does not build) or **View only** (below). The choice is remembered per kind in `cad.import.step` / `cad.import.skp`. SketchUp asks **Reference mesh** (default, `files/skpMesh.ts`) or View only.
 
 ## STEP import (view only)
 `Import STEP` (command) and Open/drop create a blank part named after the file and show the imported solid in the viewport

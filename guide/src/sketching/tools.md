@@ -31,7 +31,7 @@ The setting **Values beside the pointer** chooses whether the fields show dimens
 
 ## Snaps and inferred constraints
 
-As you move the pointer, CadKit snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.
+As you move the pointer, CivilKit CAD snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.
 
 - Hold `Alt` while you click to turn snapping off for that click.
 - With **Infer constraints while drawing** on (the default), the tools add horizontal, vertical, coincident and tangent constraints as you draw. Hold `Shift` at a click to turn that off for the click. A snap to a guide places only the point, unless **Add constraints from snaps** and **Auto-constrain from guides** are on.
@@ -52,6 +52,7 @@ As you move the pointer, CadKit snaps to existing points and curves and shows a 
 | **Rectangle** (`R`) | Click one corner, then the opposite corner. Type `w` and `h`. The four sides are kept horizontal and vertical. |
 | **Centre rectangle** | Click the centre, then a corner. The rectangle is symmetric about the centre. |
 | **Slot** | Click the first centre, the second centre, then set the width with the pointer or by typing. The result is two lines and two arcs. |
+| **Arc slot** | A curved slot, in the Slot button's flyout. Click the arc centre, click the start point (it sets the radius and the start angle; `len` and `ang` fields), click the end of the arc (the `sweep` field; the arc follows the pointer round, either way), then set the width with the pointer or by typing (`w`). The result is two concentric arcs joined by two half-round ends, all kept tangent. A typed radius and width are held as dimensions. To change the slot later, click one of its arcs in the sketch: the fields **rad** (radius of the centre arc), **ang** (start angle), **sweep** and **w** (width) appear, and typing a value and pressing Enter reshapes the whole slot, keeping it tangent. |
 | **Polygon** | Click the centre, then a second point: its distance is the radius and its direction the rotation. The default is 6 sides. Press `+` to add a side. The fields, in order, are `radius` (or `apothem`), `ang` and `sides`: type digits for the first and press `Tab` to lock it and move on, and so reach `sides`. Press `M` to switch between a polygon whose corners touch the circle (**radius**) and one whose sides touch it (**apothem**). The sides are kept equal. |
 | **Spline** | A smooth curve through the points you click. Press `Enter` or click the last point again to finish. Click the first point to close the curve. `Esc` cancels. |
 | **Control-point spline** | A curve shaped by control points; it passes through the first and last only. Same keys as the spline. The degree is 3; it cannot be changed in the interface. |
@@ -67,7 +68,7 @@ With the **Select** tool:
 - Click a line, arc, circle or point to select it. `Shift`-click or `Ctrl`-click adds to the selection.
 - Drag on empty space to draw a box. Drag **right** for a **window** box that picks what is fully inside; drag **left** for a **crossing** box that picks what the box touches.
 - `Ctrl+A` selects everything; `Delete` or `Backspace` removes the selection; `Esc` clears it.
-- Drag a point to move it. If the sketch is fully defined, CadKit says so and does not move it: remove a constraint first. If the move would break a constraint, it says "This move conflicts with the constraints".
+- Drag a point to move it. If the sketch is fully defined, CivilKit CAD says so and does not move it: remove a constraint first. If the move would break a constraint, it says "This move conflicts with the constraints".
 - With one item selected, type a digit to start editing its size.
 
 ## Modify
@@ -80,9 +81,28 @@ With the **Select** tool:
 | **Chamfer** | The same picks as the fillet. The distance is the length cut from the corner along both lines. |
 | **Offset** (`O`) | Click a line, arc, circle or spline. For lines and arcs, the whole connected chain is selected. Press `Enter`, then move the pointer to the side you want. The pointer's distance is the offset distance, or type digits for the single field, `dist`, and press `Enter` to lock it. `F` flips the side. Click to place. See [Offsets and references](offset-reference.md). |
 | **Mirror** | Click the entities to mirror (click again to unselect), press `Enter`, then click the mirror line. The source geometry stays. |
-| **Linear pattern** | Select entities, press `Enter`, then move the pointer to where the second copy goes, or type digits. The fields, in order, are `count` (number of instances, including the first), `space` (spacing) and `ang` (angle); digits go into `count` first, and `Tab` locks a value and moves to the next field. Click or press `Enter`. |
-| **Circular pattern** | Select entities, press `Enter`, click the centre, then type digits. The fields, in order, are `count` (number of instances, spread over 360 degrees) and `ang` (the angle between neighbours); `Tab` locks a value and moves to the next field. Click or press `Enter`. |
+| **Linear pattern** | Select entities, press `Enter`. A panel opens with the same groups as the Linear pattern feature: see [Patterns](#patterns) below. |
+| **Circular pattern** | Select entities, press `Enter`, click the centre. A panel opens with the count and the angle: see [Patterns](#patterns) below. |
 | **Move**, **Copy**, **Rotate**, **Scale** | Select entities first (or click them in the tool), press `Enter`, click a base point (the centre for **Rotate**), then move the pointer and click, or type the values. The fields, in order, are `dx`, `dy` and `copies` for Copy; `dx` and `dy` for Move; `ang` and `copies` for Rotate; `factor` and `copies` for Scale. Type digits for the first field and press `Tab` to lock it and move on. Copy, Rotate and Scale take a number of copies (at most 99); with 0 copies, Rotate and Scale change the selected geometry in place. |
+
+### Patterns
+
+The **Linear pattern** makes a grid of copies, in columns and rows. Pick the shapes (click them, or select them first), press `Enter`, and the pattern panel opens, with a live preview of every copy on the canvas.
+
+- **Direction 1 (columns)**: `Count` (the number of instances, the first one included), `Angle` (typed, or press `Pick a line` and click a line of the sketch to take its direction; horizontal until you set it), and the distance. `Spacing` is the distance between neighbours; switch to `Total length` to give the distance from the first copy to the last (the spacing follows the count).
+- **Direction 2 (rows)**: the same group. Its count starts at 1, which means no rows; raise it to make rows. Its angle starts at 90 degrees to direction 1. Spacing and total length work as above.
+- `Enter` or **OK** makes the pattern. `Esc` first clears what you typed, then goes back a step; **Cancel** leaves the tool.
+
+The shortcut still works: before you move onto the panel, the pointer sets direction 1 (where it sits is where the second copy goes) and a click on the canvas makes the pattern. Digits typed go into the fields next to the pointer: `count`, `space` and `ang` of direction 1.
+
+The result is real geometry with these constraints:
+
+- Each step along direction 1 is a driving dimension (a horizontal and vertical distance from the previous copy; a horizontal or vertical constraint instead when one of them is 0).
+- With rows, direction 2 adds ONE dimension, the step from the first copy to the first copy of row 2. Every other copy in the rows repeats that step again from the copy below it, as a dashed construction line kept parallel and equal to the first step. Editing a spacing dimension (double-click it) moves every copy that depends on it; no other dimension is added.
+- A count cannot be changed afterwards: delete the copies and make the pattern again. The pattern is also not linked to the shape you started from.
+- At most 99 in one direction and 200 copies in all. The two directions must not be parallel.
+
+The **Circular pattern** panel has the `Count` (the first one included), the angle and an `Angle type`: `Step angle` (the angle between neighbours, negative for clockwise) or `Total angle` (the turn from the first copy to the last; 360 spreads the copies right round). The step angle is a driving dimension between construction lines from the centre.
 
 ### What the edit tools do to constraints
 
@@ -90,7 +110,7 @@ With the **Select** tool:
 - **Fillet** and **Chamfer** replace the corner point; a dimension or coincident constraint on that point goes with it. The fillet arc is tangent to both lines.
 - **Offset** keeps the copy parametric: each copied line gets a parallel constraint and a distance dimension; each copied arc or circle shares the centre of its source and keeps a radius difference.
 - **Mirror** ties each copied point to its source with a symmetric constraint, and the radius of a copied circle to the source radius.
-- **Patterns** write the spacing or the step angle as a visible dimension. The copies follow the spacing, not later changes to the shape of the source.
+- **Patterns** write the spacings or the step angle as visible dimensions. The copies follow those, not later changes to the shape of the source.
 - **Move**, **Rotate** and **Scale** re-measure dimensions that mention what changed. A fixed point cannot be moved. Relations to geometry that did not move are kept, so the solver can pull the shape back; if it refuses, press `Ctrl+Z`.
 
 ## Reference
@@ -106,7 +126,7 @@ The **Construction** button in the **Reference** group is a mode: while it is on
 
 ## Importing a drawing
 
-**Import DXF into sketch** (available in command search while a sketch is open) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. See [Importing](../files/import.md).
+**Import DXF into sketch** (available in command search while a sketch is open) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. **Import SVG into sketch** and **New sketch from SVG** do the same for an SVG drawing: paths (curves become splines, circular arcs stay arcs), rectangles, circles, ellipses, lines and polygons, with the file's size in millimetres, centimetres or inches. See [Importing](../files/import.md).
 
 ## Next
 

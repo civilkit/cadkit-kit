@@ -8,6 +8,8 @@ import { ToolError } from './errors';
 import { listBodies } from './bodies';
 import { meshToGlb } from './exporters';
 import { viewCacheField } from './viewCache';
+import { repairHint } from './hints';
+import { sheetTools } from './sheetTools';
 import type { Schema } from './schema';
 
 export interface ToolOutput {
@@ -84,7 +86,7 @@ async function errorMap(a: AgentSession): Promise<Map<string, { code?: string; m
   const m = new Map<string, { code?: string; message: string; hint: string }>();
   try {
     const r = await a.session.regenReport();
-    r.errors.forEach(([fid, e], i) => m.set(fid, { code: e.code, message: (e as { message?: string }).message ?? e.code ?? 'error', hint: r.hints[i]?.hint ?? '' }));
+    r.errors.forEach(([fid, e], i) => m.set(fid, { code: e.code, message: (e as { message?: string }).message ?? e.code ?? 'error', hint: repairHint(fid, e.code ?? '', e.params ?? {}, a.doc as never) || (r.hints[i]?.hint ?? '') }));
   } catch { /* none */ }
   return m;
 }
@@ -401,7 +403,7 @@ export function createTools(): ToolDef[] {
     },
     {
       name: 'export',
-      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed. Mesh formats (stl, glb) take `quality` (coarse | normal | fine, default normal: the viewer's mesh) and/or `chord_mm`, an absolute chord height in mm (the most a facet may sit off the true surface; it replaces the preset's chord; smaller means more triangles); the reply says the chord used and the triangle count.",
+      description: "Write the model to a file: step | stl | glb | ckpart (the document JSON). `path` defaults to ./<part name>.<ext> in the server's working directory. Returns the path and size. `cache: true` (ckpart only) also writes the built view as the file's `viewCache` field, as the app's \"Save geometry in file\" does: the app then shows the part at once on open and rebuilds behind it. It is used only if the recipe and the kernel build match, else ignored. Refused (nothing written, code view_unavailable) for documents it cannot reproduce exactly: a curated or embedded font (text in the built-in fonts is fine), a rolled-back document, a kernel whose wasm cannot be hashed. For the flat pattern of a sheet metal part (DXF, bend table) use sheet_export. Mesh formats (stl, glb) take `quality` (coarse | normal | fine, default normal: the viewer's mesh) and/or `chord_mm`, an absolute chord height in mm (the most a facet may sit off the true surface; it replaces the preset's chord; smaller means more triangles); the reply says the chord used and the triangle count.",
       inputSchema: obj({ format: { type: 'string', enum: ['step', 'stl', 'glb', 'ckpart'] }, path: { type: 'string', maxLength: 500 }, cache: { type: 'boolean' }, quality: { type: 'string', enum: ['coarse', 'normal', 'fine'] }, chord_mm: { type: 'number', minimum: 0, maximum: 1000000 } }, ['format']),
       async handler(i, a) {
         const fmt = String(i.format);
@@ -440,5 +442,6 @@ export function createTools(): ToolDef[] {
       },
     },
   ];
+  tools.push(...sheetTools());
   return tools;
 }

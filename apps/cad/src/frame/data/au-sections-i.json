@@ -1,0 +1,1489 @@
+{
+  "_meta": {
+    "schema": "civilkit.sections/0.2",
+    "region": "AU",
+    "generated": "2026-06-05",
+    "primary_source": "InfraBuild 'Hot Rolled & Structural Steel Products', 9th Edition (Oct 2019)",
+    "source_url": "https://www.infrabuild.com/.../Hot20Rolled20Cat_Edition9_2019.pdf",
+    "standard": "AS/NZS 3679.1 (300PLUS base grade)",
+    "validated_against": [
+      "310UB40.4",
+      "610UB125",
+      "310UC158",
+      "310UBP149",
+      "125TFB"
+    ],
+    "families": {
+      "UB": 28,
+      "UC": 13,
+      "UBP": 4,
+      "TFB": 2
+    },
+    "count": 47,
+    "coverage_notes": [
+      "All values transcribed from InfraBuild Ed9 dimension/property tables and machine-validated.",
+      "Hot-rolled I-sections only. WB/WC (welded three-plate) are NOT in this catalogue - need AS/NZS 3679.2 / welded-sections reference.",
+      "PFC, Equal & Unequal Angles are present in the catalogue (Tables 15/19/22) and can be added next.",
+      "Earlier sections.app-derived skeleton entries with no InfraBuild match (e.g. 150UC38, 310UC198/240/283, 690/760 UB, several UBP masses) were dropped as unverified."
+    ]
+  },
+  "sections": [
+    {
+      "id": "610UB125",
+      "form": "UB",
+      "designation": "610 UB 125",
+      "mass_per_m_kg": 125.0,
+      "geometry_mm": {
+        "d": 611.6,
+        "bf": 229.0,
+        "tf": 19.6,
+        "tw": 11.9,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 16000.0,
+        "Ix_mm4": 986000000.0,
+        "Zx_mm3": 3230000.0,
+        "Sx_mm3": 3680000.0,
+        "rx_mm": 249.0,
+        "Iy_mm4": 39300000.0,
+        "Zy_mm3": 343000.0,
+        "Sy_mm3": 536000.0,
+        "ry_mm": 49.6,
+        "J_mm4": 1560000.0,
+        "Iw_mm6": 3450000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "610UB113",
+      "form": "UB",
+      "designation": "610 UB 113",
+      "mass_per_m_kg": 113.0,
+      "geometry_mm": {
+        "d": 607.0,
+        "bf": 228.0,
+        "tf": 17.3,
+        "tw": 11.2,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 14500.0,
+        "Ix_mm4": 875000000.0,
+        "Zx_mm3": 2880000.0,
+        "Sx_mm3": 3290000.0,
+        "rx_mm": 246.0,
+        "Iy_mm4": 34300000.0,
+        "Zy_mm3": 300000.0,
+        "Sy_mm3": 469000.0,
+        "ry_mm": 48.7,
+        "J_mm4": 1140000.0,
+        "Iw_mm6": 2980000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "610UB101",
+      "form": "UB",
+      "designation": "610 UB 101",
+      "mass_per_m_kg": 101.0,
+      "geometry_mm": {
+        "d": 602.0,
+        "bf": 228.0,
+        "tf": 14.8,
+        "tw": 10.6,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 13000.0,
+        "Ix_mm4": 761000000.0,
+        "Zx_mm3": 2530000.0,
+        "Sx_mm3": 2900000.0,
+        "rx_mm": 242.0,
+        "Iy_mm4": 29300000.0,
+        "Zy_mm3": 257000.0,
+        "Sy_mm3": 402000.0,
+        "ry_mm": 47.5,
+        "J_mm4": 790000.0,
+        "Iw_mm6": 2530000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "530UB92.4",
+      "form": "UB",
+      "designation": "530 UB 92.4",
+      "mass_per_m_kg": 92.4,
+      "geometry_mm": {
+        "d": 533.0,
+        "bf": 209.0,
+        "tf": 15.6,
+        "tw": 10.2,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 11800.0,
+        "Ix_mm4": 554000000.0,
+        "Zx_mm3": 2080000.0,
+        "Sx_mm3": 2370000.0,
+        "rx_mm": 217.0,
+        "Iy_mm4": 23800000.0,
+        "Zy_mm3": 228000.0,
+        "Sy_mm3": 355000.0,
+        "ry_mm": 44.9,
+        "J_mm4": 775000.0,
+        "Iw_mm6": 1590000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "530UB82.0",
+      "form": "UB",
+      "designation": "530 UB 82.0",
+      "mass_per_m_kg": 82.0,
+      "geometry_mm": {
+        "d": 528.2,
+        "bf": 209.0,
+        "tf": 13.2,
+        "tw": 9.6,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 10500.0,
+        "Ix_mm4": 477000000.0,
+        "Zx_mm3": 1810000.0,
+        "Sx_mm3": 2070000.0,
+        "rx_mm": 213.0,
+        "Iy_mm4": 20100000.0,
+        "Zy_mm3": 193000.0,
+        "Sy_mm3": 301000.0,
+        "ry_mm": 43.8,
+        "J_mm4": 526000.0,
+        "Iw_mm6": 1330000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "460UB82.1",
+      "form": "UB",
+      "designation": "460 UB 82.1",
+      "mass_per_m_kg": 82.1,
+      "geometry_mm": {
+        "d": 460.4,
+        "bf": 191.0,
+        "tf": 16.0,
+        "tw": 9.9,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 10500.0,
+        "Ix_mm4": 372000000.0,
+        "Zx_mm3": 1610000.0,
+        "Sx_mm3": 1840000.0,
+        "rx_mm": 188.0,
+        "Iy_mm4": 18600000.0,
+        "Zy_mm3": 195000.0,
+        "Sy_mm3": 303000.0,
+        "ry_mm": 42.2,
+        "J_mm4": 701000.0,
+        "Iw_mm6": 919000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "460UB74.6",
+      "form": "UB",
+      "designation": "460 UB 74.6",
+      "mass_per_m_kg": 74.6,
+      "geometry_mm": {
+        "d": 457.4,
+        "bf": 190.0,
+        "tf": 14.5,
+        "tw": 9.1,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 9520.0,
+        "Ix_mm4": 335000000.0,
+        "Zx_mm3": 1460000.0,
+        "Sx_mm3": 1660000.0,
+        "rx_mm": 188.0,
+        "Iy_mm4": 16600000.000000002,
+        "Zy_mm3": 175000.0,
+        "Sy_mm3": 271000.0,
+        "ry_mm": 41.8,
+        "J_mm4": 530000.0,
+        "Iw_mm6": 815000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "460UB67.1",
+      "form": "UB",
+      "designation": "460 UB 67.1",
+      "mass_per_m_kg": 67.1,
+      "geometry_mm": {
+        "d": 453.8,
+        "bf": 190.0,
+        "tf": 12.7,
+        "tw": 8.5,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 8580.0,
+        "Ix_mm4": 296000000.0,
+        "Zx_mm3": 1300000.0,
+        "Sx_mm3": 1480000.0,
+        "rx_mm": 186.0,
+        "Iy_mm4": 14500000.0,
+        "Zy_mm3": 153000.0,
+        "Sy_mm3": 238000.0,
+        "ry_mm": 41.2,
+        "J_mm4": 378000.0,
+        "Iw_mm6": 708000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "410UB59.7",
+      "form": "UB",
+      "designation": "410 UB 59.7",
+      "mass_per_m_kg": 59.7,
+      "geometry_mm": {
+        "d": 406.4,
+        "bf": 178.0,
+        "tf": 12.8,
+        "tw": 7.8,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 7640.0,
+        "Ix_mm4": 216000000.0,
+        "Zx_mm3": 1060000.0,
+        "Sx_mm3": 1200000.0,
+        "rx_mm": 168.0,
+        "Iy_mm4": 12100000.0,
+        "Zy_mm3": 135000.0,
+        "Sy_mm3": 209000.0,
+        "ry_mm": 39.7,
+        "J_mm4": 337000.0,
+        "Iw_mm6": 467000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "410UB53.7",
+      "form": "UB",
+      "designation": "410 UB 53.7",
+      "mass_per_m_kg": 53.7,
+      "geometry_mm": {
+        "d": 402.6,
+        "bf": 178.0,
+        "tf": 10.9,
+        "tw": 7.6,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 6890.0,
+        "Ix_mm4": 188000000.0,
+        "Zx_mm3": 933000.0,
+        "Sx_mm3": 1060000.0,
+        "rx_mm": 165.0,
+        "Iy_mm4": 10300000.0,
+        "Zy_mm3": 115000.0,
+        "Sy_mm3": 179000.0,
+        "ry_mm": 38.6,
+        "J_mm4": 234000.0,
+        "Iw_mm6": 394000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "360UB56.7",
+      "form": "UB",
+      "designation": "360 UB 56.7",
+      "mass_per_m_kg": 56.7,
+      "geometry_mm": {
+        "d": 358.6,
+        "bf": 172.0,
+        "tf": 13.0,
+        "tw": 8.0,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 7240.0,
+        "Ix_mm4": 161000000.0,
+        "Zx_mm3": 899000.0,
+        "Sx_mm3": 1010000.0,
+        "rx_mm": 149.0,
+        "Iy_mm4": 11000000.0,
+        "Zy_mm3": 128000.0,
+        "Sy_mm3": 198000.0,
+        "ry_mm": 39.0,
+        "J_mm4": 338000.0,
+        "Iw_mm6": 330000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "360UB50.7",
+      "form": "UB",
+      "designation": "360 UB 50.7",
+      "mass_per_m_kg": 50.7,
+      "geometry_mm": {
+        "d": 355.6,
+        "bf": 171.0,
+        "tf": 11.5,
+        "tw": 7.3,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 6470.0,
+        "Ix_mm4": 142000000.0,
+        "Zx_mm3": 798000.0,
+        "Sx_mm3": 897000.0,
+        "rx_mm": 148.0,
+        "Iy_mm4": 9600000.0,
+        "Zy_mm3": 112000.0,
+        "Sy_mm3": 173000.0,
+        "ry_mm": 38.5,
+        "J_mm4": 241000.0,
+        "Iw_mm6": 284000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "360UB44.7",
+      "form": "UB",
+      "designation": "360 UB 44.7",
+      "mass_per_m_kg": 44.7,
+      "geometry_mm": {
+        "d": 352.0,
+        "bf": 171.0,
+        "tf": 9.7,
+        "tw": 6.9,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 5720.0,
+        "Ix_mm4": 121000000.0,
+        "Zx_mm3": 689000.0,
+        "Sx_mm3": 777000.0,
+        "rx_mm": 146.0,
+        "Iy_mm4": 8100000.0,
+        "Zy_mm3": 94700.0,
+        "Sy_mm3": 146000.0,
+        "ry_mm": 37.6,
+        "J_mm4": 161000.0,
+        "Iw_mm6": 237000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UB46.2",
+      "form": "UB",
+      "designation": "310 UB 46.2",
+      "mass_per_m_kg": 46.2,
+      "geometry_mm": {
+        "d": 307.2,
+        "bf": 166.0,
+        "tf": 11.8,
+        "tw": 6.7,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 5930.0,
+        "Ix_mm4": 100000000.0,
+        "Zx_mm3": 654000.0,
+        "Sx_mm3": 729000.0,
+        "rx_mm": 130.0,
+        "Iy_mm4": 9010000.0,
+        "Zy_mm3": 109000.0,
+        "Sy_mm3": 166000.0,
+        "ry_mm": 39.0,
+        "J_mm4": 233000.0,
+        "Iw_mm6": 197000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UB40.4",
+      "form": "UB",
+      "designation": "310 UB 40.4",
+      "mass_per_m_kg": 40.4,
+      "geometry_mm": {
+        "d": 304.0,
+        "bf": 165.0,
+        "tf": 10.2,
+        "tw": 6.1,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 5210.0,
+        "Ix_mm4": 86400000.0,
+        "Zx_mm3": 569000.0,
+        "Sx_mm3": 633000.0,
+        "rx_mm": 129.0,
+        "Iy_mm4": 7650000.0,
+        "Zy_mm3": 92700.0,
+        "Sy_mm3": 142000.0,
+        "ry_mm": 38.3,
+        "J_mm4": 157000.0,
+        "Iw_mm6": 165000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UB32.0",
+      "form": "UB",
+      "designation": "310 UB 32.0",
+      "mass_per_m_kg": 32.0,
+      "geometry_mm": {
+        "d": 298.0,
+        "bf": 149.0,
+        "tf": 8.0,
+        "tw": 5.5,
+        "r": 13.0
+      },
+      "gross_props": {
+        "Ag_mm2": 4080.0,
+        "Ix_mm4": 63200000.0,
+        "Zx_mm3": 424000.0,
+        "Sx_mm3": 475000.0,
+        "rx_mm": 124.0,
+        "Iy_mm4": 4420000.0,
+        "Zy_mm3": 59300.0,
+        "Sy_mm3": 91800.0,
+        "ry_mm": 32.9,
+        "J_mm4": 86500.0,
+        "Iw_mm6": 92900000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "250UB37.3",
+      "form": "UB",
+      "designation": "250 UB 37.3",
+      "mass_per_m_kg": 37.3,
+      "geometry_mm": {
+        "d": 256.2,
+        "bf": 146.0,
+        "tf": 10.9,
+        "tw": 6.4,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 4750.0,
+        "Ix_mm4": 55700000.0,
+        "Zx_mm3": 435000.0,
+        "Sx_mm3": 486000.0,
+        "rx_mm": 108.0,
+        "Iy_mm4": 5660000.0,
+        "Zy_mm3": 77500.0,
+        "Sy_mm3": 119000.0,
+        "ry_mm": 34.5,
+        "J_mm4": 158000.0,
+        "Iw_mm6": 85200000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "250UB31.4",
+      "form": "UB",
+      "designation": "250 UB 31.4",
+      "mass_per_m_kg": 31.4,
+      "geometry_mm": {
+        "d": 251.6,
+        "bf": 146.0,
+        "tf": 8.6,
+        "tw": 6.1,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 4010.0,
+        "Ix_mm4": 44500000.0,
+        "Zx_mm3": 354000.0,
+        "Sx_mm3": 397000.0,
+        "rx_mm": 105.0,
+        "Iy_mm4": 4470000.0,
+        "Zy_mm3": 61200.0,
+        "Sy_mm3": 94200.0,
+        "ry_mm": 33.4,
+        "J_mm4": 89300.0,
+        "Iw_mm6": 65900000000.00001
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "250UB25.7",
+      "form": "UB",
+      "designation": "250 UB 25.7",
+      "mass_per_m_kg": 25.7,
+      "geometry_mm": {
+        "d": 248.0,
+        "bf": 124.0,
+        "tf": 8.0,
+        "tw": 5.0,
+        "r": 12.0
+      },
+      "gross_props": {
+        "Ag_mm2": 3270.0,
+        "Ix_mm4": 35400000.0,
+        "Zx_mm3": 285000.0,
+        "Sx_mm3": 319000.0,
+        "rx_mm": 104.0,
+        "Iy_mm4": 2550000.0,
+        "Zy_mm3": 41100.0,
+        "Sy_mm3": 63600.0,
+        "ry_mm": 27.9,
+        "J_mm4": 67400.0,
+        "Iw_mm6": 36700000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UB29.8",
+      "form": "UB",
+      "designation": "200 UB 29.8",
+      "mass_per_m_kg": 29.8,
+      "geometry_mm": {
+        "d": 207.0,
+        "bf": 134.0,
+        "tf": 9.6,
+        "tw": 6.3,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 3820.0,
+        "Ix_mm4": 29100000.0,
+        "Zx_mm3": 281000.0,
+        "Sx_mm3": 316000.0,
+        "rx_mm": 87.3,
+        "Iy_mm4": 3860000.0,
+        "Zy_mm3": 57500.0,
+        "Sy_mm3": 88400.0,
+        "ry_mm": 31.8,
+        "J_mm4": 105000.0,
+        "Iw_mm6": 37600000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UB25.4",
+      "form": "UB",
+      "designation": "200 UB 25.4",
+      "mass_per_m_kg": 25.4,
+      "geometry_mm": {
+        "d": 203.2,
+        "bf": 133.0,
+        "tf": 7.8,
+        "tw": 5.8,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 3230.0,
+        "Ix_mm4": 23600000.0,
+        "Zx_mm3": 232000.0,
+        "Sx_mm3": 260000.0,
+        "rx_mm": 85.4,
+        "Iy_mm4": 3060000.0,
+        "Zy_mm3": 46100.0,
+        "Sy_mm3": 70900.0,
+        "ry_mm": 30.8,
+        "J_mm4": 62700.0,
+        "Iw_mm6": 29200000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UB22.3",
+      "form": "UB",
+      "designation": "200 UB 22.3",
+      "mass_per_m_kg": 22.3,
+      "geometry_mm": {
+        "d": 201.6,
+        "bf": 133.0,
+        "tf": 7.0,
+        "tw": 5.0,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 2870.0,
+        "Ix_mm4": 21000000.0,
+        "Zx_mm3": 208000.0,
+        "Sx_mm3": 231000.0,
+        "rx_mm": 85.5,
+        "Iy_mm4": 2750000.0,
+        "Zy_mm3": 41300.0,
+        "Sy_mm3": 63400.0,
+        "ry_mm": 31.0,
+        "J_mm4": 45000.0,
+        "Iw_mm6": 26000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UB18.2",
+      "form": "UB",
+      "designation": "200 UB 18.2",
+      "mass_per_m_kg": 18.2,
+      "geometry_mm": {
+        "d": 198.0,
+        "bf": 99.0,
+        "tf": 7.0,
+        "tw": 4.5,
+        "r": 11.0
+      },
+      "gross_props": {
+        "Ag_mm2": 2320.0,
+        "Ix_mm4": 15800000.0,
+        "Zx_mm3": 160000.0,
+        "Sx_mm3": 180000.0,
+        "rx_mm": 82.6,
+        "Iy_mm4": 1140000.0,
+        "Zy_mm3": 23000.0,
+        "Sy_mm3": 35700.0,
+        "ry_mm": 22.1,
+        "J_mm4": 38600.0,
+        "Iw_mm6": 10400000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "180UB22.2",
+      "form": "UB",
+      "designation": "180 UB 22.2",
+      "mass_per_m_kg": 22.2,
+      "geometry_mm": {
+        "d": 179.0,
+        "bf": 90.0,
+        "tf": 10.0,
+        "tw": 6.0,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 2820.0,
+        "Ix_mm4": 15300000.0,
+        "Zx_mm3": 171000.0,
+        "Sx_mm3": 195000.0,
+        "rx_mm": 73.6,
+        "Iy_mm4": 1220000.0,
+        "Zy_mm3": 27100.0,
+        "Sy_mm3": 42300.0,
+        "ry_mm": 20.8,
+        "J_mm4": 81600.0,
+        "Iw_mm6": 8710000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "180UB18.1",
+      "form": "UB",
+      "designation": "180 UB 18.1",
+      "mass_per_m_kg": 18.1,
+      "geometry_mm": {
+        "d": 175.0,
+        "bf": 90.0,
+        "tf": 8.0,
+        "tw": 5.0,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 2300.0,
+        "Ix_mm4": 12100000.0,
+        "Zx_mm3": 139000.0,
+        "Sx_mm3": 157000.0,
+        "rx_mm": 72.6,
+        "Iy_mm4": 975000.0,
+        "Zy_mm3": 21700.0,
+        "Sy_mm3": 33700.0,
+        "ry_mm": 20.6,
+        "J_mm4": 44800.0,
+        "Iw_mm6": 6800000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "180UB16.1",
+      "form": "UB",
+      "designation": "180 UB 16.1",
+      "mass_per_m_kg": 16.1,
+      "geometry_mm": {
+        "d": 173.0,
+        "bf": 90.0,
+        "tf": 7.0,
+        "tw": 4.5,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 2040.0,
+        "Ix_mm4": 10600000.0,
+        "Zx_mm3": 123000.0,
+        "Sx_mm3": 138000.0,
+        "rx_mm": 72.0,
+        "Iy_mm4": 853000.0,
+        "Zy_mm3": 19000.0,
+        "Sy_mm3": 29400.0,
+        "ry_mm": 20.4,
+        "J_mm4": 31500.0,
+        "Iw_mm6": 5880000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "150UB18.0",
+      "form": "UB",
+      "designation": "150 UB 18.0",
+      "mass_per_m_kg": 18.0,
+      "geometry_mm": {
+        "d": 155.0,
+        "bf": 75.0,
+        "tf": 9.5,
+        "tw": 6.0,
+        "r": 8.0
+      },
+      "gross_props": {
+        "Ag_mm2": 2300.0,
+        "Ix_mm4": 9050000.0,
+        "Zx_mm3": 117000.0,
+        "Sx_mm3": 135000.0,
+        "rx_mm": 62.8,
+        "Iy_mm4": 672000.0,
+        "Zy_mm3": 17900.0,
+        "Sy_mm3": 28200.0,
+        "ry_mm": 17.1,
+        "J_mm4": 60500.0,
+        "Iw_mm6": 3560000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "150UB14.0",
+      "form": "UB",
+      "designation": "150 UB 14.0",
+      "mass_per_m_kg": 14.0,
+      "geometry_mm": {
+        "d": 150.0,
+        "bf": 75.0,
+        "tf": 7.0,
+        "tw": 5.0,
+        "r": 8.0
+      },
+      "gross_props": {
+        "Ag_mm2": 1780.0,
+        "Ix_mm4": 6660000.0,
+        "Zx_mm3": 88800.0,
+        "Sx_mm3": 102000.0,
+        "rx_mm": 61.1,
+        "Iy_mm4": 495000.0,
+        "Zy_mm3": 13200.0,
+        "Sy_mm3": 20800.0,
+        "ry_mm": 16.6,
+        "J_mm4": 28100.0,
+        "Iw_mm6": 2530000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UC158",
+      "form": "UC",
+      "designation": "310 UC 158",
+      "mass_per_m_kg": 158.0,
+      "geometry_mm": {
+        "d": 327.2,
+        "bf": 311.0,
+        "tf": 25.0,
+        "tw": 15.7,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 20100.0,
+        "Ix_mm4": 388000000.0,
+        "Zx_mm3": 2370000.0,
+        "Sx_mm3": 2680000.0,
+        "rx_mm": 139.0,
+        "Iy_mm4": 125000000.0,
+        "Zy_mm3": 807000.0,
+        "Sy_mm3": 1230000.0,
+        "ry_mm": 78.9,
+        "J_mm4": 3810000.0,
+        "Iw_mm6": 2860000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UC137",
+      "form": "UC",
+      "designation": "310 UC 137",
+      "mass_per_m_kg": 137.0,
+      "geometry_mm": {
+        "d": 320.6,
+        "bf": 309.0,
+        "tf": 21.7,
+        "tw": 13.8,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 17500.0,
+        "Ix_mm4": 329000000.0,
+        "Zx_mm3": 2050000.0,
+        "Sx_mm3": 2300000.0,
+        "rx_mm": 137.0,
+        "Iy_mm4": 107000000.0,
+        "Zy_mm3": 691000.0,
+        "Sy_mm3": 1050000.0,
+        "ry_mm": 78.2,
+        "J_mm4": 2520000.0,
+        "Iw_mm6": 2390000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UC118",
+      "form": "UC",
+      "designation": "310 UC 118",
+      "mass_per_m_kg": 118.0,
+      "geometry_mm": {
+        "d": 314.6,
+        "bf": 307.0,
+        "tf": 18.7,
+        "tw": 11.9,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 15000.0,
+        "Ix_mm4": 277000000.0,
+        "Zx_mm3": 1760000.0,
+        "Sx_mm3": 1960000.0,
+        "rx_mm": 136.0,
+        "Iy_mm4": 90200000.0,
+        "Zy_mm3": 588000.0,
+        "Sy_mm3": 893000.0,
+        "ry_mm": 77.5,
+        "J_mm4": 1630000.0,
+        "Iw_mm6": 1980000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UC96.8",
+      "form": "UC",
+      "designation": "310 UC 96.8",
+      "mass_per_m_kg": 96.8,
+      "geometry_mm": {
+        "d": 308.0,
+        "bf": 305.0,
+        "tf": 15.4,
+        "tw": 9.9,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 12400.0,
+        "Ix_mm4": 223000000.0,
+        "Zx_mm3": 1450000.0,
+        "Sx_mm3": 1600000.0,
+        "rx_mm": 134.0,
+        "Iy_mm4": 72900000.0,
+        "Zy_mm3": 478000.0,
+        "Sy_mm3": 725000.0,
+        "ry_mm": 76.7,
+        "J_mm4": 928000.0,
+        "Iw_mm6": 1560000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "250UC89.5",
+      "form": "UC",
+      "designation": "250 UC 89.5",
+      "mass_per_m_kg": 89.5,
+      "geometry_mm": {
+        "d": 260.0,
+        "bf": 256.0,
+        "tf": 17.3,
+        "tw": 10.5,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 11400.0,
+        "Ix_mm4": 143000000.0,
+        "Zx_mm3": 1100000.0,
+        "Sx_mm3": 1230000.0,
+        "rx_mm": 112.0,
+        "Iy_mm4": 48400000.0,
+        "Zy_mm3": 378000.0,
+        "Sy_mm3": 575000.0,
+        "ry_mm": 65.2,
+        "J_mm4": 1040000.0,
+        "Iw_mm6": 713000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "250UC72.9",
+      "form": "UC",
+      "designation": "250 UC 72.9",
+      "mass_per_m_kg": 72.9,
+      "geometry_mm": {
+        "d": 253.8,
+        "bf": 254.0,
+        "tf": 14.2,
+        "tw": 8.6,
+        "r": 14.0
+      },
+      "gross_props": {
+        "Ag_mm2": 9320.0,
+        "Ix_mm4": 114000000.0,
+        "Zx_mm3": 897000.0,
+        "Sx_mm3": 992000.0,
+        "rx_mm": 111.0,
+        "Iy_mm4": 38800000.0,
+        "Zy_mm3": 306000.0,
+        "Sy_mm3": 463000.0,
+        "ry_mm": 64.5,
+        "J_mm4": 586000.0,
+        "Iw_mm6": 557000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UC59.5",
+      "form": "UC",
+      "designation": "200 UC 59.5",
+      "mass_per_m_kg": 59.5,
+      "geometry_mm": {
+        "d": 209.8,
+        "bf": 205.0,
+        "tf": 14.2,
+        "tw": 9.3,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 7620.0,
+        "Ix_mm4": 61300000.0,
+        "Zx_mm3": 584000.0,
+        "Sx_mm3": 656000.0,
+        "rx_mm": 89.7,
+        "Iy_mm4": 20400000.0,
+        "Zy_mm3": 199000.0,
+        "Sy_mm3": 303000.0,
+        "ry_mm": 51.7,
+        "J_mm4": 477000.0,
+        "Iw_mm6": 195000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UC52.2",
+      "form": "UC",
+      "designation": "200 UC 52.2",
+      "mass_per_m_kg": 52.2,
+      "geometry_mm": {
+        "d": 206.4,
+        "bf": 204.0,
+        "tf": 12.5,
+        "tw": 8.0,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 6660.0,
+        "Ix_mm4": 52800000.0,
+        "Zx_mm3": 512000.0,
+        "Sx_mm3": 570000.0,
+        "rx_mm": 89.1,
+        "Iy_mm4": 17700000.0,
+        "Zy_mm3": 174000.0,
+        "Sy_mm3": 264000.0,
+        "ry_mm": 51.5,
+        "J_mm4": 325000.0,
+        "Iw_mm6": 166000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UC46.2",
+      "form": "UC",
+      "designation": "200 UC 46.2",
+      "mass_per_m_kg": 46.2,
+      "geometry_mm": {
+        "d": 203.4,
+        "bf": 203.0,
+        "tf": 11.0,
+        "tw": 7.3,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 5900.0,
+        "Ix_mm4": 45900000.0,
+        "Zx_mm3": 451000.0,
+        "Sx_mm3": 500000.0,
+        "rx_mm": 88.2,
+        "Iy_mm4": 15300000.0,
+        "Zy_mm3": 151000.0,
+        "Sy_mm3": 230000.0,
+        "ry_mm": 51.0,
+        "J_mm4": 228000.0,
+        "Iw_mm6": 142000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "150UC37.2",
+      "form": "UC",
+      "designation": "150 UC 37.2",
+      "mass_per_m_kg": 37.2,
+      "geometry_mm": {
+        "d": 161.8,
+        "bf": 154.0,
+        "tf": 11.5,
+        "tw": 8.1,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 4730.0,
+        "Ix_mm4": 22200000.0,
+        "Zx_mm3": 274000.0,
+        "Sx_mm3": 310000.0,
+        "rx_mm": 68.4,
+        "Iy_mm4": 7010000.0,
+        "Zy_mm3": 91000.0,
+        "Sy_mm3": 139000.0,
+        "ry_mm": 38.5,
+        "J_mm4": 197000.0,
+        "Iw_mm6": 39600000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "150UC30.0",
+      "form": "UC",
+      "designation": "150 UC 30.0",
+      "mass_per_m_kg": 30.0,
+      "geometry_mm": {
+        "d": 157.6,
+        "bf": 153.0,
+        "tf": 9.4,
+        "tw": 6.6,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 3860.0,
+        "Ix_mm4": 17600000.0,
+        "Zx_mm3": 223000.0,
+        "Sx_mm3": 250000.0,
+        "rx_mm": 67.5,
+        "Iy_mm4": 5620000.0,
+        "Zy_mm3": 73400.0,
+        "Sy_mm3": 112000.0,
+        "ry_mm": 38.1,
+        "J_mm4": 109000.0,
+        "Iw_mm6": 30800000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "150UC23.4",
+      "form": "UC",
+      "designation": "150 UC 23.4",
+      "mass_per_m_kg": 23.4,
+      "geometry_mm": {
+        "d": 152.4,
+        "bf": 152.0,
+        "tf": 6.8,
+        "tw": 6.1,
+        "r": 8.9
+      },
+      "gross_props": {
+        "Ag_mm2": 2980.0,
+        "Ix_mm4": 12600000.0,
+        "Zx_mm3": 166000.0,
+        "Sx_mm3": 184000.0,
+        "rx_mm": 65.1,
+        "Iy_mm4": 3980000.0,
+        "Zy_mm3": 52400.0,
+        "Sy_mm3": 80200.0,
+        "ry_mm": 36.6,
+        "J_mm4": 50200.0,
+        "Iw_mm6": 21100000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "100UC14.8",
+      "form": "UC",
+      "designation": "100 UC 14.8",
+      "mass_per_m_kg": 14.8,
+      "geometry_mm": {
+        "d": 97.0,
+        "bf": 99.0,
+        "tf": 7.0,
+        "tw": 5.0,
+        "r": 10.0
+      },
+      "gross_props": {
+        "Ag_mm2": 1890.0,
+        "Ix_mm4": 3180000.0,
+        "Zx_mm3": 65600.0,
+        "Sx_mm3": 74400.0,
+        "rx_mm": 41.1,
+        "Iy_mm4": 1140000.0,
+        "Zy_mm3": 22900.0,
+        "Sy_mm3": 35200.0,
+        "ry_mm": 24.5,
+        "J_mm4": 34900.0,
+        "Iw_mm6": 2300000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UBP149",
+      "form": "UBP",
+      "designation": "310 UBP 149",
+      "mass_per_m_kg": 149.0,
+      "geometry_mm": {
+        "d": 318.0,
+        "bf": 316.0,
+        "tf": 20.6,
+        "tw": 20.5,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 19000.0,
+        "Ix_mm4": 330000000.0,
+        "Zx_mm3": 2080000.0,
+        "Sx_mm3": 2370000.0,
+        "rx_mm": 132.0,
+        "Iy_mm4": 109000000.0,
+        "Zy_mm3": 691000.0,
+        "Sy_mm3": 1070000.0,
+        "ry_mm": 75.8,
+        "J_mm4": 2970000.0,
+        "Iw_mm6": 2410000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UBP110",
+      "form": "UBP",
+      "designation": "310 UBP 110",
+      "mass_per_m_kg": 110.0,
+      "geometry_mm": {
+        "d": 308.0,
+        "bf": 311.0,
+        "tf": 15.4,
+        "tw": 15.3,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 14000.0,
+        "Ix_mm4": 236000000.0,
+        "Zx_mm3": 1530000.0,
+        "Sx_mm3": 1720000.0,
+        "rx_mm": 130.0,
+        "Iy_mm4": 76600000.0,
+        "Zy_mm3": 494000.0,
+        "Sy_mm3": 759000.0,
+        "ry_mm": 73.9,
+        "J_mm4": 1240000.0,
+        "Iw_mm6": 1640000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "310UBP78.8",
+      "form": "UBP",
+      "designation": "310 UBP 78.8",
+      "mass_per_m_kg": 78.8,
+      "geometry_mm": {
+        "d": 299.0,
+        "bf": 306.0,
+        "tf": 11.1,
+        "tw": 11.1,
+        "r": 16.5
+      },
+      "gross_props": {
+        "Ag_mm2": 10100.0,
+        "Ix_mm4": 165000000.0,
+        "Zx_mm3": 1100000.0,
+        "Sx_mm3": 1220000.0,
+        "rx_mm": 128.0,
+        "Iy_mm4": 53100000.0,
+        "Zy_mm3": 347000.0,
+        "Sy_mm3": 530000.0,
+        "ry_mm": 72.5,
+        "J_mm4": 484000.0,
+        "Iw_mm6": 1100000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "200UBP122",
+      "form": "UBP",
+      "designation": "200 UBP 122",
+      "mass_per_m_kg": 122.0,
+      "geometry_mm": {
+        "d": 230.0,
+        "bf": 220.0,
+        "tf": 25.0,
+        "tw": 25.0,
+        "r": 11.4
+      },
+      "gross_props": {
+        "Ag_mm2": 15600.0,
+        "Ix_mm4": 129000000.0,
+        "Zx_mm3": 1120000.0,
+        "Sx_mm3": 1340000.0,
+        "rx_mm": 91.0,
+        "Iy_mm4": 44600000.0,
+        "Zy_mm3": 406000.0,
+        "Sy_mm3": 635000.0,
+        "ry_mm": 53.5,
+        "J_mm4": 3540000.0,
+        "Iw_mm6": 469000000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "125TFB",
+      "form": "TFB",
+      "designation": "125 TFB",
+      "mass_per_m_kg": 13.1,
+      "geometry_mm": {
+        "d": 125.0,
+        "bf": 65.0,
+        "tf": 8.5,
+        "tw": 5.0,
+        "r": 8.0
+      },
+      "gross_props": {
+        "Ag_mm2": 1670.0,
+        "Ix_mm4": 4340000.0,
+        "Zx_mm3": 69400.0,
+        "Sx_mm3": 80300.0,
+        "rx_mm": 50.9,
+        "Iy_mm4": 337000.0,
+        "Zy_mm3": 10400.0,
+        "Sy_mm3": 17200.0,
+        "ry_mm": 14.2,
+        "J_mm4": 40200.0,
+        "Iw_mm6": 1140000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    },
+    {
+      "id": "100TFB",
+      "form": "TFB",
+      "designation": "100 TFB",
+      "mass_per_m_kg": 7.2,
+      "geometry_mm": {
+        "d": 100.0,
+        "bf": 45.0,
+        "tf": 6.0,
+        "tw": 4.0,
+        "r": 7.0
+      },
+      "gross_props": {
+        "Ag_mm2": 917.0,
+        "Ix_mm4": 1460000.0,
+        "Zx_mm3": 29200.0,
+        "Sx_mm3": 34100.0,
+        "rx_mm": 39.9,
+        "Iy_mm4": 79500.0,
+        "Zy_mm3": 3530.0,
+        "Sy_mm3": 6000.0,
+        "ry_mm": 9.31,
+        "J_mm4": 11600.0,
+        "Iw_mm6": 176000000.0
+      },
+      "material_ref": "AS-NZS-3679.1-300PLUS",
+      "provenance": {
+        "source": "InfraBuild HRSSP 9th Ed (2019), Table 9/11/13/17",
+        "verified": true
+      }
+    }
+  ]
+}

@@ -11,7 +11,7 @@ const GROUPS: ToolGroup[] = ['draw', 'dimension', 'constrain', 'edit'];
 export const PALETTE_SLOTS: Record<ToolGroup, string[][]> = {
   draw: [
     ['line', 'centerline'], ['arc-three-point', 'arc-centre', 'arc-tangent'], ['circle', 'ellipse'],
-    ['rectangle', 'center-rectangle', 'slot', 'polygon'], ['spline', 'cvspline', 'bridge', 'equation'], ['point'], ['text'],
+    ['rectangle', 'center-rectangle', 'slot', 'arc-slot', 'polygon'], ['spline', 'cvspline', 'bridge', 'equation'], ['point'], ['text'],
   ],
   dimension: [['dimension']],
   constrain: [

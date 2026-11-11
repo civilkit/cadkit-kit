@@ -171,7 +171,7 @@ export function planExtract(doc: PartDoc, name: string, ids: readonly string[], 
   const variables = all.filter((v) => used.has(v.name!));
   const part = { ...doc, name, features: feats.map(({ group: _grp, ...rest }) => rest), seq: doc.seq } as unknown as Record<string, unknown>;
   // what belongs to the whole document, not to the folder: looks, names, configurations, the stored view
-  for (const k of ['variables', 'configurations', 'activeConfig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'viewCache', 'thumbnail', 'cosmeticKnurls', 'expect']) delete part[k];
+  for (const k of ['variables', 'configurations', 'activeConfig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'viewCache', 'thumbnail', 'cosmeticKnurls', 'meshes', 'expect']) delete part[k];
   if (variables.length) part.variables = variables;
   return { ok: true, part: part as unknown as PartDoc, variables: variables.map((v) => v.name!), shared: sharedBodies };
 }

@@ -75,9 +75,10 @@ export class HandleLayer {
     this.specs = specs ?? [];
     this.sink = sink;
     this.surface = specs?.length ? surface : null;
-    this.hover = null;
+    // a rebuild that keeps the hovered handle keeps it hovered (a tool that redraws on every pointer move must not make it flicker)
+    const keep = this.hover !== null && this.specs.some((x) => x.id === this.hover);
+    if (!keep) { this.hover = null; this.dom.style.cursor = ''; }
     for (const s of this.specs) this.add(s);
-    this.dom.style.cursor = '';
     this.invalidate();
   }
 
@@ -466,7 +467,7 @@ export class HandleLayer {
     if (!d) {
       if (!this.specs.length) return;
       const id = this.hitAt(e.clientX, e.clientY);
-      if (id !== this.hover) { this.hover = id; this.dom.style.cursor = id ? cursorFor({ tool: 'select', hover: handleHover(this.specs.find((h) => h.id === id)?.kind ?? 'dot') }) : ''; this.invalidate(); }
+      if (id !== this.hover || (id && !this.dom.style.cursor)) { this.hover = id; this.dom.style.cursor = id ? cursorFor({ tool: 'select', hover: handleHover(this.specs.find((h) => h.id === id)?.kind ?? 'dot') }) : ''; this.invalidate(); }
       else if (!id && this.surface && e.buttons === 0) this.dom.style.cursor = this.surface.hit(e.clientX, e.clientY) ? 'move' : '';
       return;
     }
@@ -486,7 +487,8 @@ export class HandleLayer {
     if (!this.drag) return;
     e.stopImmediatePropagation();
     try { this.dom.releasePointerCapture(e.pointerId); } catch { /* already released */ }
-    this.finish(!this.drag.moved && !this.drag.entry.active);   // a click on a handle without a drag does nothing
+    const click = !this.drag.moved && !this.drag.entry.active;   // a press and release without a drag is a click: the sink's onClick, else nothing
+    this.finish(click, click);
   };
 
   private onCancelEvent = (): void => { this.press = null; if (this.drag) this.finish(true); };
@@ -536,14 +538,16 @@ export class HandleLayer {
     }
   };
 
-  private finish(cancel: boolean): void {
+  private finish(cancel: boolean, click = false): void {
     const d = this.drag;
     if (!d) return;
     this.drag = null;
     this.hideReadout();
     this.dom.style.cursor = '';
     const id = d.st.spec.id;
-    if (cancel) this.sink?.onCancel(id); else this.sink?.onCommit(id, d.q, d.vec, d.mods);
+    if (cancel) {
+      if (click && this.sink?.onClick) this.sink.onClick(id, d.mods); else this.sink?.onCancel(id);
+    } else this.sink?.onCommit(id, d.q, d.vec, d.mods);
     this.invalidate();
   }
 }

@@ -20,6 +20,8 @@ export interface BodyInfo {
   /** the look in effect: colour, opacity, finish; null when the part's material is used */
   appearance: { color?: string; opacity?: number; finish?: string } | null;
   hidden: boolean;
+  /** sheet metal parts: the rule and flat pattern summary (sheet_info has the bends); null for any other body */
+  sheetMetal: { rule: string; thickness: number; kFactor: number; flatSize: number[]; bendCount: number; unfolded: boolean } | null;
 }
 
 const r4 = (x: number): number => Number(x.toFixed(4));
@@ -59,6 +61,9 @@ export async function listBodies(a: AgentSession): Promise<BodyInfo[]> {
   const per = new Map<string, number>();
   for (const r of rows) if (r.origin) per.set(r.origin, (per.get(r.origin) ?? 0) + 1);
   const seen = new Map<string, number>();
+  // the sheet metal summary goes to the body the base flange / contour flange made
+  const sheet = (await a.sheetMetal().catch(() => [])).filter((e) => e.flatPattern);
+  const lastFp = sheet.length ? sheet[sheet.length - 1].flatPattern! : null;
   return rows.map((r, i) => {
     let v = 0, any = false;
     const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
@@ -87,6 +92,7 @@ export async function listBodies(a: AgentSession): Promise<BodyInfo[]> {
       faceCount: r.faces.length,
       appearance: Object.keys(look).length ? (look as BodyInfo['appearance']) : null,
       hidden: hiddenKeys.has(r.key) || (!!r.origin && hiddenKeys.has(r.origin)),
+      sheetMetal: lastFp && (f?.type === 'baseFlange' || f?.type === 'contourFlange') ? { rule: lastFp.rule, thickness: lastFp.thickness, kFactor: lastFp.kFactor, flatSize: lastFp.flatSize.map(r4), bendCount: lastFp.bends.length, unfolded: lastFp.unfolded } : null,
     };
   });
 }

@@ -5,7 +5,9 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { AgentSession } from '@kit/agent-tools';
+import { Bridge, BridgeError, MAX_REPLY_BYTES } from '@kit/agent-link';
 import { agentBackend, McpProtocol, SERVER_INFO, type Backend } from './protocol';
+import { withBridge } from './bridgeTools';
 import { clearState, stateDir, writeState } from './state';
 
 export interface DaemonOptions {
@@ -24,24 +26,26 @@ export interface DaemonOptions {
   maxBodyBytes?: number;
 }
 export interface Daemon {
-  port: number; token: string; server: Server; protocol: McpProtocol; session: AgentSession | null;
+  port: number; token: string; server: Server; protocol: McpProtocol; session: AgentSession | null; bridge: Bridge;
   close(): Promise<void>;
 }
 
+const isLoopbackOrigin = (o: string): boolean => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/.test(o);
 const eq = (a: string, b: string): boolean => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 
 export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
   const dir = opts.dir ?? stateDir();
   const token = randomBytes(32).toString('hex');
   const session = opts.backend ? (opts.session ?? null) : (opts.session ?? await AgentSession.open({ wasmPath: opts.wasmPath }));
-  const backend = opts.backend ?? agentBackend(session!);
+  let port = 0;
+  const bridge = new Bridge({ port: () => port });
+  const backend = withBridge(opts.backend ?? agentBackend(session!), bridge);
   const protocol = new McpProtocol(backend);
   const idleMs = opts.idleMs ?? 30 * 60 * 1000;
   const maxBody = opts.maxBodyBytes ?? 16 * 1024 * 1024;
   const sse = new Set<ServerResponse>();
   let idle: NodeJS.Timeout | null = null;
   let closed = false;
-  let port = 0;
   const touch = () => {
     if (idle) clearTimeout(idle);
     if (idleMs > 0) idle = setTimeout(() => { if (protocol.queue.pending === 0) { opts.onIdle?.(); void daemon.close(); } else touch(); }, idleMs);
@@ -54,8 +58,62 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
     res.end(text);
   };
 
+  const readBody = async (req: IncomingMessage, max: number): Promise<string | null> => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const c of req) { size += (c as Buffer).length; if (size > max) return null; chunks.push(c as Buffer); }
+    return Buffer.concat(chunks).toString('utf8');
+  };
+
+  // The agent link (docs/agent-bridge.md): /bridge/* is the ONLY part of the daemon a web page may call. It does not take the daemon
+  // token (which would hand the page the whole daemon); it takes the one-time pairing code, then a session token the code bought.
+  const bridgeRoute = async (req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> => {
+    const origin = req.headers.origin;
+    const fail = (code: number, e: unknown) => {
+      const be = e instanceof BridgeError ? e : new BridgeError('internal_error', String((e as Error)?.message ?? e));
+      send(res, code, { error: { code: be.code, message: be.message, ...(be.hint ? { hint: be.hint } : {}) } });
+    };
+    // a page from this computer (any loopback origin) or one the user listed with --allow-origin; no Origin header = not a browser
+    if (origin !== undefined && !(opts.allowedOrigins ?? []).includes(origin) && !isLoopbackOrigin(origin)) return send(res, 403, { error: { code: 'origin_not_allowed', message: 'origin not allowed', hint: 'start the MCP server with --allow-origin <the app\'s origin>' } });
+    const host = (req.headers.host ?? '').toLowerCase();
+    if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return send(res, 403, { error: { code: 'bad_host', message: 'bad host' } });
+    if (origin !== undefined) { res.setHeader('access-control-allow-origin', origin); res.setHeader('vary', 'Origin'); }
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, { 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-private-network': 'true', 'access-control-max-age': '600', ...(origin !== undefined ? { 'access-control-allow-origin': origin, vary: 'Origin' } : {}) });
+      return void res.end();
+    }
+    const bearer = (req.headers.authorization ?? '').startsWith('Bearer ') ? (req.headers.authorization ?? '').slice(7) : '';
+    touch();
+    try {
+      if (req.method === 'POST' && url.pathname === '/bridge/hello') {
+        const raw = await readBody(req, 64 * 1024);
+        const b = (raw ? JSON.parse(raw) : {}) as { app?: { name?: string; version?: string }; edit?: boolean };
+        return send(res, 200, bridge.hello(bearer, { name: b.app?.name ?? 'app', version: b.app?.version }, !!b.edit));
+      }
+      if (!bridge.isSession(bearer)) return send(res, 401, { error: { code: 'no_session', message: 'no such session' } });
+      if (req.method === 'GET' && url.pathname === '/bridge/poll') {
+        const ac = new AbortController();
+        res.on('close', () => ac.abort());
+        const requests = await bridge.poll(bearer, url.searchParams.get('edit') === '1', ac.signal);
+        if (res.writableEnded || res.destroyed) return;
+        return send(res, 200, { requests });
+      }
+      if (req.method === 'POST' && url.pathname === '/bridge/reply') {
+        const raw = await readBody(req, MAX_REPLY_BYTES);
+        if (raw === null) return send(res, 413, { error: { code: 'too_large', message: 'reply too large' } });
+        return send(res, 200, { ok: bridge.reply(bearer, JSON.parse(raw)) });
+      }
+      if (req.method === 'POST' && url.pathname === '/bridge/bye') { bridge.bye(bearer); return send(res, 200, { ok: true }); }
+      send(res, 404, { error: { code: 'not_found', message: 'not found' } });
+    } catch (e) {
+      if (!res.headersSent) fail(e instanceof BridgeError && e.code === 'no_session' ? 401 : e instanceof BridgeError ? 400 : 500, e);
+    }
+  };
+
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     try {
+      const pre = new URL(req.url ?? '/', 'http://127.0.0.1');
+      if (pre.pathname.startsWith('/bridge/')) return await bridgeRoute(req, res, pre);
       // 1. no Origin header at all (a browser page always sends one on cross-origin requests), unless opted in
       const origin = req.headers.origin;
       if (origin !== undefined && !(opts.allowedOrigins ?? []).includes(origin)) return send(res, 403, { error: 'origin not allowed' });
@@ -113,10 +171,11 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
   touch();
 
   const daemon: Daemon = {
-    port, token, server, protocol, session,
+    port, token, server, protocol, session, bridge,
     async close() {
       if (closed) return;
       closed = true;
+      bridge.close();
       if (idle) clearTimeout(idle);
       unsub?.();
       for (const r of sse) r.end();

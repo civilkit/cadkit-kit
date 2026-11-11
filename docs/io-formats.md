@@ -1,7 +1,7 @@
-# File formats: export and DXF import
+# File formats: export, DXF import and SVG import
 
 Code: `packages/io/src` (pure functions, no DOM, no kernel), `apps/cad/src/exportFiles.ts` (builds the files from the
-controller's state), `apps/cad/src/dxfSketch.ts` (adds a DXF to the open sketch), `apps/cad/src/ExportMenu.tsx` (top bar).
+controller's state), `apps/cad/src/dxfSketch.ts` and `svgSketch.ts` (add a DXF or SVG to the open sketch), `apps/cad/src/ExportMenu.tsx` (top bar).
 All units are millimetres. Files go out through `platform.saveFile(name, data, mime)`, which now takes text or bytes.
 
 ## Export
@@ -53,11 +53,41 @@ front when nothing is selected). The file picker is `platform.openFile()`.
 - `packages/io/src/stl.test.ts`: watertight check (cube, open, flipped, welding), STL binary and ASCII round trip, OBJ.
 - `packages/io/src/dxfWrite.test.ts`: golden header and tables, sketch round trip through our reader, view layout.
 - `packages/io/src/dxfImport.test.ts`: every entity type, bulges (minor, major, negative), units, OCS, splines, limits, merging.
+- `packages/io/src/svgImport.test.ts`: every element, path commands and arc flags, transforms, units and viewBox, Y flip, what is skipped, hostile input.
+- `apps/cad/src/svgSketch.kernel.test.ts` (needs `CK_WASM`): `fixtures/svg/shapes.svg` (gear outline with a bore, rounded plate, circle) and Bezier / arc outlines extrude to the expected volume, units, refusals leave the draft alone.
 - `apps/cad/src/io.kernel.test.ts` (needs `CK_WASM`): STL of a real part is watertight with the kernel's volume, STEP text, DXF of the real edges.
 - `apps/cad/src/dxfSketch.kernel.test.ts` (needs `CK_WASM`): imported DXF extrudes to the expected volume (rounded rectangle with hole, inches, our own export, closed spline).
 - `folderExport.test.ts`, `apps/cad/src/folderExport.kernel.test.ts` (needs `CK_WASM`): body selection, refusals, extract plan; STEP / STL / frozen part volumes of a folder on a real kernel.
 - `exportFiles.test.ts`, `ExportMenu.test.tsx`, `commands.test.ts`: file names, notices, menu behaviour, commands, icons, shortcut.
 
+## SVG import
+
+Two commands next to the DXF ones: `Import SVG into sketch` (`sketch-import-svg`, while a sketch is open) and `New sketch from SVG`
+(`sketch-from-svg`, on the selected face or plane, front when nothing is selected). `.svg` is a text kind in `packages/platform/src/kinds.ts`,
+so Open and drag-and-drop route it like `.dxf` (into the open sketch, else a new sketch). The parser is `svgToSketch` in
+`packages/io/src/svgImport.ts` (no dependency: a small XML reader, a path parser, an affine matrix); it returns the same `points` /
+`entities` shape as the DXF import and `mergeIntoDraft` adds them to the draft.
+
+- Read: `path` (M L H V C S Q T A Z, absolute and relative, packed arc flags, parsed up to the first error like a renderer), `rect`
+  (rounded: `rx` / `ry`, clamped to half the side), `circle`, `ellipse`, `line`, `polyline`, `polygon`; nested `g` / `a` / `switch` / `svg`,
+  internal `<use href="#id">` (with x / y, `symbol` viewBox); `transform` (matrix translate scale rotate skewX skewY, any nesting).
+- Mapping: lines -> `line`; circular arcs -> `arc` (also under a uniform scale or a mirror); circle -> `circle`; ellipse, and a circle under
+  a rotation or non-uniform scale -> `ellipse` (axes from the conjugate diameters); a cubic or quadratic Bezier -> `cvspline` of degree 3 or 2
+  (exact: a Bezier is a clamped uniform B-spline of its control points); a Bezier whose control points are on its chord -> `line`; one that
+  closes on itself is split in two; an elliptical arc (or a circular one under a non-uniform scale) -> a chain of cubic `cvspline`s of at most
+  a quarter turn. End points within 1e-6 mm share a sketch point so closed subpaths close. No constraints are written.
+- Size: root `width` / `height` (mm cm in pt pc px) with the `viewBox` (and `preserveAspectRatio`) give the scale. No physical size
+  (`units: 'px'`): 1 user unit = 1 CSS px = 25.4/96 mm and the notice `io.svg.unitless` says so. `svgToSketch(text, { mmPerUnit })` overrides.
+  Y is flipped about the bottom of the viewport so the drawing is upright with its lower left corner at the origin.
+- Not read, listed in a notice: `text`, `image`, `foreignObject`, `script`, other unknown elements, external `use`, a bad `transform`,
+  path data errors. Fill, stroke, gradients, `defs`, `style`, CSS classes are ignored quietly; `display:none` elements are skipped;
+  elements with `clip-path`, `mask` or `filter` are imported whole and counted (`io.svg.clipped`). Exact repeats (a fill and a stroke layer
+  of the same shape) and zero-size shapes are dropped and counted.
+- Safety: nothing is executed or fetched. A DOCTYPE with `<!ENTITY` is refused (`unsafe`), as are binary data / non-SVG (`notSvg`), files over
+  10 MB (`tooLarge`), more than 200000 elements or 100000 element visits (`use` bombs) or 20000 entities (`tooMany`), nesting deeper than 64,
+  coordinates beyond 1e6 mm or non-finite after the transform (`range`), and a file with nothing drawable (`nothing`, naming what was skipped).
+- i18n: `io.svg.*` and `cmd.sketch-import-svg` / `cmd.sketch-from-svg` / `rb.*` in `apps/cad/src/locales/en.ts` and `toolbar.ts` (English is the only locale).
+
 ## Not done
 
-STL/OBJ/STEP import, hidden lines in the DXF views, DXF dimensions and text, DXF layers other than the two above, 3MF.
+STL/OBJ/STEP import, hidden lines in the DXF views, DXF dimensions and text, DXF layers other than the two above, 3MF; SVG: text (no outlines), stroke widths, dashes as construction, gzip (`.svgz`), CSS classes and `<style>` rules, percentage lengths, an on-open prompt for the unit of a unitless file.

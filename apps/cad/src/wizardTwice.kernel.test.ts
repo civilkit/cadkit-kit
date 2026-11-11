@@ -7,6 +7,7 @@ import { createStore } from '@kit/store';
 import { Controller, type KernelFactory } from './controller';
 import './i18n';
 import { DEFAULT_SCREW, screwOps } from './screw';
+import { DEFAULT_WASHER, washerOps } from './washer';
 import { DEFAULT_KNURL, knurlOps } from './knurl';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps } from './gearData';
 import { DEFAULT_PROP, propPlan } from './propData';
@@ -34,6 +35,15 @@ describe('an inserting wizard run twice into one part', () => {
       expect(r.ok, fail(r)).toBe(true);
     }
     expect(folders(c)).toEqual(['Screw', 'Screw 2']);
+  }, 120000);
+
+  it('washer, flat then spring', async () => {
+    const c = await world();
+    for (const [i, kind] of (['flat', 'spring'] as const).entries()) {
+      const r = await c.commit(washerOps(c.document() as never, { ...DEFAULT_WASHER, kind, origin: [i * 40, 0, 0] }), 'washer');
+      expect(r.ok, fail(r)).toBe(true);
+    }
+    expect(folders(c)).toEqual(['Washer', 'Washer 2']);
   }, 120000);
 
   it('gear, then a gear pair', async () => {

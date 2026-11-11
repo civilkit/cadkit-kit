@@ -9,6 +9,7 @@
  */
 import type { DraftEntity, SketchDraft } from './index';
 import { addConstraintOf } from './tools/builders';
+import { arcSlotParams, findArcSlot, withArcSlotParams } from './arcSlotEdit';
 import { arcPolyline } from './tools/builders-arcs';
 import { curveOf } from './tools/edit-draft';
 import { lineLine, paramEnd, sample } from './tools/edit-geom';
@@ -99,6 +100,19 @@ export function entityDims(draft: SketchDraft, id: string): FieldSpec[] {
   }
   if (e.type === 'circle') return [{ id: 'radius', label: 'app.sketch.field.radius', value: Number(e.r), locked: has('radius'), unit: 'length' }];
   if (e.type === 'arc') {
+    // an arc of an arc slot edits the slot: radius, start angle, sweep and width of the whole shape
+    const slot = findArcSlot(draft, id);
+    const sp = slot ? arcSlotParams(draft, slot) : undefined;
+    if (slot && sp) {
+      const dim = (a: string, b: string) => draft.constraints.some((k) => k.type === 'distance' && k.refs?.length === 2 && ((k.refs[0] === a && k.refs[1] === b) || (k.refs[0] === b && k.refs[1] === a)));
+      const DEG = 180 / Math.PI;
+      return [
+        { id: 'slotR', label: 'app.sketch.field.radius', value: sp.R, locked: dim(slot.c, slot.m0) || dim(slot.c, slot.m1), unit: 'length' },
+        { id: 'slotA', label: 'app.sketch.field.angle', value: (sp.a0 * DEG + 360) % 360, locked: false, unit: 'angle' },
+        { id: 'slotSweep', label: 'app.sketch.field.sweep', value: sp.sweep * DEG, locked: false, unit: 'angle' },
+        { id: 'slotW', label: 'app.sketch.field.width', value: sp.w, locked: dim(slot.pi0, slot.po0) || dim(slot.pi1, slot.po1), unit: 'length' },
+      ];
+    }
     const c = pts.get(String(e.c)), p1 = pts.get(String(e.p1));
     return c && p1 ? [{ id: 'radius', label: 'app.sketch.field.radius', value: dist(c, p1), locked: has('radius'), unit: 'length' }] : [];
   }
@@ -111,8 +125,14 @@ function refsFor(e: DraftEntity): string[] {
 const sameRefs = (a: string[] | undefined, b: string[]) => !!a && a.length === b.length && a.every((r, i) => r === b[i]);
 
 /** Make the entity's size a driving dimension with this value. Null when the entity has no editable size or the value is not usable. */
-export function setEntityDim(draft: SketchDraft, id: string, field: 'len' | 'radius', value: number): SketchDraft | null {
+export function setEntityDim(draft: SketchDraft, id: string, field: 'len' | 'radius' | 'slotR' | 'slotA' | 'slotSweep' | 'slotW', value: number): SketchDraft | null {
   const e = draft.entities.find((x) => x.id === id);
+  if (field.startsWith('slot')) {
+    const slot = e ? findArcSlot(draft, id) : undefined;
+    if (!slot || !Number.isFinite(value)) return null;
+    const RAD = Math.PI / 180;
+    return withArcSlotParams(draft, slot, field === 'slotR' ? { R: value } : field === 'slotW' ? { w: value } : field === 'slotA' ? { a0: value * RAD } : { sweep: value * RAD });
+  }
   if (!e || !Number.isFinite(value) || value <= 0) return null;
   let type: 'distance' | 'radius';
   if (field === 'len' && e.type === 'line') type = 'distance';

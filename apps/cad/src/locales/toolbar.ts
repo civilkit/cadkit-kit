@@ -9,8 +9,8 @@ export const toolbarStrings: Record<string, string> = {
   // short names under the ribbon icons (the tooltip and the lists keep the full name)
   'rb.palette': 'Search', 'rb.toggle-projection': 'Projection', 'rb.toggle-up-axis': 'Up axis', 'rb.toggle-left-panel': 'Side panel', 'rb.drawer': 'Drawer', 'rb.settings': 'Settings',
   'rb.sketch-here': 'Sketch', 'rb.sketch-pick-plane': 'Pick plane', 'rb.sketch-on-face': 'On face', 'rb.sketch-new-front': 'Front', 'rb.sketch-new-top': 'Top', 'rb.sketch-new-right': 'Right',
-  'rb.sketch-from-dxf': 'DXF sketch', 'rb.sketch-import-dxf': 'Import DXF', 'rb.export-stl': 'STL', 'rb.export-stl-ascii': 'STL text', 'rb.export-obj': 'OBJ', 'rb.export-3mf': '3MF', 'rb.export-glb': 'glTF',
-  'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP / SLDPRT', 'rb.add-cut': 'Cut',
+  'rb.sketch-from-dxf': 'DXF sketch', 'rb.sketch-import-dxf': 'Import DXF', 'rb.sketch-from-svg': 'SVG sketch', 'rb.sketch-import-svg': 'Import SVG', 'rb.export-stl': 'STL', 'rb.export-stl-ascii': 'STL text', 'rb.export-obj': 'OBJ', 'rb.export-3mf': '3MF', 'rb.export-glb': 'glTF',
+  'rb.export-step': 'STEP', 'rb.export-dxf-sketch': 'Sketch DXF', 'rb.export-dxf-views': 'Views DXF', 'rb.import-step': 'Import STEP / STL / SLDPRT', 'rb.add-cut': 'Cut',
   'rb.add-lpattern': 'Linear', 'rb.add-cpattern': 'Circular', 'rb.open-catalog': 'Catalog', 'rb.suppress-selected': 'Suppress', 'rb.delete-feature': 'Delete',
   'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
   'rb.add-surface-revolve': 'Revolved', 'rb.add-surface-loft': 'Lofted', 'rb.add-fill': 'Fill', 'rb.add-extend': 'Extend', 'rb.add-delete-face': 'Del. face',

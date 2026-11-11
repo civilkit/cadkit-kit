@@ -71,7 +71,7 @@ describe('SettingsDialog', () => {
   it('the Navigation tab sets the up axis, the orbit mode and the pivot', () => {
     const onNavPrefs = vi.fn();
     render(<SettingsDialog workspace={WORKSPACE_PRESETS.plasticity} onChange={() => {}} onPreset={() => {}} onClose={() => {}}
-      navPrefs={{ upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre' }} onNavPrefs={onNavPrefs} />);
+      navPrefs={{ upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre', zoomSpeed: 1 }} onNavPrefs={onNavPrefs} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Navigation' }));
     expect((screen.getByLabelText('Up axis') as HTMLSelectElement).value).toBe('y');
     fireEvent.change(screen.getByLabelText('Up axis'), { target: { value: 'z' } });
@@ -80,6 +80,8 @@ describe('SettingsDialog', () => {
     expect(onNavPrefs).toHaveBeenLastCalledWith({ orbitMode: 'trackball' });
     fireEvent.change(screen.getByLabelText('Orbit around'), { target: { value: 'cursor' } });
     expect(onNavPrefs).toHaveBeenLastCalledWith({ orbitPivot: 'cursor' });
+    fireEvent.change(screen.getByLabelText('Wheel zoom speed'), { target: { value: '2' } });
+    expect(onNavPrefs).toHaveBeenLastCalledWith({ zoomSpeed: 2 });
   });
   it('the Positioning tab edits the move ball snap increments, and only valid numbers go out', () => {
     const onTriPrefs = vi.fn();

@@ -7,6 +7,9 @@ import { createTools, type ToolDef } from './tools';
 
 export { AgentSession, type AgentSessionOptions, type ScriptRunReport } from './agent-session';
 export { createTools, summarize, loadSnapshotFn, type ToolDef, type ToolOutput } from './tools';
+export { sheetInfo, sheetTools } from './sheetTools';
+export type { SheetEntry, SheetRule, FlatPattern } from './agent-session';
+export { sheetHint, isSheetType } from './sheetHints';
 export { ToolError } from './errors';
 export { defaultRegistry, type Registry, type MethodDoc, type Recipe } from './registry';
 export { validate, type Schema } from './schema';

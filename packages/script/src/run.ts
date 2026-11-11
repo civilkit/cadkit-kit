@@ -25,6 +25,8 @@ export interface ScriptHost {
 }
 export interface KernelFacts {
   volume?: number | null; area?: number | null; com?: number[] | null; valid?: boolean | null;
+  /** per body (lump) volume and area, with the name the script gave it (newBody) */
+  bodies?: Array<{ name?: string; volume: number; area: number }>;
   /** unit-density inertia numbers of the massProps answer (see InertiaFact); absent when the kernel predates them */
   inertia?: InertiaFact | null; issues?: Array<{ code: string; entity: string; detail: string }>;
   /** per face name: the kernel's exact surface type, area and radius (the display mesh only approximates the area) */
@@ -55,6 +57,7 @@ export interface RunOptions {
 export interface RunStats { batched: boolean; steps: number; builds: number; viewBuilds: number; buildMs: number; loadMs: number; totalMs: number }
 export interface ScriptError { line: number; message: string; feature?: string }
 export interface ScriptWarning { line: number; message: string }
+export interface ScriptCheck { line: number; ok: boolean; /** what was checked, e.g. 'volume 78968 (0.005)'; for a failure the message */ message: string }
 export interface ScriptResult {
   ops: EditOp[];
   /** Things the runner resolved for the script that it may not have meant (an ambiguous face('>Z'), a cut direction flipped automatically). Never stops the run. */
@@ -62,6 +65,8 @@ export interface ScriptResult {
   /** The document the script built (features as the kernel kept them is up to the host; this is the recorded one), with `script` set. */
   document: Record<string, unknown> | null;
   errors: ScriptError[];
+  /** One row per expect...() the run reached, in order: passed or failed with what was checked (failures are also in `errors`). */
+  checks?: ScriptCheck[];
   /** True when the run was cancelled: nothing was loaded, the document that was open is untouched. */
   cancelled?: boolean;
   stats?: RunStats;
@@ -116,7 +121,7 @@ export function launch(code: string, overrides?: Record<string, string>): { stat
       flags.done = true;
     }
   } catch (e) {
-    errors.push(toError(e));
+    errors.push(explainDeclared(toError(e), code, names));
     flags.done = true;
   }
   if (!errors.length && !state.parts.length) errors.push({ line: 1, message: 'the script builds no part: start with part("Name")' });
@@ -133,6 +138,19 @@ function guardLoops(code: string): string {
   return code.replace(/\b(while|for)\s*\([^)]*\)\s*\{/g, (m) => `${m} if (++__fuel > 100000) throw new Error('loop limit exceeded');`);
 }
 
+/** The names a script may not declare itself: they are the API helpers every script is given (part, plane, at, face, edges, variables, ...). */
+export function reservedNames(): string[] { return Object.keys(makeApi({ parts: [], vars: {}, varDefs: [] })).sort(); }
+
+/** 'Identifier plane has already been declared' means the script declared a name that is a helper of the script API: say so, point at the line and suggest a new name. */
+function explainDeclared(err: ScriptError, code: string, names: string[]): ScriptError {
+  const m = /Identifier '([^']+)' has already been declared/.exec(err.message);
+  if (!m || !names.includes(m[1])) return err;
+  const name = m[1];
+  const lines = code.split('\n');
+  const at = lines.findIndex((l) => new RegExp(`\\b(?:const|let|var|function|class)\\s+${name}\\b|[,{]\\s*${name}\\s*[=,}]`).test(l));
+  return { line: at >= 0 ? at + 1 : err.line, message: `'${name}' is a script API helper (like part, plane, at, face, edges, variables), so it cannot be declared again: rename your variable, for example ${name}1 or my${name[0].toUpperCase()}${name.slice(1)}` };
+}
+
 function toError(e: unknown): ScriptError {
   if (e instanceof SelectorError) return { line: e.line, message: e.message };
   const err = e as Error;
@@ -141,15 +159,40 @@ function toError(e: unknown): ScriptError {
   return { line, message: err?.message ?? String(e) };
 }
 
+/** The bounding box a read asked for: the whole part's (the kernel's view box), or with need.body the display-mesh box of that body. */
+function scopeBox(_host: ScriptHost, need: FactNeed, f: Facts): Promise<Facts> {
+  const lump = need.body !== undefined ? f.bodies.findIndex((b) => b.name === need.body) : -1;
+  return Promise.resolve(lump >= 0 && f.bodies.length > 1 ? { ...f, bbox: f.bodyBoxes[lump] ?? null } : f);
+}
+
 /** Facts about the body from the live geometry (faces with fitted kinds, bbox, edge counts). */
-function geoFacts(geo: Geometry): Pick<Facts, 'bbox' | 'faceCount' | 'edgeCount' | 'faces' | 'edges'> {
+function geoFacts(geo: Geometry): Pick<Facts, 'bbox' | 'faceCount' | 'edgeCount' | 'faces' | 'edges' | 'bodyBoxes'> {
   const infos = geo.mesh ? faceInfos(geo.mesh) : [];
+  // the box of each body: the display mesh vertices of its faces (the whole-part box also includes the edge polylines)
+  const bodyBoxes: Array<{ min: Vec; max: Vec } | null> = [];
+  if (geo.mesh && geo.faceLumps) {
+    const P = geo.mesh.positions, F = geo.mesh.faceIds, T = geo.mesh.triFace;
+    for (let t = 0; t < Math.floor(P.length / 9); t++) {
+      const lump = geo.faceLumps[F[T[t]]];
+      if (lump === undefined) continue;
+      const b = (bodyBoxes[lump] ??= { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] });
+      for (let i = 0; i < 9; i++) { const k = i % 3, v = P[t * 9 + i]; if (v < b.min[k]) b.min[k] = v; if (v > b.max[k]) b.max[k] = v; }
+    }
+    // the edge curves reach the extremes of round faces that mesh vertices only approach (a circle's quadrant points)
+    for (const e of geo.edges) {
+      const lump = e.faces?.length ? geo.faceLumps[e.faces[0]] : undefined;
+      const b = lump === undefined ? undefined : bodyBoxes[lump];
+      if (!b) continue;
+      for (const q of e.pts ?? []) for (let k = 0; k < 3; k++) { if (q[k] < b.min[k]) b.min[k] = q[k]; if (q[k] > b.max[k]) b.max[k] = q[k]; }
+    }
+  }
   const len = (pts: number[][] | undefined): number => { let l = 0; const p = pts ?? []; for (let i = 0; i + 1 < p.length; i++) l += Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1], p[i + 1][2] - p[i][2]); return l; };
   return {
     bbox: geo.box ? { min: [...geo.box.min] as Vec, max: [...geo.box.max] as Vec } : null,
+    bodyBoxes,
     faceCount: infos.length,
     edgeCount: geo.edges.length,
-    faces: infos.map((f) => ({ name: f.id, kind: f.kind, area: f.area, normal: f.planar ? f.normal : null, center: f.centroid, ...(f.radius !== undefined ? { radius: f.radius } : {}), feature: f.owner })),
+    faces: infos.map((f) => ({ name: f.id, kind: f.kind, area: f.area, normal: f.planar ? f.normal : null, center: f.centroid, ...(f.radius !== undefined ? { radius: f.radius } : {}), feature: f.owner, ...(geo.faceLumps?.[f.id] !== undefined ? { lump: geo.faceLumps[f.id] } : {}) })),
     edges: geo.edges.map((e) => ({ key: e.key ?? '', mid: (e.mid ?? [0, 0, 0]) as Vec, length: len(e.pts), faces: [...(e.faces ?? [])] })),
   };
 }
@@ -163,7 +206,7 @@ function exactFaces(faces: Facts['faces'], exact: NonNullable<KernelFacts['faces
     return { ...f, kind, ...(e.area !== undefined ? { area: e.area } : {}), ...(e.radius !== undefined ? { radius: e.radius } : {}) };
   });
 }
-const EMPTY_FACTS: Facts = { volume: null, area: null, com: null, valid: null, issues: [], bbox: null, faceCount: 0, edgeCount: 0, faces: [], edges: [] };
+const EMPTY_FACTS: Facts = { volume: null, area: null, com: null, bodies: [], bodyBoxes: [], valid: null, issues: [], bbox: null, faceCount: 0, edgeCount: 0, faces: [], edges: [] };
 
 /** Waits for the script to record more steps (or finish) after the runner caught up with it: true when it is worth looking again. */
 async function awaitScript(finished: Promise<void> | null, flags: { done: boolean }, steps: Step[], errors: ScriptError[]): Promise<boolean> {
@@ -196,6 +239,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   const autoFlip = new Set<string>();
   const ctx: Ctx = { geo: host.geometry(), nextId: () => `F${++n}`, lastSketch: null, lastFeature: null, warn, autoFlip };
   const stepsOf = part.steps;
+  const checks: ScriptCheck[] = [];
   const rt: ReadRuntime = {
     facts: async (need: FactNeed) => {
       if (need.text) { if (!host.facts) throw new SelectorError('this host cannot measure text (it has no facts())', 0); const k = await host.facts({ text: need.text }); if (!k.text) throw new SelectorError('textMetrics(): the kernel gave no answer (is the kernel build older than text support?)', 0); return { ...EMPTY_FACTS, text: k.text }; }
@@ -203,9 +247,10 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
       const k = need.mass || need.validate ? await host.facts!({ mass: need.mass, validate: need.validate }) : {};
       const g = geoFacts(host.geometry());
       if (need.geometry && host.facts && g.faces.length > 0 && g.faces.length <= 600) g.faces = exactFaces(g.faces, (await host.facts({ describe: g.faces.map((f) => f.name) }).catch(() => ({} as KernelFacts))).faces ?? []);
-      return { ...EMPTY_FACTS, ...g, volume: k.volume ?? null, area: k.area ?? null, com: (k.com as Vec | null | undefined) ?? null, inertia: k.inertia ?? null, valid: k.valid ?? null, issues: k.issues ?? [] };
+      return scopeBox(host, need, { ...EMPTY_FACTS, ...g, volume: k.volume ?? null, area: k.area ?? null, com: (k.com as Vec | null | undefined) ?? null, bodies: k.bodies ?? [], inertia: k.inertia ?? null, valid: k.valid ?? null, issues: k.issues ?? [] });
     },
-    fail: (message, line) => { errors.push({ line, message }); },
+    fail: (message, line) => { errors.push({ line, message }); checks.push({ line, ok: false, message }); },
+    pass: (message, line) => { checks.push({ line, ok: true, message }); },
   };
   let stepNo = 0;
   for (;;) {
@@ -245,7 +290,7 @@ export async function runScript(code: string, host: ScriptHost, base: Record<str
   (doc.features as unknown[]) = ops.map((o) => o.feature);
   doc.seq = n + 1;
   applyDecor(doc, part, warn);
-  return { ops, document: doc, errors, warnings, stats: { batched: false, steps: stepsOf.length, builds: 0, viewBuilds: 0, buildMs: 0, loadMs: 0, totalMs: performance.now() - t0 } };
+  return { ops, document: doc, errors, checks, warnings, stats: { batched: false, steps: stepsOf.length, builds: 0, viewBuilds: 0, buildMs: 0, loadMs: 0, totalMs: performance.now() - t0 } };
 }
 
 /** Thrown inside a step when a selector reads a body that is older than the features recorded since: the runner builds a view and runs the step again. */
@@ -340,6 +385,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   // read-backs: answers are cached until the next feature is recorded
   let cache: { n: number; mass?: KernelFacts; validate?: KernelFacts; describe?: NonNullable<KernelFacts['faces']> } = { n: -1 };
   let curStep = 0;
+  const checks: ScriptCheck[] = [];
   const rt: ReadRuntime = {
     facts: async (need: FactNeed) => {
       if (need.text) { if (!host.facts) throw new SelectorError('this host cannot measure text (it has no facts())', 0); const k = await host.facts({ text: need.text }); if (!k.text) throw new SelectorError('textMetrics(): the kernel gave no answer (is the kernel build older than text support?)', 0); return { ...EMPTY_FACTS, text: k.text }; }
@@ -355,9 +401,10 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
       if (g && host.facts && g.faces.length > 0 && g.faces.length <= 600 && !cache.describe) cache.describe = (await host.facts({ describe: g.faces.map((f) => f.name) }).catch(() => ({} as KernelFacts))).faces ?? [];
       if (g && cache.describe) g.faces = exactFaces(g.faces, cache.describe);
       const m = cache.mass ?? {}, v = cache.validate ?? {};
-      return { ...EMPTY_FACTS, ...g, volume: m.volume ?? null, area: m.area ?? null, com: (m.com as Vec | null | undefined) ?? null, inertia: m.inertia ?? null, valid: v.valid ?? null, issues: v.issues ?? [] };
+      return scopeBox(host, need, { ...EMPTY_FACTS, ...g, volume: m.volume ?? null, area: m.area ?? null, com: (m.com as Vec | null | undefined) ?? null, bodies: m.bodies ?? [], inertia: m.inertia ?? null, valid: v.valid ?? null, issues: v.issues ?? [] });
     },
-    fail: (message, line) => { errors.push({ line, message }); },
+    fail: (message, line) => { errors.push({ line, message }); checks.push({ line, ok: false, message }); },
+    pass: (message, line) => { checks.push({ line, ok: true, message }); },
   };
 
   try {
@@ -414,7 +461,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
     const kept = keep >= 0 ? ops.filter((o) => (stepOfFeature.get(o.feature.id as string) ?? 0) < keep) : ops;
     if (opts.prefix) {
       applyDecor(doc, part, warn, [...prefix, ...kept.map((o) => o.feature)]);
-      return { ops: kept, document: { ...doc, features: [...prefix, ...kept.map((o) => o.feature)], seq: n + 1 }, errors, warnings, stats: { ...stats, totalMs: performance.now() - t0 } };
+      return { ops: kept, document: { ...doc, features: [...prefix, ...kept.map((o) => o.feature)], seq: n + 1 }, errors, checks, warnings, stats: { ...stats, totalMs: performance.now() - t0 } };
     }
     applyDecor(doc, part, warn, kept.map((o) => o.feature));
     progress('loading');
@@ -434,7 +481,7 @@ async function runBatched(steps: Step[], doc: Record<string, unknown>, host: Scr
   doc.features = ops.map((o) => o.feature);
   doc.seq = n + 1;
   stats.totalMs = performance.now() - t0;
-  return { ops, document: doc, errors, warnings, stats };
+  return { ops, document: doc, errors, checks, warnings, stats };
 }
 
 /** A pattern refusal says what would fit (the largest spacing along a path, why an object cannot be reached): its hint goes with the code. */

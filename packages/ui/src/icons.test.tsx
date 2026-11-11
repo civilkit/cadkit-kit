@@ -17,6 +17,16 @@ describe('featureIconName', () => {
   });
 });
 
+describe('sheet metal icons', () => {
+  it('every sheet command and every sheet feature in the tree has an icon of its own', () => {
+    const cmds = ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat', 'sheet-dxf', 'sheet-bends-csv', 'sheet-bends-json'];
+    expect(cmds.filter((id) => !hasIcon(id))).toEqual([]);
+    const feats: Record<string, string> = { sheetRules: 'sheet-rules', baseFlange: 'add-base-flange', edgeFlange: 'add-edge-flange', contourFlange: 'add-contour-flange', hem: 'add-hem', fold: 'add-fold', unfold: 'sheet-unfold', refold: 'sheet-refold', sheetConvert: 'add-sheet-convert', sheetCut: 'add-sheet-cut', sheetCorner: 'add-sheet-corner' };
+    for (const [type, icon] of Object.entries(feats)) expect(featureIconName(type)).toBe(icon);
+    expect(new Set(cmds.map((id) => (ICON_NAMES.includes(id) ? id : ''))).size).toBe(cmds.length);
+  });
+});
+
 describe('Icon', () => {
   it('has an icon for every sketch tool and Select', () => {
     const missing = ['select', ...sketchTools().map((x) => x.id)].filter((id) => !hasIcon(id));

@@ -153,9 +153,10 @@ describe('NIST test assembly sample, on the real kernel', () => {
       }
       // the parts stacked on each other are now separated along Y (lid above component above plate), by the stage gaps
       const gap = (up: string, down: string) => away.get(up)!.min[1] - away.get(down)!.max[1];
-      expect(gap('F4', 'F3')).toBeCloseTo(50, 1);
-      expect(gap('F2', 'F4')).toBeGreaterThan(50);
-      expect(gap('F2', 'F4')).toBeLessThan(55);
+      expect(gap('F4', 'F3')).toBeCloseTo(25, 1);
+      expect(gap('F2', 'F4')).toBeCloseTo(43, 0);
+      // the plate is out of the base: its underside is above the rim (12.7)
+      expect(away.get('F3')!.min[1] - home.get('F1')!.max[1]).toBeCloseTo(8.16, 1);
       // were assembled: lid sat on the rim, component on the plate
       expect(Math.abs(home.get('F4')!.min[1] - home.get('F3')!.max[1])).toBeLessThan(1e-3);
       // the base is not moved and the centres the panel uses move by the offsets
@@ -190,11 +191,11 @@ describe('NIST test assembly sample, on the real kernel', () => {
       const f1 = (await s1.facts()).faces;
       const d = async (i: number, j: number) => dist(s1, comp(f1, i), comp(f1, j));
       for (const [i, j] of [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]] as const) expect((await d(i, j)).intersects, `F${i} / F${j}`).toBe(false);
-      expect((await d(3, 4)).distance).toBeCloseTo(E.F4[1] - E.F3[1], 2);          // component lifted off the plate by the difference of the stages
-      const pb = (await d(1, 3)).distance;                                           // plate off the standoffs; the nearest base face is now the drafted wall (2.4 mm measured), not the standoffs
-      expect(pb).toBeGreaterThan(1); expect(pb).toBeLessThan(E.F3[1]);
+      expect((await d(3, 4)).distance).toBeCloseTo(E.F4[1] - E.F3[1], 2);          // component lifted off the plate by the difference of the stages (25)
+      const pb = (await d(1, 3)).distance;                                           // plate out of the base: its underside over the rim
+      expect(pb).toBeCloseTo(8.16, 1);
       expect((await d(1, 2)).distance).toBeCloseTo(E.F2[1], 2);                      // lid off the rim
-      expect((await d(2, 4)).distance).toBeGreaterThan(50);
+      expect((await d(2, 4)).distance).toBeCloseTo(43, 0);
     }, 300_000);
   });
 });

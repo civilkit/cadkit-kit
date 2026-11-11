@@ -62,6 +62,12 @@ describe('contextual ribbon', () => {
     const home = JSON.stringify(RIBBON_LAYOUT.Home);
     for (const id of ['sketch-here', 'add-extrude', 'add-revolve', 'add-loft', 'add-fillet', 'add-shell', 'add-lpattern', 'undo', 'redo', 'rebuild']) expect(home, id).toContain(id);
   });
+  it('Frame is its own top-level ribbon tab and palette section, not part of the Loft menu', () => {
+    expect(idsOf(RIBBON_LAYOUT.Frame.flatMap((g) => g.entries))).toEqual(['add-frame', 'frame-cutlist']);
+    expect(RAIL_SECTIONS.find((s) => s.id === 'frame')).toBeTruthy();
+    expect(SLOTS['loft-sweep']).toEqual(['add-loft', 'add-sweep']);
+    expect(MODEL_COMMANDS.has('add-frame')).toBe(true);
+  });
   it('entering a sketch selects the Sketch tab and leaving restores the tab the user was on', () => {
     expect(activeRibbonTab('Surfaces', false)).toBe('Surfaces');
     expect(activeRibbonTab('Surfaces', true)).toBe(SKETCH_TAB);

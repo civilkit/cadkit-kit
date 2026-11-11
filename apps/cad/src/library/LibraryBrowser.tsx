@@ -14,8 +14,9 @@ import { effectiveLicence, type LibraryManifest } from './manifest';
 import { sourceLink, parseSource } from './source';
 import type { LibraryRecord, LibraryRegistry, PartData } from './registry';
 import type { SourceEntry } from './insert';
-import { BOSL_LIB_ID, boslEntries, categoriesOf, categoryLabel, entryKey, filterEntries, partEntries, partItem, type LibEntry, type LibInfo } from './entries';
-import { libCategory, libQuery, libSelected, libSource, type SourceFilter } from './state';
+import { BOSL_LIB_ID, boslEntries, entryKey, filterEntries, partEntries, partItem, sanitizeFilter, type LibEntry, type LibInfo, type WizardId } from './entries';
+import { libCategory, libQuery, libSelected, libSource, libTags, saveFilter } from './state';
+import { FilterBar } from './FilterBar';
 import { AddLibrary, errText } from './AddLibrary';
 import { CategoryIcon } from './CategoryIcon';
 import { generateThumb, type ThumbRenderer } from './thumbs';
@@ -38,6 +39,8 @@ export interface LibraryBrowserProps {
   notify?(text: string, level?: 'error' | 'warn' | 'info'): void;
   /** Renders a part to PNG for the cards of parts that came without a thumbnail (omitted: they keep the placeholder). */
   renderThumb?: ThumbRenderer;
+  /** Open the wizard that makes a kind of part (the filter bar's "Make one with a wizard" link; a missing one shows no link). */
+  wizards?: Partial<Record<WizardId, () => void>>;
 }
 
 const PAGE = 60;
@@ -47,7 +50,7 @@ const blobUrl = (bytes: Uint8Array, type: string): string => URL.createObjectURL
 
 interface ManState { manifest: LibraryManifest | null; offline: boolean; error: string; loading: boolean }
 
-function Thumb({ registry, entry, installed, renderThumb }: { registry: LibraryRegistry; entry: LibEntry; installed: boolean; renderThumb?: ThumbRenderer }) {
+export function Thumb({ registry, entry, installed, renderThumb }: { registry: LibraryRegistry; entry: LibEntry; installed: boolean; renderThumb?: ThumbRenderer }) {
   const [url, setUrl] = useState<string | null>(null);
   const part = entry.part;
   useEffect(() => {
@@ -58,6 +61,8 @@ function Thumb({ registry, entry, installed, renderThumb }: { registry: LibraryR
     setUrl(null);
     void (async () => {
       if (part.thumb) { const th = await registry.thumb(entry.libId, part.id); if (th) return show(th.bytes, th.type); }
+      const emb = await registry.embeddedThumb(entry.libId, part.id);   // the picture the saved part carries itself
+      if (emb) return show(emb, 'image/png');
       const gen = await registry.generatedThumb(entry.libId, part.id);
       if (gen) return show(gen, 'image/png');
       if (installed && renderThumb) { const png = await generateThumb(registry, entry.libId, part.id, renderThumb); if (png) show(png, 'image/png'); }
@@ -142,16 +147,19 @@ export function SourcesNote({ sources }: { sources: SourceEntry[] }) {
 }
 
 /** One library's row in "Libraries": what it is, and refresh / remove / links for the ones the user added. */
-function LibRow({ info, onRefresh, onRemove }: { info: LibInfo; onRefresh(): void; onRemove(): void }) {
+export function LibRow({ info, onRefresh, onRemove, onToggle }: { info: LibInfo; onRefresh(): void; onRemove(): void; /** switch the library on or off (omitted: it cannot be switched, as BOSL2 which is part of the app) */ onToggle?(): void }) {
   const home = info.id === BOSL_LIB_ID ? BOSL_HOME : safeLink(info.homepage) ?? (() => { try { return info.record ? sourceLink(parseSource(info.record.source)) : null; } catch { return null; } })();
   return (
-    <li class="lib-row" data-lib={info.id} data-origin={info.origin}>
+    <li class="lib-row" data-lib={info.id} data-origin={info.origin} data-enabled={info.enabled === false ? 'false' : 'true'}>
       <div class="lib-row-h"><b>{info.name}</b><span class="lib-origin" data-origin={info.origin}>{t('library.origin.' + info.origin)}</span>
+        {info.enabled === false ? <span class="lib-offline" data-testid="lib-disabled">{t('library.disabled')}</span> : null}
         {info.offline ? <span class="lib-offline" title={t('library.offline.tip')} data-testid="lib-offline">{t('library.offline')}</span> : null}</div>
       <div class="cat-sub">{info.loading ? t('library.loading') : t('library.count', { count: info.count })}{' - '}{t('library.licence')}: {info.origin === 'included' && info.id !== BOSL_LIB_ID ? t('library.licence.bundled') : info.licence ?? t('library.licence.unknown')}</div>
+      {info.id === BOSL_LIB_ID ? <div class="cat-sub" data-testid="bosl-credit">{t('library.bosl.credit')}</div> : null}
       {info.error ? <div class="lib-err" role="alert">{info.error}</div> : null}
       <div class="lib-row-a">
         {home ? <a href={home} target="_blank" rel="noopener noreferrer nofollow">{t('library.homepage')}</a> : null}
+        {onToggle ? <button title={t(info.enabled === false ? 'library.enable.tip' : 'library.disable.tip')} aria-label={t(info.enabled === false ? 'library.enable' : 'library.disable') + ': ' + info.name} onClick={onToggle}>{t(info.enabled === false ? 'library.enable' : 'library.disable')}</button> : null}
         {info.origin === 'addon' ? (
           <>
             <button title={t('library.refresh.tip')} onClick={onRefresh}>{t('library.refresh')}</button>
@@ -163,11 +171,13 @@ function LibRow({ info, onRefresh, onRemove }: { info: LibInfo; onRefresh(): voi
   );
 }
 
-export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKey, notify, renderThumb }: LibraryBrowserProps) {
+export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKey, notify, renderThumb, wizards }: LibraryBrowserProps) {
   const [, bump] = useState(0);
   useEffect(() => registry.subscribe(() => bump((n) => n + 1)), [registry]);
-  const recs = registry.list();
+  const allRecs = registry.list();
+  const recs = registry.listEnabled();   // a disabled library is not browsed (it stays in Manage libraries)
   const ids = recs.map((r) => r.id).join('\n');
+  const allIds = allRecs.map((r) => r.id).join('\n');
   const [mans, setMans] = useState<Record<string, ManState>>({});
   const [installed, setInstalled] = useState<Record<string, Set<string>>>({});
   const [adding, setAdding] = useState(false);
@@ -182,7 +192,7 @@ export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKe
       (e) => setMans((m) => ({ ...m, [id]: { manifest: null, offline: false, error: errText(e), loading: false } })));
   };
   // every library's list is read (from the cache when there is one): the search covers all of them
-  useEffect(() => { for (const r of recs) if (!mans[r.id]) load(r.id, false); }, [ids]);
+  useEffect(() => { for (const r of allRecs) if (!mans[r.id]) load(r.id, false); }, [allIds]);
   const cachedKey = registry.rev;
   useEffect(() => {
     let dead = false;
@@ -191,6 +201,7 @@ export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKe
   }, [ids, mans, cachedKey]);
 
   const boslName = t('library.bosl.name');
+  const loadingAny = recs.some((r) => !mans[r.id] || mans[r.id].loading);
   const entries = useMemo(() => [
     ...boslEntries(boslName),
     ...recs.flatMap((r) => (mans[r.id]?.manifest ? partEntries(r, mans[r.id].manifest!) : [])),
@@ -199,17 +210,17 @@ export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKe
 
   const infos: LibInfo[] = [
     { id: BOSL_LIB_ID, name: boslName, origin: 'included', count: entries.filter((e) => e.libId === BOSL_LIB_ID).length, licence: 'BSD-2-Clause' },
-    ...recs.map((r): LibInfo => ({ id: r.id, name: r.name, origin: r.builtin ? 'included' : 'addon', count: mans[r.id]?.manifest?.parts.length ?? r.parts, licence: mans[r.id]?.manifest?.licence ?? r.licence, record: r, homepage: mans[r.id]?.manifest?.homepage ?? r.homepage, loading: mans[r.id]?.loading, error: mans[r.id]?.error, offline: mans[r.id]?.offline })),
+    ...allRecs.map((r): LibInfo => ({ enabled: registry.enabled(r.id), id: r.id, name: r.name, origin: r.builtin ? 'included' : 'addon', count: mans[r.id]?.manifest?.parts.length ?? r.parts, licence: mans[r.id]?.manifest?.licence ?? r.licence, record: r, homepage: mans[r.id]?.manifest?.homepage ?? r.homepage, loading: mans[r.id]?.loading, error: mans[r.id]?.error, offline: mans[r.id]?.offline })),
   ];
 
-  const source = libSource.value, cat = libCategory.value, q = libQuery.value;
-  const cats = categoriesOf(entries, source);
-  const category = cat !== 'all' && !cats.includes(cat) ? 'all' : cat;
-  const list = filterEntries(entries, { q, source, category });
+  const source = libSource.value, q = libQuery.value;
+  // a remembered category or tag the libraries do not have (any more, or not yet: a list still loading) is ignored, not shown as an empty list
+  const { category, tags } = sanitizeFilter(entries, { category: libCategory.value, tags: libTags.value, source });
+  const setFilter = (c: string, tg: string[]) => { libCategory.value = c; libTags.value = tg; saveFilter('catalog', { category: c, tags: tg }); setShown(PAGE); };
+  const list = filterEntries(entries, { q, source, category, tags });
   const sel = libSelected.value ? entries.find((e) => e.key === libSelected.value) : undefined;
   const armed = armedItem.value;
   const isInstalled = (e: LibEntry): boolean => e.kind === 'bosl' || !!registry.get(e.libId)?.builtin || !!installed[e.libId]?.has(e.id);
-  const loadingAny = recs.some((r) => !mans[r.id] || mans[r.id].loading);
 
   const install = async (e: LibEntry): Promise<void> => {
     const rec = registry.get(e.libId);
@@ -249,16 +260,9 @@ export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKe
         <div class="cat-h">{t('library.title')}</div>
         <button class="lib-addbtn" onClick={() => setAdding(!adding)} aria-expanded={adding}>{t('library.add')}</button>
       </div>
-      {adding ? <AddLibrary registry={registry} onDone={(id) => { setAdding(false); if (id) { libSource.value = 'addon'; libCategory.value = 'all'; } }} /> : null}
-      <input class="bosl-search" type="search" value={q} placeholder={t('library.search')} aria-label={t('library.search')} onInput={(e) => { libQuery.value = (e.currentTarget as HTMLInputElement).value; setShown(PAGE); }} />
-      <div class="lib-filters">
-        <div class="bosl-cats" role="tablist" aria-label={t('library.source')}>
-          {(['all', 'included', 'addon'] as SourceFilter[]).map((s) => <button key={s} role="tab" aria-selected={source === s} class={'bosl-cat' + (source === s ? ' on' : '')} onClick={() => { libSource.value = s; setShown(PAGE); }}>{t('library.source.' + s)}</button>)}
-        </div>
-        <select aria-label={t('library.category')} value={category} onChange={(e) => { libCategory.value = (e.currentTarget as HTMLSelectElement).value; setShown(PAGE); }}>
-          {['all', ...cats].map((c) => <option key={c} value={c}>{categoryLabel(c)}</option>)}
-        </select>
-      </div>
+      {adding ? <AddLibrary registry={registry} onDone={(id) => { setAdding(false); if (id) { libSource.value = 'addon'; setFilter('all', []); } }} /> : null}
+      <FilterBar entries={entries} q={q} onQ={(v) => { libQuery.value = v; setShown(PAGE); }} source={source} onSource={(v) => { libSource.value = v; setShown(PAGE); }}
+        category={category} tags={tags} onFilter={setFilter} wizards={wizards} />
       <div class="cat-grid" data-testid="lib-grid">
         {list.slice(0, shown).map(card)}
         {!loadingAny && list.length === 0 ? <div class="empty">{t('library.none')}</div> : null}
@@ -274,7 +278,7 @@ export function LibraryBrowser({ registry, hasDoc, actions, onItemDown, onItemKe
       <details class="lib-manage" data-testid="lib-manage">
         <summary>{t('library.manage', { count: infos.length })}</summary>
         <ul>
-          {infos.map((i) => <LibRow key={i.id} info={i} onRefresh={() => load(i.id, true)} onRemove={() => { void registry.remove(i.id); setMans((m) => { const { [i.id]: _x, ...rest } = m; return rest; }); if (libSelected.value?.startsWith(entryKey(i.id, ''))) libSelected.value = null; }} />)}
+          {infos.map((i) => <LibRow key={i.id} info={i} onToggle={i.record ? () => { registry.setEnabled(i.id, !registry.enabled(i.id)); if (libSelected.value?.startsWith(entryKey(i.id, ''))) libSelected.value = null; } : undefined} onRefresh={() => load(i.id, true)} onRemove={() => { void registry.remove(i.id); setMans((m) => { const { [i.id]: _x, ...rest } = m; return rest; }); if (libSelected.value?.startsWith(entryKey(i.id, ''))) libSelected.value = null; }} />)}
         </ul>
       </details>
       <SourcesNote sources={actions.sources()} />

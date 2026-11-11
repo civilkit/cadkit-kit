@@ -10,6 +10,12 @@
       "id": "localhost-url",
       "match": "localhost:5173",
       "reason": "the development origin that the documented local kernel service always allows"
+    },
+    {
+      "id": "internal-host",
+      "match": "internal-org",
+      "reason": "the public Calcs repository link in the shared site header and footer (tools/pages/siteChrome.mjs), the same link as on every civilkit.io page",
+      "context": "github.com/internal-org/civilkit-calcs"
     }
   ]
 }

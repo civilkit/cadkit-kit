@@ -54,3 +54,14 @@ describe('mirror: constraints that keep the copy symmetric without over-constrai
     expect(r.draft.constraints.filter((c) => c.type === 'symmetric')).toHaveLength(2);
   });
 });
+
+describe('mirror: hints and a selection made before the tool', () => {
+  it('each step says what to do; entities selected in Select mode go straight to the mirror line', () => {
+    const d = rectDraft(10, 10);
+    let o = mirrorTool.step(mirrorTool.start(), { type: 'move', at: { x: 0, y: 0 }, mods: M }, d, DEFAULT_SETTINGS);
+    expect(o.hint).toBe('app.sketch.hint.mirrorPick');
+    o = mirrorTool.step(mirrorTool.start(), { type: 'move', at: { x: 0, y: 0 }, mods: M }, d, DEFAULT_SETTINGS, { entities: ['e1', 'e2'] });
+    expect(o.state).toMatchObject({ phase: 'line', selected: ['e1', 'e2'] });
+    expect(o.hint).toBe('app.sketch.hint.mirrorLine');
+  });
+});

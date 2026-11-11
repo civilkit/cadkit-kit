@@ -6,6 +6,7 @@ import { createNameCounter, partNameOf, PART_EXT } from './names';
 import type { KV } from './storage';
 import { thumbnailUrl, type DocThumbnail } from './docThumb';
 import { EMBED_FIELD } from './viewCache';
+import { packDoc } from './assets';
 
 export interface FilePlatform {
   saveDocument?(name: string, data: string, opts?: { handle?: unknown; pick?: boolean }): Promise<SavedDocument | null>;
@@ -75,7 +76,9 @@ export class FileManager {
     const { thumbnail: _old, [EMBED_FIELD]: _oldView, ...body } = doc as { name: string; thumbnail?: unknown; viewCache?: unknown };
     const written = { ...body, name: part };
     const view = opts.embed ? await opts.embed(written).catch(() => null) : null;
-    const data = JSON.stringify({ ...written, ...(opts.thumbnail ? { thumbnail: opts.thumbnail } : {}), ...(view ? { [EMBED_FIELD]: view } : {}) }, null, 1);
+    // reference meshes and STEP text travel packed (files/assets.ts); the view above was keyed on the recipe as the kernel has it
+    const packed = await packDoc(written);
+    const data = JSON.stringify({ ...packed, ...(opts.thumbnail ? { thumbnail: opts.thumbnail } : {}), ...(view ? { [EMBED_FIELD]: view } : {}) }, null, 1);
     try {
       let saved: SavedDocument | null;
       if (this.platform.saveDocument) {

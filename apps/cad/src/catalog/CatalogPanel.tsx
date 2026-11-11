@@ -25,6 +25,8 @@ export interface CatalogPanelProps {
   onKnurl?(): void;
   /** Opens the Screw wizard (omitted: no Screw button). */
   onScrew?(): void;
+  /** Opens the Washer wizard (omitted: no Washer button). */
+  onWasher?(): void;
   /** Opens the Bearing wizard (omitted: no Bearing button). */
   onBearing?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
@@ -68,7 +70,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onBearing }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onBearing }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -126,6 +128,12 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
                     <span class="cat-name">{t('cmd.add-screw')}</span>
                   </button>
                 ) : null}
+                {onWasher ? (
+                  <button class="cat-item" data-item="washer" title={t('tip.add-washer')} onClick={onWasher}>
+                    <Icon name="add-washer" size={26} />
+                    <span class="cat-name">{t('cmd.add-washer')}</span>
+                  </button>
+                ) : null}
                 {onBearing ? (
                   <button class="cat-item" data-item="bearing" title={t('tip.add-bearing')} onClick={onBearing}>
                     <Icon name="add-bearing" size={26} />
@@ -136,7 +144,7 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
             </div>
           ) : null}
         </>
-      ) : library ? <LibraryBrowser registry={library.registry} hasDoc={hasDoc} actions={library.actions} onItemDown={onItemDown} onItemKey={onItemKey} notify={library.notify} renderThumb={library.renderThumb} /> : null}
+      ) : library ? <LibraryBrowser registry={library.registry} hasDoc={hasDoc} actions={library.actions} onItemDown={onItemDown} onItemKey={onItemKey} notify={library.notify} renderThumb={library.renderThumb} wizards={{ screw: hasDoc ? onScrew : undefined, bearing: hasDoc ? onBearing : undefined }} /> : null}
     </div>
   );
 }

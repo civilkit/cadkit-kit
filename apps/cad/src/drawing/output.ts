@@ -1,4 +1,5 @@
 // Sheet output: PDF (written here, no library), DXF (R12 text), and print through the browser. All from the primitive list.
+import { csvText } from '../tableText';
 import type { Prim } from './render';
 import type { V2 } from './model';
 
@@ -24,10 +25,15 @@ function textWidth(s: string, size: number, bold?: boolean): number {
   return w * size * (bold ? 1.06 : 1);
 }
 
-/** The table blocks of a sheet as CSV text: each table's title, its header and rows, a blank line between tables. */
+/** The table blocks of a sheet as CSV text (CR LF line ends): each table's title, its header and rows, a blank line between tables. */
 export function tablesCsv(tables: Array<{ title?: string; head: string[]; rows: string[][] }>): string {
-  const cell = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  return tables.map((tb) => [...(tb.title ? [cell(tb.title)] : []), tb.head.map(cell).join(','), ...tb.rows.map((r) => r.map(cell).join(','))].join('\n')).join('\n\n') + '\n';
+  const rows: Array<string[] | null> = [];
+  tables.forEach((tb, i) => {
+    if (i) rows.push(null);
+    if (tb.title) rows.push([tb.title]);
+    rows.push(tb.head, ...tb.rows);
+  });
+  return csvText(rows);
 }
 
 /** A one-page PDF of the sheet at its real size (vector lines, Helvetica text). */

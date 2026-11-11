@@ -36,6 +36,8 @@ If you load the published app from a web address rather than running it yourself
 5. Paste the token into **Access token**.
 6. Choose **Test connection**. It shows the kernel version, protocol version and number of cores, or says why the service cannot be used. A test switches nothing.
 
+![Workspace settings, Kernel tab, with Local service chosen: the service address, the hidden access token, Test connection and the status line. The status says the service is not used because nothing answered, and the built-in kernel is in use.](../img/settings-kernel.png)
+
 As soon as you change the mode, address or token, the open part is reopened on the new kernel. Your undo history is kept. To go back, choose **Built-in (runs in this browser)** and the part moves back.
 
 Once you choose the service, a **Kernel** chip appears in the status bar. It does not show while you use the built-in kernel by choice. The chip reads:

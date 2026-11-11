@@ -6,7 +6,9 @@ const kernel = `# Third-party code
 | Path | Source | Licence |
 |---|---|---|
 | crates/ck-check/src/x.rs | brepkit | MIT OR Apache-2.0 |
-| crates/ck-io/src/sat/{mod,parse,build}.rs | the author's own sat_import.rs in SGRebuild | same author |
+| crates/ck-io/src/sat/{mod,parse,build}.rs | the author's own earlier private SAT parser | same author |
+| crates/ck-skp/src/vff.rs, crates/ck-skp/NOTICE | OpenSKP (c) Ahsan Mehmood | MIT |
+| crates/ck-skp/tests/fixtures/*.skp | fixtures | MIT |
 | crates/new-thing/foo.rs | something nobody reviewed | MIT |
 
 ## Curated fonts (hosted by the kit)
@@ -20,8 +22,10 @@ describe('filterKernelThirdParty', () => {
   const r = filterKernelThirdParty(kernel);
   it('keeps reviewed rows and drops private-project rows, unreviewed rows and the hosted-fonts section', () => {
     expect(r.md).toContain('crates/ck-check/src/x.rs');
-    expect(r.md).not.toContain('SGRebuild');
+    expect(r.md).not.toContain('earlier private SAT parser');
     expect(r.md).not.toContain('new-thing');
+    expect(r.md).toContain('Ahsan Mehmood');
+    expect(r.md).not.toContain('ck-skp/tests/fixtures');
     expect(r.md).not.toContain('Barlow');
     expect(r.md).toContain('| Path | Source | Licence |');
   });

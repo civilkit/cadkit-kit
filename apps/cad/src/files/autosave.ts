@@ -8,6 +8,12 @@ export const AUTOSAVE_DELAY = 400;
 
 export interface Autosave { name: string; doc: unknown; savedAt: number }
 export type WriteResult = 'saved' | 'tooBig' | 'quota' | 'unavailable';
+/** What the backup leaves out, said once: imported meshes too large for the browser's storage (see files/assets.ts). */
+export type BackupProblem = Exclude<WriteResult, 'saved'> | 'assets';
+/** The part of AUTOSAVE_MAX the packed meshes may use; past it they are left out of the backup (the part and its STEP text stay). */
+export const AUTOSAVE_ASSET_BUDGET = 2 * 1024 * 1024;
+/** What the autosaver asks for: the document to store, and the names of the meshes left out of it. */
+export interface AutosavePayload { name: string; doc: unknown; omitted?: string[] }
 
 /** `docText` is the document already serialised: a 1.4 MB part is stringified once per save, not once to compare and once to store. */
 export function writeAutosave(kv: KV | null, name: string, doc: unknown, now = Date.now(), docText?: string): WriteResult {
@@ -39,19 +45,20 @@ export function sessionParts(a: Autosave): Array<{ name: string; doc: unknown; a
 /** Whether a stored session is worth offering: it has something in it, or is not just the blank part it would open as. */
 export function worthRestoring(a: Autosave | null): a is Autosave {
   if (!a) return false;
-  return sessionParts(a).some((x) => { const d = x.doc as { features?: unknown[] }; return Array.isArray(d.features) && d.features.length > 0; });
+  // a reference mesh alone is something to come back to (a scan to sketch on)
+  return sessionParts(a).some((x) => { const d = x.doc as { features?: unknown[]; meshes?: unknown[] }; return (Array.isArray(d.features) && d.features.length > 0) || (Array.isArray(d.meshes) && d.meshes.length > 0); });
 }
 
 /**
  * Debounced writer. `schedule(get)` replaces any pending write; `get` runs when the timer fires and returns the
  * document and name to store (or null for nothing). `onProblem` is called once per kind of failure ("say once").
  */
-export function createAutosaver(kv: KV | null, opts: { delay?: number; /** true while a rebuild runs: the write waits (a big part is not serialised in the middle of one) */ busy?(): boolean; onProblem?(r: Exclude<WriteResult, 'saved'>): void; timers?: { set(f: () => void, ms: number): unknown; clear(h: unknown): void }; now?: () => number } = {}) {
+export function createAutosaver(kv: KV | null, opts: { delay?: number; /** true while a rebuild runs: the write waits (a big part is not serialised in the middle of one) */ busy?(): boolean; onProblem?(r: BackupProblem): void; timers?: { set(f: () => void, ms: number): unknown; clear(h: unknown): void }; now?: () => number } = {}) {
   const timers = opts.timers ?? { set: (f, ms) => setTimeout(f, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) };
   const told = new Set<string>();
   let handle: unknown = null;
   let last = '';
-  const flushWith = (get: () => { name: string; doc: unknown } | null, force = false) => {
+  const flushWith = (get: () => AutosavePayload | null, force = false) => {
     handle = null;
     if (!force && opts.busy?.()) { handle = timers.set(() => flushWith(get), 1000); return; }
     const v = get();
@@ -61,15 +68,16 @@ export function createAutosaver(kv: KV | null, opts: { delay?: number; /** true 
     const r = writeAutosave(kv, v.name, v.doc, opts.now?.(), key);
     if (r === 'saved') last = key;
     else if (!told.has(r)) { told.add(r); opts.onProblem?.(r); }
+    if (v.omitted?.length && !told.has('assets')) { told.add('assets'); opts.onProblem?.('assets'); }
   };
   return {
     /** `delay` overrides the default: a big part is written less eagerly. */
-    schedule(get: () => { name: string; doc: unknown } | null, delay?: number) {
+    schedule(get: () => AutosavePayload | null, delay?: number) {
       if (handle !== null) timers.clear(handle);
       handle = timers.set(() => flushWith(get), delay ?? opts.delay ?? AUTOSAVE_DELAY);
     },
     /** Write now (page hiding). */
-    flush(get: () => { name: string; doc: unknown } | null) {
+    flush(get: () => AutosavePayload | null) {
       if (handle !== null) timers.clear(handle);
       flushWith(get, true);
     },
