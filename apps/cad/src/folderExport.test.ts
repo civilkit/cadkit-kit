@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import type { BodyRow } from './bodies';
-import { faceFeatures, folderBodyRows, keepOnlyDoc, planExtract, planFolderExport } from './folderExport';
+import { bodiesOfFeature, faceFeatures, folderBodyRows, keepOnlyDoc, planExtract, planFolderExport } from './folderExport';
 
 const row = (faces: string[], extra: Partial<BodyRow> = {}): BodyRow => ({ key: '@body:' + faces[0], name: faces[0], named: false, faces, edges: [], origin: null, volume: null, look: {}, hidden: false, ...extra });
 const doc = (features: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}): PartDoc => ({ ...emptyPart('Dash'), features, seq: 20, ...extra }) as unknown as PartDoc;
@@ -19,6 +19,15 @@ describe('which bodies a folder owns', () => {
     expect(folderBodyRows(new Set(['F4', 'F5']), [made, changed, other])).toEqual([made]);
     expect(folderBodyRows(new Set(['F6']), [made, changed, other])).toEqual([changed]);
     expect(folderBodyRows(new Set(['F9']), [row(['F4.S.h1@F9.1'])])).toHaveLength(1);   // a pattern's copy
+  });
+
+  it('lists the bodies one feature made or changed, pattern copies included, and none for a feature that left no face', () => {
+    const a = row(['F4.C0', 'F4.S.e1']), b = row(['F2.C0', 'F6.S.e1']), c = row(['F2.C1', 'F2.S.h1@F9.1']);
+    expect(bodiesOfFeature('F4', [a, b, c])).toEqual([a]);
+    expect(bodiesOfFeature('F6', [a, b, c])).toEqual([b]);
+    expect(bodiesOfFeature('F9', [a, b, c])).toEqual([c]);   // repeated by a pattern
+    expect(bodiesOfFeature('F5', [a, b, c])).toEqual([]);   // e.g. a cut that removed a whole body: the kernel reports nothing to list
+    expect(bodiesOfFeature('F1', [row(['F10.C0'])])).toEqual([]);   // F1 is not a prefix match of F10
   });
 
   it('cuts the others out with one keep step: a free id, the document name when the body has one, no stored view', () => {

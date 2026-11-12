@@ -169,12 +169,14 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.sheetCut(o?)`: Cut closed sketch regions out of the sheet, across bends too.
 * `.sheetRules(o?)`: Sheet stock rule: thickness, k-factor, bend radius.
 * `.shell(open, thickness)`: Hollow the body to a wall thickness, opening the selected face(s).
+* `.spring(o)`: A compression spring as its own body.
 * `.sweep(profile, path, o?)`: Sweep a closed profile along a path sketch (pipes, rails, handles).
 * `.thin(thickness)`: Make the previous extrude or revolve a thin-walled one.
 * `.thread(on, o)`: Add a cosmetic or modeled screw thread to a bore or cylinder.
 * `.unfold()`: Unfold the sheet to its flat body.
 * `.washer(o)`: A flat or split spring washer as its own body, placed by an origin and an axis.
 * `screw(o)`: A screw or bolt as its own body (head, drive, shank), placed by an origin and an axis.
+* `spring(o)`: A compression spring as its own body.
 * `through()`: End condition for cut(): through all material.
 * `washer(o)`: A flat or split spring washer as its own body, placed by an origin and an axis.
 

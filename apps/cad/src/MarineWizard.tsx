@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { Icon } from '@kit/ui';
 import { t } from './i18n';
-import { MARINE_PRESETS, marineReadout, validateMarine, type MarineIssue, type MarineParams } from './marineData';
+import { MARINE_PRESETS, freeShaftZ, marineReadout, sameMarine, validateMarine, type MarineIssue, type MarineParams } from './marineData';
 import { Seg } from './ThreadEditor';
 
 export type MarineStep = 'size' | 'blade' | 'review';
@@ -21,6 +21,8 @@ export interface MarineWizardProps {
   onCancel(): void;
   /** Back to the airfoil family (a new propeller only). */
   onFamily?(family: 'airfoil'): void;
+  /** The settings of the other marine propellers already in the part: a new propeller starts behind them, and one with the same settings at the same place is warned about. */
+  others?: MarineParams[];
   /** The live preview's failure, or null when it is current. */
   hint?: string | null;
 }
@@ -46,19 +48,23 @@ export function marineIssueText(i: MarineIssue): string {
 }
 
 export function MarineWizard(p: MarineWizardProps): JSX.Element {
-  const [draft, setDraft] = useState<MarineParams>(p.params);
+  // a new propeller starts at a free position along the shaft, not on top of one that is already there
+  const [draft, setDraft] = useState<MarineParams>(() => (p.edit || !p.others?.length ? p.params : { ...p.params, shaftZ: freeShaftZ(p.others, p.params) }));
+  const [armed, setArmed] = useState(false);
   const [step, setStep] = useState<MarineStep>(p.step ?? 'size');
   const [preset, setPreset] = useState('none');
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!p.edit) p.onDraft(draft); }, []);
   const change = (patch: Partial<MarineParams>): void => {
     const next = { ...draft, ...patch };
-    setDraft(next);
+    setDraft(next); setArmed(false);
     p.onDraft(next);
   };
   const issues = validateMarine(draft);
   const blocked = issues.some((i) => i.level === 'error');
-  const create = (): void => { if (!blocked) p.onCreate(draft); };
+  const dup = !p.edit && !!p.others && sameMarine(p.others, draft);
+  // a propeller exactly on top of an identical one is allowed, but only on the second click
+  const create = (): void => { if (blocked) return; if (dup && !armed) { setArmed(true); return; } p.onCreate(draft); };
   const onKey = (e: KeyboardEvent): void => {
     const tag = (e.target as HTMLElement).tagName;
     if (e.key === 'Enter' && step === 'review' && tag !== 'SELECT' && tag !== 'BUTTON') { e.preventDefault(); create(); }
@@ -110,6 +116,15 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
           {field('hubLength', t('prop.hubLength'), { unit: 'mm', min: 1, step: 0.5, tip: t('marine.hubLengthTip') })}
           {field('boreDia', t('prop.boreDia'), { unit: 'mm', min: 0, step: 0.5 })}
           {field('blades', t('prop.blades'), { min: 2, max: 6, step: 1, int: true })}
+          <label class="fedit-fld" data-path="shaftZ">
+            <span class="fedit-fld-label">{t('marine.shaftZ')}</span>
+            <span class="fedit-num">
+              <input type="number" inputMode="decimal" enterKeyHint="done" step={1} value={String(draft.shaftZ ?? 0)} aria-label={t('marine.shaftZ')} title={t('marine.shaftZTip')}
+                onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) change({ shaftZ: v }); }} />
+              <span class="fedit-unit">mm</span>
+            </span>
+          </label>
+          {dup ? <div class="thread-fit warn" role="status" data-testid="marine-dup">{t('marine.duplicate')}</div> : null}
           <Seg name="direction" label={t('prop.direction')} value={draft.direction} options={[{ value: 'rh', text: t('marine.direction.rh'), tip: t('marine.direction.rhTip') }, { value: 'lh', text: t('marine.direction.lh'), tip: t('marine.direction.lhTip') }]} onChange={(v) => change({ direction: v })} />
         </div>
       ) : null}
@@ -153,6 +168,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
             {issues.length === 0 ? <div class="thread-fit ok" role="status">{t('prop.issues.none')}</div> : null}
             {issues.map((i, k) => <div key={i.code + k} class={'thread-fit ' + (i.level === 'error' ? 'bad' : 'warn')} role={i.level === 'error' ? 'alert' : 'status'} data-issue={i.code} data-severity={i.level}>{marineIssueText(i)}</div>)}
           </div>
+          {dup ? <div class="thread-fit warn" role="status" data-testid="marine-dup">{t('marine.duplicate')}</div> : null}
           {p.hint ? <div class="fedit-hint" role="alert" data-testid="marine-hint">{p.hint}</div> : null}
           <div class="thread-hint" data-testid="marine-notes">{t('marine.help.build')}</div>
           <div class="thread-hint">{t('marine.help.limits')}</div>
@@ -165,7 +181,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
         <button type="button" class="fedit-card-btn" data-testid="marine-back" disabled={at === 0} onClick={() => setStep(MARINE_STEPS[at - 1])}>{t('prop.back')}</button>
         {step !== 'review'
           ? <button type="button" class="fedit-card-btn" data-testid="marine-next" onClick={() => setStep(MARINE_STEPS[at + 1])}>{t('prop.next')}</button>
-          : <button type="button" class="fedit-card-btn prop-create" data-testid="marine-create" disabled={blocked} aria-disabled={blocked} title={blocked ? t('prop.blockedTip') : p.edit ? t('prop.applyTip') : t('prop.createTip')} onClick={create}>{p.edit ? t('prop.apply') : t('prop.create')}</button>}
+          : <button type="button" class="fedit-card-btn prop-create" data-testid="marine-create" disabled={blocked} aria-disabled={blocked} title={blocked ? t('prop.blockedTip') : p.edit ? t('prop.applyTip') : t('prop.createTip')} onClick={create}>{p.edit ? t('prop.apply') : armed ? t('marine.insertAnyway') : t('prop.create')}</button>}
       </div>
     </div>
   );

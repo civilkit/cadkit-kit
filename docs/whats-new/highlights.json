@@ -1,4 +1,21 @@
 {
+  "0.6.4": [
+    {
+      "id": "spring-wizard",
+      "title": "A Spring wizard for compression springs",
+      "blurb": "On the Features tab, next to Screw and Washer, Spring takes the outside diameter, wire diameter, free length and turns and adds the coil, shows the pitch and the gap between turns and previews it first. Left or right hand, along any axis; a spring() call does the same from a script. The ends are plain wire ends for now."
+    },
+    {
+      "id": "chute-readback",
+      "title": "Slotted sheet metal parts from SolidWorks read back in full",
+      "blurb": "A folded sheet with slots cut through it, such as a chute, no longer stops at an imported remainder with the slots missing. If the sheet cut cannot take a cut, it is applied as a plain cut and the feature row says so."
+    },
+    {
+      "id": "propeller-position",
+      "title": "A second propeller no longer lands on the first",
+      "blurb": "The Marine propeller wizard has a Position along the shaft setting, starts a new propeller behind the ones already in the part, and warns before inserting an identical one at the same place."
+    }
+  ],
   "0.6.3": [
     {
       "id": "chat-panel",

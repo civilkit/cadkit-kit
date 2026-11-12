@@ -12,6 +12,14 @@ Browsers that support installing a site offer it once the site qualifies (it is 
 2. Confirm in the browser's own install dialog.
 3. CivilKit CAD opens in its own window, and it gets an icon you can start from like any other app.
 
+Per platform:
+
+- **Chrome and Edge (desktop):** use the **Install** button, or the install icon at the right end of the address bar. Once installed, double-clicking a `.ckpart` file can open it in the app (choose CivilKit CAD under Open with).
+- **Android (Chrome):** open the browser menu and choose **Install app** (or **Add to Home screen**).
+- **Safari on Mac:** choose **File**, **Add to Dock**.
+- **Safari on iPhone and iPad:** tap **Share**, then **Add to Home Screen**. There is no **Install** button in the top bar on these.
+- **Firefox (desktop):** does not install sites as apps; the app still works offline in a tab.
+
 Notes:
 
 - The button shows only in browsers that offer installation, and only while the app is not already installed. If you do not see it, look for an install option in your browser's menu or address bar.

@@ -22,6 +22,8 @@ export interface BearingParams {
   seal: BearingSeal;
   /** null: the default by size */
   chamfer: number | null;
+  /** a flange on the outer ring (a flanged preset such as F625 sets it; a size typed by hand clears it) */
+  flange: { diameter: number; thickness: number } | null;
   /** open bearings: null is the rule for the count and the race gap for the diameter */
   balls: number | null;
   ballDiameter: number | null;
@@ -38,13 +40,13 @@ export interface BearingParams {
   placedAt: { origin: [number, number, number]; axis: (typeof BEARING_AXES)[number] } | null;
 }
 export const DEFAULT_BEARING: BearingParams = {
-  designation: '608', bore: 8, od: 22, width: 7, seal: '2Z', chamfer: null, balls: null, ballDiameter: null,
+  designation: '608', bore: 8, od: 22, width: 7, seal: '2Z', chamfer: null, flange: null, balls: null, ballDiameter: null,
   origin: [0, 0, 0], axis: 'pz', seatFit: 'h7', seat: false, placedOn: null, placedAt: null,
 };
 
 /** The record with a preset's sizes (and, for a designation with a seal suffix, its seal). */
 export function withPreset(p: BearingParams, preset: BearingPreset, seal?: BearingSeal | null): BearingParams {
-  return { ...p, designation: preset.designation, bore: preset.bore, od: preset.od, width: preset.width, ...(seal ? { seal } : {}), balls: null, ballDiameter: null };
+  return { ...p, designation: preset.designation, bore: preset.bore, od: preset.od, width: preset.width, ...(seal ? { seal } : {}), flange: preset.flange ?? null, balls: null, ballDiameter: null };
 }
 
 /** The sizes and options the model takes for these parameters (balls and ball diameter only apply to an open bearing). */
@@ -52,6 +54,7 @@ export function bearingSpec(p: BearingParams): BearingSpec {
   return {
     bore: p.bore, od: p.od, width: p.width, seal: p.seal,
     ...(p.chamfer !== null ? { chamfer: p.chamfer } : {}),
+    ...(p.flange ? { flange: p.flange } : {}),
     ...(p.seal === 'open' && p.balls !== null ? { balls: p.balls } : {}),
     ...(p.seal === 'open' && p.ballDiameter !== null ? { ballDiameter: p.ballDiameter } : {}),
   };
@@ -82,6 +85,7 @@ export function bearingOpts(p: BearingParams): BearingOpts {
   return {
     bore: s.bore, od: s.od, width: s.width, seal: p.seal,
     ...(s.chamfer !== undefined ? { chamfer: s.chamfer } : {}),
+    ...(s.flange ? { flange: s.flange } : {}),
     ...(s.balls !== undefined ? { balls: s.balls } : {}),
     ...(s.ballDiameter !== undefined ? { ballDiameter: s.ballDiameter } : {}),
     origin: p.origin, axis: AXIS_VEC[p.axis],

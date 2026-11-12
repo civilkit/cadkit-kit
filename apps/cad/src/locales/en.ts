@@ -16,6 +16,7 @@ import { sketch3dStrings } from './sketch3d';
 import { meshStrings } from './mesh';
 import { screwStrings } from './screw';
 import { washerStrings } from './washer';
+import { springStrings } from './spring';
 import { chatStrings } from './chat';
 import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
@@ -302,7 +303,7 @@ export const en: Catalog = {
   'cmd.group-selected': 'Group into folder',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',
   'app.folder.default': 'Folder',
-  'app.tree.menu.edit': 'Edit', 'app.tree.menu.rollback': 'Roll back to here', 'app.tree.menu.hide': 'Hide in the view', 'app.tree.menu.show': 'Show in the view', 'app.tree.menu.selectFaces': 'Select its faces in the view',
+  'app.tree.menu.edit': 'Edit', 'app.tree.menu.rollback': 'Roll back to here', 'app.tree.menu.hide': 'Hide in the view', 'app.tree.menu.show': 'Show in the view', 'app.tree.menu.selectFaces': 'Select its faces in the view', 'app.tree.menu.selectBodies': 'Select its bodies', 'app.tree.menu.collapseAll': 'Collapse all folders',
   'app.tree.menu.sketchOnPlane': 'Sketch on this plane', 'app.tree.menu.editMaterial': 'Change material...',
   'app.folder.menu.group': 'Group into folder', 'app.folder.menu.remove': 'Remove from folder', 'app.folder.menu.rename': 'Rename folder', 'app.folder.menu.ungroup': 'Ungroup',
   'app.folder.menu.delete': 'Delete folder', 'app.folder.menu.renameFeature': 'Rename', 'app.folder.menu.suppress': 'Suppress / unsuppress', 'app.folder.menu.deleteFeature': 'Delete',
@@ -848,7 +849,7 @@ export const en: Catalog = {
   'select.filters': 'Selection filters', 'select.filters.tip': 'Choose what the pointer can pick', 'select.filter.faces': 'Faces', 'select.filter.edges': 'Edges', 'select.filter.vertices': 'Corners',
   'select.filter.bodies': 'Bodies', 'select.filter.sketches': 'Sketches', 'select.filter.planes': 'Planes', 'select.filter.sketches.tip': 'Sketches are picked from the history tree', 'select.filter.off': 'This pick type is off in the selection filters',
   'select.list': 'Selection', 'select.list.empty': 'Nothing selected', 'select.list.remove': 'Remove from selection', 'select.list.clear': 'Clear', 'select.list.show': 'Show the selection list', 'select.list.hide': 'Hide the selection list',
-  'select.chip.reveal': 'Show in tree', 'select.group.none': 'No faces of this group are in the model', 'cmd.show-in-tree': 'Show in tree', 'select.chip.face': 'Face {name}', 'select.chip.edge': 'Edge {n}', 'select.chip.corner': 'Corner {n}', 'select.chip.body': 'Body {n}', 'select.chip.surface': 'Surface body {n}', 'select.chip.part': 'Whole part',
+  'select.chip.reveal': 'Show in tree', 'select.group.none': 'No faces of this group are in the model', 'select.bodies.none': 'This feature has no body in the result (it may have been removed or consumed by a later feature)', 'cmd.show-in-tree': 'Show in tree', 'select.chip.face': 'Face {name}', 'select.chip.edge': 'Edge {n}', 'select.chip.corner': 'Corner {n}', 'select.chip.body': 'Body {n}', 'select.chip.surface': 'Surface body {n}', 'select.chip.part': 'Whole part',
   'select.box.window': 'Window: drag right to pick what is fully inside', 'select.box.crossing': 'Crossing: drag left to pick what the box touches', 'select.box.on': 'Box select is on. Drag a box in the view; Shift adds', 'select.box.hint': 'Shift+drag from empty space also draws a box',
   'select.sum.face': '{n} face', 'select.sum.faces': '{n} faces', 'select.sum.edge': '{n} edge', 'select.sum.edges': '{n} edges', 'select.sum.corner': '{n} corner', 'select.sum.corners': '{n} corners', 'select.sum.body': '{n} body', 'select.sum.bodies': '{n} bodies',
   'app.status.selection': 'Selected',
@@ -1144,6 +1145,7 @@ export const en: Catalog = {
   ...meshStrings,
   ...screwStrings,
   ...washerStrings,
+  ...springStrings,
   ...chatStrings,
   ...bearingStrings,
   ...impellerStrings,

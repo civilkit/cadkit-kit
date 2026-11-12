@@ -1797,6 +1797,25 @@
   "washer.issue.outer",
   "washer.issue.thickness"
  ],
+ "spring.hand.+": [
+  "spring.hand.left",
+  "spring.hand.right"
+ ],
+ "spring.axis.+": [
+  "spring.axis.nx",
+  "spring.axis.ny",
+  "spring.axis.nz",
+  "spring.axis.px",
+  "spring.axis.py",
+  "spring.axis.pz"
+ ],
+ "spring.issue.+": [
+  "spring.issue.coils",
+  "spring.issue.length",
+  "spring.issue.outer",
+  "spring.issue.pitch",
+  "spring.issue.wire"
+ ],
  "bearing.seal.+": [
   "bearing.seal.open",
   "bearing.seal.seal",

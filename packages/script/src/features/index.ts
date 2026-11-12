@@ -7,13 +7,14 @@ import { knurlFeatures } from './knurl';
 import { miscFeatures } from './misc';
 import { screwFeatures } from './screw';
 import { washerFeatures } from './washer';
+import { springFeatures } from './spring';
 import { sheetFeatures } from './sheet';
 import { shapeFeatures } from './shapes';
 import { sketchCurves } from './sketchCurves';
 import { sketchOffset } from './sketchOffset';
 import { sketchPattern } from './sketchPattern';
 
-export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...bearingFeatures, ...sheetFeatures };
+export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...springFeatures, ...bearingFeatures, ...sheetFeatures };
 export const sketchFeatures = { ...sketchCurves, ...sketchPattern, ...sketchOffset };
 
 declare module '../recorder' {

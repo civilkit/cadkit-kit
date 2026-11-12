@@ -2345,6 +2345,28 @@
    "notes": "- Fillet or chamfer the OUTSIDE edges before shelling; shelling a rounded box keeps even walls.\n- The selected face is REMOVED (the opening). To close the box again sketch a lid on the rim face and extrude it (recipe hollow-box-lid).\n- A thickness that is too big gives shellTooThick / shellFailed with maxThickness in the error."
   },
   {
+   "id": "part.spring",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".spring(o: SpringOpts)",
+   "summary": "A compression spring as its own body.",
+   "description": "A round wire wound as a helix, placed by an origin and an axis. Give the outer diameter, wire diameter, free length and number of turns in mm: spring({ outer: 20, wire: 2, length: 40, coils: 10 }). The spring occupies exactly `length` along the axis from `origin` (the wire's end faces touch the two end planes), the pitch is (length - wire) / coils and it must be larger than the wire diameter, or the turns would touch. axis must lie along x, y or z (either direction); a right-hand spring winds counter-clockwise looking against the axis, as every standard spring does whichever way it points. The ends are the plain ends of the wire: there are no ground or closed ends yet.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "SpringOpts",
+     "optional": false,
+     "description": "options object { outer, wire, length, coils, hand, origin, axis, name }, the fields below"
+    }
+   ],
+   "example": "part('Plunger').sketch('front', (s) => s.circle(8)).extrude(30)\n  .spring({ outer: 14, wire: 1.2, length: 25, coils: 8, origin: [0, 0, 30], axis: [0, 0, 1] });",
+   "related": [
+    "washer",
+    "screw",
+    "part.sweep"
+   ]
+  },
+  {
    "id": "part.sweep",
    "kind": "method",
    "domain": "features",
@@ -2555,6 +2577,27 @@
    "example": "screw({ size: 'M3', length: 8, head: 'pan', drive: 'cross', origin: [10, 0, 5], axis: [0, 0, -1] });",
    "related": [
     "part.screw"
+   ]
+  },
+  {
+   "id": "spring",
+   "kind": "function",
+   "domain": "features",
+   "signature": "spring(o: SpringOpts): PartBuilder",
+   "summary": "A compression spring as its own body.",
+   "description": "The free-function form of part.spring: spring({ outer: 20, wire: 2, length: 40, coils: 10 }) adds a spring to the current model (a new part when there is none) and returns it. The spring fills `length` along the axis from `origin` (default [0, 0, 0], axis [0, 0, 1]); axis must lie along x, y or z. hand 'left' winds the other way. Plain wire ends, no ground ends yet.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "SpringOpts",
+     "optional": false,
+     "description": "options object, see part.spring"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "spring({ outer: 20, wire: 2, length: 40, coils: 10 });",
+   "related": [
+    "part.spring"
    ]
   },
   {

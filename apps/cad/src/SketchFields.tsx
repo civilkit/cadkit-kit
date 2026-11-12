@@ -13,6 +13,15 @@ export const parseTyped = (text: string): number | null => {
   return text.trim() !== '' && Number.isFinite(n) ? n : null;
 };
 
+/** ArrowUp / ArrowDown on a value box: the typed number one step up or down (1; Shift 10; Alt 0.1; a count steps by whole numbers, at least 1).
+ *  Only a plain number is stepped: an expression or a name is left alone (null). */
+export function stepText(text: string, dir: 1 | -1, mod: { shift?: boolean; alt?: boolean } = {}, integer = false): string | null {
+  const n = parseTyped(text);
+  if (n === null) return null;
+  const step = integer ? (mod.shift ? 10 : 1) : mod.shift ? 10 : mod.alt ? 0.1 : 1;
+  return String(Math.round((n + dir * step) * 1e9) / 1e9);
+}
+
 /** One field. Takes a number or an expression (`=w*2`, a variable name): while it has focus it shows exactly what was typed;
  *  the evaluated value drives the live preview and, on Enter or Tab, the expression is kept with the dimension.
  *  `name = value` defines the parameter `name` (when the owner takes `onDefine`) and links the field to it. */
@@ -63,6 +72,14 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
           latest.current = null;
           const next = el.closest('.sketch-fields')?.querySelectorAll<HTMLInputElement>('input')[p.index + 1];
           if (e.key === 'Tab' && next) { next.focus(); next.select(); } else el.blur();
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && el.tagName === 'INPUT') {
+          const next = stepText(el.value, e.key === 'ArrowUp' ? 1 : -1, { shift: e.shiftKey, alt: e.altKey }, f.unit === 'count');
+          if (next === null) return;   // an expression: the key keeps whatever it did
+          e.preventDefault();
+          e.stopPropagation();
+          el.value = next;
+          el.dispatchEvent(new Event('input', { bubbles: true }));   // the live preview follows, as with typing
+          el.setSelectionRange(next.length, next.length);
         } else if (e.key === 'Escape' || e.keyCode === 27) {
           e.preventDefault();
           e.stopPropagation();

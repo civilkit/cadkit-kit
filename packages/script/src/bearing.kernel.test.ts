@@ -200,3 +200,16 @@ describe('bearing(): the free function, several bearings and errors', () => {
     }, 120_000);
   }
 });
+
+describe('bearing(): flanged F625', () => {
+  it('builds valid, the outer ring is as wide as the flange and its volume matches the revolved profile', async () => {
+    const { run, bodies } = await build(`part('B').bearing({ designation: 'F625', seal: '2Z' });`);
+    expect(run.ok, JSON.stringify(run.errors)).toBe(true);
+    expect(bodies.length).toBe(2);
+    const outer = bodies.find((b) => /outer/.test(b.name))!;
+    near(outer.bbox.size[0], 18, 0.001);   // flange D1 across the ring's axis directions (z is the bearing axis)
+    near(outer.bbox.size[2], 5, 0.001);
+    const m = bearingModel(spec({ bore: 5, od: 16, width: 5, seal: '2Z', flange: { diameter: 18, thickness: 1 } }));
+    near(outer.volume, revolved(outerRingProfile(m, 2000)), 0.002);
+  });
+});

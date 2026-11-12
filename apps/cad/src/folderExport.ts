@@ -41,6 +41,13 @@ export function folderBodyRows(ids: ReadonlySet<string>, rows: readonly BodyRow[
   return rows.filter((r) => r.faces.some((f) => faceFeatures(f).some((id) => ids.has(id))));
 }
 
+/**
+ * The bodies of `rows` that feature `id` made or changed: the ones carrying a face named after it, a pattern's or mirror's copy of it
+ * included (`faceFeatures`). Only bodies that exist in the result can be listed: a body the feature consumed or removed (a cut that swallows
+ * a whole tool, a combine, Delete body) is not reported by the kernel, so it can never show up here.
+ */
+export const bodiesOfFeature = (id: string, rows: readonly BodyRow[]): BodyRow[] => folderBodyRows(new Set([id]), rows);
+
 /** The document with a `deleteBody` (keep) at the end that leaves only `bodies`. Not saved anywhere: the scratch copy the export builds. */
 export function keepOnlyDoc(doc: PartDoc, bodies: readonly BodyRow[]): PartDoc {
   const used = new Set(doc.features.map((f) => f.id));

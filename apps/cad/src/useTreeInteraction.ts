@@ -38,6 +38,8 @@ export interface TreeInteractionDeps {
   toggleHide?(id: string): void;
   /** Pick in the view the faces a feature made. */
   selectFaces?(id: string): void;
+  /** Pick in the Bodies list the bodies a feature made or changed. */
+  selectBodies?(id: string): void;
   /** The menu of a fixed row (a plane, the material): its rows and what runs them; null for a row with nothing to offer. */
   refMenu?(id: string): { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null;
 }
@@ -127,7 +129,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
   const removeFromFolder = (ids: string[]) => void apply(removeFromFolderPlan(d.rows(), feats, ids));
   const onDropOn = (drag: TreeDrop, target: TreeDrop) => void apply(dropPlan(d.rows(), feats, drag, target));
   const planText = (p: Plan): { enabled: boolean; reason?: string } => (p.ok ? { enabled: true } : { enabled: false, reason: refusal(p.reason, p.detail) });
-  const openMenu = (target: TreeDrop, x: number, y: number, acts?: { rollbackHere(): void }) => {
+  const openMenu = (target: TreeDrop, x: number, y: number, acts?: { rollbackHere?(): void; collapseAllFolders(): void }) => {
     const rows = d.rows();
     if (target.kind === 'folder') {
       const name = target.name;
@@ -143,6 +145,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
           { id: 'extract-folder', label: t('app.folder.menu.extract'), enabled: true },
           { id: '-', label: '', enabled: false, separator: true },
           { id: 'delete-folder', label: t('app.folder.menu.delete'), enabled: true },
+          ...(acts ? [{ id: '-', label: '', enabled: false, separator: true }, { id: 'collapse-all', label: t('app.tree.menu.collapseAll'), enabled: true }] : []),
         ],
         run: (id) => {
           if (id === 'rename-folder') setRenaming('@g:' + name);
@@ -150,6 +153,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
           else if (id.startsWith('export-folder-')) d.exportFolder(name, folderIds(rows, feats, name), id.slice('export-folder-'.length) as 'step' | 'stl' | 'ckpart');
           else if (id === 'extract-folder') d.extractFolder(name, folderIds(rows, feats, name));
           else if (id === 'delete-folder') void deleteIds(folderIds(rows, feats, name));
+          else if (id === 'collapse-all') acts?.collapseAllFolders();
         },
       });
       return;
@@ -161,9 +165,10 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       x, y,
       items: [
         { id: 'edit', label: t('app.tree.menu.edit'), enabled: picked.length === 1 },
-        ...(acts ? [{ id: 'rollback-here', label: t('app.tree.menu.rollback'), enabled: picked.length === 1 }] : []),
+        ...(acts?.rollbackHere ? [{ id: 'rollback-here', label: t('app.tree.menu.rollback'), enabled: picked.length === 1 }] : []),
         ...(d.toggleHide ? [{ id: 'toggle-hide', label: t(picked.every((id) => d.isHidden?.(id)) ? 'app.tree.menu.show' : 'app.tree.menu.hide'), enabled: true }] : []),
         ...(d.selectFaces && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-faces', label: t('app.tree.menu.selectFaces'), enabled: picked.length === 1 }] : []),
+        ...(d.selectBodies && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-bodies', label: t('app.tree.menu.selectBodies'), enabled: picked.length === 1 }] : []),
         { id: '-', label: '', enabled: false, separator: true },
         { id: 'group', label: t('app.folder.menu.group'), keys: 'Ctrl+G', ...planText(groupPlan(rows, feats, picked, t('app.folder.default'))) },
         ...(inFolder ? [{ id: 'remove-from-folder', label: t('app.folder.menu.remove'), ...planText(removeFromFolderPlan(rows, feats, picked)) }] : []),
@@ -171,17 +176,20 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
         { id: 'rename', label: t('app.folder.menu.renameFeature'), keys: 'F2', enabled: picked.length === 1 },
         { id: 'suppress', label: t('app.folder.menu.suppress'), keys: 'Ctrl+Shift+U', enabled: true },
         { id: 'delete', label: t('app.folder.menu.deleteFeature'), keys: 'Delete', enabled: true },
+        ...(acts ? [{ id: '-', label: '', enabled: false, separator: true }, { id: 'collapse-all', label: t('app.tree.menu.collapseAll'), enabled: true }] : []),
       ],
       run: (id) => {
         if (id === 'group') void groupInto(picked);
         else if (id === 'edit') d.startEditing(picked[0]);
-        else if (id === 'rollback-here') acts?.rollbackHere();
+        else if (id === 'rollback-here') acts?.rollbackHere?.();
         else if (id === 'toggle-hide') { const show = picked.every((x) => d.isHidden?.(x)); for (const x of picked) if (!!d.isHidden?.(x) === show) d.toggleHide?.(x); }
         else if (id === 'select-faces') d.selectFaces?.(picked[0]);
+        else if (id === 'select-bodies') d.selectBodies?.(picked[0]);
         else if (id === 'remove-from-folder') removeFromFolder(picked);
         else if (id === 'rename') setRenaming(picked[0]);
         else if (id === 'suppress') void suppressIds(picked);
         else if (id === 'delete') void deleteIds(picked);
+        else if (id === 'collapse-all') acts?.collapseAllFolders();
       },
     });
   };

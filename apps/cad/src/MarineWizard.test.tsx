@@ -6,10 +6,10 @@ import './i18n';
 
 afterEach(() => cleanup());
 
-function mount(params: MarineParams = DEFAULT_MARINE, o: { edit?: boolean; name?: string; step?: MarineStep; hint?: string } = {}) {
+function mount(params: MarineParams = DEFAULT_MARINE, o: { edit?: boolean; name?: string; step?: MarineStep; hint?: string; others?: MarineParams[] } = {}) {
   const drafts: MarineParams[] = [], creates: MarineParams[] = [], families: string[] = [];
   let cancelled = 0;
-  const r = render(<MarineWizard params={params} edit={o.edit} name={o.name} step={o.step} hint={o.hint} onDraft={(d) => drafts.push(d)} onCreate={(d) => creates.push(d)} onCancel={() => { cancelled++; }} onFamily={(f) => families.push(f)} />);
+  const r = render(<MarineWizard params={params} others={o.others} edit={o.edit} name={o.name} step={o.step} hint={o.hint} onDraft={(d) => drafts.push(d)} onCreate={(d) => creates.push(d)} onCancel={() => { cancelled++; }} onFamily={(f) => families.push(f)} />);
   const q = (sel: string) => r.container.querySelector(sel) as HTMLElement;
   const input = (path: string) => r.container.querySelector(`[data-path="${path}"] input`) as HTMLInputElement;
   const set = (path: string, v: string) => fireEvent.change(input(path), { target: { value: v } });
@@ -141,5 +141,50 @@ describe('MarineWizard', () => {
         expect(txt, i.code).not.toMatch(/^marine\.issue\./);
       }
     }
+  });
+
+  it('a first propeller starts at the origin; a second one starts behind the first (a free position), not on top of it', () => {
+    const first = mount();
+    expect(first.drafts[0].shaftZ).toBeUndefined();
+    expect(first.input('shaftZ').value).toBe('0');
+    cleanup();
+    const second = mount(DEFAULT_MARINE, { others: [DEFAULT_MARINE] });
+    expect(second.drafts[0].shaftZ).toBe(DEFAULT_MARINE.hubLength);
+    expect(second.input('shaftZ').value).toBe(String(DEFAULT_MARINE.hubLength));
+    expect(second.q('[data-testid="marine-dup"]')).toBeNull();
+  });
+
+  it('the position can be typed; it goes into the draft', () => {
+    const m = mount();
+    m.set('shaftZ', '75');
+    expect(m.drafts.at(-1)!.shaftZ).toBe(75);
+  });
+
+  it('identical settings at the same position warn, and the user can still insert: Create asks once, "Insert anyway" creates', () => {
+    const m = mount(DEFAULT_MARINE, { others: [DEFAULT_MARINE] });
+    m.set('shaftZ', '0');
+    expect(m.q('[data-testid="marine-dup"]').textContent).toContain('already at this position');
+    m.go('review');
+    expect(m.q('[data-testid="marine-dup"]')).toBeTruthy();
+    fireEvent.click(m.q('[data-testid="marine-create"]'));
+    expect(m.creates.length).toBe(0);
+    expect(m.q('[data-testid="marine-create"]').textContent).toBe('Insert anyway');
+    fireEvent.click(m.q('[data-testid="marine-create"]'));
+    expect(m.creates.length).toBe(1);
+    expect(m.creates[0].shaftZ).toBe(0);
+  });
+
+  it('moving the propeller or changing a setting clears the warning and a single click creates; an edit never warns about itself', () => {
+    const m = mount(DEFAULT_MARINE, { others: [DEFAULT_MARINE] });
+    m.set('shaftZ', '0');
+    m.set('shaftZ', '200');
+    expect(m.q('[data-testid="marine-dup"]')).toBeNull();
+    m.go('review');
+    fireEvent.click(m.q('[data-testid="marine-create"]'));
+    expect(m.creates.length).toBe(1);
+    cleanup();
+    const e = mount(DEFAULT_MARINE, { edit: true, others: [DEFAULT_MARINE] });
+    expect(e.q('[data-testid="marine-dup"]')).toBeNull();
+    expect(e.drafts.length).toBe(0);
   });
 });

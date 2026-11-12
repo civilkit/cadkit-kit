@@ -59,6 +59,8 @@ export interface Actions {
   screw?(): void;
   /** Open the Washer wizard (see WasherWizard.tsx). */
   washer?(): void;
+  /** Open the Spring wizard (see SpringWizard.tsx). */
+  spring?(): void;
   /** Open the 3D Sketch tool (sketch3d/Sketch3dPanel.tsx). */
   sketch3d?(): void;
   /** Open the Frame panel (frame/FramePanel.tsx) and the drawing of the part's frames with the cut list and bill of materials (frame/frameDrawing.ts). */
@@ -192,6 +194,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.cutList) cmds.push({ id: 'frame-cutlist', label: t('cmd.frame-cutlist'), tab: 'Frame', group: 'Frame', enabled: a.hasDocument, run: a.cutList });
   if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
   if (a.washer) cmds.push({ id: 'add-washer', label: t('cmd.add-washer'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.washer });
+  if (a.spring) cmds.push({ id: 'add-spring', label: t('cmd.add-spring'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.spring });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });
   if (a.script) cmds.push({ id: 'open-script', label: t('cmd.open-script'), tab: 'Home', group: 'Features', run: a.script });

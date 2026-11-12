@@ -50,6 +50,8 @@ export interface MarineParams {
   edgeThick: number;
   /** Rounding of the blade tip: the outer fraction of the span (0..0.4) over which the chord closes off along an ellipse. 0 = the square-cut tip of the earlier generator. */
   tipRounding: number;
+  /** Where the hub's middle sits along the shaft axis (world Z), mm. Absent or 0 = at the origin. The wizard picks a free value for a second propeller. */
+  shaftZ?: number;
 }
 
 export const DEFAULT_MARINE: MarineParams = {
@@ -332,7 +334,7 @@ export const marineSpacings = (sp: number): number[] => [sp, ...[7, 6, 4, 3].fil
 type Feat = { id: string; type: string; [k: string]: unknown };
 /** Roles in feature order: the hub, the helicoid stations, the helicoid loft, the blade (thicken), the pattern, the bore. */
 export function marineRoles(p: MarineParams): string[] {
-  const roles = ['hubSketch', 'hub'];
+  const roles = p.shaftZ ? ['zPlane', 'hubSketch', 'hub'] : ['hubSketch', 'hub'];
   const st = helicoidStations(p);
   st.psi.forEach((_x, i) => roles.push('plane' + i, 'sec' + i));
   roles.push('blade', 'pattern');
@@ -363,8 +365,8 @@ export function calmOffsets(a: number[]): number[] {
 }
 const CALM_LIMIT = 0.3;
 
-const circleSketch = (id: string, name: string, dia: number): Feat => ({
-  type: 'sketch', id, name, plane: { kind: 'std', id: 'front' }, points: [{ id: 'p1', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'e1', c: 'p1', r: round(dia / 2) }],
+const circleSketch = (id: string, name: string, dia: number, plane: unknown = { kind: 'std', id: 'front' }): Feat => ({
+  type: 'sketch', id, name, plane, points: [{ id: 'p1', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'e1', c: 'p1', r: round(dia / 2) }],
   constraints: [{ id: 'k1', type: 'diameter', refs: ['e1'], value: round(dia) }],
 });
 
@@ -372,7 +374,11 @@ export function marineFeatures(p: MarineParams, ids: Record<string, string>): Fe
   const record = { ...p, family: 'marine', roles: Object.fromEntries(Object.entries(ids).map(([k, v]) => [k, Number(v.slice(1))])) };
   const st = helicoidStations(p);
   const out: Feat[] = [];
-  const hub = circleSketch(ids.hubSketch, 'Propeller hub sketch', p.hubDia);
+  // a propeller away from the origin along the shaft: the hub and bore sketches sit on a plane offset by shaftZ and the section points are raised by it
+  const z0 = round(p.shaftZ ?? 0);
+  const hubPlane = z0 ? { kind: 'feature', id: ids.zPlane } : { kind: 'std', id: 'front' };
+  if (z0) out.push({ type: 'plane', id: ids.zPlane, name: 'Propeller position plane', mode: 'offset', base: { kind: 'std', id: 'front' }, offset: z0, visible: false });
+  const hub = circleSketch(ids.hubSketch, 'Propeller hub sketch', p.hubDia, hubPlane);
   hub.prop = record;
   out.push(hub);
   out.push({ type: 'extrude', id: ids.hub, name: 'Propeller hub', op: 'add', sketch: ids.hubSketch, end: 'mid', depth: round(p.hubLength) });
@@ -383,7 +389,7 @@ export function marineFeatures(p: MarineParams, ids: Record<string, string>): Fe
     out.push({ type: 'plane', id: ids['plane' + i], name: `Blade plane ${i + 1}`, mode: 'angle', base: { kind: 'std', id: 'right' }, axis: { kind: 'axis', axis: 'z' }, angle: round(((psi * 180) / Math.PI) + 90, 5) });
     // face (a line when it is straight in this plane, which it is for the linear pitch law: z(r) = P(r) phi / 2 pi + tan(rake) (r - hubR) is linear in r; a spline through
     // points when it is not), tip end, back spline (face + the axial thickness that makes the thickness NORMAL to the face, not linear in radius), root end
-    const zf = (r: number): number => faceZ(p, phi, r);
+    const zf = (r: number): number => faceZ(p, phi, r) + z0;
     const K = BACK_POINTS;
     const back: Array<[number, number]> = [];
     const rs = backFractions(K).map((u) => rb + (ra - rb) * u);
@@ -412,7 +418,7 @@ export function marineFeatures(p: MarineParams, ids: Record<string, string>): Fe
   out.push({ type: 'loft', id: ids.blade, name: 'Propeller blade', op: 'add', sketches: st.psi.map((_x, i) => ids['sec' + i]) });
   out.push({ type: 'cpattern', id: ids.pattern, name: 'Propeller blades', seeds: [ids.blade], axis: { kind: 'axis', axis: 'z' }, count: p.blades, angle: 360, equal: true });
   if (p.boreDia > 0) {
-    out.push(circleSketch(ids.boreSketch, 'Propeller bore sketch', p.boreDia));
+    out.push(circleSketch(ids.boreSketch, 'Propeller bore sketch', p.boreDia, hubPlane));
     out.push({ type: 'extrude', id: ids.bore, name: 'Propeller bore', op: 'cut', sketch: ids.boreSketch, end: 'throughBoth', depth: 10 });
   }
   return out;
@@ -522,4 +528,37 @@ export function marinePlan(doc: { features: Array<{ id?: string }>; seq?: number
   for (const r of wanted) ids[r] = `F${n++}`;
   const feats = marineFeatures(p, ids);
   return { before, patch: groupPatch({ variables: vars, append: feats as unknown as Array<Record<string, unknown>>, seq: start + feats.length }, wizardGroupName(doc.features, t('marine.title'), existing)) };
+}
+
+// ---- several propellers in one part: the same settings at the same place, and a free place ----
+
+const SAME_KEYS = (a: MarineParams, b: MarineParams): boolean =>
+  ([...Object.keys(DEFAULT_MARINE), 'shaftZ'] as Array<keyof MarineParams>).every((k) => a[k] === b[k]);
+
+/** The settings of every marine propeller in the document (the one whose hub sketch is `exceptHub` left out: the one being edited). */
+export function marineOthers(features: unknown[], exceptHub?: string): MarineParams[] {
+  const out: MarineParams[] = [];
+  for (const f of features as Array<{ id?: string }>) {
+    const g = readMarine(f);
+    if (g && f.id !== exceptHub) out.push(g.params);
+  }
+  return out;
+}
+
+/** True when one of `others` has the same settings as `p` at the same position along the shaft: building `p` would put a copy of it exactly on top (the kernel then
+ *  spends minutes on the coincident solids, kit issue 34). The ray spacing the build retries with is not a setting of the propeller. */
+export function sameMarine(others: readonly MarineParams[], p: MarineParams): boolean {
+  const key = (q: MarineParams): MarineParams => ({ ...DEFAULT_MARINE, ...q, shaftZ: q.shaftZ ?? 0, raySpacing: 0 });
+  return others.some((o) => SAME_KEYS(key(o), key(p)));
+}
+
+/** The first position along the shaft, from `p.shaftZ` on, where the hub of `p` does not overlap the hub of another propeller: behind it, one hub length apart. */
+export function freeShaftZ(others: readonly MarineParams[], p: MarineParams): number {
+  let z = p.shaftZ ?? 0;
+  for (let n = 0; n <= others.length; n++) {
+    const hit = others.find((o) => Math.abs(z - (o.shaftZ ?? 0)) < (o.hubLength + p.hubLength) / 2 - 1e-9);
+    if (!hit) break;
+    z = Math.ceil((hit.shaftZ ?? 0) + (hit.hubLength + p.hubLength) / 2);
+  }
+  return z;
 }

@@ -26,14 +26,16 @@ function apply(fs: F[], ops: EditOp[]): F[] {
   return out;
 }
 
-function setup() {
+function setup(init: F[] = start()) {
+  localStorage.clear();   // the open / closed choice of folders is remembered per document
   const store = createStore();
   const notify = vi.spyOn(store, 'notify');
   const edits: EditOp[][] = [];
   const exported: Array<{ name: string; ids: string[]; format: string }> = [];
   const extracted: Array<{ name: string; ids: string[] }> = [];
+  const bodiesPicked: string[] = [];
   let api!: ReturnType<typeof useTreeInteraction>;
-  let current: F[] = start();
+  let current: F[] = init;
   function Harness() {
     const [features, setFeatures] = useState<F[]>(current);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -49,7 +51,7 @@ function setup() {
         } } as never,
       store, viewport: () => null, selectedId, setSelectedId, setRefSel: () => {}, redraw: () => {},
       edit: async (ops) => { edits.push(ops); current = apply(ref.current, ops); setFeatures(current); }, startEditing: () => {}, rows: () => rows,
-      exportFolder: (name, ids, format) => { exported.push({ name, ids, format }); }, extractFolder: (name, ids) => { extracted.push({ name, ids }); },
+      exportFolder: (name, ids, format) => { exported.push({ name, ids, format }); }, extractFolder: (name, ids) => { extracted.push({ name, ids }); }, selectBodies: (id) => { bodiesPicked.push(id); },
     });
     return (
       <div>
@@ -65,7 +67,7 @@ function setup() {
   const feats = () => current;
   /** The name field of a row or folder in rename mode (it appears a render after the edit lands). */
   const field = () => waitFor(() => { const i = r.container.querySelector('input.inline-name'); if (!i) throw new Error('no field'); return i as HTMLInputElement; });
-  return { r, row, folder, menuRow, field, feats, edits, notify, exported, extracted, api: () => api };
+  return { r, row, folder, menuRow, field, feats, edits, notify, exported, extracted, bodiesPicked, api: () => api };
 }
 
 describe('folders in the tree', () => {
@@ -135,6 +137,37 @@ describe('folders in the tree', () => {
     expect(w.folder('Folder')).toBeNull();
     expect(w.feats().map((f) => f.id)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']);
     expect(w.feats().some((f) => 'group' in f)).toBe(false);
+  });
+
+  const threeFolders = (): F[] => [
+    { id: 'A1', type: 'sketch', group: 'A' }, { id: 'A2', type: 'extrude', sketch: 'A1', group: 'A' },
+    { id: 'B1', type: 'sketch', group: 'B' }, { id: 'B2', type: 'extrude', sketch: 'B1', group: 'B' },
+    { id: 'C1', type: 'sketch', group: 'C' }, { id: 'C2', type: 'extrude', sketch: 'C1', group: 'C' },
+  ];
+  const open = (w: ReturnType<typeof setup>, name: string) => w.folder(name)!.querySelector('.folder-toggle')!.getAttribute('aria-expanded');
+
+  it('Collapse all folders on a folder closes the others and keeps that one open', async () => {
+    const w = setup(threeFolders());
+    expect(['A', 'B', 'C'].map((n) => open(w, n))).toEqual(['true', 'true', 'true']);
+    fireEvent.contextMenu(w.folder('B')!);
+    await act(async () => { fireEvent.click(w.menuRow('Collapse all folders')!); });
+    expect(['A', 'B', 'C'].map((n) => open(w, n))).toEqual(['false', 'true', 'false']);
+  });
+
+  it('Collapse all folders on a row keeps the folder that holds the row open', async () => {
+    const w = setup(threeFolders());
+    fireEvent.contextMenu(w.row('C2'));
+    await act(async () => { fireEvent.click(w.menuRow('Collapse all folders')!); });
+    expect(['A', 'B', 'C'].map((n) => open(w, n))).toEqual(['false', 'false', 'true']);
+  });
+
+  it('a feature menu offers Select its bodies, and not on a sketch', async () => {
+    const w = setup();
+    fireEvent.contextMenu(w.row('F2'));
+    await act(async () => { fireEvent.click(w.menuRow('Select its bodies')!); });
+    expect(w.bodiesPicked).toEqual(['F2']);
+    fireEvent.contextMenu(w.row('F1'));
+    expect(w.menuRow('Select its bodies')).toBeUndefined();
   });
 
   it('the folder menu exports the folder\'s geometry in three formats and extracts it as a part, naming the folder and its rows', async () => {

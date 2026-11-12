@@ -27,6 +27,8 @@ export interface CatalogPanelProps {
   onScrew?(): void;
   /** Opens the Washer wizard (omitted: no Washer button). */
   onWasher?(): void;
+  /** Opens the Spring wizard (omitted: no Spring button). */
+  onSpring?(): void;
   /** Opens the Bearing wizard (omitted: no Bearing button). */
   onBearing?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
@@ -70,7 +72,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onBearing }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onSpring, onBearing }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -132,6 +134,12 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
                   <button class="cat-item" data-item="washer" title={t('tip.add-washer')} onClick={onWasher}>
                     <Icon name="add-washer" size={26} />
                     <span class="cat-name">{t('cmd.add-washer')}</span>
+                  </button>
+                ) : null}
+                {onSpring ? (
+                  <button class="cat-item" data-item="spring" title={t('tip.add-spring')} onClick={onSpring}>
+                    <Icon name="add-spring" size={26} />
+                    <span class="cat-name">{t('cmd.add-spring')}</span>
                   </button>
                 ) : null}
                 {onBearing ? (

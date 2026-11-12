@@ -8,6 +8,7 @@ export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
 import type { ScrewOpts } from './features/screw';
 import type { WasherOpts } from './features/washer';
+import type { SpringOpts } from './features/spring';
 import type { BearingOpts } from './features/bearing';
 import { applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './features/h';
 import type { CosmeticKnurl } from './cosmeticKnurl';
@@ -1693,6 +1694,21 @@ export function makeApi(state: ScriptState) {
       let p = state.parts.at(-1);
       if (!p) { p = new PartBuilder('Washer'); state.parts.push(p); }
       return p.washer(o);
+    },
+    /**
+     * A compression spring as its own body.
+     *
+     * The free-function form of part.spring: spring({ outer: 20, wire: 2, length: 40, coils: 10 }) adds a spring to the current model (a new part when there is none) and returns it. The spring fills `length` along the axis from `origin` (default [0, 0, 0], axis [0, 0, 1]); axis must lie along x, y or z. hand 'left' winds the other way. Plain wire ends, no ground ends yet.
+     * @domain features
+     * @param o options object, see part.spring
+     * @example
+     * spring({ outer: 20, wire: 2, length: 40, coils: 10 });
+     * @see part.spring
+     */
+    spring: (o: SpringOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Spring'); state.parts.push(p); }
+      return p.spring(o);
     },
     /**
      * A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.

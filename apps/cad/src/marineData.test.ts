@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MARINE, MARINE_SAMPLE, MarineError, axialThickness, faceSlopeR, faceZ, halfWidthAt, marineReadout as readoutOf, marineSpacings, pitchAt, chordAt, chordMax, edgeAngles, helicoidPoint, helicoidStations, hubLengthNeeded, marineDocument, marineErrors, marineFeatures, marineReadout, marineRoles,
-  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, BACK_POINTS, EDGE_MIN_MM, backFractions, calmOffsets, chordAngle, chordFraction, edgeFraction, foilMean, foilProfile, thicknessLocal, marineOps, marinePlan, marineOwner, readMarine, type MarineParams,
+  marineSpan, midAngleAt, pitchAngleAt, rayInterval, thicknessAt, validateMarine, BACK_POINTS, EDGE_MIN_MM, backFractions, calmOffsets, chordAngle, chordFraction, edgeFraction, foilMean, foilProfile, thicknessLocal, marineOps, marinePlan, marineOwner, readMarine, marineOthers, sameMarine, freeShaftZ, type MarineParams,
 } from './marineData';
 import { DEFAULT_PROP, propFeatures, readProp, rolesFor } from './propData';
 
@@ -599,5 +599,60 @@ describe('marine sample', () => {
     expect(list.find((x) => x.id === 'marine-propeller')?.file).toBe('marine-propeller.ckpart');
     const allow = JSON.parse(readFileSync('apps/cad/pages-samples.allow.json', 'utf8')) as { samples: string[] };
     expect(allow.samples).toContain('marine-propeller');
+  });
+});
+
+describe('several marine propellers in one part (kit issue 34)', () => {
+  const docWith = (...ps: MarineParams[]) => {
+    const features: Array<{ id?: string }> = [];
+    for (const p of ps) { const d = marinePlan({ features, seq: 1 + features.length }, p); features.push(...(d.patch.append as Array<{ id?: string }>)); }
+    return features;
+  };
+
+  it('sameMarine: identical settings at the same position match; another size, direction or position does not; the ray spacing does not count', () => {
+    const base = P();
+    expect(sameMarine([], base)).toBe(false);
+    expect(sameMarine([base], P())).toBe(true);
+    expect(sameMarine([base], P({ shaftZ: 0 }))).toBe(true);
+    expect(sameMarine([base], P({ raySpacing: 6 }))).toBe(true);
+    expect(sameMarine([base], P({ diameter: 200 }))).toBe(false);
+    expect(sameMarine([base], P({ direction: 'lh' }))).toBe(false);
+    expect(sameMarine([base], P({ shaftZ: 120 }))).toBe(false);
+    expect(sameMarine([P({ shaftZ: 120 }), base], P({ shaftZ: 120 }))).toBe(true);
+  });
+
+  it('marineOthers reads the settings of the propellers in the document and leaves out the one being edited', () => {
+    const feats = docWith(P(), P({ shaftZ: 120, blades: 4 }));
+    const all = marineOthers(feats);
+    expect(all.length).toBe(2);
+    expect(all[1]).toMatchObject({ shaftZ: 120, blades: 4 });
+    const hubs = feats.filter((f) => readMarine(f)).map((f) => f.id);
+    expect(marineOthers(feats, hubs[0]).map((q) => q.blades)).toEqual([4]);
+    expect(sameMarine(marineOthers(feats), P())).toBe(true);
+    expect(sameMarine(marineOthers(feats, hubs[0]), P())).toBe(false);
+  });
+
+  it('freeShaftZ: 0 when nothing is there; behind an overlapping propeller, one hub length apart; past two in a row', () => {
+    expect(freeShaftZ([], P())).toBe(0);
+    expect(freeShaftZ([P()], P())).toBe(110);
+    expect(freeShaftZ([P(), P({ shaftZ: 110 })], P())).toBe(220);
+    expect(freeShaftZ([P({ shaftZ: 500 })], P())).toBe(0);
+    expect(freeShaftZ([P({ hubLength: 101 })], P({ hubLength: 50 }))).toBe(76);
+  });
+
+  it('a propeller at a position along the shaft: a plane offset by it carries the hub and bore sketches, the section points are raised by it, and the record keeps it', () => {
+    const at = P({ shaftZ: 110 });
+    expect(marineRoles(at)[0]).toBe('zPlane');
+    expect(marineRoles(P())).not.toContain('zPlane');
+    const ids = Object.fromEntries(marineRoles(at).map((r, i) => [r, `F${i + 1}`]));
+    const f = marineFeatures(at, ids) as Array<Record<string, any>>;
+    expect(f[0]).toMatchObject({ type: 'plane', mode: 'offset', offset: 110, base: { kind: 'std', id: 'front' } });
+    expect(f[1].plane).toEqual({ kind: 'feature', id: ids.zPlane });
+    expect(f.find((x) => x.id === ids.boreSketch)!.plane).toEqual({ kind: 'feature', id: ids.zPlane });
+    const oids = Object.fromEntries(marineRoles(P()).map((r, i) => [r, `F${i + 1}`]));
+    const o = marineFeatures(P(), oids) as Array<Record<string, any>>;
+    const s0 = (x: Array<Record<string, any>>, id: string) => x.find((q) => q.id === id)!.points.find((q: any) => q.id === 'a').x as number;
+    expect(s0(f, ids.sec0)).toBeCloseTo(s0(o, oids.sec0) + 110, 4);
+    expect(readMarine(f[1])!.params.shaftZ).toBe(110);
   });
 });

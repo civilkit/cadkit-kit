@@ -58,7 +58,7 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
     if (hit) { const next = withPreset(draft, hit.preset, hit.seal); setDraft(next); if (!bearingIssue(next)) p.onDraft(next); }
   };
   const matches = findBearings(search);
-  const size = (patch: Partial<Pick<BearingParams, 'bore' | 'od' | 'width'>>): void => change({ ...patch, designation: '', balls: null, ballDiameter: null });
+  const size = (patch: Partial<Pick<BearingParams, 'bore' | 'od' | 'width'>>): void => change({ ...patch, designation: '', flange: null, balls: null, ballDiameter: null });
   const at = (i: 0 | 1 | 2, v: number): void => change({ origin: draft.origin.map((o, k) => (k === i ? v : o)) as BearingParams['origin'] });
   const num = bearingNumbers(draft);
   const seat = bearingSeat(draft);

@@ -346,3 +346,40 @@ describe('housing seat', () => {
     expect(it7(1000)).toBe(46);
   });
 });
+
+describe('flanged F6xx bearings', () => {
+  const f625 = bearingPreset('F625-2Z')!;
+  it('F625 is a 625 with a flange of 18 x 1 mm, and the preset is found with its seal suffix', () => {
+    expect(f625.preset).toMatchObject({ designation: 'F625', bore: 5, od: 16, width: 5, flange: { diameter: 18, thickness: 1 } });
+    expect(f625.seal).toBe('2Z');
+    const plain = BEARING_PRESETS.find((p) => p.designation === '625')!;
+    expect([f625.preset.bore, f625.preset.od, f625.preset.width]).toEqual([plain.bore, plain.od, plain.width]);
+  });
+  it('every flanged row has a flange wider than the ring and thinner than the bearing, and builds in every seal', () => {
+    const rows = BEARING_PRESETS.filter((p) => p.series === 'flanged');
+    expect(rows.map((p) => p.designation)).toEqual(['F623', 'F624', 'F625', 'F626']);
+    for (const p of rows) for (const seal of ['open', '2Z', '2RS'] as const) {
+      expect(p.flange!.diameter, p.designation).toBeGreaterThan(p.od);
+      expect(bearingProblem({ bore: p.bore, od: p.od, width: p.width, seal, flange: p.flange }), `${p.designation} ${seal}`).toBeNull();
+    }
+  });
+  it('the flange sits on the first face of the outer ring: its profile reaches the flange radius there and only there', () => {
+    for (const seal of ['open', '2Z', '2RS'] as const) {
+      const p = f625.preset;
+      const plain = outerRingProfile(bearingModel({ bore: p.bore, od: p.od, width: p.width, seal }));
+      const fl = outerRingProfile(bearingModel({ bore: p.bore, od: p.od, width: p.width, seal, flange: p.flange }));
+      expect(Math.max(...plain.map((q) => q[0])), seal).toBeCloseTo(8, 9);
+      expect(Math.max(...fl.map((q) => q[0])), seal).toBeCloseTo(9, 9);
+      expect(Math.min(...fl.filter((q) => q[0] > 8.5).map((q) => q[1])), seal).toBeCloseTo(0, 9);
+      expect(Math.max(...fl.filter((q) => q[0] > 8.5).map((q) => q[1])), seal).toBeCloseTo(1, 9);   // the flange is 1 mm thick
+      // the added section is the flange ring: pi-free check by area, (9^2 - 8^2) / 2 per unit of angle minus the chamfer corners, within a chamfer's worth
+      expect(area(fl) - area(plain), seal).toBeGreaterThan(0.9 * 1 * 1);
+      expect(area(fl) - area(plain), seal).toBeLessThan(1.0 * 1.0 + 0.01);
+      expect(selfIntersects(fl), seal).toBe(false);
+    }
+  });
+  it('refuses a flange that is not outside the ring or is as thick as the bearing', () => {
+    expect(bearingProblem({ bore: 5, od: 16, width: 5, flange: { diameter: 16, thickness: 1 } })).toMatch(/flange diameter/);
+    expect(bearingProblem({ bore: 5, od: 16, width: 5, flange: { diameter: 18, thickness: 5 } })).toMatch(/flange thickness/);
+  });
+});

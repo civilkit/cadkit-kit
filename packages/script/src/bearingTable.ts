@@ -6,7 +6,9 @@
 // written down from the standard's tables and checked against each other (bore < D, one series stepping up with the bore); the ring and ball
 // sizes below the nominal ones (race gap, ball diameter, ball count, chamfer, groove) are rules of thumb, not a bearing maker's catalogue.
 
-export type BearingSeries = 'miniature' | 'mr' | '60' | '62' | '63' | 'inch';
+export type BearingSeries = 'miniature' | 'mr' | '60' | '62' | '63' | 'inch' | 'flanged';
+/** A flange on the outer ring's first face: its outer diameter D1 and thickness C, mm. */
+export interface BearingFlange { diameter: number; thickness: number }
 export interface BearingPreset {
   /** the designation without a seal suffix: '608', '6204', 'MR63', 'R2' */
   designation: string;
@@ -14,10 +16,11 @@ export interface BearingPreset {
   /** bore diameter d, mm */ bore: number;
   /** outer diameter D, mm */ od: number;
   /** width B, mm */ width: number;
+  /** flanged series: the flange on the outer ring */ flange?: BearingFlange;
 }
 
 const inch = (v: number): number => Math.round(v * 25.4 * 1000) / 1000;
-const row = (series: BearingSeries, designation: string, bore: number, od: number, width: number): BearingPreset => ({ designation, series, bore, od, width });
+const row = (series: BearingSeries, designation: string, bore: number, od: number, width: number, flange?: BearingFlange): BearingPreset => ({ designation, series, bore, od, width, ...(flange ? { flange } : {}) });
 
 /** Nominal ISO 15 dimensions (d x D x B in mm) of the common deep-groove ball bearings; inch sizes are the fractions converted at 25.4 mm. */
 export const BEARING_PRESETS: readonly BearingPreset[] = [
@@ -26,6 +29,10 @@ export const BEARING_PRESETS: readonly BearingPreset[] = [
   row('miniature', '606', 6, 17, 6), row('miniature', '607', 7, 19, 6), row('miniature', '608', 8, 22, 7), row('miniature', '609', 9, 24, 7),
   row('miniature', '623', 3, 10, 4), row('miniature', '624', 4, 13, 5), row('miniature', '625', 5, 16, 5), row('miniature', '626', 6, 19, 6),
   row('miniature', '627', 7, 22, 7), row('miniature', '628', 8, 24, 8), row('miniature', '629', 9, 26, 8),
+  // flanged miniature F6xx: the 62x sizes with a flange on the outer ring (d x D x B, flange D1 x C). These four are the sizes whose flange dimensions agree in the
+  // maker catalogues that follow ISO 15 (SKF, NSK, Albeco); they were not checked against the ISO text itself, and other F6xx sizes are left out until they are.
+  row('flanged', 'F623', 3, 10, 4, { diameter: 11.5, thickness: 1 }), row('flanged', 'F624', 4, 13, 5, { diameter: 15, thickness: 1 }),
+  row('flanged', 'F625', 5, 16, 5, { diameter: 18, thickness: 1 }), row('flanged', 'F626', 6, 19, 6, { diameter: 22, thickness: 1.5 }),
   // MR miniature series
   row('mr', 'MR52', 2, 5, 2.5), row('mr', 'MR62', 2, 6, 2.5), row('mr', 'MR63', 3, 6, 2.5), row('mr', 'MR74', 4, 7, 2.5), row('mr', 'MR84', 4, 8, 3),
   row('mr', 'MR85', 5, 8, 2.5), row('mr', 'MR93', 3, 9, 4), row('mr', 'MR95', 5, 9, 3), row('mr', 'MR105', 5, 10, 4), row('mr', 'MR106', 6, 10, 3),
@@ -93,6 +100,8 @@ export interface BearingSpec {
   seal?: BearingSeal;
   /** chamfer on the ring corners, mm (default by size); 0 for sharp corners */
   chamfer?: number;
+  /** a flange on the outer ring at the first face: outer diameter and thickness, mm (the F6xx presets carry one) */
+  flange?: BearingFlange;
   /** ball count for an open bearing (default by rule) */
   balls?: number;
   /** ball diameter for an open bearing (default from the race gap) */
@@ -115,6 +124,7 @@ export interface BearingModel {
   /** radial thickness of each ring */ ring: number;
   /** radial gap between the races */ gap: number;
   chamfer: number;
+  /** the outer ring's flange at the first face (radius and thickness), or null */ flange: { radius: number; thickness: number } | null;
   /** shield or seal: recess of its outer face from the ring face, thickness, inner radius (a small clearance outside the inner ring) */
   recess: number; shieldThickness: number; shieldTip: number;
   /** outer-ring inside corner chamfer when a shield sits there */ innerCornerChamfer: number;
@@ -150,6 +160,12 @@ export function bearingProblem(s: BearingSpec): string | null {
   if (![bore, od, width].every((v) => Number.isFinite(v) && v > 0)) return 'bore, od and width must be positive numbers';
   if (!(bore < od)) return `the bore (${bore}) must be smaller than the outer diameter (${od})`;
   if (s.chamfer !== undefined && !(Number.isFinite(s.chamfer) && s.chamfer >= 0)) return 'chamfer cannot be negative';
+  if (s.flange) {
+    const { diameter: fd, thickness: ft } = s.flange;
+    if (!(Number.isFinite(fd) && Number.isFinite(ft) && ft > 0)) return 'the flange needs a positive thickness and diameter';
+    if (!(fd > od)) return `the flange diameter (${fd}) must be larger than the outer diameter (${od})`;
+    if (!(ft < width)) return `the flange thickness (${ft}) must be less than the width (${width})`;
+  }
   const m = bearingModelUnchecked(s);
   if (!(2 * m.chamfer < m.ring) && m.chamfer > 0) return `the chamfer (${m.chamfer}) must be less than half the ring thickness (${+m.ring.toFixed(3)})`;
   if (!(2 * m.chamfer < width)) return `the chamfer (${m.chamfer}) must be less than half the width (${width})`;
@@ -191,7 +207,8 @@ function bearingModelUnchecked(s: BearingSpec): BearingModel {
   const groove: BearingGroove | null = grooved ? { radius: rg, depth, centre: [pitchRadius, width / 2], halfWidth } : null;
   const r2s = grooved ? shoulder : r2, r3s = grooved ? 2 * pitchRadius - shoulder : r3;
   const clearance = seal === '2RS' ? 0.03 : Math.max(0.05, Math.min(0.2, 0.08 * gap));
-  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, recess, shieldThickness, shieldTip: r2s + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius, groove, grooveBall, r2s, r3s };
+  const flange = s.flange ? { radius: s.flange.diameter / 2, thickness: s.flange.thickness } : null;
+  return { seal, bore, od, width, r1, r2, r3, R, ring, gap, chamfer, flange, recess, shieldThickness, shieldTip: r2s + clearance, innerCornerChamfer: Math.min(chamfer, 0.8 * recess), balls, ballDiameter, pitchRadius, groove, grooveBall, r2s, r3s };
 }
 
 /** The model of a bearing. Throws an Error with the reason when `bearingProblem` finds one. */
@@ -245,9 +262,13 @@ export function innerRingPath(m: BearingModel): PathNode[] {
  */
 export function outerRingPath(m: BearingModel): PathNode[] {
   const { r3s: r3, R, width: B, chamfer: c, groove: g } = m;
+  const cf = m.flange ? Math.min(c, m.flange.thickness / 3) : 0;   // the flange's own edge chamfer
   if (m.seal === 'open') {
     const side: PathNode[] = g ? [node(r3, B / 2 + g.halfWidth, { c: g.centre, ccw: false }), node(r3, B / 2 - g.halfWidth)] : [];   // downwards over the groove bottom (the larger radius)
-    return dedupe([node(r3 + c, 0), node(R - c, 0), node(R, c), node(R, B - c), node(R - c, B), node(r3 + c, B), node(r3, B - c), ...side, node(r3, c)]);
+    const head: PathNode[] = m.flange
+      ? [node(r3 + c, 0), node(m.flange.radius - cf, 0), node(m.flange.radius, cf), node(m.flange.radius, m.flange.thickness), node(R, m.flange.thickness)]
+      : [node(r3 + c, 0), node(R - c, 0), node(R, c)];
+    return dedupe([...head, node(R, B - c), node(R - c, B), node(r3 + c, B), node(r3, B - c), ...side, node(r3, c)]);
   }
   const { recess: e, shieldThickness: ts, shieldTip: rt, innerCornerChamfer: cc } = m;
   // one cover, from the face at y = 0 up; the one at the other face is its mirror image (y -> B - y)
@@ -257,12 +278,14 @@ export function outerRingPath(m: BearingModel): PathNode[] {
       ? [[r, y], [rt, y], [rt, y + 0.5 * ts], [rt + 0.3 * L, y + ts], [r, y + ts]]
       : [[r, y], [rt, y], [rt, y + ts], [r, y + ts]];
   };
-  const low: Pt[] = [[R - c, 0], [r3 + cc, 0], [r3, cc], ...lip(r3, e)];
-  const high: Pt[] = [...low].map(([x, y]): Pt => [x, B - y]).reverse();
+  const core: Pt[] = [[r3 + cc, 0], [r3, cc], ...lip(r3, e)];
+  const low: Pt[] = [m.flange ? [m.flange.radius - cf, 0] : [R - c, 0], ...core];
+  const high: Pt[] = ([[R - c, 0], ...core] as Pt[]).map(([x, y]): Pt => [x, B - y]).reverse();
   const nodes = (pts: Pt[]): PathNode[] => pts.map((q) => node(q[0], q[1]));
   // between the covers the inner wall runs up past the groove (the larger radius, counter-clockwise about the ball centre)
   const mid: PathNode[] = g ? [node(r3, B / 2 - g.halfWidth, { c: g.centre, ccw: true }), node(r3, B / 2 + g.halfWidth)] : [];
-  return dedupe([...nodes(low), ...mid, ...nodes(high), node(R, B - c), node(R, c)]);
+  const tail: PathNode[] = m.flange ? [node(R, B - c), node(R, m.flange.thickness), node(m.flange.radius, m.flange.thickness), node(m.flange.radius, cf)] : [node(R, B - c), node(R, c)];
+  return dedupe([...nodes(low), ...mid, ...nodes(high), ...tail]);
 }
 
 /** The section of the inner ring as a closed polygon (arcs of the groove as `steps` chords; see `innerRingPath` for the exact one). */

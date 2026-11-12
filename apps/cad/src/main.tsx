@@ -41,7 +41,7 @@ import { maxSizeOf, maxSizeText } from './diagnosticsText';
 import { dxfToSketch, svgToSketch } from '@kit/io';
 import { importDxfIntoSketch, importErrorNotice } from './dxfSketch';
 import { importSvgIntoSketch, svgErrorNotice } from './svgSketch';
-import { EXTRACT_KEYS, planExtract, planFolderExport, REFUSAL_KEYS, type ExtractRefusal, type FolderFormat } from './folderExport';
+import { bodiesOfFeature, EXTRACT_KEYS, planExtract, planFolderExport, REFUSAL_KEYS, type ExtractRefusal, type FolderFormat } from './folderExport';
 import { fileStem, exportCkpart, exportGlb, exportObj, exportThreeMf, exportSketchDxf, exportStep, exportStl, exportViewsDxf, meshRequest, type ExportNotice, type ExportResult } from './exportFiles';
 import { buildCommands, matchShortcut, EXPORT_KINDS, type ExportKind } from './commands';
 import { useTreeInteraction } from './useTreeInteraction';
@@ -113,6 +113,8 @@ import { KnurlWizard } from './KnurlWizard';
 import { ScrewWizard } from './ScrewWizard';
 import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { WasherWizard } from './WasherWizard';
+import { SpringWizard } from './SpringWizard';
+import { DEFAULT_SPRING, springIssue, springOps, type SpringParams } from './spring';
 import { DEFAULT_WASHER, washerIssue, washerOps, type WasherParams } from './washer';
 import { holeFromPick, type HoleResult } from './washerHole';
 import { BearingWizard } from './BearingWizard';
@@ -145,7 +147,7 @@ import { GearEditor } from './GearEditor';
 import { gearCommitOps, gearOwner, readGear, type GearParams } from './gearData';
 import { PropellerWizard } from './PropellerWizard';
 import { MarineWizard } from './MarineWizard';
-import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOwner, marinePlan, marineSpacings, type MarineParams } from './marineData';
+import { DEFAULT_MARINE, MarineError, marineErrors, marineOps, marineOthers, marineOwner, marinePlan, marineSpacings, type MarineParams } from './marineData';
 import { ImpellerWizard } from './ImpellerWizard';
 import { DEFAULT_IMPELLER, ImpellerError, impellerErrors, impellerOps, impellerOwner, impellerPlan, impellerStationsTried, type ImpellerParams } from './impellerData';
 import { DEFAULT_PROP, PropError, freePrefix, propErrors, propOps, propOwner, propPlan, type PropParams } from './propData';
@@ -568,6 +570,7 @@ function App() {
   const [washerPick, setWasherPick] = useState<{ id: number; result: HoleResult } | null>(null);   // the hole just picked for the Washer wizard (washerHole.ts)
   const washerPickRef = useRef({ n: 0, openSel: '' });
   const [washerWiz, setWasherWiz] = useState<{ params: WasherParams } | null>(null);   // the Washer wizard: a flat or spring washer over the washer() helper
+  const [springWiz, setSpringWiz] = useState<{ params: SpringParams } | null>(null);   // the Spring wizard: a compression spring over the spring() helper
   const [bearingWiz, setBearingWiz] = useState<{ params: BearingParams } | null>(null);   // the Bearing wizard: a ball bearing over the bearing() helper
   const [frameWiz, setFrameWiz] = useState<{ params: FrameParams; editId: string | null } | null>(null);   // the Frame panel: a new frame, or the frame `editId` being edited
   const [frameJoint, setFrameJoint] = useState<string | null>(null);   // the joint picked in the viewport or the panel's list
@@ -576,6 +579,7 @@ function App() {
   useEffect(() => { if (frameWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || editingId)) setFrameWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, editingId]);   // another editor took the panel
   const [sk3dWiz, setSk3dWiz] = useState<{ editId: string | null; draft: Draft3 } | null>(null);   // the 3D Sketch panel: a new sketch, or the sketch3d `editId` being edited
   useEffect(() => { if (sk3dWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || editingId)) setSk3dWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, editingId]);
+  useEffect(() => { if (springWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setSpringWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
   const [meshDlg, setMeshDlg] = useState<{ name: string; bytes: Uint8Array; probe: MeshProbe; unit: StlUnit } | null>(null);   // the STL import dialog
   const [meshPick, setMeshPick] = useState<null | { stage: 'aim' } | { stage: 'plane'; pos: P3d; normal: P3d }>(null);   // starting a sketch by clicking the mesh surface
@@ -1717,8 +1721,9 @@ function App() {
   };
   // filled where the tree is built (the row menu runs after that)
   const selectGroupFacesRef = useRef<(ids: string[]) => void>(() => {});
+  const selectBodiesRef = useRef<(id: string) => void>(() => {});
   const refMenuRef = useRef<(id: string) => { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null>(() => null);
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), selectBodies: (id) => selectBodiesRef.current(id), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -1745,6 +1750,7 @@ function App() {
     knurl: () => openKnurl(),
     screw: () => openScrew(),
     washer: () => openWasher(),
+    spring: () => openSpring(),
     bearing: () => openBearing(),
     frame: () => openFrame(null),
     sketch3d: () => openSketch3d(null),
@@ -3145,6 +3151,12 @@ function App() {
     store.select(names);
   };
   selectGroupFacesRef.current = selectGroupFaces;
+  /** A feature's menu item: pick the bodies it made or changed (the ones still in the result; a body it removed is not reported). */
+  selectBodiesRef.current = (id) => {
+    const keys = bodiesOfFeature(id, bodyRowsFor(false)).map((r) => r.key);
+    if (!keys.length) { store.notify(t('select.bodies.none'), 'warn'); return; }
+    store.select(keys);
+  };
   // the right-click menu of a fixed row: a plane starts a sketch on it, the material row opens the material list
   refMenuRef.current = (id) => {
     if (id === 'front' || id === 'top' || id === 'right') return { items: [{ id: 'sketch', label: t('app.tree.menu.sketchOnPlane'), enabled: true }], run: () => startNewSketch(id) };
@@ -3484,6 +3496,35 @@ function App() {
     setWasherPick(null); washerPickRef.current.openSel = store.selection.value.join('|');
     setLeftTab("Editor");
   };
+  // The Spring wizard: every change previews the spring (the same features the Script tab's spring() makes); Add spring commits them as one folder, one undo step.
+  const onSpringDraft = (next: SpringParams) => {
+    if (!doc || springIssue(next)) return;
+    void controller.preview(springOps(doc as never, next), 600).then(onPreviewResult);
+  };
+  const onSpringCancel = async () => {
+    await controller.cancelPreview();
+    setSpringWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const onSpringApply = async (next: SpringParams) => {
+    if (!doc) return;
+    let ops;
+    try { ops = springOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, "spring"));
+    if (!r.ok) { setPreviewHint(t("spring.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
+    store.notify(t("spring.created"));
+    setSpringWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const openSpring = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null);
+    setSpringWiz({ params: { ...DEFAULT_SPRING } });
+    setLeftTab("Editor");
+  };
   // The Bearing wizard: every change previews the bearing (the same features the Script tab's bearing() makes); Add bearing commits them, one undo step.
   const onBearingDraft = (next: BearingParams) => {
     if (!doc || bearingIssue(next)) return;
@@ -3726,7 +3767,7 @@ function App() {
   };
   const propEditor = propWiz && doc && propWiz.marine ? (
     <MarineWizard key={'marine-' + (propWiz.hubId ?? 'new')} params={propWiz.marine} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
-      onDraft={onMarineDraft} onCreate={onMarineCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(false); }} hint={previewHint} />
+      others={marineOthers(doc.features as never, propWiz.hubId)} onDraft={onMarineDraft} onCreate={onMarineCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(false); }} hint={previewHint} />
   ) : propWiz && doc ? (
     <PropellerWizard key={propWiz.hubId ?? 'new'} params={propWiz.params} edit={!!propWiz.roles} name={propWiz.hubId ? String((doc.features.find((f) => f.id === propWiz.hubId) as { name?: string } | undefined)?.name ?? '').replace(/ hub sketch$/, '') : undefined}
       onDraft={onPropDraft} onCreate={onPropCreate} onCancel={onPropCancel} onFamily={() => { void switchFamily(true); }} hint={previewHint} />
@@ -3762,6 +3803,9 @@ function App() {
   const washerEditor = washerWiz && doc ? (
     <WasherWizard key="washer" params={washerWiz.params} picked={washerPick} onPickHole={onWasherPickHole} onDraft={onWasherDraft} onApply={onWasherApply} onCancel={onWasherCancel} hint={previewHint} />
   ) : null;
+  const springEditor = springWiz && doc ? (
+    <SpringWizard key="spring" params={springWiz.params} onDraft={onSpringDraft} onApply={onSpringApply} onCancel={onSpringCancel} hint={previewHint} />
+  ) : null;
   const bearingEditor = bearingWiz && doc ? (
     <BearingWizard key="bearing" params={bearingWiz.params} onDraft={onBearingDraft} onApply={onBearingApply} onCancel={onBearingCancel} hint={previewHint} />
   ) : null;
@@ -3792,7 +3836,7 @@ function App() {
     <Sketch3dPanel key={'sk3d-' + (sk3dWiz.editId ?? 'new')} host={sketch3dHost} initial={sk3dWiz.draft} featureId={sk3dWiz.editId ?? freeId(doc as never)} base={sk3dWiz.editId ? (doc.features as unknown as Array<Record<string, unknown>>).find((x) => x.id === sk3dWiz.editId) : undefined}
       edit={!!sk3dWiz.editId} startPlane={selectedPlaneFeature()?.id ?? null} onApply={onSk3dApply} onCancel={onSk3dCancel} hint={previewHint} />
   ) : null;
-  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : springEditor ? springEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -3861,7 +3905,7 @@ function App() {
       loadVolume={async () => { const m = controller.hasSolid() ? await controller.massProps() : null; return typeof m?.volume === 'number' ? m.volume : null; }} />
   ) : null;
   const editor = materialEditor ?? featureEditor;
-  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
+  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingNow ? editor : tree;
   const catalog = useCatalog({
@@ -3886,7 +3930,7 @@ function App() {
     download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
     sources: () => liveSources(doc),
   };
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onSpring={openSpring} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
   // what the script host needs from the app: build into the open document, or scratch builds when the kernel can
   const scriptHostFor = (loadDoc: (d: Record<string, unknown>) => Promise<unknown>) => ({
     load: loadDoc as never,
@@ -4070,7 +4114,7 @@ function App() {
   // the Start here card: only on an open document with nothing in the viewport (startContent.ts lists every source); the X dismisses it for this tab
   const startSources = {
     doc, meshes: doc ? meshesOf(doc).length : 0, hasSolid: controller.hasSolid(), hasImportedBody: controller.hasImportedBody(), sketching: !!sketching,
-    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
+    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
     drawingOpen,
   };
   const startDismissedNow = isStartDismissed(tabSet.activeId);
@@ -4138,6 +4182,9 @@ function App() {
     const leave = (e: DragEvent) => { if (!dragHasFiles(e.dataTransfer)) return; depth = Math.max(0, depth - 1); if (depth === 0) setDragging(false); };
     const drop = (e: DragEvent) => { if (!dragHasFiles(e.dataTransfer)) return; e.preventDefault(); depth = 0; setDragging(false); dropFilesRef.current(Array.from(e.dataTransfer?.files ?? [])); };
     addEventListener('dragenter', enter); addEventListener('dragover', over); addEventListener('dragleave', leave); addEventListener('drop', drop);
+    // an installed PWA opened with a .ckpart (the manifest's file_handlers): the same path as a dropped file
+    const lq = (window as unknown as { launchQueue?: { setConsumer(f: (p: { files: { getFile(): Promise<File> }[] }) => void): void } }).launchQueue;
+    if (lq) lq.setConsumer((p) => { if (p.files.length) void Promise.all(p.files.map((h) => h.getFile())).then((fs) => dropFilesRef.current(fs)); });
     return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
   }, []);
   useEffect(() => {

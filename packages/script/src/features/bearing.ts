@@ -21,6 +21,8 @@ export interface BearingOpts {
   seal?: BearingSeal;
   /** ring corner chamfer, mm (default by size, 0 for sharp corners) */
   chamfer?: Num;
+  /** a flange on the outer ring at the first face: { diameter, thickness } in mm; a preset such as 'F625' brings its own, false leaves it off */
+  flange?: { diameter: Num; thickness: Num } | false;
   /** open bearing only: number of balls (default: by the race gap) */
   balls?: Num;
   /** open bearing only: ball diameter, mm (default: just under the race gap) */
@@ -191,6 +193,7 @@ export const bearingFeatures = {
     const spec = {
       bore: pick(o.bore, found?.preset.bore, 'bore'), od: pick(o.od, found?.preset.od, 'od'), width: pick(o.width, found?.preset.width, 'width'), seal,
       ...(o.chamfer !== undefined ? { chamfer: H.num(o.chamfer) } : {}),
+      ...(o.flange ? { flange: { diameter: H.num(o.flange.diameter), thickness: H.num(o.flange.thickness) } } : o.flange === undefined && found?.preset.flange ? { flange: found.preset.flange } : {}),
       ...(o.balls !== undefined ? { balls: H.num(o.balls) } : {}),
       ...(o.ballDiameter !== undefined ? { ballDiameter: H.num(o.ballDiameter) } : {}),
     };

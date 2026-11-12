@@ -172,3 +172,15 @@ describe('a second bearing of the same size', () => {
     expect(freeBodyPrefix([{ body: 'Bearing 608 inner ring' }], 'Bearing 6204')).toBe('Bearing 6204');
   });
 });
+
+describe('flanged presets in the wizard', () => {
+  const f625 = BEARING_PRESETS.find((p) => p.designation === 'F625')!;
+  it('a flanged preset brings its flange into the spec and the script options; a plain one clears it', () => {
+    const p = withPreset(DEFAULT_BEARING, f625);
+    expect(bearingOpts(p)).toMatchObject({ bore: 5, od: 16, width: 5, flange: { diameter: 18, thickness: 1 } });
+    expect(bearingIssue(p)).toBeNull();
+    expect(bearingNumbers(p)?.flange).toEqual({ radius: 9, thickness: 1 });
+    const back = withPreset(p, BEARING_PRESETS.find((x) => x.designation === '625')!);
+    expect(bearingOpts(back)).not.toHaveProperty('flange');
+  });
+});

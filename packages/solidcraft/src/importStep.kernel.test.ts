@@ -51,7 +51,9 @@ const SAMPLE = process.env.FUSION_SOLIDCRAFT_SAMPLE && existsSync(process.env.FU
 describe('a converted Fusion 360 file', { skip: !process.env.CK_WASM || !SAMPLE, timeout: 300_000 }, () => {
   it('regenerates to a solid with a volume', async () => {
     const r = await importSolidcraft(new Uint8Array(readFileSync(SAMPLE)), 'case', kernelResolvers(open));
-    expect(r.part?.blobs).toBeTruthy();
+    // the importer wraps the part in an insertPart, so the STEP blobs sit on that feature's own part
+    const ins = r.part?.features[0] as unknown as { part?: { blobs?: unknown } } | undefined;
+    expect(ins?.part?.blobs).toBeTruthy();
     const s = await open(r.part!);
     await s.verify();
     expect((await s.facts()).volume!).toBeGreaterThan(0);

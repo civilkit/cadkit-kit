@@ -71,7 +71,10 @@ export function FeatureTree(p: {
   /** A drag dropped on a row or a folder. When given it replaces `onMove` for row-on-row drops and also covers dragging a folder (its header is draggable) and dropping on a folder. */
   onDropOn?(drag: TreeDrop, target: TreeDrop): void;
   /** Right click on a row or a folder; the app opens its menu. The browser's own menu is suppressed when this is given. */
-  onContextMenu?(target: TreeDrop, x: number, y: number, acts?: { /** put the rollback bar under this row */ rollbackHere(): void }): void;
+  onContextMenu?(target: TreeDrop, x: number, y: number, acts?: {
+    /** put the rollback bar under this row (rows only, when the tree has a rollback bar) */ rollbackHere?(): void;
+    /** close every folder except the one named (the folder clicked, or the one that holds the row clicked) */ collapseAllFolders(): void;
+  }): void;
   /** Right click on a fixed row (a plane, the origin, the material); the app opens its menu. */
   onRefContextMenu?(id: string, x: number, y: number): void;
   /** Rename a folder in place (double click on it, or the app sets `renaming` to `'@g:' + name`). */
@@ -147,6 +150,13 @@ export function FeatureTree(p: {
   const isFolder = (run: Run): boolean => run.group !== undefined && (run.rows.length >= 2 || (run.rows.length === 1 && (childrenOf.get(run.rows[0].id)?.length ?? 0) > 0));
   const folderOfTop = new Map<string, string>();
   for (const run of runs) if (isFolder(run)) for (const r of run.rows) folderOfTop.set(r.id, run.group!);
+  const topIdOf = (id: string): string => { let o = id; for (let g = 0; g < 8 && owner.has(o); g++) o = owner.get(o)!; return o; };
+  /** "Collapse all folders": every folder closes except `keep`, which stays open (the one the menu was opened on). */
+  const collapseFolders = (keep: string | undefined) => {
+    const map = { ...folderMap };
+    for (const run of runs) if (isFolder(run)) map[run.group!] = run.group === keep;
+    saveFolders(docKey, map); setFolderSt({ key: docKey, map });
+  };
   /** Open whatever hides a row: the sketch parents it is tucked under, and its folder. */
   const expandFor = (id: string) => {
     const chain: string[] = [];
@@ -251,7 +261,7 @@ export function FeatureTree(p: {
           onMouseLeave={() => p.onHoverFeature?.(null)}
           onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
           onDblClick={() => p.onEdit?.(r.id)}
-          onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY, p.onRollback ? { rollbackHere: () => moveMarker(topOf(r.id) + 1) } : undefined); } : undefined}
+          onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY, { ...(p.onRollback ? { rollbackHere: () => moveMarker(topOf(r.id) + 1) } : {}), collapseAllFolders: () => collapseFolders(folderOfTop.get(topIdOf(r.id))) }); } : undefined}
           onDragStart={() => { dragId.current = r.id; dragFolder.current = null; }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -421,7 +431,7 @@ export function FeatureTree(p: {
         draggable={!renamingThis && !!p.onDropOn}
         onClick={() => { if (!filtering && !renamingThis) setFolder(e.name, !e.open); }}
         onDblClick={() => { if (p.onRenameFolder) setRenaming('@g:' + e.name); }}
-        onContextMenu={p.onContextMenu ? (ev: MouseEvent) => { ev.preventDefault(); p.onContextMenu!(target, ev.clientX, ev.clientY); } : undefined}
+        onContextMenu={p.onContextMenu ? (ev: MouseEvent) => { ev.preventDefault(); p.onContextMenu!(target, ev.clientX, ev.clientY, { collapseAllFolders: () => collapseFolders(e.name) }); } : undefined}
         onDragStart={() => { dragFolder.current = e.name; dragId.current = null; }}
         onDragOver={(ev) => ev.preventDefault()}
         onDrop={() => {
