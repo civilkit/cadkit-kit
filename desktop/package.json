@@ -1,7 +1,7 @@
 {
   "name": "civilkit-cad-desktop",
   "private": true,
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "Tauri shell for CivilKit CAD",
   "scripts": {
     "sync-version": "node scripts/sync-version.mjs",

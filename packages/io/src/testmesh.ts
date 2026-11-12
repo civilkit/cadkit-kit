@@ -52,3 +52,13 @@ export function headLike(nLat = 224, nLon = 224): Float32Array {
   }
   return Float32Array.from(out);
 }
+
+/** Signed volume of an indexed mesh (counter-clockwise outward is positive). */
+export function volumeOf(v: Float32Array, idx: Uint32Array): number {
+  let s = 0;
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    s += (v[a] * (v[b + 1] * v[c + 2] - v[b + 2] * v[c + 1]) - v[a + 1] * (v[b] * v[c + 2] - v[b + 2] * v[c]) + v[a + 2] * (v[b] * v[c + 1] - v[b + 1] * v[c])) / 6;
+  }
+  return s;
+}

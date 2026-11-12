@@ -13,12 +13,15 @@ All lengths are millimetres inside the app. Formats that carry other units are c
 | SolidWorks part | `.sldprt` | Open, drop, More file actions | An editable imported body (view-only if it cannot be built) | The feature tree, sketches, configurations, annotations |
 | SketchUp | `.skp` | Open, drop, More file actions | A reference mesh saved with the part, with its colours (or a view-only surface model, your choice in the import box) | Scenes, text, dimensions, curves as true arcs |
 | STL | `.stl` | Open, drop, More file actions | A reference mesh saved with the part | Colours, textures |
+| OBJ | `.obj` | Open, drop (with its `.mtl` for colours), More file actions | A reference mesh saved with the part, with colours when the `.mtl` comes with it | Normals, textures, smoothing groups, lines; objects are joined into one mesh |
+| glTF binary | `.glb` | Open, drop, More file actions | A reference mesh saved with the part, with its colours (metres and Y up converted) | Textures, animation, vertex colours; compressed or multi-file glTF is refused |
+| 3MF | `.3mf` | Open, drop, More file actions | A reference mesh saved with the part, with its colours and unit | Textures, colour gradients, print supports; build items are joined into one mesh |
 | FreeCAD | `.FCStd` | Open, drop | An editable part for the features that map | Features that do not map; the rest of the document |
 | SolidCraft | `.solidcraft` | Open, drop | An editable part for the features that map | Features that do not map are kept as suppressed placeholders |
 | DXF | `.dxf` | Home > Sketch group, or drop | Sketch geometry (lines, arcs, circles, splines, points) | Text, hatches, dimensions, blocks, 3D entities |
 | SVG | `.svg` | Home > Sketch group, or drop | Sketch geometry (paths, rectangles, circles, ellipses, lines, polygons) | Text, images, fills, strokes, gradients, clip paths |
 
-OBJ and DWG cannot be imported yet. "View only" means you can look at the body and turn the model, but it is not a feature, it is not saved with the part and the next edit replaces it. [Importing](import.md) has the details and limits of each.
+DWG cannot be imported yet. "View only" means you can look at the body and turn the model, but it is not a feature, it is not saved with the part and the next edit replaces it. [Importing](import.md) has the details and limits of each.
 
 ## What the app writes
 

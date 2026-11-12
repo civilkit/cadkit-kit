@@ -1,4 +1,16 @@
 {
+  "0.6.5": [
+    {
+      "id": "mesh-import",
+      "title": "Open OBJ, GLB and 3MF files",
+      "blurb": "Drop or open an .obj, .glb or .3mf file and it is added as a reference mesh, with colours and (for GLB and 3MF) the unit taken from the file. A notice lists what was not read, such as textures and the separate parts of a multi-part file."
+    },
+    {
+      "id": "rounded-rectangle",
+      "title": "A Rounded rectangle sketch tool",
+      "blurb": "Click two corners and the four corners come out rounded. The corner field sets the radius, and a typed radius becomes a dimension on each corner arc; the last radius is kept for the next rectangle. Add spline point inserts a free point on an existing spline."
+    }
+  ],
   "0.6.4": [
     {
       "id": "spring-wizard",

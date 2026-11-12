@@ -389,7 +389,7 @@ The **More file actions** menu (three dots, right of Export) holds the rest of t
 | Save as | `Ctrl+Shift+S` |
 | Save geometry in file | |
 | Recover earlier versions… | |
-| Import STEP / SolidWorks / SketchUp | |
+| Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp | |
 | Import SketchUp with hidden geometry | |
 | Rotate imported model | |
 
@@ -418,7 +418,7 @@ Sketch tools have their own single-letter shortcuts, active while a sketch is op
 
 | Group | Tools (shortcut) |
 | --- | --- |
-| Draw | Line (`L`), Rectangle (`R`), Centre rectangle, Circle (`C`), Centre arc, 3-point arc (`A`), Tangent arc, Ellipse, Polygon, Slot, Arc slot, Point, Text (`Q`), Centreline, Spline, Control-point spline, Bridge curve |
+| Draw | Line (`L`), Rectangle (`R`), Centre rectangle, Rounded rectangle, Circle (`C`), Centre arc, 3-point arc (`A`), Tangent arc, Ellipse, Polygon, Slot, Arc slot, Point, Text (`Q`), Centreline, Spline, Control-point spline, Add spline point, Bridge curve |
 | Dimension | Dimension (`D`) |
 | Constrain | Horizontal (`H`), Vertical (`V`), Coincident, Midpoint, Fix, Equal, Parallel, Perpendicular, Collinear, Tangent, Concentric, Symmetric |
 | Modify | Trim (`T`), Extend (`E`), Fillet, Chamfer, Offset (`O`), Mirror, Linear pattern, Circular pattern, Move entities, Copy entities, Rotate entities, Scale entities |

@@ -38,8 +38,8 @@ export interface StlReadOptions {
 }
 
 /** Positions (9 floats a triangle, millimetres) -> welded indexed mesh. Vertices that are bit-for-bit equal (the case for any STL
- *  a CAD or scanner wrote) are one vertex. Triangles that collapse are dropped. */
-export function indexMesh(pos: Float32Array): { mesh: IndexedMesh; dropped: number } {
+ *  a CAD or scanner wrote) are one vertex. Triangles that collapse are dropped; `keep` (one byte per input triangle) is set to 1 for the kept ones. */
+export function indexMesh(pos: Float32Array, keep?: Uint8Array): { mesh: IndexedMesh; dropped: number } {
   const corners = pos.length / 3 | 0;
   const bits = new Uint32Array(pos.buffer, pos.byteOffset, pos.length);
   let size = 16;
@@ -72,7 +72,8 @@ export function indexMesh(pos: Float32Array): { mesh: IndexedMesh; dropped: numb
   let kept = 0;
   for (let t = 0; t < tris; t++) {
     const a = idx[t * 3], b = idx[t * 3 + 1], d = idx[t * 3 + 2];
-    if (a === b || b === d || a === d) continue;
+    if (a === b || b === d || a === d) { if (keep) keep[t] = 0; continue; }
+    if (keep) keep[t] = 1;
     idx[kept * 3] = a; idx[kept * 3 + 1] = b; idx[kept * 3 + 2] = d;
     kept++;
   }

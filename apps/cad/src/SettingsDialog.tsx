@@ -3,6 +3,7 @@ import { MASS_DIGITS, MASS_UNITS, type MassPrefs } from './massPrefs';
 import { statusText, failText, type KernelPrefs, type KernelStatus, type TestOutcome } from './kernelService';
 import { matchPreset, type Workspace, type WorkspacePreset } from '@kit/store';
 import { t } from './i18n';
+import type { UpdateResult } from './updateCheck';
 import { SketchPrefsSection } from './SketchPrefsSection';
 import type { SketchPrefs } from './sketchPrefs';
 import { ZOOM_SPEEDS, type NavPrefs } from './navPrefs';
@@ -29,6 +30,8 @@ export function SettingsDialog(p: {
   workspace: Workspace; onChange(patch: Partial<Workspace>): void;
   /** The screen layout: automatic (by window size and pointer), or forced to phone, tablet or desktop. */
   layoutPref?: LayoutPref; onLayoutPref?(v: LayoutPref): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
+  /** Looks for a newer published version now; absent in a dev build and the desktop app. */
+  onCheckUpdate?(): Promise<UpdateResult>;
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
   /** The icon set (a preview of SolidCraft's icons beside our own). */
@@ -225,6 +228,7 @@ export function SettingsDialog(p: {
           {tab === 'agent' && p.agent ? <AgentSection {...p.agent} /> : null}
         </div>
         <AboutLine />
+        {p.onCheckUpdate ? <UpdateRow check={p.onCheckUpdate} /> : null}
       </div>
     </div>
   );
@@ -312,4 +316,18 @@ function AboutLine() {
   }, []);
   if (!v?.version) return null;
   return <div class="tb-note set-version" role="note">{t('settings.about', { version: v.version, kit: v.kit ?? '?', kernel: v.kernel || '?' })} · <a href="https://civilkit.io/cad/whats-new/" target="_blank" rel="noopener">{t('settings.about.news')}</a></div>;
+}
+
+/** Settings > About: look for a newer version now, with the time and the answer. */
+export function UpdateRow(p: { check(): Promise<UpdateResult>; now?: () => Date }) {
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<{ at: Date; r: UpdateResult } | null>(null);
+  const go = async () => { setBusy(true); try { const r = await p.check(); setRes({ at: (p.now ?? (() => new Date()))(), r }); } finally { setBusy(false); } };
+  const text = !res ? '' : res.r.state === 'newer' ? (res.r.version ? t('settings.update.newer', { version: res.r.version }) : t('settings.update.newer.generic')) : res.r.state === 'latest' ? t('settings.update.latest') : t('settings.update.unknown');
+  return (
+    <div class="set-row set-update">
+      <button class="rb-btn" disabled={busy} onClick={() => void go()}>{t('settings.update.check')}</button>
+      <span role="status">{res ? `${text} · ${t('settings.update.last', { time: res.at.toLocaleTimeString() })}` : ''}</span>
+    </div>
+  );
 }

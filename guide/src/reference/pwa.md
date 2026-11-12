@@ -45,8 +45,8 @@ To be sure it works offline, open the app once while online and wait for it to f
 
 When a new version is published:
 
-- The app checks about every five minutes, and whenever you return to its tab. If it finds a newer version, a notice appears in the top bar: "A new version is available." with **Refresh** and **Later**.
-- **Refresh** reloads the app. If your part has unsaved changes, the app asks first what to do with them. **Later** dismisses the notice for now.
+- The app checks about every five minutes, and whenever you return to its tab. If it finds a newer version, a notice appears in the top bar: "A new version (0.6.5) is available." with **Reload** and **Later** (without the number if it cannot be read). **Settings > About > Check for updates** looks right away and shows the time of the last check.
+- **Reload** reloads the app. If your part has unsaved changes, the app asks first what to do with them. **Later** dismisses the notice for now.
 - Without a network, the check quietly waits until the next try.
 - On the next load the app fetches the page from the network first and falls back to the saved copy. A deployed update is therefore picked up on your next online visit. The program files themselves have fixed names tied to their content, so an old copy never mixes with a new one. Older saved copies are removed automatically.
 

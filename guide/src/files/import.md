@@ -1,6 +1,6 @@
 # Importing
 
-This chapter covers every kind of file the app can import: STEP, STL meshes, SolidWorks, SketchUp, FreeCAD, SolidCraft, DXF and SVG, plus how parts from samples and the library come in. For each, you will find how to import it, what you get, what is converted, how units and colours are treated, the import report and repair, and what to do when an import is slow or fails.
+This chapter covers every kind of file the app can import: STEP, STL, OBJ, GLB and 3MF meshes, SolidWorks, SketchUp, FreeCAD, SolidCraft, DXF and SVG, plus how parts from samples and the library come in. For each, you will find how to import it, what you get, what is converted, how units and colours are treated, the import report and repair, and what to do when an import is slow or fails.
 
 There are two very different results, so check which one you have before you plan to edit:
 
@@ -9,7 +9,7 @@ There are two very different results, so check which one you have before you pla
 | **Editable features** | FreeCAD, SolidCraft, DXF and SVG (into a sketch), CivilKit CAD parts | Edit the feature tree, change dimensions, add features. Saved with the part. |
 | **Imported solid feature** | STEP (the default choice) | The solid is the first feature of a new part: later features can cut, drill, fillet, mate and sketch on its faces. The STEP text is saved inside the part and the part rebuilds when it is opened. |
 | **Editable imported body** | SolidWorks | The solid arrives as one imported body that later features can cut, drill, fillet and measure. It is saved with the part. When the kernel can rebuild the file's feature history (sketches, extrudes, fillets and so on), the part opens with that history instead and you can edit it. |
-| **Reference mesh** | STL, SketchUp (the default choice) | A mesh to look at and draw on: it is saved with the part, can be moved, turned, scaled and made see-through, and the 3D Sketch tool snaps onto its surface. A SketchUp mesh keeps its face colours and translucent materials. It is not a solid and not part of the feature history. |
+| **Reference mesh** | STL, OBJ, GLB, 3MF, SketchUp (the default choice) | A mesh to look at and draw on: it is saved with the part, can be moved, turned, scaled and made see-through, and the 3D Sketch tool snaps onto its surface. A SketchUp, GLB or 3MF mesh keeps its colours and translucent materials, and an OBJ does when its material file comes with it. It is not a solid and not part of the feature history. |
 | **View-only body** | STEP and SketchUp when you choose "View only" | Look at it, orbit and zoom. The body is not a feature, it is not saved with the part, and the next edit replaces the display. |
 
 STEP and SketchUp files ask which of the two you want in a small box (the choice is remembered per kind; the first option is the default). A view-only import opens as a new, empty part named after the file. The notice says so ("Imported bodies are view only and are not saved with the part."). In the code, each Export entry is enabled only when the controller holds a built mesh from the part's features, and an import only draws the body in the viewport without storing it there. So the Export entries should stay greyed out for a part that holds only an imported body. This follows from reading the code; it has not been checked in a running app.
@@ -17,7 +17,7 @@ STEP and SketchUp files ask which of the two you want in a small box (the choice
 ## How to import
 
 1. Choose **Open** in the top bar and pick the file, or drag the file onto the window. The app decides by the extension.
-2. Or open the **More file actions** menu and choose **Import STEP / STL / SolidWorks / SketchUp**, which only offers those four kinds.
+2. Or open the **More file actions** menu and choose **Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp**, which only offers those kinds.
 
 An import never replaces the part you are working on: it opens in a new tab, or in the current tab when that is still blank. A long import shows a progress overlay; for a slow one you can press its cancel button.
 
@@ -34,12 +34,12 @@ STEP (`.step`, `.stp`) is the best way to bring a solid from another CAD program
 
 If STEP refuses a file, try exporting it again from the source program, choosing a solid (not surface) output, a standard application protocol and millimetres. The kernel book has the full list of what is read: [STEP](/docs/cad/kernel/io/step.html).
 
-## STL meshes (a model to sketch on)
+## Mesh files: STL, OBJ, GLB and 3MF (a model to sketch on)
 
-STL (`.stl`, binary or text) is a mesh of triangles, typically a 3D scan or a model from a mesh tool. CivilKit CAD keeps it as a **reference mesh**: you can look at it and draw on it, but it does not become a solid.
+STL (`.stl`, binary or text), OBJ (`.obj`), binary glTF (`.glb`) and 3MF (`.3mf`) are meshes of triangles, typically a 3D scan or a model from a mesh tool. CivilKit CAD keeps each as a **reference mesh**: you can look at it and draw on it, but it does not become a solid. The four go the same way; what differs is what each file carries (see the table below the steps).
 
-1. Drop the file on the window, or use **Open** or **Import**. Unlike the other formats, an STL is added to the part you have open (it does not open a new tab), so it needs a part to be open.
-2. A dialog shows what the file holds: triangles, vertices, size, and whether the surface is closed. STL files have **no units**, so pick the one the file was made in (millimetres, centimetres, metres or inches). The size line updates as you choose, and a hint appears when the size looks wrong (a model under 2 mm across is usually a file in metres). Tick **Move to the origin and sit on the ground** to place it at the origin; otherwise it keeps the file's own coordinates.
+1. Drop the file on the window, or use **Open** or **Import**. Unlike the other formats, a mesh is added to the part you have open (it does not open a new tab), so it needs a part to be open. To bring an OBJ in with its colours, drop the `.obj` and its `.mtl` together.
+2. A dialog shows what the file holds: triangles, vertices, size, and whether the surface is closed. STL and OBJ files have **no units**, so pick the one the file was made in (millimetres, centimetres, metres or inches). A GLB (always metres) and a 3MF (it states its unit) are converted to millimetres for you and the dialog says so instead of asking. The size line updates as you choose, and a hint appears when the size looks wrong (a model under 2 mm across is usually a file in metres). Tick **Move to the origin and sit on the ground** to place it at the origin; otherwise it keeps the file's own coordinates.
 3. The mesh appears shaded, the view frames it, and a row for it appears in the feature tree with an **eye** (show or hide) and a pencil. A mesh of up to about a million triangles stays responsive.
 
 **The Mesh panel** (click the row or its pencil): name, shown, **opacity** (lower it to see your sketch through the surface), colour, triangle edges, position, rotation and scale, quarter turns about X, Y or Z, **Move to the origin**, **Sit on the ground**, and **Delete mesh**. Changes show at once and are one undo step when you press **Done**; **Cancel** puts everything back. A scan is often Y up or Z up in its file: use the quarter turn buttons to stand it upright.
@@ -49,9 +49,18 @@ STL (`.stl`, binary or text) is a mesh of triangles, typically a 3D scan or a mo
 - **Sketch on mesh**: click a point on the surface. Then choose the plane of the sketch through that point: **Surface normal** (square to the surface there), or one of **Front**, **Top**, **Right** (parallel to the base planes). The ordinary sketch editor opens on that plane with the mesh still visible.
 - **3D Sketch on mesh** (or the **3D Sketch** tool with a mesh in the part): clicks that land on the mesh snap to its surface, so a spline you click across the head lies on it. Points, ends and other sketch points still snap first. The tick **Draw on the imported mesh surface** turns this off. **Fit curves** resamples the lines, splines and control splines of the sketch into many points and puts each on the surface (**To the nearest surface point**, or **Along the work plane normal**), so the curve follows the surface between your clicks. The result is an ordinary 3D sketch feature.
 
+| File | Read | Not kept (the dialog and a notice say which applied) |
+|---|---|---|
+| STL | Triangles, binary or text | Colours, textures |
+| OBJ | Vertices and faces (negative indices, `v/vt/vn` forms, polygons cut into triangles), colours from the `.mtl` (`Kd`, `d` or `Tr`) when it is dropped with the file, and the `x y z r g b` vertex colours some tools write | Normals, textures, smoothing groups, lines, free-form curves. Several objects or groups are joined into one mesh. Without the `.mtl` there are no colours, and a notice says so |
+| GLB | The scene's meshes with every node's transform, triangle lists (indexed or not), base colours and alpha of the materials. Metres and Y up become millimetres and Z up | Textures, colours per vertex, normals, animation and skinning (the model is shown at rest), lines and points. A GLB with Draco or meshopt compression, or with its data in a separate file, is refused with a message |
+| 3MF | Objects, components and build items with their transforms, the model unit (converted to millimetres), colours from base materials and colour groups, models split over several files | Textures, colour gradients inside a triangle, print supports, slicer settings. Several build items are joined into one mesh |
+
+A file that holds several objects comes in as **one** mesh (one row in the tree) with its colours kept; the parts cannot be moved apart afterwards. OBJ has no up direction: a model that lies on its back is stood upright with the quarter turn buttons in the Mesh panel.
+
 **What is stored.** The mesh travels in the `.ckpart` as welded vertices and triangle indices, packed and compressed (about 1.2 MB for a 500,000 triangle scan; see [Imported meshes and STEP data in the file](files.md#imported-meshes-and-step-data-in-the-file)), with the vertices rounded to a grid of at most one micron. The browser's automatic backup keeps a mesh up to about 2 MB packed and otherwise leaves it out and says so, so save to a file. Save as to a new name, dragging the saved file back in, and inserting the part from a library all keep the mesh; exporting a folder's geometry or extracting a folder does not (those are bodies and features, not meshes). A mesh that is damaged in a file is left out with a notice and the rest of the part opens. The mesh is not sent to the kernel, is not counted in mass or volume, and is not in STL, STEP or other exports.
 
-**Not done**: converting a mesh to a solid, remeshing or simplifying, mesh booleans, repairing holes (the dialog only reports them), colours or textures from an STL file, OBJ or 3MF import, and constraints to mesh points.
+**Not done**: converting a mesh to a solid, remeshing or simplifying, mesh booleans, repairing holes (the dialog only reports them), colours or textures from an STL file, textures from any mesh file, importing the parts of a multi-part file as separate meshes, and constraints to mesh points.
 
 ## SolidWorks parts
 
@@ -69,6 +78,10 @@ If a file fails, save it as STEP from SolidWorks and import that instead. More d
 ## SketchUp
 
 SketchUp files (`.skp`) are surface models made of flat faces, not solids.
+
+The picture shows a SketchUp file imported with the default Reference mesh choice, with the chair and table test file from the OpenSKP project (MIT).
+
+![A SketchUp file imported as a Reference mesh, with the chair and table test file from the OpenSKP project (MIT): the chair and table in the viewport in their SketchUp colours, the imported mesh listed in the feature tree as chair_and_table (mesh), and the open-surface warning in the status bar.](../img/import-skp.png)
 
 - **You get**, with the default choice **Reference mesh**, a mesh added to the open part (like an STL, so a part must be open) with each face in its SketchUp colour and translucent materials kept translucent. Everything an STL mesh does works: **Sketch on mesh**, **3D Sketch on mesh** with **Fit curves**, opacity, move, turn and scale, show or hide, delete, and it is saved with the part. Choose **View only** for the old behaviour (a new part showing a body that is not saved). Texture images are not imported either way.
 - **Units**: SketchUp stores inches and the importer converts to millimetres.

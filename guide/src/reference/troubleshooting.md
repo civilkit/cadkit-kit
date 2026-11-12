@@ -71,7 +71,7 @@ You selected two or more faces to round but none of them meet along an edge. Sel
 
 ## Imports fail
 
-Drop or open a file, or use **Import STEP / SolidWorks / SketchUp** in the **More file actions** menu. The messages:
+Drop or open a file, or use **Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp** in the **More file actions** menu. The messages:
 
 | Message | Fix |
 | --- | --- |

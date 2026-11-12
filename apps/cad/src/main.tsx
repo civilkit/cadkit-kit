@@ -65,6 +65,7 @@ import { mayBeSlow } from './exportKnurl';
 import { KNURL_BAKE_SECONDS, loadExportPrefs, saveExportPrefs, type ExportPrefs } from './exportPrefs';
 import { FileManager } from './files/fileManager';
 import { seemsZUp } from './files/importOrient';
+import { importTimingsLine } from './files/importTimings';
 import { SKP_DEFAULT_ORIENT, nextSkpOrient, skpImportOpts, skpNotices, type SkpOrient } from './files/skpImport';
 import { stripThumbnail } from './files/docThumb';
 import { createSaveThumbs } from './files/saveThumb';
@@ -127,7 +128,7 @@ import { MeshImportDialog } from './meshes/MeshImportDialog';
 import { ImportKindDialog, readChoice, type ImportKind } from './files/ImportKindDialog';
 import { orientOf, SKP_MESH_MAX_FACES, SKP_ROT, skpMeshRecord } from './files/skpMesh';
 import { meshesOf, matRuns, nextMeshId, matrixOf, decode as decodeMesh, pickMeshes, nearestOnMeshes, projectAlong, allWorldBox, worldBox, MESH_KEY, type MeshRec } from './meshes/meshDoc';
-import { buildRecord, guessUnit, probeStl, type MeshProbe } from './meshes/meshImport';
+import { buildMeshRecord, guessUnit, meshNoteLines, probeMesh, type MeshKind, type MeshProbe } from './meshes/meshImport';
 import { planeThrough, type PlaneKind } from './meshes/meshEdit';
 import { treeMeshRows } from './meshes/meshTree';
 import type { StlUnit } from '@kit/io';
@@ -191,7 +192,8 @@ import { applyTheme, asTheme, type Theme } from './theme';
 import { loadIconSet, chooseIconSet } from './iconSetPref';
 import { t } from './i18n';
 import { featureRows, refRows, treeKnurlRows } from './treeModel';
-import { runningBundle, watchForUpdate } from './updateCheck';
+import { watchForUpdate, runningBundle, fetchVersion, shouldWatch, reloadGuarded, type UpdateWatch } from './updateCheck';
+import { UpdateNotice } from './UpdateNotice';
 import { runsInstalled, registerServiceWorker, watchInstall, type InstallEvent } from './installPrompt';
 import { installDismissGuard } from './dismissGuard';
 import { useSignals } from './useSignals';
@@ -527,7 +529,8 @@ function App() {
   const [iconSet, setIconSetState] = useState<IconSet>(savedIconSet);
   const [guard, setGuard] = useState<(() => void) | null>(null);
   const [guardSave, setGuardSave] = useState<(() => Promise<void>) | null>(null);   // what Save does in the unsaved-changes dialog when it is not the file save (a component tab: write back)
-  const [stale, setStale] = useState(false);   // a newer build was deployed while this tab was open
+  const [update, setUpdate] = useState<{ version?: string } | null>(null);   // a newer build was published while this tab was open
+  const updateWatch = useRef<UpdateWatch | null>(null);
   const [installEv, setInstallEv] = useState<InstallEvent | null>(null);   // the browser can install the site as an app: the top bar then shows an Install button (see installPrompt.ts)
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
@@ -581,7 +584,7 @@ function App() {
   useEffect(() => { if (sk3dWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || editingId)) setSk3dWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, editingId]);
   useEffect(() => { if (springWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setSpringWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
-  const [meshDlg, setMeshDlg] = useState<{ name: string; bytes: Uint8Array; probe: MeshProbe; unit: StlUnit } | null>(null);   // the STL import dialog
+  const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
   const [meshPick, setMeshPick] = useState<null | { stage: 'aim' } | { stage: 'plane'; pos: P3d; normal: P3d }>(null);   // starting a sketch by clicking the mesh surface
   useEffect(() => { if (meshWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) closeMeshPanel(); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);
   useEffect(() => { if (sk3dWiz && meshWiz) closeMeshPanel(); }, [sk3dWiz]);
@@ -1663,7 +1666,7 @@ function App() {
     const tRead = Date.now();
     importing.value = { name: file, done: 0, total: 0, abort: () => {}, phase: 'building' };
     try { await load(JSON.stringify(r.part as ScPart), { file: null }); } finally { importing.value = null; }
-    store.notify(t('files.solidcraft.timings', { name: file, read: ((tRead - tStart) / 1000).toFixed(1), build: ((Date.now() - tRead) / 1000).toFixed(1) }));
+    store.notify(importTimingsLine(t, file, r.timings, tRead - tStart, Date.now() - tRead));
     // their app hides a sketch and a plane once a feature uses it: only the model is shown, as there (a view setting, not in the part)
     lookStore.hidden.value = { body: false, ids: (r.part.features as Array<{ type: string; id: string }>).filter((x) => x.type === 'sketch' || x.type === 'sketch3d' || x.type === 'plane' || x.type === 'helix').map((x) => x.id) };
     viewport?.fit();
@@ -1674,7 +1677,7 @@ function App() {
     if (r.summary.notes) store.notify(t('files.solidcraft.notes', { name: file, count: r.summary.notes }), 'warn');
   });
   /** Open a file by what it is: a part, STEP, DXF, SVG, FreeCAD or SolidCraft; anything else gets a notice. `bytes` reads binary files. */
-  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>) => {
+  const openByKind = (name: string, read: () => Promise<string>, kind: DropKind, bytes?: () => Promise<Uint8Array>, mtl?: () => Promise<string>) => {
     if (kind === 'fcstd') { if (bytes) void bytes().then((b) => importFcstdBytes(b, name)); return; }
     if (kind === 'solidcraft') { if (bytes) void bytes().then((b) => importSolidcraftBytes(b, name)); return; }
     if (kind === 'skp') { if (bytes) void bytes().then((b) => setKindDlg({ kind: 'skp', name, bytes: b, hidden: false })); return; }
@@ -1683,14 +1686,16 @@ function App() {
     else if (kind === 'step') void read().then((text) => setKindDlg({ kind: 'step', name, text, hidden: false }));
     else if (kind === 'dxf') void read().then((text) => { if (controller.sketchDraft()) void importDxfIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromDxfText(text); });
     else if (kind === 'svg') void read().then((text) => { if (controller.sketchDraft()) void importSvgIntoSketch(controller, text).then((r) => { showNotices(r.notices); viewTick((n) => n + 1); if (r.ok) viewport?.fit(); }); else sketchFromSvgText(text); });
-    else if (kind === 'stl') { if (bytes) void bytes().then((b) => importStlBytes(b, name)); }
+    else if (kind === 'stl' || kind === 'obj' || kind === 'glb' || kind === '3mf') { if (bytes) void bytes().then((b) => importStlBytes(b, name, kind, mtl)); }
     else store.notify(t('files.drop.unknown', { name }), 'error');
   };
   const dropFiles = (list: File[]) => {
     const plan = planDrop(list.map((f) => f.name));
     if (plan.action === 'none') return;
     if (plan.action === 'multiple') { store.notify(t('files.drop.one'), 'warn'); return; }
-    openByKind(plan.name, () => fileText(list[0]), plan.kind, async () => new Uint8Array(await list[0].arrayBuffer()));
+    const main = list.find((f) => f.name === plan.name) ?? list[0];
+    const mtlFile = plan.mtl ? list.find((f) => f.name === plan.mtl) : undefined;
+    openByKind(plan.name, () => fileText(main), plan.kind, async () => new Uint8Array(await main.arrayBuffer()), mtlFile ? () => fileText(mtlFile) : undefined);
   };
   const openRecent = (e: RecentEntry) => {
     setSamples(null);
@@ -1765,7 +1770,7 @@ function App() {
       rotateSkp: () => rotateSkp(),
       hasSkp: () => !!skpShown.current && (skpShown.current.meshId ? meshesOf(controller.document()).some((m) => m.id === skpShown.current!.meshId) : !!controller.importedLook()),
       importSkpHidden: () => void (async () => { const f = await platform.openFile({ accept: ['.skp'] }); if (f && dropKind(f.name) === 'skp') setKindDlg({ kind: 'skp', name: f.name, bytes: f.bytes ?? new Uint8Array(), hidden: true }); })(),
-      importStep: () => void (async () => { const f = await platform.openFile({ accept: IMPORT_ACCEPT }); if (f) openByKind(f.name, async () => f.text, ['step', 'stl', 'sldprt', 'skp'].includes(dropKind(f.name)) ? dropKind(f.name) : 'unknown', async () => f.bytes ?? new TextEncoder().encode(f.text)); })(),
+      importStep: () => void (async () => { const f = await platform.openFile({ accept: IMPORT_ACCEPT }); if (f) openByKind(f.name, async () => f.text, ['step', 'stl', 'obj', 'glb', '3mf', 'sldprt', 'skp'].includes(dropKind(f.name)) ? dropKind(f.name) : 'unknown', async () => f.bytes ?? new TextEncoder().encode(f.text)); })(),
     },
     samples: async () => setSamples(await platform.listSamples()),
     undo: async () => { await controller.undo(); redraw((n) => n + 1); },
@@ -3636,33 +3641,37 @@ function App() {
     setMeshWiz(null); setLeftTab('Features');
     applyMeshes();
   };
-  /** An STL file arrived (drop, Open, Import): read it, and ask for the unit with what it holds. */
-  const importStlBytes = (bytes: Uint8Array, file: string) => {
+  /** An STL, OBJ, GLB or 3MF file arrived (drop, Open, Import): read it, and ask for the unit (when the file has none) with what it holds. `mtl`: an OBJ's material file, when it was dropped with it. */
+  const importStlBytes = (bytes: Uint8Array, file: string, kind: MeshKind = 'stl', mtl?: () => Promise<string>) => {
     if (!controller.document()) { store.notify(t('mesh.noDoc'), 'warn'); return; }
     // reading a big file takes a moment: let the page paint the notice first
     store.notify(t('mesh.import.reading', { name: file }));
-    setTimeout(() => {
-      const r = probeStl(bytes);
-      if (!r.ok) { store.notify(t('mesh.failed', { name: file, reason: t('mesh.err.' + r.code) }), 'error'); return; }
-      setMeshDlg({ name: file, bytes, probe: r.probe, unit: guessUnit(r.probe.size) });
-    }, 30);
+    setTimeout(() => void (async () => {
+      const mtlText = mtl ? await mtl() : undefined;
+      const r = await probeMesh(kind, bytes, { mtl: mtlText }).catch((e: Error) => ({ ok: false as const, code: 'failed', message: e.message }));
+      if (!r.ok) { store.notify(t('mesh.failed', { name: file, reason: 'message' in r ? r.message : t('mesh.err.' + r.code) }), 'error'); return; }
+      setMeshDlg({ name: file, kind, bytes, ...(mtlText !== undefined ? { mtl: mtlText } : {}), probe: r.probe, unit: r.probe.unitFixed ?? guessUnit(r.probe.size) });
+    })(), 30);
   };
   const commitMeshImport = (unit: StlUnit, ground: boolean) => {
     const dlg = meshDlg;
     if (!dlg) return;
     setMeshDlg(null);
-    setTimeout(() => {
+    setTimeout(() => void (async () => {
       try {
         const have = meshesOf(controller.document());
-        const { rec } = buildRecord(dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null);
+        const { rec } = await buildMeshRecord(dlg.kind, dlg.bytes, dlg.name, unit, have, ground ? viewport?.getUpAxis() ?? 'y' : null, dlg.mtl);
         controller.setUndoableExtra(MESH_KEY, [...have, rec]);
         refreshMeshes(true);
           redraw((n) => n + 1);
         store.notify(t('mesh.added', { name: rec.name, tris: rec.tris.toLocaleString() }));
+        // what the file held that a reference mesh does not keep, and what was converted
+        const lines = meshNoteLines(dlg.probe.notes ?? []);
+        if (lines.length) store.notify(t('mesh.notes', { name: dlg.name, list: lines.join(' ') }), 'warn');
       } catch (e) {
         store.notify(t('mesh.failed', { name: dlg.name, reason: (e as Error).message }), 'error');
       }
-    }, 30);
+    })(), 30);
   };
   const saveMeshes = (list: MeshRec[]) => { controller.setUndoableExtra(MESH_KEY, list.length ? list : null); refreshMeshes(); redraw((n) => n + 1); };
   const openMesh = (id: string) => {
@@ -4188,8 +4197,14 @@ function App() {
     return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
   }, []);
   useEffect(() => {
-    const w = watchForUpdate({ current: runningBundle(), fetchHtml: async () => (await fetch(location.origin + location.pathname, { cache: 'no-store' })).text(), onStale: () => setStale(true) });
-    return w.stop;
+    if (!shouldWatch(location)) return;   // localhost, a dev server, the desktop app (its installer updates it)
+    const w = watchForUpdate({
+      current: runningBundle(),
+      fetchHtml: async () => (await fetch(location.origin + location.pathname, { cache: 'no-store' })).text(),
+      getVersion: () => fetchVersion((u, i) => fetch(u, i), document.baseURI),
+      onStale: setUpdate });
+    updateWatch.current = w;
+    return () => { w.stop(); updateWatch.current = null; };
   }, []);
   useEffect(() => {
     if (runsInstalled()) return;
@@ -4286,13 +4301,7 @@ function App() {
       <Tip label={t('cmd.undo')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.undo')} disabled={!doc} onClick={() => cmd('undo')!.run()}><Icon name="undo" size={22} /></button></Tip>
       <Tip label={t('cmd.redo')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.redo')} disabled={!doc} onClick={() => cmd('redo')!.run()}><Icon name="redo" size={22} /></button></Tip>
       <Slot id="phone-more" variant="icon" side="bottom" menu icon="more" title={t('app.phone.more')} items={moreItems} />
-      {stale ? (
-        <span class="update-note" role="status">
-          <span>{t('app.update.text')}</span>
-          <button class="rb-btn" onClick={() => guardedAll(() => location.reload())}>{t('app.update.refresh')}</button>
-          <button class="rb-btn" onClick={() => setStale(false)}>{t('app.update.later')}</button>
-        </span>
-      ) : null}
+      {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => location.reload() })} onLater={() => setUpdate(null)} /> : null}
     </div>
   );
   // the document tabs: in the top bar on a desktop (one row less of chrome), a row of their own on a tablet
@@ -4321,13 +4330,7 @@ function App() {
           : null}
         {tabsInTop ? tabStrip
           : <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>}
-        {stale ? (
-          <span class="update-note" role="status">
-            <span>{t('app.update.text')}</span>
-            <button class="rb-btn" onClick={() => guardedAll(() => location.reload())}>{t('app.update.refresh')}</button>
-            <button class="rb-btn" onClick={() => setStale(false)}>{t('app.update.later')}</button>
-          </span>
-        ) : null}
+        {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => location.reload() })} onLater={() => setUpdate(null)} /> : null}
         <div class="mode-tabs" role="tablist" aria-label={t('drawing.title')}>
           <button role="tab" aria-selected={!drawingOpen} class="rb-btn" onClick={() => setDrawingOpen(false)}>{t('drawing.tab.part')}</button>
           <button role="tab" aria-selected={drawingOpen} class="rb-btn" disabled={!doc} onClick={() => setDrawingOpen(true)}>{t('drawing.tab.drawing')}</button>
@@ -4497,7 +4500,7 @@ function App() {
       {samples ? <LibraryDialog samples={samples} thumbBase={base} registry={libraryRegistry()} onOpenPart={(data, lib) => { setSamples(null); libraryActions.openNew(data, lib); }} canInsert={!!doc} onInsertPart={(e) => { setSamples(null); catalog.onItemKey(partItem(e)); }} onWizard={(id) => { setSamples(null); if (id === 'screw') openScrew(); else openBearing(); }} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
       {kindDlg ? <ImportKindDialog kind={kindDlg.kind} name={kindDlg.name} initial={readChoice(kindDlg.kind)} hidden={kindDlg.hidden} onCancel={() => setKindDlg(null)} onImport={(choice, hidden) => { const d = kindDlg; setKindDlg(null); if (d.kind === 'skp') { if (choice === 'saved') void importSkpMesh(d.bytes!, d.name, hidden); else importSkpBytes(d.bytes!, d.name, hidden); } else if (choice === 'saved') importStepFeature(d.text!, d.name); else importStepText(d.text!, d.name); }} /> : null}
-      {meshDlg ? <MeshImportDialog name={meshDlg.name} probe={meshDlg.probe} unit={meshDlg.unit} onImport={commitMeshImport} onCancel={() => setMeshDlg(null)} /> : null}
+      {meshDlg ? <MeshImportDialog name={meshDlg.name} kind={meshDlg.kind} probe={meshDlg.probe} unit={meshDlg.unit} onImport={commitMeshImport} onCancel={() => setMeshDlg(null)} /> : null}
       {meshPick ? (
         <div class="mesh-pick-chip" data-testid="mesh-pick" role="group" aria-label={t('mesh.pick.hint')}>
           <span class="mesh-pick-text">{meshPick.stage === 'aim' ? t('mesh.pick.hint') : t('mesh.pick.plane')}</span>
@@ -4523,7 +4526,7 @@ function App() {
       {sheetUi.nodes}
       {knurlAsk ? <KnurlExportAsk count={knurlAsk.count} onAnswer={answerKnurl} /> : null}
       {knurlFail ? <KnurlExportFailed reason={knurlFail.reason} message={knurlFail.message} onChoose={chooseKnurl} /> : null}
-      {settings ? <SettingsDialog workspace={stored} layoutPref={layoutPref.value} onLayoutPref={(v) => { layoutPref.value = v; write(LAYOUT_KEY, v); }} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onClose={() => setSettings(false)}
+      {settings ? <SettingsDialog workspace={stored} layoutPref={layoutPref.value} onLayoutPref={(v) => { layoutPref.value = v; write(LAYOUT_KEY, v); }} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onCheckUpdate={updateWatch.current ? () => updateWatch.current!.check(true) : undefined} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         navPrefs={navPrefs} onNavPrefs={changeNav}

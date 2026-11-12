@@ -4,6 +4,17 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.6.5 - 2026-11-12
+
+- **A hole can aim at one body.** A `hole` with a `target` drills only the bodies it names, as extrude and revolve already did; without a `target` nothing changes.
+- **More thread sizes, and the print clearance changes the thread.** The metric thread table gains M1.1, M4.5, M9, M11 and M68, and the **Print clearance** setting of a modelled thread now moves the thread (wider is looser, up to 1 mm). On a shaft drawn at the nominal size a wider external thread cannot fit and falls back to a cosmetic thread with a warning: draw the shaft near the loosened size.
+- **A circle seen edge-on is hidden behind a slanted wall in drawings.** The inside floor of a can, seen from the side, is no longer drawn as a visible line through the wall in front of it.
+- **The new-version notice names the version, and Settings can check by hand.** The notice that appears when a newer build is published now reads "A new version (0.6.5) is available." with **Reload** (it still waits for your unsaved changes), and **Settings > About > Check for updates** looks right away and shows when it last checked. This works for the website and the installed web app; the Mac app is not covered yet, its installer does the updating.
+- **Open OBJ, GLB and 3MF files as reference meshes.** Drop or open an `.obj`, `.glb` or `.3mf` file and it is added to the part as a mesh to sketch on, like an STL, with its colours (an OBJ's come from its `.mtl`, dropped together with it) and the unit a GLB or 3MF states converted to millimetres. The import dialog and a notice say what a reference mesh does not keep, such as normals and textures, and a GLB with Draco or meshopt compression is refused with a message.
+- **A Rounded rectangle sketch tool.** In the Draw group next to Rectangle, click two corners and the four corners come out rounded; the `corner` field sets the radius (typed, it becomes a dimension on each corner arc) and the last radius is kept for the next rectangle. The corners are made the same way as with the Fillet tool.
+- **Add a point to an existing spline.** In the sketch tools, **Add spline point** (in the spline group) puts a new point on a fit spline where you click, between the two points it lies between, so you can bend that part by dragging the new point. The spline keeps its constraints, and because it is fitted through all its points again it can shift slightly.
+- **A SolidCraft import tells you where the time went.** The notice after an import now reads like "Imported part in 3.2 s: read 0.4, kernel 2.5 (310 questions), mapping 0.3, rebuild 0.0", so a slow file shows which step to blame.
+
 ## 0.6.4 - 2026-11-12
 
 - **A union where a plate corner sits a hair inside a round rim closes.** A disc with a plate standing on it, one corner of the plate a fraction of a micrometre inside the rim, no longer stops with an open edge (`openEdge`): the kernel now decides which side of a round rim a point lies on exactly, not from the polygon it draws the rim with.

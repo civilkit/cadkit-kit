@@ -79,6 +79,10 @@
     "file": "freeform-editor.png",
     "caption": "A wavy surface with one face picked, the Freeform editor open on the left, and the face rebuilt as a net with a control point lifted."
   },
+  "import-skp": {
+    "file": "import-skp.png",
+    "caption": "A SketchUp file imported as a Reference mesh, with the chair and table test file from the OpenSKP project (MIT): the chair and table in the viewport in their SketchUp colours, the imported mesh listed in the feature tree as chair_and_table (mesh), and the open-surface warning in the status bar."
+  },
   "inspect-drawer": {
     "file": "inspect-drawer.png",
     "caption": "The Inspect tab of the drawer under a part, showing the Mass properties card and the result of measuring the distance between two corners."

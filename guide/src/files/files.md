@@ -16,7 +16,7 @@ New, Open, Save, Export and Library are buttons at the left of the top bar. The 
 | Save as | More file actions | Ctrl+Shift+S |
 | Save geometry in file | More file actions (a toggle) | |
 | Recover earlier versions... | More file actions | |
-| Import STEP / SolidWorks / SketchUp | More file actions | |
+| Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp | More file actions | |
 | Export | Top bar | Ctrl+E |
 | Library | Top bar | |
 

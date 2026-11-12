@@ -458,6 +458,17 @@ export const SHOTS = [
       const r = await c.rect('.sheet-dxf-dlg'); if (!r) c.skip('no DXF dialog');
       return { x: Math.max(0, r.x - 8), y: Math.max(0, r.y - 8), w: r.w + 16, h: r.h - 28 };
     } },
+  { name: 'import-skp', caption: 'A SketchUp file imported as a Reference mesh, with the chair and table test file from the OpenSKP project (MIT): the chair and table in the viewport in their SketchUp colours, the imported mesh listed in the feature tree as chair_and_table (mesh), and the open-surface warning in the status bar.',
+    async run(c) {
+      const path = process.env.SKP_FIXTURE; if (!path) c.skip('SKP_FIXTURE is not set (path to chair_and_table.skp from the OpenSKP test files)');
+      const b64 = (await import('node:fs')).readFileSync(path).toString('base64');
+      await c.open({ doc: newDoc('Imported SketchUp model', []) });
+      // the same path as a file dropped on the window: a synthetic drop event carrying the file
+      await c.page.eval(`(() => { const bin = atob(${JSON.stringify(b64)}); const u = new Uint8Array(bin.length); for (let i = 0; i < u.length; i++) u[i] = bin.charCodeAt(i); const dt = new DataTransfer(); dt.items.add(new File([u], 'chair_and_table.skp')); for (const t of ['dragenter', 'dragover', 'drop']) window.dispatchEvent(new DragEvent(t, { dataTransfer: dt, bubbles: true, cancelable: true })); return 0; })()`);
+      await c.sleep(800);
+      if (!(await c.click('[data-testid=import-kind-ok]'))) c.skip('no import choice box');
+      await c.settle(2500);
+    } },
 ];
 
 

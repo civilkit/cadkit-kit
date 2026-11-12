@@ -81,7 +81,7 @@ function locate(draft: SketchDraft, e: ReturnType<typeof entityOf>, at: Pt, poin
 }
 
 /** The data points of a fit spline as point ids, consecutive repeats removed (the kernel drops them too). */
-function splineIds(d: SketchDraft, e: DraftEntity): string[] {
+export function splineIds(d: SketchDraft, e: DraftEntity): string[] {
   const out: string[] = [];
   for (const raw of Array.isArray(e.pts) ? e.pts : []) {
     const id = String(raw);

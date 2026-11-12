@@ -2,10 +2,10 @@
 import { registerCatalog } from '@kit/i18n';
 
 export const filesEn = {
-  'cmd.save-as': 'Save as', 'cmd.embed-geometry': 'Save geometry in file', 'cmd.import-step': 'Import STEP / STL / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only), or add an STL mesh to this part as a reference to sketch on',
+  'cmd.save-as': 'Save as', 'cmd.embed-geometry': 'Save geometry in file', 'cmd.import-step': 'Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only), or add an STL, OBJ, GLB or 3MF mesh to this part as a reference to sketch on',
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
-  'app.update.text': 'A new version is available.', 'app.update.refresh': 'Refresh', 'app.update.later': 'Later',
+  'app.update.text': 'A new version ({version}) is available.', 'app.update.dirty': 'You have unsaved changes: save first, then reload.', 'app.update.generic': 'A new version is available.', 'app.update.refresh': 'Reload', 'app.update.later': 'Later',
   'app.install.text': 'Install CadKit as an app: its own window, and it opens without the browser.', 'app.install.action': 'Install',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',
@@ -28,8 +28,8 @@ export const filesEn = {
   'files.cache.rejected.corrupt': 'The saved view could not be read, rebuilding',
   'files.cache.pickWait': 'Rebuilding the part: picking is available in a moment.',
   'files.restored': 'Restored "{name}"',
-  'files.drop.title': 'Drop a file to open it', 'files.drop.hint': '.ckpart  .json  .step  .stp  .stl  .sldprt  .skp  .dxf  .svg  .fcstd  .solidcraft',
-  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .stl, .sldprt, .skp, .dxf, .svg, .FCStd and .solidcraft files are supported.',
+  'files.drop.title': 'Drop a file to open it', 'files.drop.hint': '.ckpart  .json  .step  .stp  .stl  .obj  .glb  .3mf  .sldprt  .skp  .dxf  .svg  .fcstd  .solidcraft',
+  'files.drop.unknown': 'Cannot open "{name}": only .ckpart, .json, .step, .stp, .stl, .obj, .glb, .3mf, .sldprt, .skp, .dxf, .svg, .FCStd and .solidcraft files are supported.',
   'files.drop.one': 'Drop one file at a time.',
   'files.dxf.target': 'DXF opens in a sketch: a new sketch on the front plane was started.',
   'files.sldprt.part': 'Opened {name} (SolidWorks): {faces} faces, as an editable body. The design history of the file is not read; the solid is kept in the part.',
@@ -81,6 +81,7 @@ export const filesEn = {
   'files.solidcraft.starting': 'Importing {name}...',
   'files.solidcraft.building': 'Building {name} in the kernel (a large file can take several minutes)...',
   'files.solidcraft.timings': 'Import of {name}: read in {read} s, rebuilt in {build} s.',
+  'files.solidcraft.timings.phases': 'Imported {name} in {total} s: read {read}, kernel {kernel} ({count} questions), mapping {map}, rebuild {build}.',
   'files.solidcraft.cancelled': 'Import of {name} cancelled.',
   'files.step.noKernel': 'Open or create a part first, then import the STEP file.',
   'files.recent.title': 'Recent', 'files.recent.sample': 'Sample', 'files.recent.file': 'File', 'files.recent.noPreview': 'No preview yet',

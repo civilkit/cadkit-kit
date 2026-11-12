@@ -36,7 +36,7 @@ From left to right:
 | **Open** (`Ctrl+O`) | Opens a part file. |
 | **Save** (`Ctrl+S`) | Saves the part. |
 | **Export** (`Ctrl+E`) | Opens the Export menu. See [Exporting](../files/export.md). |
-| **More file actions** | A menu with **Save as**, **Save geometry in file**, **Recover earlier versions…**, **Import STEP / SolidWorks / SketchUp**, **Import SketchUp with hidden geometry** and **Rotate imported model**. |
+| **More file actions** | A menu with **Save as**, **Save geometry in file**, **Recover earlier versions…**, **Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp**, **Import SketchUp with hidden geometry** and **Rotate imported model**. |
 | **Library** | Opens the Library picker: the sample parts and the libraries you added. |
 | Part name | Double-click to rename the part. A dot after the name means unsaved changes. |
 | **Part** / **Drawing** | Switches the document between the model and its drawing. See [Drawings](../files/drawings.md). |

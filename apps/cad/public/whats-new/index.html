@@ -36,7 +36,25 @@
 <div class="wrap page">
 <h1>What's new in CivilKit CAD</h1>
 <p class="lede">Release notes for every version, newest first. The app shows its version at the bottom of Settings. <a href="/docs/cad/">User guide</a> · <a href="../">Open CAD</a></p>
-<ul class="versions" aria-label="Versions"><li><a href="#v0-6-4">0.6.4</a></li><li><a href="#v0-6-3">0.6.3</a></li><li><a href="#v0-6-2">0.6.2</a></li><li><a href="#v0-6-1">0.6.1</a></li><li><a href="#v0-6-0">0.6.0</a></li><li><a href="#v0-5-0">0.5.0</a></li><li><a href="#v0-4-0">0.4.0</a></li><li><a href="#v0-3-9">0.3.9</a></li><li><a href="#v0-3-8">0.3.8</a></li><li><a href="#v0-3-7">0.3.7</a></li><li><a href="#v0-3-6">0.3.6</a></li><li><a href="#v0-3-5">0.3.5</a></li><li><a href="#v0-3-4">0.3.4</a></li><li><a href="#v0-3-3">0.3.3</a></li><li><a href="#v0-3-2">0.3.2</a></li><li><a href="#v0-3-1">0.3.1</a></li><li><a href="#v0-3-0">0.3.0</a></li><li><a href="#v0-2-2">0.2.2</a></li><li><a href="#v0-2-1">0.2.1</a></li><li><a href="#v0-2-0">0.2.0</a></li><li><a href="#v0-1-5">0.1.5</a></li><li><a href="#v0-1-4">0.1.4</a></li><li><a href="#v0-1-3">0.1.3</a></li><li><a href="#v0-1-2">0.1.2</a></li><li><a href="#v0-1-1">0.1.1</a></li><li><a href="#v0-1-0">0.1.0</a></li></ul>
+<ul class="versions" aria-label="Versions"><li><a href="#v0-6-5">0.6.5</a></li><li><a href="#v0-6-4">0.6.4</a></li><li><a href="#v0-6-3">0.6.3</a></li><li><a href="#v0-6-2">0.6.2</a></li><li><a href="#v0-6-1">0.6.1</a></li><li><a href="#v0-6-0">0.6.0</a></li><li><a href="#v0-5-0">0.5.0</a></li><li><a href="#v0-4-0">0.4.0</a></li><li><a href="#v0-3-9">0.3.9</a></li><li><a href="#v0-3-8">0.3.8</a></li><li><a href="#v0-3-7">0.3.7</a></li><li><a href="#v0-3-6">0.3.6</a></li><li><a href="#v0-3-5">0.3.5</a></li><li><a href="#v0-3-4">0.3.4</a></li><li><a href="#v0-3-3">0.3.3</a></li><li><a href="#v0-3-2">0.3.2</a></li><li><a href="#v0-3-1">0.3.1</a></li><li><a href="#v0-3-0">0.3.0</a></li><li><a href="#v0-2-2">0.2.2</a></li><li><a href="#v0-2-1">0.2.1</a></li><li><a href="#v0-2-0">0.2.0</a></li><li><a href="#v0-1-5">0.1.5</a></li><li><a href="#v0-1-4">0.1.4</a></li><li><a href="#v0-1-3">0.1.3</a></li><li><a href="#v0-1-2">0.1.2</a></li><li><a href="#v0-1-1">0.1.1</a></li><li><a href="#v0-1-0">0.1.0</a></li></ul>
+<section class="release" id="v0-6-5">
+<h2>0.6.5 <time datetime="2026-11-12">12 November 2026</time></h2>
+<div class="cards news">
+<article class="card"><h3>Open OBJ, GLB and 3MF files</h3><p>Drop or open an .obj, .glb or .3mf file and it is added as a reference mesh, with colours and (for GLB and 3MF) the unit taken from the file. A notice lists what was not read, such as textures and the separate parts of a multi-part file.</p></article>
+<article class="card"><h3>A Rounded rectangle sketch tool</h3><p>Click two corners and the four corners come out rounded. The corner field sets the radius, and a typed radius becomes a dimension on each corner arc; the last radius is kept for the next rectangle. Add spline point inserts a free point on an existing spline.</p></article>
+</div>
+<details class="all"><summary>All changes in 0.6.5 (8)</summary>
+<ul>
+<li><strong>A hole can aim at one body.</strong> A <code>hole</code> with a <code>target</code> drills only the bodies it names, as extrude and revolve already did; without a <code>target</code> nothing changes.</li>
+<li><strong>More thread sizes, and the print clearance changes the thread.</strong> The metric thread table gains M1.1, M4.5, M9, M11 and M68, and the <strong>Print clearance</strong> setting of a modelled thread now moves the thread (wider is looser, up to 1 mm).</li>
+<li><strong>A circle seen edge-on is hidden behind a slanted wall in drawings.</strong> The inside floor of a can, seen from the side, is no longer drawn as a visible line through the wall in front of it.</li>
+<li><strong>The new-version notice names the version, and Settings can check by hand.</strong> The notice that appears when a newer build is published now reads &quot;A new version (0.6.5) is available.&quot; with <strong>Reload</strong> (it still waits for your unsaved changes), and **Settings &gt; About &gt; Check for…</li>
+<li><strong>Open OBJ, GLB and 3MF files as reference meshes.</strong> Drop or open an <code>.obj</code>, <code>.glb</code> or <code>.3mf</code> file and it is added to the part as a mesh to sketch on, like an STL, with its colours (an OBJ&#39;s come from its <code>.mtl</code>, dropped together with it) and the unit…</li>
+<li><strong>A Rounded rectangle sketch tool.</strong> In the Draw group next to Rectangle, click two corners and the four corners come out rounded.</li>
+<li><strong>Add a point to an existing spline.</strong> In the sketch tools, <strong>Add spline point</strong> (in the spline group) puts a new point on a fit spline where you click, between the two points it lies between, so you can bend that part by dragging the new…</li>
+<li><strong>A SolidCraft import tells you where the time went.</strong> The notice after an import now reads like &quot;Imported part in 3.2 s: read 0.4, kernel 2.5 (310 questions), mapping 0.3, rebuild 0.0&quot;, so a slow file shows which step to blame.</li>
+</ul></details>
+</section>
 <section class="release" id="v0-6-4">
 <h2>0.6.4 <time datetime="2026-11-12">12 November 2026</time></h2>
 <div class="cards news">

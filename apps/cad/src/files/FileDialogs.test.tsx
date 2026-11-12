@@ -148,7 +148,7 @@ describe('file commands', () => {
     matchShortcut(cmds, ev({ metaKey: true, shiftKey: true }))!.run();
     matchShortcut(cmds, ev({ ctrlKey: true }))!.run();
     expect([saveAs.mock.calls.length, save.mock.calls.length]).toEqual([1, 1]);
-    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / STL / SolidWorks / SketchUp');
+    expect(cmds.find((c) => c.id === 'import-step')!.label).toBe('Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp');
   });
   it('Rotate imported model is a file command, enabled only while a SketchUp model is shown', () => {
     const rotateSkp = vi.fn(); let shown = false;

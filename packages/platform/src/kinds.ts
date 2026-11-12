@@ -1,7 +1,7 @@
 // The one table of file kinds the app opens: which extensions are binary containers (read as bytes; text would corrupt them)
 // and which are text. The file picker, the drop path and the Open / Import menus all take their answers from here.
 
-export type FileKind = 'part' | 'step' | 'dxf' | 'svg' | 'stl' | 'sldprt' | 'skp' | 'fcstd' | 'solidcraft';
+export type FileKind = 'part' | 'step' | 'dxf' | 'svg' | 'stl' | 'sldprt' | 'skp' | 'fcstd' | 'solidcraft' | 'obj' | 'glb' | '3mf';
 
 export const FILE_KINDS: Record<FileKind, { exts: string[]; binary: boolean }> = {
   part: { exts: ['ckpart', 'ckpart', 'json', 'gz'], binary: false },   // JSON; a gzip stream is detected by its magic and unpacked to text
@@ -9,6 +9,9 @@ export const FILE_KINDS: Record<FileKind, { exts: string[]; binary: boolean }> =
   dxf: { exts: ['dxf'], binary: false },
   svg: { exts: ['svg'], binary: false },
   stl: { exts: ['stl'], binary: true },                                // binary STL is the common case; ASCII STL is parsed from the same bytes
+  obj: { exts: ['obj'], binary: true },                                // text, but read as bytes: a big OBJ is decoded once, by the reader
+  glb: { exts: ['glb'], binary: true },
+  '3mf': { exts: ['3mf'], binary: true },
   sldprt: { exts: ['sldprt'], binary: true },
   skp: { exts: ['skp'], binary: true },
   fcstd: { exts: ['fcstd'], binary: true },
