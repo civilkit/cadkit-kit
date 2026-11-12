@@ -73,6 +73,7 @@ export const filesEn = {
   'files.solidcraft.clean': 'Imported {name} from SolidCraft: all {total} features converted.',
   'files.solidcraft.done': 'Imported {name} from SolidCraft: {converted} of {total} features converted, the geometry is partial. Not supported: {first}{more}. Each is kept as a suppressed placeholder in the tree.',
   'files.solidcraft.notes': '{name}: {count} sketch constraint(s) were not carried over; the geometry is kept as stored.',
+  'tabs.menu.rename': 'Rename', 'tabs.menu.close': 'Close', 'tabs.menu.closeOthers': 'Close the other tabs (unsaved ones stay)',
   'tabs.label': 'Open parts', 'tabs.new': 'New part in a new tab', 'tabs.close': 'Close {name}', 'tabs.unsaved': '{name} (unsaved changes)', 'tabs.dirty': 'unsaved changes',
   'tabs.finishSketch': 'Finish or leave the sketch first (Esc), then switch part.', 'tabs.sketchKept': 'Sketch finished and kept in {name}.', 'tabs.list': 'All open parts', 'tabs.limit': 'Too many parts are open: close one first.',
   'files.solidcraft.failed': 'Could not import {name}: {message}',

@@ -6,7 +6,7 @@ A drawing belongs to the part. It is saved in the part file, and when the part c
 
 ## Open the drawing view
 
-Press the **Drawing** tab in the top bar, next to **Part**. The sheet appears over the viewport. The tab needs an open part, and a part with no body says "Nothing to draw: the part has no body." **Back to part** (top left of the drawing toolbar) or the Part tab returns to the model. The Drawing view closes when you switch to another document tab.
+Press **Drawing** in the **Part** / **Drawing** switch in the top bar. The sheet appears over the viewport. The switch needs an open part, and a part with no body says "Nothing to draw: the part has no body." **Back to part** (top left of the drawing toolbar) or **Part** in the switch returns to the model. The Drawing view closes when you switch to another document tab.
 
 ![The Drawing view for the mounting plate sample: front, top, right and isometric views with dimensions and the title block.](../img/drawing-sheet.png)
 

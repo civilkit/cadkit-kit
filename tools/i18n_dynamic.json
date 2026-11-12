@@ -1,5 +1,43 @@
 {
  "_comment": "dynamic t() keys -> the full keys they can produce; each must exist in en. Add variants here when a call site gains values.",
+ "chat.ctx.${k}": [
+  "chat.ctx.comments",
+  "chat.ctx.selection",
+  "chat.ctx.view"
+ ],
+ "chat.ctx.${k}.tip": [
+  "chat.ctx.comments.tip",
+  "chat.ctx.selection.tip",
+  "chat.ctx.view.tip"
+ ],
+ "chat.err.${code}": [
+  "chat.err.aborted",
+  "chat.err.bad_request",
+  "chat.err.busy",
+  "chat.err.cap",
+  "chat.err.claude_missing",
+  "chat.err.failed",
+  "chat.err.not_linked",
+  "chat.err.not_logged_in",
+  "chat.err.overloaded",
+  "chat.err.rate_limit",
+  "chat.err.service_unreachable"
+ ],
+ "chat.model.${m}": [
+  "chat.model.haiku",
+  "chat.model.opus",
+  "chat.model.sonnet"
+ ],
+ "chat.tool.${n}": [
+  "chat.tool.docs",
+  "chat.tool.list_methods",
+  "chat.tool.other",
+  "chat.tool.redo",
+  "chat.tool.run_script",
+  "chat.tool.screenshot",
+  "chat.tool.state",
+  "chat.tool.undo"
+ ],
  "analysis.mode.+": [
   "analysis.mode.draft",
   "analysis.mode.gaussian",

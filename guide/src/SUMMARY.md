@@ -69,6 +69,7 @@
 
 - [Scripting](automation/scripting.md)
 - [Agents and the MCP server](automation/mcp.md)
+- [Chat: ask for a change in words](automation/chat.md)
 - [The local kernel service](automation/local-kernel.md)
 
 # Reference

@@ -112,4 +112,11 @@ describe('SketchFields: typing that starts with no field focused', () => {
     expect(a.selectionStart).toBe(0);
     expect(a.selectionEnd).toBe(a.value.length);
   });
+  it('the value box widens when a long expression is typed', () => {
+    render(<SketchFields fields={[field]} x={0} y={0} onField={vi.fn()} />);
+    const input = screen.getByLabelText('len') as HTMLInputElement;
+    input.focus();
+    fireEvent.input(input, { target: { value: '=width*2+wall*3+depth/4' } });
+    expect(parseInt(input.style.width)).toBeGreaterThan(64);
+  });
 });

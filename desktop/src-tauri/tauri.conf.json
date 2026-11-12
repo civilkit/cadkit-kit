@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://dl.polyhaven.org https://cdn.polyhaven.com; connect-src 'self' blob: data: ipc: http://ipc.localhost https://api.polyhaven.com https://dl.polyhaven.org https://cdn.polyhaven.com; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; img-src 'self' blob: data: https://dl.polyhaven.org https://cdn.polyhaven.com; connect-src 'self' blob: data: ipc: http://ipc.localhost http://127.0.0.1:* https://api.polyhaven.com https://dl.polyhaven.org https://cdn.polyhaven.com; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'"
     }
   },
   "bundle": {

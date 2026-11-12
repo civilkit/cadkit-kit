@@ -10,7 +10,7 @@ The app is built so that another language is one more translation file with no c
 
 ## Change the language
 
-1. Open **Workspace settings**: click the gear icon at the right of the top bar, or run **Workspace settings** from command search (**F**).
+1. Open **Settings**: click the gear icon at the right of the top bar, or run **Workspace settings** from command search (**F**).
 2. On the **General** tab, find **Language**.
 3. Choose a language from the list.
 

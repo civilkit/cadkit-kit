@@ -45,6 +45,19 @@ export interface SnapOptions {
 /** The grid's capture radius: about a third of the pick radius, and at most a quarter of the grid step, so between grid points the pointer is free. */
 export const gridCapture = (tolerance: number, grid: number): number => Math.min(tolerance * 0.35, grid * 0.25);
 
+/** An alignment source that is the middle of a line is named `mid:<line id>` in `alignTo` (it is not a point, so no constraint is inferred from it). */
+export const MID_PREFIX = 'mid:';
+/** Where an alignment source is: a sketch point, or the middle of a line (`mid:<line id>`). */
+export function alignSourceAt(draft: SketchDraft, id: string): Pt | undefined {
+  if (id.startsWith(MID_PREFIX)) {
+    const e = draft.entities.find((q) => q.id === id.slice(MID_PREFIX.length));
+    const g = e && curveOf(draft, e);
+    return g && g.kind === 'line' ? { x: (g.a.x + g.b.x) / 2, y: (g.a.y + g.b.y) / 2 } : undefined;
+  }
+  const p = draft.points.find((q) => q.id === id);
+  return p ? { x: p.x, y: p.y } : undefined;
+}
+
 type Cand = { d: number; at: Pt } & Partial<SnapHit>;
 const best = (list: Cand[]): Cand | undefined => list.reduce<Cand | undefined>((b, c) => (!b || c.d < b.d ? c : b), undefined);
 
@@ -181,6 +194,15 @@ export function snapAt(draft: SketchDraft, at: Pt, opts: SnapOptions): SnapHit |
     for (const p of pts) {
       if (!x && Math.abs(p.x - at.x) <= tol) x = { id: p.id, x: p.x };
       if (!y && Math.abs(p.y - at.y) <= tol) y = { id: p.id, y: p.y };
+    }
+    // the middle of a line guides too (after the points, so a point wins): two midpoints give their crossing
+    if (opts.midpoints !== false && on('midpoint')) {
+      for (const { id, g, e } of curves) {
+        if (g.kind !== 'line' || opts.skip?.has(e.p1 as string) || opts.skip?.has(e.p2 as string)) continue;
+        const m = { x: (g.a.x + g.b.x) / 2, y: (g.a.y + g.b.y) / 2 };
+        if (!x && Math.abs(m.x - at.x) <= tol) x = { id: MID_PREFIX + id, x: m.x };
+        if (!y && Math.abs(m.y - at.y) <= tol) y = { id: MID_PREFIX + id, y: m.y };
+      }
     }
     if (x || y) {
       // an alignment fixes one coordinate; the other one still lands on the grid when the grid is on and close, so a point aligned with another

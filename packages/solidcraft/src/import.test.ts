@@ -600,3 +600,21 @@ describe('sketch constraints', () => {
     expect(bad.r.rows[0].notes?.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('import timings', () => {
+  const doc = { format: 'solidcraft/30', units: 'mm', features: [{ id: 3, name: 'Box1', type: 'box', corner: [0, 0, 0], length: '10', width: '10', height: '10', operation: 'new_body' }] };
+  it('reports the kernel questions and the mapping as phases', async () => {
+    const r = await importSolidcraftDocument(doc, 'timed');
+    expect(r.timings?.map((x) => x.phase)).toEqual(['kernel', 'map']);
+    expect(r.timings![0]).toMatchObject({ phase: 'kernel', count: 0 });
+    expect(r.timings![1].count).toBe(1);
+    expect(r.timings!.every((x) => x.ms >= 0)).toBe(true);
+  });
+  it('adds the read phase for a file', async () => {
+    const r = await importSolidcraft(new TextEncoder().encode(JSON.stringify(doc)), 'timed');
+    expect(r.timings?.map((x) => x.phase)).toEqual(['read', 'kernel', 'map']);
+  });
+  it('has no timings for a refused file', async () => {
+    expect((await importSolidcraft(new TextEncoder().encode('{"a":1}'), 'bad')).timings).toBeUndefined();
+  });
+});

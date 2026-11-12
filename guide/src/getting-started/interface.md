@@ -8,12 +8,11 @@ This chapter is a tour of the CivilKit CAD window: the top bar, the ribbon, the 
 
 From top to bottom:
 
-1. The **top bar**: file buttons, the part name, command search and settings.
-2. The **document tabs**, one per open part.
-3. The **ribbon**: tabs of command groups.
-4. The working area: the **left panel** (feature tree and friends), the **viewport**, and the **inspector panel** on the right when a feature is selected.
-5. The **drawer** (hidden until you open it).
-6. The **status bar**.
+1. The **top bar**: file buttons, the **document tabs** (one per open part), the Part / Drawing switch, command search and settings.
+2. The **ribbon**: tabs of command groups, directly under it.
+3. The working area: the **left panel** (feature tree and friends), the **viewport**, and the **inspector panel** on the right when a feature is selected.
+4. The **drawer** (hidden until you open it).
+5. The **status bar**.
 
 All three side areas can be resized by dragging the thin handle between them and the viewport. Double-click a handle to reset it. Drag a panel to nearly nothing and it folds away. See [Units and settings](settings.md) for the layout presets and **Reset layout**.
 
@@ -48,10 +47,11 @@ When a newer version of the application is available the bar shows a note with *
 
 ## Document tabs
 
-A strip under the top bar holds one tab per open part. You can keep several parts open and switch between them without losing undo history.
+On a desktop the open parts are tabs in the top bar, between the file buttons and the **Part** / **Drawing** switch. You can keep several parts open and switch between them without losing undo history.
 
 - **+** opens a new blank part after the current tab.
 - **×**, or a middle click, closes a tab. A tab with unsaved changes asks **Save**, **Don't save** or **Cancel**.
+- Double-click the active tab to rename the part. Right-click a tab for **Rename**, **Close** and **Close the other tabs**.
 - Drag a tab to reorder it. The **▾** button lists all open parts when the strip overflows.
 - `Ctrl+Alt+1` to `Ctrl+Alt+9` jump to a tab (9 is the last), `Ctrl+Alt+T` opens a new part and `Ctrl+Alt+W` closes the current one. `Ctrl+Tab` and `Ctrl+Shift+Tab` step through the tabs, but browsers reserve them and they may not reach the page in a normal tab; they work in the installed app.
 - Opening a file, a sample or an import uses the current tab if it is blank and a new tab otherwise.
@@ -114,7 +114,7 @@ File, export, camera and display commands have no cell on the rail: they stay in
 
 ## The left panel
 
-The left panel can be docked, floating over the viewport, or hidden. Press `[` to show or hide it. When tabs are on (the default) it has these tabs:
+The left panel can be docked, floating over the viewport, or hidden. Press `[` to show or hide it. When tabs are on (the default) it has these tabs. They are icon buttons in a row at the top of the panel, in the order below; the name of each is its tooltip, and the active tab also shows its name.
 
 | Tab | Contents |
 | --- | --- |
@@ -173,6 +173,7 @@ The status bar runs along the bottom.
 | **Last rebuild** | How long the last rebuild took. |
 | **Errors** | The number of failed features, in red when not zero. |
 | **Drawer** | Opens and closes the drawer. |
+| **Licences**, **Documentation** | Links to the licence list and to this guide, at the right end of the bar. |
 
 In a sketch the bar also shows the pointer position on the sketch plane, the active snap, the **Snap** and **Grid** switches, the **Zoom** and the grid **Spacing**. Click **Spacing** to type a grid spacing; `0` or empty means automatic.
 

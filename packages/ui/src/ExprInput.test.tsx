@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
-import { ExprInput, VarsContext } from './ExprInput';
+import { ExprInput, VarsContext, growWidth } from './ExprInput';
 import { FeatureEditor } from './FeatureEditor';
 import { resolveVariables } from './expr';
 
@@ -15,6 +15,23 @@ function setup(initial: number | string = 5, opts: { plain?: boolean } = {}) {
   const input = r.container.querySelector('input') as HTMLInputElement;
   return { r, input, values, hint: () => r.container.querySelector('.expr-hint')?.textContent ?? null };
 }
+
+describe('ExprInput grow', () => {
+  it('a box that grows is 64 px for a short value and widens for a long formula, up to a cap', () => {
+    expect(growWidth('12.5')).toBe(64);
+    expect(growWidth('=width*2+wall*3+sqrt(depth)')).toBeGreaterThan(64);
+    expect(growWidth('x'.repeat(200))).toBe(320);
+    const r = render(<VarsContext.Provider value={scope}><ExprInput value={5} label="Depth" grow onValue={() => {}} /></VarsContext.Provider>);
+    const input = r.container.querySelector('input') as HTMLInputElement;
+    expect(input.style.width).toBe('64px');
+    fireEvent.input(input, { target: { value: '=width*2+wall*3+width' } });
+    expect(parseInt(input.style.width)).toBeGreaterThan(64);
+  });
+  it('a box without grow keeps the stylesheet width', () => {
+    const r = render(<VarsContext.Provider value={scope}><ExprInput value={5} label="Depth" onValue={() => {}} /></VarsContext.Provider>);
+    expect((r.container.querySelector('input') as HTMLInputElement).style.width).toBe('');
+  });
+});
 
 describe('ExprInput', () => {
   it('a plain number stays a number, with no hint', () => {

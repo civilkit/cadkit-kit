@@ -71,7 +71,9 @@ export function FeatureTree(p: {
   /** A drag dropped on a row or a folder. When given it replaces `onMove` for row-on-row drops and also covers dragging a folder (its header is draggable) and dropping on a folder. */
   onDropOn?(drag: TreeDrop, target: TreeDrop): void;
   /** Right click on a row or a folder; the app opens its menu. The browser's own menu is suppressed when this is given. */
-  onContextMenu?(target: TreeDrop, x: number, y: number): void;
+  onContextMenu?(target: TreeDrop, x: number, y: number, acts?: { /** put the rollback bar under this row */ rollbackHere(): void }): void;
+  /** Right click on a fixed row (a plane, the origin, the material); the app opens its menu. */
+  onRefContextMenu?(id: string, x: number, y: number): void;
   /** Rename a folder in place (double click on it, or the app sets `renaming` to `'@g:' + name`). */
   onRenameFolder?(name: string, to: string): void;
   onRemove(id: string): void;
@@ -249,7 +251,7 @@ export function FeatureTree(p: {
           onMouseLeave={() => p.onHoverFeature?.(null)}
           onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
           onDblClick={() => p.onEdit?.(r.id)}
-          onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY); } : undefined}
+          onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY, p.onRollback ? { rollbackHere: () => moveMarker(topOf(r.id) + 1) } : undefined); } : undefined}
           onDragStart={() => { dragId.current = r.id; dragFolder.current = null; }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -541,6 +543,7 @@ export function FeatureTree(p: {
           {...(r.editable ? { role: 'button', tabIndex: 0, onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); p.onOpenRef?.(r.id); } } } : {})}
           onClick={() => { if (r.editable) p.onOpenRef?.(r.id); else if (r.choosable) p.onSelectRef?.(p.selectedRef === r.id ? null : r.id); }}
           onDblClick={() => { if (r.choosable) p.onOpenRef?.(r.id); }}
+          onContextMenu={p.onRefContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onRefContextMenu!(r.id, e.clientX, e.clientY); } : undefined}
           onMouseEnter={() => { if (r.choosable) p.onHoverRef?.(r.id); }}
           onMouseLeave={() => p.onHoverRef?.(null)}
         >

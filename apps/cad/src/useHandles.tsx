@@ -25,6 +25,8 @@ export interface HandlesDeps {
   store: Store;
   viewport(): Viewport | null;
   commands: Command[];
+  /** The open sketch's own commands (finish, cancel, construction...), for the right-click menu in a sketch; read when the menu opens. */
+  sketchCommands?(): Command[];
   /** Add a feature from ops and open the Editor on it (main's createFeature). */
   create(ops: EditOp[]): Promise<void>;
   /** Commit ops that edit an existing feature in place. */
@@ -158,7 +160,7 @@ export function useHandles(p: HandlesDeps) {
 
   const onContextMenu = (name: string | null, x: number, y: number, mode: PickMode) => {
     const { store, commands } = ref.current;
-    if (ref.current.sketching) return;
+    if (ref.current.sketching) { setMenu({ x, y, items: menuItems('sketch', [...commands, ...(ref.current.sketchCommands?.() ?? [])], true), hint: null }); return; }
     const mode2: SelectionMode = mode;
     if (name && !store.selection.value.includes(name)) { store.mode.value = mode2; store.select([name]); }
     else if (!name) store.select([]);
@@ -170,7 +172,7 @@ export function useHandles(p: HandlesDeps) {
   const menuEl = menu ? (
     <ContextMenu x={menu.x} y={menu.y} items={menu.items} hint={menu.hint}
       onClose={() => setMenu(null)}
-      onRun={(id) => { setMenu(null); const c = ref.current.commands.find((x) => x.id === (id === 'move-body' ? 'triball' : id)); if (c && (c.enabled?.() ?? true)) c.run(); }} />
+      onRun={(id) => { setMenu(null); const c = [...ref.current.commands, ...(ref.current.sketchCommands?.() ?? [])].find((x) => x.id === (id === 'move-body' ? 'triball' : id)); if (c && (c.enabled?.() ?? true)) c.run(); }} />
   ) : null;
   const aboutEl = boxOn ? (
     <div class="sizebox-about" role="radiogroup" aria-label={t('sizebox.about')}>

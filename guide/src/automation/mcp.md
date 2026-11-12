@@ -4,7 +4,7 @@ CivilKit CAD includes a local server that lets an AI coding assistant build and 
 
 ## What it is, and what it is not
 
-- It is a separate program that runs on your computer, started from a checkout of the CivilKit CAD application repository. It is **not** a panel inside the browser app.
+- It is a separate program that runs on your computer, started from a checkout of the CivilKit CAD application repository. It is **not** a panel inside the browser app, but the app's **Chat** panel uses it to run your Claude Code (see [Chat: ask for a change in words](chat.md)).
 - It has its own document and its own copy of the geometry kernel. By default it does not read the part you have open in the browser, and the browser does not show what the agent builds. You can link the two on purpose with the **agent link** (see [Linking the open app](#linking-the-open-app)): then the agent can read, take pictures of and, if you allow it, add to the part you have open. It is off until you turn it on.
 - No tool or resource can load an existing part into the server. The agent starts from an empty document and builds everything with scripts, so none of your hand edits are involved or preserved.
 - Everything on one machine shares **one** open document: there is one background process, one `daemon.json` and one port. Two assistants, or two projects, that use the server at the same time overwrite each other's work.
@@ -224,7 +224,7 @@ The agent link lets an assistant see, and if you allow it change, the part you h
 | `app_run_script` | Runs a script on the open part in attach mode: its features are added after yours as **one undo step**, and the app shows a notice. | yes |
 | `app_undo`, `app_redo` | Step the app's undo history. | yes |
 
-Failures come back as ordinary error results: `app_not_connected` (nothing linked: call `bridge_pair`), `edit_not_allowed`, `app_timeout` (the tab did not answer in 60 seconds), `no_document`, `no_body`. What is not there yet: the other tools (`facts`, `probe`, `section`, `export`...) on the open part, and a chat inside the app.
+Failures come back as ordinary error results: `app_not_connected` (nothing linked: call `bridge_pair`), `edit_not_allowed`, `app_timeout` (the tab did not answer in 60 seconds), `no_document`, `no_body`. What is not there yet: the other tools (`facts`, `probe`, `section`, `export`...) on the open part, and a chat panel that uses them (see [Chat: ask for a change in words](chat.md)). The chat panel is built; it runs your Claude Code through this server.
 
 ## Resources
 

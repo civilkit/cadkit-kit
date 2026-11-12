@@ -138,6 +138,7 @@ const ICONS: Record<string, string> = {
   'add-fillet': P('M4 20V10M10 4h10v16H4') + A('M4 10a6 6 0 016-6') + C('M4 20h16'),
   'add-chamfer': P('M4 20V12M12 4h8v16H4') + A('M4 12 12 4') + C('M4 20h16'),
   'add-shell': P(HEX) + C('M12 8.5l4.4 2.5v5L12 18.5 7.6 16v-5z') + A(FACE.top, 2),
+  chat: P('M4 5h16v11H11l-4.5 4v-4H4z') + A('M8 9.5h8M8 12.5h5'),
   'open-script': P('M8.5 7.5 4 12l4.5 4.5M15.5 7.5 20 12l-4.5 4.5') + C('M13.5 6 10.5 18'),
   'open-variables': P('M17.5 5H7.5l5 7-5 7h10'),
   'open-catalog': P('M3.5 4h7v7h-7z') + O(17, 7.5, 3.5) + P('M3.5 20l3.5-6 3.5 6z') + P('M14 14h6.5v6.5H14z') + C('M14 17.2h6.5'),

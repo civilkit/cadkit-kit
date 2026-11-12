@@ -311,5 +311,5 @@ function AboutLine() {
     return () => { live = false; };
   }, []);
   if (!v?.version) return null;
-  return <div class="tb-note set-version" role="note">{t('settings.about', { version: v.version, kit: v.kit ?? '?', kernel: v.kernel || '?' })} · <a href={new URL('whats-new/', document.baseURI).href} target="_blank" rel="noopener">{t('settings.about.news')}</a></div>;
+  return <div class="tb-note set-version" role="note">{t('settings.about', { version: v.version, kit: v.kit ?? '?', kernel: v.kernel || '?' })} · <a href="https://civilkit.io/cad/whats-new/" target="_blank" rel="noopener">{t('settings.about.news')}</a></div>;
 }

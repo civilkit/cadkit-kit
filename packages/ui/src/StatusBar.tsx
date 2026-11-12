@@ -11,7 +11,7 @@ export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn'
 
 export function StatusBar(p: {
   notices: Notice[]; hover: string | null; busy: boolean;
-  items?: StatusItem[]; /** the sketch readout (pointer position, snap, grid): shown while sketching, before the items */ sketch?: ComponentChildren; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string;
+  items?: StatusItem[]; /** the sketch readout (pointer position, snap, grid): shown while sketching, before the items */ sketch?: ComponentChildren; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string; /** small links at the right end (the published site's Licences and Documentation) */ links?: { label: string; href: string }[];
 }): JSX.Element {
   const newest = p.notices.at(-1);
   const [, tick] = useState(0);
@@ -22,18 +22,20 @@ export function StatusBar(p: {
     const h = setTimeout(() => tick((n) => n + 1), Math.max(50, NOTICE_MS - (Date.now() - last.at) + 20));
     return () => clearTimeout(h);
   }, [last?.id]);
+  // every child is keyed: with only the items keyed, the items made after a sketch closes were put after the spacer and the Drawer button
   return (
     <div class="status">
-      {p.busy ? <span class="st-busy">{t('ui.status.busy')}</span> : <span class="ready"><span class="dot" />{t('ui.status.ready')}</span>}
-      {p.hover ? <span class="st-hover">{p.hover}</span> : null}
+      {p.busy ? <span key="@busy" class="st-busy">{t('ui.status.busy')}</span> : <span key="@ready" class="ready"><span class="dot" />{t('ui.status.ready')}</span>}
+      {p.hover ? <span key="@hover" class="st-hover">{p.hover}</span> : null}
       {p.sketch ?? null}
-      {last ? <span class={'st-notice ' + last.level}>{last.text}</span> : null}
+      {last ? <span key="@notice" class={'st-notice ' + last.level}>{last.text}</span> : null}
       {(p.items ?? []).map((i) => i.onClick
         ? <button key={i.label} class={'st-item st-chip' + (i.dim ? ' dim' : '')} title={i.title} onClick={i.onClick}>{i.icon ? <Icon name={i.icon} size={14} /> : null}{i.label} <b class={i.tone ?? ''}>{i.value}</b></button>
         : <span key={i.label} class="st-item">{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}
-      <span class="sp" />
-      {p.onToggleDrawer ? <button class="st-drawer" aria-pressed={!!p.drawerOpen} onClick={p.onToggleDrawer}>{t('ui.status.drawer')}</button> : null}
-      {p.right ? <span class="st-right">{p.right}</span> : null}
+      <span key="@sp" class="sp" />
+      {p.links?.length ? <span key="@links" class="st-links">{p.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener">{l.label}</a>)}</span> : null}
+      {p.onToggleDrawer ? <button key="@drawer" class="st-drawer" aria-pressed={!!p.drawerOpen} onClick={p.onToggleDrawer}>{t('ui.status.drawer')}</button> : null}
+      {p.right ? <span key="@right" class="st-right">{p.right}</span> : null}
     </div>
   );
 }

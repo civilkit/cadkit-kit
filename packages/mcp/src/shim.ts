@@ -74,3 +74,12 @@ export async function runShim(opts: { input: Readable; output: Writable; spawnDa
 function idOf(line: string): string | number | null {
   try { const m = JSON.parse(line) as { id?: string | number }; return m.id ?? null; } catch { return null; }
 }
+
+/** Ask a running daemon for a one-time pairing code (what the bridge_pair tool returns), for `ck-mcp --pair`. */
+export async function requestPairCode(st: Pick<DaemonState, 'port' | 'token'>): Promise<string> {
+  const r = await httpJson(st, 'POST', '/rpc', JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'bridge_pair', arguments: {} } }), 15000);
+  const j = JSON.parse(r.text) as { result?: { content?: Array<{ text?: string }> } };
+  const code = (j.result?.content ?? []).map((c) => { try { return (JSON.parse(c.text ?? '') as { code?: string }).code; } catch { return undefined; } }).find(Boolean);
+  if (!code) throw new Error('the server did not give a pairing code');
+  return code;
+}

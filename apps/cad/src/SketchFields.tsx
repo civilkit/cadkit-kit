@@ -77,6 +77,7 @@ function FieldInput(p: { f: FieldSpec; index: number; last: boolean; seed?: { n:
         label={t(f.label)}
         assign={!!p.onDefine}
         integer={f.unit === 'count'}
+        grow
         enterKeyHint={p.last ? 'done' : 'next'}
         onValue={(v) => { const got = resolve(v); latest.current = got; if (got) emit(got.value, false, got.expr); }}
       />

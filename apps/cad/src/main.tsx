@@ -20,7 +20,7 @@ import { featureLabel, loftMoveAfter, pipeCutNotice } from './featureCreators';
 import { tangentChainOn, chainSelection, chainRefs } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
-import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
   errorText, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
@@ -83,6 +83,9 @@ import { createSnapshots, idbBackend, featureCount } from './files/snapshots';
 import { createViewCache, createBuildId, findSnapshot, keepSnapshot, idbViewBackend, embedSnapshot, checkEmbedded, takeEmbedded, type ViewData } from './files/viewCache';
 import { cachedChip } from './files/cachedChip';
 import { createAgentLink } from './agentLink/link';
+import { ChatPanel } from './chat/ChatPanel';
+import { createChatSession } from './chat/chatSession';
+import { claudeCodeProvider } from './chat/claudeCode';
 import { dragHasFiles, planDrop } from './files/drop';
 import { dropKind, partNameOf, OPEN_ACCEPT, IMPORT_ACCEPT, type DropKind } from './files/names';
 import { importFcstd, resolveReferences, fcstdResolvers } from '@kit/fcstd';
@@ -264,6 +267,11 @@ if (typeof savedLocale === 'string') setLocale(savedLocale);
 layoutPref.value = asLayoutPref(read(LAYOUT_KEY));
 watchViewport();   // the layout (phone, tablet, desktop) follows the window, the pointer and Settings
 const lookStore = createLookStore(read(LOOK_KEY));
+/** The published site's Licences and Documentation links (the build adds them to the page; a local or desktop build has none): the status bar shows them. */
+function siteLinks(): { label: string; href: string }[] {
+  const at = (id: string, label: string): { label: string; href: string }[] => { const a = document.getElementById(id) as HTMLAnchorElement | null; return a ? [{ label, href: a.href }] : []; };
+  return [...at('docs-link', t('app.more.docs')), ...at('licences-link', t('app.more.licences'))];
+}
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
 
 // One kernel for the app (the built-in wasm worker, or a local native service chosen in Settings); cancel() restarts it.
@@ -487,6 +495,10 @@ const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {}
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
 startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
 const agentLink = createAgentLink({ controller, store: store as never });
+const chatSession = createChatSession({
+  provider: claudeCodeProvider({ endpoint: () => agentLink.endpoint() }),
+  context: () => ({ selection: store.selection.value, script: String((controller.document() as unknown as { script?: string } | null)?.script ?? '') }),
+});
 const fontsApi = makeFontsApi({ controller, source: fontSource, apply: (p) => textEditRef.current(p) });
 if (import.meta.env.DEV) {
   const hook = { controller, store };                                          // for the browser console
@@ -522,7 +534,7 @@ function App() {
   const [refSel, setRefSel] = useState<string | null>(null);
   const [refHover, setRefHover] = useState<string | null>(null);
   const [ortho, setOrthoState] = useState<boolean>(() => { try { return localStorage.getItem('cad.ortho') === '1'; } catch { return false; } });
-  const [leftTab, setLeftTabState] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script' | 'Bodies'>('Features');
+  const [leftTab, setLeftTabState] = useState<'Outliner' | 'Features' | 'Editor' | 'Catalog' | 'Variables' | 'Script' | 'Bodies' | 'Chat'>('Features');
   const [asmSection, setAsmSection] = useState<AsmSection>('parts');
   const [drawerTab, setDrawerTab] = useState('history');
   /** Phone: which sheet is open (tree, properties or editor, diagnostics and the rest of the drawer) and how high it stands. */
@@ -1703,7 +1715,10 @@ function App() {
     if (!ops) { store.notify(t('app.thread.noTable'), 'error'); return; }
     await createFeature(ops);
   };
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
+  // filled where the tree is built (the row menu runs after that)
+  const selectGroupFacesRef = useRef<(ids: string[]) => void>(() => {});
+  const refMenuRef = useRef<(id: string) => { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null>(() => null);
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -2211,8 +2226,9 @@ function App() {
     };
   })();
   // Contextual handles (arrows and dots on the selection) and the right-click menu: see useHandles.tsx and docs/contextual-handles.md
+  const sketchCommandsRef = useRef<Command[]>([]);   // filled further down, where the sketch's commands are built
   const handles = useHandles({
-    controller, store, viewport: () => viewport, commands,
+    controller, store, viewport: () => viewport, commands, sketchCommands: () => sketchCommandsRef.current,
     create: (ops) => createFeature(ops),
     commitInPlace: async (ops) => { const r = await timed(() => controller.commit(ops)); if (r && !r.ok) await controller.cancelPreview(); redraw((n) => n + 1); },
     editingId, selectedId, sketching: !!sketching, enabled: ws.handles && !tri.on,
@@ -2351,8 +2367,8 @@ function App() {
     else if (snap?.kind === 'align') {
       shapes.push({ kind: 'marker', at: snap.at, style: 'align' });
       for (const id of [snap.alignTo?.x, snap.alignTo?.y]) {
-        const src = id ? draft.points.find((p) => p.id === id) : undefined;
-        if (src) { shapes.push({ kind: 'marker', at: { x: src.x, y: src.y }, style: 'align' }); shapes.push({ kind: 'guide', a: { x: src.x, y: src.y }, b: snap.at }); }
+        const src = id ? alignSourceAt(draft, id) : undefined;
+        if (src) { shapes.push({ kind: 'marker', at: src, style: 'align' }); shapes.push({ kind: 'guide', a: src, b: snap.at }); }
       }
     }
     if (out.anchor) shapes.push({ kind: 'marker', at: out.anchor, style: 'anchor' });
@@ -3127,6 +3143,13 @@ function App() {
     if (!names.length) { store.notify(t('select.group.none'), 'warn'); return; }
     store.mode.value = 'face'; viewport?.setPickMode('face');
     store.select(names);
+  };
+  selectGroupFacesRef.current = selectGroupFaces;
+  // the right-click menu of a fixed row: a plane starts a sketch on it, the material row opens the material list
+  refMenuRef.current = (id) => {
+    if (id === 'front' || id === 'top' || id === 'right') return { items: [{ id: 'sketch', label: t('app.tree.menu.sketchOnPlane'), enabled: true }], run: () => startNewSketch(id) };
+    if (id === 'material') return { items: [{ id: 'material', label: t('app.tree.menu.editMaterial'), enabled: true }], run: () => openMaterial() };
+    return null;
   };
   const tree = (
     <FeatureTree rows={rows} partName={doc?.name}
@@ -3956,6 +3979,7 @@ function App() {
       if (rows.length) setBodyField('appearance', withLooks(bodyFields, rows, patch as Partial<Record<keyof BodyLookSpec, never>>));
     }} />;
   const showVariables = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setLeftTab('Variables'); };
+  const showChat = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setLeftTab('Chat'); };
   const showScript = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setLeftTab('Script'); };
   /** The tab the last Run of the Script panel built into: Run again updates that part instead of opening another tab. */
   const scriptTab = useRef<number | null>(null);
@@ -3993,14 +4017,15 @@ function App() {
   const showCatalog = () => { if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true }); revealLeft(); setLeftTab('Catalog'); };
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
+  const chatPanel = <ChatPanel session={chatSession} link={agentLink} />;
   const left = ws.leftPanel === 'hidden' && !phone ? null : (
     <div class={'tree-wrap ' + (phone ? 'sheeted' : ws.leftPanel) + (ws.leftTabs ? ' tabbed' : '')}>
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies'] as const).filter((id) => !(phone && id === 'Editor')).map((id) => {   // on a phone the editor is the properties sheet
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies', 'Chat'] as const).filter((id) => !(phone && id === 'Editor')).map((id) => {   // on a phone the editor is the properties sheet
               const label = t('app.leftTab.' + id);
-              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script', Bodies: 'sel-body' }[id];
+              const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script', Bodies: 'sel-body', Chat: 'chat' }[id];
               return <button key={id} class="pt" data-testid={'left-tab-' + id} aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
             })}
           </div>
@@ -4010,6 +4035,7 @@ function App() {
             : leftTab === 'Variables' ? variablesPanel
             : leftTab === 'Script' ? scriptPanel
             : leftTab === 'Bodies' ? bodiesPanel
+            : leftTab === 'Chat' ? chatPanel
             : editor}
           </div>
         </>
@@ -4162,6 +4188,7 @@ function App() {
     { id: 'sketch-select', label: t('app.sketch.select'), tab: 'Sketch', group: 'Sketch', run: () => selectTool(null) },
     ...sketchTools().map((x) => ({ id: 'sketch-tool-' + x.id, label: t('app.sketch.tool.' + x.id), ...(x.key ? { keys: x.key.toUpperCase() } : {}), tab: 'Sketch', group: t('app.sketch.group.' + x.group), run: () => selectTool(x.id) })),
   ] : [];
+  sketchCommandsRef.current = sketchCommands;
   const drawerEl = () => (   // a function: the tabs are built only when the drawer or its sheet is open
     <Drawer active={drawerTab} onTab={setDrawerTab} onClose={toggleDrawer}
       tabs={[
@@ -4221,6 +4248,17 @@ function App() {
       ) : null}
     </div>
   );
+  // the document tabs: in the top bar on a desktop (one row less of chrome), a row of their own on a tablet
+  const tabsInTop = layout.value === 'desktop';
+  const tabStrip = phone ? null : <TabStrip
+    tabs={tabSet.tabs.map((tb): TabInfo => ({ id: tb.id, name: (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? tb.controller.document()?.name ?? (tb.id === tabSet.activeId && (store.busy.value || importing.value) ? t('app.opening') : t('app.noPart')), dirty: tabDirty(tb), active: tb.id === tabSet.activeId }))}
+    onSwitch={(id) => void switchTab(id)}
+    onClose={(id) => void closeTab(id)}
+    onMove={(id, to) => { tabSet.move(id, to); redraw((n) => n + 1); }}
+    onRename={() => { if (doc) ti.topRename.begin(); }}
+    onCloseOthers={(keep) => void (async () => { for (const tb of [...tabSet.tabs]) if (tb.id !== keep && !tabDirty(tb)) await closeTab(tb.id); })()}
+    onNew={() => void (async () => { if (await addTab()) await load(JSON.stringify(emptyPart(files.names.next())), { file: null }); })()}
+  />;
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
     <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
@@ -4234,7 +4272,8 @@ function App() {
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
           : null}
-        <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>
+        {tabsInTop ? tabStrip
+          : <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>}
         {stale ? (
           <span class="update-note" role="status">
             <span>{t('app.update.text')}</span>
@@ -4248,15 +4287,10 @@ function App() {
         </div>
         {installEv ? <button class="rb-btn install-btn" title={t('app.install.text')} onClick={() => { const ev = installEv; setInstallEv(null); void ev.prompt().then(() => ev.userChoice).catch(() => { /* closed without choosing */ }); }}>{t('app.install.action')}</button> : null}
         <button class="search-btn" onClick={() => setPalette(true)}>{t('app.search')} <kbd>F</kbd></button>
+        <Tip label={t('chat.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('chat.open')} data-testid="open-chat" onClick={showChat}><Icon name="chat" size={18} /></button></Tip>
         <Tip label={t('app.settings.title')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('app.settings.title')} onClick={() => setSettings(true)}><Icon name="settings" size={18} /></button></Tip>
       </div>}
-      {phone ? null : <TabStrip
-        tabs={tabSet.tabs.map((tb): TabInfo => ({ id: tb.id, name: (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? tb.controller.document()?.name ?? (tb.id === tabSet.activeId && (store.busy.value || importing.value) ? t('app.opening') : t('app.noPart')), dirty: tabDirty(tb), active: tb.id === tabSet.activeId }))}
-        onSwitch={(id) => void switchTab(id)}
-        onClose={(id) => void closeTab(id)}
-        onMove={(id, to) => { tabSet.move(id, to); redraw((n) => n + 1); }}
-        onNew={() => void (async () => { if (await addTab()) await load(JSON.stringify(emptyPart(files.names.next())), { file: null }); })()}
-      />}
+      {phone || tabsInTop ? null : tabStrip}
       {ws.ribbon !== 'off' && !phone ? <div class={'ribbon-wrap ' + ws.ribbon}><Ribbon commands={ribbonCommands} activeTab={activeRibbonTab(tab, !!sketching)} onTab={setTab} labels={ws.toolLabels} layout={ribbonLayout} hidden={fileIds} onlyTab={sketching ? SKETCH_TAB : undefined} tabLabel={(x) => (x === SKETCH_TAB && sketching ? t('app.sketch.editing', { name: sketching.name }) : undefined)} caption={(c) => t('rb.' + c.id, undefined, c.label)} /></div> : null}
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
@@ -4365,7 +4399,7 @@ function App() {
         return h ? <DrawingWorkspace host={h} /> : null;
       })() : null}
       <div class="status-wrap">
-        <StatusBar notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
+        <StatusBar links={siteLinks()} notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
             onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} onZoom={(pct) => viewport?.setSketchZoom(uppForPercent(pct))} />
             {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} status={sketchControls.status} list={sketchControls.list} /> : null}</> : <ModelReadout />}

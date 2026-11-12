@@ -150,7 +150,7 @@ export function SketchStatus(p: Pick<SketchControls, 'status' | 'busy' | 'prefs'
     <>
       <DofBadge status={p.status} list={p.list} autoOpen />
       <Tip label={t('app.sketch.fullyDefine.tip')}>
-        <button class="rb-btn" disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define">{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
+        <button class={'rb-btn' + (level === 'full' && !p.busy ? ' done' : '')} disabled={p.busy || level === 'full'} onClick={p.onFullyDefine} data-action="fully-define">{p.busy ? t('app.sketch.defining') : t('app.sketch.fullyDefine')}</button>
       </Tip>
       {p.onReport ? <Tip label={t('app.sketch.report.tip')}><button class="rb-btn" data-action="sketch-report" aria-pressed={!!p.reportOpen} onClick={p.onReport}>{t('app.sketch.report')}</button></Tip> : null}
       <Popover label={t('app.sketch.snaps')} tip={t('app.sketch.snaps.tip')}>

@@ -16,6 +16,7 @@ import { sketch3dStrings } from './sketch3d';
 import { meshStrings } from './mesh';
 import { screwStrings } from './screw';
 import { washerStrings } from './washer';
+import { chatStrings } from './chat';
 import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
 
@@ -301,6 +302,8 @@ export const en: Catalog = {
   'cmd.group-selected': 'Group into folder',
   'cmd.rename': 'Rename', 'cmd.delete-feature': 'Delete feature', 'cmd.suppress-selected': 'Suppress / unsuppress', 'cmd.rebuild': 'Rebuild', 'cmd.roll-forward': 'Roll forward', 'cmd.select-all': 'Select all',
   'app.folder.default': 'Folder',
+  'app.tree.menu.edit': 'Edit', 'app.tree.menu.rollback': 'Roll back to here', 'app.tree.menu.hide': 'Hide in the view', 'app.tree.menu.show': 'Show in the view', 'app.tree.menu.selectFaces': 'Select its faces in the view',
+  'app.tree.menu.sketchOnPlane': 'Sketch on this plane', 'app.tree.menu.editMaterial': 'Change material...',
   'app.folder.menu.group': 'Group into folder', 'app.folder.menu.remove': 'Remove from folder', 'app.folder.menu.rename': 'Rename folder', 'app.folder.menu.ungroup': 'Ungroup',
   'app.folder.menu.delete': 'Delete folder', 'app.folder.menu.renameFeature': 'Rename', 'app.folder.menu.suppress': 'Suppress / unsuppress', 'app.folder.menu.deleteFeature': 'Delete',
   'app.folder.menu.exportStep': 'Export folder geometry as STEP', 'app.folder.menu.exportStl': 'Export folder geometry as STL', 'app.folder.menu.exportCkpart': 'Export folder geometry as part file (frozen)', 'app.folder.menu.extract': 'Extract folder as a part',
@@ -346,7 +349,7 @@ export const en: Catalog = {
   'libraryPicker.insert.needDoc': 'Open a part to insert into it',
   'libraryPicker.none': 'No library is switched on. Open Manage libraries to enable one or add one.',
 
-  'settings.label': 'Workspace',
+  'settings.label': 'Settings',
   'settings.tab.general': 'General', 'settings.tab.layout': 'Layout', 'settings.tab.sketching': 'Sketching',
   'settings.lineWidth': 'Highlight line thickness',
   'settings.preset': 'Preset',
@@ -366,11 +369,11 @@ export const en: Catalog = {
   'settings.leftPanel.docked': 'Docked', 'settings.leftPanel.floating': 'Floating', 'settings.leftPanel.hidden': 'Hidden',
   'settings.rightPanel': 'Inspector panel',
   'settings.rightPanel.off': 'Off', 'settings.rightPanel.docked': 'Docked right', 'settings.rightPanel.floating': 'Floating',
-  'settings.leftTabs': 'Left panel tabs (Outliner, Features, Assets, Editor)',
+  'settings.leftTabs': 'Left panel tabs (Outliner, Features, Editor, Catalog, Variables, Script, Bodies)',
   'settings.toolLabels': 'Button labels',
   'settings.toolLabels.icons-and-text': 'Icons and text', 'settings.toolLabels.icons': 'Icons only (label on hover)',
   'settings.toolRail': 'Tool rail',
-  'settings.sketchPalette': 'Tool palette in sketches (the Sketch tab carries the tools)',
+  'settings.sketchPalette': 'Floating tool palette in sketches (always shown when the ribbon is off)',
   'settings.selectionBar': 'Selection mode bar',
   'settings.drawerOpen': 'Bottom drawer open',
   'settings.opacity': 'Floating panel opacity',
@@ -1141,6 +1144,7 @@ export const en: Catalog = {
   ...meshStrings,
   ...screwStrings,
   ...washerStrings,
+  ...chatStrings,
   ...bearingStrings,
   ...impellerStrings,
 };

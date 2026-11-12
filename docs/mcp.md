@@ -2,7 +2,7 @@
 
 Lets Claude Code, Codex, Cursor or Claude Desktop drive OUR kernel and script layer. The host owns the model and its API key; nothing here reads or stores a key. Phase 3 of `docs/plan-agent-layer.md`.
 
-* `packages/agent-tools` (`@kit/agent-tools`): transport-independent tool definitions (name, description, JSON schema, handler) over an `AgentSession` (a kernel `Session` plus the script runner). The in-app agent (phase 5) will call the same `callTool`.
+* `packages/agent-tools` (`@kit/agent-tools`): transport-independent tool definitions (name, description, JSON schema, handler) over an `AgentSession` (a kernel `Session` plus the script runner). The in-app chat (`docs/agent-chat.md`) does not call it directly: it runs Claude Code, which calls the `app_*` tools of the daemon.
 * `packages/mcp` (`@kit/mcp`): the MCP server. Zero dependencies: JSON-RPC 2.0 is implemented directly (`initialize`, `ping`, `tools/list`, `tools/call`, `resources/list` + `read`, notifications, batches).
 
 ## Install

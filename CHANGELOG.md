@@ -4,6 +4,29 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.6.3 - 2026-11-11
+
+- **Unions of near-touching solids no longer fail.** Two coaxial cylinders a few micrometres apart now join instead of stopping with a boolean failure (`booleanFailed`); the thin sliver between them is handled.
+- **A union after a flat cut on a cylinder meshes closed.** Joining a body to a cylinder that had been cut flat no longer leaves an open tessellation (`TESSELLATION_OPEN`).
+- **Tangent cylinders join cleanly.** A union of cylinders that touch along a line no longer welds a tiny sliver edge into one long edge, which had left a non-manifold edge (`nonManifoldEdge`).
+- **An extrude of depth 0 now warns.** A depth of 0, none or an expression that comes out as 0 gives an `extrudeZeroDepth` warning with a hint instead of quietly building a zero-thickness sliver.
+- **Keep-tools intersects keep the names of what they keep.** After a repeated `keepTools` intersect, the kept tool bodies and the untouched pieces keep their names, so later steps that refer to them still find them.
+- **Fully define shows only while it is needed.** In the sketch bar, the **Fully define** button is hidden once the sketch is already fully defined.
+
+- **Chat: type a change and an assistant edits the open part.** The new **Chat** panel (top bar button, or the Chat tab on the left) runs the Claude Code you already have on your computer through the local service: no API key and no server of ours. Each change it makes is one undo step with a notice, **Stop** ends it, and you pick the model and what it is told about (Selection, View, Comments, all off by default). The edit permission stays the same box as in Settings, Agent link, and the panel shows what is sent.
+- **SolidCraft imports report where the time went.** The result of a SolidCraft import now lists how long reading the file, the kernel's questions (with how many) and the feature mapping each took, so a slow import can be traced to its phase.
+- **Sketch value boxes grow with a typed formula.** The length, angle and radius boxes that follow the pointer widen as you type an expression, so `=width*2+wall` stays readable instead of scrolling out of the box.
+- **Midpoint alignment guides in a sketch.** While drawing or dragging, the pointer also lines up with the middle of an existing line, with a dotted guide, and with two midpoints it lands where their guides cross. The Midpoint snap switch turns it off.
+- **Settings links to the published What's new.** The What's new link in Settings now always opens civilkit.io/cad/whats-new, also in the Mac app and in a local build, where it used to point at the local address.
+- **Document tabs moved into the top bar.** On a desktop the open parts are tabs in the top bar, next to the file buttons, in place of the part name and a tab row of their own, so the model gets that row back. Double-click the active tab to rename the part.
+- **A tidier Display menu.** The Display menu's buttons, lists and sliders (**Choose a texture...**, **Allow online libraries**, **Reset surface**, **Choose an environment...**) are drawn in the app's own style and line up in one column, in the light and the dark theme.
+- **Right-click menus where you expect them.** A feature in the tree now offers **Edit**, **Roll back to here**, **Hide in the view** and **Select its faces in the view** above Rename, Suppress and Delete; a plane offers **Sketch on this plane**; a document tab offers Rename, Close and Close the other tabs; and a right click in an open sketch lists Confirm, Cancel, Select, Construction, Fully define, Look normal and Fit.
+- **The sketch bar is one compact row.** The bar over an open sketch no longer wraps to two rows and covers the top of the sketch; **Look normal** shows on it only while the view is turned away (N and the right-click menu always have it). The floating sketch palette no longer covers the view buttons.
+- **The left panel's tabs line up under the top bar.** With the panel docked, its tabs are icon buttons in the same columns as the top bar's buttons; a tab's name is its tooltip.
+- **A tidier Settings window.** The window is titled Settings, keeps one size on every tab, puts each tick box next to its label and draws the lists and sliders in one style.
+- **The view no longer stays turned after a sketch.** Leaving a sketch on the top or right plane left the view orbiting about the sketch's own up direction, so the part tumbled as if Z were up while the view cube still showed Y up. The view now goes back to the up axis set in Settings.
+- **Part / Drawing is one switch, and Licences and Documentation sit in the status bar.** The Part and Drawing buttons are a single two-sided switch, **Install** is an outlined button, and the two site links no longer float over the status bar: they are at its right end.
+
 ## 0.6.2 - 2026-11-11
 
 - **Very thin or small parts mesh again.** A plain extrude with a tiny or thin result (a disc under a tenth of a millimetre, for example) no longer fails with an open tessellation: the kernel's vertex snapping now scales down with the size of the face.

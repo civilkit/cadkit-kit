@@ -31,13 +31,15 @@ When you start a sketch from a face, edges and faces you had selected are rememb
 
 ![A sketch open on the top face of a plate: the Editing tab of the ribbon, the faded body, the status chip, and the pointer coordinates in the status bar.](../img/sketch-editor-open.png)
 
-- The ribbon changes to one tab named **Editing** followed by the sketch name (a new sketch is called **New sketch** while you edit it). Its groups are **Select**, **Finish**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. The tools are described in [Sketch tools](tools.md) and [Constraints and dimensions](constraints.md).
+![The one-row sketch bar: the Editing tab, the sketch tool groups, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right.](../img/sketch-bar.png)
+
+- The ribbon changes to one compact row, the sketch bar, with one tab named **Editing** followed by the sketch name (a new sketch is called **New sketch** while you edit it). Its groups are **Select**, **Finish**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. The tools are described in [Sketch tools](tools.md) and [Constraints and dimensions](constraints.md).
 - The **Line** tool is active, so you can start drawing at once.
 - The body is drawn faded, to a quarter of its opacity, so you can see the sketch in front of it.
 - Mouse buttons change: the left button draws and picks, the right button orbits, the middle button pans, and the wheel zooms towards the pointer. See [Moving around the model](../getting-started/navigation.md).
 - The status bar shows the pointer position on the sketch plane, the active snap, the **Snap** and **Grid** switches, the zoom and the grid **Spacing**.
 - A small label beside the pointer says the same position (for example `5.61 mm, -7.13 mm`), at the snapped point when a snap is active. It appears only for a mouse or pen, not for a finger, and goes when the pointer leaves the view. Turn it off with **Show the pointer position beside the pointer** under **Sketching** in the settings.
-- If the view is angled to the sketch, a **Look normal (N)** button is highlighted. Click it, or press `N`, to turn the view square to the plane. Turn on **Auto look normal for new sketches** in the settings to do this automatically, and turn off **Keep the view when entering a sketch** if you want the view to square up whenever a sketch opens.
+- If the view is angled to the sketch, a **Look normal (N)** button appears on the sketch bar (it is not shown while the view is already square to the plane). Click it, press `N`, or choose **Look normal** in the right-click menu of the sketch, to turn the view square to the plane. Turn on **Auto look normal for new sketches** in the settings to do this automatically, and turn off **Keep the view when entering a sketch** if you want the view to square up whenever a sketch opens.
 - If **Sketches** had been hidden in the Display menu, they are shown again so that you can see what you draw.
 
 If the ribbon is off, the sketch controls sit in a small bar at the top of the viewport instead. If you use the **Tool palette in sketches** setting, the tools are also on a palette at the right edge.

@@ -610,9 +610,19 @@ export class Viewport {
     if (this.groundGrid) this.groundGrid.visible = !v && this.layerOn('grid');   // the sketch has its own grid
     if (!v) { this.setSketchTool(false); this.disposeGroup(this.sketchGridGroup); this.sketchGridGroup = null; this.sketchDef = null; this.sketchConflict = null; }
     this.sketchDefLines = [];
+    const leaving = !v && !!this.sketchEdit;
     this.sketchEdit = v;
     this.sketchDrag = null;
     this.applySketchButtons();
+    if (leaving) {
+      // the sketch turned the camera's up to its own Y (a sketch on the top plane: the model's Z). Back to the up axis of the view, or the
+      // view goes on orbiting about the sketch's axis while the cube shows the other one; a view straight along the up axis is nudged off it.
+      const pose = switchUpAxis({ position: this.camera.position, target: this.controls.target }, this.upAxis);
+      this.camera.up.copy(pose.up);
+      this.camera.position.copy(pose.position);
+      this.camera.lookAt(this.controls.target);
+      this.controls.update();
+    }
     if (!v) {
       this.applyMeshLook();   // the fade is gone: back to the style's own opacity
       this.dirty = true;
@@ -2661,11 +2671,12 @@ export class Viewport {
     if (pend && d && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.showContext(pend.x, pend.y);
   };
   private showContext(x: number, y: number): void {
-    if (this.sketchEdit || !this.opts.onContextMenu) return;
+    if (!this.opts.onContextMenu) return;
+    if (this.sketchEdit) { this.opts.onContextMenu(null, x, y, 'face'); return; }   // the open sketch: the app lists the sketch's own commands
     const at = this.pickAt(x, y);
     this.opts.onContextMenu(at.name, x, y, at.mode);
   }
-  /** The canvas context menu: only for a right click that did not pan, and not while a sketch is open (the sketch has its own).
+  /** The canvas context menu: only for a right click that did not pan. While a sketch is open nothing is picked: the app shows the sketch's menu.
    *  Some platforms send `contextmenu` on the press, so while the button is still down the menu waits for the release. */
   private onContext = (e: MouseEvent): void => {
     e.preventDefault();

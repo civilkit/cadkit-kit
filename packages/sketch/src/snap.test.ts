@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { gridCapture, snapAt } from './snap';
+import { alignSourceAt, gridCapture, snapAt } from './snap';
 
 const draft = (): SketchDraft => ({
   id: 'F1', plane: { kind: 'std', id: 'front' }, temp: [], constraints: [],
@@ -23,6 +23,18 @@ describe('snapAt', () => {
     expect(at).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'p1' } });
     expect(snapAt(draft(), { x: 10.2, y: 21.5 }, { tolerance: 0.5, grid: 5 })).toEqual({ kind: 'align', at: { x: 10, y: 21.5 }, alignTo: { x: 'p1' } });   // too far from a grid line: raw
     expect(snapAt(draft(), { x: 10.2, y: 20.04 }, { tolerance: 0.5, grid: 5, kinds: { grid: false } })).toEqual({ kind: 'align', at: { x: 10, y: 20.04 }, alignTo: { x: 'p1' } });
+  });
+  it('a line midpoint is an alignment source in x and y, and two midpoints give their crossing', () => {
+    const d: SketchDraft = { ...draft(), points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 20, y: 0 }, { id: 'c', x: 40, y: 10 }, { id: 'e', x: 40, y: 30 }], entities: [{ id: 'l1', type: 'line', p1: 'a', p2: 'b' }, { id: 'l2', type: 'line', p1: 'c', p2: 'e' }] };
+    // midpoints: l1 (10, 0), l2 (40, 20)
+    expect(snapAt(d, { x: 10.2, y: 15 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 10, y: 15 }, alignTo: { x: 'mid:l1' } });
+    expect(snapAt(d, { x: 10.2, y: 20.2 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'mid:l1', y: 'mid:l2' } });
+    expect(snapAt(d, { x: 10.2, y: 20.2 }, { tolerance: 0.5, midpoints: false })).toBeUndefined();
+    expect(snapAt(d, { x: 10.2, y: 20.2 }, { tolerance: 0.5, kinds: { midpoint: false } })).toBeUndefined();
+    expect(snapAt(d, { x: 10.2, y: 20.2 }, { tolerance: 0.5, skip: new Set(['a']) })).toMatchObject({ alignTo: { y: 'mid:l2' } });   // the line being dragged is not a source
+    expect(alignSourceAt(d, 'mid:l2')).toEqual({ x: 40, y: 20 });
+    expect(alignSourceAt(d, 'a')).toEqual({ x: 0, y: 0 });
+    expect(alignSourceAt(d, 'mid:nope')).toBeUndefined();
   });
   it('aligns with other points in x, y or both', () => {
     expect(snapAt(draft(), { x: 10.2, y: 20 }, { tolerance: 0.5 })).toEqual({ kind: 'align', at: { x: 10, y: 20 }, alignTo: { x: 'p1' } });

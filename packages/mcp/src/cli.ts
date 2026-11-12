@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { AgentSession } from '@kit/agent-tools';
 import { startDaemon } from './daemon';
 import { agentBackend, McpProtocol } from './protocol';
-import { daemonAlive, httpJson, runShim } from './shim';
+import { daemonAlive, ensureDaemon, httpJson, requestPairCode, runShim } from './shim';
 import { clearState, readState } from './state';
 import { serveStdio } from './stdio';
 
@@ -55,6 +55,16 @@ export async function main(argv: string[]): Promise<number> {
     const st = readState();
     if (st && await daemonAlive(st)) await httpJson(st, 'POST', '/shutdown', '', 5000).catch(() => null);
     else clearState();
+    return 0;
+  }
+  if (argv.includes('--pair')) {
+    // prints a one-time pairing code for the app (Settings, Agent link, or the Chat panel); starts the daemon if needed
+    const bin = process.env.CK_MCP_BIN ?? join(dirname(fileURLToPath(import.meta.url)), '../bin/ck-mcp.mjs');
+    const pass: string[] = [];
+    for (const k of ['--wasm', '--idle-seconds', '--allow-origin']) { const v = arg(k, argv); if (v !== undefined) pass.push(k, v); }
+    const st = await ensureDaemon(() => { spawn(process.execPath, [bin, '--daemon', ...pass], { detached: true, stdio: 'ignore', env: process.env }).unref(); });
+    const code = await requestPairCode(st);
+    process.stdout.write(`${code}\n`);
     return 0;
   }
   // the shim: start the daemon with this same entry in --daemon mode

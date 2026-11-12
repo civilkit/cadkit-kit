@@ -8,7 +8,10 @@ import { AgentSession } from '@kit/agent-tools';
 import { Bridge, BridgeError, MAX_REPLY_BYTES } from '@kit/agent-link';
 import { agentBackend, McpProtocol, SERVER_INFO, type Backend } from './protocol';
 import { withBridge } from './bridgeTools';
+import { ChatRunner, validateChat, type ChatOptions } from './chat';
 import { clearState, stateDir, writeState } from './state';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface DaemonOptions {
   /** Where the state file lives (default ~/.ck-cad or CK_MCP_HOME). */
@@ -23,6 +26,8 @@ export interface DaemonOptions {
   allowedOrigins?: string[];
   port?: number;
   onIdle?(): void;
+  /** How the in-app chat starts Claude Code (default: `claude` on the PATH, with this server's shim as its MCP server). Tests give a fake. */
+  chat?: Partial<ChatOptions>;
   maxBodyBytes?: number;
 }
 export interface Daemon {
@@ -43,6 +48,11 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
   const protocol = new McpProtocol(backend);
   const idleMs = opts.idleMs ?? 30 * 60 * 1000;
   const maxBody = opts.maxBodyBytes ?? 16 * 1024 * 1024;
+  const chat = new ChatRunner({
+    claudeBin: opts.chat?.claudeBin ?? process.env.CK_CLAUDE_BIN, claudeArgs: opts.chat?.claudeArgs,
+    mcpServer: opts.chat?.mcpServer ?? { command: process.execPath, args: [process.env.CK_MCP_BIN ?? join(dirname(fileURLToPath(import.meta.url)), '../bin/ck-mcp.mjs')], env: { CK_MCP_HOME: dir } },
+    env: opts.chat?.env,
+  });
   const sse = new Set<ServerResponse>();
   let idle: NodeJS.Timeout | null = null;
   let closed = false;
@@ -102,6 +112,20 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
         const raw = await readBody(req, MAX_REPLY_BYTES);
         if (raw === null) return send(res, 413, { error: { code: 'too_large', message: 'reply too large' } });
         return send(res, 200, { ok: bridge.reply(bearer, JSON.parse(raw)) });
+      }
+      if (req.method === 'POST' && url.pathname === '/bridge/chat') {
+        // the in-app chat: one Claude Code turn, streamed back as newline-delimited JSON (docs/agent-chat.md). Closing the request is Stop.
+        const raw = await readBody(req, 256 * 1024);
+        let body: unknown = null;
+        try { body = raw ? JSON.parse(raw) : null; } catch { /* validated below */ }
+        const v = validateChat(body);
+        if (!v.ok) return send(res, 400, { error: { code: 'bad_request', message: v.message } });
+        res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+        const ac = new AbortController();
+        res.on('close', () => { if (!res.writableEnded) ac.abort(); });
+        await chat.run(v.req, (e) => { if (!res.writableEnded && !res.destroyed) res.write(JSON.stringify(e) + '\n'); }, ac.signal);
+        if (!res.writableEnded) res.end();
+        return;
       }
       if (req.method === 'POST' && url.pathname === '/bridge/bye') { bridge.bye(bearer); return send(res, 200, { ok: true }); }
       send(res, 404, { error: { code: 'not_found', message: 'not found' } });
@@ -176,6 +200,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
       if (closed) return;
       closed = true;
       bridge.close();
+      chat.close();
       if (idle) clearTimeout(idle);
       unsub?.();
       for (const r of sse) r.end();

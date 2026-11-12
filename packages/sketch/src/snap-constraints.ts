@@ -13,6 +13,7 @@
  */
 import type { SketchDraft } from './index';
 import { addConstraintOf } from './tools/builders';
+import { MID_PREFIX } from './snap';
 import type { SnapHit } from './tools/types';
 
 const EPS = 1e-6;
@@ -62,8 +63,8 @@ export function applySnapConstraints(before: SketchDraft, after: SketchDraft, sn
       break;
     }
     if (snap.kind === 'align' && snap.alignTo) {
-      if (snap.alignTo.x && !inferred.has('vertical')) d = addConstraintOf(d, 'vertical', [p.id, snap.alignTo.x]);
-      if (snap.alignTo.y && !inferred.has('horizontal')) d = addConstraintOf(d, 'horizontal', [p.id, snap.alignTo.y]);
+      if (snap.alignTo.x && !snap.alignTo.x.startsWith(MID_PREFIX) && !inferred.has('vertical')) d = addConstraintOf(d, 'vertical', [p.id, snap.alignTo.x]);
+      if (snap.alignTo.y && !snap.alignTo.y.startsWith(MID_PREFIX) && !inferred.has('horizontal')) d = addConstraintOf(d, 'horizontal', [p.id, snap.alignTo.y]);
       break;
     }
   }

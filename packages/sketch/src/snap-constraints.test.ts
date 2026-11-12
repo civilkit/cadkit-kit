@@ -44,6 +44,16 @@ describe('applySnapConstraints', () => {
   });
 });
 
+describe('applySnapConstraints: a midpoint alignment', () => {
+  it('adds no constraint (the line midpoint is not a point), and no invalid reference', () => {
+    const b = base();
+    const { draft } = addPoint(b, { x: 5, y: 0 });
+    const out = applySnapConstraints(b, draft, { kind: 'align', at: { x: 5, y: 0 }, alignTo: { x: 'mid:e1', y: 'p1' } });
+    expect(out.constraints.map((c) => c.type)).toEqual(['horizontal']);
+    expect(out.constraints.every((c) => (c.refs ?? []).every((r) => !r.startsWith('mid:')))).toBe(true);
+  });
+});
+
 describe('applySnapConstraints: the richer snaps', () => {
   const circ = (): SketchDraft => ({ ...base(), points: [...base().points, { id: 'c', x: 30, y: 30 }], entities: [...base().entities, { id: 'e2', type: 'circle', c: 'c', r: 5 }] });
   it('on-curve puts the new point on the line or circle', () => {

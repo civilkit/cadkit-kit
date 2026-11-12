@@ -8,6 +8,9 @@ import { EMPTY_SCOPE, ERROR_TEXT, completions, evalExpr, isExprValue, parseAssig
 export const VarsContext = createContext<Scope>(EMPTY_SCOPE);
 export const useScope = (): Scope => useContext(VarsContext);
 
+/** Pixel width for a monospace value box holding `text`: the usual 64 px, then one character at a time up to a cap. */
+export const growWidth = (text: string): number => Math.min(320, Math.max(64, Math.ceil(text.length * 8 + 16)));
+
 const fmt = (v: number): string => String(Math.round(v * 1e6) / 1e6);
 
 /** The message for an expression problem, mapped from the kernel's error codes (`expr.error.<code>`). */
@@ -39,6 +42,8 @@ export function ExprInput(p: {
   integer?: boolean;
   /** The Enter key's label on a phone keyboard: `next` when another field follows, else `done`. */
   enterKeyHint?: 'done' | 'next' | 'go' | 'enter';
+  /** Widen the box with what is typed, so a formula is not cut off (a box whose width the stylesheet fixes, like the sketch's value fields). */
+  grow?: boolean;
 }): JSX.Element {
   const scope = useScope();
   const [text, setText] = useState<string | null>(null);
@@ -92,6 +97,7 @@ export function ExprInput(p: {
             ref={input} type="text" inputMode={full ? 'text' : p.integer ? 'numeric' : 'decimal'} enterKeyHint={p.enterKeyHint ?? 'done'} spellcheck={false} autocomplete="off"
             aria-label={p.label} aria-invalid={err ? 'true' : undefined} disabled={p.disabled}
             value={shown}
+            style={p.grow ? { width: growWidth(shown) + 'px' } : undefined}
             onInput={(e) => apply((e.currentTarget as HTMLInputElement).value)}
             onChange={(e) => apply((e.currentTarget as HTMLInputElement).value)}
             onFocus={() => setOpen(true)}

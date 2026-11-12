@@ -171,6 +171,10 @@
     "file": "sk3d-spiral-path.png",
     "caption": "A spline through six points that climb in a loose spiral, with the Points table of the 3D Sketch panel showing each point's X, Y and Z."
   },
+  "sketch-bar": {
+    "file": "sketch-bar.png",
+    "caption": "The one-row sketch bar: the Editing tab, the sketch tool groups, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right."
+  },
   "sketch-editor-open": {
     "file": "sketch-editor-open.png",
     "caption": "A sketch open on the top face of a plate: the Editing tab of the ribbon, the faded body, the status chip, and the pointer coordinates in the status bar."
@@ -185,7 +189,7 @@
   },
   "tab-strip": {
     "file": "tab-strip.png",
-    "caption": "The top bar and tab strip with three open parts, the first marked as changed."
+    "caption": "The top bar with three open parts as document tabs, the first marked as changed, the Part / Drawing switch and command search at the right, and the ribbon tabs underneath."
   },
   "text-panel": {
     "file": "text-panel.png",

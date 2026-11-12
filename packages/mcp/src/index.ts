@@ -4,3 +4,4 @@ export * from './daemon';
 export * from './shim';
 export * from './state';
 export { main } from './cli';
+export * from './chat';

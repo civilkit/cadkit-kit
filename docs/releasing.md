@@ -25,6 +25,7 @@ change that stops old files opening MAJOR. The document format has its own numbe
 4. Push the tags to `ci`, build the pages (`PAGES_OUT=dist-pages-civilkit/cad WASM_SRC=<wasm> CK_REBUILD=<kernel> npm run build:pages`),
    smoke-test it (`node tools/pages_smoke.mjs dist-pages-civilkit/cad --profile <dir>`) and deploy as in `docs/pages-deploy.md`.
 5. After the deploy, check `https://civilkit.io/cad/version.json` shows the new version.
+6. Build the Mac app for the same release (every release ships it): from the tagged checkout run `WASM_SRC=<the same wasm> CK_REBUILD=<kernel> tools/desktop_build.sh` (see `docs/desktop.md`), check the `.dmg` and the `.app.zip` names carry the version, and add the arm64 and x64 files and `SHA256SUMS` to a draft GitHub release `desktop-vX.Y.Z`. Publishing the draft is a separate step for the owner.
 
 ## What's new clips
 

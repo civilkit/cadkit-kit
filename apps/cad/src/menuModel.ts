@@ -8,6 +8,8 @@ import type { GestureKind } from './handles/session';
 import { t } from './i18n';
 
 export type SelectionKind = 'none' | 'face' | 'edge' | 'corner' | 'body';
+/** What a menu is for: a selection kind, or the open sketch. */
+export type MenuKind = SelectionKind | 'sketch';
 
 export function selectionKind(selection: string[], mode: string): SelectionKind {
   if (selection.includes(BODY) || (selection.length > 0 && selection.every(isBodyName))) return 'body';
@@ -18,7 +20,8 @@ export function selectionKind(selection: string[], mode: string): SelectionKind 
 }
 
 /** Command ids per selection kind, in menu order; `-` is a separator. */
-export const MENU_COMMANDS: Record<SelectionKind, string[]> = {
+export const MENU_COMMANDS: Record<MenuKind, string[]> = {
+  sketch: ['sketch-ok', 'sketch-cancel', '-', 'sketch-select', 'sketch-construction', 'sketch-fully-define', '-', 'sketch-look-normal', 'fit', '-', 'sketch-show-dimensions', 'sketch-show-relations'],
   edge: ['add-fillet', 'add-chamfer', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   corner: ['add-fillet', 'add-chamfer', '-', 'select-invert', 'select-none'],
   face: ['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
@@ -50,7 +53,7 @@ export function gestureHint(kind: GestureKind | null): string | null {
 }
 
 /** `placementOn`: the kernel can move bodies. Without it the Move body row is listed but disabled with the reason. */
-export function menuItems(kind: SelectionKind, commands: Command[], placementOn: boolean, why?: (id: string) => string | null): MenuItem[] {
+export function menuItems(kind: MenuKind, commands: Command[], placementOn: boolean, why?: (id: string) => string | null): MenuItem[] {
   const byId = new Map(commands.map((c) => [c.id, c]));
   const out: MenuItem[] = [];
   for (const id of MENU_COMMANDS[kind]) {

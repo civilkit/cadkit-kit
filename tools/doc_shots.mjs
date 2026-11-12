@@ -15,7 +15,7 @@ import { SHOTS } from './doc_shots_defs.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = (() => { const o = {}; const a = process.argv.slice(2); for (let i = 0; i < a.length; i++) if (a[i].startsWith('--')) { const k = a[i].slice(2); o[k] = a[i + 1] && !a[i + 1].startsWith('--') ? a[++i] : true; } return o; })();
-const OUT = resolve(args.out ?? '../wt-kit-scsync/guide/src/img');
+const OUT = resolve(args.out ?? join(ROOT, 'guide/src/img'));
 const SITE = resolve(ROOT, args.site ?? 'dist-docshots');
 const ONLY = args.only ? String(args.only).split(',') : null;
 const PORT = 9800 + Math.floor(Math.random() * 90);

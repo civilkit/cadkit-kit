@@ -1,4 +1,21 @@
 {
+  "0.6.3": [
+    {
+      "id": "chat-panel",
+      "title": "Chat: ask for a change in words",
+      "blurb": "The new Chat panel runs the Claude Code you already have on your own computer. Describe a part or a change, watch it build in the open document, and undo the whole edit in one step. It is off until you start the local service and link the app."
+    },
+    {
+      "id": "tabs-menus-sketch-bar",
+      "title": "Document tabs, right-click menus and a one-row sketch bar",
+      "blurb": "Open parts are tabs in the top bar. Right-click a feature, a plane, a tab or an open sketch for the commands you expect there, and the sketch bar now stays on one row."
+    },
+    {
+      "id": "sketch-guides",
+      "title": "Midpoint guides and value boxes that grow with a formula",
+      "blurb": "While you draw, the pointer also lines up with the middle of an existing line, and with two midpoints it lands where their dotted guides cross. The length, angle and radius boxes widen as you type a formula such as =width*2+wall."
+    }
+  ],
   "0.6.1": [
     {
       "id": "surface-controls",

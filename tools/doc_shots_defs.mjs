@@ -11,7 +11,7 @@ export const rectSketch = (id, name, plane, w, h, { fixed = false, dims = true, 
 export const newDoc = (name, features, extra = {}) => ({ format: 'ck-part', version: 1, name, features, seq: features.length + 1, rollback: null, material: 'steel', counters: {}, ...extra });
 
 export const SHOTS = [
-  { name: 'settings-kernel', caption: 'Workspace settings, Kernel tab, with Local service chosen: the service address, an access token field (the token is hidden; the picture uses a made-up one), Test connection and the status line.',
+  { name: 'settings-kernel', caption: 'Settings window, Kernel tab, with Local service chosen: the service address, an access token field (the token is hidden; the picture uses a made-up one), Test connection and the status line.',
     async run(c) {
       await c.open({ sample: 'mounting-plate' });
       await c.page.eval(`localStorage.setItem('cad.settingsTab', JSON.stringify('kernel')); 0`);
@@ -29,7 +29,7 @@ export const SHOTS = [
   { name: 'first-part-dimensioned', caption: 'A rectangle sketch on the Front plane with 60 and 40 dimensions and the status chip showing the remaining degrees of freedom.',
     async run(c) {
       await c.open({ doc: newDoc('Part1', [rectSketch('F1', 'Sketch 1', 'front', 60, 40, { cx: -30, cy: -20 })]) });
-      if (!(await c.editRow('Sketch 1'))) c.skip('no sketch row'); await c.viewport(1860, 900); await c.key('n'); await c.page.click(1000, 820); await c.settle(1200); await c.sleep(4000);
+      if (!(await c.editRow('Sketch 1'))) c.skip('no sketch row'); await c.viewport(1960, 900); await c.key('n'); await c.page.click(1000, 820); await c.settle(1200); await c.sleep(4000);
     } },
 
   { name: 'sketch-editor-open', caption: 'A sketch open on the top face of a plate: the Editing tab of the ribbon, the faded body, the status chip, and the pointer coordinates in the status bar.',
@@ -37,34 +37,40 @@ export const SHOTS = [
       const plate = rectSketch('F1', 'Base', 'front', 80, 50, { dims: true });
       const face = { type: 'sketch', id: 'F3', name: 'Face sketch', plane: { kind: 'face', id: 'F2.C1' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'k', x: 40, y: 25 }, { id: 'k2', x: 55, y: 25 }], entities: [{ id: 'k1', type: 'circle', c: 'k', r: 10 }], constraints: [] };
       await c.open({ doc: newDoc('Plate', [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 12 }, face]) });
-      await c.viewport(1860, 900);
+      await c.viewport(1960, 900);
       if (!(await c.editRow('Face sketch'))) c.skip('no sketch row'); await c.settle(1200);
       await c.page.mouse('mouseMoved', 700, 560); await c.sleep(300);
     } },
+  { name: 'sketch-bar', caption: 'The one-row sketch bar at the top of an open sketch: the Editing tab, then Select, Finish, Make, Draw, Dimension, Constrain, Modify and Reference tools, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right.',
+    async run(c) {
+      await c.open({ doc: newDoc('Part1', [rectSketch('F1', 'Sketch 1', 'front', 60, 40, { cx: -30, cy: -20 })]) }); await c.viewport(1960, 900);
+      if (!(await c.editRow('Sketch 1'))) c.skip('no sketch row'); await c.key('n'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1960, h: 110 };
+    } },
   { name: 'constraints-list-open', caption: 'A dimensioned bracket sketch with relation glyphs in the view and the Constraints list opened from the status chip.',
     async run(c) {
-      await c.open({ sample: 'parametric-bracket' }); await c.viewport(1920, 900);
+      await c.open({ sample: 'parametric-bracket' }); await c.viewport(2100, 900);
       if (!(await c.editRow('Plate outline'))) c.skip('no sketch row'); await c.settle(1200); await c.key('n'); await c.sleep(600);
       if (!(await c.click('button', 'Fully defined')) && !(await c.click('button', 'DOF'))) c.skip('no status chip'); await c.settle(600);
     } },
   { name: 'sketch-tools-palette', caption: 'The Draw group of the sketch ribbon with the Rectangle flyout open, listing the tool names and their keys.',
     async run(c) {
-      await c.open({ doc: newDoc('Part1', [rectSketch('F1', 'Sketch 1', 'front', 60, 40, { cx: -30, cy: -20 })]) }); await c.viewport(1860, 900);
+      await c.open({ doc: newDoc('Part1', [rectSketch('F1', 'Sketch 1', 'front', 60, 40, { cx: -30, cy: -20 })]) }); await c.viewport(1960, 900);
       if (!(await c.editRow('Sketch 1'))) c.skip('no sketch row'); await c.settle(1000);
       const r = await c.find('button', 'More tools like Rectangle'); if (!r) c.skip('no flyout arrow'); await c.page.click(r.x, r.y); await c.sleep(500);
-      return { x: 300, y: 112, w: 420, h: 200 };
+      return { x: 300, y: 74, w: 420, h: 250 };
     } },
   { name: 'ribbon-tabs', caption: 'The ribbon with the Home tab selected and the Extrude button flyout open, showing Extruded cut.',
     async run(c) {
       await c.open({ sample: 'mounting-plate' });
       const r = await c.find('button', 'More tools like Extrude'); if (!r) c.skip('no flyout arrow'); await c.page.click(r.x, r.y); await c.sleep(500);
-      return { x: 0, y: 80, w: 700, h: 185 };
+      return { x: 0, y: 46, w: 700, h: 181 };
     } },
-  { name: 'tab-strip', caption: 'The top bar and tab strip with three open parts, the first marked as changed.',
+  { name: 'tab-strip', caption: 'The top bar with three open parts as document tabs, the first marked as changed, the Part / Drawing switch and command search at the right, and the ribbon tabs underneath.',
     async run(c) {
       await c.open({ sample: 'mounting-plate' });
       for (let i = 0; i < 2; i++) { if (!(await c.click('button', 'New part in a new tab'))) c.skip('no new tab button'); await c.settle(800); }
-      await c.sleep(2000); return { x: 0, y: 0, w: 1440, h: 84 };
+      await c.sleep(2000); return { x: 0, y: 0, w: 1440, h: 78 };
     } },
 
   { name: 'extrude-editor', caption: 'A block with a circle sketch on its top face and the Extrude editor open in the left panel, with End condition, Operation and Options sections and the preview in the view.',
@@ -72,7 +78,7 @@ export const SHOTS = [
       await c.open({ doc: boxWithCircle() });
       if (!(await c.selRow('Circle'))) c.skip('no sketch row');
       if (!(await c.click('button', 'Extrude'))) c.skip('no extrude button'); await c.settle(1200);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'thin-wall', caption: 'A C-shaped open spline extruded as a thin wall, with the Thin wall section of the Extrude editor open showing Wall thickness, Side and End caps.',
@@ -81,7 +87,7 @@ export const SHOTS = [
       const sk = { type: 'sketch', id: 'F1', name: 'C curve', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...pts], entities: [{ type: 'spline', id: 'e1', pts: pts.map((p) => p.id), closed: false }], constraints: [] };
       await c.open({ doc: newDoc('C wall', [sk, { type: 'extrude', id: 'F2', name: 'Wall', op: 'add', sketch: 'F1', end: 'blind', depth: 30, thin: { thickness: 3, side: 'mid', ends: 'flat', cornerStyle: 'mitre' } }]) });
       if (!(await c.editRow('Wall'))) c.skip('no extrude row'); await c.settle(1200); await c.scrollPanel('bottom');
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'loft-editor', caption: 'Three square sketches on offset planes lofted into a tapered solid, with the Profiles list showing three rows and the Guide curves section below.',
     async run(c) {
@@ -90,7 +96,7 @@ export const SHOTS = [
         { type: 'plane', id: 'F4', name: 'Plane 2', mode: 'offset', base: { kind: 'std', id: 'top' }, offset: 60 }, sq('F5', 'Top square', { kind: 'feature', id: 'F4' }, 9), { type: 'loft', id: 'F6', name: 'Taper', op: 'add', sketches: ['F1', 'F3', 'F5'] }];
       await c.open({ doc: newDoc('Loft', f) });
       if (!(await c.editRow('Taper'))) c.skip('no loft row'); await c.settle(1500);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'fillet-editor', caption: 'A plate with three edges around its top corner selected and the Fillet editor open showing Variable radius, Radius, Profile and Tangent chain.',
     async run(c) {
@@ -99,7 +105,7 @@ export const SHOTS = [
       await c.clickMod(878, 623, { shift: true }); await c.clickMod(920, 465, { shift: true });
       if (!(await c.click('button', 'Fillet'))) c.skip('no fillet button'); await c.settle(800);
       if (!(await c.fillField('Radius', '4'))) c.skip('no radius field'); await c.settle(800);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'corner-holes', caption: 'A rectangular plate seen face-on with the hole sketch open, the Corner holes card at the top right of the canvas, and four hole points placed in the corners.',
     async run(c) {
@@ -113,7 +119,7 @@ export const SHOTS = [
   { name: 'first-part-finished', caption: 'The finished plate with a hole and a rounded corner, in the Iso view with the feature tree listing the extrude, hole and fillet.',
     async run(c) {
       await c.open({ doc: tutorialPlate() });
-      await c.key('e'); await c.page.click(920, 465); await c.sleep(400);
+      await c.key('e'); await c.page.click(886, 610); await c.sleep(400);
       if (!(await c.click('button', 'Fillet'))) c.skip('no fillet button'); await c.settle(800);
       if (!(await c.fillField('Radius', '5'))) c.skip('no radius field'); await c.settle(800);
       if (!(await c.click('button', 'Confirm'))) c.skip('no confirm'); await c.settle(1000);
@@ -136,7 +142,7 @@ export const SHOTS = [
       await c.click('summary', 'Rules and limits'); await c.sleep(200);
       if (!(await c.click('button', 'Run check'))) c.skip('no Run check'); await c.settle(2500);
       await c.click('label', 'Show on part'); await c.sleep(800);
-      return { x: 0, y: 190, w: 1440, h: 545 };
+      return { x: 0, y: 152, w: 1440, h: 600 };
     } },
   { name: 'catalog-primitives', caption: 'The Catalog panel on the Primitives tab: the Placement row, then the Add material and Remove material columns of shapes.',
     async run(c) {
@@ -190,7 +196,7 @@ export const SHOTS = [
       await c.open({ doc: bracketDoc({}) });
       if (!(await c.editRow('Plate'))) c.skip('no extrude row'); await c.settle(800);
       if (!(await c.fillField('Depth', '2'))) c.skip('no depth field'); await c.settle(1500);
-      await c.scrollPanel('bottom'); return { x: 0, y: 80, w: 1160, h: 790 };
+      await c.scrollPanel('bottom'); return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'display-menu', caption: 'The Display popover open on a part, showing Style, Appearance swatches, Scene presets and the Show list.',
     async run(c) {
@@ -214,14 +220,14 @@ export const SHOTS = [
       if (!(await c.editRow('Plate'))) c.skip('no extrude row'); await c.settle(800);
       const r = await c.page.eval(`(() => { const lab = [...document.querySelectorAll('.tree-wrap *')].find((e) => e.children.length < 3 && /^Depth/.test((e.textContent || '').trim())); let n = lab; for (let i = 0; i < 3 && n; i++, n = n.parentElement) { const inp = n.querySelector('input'); if (inp) { const b = inp.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; } } return null; })()`);
       if (!r) c.skip('no depth field'); await c.page.click(r.x, r.y); await c.page.eval('document.activeElement.select(); 0'); await c.page.send('Input.insertText', { text: '=thick*2' }); await c.sleep(700);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'reference-plane', caption: 'A block with a reference plane drawn 10 mm above its top face and the Plane editor open showing Mode, Offset and Base plane.',
     async run(c) {
       const base = rectSketch('F1', 'Block outline', 'front', 80, 50, { cx: -40, cy: -25 });
       await c.open({ doc: newDoc('Plane demo', [base, { type: 'extrude', id: 'F2', name: 'Block', op: 'add', sketch: 'F1', end: 'blind', depth: 20 }, { type: 'plane', id: 'F3', name: 'Plane 1', mode: 'offset', base: { kind: 'face', id: 'F2.C1' }, offset: 10 }]) });
       if (!(await c.editRow('Plane 1'))) c.skip('no plane row'); await c.settle(1000);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'linear-pattern', caption: 'A bar with a pocket repeated three times along its length and the Linear pattern editor open showing Count and Spacing.',
     async run(c) {
@@ -232,7 +238,7 @@ export const SHOTS = [
         { type: 'lpattern', id: 'F5', name: 'Pocket pattern', seeds: ['F4'], dir: { kind: 'axis', axis: 'x' }, count: 3, spacing: 40, reverse: false }];
       await c.open({ doc: newDoc('Pattern demo', f) });
       if (!(await c.editRow('Pocket pattern'))) c.skip('no pattern row'); await c.settle(1200);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
   { name: 'surfaces-tab', caption: 'The Surfaces tab of the ribbon with a wavy extruded surface standing on a plate, tinted teal, and the Create and Edit groups visible.',
     async run(c) {
@@ -259,7 +265,7 @@ export const SHOTS = [
       const base = rectSketch('F1', 'Block outline', 'front', 60, 40, { cx: -30, cy: -20 });
       await c.open({ doc: newDoc('Block', [base, { type: 'extrude', id: 'F2', name: 'Block', op: 'add', sketch: 'F1', end: 'blind', depth: 25 }]) });
       if (!(await c.selRow('Block'))) c.skip('no extrude row'); await c.sleep(1000);
-      return { x: 0, y: 192, w: 1160, h: 678 };
+      return { x: 0, y: 154, w: 1160, h: 678 };
     } },
   { name: 'move-rotate-ball', keepPointer: true, caption: 'A block selected whole with the move and rotate ball at its centre, shown while dragging an axis end dot, with the Distance readout above the ball.',
     async run(c) {
@@ -272,7 +278,7 @@ export const SHOTS = [
       await p.mouse('mouseMoved', 635, 574); await c.sleep(400); await p.mouse('mousePressed', 635, 574); await c.sleep(200); for (let i = 1; i <= 8; i++) { await p.mouse('mouseMoved', 635 - i * 8, 574 + i * 2); await c.sleep(60); } await c.sleep(500);   // the X end dot at the left of the ball
     } },
   { name: 'navigation-viewcube', caption: 'The view cube in the top right corner with its arrow ring, and the Fit and projection buttons under it, the model in the Iso view.',
-    async run(c) { await c.open({ sample: 'mounting-plate' }); await c.key('7'); await c.key('z'); await c.sleep(800); return { x: 300, y: 195, w: 1140, h: 520 }; } },
+    async run(c) { await c.open({ sample: 'mounting-plate' }); await c.key('7'); await c.key('z'); await c.sleep(800); return { x: 300, y: 157, w: 1140, h: 520 }; } },
   { name: 'text-panel', caption: 'The Text tool open in a sketch with the text panel (characters, cap height, font, anchor grid, on an arc) and the lettering RPM x100 laid along an arc.',
     async run(c) {
       await c.open({}); if (!(await c.click('button', 'Sketch on Front Plane'))) c.skip('no start card'); await c.settle(1200); await c.key('n');
@@ -280,7 +286,7 @@ export const SHOTS = [
       if (!(await c.fillField('Characters', 'RPM x100'))) c.skip('no Characters field');
       if (!(await c.fillField('Cap height', '8'))) c.skip('no Cap height field');
       if (!(await c.click('label', 'On an arc'))) c.skip('no On an arc'); await c.sleep(1000);
-      return { x: 0, y: 80, w: 1440, h: 788 };
+      return { x: 0, y: 46, w: 1440, h: 822 };
     } },
 
   // ---- pages written after the audit: bodies (Cut from), curves, measure, history, surfaces, interface, wizards ----
@@ -299,7 +305,7 @@ export const SHOTS = [
       await c.open({ doc: newDoc('Cut from', f) });
       if (!(await c.editRow('Pocket'))) c.skip('no Pocket row'); await c.settle(1200);
       await c.scrollPanel('top');
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'edit-curve-editor', caption: 'A two-line chain rebuilt as one smooth curve, with the Edit curve editor open showing the Curves list, Rebuild and Control point edits.',
@@ -315,7 +321,7 @@ export const SHOTS = [
           method: 'tolerance', degree: 3, tolerance: 0.01, keepEnds: true, keepCorners: true, entries: [{ cv: 2, dx: 0, dy: 0, dz: 6 }] }];
       await c.open({ doc: newDoc('Curve chain', f) });
       if (!(await c.editRow('Edit curve'))) c.skip('no Edit curve row'); await c.settle(1200);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'project-curve-editor', caption: 'A plate with one face picked and the Project curve editor open, showing Project, Onto faces, Direction, Degree and Fit tolerance.',
@@ -328,7 +334,7 @@ export const SHOTS = [
         { type: 'projectCurve', id: 'F4', name: 'Project curve', sketch: 'F3', faces: ['F2.C1'], degree: 3, tolerance: 0.001, direction: 'both' }];
       await c.open({ doc: newDoc('Projected curve', f) });
       if (!(await c.editRow('Project curve'))) c.skip('no Project curve row'); await c.settle(1200);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'freeform-editor', caption: 'A wavy surface with one face picked, the Freeform editor open on the left, and the face rebuilt as a net with a control point lifted.',
@@ -370,13 +376,13 @@ export const SHOTS = [
   { name: 'repeat-last', keepPointer: true, caption: "The Home ribbon's Edit group with the cursor on Repeat last command, after a fillet was applied.",
     async run(c) {
       await c.open({ doc: tutorialPlate({ hole: false }) });
-      await c.key('e'); await c.page.click(920, 465); await c.sleep(400);
+      await c.key('e'); await c.page.click(886, 610); await c.sleep(400);
       if (!(await c.click('button', 'Fillet'))) c.skip('no fillet button'); await c.settle(800);
       if (!(await c.fillField('Radius', '5'))) c.skip('no radius field'); await c.settle(800);
       if (!(await c.click('button', 'Confirm'))) c.skip('no confirm'); await c.settle(1000);
       const r = await c.find('button', 'Repeat last command'); if (!r) c.skip('no Repeat last command button');
       await c.page.mouse('mouseMoved', r.x, r.y); await c.sleep(700);
-      return { x: 0, y: 80, w: 1440, h: 190 };
+      return { x: 0, y: 46, w: 1440, h: 186 };
     } },
 
   { name: 'thicken-variable', caption: 'The Thicken editor with Variable thickness ticked, Ramp along set to Z axis, and two stops: position 0 at 4 mm and position 10 at 2 mm.',
@@ -390,14 +396,14 @@ export const SHOTS = [
       await c.open({ doc: newDoc('Tapered sheet', f) });
       if (!(await c.editRow('Thicken'))) c.skip('no Thicken row'); await c.settle(1500);
       await c.scrollPanel('top');
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'tool-rail', caption: 'The tool rail down the left edge of the view, with the Create section opened on its flyout.',
     async run(c) {
       await c.open({ sample: 'mounting-plate', workspace: 'plasticity' }); await c.settle(900);
       const r = await c.find('button', 'More tools like Extrude'); if (!r) c.skip('no flyout arrow on the rail'); await c.page.click(r.x, r.y); await c.sleep(700);
-      return { x: 260, y: 55, w: 470, h: 700 };
+      return { x: 260, y: 46, w: 470, h: 680 };
     } },
 
   { name: 'wizard-screw', caption: 'The Screw wizard open in the left panel with an M3 pan-head screw previewed on the top plane, showing Size, Length, Head, Drive, Bearing face centre and Shank points.',
@@ -423,14 +429,14 @@ export const SHOTS = [
       await c.open({ doc: sheetTray() });
       if (!(await c.editRow('Tray 2 mm'))) c.skip('no rule row'); await c.settle(1200);
       await c.scrollPanel('top');
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'sheet-edge-flange-editor', caption: 'The Edge flange editor with four edges picked: Height, Angle, Bend radius, Height measured and Flange position, with the four legs previewed on the plate.',
     async run(c) {
       await c.open({ doc: sheetTray() });
       if (!(await c.editRow('Edge flange'))) c.skip('no edge flange row'); await c.settle(1200);
-      return { x: 0, y: 80, w: 1160, h: 790 };
+      return { x: 0, y: 46, w: 1160, h: 824 };
     } },
 
   { name: 'sheet-flat-pattern', caption: 'The flat pattern panel for the tray: the blank outline and bend zones, the bend lines B1 to B5 with their angles, the blank size and rule, the bend table and the three export buttons.',

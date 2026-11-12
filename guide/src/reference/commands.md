@@ -408,7 +408,7 @@ The **Export** menu lists:
 
 An export command is available only when there is something to export: a solid, or for the sketch DXF a sketch. See [Exporting](../files/export.md).
 
-The **Part** and **Drawing** tabs to the right of the file buttons switch between the model and its drawing sheet. See [Drawings](../files/drawings.md). Double-click the part name to rename the document.
+The **Part** / **Drawing** switch at the right of the top bar switches between the model and its drawing sheet. See [Drawings](../files/drawings.md). Double-click the active document tab to rename the document; right-click a tab for Rename, Close and Close the other tabs.
 
 ## Sketch tab
 

@@ -36,6 +36,8 @@ export class BridgeClient {
   private pollCtl: AbortController | null = null;
   constructor(private readonly o: ClientOptions) {}
   get current(): LinkState { return this.state; }
+  /** Where the daemon is and the session the pairing code bought, while linked (the in-app chat reuses it; there is no other credential). */
+  get endpoint(): { port: number; session: string } | null { return this.ctl && this.session ? { port: this.port, session: this.session } : null; }
   private set(s: LinkState): void { this.state = s; this.o.onState?.(s); }
   private f(): typeof fetch { return this.o.fetch ?? globalThis.fetch.bind(globalThis); }
 

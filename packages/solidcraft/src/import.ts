@@ -35,7 +35,10 @@ export interface ScImport {
   geometryComplete: boolean;
   /** Set when nothing was imported: not a SolidCraft file, an unknown format version family, units, or an assembly. */
   refused?: string;
+  /** Where the time went, in the order of the phases: `read` (unpacking and parsing the file), `kernel` (the questions put to the resolvers and STEP tools, with how many), `map` (the rest of the feature mapping). Not set for a refused file. */
+  timings?: ImportTiming[];
 }
+export interface ImportTiming { phase: 'read' | 'kernel' | 'map'; ms: number; count?: number }
 /** Resolves points on the body built so far to kernel edge references ({faces, at}); null for a point that matches no edge. */
 export type EdgeResolver = (partBefore: ScPart, points: V3[], hints?: Array<EdgeHint | undefined>) => Promise<Array<Record<string, unknown> | null>>;
 /** What else the file says about an edge, for when its stored position no longer lies on the body (a parameter changed after it was picked): the direction of the edge, in our world. */
@@ -410,6 +413,7 @@ const looksLikeJson = (b: Uint8Array): boolean => {
  * JSON document (older files, format tag `solidcraft/1` ...). Never throws on a bad file: the reason is in `refused`.
  */
 export async function importSolidcraft(bytes: Uint8Array, name = 'SolidCraft part', opts: ImportOpts = {}): Promise<ScImport> {
+  const t0 = Date.now();
   let raw: Uint8Array | null;
   if (looksLikeJson(bytes)) raw = bytes;
   else {
@@ -418,15 +422,31 @@ export async function importSolidcraft(bytes: Uint8Array, name = 'SolidCraft par
   }
   let doc: Rec;
   try { doc = JSON.parse(new TextDecoder().decode(raw)); } catch { return refuse(name, 'the document is not valid JSON'); }
-  return importSolidcraftDocument(doc, name, { blob: async (p) => (looksLikeJson(bytes) ? null : zipFile(bytes, p)), ...opts });
+  const readMs = Date.now() - t0;
+  const r = await importSolidcraftDocument(doc, name, { blob: async (p) => (looksLikeJson(bytes) ? null : zipFile(bytes, p)), ...opts });
+  if (r.timings) r.timings.unshift({ phase: 'read', ms: readMs });
+  return r;
 }
 
 /** The same from an already parsed document.json. */
 export async function importSolidcraftDocument(doc: Rec, name = 'SolidCraft part', opts: ImportOpts = {}): Promise<ScImport> {
   if (!doc || typeof doc !== 'object' || !Array.isArray(doc.features)) return refuse(name, 'document.json has no feature list');
-  const inner: ImportOpts = { ...opts, yUp: opts.yUp ?? fromSolidWorks(doc) };
-  if (doc.occurrences?.length) return importComponents(doc, name, inner);
-  return importOne(doc, name, inner);
+  // every question put to the kernel is timed (the resolvers are the slow part of a big file), so the result can say where the time went
+  let kernelMs = 0, kernelCalls = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const timed = <F>(fn: F): F => (typeof fn === 'function' ? (async (...a: any[]) => {
+    const t = Date.now(); kernelCalls++;
+    try { return await (fn as any)(...a); } finally { kernelMs += Date.now() - t; }
+  }) as F : fn);
+  const inner: ImportOpts = {
+    ...opts, yUp: opts.yUp ?? fromSolidWorks(doc),
+    resolver: timed(opts.resolver), faceResolver: timed(opts.faceResolver), rimResolver: timed(opts.rimResolver), axisFaceResolver: timed(opts.axisFaceResolver),
+    normalizeStep: timed(opts.normalizeStep), volumeOf: timed(opts.volumeOf),
+  };
+  const t0 = Date.now();
+  const r = doc.occurrences?.length ? await importComponents(doc, name, inner) : await importOne(doc, name, inner);
+  if (r.part) r.timings = [{ phase: 'kernel', ms: kernelMs, count: kernelCalls }, { phase: 'map', ms: Math.max(0, Date.now() - t0 - kernelMs), count: doc.features.length }];
+  return r;
 }
 
 /** Lower-case hex SHA-256 of the UTF-8 bytes of `text` (the key of a blob in the part). */

@@ -101,7 +101,7 @@ Ctrl+Tab and Ctrl+W are reserved by browsers; in the installed app (see [Install
 
 You can have 32 tabs. Switching away from a sketch in progress finishes the sketch and keeps it; if it cannot be finished, it stays open and a notice says so. An open feature editor is closed when you switch. Closing the last tab leaves a blank part. The Drawing view closes when you switch tabs.
 
-![The top bar and tab strip with three open parts, the first marked as changed.](../img/tab-strip.png)
+![The top bar with three open parts as document tabs, the first marked as changed, the Part / Drawing switch and command search at the right, and the ribbon tabs underneath.](../img/tab-strip.png)
 
 ## Imported meshes and STEP data in the file
 

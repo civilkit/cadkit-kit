@@ -47,6 +47,8 @@ export function createAgentLink(d: LinkDeps) {
   if (typeof addEventListener === 'function') addEventListener('pagehide', () => { void client.disconnect(); });
   return {
     state, allowEdit,
+    /** The service's address and the paired session token while linked (the chat panel reuses them). */
+    endpoint: () => client.endpoint,
     connect: (code: string) => client.connect(code),
     disconnect: () => client.disconnect(),
     setAllowEdit: (v: boolean) => { allowEdit.value = v; client.permissionChanged(); },

@@ -15,7 +15,7 @@ An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_s
 | `app_run_script` | the same script language as `run_script`, attach mode on the open document: features are added after the existing ones, as ONE undo step, with a notice | yes |
 | `app_undo`, `app_redo` | step the app's history | yes |
 
-Not in this slice: the other headless tools (`tree`, `facts`, `probe`, `section`, `drawing`, `export`) against the app's document (`app_state` covers the tree; `app_run_script` with `check`/`expect` covers facts), live mirroring of the agent's own document, and the in-app chat.
+Built on top of this link: the in-app chat panel (`docs/agent-chat.md`), which starts Claude Code through the daemon with only the `app_*` tools. Not in this slice: the other headless tools (`tree`, `facts`, `probe`, `section`, `drawing`, `export`) against the app's document (`app_state` covers the tree; `app_run_script` with `check`/`expect` covers facts), live mirroring of the agent's own document.
 
 ## Transport
 
@@ -60,4 +60,4 @@ For a recording: open a part that has a solid before the screenshot step (with a
 
 ## Next
 
-In-app chat (phase 5 of `docs/plan-agent-layer.md`) is not built; it would reuse the same tools over this link. Also: the remaining headless tools against the app document, a screenshot of the live canvas with the user's camera, multiple linked tabs, and a native pairing flow so the code need not be pasted.
+The in-app chat is built (`docs/agent-chat.md`) and reuses this link. Still open: the remaining headless tools against the app document, a screenshot of the live canvas with the user's camera, multiple linked tabs, and a native pairing flow so the code need not be pasted.

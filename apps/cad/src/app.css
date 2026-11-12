@@ -1678,3 +1678,150 @@ html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce whil
 .surface-controls .tex-item img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 4px; background: #0003; }
 .surface-controls .tex-item.on, .surface-controls .tex-item:focus-visible { outline: 2px solid var(--accent, #5aa9ff); outline-offset: 1px; }
 .surface-controls .tex-item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* chat panel (chat/ChatPanel.tsx) */
+.chat-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; height: 100%; min-height: 0; box-sizing: border-box; }
+.chat-setup { height: auto; overflow: auto; }
+.chat-head { display: flex; gap: 8px; align-items: end; justify-content: space-between; }
+.chat-field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-2); }
+.chat-ctx { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.chat-ctx label, .chat-edit { display: inline-flex; gap: 4px; align-items: center; }
+.chat-log { flex: 1 1 0; min-height: 160px; overflow: auto; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+.chat-msg { display: flex; flex-direction: column; gap: 1px; padding: 5px 8px; border-radius: 8px; background: var(--chip); }
+.chat-msg.chat-user { background: var(--accent-soft); }
+.chat-msg.chat-error { color: var(--err); background: none; border: 1px solid var(--err); }
+.chat-msg.chat-note { color: var(--text-2); background: none; font-style: italic; }
+.chat-msg b { font-size: 11px; color: var(--text-2); }
+.chat-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-tool { font-size: 12px; color: var(--text-2); padding-left: 8px; }
+.chat-tool[data-state="failed"] { color: var(--warn); }
+.chat-input { display: flex; gap: 6px; align-items: end; }
+.chat-input textarea { flex: 1; resize: vertical; font: inherit; min-height: 48px; }
+.chat-cmd { display: flex; gap: 6px; align-items: center; }
+.chat-cmd code { flex: 1; font: 12px ui-monospace, monospace; background: var(--chip); padding: 4px 6px; border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+.chat-privacy { border-top: 1px solid var(--line); padding-top: 6px; }
+.chat-privacy summary { cursor: pointer; }
+.chat-panel > .tb-note { flex: none; }
+/* ---- visual tidy: top bar, document tabs, Display popover, status bar links ---- */
+/* top bar: one height and one corner radius for everything in it */
+.topbar { gap: 6px; min-height: 44px; }
+.topbar .rb-btn, .topbar .search-btn { border-radius: 7px; height: 30px; }
+.topbar .rb-btn { padding: 0 10px; }
+.topbar .rb-btn.tb-icon { padding: 0; }   /* an icon button: the glyph sits in the middle of its box */
+.topbar .rb-btn:hover:not(:disabled), .search-btn:hover { background: #ffffff22; border-color: #ffffff44; }
+.search-btn { color: #e9ecf1b0; }
+/* the document tabs in the top bar (desktop): they stand on its bottom edge, the active one runs into the ribbon */
+.topbar .tabbar { flex: 1 1 0; align-self: stretch; margin: -6px 6px -6px 4px; border-bottom: 0; background: none; }
+.topbar .tabstrip { padding: 0; gap: 1px; scrollbar-width: none; }
+.topbar .tabstrip .tab { height: 34px; padding: 0 6px 0 12px; background: transparent; font-size: 13px; color: #e9ecf1b0; }
+.topbar .tabstrip .tab:hover { background: #ffffff14; color: var(--title-text); }
+.topbar .tabstrip .tab.active { background: var(--panel); color: var(--text); border-color: transparent; }
+.topbar .tabstrip .tab .tab-x { opacity: 0; font-size: 15px; }
+.topbar .tabstrip .tab:hover .tab-x, .topbar .tabstrip .tab.active .tab-x, .topbar .tabstrip .tab .tab-x:focus-visible { opacity: .7; }
+.topbar .tabstrip .tab .tab-x:hover { opacity: 1; background: color-mix(in srgb, currentColor 16%, transparent); }
+.topbar .tabstrip .tab-new { width: 26px; height: 26px; margin: 0 0 4px 4px; font-size: 16px; border-radius: 6px; }
+.topbar .tabbar .tab-more { margin: 0 0 5px 4px; }
+.topbar .doc-name { margin-right: 0; }
+/* Part / Drawing: one segmented control; the chosen side is raised, not painted in the accent */
+.mode-tabs { gap: 0; margin-right: 2px; padding: 2px; height: 30px; border-radius: 8px; background: #ffffff14; border: 1px solid #ffffff1f; }
+.topbar .mode-tabs .rb-btn { height: 100%; border: 0; border-radius: 6px; background: transparent; color: #e9ecf1b0; padding: 0 12px; }
+.topbar .mode-tabs .rb-btn:hover:not(:disabled) { background: #ffffff14; color: var(--title-text); }
+.topbar .mode-tabs .rb-btn[aria-selected="true"] { background: #ffffff2e; color: #fff; font-weight: 600; box-shadow: 0 1px 2px #0006; }
+/* Install: an outline in the accent, so the bar keeps one filled control at most */
+.topbar .install-btn { background: transparent; border-color: color-mix(in srgb, var(--accent) 70%, #fff 0%); color: color-mix(in srgb, var(--accent) 55%, #fff); font-weight: 600; }
+.topbar .install-btn:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* status bar: the site's Documentation and Licences links */
+.status > .st-links { flex: none; display: inline-flex; gap: 12px; font-size: 12px; }
+.status .st-links a { color: var(--text-2); text-decoration: none; }
+.status .st-links a:hover { color: var(--text); text-decoration: underline; }
+
+/* Display popover: a fixed width, and every control drawn by the app (the buttons had the browser's own look) */
+.display-pop { width: 308px; max-width: calc(100vw - 24px); padding: 8px; gap: 1px; }
+.display-head { padding: 12px 8px 4px; font-weight: 600; }
+.display-pop > .display-head:first-child { padding-top: 4px; }
+.display-field { min-height: 30px; padding: 2px 8px; }
+.display-field > span { flex: 1 1 auto; min-width: 0; }
+.display-row { min-height: 30px; padding: 4px 8px; }
+.display-row input[type="checkbox"], .display-field input[type="checkbox"] { margin: 0; width: 15px; height: 15px; accent-color: var(--accent); flex: none; }
+.display-field select { appearance: none; -webkit-appearance: none; flex: none; width: 160px; max-width: 160px; height: 26px; padding: 0 24px 0 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--text); cursor: pointer;
+  background: var(--panel-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238a96a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center; }
+.display-field select:hover, .display-field select:focus-visible { border-color: var(--accent); outline: none; }
+.display-field input[type="range"] { flex: none; width: 160px; max-width: 160px; margin: 0; border: 0; background: none; accent-color: var(--accent); cursor: pointer; }
+.display-field input[type="color"] { flex: none; width: 34px; height: 24px; padding: 1px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+.display-reset { align-self: flex-start; font: inherit; font-size: 12.5px; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; min-height: 26px; cursor: pointer; }
+.display-reset:hover:not(:disabled) { border-color: var(--accent); }
+.display-reset:disabled { opacity: .45; cursor: default; }
+.display-reset.on, .display-reset[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.display-reset[aria-expanded="true"] { border-color: var(--accent); }
+.surface-controls { display: flex; flex-direction: column; gap: 1px; }
+.surface-controls > .display-reset, .texture-picker > .display-reset { margin: 4px 8px; }
+.surface-controls .texture-picker { display: flex; flex-direction: column; }
+.surface-controls .tex-current { padding: 4px 8px; display: flex; flex-direction: column; gap: 2px; }
+.surface-controls .tex-current .display-field { padding-left: 0; padding-right: 0; }
+.surface-controls .tex-current .display-reset { margin: 2px 0; }
+.surface-controls .tex-pop { margin: 2px 8px 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; }
+.surface-controls .tex-pop > div:not(.tex-grid):not(.tb-note) { display: flex; flex-direction: column; gap: 6px; }
+.surface-controls .tex-pop .display-reset { background: var(--panel); }
+.surface-controls .tex-pop .tex-grid { margin: 0; }
+.surface-controls .tb-note { line-height: 1.4; }
+.surface-controls .tb-note a { color: var(--accent); }
+.surface-controls .mat-search { width: 100%; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+.surface-controls .mat-search:focus { border-color: var(--accent); outline: none; }
+.surface-grain { display: flex; flex-direction: column; gap: 1px; }
+.swatches { gap: 8px; padding: 4px 8px 6px; }
+.swatch { width: 22px; height: 22px; border-width: 1px; }
+.swatch:hover { border-color: var(--text-2); }
+.swatch.on { border-color: var(--panel); box-shadow: 0 0 0 2px var(--accent); }
+.preset-thumb:hover:not(.on) { background: color-mix(in srgb, var(--text) 7%, transparent); }
+.display-showall { margin: 6px 8px 2px; align-self: flex-start; }
+.preset-name { white-space: nowrap; }
+/* the "more" button of the top bar: the same box as its neighbours in every theme (it was a white square on the dark bar in the light theme) */
+#app[data-layout="desktop"] .topbar .slot.icon .slot-btn { width: 32px; height: 30px; border: 1px solid #ffffff2a; background: #ffffff14; color: var(--title-text); }
+#app[data-layout="desktop"] .topbar .slot.icon .slot-btn:hover:not(:disabled) { background: #ffffff22; border-color: #ffffff44; }
+#app[data-layout="desktop"] .topbar input.doc-name { flex: 0 1 180px; width: 180px; min-width: 80px; margin-right: 0; }
+/* the left panel's tabs stand in the same columns as the top bar's buttons above them (same box, same pitch); the tab's name is its tooltip */
+#app[data-layout="desktop"] .tree-wrap.docked .ptabs { justify-content: flex-start; gap: 6px; padding: 7px 0 7px 10px; }
+#app[data-layout="desktop"] .tree-wrap.docked .ptabs .pt { flex: 0 1 32px; width: 32px; height: 30px; padding: 0; border-radius: 7px; }
+#app[data-layout="desktop"] .tree-wrap.docked .ptabs .pt-label { display: none; }
+.status:has([data-testid="status-sketch"]) > .st-links { display: none; }   /* a sketch fills the bar with its readout */
+/* the sketch bar: one compact row (it wrapped to two and covered the top of the sketch). It may be as wide as the view less the Display button's
+   corner on both sides; Look normal shows only while the view is turned away from the sketch (N, the view buttons and the right-click menu have it too) */
+.sketch-bar-wrap { top: 8px; max-width: calc(100% - 270px); gap: 4px; }
+.sketch-bar { gap: 3px; padding: 3px 5px; row-gap: 3px; }
+.sketch-bar .rb-btn { padding: 3px 8px; min-height: 26px; border-radius: 6px; }
+.sketch-bar .rb-btn.ok, .sketch-bar .rb-btn.no { padding: 0 8px; }
+.sketch-bar .sb-name { max-width: 120px; padding: 0 2px; }
+.sketch-bar .sb-sep { margin: 4px 1px; }
+.sketch-bar [data-action="look-normal"]:not(.look-hint) { display: none; }
+/* the floating sketch palette starts under the view buttons (it covered their bottom row) */
+#app[data-layout="desktop"] .sketch-palette { top: calc(var(--vn-top, 54px) + var(--vn-h, 152px) + 8px); max-height: calc(100% - var(--vn-top, 54px) - var(--vn-h, 152px) - 20px); }
+
+/* Settings dialog: label left and control right in every row, a tick box next to its label, one control style, room around the version line */
+.dlg.set-dlg .dlg-head { padding: 12px 16px; }
+.dlg.set-dlg .dlg-head b { font-size: 15px; }
+.set-tabs { padding: 6px 12px 0; }
+.set-body { padding: 14px 16px; gap: 6px; }
+.set-row { min-height: 32px; gap: 12px; }
+.set-row > span:first-child { flex: 1 1 auto; min-width: 0; }
+label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-start; gap: 10px; cursor: pointer; }
+.set-row input[type="checkbox"] { margin: 0; width: 16px; height: 16px; flex: none; accent-color: var(--accent); }
+.set-row select { appearance: none; -webkit-appearance: none; flex: none; min-width: 220px; max-width: 60%; height: 30px; padding: 0 28px 0 10px; color: var(--text); cursor: pointer;
+  background: var(--panel-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238a96a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center; }
+.set-row select:hover, .set-row select:focus-visible { border-color: var(--accent); outline: none; }
+.set-row input[type="range"] { flex: none; width: 220px; margin: 0; accent-color: var(--accent); }
+.set-row input[type="text"], .set-row input[type="number"], .set-row input[type="password"], .set-row input[type="url"] { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; height: 30px; padding: 0 10px; }
+.set-row input[type="text"]:focus, .set-row input[type="number"]:focus, .set-row input[type="password"]:focus, .set-row input[type="url"]:focus { border-color: var(--accent); outline: none; }
+.set-section { margin-top: 8px; padding-top: 12px; gap: 6px; }
+.set-version { padding: 10px 16px; border-top: 1px solid var(--line); }
+.set-version a { color: var(--accent); }
+#app[data-layout="phone"] .set-row select, #app[data-layout="phone"] .set-row input[type="range"] { min-width: 0; width: auto; max-width: 100%; flex: 1 1 160px; }
+.dlg.set-dlg { height: min(620px, 86vh); }   /* the same size on every tab (it jumped with each tab's content) */
+.set-body { flex: 1 1 auto; }
+.set-body > .set-section:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+/* the right end of the status bar stays the right end: after a sketch opens or closes the page order of these can change, the drawn order does not */
+.status > .sp { order: 10; } .status > .st-links { order: 11; } .status > .st-drawer { order: 12; } .status > .st-right { order: 13; }
+/* the sketch bar in a 1280 px window still wrapped: it takes the width between the tool rail and the Display button (centred in it), and
+   Fully define leaves the bar while the sketch is fully defined (the badge beside it says so) */
+@media (min-width: 901px) { .sketch-bar-wrap { left: 108px; right: 124px; transform: none; width: auto; max-width: none; align-items: center; } }
+.sketch-bar [data-action="fully-define"].done { display: none; }

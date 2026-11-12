@@ -7,7 +7,7 @@ export async function noPartReason(page) {
   const open = await page.eval(`!!window.__cad?.controller.document()`).catch(() => false);
   if (open) return null;
   const notice = await page.eval(`[...document.querySelectorAll('.toast, [role=alert]')].map((e) => e.textContent.trim()).filter(Boolean).join(' | ')`).catch(() => '');
-  const title = await page.eval(`document.querySelector('.doc-name, .doc-switch')?.textContent.trim() ?? ''`).catch(() => '');
+  const title = await page.eval(`document.querySelector('.topbar .tab.active .tab-name, .doc-name, .doc-switch')?.textContent.trim() ?? ''`).catch(() => '');
   const logs = [...new Set(page.logs)].slice(0, 3).map((l) => l.split('\n').slice(0, 2).join(' ').slice(0, 200));
   return `no part open (title "${title}"${notice ? `, notice "${notice}"` : ''}${logs.length ? `, console: ${logs.join(' / ')}` : ''})`;
 }

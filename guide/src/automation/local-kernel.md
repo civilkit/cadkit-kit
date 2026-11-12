@@ -29,14 +29,14 @@ If you load the published app from a web address rather than running it yourself
 
 ## Switch the app to the service
 
-1. Open **Workspace settings**: click the gear icon at the right of the top bar, or run **Workspace settings** from command search (**F**).
+1. Open **Settings**: click the gear icon at the right of the top bar, or run **Workspace settings** from command search (**F**).
 2. Open the **Kernel** tab.
 3. For **Kernel to use**, choose **Local service (faster, runs on this computer)**.
 4. Check **Service address**. The default is `http://127.0.0.1:7461`. Use `127.0.0.1` or `localhost`. Other addresses are not supported.
 5. Paste the token into **Access token**.
 6. Choose **Test connection**. It shows the kernel version, protocol version and number of cores, or says why the service cannot be used. A test switches nothing.
 
-![Workspace settings, Kernel tab, with Local service chosen: the service address, the hidden access token, Test connection and the status line. The status says the service is not used because nothing answered, and the built-in kernel is in use.](../img/settings-kernel.png)
+![Settings window, Kernel tab, with Local service chosen: the service address, the hidden access token, Test connection and the status line. The status says the service is not used because nothing answered, and the built-in kernel is in use.](../img/settings-kernel.png)
 
 As soon as you change the mode, address or token, the open part is reopened on the new kernel. Your undo history is kept. To go back, choose **Built-in (runs in this browser)** and the part moves back.
 
