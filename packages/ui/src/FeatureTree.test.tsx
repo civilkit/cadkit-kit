@@ -400,6 +400,13 @@ describe('FeatureTree: editable reference row', () => {
 describe('FeatureTree: hover and hide', () => {
   const base = { status: [], selectedId: null, onSelect: () => {}, onMove: () => {}, onRemove: () => {} };
   const rows = [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', op: 'add' }];
+  it('clears the hover when the tree goes while a row is hovered (no mouseleave comes)', () => {
+    const seen: Array<string | null> = [];
+    const { container, unmount } = render(<FeatureTree {...base} rows={rows} onToggleSuppress={() => {}} onHoverFeature={(id) => seen.push(id)} />);
+    fireEvent.mouseEnter(container.querySelectorAll('.row[data-id]')[1]);
+    unmount();
+    expect(seen).toEqual(['F2', null]);
+  });
   it('reports the hovered feature row and clears it on leave', () => {
     const seen: Array<string | null> = [];
     const { container } = render(<FeatureTree {...base} rows={rows} onToggleSuppress={() => {}} onHoverFeature={(id) => seen.push(id)} />);

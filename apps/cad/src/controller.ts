@@ -869,8 +869,17 @@ export class Controller {
     if (this.previewTimer) { clearTimeout(this.previewTimer); this.previewTimer = null; }
     this.previewWake?.();
     this.previewWake = null;
-    return this.edit(ops, reason);
+    const r = await this.edit(ops, reason);
+    // a wizard (its features carry a folder name) builds with sketches the user never drew: they are construction, so their outlines stay out of the view (the eye in the tree brings one back)
+    if (r.ok && this.onWizardSketches) {
+      const ids = ops.flatMap((o) => (o.op === 'add' && o.feature && (o.feature as { type?: string }).type === 'sketch' && typeof (o.feature as { group?: unknown }).group === 'string' && typeof (o.feature as { id?: unknown }).id === 'string' ? [(o.feature as { id: string }).id] : []));
+      if (ids.length) this.onWizardSketches(ids);
+    }
+    return r;
   }
+
+  /** Told the ids of the sketches a wizard commit added, so the app can hide them in the view (viewer-only). */
+  onWizardSketches: ((ids: string[]) => void) | null = null;
 
   undo(): Promise<void> { return this.serial(() => this.undoNow()); }
 

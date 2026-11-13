@@ -1,4 +1,11 @@
 {
+  "0.7.1": [
+    {
+      "id": "case-edges",
+      "title": "Round the edges of a case",
+      "blurb": "The Case wizard has a Round the edges setting: Side edges, Top edges or both, each with its own radius. The case now stands upright on the Top plane, and the wizard no longer leaves the construction sketches drawn in the view."
+    }
+  ],
   "0.7.0": [
     {
       "id": "fasten-hole",

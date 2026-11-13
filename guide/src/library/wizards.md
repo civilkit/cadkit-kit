@@ -450,22 +450,26 @@ In the Script tab: `spring({ outer: 12, wire: 1, length: 30, coils: 8, ends: 'gr
 | --- | --- | --- |
 | Width, Depth, Height | The outside size of the closed case, lid included, in mm. | 80, 50, 30 |
 | Wall thickness | The thickness of every wall, the floor and the top. At least 0.4 mm, and two walls must be thinner than the smallest outside size. | 2 |
-| Corner radius | Rounds the four vertical corners on the outside. 0 keeps them sharp; otherwise it must be more than the wall, so the inside corner does not collapse, and at most half the width or depth. | 0 |
+| Round the edges | Which outside edges are rounded: **Off**, **Side edges** (the four vertical edges), **Top edges** (the outer edges of the lid top and of the base bottom, never the seam where the halves meet and never the inside) or **Side and top edges**. A radius field appears for each edge that is on. | Off |
+| Side edge radius | The radius of the four vertical edges, on the outside. It must be more than the wall, so the inside corner does not collapse, and at most half the width or depth. | 5 |
+| Top edge radius | The radius of the round on the top of the lid and on the bottom of the base. With both on, the round follows the rounded outline, so it can be at most the side edge radius. It is also limited to about 2.2 times the wall (a bigger round would leave under half a wall at the round) and to less than the height of the shorter half less the groove. | 2 |
 | Lid height | How tall the lid is: the case is cut this far below its top, so the cut is at *height - lid height* above the bottom. It starts at a quarter of the height (at least three walls) and follows the height until you type a value. | A quarter of the height |
 | Tongue height | How far the tongue stands out of its half. The groove is this plus the clearance deep. Follows the wall (0.75 of it) until you type a value. | 1.5 |
 | Tongue width | The width of the tongue as a fraction of the wall, centred in the wall. | 0.5 |
 | Clearance | The gap between tongue and groove on each side and at the top, in mm. 0.2 suits an FDM printer. | 0.2 |
 | Tongue on | **Lid** (the tongue stands out of the lid and the groove is in the base) or **Base**. | Lid |
 | Name of the base, Name of the lid | The names of the two bodies. | Base, Lid |
-| Bottom face centre X, Y, Z | Where the case stands: the centre of its bottom face. It rises along +Z from there. | 0, 0, 0 |
+| Bottom face centre X, Y, Z | Where the case stands: the centre of its bottom face. It rises along +Y from there: the floor is on the Top plane and the lid on top. | 0, 0, 0 |
 
-The panel shows the heights of the two halves, where the cut is and the tongue and groove sizes. Checks in plain words block the preview and **Add case** until the numbers work: a wall under 0.4 mm, a corner radius that is not 0 and not more than the wall, a lid or a base not taller than the wall, a groove that would leave less than a wall under it, a tongue and its clearance on both sides as wide as the wall, or two halves with the same name.
+The panel shows the heights of the two halves, where the cut is and the tongue and groove sizes. Checks in plain words block the preview and **Add case** until the numbers work: a wall under 0.4 mm, a side edge radius that is not more than the wall, a top edge radius above any of the limits in the table, a lid or a base not taller than the wall, a groove that would leave less than a wall under it, a tongue and its clearance on both sides as wide as the wall, or two halves with the same name.
 
 With the defaults and a lid height of 15 mm, the case is the one built in [Cases and moulds](../modelling/cases-and-moulds.md): two valid bodies of 28 882.24 mm³ together. The case is its own pair of bodies and leaves the bodies already in the document alone, including an earlier case closed at the same height. The tongue is centred in the wall, with the clearance on both sides and above it: the nearest the two halves come to each other, apart from where the rims rest on each other, is the clearance (checked with **Evaluate > Overlap** and the clearance measurement).
 
+The top edges are rounded after each cup is shelled, so the outside gets the round and the inside stays square: where the radius is bigger than the wall, the wall at the round is thinner than the wall (it is *wall x 1.41 - 0.41 x radius* thick there, 1.17 mm for a 4 mm round on a 2 mm wall). The tongue and groove are on the seam rim and are not touched, so the fit keeps its clearance.
+
 What it does not make: screw bosses, a seal groove, snap fits, vents or a label recess. Add those afterwards with the ordinary features, cutting into the base or the lid by name.
 
-In the Script tab: `caseBox({ width: 80, depth: 50, height: 30, wall: 2, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1, clearance: 0.2 })` (also `radius`, `tongueOn: 'lid' | 'base'`, `names`, `origin`; `joint: 'lipJoint'` builds one shelled box and splits it with the lip joint instead, in a part with no other body). The wizard and the helper build the same features.
+In the Script tab: `caseBox({ width: 80, depth: 50, height: 30, wall: 2, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1, clearance: 0.2 })` (also `radius` for the side edges and `topRadius` for the top edges, each 0 = sharp, `tongueOn: 'lid' | 'base'`, `names`, `origin`; `axis: 'y'` (the default: the case stands on the Top plane and rises along +Y, the app's up axis) or `axis: 'z'` (the old orientation: lying on the Front plane, rising along +Z); `joint: 'lipJoint'` builds one shelled box and splits it with the lip joint instead, in a part with no other body). The wizard and the helper build the same features.
 
 ## Adding a bolt to a hole
 

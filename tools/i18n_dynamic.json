@@ -1888,8 +1888,19 @@
   "case.issue.size",
   "case.issue.tongue",
   "case.issue.tongueFit",
+  "case.issue.topBig",
+  "case.issue.topRadius",
+  "case.issue.topSeam",
+  "case.issue.topSide",
+  "case.issue.topWall",
   "case.issue.wall",
   "case.issue.wallThick"
+ ],
+ "case.round.+": [
+  "case.round.both",
+  "case.round.off",
+  "case.round.side",
+  "case.round.top"
  ],
  "case.tongueOn.+": [
   "case.tongueOn.base",

@@ -477,6 +477,7 @@ const makeController = (tabId: number): Controller => {
     fonts: fontSource,
     bakeCache,
   });
+  c.onWizardSketches = (ids) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: [...new Set([...h.ids, ...ids])] }; };
   c.beforeUndo = (d) => { void snapshots.note(packDocCached(d).doc, d.name, 'undo'); };   // every undo first keeps the state it leaves
   // Rejected edits are not in the session history, so record them here whatever the source (UI, console, agent).
   const rawEdit = c.edit.bind(c);

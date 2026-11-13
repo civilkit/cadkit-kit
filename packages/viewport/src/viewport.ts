@@ -1087,6 +1087,9 @@ export class Viewport {
 
   private onLeave = (e?: PointerEvent): void => {
     if (e?.pointerType === 'touch') return;   // a finger lifting is no "pointer left": the shape in progress and its fields stay
+    this.hoverPending = null;
+    if (this.lastHover !== null) { this.lastHover = null; this.opts.onHover(null); }   // the pointer left: no face or edge is under it any more, so its amber tint goes
+    this.setHover(null);
     this.emitRefPlaneHover(null);
     this.opts.onPlaneCursor?.(null);
     this.opts.onHoverPoint?.(null);
@@ -1771,6 +1774,7 @@ export class Viewport {
       this.keepView = true;
       try { this.setBody(this.lastBody); } finally { this.keepView = false; }
       this.setHighlight(names);
+      this.setFeatureHover(this.featureHoverIds);   // a hidden body loses its tint
     }
   }
 
@@ -1994,7 +1998,7 @@ export class Viewport {
     if (!ids.length) return;
     const want = new Set(ids);
     if (this.grouped) {
-      const names = this.grouped.ranges.map((r) => r.name).filter((n) => want.has(this.ownerFn(n) ?? ''));
+      const names = this.grouped.ranges.map((r) => r.name).filter((n) => want.has(this.ownerFn(n) ?? '') && !this.hiddenIds.has(this.ownerFn(n) ?? ''));
       const g = names.length ? facesGeometry(this.grouped, names) : null;
       if (g && g.positions.length) {
         const geo = new THREE.BufferGeometry();
@@ -2010,7 +2014,7 @@ export class Viewport {
         this.featureHoverObjs.push(m);
       }
     }
-    const polys: Polyline[] = this.edges.filter((e) => e.key && want.has(this.ownerFn(e.key) ?? '')).map((e) => e.pts as never);
+    const polys: Polyline[] = this.edges.filter((e) => e.key && want.has(this.ownerFn(e.key) ?? '') && !this.hiddenIds.has(this.ownerFn(e.key) ?? '')).map((e) => e.pts as never);
     const b = this.lastBody;
     if (b) {
       polys.push(...sketchPolylines((b.sketches ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never).flatMap((x) => x.polylines));

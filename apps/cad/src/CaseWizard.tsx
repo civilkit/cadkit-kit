@@ -1,11 +1,11 @@
-// The Case wizard: one panel over the caseBox() helper of the Script tab. Outside width, depth and height, the wall, the corner radius, the height of the lid, the lip joint
+// The Case wizard: one panel over the caseBox() helper of the Script tab. Outside width, depth and height, the wall, which edges are rounded (side, top or both) and their radii, the height of the lid, the lip joint
 // (tongue height and width, clearance, which half carries it), the names of the two halves and where the case stands. Every change goes to onDraft with the whole record (the app
 // previews it live in the viewport, debounced by the controller); Add case commits the features as one tree folder, Escape / the cross cancels. Rules: case.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import { Icon } from '@kit/ui';
 import { t } from './i18n';
-import { CASE_TONGUE_SIDES, caseIssue, caseSummary, withChange, type CaseParams } from './case';
+import { CASE_ROUNDS, CASE_TONGUE_SIDES, caseIssue, caseSummary, roundsSide, roundsTop, withChange, type CaseParams } from './case';
 
 export interface CaseWizardProps {
   params: CaseParams;
@@ -69,7 +69,14 @@ export function CaseWizard(p: CaseWizardProps): JSX.Element {
         <Num name="depth" label={t('case.depth')} unit="mm" min={0.1} step={1} value={draft.depth} hintText={t('case.sizeTip')} onChange={(v) => change({ depth: v })} />
         <Num name="height" label={t('case.height')} unit="mm" min={0.1} step={1} value={draft.height} hintText={t('case.sizeTip')} onChange={(v) => change({ height: v })} />
         <Num name="wall" label={t('case.wall')} unit="mm" min={0.4} step={0.1} value={draft.wall} hintText={t('case.wallTip')} onChange={(v) => change({ wall: v })} />
-        <Num name="radius" label={t('case.radius')} unit="mm" min={0} step={0.5} value={draft.radius} hintText={t('case.radiusTip')} onChange={(v) => change({ radius: v })} />
+        <label class="fedit-fld" data-path="round">
+          <span class="fedit-fld-label">{t('case.round')}</span>
+          <select value={draft.round} aria-label={t('case.round')} title={t('case.roundTip')} onChange={(e) => change({ round: (e.currentTarget as HTMLSelectElement).value as CaseParams['round'] })}>
+            {CASE_ROUNDS.map((v) => <option key={v} value={v}>{t('case.round.' + v)}</option>)}
+          </select>
+        </label>
+        {roundsSide(draft.round) ? <Num name="radius" label={t('case.radius')} unit="mm" min={0} step={0.5} value={draft.radius} hintText={t('case.radiusTip')} onChange={(v) => change({ radius: v })} /> : null}
+        {roundsTop(draft.round) ? <Num name="topRadius" label={t('case.topRadius')} unit="mm" min={0} step={0.5} value={draft.topRadius} hintText={t('case.topRadiusTip')} onChange={(v) => change({ topRadius: v })} /> : null}
         <Num name="lidHeight" label={t('case.lidHeight')} unit="mm" min={0.1} step={0.5} value={draft.lidHeight} hintText={t('case.lidHeightTip')} onChange={(v) => change({ lidHeight: v })} />
         <div class="thread-hint">{t('case.lip')}</div>
         <Num name="tongueHeight" label={t('case.tongueHeight')} unit="mm" min={0.1} step={0.1} value={draft.tongueHeight} hintText={t('case.tongueHeightTip')} onChange={(v) => change({ tongueHeight: v })} />

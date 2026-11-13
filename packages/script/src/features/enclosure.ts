@@ -2,7 +2,7 @@
 // Mixed into PartBuilder by features/index.ts.
 import type { EditOp, Num, OffsetPlane, PartBuilder, Plane, PlaneRef, SketchBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
-import { at } from '../recorder';
+import { at, plane as stdPlane } from '../recorder';
 import { H, planeRef } from './h';
 
 type PlaneArg = Plane | OffsetPlane | PlaneRef | FaceSel;
@@ -49,20 +49,25 @@ export interface CaseBoxOpts {
   /** outside depth (y), mm */ depth: Num;
   /** outside height (z), lid included, mm */ height: Num;
   /** wall thickness, at least 0.4, default 2 */ wall?: Num;
-  /** outside corner radius of the plan, default 0 (sharp); above 0 it must be more than the wall */ radius?: Num;
+  /** side edges: outside radius of the four vertical corners, default 0 (sharp); above 0 it must be more than the wall */ radius?: Num;
+  /** top edges: round the outer edges of the lid top and of the base bottom with this radius, default 0 (sharp); never the seam rim */ topRadius?: Num;
   /** height of the lid: the cut is this far below the top (default a quarter of the height, at least 3 walls) */ lidHeight?: Num;
   /** how far the tongue stands out of its half (default 0.75 of the wall) */ tongueHeight?: Num;
   /** tongue width (default half the wall) */ tongueWidth?: Num;
   /** gap between tongue and groove on each side and on top, default 0.2 */ clearance?: Num;
   /** which half carries the tongue, default 'lid' */ tongueOn?: 'lid' | 'base';
   /** names of the halves [base, lid], default ['Base', 'Lid'] */ names?: [string, string];
-  /** centre of the bottom face, default [0, 0, 0]; the case stands up from there along +z */ origin?: [Num, Num, Num];
+  /** the way the case rises from its bottom face: 'y' (default, the app's up axis: the floor is on the Top plane, the lid on top) or 'z' (the case lies on the Front plane and rises towards the viewer). With 'y' the width runs along x and the depth along z */ axis?: 'y' | 'z';
+  /** centre of the bottom face (world coordinates), default [0, 0, 0]; the case stands up from there along `axis` (+y by default) */ origin?: [Num, Num, Num];
   /** the body and feature name before the split, default 'Case' */ name?: string;
   /** 'cups' (default): two separate cups, each shelled open on one face, a lip on one rim and a groove on the other; 'lipJoint': one shelled box split by lipJoint (one body in the part only) */ joint?: 'cups' | 'lipJoint';
 }
 const r6 = (v: number): number => Math.round(v * 1e6) / 1e6;
+/** A top round bigger than the wall thins the wall where the round meets the (square) inside corner: it is wall x sqrt2 - (sqrt2 - 1) x radius thick there. We keep at least half a wall: radius up to this x the wall. */
+export const TOP_WALL_FACTOR = (Math.SQRT2 - 0.5) / (Math.SQRT2 - 1);
+export const maxTopRadius = (wall: number): number => TOP_WALL_FACTOR * wall;
 /** The numbers of a case after the defaults and the checks; throws SelectorError with the line of the call. */
-export function caseGeometry(o: CaseBoxOpts, line?: number): { width: number; depth: number; height: number; wall: number; radius: number; lidHeight: number; baseHeight: number; cut: number; tongueHeight: number; tongueWidth: number; clearance: number; tongueOn: 'lid' | 'base' } {
+export function caseGeometry(o: CaseBoxOpts, line?: number): { width: number; depth: number; height: number; wall: number; radius: number; topRadius: number; lidHeight: number; baseHeight: number; cut: number; tongueHeight: number; tongueWidth: number; clearance: number; tongueOn: 'lid' | 'base' } {
   const fail = (m: string): never => { throw new H.SelectorError(`caseBox(): ${m}`, line); };
   if (!o || typeof o !== 'object') fail('needs an options object { width, depth, height }');
   const w = H.num(o.width), d = H.num(o.depth), h = H.num(o.height);
@@ -74,6 +79,8 @@ export function caseGeometry(o: CaseBoxOpts, line?: number): { width: number; de
   if (!(radius >= 0)) fail('radius must be 0 or more');
   if (radius > 0 && !(radius > wall)) fail(`a corner radius (${radius}) must be 0 or more than the wall (${wall}), or the inside corner collapses`);
   if (radius > 0 && !(2 * radius <= Math.min(w, d))) fail(`the corner radius (${radius}) is more than half of the width or depth`);
+  const topRadius = o.topRadius === undefined ? 0 : H.num(o.topRadius);
+  if (!(topRadius >= 0)) fail('topRadius must be 0 or more');
   const lidHeight = o.lidHeight === undefined ? Math.max(h / 4, 3 * wall) : H.num(o.lidHeight);
   const tongueHeight = o.tongueHeight === undefined ? 0.75 * wall : H.num(o.tongueHeight);
   const tongueWidth = o.tongueWidth === undefined ? wall / 2 : H.num(o.tongueWidth);
@@ -89,14 +96,23 @@ export function caseGeometry(o: CaseBoxOpts, line?: number): { width: number; de
   const groove = tongueHeight + clearance;
   const grooved = tongueOn === 'lid' ? baseHeight : lidHeight;
   if (!(grooved >= groove + wall)) fail(`the ${tongueOn === 'lid' ? 'base' : 'lid'} (${r6(grooved)} mm tall) must leave a wall (${wall} mm) under the groove, which is ${r6(groove)} mm deep: a lower tongue, or a taller ${tongueOn === 'lid' ? 'base' : 'lid'}`);
-  return { width: w, depth: d, height: h, wall, radius, lidHeight, baseHeight, cut: baseHeight, tongueHeight, tongueWidth, clearance, tongueOn };
+  if (topRadius > 0) {
+    if (o.joint === 'lipJoint') fail("topRadius works with joint 'cups' only");
+    if (!(2 * topRadius <= Math.min(w, d))) fail(`the top radius (${topRadius}) is more than half of the width or depth`);
+    if (radius > 0 && !(topRadius <= radius)) fail(`the top radius (${topRadius}) must be at most the side radius (${radius}): the round follows the rounded outline`);
+    if (!(topRadius <= maxTopRadius(wall))) fail(`the top radius (${topRadius}) is more than ${r6(maxTopRadius(wall))} mm (${r6(TOP_WALL_FACTOR)} x the wall): the wall at the round would be under half a wall thick`);
+    const free = (half: number, grooved: boolean): number => half - (grooved ? groove : 0);
+    const lidFree = free(lidHeight, tongueOn === 'base'), baseFree = free(baseHeight, tongueOn === 'lid');
+    if (!(topRadius < Math.min(lidFree, baseFree))) fail(`the top radius (${topRadius}) must be less than ${r6(Math.min(lidFree, baseFree))} mm, the height of the ${lidFree <= baseFree ? 'lid' : 'base'} less its groove: the round would run into the seam`);
+  }
+  return { width: w, depth: d, height: h, wall, radius, topRadius, lidHeight, baseHeight, cut: baseHeight, tongueHeight, tongueWidth, clearance, tongueOn };
 }
 
 export const enclosureFeatures = {
   /**
    * A closed two-part case (base and lid with a lip joint) from outside sizes.
    *
-   * Builds two cups: the base (height - lidHeight tall) and the lid (lidHeight tall), each a rectangle (rounded corners when radius > 0) extruded as its own body named by names and hollowed open at one end (wall thick); a ring tongue (tongueWidth x tongueHeight, centred in the wall) is raised on one rim and a groove (clearance wider on each side and deeper) sunk in the other, and the lid is moved on top: the closed case is width x depth x height and stands up from origin (the centre of the bottom) along +z. tongueOn 'lid' (default) puts the tongue on the lid. joint 'lipJoint' instead shells one closed box and splits it with lipJoint (the part must hold no other body). Checks (SelectorError): wall at least 0.4 and under half the smallest size; radius 0 or more than the wall; tongue and clearance fit the wall; both halves taller than the wall and a wall left under the groove. Screw bosses, a seal groove and snap fits are not included.
+   * Builds two cups: the base (height - lidHeight tall) and the lid (lidHeight tall), each a rectangle (rounded corners when radius > 0) extruded as its own body named by names and hollowed open at one end (wall thick); a ring tongue (tongueWidth x tongueHeight, centred in the wall) is raised on one rim and a groove (clearance wider on each side and deeper) sunk in the other, and the lid is moved on top: the closed case is width x depth x height and stands up from origin (the centre of the bottom) along axis: +y by default (the floor on the Top plane, the lid on top), +z with axis: 'z'. tongueOn 'lid' (default) puts the tongue on the lid. joint 'lipJoint' instead shells one closed box and splits it with lipJoint (the part must hold no other body). Checks (SelectorError): wall at least 0.4 and under half the smallest size; radius 0 or more than the wall; topRadius at most radius and 2.2 walls; tongue and clearance fit the wall; both halves taller than the wall and a wall left under the groove. Screw bosses, a seal groove and snap fits are not included.
    * @domain features
    * @param o options object { width, depth, height, ... }
    * @param o.width outside width (x) in mm
@@ -104,12 +120,14 @@ export const enclosureFeatures = {
    * @param o.height outside height in mm
    * @param o.wall wall thickness in mm, default 2
    * @param o.radius outside corner radius in mm, default 0
+   * @param o.topRadius round of the lid top and base bottom edges in mm, default 0
    * @param o.lidHeight height of the lid in mm (the seam is at height - lidHeight), default a quarter of the height
    * @param o.tongueHeight in mm, default 0.75 of the wall
    * @param o.tongueWidth in mm, default half the wall
    * @param o.clearance gap between tongue and groove on each side and on top, in mm, default 0.2
    * @param o.tongueOn 'lid' (default) | 'base'
    * @param o.names [base, lid] body names, default ['Base', 'Lid']
+   * @param o.axis 'y' (default, rises along +y, the app's up axis) | 'z'
    * @param o.origin [x, y, z] centre of the bottom, default [0, 0, 0]
    * @param o.name body name of the joint: 'lipJoint' variant only, default 'Case'
    * @param o.joint 'cups' (default) | 'lipJoint'
@@ -126,11 +144,16 @@ export const enclosureFeatures = {
     const names = o.names ?? ['Base', 'Lid'];
     if (o.joint !== undefined && o.joint !== 'cups' && o.joint !== 'lipJoint') throw new H.SelectorError(`caseBox(): joint is 'cups' or 'lipJoint', not ${JSON.stringify(o.joint)}`, line);
     if (!Array.isArray(names) || names.length !== 2 || names.some((n) => typeof n !== 'string' || !n.trim()) || names[0].trim() === names[1].trim()) throw new H.SelectorError("caseBox(): names is two different names [base, lid], e.g. ['Base', 'Lid']", line);
-    const base = o3[2] === 0 ? 'front' as const : at('front', o3[2]);
+    if (o.axis !== undefined && o.axis !== 'y' && o.axis !== 'z') throw new H.SelectorError(`caseBox(): axis is 'y' (default) or 'z', not ${JSON.stringify(o.axis)}`, line);
+    // the case is built on the plane normal to its axis: 'top' (XZ, normal +Y) or 'front' (XY, normal +Z). su, sv are the sketch coordinates of the origin on it, rz how far up the axis it is.
+    const pn = o.axis === 'z' ? 'front' as const : 'top' as const, fr = stdPlane(pn);
+    const dot = (a: number[]): number => r6(a[0] * o3[0] + a[1] * o3[1] + a[2] * o3[2]) + 0;
+    const su = dot(fr.x), sv = dot(fr.y), rz = dot(fr.normal);
+    const base = rz === 0 ? pn : at(pn, rz);
     if (o.joint === 'lipJoint') {
-      this.sketch(base, (s) => { s.rrect(g.width, g.depth, g.radius, [o3[0], o3[1]]); }, `${name} outline`).extrude(g.height, { newBody: name, name });
+      this.sketch(base, (s) => { s.rrect(g.width, g.depth, g.radius, [su, sv]); }, `${name} outline`).extrude(g.height, { newBody: name, name });
       this.feature({ type: 'shell', name: `${name} cavity`, faces: [], thickness: g.wall });
-      return this.lipJoint(at('front', r6(o3[2] + g.cut)), { height: g.tongueHeight, width: g.tongueWidth, clearance: g.clearance, tongue: g.tongueOn === 'lid' ? 'above' : 'below', names: [names[0], names[1]], target: name });
+      return this.lipJoint(at(pn, r6(rz + g.cut)), { height: g.tongueHeight, width: g.tongueWidth, clearance: g.clearance, tongue: g.tongueOn === 'lid' ? 'above' : 'below', names: [names[0], names[1]], target: name });
     }
     // two cups: the base is built in place, the lid far to one side (clear of the base and of every other body, so nothing can touch its groove on the way) and moved on top at
     // the end. Each cup is an extrude of its own body shelled open at one cap (named by its persistent face name, so no solid is needed to build the ops: the wizard builds them
@@ -140,27 +163,37 @@ export const enclosureFeatures = {
     const off = r6(10000 + 2 * g.width);
     const bn = names[0].trim(), ln = names[1].trim();
     const e0 = (g.wall - g.tongueWidth) / 2;   // the tongue's outer side, measured in from the outside of the wall
-    const loop = (cx: number, e: number) => (s: SketchBuilder): void => { s.rrect(g.width - 2 * e, g.depth - 2 * e, g.radius > 0 ? g.radius - e : 0, [cx, o3[1]]); };
-    const plane = (z: number) => (r6(z) === 0 ? 'front' as const : at('front', r6(z)));
+    const loop = (cx: number, e: number) => (s: SketchBuilder): void => { s.rrect(g.width - 2 * e, g.depth - 2 * e, g.radius > 0 ? g.radius - e : 0, [cx, sv]); };
+    const plane = (z: number) => (r6(z) === 0 ? pn : at(pn, r6(z)));
     const cup = (cx: number, nm: string, height: number, upper: boolean, tongue: boolean) => {
       let id = '';
       const th = tongue ? g.tongueHeight : 0;   // a cup with a tongue is built that much taller, the tongue is the layer left at the rim
-      const z0 = upper ? o3[2] : o3[2] - th;
+      const z0 = upper ? rz : rz - th;
       this.sketch(plane(z0), loop(cx, 0), `${nm} outline`).extrude(height + th, { newBody: nm, name: nm });
       const handle = this.handle();
       this.steps.push({ line, label: 'shell', run: (ctx) => { id = ctx.lastFeature ?? ''; const fid = ctx.nextId(); ctx.lastFeature = fid; return [{ op: 'add', feature: { type: 'shell', id: fid, faces: [`${id}.${upper ? 'C1' : 'C0'}`], thickness: g.wall } }]; } });
+      if (g.topRadius > 0) this.steps.push({ line, label: 'fillet', run: (ctx) => {
+        // the outer edges of the closed end: the loop between its cap and each side face of the outline (the sides are named by the sketch entities e1.., a line then an arc per corner)
+        const ex = id, fid = ctx.nextId(), zc = upper ? z0 : z0 + height + th, hw = g.width / 2, hd = g.depth / 2, R = g.radius, k = R * (1 - Math.SQRT1_2), cy = sv;
+        const pts: Array<[number, number] | null> = R > 0
+          ? [2 * R < g.width ? [cx, cy - hd] : null, [cx + hw - k, cy - hd + k], 2 * R < g.depth ? [cx + hw, cy] : null, [cx + hw - k, cy + hd - k], 2 * R < g.width ? [cx, cy + hd] : null, [cx - hw + k, cy + hd - k], 2 * R < g.depth ? [cx - hw, cy] : null, [cx - hw + k, cy - hd + k]]
+          : [[cx, cy - hd], [cx + hw, cy], [cx, cy + hd], [cx - hw, cy]];
+        const edges = pts.flatMap((q, i) => (q ? [{ faces: [`${ex}.${upper ? 'C0' : 'C1'}`, `${ex}.S.e${i + 1}`], at: fr.toWorld([q[0], q[1]], zc).map((v) => r6(v) + 0) }] : []));
+        ctx.lastFeature = fid;
+        return [{ op: 'add', feature: { type: 'fillet', id: fid, name: `${nm} top round`, edges, radius: g.topRadius } }];
+      } });
       const rim = upper ? z0 + height + th : z0, dir = upper ? 'into' as const : 'away' as const;
       if (tongue) {
-        this.sketch(plane(rim), (s) => { s.rrect(g.width + 2, g.depth + 2, g.radius > 0 ? g.radius + 1 : 0, [cx, o3[1]]); loop(cx, e0)(s); }, `${nm} tongue outside`).cut(r6(th), { direction: dir, from: nm, name: `${nm} tongue outside` });
+        this.sketch(plane(rim), (s) => { s.rrect(g.width + 2, g.depth + 2, g.radius > 0 ? g.radius + 1 : 0, [cx, sv]); loop(cx, e0)(s); }, `${nm} tongue outside`).cut(r6(th), { direction: dir, from: nm, name: `${nm} tongue outside` });
         this.sketch(plane(rim), loop(cx, e0 + g.tongueWidth), `${nm} tongue inside`).cut(r6(th), { direction: dir, from: nm, name: `${nm} tongue inside` });
       } else {
         this.sketch(plane(rim), (s) => { loop(cx, e0 - g.clearance)(s); loop(cx, e0 + g.tongueWidth + g.clearance)(s); }, `${nm} groove`).cut(r6(g.tongueHeight + g.clearance), { direction: dir, from: nm, name: `${nm} groove` });
       }
       return handle;
     };
-    cup(o3[0], bn, g.baseHeight, true, g.tongueOn === 'base');
-    const hl = cup(o3[0] + off, ln, g.lidHeight, false, g.tongueOn === 'lid');
-    return this.moveBody(hl, { translate: [-off, 0, g.baseHeight] });
+    cup(su, bn, g.baseHeight, true, g.tongueOn === 'base');
+    const hl = cup(su + off, ln, g.lidHeight, false, g.tongueOn === 'lid');
+    return this.moveBody(hl, { translate: [0, 1, 2].map((k) => r6(-off * fr.x[k] + g.baseHeight * fr.normal[k]) + 0) as [number, number, number] });
   },
   /**
    * Lip joint of a two-part case: split a shelled body at a plane, tongue on one half, groove on the other.

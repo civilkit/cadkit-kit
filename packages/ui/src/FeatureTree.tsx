@@ -194,6 +194,12 @@ export function FeatureTree(p: {
   const dep = new Set(p.dependents ?? []);
   const hid = new Set(p.hiddenIds ?? []);
   const root = useRef<HTMLDivElement>(null);
+  // the row under the pointer: when the tree goes (another panel, a wizard) or that row does, no mouseleave comes, so the tint it put on the model would stay
+  const hovered = useRef<string | null>(null);
+  const hoverCb = useRef(p.onHoverFeature);
+  hoverCb.current = p.onHoverFeature;
+  useEffect(() => { const id = hovered.current; if (id && !p.rows.some((r) => r.id === id)) { hovered.current = null; hoverCb.current?.(null); } });
+  useEffect(() => () => { if (hovered.current) { hovered.current = null; hoverCb.current?.(null); } }, []);
   useEffect(() => {
     if (!p.hoverId) return;
     const el = [...(root.current?.querySelectorAll<HTMLElement>('.row[data-id]') ?? [])].find((e) => e.dataset.id === p.hoverId);
@@ -257,8 +263,8 @@ export function FeatureTree(p: {
           data-testid={'tree-row-' + r.id}
           title={dep.has(r.id) ? t('ui.tree.dependsOn', undefined, 'Depends on the selected feature') : undefined}
           draggable={!renamingThis}
-          onMouseEnter={() => p.onHoverFeature?.(r.id)}
-          onMouseLeave={() => p.onHoverFeature?.(null)}
+          onMouseEnter={() => { hovered.current = r.id; p.onHoverFeature?.(r.id); }}
+          onMouseLeave={() => { hovered.current = null; p.onHoverFeature?.(null); }}
           onClick={(e) => p.onSelect(r.id, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey })}
           onDblClick={() => p.onEdit?.(r.id)}
           onContextMenu={p.onContextMenu ? (e: MouseEvent) => { e.preventDefault(); p.onContextMenu!({ kind: 'row', id: r.id }, e.clientX, e.clientY, { ...(p.onRollback ? { rollbackHere: () => moveMarker(topOf(r.id) + 1) } : {}), collapseAllFolders: () => collapseFolders(folderOfTop.get(topIdOf(r.id))) }); } : undefined}

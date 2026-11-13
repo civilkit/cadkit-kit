@@ -4,6 +4,12 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.7.1 - 2026-11-13
+
+- **No stray outlines after a wizard.** The sketches a wizard builds with (the Case ones, for example) no longer draw orange outlines round the new part or float where a hidden body was; they are hidden in the view and the eye in the tree brings one back. A hover tint no longer stays behind when the pointer leaves the view or the tree goes away.
+- **The case stands up.** The Case wizard and `caseBox()` now build the case on the Top plane, floor at y = 0 and the lid on top, instead of lying on its back along +Z. `caseBox({ ..., axis: 'z' })` keeps the old orientation.
+- **Round the case edges.** The Case wizard has a **Round the edges** setting: **Side edges**, **Top edges** or both, each with its own radius. The top round is on the outside of the lid top and the base bottom only, so the tongue and the groove keep their fit; the helper takes `topRadius` next to `radius`.
+
 ## 0.7.0 - 2026-11-13
 
 - **A Case wizard.** **Case** (Features > Create) makes a closed box with a lipped lid in one step: outside width, depth and height, wall thickness, corner radius, the height of the lid, the tongue (height, width, clearance, and which half carries it) and the names of the halves, with a live preview, and it adds the base and the lid as one folder and one undo step. The Script tab has `caseBox({ width, depth, height, lidHeight })`.

@@ -4,10 +4,15 @@
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
 import { groupOps, wizardGroupName } from './wizardGroup';
-import { caseEditOps, caseGeometry, type CaseBoxOpts } from '@kit/script';
+import { caseEditOps, caseGeometry, maxTopRadius, TOP_WALL_FACTOR, type CaseBoxOpts } from '@kit/script';
 
 export const CASE_TONGUE_SIDES = ['lid', 'base'] as const;
 export type CaseTongueSide = (typeof CASE_TONGUE_SIDES)[number];
+/** Which outside edges are rounded: none, the four vertical ones (side), the outer edges of the lid top and the base bottom (top), or both. */
+export const CASE_ROUNDS = ['off', 'side', 'top', 'both'] as const;
+export type CaseRound = (typeof CASE_ROUNDS)[number];
+export const roundsSide = (r: CaseRound): boolean => r === 'side' || r === 'both';
+export const roundsTop = (r: CaseRound): boolean => r === 'top' || r === 'both';
 /** The thinnest wall the wizard accepts, mm. */
 export const MIN_WALL = 0.4;
 
@@ -17,8 +22,12 @@ export interface CaseParams {
   depth: number;
   height: number;
   wall: number;
-  /** outside corner radius of the plan; 0 = sharp */
+  /** which outside edges are rounded (see CASE_ROUNDS); the radii below only count for the edges that are */
+  round: CaseRound;
+  /** side edges: outside radius of the four vertical corners; more than the wall */
   radius: number;
+  /** top edges: radius of the round on the outer edges of the lid top and the base bottom */
+  topRadius: number;
   /** height of the lid, mm. While `lidAuto` it follows the height and the wall: a quarter of the height, at least three walls. */
   lidHeight: number;
   lidAuto: boolean;
@@ -31,6 +40,8 @@ export interface CaseParams {
   tongueOn: CaseTongueSide;
   baseName: string;
   lidName: string;
+  /** the way the case rises: 'y' (the app's up axis, the floor on the Top plane) or 'z' (lying on the Front plane); the panel has no field for it, scripts do */
+  axis: 'y' | 'z';
   /** the centre of the bottom face */
   origin: [number, number, number];
 }
@@ -40,8 +51,8 @@ const r3 = (v: number): number => Math.round(v * 1000) / 1000;
 
 /** An 80 x 50 x 30 mm case with 2 mm walls, a lid a quarter of the height, a tongue 1 mm wide and 1.5 mm high on the lid, 0.2 mm clearance. */
 export const DEFAULT_CASE: CaseParams = {
-  width: 80, depth: 50, height: 30, wall: 2, radius: 0, lidHeight: autoLid(30, 2), lidAuto: true, tongueHeight: autoTongue(2), tongueAuto: true, tongueFraction: 0.5, clearance: 0.2, tongueOn: 'lid',
-  baseName: 'Base', lidName: 'Lid', origin: [0, 0, 0],
+  width: 80, depth: 50, height: 30, wall: 2, round: 'off', radius: 5, topRadius: 2, lidHeight: autoLid(30, 2), lidAuto: true, tongueHeight: autoTongue(2), tongueAuto: true, tongueFraction: 0.5, clearance: 0.2, tongueOn: 'lid',
+  baseName: 'Base', lidName: 'Lid', axis: 'y', origin: [0, 0, 0],
 };
 
 /** The parameters after a change: the automatic lid height and tongue height follow the height and the wall. */
@@ -57,12 +68,12 @@ export function withChange(p: CaseParams, patch: Partial<CaseParams>): CaseParam
 /** The helper's options for these parameters. */
 export function caseOpts(p: CaseParams): CaseBoxOpts {
   return {
-    width: p.width, depth: p.depth, height: p.height, wall: p.wall, radius: p.radius, lidHeight: p.lidHeight, tongueHeight: p.tongueHeight, tongueWidth: r3(p.tongueFraction * p.wall),
-    clearance: p.clearance, tongueOn: p.tongueOn, names: [p.baseName.trim(), p.lidName.trim()], origin: p.origin,
+    width: p.width, depth: p.depth, height: p.height, wall: p.wall, radius: roundsSide(p.round) ? p.radius : 0, topRadius: roundsTop(p.round) ? p.topRadius : 0, lidHeight: p.lidHeight, tongueHeight: p.tongueHeight, tongueWidth: r3(p.tongueFraction * p.wall),
+    clearance: p.clearance, tongueOn: p.tongueOn, names: [p.baseName.trim(), p.lidName.trim()], axis: p.axis, origin: p.origin,
   };
 }
 
-export type CaseIssueCode = 'size' | 'wall' | 'wallThick' | 'radius' | 'radiusBig' | 'lid' | 'groove' | 'tongue' | 'tongueFit' | 'clearance' | 'names' | 'kernel';
+export type CaseIssueCode = 'size' | 'wall' | 'wallThick' | 'radius' | 'radiusBig' | 'topRadius' | 'topSide' | 'topBig' | 'topWall' | 'topSeam' | 'lid' | 'groove' | 'tongue' | 'tongueFit' | 'clearance' | 'names' | 'kernel';
 export interface CaseIssue { code: CaseIssueCode; params: Record<string, string | number>; message: string }
 const bad = (code: CaseIssueCode, message: string, params: Record<string, string | number> = {}): CaseIssue => ({ code, params, message });
 
@@ -72,9 +83,9 @@ export function caseIssue(p: CaseParams): CaseIssue | null {
   if (!(p.wall >= MIN_WALL)) return bad('wall', 'The wall must be at least 0.4 mm', { min: MIN_WALL });
   const small = Math.min(p.width, p.depth, p.height);
   if (!(2 * p.wall < small)) return bad('wallThick', 'The two walls must be thinner than the smallest outside size', { max: r3(small / 2), small: r3(small) });
-  if (!(p.radius >= 0)) return bad('radius', 'The corner radius must be 0 or more');
-  if (p.radius > 0 && !(p.radius > p.wall)) return bad('radius', 'The corner radius must be 0 (sharp) or more than the wall, or the inside corner collapses', { wall: p.wall });
-  if (p.radius > 0 && !(2 * p.radius <= Math.min(p.width, p.depth))) return bad('radiusBig', 'The corner radius is more than half of the width or depth', { max: r3(Math.min(p.width, p.depth) / 2) });
+  const side = roundsSide(p.round), top = roundsTop(p.round);
+  if (side && !(p.radius > p.wall)) return bad('radius', 'The side edge radius must be more than the wall, or the inside corner collapses', { wall: p.wall });
+  if (side && !(2 * p.radius <= Math.min(p.width, p.depth))) return bad('radiusBig', 'The side edge radius is more than half of the width or depth', { max: r3(Math.min(p.width, p.depth) / 2) });
   const base = p.height - p.lidHeight;
   if (!(p.lidHeight > p.wall) || !(base > p.wall)) return bad('lid', 'The lid and the base must each be taller than the wall', { lid: r3(p.lidHeight), base: r3(base), wall: p.wall });
   if (!(p.tongueHeight > 0)) return bad('tongue', 'The tongue height must be more than 0');
@@ -83,6 +94,15 @@ export function caseIssue(p: CaseParams): CaseIssue | null {
   if (!(p.tongueFraction * p.wall + 2 * p.clearance < p.wall)) return bad('tongueFit', 'The tongue and the clearance on both sides do not fit in the wall: a narrower tongue or a smaller clearance', { max: r3(Math.max(0, 1 - 2 * p.clearance / p.wall)) });
   const groove = p.tongueHeight + p.clearance, grooved = p.tongueOn === 'lid' ? base : p.lidHeight;
   if (!(grooved >= groove + p.wall)) return bad('groove', 'The groove would leave less than a wall under it: a lower tongue or a taller half', { half: p.tongueOn === 'lid' ? t('case.base') : t('case.lid'), need: r3(groove + p.wall), have: r3(grooved) });
+  if (top) {
+    if (!(p.topRadius > 0)) return bad('topRadius', 'The top edge radius must be more than 0');
+    if (!(2 * p.topRadius <= Math.min(p.width, p.depth))) return bad('topBig', 'The top edge radius is more than half of the width or depth', { max: r3(Math.min(p.width, p.depth) / 2) });
+    if (side && !(p.topRadius <= p.radius)) return bad('topSide', 'The top edge radius can be at most the side edge radius, so that the round follows the rounded corners', { max: r3(p.radius) });
+    if (!(p.topRadius <= maxTopRadius(p.wall))) return bad('topWall', 'The top edge radius is too big for the wall: the wall at the round would be under half a wall thick', { max: r3(maxTopRadius(p.wall)), factor: r3(TOP_WALL_FACTOR) });
+    const lidFree = p.lidHeight - (p.tongueOn === 'base' ? groove : 0), baseFree = base - (p.tongueOn === 'lid' ? groove : 0);
+    const half = lidFree <= baseFree ? t('case.lid') : t('case.base');
+    if (!(p.topRadius < Math.min(lidFree, baseFree))) return bad('topSeam', `The top edge radius is too big for the ${half}: the round would run into the seam`, { half, max: r3(Math.min(lidFree, baseFree)) });
+  }
   const a = p.baseName.trim(), b = p.lidName.trim();
   if (!a || !b || a === b) return bad('names', 'Give the two halves two different names');
   try { caseGeometry(caseOpts(p)); } catch (e) { return bad('kernel', (e as Error).message.replace(/^caseBox\(\): /, '')); }
@@ -92,7 +112,7 @@ export function caseIssue(p: CaseParams): CaseIssue | null {
 /** What the panel shows under the fields: the heights of the halves, where the cut is and the tongue and groove sizes. */
 export function caseSummary(p: CaseParams): { base: number; lid: number; cut: number; tongueWidth: number; tongueHeight: number; grooveWidth: number; grooveDepth: number } {
   const w = p.tongueFraction * p.wall;
-  return { base: r3(p.height - p.lidHeight), lid: r3(p.lidHeight), cut: r3(p.origin[2] + p.height - p.lidHeight), tongueWidth: r3(w), tongueHeight: r3(p.tongueHeight), grooveWidth: r3(w + 2 * p.clearance), grooveDepth: r3(p.tongueHeight + p.clearance) };
+  return { base: r3(p.height - p.lidHeight), lid: r3(p.lidHeight), cut: r3(p.origin[p.axis === 'z' ? 2 : 1] + p.height - p.lidHeight), tongueWidth: r3(w), tongueHeight: r3(p.tongueHeight), grooveWidth: r3(w + 2 * p.clearance), grooveDepth: r3(p.tongueHeight + p.clearance) };
 }
 
 type Doc = { features: Array<{ id?: string; group?: unknown }>; seq?: number };

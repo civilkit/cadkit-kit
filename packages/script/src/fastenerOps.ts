@@ -25,4 +25,4 @@ export const heatSetInsertEditOps = (o: HeatSetInsertOpts, firstSeq: number): Ed
 
 /** The features that make a two-part case (box, closed cavity, lip joint), numbered F<firstSeq> onwards. */
 export const caseEditOps = (o: CaseBoxOpts, firstSeq: number): EditOp[] => ops('Case', firstSeq, (p) => { p.caseBox(o); });
-export { caseGeometry, type CaseBoxOpts } from './features/enclosure';
+export { caseGeometry, maxTopRadius, TOP_WALL_FACTOR, type CaseBoxOpts } from './features/enclosure';

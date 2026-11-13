@@ -4,7 +4,7 @@ import { caseEditOps } from './index';
 
 // caseBox(): the ops it emits and its checks; the kernel behaviour (volumes, validity) is in caseBox.kernel.test.ts
 const feats = (o: Parameters<typeof caseEditOps>[0]) => caseEditOps(o, 1).filter((x) => x.op === 'add').map((x) => (x as { feature: Record<string, unknown> }).feature);
-const BASE = { width: 80, depth: 50, height: 30, lidHeight: 15 };
+const BASE = { width: 80, depth: 50, height: 30, lidHeight: 15, axis: 'z' as const };   // the z ops are checked here; the default (y) has its own test below
 const err = (o: Record<string, unknown>) => { try { caseEditOps({ ...BASE, ...o } as never, 1); return ''; } catch (e) { return (e as Error).message; } };
 
 const extrudes = (f: Array<Record<string, unknown>>) => f.filter((x) => x.type === 'extrude');
@@ -29,10 +29,45 @@ describe('caseBox() ops', () => {
     expect((mv.translate as number[])[0]).toBeLessThan(-10000);   // and back from where it was built, far to one side
     expect(f.some((x) => x.type === 'lip' || x.type === 'lipJoint' || x.type === 'split')).toBe(false);
   });
+  it('the default rises along y: sketches on the top plane at y offsets, the lid moved up by y, the fillet points in world coordinates; axis z is the old +z', () => {
+    const f = caseEditOps({ width: 80, depth: 50, height: 30, lidHeight: 15, radius: 5, topRadius: 2, origin: [10, 5, -7] }, 1).filter((x) => x.op === 'add').map((x) => (x as { feature: Record<string, unknown> }).feature);
+    const sk = f.filter((x) => x.type === 'sketch') as Array<{ plane: { kind: string; id?: string; plane?: string }; entities: unknown[] }>;
+    const planes = f.filter((x) => x.type === 'plane') as Array<{ offset: number; base?: { id?: string } }>;
+    expect(planes[0].offset).toBe(5);   // the base stands on y = 5, an offset of the top plane
+    expect(planes[0].base).toMatchObject({ id: 'top' });
+    expect(sk[0].plane).toMatchObject({ kind: 'feature', id: 'F1' } as never);
+    expect(feats({ width: 80, depth: 50, height: 30 }).filter((x) => x.type === 'sketch')[0].plane).toMatchObject({ kind: 'std', id: 'top' } as never);   // no origin: on the top plane itself
+    expect(f.at(-1)).toMatchObject({ type: 'moveBody', translate: [-10160, 15, 0] });
+    const fl = f.filter((x) => x.type === 'fillet') as Array<{ edges: Array<{ at: number[] }> }>;
+    expect(fl[0].edges.every((e) => e.at[1] === 5)).toBe(true);   // the base bottom, y = 5, and the points lie round (10, -7) in x and z
+    expect(Math.max(...fl[0].edges.map((e) => e.at[0]))).toBe(50);
+    expect(Math.max(...fl[0].edges.map((e) => e.at[2]))).toBe(18);
+    expect(Math.min(...fl[0].edges.map((e) => e.at[2]))).toBe(-32);
+    expect(fl[1].edges.every((e) => e.at[1] === 20)).toBe(true);   // the lid top as built, y = 5 + 15 (the tongue layer is below)
+    expect(err({ axis: 'x' })).toContain("axis is 'y'");
+  });
   it('a plain rectangle for radius 0, arcs for a radius (the outline, the cavity-side loops of the tongue and groove follow the radius)', () => {
     const sk = (o: object) => sketches(feats({ ...BASE, ...o }));
     expect(sk({}).every((s) => s.entities.every((e) => e.type === 'line'))).toBe(true);
     expect(sk({ radius: 5 }).every((s) => s.entities.filter((e) => e.type === 'arc').length % 4 === 0 && s.entities.some((e) => e.type === 'arc'))).toBe(true);
+  });
+  it('topRadius adds one fillet per cup, after its shell: the outer edges of the closed end (base bottom, lid top), one per side face of the outline; none for 0', () => {
+    expect(feats({ ...BASE }).some((x) => x.type === 'fillet')).toBe(false);
+    const f = feats({ ...BASE, topRadius: 2, tongueHeight: 1.5, tongueWidth: 1 });
+    expect(f.map((x) => x.type).filter((t) => t !== 'plane' && t !== 'sketch')).toEqual(['extrude', 'shell', 'fillet', 'extrude', 'extrude', 'shell', 'fillet', 'extrude', 'extrude', 'moveBody']);
+    const ex = extrudes(f), fl = f.filter((x) => x.type === 'fillet') as Array<{ radius: number; edges: Array<{ faces: string[]; at: number[] }> }>;
+    expect(fl[0].radius).toBe(2);
+    expect(fl[0].edges.map((e) => e.faces)).toEqual([0, 1, 2, 3].map((i) => [`${ex[0].id}.C0`, `${ex[0].id}.S.e${i + 1}`]));   // the base closes at its bottom cap
+    expect(fl[0].edges.every((e) => e.at[2] === 0)).toBe(true);
+    expect(fl[1].edges[0].faces[0]).toBe(`${ex[2].id}.C1`);   // the lid at its top cap, z 15 as built (the tongue layer is below)
+    expect(fl[1].edges.every((e) => e.at[2] === 15)).toBe(true);
+    const sh = f.filter((x) => x.type === 'shell');
+    expect(sh[0]).toMatchObject({ faces: [`${ex[0].id}.C1`] });   // the shell still names the open cap
+  });
+  it('with a side radius the fillet takes the whole rounded loop: a line and an arc per corner, and not a line the radius turns to nothing', () => {
+    const fl = (o: object) => (feats({ ...BASE, ...o }).find((x) => x.type === 'fillet') as unknown as { edges: Array<{ faces: string[] }> }).edges;
+    expect(fl({ radius: 5, topRadius: 3 })).toHaveLength(8);
+    expect(fl({ radius: 25, topRadius: 3 })).toHaveLength(6);   // 2 x 25 is the whole depth: no straight piece on the short sides
   });
   it('tongue on the base builds the base a tongue layer taller and grooves the lid; names, origin and name are carried', () => {
     const f = feats({ ...BASE, tongueOn: 'base', names: ['Tray', 'Cover'], origin: [10, 20, 5] });
@@ -78,6 +113,18 @@ describe('caseBox() checks', () => {
     expect(err({ radius: 2 })).toMatch(/more than the wall/);
     expect(err({ radius: 30 })).toMatch(/half of the width or depth/);
     expect(err({ radius: 5 })).toBe('');
+  });
+  it('topRadius', () => {
+    expect(err({ topRadius: -1 })).toMatch(/0 or more/);
+    expect(err({ topRadius: 2 })).toBe('');
+    expect(err({ topRadius: 4.4 })).toBe('');
+    expect(err({ topRadius: 4.5 })).toMatch(/under half a wall/);   // 2.207 x the 2 mm wall is 4.414
+    expect(err({ topRadius: 3, radius: 5 })).toBe('');
+    expect(err({ topRadius: 5, radius: 4.5 })).toMatch(/at most the side radius/);
+    expect(err({ width: 6, depth: 6, topRadius: 4 })).toMatch(/half of the width or depth/);
+    expect(err({ lidHeight: 25, topRadius: 3.5 })).toMatch(/less than 3.3 mm, the height of the base less its groove/);   // the base is 5 tall and carries the 1.7 mm groove
+    expect(err({ lidHeight: 25, topRadius: 3.2 })).toBe('');
+    expect(err({ topRadius: 2, joint: 'lipJoint' })).toMatch(/'cups' only/);
   });
   it('lid and groove heights', () => {
     expect(err({ lidHeight: 2 })).toMatch(/taller than the wall/);

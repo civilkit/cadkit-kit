@@ -24,7 +24,9 @@ describe('CaseWizard', () => {
     expect(m.input('depth').value).toBe('50');
     expect(m.input('height').value).toBe('30');
     expect(m.input('wall').value).toBe('2');
-    expect(m.input('radius').value).toBe('0');
+    expect(m.select('round').value).toBe('off');   // no edge is rounded: no radius field yet
+    expect(m.input('radius')).toBeNull();
+    expect(m.input('topRadius')).toBeNull();
     expect(m.input('lidHeight').value).toBe('7.5');
     expect(m.input('tongueHeight').value).toBe('1.5');
     expect(m.input('tongueFraction').value).toBe('0.5');
@@ -65,11 +67,46 @@ describe('CaseWizard', () => {
     fireEvent.click(m.q('[data-testid="case-apply"]'));
     expect(m.applies).toHaveLength(0);
     fireEvent.change(m.input('wall'), { target: { value: '2' } });
+    fireEvent.change(m.select('round'), { target: { value: 'side' } });
     fireEvent.change(m.input('radius'), { target: { value: '1' } });
     expect(m.q('[data-issue="radius"]').textContent).toMatch(/more than the wall/);
-    fireEvent.change(m.input('radius'), { target: { value: '0' } });
+    fireEvent.change(m.select('round'), { target: { value: 'off' } });
+    expect(m.q('[data-issue="radius"]')).toBeNull();
     fireEvent.change(m.input('lidHeight'), { target: { value: '28' } });
     expect(m.q('[data-issue="lid"]').textContent).toMatch(/must each be taller than the wall/);
+  });
+  it('Round the edges: Off, Side edges, Top edges, Side and top edges; each shows the radius field of the edges that are on and previews the change', () => {
+    const m = mount();
+    expect([...m.select('round').options].map((o) => o.textContent)).toEqual(['Off', 'Side edges', 'Top edges', 'Side and top edges']);
+    fireEvent.change(m.select('round'), { target: { value: 'side' } });
+    expect(m.input('radius').value).toBe('5');
+    expect(m.input('topRadius')).toBeNull();
+    expect(m.drafts.at(-1)).toMatchObject({ round: 'side', radius: 5 });
+    fireEvent.change(m.select('round'), { target: { value: 'top' } });
+    expect(m.input('radius')).toBeNull();
+    expect(m.input('topRadius').value).toBe('2');
+    fireEvent.change(m.input('topRadius'), { target: { value: '3' } });
+    expect(m.drafts.at(-1)).toMatchObject({ round: 'top', topRadius: 3 });
+    fireEvent.change(m.select('round'), { target: { value: 'both' } });
+    expect(m.input('radius').value).toBe('5');
+    expect(m.input('topRadius').value).toBe('3');   // the radius typed before is kept
+    expect(m.q('[data-issue]')).toBeNull();
+    fireEvent.click(m.q('[data-testid="case-apply"]'));
+    expect(m.applies[0]).toMatchObject({ round: 'both', radius: 5, topRadius: 3 });
+  });
+  it('top edge problems are said in plain words and block Add case; the draft is not sent', () => {
+    const m = mount({ ...DEFAULT_CASE, round: 'both' });
+    const before = m.drafts.length;
+    fireEvent.change(m.input('topRadius'), { target: { value: '4.5' } });
+    expect(m.q('[data-issue="topSide"]')).toBeNull();
+    expect(m.q('[data-issue="topWall"]').textContent).toBe('The top edge radius is too big for the wall: 4.414 mm at most (2.207 x the wall), or the wall at the round is under half a wall thick');
+    expect((m.q('[data-testid="case-apply"]') as HTMLButtonElement).disabled).toBe(true);
+    expect(m.drafts.length).toBe(before);
+    fireEvent.change(m.input('radius'), { target: { value: '3' } });
+    fireEvent.change(m.input('topRadius'), { target: { value: '3.5' } });
+    expect(m.q('[data-issue="topSide"]').textContent).toMatch(/at most the side edge radius \(3 mm\)/);
+    fireEvent.change(m.input('topRadius'), { target: { value: '0' } });
+    expect(m.q('[data-issue="topRadius"]').textContent).toBe('The top edge radius must be more than 0');
   });
   it('a narrower wall is accepted down to 0.4 mm and the tongue follows it', () => {
     const m = mount();
