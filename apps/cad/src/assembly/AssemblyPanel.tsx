@@ -4,7 +4,7 @@ import { isPartFormat } from '../partVersion';
 import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { EditOp } from '@ck/session';
-import { InlineName } from '@kit/ui';
+import { InlineName, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import {
   bomCsv, bomItems, bomText, bomTotal, componentOfName, componentRows, deleteComponentOps, insertFeature, insertIds, mateComponents, NO_PLACEMENT, placementOps,
@@ -100,7 +100,7 @@ function DofBadge(p: { row: ComponentRow }): JSX.Element {
 function PlacementFields(p: { value: Placement; onChange(v: Placement): void }): JSX.Element {
   const v = p.value;
   const num = (k: 'dx' | 'dy' | 'dz' | 'angle') => (
-    <label class="asm-f"><span>{t('asm.place.' + k)}</span><input type="number" inputMode="decimal" enterKeyHint="done" step="any" value={v[k]} aria-label={t('asm.place.' + k)} onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); p.onChange({ ...v, [k]: Number.isFinite(x) ? x : 0 }); }} /></label>
+    <label class="asm-f"><span>{t('asm.place.' + k)}</span><input {...numberAttrs('signed')} type="number" step="any" value={v[k]} aria-label={t('asm.place.' + k)} onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); p.onChange({ ...v, [k]: Number.isFinite(x) ? x : 0 }); }} /></label>
   );
   return (
     <div class="asm-place">
@@ -358,7 +358,7 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
           {(kdef?.params ?? []).filter((q) => !q.vec).map((q) => (
             <div key={q.key}>
               <label class="asm-f wide" title={t(q.drive ? 'asm.mate.ptip.drive' : 'asm.mate.ptip.' + q.key)}><span>{t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}{unitOf(q)}{q.optional ? ` - ${t('asm.mate.optional')}` : ''}</span>
-                <input type="number" inputMode="decimal" enterKeyHint="done" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
+                <input {...numberAttrs('signed')} type="number" step="any" placeholder={q.optional ? t('asm.mate.free') : undefined} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''} aria-label={t(q.drive ? 'asm.mate.param.drive' : 'asm.mate.param.' + q.key)}
                   onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} /></label>
               {q.drive ? (
                 <label class="asm-f wide"><span>{t('asm.mate.testDrive')} ({fmt(Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : 0, 4)}°)</span>
@@ -370,12 +370,12 @@ function MatesSection({ host }: { host: AsmHost }): JSX.Element {
           {kdef?.params.some((q) => q.vec) ? (
             <div class="asm-f wide" title={t('asm.mate.ptip.dir')}><span>{t('asm.mate.param.dir')} - {t('asm.mate.optional')}</span>
               <span class="asm-place">{kdef.params.filter((q) => q.vec).map((q) => (
-                <input key={q.key} type="number" step="any" placeholder={'XYZ'[q.vec!.i]} aria-label={t('asm.mate.param.dir') + ' ' + 'XYZ'[q.vec!.i]} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''}
+                <input {...numberAttrs('signed')} key={q.key} type="number" step="any" placeholder={'XYZ'[q.vec!.i]} aria-label={t('asm.mate.param.dir') + ' ' + 'XYZ'[q.vec!.i]} value={Number.isFinite(draft.params[q.key]) ? draft.params[q.key] : ''}
                   onInput={(e) => { const x = parseFloat((e.target as HTMLInputElement).value); setDraft((d) => ({ ...d, params: { ...d.params, [q.key]: x } })); }} />
               ))}</span></div>
           ) : null}
           {kdef?.flip ? <label class="asm-chk" title={kdef.flipLabel ? t('asm.mate.fliptip.' + kdef.id) : undefined}><input type="checkbox" checked={draft.flip} onChange={(e) => setDraft((d) => ({ ...d, flip: (e.target as HTMLInputElement).checked }))} /> {kdef.flipLabel ? t('asm.mate.flip.' + kdef.id) : t('asm.mate.flip')}</label> : null}
-          <label class="asm-f wide"><span>{t('asm.mate.name')}</span><input type="text" value={draft.name} onInput={(e) => setDraft((d) => ({ ...d, name: (e.target as HTMLInputElement).value }))} /></label>
+          <label class="asm-f wide"><span>{t('asm.mate.name')}</span><input {...textAttrs} type="text" value={draft.name} onInput={(e) => setDraft((d) => ({ ...d, name: (e.target as HTMLInputElement).value }))} /></label>
           <div class="asm-note">{t('asm.mate.hint')}</div>
           {problem && !msg ? <div class="asm-note">{t(problem)}</div> : null}
           {msg ? <div class="asm-note warn" role="status">{msg}</div> : null}

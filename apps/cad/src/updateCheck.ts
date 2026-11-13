@@ -53,6 +53,44 @@ export type UpdateWatch = {
 type Target = Pick<EventTarget, 'addEventListener' | 'removeEventListener'> & { visibilityState?: string };
 
 export const MIN_GAP_MS = 5 * 60_000;
+/** Hidden for longer than this: on return the next check ignores the 5-minute gap (an installed app is mostly suspended, not closed). */
+export const RESUME_MS = 60_000;
+
+/** True when the app has been in the background long enough that the next check should not wait for the gap. */
+export const bypassGap = (hiddenMs: number | null): boolean => hiddenMs !== null && hiddenMs > RESUME_MS;
+
+/** What to do about a newer build. `hiddenMs` is how long the app was in the background when it came back to the foreground (Infinity on launch),
+ *  null when this is not such a moment (found while the app was in use). A reload is automatic only at that moment, with nothing modified, no
+ *  edit open and automatic updates on; in every other case with a newer build the notice is shown, so a reload never lands in the middle of
+ *  the user's work. */
+export function decideUpdate(o: { stale: boolean; dirty: boolean; editing: boolean; hiddenMs: number | null; autoOn: boolean }): 'reload' | 'notice' | 'none' {
+  if (!o.stale) return 'none';
+  return o.autoOn && !o.dirty && !o.editing && o.hiddenMs !== null ? 'reload' : 'notice';
+}
+
+const TOAST_KEY = 'cad.updatedTo';
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+const session = (): Store | null => { try { return typeof sessionStorage === 'undefined' ? null : sessionStorage; } catch { return null; } };
+
+/** Remembers, across the coming reload, that the app updated to `version` (empty when its number is unknown) so the new page can say so. */
+export function rememberUpdated(version: string | undefined, storage: Store | null = session()): void {
+  try { storage?.setItem(TOAST_KEY, JSON.stringify({ version: version ?? '' })); } catch { /* storage blocked: no toast */ }
+}
+/** The pending "Updated to" note, read once: null when there is none. `version` is '' when the number was not known. */
+export function takeUpdated(storage: Store | null = session()): { version: string } | null {
+  try {
+    const raw = storage?.getItem(TOAST_KEY);
+    if (raw == null) return null;
+    storage!.removeItem(TOAST_KEY);
+    const j = JSON.parse(raw) as { version?: unknown };
+    return { version: typeof j?.version === 'string' ? j.version : '' };
+  } catch { return null; }
+}
+
+/** Asks the browser to look for a new service worker now, so it and the page agree after a resume. Failures are ignored. */
+export function updateServiceWorker(nav: { serviceWorker?: { getRegistration(): Promise<{ update(): Promise<unknown> } | undefined> } } | undefined = typeof navigator === 'undefined' ? undefined : navigator): void {
+  try { void nav?.serviceWorker?.getRegistration().then((r) => r?.update()).catch(() => { /* offline */ }); } catch { /* no service worker support */ }
+}
 
 /** Compares the running bundle with the deployed one every `intervalMs` (default and minimum 5 minutes) and when the tab becomes visible
  *  or gains focus, never more often than every 5 minutes. `onStale` runs once, with the new version's number when `getVersion` finds it.
@@ -63,6 +101,10 @@ export function watchForUpdate(o: {
   /** The deployed version.json, only for the number shown in the notice; may fail. */
   getVersion?: () => Promise<BuildVersion | null>;
   onStale: (u: { version?: string }) => void;
+  /** The app is in the foreground after a launch (hiddenMs Infinity) or a return from the background, and its check has finished. */
+  onForeground?: (f: { hiddenMs: number; result: UpdateResult }) => void;
+  /** The app returned after more than RESUME_MS in the background (before its check). */
+  onResume?: () => void;
   intervalMs?: number;
   now?: () => number;
   target?: Target;        // document: visibilitychange
@@ -95,10 +137,22 @@ export function watchForUpdate(o: {
   };
   const target = o.target ?? (typeof document !== 'undefined' ? document : undefined);
   const focusTarget = o.focusTarget ?? (typeof window !== 'undefined' ? window : undefined);
-  const onVisible = () => { if (target?.visibilityState === 'visible') void check(); };
+  let hiddenAt: number | null = null;
+  const foreground = (hiddenMs: number) => {
+    if (bypassGap(hiddenMs)) { o.onResume?.(); last = -Infinity; }
+    void check().then((result) => { if (!stopped) o.onForeground?.({ hiddenMs, result }); });
+  };
+  const onVisible = () => {
+    if (target?.visibilityState === 'hidden') { hiddenAt = now(); return; }
+    if (target?.visibilityState !== 'visible') return;
+    const hiddenMs = hiddenAt === null ? 0 : now() - hiddenAt;
+    hiddenAt = null;
+    foreground(hiddenMs);
+  };
   const onFocus = () => void check();
   target?.addEventListener('visibilitychange', onVisible);
   focusTarget?.addEventListener('focus', onFocus);
+  if (o.onForeground && target?.visibilityState !== 'hidden') foreground(Infinity);   // launch: no gap, and the page may still be untouched
   const timer = setInterval(() => void check(), Math.max(o.intervalMs ?? MIN_GAP_MS, MIN_GAP_MS));
   return { check, stop: () => { stopped = true; clearInterval(timer); target?.removeEventListener('visibilitychange', onVisible); focusTarget?.removeEventListener('focus', onFocus); } };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { DEFAULT_WORKSPACE } from '@kit/store';
-import { computeLayout, effectiveWorkspace, asLayoutPref, layout, layoutPref, viewportInfo, watchViewport } from './layoutMode';
+import { computeLayout, effectiveWorkspace, narrowTablet, asLayoutPref, layout, layoutPref, viewportInfo, watchViewport } from './layoutMode';
 
 const v = (w: number, h: number, coarse = false) => ({ w, h, coarse });
 
@@ -51,6 +51,19 @@ describe('effectiveWorkspace', () => {
     const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet');
     expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', rightPanel: 'docked' });
     expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' });
+  });
+  it('a narrow (portrait) tablet docks only the tabbed left panel, so the canvas keeps the width; a hidden panel stays hidden', () => {
+    const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', true);
+    expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', leftTabs: true, rightPanel: 'off' });
+    expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, leftPanel: 'hidden' }, 'tablet', true)).toMatchObject({ leftPanel: 'hidden', rightPanel: 'off' });
+    expect(effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', false)).toMatchObject({ rightPanel: 'docked' });
+  });
+  it('narrowTablet: a tablet no wider than 900px', () => {
+    const was = viewportInfo.value;
+    viewportInfo.value = { w: 820, h: 1180, coarse: true }; expect(narrowTablet.value).toBe(true);
+    viewportInfo.value = { w: 1180, h: 820, coarse: true }; expect(narrowTablet.value).toBe(false);
+    viewportInfo.value = { w: 390, h: 844, coarse: true }; expect(narrowTablet.value).toBe(false);
+    viewportInfo.value = was;
   });
   it('a phone keeps panels, rail and drawer off the canvas (they are sheets) and does not change the stored workspace', () => {
     const before = JSON.stringify(DEFAULT_WORKSPACE);

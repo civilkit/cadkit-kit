@@ -83,8 +83,12 @@ function clipHtml(h) {
   // does not depend on which machine generated it; the video shows its poster until (and unless) the files load
   if (!has(`posters/${h.id}.png`)) return '';
   const webm = true, mp4 = true;
+  // a clip is 16:9 unless its poster is portrait (a tablet clip): read the PNG header (IHDR width and height) so the box has the clip's own shape
+  let w = 1920, hgt = 1080;
+  try { const b = readFileSync(join(PAGE_DIR, `posters/${h.id}.png`)); const pw = b.readUInt32BE(16), ph = b.readUInt32BE(20); if (ph > pw) { w = pw; hgt = ph; } } catch {}
+  const portrait = w !== 1920;
   const poster = ` poster="posters/${esc(h.id)}.png"`;
-  return `<span class="frame"><video class="clip" muted loop playsinline preload="none"${poster} width="1920" height="1080" aria-label="${esc(h.title)}" data-autoplay>${webm ? `<source src="clips/${esc(h.id)}.webm" type="video/webm">` : ''}${mp4 ? `<source src="clips/${esc(h.id)}.mp4" type="video/mp4">` : ''}</video></span>`;
+  return `<span class="frame"><video class="clip${portrait ? ' portrait' : ''}" muted loop playsinline preload="none"${poster} width="${w}" height="${hgt}" aria-label="${esc(h.title)}" data-autoplay>${webm ? `<source src="clips/${esc(h.id)}.webm" type="video/webm">` : ''}${mp4 ? `<source src="clips/${esc(h.id)}.mp4" type="video/mp4">` : ''}</video></span>`;
 }
 
 export function renderPage(changelog, highlights) {
@@ -127,7 +131,7 @@ ${all}
 <meta name="twitter:image" content="https://civilkit.io/assets/og-civilkit.jpg">
 ${siteHeadLinks()}
 <link rel="stylesheet" href="zoom/video-zoom.css">
-<style>.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}</style>
+<style>.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}.cards.news video.clip.portrait{aspect-ratio:auto;width:auto;max-width:100%;max-height:min(70vh,640px);margin:0 auto}.cards.news .frame:has(.portrait){text-align:center}</style>
 </head>
 <body>
 ${siteHeader('news')}

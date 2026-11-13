@@ -3,7 +3,7 @@
 // previews it live in the viewport, debounced by the controller); Add case commits the features as one tree folder, Escape / the cross cancels. Rules: case.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { CASE_ROUNDS, CASE_TONGUE_SIDES, caseIssue, caseSummary, roundsSide, roundsTop, withChange, type CaseParams } from './case';
 
@@ -23,7 +23,7 @@ function Num(p: { name: string; label: string; value: number; unit?: string; min
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input type="number" inputMode="decimal" enterKeyHint="done" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
+        <input {...numberAttrs(kindForMin(p.min))} type="number" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
           onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>
@@ -34,7 +34,7 @@ function Text(p: { name: string; label: string; value: string; onChange(v: strin
   return (
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
-      <input type="text" value={p.value} aria-label={p.label} onInput={(e) => p.onChange((e.currentTarget as HTMLInputElement).value)} />
+      <input {...textAttrs} type="text" value={p.value} aria-label={p.label} onInput={(e) => p.onChange((e.currentTarget as HTMLInputElement).value)} />
     </label>
   );
 }

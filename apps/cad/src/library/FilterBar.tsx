@@ -6,6 +6,7 @@ import { useState } from 'preact/hooks';
 import { t } from '../i18n';
 import { categoriesOf, categoryCounts, categoryLabel, tagCounts, wizardsFor, type LibEntry, type WizardId } from './entries';
 import type { SourceFilter } from './state';
+import { textAttrs } from '@kit/ui';
 
 export const TAG_CHIPS = 12;
 
@@ -37,7 +38,7 @@ export function FilterBar(p: FilterBarProps) {
   const toggle = (tag: string) => p.onFilter(p.category, p.tags.includes(tag) ? p.tags.filter((x) => x !== tag) : [...p.tags, tag]);
   return (
     <div class="lf" data-testid="lib-filterbar">
-      <input class="lf-search bosl-search" type="search" autofocus={p.autofocus} value={p.q} placeholder={p.placeholder ?? t('library.search')} aria-label={p.placeholder ?? t('library.search')}
+      <input {...textAttrs} type="search" enterKeyHint="search" class="lf-search bosl-search" autofocus={p.autofocus} value={p.q} placeholder={p.placeholder ?? t('library.search')} aria-label={p.placeholder ?? t('library.search')}
         onInput={(e) => p.onQ((e.currentTarget as HTMLInputElement).value)} />
       <div class="lib-filters">
         {p.onSource ? (

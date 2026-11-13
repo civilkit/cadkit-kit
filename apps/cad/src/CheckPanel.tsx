@@ -2,6 +2,7 @@ import type { JSX } from 'preact';
 import { t } from './i18n';
 import { groupIssues, severityCss, valueText, type Issue, type ProfileInfo, type ProfileReport } from './designCheck';
 import { MODES, isDefault, parseParam, type Mode, type ProfileSettings } from './checkSettings';
+import { kindForMin, numberAttrs } from '@kit/ui';
 
 export interface DesignCheckProps {
   profiles: ProfileInfo[] | null;
@@ -63,7 +64,7 @@ export function CheckPanel(p: DesignCheckProps): JSX.Element {
                 const v = s.params[q.name];
                 const set = (val: number | number[]) => setRule(r.id, { params: { ...s.params, [q.name]: val } });
                 const field = (x: number, onNum: (n: number) => void, label: string) => (
-                  <input type="number" inputMode="decimal" enterKeyHint="done" step="any" min={q.min} max={q.max} value={x} aria-label={label} disabled={s.mode === 'off'}
+                  <input {...numberAttrs(kindForMin(q.min))} type="number" step="any" min={q.min} max={q.max} value={x} aria-label={label} disabled={s.mode === 'off'}
                     onChange={(e) => { const n = parseParam((e.currentTarget as HTMLInputElement).value, q); if (n !== null) onNum(n); }} />
                 );
                 return (

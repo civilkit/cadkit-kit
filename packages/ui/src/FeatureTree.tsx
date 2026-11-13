@@ -4,6 +4,7 @@ import type { FeatureStatus } from '@kit/store';
 import { t } from './i18n';
 import { Icon, featureIconName } from './icons';
 import { InlineName } from './InlineName';
+import { textAttrs } from './keypad';
 
 export interface RefRow { id: string; label: string; icon: string; /** small muted text at the right, e.g. the axes a plane contains */ tag?: string; /** a plane or the origin can be chosen; the material row is only information */ choosable?: boolean; /** the row opens an editor (click, double-click, Enter or the pencil): the material row */ editable?: boolean; /** tooltip and name of the pencil on an editable row */ editLabel?: string; /** a colour chip after the label (CSS colour), e.g. the part's colour on the material row */ swatch?: string; /** shown or hidden: an eye on the row (needs `onToggleRef`); absent: no eye */ shown?: boolean }
 
@@ -527,8 +528,8 @@ export function FeatureTree(p: {
           </> : null}
           {searchOpen ? (
             <div class="tree-search" role="search">
-              <input
-                ref={searchInput} type="text" class="tree-search-input" value={query} autoComplete="off" spellcheck={false}
+              <input {...textAttrs} type="search" enterKeyHint="search"
+                ref={searchInput} class="tree-search-input" value={query}
                 placeholder={t('ui.tree.searchPlaceholder', undefined, 'Name, type or id (F62, revolve, lens)')}
                 aria-label={t('ui.tree.search', undefined, 'Search features')}
                 onInput={(e) => { setQuery((e.currentTarget as HTMLInputElement).value); setMatchPos(-1); }}

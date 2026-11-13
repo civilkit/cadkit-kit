@@ -4,6 +4,7 @@ import { t } from './i18n';
 import { cursorLabel, formatCursor, formatPoint3, formatDelta, formatSpacing, formatZoom, zoomPercent, type DisplayUnit } from './sketchStatus';
 import { parseSpacing } from '@kit/viewport';
 import { useRef, useState } from 'preact/hooks';
+import { numberAttrs } from '@kit/ui';
 
 /** What the status bar shows about the pointer while sketching. Signals, so only the readout redraws on each pointer move. */
 export const readout = {
@@ -35,7 +36,7 @@ function StatusField(p: { label: string; aria: string; testid: string; title?: s
   return (
     <label class="st-field" title={p.title}>
       {p.label}
-      <input class="st-input" data-testid={p.testid} aria-label={p.aria} inputMode="decimal" autoComplete="off" spellcheck={false}
+      <input {...numberAttrs('signed')} class="st-input" data-testid={p.testid} aria-label={p.aria}
         value={draft ?? p.display}
         onFocus={(e) => { skip.current = false; setDraft(p.edit); const el = e.currentTarget as HTMLInputElement; setTimeout(() => el.select(), 0); }}
         onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)}

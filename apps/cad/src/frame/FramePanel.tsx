@@ -3,7 +3,7 @@
 // replaces it when the panel reopened one), Escape / the cross cancels. Rules and the cut list: frameLib.ts.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { clearStoredLibrary, exampleLibrary, importLibraryText, storedLibrary } from './frameUserLib';
 import { CATALOGUE_REGIONS, FITTINGS, HW_PLACES, bom, defaultHardware, loadRegion, onRegionLoaded, profileById, profileGroups, profileMaterial, regionLoaded, regionOf, regionOfId, type Corner, type FrameParams, type FrameReport, type HwPlace, type Region } from './frameLib';
@@ -186,7 +186,7 @@ export function FramePanel(p: FramePanelProps): JSX.Element {
             ) : null}
             <label class="fedit-fld" data-path="profileFind">
               <span class="fedit-fld-label">{t('frame.profile.search')}</span>
-              <input type="search" value={find} placeholder={t('frame.profile.searchHint')} aria-label={t('frame.profile.search')} data-testid="frame-profile-search"
+              <input {...textAttrs} type="search" enterKeyHint="search" value={find} placeholder={t('frame.profile.searchHint')} aria-label={t('frame.profile.search')} data-testid="frame-profile-search"
                 onInput={(e) => setFind((e.currentTarget as HTMLInputElement).value)} />
             </label>
             <label class="fedit-fld" data-path="region">
@@ -230,7 +230,7 @@ export function FramePanel(p: FramePanelProps): JSX.Element {
             <label class="fedit-fld" data-path="rotate">
               <span class="fedit-fld-label">{t('frame.rotate')}</span>
               <span class="fedit-num">
-                <input type="number" step={15} value={String(draft.rotate)} aria-label={t('frame.rotate')}
+                <input {...numberAttrs('signed')} type="number" step={15} value={String(draft.rotate)} aria-label={t('frame.rotate')}
                   onChange={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) change({ rotate: v }); }} />
                 <span class="fedit-unit">deg</span>
               </span>

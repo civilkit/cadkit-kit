@@ -4,6 +4,15 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.7.2 - 2026-11-13
+
+- **A portrait iPad gives the canvas the room.** In portrait only the tabbed left panel is docked (the properties of the selected feature are in its Editor tab), the panel tabs show icons that no longer clip, the sketch ribbon stays one row that you swipe sideways (with momentum, snapping to a group, a fade and an arrow at each edge that still hides something, and a thin scrollbar, so Dimension and the constraints are easy to find), and the status bar leaves out the counts instead of cutting items off. The Part / Drawing switch is no longer clipped on a touch device.
+- **The app updates itself.** When you open the installed app again (it sits suspended on an iPad for weeks) and a newer version is out, it reloads by itself and says "Updated to 0.7.2", as long as nothing is unsaved and no sketch, editor, wizard or dialog is open and you have not touched the screen yet; otherwise you get the Reload note as before. After more than a minute away the check no longer waits for its five-minute timer, and **Settings > General > Update automatically** turns the automatic reload off.
+- **Offline right after an update on a phone or tablet.** The kernel the app had stored is kept across an update and refreshed in the background, instead of being missing until it was next used online.
+- **The iPad keyboard comes up where you type.** After you drag out a circle with a finger or the Apple Pencil, or pick two lines with the Dimension tool, the value field is focused from the lift itself, so Safari on an iPad raises the on-screen keyboard (before, the field had the focus but the keyboard stayed away until you tapped it). The field also stays inside the drawing instead of running under the properties panel.
+- **A minus sign on the iPad and iPhone number keys.** Number boxes that can be negative (positions, offsets, rotations, move and mesh fields, mate values) show a **±** key above the keyboard on a touch device, and boxes that take only a positive number or a count keep the plain number pad. Name, search and file boxes no longer capitalise, auto-correct or spell-check what you type, and search boxes show a Search key.
+- **Apple Pencil strokes and resting palms.** The Pencil draws like a finger on the sketch tools (press, drag, lift), stays steady when it rises out of hover range, and a palm touching the screen while the Pencil is down is ignored instead of orbiting the view. The page no longer zooms when you pinch or double-tap the toolbars, and a long press does not open a copy callout on the model.
+
 ## 0.7.1 - 2026-11-13
 
 - **No stray outlines after a wizard.** The sketches a wizard builds with (the Case ones, for example) no longer draw orange outlines round the new part or float where a hidden body was; they are hidden in the view and the eye in the tree brings one back. A hover tint no longer stays behind when the pointer leaves the view or the tree goes away.

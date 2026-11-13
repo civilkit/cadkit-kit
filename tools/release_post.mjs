@@ -117,7 +117,7 @@ export function buildPost({ changelog, highlights, version, from, mac = false, m
   }
   out.push('## Links', '');
   out.push(`- App: ${SITE}`, `- What's new: ${NEWS}`, `- Guide: ${GUIDE}`);
-  if (mac) out.push(`- Mac app: ${RELEASES} (unsigned: first start needs right-click > Open)`);
+  if (mac) out.push(`- Mac app: ${RELEASES} (unsigned: macOS blocks the first start, the release notes say how to open it)`);
   out.push(`- Source: ${KIT} and ${KERNEL}`, '');
   out.push('Feedback and bug reports are welcome here in the thread, or as issues on GitHub.', '');
   const body = out.join('\n');

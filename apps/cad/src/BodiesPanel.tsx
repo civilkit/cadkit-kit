@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, textAttrs } from '@kit/ui';
 import { DEFAULT_APPEARANCE, FINISHES, PICK_OPACITY, finishParams } from '@kit/viewport';
 import { t } from './i18n';
 import { TexturePicker, type LibraryControls } from './SurfaceControls';
@@ -83,7 +83,7 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
                   onClick={(e) => { e.stopPropagation(); p.onToggleHidden(r.key); }}><Icon name={r.hidden ? 'eye-off' : 'eye'} size={15} /></button>
                 <span class="body-swatch" style={{ background: sw, opacity: Math.max(0.25, r.look.opacity ?? 1) }} aria-hidden="true" />
                 {renaming === r.key ? (
-                  <input class="body-name-edit" value={draft} aria-label={t('bodies.rename')} autoFocus spellcheck={false}
+                  <input {...textAttrs} class="body-name-edit" value={draft} aria-label={t('bodies.rename')} autoFocus
                     onClick={(e) => e.stopPropagation()} onInput={(e) => setDraft((e.currentTarget as HTMLInputElement).value)} onBlur={commit}
                     onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setRenaming(null); }} />
                 ) : (

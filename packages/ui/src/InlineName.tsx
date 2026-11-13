@@ -1,6 +1,7 @@
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
 import { t } from './i18n';
+import { textAttrs } from './keypad';
 
 /** A text field that replaces a name in place: Enter (or leaving the field) commits, Esc cancels. An empty or unchanged
  *  name counts as a cancel. */
@@ -15,7 +16,7 @@ export function InlineName(p: { value: string; onCommit(name: string): void; onC
     if (commit && v && v !== p.value) p.onCommit(v); else p.onCancel();
   };
   return (
-    <input
+    <input {...textAttrs}
       ref={ref}
       class={'inline-name ' + (p.class ?? '')}
       defaultValue={p.value}

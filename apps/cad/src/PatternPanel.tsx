@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { PanelRow, PanelSpec } from '@kit/sketch';
 import { t } from './i18n';
+import { numberAttrs } from '@kit/ui';
 
 export interface PatternPanelProps {
   panel: PanelSpec;
@@ -26,7 +27,7 @@ function NumRow(p: { row: Extract<PanelRow, { kind: 'number' }>; onField: Patter
   return (
     <label class={'tp-field' + (row.locked ? ' locked' : '')} data-field={row.id}>
       <span>{t(row.label) + unit}</span>
-      <input type="text" inputMode={row.unit === 'count' ? 'numeric' : 'decimal'} value={text} aria-label={t(row.label)}
+      <input {...numberAttrs(row.unit === 'count' ? 'integer' : 'signed')} type="text" value={text} aria-label={t(row.label)}
         onFocus={(e) => { focused.current = true; (e.target as HTMLInputElement).select(); }}
         onInput={(e) => { const v = (e.target as HTMLInputElement).value; setText(v); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => flush(v), DEBOUNCE_MS); }}
         onKeyDown={(e) => {

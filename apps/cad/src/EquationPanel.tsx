@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { EQUATION_PRESETS, equationNotes, type EquationFields, type EquationResult } from '@kit/sketch';
 import { t } from './i18n';
+import { numberAttrs, textAttrs } from '@kit/ui';
 
 /** What the Equation panel needs: the curve's fields, the kernel's answer for what is typed (null while it is asked) and the callbacks. */
 export interface EquationPanelProps {
@@ -37,7 +38,7 @@ export function EquationPanel(p: EquationPanelProps) {
   const field = (k: 'x' | 'y' | 't0' | 't1', wide: boolean) => (
     <label class={'tp-field' + (wide ? ' tp-wide' : '')} data-field={k}>
       <span>{t('app.sketch.equation.' + k)}</span>
-      <input type="text" value={f[k]} aria-label={t('app.sketch.equation.' + k)} spellcheck={false} autocomplete="off"
+      <input {...textAttrs} type="text" value={f[k]} aria-label={t('app.sketch.equation.' + k)}
         onFocus={() => { editing.current = true; }}
         onBlur={() => { editing.current = false; }}
         onInput={(e) => set(k, (e.target as HTMLInputElement).value)}
@@ -64,7 +65,7 @@ export function EquationPanel(p: EquationPanelProps) {
         {field('t0', false)}
         {field('t1', false)}
         <label class="tp-field" data-field="tol"><span>{t('app.sketch.equation.tol')} (mm)</span>
-          <input type="text" inputMode="decimal" value={tolText} aria-label={t('app.sketch.equation.tol')}
+          <input {...numberAttrs('positive')} type="text" value={tolText} aria-label={t('app.sketch.equation.tol')}
             onInput={(e) => setTol((e.target as HTMLInputElement).value)} onKeyDown={(e) => e.stopPropagation()} /></label>
       </div>
       <div class="tp-note" data-note="about">{t('app.sketch.equation.about')}</div>

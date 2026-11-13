@@ -6,6 +6,7 @@ import type { SceneEnvironment } from '@kit/viewport';
 import { t } from './i18n';
 import { POLY, type HdriAsset } from './onlineLibrary';
 import type { LibraryControls } from './SurfaceControls';
+import { textAttrs } from '@kit/ui';
 
 /** The environment a pick stands for (the credit is kept with it so it shows without the list). */
 export const environmentOf = (a: HdriAsset): SceneEnvironment => ({ source: 'polyhaven', id: a.id, name: a.name, ...(a.authors.length ? { author: a.authors.join(', ') } : {}) });
@@ -42,7 +43,7 @@ export function EnvironmentPicker(p: { environment: SceneEnvironment | undefined
             </div>
           ) : (
             <>
-              <input type="search" class="mat-search" value={q} placeholder={t('env.search')} aria-label={t('env.search')} onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)} />
+              <input {...textAttrs} type="search" enterKeyHint="search" class="mat-search" value={q} placeholder={t('env.search')} aria-label={t('env.search')} onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)} />
               {err ? <div class="tb-note" role="alert">{t('env.failed')}</div> : items === null ? <div class="tb-note">{t('surface.texture.loading')}</div> : null}
               <div class="tex-grid" role="listbox" aria-label={t('env.title')}>
                 {shown.map((a) => (

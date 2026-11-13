@@ -5,7 +5,7 @@
 // hole the hole contains and places the washer coaxial on the face the hole opens on. The size, the end of a through hole and the offset stay editable.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { SizePicker, type SizeMode } from './SizePicker';
 import { holePlacement, washerIssue, washerOnHole, WASHER_AXES, WASHER_KINDS, type WasherParams } from './washer';
@@ -30,7 +30,7 @@ function Num(p: { name: string; label: string; value: number; unit?: string; min
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input type="number" inputMode="decimal" enterKeyHint="done" step={p.step ?? 'any'} min={p.min} value={String(p.value)} aria-label={p.label} title={p.hintText}
+        <input {...numberAttrs(kindForMin(p.min))} type="number" step={p.step ?? 'any'} min={p.min} value={String(p.value)} aria-label={p.label} title={p.hintText}
           onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>

@@ -2,7 +2,7 @@
 // shape is now) and the "Distance from edge" helper (pick an edge of the face the shape sits on, type the clear distance).
 // Enter moves, Esc closes. The maths is in move.ts; this only parses the fields and hands (du, dv) to the caller.
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { evalExpr } from '@kit/ui';
+import { evalExpr, numberAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import type { MoveInfo } from './session';
 import { EDGE_SIDES, edgeDistance, moveToEdgeDistance, type EdgeSide } from './move';
@@ -57,18 +57,18 @@ export function MoveFields(p: { info: MoveInfo; values: Values; onApply(du: numb
   return (
     <div class="sizebox-moveto" role="dialog" aria-label={t('sizebox.moveto.title')} onKeyDown={key}>
       <div class="sizebox-moveto-title">{t('sizebox.moveto.title')}</div>
-      <label>{t('sizebox.moveto.px')}<input ref={first} type="text" inputMode="decimal" value={px} placeholder={round(p.info.centre.u)} onInput={(e) => setPx(e.currentTarget.value)} /></label>
-      <label>{t('sizebox.moveto.py')}<input type="text" inputMode="decimal" value={py} placeholder={round(p.info.centre.v)} onInput={(e) => setPy(e.currentTarget.value)} /></label>
+      <label>{t('sizebox.moveto.px')}<input {...numberAttrs('signed')} ref={first} type="text" value={px} placeholder={round(p.info.centre.u)} onInput={(e) => setPx(e.currentTarget.value)} /></label>
+      <label>{t('sizebox.moveto.py')}<input {...numberAttrs('signed')} type="text" value={py} placeholder={round(p.info.centre.v)} onInput={(e) => setPy(e.currentTarget.value)} /></label>
       <div class="sizebox-moveto-hint">{t('sizebox.moveto.world', { x: round(p.info.world[0]), y: round(p.info.world[1]), z: round(p.info.world[2]) })}</div>
-      <label>{t('sizebox.moveto.x')}<input type="text" inputMode="decimal" value={x} placeholder="0" onInput={(e) => setX(e.currentTarget.value)} /></label>
-      <label>{t('sizebox.moveto.y')}<input type="text" inputMode="decimal" value={y} placeholder="0" onInput={(e) => setY(e.currentTarget.value)} /></label>
+      <label>{t('sizebox.moveto.x')}<input {...numberAttrs('signed')} type="text" value={x} placeholder="0" onInput={(e) => setX(e.currentTarget.value)} /></label>
+      <label>{t('sizebox.moveto.y')}<input {...numberAttrs('signed')} type="text" value={y} placeholder="0" onInput={(e) => setY(e.currentTarget.value)} /></label>
       <label>{t('sizebox.moveto.edge')}
         <span class="sizebox-moveto-edge">
           <select value={edge} onChange={(e) => setEdge(e.currentTarget.value as EdgeSide | '')} disabled={!p.info.host}>
             <option value="">{t('sizebox.moveto.edge.none')}</option>
             {EDGE_SIDES.map((s) => <option key={s} value={s}>{t('sizebox.moveto.' + s)}</option>)}
           </select>
-          <input type="text" inputMode="decimal" value={dist} disabled={!edge} placeholder={cur === null ? '' : String(Math.round(cur * 100) / 100)} onInput={(e) => setDist(e.currentTarget.value)} />
+          <input {...numberAttrs('signed')} type="text" value={dist} disabled={!edge} placeholder={cur === null ? '' : String(Math.round(cur * 100) / 100)} onInput={(e) => setDist(e.currentTarget.value)} />
         </span>
       </label>
       {p.info.near.length ? (

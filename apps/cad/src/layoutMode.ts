@@ -13,6 +13,9 @@ export const PHONE_MAX = 700, TABLET_MAX = 1100;
 /** A touch device whose short side is under this is a phone even turned sideways. */
 export const PHONE_SHORT_SIDE = 500;
 
+/** A tablet this narrow (a portrait iPad is 820 wide) docks ONE panel, the tabbed left one (properties are its Editor tab), so the canvas keeps most of the width. */
+export const NARROW_TABLET_MAX = 900;
+
 export interface ViewportInfo { w: number; h: number; coarse: boolean }
 
 export function computeLayout(v: ViewportInfo): Layout {
@@ -27,11 +30,14 @@ export const layoutPref = signal<LayoutPref>('auto');
 export const viewportInfo = signal<ViewportInfo>({ w: 1440, h: 900, coarse: false });
 /** The layout in force: the user's choice in Settings, else what the window and pointer say. */
 export const layout = computed<Layout>(() => (layoutPref.value === 'auto' ? computeLayout(viewportInfo.value) : layoutPref.value));
+/** A tablet narrower than NARROW_TABLET_MAX: one docked panel instead of two. */
+export const narrowTablet = computed<boolean>(() => layout.value === 'tablet' && viewportInfo.value.w <= NARROW_TABLET_MAX);
 
 /** The workspace the layout draws. The stored workspace is never changed by it (a phone must not rewrite the desktop's panels). */
-export function effectiveWorkspace(ws: Workspace, l: Layout): Workspace {
+export function effectiveWorkspace(ws: Workspace, l: Layout, narrow = false): Workspace {
   if (l === 'desktop') return ws;
   const ribbon = ws.ribbon === 'off' ? 'off' : 'compact';
+  if (l === 'tablet' && narrow) return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', leftTabs: true, rightPanel: 'off' };
   if (l === 'tablet') return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', rightPanel: ws.rightPanel === 'off' ? 'off' : 'docked' };
   // phone: nothing floats or docks over the canvas; the tree, properties and diagnostics come as sheets from the bottom bar
   return { ...ws, ribbon, leftPanel: 'hidden', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons', drawerOpen: false };

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { bundleOf, fetchVersion, reloadGuarded, runningBundle, shouldWatch, watchForUpdate, type BuildVersion, type FetchFn } from './updateCheck';
+import { bundleOf, bypassGap, decideUpdate, fetchVersion, rememberUpdated, reloadGuarded, RESUME_MS, takeUpdated, updateServiceWorker, runningBundle, shouldWatch, watchForUpdate, type BuildVersion, type FetchFn } from './updateCheck';
 
 const ok = (body: unknown): ReturnType<FetchFn> => Promise.resolve({ ok: true, json: async () => body });
 const v = (version: string, kit = 'aaa1111') => ({ version, kit, kernel: 'k1' });
@@ -150,5 +150,118 @@ describe('reloadGuarded', () => {
     expect(reload).not.toHaveBeenCalled();
     held!();
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('decideUpdate', () => {
+  const base = { stale: true, dirty: false, editing: false, hiddenMs: 120_000, autoOn: true };
+  it('reloads at a fresh foreground moment when nothing is modified or being edited and the setting is on', () => {
+    expect(decideUpdate(base)).toBe('reload');
+    expect(decideUpdate({ ...base, hiddenMs: Infinity })).toBe('reload');   // launch
+  });
+  it('shows the notice when something is modified, an edit is open, or the setting is off', () => {
+    expect(decideUpdate({ ...base, dirty: true })).toBe('notice');
+    expect(decideUpdate({ ...base, editing: true })).toBe('notice');
+    expect(decideUpdate({ ...base, autoOn: false })).toBe('notice');
+  });
+  it('never reloads a build found while the app was in use (not a foreground moment)', () => {
+    expect(decideUpdate({ ...base, hiddenMs: null })).toBe('notice');
+  });
+  it('does nothing without a newer build', () => {
+    expect(decideUpdate({ ...base, stale: false })).toBe('none');
+    expect(decideUpdate({ ...base, stale: false, dirty: true, autoOn: false })).toBe('none');
+  });
+});
+
+describe('the updated note across a reload', () => {
+  const mem = () => { const m = new Map<string, string>(); return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) }; };
+  it('is read once', () => {
+    const s = mem();
+    expect(takeUpdated(s)).toBeNull();
+    rememberUpdated('0.7.1', s);
+    expect(takeUpdated(s)).toEqual({ version: '0.7.1' });
+    expect(takeUpdated(s)).toBeNull();
+  });
+  it('keeps an unknown number as empty', () => {
+    const s = mem(); rememberUpdated(undefined, s);
+    expect(takeUpdated(s)).toEqual({ version: '' });
+  });
+  it('survives blocked or broken storage and bad content', () => {
+    const blocked = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); }, removeItem: () => { throw new Error('denied'); } };
+    expect(() => rememberUpdated('1', blocked)).not.toThrow();
+    expect(takeUpdated(blocked)).toBeNull();
+    expect(() => rememberUpdated('1', null)).not.toThrow();
+    expect(takeUpdated(null)).toBeNull();
+    const s = mem(); s.setItem('cad.updatedTo', '{bad'); expect(takeUpdated(s)).toBeNull();
+  });
+});
+
+describe('updateServiceWorker', () => {
+  it('asks the registration to update, and ignores a missing registration, support or a failure', async () => {
+    const update = vi.fn(async () => undefined);
+    updateServiceWorker({ serviceWorker: { getRegistration: async () => ({ update }) } });
+    await Promise.resolve(); await Promise.resolve();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(() => updateServiceWorker({ serviceWorker: { getRegistration: async () => undefined } })).not.toThrow();
+    expect(() => updateServiceWorker({})).not.toThrow();
+    expect(() => updateServiceWorker({ serviceWorker: { getRegistration: () => Promise.reject(new Error('x')) } })).not.toThrow();
+    expect(() => updateServiceWorker({ serviceWorker: { getRegistration: async () => ({ update: () => Promise.reject(new Error('offline')) }) } })).not.toThrow();
+  });
+});
+
+describe('check on resume', () => {
+  class Tgt extends EventTarget { visibilityState = 'visible'; }
+  let html: string, calls: number;
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); html = page('index-aaa.js'); calls = 0; });
+  afterEach(() => vi.useRealTimers());
+  const hide = (d: Tgt) => { d.visibilityState = 'hidden'; d.dispatchEvent(new Event('visibilitychange')); };
+  const show = (d: Tgt) => { d.visibilityState = 'visible'; d.dispatchEvent(new Event('visibilitychange')); };
+  const mk = () => {
+    const doc = new Tgt(), win = new Tgt(), onResume = vi.fn(), onForeground = vi.fn();
+    const w = watchForUpdate({ current: 'index-aaa.js', target: doc, focusTarget: win, onStale: vi.fn(), onResume, onForeground,
+      fetchHtml: async () => { calls++; return html; }, getVersion: async () => ({ version: '0.7.1' }) });
+    return { doc, onResume, onForeground, w };
+  };
+
+  it('bypasses the gap only after more than 60 s hidden', () => {
+    expect(bypassGap(null)).toBe(false);
+    expect(bypassGap(RESUME_MS)).toBe(false);
+    expect(bypassGap(RESUME_MS + 1)).toBe(true);
+    expect(bypassGap(Infinity)).toBe(true);
+  });
+  it('checks at launch without waiting for the gap and reports it as a foreground moment', async () => {
+    const { onForeground, w } = mk();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toBe(1);
+    expect(onForeground).toHaveBeenCalledWith({ hiddenMs: Infinity, result: { state: 'latest' } });
+    w.stop();
+  });
+  it('after 61 s hidden: checks at once despite the 5-minute gap, asks the service worker to update, and reports the hidden time', async () => {
+    const { doc, onResume, onForeground, w } = mk();
+    await vi.advanceTimersByTimeAsync(0); calls = 0; onForeground.mockClear(); onResume.mockClear();
+    await vi.advanceTimersByTimeAsync(10_000);          // 10 s after the launch check: inside the gap
+    hide(doc); await vi.advanceTimersByTimeAsync(61_000); html = page('index-bbb.js'); show(doc);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toBe(1); expect(onResume).toHaveBeenCalledTimes(1);
+    expect(onForeground).toHaveBeenCalledWith({ hiddenMs: 61_000, result: { state: 'newer', version: '0.7.1' } });
+    w.stop();
+  });
+  it('a short absence keeps the gap: no check, no service worker update', async () => {
+    const { doc, onResume, onForeground, w } = mk();
+    await vi.advanceTimersByTimeAsync(0); calls = 0; onForeground.mockClear(); onResume.mockClear();
+    await vi.advanceTimersByTimeAsync(10_000);
+    hide(doc); await vi.advanceTimersByTimeAsync(20_000); show(doc);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls).toBe(0); expect(onResume).not.toHaveBeenCalled();
+    expect(onForeground).toHaveBeenCalledWith({ hiddenMs: 20_000, result: { state: 'unknown' } });
+    w.stop();
+  });
+  it('a newer build already found is reported again at the next foreground moment', async () => {
+    html = page('index-bbb.js');
+    const { doc, onForeground, w } = mk();
+    await vi.advanceTimersByTimeAsync(100);
+    hide(doc); await vi.advanceTimersByTimeAsync(5_000); show(doc); await vi.advanceTimersByTimeAsync(0);
+    expect(onForeground).toHaveBeenLastCalledWith({ hiddenMs: 5_000, result: { state: 'newer', version: '0.7.1' } });
+    w.stop();
   });
 });

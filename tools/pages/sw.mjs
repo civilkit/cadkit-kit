@@ -1,7 +1,8 @@
 // The service worker of the published site: makes the app installable and lets it start offline after the first visit.
 // Written at build time (tools/build_pages.mjs) because it lists the exact files of that build.
 //   - install: stores the app shell (index.html, the hashed bundles, the kernel wasm, icons, manifest) in a cache named after the build
-//   - activate: drops the caches of older builds
+//   - activate: drops the caches of older builds. A lite worker first carries the kernel over from an older cache that had it (the kernel is
+//     stored only once the app used it), then refreshes it from the network in the background, so the app still starts offline right after an update
 //   - a phone or tablet registers it as sw.js?lite: the ~7 MB kernel wasm is then not stored at install (it would compete with the first
 //     load on a mobile connection and fill a small quota) but cached by the fetch handler the first time the app asks for it
 //   - fetch: the hashed assets/ files never change, so they come from the cache first; everything else (index.html, the kernel,
@@ -36,8 +37,36 @@ self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll([scope, ...PRECACHE.map((p) => new URL(p, scope).href)])).then(() => self.skipWaiting()));
 });
 
+const KERNEL = ${JSON.stringify('/' + LITE_SKIP)};
+// lite only: the kernel entries of the older caches (empty when none of them had it: the kernel was never used, so nothing is fetched)
+const carryKernel = async (olds) => {
+  const keep = [];
+  const next = await caches.open(CACHE);
+  for (const k of olds) {
+    const c = await caches.open(k);
+    for (const req of await c.keys()) {
+      if (!new URL(req.url).pathname.includes(KERNEL)) continue;
+      if (keep.includes(req.url) || await next.match(req)) continue;
+      const hit = await c.match(req);
+      if (hit && hit.ok) { await next.put(req, hit).catch(() => {}); keep.push(req.url); }
+    }
+  }
+  return keep;
+};
+
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('cadkit-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  let carried = [];
+  const ready = caches.keys().then(async (ks) => {
+    const olds = ks.filter((k) => k.startsWith('cadkit-') && k !== CACHE);
+    if (LITE) { try { carried = await carryKernel(olds); } catch (err) { /* the kernel is fetched when first used */ } }
+    await Promise.all(olds.map((k) => caches.delete(k)));
+  }).then(() => self.clients.claim());
+  e.waitUntil(ready);
+  // the carried kernel may be from the previous build: replace it with the new one (best effort, offline keeps the carried copy)
+  e.waitUntil(ready.then(async () => {
+    const next = await caches.open(CACHE);
+    await Promise.all(carried.map(async (u) => { try { const res = await fetch(u, { cache: 'reload' }); if (res.ok && res.status === 200) await next.put(u, res); } catch (err) { /* offline */ } }));
+  }));
 });
 
 const networkFirst = async (req) => {

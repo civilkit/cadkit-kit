@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { TEXT_FONTS } from '@kit/sketch';
 import { t } from './i18n';
 import { filterFaces, fontWarningKey, sortFaces, type CuratedFont, type LocalFace } from './fonts';
+import { textAttrs } from '@kit/ui';
 
 /** What a pick came to: the font is loaded and applied (with the kernel's notes), or why not. */
 export type FontOutcome = { ok: true; name: string; warnings: Array<{ code: string; detail: string }> } | { ok: false; code: string; detail: string };
@@ -84,7 +85,7 @@ export function FontPicker(p: { value: string; fonts: FontsApi; onBuiltin(name: 
       {!p.fonts.localFonts ? <div class="tp-note" data-note="system-unsupported">{t('app.font.system.unsupported')}</div> : null}
       {sys ? (
         <div class="tp-sys" role="group" aria-label={t('app.font.system')} data-testid="system-fonts">
-          <input type="text" value={sys.filter} aria-label={t('app.font.system.filter')} placeholder={t('app.font.system.filter')} spellcheck={false}
+          <input {...textAttrs} type="search" enterKeyHint="search" value={sys.filter} aria-label={t('app.font.system.filter')} placeholder={t('app.font.system.filter')}
             onInput={(e) => setSys({ ...sys, filter: (e.target as HTMLInputElement).value })} onKeyDown={(e) => e.stopPropagation()} />
           <ul class="tp-syslist">
             {hits.slice(0, SYSTEM_LIMIT).map((f) => (

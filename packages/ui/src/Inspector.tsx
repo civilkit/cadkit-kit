@@ -1,4 +1,5 @@
 import type { JSX } from 'preact';
+import { numberAttrs, textAttrs } from './keypad';
 
 export interface Field { path: string; label: string; kind: 'number' | 'boolean' | 'text' | 'choice' | 'list'; value: number | boolean | string; choices?: string[] }
 
@@ -37,10 +38,8 @@ export function Inspector(p: { feature: Record<string, unknown> | null; onSet(pa
               onChange={(e) => p.onSet(f.path, (e.currentTarget as HTMLInputElement).checked)}
             />
           ) : f.kind === 'number' ? (
-            <input
+            <input {...numberAttrs('signed')}
               type="number"
-              inputMode="decimal"
-              enterKeyHint="done"
               value={String(f.value)}
               onChange={(e) => {
                 const raw = (e.currentTarget as HTMLInputElement).value;
@@ -49,7 +48,7 @@ export function Inspector(p: { feature: Record<string, unknown> | null; onSet(pa
               }}
             />
           ) : (
-            <input
+            <input {...textAttrs}
               type="text"
               value={String(f.value)}
               onChange={(e) => p.onSet(f.path, (e.currentTarget as HTMLInputElement).value)}

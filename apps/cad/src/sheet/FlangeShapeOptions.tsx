@@ -4,7 +4,7 @@
 import type { JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import type { PartDoc } from '@ck/part-model';
-import { EditorSection as Section } from '@kit/ui';
+import { EditorSection as Section, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { Check, Num, Select } from '../FeatureOptions';
 import { activeRule, sheetThickness } from './model';
@@ -68,11 +68,11 @@ export function SpanSection(p: Props): JSX.Element {
         <>
           <label class="fedit-fld" data-path="from">
             <span class="fedit-fld-label">{t('opt.sheet.span.from')}</span>
-            <input type="text" value={shownFrom} placeholder="x, y, z" onChange={(e) => setPoint('from', (e.currentTarget as HTMLInputElement).value)} />
+            <input {...textAttrs} type="text" value={shownFrom} placeholder="x, y, z" onChange={(e) => setPoint('from', (e.currentTarget as HTMLInputElement).value)} />
           </label>
           <label class="fedit-fld" data-path="to">
             <span class="fedit-fld-label">{t('opt.sheet.span.to')}</span>
-            <input type="text" value={shownTo} placeholder="x, y, z" onChange={(e) => setPoint('to', (e.currentTarget as HTMLInputElement).value)} />
+            <input {...textAttrs} type="text" value={shownTo} placeholder="x, y, z" onChange={(e) => setPoint('to', (e.currentTarget as HTMLInputElement).value)} />
           </label>
           {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} data-act="pick-span" onClick={() => p.onPick!('span')}>{picking ? t('opt.sheet.span.done') : t('opt.sheet.span.pick')}</button> : null}
           {picking ? <span class="fedit-pick-note" data-note="pickSpan">{t(got ? 'opt.sheet.span.pickSecond' : 'opt.sheet.span.pickFirst')}</span> : null}

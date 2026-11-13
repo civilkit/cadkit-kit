@@ -4,6 +4,7 @@ import { ago } from './strings';
 import { fileNameFor, isCompressedName } from './names';
 import type { Snapshot } from './snapshots';
 import './files.css';
+import { textAttrs } from '@kit/ui';
 
 const useEscape = (f: () => void) => useEffect(() => {
   const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') f(); };
@@ -69,7 +70,7 @@ export function SaveAsDialog(p: { initial: string; /** the "keep the built geome
         <div class="dlg-head"><b>{t('files.saveAs.title')}</b></div>
         <form class="saveas-body" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <label>{t('files.saveAs.label')}
-            <input autofocus value={v} aria-label={t('files.saveAs.label')} onInput={(e) => setV((e.target as HTMLInputElement).value)} />
+            <input {...textAttrs} autofocus value={v} aria-label={t('files.saveAs.label')} onInput={(e) => setV((e.target as HTMLInputElement).value)} />
           </label>
           <small>{file ? t('files.saveAs.hint', { file }) : ' '}</small>
           <label class="saveas-gz"><input type="checkbox" checked={gz} onChange={(e) => setGz((e.target as HTMLInputElement).checked)} />{t('files.saveAs.compress')}</label>

@@ -17,6 +17,7 @@ import { massText } from '../inspect/mass';
 import { printSvg, tablesCsv, toDxf, toPdf } from './output';
 import { componentOfName, insertIds } from '../assembly/model';
 import { projectedFrame } from './model';
+import { numberAttrs, textAttrs } from '@kit/ui';
 
 export interface DrawingHost {
   partName: string; material: string;
@@ -529,13 +530,13 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         <label>{t('drawing.sheet.projection')}<select value={doc.sheet.projection} onChange={(e) => update((d) => ({ ...d, sheet: { ...d.sheet, projection: (e.target as HTMLSelectElement).value as 'third' | 'first' } }))}><option value="third">{t('drawing.sheet.third')}</option><option value="first">{t('drawing.sheet.first')}</option></select></label>
         <h4>{t('drawing.titleBlock')}</h4>
         {(['title', 'partNo', 'material', 'author', 'date', 'revision', 'mass', 'company'] as const).map((k) => (
-          <label key={k}>{t('drawing.field.' + k)}<input data-field={k} type="text" value={doc.title[k]} onInput={(e) => update((d) => ({ ...d, title: { ...d.title, [k]: (e.target as HTMLInputElement).value } }), true)} /></label>
+          <label key={k}>{t('drawing.field.' + k)}<input {...textAttrs} data-field={k} type="text" value={doc.title[k]} onInput={(e) => update((d) => ({ ...d, title: { ...d.title, [k]: (e.target as HTMLInputElement).value } }), true)} /></label>
         ))}
         {sel?.kind === 'title' ? <div class="dwg-hint">{t('drawing.titleBlock')}</div> : null}
         {selView ? (
           <>
             <h4>{t('drawing.kind.' + selView.kind)}: {selView.label}</h4>
-            <label>{t('drawing.view.label')}<input data-focus type="text" value={selView.label} onInput={(e) => update((d) => ({ ...d, views: d.views.map((v) => (v.id === selView.id ? { ...v, label: (e.target as HTMLInputElement).value } : v)) }), true)} /></label>
+            <label>{t('drawing.view.label')}<input {...textAttrs} data-focus type="text" value={selView.label} onInput={(e) => update((d) => ({ ...d, views: d.views.map((v) => (v.id === selView.id ? { ...v, label: (e.target as HTMLInputElement).value } : v)) }), true)} /></label>
             <label>{t('drawing.view.scale')}<select value={selView.scale ?? ''} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; update((d) => moveAfterScale(d, selView.id, v || null)); }}><option value="">{t('drawing.view.sheetScale')} ({doc.sheet.scale})</option>{SCALES.map((n) => <option key={n}>{n}</option>)}</select></label>
             <label class="chk"><input type="checkbox" checked={selView.hidden} onChange={(e) => setView(selView.id, { hidden: (e.target as HTMLInputElement).checked })} />{t('drawing.view.hidden')}</label>
             <label class="chk"><input type="checkbox" checked={selView.tangent} onChange={(e) => setView(selView.id, { tangent: (e.target as HTMLInputElement).checked })} />{t('drawing.view.tangent')}</label>
@@ -547,7 +548,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         {selDim ? (
           <>
             <h4>{t('drawing.dim')}</h4>
-            <label>{t('drawing.dim.text')}<input data-focus type="text" value={selDim.text ?? ''} placeholder={dimMeasure(selDim, doc, { doc, data, callout: calloutOf })} onInput={(e) => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, text: (e.target as HTMLInputElement).value || undefined } : x)) }), true)} /></label>
+            <label>{t('drawing.dim.text')}<input {...textAttrs} data-focus type="text" value={selDim.text ?? ''} placeholder={dimMeasure(selDim, doc, { doc, data, callout: calloutOf })} onInput={(e) => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, text: (e.target as HTMLInputElement).value || undefined } : x)) }), true)} /></label>
             {selDim.r !== undefined && selDim.kind !== 'callout' ? <button class="dwg-btn" onClick={() => update((d) => ({ ...d, dims: d.dims.map((x) => (x.id === selDim.id ? { ...x, kind: x.kind === 'radial' ? 'diameter' : 'radial' } : x)) }))}>{selDim.kind === 'radial' ? t('drawing.dim.diameter') : t('drawing.dim.radial')}</button> : null}
           </>
         ) : null}
@@ -569,7 +570,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
         {selBal ? (
           <>
             <h4>{t('drawing.balloon')}</h4>
-            <label>{t('drawing.balloon.number')}<input data-focus type="number" min={1} value={selBal.n} onInput={(e) => update((d) => ({ ...d, balloons: d.balloons.map((x) => (x.id === selBal.id ? { ...x, n: Math.max(1, Math.round(Number((e.target as HTMLInputElement).value) || 1)) } : x)) }))} /></label>
+            <label>{t('drawing.balloon.number')}<input {...numberAttrs('integer')} data-focus type="number" min={1} value={selBal.n} onInput={(e) => update((d) => ({ ...d, balloons: d.balloons.map((x) => (x.id === selBal.id ? { ...x, n: Math.max(1, Math.round(Number((e.target as HTMLInputElement).value) || 1)) } : x)) }))} /></label>
           </>
         ) : null}
         {bom.length ? (

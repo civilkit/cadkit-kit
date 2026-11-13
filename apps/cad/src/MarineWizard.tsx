@@ -3,7 +3,7 @@
 // back to the airfoil wizard. Reopening a built marine propeller (the record is kept on its hub sketch) works like the airfoil one. See docs/propellers.md.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { MARINE_PRESETS, freeShaftZ, marineReadout, sameMarine, validateMarine, type MarineIssue, type MarineParams } from './marineData';
 import { Seg } from './ThreadEditor';
@@ -34,7 +34,7 @@ function Num(p: { name: string; label: string; value: number; unit?: string; min
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input type="number" inputMode="decimal" enterKeyHint="done" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
+        <input {...numberAttrs(kindForMin(p.min))} type="number" step={p.step ?? 'any'} min={p.min} max={p.max} value={String(p.value)} aria-label={p.label} title={p.hintText}
           onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>
@@ -119,7 +119,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
           <label class="fedit-fld" data-path="shaftZ">
             <span class="fedit-fld-label">{t('marine.shaftZ')}</span>
             <span class="fedit-num">
-              <input type="number" inputMode="decimal" enterKeyHint="done" step={1} value={String(draft.shaftZ ?? 0)} aria-label={t('marine.shaftZ')} title={t('marine.shaftZTip')}
+              <input {...numberAttrs('signed')} type="number" step={1} value={String(draft.shaftZ ?? 0)} aria-label={t('marine.shaftZ')} title={t('marine.shaftZTip')}
                 onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) change({ shaftZ: v }); }} />
               <span class="fedit-unit">mm</span>
             </span>

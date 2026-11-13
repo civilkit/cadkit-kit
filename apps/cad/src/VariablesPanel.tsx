@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { Icon, ExprInput, errorText, resolveVariables, completions, nameError, type ExprCode, type Variable } from '@kit/ui';
+import { Icon, ExprInput, errorText, resolveVariables, completions, nameError, type ExprCode, type Variable, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import type { DocPatch } from './docFields';
 import {
@@ -138,7 +138,7 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
             const uses = docVars[i] ? usesOf(doc, docVars[i].name) : [];
             return (
               <div class={'vars-row' + (err ? ' bad' : '')} role="row" key={i} data-var={v.name}>
-                <input data-testid={'var-name-' + v.name} class={'vars-name' + (err === 'badName' || err === 'duplicateName' ? ' bad' : '')} aria-label={t('vars.col.name')} spellcheck={false} value={v.name}
+                <input {...textAttrs} data-testid={'var-name-' + v.name} class={'vars-name' + (err === 'badName' || err === 'duplicateName' ? ' bad' : '')} aria-label={t('vars.col.name')} value={v.name}
                   onInput={(e) => setRows(rows.map((x, k) => (k === i ? { ...x, name: (e.currentTarget as HTMLInputElement).value } : x)))}
                   onBlur={(e) => rename(i, (e.currentTarget as HTMLInputElement).value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }} />
@@ -149,7 +149,7 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
                 <select aria-label={t('vars.col.unit')} value={v.unit ?? ''} onChange={(e) => setField(i, { unit: (e.currentTarget as HTMLSelectElement).value })}>
                   {UNITS.map((u) => <option key={u} value={u}>{u || '-'}</option>)}
                 </select>
-                <input class="vars-comment" aria-label={t('vars.col.comment')} value={v.comment ?? ''} placeholder={t('vars.col.comment')}
+                <input {...textAttrs} class="vars-comment" aria-label={t('vars.col.comment')} value={v.comment ?? ''} placeholder={t('vars.col.comment')}
                   onInput={(e) => setRows(rows.map((x, k) => (k === i ? { ...x, comment: (e.currentTarget as HTMLInputElement).value } : x)))}
                   onBlur={(e) => { const c = (e.currentTarget as HTMLInputElement).value; if (c !== (docVars[i]?.comment ?? '')) setField(i, { comment: c }); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur(); }} />
@@ -182,7 +182,7 @@ export function VariablesPanel(p: { doc: PartDoc | null; onApply(patch: DocPatch
         </ul>
       )}
       <div class="cfg-add">
-        <input aria-label={t('vars.config.name')} placeholder={t('vars.config.name')} value={newCfg} disabled={rows.length === 0}
+        <input {...textAttrs} aria-label={t('vars.config.name')} placeholder={t('vars.config.name')} value={newCfg} disabled={rows.length === 0}
           onInput={(e) => setNewCfg((e.currentTarget as HTMLInputElement).value)} onKeyDown={(e) => { if (e.key === 'Enter') addConfig(); }} />
         <button type="button" class="btn" onClick={addConfig} disabled={!newCfg.trim() || rows.length === 0} data-testid="cfg-add">{t('vars.config.add')}</button>
       </div>

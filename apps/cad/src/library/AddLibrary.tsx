@@ -4,6 +4,7 @@ import { useState } from 'preact/hooks';
 import { t } from '../i18n';
 import { LibraryError } from './source';
 import type { LibraryRegistry, Preview } from './registry';
+import { textAttrs } from '@kit/ui';
 
 export function errText(e: unknown): string {
   if (e instanceof LibraryError) return t('library.err.' + e.code, { detail: e.detail ?? '' });
@@ -42,7 +43,7 @@ export function AddLibrary({ registry, onDone }: { registry: LibraryRegistry; on
     <div class="lib-add" data-testid="lib-add">
       <div class="cat-sub">{t('library.add.hint')}</div>
       <div class="lib-add-row">
-        <input type="text" value={text} placeholder={t('library.add.placeholder')} aria-label={t('library.add.title')} onInput={(e) => setText((e.currentTarget as HTMLInputElement).value)}
+        <input {...textAttrs} type="text" value={text} placeholder={t('library.add.placeholder')} aria-label={t('library.add.title')} onInput={(e) => setText((e.currentTarget as HTMLInputElement).value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && text.trim()) void run(() => registry.preview(text)); }} />
         <button disabled={busy || !text.trim()} onClick={() => void run(() => registry.preview(text))}>{t('library.add.fetch')}</button>
       </div>

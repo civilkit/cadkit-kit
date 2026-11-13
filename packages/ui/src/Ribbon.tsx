@@ -2,6 +2,7 @@ import type { JSX } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { t } from './i18n';
 import { Slot, type SlotItem } from './Slot';
+import { hiddenEdges, revealScroll, stepScroll } from './ribbonScroll';
 
 export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; /** Why the command is disabled right now (shown in the tooltip while it is). */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
 
@@ -93,6 +94,38 @@ export function Ribbon(p: {
     while (n < kids.length && right(kids[n]) <= room - reserve) n++;
     setFit(Math.max(1, n));
   }, [fit, sig, auto]);
+  // the strip scrolls sideways when the groups do not fit (custom groups cannot fold into the More menu): show which edge still hides something,
+  // step by one group from a chevron, and bring the tool that was just picked into view
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const metrics = (el: HTMLElement) => ({ scrollLeft: el.scrollLeft, clientWidth: el.clientWidth, scrollWidth: el.scrollWidth });
+  const syncEdges = () => { const el = row.current; if (!el) return; const e = hiddenEdges(metrics(el)); setEdges((o) => (o.left === e.left && o.right === e.right ? o : e)); };
+  useLayoutEffect(syncEdges);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    el.addEventListener('scroll', syncEdges, { passive: true });
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(syncEdges);
+    ro?.observe(el);
+    const rel = (b: HTMLElement) => b.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft;
+    let last: Element | null = null;
+    const reveal = (instant: boolean) => {
+      const on = el.querySelector<HTMLElement>('.rb-group [aria-pressed="true"]');
+      if (on === last && !instant) return;
+      last = on;
+      const to = on ? revealScroll(metrics(el), { left: rel(on), width: on.getBoundingClientRect().width }) : (instant ? 0 : null);
+      if (to !== null && Math.abs(to - el.scrollLeft) > 1) el.scrollTo({ left: to, behavior: instant ? 'auto' : 'smooth' });
+    };
+    reveal(true);
+    const mo = typeof MutationObserver === 'undefined' ? null : new MutationObserver(() => reveal(false));
+    mo?.observe(el, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-pressed'] });
+    return () => { el.removeEventListener('scroll', syncEdges); ro?.disconnect(); mo?.disconnect(); };
+  }, [sig]);
+  const step = (dir: -1 | 1) => {
+    const el = row.current;
+    if (!el) return;
+    const starts = [...el.querySelectorAll<HTMLElement>(':scope > .rb-group')].map((k) => k.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft);
+    el.scrollTo({ left: stepScroll(metrics(el), starts, dir), behavior: 'smooth' });
+  };
   const shownGroups = fit === null || fit >= groups.length ? groups : groups.slice(0, fit);
   const hidden = fit === null || fit >= groups.length ? [] : groups.slice(fit);
   const hiddenItems: SlotItem[] = hidden.flatMap((g) => g.entries.flatMap((e) => (typeof e === 'string' ? [e] : 'node' in e ? [] : e.ids)).map((id) => byId.get(id)).filter((c): c is Command => !!c).map(commandToItem));
@@ -116,6 +149,7 @@ export function Ribbon(p: {
           </button>
         ))}
       </div>
+      <div class={'rb-strip' + (edges.left ? ' edge-l' : '') + (edges.right ? ' edge-r' : '')}>
       <div class="rb-groups" ref={row}>
         {shownGroups.map((g, gi) => (
           <div class="rb-group" key={g.id} role="group" aria-label={t('group.' + g.id, undefined, g.id)}>
@@ -129,6 +163,9 @@ export function Ribbon(p: {
             {iconsOnly ? null : <div class="rb-gtitle">&nbsp;</div>}
           </div>
         ) : null}
+      </div>
+      {edges.left ? <button class="rb-edge l" data-testid="ribbon-scroll-left" aria-label={t('ui.ribbon.scrollLeft', undefined, 'Scroll the ribbon left')} onClick={() => step(-1)}>‹</button> : null}
+      {edges.right ? <button class="rb-edge r" data-testid="ribbon-scroll-right" aria-label={t('ui.ribbon.scrollRight', undefined, 'Scroll the ribbon right')} onClick={() => step(1)}>›</button> : null}
       </div>
     </div>
   );

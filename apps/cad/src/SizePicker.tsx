@@ -3,6 +3,7 @@
 // rows to those whose label contains every word typed ('m8', '8', '7089', 'iso 7093'); Enter picks the only row left.
 import { useState } from 'preact/hooks';
 import type { JSX } from 'preact';
+import { textAttrs } from '@kit/ui';
 
 export interface SizeRow { id: string; label: string; /** a small second line or tag, e.g. the standard */ note?: string }
 export type SizeMode = 'standard' | 'custom';
@@ -41,7 +42,7 @@ export function SizePicker(p: SizePickerProps): JSX.Element {
       </div>
       {p.mode === 'standard' ? (
         <>
-          <input type="search" class="size-picker-filter" value={q} placeholder={p.filterPlaceholder} aria-label={p.filterPlaceholder} data-testid={id + '-filter'}
+          <input {...textAttrs} type="search" enterKeyHint="search" class="size-picker-filter" value={q} placeholder={p.filterPlaceholder} aria-label={p.filterPlaceholder} data-testid={id + '-filter'}
             onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); if (shown.length === 1) p.onPick(shown[0].id); } }} />
           <div class="size-picker-list" role="listbox" aria-label={p.filterPlaceholder} data-testid={id + '-list'}>

@@ -4,6 +4,7 @@ import { t } from '../i18n';
 import { copyText, fmt, rowText, type Outcome, type Pick, type Row } from './measure';
 import { massText, matrixText, type MassView } from './mass';
 import type { Interference } from './kernel';
+import { numberAttrs } from '@kit/ui';
 
 export interface Box { min: number[]; max: number[] }
 export type SectionPlane = 'front' | 'top' | 'right' | 'face';
@@ -120,7 +121,7 @@ function SectionCard(p: InspectProps): JSX.Element {
         <>
           <label class="insp-field wide"><span>{t('inspect.section.offset')}</span>
             <input type="range" min={r[0]} max={r[1]} step={step} value={Math.min(r[1], Math.max(r[0], s.offset))} aria-label={t('inspect.section.offset')} onInput={(e) => p.onSection({ offset: parseFloat((e.currentTarget as HTMLInputElement).value) })} />
-            <input type="number" inputMode="decimal" enterKeyHint="done" step="any" value={+s.offset.toFixed(4)} aria-label={t('inspect.section.offsetValue')} onChange={(e) => { const v = parseFloat((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) p.onSection({ offset: v }); }} />
+            <input {...numberAttrs('signed')} type="number" step="any" value={+s.offset.toFixed(4)} aria-label={t('inspect.section.offsetValue')} onChange={(e) => { const v = parseFloat((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) p.onSection({ offset: v }); }} />
             <span class="insp-unit">mm</span></label>
           <label class="insp-flag"><input type="checkbox" checked={s.flip} onChange={(e) => p.onSection({ flip: (e.currentTarget as HTMLInputElement).checked })} />{t('inspect.section.flip')}</label>
         </>

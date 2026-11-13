@@ -1400,8 +1400,9 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
    Everything below that is scoped to phone or tablet leaves the desktop layout as it was.
    ================================================================================================================================ */
 html, body { overscroll-behavior: none; }   /* no pull-to-refresh or bounce while orbiting */
-#app { touch-action: manipulation; }   /* no double-tap zoom on the chrome; the canvas below handles its own gestures */
-#vp canvas { touch-action: none; }
+#app { touch-action: pan-x pan-y; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }   /* no double-tap zoom and no pinch-zoom of the page itself (the canvas below handles its own gestures; lists still scroll); no callout sheet or grey flash on a long press */
+#app input, #app textarea, #app .selectable, #app .he, #app .toast, #app .log, #app .issue, #app .diag { -webkit-touch-callout: default; }   /* text that can be selected keeps its Copy / Paste callout */
+#vp canvas { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }   /* a long press on the model must not start a text selection or the image callout */
 @supports (height: 1dvh) {   /* the browser's toolbars come and go on a phone: 100vh is taller than what is visible */
   html, body, #root { height: 100dvh; }
   .pal-back { padding-top: 12dvh; }
@@ -1825,3 +1826,37 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
    Fully define leaves the bar while the sketch is fully defined (the badge beside it says so) */
 @media (min-width: 901px) { .sketch-bar-wrap { left: 108px; right: 124px; transform: none; width: auto; max-width: none; align-items: center; } }
 .sketch-bar [data-action="fully-define"].done { display: none; }
+
+/* ---- iPad and phone keyboards: the sign key above the keyboard for number boxes marked data-sign, and the hidden box that holds the keyboard open after a finger lifts */
+.kb-primer { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; font-size: 16px; pointer-events: none; }
+.sign-key { position: fixed; right: 12px; bottom: calc(var(--kb-inset, 0px) + 12px); z-index: 300; min-width: var(--tap, 44px); min-height: var(--tap, 44px); border: 1px solid var(--line); border-radius: 22px; background: var(--panel); color: var(--text); font: 700 20px system-ui, sans-serif; box-shadow: 0 3px 12px #0004; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.sign-key:active { background: var(--panel-2); }
+
+/* Portrait tablet (data-narrow, a tablet no wider than 900px): ONE docked panel (the tabbed left one; properties are its Editor tab), so the canvas keeps most of the width */
+#app[data-layout="tablet"][data-narrow][data-left="docked"] { --lw: clamp(200px, var(--lw-user, 280px), 36vw); }
+#app[data-layout="tablet"][data-narrow] .sp-right { display: none; }
+/* a touch device: the panel tabs show their icon only (the name is the tooltip and the accessible label) and wrap to a second row instead of clipping or scrolling */
+#app[data-layout="tablet"] .ptabs .pt-label { display: none; }
+#app[data-layout="tablet"] .ptabs { flex-wrap: wrap; overflow: visible; justify-content: flex-start; }
+#app[data-layout="tablet"] .ptabs .pt { flex: 0 0 var(--tap); }
+/* the Part / Drawing control on a touch device: as tall as the buttons beside it, nothing cut off */
+#app[data-layout="phone"] .topbar .mode-tabs, #app[data-layout="tablet"] .topbar .mode-tabs { box-sizing: border-box; height: var(--tap); padding: 0; border: 0; box-shadow: inset 0 0 0 1px #ffffff1f; flex: none; }
+#app[data-layout="phone"] .topbar .mode-tabs .rb-btn, #app[data-layout="tablet"] .topbar .mode-tabs .rb-btn { min-height: 0; height: 100%; }
+/* the sketch ribbon stays ONE row that scrolls sideways (momentum, snap per group, edge fades and chevrons: toolbar.css); a swipe on it scrolls it and never reaches the sketch */
+/* status bar on a narrow tablet: whole items only; the counts, the pointer hint and the site links give way */
+#app[data-narrow] .status { gap: 12px; }
+#app[data-narrow] .status > * { flex: none; }
+#app[data-narrow] .status > .st-low, #app[data-narrow] .status > .st-links, #app[data-narrow] .status > .st-hover { display: none; }
+#app[data-narrow] .status .st-sketch { gap: 10px; }
+#app[data-narrow] .status .st-sketch .st-coords, #app[data-narrow] .status .st-sketch .st-delta, #app[data-narrow] .status .sk-badge { display: none; }   /* no pointer to read out; the Status group of the ribbon carries Fully defined */
+#app[data-narrow] .status > .sp { flex: 1 1 0; min-width: 0; }
+
+/* The update notice must not cover the document tab or the controls beside it: it shrinks (its text ends in an ellipsis, the full text is its tooltip) and the tab keeps a minimum width;
+   a tablet gives it a row of its own and a phone lets its text wrap */
+.topbar .update-note { flex: 0 1 auto; min-width: 0; }
+.topbar .update-note > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar .update-note .rb-btn { flex: none; }
+.topbar .tabbar, .topbar .tabstrip { min-width: 140px; }
+#app[data-layout="tablet"] .topbar:has(.update-note) { flex-wrap: wrap; }
+#app[data-layout="tablet"] .topbar .update-note { flex: 1 1 100%; order: 99; }
+#app[data-layout="tablet"] .topbar .update-note > span, #app[data-layout="phone"] .topbar .update-note > span { white-space: normal; overflow: visible; }

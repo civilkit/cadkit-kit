@@ -19,4 +19,5 @@ export { ICON_SETS, DEFAULT_ICON_SET, asIconSet, setIconSet, getIconSet, type Ic
 export { Tip, placeTip, type TipSide } from './Tip';
 export { ExprInput, VarsContext, useScope, errorText } from './ExprInput';
 export * from './expr';
+export { SignKey, numberAttrs, textAttrs, searchAttrs, flipSign, flipFocusedSign, kindForMin, wantsSign, type NumberKind } from './keypad';
 export { EditorSection, loadCollapsed, rememberCollapsed } from './EditorSection';

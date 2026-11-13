@@ -6,6 +6,7 @@ import { fieldsOf, type Field } from './Inspector';
 import { Icon, featureIconName } from './icons';
 import { ExprInput } from './ExprInput';
 import { fmtNum, isExprValue } from './expr';
+import { textAttrs } from './keypad';
 
 export interface Section {
   id: string;
@@ -351,7 +352,7 @@ export function FeatureEditor(p: {
                             ))}
                           </span>
                         ) : (
-                          <input
+                          <input {...textAttrs}
                             type="text"
                             value={refText}
                             readonly={picking}
@@ -366,7 +367,7 @@ export function FeatureEditor(p: {
                       </span>
                     ) : isRef ? (
                       <span class="fedit-ref">
-                        <input
+                        <input {...textAttrs}
                           type="text"
                           value={refText}
                           readonly={picking || isGeom}
@@ -387,7 +388,7 @@ export function FeatureEditor(p: {
                         <ExprInput value={value as number | string} label={labelOf(f)} unit={UNITS[f.path]} integer={INTEGER_FIELDS.has(f.path)} onValue={(v) => apply(f.path, v)} />
                       </span>
                     ) : (
-                      <input
+                      <input {...textAttrs}
                         type="text"
                         value={String(value)}
                         onChange={(e) => apply(f.path, (e.currentTarget as HTMLInputElement).value)}

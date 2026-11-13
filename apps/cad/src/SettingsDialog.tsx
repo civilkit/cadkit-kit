@@ -11,7 +11,7 @@ import { KNURL_EXPORT_MODES, type ExportPrefs } from './exportPrefs';
 import { UP_AXES, ORBIT_MODES, ORBIT_PIVOTS } from '@kit/viewport';
 import type { TriPrefs } from './triball/triballPrefs';
 import { THEMES, type Theme } from './theme';
-import { ICON_SETS, type IconSet } from '@kit/ui';
+import { ICON_SETS, type IconSet, textAttrs } from '@kit/ui';
 import { LAYOUT_PREFS, type LayoutPref } from './layoutMode';
 import type { LinkState } from '@kit/agent-link';
 
@@ -32,6 +32,8 @@ export function SettingsDialog(p: {
   layoutPref?: LayoutPref; onLayoutPref?(v: LayoutPref): void; onPreset(name: WorkspacePreset): void; onResetLayout?(): void; onClose(): void;
   /** Looks for a newer published version now; absent in a dev build and the desktop app. */
   onCheckUpdate?(): Promise<UpdateResult>;
+  /** Apply a newer version by itself when the app returns to the foreground and nothing is modified (absent where updates are not checked). */
+  autoUpdate?: { on: boolean; onChange(v: boolean): void };
   locale?: string; locales?: string[]; pseudo?: string; onLocale?(code: string): void;
   theme?: Theme; onTheme?(theme: Theme): void;
   /** The icon set (a preview of SolidCraft's icons beside our own). */
@@ -51,7 +53,7 @@ export function SettingsDialog(p: {
   const w = p.workspace;
   // a tab appears only when it has something to show; the last one used is remembered
   const tabs: Tab[] = [
-    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme || p.onIconSet || (p.exportPrefs && p.onExportPrefs) || p.online || (p.massPrefs && p.onMassPrefs) ? (['general'] as Tab[]) : []),
+    ...((p.locales && p.locales.length > 1 && p.onLocale) || p.onTheme || p.onIconSet || (p.exportPrefs && p.onExportPrefs) || p.online || p.autoUpdate || (p.massPrefs && p.onMassPrefs) ? (['general'] as Tab[]) : []),
     'layout',
     ...(p.sketchPrefs && p.onSketchPrefs ? (['sketching'] as Tab[]) : []),
     ...(p.navPrefs && p.onNavPrefs ? (['navigation'] as Tab[]) : []),
@@ -142,6 +144,13 @@ export function SettingsDialog(p: {
               <div class="tb-note">{t('settings.online.note')}</div>
               <div class="set-row"><span>{t('settings.online.cache', { size: p.online.cacheBytes < 1048576 ? `${Math.round(p.online.cacheBytes / 1024)} KB` : `${(p.online.cacheBytes / 1048576).toFixed(1)} MB` })}</span>
                 <button class="rb-btn" data-testid="online-clear" disabled={p.online.cacheBytes === 0} onClick={p.online.onClear}>{t('settings.online.clear')}</button></div>
+            </div>
+          ) : null}
+          {p.autoUpdate ? (
+            <div class="set-section" data-testid="auto-update-section">
+              <label class="set-row"><span>{t('settings.update.auto')}</span>
+                <input type="checkbox" checked={p.autoUpdate.on} aria-label={t('settings.update.auto')} onChange={(e) => p.autoUpdate!.onChange((e.currentTarget as HTMLInputElement).checked)} /></label>
+              <div class="tb-note">{t('settings.update.auto.note')}</div>
             </div>
           ) : null}
           {p.locales && p.locales.length > 1 && p.onLocale ? (
@@ -254,7 +263,7 @@ function AgentSection(a: AgentLinkProps) {
         <div class="set-row"><button class="rb-btn" data-testid="agent-off" onClick={() => void a.onDisconnect()}>{t('settings.agent.off')}</button></div>
       </>) : (<>
         <label class="set-row"><span>{t('settings.agent.code')}</span>
-          <input type="text" spellcheck={false} autocomplete="off" placeholder="52311-ABCD-EFGH-JKMN-PQRS" aria-label={t('settings.agent.code')} value={code}
+          <input {...textAttrs} type="text" placeholder="52311-ABCD-EFGH-JKMN-PQRS" aria-label={t('settings.agent.code')} value={code}
             onInput={(e) => setCode((e.currentTarget as HTMLInputElement).value)} onKeyDown={(e) => { if (e.key === 'Enter' && code.trim()) void link(); }} /></label>
         <div class="set-row"><button class="rb-btn" data-testid="agent-on" disabled={busy || !code.trim()} onClick={() => void link()}>{busy ? t('settings.agent.linking') : t('settings.agent.on')}</button></div>
         {a.state.state === 'error' ? <div class="tb-note" role="alert" data-tone="err">{t('settings.agent.failed', { reason: a.state.message })}</div> : null}
@@ -286,10 +295,10 @@ function KernelSection(k: NonNullable<Parameters<typeof SettingsDialog>[0]['kern
         </select></label>
       {local ? (<>
         <label class="set-row"><span>{t('settings.kernel.url')}</span>
-          <input type="text" spellcheck={false} autocomplete="off" aria-label={t('settings.kernel.url')} value={url}
+          <input {...textAttrs} type="text" aria-label={t('settings.kernel.url')} value={url}
             onInput={(e) => setUrl((e.currentTarget as HTMLInputElement).value)} onChange={() => k.onChange({ url })} /></label>
         <label class="set-row"><span>{t('settings.kernel.token')}</span>
-          <input type="password" spellcheck={false} autocomplete="off" aria-label={t('settings.kernel.token')} value={token}
+          <input {...textAttrs} type="password" aria-label={t('settings.kernel.token')} value={token}
             onInput={(e) => setToken((e.currentTarget as HTMLInputElement).value)} onChange={() => k.onChange({ token })} /></label>
         <div class="tb-note">{t('settings.kernel.token.hint')}</div>
         <div class="set-row">

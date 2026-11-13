@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { Icon, Tip, type Command } from '@kit/ui';
+import { Icon, Tip, type Command, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 
 export type MeshQuality = 'coarse' | 'normal' | 'fine';
@@ -46,7 +46,7 @@ export function ExportMenu(p: { items: Command[]; open: boolean; onOpenChange(op
               </label>
               <label>
                 <span>{t('export.chord')}</span>
-                <input type="text" inputMode="decimal" data-pref="exportChord" aria-label={t('export.chord')} placeholder={t('export.chordAuto')} value={p.meshQuality.chord} onInput={(e) => p.meshQuality!.onChord((e.currentTarget as HTMLInputElement).value)} />
+                <input {...numberAttrs('positive')} type="text" data-pref="exportChord" aria-label={t('export.chord')} placeholder={t('export.chordAuto')} value={p.meshQuality.chord} onInput={(e) => p.meshQuality!.onChord((e.currentTarget as HTMLInputElement).value)} />
               </label>
             </div>
           ) : null}

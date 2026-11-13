@@ -23,7 +23,7 @@
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="zoom/video-zoom.css">
-<style>.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}</style>
+<style>.cards.news .frame{display:block;position:relative}.cards.news video.clip{height:auto;aspect-ratio:16/9;object-fit:contain}.cards.news video.clip.portrait{aspect-ratio:auto;width:auto;max-width:100%;max-height:min(70vh,640px);margin:0 auto}.cards.news .frame:has(.portrait){text-align:center}</style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -36,7 +36,24 @@
 <div class="wrap page">
 <h1>What's new in CivilKit CAD</h1>
 <p class="lede">Release notes for every version, newest first. The app shows its version at the bottom of Settings. <a href="/docs/cad/">User guide</a> · <a href="../">Open CAD</a></p>
-<ul class="versions" aria-label="Versions"><li><a href="#v0-7-1">0.7.1</a></li><li><a href="#v0-7-0">0.7.0</a></li><li><a href="#v0-6-5">0.6.5</a></li><li><a href="#v0-6-4">0.6.4</a></li><li><a href="#v0-6-3">0.6.3</a></li><li><a href="#v0-6-2">0.6.2</a></li><li><a href="#v0-6-1">0.6.1</a></li><li><a href="#v0-6-0">0.6.0</a></li><li><a href="#v0-5-0">0.5.0</a></li><li><a href="#v0-4-0">0.4.0</a></li><li><a href="#v0-3-9">0.3.9</a></li><li><a href="#v0-3-8">0.3.8</a></li><li><a href="#v0-3-7">0.3.7</a></li><li><a href="#v0-3-6">0.3.6</a></li><li><a href="#v0-3-5">0.3.5</a></li><li><a href="#v0-3-4">0.3.4</a></li><li><a href="#v0-3-3">0.3.3</a></li><li><a href="#v0-3-2">0.3.2</a></li><li><a href="#v0-3-1">0.3.1</a></li><li><a href="#v0-3-0">0.3.0</a></li><li><a href="#v0-2-2">0.2.2</a></li><li><a href="#v0-2-1">0.2.1</a></li><li><a href="#v0-2-0">0.2.0</a></li><li><a href="#v0-1-5">0.1.5</a></li><li><a href="#v0-1-4">0.1.4</a></li><li><a href="#v0-1-3">0.1.3</a></li><li><a href="#v0-1-2">0.1.2</a></li><li><a href="#v0-1-1">0.1.1</a></li><li><a href="#v0-1-0">0.1.0</a></li></ul>
+<ul class="versions" aria-label="Versions"><li><a href="#v0-7-2">0.7.2</a></li><li><a href="#v0-7-1">0.7.1</a></li><li><a href="#v0-7-0">0.7.0</a></li><li><a href="#v0-6-5">0.6.5</a></li><li><a href="#v0-6-4">0.6.4</a></li><li><a href="#v0-6-3">0.6.3</a></li><li><a href="#v0-6-2">0.6.2</a></li><li><a href="#v0-6-1">0.6.1</a></li><li><a href="#v0-6-0">0.6.0</a></li><li><a href="#v0-5-0">0.5.0</a></li><li><a href="#v0-4-0">0.4.0</a></li><li><a href="#v0-3-9">0.3.9</a></li><li><a href="#v0-3-8">0.3.8</a></li><li><a href="#v0-3-7">0.3.7</a></li><li><a href="#v0-3-6">0.3.6</a></li><li><a href="#v0-3-5">0.3.5</a></li><li><a href="#v0-3-4">0.3.4</a></li><li><a href="#v0-3-3">0.3.3</a></li><li><a href="#v0-3-2">0.3.2</a></li><li><a href="#v0-3-1">0.3.1</a></li><li><a href="#v0-3-0">0.3.0</a></li><li><a href="#v0-2-2">0.2.2</a></li><li><a href="#v0-2-1">0.2.1</a></li><li><a href="#v0-2-0">0.2.0</a></li><li><a href="#v0-1-5">0.1.5</a></li><li><a href="#v0-1-4">0.1.4</a></li><li><a href="#v0-1-3">0.1.3</a></li><li><a href="#v0-1-2">0.1.2</a></li><li><a href="#v0-1-1">0.1.1</a></li><li><a href="#v0-1-0">0.1.0</a></li></ul>
+<section class="release" id="v0-7-2">
+<h2>0.7.2 <time datetime="2026-11-13">13 November 2026</time></h2>
+<div class="cards news">
+<article class="card"><figure class="clip" style="margin:0"><span class="frame"><video class="clip portrait" muted loop playsinline preload="none" poster="posters/tablet-layout.png" width="640" height="920" aria-label="A layout made for iPad" data-autoplay><source src="clips/tablet-layout.webm" type="video/webm"><source src="clips/tablet-layout.mp4" type="video/mp4"></video></span><h3>A layout made for iPad</h3><figcaption><p>In portrait the canvas gets two thirds of the screen, the panel tabs are icons, and the sketch ribbon is one row you swipe across, with an arrow and a fade at the edge that still hides tools.</p></figcaption></figure></article>
+<article class="card"><h3>The keyboard follows the pen</h3><p>Lift the pen or a finger after drawing a circle and the radius field opens with the keyboard up. Every field that can go negative has a plus/minus key, and pen strokes and a resting palm are handled.</p></article>
+<article class="card"><h3>Updates apply themselves</h3><p>When you come back to the installed app and a newer version is out, it reloads itself if nothing is unsaved and shows what it updated to. A setting in Settings turns this off.</p></article>
+</div>
+<details class="all"><summary>All changes in 0.7.2 (6)</summary>
+<ul>
+<li><strong>A portrait iPad gives the canvas the room.</strong> In portrait only the tabbed left panel is docked (the properties of the selected feature are in its Editor tab), the panel tabs show icons that no longer clip, the sketch ribbon stays one row that…</li>
+<li><strong>The app updates itself.</strong> When you open the installed app again (it sits suspended on an iPad for weeks) and a newer version is out, it reloads by itself and says &quot;Updated to 0.7.2&quot;, as long as nothing is unsaved and no…</li>
+<li><strong>Offline right after an update on a phone or tablet.</strong> The kernel the app had stored is kept across an update and refreshed in the background, instead of being missing until it was next used online.</li>
+<li><strong>The iPad keyboard comes up where you type.</strong> After you drag out a circle with a finger or the Apple Pencil, or pick two lines with the Dimension tool, the value field is focused from the lift itself, so Safari on an iPad raises the on-screen…</li>
+<li><strong>A minus sign on the iPad and iPhone number keys.</strong> Number boxes that can be negative (positions, offsets, rotations, move and mesh fields, mate values) show a <strong>±</strong> key above the keyboard on a touch device, and boxes that take only a positive number…</li>
+<li><strong>Apple Pencil strokes and resting palms.</strong> The Pencil draws like a finger on the sketch tools (press, drag, lift), stays steady when it rises out of hover range, and a palm touching the screen while the Pencil is down is ignored instead of…</li>
+</ul></details>
+</section>
 <section class="release" id="v0-7-1">
 <h2>0.7.1 <time datetime="2026-11-13">13 November 2026</time></h2>
 <div class="cards news">

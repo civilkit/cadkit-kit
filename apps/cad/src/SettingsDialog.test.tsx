@@ -273,3 +273,19 @@ describe('SettingsDialog, mass display', () => {
     expect(onMassPrefs).toHaveBeenLastCalledWith({ digits: 3 });
   });
 });
+
+describe('SettingsDialog, Update automatically', () => {
+  const base = { workspace: WORKSPACE_PRESETS.plasticity, onChange: () => {}, onPreset: () => {}, onClose: () => {} };
+  it('is offered only when updates are checked, shows the state and sends the change', () => {
+    const { unmount } = render(<SettingsDialog {...base} />);
+    expect(screen.queryByLabelText('Update automatically')).toBeNull();
+    unmount();
+    const onChange = vi.fn();
+    render(<SettingsDialog {...base} autoUpdate={{ on: true, onChange }} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }));
+    const box = screen.getByLabelText('Update automatically') as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenCalledWith(false);
+  });
+});

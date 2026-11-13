@@ -5,7 +5,7 @@
 // The geometry rules are in model.ts; the viewport is reached through `Sketch3dHost` so the panel is tested without WebGL.
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, numberAttrs } from '@kit/ui';
 import type { HandleDragSink, HandleSpec } from '@kit/viewport';
 import { t } from '../i18n';
 import {
@@ -413,7 +413,7 @@ export function Sketch3dPanel(p: Sketch3dPanelProps): JSX.Element {
           {mode === 'cvspline' ? (
             <label class="sk3d-fld sk3d-inline" data-path="degree">
               <span class="sk3d-lbl">{t('sk3d.degree')}</span>
-              <input type="number" min={1} max={9} step={1} value={String(degree)} aria-label={t('sk3d.degree')}
+              <input {...numberAttrs('integer')} type="number" min={1} max={9} step={1} value={String(degree)} aria-label={t('sk3d.degree')}
                 onChange={(e) => { const v = Math.round(Number((e.currentTarget as HTMLInputElement).value)); if (v >= 1 && v <= 9) { setDegree(v); live.current = { ...live.current, degree: v }; } }} />
             </label>
           ) : null}
@@ -436,7 +436,7 @@ export function Sketch3dPanel(p: Sketch3dPanelProps): JSX.Element {
             </label>
             <label class="sk3d-fld" data-path="offset">
               <span class="sk3d-lbl">{t('sk3d.offset')}</span>
-              <span class="sk3d-unit"><input type="number" step="any" value={String(offset)} aria-label={t('sk3d.offset')}
+              <span class="sk3d-unit"><input {...numberAttrs('signed')} type="number" step="any" value={String(offset)} aria-label={t('sk3d.offset')}
                 onInput={(e) => { const v = Number((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(v)) setOffset(v); }} /><span class="fedit-unit">mm</span></span>
             </label>
           </div>
@@ -472,7 +472,7 @@ export function Sketch3dPanel(p: Sketch3dPanelProps): JSX.Element {
           <div class="sk3d-xyz">
             {AXES.map(([k, label]) => (
               <label key={k} class="sk3d-axis"><span>{label}</span>
-                <input type="number" step="any" value={typed[k]} aria-label={label} data-axis={k} onInput={(e) => setTyped({ ...typed, [k]: (e.currentTarget as HTMLInputElement).value })} /></label>
+                <input {...numberAttrs('signed')} type="number" step="any" value={typed[k]} aria-label={label} data-axis={k} onInput={(e) => setTyped({ ...typed, [k]: (e.currentTarget as HTMLInputElement).value })} /></label>
             ))}
             <button type="button" class="fedit-card-btn" data-testid="sk3d-add" onClick={addTyped}>{t('sk3d.add')}</button>
           </div>
@@ -487,7 +487,7 @@ export function Sketch3dPanel(p: Sketch3dPanelProps): JSX.Element {
                 <div key={q.id} class={'sk3d-pt' + (q.id === selected ? ' sel' : '')} data-point={q.id} onClick={() => setSelected(q.id)}>
                   <span class="sk3d-id">{q.id}</span>
                   {AXES.map(([k, label]) => (
-                    <input key={k} type="number" step="any" value={fmt2(q[k])} title={fmt(q[k])} aria-label={`${q.id} ${label}`} data-axis={k}
+                    <input {...numberAttrs('signed')} key={k} type="number" step="any" value={fmt2(q[k])} title={fmt(q[k])} aria-label={`${q.id} ${label}`} data-axis={k}
                       onChange={(e) => setCoord(q.id, k, (e.currentTarget as HTMLInputElement).value)} onFocus={() => setSelected(q.id)} />
                   ))}
                   <button type="button" class="sk3d-del" data-act="delete" title={t('sk3d.delete', { id: q.id })} aria-label={t('sk3d.delete', { id: q.id })} onClick={(e) => { e.stopPropagation(); deletePoint(q.id); }}><Icon name="trash" size={15} /></button>

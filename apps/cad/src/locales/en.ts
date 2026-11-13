@@ -422,6 +422,7 @@ export const en: Catalog = {
   'settings.kernel.test.failed': 'Not usable: {reason}',
   'settings.about': 'Version {version} (app {kit}, kernel {kernel})',
   'settings.about.news': 'What\'s new',
+  'settings.update.auto': 'Update automatically', 'settings.update.auto.note': 'When you come back to the app and nothing is unsaved or being edited, a newer version is applied by reloading. Off: you get a note with a Reload button instead.',
   'settings.update.check': 'Check for updates', 'settings.update.latest': 'You have the latest version', 'settings.update.newer': 'Version {version} is available', 'settings.update.newer.generic': 'A newer version is available', 'settings.update.unknown': 'Could not check for updates', 'settings.update.last': 'Last checked: {time}',
   'settings.kernel.note': 'Switching reopens the open part on the other kernel. If the service stops or does not match this app, the built-in kernel takes over and you are told.',
   'app.status.kernel': 'Kernel', 'app.status.kernel.tip': 'Geometry kernel in use: click to change',

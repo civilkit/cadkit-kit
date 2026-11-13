@@ -1,4 +1,21 @@
 {
+  "0.7.2": [
+    {
+      "id": "tablet-layout",
+      "title": "A layout made for iPad",
+      "blurb": "In portrait the canvas gets two thirds of the screen, the panel tabs are icons, and the sketch ribbon is one row you swipe across, with an arrow and a fade at the edge that still hides tools."
+    },
+    {
+      "id": "ipad-keyboard",
+      "title": "The keyboard follows the pen",
+      "blurb": "Lift the pen or a finger after drawing a circle and the radius field opens with the keyboard up. Every field that can go negative has a plus/minus key, and pen strokes and a resting palm are handled."
+    },
+    {
+      "id": "auto-update",
+      "title": "Updates apply themselves",
+      "blurb": "When you come back to the installed app and a newer version is out, it reloads itself if nothing is unsaved and shows what it updated to. A setting in Settings turns this off."
+    }
+  ],
   "0.7.1": [
     {
       "id": "case-edges",

@@ -5,6 +5,7 @@ import type { LinkState } from '@kit/agent-link';
 import { t } from '../i18n';
 import { useSignals } from '../useSignals';
 import type { ChatSession } from './chatSession';
+import { textAttrs } from '@kit/ui';
 
 export interface ChatLink {
   state: Signal<LinkState>;
@@ -89,7 +90,7 @@ function Setup(p: { link: ChatLink; origin: string }): JSX.Element {
         <button class="rb-btn" onClick={() => { try { void navigator.clipboard.writeText(cmd); } catch { /* no clipboard */ } }}>{t('chat.setup.copy')}</button></div>
       <div>{t('chat.setup.step2')}</div>
       <label class="set-row"><span>{t('chat.setup.code')}</span>
-        <input type="text" spellcheck={false} autocomplete="off" placeholder="52311-ABCD-EFGH-JKMN-PQRS" aria-label={t('chat.setup.code')} data-testid="chat-code" value={code}
+        <input {...textAttrs} type="text" placeholder="52311-ABCD-EFGH-JKMN-PQRS" aria-label={t('chat.setup.code')} data-testid="chat-code" value={code}
           onInput={(e) => setCode((e.currentTarget as HTMLInputElement).value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter' && code.trim()) void link(); }} /></label>
       <div class="set-row"><button class="rb-btn" data-testid="chat-link" disabled={busy || !code.trim()} onClick={() => void link()}>{busy ? t('chat.setup.linking') : t('chat.setup.link')}</button></div>
       {st.state === 'error' ? <div class="tb-note" role="alert" data-tone="err">{t('chat.setup.failed', { reason: st.message })}</div> : null}

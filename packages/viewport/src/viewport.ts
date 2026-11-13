@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { OrbitRig } from './orbitrig';
-import { TouchGuard } from './touchguard';
+import { PenGuard, TouchGuard } from './touchguard';
 import { groundPlane, poseForDirection, switchUpAxis, upVector, viewDirection, type OrbitMode, type OrbitPivot, type UpAxis } from './camerarig';
 import { backToFront, finishParams, hiddenSets, lookMaterial, looksTinted, lookOpacity, pickThrough, rangeCentre, separateBodies, withoutFaces, PICK_OPACITY, type BodyViewSpec } from './bodyview';
 import { groupByFace, edgeSegments, facesGeometry, namesBox, nameOwner, withoutOwned, positionsBox, type BodyMesh, type Grouped } from './meshgeom';
@@ -165,6 +165,8 @@ export interface SketchPointerEvent {
   /** Grid spacing in plane units at the current zoom (a round number that keeps cells a comfortable size). */
   grid: number;
   mods: { shift: boolean; ctrl: boolean; alt: boolean };
+  /** What made the event: the app raises the on-screen keyboard from a finger or pen lift only. Absent on events that carry no pointer (leave, cancel). */
+  pointerType?: 'mouse' | 'pen' | 'touch';
 }
 
 /** What a sketch tool wants drawn while it works (plane coordinates). */
@@ -342,6 +344,7 @@ export class Viewport {
       orbit: (dx, dy) => this.orbitBy(dx, dy),
       onChange: () => { this.dirty = true; },
     });
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) window.addEventListener(t, this.onPenGuard, true);   // before everything else: a palm beside the pen is dropped here
     this.dom.addEventListener('pointerdown', this.onTouchDown, true);   // first: a second finger must cancel what the other listeners are about to start
     window.addEventListener('pointerup', this.onTouchEnd);
     window.addEventListener('pointercancel', this.onTouchEnd);
@@ -477,8 +480,11 @@ export class Viewport {
   /** The touch pointers that are down: a second one is a pinch or a two-finger pan, which must never select, drag a sketch point or draw a band. */
   private touch = new TouchGuard();
   /** A finger is drawing with the active sketch tool: where it went down and whether it has moved far enough to be a drag. */
-  private touchDraw: { id: number; x0: number; y0: number; started: boolean } | null = null;
+  private touchDraw: { id: number; x0: number; y0: number; started: boolean; type: 'touch' | 'pen' } | null = null;
   private onTouchDown = (e: PointerEvent): void => { if (this.touch.down(e)) this.cancelGesture(); };
+  /** A palm resting beside the pen is dropped before any other handler sees it (see PenGuard). */
+  private pen = new PenGuard();
+  private onPenGuard = (e: PointerEvent): void => { if (this.pen.drop(e, this.dom.contains(e.target as Node))) e.stopImmediatePropagation(); };
   /** Runs on the window after the canvas's own pointerup, so that handler still sees `multi` for the last finger of a pinch (no tap pick). */
   private onTouchEnd = (e: PointerEvent): void => this.touch.end(e);
   /** The system took the pointer (a scroll or a palm, a call coming in, the finger left the screen): there will be no pointerup. */
@@ -961,9 +967,10 @@ export class Viewport {
     const r = this.dom.getBoundingClientRect();
     cb?.({
       type, u: uv[0], v: uv[1], x: e.clientX - r.left, y: e.clientY - r.top,
-      tol: this.sketchUnitsPerPixel() * (e.pointerType === 'touch' ? PICK_RADIUS_TOUCH : PICK_RADIUS),   // a fingertip is wider than a mouse pointer
+      tol: this.sketchUnitsPerPixel() * (e.pointerType === 'touch' ? PICK_RADIUS_TOUCH : PICK_RADIUS),   // a fingertip is wider than a mouse pointer; a pen tip is as exact as one
       grid: this.gridStep(),
       mods: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey, alt: e.altKey },
+      pointerType: e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse',
     });
   }
 
@@ -1086,7 +1093,7 @@ export class Viewport {
   }
 
   private onLeave = (e?: PointerEvent): void => {
-    if (e?.pointerType === 'touch') return;   // a finger lifting is no "pointer left": the shape in progress and its fields stay
+    if (e?.pointerType === 'touch' || e?.pointerType === 'pen') return;   // a finger lifting, or the pen rising out of hover range, is no "pointer left": the shape in progress and its fields stay
     this.hoverPending = null;
     if (this.lastHover !== null) { this.lastHover = null; this.opts.onHover(null); }   // the pointer left: no face or edge is under it any more, so its amber tint goes
     this.setHover(null);
@@ -2443,6 +2450,7 @@ export class Viewport {
     this.disposed = true;
     this.refMeshes.dispose();
     cancelAnimationFrame(this.raf);
+    for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'] as const) window.removeEventListener(t, this.onPenGuard, true);
     this.dom.removeEventListener('pointerdown', this.onTouchDown, true);
     window.removeEventListener('pointerup', this.onTouchEnd);
     window.removeEventListener('pointercancel', this.onTouchEnd);
@@ -2712,8 +2720,8 @@ export class Viewport {
     this.down = { x: e.clientX, y: e.clientY };
     if (this.sketchEdit && e.button === 0 && e.pointerType !== 'touch' && (e.metaKey || e.ctrlKey || this.spaceHeld)) { this.modPan = { x: e.clientX, y: e.clientY, moved: false }; this.dom.setPointerCapture(e.pointerId); }
     if (this.sketchEdit && this.sketchTool) {   // a tool is active: clicks go to the tool on release
-      if (e.pointerType === 'touch' && e.isPrimary) {   // a finger: press shows what it would snap to, a drag sizes the shape, lifting places it
-        this.touchDraw = { id: e.pointerId, x0: e.clientX, y0: e.clientY, started: false };
+      if ((e.pointerType === 'touch' && e.isPrimary) || e.pointerType === 'pen') {   // a finger or the pen: press shows what it would snap to, a drag sizes the shape, lifting places it
+        this.touchDraw = { id: e.pointerId, x0: e.clientX, y0: e.clientY, started: false, type: e.pointerType };
         this.emitSketchPointer('press', e);
         this.emitSketchPointer('move', e);
       }
@@ -2760,7 +2768,7 @@ export class Viewport {
     if (this.sketchEdit && this.sketchTool) {
       const td = this.touchDraw;
       this.touchDraw = null;
-      if (td && e.pointerType === 'touch') { if (td.started || Math.hypot(e.clientX - td.x0, e.clientY - td.y0) < TOUCH_SLOP) this.emitSketchPointer('click', e); return; }
+      if (td && (e.pointerType === 'touch' || e.pointerType === 'pen')) { if (td.started || Math.hypot(e.clientX - td.x0, e.clientY - td.y0) < TOUCH_SLOP) this.emitSketchPointer('click', e); return; }
       if (d && e.button === 0 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.emitSketchPointer('click', e);
       return;
     }
@@ -2843,7 +2851,7 @@ export class Viewport {
       const td = this.touchDraw;
       if (td && !td.started && Math.hypot(e.clientX - td.x0, e.clientY - td.y0) >= TOUCH_SLOP) {
         td.started = true;
-        this.emitSketchPointer('dragstart', { clientX: td.x0, clientY: td.y0, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, pointerType: 'touch' });
+        this.emitSketchPointer('dragstart', { clientX: td.x0, clientY: td.y0, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, pointerType: td.type });
       }
       this.emitSketchPointer('move', e);
       return;

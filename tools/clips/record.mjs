@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Records the What's new clips against a built pages app (served locally, headless Chrome), one module per clip: tools/clips/NN-name.mjs
-// exports { id, viewport?, crop?, width?, fps?, run(rec, ctx) }.  Clip files go to apps/cad/public/whats-new/clips (not committed), posters to
+// exports { id, viewport?, device?, crop?, width?, fps?, run(rec, ctx) }.  device 'tablet' records a touch device (mobile metrics, touch events) at
+// the given viewport, e.g. [820, 1180] portrait with width 1640 (css px at dpr 2, so the clip has the portrait aspect).  Clip files go to apps/cad/public/whats-new/clips (not committed), posters to
 // apps/cad/public/whats-new/posters (committed, at most 60 KB).
 //   node tools/clips/record.mjs --dir dist-pages-civilkit/cad --profile <scratch dir> [--only <id>] [--chrome-port 9391]
 import { readdirSync } from 'node:fs';
@@ -34,7 +35,8 @@ try {
     const page = await Page.open(chrome.port);
     try {
       const vp = m.viewport ?? [1280, 720];
-      await page.setViewport(vp[0], vp[1], false, m.dpr ?? 2);   // retina: the page is rendered at twice the pixels
+      if (m.device === 'tablet') await page.setMobile(vp[0], vp[1], { dpr: m.dpr ?? 2 });
+      else await page.setViewport(vp[0], vp[1], false, m.dpr ?? 2);   // retina: the page is rendered at twice the pixels
       const rec = new Rec(page, { width: m.width ?? 1920, fps: m.fps ?? 22, crop: m.crop ?? null });
       await rec.install();
       const ctx = {

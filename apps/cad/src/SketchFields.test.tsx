@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact';
-import { SketchFields, parseTyped, stepText } from './SketchFields';
+import { KeyboardPrimer, PRIMER_ID, SketchFields, armKeyboardPrime, focusSketchField, primeSketchKeyboard, parseTyped, stepText } from './SketchFields';
 import './i18n';
 
 afterEach(cleanup);
@@ -155,5 +155,79 @@ describe('step arrows in a value box', () => {
     fireEvent.input(input, { target: { value: '5' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onField).toHaveBeenLastCalledWith('len', 5, true);
+  });
+});
+
+describe('the keyboard after a finger or pen lift (iOS only raises it for a focus() inside the gesture handler)', () => {
+  it('focusSketchField focuses and selects the first value field at once, and says so', () => {
+    const { container } = render(<SketchFields fields={[field]} x={10} y={10} onField={() => {}} />);
+    const input = container.querySelector('.sketch-fields input') as HTMLInputElement;
+    expect(focusSketchField()).toBe(true);
+    expect(document.activeElement).toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.selectionEnd).toBe(input.value.length);
+  });
+  it('with no field on screen it reports false and moves nothing', () => {
+    render(<div />);
+    expect(focusSketchField()).toBe(false);
+  });
+  it('focus is called synchronously from the pointerup handler path, on the primer when the field has not rendered yet', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'focus');
+    const seen: string[] = [];
+    const { container } = render(<div><KeyboardPrimer /><div data-testid="canvas" onPointerUp={() => { primeSketchKeyboard(); seen.push((document.activeElement as HTMLElement | null)?.id ?? ''); }} /></div>);
+    fireEvent.pointerUp(container.querySelector('[data-testid="canvas"]')!, { pointerType: 'pen' });
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual([PRIMER_ID]);   // already focused when the handler returns, with no waiting for a render
+    spy.mockRestore();
+  });
+  it('a focus made in pointerup is lost to the mousedown that follows, so the click after the lift makes it', () => {
+    const { container } = render(<div><KeyboardPrimer /><button data-testid="canvas" /></div>);
+    const canvas = container.querySelector('[data-testid="canvas"]') as HTMLElement;
+    armKeyboardPrime();
+    fireEvent.pointerUp(canvas, { pointerType: 'touch' });
+    expect(document.activeElement?.id).not.toBe(PRIMER_ID);   // nothing yet: pointerup does not focus
+    fireEvent.click(canvas);
+    expect(document.activeElement?.id).toBe(PRIMER_ID);       // in the click, synchronously
+    (document.activeElement as HTMLElement).blur();
+    fireEvent.click(canvas);                                  // one-shot: a later click does not steal the focus
+    expect(document.activeElement?.id).not.toBe(PRIMER_ID);
+  });
+  it('an armed focus that sees no click is dropped after 600 ms', () => {
+    vi.useFakeTimers();
+    const { container } = render(<div><KeyboardPrimer /><button data-testid="canvas" /></div>);
+    armKeyboardPrime();
+    vi.advanceTimersByTime(700);
+    fireEvent.click(container.querySelector('[data-testid="canvas"]')!);
+    expect(document.activeElement?.id).not.toBe(PRIMER_ID);
+    vi.useRealTimers();
+  });
+  it('the field that appears afterwards takes the focus from the primer (the keyboard stays up between boxes)', async () => {
+    const view = render(<div><KeyboardPrimer /></div>);
+    expect(primeSketchKeyboard()).toBe(true);
+    expect(document.activeElement?.id).toBe(PRIMER_ID);
+    view.rerender(<div><KeyboardPrimer /><SketchFields fields={[field]} x={1} y={1} seed={{ n: 1, text: null }} onField={() => {}} /></div>);
+    await Promise.resolve();
+    expect(document.activeElement?.closest('.sketch-fields')).not.toBeNull();
+  });
+  it('with useField off the primer is focused even when a field is on screen (the shape being finished takes its fields with it)', () => {
+    render(<div><KeyboardPrimer /><SketchFields fields={[field]} x={1} y={1} onField={() => {}} /></div>);
+    expect(primeSketchKeyboard(document, window, false)).toBe(true);
+    expect(document.activeElement?.id).toBe(PRIMER_ID);
+  });
+  it('the primer lets go when no field comes', () => {
+    vi.useFakeTimers();
+    render(<KeyboardPrimer />);
+    primeSketchKeyboard();
+    expect(document.activeElement?.id).toBe(PRIMER_ID);
+    vi.advanceTimersByTime(1600);
+    expect(document.activeElement?.id).not.toBe(PRIMER_ID);
+    vi.useRealTimers();
+  });
+  it('the primer is a 16 px, hidden, unsuggestive number box', () => {
+    const { container } = render(<KeyboardPrimer />);
+    const el = container.querySelector('#' + PRIMER_ID) as HTMLInputElement;
+    expect(el.getAttribute('inputmode')).toBe('decimal');
+    expect(el.getAttribute('aria-hidden')).toBe('true');
+    expect(el.getAttribute('autocorrect')).toBe('off');
   });
 });

@@ -3,7 +3,7 @@
 // rows. No state of their own beyond the combobox; the editors own the draft.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import {
   CLEARANCE_MAX, NEAREST_MARKED, THREAD_CLEARANCES, THREAD_HANDS, filterSizes, nearestSizes, readoutRows, sizeLabel, type ThreadClearance, type ThreadRow, type ThreadStd,
@@ -90,9 +90,9 @@ export function SizePicker(p: { rows: ThreadRow[]; value: string; dia: number | 
     <div class="fedit-fld" data-path="size">
       <label class="fedit-fld-label" for="thread-size-input">{t('thread.size')}</label>
       <div class="thread-combo">
-        <input id="thread-size-input" type="text" role="combobox" aria-expanded={open} aria-controls="thread-size-list" aria-autocomplete="list" autocomplete="off"
+        <input {...textAttrs} id="thread-size-input" type="text" role="combobox" aria-expanded={open} aria-controls="thread-size-list" aria-autocomplete="list"
           aria-activedescendant={open && opts.length ? `thread-size-opt-${cur}` : undefined} aria-label={t('thread.size')} title={t('thread.sizeSearch')}
-          value={shown} spellcheck={false}
+          value={shown}
           onFocus={(e) => { (e.currentTarget as HTMLInputElement).select(); setOpen(true); setAct(0); }}
           onBlur={() => { setOpen(false); setQ(null); }}
           onInput={(e) => { setQ((e.currentTarget as HTMLInputElement).value); setOpen(true); setAct(0); }}

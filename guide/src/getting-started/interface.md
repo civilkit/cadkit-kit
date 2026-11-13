@@ -26,6 +26,18 @@ The same app adapts to the screen. It chooses a layout from the window width and
 - **Tablet.** One top bar row, the ribbon compact (tabs, then its tools) and the tree and the properties docked at the sides, as on a desktop but narrower. A single open document has no tab strip.
 - **Touch on the model.** One finger orbits (or draws, with a sketch tool), two fingers pinch to zoom and pan, a tap selects. One finger dragging the view cube turns the model; a tap on a cube face, an edge or a corner snaps to that view. The arrow ring around the cube has finger-sized buttons (44 px): four arrows that turn the view a step (hold to keep turning), two roll arrows and **Home**. On a phone it is open by default, 160 px square in the top right corner so the middle of the drawing stays clear; its menu button (three dots) hides the arrows when you want the room, and sets the step size. See [Moving around the model](navigation.md). Putting a second finger down cancels whatever the first one began, so a pinch never selects or moves anything. Buttons are at least 44 px; the hide and suppress buttons of tree rows are always visible, since a finger cannot hover.
 
+## On an iPad
+
+CivilKit CAD runs in Safari on an iPad, with a finger, the Apple Pencil, or both, and with or without a hardware keyboard.
+
+- **Install it.** Open the app in Safari, tap **Share**, then **Add to Home Screen**. It then opens full screen from its own icon and works offline once it has been opened online (see [Install as an app and work offline](../reference/pwa.md)).
+- **Sketching with the Pencil.** The Pencil works like a finger on the sketch tools: press the first point, drag to size the shape and lift to place it, or tap, then tap. A hand resting on the screen while the Pencil draws is ignored, and the Pencil hovering over (or lifting off) the drawing does not drop the shape you are in the middle of.
+- **The value field opens after you lift.** When a circle you dragged out is placed, its **radius** field opens on its own and the on-screen keyboard comes up with the number keys, so you can type an exact size at once; the same goes for the value of a dimension picked with the Dimension tool. For the other tools tap the field that appears next to the shape.
+- **A minus sign.** Where the number keys have no minus, a **±** key appears above the keyboard (and next to formula fields) and changes the sign of what you have typed. Fields that take a formula or a variable have the **ƒ** key to switch to the full keyboard.
+- **Updates.** The installed app is mostly suspended rather than closed; when you open it again it checks for a newer version and, if nothing is unsaved or open for editing, reloads by itself and tells you "Updated to ...". With unsaved changes or an open edit you get a Reload note instead. **Settings > General > Update automatically** turns this off (see [Updates](../reference/pwa.md#updates)).
+- **Gestures.** One finger orbits (or draws, with a sketch tool active), two fingers pinch and pan, and a long press does not select text or open a copy menu on the model. The page itself does not zoom when you pinch or double-tap.
+- **Hardware keyboard.** With a keyboard attached the desktop keys work: type a number while a sketch tool is waiting for a size and it goes into the first field (Tab moves to the next field, Enter confirms, Escape cancels, the arrow keys step the value), Enter and Escape finish and leave a sketch, Ctrl or Cmd with Z undoes, and the one-letter tool keys (L line, A arc, C circle, R rectangle, T trim; see [Sketch tools](../sketching/tools.md)) work as on a desktop.
+
 ## The top bar
 
 From left to right:

@@ -22,3 +22,26 @@ export class TouchGuard {
     if (!this.ids.size) this.multi = false;
   }
 }
+
+/** The pen that is touching the canvas, and the touches that land beside it (a resting palm or knuckle). iPadOS usually cancels those itself; when it does not, they arrive as
+ *  ordinary touches and would orbit the view, move the sketch preview or add a second finger to a pinch while the pen draws. `drop` says which events to throw away. */
+export class PenGuard {
+  private penId: number | null = null;
+  private palm = new Set<number>();
+  /** True while the pen is on the screen. */
+  get penDown(): boolean { return this.penId !== null; }
+  /** Feed every pointerdown, pointermove, pointerup and pointercancel that reaches the canvas (`onCanvas`: the target is the canvas). Returns true when the event is a palm's and must go no further. */
+  drop(e: { type: string; pointerType: string; pointerId: number }, onCanvas: boolean): boolean {
+    const ends = e.type === 'pointerup' || e.type === 'pointercancel';
+    if (e.pointerType === 'pen') {
+      if (e.type === 'pointerdown' && onCanvas) this.penId = e.pointerId;
+      else if (ends && this.penId === e.pointerId) this.penId = null;
+      return false;
+    }
+    if (e.pointerType !== 'touch') return false;
+    if (e.type === 'pointerdown') { if (this.penId !== null && onCanvas) { this.palm.add(e.pointerId); return true; } return false; }
+    if (!this.palm.has(e.pointerId)) return false;
+    if (ends) this.palm.delete(e.pointerId);
+    return true;
+  }
+}

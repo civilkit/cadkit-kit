@@ -68,7 +68,7 @@ describe('release post', () => {
 
   it('mentions the Mac app only when asked', () => {
     expect(p.body).not.toContain('Mac app');
-    expect(buildPost({ changelog, highlights, version: '0.7.0', mac: true }).body).toContain('unsigned: first start needs right-click > Open');
+    expect(buildPost({ changelog, highlights, version: '0.7.0', mac: true }).body).toContain('unsigned: macOS blocks the first start, the release notes say how to open it');
   });
 
   it('caps the also-list and summarises the rest', () => {

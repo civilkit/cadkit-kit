@@ -46,4 +46,50 @@ describe('service worker of the published site', () => {
     expect(stored).toEqual(expect.arrayContaining(['https://example.com/app/', 'https://example.com/app/index.html', 'https://example.com/app/assets/index-abc.js', 'https://example.com/app/icons/icon-192.png']));
     expect(swSource('x', [])).toContain('c.put(req, res.clone())');
   });
+
+  // run activate against fake caches: `old` is the content of an older build's cache, `fresh` receives what the new build's cache gets
+  const activate = async (url: string, old: Record<string, string> | null, net: { fail?: boolean } = {}) => {
+    const src = swSource('new', ['index.html', 'kernel/ck_wasm.wasm']);
+    const store: Record<string, Map<string, Response>> = {};
+    if (old) store['cadkit-old'] = new Map(Object.entries(old).map(([u, b]) => [u, new Response(b)]));
+    const open = async (name: string) => {
+      const m = (store[name] ??= new Map());
+      return { keys: async () => [...m.keys()].map((u) => ({ url: u })), match: async (r: { url: string }) => m.get(r.url)?.clone(), put: async (r: string | { url: string }, res: Response) => { m.set(typeof r === 'string' ? r : r.url, res); }, addAll: async () => {} };
+    };
+    const caches = { keys: async () => Object.keys(store), delete: async (k: string) => delete store[k], open, match: async () => undefined };
+    const handlers: Record<string, (e: unknown) => void> = {};
+    const self = { location: { href: url }, registration: { scope: 'https://example.com/app/' }, addEventListener: (n: string, f: (e: unknown) => void) => { handlers[n] = f; }, skipWaiting: () => {}, clients: { claim: () => {} } };
+    const fetched: string[] = [];
+    const fetchFn = async (u: string) => { fetched.push(u); if (net.fail) throw new Error('offline'); return new Response('fresh kernel'); };
+    new Function('self', 'caches', 'URL', 'fetch', src)(self, caches, URL, fetchFn);
+    const waits: Promise<unknown>[] = [];
+    handlers.activate!({ waitUntil: (p: Promise<unknown>) => { waits.push(p); } });
+    await Promise.all(waits);
+    const text = async (name: string, u: string) => store[name]?.get(u) ? await store[name]!.get(u)!.text() : undefined;
+    return { store, text, fetched };
+  };
+  const K = 'https://example.com/app/kernel/ck_wasm.wasm';
+  it('a lite update carries the kernel over from the old cache before deleting it, then refreshes it from the network', async () => {
+    const r = await activate('https://example.com/app/sw.js?lite', { [K]: 'old kernel', 'https://example.com/app/index.html': 'old shell' });
+    expect(Object.keys(r.store)).toEqual(['cadkit-new']);
+    expect(await r.text('cadkit-new', K)).toBe('fresh kernel');
+    expect(r.fetched).toEqual([K]);
+    expect([...r.store['cadkit-new']!.keys()]).toEqual([K]);   // only the kernel is carried
+  });
+  it('a lite update offline keeps the carried kernel', async () => {
+    const r = await activate('https://example.com/app/sw.js?lite', { [K]: 'old kernel' }, { fail: true });
+    expect(await r.text('cadkit-new', K)).toBe('old kernel');
+  });
+  it('a lite update whose old cache never had the kernel fetches nothing', async () => {
+    const r = await activate('https://example.com/app/sw.js?lite', { 'https://example.com/app/index.html': 'old shell' });
+    expect(r.fetched).toEqual([]);
+    expect([...r.store['cadkit-new']!.keys()]).toEqual([]);
+    expect(Object.keys(r.store)).toEqual(['cadkit-new']);
+  });
+  it('a first lite install (no old cache) and a desktop update leave the kernel to install and the fetch handler', async () => {
+    expect((await activate('https://example.com/app/sw.js?lite', null)).fetched).toEqual([]);
+    const d = await activate('https://example.com/app/sw.js', { [K]: 'old kernel' });
+    expect(d.fetched).toEqual([]);
+    expect(Object.keys(d.store)).toEqual(['cadkit-new']);
+  });
 });

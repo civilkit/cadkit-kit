@@ -7,7 +7,7 @@ import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult } from '@kit/ui';
+import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
@@ -223,11 +223,11 @@ function NamesFields(p: { eff: Wire; change: Change }): JSX.Element {
     <>
       <label class="fedit-fld" data-path="names.0">
         <span class="fedit-fld-label">{t('opt.split.below')}</span>
-        <input type="text" value={below ?? ''} spellcheck={false} onChange={(e) => set(0, (e.currentTarget as HTMLInputElement).value)} />
+        <input {...textAttrs} type="text" value={below ?? ''} onChange={(e) => set(0, (e.currentTarget as HTMLInputElement).value)} />
       </label>
       <label class="fedit-fld" data-path="names.1">
         <span class="fedit-fld-label">{t('opt.split.above')}</span>
-        <input type="text" value={above ?? ''} spellcheck={false} onChange={(e) => set(1, (e.currentTarget as HTMLInputElement).value)} />
+        <input {...textAttrs} type="text" value={above ?? ''} onChange={(e) => set(1, (e.currentTarget as HTMLInputElement).value)} />
       </label>
     </>
   );
@@ -313,7 +313,7 @@ function BodyNameField(p: { eff: Wire; change: Change }): JSX.Element {
   return (
     <label class="fedit-fld" data-path="body">
       <span class="fedit-fld-label">{t('opt.bodyName')}</span>
-      <input type="text" value={typeof p.eff.body === 'string' ? p.eff.body : ''} spellcheck={false} onChange={(e) => p.change({ body: (e.currentTarget as HTMLInputElement).value.trim() || null })} />
+      <input {...textAttrs} type="text" value={typeof p.eff.body === 'string' ? p.eff.body : ''} onChange={(e) => p.change({ body: (e.currentTarget as HTMLInputElement).value.trim() || null })} />
     </label>
   );
 }
@@ -655,7 +655,7 @@ function LoftOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX
         {profiles.map((id, i) => (
           <label class="fedit-fld" data-path={'connectors.' + i} key={id + ':' + i}>
             <span class="fedit-fld-label">{t('opt.loft.connector', { name: all.find((s) => s.id === id)?.name ?? id })}</span>
-            <input type="number" min="0" max="1" step="0.05" placeholder={t('opt.loft.connectorAuto')} value={connectors[i] ?? ''}
+            <input {...numberAttrs('positive')} type="number" min="0" max="1" step="0.05" placeholder={t('opt.loft.connectorAuto')} value={connectors[i] ?? ''}
               onChange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; change(connectorPatch(eff, profiles.length, i, v === '' ? null : Number(v))); }} />
           </label>
         ))}
@@ -1119,7 +1119,7 @@ function FreeformOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } &
                   <span class="fedit-order-n">{i + 1}</span>
                   <label class="fedit-fld" data-path={`edits.${i}.points`}>
                     <span class="fedit-fld-label">{t('opt.freeform.points')}</span>
-                    <input type="text" value={pointsText(e.points)} placeholder="2,2; 2,3" onChange={(ev) => { const pts = parsePoints((ev.currentTarget as HTMLInputElement).value); if (pts) patch(i, { points: pts }); }} />
+                    <input {...textAttrs} type="text" value={pointsText(e.points)} placeholder="2,2; 2,3" onChange={(ev) => { const pts = parsePoints((ev.currentTarget as HTMLInputElement).value); if (pts) patch(i, { points: pts }); }} />
                   </label>
                   <button type="button" class="fedit-mini" data-act="remove" title={t('opt.order.remove')} aria-label={t('opt.order.remove')} onClick={() => setEdits(list.filter((_, k) => k !== i))}>×</button>
                 </div>

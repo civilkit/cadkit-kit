@@ -3,7 +3,7 @@
 // Changes show at once (`onChange` previews) and are one undo step when Done is pressed; Cancel puts everything back.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { worldBox, type MeshRec, type V3 } from './meshDoc';
 import { centred, onGround, turned } from './meshEdit';
@@ -57,7 +57,7 @@ export function MeshPanel(p: MeshPanelProps): JSX.Element {
       <div class="fedit-sec-fields prop-body">
         <label class="fedit-fld" data-path="name">
           <span class="fedit-fld-label">{t('mesh.name')}</span>
-          <input type="text" value={rec.name} aria-label={t('mesh.name')} onInput={(e) => patch({ name: (e.currentTarget as HTMLInputElement).value })} />
+          <input {...textAttrs} type="text" value={rec.name} aria-label={t('mesh.name')} onInput={(e) => patch({ name: (e.currentTarget as HTMLInputElement).value })} />
         </label>
         <div class="thread-hint" data-testid="mesh-info">{t('mesh.info', { tris: rec.tris.toLocaleString(), w: size[0], d: size[1], h: size[2] })}, {t(rec.watertight ? 'mesh.watertight' : 'mesh.notWatertight')}</div>
         <div class="mesh-actions">
@@ -87,13 +87,13 @@ export function MeshPanel(p: MeshPanelProps): JSX.Element {
         <div class="fedit-fld sk3d-add" data-path="position">
           <span class="fedit-fld-label">{t('mesh.position')}</span>
           <span class="mesh-xyz">
-            {AXES.map(([i, k]) => <input key={k} type="number" step="any" value={String(r4(rec.pos[i]))} aria-label={`${t('mesh.position')} ${k.toUpperCase()}`} data-axis={k} data-field="pos" onChange={(e) => vec('pos', i, (e.currentTarget as HTMLInputElement).value)} />)}
+            {AXES.map(([i, k]) => <input {...numberAttrs('signed')} key={k} type="number" step="any" value={String(r4(rec.pos[i]))} aria-label={`${t('mesh.position')} ${k.toUpperCase()}`} data-axis={k} data-field="pos" onChange={(e) => vec('pos', i, (e.currentTarget as HTMLInputElement).value)} />)}
           </span>
         </div>
         <div class="fedit-fld sk3d-add" data-path="rotation">
           <span class="fedit-fld-label">{t('mesh.rotation')}</span>
           <span class="mesh-xyz">
-            {AXES.map(([i, k]) => <input key={k} type="number" step="any" value={String(r4(rec.rot[i]))} aria-label={`${t('mesh.rotation')} ${k.toUpperCase()}`} data-axis={k} data-field="rot" onChange={(e) => vec('rot', i, (e.currentTarget as HTMLInputElement).value)} />)}
+            {AXES.map(([i, k]) => <input {...numberAttrs('signed')} key={k} type="number" step="any" value={String(r4(rec.rot[i]))} aria-label={`${t('mesh.rotation')} ${k.toUpperCase()}`} data-axis={k} data-field="rot" onChange={(e) => vec('rot', i, (e.currentTarget as HTMLInputElement).value)} />)}
           </span>
           <span class="mesh-actions">
             {AXES.map(([i, k]) => <button key={k} type="button" class="fedit-card-btn" data-turn={k} title={t('mesh.turn', { axis: k.toUpperCase() })} aria-label={t('mesh.turn', { axis: k.toUpperCase() })} onClick={() => set(turned(live.current, i))}>{k.toUpperCase()} +90</button>)}
@@ -101,7 +101,7 @@ export function MeshPanel(p: MeshPanelProps): JSX.Element {
         </div>
         <label class="fedit-fld" data-path="scale">
           <span class="fedit-fld-label">{t('mesh.scale')}</span>
-          <span class="fedit-num"><input type="number" step="any" min="0.0001" value={String(r4(rec.scale))} aria-label={t('mesh.scale')} data-testid="mesh-scale" onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0 && Number.isFinite(n)) patch({ scale: n }); }} /></span>
+          <span class="fedit-num"><input {...numberAttrs('positive')} type="number" step="any" min="0.0001" value={String(r4(rec.scale))} aria-label={t('mesh.scale')} data-testid="mesh-scale" onChange={(e) => { const n = Number((e.currentTarget as HTMLInputElement).value); if (n > 0 && Number.isFinite(n)) patch({ scale: n }); }} /></span>
         </label>
         <div class="mesh-actions">
           <button type="button" class="fedit-card-btn" data-testid="mesh-center" onClick={() => set(centred(live.current))}>{t('mesh.center')}</button>

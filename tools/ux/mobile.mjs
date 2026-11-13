@@ -4,8 +4,10 @@
 // It opens a sample, orbits, pinches and taps with real touch events, opens and closes the tree, properties and diagnostics (sheets on a phone,
 // docked panels on a tablet), and checks on the live DOM: finger-sized targets, overlays that overlap, how much of the canvas is visible,
 // that nothing makes the page scroll sideways and that dialogs fit the screen. A check that fails exits 1.
-//   node tools/ux/mobile.mjs [--out <dir>] [--url <url>] [--only phone,tablet-portrait,tablet-landscape] [--sample mounting-plate] [--dpr 2]
-// Without --url it starts the vite dev server of this checkout (set CK_REBUILD to the kernel checkout; the wasm must be served at /kernel/ck_wasm.wasm).
+//   node tools/ux/mobile.mjs --dir <build dir> [--out <dir>] [--url <url>] [--only phone,tablet-portrait,tablet-landscape] [--sample mounting-plate] [--dpr 2]
+// --dir <build dir> serves a production pages build (npm run build:pages, PAGES_OUT=...; tools/pages_serve.mjs) and tests that: no dev server, no window.__cad hook.
+// The steps that need the dev hook (camera poses, store, controller) only run when a --url points at a dev server that has it; otherwise they are listed as skipped.
+// The sketch flows work from the UI alone (the sketch is read back from the autosave after Done).
 // CHROME_BIN picks the browser; UX_CHROME_ARGS adds flags (e.g. --no-sandbox when it runs as root).
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -13,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { launchChrome, Page } from './cdp.mjs';
 import { diffPng, decodePng } from './png.mjs';
-import { startVite } from './vite.mjs';
+import { serve } from '../pages_serve.mjs';
 import { noPartReason } from './app.mjs';
 import { docsLink, licencesLink } from '../pages/siteLinks.mjs';
 
@@ -44,7 +46,7 @@ export const MAX_SHEET_SHARE_EDIT = 0.62;
 const AUDIT = `(() => {
   const MIN = ${MIN_TARGET};
   const vw = innerWidth, vh = innerHeight;
-  const cs = (e) => getComputedStyle(e);
+  const cs = (e, w) => getComputedStyle(e, w);
   const shown = (e) => {
     const r = e.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false;
     for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const s = cs(n); if (s.display === 'none' || s.visibility === 'hidden') return false; }
@@ -121,8 +123,37 @@ const AUDIT = `(() => {
   scrollTo(120, 0);
   const hscroll = { scrollWidth: Math.max(doc.scrollWidth, document.body.scrollWidth), innerWidth: vw, scrollX: scrollX };
   scrollTo(0, 0);
+  // fit: nothing may be cut off. A ribbon button must lie inside its strip, a status item must show whole, a panel tab must not clip its label, the top bar's buttons must lie inside the bar
+  const fit = (() => {
+    const inside = (r, c, t = 0.5) => r.left >= c.left - t && r.right <= c.right + t && r.top >= c.top - t && r.bottom <= c.bottom + t;
+    const ribbonCut = [], statusCut = [], tabCut = [], topCut = [];
+    const rg = document.querySelector('.ribbon-wrap .rb-groups');
+    let ribbonScroll = null;
+    if (rg && shown(rg)) { const cr = rg.getBoundingClientRect(); const lim = new DOMRect(0, cr.top, Math.min(vw, cr.right), cr.height);
+      const scrolls = rg.scrollWidth > rg.clientWidth + 1;
+      const strip = rg.parentElement; const edge = [...strip.querySelectorAll('.rb-edge')].filter(shown).map((e) => e.className);
+      const fade = ['::before', '::after'].filter((w) => cs(strip, w).opacity === '1');
+      ribbonScroll = { scrolls, sw: rg.scrollWidth, cw: rg.clientWidth, sl: Math.round(rg.scrollLeft), edge, fade, rows: new Set([...rg.querySelectorAll(':scope > .rb-group')].map((g) => Math.round(g.getBoundingClientRect().top))).size, touchAction: cs(rg).touchAction, overflowX: cs(rg).overflowX };
+      for (const b of rg.querySelectorAll('button')) { if (scrolls) break; if (!shown(b) && !(b.getBoundingClientRect().width > 0)) continue; const r = b.getBoundingClientRect(); if (r.width < 1) continue; if (r.right > lim.right + 0.5 || r.left < -0.5) ribbonCut.push({ el: name(b), box: box(b) }); } }
+    const st = document.querySelector('.status');
+    if (st && shown(st)) { const sr = st.getBoundingClientRect();
+      for (const e of st.children) { if (cs(e).display === 'none' || e.classList.contains('sp')) continue; const r = e.getBoundingClientRect(); if (r.width < 1) continue;
+        if (e.scrollWidth > e.clientWidth + 1 || r.right > sr.right + 1 || r.right > vw + 1) statusCut.push({ el: name(e), text: (e.textContent || '').slice(0, 24), sw: e.scrollWidth, cw: e.clientWidth, right: Math.round(r.right) }); } }
+    const pt = document.querySelector('.ptabs');
+    if (pt && shown(pt)) { const pr = pt.getBoundingClientRect();
+      if (pt.scrollWidth > pt.clientWidth + 1) tabCut.push({ el: 'ptabs scrolls', sw: pt.scrollWidth, cw: pt.clientWidth });
+      for (const b of pt.querySelectorAll('.pt')) { const r = b.getBoundingClientRect(); const lab = b.querySelector('.pt-label'); const labCut = lab && cs(lab).display !== 'none' && (lab.scrollWidth > lab.clientWidth + 1 || b.scrollWidth > b.clientWidth + 1);
+        if (!inside(r, pr) || labCut) tabCut.push({ el: name(b), box: box(b), label: lab ? lab.textContent : null }); } }
+    const tb = document.querySelector('.topbar');
+    if (tb && shown(tb)) { const tr = tb.getBoundingClientRect();
+      for (const e of tb.querySelectorAll('button, .mode-tabs, .search-btn')) { if (cs(e).display === 'none') continue; const r = e.getBoundingClientRect(); if (r.width < 1) continue; if (!inside(r, new DOMRect(0, tr.top, vw, tr.height))) topCut.push({ el: name(e), box: box(e) });
+        if (e.classList.contains('mode-tabs')) for (const k of e.children) { const kr = k.getBoundingClientRect(); if (!inside(kr, r)) topCut.push({ el: name(k) + ' in the Part/Drawing control', box: box(k), parent: box(e) }); } }
+      if (tb.scrollWidth > tb.clientWidth + 1) topCut.push({ el: 'topbar scrolls', sw: tb.scrollWidth, cw: tb.clientWidth }); }
+    return { ribbonScroll, ribbonCut, statusCut, tabCut, topCut, editorProps: !!document.querySelector('.ptab-body .insp-wrap') };
+  })();
   const app = document.getElementById('app');
   return {
+    fit,
     layout: app && app.dataset.layout, coarse: matchMedia('(pointer: coarse)').matches, hover: matchMedia('(hover: hover)').matches, w: vw, h: vh,
     chrome, barLines, iconOff, iconSizes, tiny, rowActs, overlaps, offscreen, canvasBox: canvas, canvasVisible: visible, hscroll,
     tray: (() => { const t = document.querySelector('.tool-tray'); if (!t) return null; const st = t.querySelector('.tt-strip'); const sr = st.getBoundingClientRect(); const tops = [...st.querySelectorAll('.tt-group .slot-btn')].map((e) => Math.round(e.getBoundingClientRect().top));
@@ -137,11 +168,15 @@ const AUDIT = `(() => {
 
 const results = [];
 let failures = 0;
+export const MIN_CANVAS_WIDTH_PORTRAIT = 0.6;
 function check(profile, step, name, ok, detail = '') {
   results.push({ profile, step, name, ok: !!ok, detail });
   if (!ok) failures++;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${profile} / ${step} / ${name}${detail && !ok ? '  ' + detail : ''}`);
 }
+
+const skipped = [];
+function skip(profile, step, why) { skipped.push({ profile, step, why }); console.log(`skip ${profile} / ${step}  (${why})`); }
 
 async function rectOf(page, selector, text) {
   return page.eval(`(() => {
@@ -201,7 +236,10 @@ async function openSample(page, url) {
   for (let i = 0; i < 30; i++) { if (await rectOf(page, 'button', 'Restore')) { await tapOn(page, 'button', 'Restore'); break; } await sleep(150); }
   await idle(page); await sleep(700);
   // stop here with the cause (the kernel worker did not load, the sample did not restore) rather than fail every later check
-  const why = await noPartReason(page);
+  // hook-free: a part is open when the tree has feature rows (a production build has no window.__cad)
+  const partOpen = `!/no part open/i.test(document.querySelector('.topbar')?.textContent || '') && /ready/i.test(document.querySelector('.status')?.textContent || document.querySelector('.bottom-nav')?.textContent || 'ready')`;
+  for (let i = 0; i < 60 && !(await page.eval(partOpen)); i++) await sleep(250);
+  const why = (await page.eval(`!!window.__cad`)) ? await noPartReason(page) : (await page.eval(partOpen)) ? null : 'no part open (the top bar says so)';
   if (why) throw new Error(why);
 }
 
@@ -211,6 +249,19 @@ function common(profile, step, a, p) {
   check(profile, step, `no target under ${MIN_TARGET}px`, a.tiny.length === 0, a.tiny.slice(0, 6).map((t) => `${t.el} ${t.box[2]}x${t.box[3]}`).join('; ') + (a.tiny.length > 6 ? ` (+${a.tiny.length - 6})` : ''));
   check(profile, step, 'no overlapping overlays', a.overlaps.length === 0, a.overlaps.slice(0, 4).map((o) => `${o.a} x ${o.b} (${o.area}px2)`).join('; '));
   check(profile, step, 'overlays stay on screen', a.offscreen.length === 0, a.offscreen.slice(0, 4).map((o) => o.el + ' ' + o.box.join(',')).join('; '));
+}
+
+/** Nothing cut off: the ribbon's buttons, the status items, the panel tabs and the top bar (and, on a narrow tablet, the canvas keeps its share of the width). */
+function fitChecks(profile, step, a, p, { canvas = true } = {}) {
+  const f = a.fit;
+  const fmt = (l) => l.slice(0, 4).map((o) => `${o.el}${o.text ? ' "' + o.text + '"' : ''} ${(o.box ?? []).join(',')}`).join('; ');
+  const rs = f.ribbonScroll;
+  check(profile, step, 'every ribbon button is reachable: it fits, or the strip scrolls and shows an edge affordance (fade + chevron)', f.ribbonCut.length === 0 && (!rs || !rs.scrolls || (rs.edge.length > 0 && rs.fade.length > 0)), fmt(f.ribbonCut) + (rs ? ' ' + JSON.stringify(rs) : ''));
+  if (rs && rs.scrolls) check(profile, step, 'the ribbon is one row (it scrolls, it does not wrap)', rs.rows === 1, JSON.stringify(rs));
+  check(profile, step, 'no status item is truncated' + (a.w <= 900 ? '' : ' (checked in portrait only)'), a.w > 900 || f.statusCut.length === 0, f.statusCut.slice(0, 4).map((o) => `${o.el} "${o.text}" ${o.sw}>${o.cw}`).join('; '));
+  check(profile, step, 'panel tab labels are not clipped', f.tabCut.length === 0, fmt(f.tabCut) || JSON.stringify(f.tabCut));
+  check(profile, step, 'the top bar is not clipped (Part / Drawing, buttons)', f.topCut.length === 0, fmt(f.topCut) || JSON.stringify(f.topCut));
+  if (canvas && p.layout === 'tablet' && a.w <= 900) check(profile, step, `the canvas has at least ${MIN_CANVAS_WIDTH_PORTRAIT * 100}% of the width in portrait`, a.canvasBox[2] >= MIN_CANVAS_WIDTH_PORTRAIT * a.w, `${a.canvasBox[2]} of ${a.w} (${(a.canvasBox[2] / a.w * 100).toFixed(0)}%)`);
 }
 
 /** The view cube: reachable by a finger, drawn in the theme (not black), a drag turns the model, a tap on a face snaps to that view. */
@@ -582,14 +633,176 @@ async function sketchFlows(page, id, p) {
   check(id, 'sketch', 'the sketch bar goes away with the sketch', await page.eval(`!document.querySelector('.sketch-actions')`));
 }
 
+/** The sketch as the autosave holds it: entity counts by type, read back from the production app's own storage (no dev hook). Needs a moment after Done. */
+const sketchCounts = (page) => page.eval(`(() => { try { const d = JSON.parse(localStorage.getItem('cad.autosave.v1')).doc; const c = {}; for (const f of d.features) for (const e of (f.entities ?? [])) c[e.type] = (c[e.type] ?? 0) + 1; return JSON.stringify(c); } catch (e) { return '{}'; } })()`).then(JSON.parse);
+const focusInfo = (page) => page.eval(`(() => { const a = document.activeElement; const f = document.querySelector('#vp .sketch-fields input'); return { tag: a && a.tagName, inField: !!a && !!a.closest('.sketch-fields'), primer: a && a.id === 'sketch-kb-primer', mode: a && a.getAttribute('inputmode'), hint: a && a.getAttribute('enterkeyhint'), fields: !!f, fieldBox: f ? (() => { const r = f.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; })() : null }; })()`);
+/** A pen stroke as Chrome can send it: mouse events that carry pointerType 'pen' (the page sees pointer events with pointerType pen). */
+const pen = (page, type, x, y, buttons = 1) => page.send('Input.dispatchMouseEvent', { type, x, y, button: type === 'mouseMoved' && !buttons ? 'none' : 'left', buttons, clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'pen', force: buttons ? 0.5 : 0 });
+
+/** The sketch ribbon is one row that scrolls: a real finger swipe on it scrolls it (and draws nothing), and scrolling to the end brings Dimension and the last constraint button fully inside the strip. */
+async function ribbonReach(page, id, a) {
+  const info = () => page.eval(`(() => { const rg = document.querySelector('.ribbon-wrap .rb-groups'); if (!rg) return null; const r = rg.getBoundingClientRect();
+    const inside = (b) => { if (!b) return null; const q = b.getBoundingClientRect(); return q.left >= r.left - 0.5 && q.right <= Math.min(r.right, innerWidth) + 0.5 && q.top >= r.top - 0.5 && q.bottom <= r.bottom + 0.5; };
+    const btns = [...rg.querySelectorAll('button')]; const dim = btns.find((b) => /dimension/i.test((b.getAttribute('aria-label') || '') + b.textContent));
+    const cg = [...rg.querySelectorAll('.rb-group')].find((g) => /constrain/i.test(g.getAttribute('aria-label') || '')); const cb = cg ? [...cg.querySelectorAll('button')].pop() : null;
+    return { sl: Math.round(rg.scrollLeft), max: rg.scrollWidth - rg.clientWidth, x: r.x, y: r.y, w: r.width, h: r.height, dim: !!dim, dimIn: inside(dim), lastIn: inside([...rg.querySelectorAll('button')].pop()), lastConstraint: !!cb, lastConstraintIn: inside(cb), ents: window.__cad?.controller ? window.__cad.controller.sketchDraft().entities.length : null, canvasEvents: window.__ribbonSpy ? window.__ribbonSpy.n : null, status: document.querySelector('[data-testid="status-sketch"]')?.textContent ?? '' }; })()`);
+  // production build: no dev hook, so count what reaches the drawing area instead (any press on it would start a sketch tool), and the status readout
+  await page.eval(`(() => { const vp = document.getElementById('vp'); window.__ribbonSpy = { n: 0 }; document.addEventListener('touchstart', (e) => { const t0 = e.touches[0]; window.__ribbonSpy.doc = (e.target.className || e.target.tagName) + ' @' + Math.round(t0.clientX) + ',' + Math.round(t0.clientY) + ' vv=' + Math.round(visualViewport.offsetTop) + '/' + Math.round(visualViewport.pageTop) + '/' + visualViewport.scale + ' sy=' + scrollY + ' efp=' + ((x) => x ? x.tagName + '.' + x.className : null)(document.elementFromPoint(t0.clientX, t0.clientY)) + ' wrap=' + JSON.stringify(document.querySelector('.ribbon-wrap').getBoundingClientRect().toJSON()) + ' cancelable=' + e.cancelable + ' sl=' + document.querySelector('.rb-groups').scrollLeft; }, true);
+    for (const t of ['pointerdown', 'touchstart', 'mousedown']) vp.addEventListener(t, (e) => { window.__ribbonSpy.n++; window.__ribbonSpy.last = t + ' ' + (e.target.className || e.target.tagName) + ' @' + Math.round(e.clientX) + ',' + Math.round(e.clientY) + ' type=' + e.pointerType; }, true); return 1; })()`);
+  const i0 = await info();
+  if (!i0) { check(id, 'ribbon-reach', 'the sketch ribbon strip exists', false); return; }
+  check(id, 'ribbon-reach', 'the Dimension tool is on the ribbon', i0.dim);
+  if (i0.max <= 1) { check(id, 'ribbon-reach', 'the whole ribbon fits: Dimension and the last constraint are inside the strip', i0.dimIn !== false && i0.lastConstraintIn !== false, JSON.stringify(i0)); return; }
+  // a real swipe, starting on a group title (a plain spot of the strip), to the left
+  const y = i0.y + i0.h - 8, x0 = i0.x + i0.w * 0.8, x1 = i0.x + i0.w * 0.2;
+  await page.swipe(x0, y, x1, y, { steps: 12, ms: 16 }); await sleep(700);
+  const i1 = await info();
+  check(id, 'ribbon-reach', 'a finger swipe on the ribbon scrolls it', i1.sl > i0.sl + 20, `scrollLeft ${i0.sl} -> ${i1.sl} of ${i0.max}`);
+  check(id, 'ribbon-reach', 'the swipe on the ribbon created no sketch entity and no press reached the drawing area', i1.ents === i0.ents && i1.canvasEvents === 0 && i1.status === i0.status, `entities ${i0.ents} -> ${i1.ents}; events on the canvas ${i1.canvasEvents}; status "${i0.status}" -> "${i1.status}"`);
+  await shot(page, `${id}-9b-ribbon-swiped`);
+  { const b0 = await info(); await page.swipe(i0.x + i0.w * 0.85, y, i0.x + i0.w * 0.1, y, { steps: 8, ms: 12 }); await sleep(600); const b1 = await info(); console.log('     DIAG second swipe before chevron: sl', b0.sl, '->', b1.sl, 'events', b1.canvasEvents); }
+  // the chevron on the right scrolls by one group
+  const before = i1.sl; const chev = await tapOn(page, '.rb-edge.r'); await sleep(700); const i2 = await info(); console.log('     after chevron:', JSON.stringify(i2));
+  check(id, 'ribbon-reach', 'the edge chevron scrolls the ribbon on', !chev || i2.sl > before || before >= i2.max - 2, `scrollLeft ${before} -> ${i2.sl}`);
+  // a swipe right after the chevron (back towards the start) still scrolls the strip and does not reach the drawing area
+  { const c0 = await info(); await page.swipe(i0.x + i0.w * 0.2, y, i0.x + i0.w * 0.8, y, { steps: 10, ms: 14 }); await sleep(700); const c1 = await info();
+    check(id, 'ribbon-reach', 'a swipe after the chevron scrolls the strip back and reaches no sketch tool', c1.sl < c0.sl - 20 && c1.canvasEvents === 0, `scrollLeft ${c0.sl} -> ${c1.sl}; events on the canvas ${c1.canvasEvents} (last: ${await page.eval('window.__ribbonSpy.last')}; doc: ${await page.eval('window.__ribbonSpy.doc')})`); }
+  // to the end
+  for (let k = 0; k < 12; k++) { const c = await info(); if (c.sl >= c.max - 2) break; await page.swipe(i0.x + i0.w * 0.5, i0.y + 30, i0.x + i0.w * 0.05, i0.y + 30, { steps: 12, ms: 16 }); await sleep(900); }
+  const iE = await info();
+  check(id, 'ribbon-reach', 'none of the swipes on the ribbon reached the drawing area', iE.canvasEvents === 0, `${iE.canvasEvents} (last ${await page.eval('window.__ribbonSpy.last')})`);
+  check(id, 'ribbon-reach', 'scrolled to the end, the last button of the last group is fully inside the strip', iE.sl >= iE.max - 2 && iE.lastIn === true, JSON.stringify(iE));
+  check(id, 'ribbon-reach', 'at the end the right chevron is gone and the left one is there', await page.eval(`!document.querySelector('.ribbon-wrap .rb-edge.r') && !!document.querySelector('.ribbon-wrap .rb-edge.l')`), JSON.stringify(iE));
+  // Dimension and the last constraint button each come fully into view by scrolling (they are in the middle of the strip, so not both at the end)
+  for (const [what, sel] of [['Dimension', 'dim'], ['the last constraint button', 'cons']]) {
+    const r = await page.eval(`(() => { const rg = document.querySelector('.ribbon-wrap .rb-groups'); const btns = [...rg.querySelectorAll('button')];
+      const el = ${sel === 'dim' ? "btns.find((b) => /dimension/i.test((b.getAttribute('aria-label') || '') + b.textContent))" : "(() => { const g = [...rg.querySelectorAll('.rb-group')].find((g) => /constrain/i.test(g.getAttribute('aria-label') || '')); return g ? [...g.querySelectorAll('button')].pop() : null; })()"};
+      if (!el) return null; const g = el.closest('.rb-group'); rg.scrollLeft = g.offsetLeft - 8; const b = el.getBoundingClientRect(), s = rg.getBoundingClientRect(); return { in: b.left >= s.left - 0.5 && b.right <= Math.min(s.right, innerWidth) + 0.5, w: Math.round(b.width), h: Math.round(b.height) }; })()`);
+    check(id, 'ribbon-reach', `${what} can be scrolled fully inside the strip`, !!r && r.in, JSON.stringify(r));
+  }
+  await page.eval(`(() => { const rg = document.querySelector('.ribbon-wrap .rb-groups'); const g = [...rg.querySelectorAll('.rb-group')].find((g) => /dimension/i.test(g.getAttribute('aria-label') || '')); rg.scrollLeft = g ? g.offsetLeft - 8 : rg.scrollLeft; })()`); await sleep(500);
+  await shot(page, `${id}-9d-ribbon-dimension`);
+  await page.eval(`document.querySelector('.ribbon-wrap .rb-groups').scrollLeft = 1e5`); await sleep(500);
+  await shot(page, `${id}-9c-ribbon-end`);
+  a = await audit(page); fitChecks(id, 'ribbon-end', a, { layout: 'tablet' }, { canvas: false });
+  // back to the start for the rest of the flow
+  await page.eval(`document.querySelector('.ribbon-wrap .rb-groups').scrollLeft = 0`); await sleep(400);
+}
+
+/** A sketch on a tablet or phone, from the UI alone: a rectangle with a finger (drag), a circle with a finger (the radius field is focused after the lift), a circle with the pen,
+ *  hover with the pen, a palm beside the pen, a long press. Reads back through the DOM and the autosave. */
+async function touchSketchFlows(page, id, p) {
+  let a;
+  if (p.layout === 'phone') {
+    await tapOn(page, '.bottom-nav button[data-nav="tools"]'); await tapOn(page, '.tool-tray .tt-tab', 'Home');
+    check(id, 'tsketch', 'the new sketch list opens', await tapOn(page, '.tool-tray .slot[data-slot="new-sketch"] .slot-more'));
+  } else {
+    check(id, 'tsketch', 'the new sketch list opens', await tapOn(page, '.slot[data-slot="new-sketch"] .slot-more') || await tapOn(page, '.slot[data-slot="new-sketch"] .slot-btn'));
+  }
+  check(id, 'tsketch', 'a plane is chosen', await tapOn(page, '.slot-flyout [data-testid="cmd-sketch-new-front"]'));
+  await sleep(2500);
+  await shot(page, `${id}-9-sketch-open`);
+  a = await audit(page);
+  common(id, 'tsketch-open', a, p);
+  if (p.layout === 'tablet') { fitChecks(id, 'tsketch-open', a, p, { canvas: false });
+    await ribbonReach(page, id, a); }
+  const pickTool = async (slot) => {
+    if (p.layout === 'phone') { await tapOn(page, '.bottom-nav button[data-nav="tools"]'); return tapOn(page, `.tool-tray .slot[data-slot="${slot}"] .slot-btn`); }
+    return (await tapOn(page, `.slot[data-slot="${slot}"] .slot-btn`)) || (await tapOn(page, `.tool-rail [data-slot="${slot}"] .slot-btn`));
+  };
+  const cv = a.canvasBox, cx = cv[0] + cv[2] * 0.5, cy = cv[1] + cv[3] * 0.4, k = Math.min(1, cv[2] / 640, cv[3] / 520);   // offsets shrink on a small canvas (a phone, a docked portrait tablet)
+  // a rectangle: finger down on a corner, drag, lift
+  check(id, 'tsketch', 'the rectangle tool is picked', await pickTool('rectangle'));
+  await sleep(400);
+  await page.touch('touchStart', [{ x: cx - 100*k, y: cy - 60*k }]); await sleep(60);
+  for (let i = 1; i <= 8; i++) { await page.touch('touchMove', [{ x: cx - 100*k + (160*k * i) / 8, y: cy - 60*k + (100*k * i) / 8 }]); await sleep(30); }
+  await shot(page, `${id}-9-sketch-rect-drag`);
+  await page.touch('touchEnd'); await sleep(1200);
+  let f = await focusInfo(page);
+  await shot(page, `${id}-9-sketch-rect-lifted`);
+  console.log(`     after the rectangle lift: ${JSON.stringify(f)}`);
+  // finger: circle drag -> the radius field is focused after the lift (Chrome cannot show iOS's keyboard: assert the focus and the keypad attributes)
+  await pickTool('circle'); await sleep(400);
+  await page.touch('touchStart', [{ x: cx + 120*k, y: cy + 140*k }]); await sleep(60);
+  for (let i = 1; i <= 8; i++) { await page.touch('touchMove', [{ x: cx + 120*k + (60*k * i) / 8, y: cy + 140*k }]); await sleep(30); }
+  await page.touch('touchEnd');
+  await sleep(150);
+  const primerNow = await focusInfo(page);   // just after the click that follows the lift: the hidden box (or already the field) holds the focus
+  for (let i = 0; i < 24 && !(await focusInfo(page)).inField; i++) await sleep(250);
+  f = await focusInfo(page);
+  await shot(page, `${id}-9-sketch-circle-lifted`);
+  check(id, 'tsketch', 'just after the finger lifts the focus is in a text box (the hidden primer, or the field; iOS needs a focus in the click after the lift)', primerNow.tag === 'INPUT', JSON.stringify(primerNow));
+  check(id, 'tsketch', 'then the radius field has the focus with the decimal keypad and a Done key', f.inField && f.mode === 'decimal' && f.hint === 'done', JSON.stringify(f));
+  check(id, 'tsketch', 'the radius field is on screen and finger sized', !!f.fieldBox && f.fieldBox[1] >= 0 && f.fieldBox[1] + f.fieldBox[3] <= a.h && f.fieldBox[3] >= 28, JSON.stringify(f.fieldBox));
+  const sign = await page.eval(`!!document.querySelector('#vp .sketch-fields .expr-sign')`);
+  check(id, 'tsketch', 'the field has the sign key (and the formula key) beside it', sign);
+  await page.eval(`document.activeElement.select && document.activeElement.select()`);
+  await page.send('Input.insertText', { text: '15' }); await page.key('Enter'); await sleep(900);
+  // the pen: a circle by a stroke, with hover first (pointermove with no button)
+  await pickTool('circle'); await sleep(400);
+  for (let i = 0; i < 4; i++) { await pen(page, 'mouseMoved', cx - 200*k + i * 10, cy + 150*k, 0); await sleep(30); }
+  await pen(page, 'mousePressed', cx - 200*k, cy + 150*k);
+  for (let i = 1; i <= 8; i++) { await pen(page, 'mouseMoved', cx - 200*k + (70*k * i) / 8, cy + 150*k); await sleep(30); }
+  await pen(page, 'mouseReleased', cx - 130*k, cy + 150*k, 0); 
+  await sleep(150);
+  const penNow = await focusInfo(page);
+  for (let i = 0; i < 24 && !(await focusInfo(page)).inField; i++) await sleep(250);
+  f = await focusInfo(page);
+  await shot(page, `${id}-9-sketch-pen-circle`);
+  check(id, 'tsketch', 'a pen stroke (press, drag, lift) places a circle and focuses its radius field', f.inField, JSON.stringify([penNow, f]));
+  await page.key('Escape'); await sleep(300);
+  // the pen leaves hover range after a lift: the shape in progress and its fields stay (a line: first point by a tap)
+  await pickTool('line'); await sleep(400);
+  await pen(page, 'mouseMoved', cx, cy + 200*k, 0); await pen(page, 'mousePressed', cx, cy + 200*k); await pen(page, 'mouseReleased', cx, cy + 200*k, 0); await sleep(300);
+  await page.eval(`(() => { const c = document.querySelector('#vp canvas'); c.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'pen', bubbles: false })); })()`); await sleep(300);
+  const keep = await page.eval(`!!document.querySelector('#vp .sketch-fields')`);
+  check(id, 'tsketch', 'the pen rising out of hover range does not drop the line in progress and its fields', keep);
+  await page.key('Escape'); await sleep(300);
+  // a palm beside the pen: pen down and dragging a circle while a touch lands elsewhere and moves
+  await pickTool('circle'); await sleep(400);
+  await pen(page, 'mouseMoved', cx - 200*k, cy - 150*k, 0);
+  await pen(page, 'mousePressed', cx - 200*k, cy - 150*k);
+  await page.touch('touchStart', [{ x: cx + 200*k, y: cy + 80*k }]);
+  for (let i = 1; i <= 8; i++) { await pen(page, 'mouseMoved', cx - 200*k + (50*k * i) / 8, cy - 150*k); await page.touch('touchMove', [{ x: cx + 200*k + 10 * i, y: cy + 80*k + 5 * i }]); await sleep(30); }
+  await page.touch('touchEnd');
+  await pen(page, 'mouseReleased', cx - 150*k, cy - 150*k, 0);
+  for (let i = 0; i < 24 && !(await focusInfo(page)).inField; i++) await sleep(250);
+  await shot(page, `${id}-9-sketch-palm`);
+  f = await focusInfo(page);
+  check(id, 'tsketch', 'a palm touch beside the pen does not disturb the pen stroke (the circle is placed, no pinch)', f.inField, JSON.stringify(f));
+  await page.key('Escape'); await sleep(300);
+  // a long press on the canvas: no text selection, no callout
+  await page.touch('touchStart', [{ x: cx, y: cy - 200*k }]); await sleep(900); await page.touch('touchEnd'); await sleep(300);
+  const sel = await page.eval(`(() => { const s = getSelection(); const c = document.querySelector('#vp canvas'); const cs = getComputedStyle(c); return { text: s ? s.toString() : '', ta: cs.touchAction, us: cs.userSelect || cs.webkitUserSelect, callout: cs.getPropertyValue('-webkit-touch-callout') }; })()`);
+  check(id, 'tsketch', 'a long press on the canvas selects no text and the canvas has touch-action none', sel.text === '' && sel.ta === 'none' && sel.us === 'none', JSON.stringify(sel));
+  const chromeCss = await page.eval(`(() => { const cs = getComputedStyle(document.getElementById('app')); return { ta: cs.touchAction, callout: cs.getPropertyValue('-webkit-touch-callout') }; })()`);
+  check(id, 'tsketch', 'the app chrome forbids page pinch-zoom and double-tap zoom (touch-action pan-x pan-y)', chromeCss.ta === 'pan-x pan-y', JSON.stringify(chromeCss));
+  await page.key('Escape');
+  await tapOn(page, p.layout === 'phone' ? '.sketch-actions [data-act="done"]' : '[data-action="sketch-ok"]');
+  await sleep(2500);
+  await shot(page, `${id}-9-sketch-done`);
+  let counts = await sketchCounts(page);
+  for (let i = 0; i < 16 && (counts.circle ?? 0) < 2; i++) { await sleep(500); counts = await sketchCounts(page); }   // the autosave follows a moment later
+  console.log('     sketch contents after Done (autosave):', JSON.stringify(counts));
+  check(id, 'tsketch', 'the finished sketch holds the rectangle (4 lines) and circles', (counts.line ?? 0) >= 4 && (counts.circle ?? 0) >= 2, JSON.stringify(counts));
+}
+
+/** Every number box and text box that shows in the panels the run opened: the keypad attributes the iPad keyboard reads. */
+async function keyboardAudit(page, id) {
+  const rows = await page.eval(`(() => [...document.querySelectorAll('input, textarea')].filter((e) => e.getBoundingClientRect().width > 0 && !['checkbox','radio','range','file','color','hidden'].includes(e.type)).map((e) => ({ type: e.type, mode: e.getAttribute('inputmode'), sign: e.hasAttribute('data-sign'), ac: e.getAttribute('autocapitalize'), label: e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.className })))()`);
+  const bad = rows.filter((r) => (r.type === 'number' || r.mode === 'decimal' || r.mode === 'numeric') ? !r.mode : (r.type === 'text' || r.type === 'search') && r.mode !== 'text' && !r.ac);
+  check(id, 'keyboard', 'every visible number box has an inputmode and every visible text box has autocapitalize set', bad.length === 0, JSON.stringify(bad.slice(0, 6)));
+}
+
 /** A fresh start (nothing stored), a sample from the Library picker: it takes the empty first part, so one document is open and no empty second tab appears. */
 async function freshSample(page, url, id, p) {
   await page.eval(`localStorage.clear(); localStorage.setItem('cad.theme', '"light"'); 0`);
   await page.send('Page.reload'); await sleep(1000);
   for (let i = 0; i < 80 && !(await page.eval(`!!document.querySelector('.status')`)); i++) await sleep(150);
   await idle(page); await sleep(500);
-  const before = await page.eval(`window.__cad.controller.document()?.features.length ?? -1`);
-  check(id, 'fresh', 'a fresh start opens one empty part', before === 0, `features ${before}`);
+  const rows = () => page.eval(`(document.querySelector('.topbar .doc-name, .topbar .doc-switch, .topbar .tab.active')?.textContent || document.querySelector('.topbar')?.textContent || '').trim()`);   // the document's title in the top bar stands in for the document (no dev hook)
+  const before = await rows();
+  check(id, 'fresh', 'a fresh start opens an empty part (the stored sample is gone)', !/mounting plate/i.test(before), `title ${before}`);
   if (p.layout === 'phone') await pickMenu(page, 'phone-file', 'library'); else await tapOn(page, '.topbar button', 'library');
   await sleep(600);
   await tapOn(page, '.dlg-list .dlg-item');
@@ -597,8 +810,8 @@ async function freshSample(page, url, id, p) {
   let docs;
   if (p.layout === 'phone') { await tapOn(page, '.doc-switch'); docs = await page.eval(`[...document.querySelectorAll('.doc-list [data-list-tab]')].map((e) => e.textContent.trim())`); await shot(page, `${id}-9-fresh-doclist`); await page.tap(200, 500); }
   else docs = await page.eval(`[...document.querySelectorAll('.tabstrip .tab')].map((e) => e.textContent.trim())`);
-  const features = await page.eval(`window.__cad.controller.document()?.features.length ?? -1`);
-  check(id, 'fresh', 'the sample opened', features > 0, `features ${features}`);
+  let features = await rows(); for (let i = 0; i < 20 && features === before; i++) { await sleep(300); features = await rows(); }
+  check(id, 'fresh', 'the sample opened', features !== before, `title ${before} -> ${features}`);
   check(id, 'fresh', 'the sample took the empty part: one document, no stray empty tab', docs.length <= 1, JSON.stringify(docs));
 }
 
@@ -708,7 +921,16 @@ async function runProfile(page, url, p) {
   } else {
     await tapOn(page, '.tree-wrap.docked .tree .row', 'Extrude'); await sleep(500);   // a feature row (not the material or a plane)
     a = await audit(page); await shot(page, `${id}-3-docked`);
-    check(id, 'docked', 'tree and properties are docked', a.docked.tree && a.docked.props, JSON.stringify(a.docked));
+    const narrow = a.w <= 900;
+    check(id, 'docked', narrow ? 'portrait: only the tree is docked (one panel), the properties are its Editor tab' : 'tree and properties are docked', narrow ? a.docked.tree && !a.docked.props : a.docked.tree && a.docked.props, JSON.stringify(a.docked));
+    fitChecks(id, 'docked', a, p);
+    if (narrow) {
+      check(id, 'docked', 'the Editor tab opens', await tapOn(page, '.ptabs [data-testid="left-tab-Editor"]'));
+      const b = await audit(page); await shot(page, `${id}-3-props`);
+      check(id, 'docked', 'the selected feature\'s properties are in the Editor tab', b.fit.editorProps);
+      check(id, 'docked', 'the properties tab stays inside the screen (no sideways scroll, canvas width kept)', b.hscroll.scrollWidth <= b.hscroll.innerWidth && b.canvasBox[2] >= MIN_CANVAS_WIDTH_PORTRAIT * b.w, `${b.canvasBox[2]} of ${b.w}`);
+      await tapOn(page, '.ptabs [data-testid="left-tab-Features"]');
+    }
     common(id, 'docked', a, p);
     check(id, 'docked', 'row buttons need no hover', a.rowActs.length > 0 && a.rowActs.every((o) => o > 0.9), JSON.stringify(a.rowActs));
     check(id, 'docked', `canvas at least ${MIN_CANVAS_VISIBLE * 100}% visible (tree and properties docked)`, a.canvasVisible >= MIN_CANVAS_VISIBLE, `${(a.canvasVisible * 100).toFixed(0)}% of ${a.canvasBox}`);
@@ -722,19 +944,24 @@ async function runProfile(page, url, p) {
   }
 
   // 3b. the view cube, the busy pill, then (on a phone) the tool strip, the editor split sheet and the sketch drawn with a finger
-  await cubeFlows(page, id, p);
-  await busyFlows(page, id, p);
-  await notesFlows(page, id, p);
+  const hook = await page.eval(`!!window.__cad`);
+  if (hook) { await cubeFlows(page, id, p); await busyFlows(page, id, p); await notesFlows(page, id, p); }
+  else skip(id, 'cube, busy pill, notes', 'need the dev hook (window.__cad); a production build has none');
   await siteLinkFlows(page, id, p);
-  if (p.layout === 'phone') { await phoneFlows(page, id, p); await sketchFlows(page, id, p); }
+  if (hook && p.layout === 'phone') { await phoneFlows(page, id, p); await sketchFlows(page, id, p); }
+  else if (p.layout === 'phone') skip(id, 'phone editor flows and the hook-based sketch flow', 'need the dev hook');
+  await touchSketchFlows(page, id, p);
+  await keyboardAudit(page, id, p);
 
   // 4. dialogs
   check(id, 'samples', 'the Library dialog opens', p.layout === 'phone' ? await pickMenu(page, 'phone-file', 'library') : await tapOn(page, '.topbar button', 'library'));
+  for (let i = 0; i < 40 && !(await page.eval(`!!document.querySelector('.dlg')`)); i++) await sleep(150);
   a = await page.eval(`(() => { const d = document.querySelector('.dlg'); if (!d) return null; const r = d.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight, list: !!document.querySelector('.dlg-list') }; })()`);
   await shot(page, `${id}-4-samples`);
   check(id, 'samples', p.layout === 'phone' ? 'fills the screen' : 'fits the screen', !!a && a.x >= -1 && a.y >= -1 && a.x + a.w <= a.vw + 1 && a.y + a.h <= a.vh + 1 && (p.layout !== 'phone' || (a.w >= a.vw - 2 && a.h >= a.vh - 2)), JSON.stringify(a));
-  await tapOn(page, '.dlg-head button');
+  await tapOn(page, '.dlg-head button', 'close'); await sleep(400);
   check(id, 'settings', 'the settings dialog opens', p.layout === 'phone' ? await pickMenu(page, 'phone-more', 'settings') : await tapOn(page, '.topbar button', 'settings'));
+  for (let i = 0; i < 40 && !(await page.eval(`!!document.querySelector('.dlg')`)); i++) await sleep(150);   // the dialog is a lazy chunk in a production build
   a = await page.eval(`(() => { const d = document.querySelector('.dlg'); if (!d) return null; const r = d.getBoundingClientRect(); const t = document.querySelector('.set-tabs'); const tabs = [...document.querySelectorAll('.set-tab')]; return { x: r.x, y: r.y, w: r.width, h: r.height, vw: innerWidth, vh: innerHeight, tabsOverflow: t ? getComputedStyle(t).overflowX : null, tabsScroll: t ? t.scrollWidth : 0, tabsClient: t ? t.clientWidth : 0, minTab: Math.min(...tabs.map((e) => e.getBoundingClientRect().height)), layoutSelect: !!document.querySelector('select[aria-label="Screen layout"]') }; })()`);
   await shot(page, `${id}-4-settings`);
   check(id, 'settings', p.layout === 'phone' ? 'fills the screen' : 'fits the screen', !!a && a.x >= -1 && a.y >= -1 && a.x + a.w <= a.vw + 1 && a.y + a.h <= a.vh + 1 && (p.layout !== 'phone' || (a.w >= a.vw - 2 && a.h >= a.vh - 2)), JSON.stringify(a));
@@ -746,14 +973,52 @@ async function runProfile(page, url, p) {
   a = await page.eval(`document.querySelector('.dlg') === null`);
   check(id, 'settings', 'the dialog closes', a);
   await freshSample(page, url, id, p);
+  await noticeFlows(page, id, p, '5-update-note', url);
+  if (id === 'tablet-landscape') {   // the same note at a desktop width (no touch)
+    await page.clearMobile(); await page.setViewport(1280, 800, false, 1);
+    await noticeFlows(page, 'desktop', p, '5-update-note', url);
+  }
   await page.clearMobile();
+}
+
+/** The "a new version is available" note in the top bar (shown when an update is found and nothing is applied automatically): it must not print over the document tab
+ *  or any control of the top bar, and must stay on the screen. The page is made to see a newer build (a fetch that answers with another bundle name, a clock ten minutes on)
+ *  and automatic updates are turned off so it only shows the note. */
+async function noticeFlows(page, id, p, label, url) {
+  // the update watch is off on localhost: open the same server through 0.0.0.0
+  // Date.now can be skewed (the 5-minute gap between checks) and fetch answers with another bundle name once window.__newer is set; both are inert until then
+  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const d = Date.now.bind(Date); window.__skew = 0; Date.now = () => d() + window.__skew; const real = window.fetch.bind(window);
+    window.fetch = async (u, i) => { if (!window.__newer) return real(u, i); const s = String((u && u.url) || u); if (/version\\.json/.test(s)) return new Response(JSON.stringify({ version: '9.9.9', kit: 'x', kernel: 'x' }));
+      if (s.split('?')[0] === location.origin + location.pathname) { const r = await real(u, i); const t = await r.text(); return new Response(t.replace(/(assets\\/)([^"'/]*\\.js)/, '$1zz-9.js'), { headers: { 'content-type': 'text/html' } }); } return real(u, i); }; })()` });
+  await page.goto(url.replace('127.0.0.1', '0.0.0.0')); await sleep(1500);
+  for (let i = 0; i < 80 && !(await page.eval(`!!document.querySelector('.topbar .rb-btn, .topbar .tb-icon')`).catch(() => false)); i++) await sleep(150);
+  await sleep(800);
+  await page.eval(`(() => { localStorage.setItem('cad.autoUpdate', 'false'); window.__newer = true; window.__skew = 10 * 60000; document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); })()`);
+  let ok = false;
+  for (let i = 0; i < 40 && !ok; i++) { ok = await page.eval(`!!document.querySelector('.topbar .update-note')`); if (!ok) await sleep(150); }
+  check(id, label, 'the update note shows when a newer build is found', ok);
+  if (!ok) return;
+  await page.eval(`(() => { const s = document.querySelector('.update-note > span'); s.textContent += ' You have unsaved changes: save first, then reload.'; s.title = s.textContent; })()`);   // the longest wording
+  await sleep(300); await shot(page, `${id}-${label}`);
+  const r = await page.eval(`(() => {
+    const n = document.querySelector('.topbar .update-note'), nr = n.getBoundingClientRect(), vw = innerWidth;
+    const others = [...document.querySelectorAll('.topbar .tab, .topbar .doc-name, .topbar .mode-tabs, .topbar .search-btn, .topbar .install-btn, .topbar button, .topbar .slot')].filter((e) => !n.contains(e) && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().width > 0);
+    const hit = others.filter((e) => { const r = e.getBoundingClientRect(); return Math.min(r.right, nr.right) - Math.max(r.left, nr.left) > 2 && Math.min(r.bottom, nr.bottom) - Math.max(r.top, nr.top) > 2; }).map((e) => (e.className || e.tagName) + ' ' + Math.round(e.getBoundingClientRect().x));
+    const t = document.querySelector('.topbar .tab.active .tab-name, .topbar .doc-name'); const tw = t ? (t.scrollWidth <= t.clientWidth + 1 ? 999 : t.getBoundingClientRect().width) : null;   // a title that shows whole is fine at any width
+    const btns = [...n.querySelectorAll('button')].map((b) => b.getBoundingClientRect()).every((b) => b.left >= 0 && b.right <= vw + 0.5);
+    return { hit, inside: nr.left >= -0.5 && nr.right <= vw + 0.5, tabWidth: tw, btns, box: [Math.round(nr.x), Math.round(nr.y), Math.round(nr.width), Math.round(nr.height)], hs: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= vw };
+  })()`);
+  check(id, label, 'the update note covers no tab title or top bar control', r.hit.length === 0, r.hit.join('; '));
+  check(id, label, 'the update note and its buttons stay on the screen, no sideways scroll', r.inside && r.btns && r.hs, JSON.stringify(r));
+  check(id, label, 'the document title shows whole, or keeps at least 40px, beside the note', r.tabWidth === null || r.tabWidth >= 40, String(r.tabWidth));
 }
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  const vite = args.url ? null : await startVite(ROOT, SCRATCH); const url = args.url ?? vite.url;
+  if (!args.url && !args.dir) { console.error('--dir <pages build dir> (or --url <url>) is required'); process.exit(2); }
+  const server = args.url ? null : await serve(resolve(String(args.dir)), { port: 0, prefix: '/' }); const url = args.url ?? `http://127.0.0.1:${server.address().port}/`;
   const chrome = await launchChrome({ port: CHROME_PORT, profileDir: join(existsSync(SCRATCH) ? SCRATCH : tmpdir(), 'chrome-profile-ux-mobile') });
-  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { chrome.close(); vite?.stop(); process.exit(130); });
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { chrome.close(); server?.close(); process.exit(130); });
   const only = args.only ? String(args.only).split(',') : null;
   try {
     const page = await Page.open(CHROME_PORT);
@@ -763,8 +1028,8 @@ async function main() {
     }
     if (page.logs.length) console.log('\nconsole errors:\n  ' + [...new Set(page.logs)].slice(0, 8).join('\n  '));
     page.close();
-  } finally { chrome.close(); vite?.stop(); }
-  writeFileSync(join(OUT, 'mobile-report.json'), JSON.stringify({ at: new Date().toISOString(), results }, null, 1));
+  } finally { chrome.close(); server?.close(); }
+  writeFileSync(join(OUT, 'mobile-report.json'), JSON.stringify({ at: new Date().toISOString(), results, skipped }, null, 1));
   const total = results.length;
   console.log(`\n${total - failures}/${total} checks passed${failures ? `, ${failures} FAILED` : ''}. Report and screenshots: ${OUT}`);
   process.exit(failures ? 1 : 0);

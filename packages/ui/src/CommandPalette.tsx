@@ -2,6 +2,7 @@ import type { JSX } from 'preact';
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { Command } from './Ribbon';
 import { t } from './i18n';
+import { textAttrs } from './keypad';
 
 /** Search popup over the single command registry. Enter runs the highlighted command, Esc closes. */
 export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onClose(): void; onRun?(c: Command): void }): JSX.Element {
@@ -23,7 +24,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   return (
     <div class="pal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) p.onClose(); }}>
       <div class="pal" role="dialog" aria-label={t('ui.palette.label')}>
-        <input
+        <input {...textAttrs} type="search" enterKeyHint="search"
           ref={input}
           placeholder={t('ui.palette.search')}
           aria-label={t('ui.palette.search')}

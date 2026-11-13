@@ -5,7 +5,7 @@
 // Rules: bearing.ts.
 import { useEffect, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { bearingIssue, bearingNumbers, bearingSeat, BEARING_AXES, BEARING_SEALS, findBearings, SEAT_FITS, withPreset, type BearingParams } from './bearing';
 import { bearingPreset } from '@kit/script';
@@ -27,7 +27,7 @@ function Num(p: { name: string; label: string; value: number; unit?: string; min
     <label class="fedit-fld" data-path={p.name}>
       <span class="fedit-fld-label">{p.label}</span>
       <span class="fedit-num">
-        <input type="number" inputMode="decimal" enterKeyHint="done" step={p.step ?? 'any'} min={p.min} value={String(p.value)} aria-label={p.label} title={p.hintText}
+        <input {...numberAttrs(kindForMin(p.min))} type="number" step={p.step ?? 'any'} min={p.min} value={String(p.value)} aria-label={p.label} title={p.hintText}
           onChange={(e) => { const raw = (e.currentTarget as HTMLInputElement).value; const v = Number(raw); if (raw.trim() !== '' && Number.isFinite(v)) p.onChange(v); }} />
         {p.unit ? <span class="fedit-unit">{p.unit}</span> : null}
       </span>
@@ -80,7 +80,7 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
       <div class="fedit-sec-fields prop-body">
         <label class="fedit-fld" data-path="search">
           <span class="fedit-fld-label">{t('bearing.search')}</span>
-          <input type="search" value={search} placeholder={t('bearing.searchHint')} aria-label={t('bearing.search')} title={t('bearing.searchTip')} onInput={(e) => onSearch((e.currentTarget as HTMLInputElement).value)} />
+          <input {...textAttrs} type="search" enterKeyHint="search" value={search} placeholder={t('bearing.searchHint')} aria-label={t('bearing.search')} title={t('bearing.searchTip')} onInput={(e) => onSearch((e.currentTarget as HTMLInputElement).value)} />
         </label>
         <label class="fedit-fld" data-path="preset">
           <span class="fedit-fld-label">{t('bearing.preset')}</span>

@@ -26,7 +26,7 @@ import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
-import { setIconSet, type IconSet } from '@kit/ui';
+import { setIconSet, SignKey, type IconSet } from '@kit/ui';
 import { createWebPlatform, fileText } from '@kit/platform';
 import { Controller, type ViewEdge, type ViewSink } from './controller';
 import { TabSet } from './tabs/tabSet';
@@ -175,7 +175,7 @@ import { freeFeatureNumber, outlineCandidates } from './sheet/flangeSketch';
 import { legGeometry } from './sheet/legGeometry';
 import { tabForSheetChange } from './sheet/model';
 import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
-import { SketchFields, appendSeed } from './SketchFields';
+import { SketchFields, KeyboardPrimer, appendSeed, armKeyboardPrime, primeSketchKeyboard } from './SketchFields';
 import { TextPanel } from './TextPanel';
 import { PatternPanel } from './PatternPanel';
 import { EquationPanel } from './EquationPanel';
@@ -199,7 +199,8 @@ import { applyTheme, asTheme, type Theme } from './theme';
 import { loadIconSet, chooseIconSet } from './iconSetPref';
 import { t } from './i18n';
 import { featureRows, refRows, treeKnurlRows } from './treeModel';
-import { watchForUpdate, runningBundle, fetchVersion, shouldWatch, reloadGuarded, type UpdateWatch } from './updateCheck';
+import { watchForUpdate, runningBundle, fetchVersion, shouldWatch, reloadGuarded, decideUpdate, rememberUpdated, takeUpdated, updateServiceWorker, type UpdateWatch } from './updateCheck';
+import { loadAutoUpdate, saveAutoUpdate } from './updatePrefs';
 import { UpdateNotice } from './UpdateNotice';
 import { runsInstalled, registerServiceWorker, watchInstall, type InstallEvent } from './installPrompt';
 import { installDismissGuard } from './dismissGuard';
@@ -225,7 +226,7 @@ import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assem
 import { createAssemblyState } from './assembly/state';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
 import { layoutHandles, layoutStyle, resetLayout } from './useLayout';
-import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, layout, layoutPref, viewportInfo, watchViewport } from './layoutMode';
+import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, layout, layoutPref, narrowTablet, viewportInfo, watchViewport } from './layoutMode';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
@@ -538,6 +539,7 @@ function App() {
   const [guardSave, setGuardSave] = useState<(() => Promise<void>) | null>(null);   // what Save does in the unsaved-changes dialog when it is not the file save (a component tab: write back)
   const [update, setUpdate] = useState<{ version?: string } | null>(null);   // a newer build was published while this tab was open
   const updateWatch = useRef<UpdateWatch | null>(null);
+  const anyDirtyRef = useRef<() => boolean>(() => false);
   const [installEv, setInstallEv] = useState<InstallEvent | null>(null);   // the browser can install the site as an app: the top bar then shows an Install button (see installPrompt.ts)
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
@@ -659,6 +661,8 @@ function App() {
   const sketchToolRef = useRef<string | null>(null);
   /** Characters typed while no typed-entry field had focus yet (see the digit branch of the sketch keys), and the seed the fields component puts in the first field. */
   const seedBufRef = useRef('');
+  /** The kind of pointer behind the last sketch pointer event (a finger or pen lift may need the keyboard raised from the handler itself). */
+  const lastPointerTypeRef = useRef<'mouse' | 'pen' | 'touch'>('mouse');
   const [fieldSeed, setFieldSeed] = useState<{ n: number; text: string | null }>({ n: 0, text: '' });
   // Select mode: the picked entity and the size field shown beside it.
   const textPickRef = useRef<string | null>(null);
@@ -745,11 +749,11 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; });
   const stored = store.workspace.value;   // what Settings edits and what is saved; the layout draws a variant of it
   const phone = layout.value === 'phone';
   const phoneOrTablet = layout.value !== 'desktop';
-  const ws = effectiveWorkspace(stored, layout.value);
+  const ws = effectiveWorkspace(stored, layout.value, narrowTablet.value);
 
   useEffect(() => {
     const vp = new Viewport(host.current!, {
@@ -968,6 +972,7 @@ function App() {
     return !!d && tb.cleanSig !== null && sigOf(d) !== tb.cleanSig;
   };
   const anyDirty = (): boolean => tabSet.tabs.some(tabDirty);
+  anyDirtyRef.current = anyDirty;
   /** What a tab being left must keep: its file, its unsaved-changes mark, its look and its camera. */
   const parkActive = () => {
     const cur = tabSet.active;
@@ -2431,7 +2436,10 @@ function App() {
     if (out.draft !== draft && constructionModeRef.current && entry.group === 'draw') out.draft = markNewAsConstruction(draft, out.draft);
     toolStateRef.current = out.state;
     // the Dimension tool just resolved what it measures (two lines: their angle ...): its value field takes the focus, selected, ready to be typed over
-    if (entry.id === 'dimension' && out.fields.length && !lastOutRef.current?.fields.length) setFieldSeed((s0) => ({ n: s0.n + 1, text: null }));
+    if (entry.id === 'dimension' && out.fields.length && !lastOutRef.current?.fields.length) {
+      setFieldSeed((s0) => ({ n: s0.n + 1, text: null }));
+      if (ev.type === 'click' && lastPointerTypeRef.current !== 'mouse') { primeSketchKeyboard(document, window, false); armKeyboardPrime(); }   // a finger or pen lift: focus inside the click that follows, or iOS shows no keyboard
+    }
     lastOutRef.current = out;
     viewport?.setSketchPreview([...(out.preview as SketchPreviewShape[]), ...snapVisuals(draft, snap, out)]);
     readout.snapAt.value = snap ? snap.at : null;
@@ -2500,7 +2508,12 @@ function App() {
     selEntityRef.current = { kind, id, x, y };
     applyHighlight();
     setEntityOut({ fields: kind === 'entity' ? entityDims(draft, id) : pointDims(draft, id), x, y });
-    if (focus) setTimeout(() => { const f = document.querySelector<HTMLInputElement>('.sketch-fields input'); f?.focus(); f?.select(); }, 30);
+    if (focus) {   // the fields render a moment later; try again while the focus is not in them yet (the first try can meet the shape's own live fields, which go away with the lift)
+      for (const ms of [30, 250, 700]) setTimeout(() => {
+        if (selEntityRef.current?.id !== id || document.activeElement?.closest?.('.sketch-fields')) return;
+        const f = document.querySelector<HTMLInputElement>('.sketch-fields input'); f?.focus(); f?.select();
+      }, ms);
+    }
   };
   const selectEntity = (id: string | null, x: number, y: number, focus = false) => selectItem('entity', id, x, y, focus);
   /** The text entity picked in Select mode (its panel is open), else null. */
@@ -2800,6 +2813,7 @@ function App() {
       return;
     }
     lastPosRef.current = { x: ev.x, y: ev.y };
+    lastPointerTypeRef.current = ev.pointerType ?? 'mouse';
     toolTolRef.current = ev.tol;
     const draft = controller.sketchDraft();
     if (!draft) return;
@@ -2819,7 +2833,12 @@ function App() {
     if (ev.type === 'click') {
       const t0 = touchRef.current;
       touchRef.current = null;
-      if (t0?.dragged && sketchToolRef.current === 'circle') touchPlaceRef.current = new Set(draft.entities.map((x) => x.id));
+      if (t0?.dragged && sketchToolRef.current === 'circle') {
+        touchPlaceRef.current = new Set(draft.entities.map((x) => x.id));
+        // the radius field takes the focus once the solver has answered (later, outside this handler): iOS shows no keyboard for that, so the focus is parked on the hidden box in the click that follows the lift
+        primeSketchKeyboard(document, window, false);   // a drag has no mousedown or click after it, so the focus made here stays
+        armKeyboardPrime();      // a tap does (the browser's mousedown takes the focus off it again): focus once more in the click
+      }
     }
     runTool({ type: ev.type, at, snap, mods: ev.mods });
     // Resting the pointer on the chain end flips the line tool between a line and a tangent arc; moving off re-arms it.
@@ -4231,6 +4250,14 @@ function App() {
   // after a catalog drop the new shape is the selection: its tree row and its size box
   useEffect(() => setShapeSelector((id) => { selectShapeFeature(id); }), []);
   const chatPanel = <ChatPanel session={chatSession} link={agentLink} />;
+  const inspector = (
+    <PanelBoundary name="inspector" resetKey={selectedId}>
+      <Inspector feature={feature} warnings={selectedId ? (store.featureWarnings.value[selectedId]?.all ?? (store.featureWarnings.value[selectedId] ? [store.featureWarnings.value[selectedId]] : [])) : []} onSet={(path, value) => {
+        clearTimeout(pending);
+        pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
+      }} />
+    </PanelBoundary>
+  );
   const left = ws.leftPanel === 'hidden' && !phone ? null : (
     <div class={'tree-wrap ' + (phone ? 'sheeted' : ws.leftPanel) + (ws.leftTabs ? ' tabbed' : '')}>
       {ws.leftTabs ? (
@@ -4249,7 +4276,7 @@ function App() {
             : leftTab === 'Script' ? scriptPanel
             : leftTab === 'Bodies' ? bodiesPanel
             : leftTab === 'Chat' ? chatPanel
-            : editor}
+            : narrowTablet.value && !editingNow && feature ? <div class="insp-wrap">{inspector}</div> : editor}   {/* one docked panel on a narrow tablet: the properties are the Editor tab */}
           </div>
         </>
       ) : leftBody}
@@ -4257,14 +4284,6 @@ function App() {
   );
   // the properties panel only exists while there is a feature to show: no empty column, nothing to close
   const rightMode = feature ? ws.rightPanel : 'off';
-  const inspector = (
-    <PanelBoundary name="inspector" resetKey={selectedId}>
-      <Inspector feature={feature} warnings={selectedId ? (store.featureWarnings.value[selectedId]?.all ?? (store.featureWarnings.value[selectedId] ? [store.featureWarnings.value[selectedId]] : [])) : []} onSet={(path, value) => {
-        clearTimeout(pending);
-        pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
-      }} />
-    </PanelBoundary>
-  );
   const right = rightMode === 'off' ? null : <div class={'insp-wrap ' + rightMode}>{inspector}</div>;
   // phone: the editor while a feature (or material, or wizard) is being edited, else the properties of the selected feature
   const emptySheet = (key: string) => <div class="sheet-empty">{t(key)}</div>;
@@ -4358,13 +4377,40 @@ function App() {
     if (lq) lq.setConsumer((p) => { if (p.files.length) void Promise.all(p.files.map((h) => h.getFile())).then((fs) => dropFilesRef.current(fs)); });
     return () => { removeEventListener('dragenter', enter); removeEventListener('dragover', over); removeEventListener('dragleave', leave); removeEventListener('drop', drop); };
   }, []);
+  const [autoUpdate, setAutoUpdate] = useState(loadAutoUpdate);
+  const changeAutoUpdate = (v: boolean) => { setAutoUpdate(v); saveAutoUpdate(v); };
+  // "Updated to <version>" after a reload for an update (the note was left in sessionStorage by the page that reloaded)
+  useEffect(() => { const u = takeUpdated(); if (u) store.notify(u.version ? t('app.update.done', { version: u.version }) : t('app.update.done.generic')); }, []);
+  // anything the user is in the middle of: an edit, a sketch, a wizard or panel, a dialog, or a touch since the app came to the foreground
+  const busyRef = useRef(false);
+  busyRef.current = !!(editingId || sketching || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || guard || settings);
+  const touched = useRef(false);
+  useEffect(() => {
+    const mark = () => { touched.current = true; };
+    const opts = { capture: true, passive: true } as const;
+    for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) addEventListener(ev, mark, opts);
+    const vis = () => { if (document.visibilityState === 'visible') touched.current = false; };
+    document.addEventListener('visibilitychange', vis);
+    return () => { for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart']) removeEventListener(ev, mark, opts); document.removeEventListener('visibilitychange', vis); };
+  }, []);
   useEffect(() => {
     if (!shouldWatch(location)) return;   // localhost, a dev server, the desktop app (its installer updates it)
+    let reloading = false;
     const w = watchForUpdate({
       current: runningBundle(),
       fetchHtml: async () => (await fetch(location.origin + location.pathname, { cache: 'no-store' })).text(),
       getVersion: () => fetchVersion((u, i) => fetch(u, i), document.baseURI),
-      onStale: setUpdate });
+      onStale: setUpdate,
+      onResume: updateServiceWorker,
+      onForeground: ({ hiddenMs, result }) => {
+        if (reloading || result.state !== 'newer') return;
+        const dialogOpen = !!document.querySelector('dialog[open], [role="dialog"]');
+        const act = decideUpdate({ stale: true, dirty: anyDirtyRef.current(), editing: busyRef.current || touched.current || dialogOpen, hiddenMs, autoOn: loadAutoUpdate() });
+        if (act !== 'reload') return;
+        reloading = true;
+        rememberUpdated(result.version);
+        location.reload();
+      } });
     updateWatch.current = w;
     return () => { w.stop(); updateWatch.current = null; };
   }, []);
@@ -4463,7 +4509,7 @@ function App() {
       <Tip label={t('cmd.undo')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.undo')} disabled={!doc} onClick={() => cmd('undo')!.run()}><Icon name="undo" size={22} /></button></Tip>
       <Tip label={t('cmd.redo')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.redo')} disabled={!doc} onClick={() => cmd('redo')!.run()}><Icon name="redo" size={22} /></button></Tip>
       <Slot id="phone-more" variant="icon" side="bottom" menu icon="more" title={t('app.phone.more')} items={moreItems} />
-      {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => location.reload() })} onLater={() => setUpdate(null)} /> : null}
+      {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => { rememberUpdated(update.version); location.reload(); } })} onLater={() => setUpdate(null)} /> : null}
     </div>
   );
   // the document tabs: in the top bar on a desktop (one row less of chrome), a row of their own on a tablet
@@ -4479,7 +4525,7 @@ function App() {
   />;
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
-    <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
+    <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-narrow={narrowTablet.value ? '1' : undefined} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
       {phone ? phoneBar : <div class="topbar">
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon tb-new" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
@@ -4492,7 +4538,7 @@ function App() {
           : null}
         {tabsInTop ? tabStrip
           : <b class="doc-name" hidden={ti.topRename.active && !!doc} onDblClick={() => { if (doc) ti.topRename.begin(); }}>{files.partName ?? doc?.name ?? t('app.noPart')}{isDirty() ? <span class="doc-dirty" title={t('app.discard.modified')}> •</span> : null}</b>}
-        {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => location.reload() })} onLater={() => setUpdate(null)} /> : null}
+        {update ? <UpdateNotice version={update.version} dirty={anyDirty()} onReload={() => reloadGuarded({ anyDirty, guard: (go) => guardedAll(go), reload: () => { rememberUpdated(update.version); location.reload(); } })} onLater={() => setUpdate(null)} /> : null}
         <div class="mode-tabs" role="tablist" aria-label={t('drawing.title')}>
           <button role="tab" aria-selected={!drawingOpen} class="rb-btn" onClick={() => setDrawingOpen(false)}>{t('drawing.tab.part')}</button>
           <button role="tab" aria-selected={drawingOpen} class="rb-btn" disabled={!doc} onClick={() => setDrawingOpen(true)}>{t('drawing.tab.drawing')}</button>
@@ -4582,6 +4628,7 @@ function App() {
             onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }} />;
         })() : null}
         {sketching && toolOut?.panel ? <PatternPanel panel={toolOut.panel} onField={fieldEvent} onKey={(key) => runTool({ type: 'key', key })} onCancel={() => selectTool(null)} /> : null}
+        {sketching ? <KeyboardPrimer /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} onDefine={defineParam} seed={fieldSeed} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
         <div id="vp-layer">
@@ -4595,6 +4642,7 @@ function App() {
           <BusyOverlay busy={store.busy.value} label={busyNote.value ?? undefined} showElapsed={busyNote.value !== null} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <BusyOverlay busy={!!importing.value} delayMs={0} showElapsed cancelable={importing.value?.phase !== 'building'} label={importing.value ? (importing.value.phase === 'building' ? t('files.solidcraft.building', { name: importing.value.name }) : importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
           <Toast notices={store.notices.value} />
+          <SignKey />
           {tabSet.active?.parent ? (
             <div class="busy-overlay" role="status" data-testid="edit-part-bar">
               <span>{t('asm.editpart.banner', { part: tabSet.active.parent.part, asm: tabSet.active.parent.asm })}</span>
@@ -4618,15 +4666,15 @@ function App() {
           items={[
             ...(selText ? [{ label: t('app.status.selection'), value: selText }] : []),
             ...(warnList.length ? [{ label: t('app.status.warnings'), value: String(warnList.length), tone: 'warn' as const, title: t('app.status.warnings.tip'), onClick: () => { setDrawerTab('diagnostics'); openDrawer(); } }] : []),
-            { label: t('app.status.features'), value: String(rows.length) },
-            { label: t('app.status.faces'), value: String(facts.faces) },
-            { label: t('app.status.triangles'), value: String(facts.triangles) },
+            { low: true, label: t('app.status.features'), value: String(rows.length) },
+            { low: true, label: t('app.status.faces'), value: String(facts.faces) },
+            { low: true, label: t('app.status.triangles'), value: String(facts.triangles) },
             ...(cachedChip(store.cached.value) ? [cachedChip(store.cached.value)!] : []),
             ...(agentLink.state.value.state === 'connected' ? [{ label: t('agent.chip'), value: t(agentLink.allowEdit.value ? 'agent.chip.edit' : 'agent.chip.view'), tone: agentLink.allowEdit.value ? 'warn' as const : 'ok' as const, title: t('agent.chip.tip'), onClick: () => setSettings(true) }] : []),
             ...(check.chip ? [check.chip] : []),
             ...(kernelRouter.prefs.value.mode === 'local' ? [{ label: t('app.status.kernel'), ...chipOf(kernelRouter.status.value), title: t('app.status.kernel.tip'),
               onClick: () => { try { localStorage.setItem('cad.settingsTab', 'kernel'); } catch { /* private window */ } setSettings(true); } }] : []),
-            ...(facts.rebuildMs !== null ? [{ label: t('app.status.lastRebuild'), value: t('app.status.secondsUnit', { value: (facts.rebuildMs / 1000).toFixed(1) }) }] : []),
+            ...(facts.rebuildMs !== null ? [{ low: true, label: t('app.status.lastRebuild'), value: t('app.status.secondsUnit', { value: (facts.rebuildMs / 1000).toFixed(1) }) }] : []),
             { label: t('app.status.errors'), value: String(failures.filter((f) => !f.blockedBy).length) + (failures.some((f) => f.blockedBy) ? ' ' + t('app.status.blocked', { n: failures.filter((f) => f.blockedBy).length }) : ''), tone: failures.length ? ('err' as const) : ('ok' as const) },
           ]}
           drawerOpen={phone ? sheet === 'diag' : ws.drawerOpen} onToggleDrawer={toggleDrawer} />
@@ -4688,7 +4736,7 @@ function App() {
       {sheetUi.nodes}
       {knurlAsk ? <KnurlExportAsk count={knurlAsk.count} onAnswer={answerKnurl} /> : null}
       {knurlFail ? <KnurlExportFailed reason={knurlFail.reason} message={knurlFail.message} onChoose={chooseKnurl} /> : null}
-      {settings ? <SettingsDialog workspace={stored} layoutPref={layoutPref.value} onLayoutPref={(v) => { layoutPref.value = v; write(LAYOUT_KEY, v); }} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onCheckUpdate={updateWatch.current ? () => updateWatch.current!.check(true) : undefined} onClose={() => setSettings(false)}
+      {settings ? <SettingsDialog workspace={stored} layoutPref={layoutPref.value} onLayoutPref={(v) => { layoutPref.value = v; write(LAYOUT_KEY, v); }} onChange={(p: Partial<Workspace>) => store.setWorkspace(p)} onPreset={(n) => store.applyPreset(n)} onResetLayout={() => resetLayout(store)} onCheckUpdate={updateWatch.current ? () => updateWatch.current!.check(true) : undefined} autoUpdate={updateWatch.current ? { on: autoUpdate, onChange: changeAutoUpdate } : undefined} onClose={() => setSettings(false)}
         locale={localeSignal.value} locales={[...availableLocales(), ...(import.meta.env.DEV ? [PSEUDO] : [])]} pseudo={PSEUDO}
         onLocale={(c) => { setLocale(c); write('cad.locale', c); }}
         navPrefs={navPrefs} onNavPrefs={changeNav}

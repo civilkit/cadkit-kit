@@ -12,7 +12,11 @@ const now = () => Date.now() / 1000;
 /** A visible pointer: the screencast has no cursor, so a yellow dot follows the mouse. */
 const POINTER = `(() => { const d = document.createElement('div'); d.id = '__ptr'; d.style.cssText = 'position:fixed;left:-50px;top:-50px;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:rgba(255,214,0,.85);border:2px solid #7a5d00;pointer-events:none;z-index:2147483647;box-shadow:0 0 6px rgba(0,0,0,.4)';
   const add = () => { if (!document.getElementById('__ptr')) document.documentElement.appendChild(d); };
-  addEventListener('mousemove', (e) => { add(); d.style.left = e.clientX + 'px'; d.style.top = e.clientY + 'px'; }, true); })();`;
+  addEventListener('mousemove', (e) => { add(); d.style.left = e.clientX + 'px'; d.style.top = e.clientY + 'px'; }, true);
+  // a touch device has no mouse: the dot shows each finger instead (it stays a moment after the lift, so a tap is seen)
+  let hide = 0; const at = (e) => { const t = e.touches[0] || e.changedTouches[0]; if (!t) return; add(); clearTimeout(hide); d.style.opacity = '1'; d.style.left = t.clientX + 'px'; d.style.top = t.clientY + 'px'; };
+  for (const n of ['touchstart', 'touchmove']) addEventListener(n, at, true);
+  addEventListener('touchend', (e) => { at(e); hide = setTimeout(() => { d.style.opacity = '0'; }, 350); }, true); })();`;
 
 export class Rec {
   constructor(page, { width = 1920, fps = 22, crop = null } = {}) {

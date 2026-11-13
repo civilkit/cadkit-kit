@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { type BoslEntry, type ParamDef } from './entries';
 import { boslValues, paramsOf, resetParams, setParam } from './state';
 import { registerDynamicItem, type CatalogItem, type ShapeKind } from '../shapes';
+import { kindForMin, numberAttrs } from '@kit/ui';
 
 const KIND: Record<string, ShapeKind> = { cuboid: 'block', prismoid: 'cone', wedge: 'block', rect_tube: 'block', cyl: 'cylinder', tube: 'cylinder', pie_slice: 'cylinder', regular_prism: 'boss', spheroid: 'sphere', torus: 'boss', teardrop: 'slot', onion: 'sphere', edge_rounding_mask: 'block', edge_chamfer_mask: 'block' };
 
@@ -25,7 +26,7 @@ function Field({ entry, def }: { entry: BoslEntry; def: ParamDef }) {
     </select>
   );
   else input = (
-    <input id={id} type="number" step={def.type === 'integer' ? 1 : 'any'} min={def.min} max={def.max} value={Number(v)}
+    <input {...numberAttrs(def.type === 'integer' ? (def.min !== undefined && def.min >= 0 ? 'integer' : 'signed') : kindForMin(def.min))} id={id} type="number" step={def.type === 'integer' ? 1 : 'any'} min={def.min} max={def.max} value={Number(v)}
       onInput={(e) => { const x = parseFloat((e.currentTarget as HTMLInputElement).value); if (Number.isFinite(x)) setParam(entry.id, def.key, def.type === 'integer' ? Math.round(x) : x); }} />
   );
   return (

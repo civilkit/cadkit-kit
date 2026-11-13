@@ -125,4 +125,29 @@ describe('Ribbon automation hooks', () => {
     expect(container.querySelector('[data-testid="ribbon-tab-Home"]')!.getAttribute('aria-selected')).toBe('true');
     expect(container.querySelector('[data-testid="cmd-open"]')).not.toBeNull();
   });
+
+  it('a strip with hidden groups shows a chevron at the edge that hides them, which scrolls by one group and goes away at the end', () => {
+    const sw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+    const cw = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', { configurable: true, get() { return (this as HTMLElement).classList.contains('rb-groups') ? 1000 : 0; } });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get() { return (this as HTMLElement).classList.contains('rb-groups') ? 400 : 0; } });
+    const scrollTo = vi.fn(function (this: HTMLElement, o: ScrollToOptions) { this.scrollLeft = o.left ?? 0; this.dispatchEvent(new Event('scroll')); });
+    (HTMLElement.prototype as any).scrollTo = scrollTo;
+    try {
+      const layout = { Sketch: [{ id: 'Tools', entries: [{ key: 'a', node: <span>a</span> }] }, { id: 'Dim', entries: [{ key: 'b', node: <span>b</span> }] }] };
+      const { container } = render(<Ribbon commands={[]} layout={layout} activeTab="Sketch" onTab={() => {}} />);
+      expect(container.querySelector('[data-testid="ribbon-scroll-left"]')).toBeNull();
+      expect(container.querySelector('.rb-strip')!.className).toContain('edge-r');
+      fireEvent.click(container.querySelector('[data-testid="ribbon-scroll-right"]')!);
+      expect(scrollTo).toHaveBeenCalled();
+      expect(container.querySelector('[data-testid="ribbon-scroll-left"]')).not.toBeNull();
+      const row = container.querySelector('.rb-groups') as HTMLElement;
+      row.scrollLeft = 600; row.dispatchEvent(new Event('scroll'));
+      expect(container.querySelector('[data-testid="ribbon-scroll-right"]')).toBeNull();
+    } finally {
+      if (sw) Object.defineProperty(HTMLElement.prototype, 'scrollWidth', sw); else delete (HTMLElement.prototype as any).scrollWidth;
+      if (cw) Object.defineProperty(HTMLElement.prototype, 'clientWidth', cw); else delete (HTMLElement.prototype as any).clientWidth;
+      delete (HTMLElement.prototype as any).scrollTo;
+    }
+  });
 });

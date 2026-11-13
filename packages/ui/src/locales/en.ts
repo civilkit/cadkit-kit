@@ -139,4 +139,6 @@ export const en: Catalog = {
   'ui.slot.unavailable': 'Not available right now',
   'ui.slot.more': 'More tools like {name}',
   'ui.ribbon.more': 'More',
+  'ui.ribbon.scrollLeft': 'Scroll the ribbon left',
+  'ui.ribbon.scrollRight': 'Scroll the ribbon right',
 };

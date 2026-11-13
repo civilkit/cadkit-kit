@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { t } from '../i18n';
+import { numberAttrs } from '@kit/ui';
 
 export interface DialogField {
   key: string;
@@ -51,7 +52,7 @@ export function FieldsDialog(p: { title: string; fields: DialogField[]; onOk(val
           ) : (
             <label class="set-row" key={f.key}><span>{f.label}</span>
               <span class="tb-field">
-                <input type="text" inputMode="decimal" aria-label={f.label} disabled={f.disabled} value={vals[f.key]} ref={!f.disabled && firstNumber ? ((firstNumber = false), first) : undefined}
+                <input {...numberAttrs('signed')} type="text" aria-label={f.label} disabled={f.disabled} value={vals[f.key]} ref={!f.disabled && firstNumber ? ((firstNumber = false), first) : undefined}
                   aria-invalid={!f.disabled && parsed(f) === null} onInput={(e) => { const v = (e.currentTarget as HTMLInputElement).value; setVals((o) => ({ ...o, [f.key]: v })); }} />
                 {f.unit ? <span class="tb-unit">{f.unit}</span> : null}
               </span>

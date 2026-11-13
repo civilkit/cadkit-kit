@@ -7,7 +7,7 @@ import { Icon } from './icons';
 /** How long the newest notice stays in the status bar; the drawer's log keeps all of them. */
 export const NOTICE_MS = 8000;
 
-export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn' | 'err'; /** makes the item a button */ onClick?(): void; title?: string; icon?: string; dim?: boolean }
+export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn' | 'err'; /** makes the item a button */ onClick?(): void; title?: string; icon?: string; dim?: boolean; /** counts and timings a narrow screen may leave out */ low?: boolean }
 
 export function StatusBar(p: {
   notices: Notice[]; hover: string | null; busy: boolean;
@@ -30,8 +30,8 @@ export function StatusBar(p: {
       {p.sketch ?? null}
       {last ? <span key="@notice" class={'st-notice ' + last.level}>{last.text}</span> : null}
       {(p.items ?? []).map((i) => i.onClick
-        ? <button key={i.label} class={'st-item st-chip' + (i.dim ? ' dim' : '')} title={i.title} onClick={i.onClick}>{i.icon ? <Icon name={i.icon} size={14} /> : null}{i.label} <b class={i.tone ?? ''}>{i.value}</b></button>
-        : <span key={i.label} class="st-item">{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}
+        ? <button key={i.label} class={'st-item st-chip' + (i.dim ? ' dim' : '') + (i.low ? ' st-low' : '')} title={i.title} onClick={i.onClick}>{i.icon ? <Icon name={i.icon} size={14} /> : null}{i.label} <b class={i.tone ?? ''}>{i.value}</b></button>
+        : <span key={i.label} class={'st-item' + (i.low ? ' st-low' : '')}>{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}
       <span key="@sp" class="sp" />
       {p.links?.length ? <span key="@links" class="st-links">{p.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener">{l.label}</a>)}</span> : null}
       {p.onToggleDrawer ? <button key="@drawer" class="st-drawer" aria-pressed={!!p.drawerOpen} onClick={p.onToggleDrawer}>{t('ui.status.drawer')}</button> : null}

@@ -27,3 +27,12 @@ describe('StatusBar: clickable item', () => {
     expect(n).toBe(1);
   });
 });
+
+describe('StatusBar: low-priority items', () => {
+  it('an item marked low carries st-low (a narrow screen hides it), others do not', () => {
+    const { container } = render(<StatusBar notices={[]} hover={null} busy={false} items={[{ label: 'Faces', value: '14', low: true }, { label: 'Errors', value: '0' }, { label: 'Chk', value: '1', low: true, onClick: () => {} }]} />);
+    const low = [...container.querySelectorAll('.st-low')].map((e) => e.textContent);
+    expect(low).toEqual(['Faces 14', 'Chk 1']);
+    expect(container.querySelectorAll('.st-item').length).toBe(3);
+  });
+});

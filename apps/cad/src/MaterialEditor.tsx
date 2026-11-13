@@ -3,7 +3,7 @@
 // and the mass of the current part at the new density. OK applies (one undo step in the controller), Cancel / Escape leaves.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
-import { Icon } from '@kit/ui';
+import { Icon, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { massText } from './inspect/mass';
 import {
@@ -85,7 +85,7 @@ export function MaterialEditor(p: MaterialEditorProps): JSX.Element {
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec">
-        <input class="mat-search" type="search" value={query} placeholder={t('material.search')} aria-label={t('material.search')} onInput={(e) => setQuery((e.currentTarget as HTMLInputElement).value)} />
+        <input {...textAttrs} type="search" enterKeyHint="search" class="mat-search" value={query} placeholder={t('material.search')} aria-label={t('material.search')} onInput={(e) => setQuery((e.currentTarget as HTMLInputElement).value)} />
         <div class="mat-list" role="listbox" aria-label={t('material.list')}>
           {groups.map((g) => (
             <div key={g.category} data-category={g.category}>
@@ -121,7 +121,7 @@ export function MaterialEditor(p: MaterialEditorProps): JSX.Element {
       {editingCustom ? (
         <div class="fedit-sec" data-section="custom">
           <label class="fedit-fld" data-path="name"><span class="fedit-fld-label">{t('material.name')}</span>
-            <input type="text" value={draft.name} aria-label={t('material.name')} onInput={(e) => setDraft({ ...draft, name: (e.currentTarget as HTMLInputElement).value })} /></label>
+            <input {...textAttrs} type="text" value={draft.name} aria-label={t('material.name')} onInput={(e) => setDraft({ ...draft, name: (e.currentTarget as HTMLInputElement).value })} /></label>
           <label class="fedit-fld" data-path="density"><span class="fedit-fld-label">{t('material.density')}</span>
             <span class="fedit-num"><input type="number" inputMode="decimal" enterKeyHint="done" min="0" step="any" value={draft.density} aria-label={t('material.density')} onInput={(e) => setDraft({ ...draft, density: (e.currentTarget as HTMLInputElement).value })} /><span class="fedit-unit">kg/m³</span></span></label>
           <label class="fedit-fld" data-path="color"><span class="fedit-fld-label">{t('material.colour')}</span>

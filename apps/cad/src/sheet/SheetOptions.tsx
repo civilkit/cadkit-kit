@@ -2,7 +2,7 @@
 // sketch and edge pickers, the preview and Confirm / Cancel are the ones every feature has; these forms draw the numbers and choices.
 import type { JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { EditorSection as Section, VarsContext, useScope, type OptionsResult } from '@kit/ui';
+import { EditorSection as Section, VarsContext, useScope, type OptionsResult, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { useState } from 'preact/hooks';
 import { Icon } from '@kit/ui';
@@ -38,7 +38,7 @@ export function SheetRulesOptions(p: Props): JSX.Element {
       <Section id="sheetStock" title={t('opt.sheet.section.stock')}>
         <label class="fedit-fld" data-path="name">
           <span class="fedit-fld-label">{t('opt.sheet.rule.name')}</span>
-          <input type="text" value={String(eff.name ?? '')} onChange={(e) => change({ name: (e.currentTarget as HTMLInputElement).value })} />
+          <input {...textAttrs} type="text" value={String(eff.name ?? '')} onChange={(e) => change({ name: (e.currentTarget as HTMLInputElement).value })} />
         </label>
         <Num name="thickness" label={t('opt.sheet.thickness')} value={eff.thickness} unit="mm" onChange={(v) => change({ thickness: v })} />
         <Num name="kFactor" label={t('opt.sheet.kFactor')} value={eff.kFactor} unit="" plain onChange={(v) => change({ kFactor: v })} />

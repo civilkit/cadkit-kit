@@ -6,6 +6,7 @@ import { DEFAULT_RELIEF, materialParams, type Appearance, type PbrParams, type P
 import { useEffect, useState } from 'preact/hooks';
 import { t } from './i18n';
 import { POLY, type HdriAsset, type TextureAsset } from './onlineLibrary';
+import { textAttrs } from '@kit/ui';
 
 const pct = (v: number): number => Math.round(v * 100);
 export const GRAIN_DEFAULTS = { scale: 4, contrast: 0.5, tone: '#3a2616' } as const;
@@ -65,7 +66,7 @@ export function TexturePicker(p: { appearance: Appearance; onAppearance(patch: P
             </div>
           ) : (
             <>
-              <input type="search" class="mat-search" value={q} placeholder={t('surface.texture.search')} aria-label={t('surface.texture.search')} onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)} />
+              <input {...textAttrs} type="search" enterKeyHint="search" class="mat-search" value={q} placeholder={t('surface.texture.search')} aria-label={t('surface.texture.search')} onInput={(e) => setQ((e.currentTarget as HTMLInputElement).value)} />
               {err ? <div class="tb-note" role="alert">{t('surface.texture.failed')}</div> : items === null ? <div class="tb-note">{t('surface.texture.loading')}</div> : null}
               <div class="tex-grid" role="listbox" aria-label={t('surface.texture.title')}>
                 {shown.map((a) => (

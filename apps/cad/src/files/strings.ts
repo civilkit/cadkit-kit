@@ -5,7 +5,7 @@ export const filesEn = {
   'cmd.save-as': 'Save as', 'cmd.embed-geometry': 'Save geometry in file', 'cmd.import-step': 'Import STEP / STL / OBJ / GLB / 3MF / SolidWorks / SketchUp', 'cmd.import-step.tip': 'Open a STEP, SolidWorks (.sldprt) or SketchUp (.skp) file as a new part (view only), or add an STL, OBJ, GLB or 3MF mesh to this part as a reference to sketch on',
   'cmd.import-skp-hidden': 'Import SketchUp with hidden geometry', 'cmd.import-skp-hidden.tip': 'Open a SketchUp file including faces that are hidden in the model',
   'cmd.rotate-skp': 'Rotate imported model', 'cmd.rotate-skp.tip': 'Turn the shown SketchUp model: upright, as in the file (Z up), or upside down',
-  'app.update.text': 'A new version ({version}) is available.', 'app.update.dirty': 'You have unsaved changes: save first, then reload.', 'app.update.generic': 'A new version is available.', 'app.update.refresh': 'Reload', 'app.update.later': 'Later',
+  'app.update.text': 'A new version ({version}) is available.', 'app.update.dirty': 'You have unsaved changes: save first, then reload.', 'app.update.generic': 'A new version is available.', 'app.update.refresh': 'Reload', 'app.update.later': 'Later', 'app.update.done': 'Updated to {version}', 'app.update.done.generic': 'Updated to the latest version',
   'app.install.text': 'Install CadKit as an app: its own window, and it opens without the browser.', 'app.install.action': 'Install',
   'files.restore.title': 'Restore your last session?',
   'files.restore.text': 'Part "{name}" was open {when} and was not saved to a file.',

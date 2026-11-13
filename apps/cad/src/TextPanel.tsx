@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { TEXT_FONTS, TEXT_H, TEXT_V, TEXT_MIN_HEIGHT, type TextFields, type TextPatch } from '@kit/sketch';
 import { t } from './i18n';
 import { FontPicker, type FontsApi } from './FontPicker';
+import { kindForMin, numberAttrs, textAttrs } from '@kit/ui';
 
 /** What the Text panel needs: the entity's fields, the kernel's notes about it (warnings, a failed outline) and the callbacks. */
 export interface TextPanelProps {
@@ -31,7 +32,7 @@ function NumField(p: { id: string; label: string; value: number; min?: number; s
   return (
     <label class="tp-field" data-field={p.id}>
       <span>{p.label}{p.unit ? ' (' + p.unit + ')' : ''}</span>
-      <input type="text" inputMode="decimal" value={text} aria-label={p.label}
+      <input {...numberAttrs(kindForMin(p.min))} type="text" value={text} aria-label={p.label}
         onFocus={(e) => { focused.current = true; (e.target as HTMLInputElement).select(); }}
         onInput={(e) => { const v = (e.target as HTMLInputElement).value; setText(v); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => flush(v), DEBOUNCE_MS); }}
         onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { if (timer.current) clearTimeout(timer.current); flush((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).blur(); } }}
@@ -57,7 +58,7 @@ export function TextPanel(p: TextPanelProps) {
         <button type="button" class="tp-x" onClick={p.onDone} aria-label={t('app.sketch.text.done')} title={t('app.sketch.text.done')}>{t('app.sketch.text.done')}</button></div>
       <label class="tp-field tp-wide" data-field="string">
         <span>{t('app.sketch.text.string')}</span>
-        <input type="text" value={str} data-text-string="1" aria-label={t('app.sketch.text.string')} maxLength={500} spellcheck={false}
+        <input {...textAttrs} type="text" value={str} data-text-string="1" aria-label={t('app.sketch.text.string')} maxLength={500}
           onInput={(e) => { const v = (e.target as HTMLInputElement).value; setStr(v); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => apply(v), DEBOUNCE_MS); }}
           onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') { if (timer.current) clearTimeout(timer.current); apply((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).blur(); p.onDone(); } }}
           onBlur={(e) => { if (timer.current) clearTimeout(timer.current); apply((e.target as HTMLInputElement).value); }} />
