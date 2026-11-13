@@ -11,6 +11,7 @@ const ROUNDING = /^(blend|chamfer)|^filletChamfer$/;
 export function reasonOf(r: DiagRoot): string {
   if (r.seat) return r.seat === 'fixed' ? t('diag.reason.seat.fixed') : t('diag.reason.seat.face');
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.reason.knurl.fixed') : t('diag.reason.knurl.face');
+  if (r.openLine) return t('diag.reason.noClosedProfile.openLine');
   const detail = typeof r.params?.detail === 'string' ? r.params.detail : '';
   const known = t('diag.reason.' + r.code, undefined, '');
   if (detail && known && ROUNDING.test(r.code)) return `${known} (${trimDot(detail)})`;
@@ -49,6 +50,7 @@ export const maxSizeText = (m: MaxSize): string => (m.unit === 'deg' ? `${m.valu
 export function adviceOf(r: DiagRoot): string {
   if (r.seat) return r.seat === 'fixed' ? t('diag.advice.seat.fixed') : t('diag.advice.seat.face');
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.advice.knurl.fixed') : t('diag.advice.knurl.face');
+  if (r.openLine) return t('diag.advice.noClosedProfile.openLine');
   const advice = t('diag.advice.' + r.code, undefined, t('diag.advice.generic'));
   const max = maxSizeOf(r.params);
   return max ? `${t('diag.advice.maxSize', { size: maxSizeText(max) })} ${advice}` : advice;

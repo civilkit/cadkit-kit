@@ -35,8 +35,18 @@ So on 'top' a larger sketch y moves towards the BACK (world -Z); on 'right' a la
 * \`cut(d)\` / \`cut(through())\` removes material. Default direction 'auto': it tries against the sketch normal (into the body from a face sketch) and flips once if the kernel says cutNoEffect (the run then carries the warning 'cut direction flipped automatically'). Say \`direction: 'into' | 'away' | 'both'\` to skip the retry.
 * A cut applies to EVERY body that exists when it runs. A through-cut for the base plate's holes also slits an earlier body that crosses it. Build later parts after the cut, or leave clearance. The run warns when one cut changed several bodies.
 * \`revolve(360)\`: the sketch must be the HALF profile on one side of the axis (x = distance from the axis, y = height; the axis is the sketch y axis unless \`axis: { from, to }\`). Drawing both sides gives profileCrossesAxis.
-* \`sweep(profile, path)\`: both are \`{ on, draw }\` objects; the profile plane must be perpendicular to the path where the path starts; paths are planar sketches (a vertical plane per path for 3D routings).
+* \`sweep(profile, path)\`: both are \`{ on, draw }\` objects; the profile plane must be perpendicular to the path where the path starts; paths are planar sketches (a vertical plane per path for 3D routings). The path can be a helix: \`p.helix({ radius, pitch, revolutions }); const h = p.handle(); p.sweep(profile, { curve: h })\`. \`guides: [{ on, draw }]\` (one or two sketches, each ONE curve touching the profile and running along the path) with \`guideMode: 'scale' | 'turn' | 'stretch'\` makes the section follow the guides (a flare, a taper); no \`twist\` with guides.
 * Two solids that touch or overlap FUSE into one body. Keep them apart with \`newBody\`: \`extrude(10, { newBody: true })\` or \`{ newBody: 'Magnet' }\` (also revolve and sweep, never for a cut). Use \`bodies\` to confirm the body count; a clearance of 0.1 mm also keeps parts separate.
+
+## Direct edits and body operations
+
+* \`draft(faces, angle, { neutral })\` tapers walls about a neutral plane ('front' | 'top' | 'right', \`at(...)\`, \`face(...)\`; its normal is the pull direction, \`flip\` reverses). \`moveFace(faces, { distance })\` pushes or pulls faces along their normals; \`{ translate: [x, y, z] }\` moves planar faces.
+* \`lip(rim, edges, { width, height })\` raises a band on a planar rim; \`groove(...)\` cuts the same band into a rim (a lid). \`rim\` is \`face(...)\`, \`edges\` the rim edges (\`edges({ onFace: rim })\` also picks the inner rim edges of a shell: exclude them with \`not\`).
+* Bodies: \`scale(factor | [sx, sy, sz], { about: 'origin' | 'centroid', at, bodies })\`; \`moveBody(bodies, { translate, rotate: { axis, origin, angle }, copy, body, mirror })\` (rotation first, then translation; bodies are not united afterwards); \`split(target, tools)\` cuts a body into the part outside and the part inside the tool bodies; \`deleteBody(bodies, { keep })\` takes names, handles or \`face(...)\`. Bodies are named with \`newBody: 'Name'\`.
+* \`deleteFace(faces)\` turns the solid into a sheet without those faces. It does NOT heal the gap (the kernel has no heal mode yet); use it to open a shell for surface work, not to remove a hole.
+* \`sphere(radius, { centre, op, newBody })\` needs no sketch. \`helix({ radius, pitch | height | revolutions (two of them), on })\` adds a curve only. \`axis('y')\` / \`axis(edges(...))\` / \`axis(face(cylinder))\` / \`axis(planeA, planeB)\` adds a reference axis feature (take its \`handle()\`). \`dome\` is not built in the kernel; do not try it through \`feature()\`.
+
+* Parts from the wizards are their own bodies, placed by \`origin\` and \`axis\`: \`nut({ size: 'M5', type })\`, \`standoff({ size, length, kind, ends })\`, \`heatSetInsert({ size, hole })\`, \`spring({ outer, wire, length, coils, ends: 'ground' })\`, \`extensionSpring(...)\`, \`torsionSpring(...)\`, \`caseBox({ width, depth, height, lidHeight })\` (a closed two-part case, stands up from \`origin\`), plus \`screw\`, \`washer\` and \`bearing\`. \`docs({ names })\` lists the options of each.
 
 ## Handles, bodies, names, appearance
 
@@ -54,12 +64,37 @@ Use hole FEATURES (\`hole\`, \`holes.points\`, \`holes.polar\`, \`holes.grid\`) 
 
 1. \`list_methods { query }\` / \`docs { names }\`: read the exact signatures of what you use. Do not guess option names.
 2. \`run_script { mode: 'new', code }\`. It is atomic: an error leaves the document unchanged and names the line (and the kernel code with a repair hint).
-3. Check: \`facts\` (volume, bbox, solids, validity; pass \`expect\` for pass/fail checks), \`bodies\` (one row per body: name, creating feature, volume, bbox, colour), \`probe\` (is there material at a point), \`section\` / \`sections\` (exact slices), \`tree\`.
+3. Check: \`facts\` (volume, bbox, solids, validity; pass \`expect\` for pass/fail checks), \`bodies\` (one row per body: name, creating feature, volume, bbox, colour), \`probe\` (is there material at a point), \`section\` / \`sections\` (exact slices), \`tree\`. Numeric design questions have their own read-only tools: \`measure { a, b }\` (distance and closest points between bodies, faces, edges, points), \`clearance { required }\` (gap between two bodies, pass or fail), \`interference\` (do bodies overlap, by how many mm3; a part that must stay separate needs \`newBody\`), \`thickness { min }\` (thinnest wall and where), \`draft { pull, min }\` (draft angle per face against a pull direction) and \`dfm { process: 'injection' | 'cnc' | 'printing' }\` (design-for-manufacture issues per rule, with faces and numbers). Bodies are named as \`bodies\` lists them; each result gives a verdict, so use them to check your own work instead of estimating.
 4. Look: \`snapshot { view: 'iso' | 'front' | 'top' | ... }\`; with \`section\` for an internal view, \`sheet\` for a multi-view sheet. For a real engineering drawing (dimensions, hole callouts, sections, PDF/SVG/DXF) use \`drawing\`.
 5. \`checkpoint\` before a risky change, \`undo\` / \`restore\` after. Use \`mode: 'attach'\` to ADD to what the user has built by hand (their features are kept).
 6. Export with \`export { format: 'step' | 'stl' | 'glb' | 'ckpart', path }\`. For a \`.ckpart\` that opens at once in the app, add \`cache: true\`: the built view is stored in the file (refused with \`view_unavailable\` for a part with a curated or embedded font (text in the built-in fonts is fine), or a rolled-back part).
 
 ${SHEET_GUIDE}
+## Worked example: a bracket with a rib
+
+\`\`\`js
+part('Clevis')
+  .sketch('top', (s) => s.rrect(140, 90, 8)).extrude(12)
+  .holes.points(face('>Y'), [[-55, -30], [55, -30], [-55, 30], [55, 30]], { diameter: 10 })
+  .sketch('front', (s) => s.rect(30, 79, [15, 45.5])).extrude(60, { mid: true })   // block
+  .sketch('front', (s) => s.circle(25, [15, 85])).extrude(60, { mid: true })       // boss
+  .sketch('front', (s) => s.line([-50, 12], [-5, 70])).rib(15)                     // rib: ONE open line
+  .sketch('front', (s) => s.circle(15, [15, 85])).cut(through(), { direction: 'both' }); // bore
+\`\`\`
+
+Volume 335157 mm3, one valid body. The rib is ONE open line, centred on the sketch plane, 15 total thickness, extended past both ends until it meets the body and fused. The web stops at the outer wall of the body and never fills a bore, so the rib may come before or after the bore. Options: \`.rib(15, { fillet: 3, draft: 2, side: 'right', target: 'Bracket' })\` rounds the free edge (radius below half the thickness), tapers the two sides (degrees, one straight line only), puts all the thickness on one side of the sketch plane ('left' | 'right', default 'both') and grows to the named body only. Gotchas: a through cut from a sketch on the mid-plane needs \`direction: 'both'\` (the run warns when it is left out); a closed triangle in rib gives ribNeedsOpenSketch, and extruding one open line gives noClosedProfile (use \`rib\` for a web, \`thin\` for a thin wall).
+
+## Worked example: a two-part case
+
+\`\`\`js
+part('Case')
+  .sketch('front', (s) => s.rect(80, 50)).extrude(30)
+  .feature({ type: 'shell', faces: [], thickness: 2 })                  // no open face: a closed cavity
+  .lipJoint(at('front', 15), { height: 1.5, width: 1, clearance: 0.2, names: ['Base', 'Lid'] });
+\`\`\`
+
+Two valid bodies, Base (14930 mm3) and Lid (13952.24 mm3); total 29104 + 378 - 599.76 = 28882.24 (box + tongue - groove). The tongue is 1 mm wide and 1.5 mm high, centred in the 2 mm wall; the groove is 0.2 mm wider on each side and 0.2 mm deeper. \`split(plane, { names })\` alone cuts a body into two named bodies. A mould is: \`scale\` the part body by 1/(1-shrinkage), a block as \`newBody\`, \`combine('cut', block, part, { keepTools: true })\`, then \`split(plane, { target: block })\`. Not yet: draft, a curved or stepped parting surface, undercut detection.
+
 ## Common errors and what to do
 
 | code | meaning | fix |

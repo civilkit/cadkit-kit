@@ -59,8 +59,16 @@ export interface Actions {
   screw?(): void;
   /** Open the Washer wizard (see WasherWizard.tsx). */
   washer?(): void;
+  /** Fasten this hole (see FastenHoleWizard.tsx): enabled when a hole wall is selected; `open` starts the dialog on the selected holes. */
+  fastenHole?: { can(): boolean; open(): void };
   /** Open the Spring wizard (see SpringWizard.tsx). */
   spring?(): void;
+  /** Open the Case wizard (see CaseWizard.tsx). */
+  caseBox?(): void;
+  /** Open the Nut, Standoff and Heat-set insert wizards (see FastenerWizards.tsx). */
+  nut?(): void;
+  standoff?(): void;
+  insert?(): void;
   /** Open the 3D Sketch tool (sketch3d/Sketch3dPanel.tsx). */
   sketch3d?(): void;
   /** Open the Frame panel (frame/FramePanel.tsx) and the drawing of the part's frames with the cut list and bill of materials (frame/frameDrawing.ts). */
@@ -194,7 +202,12 @@ export function buildCommands(a: Actions): Command[] {
   if (a.cutList) cmds.push({ id: 'frame-cutlist', label: t('cmd.frame-cutlist'), tab: 'Frame', group: 'Frame', enabled: a.hasDocument, run: a.cutList });
   if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
   if (a.washer) cmds.push({ id: 'add-washer', label: t('cmd.add-washer'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.washer });
+  if (a.fastenHole) { const fh = a.fastenHole; cmds.push({ id: 'fasten-hole', label: t('cmd.fasten-hole'), tip: t('tip.fasten-hole'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && fh.can(), why: () => (a.hasDocument() ? t('ctx.fasten.why') : undefined), run: fh.open }); }
   if (a.spring) cmds.push({ id: 'add-spring', label: t('cmd.add-spring'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.spring });
+  if (a.nut) cmds.push({ id: 'add-nut', label: t('cmd.add-nut'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.nut });
+  if (a.standoff) cmds.push({ id: 'add-standoff', label: t('cmd.add-standoff'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.standoff });
+  if (a.insert) cmds.push({ id: 'add-insert', label: t('cmd.add-insert'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.insert });
+  if (a.caseBox) cmds.push({ id: 'add-case', label: t('cmd.add-case'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.caseBox });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });
   if (a.script) cmds.push({ id: 'open-script', label: t('cmd.open-script'), tab: 'Home', group: 'Features', run: a.script });

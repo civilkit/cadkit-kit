@@ -15,8 +15,11 @@ import { sheetStrings } from './sheet';
 import { sketch3dStrings } from './sketch3d';
 import { meshStrings } from './mesh';
 import { screwStrings } from './screw';
+import { fastenStrings } from './fasten';
 import { washerStrings } from './washer';
+import { fastenerStrings } from './fasteners';
 import { springStrings } from './spring';
+import { caseStrings } from './case';
 import { chatStrings } from './chat';
 import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
@@ -62,7 +65,7 @@ export const en: Catalog = {
   'bodies.title': 'Bodies', 'bodies.list': 'Bodies of the part', 'bodies.count': '{count} bodies', 'bodies.hiddenCount': '{count} hidden',
   'bodies.madeBy': 'made by {name}',
   'bodies.empty': 'No solid yet.', 'bodies.pick': 'Select a body to change its colour, opacity or finish.',
-  'bodies.editGroup': 'Change bodies', 'bodies.copy': 'Copy', 'bodies.remove': 'Delete', 'bodies.join': 'Join', 'bodies.cut': 'Cut', 'bodies.intersect': 'Intersect',
+  'bodies.editGroup': 'Change bodies', 'bodies.copy': 'Copy', 'bodies.remove': 'Delete', 'bodies.join': 'Join', 'bodies.cut': 'Cut', 'bodies.intersect': 'Intersect', 'bodies.split': 'Split',
   'bodies.copyTip': 'Make a copy of the body in the same place; move it afterwards', 'bodies.removeTip': 'Delete the selected bodies',
   'bodies.combineTip': 'The first body you selected keeps the result; the others are used up',
   'bodies.nameTaken': 'Another body is already called "{name}".', 'bodies.failed': 'The bodies could not be changed: {why}',
@@ -178,6 +181,10 @@ export const en: Catalog = {
   'check.blocked': 'Edit rejected, it would break a Block rule: {what}',
   'check.truncated': 'Some issues were left out ({n}).',
   'check.noProfiles': 'The design rules are not available.',
+  'check.mould.title': 'Undercut (two-part mould)',
+  'check.mould.description': 'Faces that neither mould half can form: hidden under other material both along the pull direction and against it (the wall of a cross hole, a slot open to the side). A face that only one half can see is fine, that half forms it.',
+  'check.mould.pull': 'Pull axis: the mould halves open along it and against it',
+  'check.mould.message': '{face} is an undercut for a mould pulled along {pull}: neither half can form it ({area} mm2 hidden both ways). Add a side action, open the feature along the pull direction, or reshape it.',
   'layer.issues': 'Design issues',
   'app.diagnostics.on': 'on',
   'app.diagnostics.show': 'Show in tree',
@@ -444,6 +451,8 @@ export const en: Catalog = {
   'feature.helix': 'Helix',
   'feature.rib': 'Rib',
   'feature.lip': 'Lip',
+  'feature.split': 'Split body',
+  'feature.lipJoint': 'Lip joint',
   'feature.lpattern': 'Linear pattern',
   'feature.cpattern': 'Circular pattern',
   'feature.curvepattern': 'Pattern on path',
@@ -897,10 +906,19 @@ export const en: Catalog = {
   'opt.open.body': 'A solid needs a closed loop. Give the curve a wall thickness, close it, or make a surface from it.',
   'opt.open.gap': 'A solid needs a closed loop. The ends are {d} mm apart.',
   'opt.open.gapNear': 'Almost closed: the ends are {d} mm apart. Close the loop, or give the curve a wall thickness.',
+  'opt.open.rib': 'One open line is also what a Rib is drawn from: for a web or gusset that grows to the body, cancel this and choose Rib (Features, Modify) instead. Thin wall makes a wall of the line itself.',
   'opt.open.noGap': 'This sketch has no single chain with two loose ends to close',
   'opt.open.thin': 'Make thin wall', 'opt.open.close': 'Close with a line', 'opt.open.surface': 'Extrude as surface',
   'app.shape.chain': 'Open curve {n} ({count} segments)', 'handles.pushPull.label': 'Drag to push or pull the face', 'handles.pushPull': 'Offset {v} mm', 'handles.thin.label': 'Wall thickness', 'handles.thin': 'Wall {v} mm',
-  'opt.shell.thickness': 'Wall thickness', 'opt.shell.outward': 'Grow outward',
+  'opt.shell.thickness': 'Wall thickness',
+  'opt.split.title': 'Split', 'opt.split.plane': 'Plane', 'opt.split.offset': 'Offset along the plane normal', 'opt.split.flip': 'Reverse the plane normal', 'opt.split.target': 'Body to split', 'opt.split.target.only': 'The only body',
+  'opt.split.below': 'Body below the plane', 'opt.split.above': 'Body above the plane', 'opt.split.keep': 'Keep', 'opt.split.keep.both': 'Both halves', 'opt.split.keep.below': 'Only the half below', 'opt.split.keep.above': 'Only the half above',
+  'opt.lipJoint.title': 'Lip joint', 'opt.lipJoint.tongue': 'Tongue on', 'opt.lipJoint.tongue.below': 'The half below the plane', 'opt.lipJoint.tongue.above': 'The half above the plane', 'opt.lipJoint.height': 'Tongue height',
+  'opt.lipJoint.widthMode': 'Tongue width as', 'opt.lipJoint.widthMode.ratio': 'A fraction of the wall', 'opt.lipJoint.widthMode.mm': 'Millimetres', 'opt.lipJoint.widthRatio': 'Fraction of the wall', 'opt.lipJoint.width': 'Tongue width',
+  'opt.lipJoint.centred': 'Centred in the wall', 'opt.lipJoint.inset': 'Distance from the outer wall', 'opt.lipJoint.clearance': 'Clearance of the groove',
+  'app.split.below': 'Base', 'app.split.above': 'Lid', 'opt.shell.outward': 'Grow outward',
+  'opt.section.rib': 'Rib', 'opt.rib.side': 'Thickness side', 'opt.rib.side.both': 'Both sides (centred)', 'opt.rib.side.right': 'Along the sketch normal', 'opt.rib.side.left': 'Against the sketch normal',
+  'opt.rib.fillet': 'Fillet on the free edge', 'opt.rib.draft': 'Draft angle', 'opt.rib.target': 'Extend to', 'opt.rib.target.all': 'All bodies the rib reaches',
   // thread feature (ThreadEditor.tsx, threadData.ts)
   'feature.thread': 'Thread', 'cmd.add-thread': 'Thread', 'cmd.select-same-size': 'Select same size', 'app.thread.noTable': 'The thread tables are not loaded yet',
   'thread.section.thread': 'Thread', 'thread.section.length': 'Thread options', 'thread.section.options': 'Options',
@@ -939,7 +957,7 @@ export const en: Catalog = {
   'app.noAxis': "Nothing to revolve: draw the profile (a closed outline on one side of the vertical axis) in the sketch first. Revolve turns it about the sketch vertical axis; pick any straight line as Axis in the Revolve card to use another", 'app.hole.hint': 'Place the hole centres with the Point tool or use Corner holes, then confirm the sketch', 'app.noFeatureToPattern': 'Add a feature to repeat first',
   // ---- feature creators (featureCreators.ts)
   'tab.Features': 'Features', 'tab.Surfaces': 'Surfaces',
-  'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-mirror': 'Mirror', 'cmd.add-scale': 'Scale', 'cmd.add-helix': 'Helix',
+  'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-split': 'Split body', 'cmd.add-lip-joint': 'Lip joint', 'cmd.add-mirror': 'Mirror', 'cmd.add-scale': 'Scale', 'cmd.add-helix': 'Helix',
   'cmd.add-gear': 'Gear', 'cmd.add-gear-pair': 'Gear pair', 'feature.gear': 'Gear',
   'gear.title': 'Gear', 'gear.section.gear': 'Gear', 'gear.section.shaft': 'Bore and hub', 'gear.section.tooth': 'Tooth form', 'gear.section.pair': 'Mating gear', 'gear.section.readout': 'Readout',
   'gear.type': 'Type', 'gear.type.spur': 'Spur', 'gear.type.spurTip': 'External spur gear', 'gear.type.internal': 'Ring', 'gear.type.internalTip': 'Internal (ring) gear',
@@ -971,6 +989,8 @@ export const en: Catalog = {
   'cmd.add-trim-surface': 'Trim surface', 'cmd.add-knit': 'Knit', 'cmd.add-thicken': 'Thicken',
   'cmd.add-loft': 'Loft', 'cmd.add-sweep': 'Sweep', 'cmd.add-surface-loft': 'Lofted surface', 'cmd.add-fill': 'Fill surface', 'cmd.add-extend': 'Extend surface',
   'tip.add-loft': 'Joins two or more profile sketches into a solid. The editor orders the profiles and adds guide curves.',
+  'tip.add-split': 'Cuts the body by a plane into two bodies, Base and Lid: the plane is picked from a planar face or a standard plane, and the halves can be renamed or one dropped. Use it for the halves of a case or a mould block.',
+  'tip.add-lip-joint': 'Splits a shelled body at a plane and gives the cut a centred tongue on one half and a groove on the other that is wider and deeper by the clearance, so the two halves fit.',
   'tip.add-pathpattern': 'Repeats the selected feature (or the last one) along an open path sketch, moved or turned with the path.',
   'tip.add-sweep': 'Pulls a closed profile sketch along an open path sketch, optionally steered by guide curves.',
   'tip.add-surface-loft': 'Lofts profile sketches, open or closed, into a surface body.',
@@ -1002,6 +1022,16 @@ export const en: Catalog = {
   'opt.sweep.profile': 'Profile and path', 'opt.sweep.profileSketch': 'Profile (closed)', 'opt.sweep.pathSketch': 'Path (open)',
   'opt.sweep.guides': 'Guide curves', 'opt.sweep.guidesNote': 'Curves the profile scales to follow', 'opt.sweep.addGuide': 'Add guide', 'opt.sweep.twist': 'Twist over the path',
   'opt.pattern.axis': 'Axis', 'opt.pattern.axis.x': 'X axis', 'opt.pattern.axis.y': 'Y axis', 'opt.pattern.axis.z': 'Z axis',
+  'opt.pattern.axis.custom': 'Direction and point (x, y, z)', 'opt.pattern.axisPick': 'Pick an edge, or a round face (its axis), in the view',
+  'opt.pattern.dir.vector': 'Direction vector (x, y, z)', 'opt.pattern.dir.edge': 'Edge {id}', 'opt.pattern.dir.face': 'Round face {id}', 'opt.pattern.dir.feature': 'Axis {id}',
+  'opt.pattern.dirPick': 'Pick a straight edge, or a round face (its axis), in the view',
+  'opt.pattern.vec.x': 'X', 'opt.pattern.vec.y': 'Y', 'opt.pattern.vec.z': 'Z',
+  'opt.pattern.vecNote': 'Any direction, not only along X, Y or Z: (1, 1, 0) runs at 45 degrees in the XY plane. The length does not matter; Reverse flips the way.',
+  'opt.pattern.vecZero': 'A direction of length 0 has no way to go: give at least one component.',
+  'opt.pattern.dirRefNote': 'The copies run along the picked edge (from its start to its end) or the axis of the round face, and follow it when the part changes. Reverse flips the way.',
+  'opt.pattern.point.x': 'Point X', 'opt.pattern.point.y': 'Point Y', 'opt.pattern.point.z': 'Point Z',
+  'opt.pattern.pointNote': 'A point the axis passes through. Leave it at 0, 0, 0 for an axis through the origin; give the centre of a bolt circle to turn about it.',
+  'opt.pattern.axisRefNote': 'The copies turn about the picked edge or about the axis of the round face, and follow it when the part changes.',
   'opt.pattern.dir1': 'Direction 1', 'opt.pattern.dir2': 'Direction 2', 'opt.pattern.direction': 'Direction', 'opt.pattern.dirNone': 'None', 'opt.pattern.count': 'Count',
   'opt.pattern.distanceType': 'Distance type', 'opt.pattern.distanceType.spacing': 'Spacing', 'opt.pattern.distanceType.extent': 'Extent', 'opt.pattern.distanceType.toObject': 'To object',
   'opt.pattern.spacing': 'Spacing', 'opt.pattern.extent': 'Extent', 'opt.pattern.reverse': 'Reverse direction',
@@ -1147,8 +1177,11 @@ export const en: Catalog = {
   ...sketch3dStrings,
   ...meshStrings,
   ...screwStrings,
+  ...fastenStrings,
   ...washerStrings,
+  ...fastenerStrings,
   ...springStrings,
+  ...caseStrings,
   ...chatStrings,
   ...bearingStrings,
   ...impellerStrings,

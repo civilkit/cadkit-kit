@@ -458,6 +458,72 @@ export const SHOTS = [
       const r = await c.rect('.sheet-dxf-dlg'); if (!r) c.skip('no DXF dialog');
       return { x: Math.max(0, r.x - 8), y: Math.max(0, r.y - 8), w: r.w + 16, h: r.h - 28 };
     } },
+  // ---- 0.7.0: ribs, split and lip joint, oblique patterns, fastener wizards, springs ----
+
+  { name: 'rib-editor', caption: 'An L-shaped bracket with a diagonal rib and the Rib editor open in the left panel: the profile sketch, Thickness, Thickness side, Fillet on the free edge and Draft angle, with the rib previewed in the view.',
+    async run(c) {
+      await c.open({ doc: ribBracket() });
+      if (!(await c.editRow('Rib'))) c.skip('no Rib row'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1160, h: 824 };
+    } },
+  { name: 'split-editor', caption: 'An 80 x 50 x 30 mm block cut by a plane into two bodies, Base and Lid, with the Split body editor open in the left panel showing the plane, the offset and the names of the two halves.',
+    async run(c) {
+      await c.open({ doc: caseDoc({ joint: false }) });
+      if (!(await c.editRow('Split body'))) c.skip('no Split row'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1160, h: 824 };
+    } },
+  { name: 'lip-joint-editor', caption: 'A closed case (80 x 50 x 30 mm, 2 mm walls) split in the middle with the Lip joint editor open in the left panel: Height, Width, Clearance and which half carries the tongue.',
+    async run(c) {
+      await c.open({ doc: caseDoc({ joint: true }) });
+      if (!(await c.editRow('Lip joint'))) c.skip('no Lip joint row'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1160, h: 824 };
+    } },
+  { name: 'linear-pattern-direction', caption: 'A plate with a pocket repeated four times along a 45 degree direction, and the Linear pattern editor open with Direction set to a typed direction vector.',
+    async run(c) {
+      await c.open({ doc: patternPlate({ circular: false }) });
+      if (!(await c.editRow('Pocket pattern'))) c.skip('no pattern row'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1160, h: 824 };
+    } },
+  { name: 'circular-pattern-axis', caption: 'A plate with a round pocket repeated six times on a bolt circle round the plate centre, and the Circular pattern editor open with Axis set to Z axis and the axis point at X = 40, so the axis does not pass through the origin.',
+    async run(c) {
+      await c.open({ doc: patternPlate({ circular: true }) });
+      if (!(await c.editRow('Pocket pattern'))) c.skip('no pattern row'); await c.settle(1500);
+      return { x: 0, y: 46, w: 1160, h: 824 };
+    } },
+  { name: 'wizard-nut', caption: 'The Nut wizard open in the left panel with an M8 regular (ISO 4032) nut previewed: Type, Size, Chamfer the corners and Thread, the dimensions read from the standard with the Unverified tag, and the first face centre.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Nut'))) c.skip('no Nut button'); await c.settle(2500);
+      await c.key('z'); await c.settle(1200);
+    } },
+  { name: 'wizard-standoff', caption: 'The Standoff wizard open in the left panel with an M3 round, female-female standoff previewed: Size, Shape, Ends, Length, Outside diameter and Thread length, with the Unverified tag.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Standoff'))) c.skip('no Standoff button'); await c.settle(2500);
+      await c.key('z'); await c.settle(1200);
+    } },
+  { name: 'wizard-insert', caption: 'The Heat-set insert wizard open in the left panel with an M3 insert previewed: outside diameter, length, hole diameter and depth, groove rings, the Also cut the hole option and the Unverified tag.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Heat-set insert'))) c.skip('no Heat-set insert button'); await c.settle(2500);
+      await c.key('z'); await c.settle(1200);
+    } },
+  { name: 'wizard-spring', caption: 'The Spring wizard open in the left panel with a compression spring previewed and the Ends setting set to Closed and ground: Closed turns per end, the grinding note and the derived pitch and wire length.',
+    async run(c) {
+      await c.open({}); if (!(await c.panelTab('Catalog'))) c.skip('no Catalog tab'); await c.click('[role=tab]', 'Primitives'); await c.settle(600);
+      if (!(await c.click('button', 'Spring'))) c.skip('no Spring button'); await c.settle(2500);
+      if (!(await c.selectOption('Ends', 'Closed and ground'))) c.skip('no Ends select'); await c.settle(5000);
+      await c.key('z'); await c.settle(1500);
+    } },
+  { name: 'fasten-hole', caption: 'The Fasten this hole dialog opened from the right-click menu of a Hole feature in the tree: Bolt, Size, Length, Washer, Nut, Head on the other end and the identical-holes option, with the bolts previewed in the holes of a plate.',
+    async run(c) {
+      await c.open({ doc: fastenPlate() });
+      const row = await c.page.eval(`(() => { const r = [...document.querySelectorAll('.tree .row')].find((x) => x.querySelector('.row-name')?.textContent.trim() === 'Mounting holes'); if (!r) return null; const b = r.getBoundingClientRect(); return { x: b.x + 40, y: b.y + b.height / 2 }; })()`);
+      if (!row) c.skip('no Mounting holes row');
+      await c.page.eval(`(() => { const r = [...document.querySelectorAll('.tree .row')].find((x) => x.querySelector('.row-name')?.textContent.trim() === 'Mounting holes'); const b = r.getBoundingClientRect(); r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.x + 40, clientY: b.y + b.height / 2, button: 2 })); return 0; })()`); await c.sleep(500);
+      if (!(await c.click('[role=menuitem], button, li', 'Add fastener to hole'))) c.skip('no Add fastener to hole item in the menu'); await c.settle(2500);
+    } },
+
   { name: 'import-skp', caption: 'A SketchUp file imported as a Reference mesh, with the chair and table test file from the OpenSKP project (MIT): the chair and table in the viewport in their SketchUp colours, the imported mesh listed in the feature tree as chair_and_table (mesh), and the open-surface warning in the status bar.',
     async run(c) {
       const path = process.env.SKP_FIXTURE; if (!path) c.skip('SKP_FIXTURE is not set (path to chair_and_table.skp from the OpenSKP test files)');
@@ -506,4 +572,45 @@ export const bracketDoc = ({ failing = false, breakExtrude = false } = {}) => {
     { type: 'fillet', id: 'F6', name: 'Rim fillet', radius: 3, edges: [rim('e1', 0, -20), rim('e2', 30, 0), rim('e3', 0, 20), rim('e4', -30, 0)] },
     ...(failing ? [bad, { type: 'hole', id: 'F8', name: 'Spare hole', sketch: 'F7', kind: 'simple', size: 'M6', fit: 'normal', end: 'through', flip: true }] : [])];
   return newDoc('Bracket', f);
+};
+
+
+/** An L-shaped bracket (60 x 50, 8 mm legs, 40 mm deep) with a diagonal rib on a plane half way along it. */
+export const ribBracket = () => {
+  const pts = [[0, 0], [60, 0], [60, 8], [8, 8], [8, 50], [0, 50]];
+  const prof = { type: 'sketch', id: 'S1', name: 'L profile', plane: { kind: 'std', id: 'front' },
+    points: [{ id: 'O', x: 0, y: 0, fixed: true }, ...pts.map(([x, y], i) => ({ id: 'q' + i, x, y }))],
+    entities: pts.map((_, i) => ({ id: 'e' + i, type: 'line', p1: 'q' + i, p2: 'q' + ((i + 1) % pts.length) })), constraints: [] };
+  const mid = { type: 'plane', id: 'P1', name: 'Middle plane', mode: 'offset', base: { kind: 'std', id: 'front' }, offset: 20 };
+  const line = { type: 'sketch', id: 'S3', name: 'Rib line', plane: { kind: 'feature', id: 'P1' }, points: [{ id: 'a', x: 36, y: 8 }, { id: 'b', x: 8, y: 36 }], entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b' }], constraints: [] };
+  return newDoc('Bracket', [prof, { type: 'extrude', id: 'F2', name: 'L bracket', op: 'add', sketch: 'S1', end: 'blind', depth: 40 }, mid, line,
+    { type: 'rib', id: 'F5', name: 'Rib', sketch: 'S3', thickness: 6, fillet: 1.5, draft: 2 }]);
+};
+
+/** An 80 x 50 x 30 block cut at mid height into Base and Lid; with `joint` it is a closed case with a lip joint. */
+export const caseDoc = ({ joint }) => {
+  const f = [rectSketch('F1', 'Case outline', 'front', 80, 50, { cx: -40, cy: -25 }), { type: 'extrude', id: 'F2', name: 'Case', op: 'add', sketch: 'F1', end: 'blind', depth: 30 }];
+  if (joint) f.push({ type: 'shell', id: 'F3', name: 'Shell', faces: [], thickness: 2 }, { type: 'lipJoint', id: 'F4', name: 'Lip joint', plane: { kind: 'std', id: 'front' }, offset: 15, height: 1.5, width: 1, clearance: 0.2, names: ['Base', 'Lid'] });
+  else f.push({ type: 'split', id: 'F3', name: 'Split body', plane: { kind: 'std', id: 'front' }, offset: 15, names: ['Base', 'Lid'] });
+  return newDoc(joint ? 'Two-part case' : 'Split block', f);
+};
+
+/** A plate with one pocket and its pattern: four copies along a 45 degree direction, or six on a bolt circle round the plate centre (40, 0). */
+export const patternPlate = ({ circular }) => {
+  const plate = rectSketch('F1', 'Plate outline', 'front', 100, 80, { cx: -10, cy: -40 });
+  const sq = (x, y, r) => ({ type: 'sketch', id: 'F3', name: 'Pocket outline', plane: { kind: 'face', id: 'F2.C1' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, circular ? { id: 'k', x, y } : { id: 'a', x, y }, ...(circular ? [] : [{ id: 'b', x: x + r, y }, { id: 'c', x: x + r, y: y + r }, { id: 'd', x, y: y + r }])],
+    entities: circular ? [{ id: 'k1', type: 'circle', c: 'k', r }] : [['e1', 'a', 'b'], ['e2', 'b', 'c'], ['e3', 'c', 'd'], ['e4', 'd', 'a']].map(([i, p, q]) => ({ id: i, type: 'line', p1: p, p2: q })), constraints: [] });
+  const pattern = circular
+    ? { type: 'cpattern', id: 'F5', name: 'Pocket pattern', seeds: ['F4'], axis: { kind: 'axis', point: [40, 0, 0], dir: [0, 0, 1] }, count: 6, angle: 360, equal: true, reverse: false }
+    : { type: 'lpattern', id: 'F5', name: 'Pocket pattern', seeds: ['F4'], dir: { kind: 'vector', dir: [1, 1, 0] }, count: 4, spacing: 22, reverse: false };
+  return newDoc('Pattern demo', [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 8 }, circular ? sq(60, 0, 5) : sq(-2, -35, 10),
+    { type: 'extrude', id: 'F4', name: 'Pocket', op: 'cut', sketch: 'F3', end: 'blind', depth: 4 }, pattern]);
+};
+
+/** A 60 x 40 x 12 plate with two M5 clearance holes for the Add fastener to hole dialog. */
+export const fastenPlate = () => {
+  const plate = rectSketch('F1', 'Plate outline', 'front', 60, 40, { cx: -30, cy: -20 });
+  const pts = { type: 'sketch', id: 'F3', name: 'Hole centres', plane: { kind: 'face', id: 'F2.C1' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'h1', x: -15, y: 0 }, { id: 'h2', x: 15, y: 0 }], entities: [{ id: 'e1', type: 'point', p: 'h1' }, { id: 'e2', type: 'point', p: 'h2' }], constraints: [] };
+  return newDoc('Plate with holes', [plate, { type: 'extrude', id: 'F2', name: 'Plate', op: 'add', sketch: 'F1', end: 'blind', depth: 12 }, pts,
+    { type: 'hole', id: 'F4', name: 'Mounting holes', sketch: 'F3', kind: 'simple', standard: 'iso', size: 'M5', fit: 'normal', end: 'through' }]);
 };

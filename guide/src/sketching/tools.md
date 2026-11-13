@@ -29,6 +29,8 @@ Most tools show small fields beside the pointer while you draw, labelled with sh
 
 The setting **Values beside the pointer** chooses whether the fields show dimensions only (the default), dimensions and positions, or nothing. See [Units and settings](../getting-started/settings.md).
 
+In a field that holds a plain number, **ArrowUp** and **ArrowDown** change it by 1 (**Shift** by 10, **Alt** by 0.1) and the preview follows. A formula or a variable name in the field is left alone.
+
 ## Snaps and inferred constraints
 
 As you move the pointer, CivilKit CAD snaps to existing points and curves and shows a marker and a name: **endpoint**, **centre**, **origin**, **midpoint**, **quadrant**, **intersection**, **perpendicular**, **tangent**, **on curve**, **aligned** and **grid**. The same markers appear for model geometry: **model endpoint**, **model midpoint**, **model centre**, **model quadrant**, **model crossing**, **mid-extent**, **body centre** and **mid of extrusion**.

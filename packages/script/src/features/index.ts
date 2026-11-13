@@ -3,18 +3,21 @@
 import type { PartBuilder, SketchBuilder } from '../recorder';
 import { bindHelpers, type Helpers } from './h';
 import { bearingFeatures } from './bearing';
+import { editFeatures } from './edits';
+import { enclosureFeatures } from './enclosure';
 import { knurlFeatures } from './knurl';
 import { miscFeatures } from './misc';
 import { screwFeatures } from './screw';
 import { washerFeatures } from './washer';
 import { springFeatures } from './spring';
+import { fastenerFeatures } from './fasteners';
 import { sheetFeatures } from './sheet';
 import { shapeFeatures } from './shapes';
 import { sketchCurves } from './sketchCurves';
 import { sketchOffset } from './sketchOffset';
 import { sketchPattern } from './sketchPattern';
 
-export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...springFeatures, ...bearingFeatures, ...sheetFeatures };
+export const partFeatures = { ...shapeFeatures, ...miscFeatures, ...editFeatures, ...knurlFeatures, ...screwFeatures, ...washerFeatures, ...springFeatures, ...fastenerFeatures, ...bearingFeatures, ...sheetFeatures, ...enclosureFeatures };
 export const sketchFeatures = { ...sketchCurves, ...sketchPattern, ...sketchOffset };
 
 declare module '../recorder' {

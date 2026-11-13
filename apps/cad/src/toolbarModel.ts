@@ -19,7 +19,7 @@ export const SLOTS: Record<string, string[]> = {
   draft: ['add-draft', 'add-rib', 'add-lip'],
   pattern: ['add-lpattern', 'add-cpattern', 'add-pathpattern'],
   'loft-sweep': ['add-loft', 'add-sweep'],
-  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-washer', 'add-spring', 'add-bearing'],
+  gear: ['add-gear', 'add-gear-pair', 'add-propeller', 'add-impeller', 'add-knurl', 'add-screw', 'add-washer', 'fasten-hole', 'add-spring', 'add-nut', 'add-standoff', 'add-insert', 'add-case', 'add-bearing'],
   reference: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'],
   'delete-geom': ['add-delete-body', 'add-delete-face'],
   'surface-new': ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft'],
@@ -55,7 +55,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
   Features: [
     { id: 'Reference', entries: [slot('reference')] },
     { id: 'Create', entries: [slot('gear')] },
-    { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-scale', 'add-pipe-cut'] },
+    { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-lip-joint', 'add-pipe-cut'] },
     { id: 'Bodies', entries: [slot('delete-geom')] },
   ],
   // Frame is its own tab (a phone's tool sheet shows the same tabs): plain buttons, no dropdown. Add the bracket and connector tools to this group.
@@ -100,7 +100,7 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
-  { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'add-scale', 'triball', 'add-pipe-cut', slot('delete-geom')] },
+  { id: 'modify', entries: [slot('edge-round'), 'add-shell', slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-lip-joint', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },
   { id: 'sheet', entries: ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat'] },
   { id: 'surfaces', entries: [slot('surface-new'), slot('surface-reshape'), slot('surface-edit')] },

@@ -118,6 +118,19 @@ describe('POST /bridge/chat', () => {
     expect(c.cwd).toMatch(/ck-chat-/);                              // an empty temporary folder, not the repo
   });
 
+  it('allows the read-only measurement tools of the open document and tells the model about them', async () => {
+    const { post, events, called } = await boot();
+    await events(await post({ text: 'how far apart are the lid and the box?' }));
+    const args = called().args;
+    const allowed = args[args.indexOf('--allowedTools') + 1].split(',');
+    for (const t of ['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm']) expect(allowed, t).toContain(`mcp__ck-cad__app_${t}`);
+    // nothing else was widened: the allow-list is the app_ tools, docs and list_methods, no headless tools, no file or shell tools
+    expect(allowed.every((t) => /^mcp__ck-cad__(app_|docs$|list_methods$)/.test(t))).toBe(true);
+    const prompt = args[args.indexOf('--append-system-prompt') + 1];
+    expect(prompt).toMatch(/app_measure/);
+    expect(prompt).toMatch(/never change the document and need no edit permission/);
+  });
+
   it('resumes a session by id', async () => {
     const { post, events, called } = await boot();
     await events(await post({ text: 'again', resume: '11111111-2222-3333-4444-555555555555' }));

@@ -16,6 +16,12 @@
       "match": "internal-org",
       "reason": "the public Calcs repository link in the shared site header and footer (tools/pages/siteChrome.mjs), the same link as on every civilkit.io page",
       "context": "github.com/internal-org/civilkit-calcs"
+    },
+    {
+      "id": "email",
+      "file": "whats-new/clips/propeller-position.mp4",
+      "match": "7@H.Ji",
+      "reason": "random bytes inside a binary video file that happen to look like an email address (checked: no text, no metadata)"
     }
   ]
 }

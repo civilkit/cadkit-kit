@@ -14,7 +14,7 @@ export const toolbarStrings: Record<string, string> = {
   'rb.add-lpattern': 'Linear', 'rb.add-cpattern': 'Circular', 'rb.open-catalog': 'Catalog', 'rb.suppress-selected': 'Suppress', 'rb.delete-feature': 'Delete',
   'rb.roll-forward': 'Roll fwd', 'rb.select-same-size': 'Same size', 'rb.add-trim-surface': 'Trim', 'rb.add-surface-planar': 'Planar', 'rb.add-surface-extrude': 'Extruded',
   'rb.add-surface-revolve': 'Revolved', 'rb.add-surface-loft': 'Lofted', 'rb.add-fill': 'Fill', 'rb.add-extend': 'Extend', 'rb.add-delete-face': 'Del. face',
-  'rb.add-delete-body': 'Del. body', 'rb.add-project-curve': 'Project', 'rb.add-edit-curve': 'Edit curve', 'rb.add-freeform': 'Freeform', 'rb.add-pipe-cut': 'Pipe cut', 'rb.add-gear-pair': 'Gear pair', 'rb.add-lip': 'Lip', 'rb.hide-selection': 'Hide',
+  'rb.add-delete-body': 'Del. body', 'rb.add-project-curve': 'Project', 'rb.add-edit-curve': 'Edit curve', 'rb.add-freeform': 'Freeform', 'rb.add-pipe-cut': 'Pipe cut', 'rb.add-gear-pair': 'Gear pair', 'rb.add-lip': 'Lip', 'rb.add-split': 'Split', 'rb.add-lip-joint': 'Lip joint', 'rb.hide-selection': 'Hide',
   'rb.style-shadedEdges': 'With edges', 'rb.style-hiddenLines': 'Hidden', 'rb.style-wireframe': 'Wireframe', 'rb.light-contrast': 'Contrast',
   'rb.mass-props': 'Mass', 'rb.interference': 'Overlap', 'rb.asm-interference': 'Overlap', 'rb.section-view': 'Section', 'rb.bom': 'BOM', 'rb.explode': 'Explode',
   'rb.analysis-zebra': 'Zebra', 'rb.analysis-gaussian': 'Gaussian', 'rb.analysis-mean': 'Mean', 'rb.analysis-draft': 'Draft check', 'rb.analysis-comb': 'Comb',

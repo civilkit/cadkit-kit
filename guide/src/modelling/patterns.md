@@ -28,7 +28,7 @@ The Editor has a **Direction 1** and a **Direction 2** section. Each direction h
 
 | Option | What it does | Default |
 |---|---|---|
-| Direction | The world axis the copies run along: X axis, Y axis or Z axis. Direction 2 also has **None**, which turns it off. | Direction 1: the axis along which the body is longest. Direction 2: None |
+| Direction | What the copies run along: the X, Y or Z axis, a **Direction vector (x, y, z)** (any direction, such as (1, 1, 0) for 45 degrees; the length does not matter), or a **straight edge or round face picked in the view** with the **Pick** button (the copies run along the edge from its start to its end, or along the axis of the round face, and follow it when the part changes). Direction 2 also has **None**, which turns it off. | Direction 1: the world axis along which the body is longest. Direction 2: None |
 | Count | Number of instances along this direction **including the seed**. A count of 1 or less makes no copies. | 3 (Direction 2: 2 when you turn it on) |
 | Distance type | **Spacing**: the distance between neighbouring copies. **Extent**: the distance from the seed to the last copy; the copies are spread evenly over it, and it stays the same when you change Count. **To object**: the last copy reaches a plane, a flat face or a point (see below). | Spacing |
 | Spacing | With Spacing: the distance between neighbours, in mm. | About 20% of the body length along the direction, rounded to a tidy value (1, 1.5, 2, 2.5, 3, 4, 5, 6, 8 or 10 times a power of ten), at least 1 mm |
@@ -39,7 +39,9 @@ The Editor has a **Direction 1** and a **Direction 2** section. Each direction h
 
 The Editor also has **Features to repeat** (the seeds, as feature ids) and, when the part contains threads, **Carry threads** (see below).
 
-With Direction 2 on, the pattern is a grid: Count x Count 2 instances. The two directions must be different axes.
+With Direction 2 on, the pattern is a grid: Count x Count 2 instances. The two directions must point different ways (a direction along the first is refused).
+
+![A plate with a pocket repeated four times along a 45 degree direction, and the Linear pattern editor open with Direction set to a typed direction vector.](../img/linear-pattern-direction.png)
 
 ### To object
 
@@ -58,7 +60,8 @@ Choose **Home > Pattern > Circular pattern** (Shift+P). It is on the same button
 | Option | What it does | Default |
 |---|---|---|
 | Features to repeat | The seeds. | The seed chosen as above |
-| Axis | X axis, Y axis or Z axis. The axis passes through the model origin. | The axis along the body's shortest dimension |
+| Axis | The X, Y or Z axis, **Direction and point (x, y, z)** for a typed direction (it can be oblique), or a straight edge or round face picked in the view with **Pick** (the copies turn about the edge, or about the axis of a round face such as a hole wall, and follow it when the part changes). | The world axis along the body's shortest dimension |
+| Axis point | Shown for the X, Y, Z and typed axes: a point the axis passes through. 0, 0, 0 is an axis through the origin; give the centre of a bolt circle to turn about it. | 0, 0, 0 |
 | Count | Number of instances including the seed. | 3 |
 | Angle | With Equal spacing: the total angle the copies are spread over. Without it: the step between neighbours. In degrees. | 360 |
 | Equal spacing | On: copies are spread evenly, so 360 degrees with 4 copies puts them 90 degrees apart, and any smaller total puts the last copy exactly at the Angle. Off: the Angle is the gap between neighbours. | On |
@@ -67,8 +70,10 @@ Choose **Home > Pattern > Circular pattern** (Shift+P). It is on the same button
 
 Known limits of the circular pattern:
 
-- The axis is always a world axis through the origin. It is not the centre of the part, and not the seed's own axis. If your seed is not centred on the axis you want, put the part's origin there, or use the move and rotate ball's radial pattern. See [Moving things](transforms.md).
+- The axis is not the centre of the part and not the seed's own axis unless you say so: set the **Axis point** to the centre you want (a bolt circle round (40, 0) is the Z axis through the point 40, 0, 0), or pick the edge or the round face that marks it.
 - A seed that ends up outside the body after turning produces no change and no error.
+
+![A plate with a round pocket repeated six times on a bolt circle round the plate centre, and the Circular pattern editor open with Axis set to Z axis and the axis point at X = 40, so the axis does not pass through the origin.](../img/circular-pattern-axis.png)
 
 ## Pattern on path
 
@@ -162,7 +167,9 @@ To copy whole bodies, use **Copy** in the Bodies panel. See [Bodies and combinin
 | "the last copy lies past the end of the path" | Use the spacing the message gives, fewer copies, or an earlier start point. |
 | The wrong feature is repeated | Select the right feature in the tree before running the command, or edit Features to repeat. |
 | "a face or edge it uses no longer exists" | The seed was deleted or renamed by an earlier edit. See [The feature tree and history](history.md). |
-| Circular pattern rotates about the wrong centre | The axis goes through the origin. Move the part or use the radial pattern on the move and rotate ball. |
+| Circular pattern rotates about the wrong centre | Set the Axis point to the centre of the circle, or pick the edge or round face that is its axis. |
+| A picked edge or face is refused (missingReference) | A direction or axis needs a straight edge or a round (cylindrical) face. A flat face or a curved edge has no single direction. |
+| The copies of an edge-direction pattern go the wrong way | Tick Reverse direction: the edge runs from its start to its end as the kernel reads it. |
 | Scale is refused | See the cases above. Scale the sketch before extruding instead, or use uniform factors. |
 
 ## Next

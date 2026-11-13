@@ -30,6 +30,8 @@ export const diagStrings: Catalog = {
   'diag.advice.shellTooThick': 'The wall is thicker than the thinnest part of the body. Use a thinner wall.',
   'diag.advice.shellFailed': 'The shell could not be hollowed. Try a smaller thickness or open a different face.',
   'diag.advice.noClosedProfile': 'The sketch is not a closed outline. Close the gaps, then try again.',
+  'diag.reason.noClosedProfile.openLine': 'the sketch is one open line, which has no inside to fill',
+  'diag.advice.noClosedProfile.openLine': 'The sketch is one open line, not a closed outline. For a web or gusset that grows to the body, use Rib; for a thin wall along the line, turn on Thin wall on the extrude; or close the outline.',
   'diag.advice.sweepFailed': 'The sweep failed. Check that the profile sits at the start of the path and the path has no sharp kinks.',
   'diag.advice.loftInvalidResult': 'The loft makes an invalid solid. Check the profiles follow each other along one direction (use Auto-order), a point profile is the first or last, and no two profiles cross.',
   'diag.advice.loftFailed': 'The loft failed. Check the profiles have the same number of segments and run in the same order.',

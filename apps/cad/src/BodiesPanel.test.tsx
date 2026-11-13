@@ -129,7 +129,7 @@ describe('BodiesPanel', () => {
     const edits = { onCopy: vi.fn(), onRemove: vi.fn(), onCombine: vi.fn() };
     const btn = (r: ReturnType<typeof setup>['r'], label: string) => [...r.container.querySelectorAll<HTMLButtonElement>('.bodies-edit button')].find((b) => b.textContent === label)!;
     const none = setup(edits);
-    for (const l of ['Copy', 'Delete', 'Join', 'Cut', 'Intersect']) expect(btn(none.r, l).disabled, l).toBe(true);
+    for (const l of ['Copy', 'Delete', 'Join', 'Cut', 'Intersect', 'Split']) expect(btn(none.r, l).disabled, l).toBe(true);
     cleanup();
     const one = setup({ ...edits, selected: ['@body:a'] });
     expect([btn(one.r, 'Copy').disabled, btn(one.r, 'Delete').disabled, btn(one.r, 'Join').disabled]).toEqual([false, false, true]);
@@ -137,9 +137,11 @@ describe('BodiesPanel', () => {
     expect(edits.onCopy).toHaveBeenCalledWith('@body:a');
     cleanup();
     const two = setup({ ...edits, selected: ['@body:b', '@body:a'] });
-    expect([btn(two.r, 'Copy').disabled, btn(two.r, 'Join').disabled, btn(two.r, 'Cut').disabled, btn(two.r, 'Intersect').disabled]).toEqual([true, false, false, false]);
+    expect([btn(two.r, 'Copy').disabled, btn(two.r, 'Join').disabled, btn(two.r, 'Cut').disabled, btn(two.r, 'Intersect').disabled, btn(two.r, 'Split').disabled]).toEqual([true, false, false, false, false]);
     fireEvent.click(btn(two.r, 'Cut'));
     expect(edits.onCombine).toHaveBeenCalledWith('cut', ['@body:b', '@body:a']);   // the first selected keeps the result
+    fireEvent.click(btn(two.r, 'Split'));
+    expect(edits.onCombine).toHaveBeenLastCalledWith('split', ['@body:b', '@body:a']);   // the first selected is split by the others
     fireEvent.click(btn(two.r, 'Delete'));
     expect(edits.onRemove).toHaveBeenCalledWith(['@body:b', '@body:a']);
   });

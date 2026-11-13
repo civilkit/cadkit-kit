@@ -27,6 +27,32 @@ p.sketch('front', (s) => s.rect(m.width + 10, 14)).extrude(3)
     expected: { volume: 0, volumeTol: 0, features: 5, valid: true, notes: 'volume = plate minus glyph area x 0.3 (checked against the kernel outline area in text.kernel.test.ts)' },
   },
   {
+    id: 'two-part-case',
+    title: 'Two-part case: a hollow box split into base and lid with a tongue-and-groove joint',
+    intent: ['case', 'enclosure', 'box with lid', 'lid', 'two part', 'split', 'lip', 'tongue', 'groove', 'clearance', 'snap', 'housing', 'shell'],
+    description: 'Shell with an empty face list closes the cavity, then lipJoint(plane, { height, width, clearance, names }) cuts at the plane and gives one half a centred tongue and the other a groove wider and deeper by the clearance. Volume = hollow box + tongue - groove (29104 + 378 - 599.76).',
+    kind: 'script',
+    code: `part('Case')
+  .sketch('front', (s) => s.rect(80, 50)).extrude(30)
+  .feature({ type: 'shell', faces: [], thickness: 2 })
+  .lipJoint(at('front', 15), { height: 1.5, width: 1, clearance: 0.2, names: ['Base', 'Lid'] });`,
+    expected: { volume: 28882.24, volumeTol: 1e-6, features: 5, valid: true, notes: 'Base 14930, Lid 13952.24 mm3' },
+  },
+  {
+    id: 'mould-from-part',
+    title: 'Mould halves from a part: shrink, block, cavity (keep the part), split',
+    intent: ['mould', 'mold', 'cavity', 'core', 'shrink', 'shrinkage', 'casting', 'injection', 'split', 'parting plane', 'block'],
+    description: 'Scale the part body by 1/(1-shrinkage), build a block as a new body, cut the part from it with keepTools, then split the block at the parting plane. Bodies: Part 9613.11, Lower and Upper 67193.44 each. No draft, flat parting plane only.',
+    kind: 'script',
+    code: `part('Mould')
+  .sketch('front', (s) => s.circle(12)).extrude(20, { newBody: 'Part' })
+  .feature({ type: 'scale', factor: 1 / (1 - 0.02), bodies: [{ body: 'Part' }] })
+  .sketch(at('front', -10), (s) => s.rect(60, 60)).extrude(40, { newBody: 'Block' })
+  .combine('cut', 'Block', 'Part', { keepTools: true })
+  .split(at('front', 10), { target: 'Block', names: ['Lower', 'Upper'] });`,
+    expected: { volume: 144000, volumeTol: 1e-6, features: 9, valid: true, notes: 'block volume: the part fills the cavity' },
+  },
+  {
     id: 'dial-numerals',
     title: 'Dial with upright numerals on a 270 degree sweep and a caption on an arc',
     intent: ['dial', 'gauge', 'numerals', 'numbers around a circle', 'text on arc', 'arc text', 'caption', 'scale', 'emboss', 'embossed text', 'lettering'],
@@ -121,6 +147,56 @@ part('Closed box')
     expected: { volume: 60 * 40 * 27 - 56 * 36 * 23, volumeTol: 1e-4, features: 5, valid: true },
   },
   {
+    id: 'box-lip-groove',
+    title: 'Box with a lip on the rim (and the matching groove for the lid)',
+    intent: ['lip', 'groove', 'rabbet', 'lid', 'rim', 'tongue', 'enclosure', 'snap', 'seat', 'cover'],
+    description: 'Shell a box open at the top, then lip() raises a 1 mm wide, 1.5 mm high band along the four outer rim edges. The lid half takes groove() with the same edges and width (add clearance for a printed fit). The rim face must be planar; pick the outer rim edges by excluding the inner ones with a box test on their midpoints.',
+    kind: 'script',
+    code: `// 40 x 20 x 10 box, 2 mm walls; the band follows the outer rim
+part('Box with lip')
+  .sketch('front', (s) => s.rect(40, 20))
+  .extrude(10)
+  .shell(face('>Z'), 2)
+  .lip(face('>Z'), edges({ onFace: face('>Z'), not: edges({ inside: [[-19, -9, 9], [19, 9, 11]] }) }), { width: 1, height: 1.5 });`,
+    expected: { volume: 40 * 20 * 10 - 36 * 16 * 8 + (40 * 20 - 38 * 18) * 1.5, volumeTol: 1e-4, features: 4, valid: true },
+  },
+  {
+    id: 'drafted-block',
+    title: 'Draft a wall for moulding',
+    intent: ['draft', 'taper', 'mould', 'mold', 'release', 'angle', 'wall', 'injection', 'pull direction'],
+    description: 'draft(faces, angle, { neutral }) tilts the walls by the angle about the neutral plane, which stays put; its normal is the pull direction. Here the +X wall of a 40 x 20 x 10 block leans 5 degrees about the front plane (z = 0), so the wedge 1/2 x 10 x (10 tan 5) x 20 is removed. Draft before filleting the same walls.',
+    kind: 'script',
+    code: `part('Drafted block')
+  .sketch('front', (s) => s.rect(40, 20))
+  .extrude(10)
+  .draft(face('>X'), 5, { neutral: 'front' });`,
+    expected: { volume: 8000 - 0.5 * 10 * 10 * Math.tan((5 * PI) / 180) * 20, volumeTol: 1e-3, features: 3, valid: true },
+  },
+  {
+    id: 'helix-coil',
+    title: 'A coil of wire: helix curve and a sweep along it',
+    intent: ['helix', 'coil', 'spiral', 'wire', 'spring', 'sweep along helix', 'thread path'],
+    description: 'helix({ radius, pitch, revolutions }) adds the curve (no body) from a circle on the top plane; take its handle and sweep a circle placed at (radius, 0) on the front plane along it with { curve: handle }. Volume = wire area x helix centre-line length (turns x 2 pi R). For a real compression spring use spring().',
+    kind: 'script',
+    code: `const p = part('Coil').helix({ radius: 10, pitch: 4, revolutions: 5 });
+const path = p.handle();
+p.sweep({ on: 'front', draw: (s) => s.circle(1.5, [10, 0]) }, { curve: path });`,
+    expected: { volume: PI * 1.5 * 1.5 * 2 * PI * 10 * 5, volumeTol: 2e-3, features: 4, valid: true },
+  },
+  {
+    id: 'guided-sweep-frustum',
+    title: 'A sweep that flares along a guide curve',
+    intent: ['guide', 'guide curve', 'taper', 'flare', 'cone', 'frustum', 'sweep guide', 'tapered sweep'],
+    description: 'A guide sketch holding ONE line, arc or spline makes the profile follow it while it travels along the path: a circle r 3 swept 20 along a line with a guide from (3, 0) to (6, 20) is a cone frustum (guideMode scale, the default; turn keeps the section; stretch needs two guides). The guide must touch the profile and run along the path. No twist with guides.',
+    kind: 'script',
+    code: `part('Flared pipe').sweep(
+  { on: 'top', draw: (s) => s.circle(3) },
+  { on: 'front', draw: (s) => s.line([0, 0], [0, 20]) },
+  { guides: [{ on: 'front', draw: (s) => s.line([3, 0], [6, 20]) }] },
+);`,
+    expected: { volume: (PI * 20 / 3) * (9 + 18 + 36), volumeTol: 2e-3, features: 4, valid: true },
+  },
+  {
     id: 'pulley',
     title: 'Pulley: revolved groove profile plus lightening holes',
     intent: ['pulley', 'sheave', 'wheel', 'revolve', 'groove', 'lathe', 'holes', 'bolt circle', 'lightening holes'],
@@ -160,7 +236,7 @@ part('Gear blank')
     id: 'rib-plate',
     title: 'Plate reinforced with ribs (ribs as thin extrudes)',
     intent: ['rib', 'web', 'gusset', 'stiffener', 'reinforce', 'plate', 'pattern', 'linear pattern'],
-    description: 'There is no rib helper in the script API: a rib is a narrow rectangle sketched on the plate face and extruded, then repeated with linearPattern. The pattern repeats the LAST feature, so sketch + extrude the first rib, then pattern.',
+    description: 'Ribs standing on a plate: a narrow rectangle sketched on the plate face and extruded, then repeated with linearPattern. The pattern repeats the LAST feature, so sketch + extrude the first rib, then pattern. For a web or gusset that grows from an open line to the body (a triangle across an inside corner) use .rib(thickness) instead.',
     kind: 'script',
     code: `// plate 80 x 60 x 6, two ribs 60 long, 3 thick, 15 high, 20 apart
 part('Ribbed plate')
@@ -170,7 +246,6 @@ part('Ribbed plate')
   .extrude(15)
   .linearPattern({ count: 2, spacing: 20, axis: 'y' });`,
     expected: { volume: 80 * 60 * 6 + 2 * 60 * 3 * 15, volumeTol: 1e-4, features: 5, valid: true },
-    gap: 'no rib feature in the script API (the kernel has one)',
   },
   {
     id: 'tapered-boss-chamfer',
@@ -293,7 +368,7 @@ part('Channel bracket')
 cutNoEffect          The cut sketch removed nothing (script error message "cutNoEffect"). A cut left on direction 'auto' is flipped once automatically (warning 'cut direction flipped automatically'); if it still reports this the sketch does not overlap the material. A cut runs AGAINST the sketch normal: sketch on the face you cut from (face('>Z')) so it goes into the body; a sketch on the front plane at z = 0 of a body that extends to +Z cuts away from it, so pass flip: true. Also check the plane offset and that the sketch overlaps the body.
 nothingToCut         There is no solid yet to cut (the first feature was a cut).
 missingReference     A face / edge the feature used no longer exists (you changed an earlier feature). Re-run the whole script; select by direction (face('>Z')) rather than by remembered names.
-noClosedProfile      The sketch is open. Use polygon() or rect() / circle(), or close the chain; for a thin wall use the thin option.
+noClosedProfile      The sketch is open. Use polygon() or rect() / circle(), or close the chain. ONE open line is not a profile: use .rib(thickness) for a web or gusset that grows to the body, or the thin option for a thin wall along the line.
 blendOverflow / blendUnsupported   The fillet or chamfer is too big for the neighbouring faces. Halve the radius, fillet before adding small features, or fillet a smaller edge set.
 shellTooThick / shellFailed   The wall is thicker than the smallest feature or curvature allows; the error gives maxThickness. Use at most that, or round the sharp inner corners first.
 offsetUnsupported    A shell or offset hit a face kind that cannot be offset yet (free-form sheets, some surfaces). Open a different face, shell before adding free-form features, or model the wall as a second sketch + cut instead.

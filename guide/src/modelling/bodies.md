@@ -35,11 +35,11 @@ Under the list:
 | Hide others | A selected body and two or more bodies | Keeps the selected bodies visible and hides the rest |
 | **Copy** | One selected body | Makes a copy in the same place, named after the source body with " 2". Move the copy afterwards |
 | **Delete** | One or more selected bodies | Deletes the bodies |
-| **Join**, **Cut**, **Intersect** | Two or more selected bodies | Combines them. The first body you selected keeps the result, and the others are used up |
+| **Join**, **Cut**, **Intersect**, **Split** | Two or more selected bodies | Combines them. The first body you selected keeps the result, and the others are used up |
 
 Below those, the selected body shows its **Appearance** settings. See [Materials and appearance](../assemblies/appearance.md).
 
-Hidden bodies are not drawn and cannot be picked. Hiding a body in the panel is saved with the part, but it is not an undo step, and it does not change the geometry or what you export. Copy, Delete, Join, Cut and Intersect are features: they appear in the tree, can be undone, and show in the History.
+Hidden bodies are not drawn and cannot be picked. Hiding a body in the panel is saved with the part, but it is not an undo step, and it does not change the geometry or what you export. Copy, Delete, Join, Cut, Intersect and Split are features: they appear in the tree, can be undone, and show in the History.
 
 ### Names
 
@@ -66,22 +66,23 @@ A part converted from another program can carry its stored solid (named **Origin
 
 ## Combine bodies
 
-Join, Cut and Intersect make a **Combine bodies** feature.
+Join, Cut, Intersect and Split make a **Combine bodies** feature.
 
 1. Select the bodies in the panel. Click the **target** first: it is the body that keeps the result.
-2. Click **Join**, **Cut** or **Intersect**.
+2. Click **Join**, **Cut**, **Intersect** or **Split**.
 
 | Operation | Result |
 |---|---|
 | Join | The target and the other bodies become one |
 | Cut | The other bodies are subtracted from the target |
 | Intersect | Only the volume shared by all of them is kept |
+| Split | The target is cut into two bodies: the part outside the other bodies and the part inside them. The other bodies are used up |
 
 Double-click the Combine bodies feature in the tree to open its Editor.
 
 | Option | What it does | Default |
 |---|---|---|
-| Operation | Join, Cut or Intersect. (Split appears here only if the feature already uses it.) | The button you clicked |
+| Operation | Join, Cut, Intersect or Split. | The button you clicked |
 | Target body | The body that keeps the result. Read-only; shown in words | The first body selected |
 | Tool bodies | The other bodies. Read-only; shown in words | The other selected bodies |
 | Keep the tool bodies | The tools survive instead of being used up | Off |
@@ -127,7 +128,7 @@ Bodies that you made with New body can overlap without any warning while you mod
 |---|---|
 | An extrusion became a separate body instead of joining | The sketch plane did not reach the body. Change Operation to Add, or move the sketch plane onto the body |
 | Two bodies merged into one | They touch and were joined by Add. Make the second one with New body, or use Cut/Intersect afterwards |
-| Join, Cut or Intersect is greyed out | Select two or more bodies in the panel |
+| Join, Cut, Intersect or Split is greyed out | Select two or more bodies in the panel |
 | A cut removes nothing | The tool body does not overlap the target. Check Interference first |
 | A body cannot be picked in the view | It is hidden, or it is almost transparent with something behind it. Check the eye and the opacity |
 

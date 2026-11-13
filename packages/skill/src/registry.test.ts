@@ -41,11 +41,11 @@ describe('token budgets (4 characters per token)', () => {
     console.log('SKILL index tokens', t, 'methods', listMethods().length);
     expect(t).toBeLessThan(5000);
   });
-  it('the system prompt fragment stays under 2.6k tokens (the sheet metal methods took it past 2.4k)', () => {
+  it('the system prompt fragment stays under 3.2k tokens (the sheet metal methods took it past 2.4k, the twelve direct-edit methods past 2.6k, the fasteners, springs, split and lip joint past 3k)', () => {
     const t = tokens(systemPromptFragment());
     console.log('SKILL prompt fragment tokens', t);
     expect(t).toBeGreaterThan(700);
-    expect(t).toBeLessThan(2600);
+    expect(t).toBeLessThan(3200);
   });
   it('the prompt fragment names the rule, the conventions and every method', () => {
     const p = systemPromptFragment();
@@ -78,10 +78,10 @@ describe('listMethods and docs', () => {
     expect(docs(['s.rect']).entries[0].id).toBe('sketch.rect');
     expect(docs(['holes.polar']).entries[0].id).toBe('part.holes.polar');
     expect(docs(['points']).entries.map((e) => e.id).sort()).toEqual(['part.holes.points', 'sketch.points']);
-    const r = docs(['fillt', 'helix']);
+    const r = docs(['fillt', 'dome']);
     expect(r.entries).toEqual([]);
     expect(r.unknown[0]).toEqual({ name: 'fillt', didYouMean: expect.arrayContaining(['part.fillet']) });
-    expect(r.unknown[1].name).toBe('helix');
+    expect(r.unknown[1].name).toBe('dome');   // not built in the kernel, so no method
   });
 });
 

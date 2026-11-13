@@ -1,5 +1,5 @@
 // Loft, sweep, rib, mirror and gear: feature helpers that build several sketches or reuse an app generator. Mixed into PartBuilder by features/index.ts.
-import type { EditOp, Num, OffsetPlane, Plane, PartBuilder } from '../recorder';
+import type { EditOp, FeatureHandle, Num, OffsetPlane, Plane, PartBuilder } from '../recorder';
 import type { FaceSel } from '../selectors';
 import { DEFAULT_GEAR, gearFeatures, rolesFor, type GearParams } from '../../../../apps/cad/src/gearData';
 import { H, applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './h';
@@ -70,14 +70,16 @@ export const shapeFeatures = {
   /**
    * Sweep a closed profile along a path sketch (pipes, rails, handles).
    *
-   * Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The kernel has no keep-normal option: the profile follows the path frame.
+   * Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The path can also be a helix: sweep(profile, { curve: handle }) with the handle of part.helix(). Guide curves (guides, guideMode) make a tapering or flaring body: a circle r 3 swept 20 along a line with a guide from (3, 0) to (6, 20) is a cone frustum. twist cannot be combined with guides. The kernel has no keep-normal option: the profile follows the path frame.
    * @domain features
    * @param profile closed profile sketch { on, draw }
-   * @param path path sketch { on, draw } (open chain starting on the profile plane)
+   * @param path path sketch { on, draw } (open chain starting on the profile plane), or { curve: handle } for a helix
    * @param o.twist total twist in degrees over the path
    * @param o.op 'add' (default) or 'cut'
    * @param o.newBody true or 'Name': keep the swept solid as a separate body instead of fusing it with what it touches
    * @param o.from with op 'cut': a body name or list of names the cut changes; the other bodies stay as they are
+   * @param o.guides one or two guide curve sketches ({ on, draw }, each drawing ONE line, arc or spline) the profile follows while it travels; each must touch the profile and run along the path
+   * @param o.guideMode with guides: 'scale' (default: scaled and turned so the contact stays on the guide), 'turn' (only turned, the section keeps its shape) or 'stretch' (two guides: stretched between them)
    * @example
    * part('Pipe').sweep(
    *   { on: 'front', draw: (s) => { s.circle(5); s.circle(4); } },
@@ -85,14 +87,37 @@ export const shapeFeatures = {
    * );
    * @see part.loft, sketch.polyline, sketch.spline
    */
-  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[] } = {}): PartBuilder {
+  sweep(this: PartBuilder, profile: SketchSpec, path: SketchSpec | { curve: FeatureHandle | string }, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[]; guides?: SketchSpec[]; guideMode?: 'scale' | 'turn' | 'stretch' } = {}): PartBuilder {
     const line = H.callerLine();
-    if (!profile?.on || !profile.draw || !path?.on || !path.draw) throw new H.SelectorError(`sweep() needs a profile and a path sketch: ${SKETCH_SPEC}`, line);
+    const curve = (path as { curve?: FeatureHandle | string } | undefined)?.curve;
+    if (!profile?.on || !profile.draw || !path || (curve === undefined && (!(path as SketchSpec).on || !(path as SketchSpec).draw))) throw new H.SelectorError(`sweep() needs a profile and a path sketch (or { curve: handle } of a helix): ${SKETCH_SPEC}`, line);
+    const guides = o.guides ?? [];
+    if (guides.length && o.twist !== undefined && o.twist !== 0) throw new H.SelectorError('sweep(): twist cannot be combined with guides (the guides turn the profile)', line);
+    if (guides.length > 2) throw new H.SelectorError('sweep(): at most two guide curves', line);
+    if (o.guideMode !== undefined && !['scale', 'turn', 'stretch'].includes(o.guideMode)) throw new H.SelectorError("sweep(): guideMode is 'scale' (default), 'turn' or 'stretch'", line);
+    if (o.guideMode === 'stretch' && guides.length !== 2) throw new H.SelectorError("sweep(): guideMode 'stretch' needs exactly two guides", line);
+    if (o.guideMode !== undefined && !guides.length) throw new H.SelectorError('sweep(): guideMode needs guides', line);
     this.steps.push({ line, label: 'sweep', run: (ctx) => {
       const ops: EditOp[] = [];
-      const pid = sketchOps(ctx, profile, ops), path_ = sketchOps(ctx, path, ops);
+      const pid = sketchOps(ctx, profile, ops);
+      let pathRef: Record<string, unknown>;
+      if (curve !== undefined) {
+        const cid = typeof curve === 'string' ? (curve === 'last' ? ctx.lastFeature : curve) : curve.id;
+        if (!cid) throw new H.SelectorError('sweep(): the helix handle is not built yet (take part.handle() right after helix())', line);
+        pathRef = { kind: 'curve', id: cid };
+      } else pathRef = { kind: 'sketch', id: sketchOps(ctx, path as SketchSpec, ops) };
       const id = ctx.nextId();
-      const f: Record<string, unknown> = { type: 'sweep', id, op: o.op ?? 'add', sketch: pid, path: { kind: 'sketch', id: path_ } };
+      const f: Record<string, unknown> = { type: 'sweep', id, op: o.op ?? 'add', sketch: pid, path: pathRef };
+      if (guides.length) {
+        // each guide sketch holds ONE curve (a line, an arc or a spline); the kernel takes the curve of a sketch as { kind: 'sketchCurve', sketch, entity }
+        f.guides = guides.map((g, i) => {
+          const gid = sketchOps(ctx, g, ops);
+          const ents = ((ops[ops.length - 1] as unknown as { feature: { entities: Array<{ id: string; construction?: boolean }> } }).feature.entities).filter((e) => !e.construction);
+          if (ents.length !== 1) throw new H.SelectorError(`sweep(): guide ${i + 1} must draw exactly one curve (line, arc or spline), it drew ${ents.length}`, line);
+          return { kind: 'sketchCurve', sketch: gid, entity: ents[0].id };
+        });
+        if (o.guideMode) f.guideMode = o.guideMode;
+      }
       if (o.twist !== undefined) f.twist = H.ref(o.twist);
       applyNewBody(f, o.op ?? 'add', o.newBody, 'sweep', line);
       applyFrom(f, o.op ?? 'add', o.from, 'sweep', line);
@@ -106,22 +131,33 @@ export const shapeFeatures = {
   /**
    * Rib: a web of a given thickness from an open sketch line, grown to the body.
    *
-   * Takes the LAST sketch, an open line or chain (not closed), and adds a web of this total thickness centred on the sketch plane. The web fills the space between the chain and the body on the side the body encloses: a gusset across the inside corner of an L, a web inside a box. A line in open air, or one that does not have material around it, fails with ribNoContact. The chain ends may touch or lie inside the material. flip tries the other side first.
+   * Takes the LAST sketch, an open line or chain (not closed), and adds a web of this total thickness centred on the sketch plane (side: 'left' or 'right' puts it all on one side). The web fills the space between the chain and the body on the side the body encloses: a gusset across the inside corner of an L, a web inside a box. It stops at the outer wall of the body and never fills a bore the line runs through, so the rib may come before or after the bore. A line in open air, or one that does not have material around it, fails with ribNoContact. The chain ends may touch or lie inside the material. flip tries the other side first. fillet rounds the free edge; draft tapers the two sides toward the free edge (one straight line only); target names the body or bodies to extend to.
    * @domain features
    * @param thickness rib thickness in mm
    * @param o.flip try the other side of the chain first
+   * @param o.fillet radius of the round on the free edge in mm, below half the thickness
+   * @param o.draft taper of the two side faces in degrees (0 to 45): the rib is thickness thick at the free edge and widens toward the body; the sketch must be one straight line
+   * @param o.side 'both' (default, centred on the sketch plane) | 'right' (all on the side the sketch normal points to) | 'left' (all on the other side)
+   * @param o.target name (or list of names) of the body to extend to; the other bodies are left alone
    * @example
    * part('Gusset').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40)
-   *   .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3);
+   *   .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3, { fillet: 1, draft: 2 });
    * @see part.extrude, part.mirror
    */
-  rib(this: PartBuilder, thickness: Num, o: { flip?: boolean } = {}): PartBuilder {
+  rib(this: PartBuilder, thickness: Num, o: { flip?: boolean; fillet?: Num; draft?: Num; side?: 'both' | 'left' | 'right'; target?: string | string[] } = {}): PartBuilder {
     const line = H.callerLine();
+    if (o.side !== undefined && o.side !== 'both' && o.side !== 'left' && o.side !== 'right') throw new H.SelectorError(`rib(): side is 'both', 'left' or 'right', got ${JSON.stringify(o.side)}`, line);
+    const names = o.target === undefined ? undefined : Array.isArray(o.target) ? o.target : [o.target];
+    if (names && (!names.length || names.some((n) => typeof n !== 'string' || !n.trim()))) throw new H.SelectorError("rib(): target is a body name or a list of body names, e.g. target: 'Bracket' (bodies are named by newBody: 'Name')", line);
     this.steps.push({ line, label: 'rib', run: (ctx) => {
       if (!ctx.lastSketch) throw new H.SelectorError('rib() needs an open sketch before it', line);
       const id = ctx.nextId();
       const f: Record<string, unknown> = { type: 'rib', id, sketch: ctx.lastSketch, thickness: H.ref(thickness) };
       if (o.flip) f.flip = true;
+      if (o.fillet !== undefined) f.fillet = H.ref(o.fillet);
+      if (o.draft !== undefined) f.draft = H.ref(o.draft);
+      if (o.side !== undefined && o.side !== 'both') f.side = o.side;
+      if (names) f.target = names.map((n) => ({ body: n.trim() }));
       ctx.lastFeature = id; ctx.lastSketch = null;
       return [{ op: 'add', feature: f }];
     } });

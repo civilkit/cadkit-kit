@@ -77,3 +77,35 @@ describe('app handler: the edit gate', () => {
     await fails(makeAppHandler(deps())('delete_everything' as never, {}), 'unknown_op');
   });
 });
+
+describe('app handler: the measurement tools', () => {
+  const dist = { distance: 15, pointA: [10, 0, 5], pointB: [25, 0, 5], a: { kind: 'face', id: 'F2.S.e1' }, b: { kind: 'face', id: 'F4.S.e1' }, intersects: false, direction: [1, 0, 0] };
+  const host = (over: Record<string, unknown> = {}) => ({
+    kernel: { distance: vi.fn(async () => dist), angles: vi.fn(async () => ({ between: { angle: 90, normalAngle: 90 } })), ...over },
+    interference: async () => ({ bodies: 2, pairs: [] }),
+    bodies: async () => [{ name: 'Base', key: '@body:F2.C0', faces: ['F2.C0', 'F2.S.e1'], volume: 4000 }, { name: 'Peg', key: '@body:F4.C0', faces: ['F4.C0', 'F4.S.e1'], volume: 1000 }],
+  });
+  const withHost = (over: Record<string, unknown> = {}, d: Partial<AppDeps> = {}) => makeAppHandler(deps({ readback: async () => host(over) as never, ...d }));
+
+  it('read without the edit permission, and never call the document-changing parts of the app', async () => {
+    const d = deps({ allowEdit: () => false, readback: async () => host() as never });
+    const h = makeAppHandler(d);
+    const r = await h('measure', { a: 'Base', b: 'Peg' }) as Record<string, unknown>;
+    expect(r).toMatchObject({ distance: 15, a: 'Base', b: 'Peg', summary: 'Base to Peg: 15 mm' });
+    const b = await h('bodies', {}) as { count: number; bodies: Array<{ name: string }> };
+    expect(b.count).toBe(2);
+    expect(await h('interference', {})).toMatchObject({ overlapping: false, bodies: 2 });
+    expect(d.calls).toEqual([]);
+  });
+  it('a tool error keeps its code and hint; no document, no solid and no kernel say so', async () => {
+    const h = withHost({ distance: async () => { throw new Error('unknown face F9'); } });
+    const e = await h('measure', { a: 'F9', b: 'Peg' }).then(() => null, (x) => x);
+    expect(e).toBeInstanceOf(BridgeError);
+    expect(e).toMatchObject({ code: 'measure_failed' });
+    expect((e as BridgeError).hint).toMatch(/bodies lists the bodies/);
+    await fails(withHost({}, { document: () => null })('measure', { a: 1, b: 2 }), 'no_document');
+    await fails(withHost({}, { hasSolid: () => false })('thickness', {}), 'no_body');
+    await fails(makeAppHandler(deps())('dfm', { process: 'cnc' }), 'no_kernel');
+    await fails(makeAppHandler(deps({ readback: async () => null }))('draft', {}), 'no_kernel');
+  });
+});

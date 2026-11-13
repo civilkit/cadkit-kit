@@ -13,8 +13,12 @@ import { join } from 'node:path';
 export const CHAT_MODELS = ['opus', 'sonnet', 'haiku'] as const;
 export const DEFAULT_CHAT_MODEL = 'sonnet';
 export const MCP_SERVER_NAME = 'ck-cad';
-/** The only tools the chat process may call: the open document (read, picture, edit with the user's permission) and the script docs. */
-export const CHAT_TOOLS = ['app_status', 'app_state', 'app_screenshot', 'app_run_script', 'app_undo', 'app_redo', 'list_methods', 'docs'] as const;
+/** The only tools the chat process may call: the open document (read, measure, picture, edit with the user's permission) and the script docs. */
+export const CHAT_TOOLS = [
+  'app_status', 'app_state', 'app_screenshot', 'app_run_script', 'app_undo', 'app_redo', 'list_methods', 'docs',
+  // read-only measurements of the open document (the same permission as app_state: no edit box needed)
+  'app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm',
+] as const;
 export const MAX_CHAT_TURNS = 24;
 export const MAX_PROMPT_CHARS = 20_000;
 
@@ -29,7 +33,7 @@ export type ChatEventOut =
 
 const SYSTEM = [
   'You are the assistant inside CivilKit CAD, a parametric solid-modelling app. The user has a part open in the app and asks you, in plain words, to change or inspect it. You work on that open document only, through the app_ tools.',
-  'Work like this: call app_state to see what is there; call docs once with the methods you plan to use (list_methods finds names); write a short script and run it with app_run_script; read the result (errors come with their line and a hint, and nothing changes when a script fails; fix it and run again); call app_screenshot to check the shape when it matters. Then say in one or two sentences what you made.',
+  'Work like this: call app_state to see what is there; call docs once with the methods you plan to use (list_methods finds names); write a short script and run it with app_run_script; read the result (errors come with their line and a hint, and nothing changes when a script fails; fix it and run again); call app_screenshot to check the shape when it matters, and check numbers with the read-only measurement tools: app_bodies (names), app_measure (distance between bodies, faces, edges, points), app_clearance (gap between two bodies, pass or fail against a required clearance), app_interference (overlap volume), app_thickness (thinnest wall), app_draft (draft angles against a pull direction) and app_dfm (checks for injection, cnc or printing). They never change the document and need no edit permission. Then say in one or two sentences what you made.',
   'app_run_script ADDS features after the existing ones as one undo step; it cannot edit or delete features that are already there; app_undo takes your own edit back. If it says edit_not_allowed, tell the user to tick "Allow the agent to change this document" in the chat panel and stop. Do not claim something is built or valid unless a tool result showed it. If a request is unclear, ask instead of guessing.',
   'Script conventions: millimetres and degrees, Y is up; front = XY plane (normal +Z), top = XZ (normal +Y), right = ZY (normal +X). A sketch extrudes along its normal; a cut runs against it. circle() takes a radius, hole() a diameter. Selectors: face(\'>Z\'), edges(\'|Z\').',
 ].join('\n\n');

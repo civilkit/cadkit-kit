@@ -2,6 +2,7 @@
 // daemon's own scratch document. They are added beside the headless tools; nothing here works until the user pairs the app.
 import { capJson, validate, type CallResult, type Schema } from '@kit/agent-tools';
 import { BridgeError, type Bridge, type BridgeOp } from '@kit/agent-link';
+import { APP_READBACK_TOOLS } from '@kit/readback';
 import type { Backend } from './protocol';
 
 interface BridgeTool {
@@ -68,6 +69,13 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
     inputSchema: obj({}),
     async run(i, bridge) { return text({ ok: true, ...(await viaApp('redo', bridge, i)) }); },
   },
+  // the read-only measurement tools: the same list the headless server answers from (@kit/readback), asked of the document open in the app
+  ...APP_READBACK_TOOLS.map((t): BridgeTool => ({
+    name: `app_${t.name}`,
+    description: `${t.description} Reads the document open in the user's browser app (no edit permission needed).${NEEDS_APP}`,
+    inputSchema: t.inputSchema,
+    async run(i, bridge) { const { summary, ...r } = await viaApp(t.name as BridgeOp, bridge, i); return text({ ok: true, ...r }, typeof summary === 'string' ? summary : undefined); },
+  })),
 ];
 
 const failure = (code: string, message: string, hint?: string): CallResult => ({ isError: true, content: [{ type: 'text', text: JSON.stringify({ ok: false, error: { code, message, ...(hint ? { hint } : {}) } }, null, 1) }] });

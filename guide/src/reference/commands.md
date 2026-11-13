@@ -114,7 +114,7 @@ Reference geometry. See [Reference geometry](../modelling/reference-geometry.md)
 
 #### Create
 
-One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw and Bearing. See [Parametric wizards](../library/wizards.md).
+One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add fastener to hole, Spring, Nut, Standoff, Heat-set insert, Case and Bearing. See [Parametric wizards](../library/wizards.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
@@ -124,11 +124,18 @@ One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw and Bearing.
 | Impeller |  |  | An open document |
 | Knurl |  |  | An open document |
 | Screw |  |  | An open document |
+| Washer |  |  | An open document |
+| Add fastener to hole |  |  | The wall of a hole selected (also in the right-click menu of a Hole feature or a pattern of holes in the tree) |
+| Spring |  |  | An open document |
+| Nut |  |  | An open document |
+| Standoff |  |  | An open document |
+| Heat-set insert |  |  | An open document |
+| Case |  |  | An open document |
 | Bearing |  |  | An open document |
 
 #### Modify
 
-See [Fillets, chamfers, shells and drafts](../modelling/edges.md) and [Patterns, mirror and scale](../modelling/patterns.md).
+See [Fillets, chamfers, shells and drafts](../modelling/edges.md), [Cases and moulds](../modelling/cases-and-moulds.md) (Split body, Lip joint) and [Patterns, mirror and scale](../modelling/patterns.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
@@ -136,6 +143,8 @@ See [Fillets, chamfers, shells and drafts](../modelling/edges.md) and [Patterns,
 | Rib |  |  | A solid and an open sketch |
 | Lip / groove | Lip |  | A solid and faces selected |
 | Mirror |  | `Shift+M` | A solid and a feature to mirror |
+| Split body |  |  | A solid |
+| Lip joint |  |  | A solid |
 | Scale |  |  | A solid |
 | Pipe cut |  |  | A solid and faces or edges selected |
 
@@ -433,7 +442,7 @@ The menu on the canvas depends on what is selected. Each row runs the command of
 | Selection | Rows |
 | --- | --- |
 | Nothing | New sketch: front plane, New sketch: top plane, New sketch: right plane; Extrude, Extruded cut; Select body, Select all, Invert selection; Fit |
-| A face | Sketch on selected face, Hole, Shell, Fillet, Chamfer; Linear pattern, Circular pattern; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
+| A face | Sketch on selected face, Hole, Add fastener to hole, Shell, Fillet, Chamfer; Linear pattern, Circular pattern; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
 | An edge | Fillet, Chamfer; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
 | A corner | Fillet, Chamfer; Invert selection, Deselect all |
 | A body | Select body; Move body; Linear pattern, Circular pattern, Shell; Invert selection, Deselect all |

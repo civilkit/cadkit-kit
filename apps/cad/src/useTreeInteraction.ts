@@ -40,6 +40,9 @@ export interface TreeInteractionDeps {
   selectFaces?(id: string): void;
   /** Pick in the Bodies list the bodies a feature made or changed. */
   selectBodies?(id: string): void;
+  /** Fasten this hole: whether a row stands for holes (a Hole feature, or a pattern of them) and starting the dialog on them. */
+  canFastenHole?(id: string): boolean;
+  fastenHole?(id: string): void;
   /** The menu of a fixed row (a plane, the material): its rows and what runs them; null for a row with nothing to offer. */
   refMenu?(id: string): { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null;
 }
@@ -169,6 +172,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
         ...(d.toggleHide ? [{ id: 'toggle-hide', label: t(picked.every((id) => d.isHidden?.(id)) ? 'app.tree.menu.show' : 'app.tree.menu.hide'), enabled: true }] : []),
         ...(d.selectFaces && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-faces', label: t('app.tree.menu.selectFaces'), enabled: picked.length === 1 }] : []),
         ...(d.selectBodies && rows.find((r) => r.id === target.id)?.type !== 'sketch' ? [{ id: 'select-bodies', label: t('app.tree.menu.selectBodies'), enabled: picked.length === 1 }] : []),
+        ...(d.fastenHole && d.canFastenHole?.(target.id) ? [{ id: 'fasten-hole', label: t('app.tree.menu.fastenHole'), enabled: picked.length === 1 }] : []),
         { id: '-', label: '', enabled: false, separator: true },
         { id: 'group', label: t('app.folder.menu.group'), keys: 'Ctrl+G', ...planText(groupPlan(rows, feats, picked, t('app.folder.default'))) },
         ...(inFolder ? [{ id: 'remove-from-folder', label: t('app.folder.menu.remove'), ...planText(removeFromFolderPlan(rows, feats, picked)) }] : []),
@@ -185,6 +189,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
         else if (id === 'toggle-hide') { const show = picked.every((x) => d.isHidden?.(x)); for (const x of picked) if (!!d.isHidden?.(x) === show) d.toggleHide?.(x); }
         else if (id === 'select-faces') d.selectFaces?.(picked[0]);
         else if (id === 'select-bodies') d.selectBodies?.(picked[0]);
+        else if (id === 'fasten-hole') d.fastenHole?.(picked[0]);
         else if (id === 'remove-from-folder') removeFromFolder(picked);
         else if (id === 'rename') setRenaming(picked[0]);
         else if (id === 'suppress') void suppressIds(picked);

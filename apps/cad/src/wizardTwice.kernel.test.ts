@@ -8,6 +8,7 @@ import { Controller, type KernelFactory } from './controller';
 import './i18n';
 import { DEFAULT_SCREW, screwOps } from './screw';
 import { DEFAULT_WASHER, washerOps } from './washer';
+import { DEFAULT_INSERT, DEFAULT_NUT, DEFAULT_STANDOFF, insertOps, nutOps, standoffOps } from './fasteners';
 import { DEFAULT_KNURL, knurlOps } from './knurl';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps } from './gearData';
 import { DEFAULT_PROP, propPlan } from './propData';
@@ -45,6 +46,21 @@ describe('an inserting wizard run twice into one part', () => {
     }
     expect(folders(c)).toEqual(['Washer', 'Washer 2']);
   }, 120000);
+
+  it('nut, standoff and heat-set insert, twice each (the second one threaded), with the insert cutting its hole into the block under it', async () => {
+    const block = { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'o', x: 0, y: 0, fixed: true }], entities: [{ type: 'circle', id: 'e1', c: 'o', r: 15 }], constraints: [] };
+    const c = await world({ ...emptyPart('Block'), features: [block, { type: 'extrude', id: 'F2', op: 'newBody', body: 'Block', sketch: 'F1', end: 'blind', depth: 12 }] } as never);
+    const steps: Array<[string, (n: number) => never]> = [
+      ['nut', (i) => nutOps(c.document() as never, { ...DEFAULT_NUT, thread: i ? 'cosmetic' : 'plain', origin: [i * 40, 40, 0] }) as never],
+      ['standoff', (i) => standoffOps(c.document() as never, { ...DEFAULT_STANDOFF, ends: 'male-female', thread: i ? 'cosmetic' : 'plain', origin: [i * 40, 80, 0] }) as never],
+      ['heat-set insert', (i) => insertOps(c.document() as never, { ...DEFAULT_INSERT, hole: true, holeIn: i ? 'Block' : '', thread: i ? 'cosmetic' : 'plain', origin: [i * 8, 0, 12] }) as never],
+    ];
+    for (const [name, mk] of steps) for (let i = 0; i < 2; i++) {
+      const r = await c.commit(mk(i), name);
+      expect(r.ok, `${name} ${i}: ${fail(r)}`).toBe(true);
+    }
+    expect(folders(c)).toEqual(['Nut', 'Nut 2', 'Standoff', 'Standoff 2', 'Heat-set insert', 'Heat-set insert 2']);
+  }, 240000);
 
   it('gear, then a gear pair', async () => {
     const c = await world();

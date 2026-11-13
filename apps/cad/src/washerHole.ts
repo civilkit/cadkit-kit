@@ -37,8 +37,8 @@ const sub = (a: number[], b: number[]): number[] => [a[0] - b[0], a[1] - b[1], a
 const dot = (a: number[], b: number[]): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a: number[]): number => Math.hypot(a[0], a[1], a[2]);
 
-interface Tri { p: number[][]; n: number[][] }
-function trisOf(mesh: FaceMesh, face: string): Tri[] {
+export interface Tri { p: number[][]; n: number[][] }
+export function trisOf(mesh: FaceMesh, face: string): Tri[] {
   const id = mesh.faceIds.indexOf(face);
   if (id < 0) return [];
   const out: Tri[] = [];
@@ -58,7 +58,7 @@ function named(d: number[]): HoleAxis | null {
 }
 
 /** Largest distance of the face's vertices from the axis line, and the mean absolute cosine between its normals and the axis. */
-function radialProfile(tris: Tri[], c: number[], d: number[]): { extent: number; tilt: number } {
+export function radialProfile(tris: Tri[], c: number[], d: number[]): { extent: number; tilt: number } {
   let extent = 0, tilt = 0, m = 0;
   for (const t of tris) for (let v = 0; v < 3; v++) {
     const q = sub(t.p[v], c), a = dot(q, d);

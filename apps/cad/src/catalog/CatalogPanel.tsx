@@ -27,8 +27,14 @@ export interface CatalogPanelProps {
   onScrew?(): void;
   /** Opens the Washer wizard (omitted: no Washer button). */
   onWasher?(): void;
+  /** Opens the Nut, Standoff and Heat-set insert wizards (omitted: no such button). */
+  onNut?(): void;
+  onStandoff?(): void;
+  onInsert?(): void;
   /** Opens the Spring wizard (omitted: no Spring button). */
   onSpring?(): void;
+  /** Opens the Case wizard (omitted: no Case button). */
+  onCase?(): void;
   /** Opens the Bearing wizard (omitted: no Bearing button). */
   onBearing?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
@@ -72,7 +78,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onSpring, onBearing }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onNut, onStandoff, onInsert, onSpring, onCase, onBearing }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -136,10 +142,34 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
                     <span class="cat-name">{t('cmd.add-washer')}</span>
                   </button>
                 ) : null}
+                {onNut ? (
+                  <button class="cat-item" data-item="nut" title={t('tip.add-nut')} onClick={onNut}>
+                    <Icon name="add-nut" size={26} />
+                    <span class="cat-name">{t('cmd.add-nut')}</span>
+                  </button>
+                ) : null}
+                {onStandoff ? (
+                  <button class="cat-item" data-item="standoff" title={t('tip.add-standoff')} onClick={onStandoff}>
+                    <Icon name="add-standoff" size={26} />
+                    <span class="cat-name">{t('cmd.add-standoff')}</span>
+                  </button>
+                ) : null}
+                {onInsert ? (
+                  <button class="cat-item" data-item="insert" title={t('tip.add-insert')} onClick={onInsert}>
+                    <Icon name="add-insert" size={26} />
+                    <span class="cat-name">{t('cmd.add-insert')}</span>
+                  </button>
+                ) : null}
                 {onSpring ? (
                   <button class="cat-item" data-item="spring" title={t('tip.add-spring')} onClick={onSpring}>
                     <Icon name="add-spring" size={26} />
                     <span class="cat-name">{t('cmd.add-spring')}</span>
+                  </button>
+                ) : null}
+                {onCase ? (
+                  <button class="cat-item" data-item="case" title={t('tip.add-case')} onClick={onCase}>
+                    <Icon name="add-case" size={26} />
+                    <span class="cat-name">{t('cmd.add-case')}</span>
                   </button>
                 ) : null}
                 {onBearing ? (

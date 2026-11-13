@@ -108,6 +108,13 @@ export function pickValue(path: string, selection: string[], edges: ViewEdge[], 
   if (path === 'side1' || path === 'center' || path === 'side2') return faceNames(selection)[0] ?? null;   // a full round's faces
   // a plane or neutral-plane field takes a face as a reference object (the kernel rejects a bare name)
   if (path === 'neutral' || path === 'plane' || path === 'to' || path === 'to2') { const f = faceNames(selection)[0]; return f ? { kind: 'face', id: f } : null; }
+  // a pattern direction or axis takes an edge (its two faces and a point on it) or a round face (its axis)
+  if (path === 'axis' || path === 'dir' || path === 'dir2') {
+    const e = edgeRefs(selection, edges)[0];
+    if (e) return { kind: 'edge', faces: e.faces, at: e.at };
+    const f = faceNames(selection)[0];
+    return f ? { kind: 'face', id: f } : null;
+  }
   if (path === 'endRef' || path === 'startRef') return objectRef(selection, edges, path === 'endRef');
   return selection[0] ?? null;
 }

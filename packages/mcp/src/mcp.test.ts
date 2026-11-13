@@ -44,7 +44,7 @@ describe('MCP over stdio (--stdio-direct)', () => {
     expect(byId.get(1).result.serverInfo.name).toBe('ck-cad');
     expect(byId.get(1).result.capabilities.tools).toBeTruthy();
     const names = byId.get(2).result.tools.map((t: { name: string }) => t.name);
-    expect(names).toEqual(expect.arrayContaining(['run_script', 'tree', 'snapshot', 'probe', 'ask_user']));
+    expect(names).toEqual(expect.arrayContaining(['run_script', 'tree', 'snapshot', 'probe', 'ask_user', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm']));
     expect(byId.get(2).result.tools[0].inputSchema.type).toBe('object');
     const run = byId.get(3).result;
     expect(run.isError).toBeFalsy();

@@ -189,6 +189,38 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.volume!).toBeGreaterThan(10000);
   });
 
+  it('split: the default plane cuts the smallest side through the middle into Base and Lid', async () => {
+    const w = await world(box([{ type: 'shell', id: 'F3', faces: ['F2.C1'], thickness: 2 }]));
+    const before = await w.stats();
+    expect(w.cmd('add-split').enabled!()).toBe(true);
+    await w.run('add-split');
+    expect(last(w)).toMatchObject({ type: 'split', plane: { kind: 'std', id: 'front' }, offset: 5, names: ['Base', 'Lid'] });
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    expect(after.volume!).toBeCloseTo(before.volume!, 6);   // two bodies, the same material
+    const m = (await sessions.at(-1)!.massProps({ bodies: true })) as { bodies?: Array<{ name?: string }> };
+    expect(m.bodies?.map((b) => b.name).sort()).toEqual(['Base', 'Lid']);
+  });
+
+  it('split: a picked planar face is the plane', async () => {
+    const w = await world(box([{ type: 'shell', id: 'F3', faces: ['F2.C1'], thickness: 2 }]));
+    w.select(['F2.S.e1~2'], 'face');
+    await w.run('add-split');
+    expect(last(w)).toMatchObject({ type: 'split', plane: { kind: 'face', id: 'F2.S.e1~2' } });
+    expect(last(w).offset).toBeUndefined();
+  });
+
+  it('lip joint: tongue on the base, groove 0.2 mm wider and deeper in the lid; volume = case + tongue - groove', async () => {
+    const w = await world(box([{ type: 'shell', id: 'F3', faces: ['F2.C1'], thickness: 2 }]));
+    const before = await w.stats();
+    await w.run('add-lip-joint');
+    expect(last(w)).toMatchObject({ type: 'lipJoint', plane: { kind: 'std', id: 'front' }, offset: 5, height: 1.5, widthRatio: 0.5, clearance: 0.2, names: ['Base', 'Lid'] });
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    const band = (d1: number, d2: number) => (40 - 2 * d1) * (25 - 2 * d1) - (40 - 2 * d2) * (25 - 2 * d2);
+    expect(after.volume!).toBeCloseTo(before.volume! + 1.5 * band(0.5, 1.5) - 1.7 * band(0.3, 1.7), 6);
+  });
+
   it('rib: needs an open sketch; fills between the line and the walls of a shelled box', async () => {
     const shelled = box([
       { type: 'shell', id: 'F3', faces: ['F2.C1'], thickness: 2 },

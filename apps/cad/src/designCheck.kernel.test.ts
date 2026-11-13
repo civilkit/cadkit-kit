@@ -5,6 +5,8 @@ import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory } from './controller';
 import { buildPolicy, defaultSettings, settingsToInline } from './checkSettings';
+import { AgentSession } from '@kit/agent-tools';
+import { runProfile, withMould } from './designCheck';
 
 const rect = { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' },
   points: [{ id: 'O', x: 0, y: 0, fixed: true }, { id: 'p1', x: -10, y: -10 }, { id: 'p2', x: 10, y: -10 }, { id: 'p3', x: 10, y: 10 }, { id: 'p4', x: -10, y: 10 }],
@@ -54,4 +56,41 @@ describe('design check against the kernel', { skip: !hasRules() }, () => {
     expect(ok.ok).toBe(true);
     expect(s.history().length).toBe(1);
   }, 120000);
+});
+
+describe('the injection undercut rule against the kernel', { skip: !hasRules() }, () => {
+  /** a 40 x 20 x 10 block (x, y, z in [-20, 20] x [-10, 10] x [0, 10]) with the given extra features; pull +Z */
+  async function check(tail: string, edit?: (s: Record<string, { mode: string; params: Record<string, unknown> }>) => void) {
+    const a = await AgentSession.open({ wasmPath: process.env.CK_WASM });
+    try {
+      const r = await a.runScript(`part('P').sketch('front', (s) => s.rect(40, 20)).extrude(10)${tail};`, 'new');
+      expect(r.errors, JSON.stringify(r.errors)).toEqual([]);
+      const info = withMould(await a.session.profiles()).profiles.find((p) => p.id === 'injection')!;
+      const settings = defaultSettings(info);
+      edit?.(settings as never);
+      return await runProfile(a.session, settingsToInline(info, settings));
+    } finally { await a.close(); }
+  }
+  const mould = (r: Awaited<ReturnType<typeof check>>) => r.issues.filter((i) => i.rule === 'mouldUndercut');
+
+  it('a block with a hole along the pull and one with a step have no undercut', async () => {
+    expect(mould(await check(`.sketch('front', (s) => s.circle(3)).cut(through(), { direction: 'both' })`))).toEqual([]);
+    expect(mould(await check(`.sketch('front', (s) => s.rect(20, 20, [10, 0])).extrude(8)`))).toEqual([]);
+  }, 120000);
+
+  it('a hole across the pull is reported once, on the hole wall, as the one rule; Off silences it; pulling along the hole axis clears it', async () => {
+    const cross = `.sketch('right', (s) => s.circle(2, [-5, 0])).cut(through(), { direction: 'both' })`;   // a hole along X
+    const r = await check(cross);
+    const m = mould(r);
+    expect(m.length).toBeGreaterThan(0);
+    expect(m[0].message).toMatch(/neither half can form it/);
+    expect(m[0].unit).toBe('mm2');
+    expect(r.issues.some((i) => i.rule === 'undercut')).toBe(false);          // the two kernel runs are folded away
+    expect(r.summary.rules.map((x) => x.rule)).toEqual(['openShell', 'draft', 'uniformWall', 'minWall', 'mouldUndercut']);
+    expect(r.summary.rules.at(-1)).toMatchObject({ rule: 'mouldUndercut', passed: false });
+    expect(m.length).toBe(r.summary.rules.at(-1)!.issues);
+    // the same part, pulled along X: the hole is along the pull
+    expect(mould(await check(cross, (s) => { s.mouldUndercut.params.direction = [1, 0, 0]; }))).toEqual([]);
+    expect(mould(await check(cross, (s) => { s.mouldUndercut.mode = 'off'; }))).toEqual([]);
+  }, 180000);
 });

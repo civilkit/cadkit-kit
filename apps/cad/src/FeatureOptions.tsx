@@ -7,7 +7,7 @@ import { usedBodyNames } from './bodyOps';
 import { useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { EditorSection as Section, ExprInput, Icon, type OptionsArgs, type OptionsResult } from '@kit/ui';
+import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult } from '@kit/ui';
 import { t } from './i18n';
 import {
   CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
@@ -23,9 +23,10 @@ import { axisChoices } from './revolveAxis';
 import { rememberRoundPick, roundPickOf, setTangentChain, tangentChainOn } from './roundChain';
 import { sheetOptionsFor } from './sheet/SheetOptions';
 import { loftAutoOrder, loftPointIssue } from './featureCreators';
+import { newNames, targetChoices } from './splitRules';
 import { carriesThreads, carryPatch, seedInfos, seedLabel } from './patternThreads';
 import {
-  AXES, DISTANCE_TYPES, ORIENTATIONS, PATH_DISTANCE_TYPES, axisOf, distanceTypeOf, orientationOf, patchDir2, patchDistanceType, patchStartMode, startModeOf, toChoices, toPatch, toValue,
+  AXES, DISTANCE_TYPES, ORIENTATIONS, PATH_DISTANCE_TYPES, axisStateOf, dirChoiceOf, dirVectorOf, distanceTypeOf, orientationOf, patchAxisChoice, patchAxisPart, patchDir2, patchDirChoice, patchDirVector, refLabel, vectorIsZero, patchDistanceType, patchStartMode, startModeOf, toChoices, toPatch, toValue,
   type Axis, type DistanceType, type Sfx, type StartMode,
 } from './patternRules';
 import {
@@ -107,15 +108,15 @@ function TargetBody(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.
 }
 
 /** Which bodies a Cut changes: All (every body the shape reaches) or the ticked bodies of the part. Shown once the part names a body. */
-function CutFrom(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element | null {
+function CutFrom(p: { eff: Wire; change: Change; doc: PartDoc | null; label?: string; allLabel?: string }): JSX.Element | null {
   const names = [...otherBodyNames(p.doc, p.eff)];
   const cur = targetBodiesOf(p.eff);
   for (const n of cur) if (!names.includes(n)) names.push(n);   // a body the part no longer names stays visible (the kernel reports it)
   if (!names.length) return null;
   return (
-    <div class="fedit-fld" data-path="target" role="group" aria-label={t('opt.cutFrom')}>
-      <span class="fedit-fld-label">{t('opt.cutFrom')}</span>
-      <Check name="target.all" label={t('opt.cutFrom.all')} value={!cur.length} onChange={(v) => p.change(cutFromPatch(v ? [] : names))} />
+    <div class="fedit-fld" data-path="target" role="group" aria-label={p.label ?? t('opt.cutFrom')}>
+      <span class="fedit-fld-label">{p.label ?? t('opt.cutFrom')}</span>
+      <Check name="target.all" label={p.allLabel ?? t('opt.cutFrom.all')} value={!cur.length} onChange={(v) => p.change(cutFromPatch(v ? [] : names))} />
       {names.map((n) => <Check key={n} name={'target.' + n} label={n} value={cur.includes(n)} onChange={(v) => p.change(cutFromPatch(v ? [...cur, n] : cur.filter((x) => x !== n)))} />)}
     </div>
   );
@@ -152,7 +153,7 @@ function RefText(p: { name: string; label: string; text: string }): JSX.Element 
 function CombineOptions(p: { eff: Wire; change: Change }): JSX.Element {
   const { eff, change } = p;
   const op = typeof eff.op === 'string' ? eff.op : 'union';
-  const choices = ['union', 'cut', 'intersect', ...(op === 'split' ? ['split'] : [])];
+  const choices = ['union', 'cut', 'intersect', 'split'];
   const tools = Array.isArray(eff.tools) ? eff.tools : [];
   return (
     <Section id="combine" title={t('opt.op')}>
@@ -164,7 +165,6 @@ function CombineOptions(p: { eff: Wire; change: Change }): JSX.Element {
   );
 }
 
-const fmtNum = (n: unknown): string => (typeof n === 'number' && isFinite(n) ? String(+n.toFixed(3)) : '0');
 /** What a moveBody does in words: the translation and the turn; changed by dragging the body (the triball), not typed here. */
 export function moveSummary(eff: Wire): string {
   const tr = Array.isArray(eff.translate) ? eff.translate : [];
@@ -209,8 +209,76 @@ function ScaleOptions(p: { eff: Wire; change: Change }): JSX.Element {
         : [t('opt.scale.x'), t('opt.scale.y'), t('opt.scale.z')].map((label, i) => <Num key={i} name={`factor.${i}`} label={label} value={per?.[i] ?? one} unit="" plain onChange={(v) => axis(i, v)} />)}
       <Select name="about" label={t('opt.scale.about')} value={about} options={[['centroid', t('opt.scale.about.centroid')], ['origin', t('opt.scale.about.origin')], ...(at ? [['point', t('opt.scale.about.point')] as [string, string]] : [])]}
         onChange={(v) => change({ about: v === 'origin' ? 'origin' : null, at: v === 'point' ? at : null, origin: null })} />
-      {at ? <RefText name="at" label={t('opt.scale.point')} text={at.map(fmtNum).join(', ')} /> : null}
+      {at ? <RefText name="at" label={t('opt.scale.point')} text={at.map((x) => fmtNum(x)).join(', ')} /> : null}
       <RefText name="bodies" label={t('opt.scale.bodies')} text={bodies.length ? bodies.map(bodyRefText).join(', ') : t('opt.scale.all')} />
+    </Section>
+  );
+}
+
+/** The two body names of a split or lip joint: [below, above]. */
+function NamesFields(p: { eff: Wire; change: Change }): JSX.Element {
+  const [below, above] = Array.isArray(p.eff.names) ? (p.eff.names as unknown[]).map(String) : ['', ''];
+  const set = (i: 0 | 1, v: string) => p.change({ names: newNames(p.eff.names, i, v) });
+  return (
+    <>
+      <label class="fedit-fld" data-path="names.0">
+        <span class="fedit-fld-label">{t('opt.split.below')}</span>
+        <input type="text" value={below ?? ''} spellcheck={false} onChange={(e) => set(0, (e.currentTarget as HTMLInputElement).value)} />
+      </label>
+      <label class="fedit-fld" data-path="names.1">
+        <span class="fedit-fld-label">{t('opt.split.above')}</span>
+        <input type="text" value={above ?? ''} spellcheck={false} onChange={(e) => set(1, (e.currentTarget as HTMLInputElement).value)} />
+      </label>
+    </>
+  );
+}
+
+/** Where the plane is: one of the standard planes or a reference plane here (a picked face is set with Pick in the Plane section), its offset along the normal and its direction; and which body is cut. */
+function PlaneFields(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const bodies = targetChoices(p.doc, String(eff.id ?? ''), eff.target);
+  return (
+    <>
+      <Select name="planeChoice" label={t('opt.split.plane')} value={planeValue(eff.plane)} options={planeChoices(p.doc, String(eff.id ?? ''), eff.plane)} onChange={(v) => change({ plane: planeRef(v) })} />
+      <Num name="offset" label={t('opt.split.offset')} value={eff.offset ?? 0} unit="mm" onChange={(v) => change({ offset: v === 0 || v === '' ? null : v })} />
+      <Check name="flip" label={t('opt.split.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} />
+      {bodies.length > 1 ? <Select name="target" label={t('opt.split.target')} value={bodies.find(([v]) => v === targetName(eff.target))?.[0] ?? ''} options={bodies} onChange={(v) => change({ target: v ? { body: v } : null })} /> : null}
+    </>
+  );
+}
+const targetName = (t: unknown): string => (typeof t === 'string' ? t : typeof (t as { body?: unknown } | null)?.body === 'string' ? String((t as { body: string }).body) : '');
+
+/** Split a body by a plane: the plane, the names of the halves and which half to keep. */
+function SplitOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  return (
+    <Section id="split" title={t('opt.split.title')}>
+      <PlaneFields {...p} />
+      <NamesFields eff={eff} change={change} />
+      <Select name="keep" label={t('opt.split.keep')} value={eff.keep === 'below' || eff.keep === 'above' ? String(eff.keep) : 'both'} options={[['both', t('opt.split.keep.both')], ['below', t('opt.split.keep.below')], ['above', t('opt.split.keep.above')]]} onChange={(v) => change({ keep: v === 'both' ? null : v })} />
+    </Section>
+  );
+}
+
+/** A split with a tongue and a groove: where, how high and wide the tongue is, how far in from the outer wall, the clearance of the groove and which half carries the tongue. */
+function LipJointOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  const { eff, change } = p;
+  const ratio = eff.width === undefined || eff.width === null || eff.width === '';
+  const centred = eff.inset === undefined || eff.inset === null || eff.inset === '';
+  return (
+    <Section id="lipJoint" title={t('opt.lipJoint.title')}>
+      <PlaneFields {...p} />
+      <NamesFields eff={eff} change={change} />
+      <Select name="tongue" label={t('opt.lipJoint.tongue')} value={eff.tongue === 'above' ? 'above' : 'below'} options={[['below', t('opt.lipJoint.tongue.below')], ['above', t('opt.lipJoint.tongue.above')]]} onChange={(v) => change({ tongue: v === 'above' ? 'above' : null })} />
+      <Num name="height" label={t('opt.lipJoint.height')} value={eff.height} unit="mm" onChange={(v) => change({ height: v })} />
+      <Select name="widthMode" label={t('opt.lipJoint.widthMode')} value={ratio ? 'ratio' : 'mm'} options={[['ratio', t('opt.lipJoint.widthMode.ratio')], ['mm', t('opt.lipJoint.widthMode.mm')]]}
+        onChange={(v) => change(v === 'ratio' ? { width: null, widthRatio: 0.5 } : { width: 1, widthRatio: null })} />
+      {ratio
+        ? <Num name="widthRatio" label={t('opt.lipJoint.widthRatio')} value={eff.widthRatio ?? 0.5} unit="" plain onChange={(v) => change({ widthRatio: v })} />
+        : <Num name="width" label={t('opt.lipJoint.width')} value={eff.width} unit="mm" onChange={(v) => change({ width: v })} />}
+      <Check name="centred" label={t('opt.lipJoint.centred')} value={centred} onChange={(v) => change({ inset: v ? null : 0.5 })} />
+      {centred ? null : <Num name="inset" label={t('opt.lipJoint.inset')} value={eff.inset} unit="mm" onChange={(v) => change({ inset: v })} />}
+      <Num name="clearance" label={t('opt.lipJoint.clearance')} value={eff.clearance ?? 0.2} unit="mm" onChange={(v) => change({ clearance: v })} />
     </Section>
   );
 }
@@ -376,6 +444,7 @@ function OpenProfileCard(p: { info: OpenProfile; eff: Wire; change: Change; revo
     <div class="fedit-card open-profile" role="status" data-card="open-profile">
       <div class="fedit-card-title">{t('opt.open.title')}</div>
       <div class="fedit-card-body">{g ? t(g.near ? 'opt.open.gapNear' : 'opt.open.gap', { d }) : t('opt.open.body')}</div>
+      {info.chains.length === 1 && !p.revolve ? <div class="fedit-card-body" data-note="rib">{t('opt.open.rib')}</div> : null}
       <div class="fedit-card-actions">
         <button type="button" class="fedit-card-btn" data-act="thin" onClick={() => change(patchThinOn(eff, p.doc, true))}>{t('opt.open.thin')}</button>
         <button type="button" class="fedit-card-btn" data-act="close" disabled={!g || !p.actions} title={g ? undefined : t('opt.open.noGap')} onClick={() => p.actions?.closeWithLine(info.sketchId)}>{t('opt.open.close')}</button>
@@ -488,6 +557,24 @@ function FilletOptions(p: { eff: Wire; change: Change; actions?: ThinActions; pi
       {profile === 'conic' ? <Num name="rho" label={t('opt.fillet.rho')} value={eff.rho ?? 0.5} unit="" onChange={(v) => change({ rho: v })} /> : null}
       {profile === 'curvature' ? <Num name="shape" label={t('opt.fillet.shape')} value={eff.shape ?? 0.5} unit="" onChange={(v) => change({ shape: v })} /> : null}
       <TangentChain eff={eff} change={change} actions={p.actions} />
+    </Section>
+  );
+}
+
+/** Which side of the sketch plane the rib's thickness goes to (the kernel's `side`; both is the default and is not written). */
+export const RIB_SIDES = ['both', 'right', 'left'] as const;
+export const ribSideOf = (v: unknown): (typeof RIB_SIDES)[number] => (v === 'right' || v === 'left' ? v : 'both');
+/** A rib's optional size (fillet radius, draft angle): empty or 0 removes the field, so the rib stays what it was. */
+export const ribSizePatch = (key: 'fillet' | 'draft', v: number | string): Wire => ({ [key]: v === '' || v === 0 || v === '0' ? null : v });
+
+/** Rib: the side of the sketch plane the thickness goes to, a round on the free edge, a taper of the two sides, and the bodies it grows to. */
+function RibOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
+  return (
+    <Section id="rib" title={t('opt.section.rib')}>
+      <Select name="side" label={t('opt.rib.side')} value={ribSideOf(p.eff.side)} options={RIB_SIDES.map((v): [string, string] => [v, t('opt.rib.side.' + v)])} onChange={(v) => p.change({ side: v === 'both' ? null : v })} />
+      <Num name="fillet" label={t('opt.rib.fillet')} value={p.eff.fillet ?? 0} unit="mm" onChange={(v) => p.change(ribSizePatch('fillet', v))} />
+      <Num name="draft" label={t('opt.rib.draft')} value={p.eff.draft ?? 0} unit="°" plain onChange={(v) => p.change(ribSizePatch('draft', v))} />
+      <CutFrom eff={p.eff} change={p.change} doc={p.doc} label={t('opt.rib.target')} allLabel={t('opt.rib.target.all')} />
     </Section>
   );
 }
@@ -684,12 +771,34 @@ function PatternDirection(p: { eff: Wire; change: Change; doc: PartDoc | null; s
   const { eff, change, sfx } = p;
   const k = (b: string) => b + sfx;
   const type = distanceTypeOf(eff, sfx);
-  const ax = axisOf(eff, sfx);
-  const axes: Array<[string, string]> = AXES.map((a) => [a, t('opt.pattern.axis.' + a)]);
+  const ax = dirChoiceOf(eff, sfx);
+  const axes: Array<[string, string]> = [...AXES.map((a): [string, string] => [a, t('opt.pattern.axis.' + a)]), ['vector', t('opt.pattern.dir.vector')]];
+  const ref = refLabel(eff[k('dir')]);
+  if (ref) axes.push(['ref', t('opt.pattern.dir.' + ref.kind, { id: ref.text })]);
+  const picking = p.pickingPath === k('dir');
+  const vec = dirVectorOf(eff, sfx);
   return (
     <Section id={'patternDir' + (sfx || '1')} title={t(sfx ? 'opt.pattern.dir2' : 'opt.pattern.dir1')}>
-      <Select name={k('dir')} label={t('opt.pattern.direction')} value={ax || (sfx ? '' : 'x')} options={sfx ? [['', t('opt.pattern.dirNone')], ...axes] : axes}
-        onChange={(v) => change(sfx ? patchDir2(eff, v as Axis | '') : { dir: { kind: 'axis', axis: v } })} />
+      <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path={k('dir')}>
+        <span class="fedit-fld-label">{t('opt.pattern.direction')}</span>
+        <span class="fedit-ref">
+          <select value={ax || (sfx ? '' : 'x')} onChange={(e) => {
+            const v = (e.currentTarget as HTMLSelectElement).value;
+            if (v === 'ref') return;
+            change(sfx ? patchDir2(eff, v as Axis | 'vector' | '') : patchDirChoice(eff, '', v as Axis | 'vector'));
+          }}>
+            {(sfx ? [['', t('opt.pattern.dirNone')] as [string, string], ...axes] : axes).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          {p.onPick && (!sfx || ax) ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} title={t('opt.pattern.dirPick')} onClick={() => p.onPick!(k('dir'))}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
+        </span>
+      </label>
+      {ax === 'vector' ? (
+        <>
+          {['x', 'y', 'z'].map((c, i) => <Num key={c} name={k('dir') + '.' + c} label={t('opt.pattern.vec.' + c)} value={vec[i]} unit="" plain onChange={(v) => change(patchDirVector(eff, sfx, i, v))} />)}
+          <div class="fedit-hint-line">{t(vectorIsZero(vec) ? 'opt.pattern.vecZero' : 'opt.pattern.vecNote')}</div>
+        </>
+      ) : null}
+      {ax === 'ref' ? <div class="fedit-hint-line">{t('opt.pattern.dirRefNote')}</div> : null}
       {sfx && !ax ? null : (
         <>
           <Num name={k('count')} label={t('opt.pattern.count')} value={eff[k('count')]} unit="" onChange={(v) => change({ [k('count')]: v })} />
@@ -742,6 +851,38 @@ function PathPatternFields(p: { eff: Wire; change: Change; doc: PartDoc | null }
   );
 }
 
+/** The axis of a circular pattern: X / Y / Z (through the origin, or through the Axis point), a typed Direction, or an edge or round face picked in the view; the point on the axis is what puts a bolt circle away from the origin. */
+function CircularAxis(p: { eff: Wire; change: Change } & PickArgs): JSX.Element {
+  const { eff, change } = p;
+  const st = axisStateOf(eff);
+  const ref = refLabel(eff.axis);
+  const choices: Array<[string, string]> = [...AXES.map((a): [string, string] => [a, t('opt.pattern.axis.' + a)]), ['custom', t('opt.pattern.axis.custom')]];
+  if (ref) choices.push(['ref', t('opt.pattern.dir.' + ref.kind, { id: ref.text })]);
+  const picking = p.pickingPath === 'axis';
+  const comps = ['x', 'y', 'z'];
+  return (
+    <Section id="patternAxis" title={t('opt.pattern.axis')}>
+      <label class={'fedit-fld ref' + (picking ? ' picking' : '')} data-path="axis">
+        <span class="fedit-fld-label">{t('opt.pattern.axis')}</span>
+        <span class="fedit-ref">
+          <select value={st.choice} onChange={(e) => { const v = (e.currentTarget as HTMLSelectElement).value; if (v !== 'ref') change(patchAxisChoice(eff, v as Axis | 'custom')); }}>
+            {choices.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} title={t('opt.pattern.axisPick')} onClick={() => p.onPick!('axis')}>{picking ? t('ui.editor.pickDone') : t('ui.editor.pick', undefined, 'Pick')}</button> : null}
+        </span>
+      </label>
+      {st.choice === 'custom' ? comps.map((c, i) => <Num key={c} name={'axis.dir.' + c} label={t('opt.pattern.vec.' + c)} value={st.dir[i]} unit="" plain onChange={(v) => change(patchAxisPart(eff, 'dir', i, v))} />) : null}
+      {st.choice === 'custom' && vectorIsZero(st.dir) ? <div class="fedit-hint-line">{t('opt.pattern.vecZero')}</div> : null}
+      {st.choice !== 'ref' ? (
+        <>
+          {comps.map((c, i) => <Num key={c} name={'axis.point.' + c} label={t('opt.pattern.point.' + c)} value={st.point[i]} unit="mm" onChange={(v) => change(patchAxisPart(eff, 'point', i, v))} />)}
+          <div class="fedit-hint-line">{t('opt.pattern.pointNote')}</div>
+        </>
+      ) : <div class="fedit-hint-line">{t('opt.pattern.axisRefNote')}</div>}
+    </Section>
+  );
+}
+
 /** Pattern and mirror: the linear pattern's directions or the path pattern's path, the seeds as the user thinks of them ("Hole F4 + Thread F5") and the Carry threads switch. */
 function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & PickArgs): JSX.Element | null {
   const features = (p.doc?.features ?? []) as unknown as Wire[];
@@ -749,14 +890,8 @@ function PatternOptions(p: { eff: Wire; change: Change; doc: PartDoc | null } & 
   const carry = carriesThreads(p.eff);
   const name = (type: string) => t('feature.' + type, undefined, type);
   const anyThread = features.some((f) => f.type === 'thread' && !f.suppressed);
-  // The kernel turns a circular pattern about a world axis through the origin only (x, y or z); other references are an error.
-  const ax = p.eff.axis as { kind?: string; axis?: string } | undefined;
-  const axisNode = p.eff.type === 'cpattern' ? (
-    <Section id="patternAxis" title={t('opt.pattern.axis')}>
-      <Select name="axis" label={t('opt.pattern.axis')} value={ax?.kind === 'axis' && ax.axis ? ax.axis : 'z'} options={[['x', t('opt.pattern.axis.x')], ['y', t('opt.pattern.axis.y')], ['z', t('opt.pattern.axis.z')]]}
-        onChange={(v) => p.change({ axis: { kind: 'axis', axis: v } })} />
-    </Section>
-  ) : null;
+  // A circular pattern turns about a world axis (through the origin, or through a point), a typed point + direction, or a picked edge or round face.
+  const axisNode = p.eff.type === 'cpattern' ? <CircularAxis eff={p.eff} change={p.change} pickingPath={p.pickingPath} onPick={p.onPick} /> : null;
   const placeNode = p.eff.type === 'lpattern' ? (
     <>
       <PatternDirection {...p} sfx="" />
@@ -1016,11 +1151,14 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'chamfer': return { hide, node: <ChamferOptions {...common} actions={actions} /> };
     case 'fillet': return { hide: filletFullRound(a.eff) ? new Set([...hide, 'edges']) : hide, node: <FilletOptions {...common} actions={actions} pickingPath={a.pickingPath} onPick={a.onPickRequest} /> };
     case 'shell': return { hide, node: <ShellOptions {...common} /> };
+    case 'rib': return { hide, node: <RibOptions {...common} doc={doc} /> };
     case 'loft': return { hide, node: <LoftOptions {...common} doc={doc} /> };
     case 'sweep': return { hide, node: <SweepOptions {...common} doc={doc} /> };
     case 'combine': return { hide, node: <CombineOptions {...common} /> };
     case 'sphere': return { hide, node: <SphereOptions {...common} doc={doc} /> };
     case 'scale': return { hide, node: <ScaleOptions {...common} /> };
+    case 'split': return { hide, node: <SplitOptions {...common} doc={doc} /> };
+    case 'lipJoint': return { hide, node: <LipJointOptions {...common} doc={doc} /> };
     case 'moveBody': return { hide, node: <MoveBodyOptions {...common} doc={doc} /> };
     case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };

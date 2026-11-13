@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completions, evalExpr, isExprValue, nameError, parseAssignment, parseFieldText, resolveVariables, valueOf } from './expr';
+import { completions, evalExpr, fmtNum, isExprValue, nameError, parseAssignment, parseFieldText, resolveVariables, valueOf } from './expr';
 
 const ev = (s: string, v?: Record<string, number>) => { const r = evalExpr(s, v); return r.ok ? r.value : r.code; };
 
@@ -118,5 +118,25 @@ describe('parseAssignment', () => {
   });
   it('is not a plain number, an expression, a comparison or a half-typed assignment', () => {
     for (const t of ['5', '=w*2', 'w', 'w == 5', '= 5', '2w = 3', 'w =', 'w = ']) expect(parseAssignment(t)).toBeNull();
+  });
+});
+
+describe('fmtNum', () => {
+  it('rounds numbers and reads -0 and non-finite as plain', () => {
+    expect(fmtNum(12.34567)).toBe('12.346');
+    expect(fmtNum(12.34567, 2)).toBe('12.35');
+    expect(fmtNum(-0)).toBe('0');
+    expect(fmtNum(5)).toBe('5');
+    expect(fmtNum(NaN)).toBe('0');
+    expect(fmtNum(Infinity, 3, '-')).toBe('-');
+  });
+  it('shows an expression as its text and falls back for anything else', () => {
+    expect(fmtNum('=H/2')).toBe('H/2');
+    expect(fmtNum('  = height - 15 ')).toBe('height - 15');
+    expect(fmtNum('W')).toBe('W');
+    expect(fmtNum('')).toBe('0');
+    expect(fmtNum(undefined)).toBe('0');
+    expect(fmtNum(null, 3, '?')).toBe('?');
+    expect(fmtNum({})).toBe('0');
   });
 });

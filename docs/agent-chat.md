@@ -11,7 +11,7 @@ ChatPanel (page) -- POST /bridge/chat, NDJSON back --> daemon -- spawn --> claud
 
 * Page: `apps/cad/src/chat/` (`types.ts` the provider interface, `claudeCode.ts` the provider, `chatSession.ts` messages/Stop/model/context, `ChatPanel.tsx`). Strings in `apps/cad/src/locales/chat.ts`.
 * Daemon: `packages/mcp/src/chat.ts` (the process and the event mapping), the route in `packages/mcp/src/daemon.ts`.
-* Tools: the `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo` tools of `docs/agent-bridge.md` plus the read-only `docs` and `list_methods`. The page executes them through the same handler as a linked agent, so the edit permission box (Settings, Agent link; shown in the panel too) gates `app_run_script`, `app_undo` and `app_redo` exactly as before, and every edit is one undo step with a notice.
+* Tools: the `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo` tools of `docs/agent-bridge.md`, the read-only measuring tools `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm` (CHAT_TOOLS in `packages/mcp/src/chat.ts`; the same permission as `app_state`), plus the read-only `docs` and `list_methods`. The page executes them through the same handler as a linked agent, so the edit permission box (Settings, Agent link; shown in the panel too) gates `app_run_script`, `app_undo` and `app_redo` exactly as before (the measuring tools only read), and every edit is one undo step with a notice.
 
 ## Auth and what the route can do
 

@@ -13,7 +13,7 @@ You can:
 - link dimensions to named variables and keep several configurations of one part;
 - put parts together in assemblies with mates, and make drawings from them;
 - measure, check and inspect a part, and run design checks against rules you choose;
-- import STEP, SolidWorks, SketchUp, DXF and SVG files, and export STEP, STL, OBJ, 3MF, glTF and DXF;
+- import STEP, SolidWorks, SketchUp, STL, OBJ, GLB, 3MF, DXF and SVG files, and export STEP, STL, OBJ, 3MF, glTF and DXF;
 - drive the whole application from scripts or from an AI agent.
 
 ## What it runs in

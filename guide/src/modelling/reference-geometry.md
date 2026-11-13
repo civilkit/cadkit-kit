@@ -69,7 +69,7 @@ The Axis Editor has no fields: the references are fixed when it is created. To c
 
 ### Using an axis
 
-An axis is drawn while the **Axes** layer is on. The kernel lets a plane in Angle mode turn about it, but the app's editors do not yet offer an axis feature in a list. The Circular pattern axis is a choice of the X, Y or Z world axis through the origin, and Revolve uses a construction line in its own sketch. So an Axis is mostly a visual and measuring aid today. See [Patterns, mirror and scale](patterns.md) and [Extrude, revolve, sweep and loft](solids.md).
+An axis is drawn while the **Axes** layer is on. The kernel lets a plane in Angle mode turn about it, but the app's editors do not yet offer an axis feature in a list. The Circular pattern axis is a choice of the X, Y or Z axis (through the origin or through a point), a typed direction, or a picked edge or round face, and Revolve uses a construction line in its own sketch. So an Axis is mostly a visual and measuring aid today. See [Patterns, mirror and scale](patterns.md) and [Extrude, revolve, sweep and loft](solids.md).
 
 For the exact definition, see [axis](/docs/cad/kernel/format/planes.html#the-axis-feature) in the kernel book.
 

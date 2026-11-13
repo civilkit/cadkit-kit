@@ -3,12 +3,13 @@
 // ONE edit, `creatorCommands` registers them as palette and ribbon commands, and the app opens the Editor on the new feature.
 // moveFace and moveBody are made by the positioning ball (triball/ops.ts) and scale by add-scale below. dome, fillpattern, spattern,
 // splitLine, surfaceOffset and cutWithSurface have no command yet; see docs/feature-commands.md.
-import type { Command } from '@kit/ui';
+import { fmtNum, type Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
 import { SURFACE_TYPES } from '@kit/viewdata';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
 import { isSplinePath } from './sketch3d/model';
+import { defaultSplitPlane } from './splitRules';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
@@ -113,8 +114,10 @@ export function hasAutoName(f: { type?: string; name?: unknown; autoName?: unkno
 export function featureLabel(doc: DocIn, f: Feat | undefined | null): string {
   if (!f) return '';
   const name = typeof f.name === 'string' ? f.name : '';
-  if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
-  if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
+  try {
+    if (f.type === 'plane' && hasAutoName(f as never) && (f.mode === 'offset' || f.mode === 'mid' || f.mode === undefined)) return planeDefaultName(doc, f as never);
+    if (f.type === 'sketch' && hasAutoName(f as never) && f.plane && (f.plane as { kind?: string }).kind !== 'face') return t('app.sketch.defaultName', { plane: refLabel(doc, f.plane as never) });
+  } catch { /* a field of an unexpected shape never takes the tree down: show the stored name */ }
   return name || String(f.id ?? '');
 }
 /**
@@ -155,9 +158,9 @@ export function refLabel(doc: DocIn, ref: RefIn): string {
   return f ? featureLabel(doc, f) : ref.id;
 }
 /** The default name of a new Plane feature: `Plane -60 from Front` (offset) or `Plane between A and B`. */
-export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number }): string {
+export function planeDefaultName(doc: DocIn, f: { mode?: string; base?: RefIn; base2?: RefIn; offset?: number | string }): string {
   if (f.mode === 'mid') return t('app.plane.midName', { a: refLabel(doc, f.base), b: refLabel(doc, f.base2) });
-  return t('app.plane.defaultName', { offset: String(+(f.offset ?? 0).toFixed(3) + 0), base: refLabel(doc, f.base) });
+  return t('app.plane.defaultName', { offset: fmtNum(f.offset), base: refLabel(doc, f.base) });
 }
 /** The base a new plane offsets from: a picked planar face, else a Plane feature selected in the tree, else the Front / Top / Right plane chosen, else Front. */
 export function planeBase(c: Ctx): { kind: string; id: string } {
@@ -245,6 +248,21 @@ export function pathPatternOps(c: Ctx): EditOp[] | null {
 /** The whole part scaled to twice its size about its centre of mass: the options panel sets the factor (one number, or one per axis), the centre and which bodies. */
 export function scaleOps(c: Ctx): EditOp[] | null {
   return c.doc ? [{ op: 'add', feature: { type: 'scale', factor: 2 } }] : null;
+}
+/** The plane a split starts from: a picked planar face, else the middle of the body across its smallest side. */
+function splitPlane(c: Ctx): Record<string, unknown> {
+  const faces = faceMode(c);
+  if (faces.length === 1) return { plane: { kind: 'face', id: faces[0] } };
+  const d = defaultSplitPlane(c.box);
+  return { plane: d.plane, ...(d.offset !== 0 ? { offset: d.offset } : {}) };
+}
+/** Split the body by a plane into two named bodies (Base and Lid). */
+export function splitOps(c: Ctx): EditOp[] | null {
+  return c.box ? [{ op: 'add', feature: { type: 'split', ...splitPlane(c), names: [t('app.split.below'), t('app.split.above')] } }] : null;
+}
+/** The same split with a centred tongue on the base and a groove 0.2 mm wider and deeper in the lid: the editor sets height, width and clearance. */
+export function lipJointOps(c: Ctx): EditOp[] | null {
+  return c.box ? [{ op: 'add', feature: { type: 'lipJoint', ...splitPlane(c), names: [t('app.split.below'), t('app.split.above')], height: niceSize(c.box, 0.15), widthRatio: 0.5, clearance: 0.2 } }] : null;
 }
 export function helixOps(c: Ctx): EditOp[] | null {
   const sk = sketchWhere(c, hasCircle);
@@ -572,6 +590,8 @@ export const CREATORS: Creator[] = [
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
   { id: 'add-pathpattern', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c) && pathPatternOps(c) !== null, ops: pathPatternOps },
   { id: 'add-scale', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c), ops: scaleOps },
+  { id: 'add-split', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c), ops: splitOps },
+  { id: 'add-lip-joint', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c), ops: lipJointOps },
   { id: 'add-gear', tab: 'Features', group: 'Create', keys: 'Shift+Y', enabled: doc, ops: (c) => gearCreateOps(c) },
   { id: 'add-gear-pair', tab: 'Features', group: 'Create', enabled: doc, ops: (c) => gearCreateOps(c, true) },
   { id: 'add-helix', tab: 'Features', group: 'Curves', enabled: ok((c) => sketchWhere(c, hasCircle)), ops: helixOps },

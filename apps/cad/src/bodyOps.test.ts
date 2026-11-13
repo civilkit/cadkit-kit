@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { combineBodyOps, copyBodyOps, freeBodyName, refOf, removeBodyOps, renameBodyOps, usedBodyNames } from './bodyOps';
+import { combineBodyOps, copyBodyOps, freeBodyName, namesBodies, refOf, removeBodyOps, renameBodyOps, usedBodyNames } from './bodyOps';
 import { matchLumps } from './bodies';
 
 describe('body edits', () => {
@@ -13,10 +13,17 @@ describe('body edits', () => {
     expect(freeBodyName(used, 'Case')).toBe('Case 3');
     expect(freeBodyName(used, 'Peg')).toBe('Peg');
   });
+  it('the names of a split or lip joint are body names the kernel is asked about', () => {
+    expect(namesBodies([{ id: 'F2', type: 'extrude' }, { id: 'F3', type: 'split', names: ['Base', 'Lid'] }])).toBe(true);
+    expect(namesBodies([{ id: 'F3', type: 'lipJoint', names: ['', ' '] }, { id: 'F4', type: 'split' }])).toBe(false);
+    expect(namesBodies([{ id: 'F2', type: 'extrude', op: 'newBody' }])).toBe(true);
+    expect([...usedBodyNames([{ id: 'F3', type: 'lipJoint', names: ['Base', 'Lid'] }, { id: 'F2', body: 'Case' }])].sort()).toEqual(['Base', 'Case', 'Lid']);
+  });
   it('copy, remove and combine are the features the importer makes', () => {
     expect(copyBodyOps({ docName: 'Peg', face: 'F4.C0' }, 'Peg 2')).toEqual([{ op: 'add', feature: { type: 'moveBody', bodies: [{ body: 'Peg' }], translate: [0, 0, 0], copy: true, body: 'Peg 2' } }]);
     expect(removeBodyOps([{ face: 'F2.C0' }, { docName: 'Peg', face: 'F4.C0' }])).toEqual([{ op: 'add', feature: { type: 'deleteBody', mode: 'delete', bodies: [{ face: 'F2.C0' }, { body: 'Peg' }] } }]);
     expect(combineBodyOps('cut', { docName: 'Block', face: 'F2.C0' }, [{ face: 'F4.C0' }])).toEqual([{ op: 'add', feature: { type: 'combine', op: 'cut', target: { body: 'Block' }, tools: [{ face: 'F4.C0' }] } }]);
+    expect(combineBodyOps('split', { docName: 'Block', face: 'F2.C0' }, [{ docName: 'Slab', face: 'F4.C0' }])).toEqual([{ op: 'add', feature: { type: 'combine', op: 'split', target: { body: 'Block' }, tools: [{ body: 'Slab' }] } }]);
     expect((combineBodyOps('union', { face: 'a' }, [{ face: 'b' }], true)[0] as { feature: { keepTools?: boolean } }).feature.keepTools).toBe(true);
   });
   it('a rename follows the body into every feature that refers to it, and only that body', () => {

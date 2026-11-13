@@ -1,4 +1,46 @@
 {
+  "0.7.0": [
+    {
+      "id": "fasten-hole",
+      "title": "Right-click a hole to add a bolt",
+      "blurb": "Select a hole wall, right-click and choose Add fastener to hole. The size comes from the hole, the length from the material, with an optional washer and nut and a checkbox for all identical holes on the same plane. Everything goes in as separate bodies in one undo step."
+    },
+    {
+      "id": "case-wizard",
+      "title": "A Case wizard: a box with a lipped lid in one step",
+      "blurb": "On the Features tab, Case takes the outside size, wall thickness, corner radius, lid height and the lip (tongue height, width and clearance) and makes the Base and the Lid, with the tongue on one half and a groove on the other."
+    },
+    {
+      "id": "two-part-case",
+      "title": "Split body and Lip joint",
+      "blurb": "Cut a body at a plane into two named bodies, or add a tongue and a groove with a clearance along the cut. The guide builds a two-part case with the volumes checked."
+    },
+    {
+      "id": "rib-options",
+      "title": "Rib with fillet, draft and one-sided thickness",
+      "blurb": "The Rib editor gains a fillet on the free edge, a draft angle, a choice of side and the bodies it extends to. A rib no longer fills a bore its line runs through."
+    },
+    {
+      "id": "fastener-wizards",
+      "title": "Nut, Standoff and Heat-set insert wizards",
+      "blurb": "Parametric hex nuts (ISO 4032, 4035, 4033), round and hex standoffs, and heat-set inserts, each with a live preview, from the Features tab. The dimensions are marked unverified until checked against the standards."
+    },
+    {
+      "id": "pattern-axes",
+      "title": "Patterns in any direction, about any axis",
+      "blurb": "A linear pattern can run along any direction vector or edge, and a circular pattern about any axis, with a point on the axis, so a bolt circle does not have to sit on the origin."
+    },
+    {
+      "id": "assistant-readback",
+      "title": "The assistant can measure and check the part",
+      "blurb": "The Chat and the MCP server can now read distances, clearances, overlaps, wall thickness, draft and manufacturing checks, so an assistant can verify what it built. The injection moulding check also finds undercuts."
+    },
+    {
+      "id": "script-helpers",
+      "title": "Script helpers for draft, lip, scale, split and more",
+      "blurb": "Typed script methods for draft, move face, lip and groove, scale, split, delete body and face, helix, axis, sphere and move body, and sweeps that follow guide curves."
+    }
+  ],
   "0.6.5": [
     {
       "id": "mesh-import",

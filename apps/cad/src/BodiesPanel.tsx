@@ -19,7 +19,7 @@ export interface BodiesPanelProps {
   /** Edits of whole bodies (features): a copy in place, delete, and the first body combined with the others. Without them the buttons are not shown. */
   onCopy?(key: string): void;
   onRemove?(keys: string[]): void;
-  onCombine?(op: 'union' | 'cut' | 'intersect', keys: string[]): void;
+  onCombine?(op: 'union' | 'cut' | 'intersect' | 'split', keys: string[]): void;
   onLook(key: string, patch: Partial<Record<keyof BodyLookSpec, BodyLookSpec[keyof BodyLookSpec] | undefined>>): void;
   /** The online texture library, when the app has one: a body's texture is chosen from it. Without it the texture choice is not shown. */
   library?: LibraryControls;
@@ -56,8 +56,8 @@ export function BodiesPanel(p: BodiesPanelProps): JSX.Element {
         <div class="bodies-edit" role="group" aria-label={t('bodies.editGroup')}>
           <button type="button" class="bodies-btn" disabled={p.selected.length !== 1} title={t('bodies.copyTip')} onClick={() => p.onCopy!(p.selected[0])}>{t('bodies.copy')}</button>
           <button type="button" class="bodies-btn" disabled={!p.selected.length} title={t('bodies.removeTip')} onClick={() => p.onRemove!(p.selected)}>{t('bodies.remove')}</button>
-          {(['union', 'cut', 'intersect'] as const).map((op) => (
-            <button key={op} type="button" class="bodies-btn" disabled={p.selected.length < 2} title={t('bodies.combineTip')} onClick={() => p.onCombine!(op, p.selected)}>{t(op === 'union' ? 'bodies.join' : op === 'cut' ? 'bodies.cut' : 'bodies.intersect')}</button>
+          {(['union', 'cut', 'intersect', 'split'] as const).map((op) => (
+            <button key={op} type="button" class="bodies-btn" disabled={p.selected.length < 2} title={t('bodies.combineTip')} onClick={() => p.onCombine!(op, p.selected)}>{t(op === 'union' ? 'bodies.join' : op === 'cut' ? 'bodies.cut' : op === 'intersect' ? 'bodies.intersect' : 'bodies.split')}</button>
           ))}
         </div>
       ) : null}

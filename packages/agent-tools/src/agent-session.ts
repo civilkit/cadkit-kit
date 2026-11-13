@@ -7,6 +7,7 @@ import { runScript, SHEET_FEATURE_TYPES, type InertiaFact, type ScriptHost, type
 import type { EditOp } from '@ck/session';
 import { ToolError } from './errors';
 import { defaultRegistry, type Registry } from './registry';
+import type { Interference } from '@kit/readback';
 
 type Transport = { request(m: Record<string, unknown>): Promise<{ ok?: boolean; trap?: string; error?: unknown; result?: unknown }>; close?(): Promise<void> };
 export interface AgentSessionOptions {
@@ -86,6 +87,14 @@ export class AgentSession {
   private listeners = new Set<(e: { version: number; label: string; doc: PartDoc }) => void>();
   version = 0;
   get snapshotFn() { return this.opts.snapshotFn; }
+
+  /** The kernel's `interference` request on the open document (pairs of bodies that share volume); null when there is no solid. */
+  async interference(): Promise<Interference | null> {
+    const r = await this.transport.request({ type: 'interference', tag: this.tag });
+    if (r.trap) throw new Error(`trap: ${String(r.trap)}`);
+    if (!r.ok) throw new Error(typeof r.error === 'string' ? r.error : (r.error as { message?: string } | undefined)?.message ?? 'request failed');
+    return (r.result ?? null) as Interference | null;
+  }
 
   /** Re-read the origin marks from the open document (after undo / restore). */
   rebuildOrigins(): void {

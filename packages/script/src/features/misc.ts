@@ -33,7 +33,7 @@ export const miscFeatures = {
   /**
    * Append any kernel feature as raw JSON (escape hatch for features without a helper).
    *
-   * Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for types like draft, helix, lip, dome or moveFace; prefer the typed helpers when one exists. Field names are the kernel's (docs/spec-agent-interface.md).
+   * Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve, frame); draft, moveFace, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).
    * @domain features
    * @param json the feature object, e.g. { type: 'shell', faces: [face('>Z')], thickness: 2 }
    * @example
@@ -58,11 +58,11 @@ export const miscFeatures = {
   },
 
   /**
-   * Boolean between whole bodies: union, cut or intersect.
+   * Boolean between whole bodies: union, cut, intersect or split.
    *
-   * Builds the combine feature the Bodies panel makes: the target body is united with, cut by or intersected with the tool bodies, which are used up (keepTools: true keeps them). Bodies are named in the document by newBody: 'Name' on an extrude, revolve, loft or sweep (a name matches every body of that name, so one sketch with several loops gives one tool). Use it for cutters that must not touch the other bodies: build the cutter as a newBody, then cut a named target with it. A target or tool that does not exist is an error with the names the document has.
+   * Builds the combine feature the Bodies panel makes: the target body is united with, cut by or intersected with the tool bodies, which are used up (keepTools: true keeps them); 'split' cuts the target into the part outside the tools and the part inside them (two bodies; part.split() is the short form). Bodies are named in the document by newBody: 'Name' on an extrude, revolve, loft or sweep (a name matches every body of that name, so one sketch with several loops gives one tool). Use it for cutters that must not touch the other bodies: build the cutter as a newBody, then cut a named target with it. A target or tool that does not exist is an error with the names the document has.
    * @domain features
-   * @param op 'union' | 'cut' | 'intersect'
+   * @param op 'union' | 'cut' | 'intersect' | 'split'
    * @param target name of the body that is kept (and changed)
    * @param tools name or names of the bodies it is combined with
    * @param o.keepTools keep the tool bodies (default: they are used up)
@@ -72,7 +72,7 @@ export const miscFeatures = {
    *   .combine('cut', 'Cup', 'Core');
    * @see part.feature, part.extrude, part.revolve
    */
-  combine(this: PartBuilder, op: 'union' | 'cut' | 'intersect', target: string, tools: string | string[], o: { keepTools?: boolean } = {}): PartBuilder {
+  combine(this: PartBuilder, op: 'union' | 'cut' | 'intersect' | 'split', target: string, tools: string | string[], o: { keepTools?: boolean } = {}): PartBuilder {
     const names = Array.isArray(tools) ? tools : [tools];
     if (typeof target !== 'string' || !target || !names.length || names.some((n) => typeof n !== 'string' || !n)) throw new H.SelectorError('combine(op, target, tools): target and tools are body names, e.g. combine("cut", "Cup", "Core")', H.callerLine());
     return this.feature({ type: 'combine', op, target: { body: target }, tools: names.map((n) => ({ body: n })), ...(o.keepTools ? { keepTools: true } : {}) });
@@ -338,10 +338,11 @@ export const miscFeatures = {
 };
 
 /** The thread feature for one face (used by thread() and by hole(..., { thread })). */
-export function threadOp(ctx: Ctx, face: string, size: string, o: { standard?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string }): EditOp {
+export function threadOp(ctx: Ctx, face: string, size: string, o: { standard?: string; length?: Num; hand?: 'right' | 'left'; modeled?: boolean; class?: string; /** modelled groove only: signed mm, positive = looser (a printed fit) */ clearance?: number }): EditOp {
   const standard = o.standard ?? (/^M[\d.]+x[\d.]+$/.test(size) ? 'metric-fine' : /^M[\d.]+$/.test(size) ? 'metric' : /^#|\/|^\d/.test(size) ? 'UNC' : 'metric');
   const f: Record<string, unknown> = { type: 'thread', id: ctx.nextId(), face, standard, size, length: o.length === undefined ? 'full' : H.ref(o.length), hand: o.hand ?? 'right', modeled: o.modeled === true };
   if (o.class) f.class = o.class;
+  if (o.clearance) f.clearance = o.clearance;
   ctx.lastFeature = f.id as string;
   return { op: 'add', feature: f };
 }

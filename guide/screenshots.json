@@ -11,6 +11,14 @@
     "file": "bodies-panel.png",
     "caption": "The Bodies tab for a part with three bodies: a plate, a block and a copy, with the plate hidden and the Copy, Delete, Join, Cut and Intersect buttons above the list."
   },
+  "case-section": {
+    "file": "case-section.png",
+    "caption": "A section through a small closed case (16 x 12 x 10 mm, same joint): the tongue of the base sits in the groove of the lid with a thin gap on both sides and above it."
+  },
+  "case-two-parts": {
+    "file": "case-two-parts.png",
+    "caption": "The two halves of the 80 x 50 x 30 mm case apart: the base with the tongue standing on the rim of its walls, and the lid lifted above it."
+  },
   "catalog-primitives": {
     "file": "catalog-primitives.png",
     "caption": "The Catalog panel on the Primitives tab: the Placement row, then the Add material and Remove material columns of shapes."
@@ -18,6 +26,10 @@
   "check-tab": {
     "file": "check-tab.png",
     "caption": "The Check tab with the FDM 3D printing profile run on a part with two separate solids and a thin fin: issues are grouped under Errors and Warnings and the faces are tinted on the part."
+  },
+  "circular-pattern-axis": {
+    "file": "circular-pattern-axis.png",
+    "caption": "A plate with a round pocket repeated six times on a bolt circle round the plate centre, and the Circular pattern editor open with Axis set to Z axis and the axis point at X = 40, so the axis does not pass through the origin."
   },
   "constraints-list-open": {
     "file": "constraints-list-open.png",
@@ -54,6 +66,10 @@
   "extrude-editor": {
     "file": "extrude-editor.png",
     "caption": "A block with a circle sketch on its top face and the Extrude editor open in the left panel, with End condition, Operation and Options sections and the preview in the view."
+  },
+  "fasten-hole": {
+    "file": "fasten-hole.png",
+    "caption": "The Fasten this hole dialog opened from the right-click menu of a Hole feature in the tree: Bolt, Size, Length, Washer, Nut, Head on the other end and the identical-holes option, with the bolts previewed in the holes of a plate."
   },
   "feature-tree": {
     "file": "feature-tree.png",
@@ -99,6 +115,14 @@
     "file": "linear-pattern.png",
     "caption": "A bar with a pocket repeated three times along its length and the Linear pattern editor open showing Count and Spacing."
   },
+  "linear-pattern-direction": {
+    "file": "linear-pattern-direction.png",
+    "caption": "A plate with a pocket repeated four times along a 45 degree direction, and the Linear pattern editor open with Direction set to a typed direction vector."
+  },
+  "lip-joint-editor": {
+    "file": "lip-joint-editor.png",
+    "caption": "A closed case (80 x 50 x 30 mm, 2 mm walls) split in the middle with the Lip joint editor open in the left panel: Height, Width, Clearance and which half carries the tongue."
+  },
   "loft-editor": {
     "file": "loft-editor.png",
     "caption": "Three square sketches on offset planes lofted into a tapered solid, with the Profiles list showing three rows and the Guide curves section below."
@@ -130,6 +154,18 @@
   "repeat-last": {
     "file": "repeat-last.png",
     "caption": "The Home ribbon's Edit group with the cursor on Repeat last command, after a fillet was applied."
+  },
+  "rib-clevis": {
+    "file": "rib-clevis.png",
+    "caption": "A base plate with four corner holes, an upright block topped by a round boss with a bore, and a triangular rib joining the block to the plate, built by the bracket-with-a-rib script."
+  },
+  "rib-clevis-section": {
+    "file": "rib-clevis-section.png",
+    "caption": "A section through the bracket seen from above: the cut face of the block and boss with the thin rib joined to it on the left."
+  },
+  "rib-editor": {
+    "file": "rib-editor.png",
+    "caption": "An L-shaped bracket with a diagonal rib and the Rib editor open in the left panel: the profile sketch, Thickness, Thickness side, Fillet on the free edge and Draft angle, with the rib previewed in the view."
   },
   "ribbon-tabs": {
     "file": "ribbon-tabs.png",
@@ -187,6 +223,10 @@
     "file": "sketch-tools-palette.png",
     "caption": "The Draw group of the sketch ribbon with the Rectangle flyout open, listing the tool names and their keys."
   },
+  "split-editor": {
+    "file": "split-editor.png",
+    "caption": "An 80 x 50 x 30 mm block cut by a plane into two bodies, Base and Lid, with the Split body editor open in the left panel showing the plane, the offset and the names of the two halves."
+  },
   "surfaces-tab": {
     "file": "surfaces-tab.png",
     "caption": "The Surfaces tab of the ribbon with a wavy extruded surface standing on a plate, tinted teal, and the Create and Edit groups visible."
@@ -219,6 +259,14 @@
     "file": "variables-panel.png",
     "caption": "The Variables tab for a parametric bracket with four variables (width, depth, thick and hole) and the Configurations list below with Small, Standard and Large."
   },
+  "wizard-insert": {
+    "file": "wizard-insert.png",
+    "caption": "The Heat-set insert wizard open in the left panel with an M3 insert previewed: outside diameter, length, hole diameter and depth, groove rings, the Also cut the hole option and the Unverified tag."
+  },
+  "wizard-nut": {
+    "file": "wizard-nut.png",
+    "caption": "The Nut wizard open in the left panel with an M8 regular (ISO 4032) nut previewed: Type, Size, Chamfer the corners and Thread, the dimensions read from the standard with the Unverified tag, and the first face centre."
+  },
   "wizard-propeller": {
     "file": "wizard-propeller.png",
     "caption": "The Propeller wizard open in the left panel on its Blade step, with the live preview of a three-blade propeller in the viewport."
@@ -226,6 +274,14 @@
   "wizard-screw": {
     "file": "wizard-screw.png",
     "caption": "The Screw wizard open in the left panel with an M3 pan-head screw previewed on the top plane, showing Size, Length, Head, Drive, Bearing face centre and Shank points."
+  },
+  "wizard-spring": {
+    "file": "wizard-spring.png",
+    "caption": "The Spring wizard open in the left panel with a compression spring previewed and the Ends setting set to Closed and ground: Closed turns per end, the grinding note and the derived pitch and wire length."
+  },
+  "wizard-standoff": {
+    "file": "wizard-standoff.png",
+    "caption": "The Standoff wizard open in the left panel with an M3 round, female-female standoff previewed: Size, Shape, Ends, Length, Outside diameter and Thread length, with the Unverified tag."
   },
   "wizard-washer": {
     "file": "wizard-washer.png",

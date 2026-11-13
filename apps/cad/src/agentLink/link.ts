@@ -2,15 +2,19 @@
 // on only when the user pastes a pairing code; `allowEdit` is a second, separate box and is off on every connect.
 import { signal, type Signal } from '@preact/signals-core';
 import { BridgeClient, type LinkState } from '@kit/agent-link';
+import type { BodyRef } from '@kit/readback';
 import type { Controller } from '../controller';
 import { t } from '../i18n';
 import { makeAppHandler } from './appHandlers';
+import { mouldLabels } from '../designCheck';
 import { runAgentScript } from './appRun';
 
 export interface LinkDeps {
   controller: Controller;
   store: { selection: Signal<string[]>; facts: Signal<{ faces: number; triangles: number; rebuildMs: number | null }>; featureStatus: Signal<Array<{ id: string; ok: boolean; code?: string; hint?: string }>>; notify(text: string, level?: 'info' | 'warn' | 'error'): void };
   version?: string;
+  /** The bodies of what is shown (name, key, faces, volume), for the measurement tools. */
+  bodies?: () => BodyRef[];
 }
 
 export function createAgentLink(d: LinkDeps) {
@@ -24,6 +28,10 @@ export function createAgentLink(d: LinkDeps) {
     status: () => store.featureStatus.value,
     hasSolid: () => c.hasSolid(),
     allowEdit: () => allowEdit.value,
+    readback: async () => {
+      const m = await c.measureSession();
+      return m ? { kernel: m.kernel, interference: m.interference, bodies: async () => d.bodies?.() ?? [], labels: mouldLabels() } : null;
+    },
     runScript: (code) => runAgentScript(c, code, 'Agent script'),
     undo: () => c.undo(),
     redo: () => c.redo(),

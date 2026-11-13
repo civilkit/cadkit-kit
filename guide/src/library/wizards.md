@@ -1,18 +1,18 @@
 # Parametric wizards
 
-This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, screws, washers, knurls, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
+This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, a two-part case, knurls, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
 
 All of these are about geometry only. The app does not calculate strength, lubrication, or aerodynamic or hydrodynamic performance.
 
 ## What the wizards have in common
 
-- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller**, **Impeller**, **Knurl**, **Screw**, **Washer** and **Bearing** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
+- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller**, **Impeller**, **Knurl**, **Screw**, **Washer**, **Nut**, **Standoff**, **Heat-set insert**, **Spring**, **Case** and **Bearing** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
 - You need an open document. The commands are greyed out without one.
 - A live preview shows in the viewport while you change values.
 - A readout and checks show the derived numbers. Errors stop the build. Warnings do not.
 - The settings are stored on the part, so you can reopen the wizard later and change them. The features are regenerated from the settings, keeping their ids, so later features that refer to them keep working.
 
-Whether a wizard's result moves when you edit the part it sits on depends on the wizard. A bearing added from a selected flat face stays on that face (see [Bearings](#bearings)), and a knurl cut into a cylinder keeps its distance from the cylinder's end face (see [Knurl](#knurl)). The other wizards (Gear, Propeller, Impeller, Screw, Washer) are built at the numbers you gave.
+Whether a wizard's result moves when you edit the part it sits on depends on the wizard. A bearing added from a selected flat face stays on that face (see [Bearings](#bearings)), and a knurl cut into a cylinder keeps its distance from the cylinder's end face (see [Knurl](#knurl)). The other wizards (Gear, Propeller, Impeller, Screw, Washer, Nut, Standoff, Heat-set insert, Spring) are built at the numbers you gave.
 
 Parts built by a wizard are not locked. You can add fillets, cuts and patterns on top. What you cannot do is edit the generated profile sketch by hand while it is still tied to its wizard (see each section).
 
@@ -338,6 +338,161 @@ In the Script tab: `washer({ inner: 8.4, outer: 16, thickness: 1.6, origin: [0, 
 | The list shows "No standard size matches" | Clear the filter, or switch to Custom and type the size |
 | The outer diameter is refused | It must be larger than the inner diameter |
 | The gap is refused | It must be more than 0 and smaller than the hole |
+
+## Nuts
+
+**Nut** adds a hexagon nut as ordinary features: a hexagonal prism as a separate body, the bore cut through it, and a revolve cut that chamfers the corners at 30 degrees on both faces. Start it from **Features > Create**, command search, or the Catalog: **Primitives** tab, **Generators**, **Nut**. The preview shows the nut as you change the fields; **Add nut** keeps it as one undo step, and **Escape** or the cross cancels. Everything goes into one tree folder named *Nut* (the next one *Nut 2*), and the body has the same name.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Type | **Regular (ISO 4032)**, **Thin (ISO 4035)** or **Style 2 (ISO 4033)**. Style 2 has no sizes below M5: picking it with a smaller size moves to M5. | Regular |
+| Size | M2, M2.5, M3, M4, M5, M6, M8, M10, M12, M14 or M16: the metric coarse sizes of the kernel's thread table that the standard lists. | M8 |
+| Chamfer the corners | A 30 degree chamfer on both faces, starting from a bearing-face circle of 0.9 times the width across flats. Off leaves a plain prism. | On |
+| Thread | **Plain bore** (a bore at the minor diameter, no thread feature), **Cosmetic thread** (a bore at the tap drill with a cosmetic thread: it shows in the thread list and drawings) or **Modelled thread** (the real helical groove). | Plain bore |
+| Print clearance | Modelled thread only: millimetres, positive for a looser nut thread (the major and minor diameters grow by twice this), negative for a tighter one; up to 1 mm either way. | 0 |
+| First face centre X, Y, Z | The centre of the nut's first face, in millimetres. Give a screw or a washer the same position and axis and the nut stacks on it. | 0, 0, 0 |
+| Thickness extends | Which way the thickness runs from that face: **Down (-Z)**, **Up (+Z)**, -X, +X, -Y or +Y. | Down (-Z) |
+
+The panel shows the width across flats, the width across corners, the thickness and the bore of the size. Those come from the maximum dimensions of ISO 4032, 4035 and 4033, entered from the standards' public tables and **not yet checked against the standard text**: the panel says so, and marks the rows that are less certain than the rest (M14, and the thin M2 and M2.5). Compare them with the nut you buy before you rely on a value.
+
+A modelled thread is slow to preview and can fall back to a cosmetic one if the kernel cannot cut it (the thread list says so). A large print clearance on a fine pitch is the usual cause: in testing an M5 nut took 0.1 mm, but 0.2 mm made the kernel fall back to a cosmetic thread. The nut is its own body and does not merge with the screw it sits on. The washer face and the bore countersink of real nuts are not modelled, nor are nyloc rings, flanges and wings.
+
+In the Script tab: `nut({ size: 'M5', type: 'thin', thread: 'modeled', clearance: 0.1, origin: [0, 0, 6], axis: [0, 0, 1] })`.
+
+![The Nut wizard open in the left panel with an M8 regular (ISO 4032) nut previewed: Type, Size, Chamfer the corners and Thread, the dimensions read from the standard with the Unverified tag, and the first face centre.](../img/wizard-nut.png)
+
+## Standoffs
+
+**Standoff** adds a round or hexagonal spacer, female-female or male-female, with its threads, as a separate body in one *Standoff* folder. It is on the same buttons as the Nut wizard.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Size | M2, M2.5, M3, M4, M5 or M6. Picking a size fills the outside size and the thread length with the usual values for it. | M3 |
+| Shape | **Round** or **Hex**. | Round |
+| Ends | **Female - female** (a threaded bore in each end) or **Male - female** (a bore in the first end and a stud on the far one). | Female - female |
+| Length | The length of the body, end to end. A male stud adds to it, and the panel shows the overall length. | 15 mm |
+| Outside diameter / Width across flats | The outside size, according to the shape. | 6 mm (round), 5.5 mm (hex) |
+| Thread length | The depth of each female thread and the length of the male stud. | 6 mm |
+| Thread, Print clearance | As for the nut. On a stud a positive clearance makes the stud thinner. | Plain bore |
+| First end centre X, Y, Z, Standoff extends | Where the first end sits and which way the standoff extends from it. | 0, 0, 0, Up (+Z) |
+
+The wizard checks what it can without the kernel: the threads must not meet (twice the thread length less than the length for female-female, the thread length less than the length for male-female), and the wall must be at least 0.5 mm, so the outside size is at least the nominal diameter plus 1 mm. A problem blocks **Add standoff** and says what to change. The outside sizes are typical catalogue values, not a standard: round standoffs of one thread size are sold in several diameters, so enter the one you buy. The ends are square (no chamfers) and the stud is a plain cylinder at the nominal diameter.
+
+In the Script tab: `standoff({ size: 'M3', length: 12, kind: 'hex', ends: 'male-female', threadLength: 6, origin: [20, 10, 1.6] })`.
+
+![The Standoff wizard open in the left panel with an M3 round, female-female standoff previewed: Size, Shape, Ends, Length, Outside diameter and Thread length, with the Unverified tag.](../img/wizard-standoff.png)
+
+## Heat-set inserts
+
+**Heat-set insert** adds the knurled brass insert that is pressed into a printed part with a soldering iron, and, if you ask, the hole for it. The insert is one revolve as a separate body in a *Heat-set insert* folder: a ring with the bore of the thread and a few groove rings round the outside that stand for the knurl.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Size | M2, M2.5, M3, M4, M5 or M6. Picking a size fills the next five fields. | M3 |
+| Outside diameter, Length | The insert's size over the knurl and end to end. | 4.6, 5.7 mm |
+| Hole diameter, Hole depth | The recommended hole in the plastic: a little smaller than the insert, and deeper than it is long to leave room for the displaced plastic. | 4, 7 mm |
+| Groove rings | The number of rings round the outside, 0 to 8. | 3 |
+| Thread, Print clearance | As for the nut. | Plain bore |
+| Also cut the hole | Cuts the recommended hole at the mouth, before the insert is added. **Cut it into** then lists the bodies of the document: **Every body it reaches** (the default) or one of them by name. | Off |
+| Hole mouth centre X, Y, Z, Insert goes | The centre of the face the insert is pressed into, and the direction it goes in. The insert lies flush with that face. | 0, 0, 0, Down (-Z) |
+
+The values are typical catalogue dimensions, the middle of the ranges that manufacturers publish (for M3: 4.0 to 4.6 mm outside, 4 to 5.7 mm long, a 3.8 to 4.2 mm hole), and **not** a manufacturer's drawing: the panel marks them unverified, and the sheet of the insert you buy comes first. The insert is bigger than the hole by the press fit, 0.3 mm on each side for M3. The two bodies overlap by that amount, as they do in reality once the plastic has flowed round the knurl, so an interference check on the pair reports it. To leave out the overlap, set the hole diameter to the outside diameter.
+
+In the Script tab: `heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 12], axis: [0, 0, -1] })` (`hole: 'Block'` cuts only the body made with that name).
+
+These three wizards always start from the defaults and do not reopen from the tree. To change one, delete the features in its folder and add it again.
+
+### Common problems
+
+| Symptom | Fix |
+| --- | --- |
+| "There is no M4 nut in ISO 4033" | Style 2 starts at M5: pick Regular or Thin, or a larger size |
+| The two threads would meet | The standoff is too short for two threads: shorten them, lengthen it, or use Male - female |
+| The wall would be under 0.5 mm | The outside size is too small for the thread: use at least the nominal diameter plus 1 mm |
+| The hole is refused | It must be no larger than the insert's outside diameter, and at least as deep as the insert is long |
+| A modelled thread comes out cosmetic | The kernel could not cut the groove: lower the print clearance, or use a cosmetic thread |
+
+![The Heat-set insert wizard open in the left panel with an M3 insert previewed: outside diameter, length, hole diameter and depth, groove rings, the Also cut the hole option and the Unverified tag.](../img/wizard-insert.png)
+
+## Springs
+
+**Spring** adds a coil spring as ordinary features: one wire swept along a helix, as a separate body in one tree folder named *Spring* (the next one *Spring 2*). Start it from **Features > Create**, command search, or the Catalog. The preview shows the spring as you change the fields; **Add spring** keeps it as one undo step, and **Escape** or the cross cancels. The wizard shows the geometry it derives (the pitch, the gap between turns, the mean diameter and the length of wire for a compression spring; the overall length for an extension spring; the angle between the legs for a torsion spring) and refuses values that would make the turns touch.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Type | **Compression**, **Extension (hooks)** or **Torsion (legs)**. | Compression |
+| Outer diameter | The outside diameter of the coil, measured over the wire. An extension spring needs more than three times the wire diameter, for the hook bends. | |
+| Wire diameter | The diameter of the wire. | |
+| Free length | Compression only: the length with no load, end to end, wire included. | |
+| Turns | How many times the wire goes round; fractions are fine. For an extension spring it counts the tight body between the hooks; for a torsion spring the fraction after the whole turns sets the angle between the legs. | |
+| Winding | **Right hand** or **Left hand**. | Right hand |
+| Far end outer diameter | Compression only: a value different from the outer diameter makes the coil a cone. | The outer diameter |
+| Pitch ratio, far end : first end | Compression only: 1 is an even pitch, below 1 the turns close up towards the far end (a progressive suspension spring), above 1 they open. | 1 |
+| Ends | Compression only: **Plain** (the wire just stops), **Closed** (tight turns that touch at each end) or **Closed and ground** (closed turns with both ends ground flat, so the spring is exactly the free length). | Plain |
+| Closed turns per end | Closed and ground ends only: how many turns at each end touch the next. They count in the turns above, so the body has the turns less twice this many. | 1 |
+| First leg length, Second leg length | Torsion only: the length of each straight leg, which leaves the coil tangent to its end. | |
+| First end centre X, Y, Z | Where the spring starts: the centre of its first end (the lowest point of the lower hook for an extension spring). | 0, 0, 0 |
+| Spring extends | The direction from that end: **Up (+Z)**, **Down (-Z)**, +X, -X, +Y or -Y. | Up (+Z) |
+
+An **extension spring** is a tight coil of touching turns with a machine hook, an open loop centred on the axis, at each end; a fraction of a turn turns the two hooks against each other. A **torsion spring** is a close-wound coil with a straight leg at each end. **Closed and ground** takes a quarter of the wire diameter off each end. Closed and ground springs, cones, progressive, extension and torsion springs are wound along a curve and take a few seconds to preview, longer with many turns.
+
+A spring is its own body and does not merge with the part it sits in. Only the geometry is made: the app does not work out the spring rate or the stress, and an extension spring has the machine hook only, no other end types.
+
+In the Script tab: `spring({ outer: 12, wire: 1, length: 30, coils: 8, ends: 'ground', closedTurns: 1 })`, with `topOuter` for a cone and `progression` for a progressive pitch; `extensionSpring({ outer: 10, wire: 1, coils: 12 })`; and `torsionSpring({ outer: 10, wire: 1, coils: 4.25, leg1: 15, leg2: 15 })`. All three take `hand`, `origin` and `axis`.
+
+![The Spring wizard open in the left panel with a compression spring previewed and the Ends setting set to Closed and ground: Closed turns per end, the grinding note and the derived pitch and wire length.](../img/wizard-spring.png)
+
+## Make a case
+
+**Case** makes a closed box with a lipped lid in one step: the outside size, the wall, where the lid starts and the lip, and you get two bodies, a base and a lid, in one tree folder named *Case* (the next one *Case 2*). It does what takes several steps by hand and needs no selected face, which the **Shell** command does: two cups, each an outline extruded as its own body and shelled open on one face, a ring-shaped tongue on the rim of one and a matching groove in the rim of the other, and the lid placed on top of the base. Start it from **Features > Create**, command search, or the Catalog. The preview shows the base and the lid as you change the fields; **Add case** keeps them as one undo step, and **Escape** or the cross cancels.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Width, Depth, Height | The outside size of the closed case, lid included, in mm. | 80, 50, 30 |
+| Wall thickness | The thickness of every wall, the floor and the top. At least 0.4 mm, and two walls must be thinner than the smallest outside size. | 2 |
+| Corner radius | Rounds the four vertical corners on the outside. 0 keeps them sharp; otherwise it must be more than the wall, so the inside corner does not collapse, and at most half the width or depth. | 0 |
+| Lid height | How tall the lid is: the case is cut this far below its top, so the cut is at *height - lid height* above the bottom. It starts at a quarter of the height (at least three walls) and follows the height until you type a value. | A quarter of the height |
+| Tongue height | How far the tongue stands out of its half. The groove is this plus the clearance deep. Follows the wall (0.75 of it) until you type a value. | 1.5 |
+| Tongue width | The width of the tongue as a fraction of the wall, centred in the wall. | 0.5 |
+| Clearance | The gap between tongue and groove on each side and at the top, in mm. 0.2 suits an FDM printer. | 0.2 |
+| Tongue on | **Lid** (the tongue stands out of the lid and the groove is in the base) or **Base**. | Lid |
+| Name of the base, Name of the lid | The names of the two bodies. | Base, Lid |
+| Bottom face centre X, Y, Z | Where the case stands: the centre of its bottom face. It rises along +Z from there. | 0, 0, 0 |
+
+The panel shows the heights of the two halves, where the cut is and the tongue and groove sizes. Checks in plain words block the preview and **Add case** until the numbers work: a wall under 0.4 mm, a corner radius that is not 0 and not more than the wall, a lid or a base not taller than the wall, a groove that would leave less than a wall under it, a tongue and its clearance on both sides as wide as the wall, or two halves with the same name.
+
+With the defaults and a lid height of 15 mm, the case is the one built in [Cases and moulds](../modelling/cases-and-moulds.md): two valid bodies of 28 882.24 mm³ together. The case is its own pair of bodies and leaves the bodies already in the document alone, including an earlier case closed at the same height. The tongue is centred in the wall, with the clearance on both sides and above it: the nearest the two halves come to each other, apart from where the rims rest on each other, is the clearance (checked with **Evaluate > Overlap** and the clearance measurement).
+
+What it does not make: screw bosses, a seal groove, snap fits, vents or a label recess. Add those afterwards with the ordinary features, cutting into the base or the lid by name.
+
+In the Script tab: `caseBox({ width: 80, depth: 50, height: 30, wall: 2, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1, clearance: 0.2 })` (also `radius`, `tongueOn: 'lid' | 'base'`, `names`, `origin`; `joint: 'lipJoint'` builds one shelled box and splits it with the lip joint instead, in a part with no other body). The wizard and the helper build the same features.
+
+## Adding a bolt to a hole
+
+**Add fastener to hole** puts a bolt in a hole you point at, with a washer and a nut if you want them. The size, the head and the length come from the hole, so for the usual case there is nothing to type.
+
+1. Select the cylindrical wall of a hole (click it in face mode), or several holes, then right-click and choose **Add fastener to hole**. The same command is on the **Features** tab, **Create** group, and in command search; it is greyed out until a hole wall is selected. In the feature tree, right-click a **Hole** feature, or a pattern of holes, and choose **Add fastener to hole**.
+2. The **Fasten this hole** panel opens with the fasteners already previewed in the viewport. Change what you want:
+   - **Bolt**: **Hex head bolt** (ISO 4017), **Socket cap screw** (ISO 4762), **Button head** (ISO 7380) or **Countersunk** (ISO 10642). It starts from the mouth of the hole: a plain hole takes a hex bolt, a counterbore a socket cap screw and a countersink a countersunk screw. The panel says which rule applied.
+   - **Size**: the nearest metric size to the bore, M2 to M16. A 5.5 mm bore is *M5 clearance*, a 4.2 mm bore is *M5 tapped*; the line under the field says which it matched and the table value it was compared with. When the bore is more than 0.3 mm from every table value the line says *nearest*, not *matched*.
+   - **Length**: the material along the hole axis from the bearing face to where the hole leaves, plus what you stack on it (the washers and the nut), rounded up to the next standard length (6, 8, 10, 12, 16, 20, 25, 30, 35, 40, 45, 50 ... 200 mm). Type your own and **Auto** brings the standard one back. A blind hole takes the longest standard length that fits its depth.
+   - **Washer**: none, under the head, or under the head and under the nut (ISO 7089 flat washers).
+   - **Nut**: a hex nut (ISO 4032) on the far side of a through hole, sitting on the face the hole leaves by (or on the floor of a pocket the hole widens into there).
+   - **Head on the other end**: shown for a plain through hole, which opens on both sides.
+   - **Holes**: the other holes to fasten in the same step. **N more identical holes on this plane** counts the holes with the same diameter, type (plain, counterbored, countersunk) and depth that open on the same plane, however they were made (a Hole feature, a pattern of it, a cut); it is on by default when there are any. Other selected holes, and the other holes of the pattern a hole belongs to, have boxes of their own and get their own size and length.
+3. **Add fasteners** (or **Enter**) adds everything as one undo step; **Escape** cancels.
+
+Each fastener is its own body in one tree folder named *Fasteners*: *Bolt*, *Washer*, *Washer (nut)* and *Nut*, numbered (*Bolt 1*, *Bolt 2* ...) when there are several holes. They sit on the hole axis with the head outside and the shank pointing into the part, and none of them cuts or fuses with the part, so the hole stays as it was. A hex head is built as a second body and united with the shank by name, which keeps it from fusing with the plate it sits on.
+
+### What it cannot do
+
+- It reads **plain, counterbored and countersunk** holes whose walls are cylinders and cones about one axis. A hole modelled with a real thread (a helical groove) is not matched by its thread pitch: only its bore diameter is read, so the size is the nearest one by diameter. A hole that is not a hole (a boss, a slot) is refused with a message.
+- A **blind hole gets no nut**: it has no far side. A **tapped** hole (a bore at the tap drill) gets no nut either, because the bolt holds by its thread; the panel says why.
+- A countersunk mouth takes no washer, and a washer or a head wider than a counterbore is refused with the two sizes.
+- The socket cap screw and the button head use the shapes of the Screw wizard: cap screws above M10 (and the cap head's exact ISO 4762 height) are not in its table, so those choices say so. The bolt is plain: no thread is drawn on its shank.
+- The bolt is not tied to the hole. If you move the hole or change its diameter afterwards, delete the *Fasteners* folder and add them again.
+
+![The Fasten this hole dialog opened from the right-click menu of a Hole feature in the tree: Bolt, Size, Length, Washer, Nut, Head on the other end and the identical-holes option, with the bolts previewed in the holes of a plate.](../img/fasten-hole.png)
 
 ## Corner holes
 

@@ -58,6 +58,7 @@ The profile assumes a two-part mould pulled along +Z.
 | Draft angle | The angle of each wall against the pull direction. A face is flagged when at least half of its area is under the limit. | 1 degree, pull (0, 0, 1), ignore faces under 0.5 mm² |
 | Uniform wall thickness | Wall thickness compared with the part's median. Sampled. | Within 0.25 (25 percent) of the median |
 | Minimum wall thickness | As above. | 0.8 mm |
+| Undercut (two-part mould) | Faces that neither mould half can form: hidden under other material both looking along the pull direction and against it. The wall of a hole drilled across the pull, or a slot open to the side, is one. A face only one half can see is fine, that half forms it. Sampled. | Pull (0, 0, 1) and its opposite, ignore patches under 0.5 mm² |
 
 Not covered yet: sheet-metal rules, rules of your own, draft direction signs and parting lines, tool reach and stock, support volume, and a suggestion for the best build orientation.
 

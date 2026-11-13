@@ -59,6 +59,8 @@ Edit JSDoc in `packages/script/src/recorder.ts` (comments only), add pitfalls in
 
 ## Gaps in the script API found while writing this
 
+This list is the state when the skill package was first written. Since then the script gained `.feature(json)` as a raw escape hatch, helpers for loft, sweep, mirror, rib, draft, thread, gear, surfaces and assemblies, counterbore, countersink and tapped holes, patterns of patterns and patterns along any direction or about any axis (`direction: [1, 1, 0]`, `axis: { point, dir }`); see `docs/scripting.md` for the current API. Items 1 to 3 and 7 below are therefore out of date (read-back exists: `volume()`, `bbox()`, `expectValid()` and so on).
+
 1. No loft, sweep, mirror, spline sketch entity, draft (as a feature), rib, thread, gear, surface or assembly helper. The hull recipe is a raw feature list and bypasses `runScript`: the script API has no escape hatch such as `feature({ type: 'loft', ... })`. This is the biggest gap for an agent: whatever the GUI can do but the script cannot is unreachable.
 2. Hole kinds: only `simple`. Counterbore, countersink and tapped holes exist in the kernel (`holeCboreInvalid`, threads) but `hole()` cannot ask for them.
 3. Patterns repeat only the LAST feature along one world axis (or about a world axis through the origin); no pattern of a pattern, no pattern about an axis elsewhere, no body patterns. The pocket-grid recipe draws all pockets in one sketch with a loop instead.

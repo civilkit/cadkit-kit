@@ -11,6 +11,7 @@ export { ToolTray } from './ToolTray';
 export { Sheet, BottomNav, SPLIT_FRACTION, BROWSE_FRACTION, snapHeights, settleSnap, SHEET_SNAPS, type SheetProps, type SheetSnap, type NavItem } from './Sheet';
 export { Splitter, CornerGrip, resolveDrag, type SplitterProps, type DragLimits } from './Splitter';
 export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog';
+export { PanelBoundary } from './PanelBoundary';
 export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
 export { Icon, ICON_NAMES, hasIcon } from './icons';

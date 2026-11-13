@@ -24,7 +24,7 @@ export const MENU_COMMANDS: Record<MenuKind, string[]> = {
   sketch: ['sketch-ok', 'sketch-cancel', '-', 'sketch-select', 'sketch-construction', 'sketch-fully-define', '-', 'sketch-look-normal', 'fit', '-', 'sketch-show-dimensions', 'sketch-show-relations'],
   edge: ['add-fillet', 'add-chamfer', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   corner: ['add-fillet', 'add-chamfer', '-', 'select-invert', 'select-none'],
-  face: ['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
+  face: ['sketch-on-face', 'add-hole', 'fasten-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern', '-', 'show-in-tree', '-', 'select-tangent', 'select-parallel', 'select-similar', 'select-loop', 'select-connected', '-', 'select-invert', 'select-none'],
   body: ['select-body', '-', 'move-body', '-', 'add-lpattern', 'add-cpattern', 'add-shell', '-', 'select-invert', 'select-none'],
   none: ['sketch-new-front', 'sketch-new-top', 'sketch-new-right', '-', 'add-extrude', 'add-cut', '-', 'select-body', 'select-all', 'select-invert', '-', 'fit'],
 };

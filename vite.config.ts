@@ -57,6 +57,7 @@ export default defineConfig(({ command }) => ({
       '@kit/skill': here('./packages/skill/src/index.ts'),
       '@kit/ui': here('./packages/ui/src/index.ts'),
       '@kit/agent-tools': here('./packages/agent-tools/src/index.ts'),
+      '@kit/readback': here('./packages/readback/src/index.ts'),
       '@kit/mcp': here('./packages/mcp/src/index.ts'),
       '@kit/agent-link': here('./packages/agent-link/src/index.ts'),
       '@kit/snapshot': here('./packages/snapshot/src/index.ts'),

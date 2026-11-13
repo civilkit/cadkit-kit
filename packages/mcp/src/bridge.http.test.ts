@@ -217,3 +217,44 @@ describe('reading and driving the open app', () => {
     expect(['app_disconnected', 'app_timeout']).toContain(r.body.error.code);
   });
 });
+
+describe('the measurement tools reach the open app', () => {
+  it('app_measure and the others are listed, read without the edit permission, and come back as MCP results with a summary line', async () => {
+    const d = await boot();
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    const app = appClient({
+      edit: () => false,
+      handle: async (op, args) => { seen.push([op, args]); return { summary: `${op} done`, distance: 15, op }; },
+    });
+    await app.connect(await pairCode(d));
+    const listed = await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
+    const names = ((await listed.json()) as { result: { tools: Array<{ name: string }> } }).result.tools.map((t) => t.name);
+    for (const n of ['app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm']) expect(names, n).toContain(n);
+    const m = await rpc(d, 'app_measure', { a: 'Base', b: 'Peg' });
+    expect(m.isError).toBe(false);
+    expect(m.body).toMatchObject({ ok: true, distance: 15, op: 'measure' });
+    expect(m.body.summary).toBeUndefined();
+    expect(m.content[0]).toMatchObject({ type: 'text', text: 'measure done' });
+    for (const [tool, args] of [['app_clearance', { required: 0.2 }], ['app_interference', {}], ['app_thickness', { min: 1 }], ['app_draft', { pull: '+Z' }], ['app_dfm', { process: 'injection' }], ['app_bodies', {}]] as const) {
+      const r = await rpc(d, tool, args);
+      expect(r.isError, tool).toBe(false);
+    }
+    expect(seen.map((x) => x[0])).toEqual(['measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'bodies']);
+    expect(seen[0][1]).toEqual({ a: 'Base', b: 'Peg' });
+  });
+
+  it('bad input is refused before the app is asked, and an app error keeps its code', async () => {
+    const d = await boot();
+    let asked = 0;
+    const app = appClient({ handle: async () => { asked++; throw new BridgeError('no_body', 'the open document has no solid to measure', 'build something first'); } });
+    await app.connect(await pairCode(d));
+    const bad = await rpc(d, 'app_measure', { a: 'Base' });
+    expect(bad.isError).toBe(true);
+    expect(bad.body.error).toMatchObject({ code: 'bad_input', message: '$.b: is required' });
+    expect((await rpc(d, 'app_dfm', { process: 'welding' })).body.error.code).toBe('bad_input');
+    expect(asked).toBe(0);
+    const r = await rpc(d, 'app_thickness', {});
+    expect(r.body.error).toMatchObject({ code: 'no_body', hint: 'build something first' });
+    expect(asked).toBe(1);
+  });
+});

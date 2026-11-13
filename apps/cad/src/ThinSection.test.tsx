@@ -33,6 +33,19 @@ describe('open profile hint card', () => {
     expect(card.textContent).toContain('Almost closed');
     expect([...card.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Make thin wall', 'Close with a line', 'Extrude as surface']);
   });
+  it('a single open chain also points to Rib for a web; a revolve or a second chain does not', () => {
+    const m = mount(EXTRUDE, doc(sketch(), EXTRUDE));
+    expect(m.q('[data-note="rib"]')!.textContent).toMatch(/Rib/);
+    cleanup();
+    const rev = mount({ ...EXTRUDE, type: 'revolve', axis: 'e9' }, doc(sketch(), EXTRUDE));
+    expect(rev.q('[data-note="rib"]')).toBeNull();
+    cleanup();
+    const base = sketch();
+    const twoChains = { ...base, points: [...(base.points as Wire[]), { id: 'h', x: 50, y: 0 }, { id: 'i', x: 60, y: 9 }], entities: [...(base.entities as Wire[]), { type: 'line', id: 'e8', p1: 'h', p2: 'i' }] };
+    const two = mount(EXTRUDE, doc(twoChains, EXTRUDE));
+    expect(two.q('[data-card="open-profile"]')).not.toBeNull();
+    expect(two.q('[data-note="rib"]')).toBeNull();
+  });
   it('Make thin wall turns the option on with the default thickness (10% of the profile, 1 mm at least)', () => {
     const m = mount(EXTRUDE, doc(sketch(), EXTRUDE));
     fireEvent.click(m.q('[data-act="thin"]')!);

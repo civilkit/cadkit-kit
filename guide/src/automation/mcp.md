@@ -169,7 +169,7 @@ To keep the part, call `export` with `format: "ckpart"` and a `path`, then open 
 
 ## The tools
 
-An agent changes the model with one tool, `run_script`. Everything else reads, proves, shows or documents. Tool calls run one at a time. Every input is checked against its schema, and unknown fields are refused.
+An agent changes the model with one tool, `run_script`. Everything else reads, proves, shows or documents. The measuring tools (`measure`, `clearance`, `interference`, `thickness`, `draft`, `dfm`) answer what the kernel can compute exactly, so an agent can check its own work instead of estimating: they never change the model, name the bodies and faces they talk about, and give a verdict. Touching solids merge into one body unless the feature has `newBody: true`, so make parts that must stay separate with it before asking about clearance or interference. Tool calls run one at a time. Every input is checked against its schema, and unknown fields are refused.
 
 | Tool | Arguments | What it returns |
 | --- | --- | --- |
@@ -181,6 +181,13 @@ An agent changes the model with one tool, `run_script`. Everything else reads, p
 | `probe` | `points?`: list of `[x,y,z]`; `rays?`: list of `{origin, dir}` | Per point: inside, outside or boundary, with the signed distance and nearest face. Per ray: the hits with face names. |
 | `section` | `plane` (required: `{origin?, normal}`), `detail?` (boolean) | The exact cross-section loops, their areas and the plane frame. `detail: true` adds the polyline points. |
 | `sections` | `axis` (required: `x`, `y` or `z`), `n?` (1 to 200), `positions?` | Areas of several slices and the volume they add up to, compared with the exact volume. |
+| `bodies` | none | One row per body: name, creating feature, volume, bounding box, colour. The names and numbers it shows are what the measuring tools take. |
+| `measure` | `a`, `b` (required: a body name or number, a face, edge or vertex name, or a point `[x,y,z]`), `samples?` | The minimum distance between the two, the closest point on each with the face or edge it lies on, the offset between them, and whether they touch. For two faces it adds the angle between them. |
+| `clearance` | `a?`, `b?` (default: the two bodies when there are exactly two), `required?` (mm), `within?`, `limit?` | The gap between two bodies with the closest points and the closest face pairs, and a verdict: `clear` or `contact`, and pass or fail against `required` with the shortfall. |
+| `interference` | `a?`, `b?` (bodies) | Every pair of bodies that share volume: the overlap volume in mm³, its centre and box, and the share of the smaller body that is inside the other. A pair the kernel could not compute is reported as incomplete, not as clear. |
+| `thickness` | `min?` (mm), `body?`, `top?`, `method?` (`ray` or `sphere`), `samples?` | The thinnest wall with where it is (the point and the two faces), the mean, the thinnest few places, and pass or fail against `min` with the places under it. |
+| `draft` | `pull?` (`[x,y,z]` or `+Z` ... `-X`; default `+Z`), `min?` (degrees; default 1), `faces?`, `body?` | The draft angle of each face against the pull direction, the class of each (`ok`, `vertical`, `undercut`, `parting`), the walls under `min` worst first, and the count per class. |
+| `dfm` | `process` (required: `injection`, `cnc` or `printing`), `direction?`, `params?` (per-rule limits), `rules?`, `maxIssues?` | The design checks of the Check tab for that process: each issue with its rule, severity, faces, the measured value against the limit, and a point. For `injection` it includes **Undercut (two-part mould)**: faces that neither mould half can form. The limits used are listed in the result. |
 | `snapshot` | `view?`, `up?`, `size?` (64 to 2048), `style?`, `projection?` (`ortho` or `perspective`), `section?`, `sheet?`, `highlight?`, `markers?`, `frame?`, `annotate?`, `background?` | A PNG image plus a short text summary (view, size, bytes). |
 | `checkpoint` | `name` (required) | Saves the whole document under a name. At most 20 are kept in memory; the oldest goes. |
 | `restore` | `name` (required) | Replaces the document with a checkpoint. Notes are not restored. It can be undone. |
@@ -221,10 +228,11 @@ The agent link lets an assistant see, and if you allow it change, the part you h
 | `app_status` | Whether an app is linked and whether changes are allowed. | no |
 | `app_state` | The open part: name, features with their errors, variables, selection and counts. `detail: "full"` adds the whole document. | no |
 | `app_screenshot` | A PNG of the model (`view`, `size`). It is a rendering of the part, not a copy of your screen. | no |
+| `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm` | The same measuring tools as above, asked of the part you have open: bodies, distance, gap, overlap, wall thickness, draft angles and the manufacturing checks. They only read, so they work without the edit box. | no |
 | `app_run_script` | Runs a script on the open part in attach mode: its features are added after yours as **one undo step**, and the app shows a notice. | yes |
 | `app_undo`, `app_redo` | Step the app's undo history. | yes |
 
-Failures come back as ordinary error results: `app_not_connected` (nothing linked: call `bridge_pair`), `edit_not_allowed`, `app_timeout` (the tab did not answer in 60 seconds), `no_document`, `no_body`. What is not there yet: the other tools (`facts`, `probe`, `section`, `export`...) on the open part, and a chat panel that uses them (see [Chat: ask for a change in words](chat.md)). The chat panel is built; it runs your Claude Code through this server.
+Failures come back as ordinary error results: `app_not_connected` (nothing linked: call `bridge_pair`), `edit_not_allowed`, `app_timeout` (the tab did not answer in 60 seconds), `no_document`, `no_body`. What is not there yet: the other tools (`facts`, `probe`, `section`, `export`...) on the open part, besides the measuring ones above, and a chat panel that uses them (see [Chat: ask for a change in words](chat.md)). The chat panel is built; it runs your Claude Code through this server.
 
 ## Resources
 

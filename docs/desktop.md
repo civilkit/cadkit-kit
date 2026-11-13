@@ -28,7 +28,7 @@ The apps are ad-hoc signed (`signingIdentity: "-"`): a valid signature without a
 
 ## Opening an unsigned app
 
-Right-click the app and choose **Open**, then **Open** again; or **System Settings > Privacy & Security > Open Anyway**; or `xattr -dr com.apple.quarantine "/Applications/CivilKit CAD.app"`.
+Open the app once, then choose **Open Anyway** in **System Settings > Privacy & Security**; or run `xattr -dr com.apple.quarantine "/Applications/CivilKit CAD.app"`. On older macOS versions right-click > **Open** also works.
 
 ## Not included
 

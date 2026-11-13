@@ -21,18 +21,19 @@ The **Chat** panel lets you type a change ("40x40 plate with four countersunk M5
 
 ## Use it
 
+- The assistant can also **read numbers off the part** without changing it: how far apart two bodies or faces are, whether a lid clears its box by the gap you need, whether two bodies overlap and by how much, the thinnest wall and where it is, the draft angle of each face against a pull direction, and the manufacturing checks for injection moulding, CNC or printing. Ask, for example, "is there at least 0.2 mm between the lid and the box?" or "does every wall have 1 degree of draft?". These readings need no permission: they work with **Allow it to change this document** off.
 - Type a message and press **Send** (or Ctrl/Cmd+Enter). The reply streams in, and each thing the assistant does (looking at the part, taking a picture, running a script) appears as a line.
 - **Stop** ends the turn at once. A script that is already running finishes, because a change is applied whole or not at all.
 - **Model**: Sonnet (balanced, the default), Opus (most capable) or Haiku (fastest).
 - **Tell it about**: **Selection** sends the names of what you have selected, **View** asks it to look at a picture of the part first, **Comments** sends the script saved with the part with its `//` comments. All three are off until you tick them.
-- **Allow it to change this document** is the same box as in Settings, Agent link, and it is off every time the link starts. Without it the assistant can look and take pictures but not change anything. With it, each script, undo and redo it runs is **one undo step** and shows a notice, and Undo takes it back like any other step.
+- **Allow it to change this document** is the same box as in Settings, Agent link, and it is off every time the link starts. Without it the assistant can look, measure and take pictures but not change anything. With it, each script, undo and redo it runs is **one undo step** and shows a notice, and Undo takes it back like any other step.
 - **New chat** forgets the conversation; otherwise a follow-up message continues the same one.
 
 The assistant adds features after the existing ones; it does not edit or delete features you made by hand (use Undo, or say what you want and do the edit yourself).
 
 ## What is sent
 
-To Claude, through your Claude Code: your message, the boxes you ticked, and what the assistant's tools return: the part's features and variables, a picture of it when it takes one, and the scripts it writes. Claude Code keeps its own session files on your computer as it always does. Nothing is stored in your document and nothing goes to us.
+To Claude, through your Claude Code: your message, the boxes you ticked, and what the assistant's tools return: the part's features and variables, the numbers of a measurement (distances, volumes, face names), a picture of it when it takes one, and the scripts it writes. Claude Code keeps its own session files on your computer as it always does. Nothing is stored in your document and nothing goes to us.
 
 ## When something goes wrong
 

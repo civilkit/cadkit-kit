@@ -100,10 +100,13 @@ Not offered because the kernel does not read them (checked against `ck-model` an
 - Revolve needs a construction line; with none, the hint "Draw a construction line for the axis" is shown and nothing is
   created. The axis is the first construction line only.
 - Chamfer is created as equal distance; the Editor's chamfer type dropdown changes it (see Editor options).
-- Circular pattern turns about a world axis through the origin, not through the body centre or the seed's own axis; the
-  Editor cannot yet edit the `dir`/`axis` objects (they are not primitive fields). Move the part or edit the JSON for a
-  different axis. A seed that falls outside the body after rotation produces no change but no error.
-- Linear pattern directions are world axes only (the Editor picks X, Y or Z per direction); Direction 2, Extent and To object are in the Editor.
+- A new circular pattern turns about the world axis along the body's shortest dimension, through the origin. The Editor's
+  Axis choice can change that: the X, Y or Z axis, a typed direction (it may be oblique) with an axis point, or a straight
+  edge or round face picked in the view; the axis then need not pass through the origin. A seed that falls outside the
+  body after rotation produces no change but no error.
+- A new linear pattern runs along the world axis of the body's longest side. The Editor's Direction choice for each
+  direction can be X, Y or Z, a typed direction vector (any angle) or a straight edge or round face picked in the view;
+  Direction 2, Extent and To object are in the Editor.
 - Shell grows inward; `outward` can be set in the Editor.
 - The `seeds` field is a text list of feature ids (comma separated); it is not filled from the selection (features are not
   picked in the viewport).
@@ -124,8 +127,10 @@ changed with Pick (a picked face becomes `{kind:'face', id}`); the dropdown for 
 | Plane `add-plane` (Shift+N) | Features / Reference | a document | no face: offset 10 from the front plane; one face: offset 10 from it; two faces: `mode:'mid'` between them | `plane {mode, base, base2, offset}` | done; `angle`, `parallel`, three-point modes and the axis / point refs only by editing numbers (object refs `base`, `axis` are not editable) |
 | Axis `add-axis` (Shift+A) | Features / Reference | a document | no face: front and top planes meet; one face: its cylinder axis; two faces: where their planes meet | `axis {refs:[{kind,id}]}` | done; one flat face gives `faceNotCylindrical` (nothing is added); `refs` is not shown in the Editor |
 | Draft `add-draft` (Shift+G) | Features / Modify | body and at least one picked face | angle 3, neutral = the plane of the first sketch (the base of the first boss), faces = the picked faces | `draft {neutral, faces, angle, flip}` | done; a face parallel to the neutral plane gives `draftParallelFace` |
-| Rib `add-rib` | Features / Modify | body and an OPEN sketch (the one selected in the tree, else the last open one) | thickness = 10% of the smallest body size (nice) | `rib {sketch, thickness, flip}` | done; the line must reach the body, else `ribNoContact` |
+| Rib `add-rib` | Features / Modify | body and an OPEN sketch (the one selected in the tree, else the last open one) | thickness = 10% of the smallest body size (nice) | `rib {sketch, thickness, flip, side?, fillet?, draft?, target?}` | done; the line must reach the body, else `ribNoContact`; the Editor has side, fillet, draft and extend-to |
 | Lip / groove `add-lip` | Features / Modify | body and a picked face that has edges | `kind:'lip'`, width = height = 5% of the smallest size, edges = every edge of the picked faces | `lip {kind, faces, edges, width, height}` | done; `kind` can be switched to `groove` |
+| Split body `add-split` | Features / Modify | a body | one picked planar face: that face is the plane; else the standard plane across the body's smallest side at its middle (`front` +Z, `top` +Y, `right` +X; `offset` = the middle); names `Base` and `Lid` | `split {plane, offset?, names, keep?, target?, flip?}` | done; the Editor (`SplitOptions`) has the plane list, offset, reverse, the two names, target (when several bodies are named) and Keep; a plane that misses the body gives `cutNoEffect` |
+| Lip joint `add-lip-joint` | Features / Modify | a body | the split above plus `height` = 15% of the smallest size (nice), `widthRatio` 0.5 (a fraction of the wall), centred, `clearance` 0.2, tongue on the lower half | `lipJoint {plane, offset?, names, height, widthRatio, clearance, inset?, tongue?}` | done; the Editor (`LipJointOptions`) switches the width between a fraction of the wall and mm, centred or `inset`, and the half that carries the tongue; the preview is the ordinary draft regen |
 | Mirror `add-mirror` (Shift+M) | Features / Modify | body and a feature to repeat (as for patterns) | the selected / last feature about the right plane; one picked face: about that face; `body:false` | `mirror {seeds, plane, body}` | done; `body:true` mirrors the whole body (set in the Editor) |
 | Helix `add-helix` | Features / Curves | a sketch with a circle (selected, else last) | `pitchRevs`, pitch = 10% of the smallest size, 5 revolutions | `helix {sketch, definedBy, pitch, revolutions, height}` | done (a curve: no body change; use it as a sweep path) |
 | Pipe cut `add-pipe-cut` | Features / Modify | body and picked edges (edge mode) or picked faces (face mode) | radius = 10% of the smallest size | `pipeCut {radius, edges, faces}` | done; the solid becomes a SURFACE body (kernel behaviour) |

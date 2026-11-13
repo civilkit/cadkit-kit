@@ -222,12 +222,15 @@ p.linearPattern([a, b], { count: 3, spacing: 10, direction: [1, 0, 0] });`, m.ho
   .linearPattern({ count: 3, spacing: 25, direction: edges({ parallel: 'X', onFace: face('<Z'), near: [0, -30, 0], within: 1 }) });`, eg.host);
     expect(res.errors).toEqual([]);
     expect(await eg.volume()).toBeCloseTo(4800 * 10 - 3 * PI * 4 * 10, 2);
-    // oblique directions and offset axes are refused with a clear message
+    // an oblique direction and an axis away from the origin are the kernel's own business now: closed-form volumes
     const o = await rig();
-    res = await runScript(`part('X').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2)).cut(through()).linearPattern({ count: 3, spacing: 5, direction: [1, 1, 0] });`, o.host);
-    expect(res.errors[0].message).toMatch(/world x, y or z axis only/);
-    res = await runScript(`part('X').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [5, 0])).cut(through()).circularPattern({ count: 3, axis: [3, 0, 0, 0, 0, 1] });`, (await rig()).host);
-    expect(res.errors[0].message).toMatch(/through the origin/);
+    res = await runScript(`part('X').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [-30, -20])).cut(through()).linearPattern({ count: 3, spacing: 10, direction: [1, 1, 0] });`, o.host);
+    expect(res.errors).toEqual([]);
+    expect(await o.volume()).toBeCloseTo(4800 * 10 - 3 * PI * 4 * 10, 2);
+    const c = await rig();
+    res = await runScript(`part('X').sketch('front', (s) => s.rect(80, 60)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [20, 0])).cut(through()).circularPattern({ count: 3, axis: [10, 0, 0, 0, 0, 1] });`, c.host);
+    expect(res.errors).toEqual([]);
+    expect(await c.volume()).toBeCloseTo(4800 * 10 - 3 * PI * 4 * 10, 2);
   }, 240000);
 
   it('fillets with a radius per edge match separate fillets; a variable radius builds; chamfer variants are emitted', async () => {

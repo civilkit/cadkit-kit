@@ -5,7 +5,7 @@ import { t } from './i18n';
 import { fieldsOf, type Field } from './Inspector';
 import { Icon, featureIconName } from './icons';
 import { ExprInput } from './ExprInput';
-import { isExprValue } from './expr';
+import { fmtNum, isExprValue } from './expr';
 
 export interface Section {
   id: string;
@@ -126,12 +126,12 @@ export const geomText = (v: unknown): string => {
 /** One edge pick: its two faces, or (sheet metal) a role such as `P2.tip`, a ring edge of a panel, or a point. */
 function edgeText(e: unknown): string {
   if (typeof e === 'string') return e;
-  if (Array.isArray(e)) return e.map((v) => +(+v).toFixed(2)).join(', ');
+  if (Array.isArray(e)) return e.map((v) => fmtNum(v, 2)).join(', ');
   const o = (e ?? {}) as { faces?: string[]; role?: string; edge?: number; panel?: number; at?: unknown };
   if (o.faces) return o.faces.join('|');
   if (typeof o.role === 'string') return o.role;
   if (typeof o.edge === 'number') return typeof o.panel === 'number' ? `P${o.panel} edge ${o.edge}` : `edge ${o.edge}`;
-  if (Array.isArray(o.at)) return o.at.map((v) => +(+v).toFixed(2)).join(', ');   // an edge named by a point on it (an import)
+  if (Array.isArray(o.at)) return o.at.map((v) => fmtNum(v, 2)).join(', ');   // an edge named by a point on it (an import)
   return '';
 }
 

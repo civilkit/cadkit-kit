@@ -121,10 +121,18 @@ A sketch on a face has its normal pointing out of the body.
 | `.holes.points / .polar / .grid(...)` | One hole feature at many points. |
 | `.fillet(edges, radius)`, `.chamfer(edges, distance)` | Edge rounding. Different radii become one fillet per radius. |
 | `.shell(face or faces, t)` | Hollow out, opening the given faces. |
-| `.linearPattern({count, spacing, direction})`, `.circularPattern({count, axis, angle})`, `.pathPattern({path, count, spacing})` | Patterns of the last feature, or of seeds you name. Directions and axes follow the world axes. A linear pattern can use `totalLength` or `to` (a plane, face or point the last copy reaches) instead of `spacing`, and a `second` direction. A path pattern follows an open sketch. |
+| `.linearPattern({count, spacing, direction})`, `.circularPattern({count, axis, angle})`, `.pathPattern({path, count, spacing})` | Patterns of the last feature, or of seeds you name. A linear pattern's `direction` is `'x'`, `'y'`, `'z'`, any vector such as `[1, 1, 0]` (oblique is fine) or a straight edge; a circular pattern's `axis` is `'x'`, `'y'`, `'z'`, `[ox, oy, oz, dx, dy, dz]`, `{ point, dir }` or a straight edge, so a bolt circle can turn about any point. A linear pattern can use `totalLength` or `to` (a plane, face or point the last copy reaches) instead of `spacing`, and a `second` direction. A path pattern follows an open sketch. |
 | `.workplane(base, offset)` | A reference plane. |
-| `.loft(sections)`, `.sweep(profile, path)`, `.mirror(plane)`, `.rib(thickness)` | Loft, sweep, mirror and rib. |
+| `.loft(sections)`, `.sweep(profile, path, {guides, guideMode})`, `.mirror(plane)`, `.rib(thickness, {fillet, draft, side, target})` | Loft, sweep, mirror and rib. A rib can round its free edge (`fillet`), taper its sides (`draft`, degrees), put all its thickness on one side of the sketch plane (`side: 'left'` or `'right'`) and grow to named bodies only (`target`). A sweep path can be a helix (`{ curve: handle }`), and one or two guide curves make it taper or flare. |
+| `.draft(faces, angle, {neutral})`, `.moveFace(faces, {distance})` | Taper walls about a neutral plane; push or pull faces. |
+| `.lip(rim, edges, {width, height})`, `.groove(...)` | A raised band on a rim, and the groove it fits. |
+| `.scale(factor, {about})`, `.moveBody(bodies, {translate, rotate, copy, mirror})` | Scale bodies; move, rotate or copy them, also as a mirror image. |
+| `.split(plane, {names})`, `.split(target, tools)`, `.deleteBody(bodies)`, `.deleteFace(faces)` | Split a body at a plane (a face, a standard plane or an offset plane) into two named bodies, or by tool bodies; remove bodies, or remove faces (the solid becomes a sheet; nothing is healed). |
+| `.lipJoint(plane, {height, width, clearance, tongue, names})` | Split a shelled body at a plane and give the cut a centred tongue on one half and a matching groove, wider and deeper by `clearance`, on the other. See [Cases and moulds](../modelling/cases-and-moulds.md). |
+| `.sphere(radius, {centre, op})`, `.helix({radius, pitch, revolutions})`, `.axis(...)` | A ball, a helix curve, and a reference axis. |
 | `.gear({module, teeth, thickness, ...})` | The gear generator. |
+| `.screw(...)`, `.washer(...)`, `.nut({size, type})`, `.standoff({size, length, kind, ends})`, `.heatSetInsert({size, hole})`, `.bearing(...)` | The fastener and bearing wizards, each as its own body placed by `origin` and `axis`. See [Parametric wizards](../library/wizards.md). |
+| `.spring(...)`, `.extensionSpring(...)`, `.torsionSpring(...)` | The Spring wizard's three types, each as its own body. |
 | `.thread(...)` | A cosmetic or modelled thread on a hole or cylinder. |
 | `.surfaceExtrude`, `.surfacePlanar`, `.surfaceLoft`, `.thicken`, `.knit` | Surface bodies. |
 | `.insertPart(doc, {...})`, `.mate({...})` | Assemblies inside the part. |
@@ -173,12 +181,12 @@ Each read rebuilds everything recorded so far, so read once after a group of fea
 - **Safety:** the script runs with only the API names in scope. Browser functions such as `fetch`, `window` and timers are blocked. This prevents accidents but is **not** a security boundary. Do not run scripts from people you do not trust.
 - **No sketch constraints:** sketches made by a script are plain geometry without constraints.
 - **No separate assemblies:** an assembly is `insertPart` plus `mate` features inside one part.
-- **Not covered by helpers:** closed (ring) lofts, and sweep with a kept normal. Use `.feature({ type: ... })` for kernel features that have no helper, such as draft or helix.
-- **Patterns follow the world axes:** a linear pattern runs along x, y or z. A circular pattern turns about a world axis through the origin. For a bolt circle anywhere, use `.holes.polar`. For an oblique pattern, rotate the part first.
+- **Not covered by helpers:** closed (ring) lofts, sweep with a kept normal, and surface features such as `fill`, `trimSurface`, `extend` and `projectCurve`. Use `.feature({ type: ... })` for kernel features that have no helper. `dome` is not built in the kernel.
+- **Patterns take any direction or axis:** a linear pattern's `direction` can be a vector at any angle or a straight edge, and a circular pattern's `axis` a point and a direction (`{ point: [40, 0, 0], dir: [0, 0, 1] }`) or an edge. `.holes.polar` still makes a bolt circle of holes in one feature.
 - **Chamfers:** a chamfer with two distances, or with distance and angle, is reported as unsupported by the kernel today. Cut the bevel instead.
 - **Line numbers** come from the browser. In browsers other than Chrome and Edge, an error may show line 0.
 - **Fonts:** a script can use the built-in fonts `gauge` and `engrave` and a short list of library fonts by id. Fonts picked in the editor cannot be named from a script.
-- **Running creates a new part.** A script cannot modify the part you have open.
+- **Running creates a new part.** A script run in the Script tab cannot modify the part you have open. An agent linked in Settings can run a script on the open part, as one undo step (see [Agents and the MCP server](mcp.md)).
 
 ## Next
 

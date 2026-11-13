@@ -81,6 +81,10 @@ The counterbore values follow ISO 4762 socket-head screws, and the countersink d
 
 For a size that is not in this table, choose Custom diameter on a Simple hole.
 
+### Holes in a part with several bodies
+
+A hole cuts every body it meets. A hole feature in a part file can carry a `target` that names the bodies it drills, as extrude and revolve do; the Hole editor does not have the field, so set it in the file or the script's raw `.feature({ type: 'hole', ... })`. See the kernel book, "hole".
+
 ### End conditions
 
 - **Blind** drills to the Depth you type.
@@ -133,6 +137,7 @@ You can select several faces first (Ctrl-click or Shift-click) and get one threa
 | Hand | Right or Left. | Right |
 | Start | Open end, Top or Bottom. Shown only when it matters, that is when both or neither end of the face is open. | Open end |
 | Model the thread | Cuts a real helical groove. Slower to rebuild. Remembered as the default for new threads. | Off |
+| Print clearance | Shown with a modelled thread: **None**, **Wider** (a looser fit, for a thread that will be printed) or **Narrower**, with the amount in mm (up to 1 mm). A wider external thread cannot fit a shaft drawn at the nominal size, so it falls back to a cosmetic thread with a warning: draw the shaft near the loosened size. | None |
 
 A read-out card shows the pitch and the diameters that matter: for a hole the tap drill and minor diameter, for a shaft the major diameter and root diameter.
 

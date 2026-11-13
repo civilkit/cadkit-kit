@@ -3,7 +3,7 @@ import { Session } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { createStore } from '@kit/store';
 import { Controller, type KernelFactory } from '../../../apps/cad/src/controller';
-import { runScript, type ScriptHost } from './index';
+import { MID_PLANE_CUT_WARNING, runScript, type ScriptHost } from './index';
 
 const sessions: Session[] = [];
 afterEach(async () => { await Promise.all(sessions.splice(0).map((s) => s.close().catch(() => {}))); });
@@ -141,6 +141,66 @@ describe('mirror, rib, gear', () => {
     expect(o.r.errors).toEqual([]);
     expect(o.valid).toBe(true);
     expect(o.v).toBeCloseTo(base + 3 * 200, 2);
+  }, T);
+  it('rib side, draft and fillet: volumes against the hand estimate (right triangle of legs 20, 3 thick)', async () => {
+    const L = `part('Gusset').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40)
+  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6]))`;
+    const base = 6 * 50 * 40 + 34 * 6 * 40 + 3 * 200;
+    const right = await run(`${L}.rib(3, { side: 'right' });`);
+    expect(right.r.errors).toEqual([]);
+    expect(right.valid).toBe(true);
+    expect(right.v).toBeCloseTo(base, 2);
+    // thickness 3 at the free edge, 2 tan(draft) wider per mm toward the body: the moment of the triangle about its hypotenuse is area * height / 3
+    const hyp = 20 * Math.SQRT2, moment = 200 * (2 * 200 / hyp) / 3;
+    const drafted = await run(`${L}.rib(3, { draft: 3 });`);
+    expect(drafted.r.errors).toEqual([]);
+    expect(drafted.valid).toBe(true);
+    expect(drafted.v).toBeCloseTo(base + 2 * Math.tan(3 * PI / 180) * moment, 0);
+    // two rounds of radius r along the free edge: (1 - pi/4) r^2 each per mm, less the ends the two faces clip (cot 45 + cot 45 per mm of depth)
+    const r = 0.5, ac = (1 - PI / 4) * r * r, m = r ** 3 * (5 / 6 - PI / 4);
+    const rounded = await run(`${L}.rib(3, { fillet: 0.5 });`);
+    expect(rounded.r.errors).toEqual([]);
+    expect(rounded.valid).toBe(true);
+    expect(rounded.v).toBeCloseTo(base - 2 * (hyp * ac - 2 * m), 1);
+  }, T);
+  it('rib target names the body it grows to', async () => {
+    const o = await run(`part('Two').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40, { newBody: 'Gusset' })
+  .sketch('front', (s) => s.rect(10, 10, [200, 5])).extrude(10, { newBody: 'Other' })
+  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3, { target: 'Gusset' });`);
+    expect(o.r.errors).toEqual([]);
+    expect(o.valid).toBe(true);
+    expect(o.v).toBeCloseTo(6 * 50 * 40 + 34 * 6 * 40 + 3 * 200 + 1000, 1);
+    const miss = await run(`part('Two').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40, { newBody: 'Gusset' })
+  .sketch('front', (s) => s.rect(10, 10, [200, 5])).extrude(10, { newBody: 'Other' })
+  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3, { target: 'Other' });`);
+    expect(miss.r.errors.some((e) => /ribNoContact/.test(e.message))).toBe(true);
+  }, T);
+  it('the clevis rib gives the same part before or after the bore, and takes the new settings', async () => {
+    const head = `part('Clevis')
+  .sketch('top', (s) => s.rrect(140, 90, 8)).extrude(12)
+  .holes.points(face('>Y'), [[-55, -30], [55, -30], [-55, 30], [55, 30]], { diameter: 10 })
+  .sketch('front', (s) => s.rect(30, 79, [15, 45.5])).extrude(60, { mid: true })
+  .sketch('front', (s) => s.circle(25, [15, 85])).extrude(60, { mid: true })`;
+    const rib = (opts = '') => `.sketch('front', (s) => s.line([-50, 12], [-5, 70])).rib(15${opts})`;
+    const bore = `.sketch('front', (s) => s.circle(15, [15, 85])).cut(through(), { direction: 'both' })`;
+    const before = await run(`${head}${rib()}${bore};`);
+    const after = await run(`${head}${bore}${rib()};`);
+    for (const o of [before, after]) { expect(o.r.errors).toEqual([]); expect(o.valid).toBe(true); expect(o.v).toBeCloseTo(335157, 0); }
+    const tuned = await run(`${head}${bore}${rib(', { fillet: 3, draft: 2 }')};`);
+    expect(tuned.r.errors).toEqual([]);
+    expect(tuned.valid).toBe(true);
+    expect(tuned.v).toBeGreaterThan(335157 - 300);
+    expect(tuned.v).toBeLessThan(335157 + 1500);
+  }, T);
+  it('a through cut from the mid-plane with no direction cuts one half and warns; direction both cuts all and does not', async () => {
+    const body = `part('B').sketch('front', (s) => s.rect(60, 40)).extrude(20, { mid: true })`;
+    const half = await run(`${body}.sketch('front', (s) => s.circle(5)).cut(through());`);
+    expect(half.r.errors).toEqual([]);
+    expect((half.r.warnings ?? []).map((w) => w.message)).toEqual([MID_PLANE_CUT_WARNING]);
+    expect(half.v).toBeCloseTo(60 * 40 * 20 - PI * 25 * 10, 1);   // the result is unchanged: one half of the bore
+    const all = await run(`${body}.sketch('front', (s) => s.circle(5)).cut(through(), { direction: 'both' });`);
+    expect(all.r.warnings ?? []).toEqual([]);
+    expect(all.v).toBeCloseTo(60 * 40 * 20 - PI * 25 * 20, 1);
   }, T);
   it('a rib in open air reports ribNoContact on its line', async () => {
     const o = await run(`part('R').sketch('front', (s) => s.rect(40, 30)).extrude(10).sketch(at('front', 30), (s) => s.line([-5, 0], [5, 0])).rib(2);`);

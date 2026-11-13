@@ -8,7 +8,9 @@ export type { PlaneSpec, PlaneRotate };
 import { holeOps, installFeatures } from './features';
 import type { ScrewOpts } from './features/screw';
 import type { WasherOpts } from './features/washer';
-import type { SpringOpts } from './features/spring';
+import type { SpringOpts, ExtensionOpts, TorsionOpts } from './features/spring';
+import type { CaseBoxOpts } from './features/enclosure';
+import type { NutOpts, StandoffOpts, HeatSetInsertOpts } from './features/fasteners';
 import type { BearingOpts } from './features/bearing';
 import { applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './features/h';
 import type { CosmeticKnurl } from './cosmeticKnurl';
@@ -71,6 +73,25 @@ export const plane = (name: Plane): PlaneInfo => {
 
 export type Num = number | Expr;
 
+export const MID_PLANE_CUT_WARNING = "a through cut from a sketch on the middle of the part cuts one side only (the default direction goes against the sketch normal): pass direction: 'both' to cut through both sides, or 'away' for the other one";
+
+/** The standard plane a sketch sits on (or at(plane, number) moved along its normal), as its normal axis and offset; null for anything else. */
+export function stdPlaneAt(plane: Plane | OffsetPlane | PlaneRef | FaceSel): { axis: number; offset: number } | null {
+  const axisOf = (id: unknown): number => (id === 'right' ? 0 : id === 'top' ? 1 : id === 'front' ? 2 : -1);
+  if (typeof plane === 'string') { const axis = axisOf(plane); return axis < 0 ? null : { axis, offset: 0 }; }
+  if (plane.kind === 'offset' && typeof plane.plane === 'string' && typeof plane.offset === 'number' && !plane.opts?.rotate && !plane.opts?.flip) {
+    const axis = axisOf(plane.plane);
+    return axis < 0 ? null : { axis, offset: plane.offset };
+  }
+  return null;
+}
+/** Whether the plane cuts the body's box through its middle: each side keeps at least a quarter of the extent (a plane near a face is a pocket, not a mid-plane cut). */
+export function planeSplitsBody(p: { axis: number; offset: number }, box: { min: number[]; max: number[] }): boolean {
+  const lo = box.min[p.axis], hi = box.max[p.axis];
+  const ext = hi - lo;
+  return ext > 1e-9 && p.offset >= lo + 0.25 * ext && p.offset <= hi - 0.25 * ext;
+}
+
 export interface Ctx {
   geo: Geometry;
   nextId(): string;
@@ -79,6 +100,8 @@ export interface Ctx {
   lastFeature: string | null;
   /** Report a warning for the script line (the run result lists them). */
   warn?(message: string, line: number): void;
+  /** Where the last sketch sits when that is a standard plane at a number: the axis of its normal (0 x, 1 y, 2 z) and the offset along it. Null for a face, a plane feature or an offset that is an expression. */
+  lastSketchPlane?: { axis: number; offset: number } | null;
   /** Cut features whose direction may be flipped once if the kernel finds nothing to cut (cut direction 'auto'). */
   autoFlip?: Set<string>;
 }
@@ -691,6 +714,7 @@ export class PartBuilder {
     this.steps.push({ line, label: 'sketch', run: (ctx) => {
       const pre: EditOp[] = [];
       let pl: Record<string, unknown>;
+      ctx.lastSketchPlane = stdPlaneAt(plane);
       if (typeof plane === 'string') pl = { kind: 'std', id: plane };
       else if (plane.kind === 'planeRef') {
         if (!plane.ref.id) throw new SelectorError('sketch(): the plane it sits on is not built yet', plane.line);
@@ -712,8 +736,13 @@ export class PartBuilder {
   private solid(label: string, op: 'add' | 'cut', end: EndSpec, o: ExtrudeOpts): this {
     return this.add(label, (ctx) => {
       if (!ctx.lastSketch) throw new SelectorError(`${label}() needs a sketch before it`, this.line());
-      const id = ctx.nextId();
       const through = typeof end === 'object' && 'through' in end;
+      // a through cut with no direction from a sketch on the middle of the part cuts one half only (the default goes against the sketch normal)
+      if (through && op === 'cut' && o.direction === undefined && !o.flip && !o.mid && !o.symmetric && ctx.lastSketchPlane) {
+        const box = ctx.geo.box;
+        if (box && planeSplitsBody(ctx.lastSketchPlane, box)) ctx.warn?.(MID_PLANE_CUT_WARNING, this.line());
+      }
+      const id = ctx.nextId();
       const f: Record<string, unknown> = { type: 'extrude', id, op, sketch: ctx.lastSketch };
       applyNewBody(f, op, o.newBody, label, this.line());
       applyFrom(f, op, o.from, label, this.line());
@@ -755,7 +784,7 @@ export class PartBuilder {
   /**
    * Cut the last sketch out of the body: a depth or through().
    *
-   * Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin). A cut changes EVERY body it reaches; from: 'Name' (or a list) limits it to the bodies of that name (made with newBody: 'Name'), so no separate cutter body and combine are needed: an unknown name is an error that lists the bodies the part has.
+   * Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. A through() cut with no direction from a sketch on the middle of the part (a standard plane through the middle of the body) cuts ONE side only and warns: pass direction: 'both' for a bore through a mid-plane part. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin). A cut changes EVERY body it reaches; from: 'Name' (or a list) limits it to the bodies of that name (made with newBody: 'Name'), so no separate cutter body and combine are needed: an unknown name is an error that lists the bodies the part has.
    * @domain features
    * @param end depth in mm, or through()
    * @param o.direction 'auto' (default: into, flip once if nothing is cut) | 'into' | 'away' | 'both'
@@ -992,7 +1021,7 @@ export class PartBuilder {
   /**
    * Repeat features along a direction, optionally as a 2D grid.
    *
-   * linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).
+   * linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', ANY vector [x, y, z] (not unit length, not on a world axis: [1, 1, 0] runs at 45 degrees; the sign picks the way) or a straight edge (the copies run along it from its start to its end as the kernel reads it; reverse flips them). reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).
    * @domain patterns
    * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
    * @param o.count total number of instances
@@ -1000,8 +1029,8 @@ export class PartBuilder {
    * @param o.totalLength first-to-last distance in mm instead of spacing
    * @param o.to the object the last copy reaches instead of spacing: plane, at(plane, offset), face(sel) or [x, y, z]
    * @param o.toOffset with to: mm past the object (negative: short of it)
-   * @param o.direction 'x' | 'y' | 'z' | [x, y, z] | edges(...), default 'x'
-   * @param o.axis alias of direction ('x' | 'y' | 'z')
+   * @param o.direction 'x' | 'y' | 'z' | [x, y, z] (any vector, oblique too) | edges(...), default 'x'
+   * @param o.axis alias of direction
    * @param o.reverse go the other way
    * @param o.second { direction, count, spacing | totalLength | to, toOffset?, reverse? } the second grid direction
    * @example
@@ -1021,12 +1050,12 @@ export class PartBuilder {
       const f: Record<string, unknown> = { type: 'lpattern', id, seeds: ids };
       const dir = (d: LinearDir, sfx: '' | '2'): void => {
         const who = sfx ? 'linearPattern() second' : 'linearPattern()';
-        const ax = worldDir(d.direction ?? d.axis ?? 'x', ctx, line, 'linearPattern');
+        const ax = patternDir(d.direction ?? d.axis ?? 'x', ctx, line, 'linearPattern');
         if (d.count === undefined) throw new SelectorError(`${who}: count is required`, line);
         const given = [d.spacing, d.totalLength, d.to].filter((v) => v !== undefined).length;
         if (given !== 1) throw new SelectorError(`${who}: give one of spacing, totalLength or to`, line);
         if (d.toOffset !== undefined && d.to === undefined) throw new SelectorError(`${who}: toOffset goes with to`, line);
-        f['dir' + sfx] = { kind: 'axis', axis: ax.axis };
+        f['dir' + sfx] = ax.ref;
         f['count' + sfx] = d.count;
         if (d.to !== undefined) {
           f['distanceType' + sfx] = 'toObject';
@@ -1093,11 +1122,11 @@ export class PartBuilder {
   /**
    * Repeat features around an axis.
    *
-   * circularPattern(o) repeats the feature added just before it; circularPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). Instances: count in total over angle (alias total) degrees, 360 = a full circle. axis is 'x' | 'y' | 'z', [ox, oy, oz, dx, dy, dz] or a straight edge; the kernel rotates about a WORLD axis through the origin only, so an offset or oblique axis fails with a clear error (centre the part on the axis, or use holes.polar for a bolt circle anywhere). equalSpacing (default true for 360) spaces the instances angle / count apart; false spaces them angle / (count - 1) so the last lands exactly at the end angle (use it for an arc fan). A pattern can seed another pattern.
+   * circularPattern(o) repeats the feature added just before it; circularPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). Instances: count in total over angle (alias total) degrees, 360 = a full circle. axis is 'x' | 'y' | 'z' (through the origin), [ox, oy, oz, dx, dy, dz] or { point: [x, y, z], dir: [x, y, z] } (a point on the axis and its direction: a bolt circle round (40, 0) is { point: [40, 0, 0], dir: [0, 0, 1] }; the direction may be oblique) or a straight edge (any edge, on the origin or not: the copies turn about it). equalSpacing (default true for 360) spaces the instances angle / count apart; false spaces them angle / (count - 1) so the last lands exactly at the end angle (use it for an arc fan). A pattern can seed another pattern.
    * @domain patterns
    * @param seed 'last', a handle, a feature id or an array of them (omit to repeat the last feature)
    * @param o.count total instances
-   * @param o.axis 'x' | 'y' | 'z' | [ox,oy,oz,dx,dy,dz] | edges(...), default 'z'
+   * @param o.axis 'x' | 'y' | 'z' | [ox,oy,oz,dx,dy,dz] | { point, dir } | edges(...), default 'z'
    * @param o.angle total angle in degrees, default 360 (alias total)
    * @param o.equalSpacing angle / count apart (default when 360); false: angle / (count - 1)
    * @param o.reverse go the other way
@@ -1114,9 +1143,9 @@ export class PartBuilder {
     return this.add('circularPattern', (ctx) => {
       const ids = seedIds(seeds, ctx, line, 'circularPattern');
       const angle = opts.angle ?? opts.total ?? 360;
-      const ax = worldAxis(opts.axis ?? 'z', ctx, line);
+      const ax = patternAxis(opts.axis ?? 'z', ctx, line);
       const id = ctx.nextId(); ctx.lastFeature = id;
-      return [{ op: 'add', feature: { type: 'cpattern', id, seeds: ids, axis: { kind: 'axis', axis: ax.axis }, count: opts.count, angle, equal: opts.equalSpacing ?? angle === 360, ...(ax.negative !== !!opts.reverse ? { reverse: true } : {}) } }];
+      return [{ op: 'add', feature: { type: 'cpattern', id, seeds: ids, axis: ax.ref, count: opts.count, angle, equal: opts.equalSpacing ?? angle === 360, ...(ax.negative !== !!opts.reverse ? { reverse: true } : {}) } }];
     });
   }
 
@@ -1532,7 +1561,9 @@ export interface LinearOpts extends LinearDir { second?: LinearDir }
 export interface PathOpts {
   path: SketchSpec; count: number; spacing?: Num; totalLength?: Num; start?: Num; startFraction?: Num; flip?: boolean; orientation?: 'fixed' | 'tangent';
 }
-export interface CircularOpts { count: number; axis?: 'x' | 'y' | 'z' | number[] | EdgeSel; angle?: number; total?: number; equalSpacing?: boolean; reverse?: boolean }
+/** A circular-pattern axis as an object: a point on it (default the origin) and its direction. */
+export interface AxisSpec { point?: number[]; dir?: number[]; direction?: number[] }
+export interface CircularOpts { count: number; axis?: 'x' | 'y' | 'z' | number[] | EdgeSel | AxisSpec; angle?: number; total?: number; equalSpacing?: boolean; reverse?: boolean }
 
 /** The wire form of a To Object reference: a point stays [x, y, z]; planes and faces as a sketch plane takes them. */
 function toObjectRef(ctx: Ctx, to: ToObject, pre: EditOp[], line: number): unknown {
@@ -1552,41 +1583,72 @@ function seedIds(seed: PatternSeed, ctx: Ctx, line: number, who: string): string
   });
 }
 const WORLD = ['x', 'y', 'z'] as const;
-/** A direction as a world axis plus a sign: the kernel patterns along x, y, z only. */
-function worldDir(d: 'x' | 'y' | 'z' | Vec | EdgeSel | number[], ctx: Ctx, line: number, who: string): { axis: 'x' | 'y' | 'z'; negative: boolean } {
-  if (typeof d === 'string') { if (!WORLD.includes(d)) throw new SelectorError(`${who}(): direction must be 'x', 'y', 'z', a vector or an edge`, line); return { axis: d, negative: false }; }
-  let v: number[];
-  if (Array.isArray(d)) v = d;
-  else {
-    const e = resolveEdgeInfos(d.sel, ctx.geo, d.line, ctx.warn)[0];
-    const pts = e.pts ?? [];
-    if (pts.length < 2) throw new SelectorError(`${who}(): the edge has no direction`, line);
-    v = [pts[pts.length - 1][0] - pts[0][0], pts[pts.length - 1][1] - pts[0][1], pts[pts.length - 1][2] - pts[0][2]];
-  }
+/** The world axis a vector runs along (index) or -1 when it is oblique (or zero). */
+function worldIndex(v: number[]): number {
   const l = Math.hypot(v[0], v[1], v[2]);
-  const k = l < 1e-12 ? -1 : [0, 1, 2].find((i) => Math.abs(v[i]) / l > 1 - 1e-6);
-  if (k === undefined || k < 0) throw new SelectorError(`${who}(): the kernel patterns along the world x, y or z axis only; [${v.map((x) => +x.toFixed(3)).join(', ')}] is oblique (build the repeats with holes.points / separate sketches, or rotate the part so the direction is an axis)`, line);
-  return { axis: WORLD[k], negative: v[k] < 0 };
+  return l < 1e-12 ? -1 : [0, 1, 2].find((i) => Math.abs(v[i]) / l > 1 - 1e-6) ?? -1;
 }
-function worldAxis(a: 'x' | 'y' | 'z' | number[] | EdgeSel, ctx: Ctx, line: number): { axis: 'x' | 'y' | 'z'; negative: boolean } {
-  if (typeof a === 'string') return worldDir(a, ctx, line, 'circularPattern');
-  if (Array.isArray(a)) {
-    if (a.length === 3) return worldDir(a, ctx, line, 'circularPattern');
-    if (a.length !== 6) throw new SelectorError('circularPattern(): axis as [ox, oy, oz, dx, dy, dz]', line);
-    const d = worldDir([a[3], a[4], a[5]], ctx, line, 'circularPattern');
-    const k = WORLD.indexOf(d.axis);
-    if ([0, 1, 2].some((i) => i !== k && Math.abs(a[i]) > 1e-6)) throw new SelectorError('circularPattern(): the kernel rotates about a world axis through the origin; this axis is offset (centre the part on it, or use holes.polar)', line);
-    return d;
+function vec3(v: unknown, what: string, line: number, who: string): number[] {
+  if (!Array.isArray(v) || v.length !== 3 || v.some((x) => typeof x !== 'number' || !Number.isFinite(x))) throw new SelectorError(`${who}(): ${what} is [x, y, z] (three numbers)`, line);
+  if (Math.hypot(v[0], v[1], v[2]) < 1e-12) throw new SelectorError(`${who}(): ${what} is the zero vector`, line);
+  return v as number[];
+}
+/** A straight edge as the kernel reads it: its two faces and a point on it, plus the direction first point to last (for the world-axis check). */
+function edgeInfo(d: EdgeSel, ctx: Ctx, line: number, who: string): { dir: number[]; p: number[]; ref: Record<string, unknown> } {
+  const e = resolveEdgeInfos(d.sel, ctx.geo, d.line, ctx.warn)[0];
+  const pts = e.pts ?? [];
+  if (pts.length < 2) throw new SelectorError(`${who}(): the edge has no direction`, line);
+  const a = pts[0], b = pts[pts.length - 1];
+  if (!e.faces || e.faces.length < 2) throw new SelectorError(`${who}(): the edge has no two faces to name it by`, line);
+  return { dir: [b[0] - a[0], b[1] - a[1], b[2] - a[2]], p: a, ref: { kind: 'edge', faces: [...e.faces], at: [...(e.mid ?? a)] } };
+}
+/**
+ * A pattern direction for the kernel and a sign. A world axis (or a vector / edge along one) stays `{kind:'axis'}` plus a sign
+ * in `reverse`; anything else goes to the kernel as it is: `{kind:'vector', dir}` or the edge's own reference (the kernel runs
+ * the edge from its start to its end; `reverse` flips it).
+ */
+function patternDir(d: 'x' | 'y' | 'z' | Vec | EdgeSel | number[], ctx: Ctx, line: number, who: string): { ref: Record<string, unknown>; negative: boolean } {
+  if (typeof d === 'string') { if (!WORLD.includes(d)) throw new SelectorError(`${who}(): direction must be 'x', 'y', 'z', a vector [x, y, z] or an edge`, line); return { ref: { kind: 'axis', axis: d }, negative: false }; }
+  if (Array.isArray(d)) {
+    const v = vec3(d, 'a direction vector', line, who);
+    const k = worldIndex(v);
+    return k < 0 ? { ref: { kind: 'vector', dir: [...v] }, negative: false } : { ref: { kind: 'axis', axis: WORLD[k] }, negative: v[k] < 0 };
   }
-  const e = resolveEdgeInfos(a.sel, ctx.geo, a.line, ctx.warn)[0];
-  const d = worldDir(a, ctx, line, 'circularPattern');
-  const k = WORLD.indexOf(d.axis);
-  const p = e.pts?.[0] ?? e.mid!;
-  if ([0, 1, 2].some((i) => i !== k && Math.abs(p[i]) > 1e-6)) throw new SelectorError('circularPattern(): the edge is not on a world axis through the origin; the kernel cannot rotate about it', line);
-  return d;
+  const e = edgeInfo(d, ctx, line, who);
+  const k = worldIndex(e.dir);
+  return k < 0 ? { ref: e.ref, negative: false } : { ref: { kind: 'axis', axis: WORLD[k] }, negative: e.dir[k] < 0 };
+}
+/**
+ * A circular-pattern axis: a world axis through the origin stays `{kind:'axis', axis}`; a point + direction away from the
+ * origin or oblique goes as `{kind:'axis', point, dir}`; a straight edge off the world axes goes as the edge reference.
+ */
+function patternAxis(a: 'x' | 'y' | 'z' | number[] | EdgeSel | AxisSpec, ctx: Ctx, line: number): { ref: Record<string, unknown>; negative: boolean } {
+  const who = 'circularPattern';
+  const pointOf = (p: unknown, what: string, ln: number): number[] => {
+    if (!Array.isArray(p) || p.length !== 3 || p.some((x) => typeof x !== 'number' || !Number.isFinite(x))) throw new SelectorError(`circularPattern(): ${what} is [x, y, z]`, ln);
+    return p as number[];
+  };
+  const pointDir = (p: number[], v: number[]): { ref: Record<string, unknown>; negative: boolean } => {
+    const k = worldIndex(v);
+    if (k >= 0 && [0, 1, 2].every((i) => i === k || Math.abs(p[i]) <= 1e-6)) return { ref: { kind: 'axis', axis: WORLD[k] }, negative: v[k] < 0 };
+    return { ref: { kind: 'axis', point: [...p], dir: [...v] }, negative: false };
+  };
+  if (typeof a === 'string') return patternDir(a, ctx, line, who);
+  if (Array.isArray(a)) {
+    if (a.length === 3) return patternDir(a, ctx, line, who);
+    if (a.length !== 6) throw new SelectorError('circularPattern(): axis as [ox, oy, oz, dx, dy, dz] (a point on the axis, then its direction)', line);
+    return pointDir(pointOf(a.slice(0, 3), 'the axis point', line), vec3(a.slice(3), 'the axis direction', line, who));
+  }
+  if ('kind' in a) {
+    const e = edgeInfo(a, ctx, line, who);
+    const k = worldIndex(e.dir);
+    if (k >= 0 && [0, 1, 2].every((i) => i === k || Math.abs(e.p[i]) <= 1e-6)) return { ref: { kind: 'axis', axis: WORLD[k] }, negative: e.dir[k] < 0 };
+    return { ref: e.ref, negative: false };
+  }
+  return pointDir(pointOf(a.point ?? [0, 0, 0], 'axis.point', line), vec3(a.dir ?? a.direction, 'axis.dir', line, who));
 }
 
-installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveFaceSel, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
+installFeatures({ callerLine, ref, num, SelectorError, resolveFace, resolveFaceSel, resolveFacesSel, resolveEdges, newSketch: () => new SketchBuilder() }, PartBuilder, SketchBuilder);
 
 // ---- script-level state: the runner collects what the script built ----
 export interface ScriptState { parts: PartBuilder[]; vars: Record<string, number>; varDefs: Array<{ name: string; expr: string }>;
@@ -1709,6 +1771,96 @@ export function makeApi(state: ScriptState) {
       let p = state.parts.at(-1);
       if (!p) { p = new PartBuilder('Spring'); state.parts.push(p); }
       return p.spring(o);
+    },
+    /**
+     * An extension spring as its own body.
+     *
+     * The free-function form of part.extensionSpring: extensionSpring({ outer: 12, wire: 1, coils: 15 }) adds one to the current model (a new part when there is none). A machine hook stands on each end of a body of touching turns.
+     * @domain features
+     * @param o options object, see part.extensionSpring
+     * @example
+     * extensionSpring({ outer: 12, wire: 1, coils: 15 });
+     * @see part.extensionSpring
+     */
+    extensionSpring: (o: ExtensionOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Extension spring'); state.parts.push(p); }
+      return p.extensionSpring(o);
+    },
+    /**
+     * A torsion spring as its own body.
+     *
+     * The free-function form of part.torsionSpring: torsionSpring({ outer: 14, wire: 1.2, coils: 5.25 }) adds one to the current model (a new part when there is none). The fraction of the turns sets the angle between the legs.
+     * @domain features
+     * @param o options object, see part.torsionSpring
+     * @example
+     * torsionSpring({ outer: 14, wire: 1.2, coils: 5.25 });
+     * @see part.torsionSpring
+     */
+    torsionSpring: (o: TorsionOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Torsion spring'); state.parts.push(p); }
+      return p.torsionSpring(o);
+    },
+    /**
+     * A closed two-part case (Base and Lid with a lip joint) in one call.
+     *
+     * The free-function form of part.caseBox: caseBox({ width: 80, depth: 50, height: 30, lidHeight: 15 }) adds a closed hollow box split lidHeight below the top into two bodies with a tongue and groove, to the current model (a new part when there is none). Defaults: wall 2, tongue on the lid, clearance 0.2.
+     * @domain features
+     * @param o options object, see part.caseBox
+     * @example
+     * caseBox({ width: 80, depth: 50, height: 30, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1 });
+     * @see part.caseBox
+     */
+    caseBox: (o: CaseBoxOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Case'); state.parts.push(p); }
+      return p.caseBox(o);
+    },
+    /**
+     * A hexagon nut as its own body.
+     *
+     * The free-function form of part.nut: nut({ size: 'M5', type: 'regular' }) adds a nut to the current model (a new part when there is none) and returns it. size M2 to M16; type 'regular' (default), 'thin' or 'style2'; thread 'plain' (default), 'cosmetic' or 'modeled' (the helical groove, clearance for a printed fit). The corners are chamfered at 30 degrees. origin is the centre of the first face and axis the way the thickness extends (default [0, 0, -1]).
+     * @domain features
+     * @param o options object, see part.nut
+     * @example
+     * nut({ size: 'M8', type: 'thin', thread: 'modeled', clearance: 0.1, origin: [0, 0, 20] });
+     * @see part.nut
+     */
+    nut: (o: NutOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Nut'); state.parts.push(p); }
+      return p.nut(o);
+    },
+    /**
+     * A standoff as its own body.
+     *
+     * The free-function form of part.standoff: standoff({ size: 'M3', length: 10 }) adds a round female-female standoff to the current model (a new part when there is none) and returns it. kind 'round' or 'hex'; ends 'female-female' or 'male-female'; outer is the diameter (round) or the width across flats (hex); threadLength is the depth of each female thread and the length of the stud. origin is the centre of the first end and axis the way it extends (default [0, 0, 1]).
+     * @domain features
+     * @param o options object, see part.standoff
+     * @example
+     * standoff({ size: 'M3', length: 12, kind: 'hex', ends: 'male-female', threadLength: 6 });
+     * @see part.standoff
+     */
+    standoff: (o: StandoffOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Standoff'); state.parts.push(p); }
+      return p.standoff(o);
+    },
+    /**
+     * A heat-set insert as its own body, optionally with its hole.
+     *
+     * The free-function form of part.heatSetInsert: heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 10], axis: [0, 0, -1] }) adds an M3 insert (typical catalogue dimensions, unverified) pressed into the face at the origin, and with hole: true cuts the recommended hole first. origin is the centre of the hole mouth and axis the way the insert goes in (default [0, 0, -1]).
+     * @domain features
+     * @param o options object, see part.heatSetInsert
+     * @example
+     * heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 10], axis: [0, 0, -1] });
+     * @see part.heatSetInsert
+     */
+    heatSetInsert: (o: HeatSetInsertOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Insert'); state.parts.push(p); }
+      return p.heatSetInsert(o);
     },
     /**
      * A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.

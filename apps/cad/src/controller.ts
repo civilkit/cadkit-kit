@@ -5,7 +5,7 @@ import { emptyPart, type PartDoc, type SketchFeature, type SketchSolverStatus } 
 import { vertexName, BODY, type Store } from '@kit/store';
 import { bumpViewportContent } from './startContent';
 import { SelModel } from './select/model';
-import { blockedIssues, blockMessage, type Issue, type ProfileList, type ProfileReport } from './designCheck';
+import { blockedIssues, blockMessage, runProfile, withMould, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
 import { sldprtAsPart, type SldprtPartResult } from './files/sldprtImport';
@@ -16,6 +16,7 @@ import { bakedDoc, recordsInFaces, type FaceFact } from './exportKnurl';
 import type { BakeCache } from './bakeCache';
 import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
 import type { LumpInfo } from './bodies';
+import { namesBodies } from './bodyOps';
 import { drawingQuery } from './drawing/kernel';
 import type { DrawingQuery } from './drawing/layout';
 import type { KernelMeasure } from './inspect/measure';
@@ -1425,7 +1426,7 @@ export class Controller {
   private async rawCheck(profile: string | Record<string, unknown>, opts?: { samples?: number; maxIssues?: number }): Promise<ProfileReport | null> {
     const s = this.session;
     if (!s) return null;
-    try { return await s.checkProfile(profile, opts); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+    try { return await runProfile(s, profile, opts); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
   }
 
   private async baselineFor(p: CheckPolicy): Promise<Issue[] | null> {
@@ -1480,7 +1481,7 @@ export class Controller {
     if (this.profileList) return this.profileList;
     const s = this.session;
     if (!s) return null;
-    try { this.profileList = await s.profiles(); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
+    try { this.profileList = withMould(await s.profiles()); } catch (e) { this.store.notify((e as Error).message, 'error'); return null; }
     return this.profileList;
   }
 
@@ -1494,7 +1495,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const report = await Promise.race([
-        s.checkProfile(profile, opts),
+        runProfile(s, profile, opts),
         new Promise<never>((_, reject) => { this.pendingCancel = () => reject(new Error('cancelled')); }),
       ]);
       return { report, revision };
@@ -1600,7 +1601,7 @@ export class Controller {
   private lumpSeq = 0;
   private refreshLumps(): void {
     const seq = ++this.lumpSeq;
-    const named = this.sdoc().features.some((f) => { const r = f as unknown as Record<string, unknown>; return r.op === 'newBody' || (typeof r.body === 'string' && r.body !== ''); });
+    const named = namesBodies(this.sdoc().features as unknown as Array<Record<string, unknown>>);
     const s = this.session;
     if (!named || !s) { if (this.lumps.length) { this.lumps = []; this.onLumps?.(); } return; }
     void queryMass(s).then((m) => { if (seq === this.lumpSeq) { this.lumps = (m?.bodies ?? []) as LumpInfo[]; this.onLumps?.(); } }).catch(() => { /* the names are a convenience: the list falls back to feature names */ });
@@ -1628,6 +1629,13 @@ export class Controller {
     if (r.trap) throw new Error(`trap: ${String(r.trap)}`);
     if (!r.ok) { const e = r.error as { message?: string } | string | undefined; throw new Error(typeof e === 'string' ? e : e?.message ?? 'request failed'); }
     return r.result as T;
+  }
+
+  /** The kernel session of the shown document with its interference query, for the agent link's read-only measurement tools; null without one. */
+  async measureSession(): Promise<{ kernel: Session; interference(): Promise<Interference | null> } | null> {
+    if (this.realLoad) await this.whenReal();
+    const s = this.session;
+    return s ? { kernel: s, interference: async () => queryInterference(s) } : null;
   }
 
   /** Volume, area, centre of mass and principal moments (unit density) of the body. */

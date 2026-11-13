@@ -75,8 +75,7 @@ Drop or open a file, or use **Import STEP / STL / OBJ / GLB / 3MF / SolidWorks /
 
 | Message | Fix |
 | --- | --- |
-| "Cannot open *name*: only .ckpart, .json, .step, .stp, .sldprt, .skp, .dxf, .svg, .FCStd and .solidcraft files are supported." | Convert the file to a supported format. |
-| "STL files cannot be imported yet (mesh import is not available). Use a STEP file instead." | Ask for or export a STEP file from the source program. |
+| "Cannot open *name*: only .ckpart, .json, .step, .stp, .stl, .obj, .glb, .3mf, .sldprt, .skp, .dxf, .svg, .FCStd and .solidcraft files are supported." | Convert the file to a supported format. |
 | "Drop one file at a time." | Drop the files one after another. |
 | "Open or create a part first, then import the STEP file." | Use **New part**, then import. |
 | "Could not import *name*: *message*" | The message names the cause. See [Importing](../files/import.md). |

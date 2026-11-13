@@ -193,9 +193,16 @@ describe('NIST test assembly sample, on the real kernel', () => {
       for (const [i, j] of [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]] as const) expect((await d(i, j)).intersects, `F${i} / F${j}`).toBe(false);
       expect((await d(3, 4)).distance).toBeCloseTo(E.F4[1] - E.F3[1], 2);          // component lifted off the plate by the difference of the stages (25)
       const pb = (await d(1, 3)).distance;                                           // plate out of the base: its underside over the rim
-      expect(pb).toBeCloseTo(8.16, 1);
+      // not less than the gap of the two boxes along Y (8.16, checked on the shown body above); it is a little more (8.84) because the highest
+      // point of the base is not straight under the lowest of the plate. A brute-force point-to-triangle distance over the two meshes gives the same 8.84.
+      expect(pb).toBeGreaterThanOrEqual(8.16 - 1e-3);
+      expect(pb).toBeCloseTo(8.84, 1);
       expect((await d(1, 2)).distance).toBeCloseTo(E.F2[1], 2);                      // lid off the rim
-      expect((await d(2, 4)).distance).toBeCloseTo(43, 0);
+      // lid off the component: the gap of the boxes along Y is 43 (checked on the shown body above); the solids are further apart (52.64, the mesh
+      // brute force gives 52.65) because the nearest points of the two are not one above the other
+      const lc = (await d(2, 4)).distance;
+      expect(lc).toBeGreaterThanOrEqual(43 - 0.5);
+      expect(lc).toBeCloseTo(52.64, 1);
     }, 300_000);
   });
 });

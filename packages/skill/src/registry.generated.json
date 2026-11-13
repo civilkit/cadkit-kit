@@ -1106,6 +1106,118 @@
    ]
   },
   {
+   "id": "caseBox",
+   "kind": "function",
+   "domain": "features",
+   "signature": "caseBox(o: CaseBoxOpts): PartBuilder",
+   "summary": "A closed two-part case (Base and Lid with a lip joint) in one call.",
+   "description": "The free-function form of part.caseBox: caseBox({ width: 80, depth: 50, height: 30, lidHeight: 15 }) adds a closed hollow box split lidHeight below the top into two bodies with a tongue and groove, to the current model (a new part when there is none). Defaults: wall 2, tongue on the lid, clearance 0.2.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "CaseBoxOpts",
+     "optional": false,
+     "description": "options object, see part.caseBox"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "caseBox({ width: 80, depth: 50, height: 30, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1 });",
+   "related": [
+    "part.caseBox"
+   ]
+  },
+  {
+   "id": "extensionSpring",
+   "kind": "function",
+   "domain": "features",
+   "signature": "extensionSpring(o: ExtensionOpts): PartBuilder",
+   "summary": "An extension spring as its own body.",
+   "description": "The free-function form of part.extensionSpring: extensionSpring({ outer: 12, wire: 1, coils: 15 }) adds one to the current model (a new part when there is none). A machine hook stands on each end of a body of touching turns.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "ExtensionOpts",
+     "optional": false,
+     "description": "options object, see part.extensionSpring"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "extensionSpring({ outer: 12, wire: 1, coils: 15 });",
+   "related": [
+    "part.extensionSpring"
+   ]
+  },
+  {
+   "id": "heatSetInsert",
+   "kind": "function",
+   "domain": "features",
+   "signature": "heatSetInsert(o: HeatSetInsertOpts): PartBuilder",
+   "summary": "A heat-set insert as its own body, optionally with its hole.",
+   "description": "The free-function form of part.heatSetInsert: heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 10], axis: [0, 0, -1] }) adds an M3 insert (typical catalogue dimensions, unverified) pressed into the face at the origin, and with hole: true cuts the recommended hole first. origin is the centre of the hole mouth and axis the way the insert goes in (default [0, 0, -1]).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "HeatSetInsertOpts",
+     "optional": false,
+     "description": "options object, see part.heatSetInsert"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 10], axis: [0, 0, -1] });",
+   "related": [
+    "part.heatSetInsert"
+   ]
+  },
+  {
+   "id": "nut",
+   "kind": "function",
+   "domain": "features",
+   "signature": "nut(o: NutOpts): PartBuilder",
+   "summary": "A hexagon nut as its own body.",
+   "description": "The free-function form of part.nut: nut({ size: 'M5', type: 'regular' }) adds a nut to the current model (a new part when there is none) and returns it. size M2 to M16; type 'regular' (default), 'thin' or 'style2'; thread 'plain' (default), 'cosmetic' or 'modeled' (the helical groove, clearance for a printed fit). The corners are chamfered at 30 degrees. origin is the centre of the first face and axis the way the thickness extends (default [0, 0, -1]).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "NutOpts",
+     "optional": false,
+     "description": "options object, see part.nut"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "nut({ size: 'M8', type: 'thin', thread: 'modeled', clearance: 0.1, origin: [0, 0, 20] });",
+   "related": [
+    "part.nut"
+   ]
+  },
+  {
+   "id": "part.axis",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".axis(a: 'x' | 'y' | 'z' | EdgeSel | FaceSel | PlaneArg, b?: PlaneArg)",
+   "summary": "A reference axis: a world axis, a straight edge, a cylinder or the line where two planes meet.",
+   "description": "Adds the axis feature other features take as { kind: 'feature', id } (a plane turned about it, a revolve or pattern axis). One argument: 'x' | 'y' | 'z' (a world axis through the origin), edges(sel) matching one straight edge, or face(sel) of a cylindrical face (its axis; faceNotCylindrical otherwise). Two arguments: two planes ('front' | 'top' | 'right', face(sel), a plane handle, at(plane, offset)): the line where they meet (planesParallel if they do not). Take part.handle() after it to refer to it.",
+   "parameters": [
+    {
+     "name": "a",
+     "type": "'x' | 'y' | 'z' | EdgeSel | FaceSel | PlaneArg",
+     "optional": false,
+     "description": "'x' | 'y' | 'z', edges(sel), face(sel) of a cylinder, or the first plane"
+    },
+    {
+     "name": "b",
+     "type": "PlaneArg",
+     "optional": true,
+     "description": "the second plane, for the line where two planes meet"
+    }
+   ],
+   "example": "const p = part('Tilted').axis('top', 'front');\nconst ax = p.handle();",
+   "related": [
+    "part.workplane",
+    "part.handle",
+    "part.helix"
+   ]
+  },
+  {
    "id": "part.baseFlange",
    "kind": "method",
    "domain": "features",
@@ -1171,6 +1283,28 @@
    ]
   },
   {
+   "id": "part.caseBox",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".caseBox(o: CaseBoxOpts)",
+   "summary": "A closed two-part case (base and lid with a lip joint) from outside sizes.",
+   "description": "Builds two cups: the base (height - lidHeight tall) and the lid (lidHeight tall), each a rectangle (rounded corners when radius > 0) extruded as its own body named by names and hollowed open at one end (wall thick); a ring tongue (tongueWidth x tongueHeight, centred in the wall) is raised on one rim and a groove (clearance wider on each side and deeper) sunk in the other, and the lid is moved on top: the closed case is width x depth x height and stands up from origin (the centre of the bottom) along +z. tongueOn 'lid' (default) puts the tongue on the lid. joint 'lipJoint' instead shells one closed box and splits it with lipJoint (the part must hold no other body). Checks (SelectorError): wall at least 0.4 and under half the smallest size; radius 0 or more than the wall; tongue and clearance fit the wall; both halves taller than the wall and a wall left under the groove. Screw bosses, a seal groove and snap fits are not included.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "CaseBoxOpts",
+     "optional": false,
+     "description": "options object { width, depth, height, ... }"
+    }
+   ],
+   "example": "part('Case').caseBox({ width: 80, depth: 50, height: 30, wall: 2, lidHeight: 15, tongueHeight: 1.5, tongueWidth: 1 });",
+   "related": [
+    "part.lipJoint",
+    "part.shell",
+    "part.split"
+   ]
+  },
+  {
    "id": "part.chamfer",
    "kind": "method",
    "domain": "features",
@@ -1203,15 +1337,15 @@
    "id": "part.combine",
    "kind": "method",
    "domain": "features",
-   "signature": ".combine(op: 'union' | 'cut' | 'intersect', target: string, tools: string | string[], o: { keepTools?: boolean } = {})",
-   "summary": "Boolean between whole bodies: union, cut or intersect.",
-   "description": "Builds the combine feature the Bodies panel makes: the target body is united with, cut by or intersected with the tool bodies, which are used up (keepTools: true keeps them). Bodies are named in the document by newBody: 'Name' on an extrude, revolve, loft or sweep (a name matches every body of that name, so one sketch with several loops gives one tool). Use it for cutters that must not touch the other bodies: build the cutter as a newBody, then cut a named target with it. A target or tool that does not exist is an error with the names the document has.",
+   "signature": ".combine(op: 'union' | 'cut' | 'intersect' | 'split', target: string, tools: string | string[], o: { keepTools?: boolean } = {})",
+   "summary": "Boolean between whole bodies: union, cut, intersect or split.",
+   "description": "Builds the combine feature the Bodies panel makes: the target body is united with, cut by or intersected with the tool bodies, which are used up (keepTools: true keeps them); 'split' cuts the target into the part outside the tools and the part inside them (two bodies; part.split() is the short form). Bodies are named in the document by newBody: 'Name' on an extrude, revolve, loft or sweep (a name matches every body of that name, so one sketch with several loops gives one tool). Use it for cutters that must not touch the other bodies: build the cutter as a newBody, then cut a named target with it. A target or tool that does not exist is an error with the names the document has.",
    "parameters": [
     {
      "name": "op",
-     "type": "'union' | 'cut' | 'intersect'",
+     "type": "'union' | 'cut' | 'intersect' | 'split'",
      "optional": false,
-     "description": "'union' | 'cut' | 'intersect'"
+     "description": "'union' | 'cut' | 'intersect' | 'split'"
     },
     {
      "name": "target",
@@ -1307,7 +1441,7 @@
    "domain": "features",
    "signature": ".cut(end: EndSpec, o: ExtrudeOpts = {}): this",
    "summary": "Cut the last sketch out of the body: a depth or through().",
-   "description": "Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin). A cut changes EVERY body it reaches; from: 'Name' (or a list) limits it to the bodies of that name (made with newBody: 'Name'), so no separate cutter body and combine are needed: an unknown name is an error that lists the bodies the part has.",
+   "description": "Removes material. direction: 'into' (the kernel default: AGAINST the sketch normal, which is into the body from a face sketch), 'away' (along the normal), 'both' (symmetric about the sketch plane; depth is the total) or 'auto' (the default for cuts: try 'into'; if the kernel reports cutNoEffect because the body is on the other side, flip once and add the warning 'cut direction flipped automatically'). Give direction explicitly to avoid the extra build. A through() cut with no direction from a sketch on the middle of the part (a standard plane through the middle of the body) cuts ONE side only and warns: pass direction: 'both' for a bore through a mid-plane part. Depth is a number or through() for all the way. Same other options as extrude (mid, flip, draft, thin). A cut changes EVERY body it reaches; from: 'Name' (or a list) limits it to the bodies of that name (made with newBody: 'Name'), so no separate cutter body and combine are needed: an unknown name is an error that lists the bodies the part has.",
    "parameters": [
     {
      "name": "end",
@@ -1387,6 +1521,112 @@
     "part.hole"
    ],
    "notes": "- Direction is relative to the SKETCH NORMAL: 'into' = against it (the kernel's default for a cut, into the body from a face sketch), 'away' = along it, 'both' = symmetric about the sketch plane (depth is the total). The default is 'auto': try 'into'; if the kernel says cutNoEffect, flip once and add the warning 'cut direction flipped automatically'. Pass the direction yourself to skip the retry.\n- front/top/right normals are +Z/+Y/+X: a cut sketched on 'front' at z = 0 with the body above it (z > 0) is 'away'.\n- A cut sketch must overlap the material in plan; a circle outside the body gives `cutNoEffect` in BOTH directions (the auto flip does not hide it).\n- Several shapes in ONE sketch are ONE cut feature (draw pockets in a loop, then cut once).\n- Depth beyond the body is fine; through() is clearer when you mean all the way.\n- A cut applies to EVERY body that exists when it runs (not only the one you are looking at). A through-cut for holes in a base plate also slits any earlier body it crosses. Build the parts the cut must not touch AFTER the cut, or keep clearance, or limit the cut depth. run_script reports a warning ('cut F7 changed N bodies') when one cut changed several bodies."
+  },
+  {
+   "id": "part.deleteBody",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".deleteBody(bodies: string | FaceSel | FeatureHandle | Array<string | FaceSel | FeatureHandle>, o: { keep?: boolean } = {})",
+   "summary": "Remove whole bodies, or keep only some.",
+   "description": "Deletes the named bodies (made with newBody: 'Name'; a name matches every body of that name), the body holding a face(sel), or the bodies a handle's feature made. keep: true inverts it: only the listed bodies stay and every other body is removed. Use it to throw away the half of a split or a cutter that was kept with keepTools.",
+   "parameters": [
+    {
+     "name": "bodies",
+     "type": "string | FaceSel | FeatureHandle | Array<string | FaceSel | FeatureHandle>",
+     "optional": false,
+     "description": "body name, face(sel) on the body, handle, or a list of them"
+    },
+    {
+     "name": "o",
+     "type": "{ keep?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "keep",
+       "type": "boolean",
+       "optional": true,
+       "description": "remove all the OTHER bodies instead"
+      }
+     ]
+    }
+   ],
+   "example": "part('Half').sketch('front', (s) => s.rect(40, 20)).extrude(10, { newBody: 'A' })\n  .sketch('front', (s) => s.rect(20, 20, [60, 0])).extrude(5, { newBody: 'B' })\n  .deleteBody('B');",
+   "related": [
+    "part.split",
+    "part.combine"
+   ]
+  },
+  {
+   "id": "part.deleteFace",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".deleteFace(faces: Faces)",
+   "summary": "Delete faces: the solid becomes an open sheet without them.",
+   "description": "A solid that loses a face becomes an open sheet and the rest keep their names. The kernel does not heal the gap yet (a mode other than delete is refused), so use it to open a shell for surface work (thicken, knit, fill), not to remove a hole or a fillet from a solid.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "Faces",
+     "optional": false,
+     "description": "face(sel) or faces(sel)"
+    }
+   ],
+   "example": "part('Open box').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .deleteFace(face('>Z'));",
+   "related": [
+    "part.shell",
+    "part.moveFace"
+   ]
+  },
+  {
+   "id": "part.draft",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".draft(faces: Faces, angle: Num, o: { neutral: PlaneArg; flip?: boolean })",
+   "summary": "Draft (taper) faces about a neutral plane.",
+   "description": "Tilts the chosen faces by `angle` degrees about the neutral plane, which stays put; its normal is the pull direction (reversed by flip). neutral is a standard plane ('front' | 'top' | 'right'), at(plane, offset), a plane handle or a planar face(sel) (a face neutral pulls into its material). A name without ~k selects every piece of a face; faces that continue a drafted face tangentially are drafted with it. Face names do not change. Do the draft before the fillets on those walls. The angle must not be 0; an angle that turns an edge over fails with draftTooLarge.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "Faces",
+     "optional": false,
+     "description": "face(sel) or faces(sel): the walls to tilt"
+    },
+    {
+     "name": "angle",
+     "type": "Num",
+     "optional": false,
+     "description": "degrees (not 0)"
+    },
+    {
+     "name": "o",
+     "type": "{ neutral: PlaneArg; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "neutral",
+       "type": "PlaneArg",
+       "optional": false,
+       "description": "the plane that stays put: 'front' | 'top' | 'right', at(plane, offset), a plane handle or face(sel)"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse the pull direction"
+      }
+     ]
+    }
+   ],
+   "example": "part('Mould block').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .draft(faces({ dir: 'X' }), 5, { neutral: 'front' });",
+   "related": [
+    "part.moveFace",
+    "part.fillet",
+    "face",
+    "faces"
+   ]
   },
   {
    "id": "part.edgeFlange",
@@ -1503,6 +1743,27 @@
    ]
   },
   {
+   "id": "part.extensionSpring",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".extensionSpring(o: ExtensionOpts)",
+   "summary": "An extension spring as its own body.",
+   "description": "Wound from touching turns with a machine hook, an open loop centred on the axis, at both ends: extensionSpring({ outer: 12, wire: 1, coils: 15 }). coils counts the turns of the tight body; the overall length follows from it and the hooks. origin is the lowest point of the lower hook and the spring stands along axis (x, y or z, either way). A part fraction of a turn turns the two hooks against each other.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "ExtensionOpts",
+     "optional": false,
+     "description": "options object { outer, wire, coils, hand, origin, axis, name }"
+    }
+   ],
+   "example": "extensionSpring({ outer: 12, wire: 1, coils: 15, origin: [0, 0, 5] });",
+   "related": [
+    "spring",
+    "part.sweep"
+   ]
+  },
+  {
    "id": "part.extrude",
    "kind": "method",
    "domain": "features",
@@ -1595,7 +1856,7 @@
    "domain": "features",
    "signature": ".feature(json: Record<string, unknown>)",
    "summary": "Append any kernel feature as raw JSON (escape hatch for features without a helper).",
-   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for types like draft, helix, lip, dome or moveFace; prefer the typed helpers when one exists. Field names are the kernel's (docs/spec-agent-interface.md).",
+   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve, frame); draft, moveFace, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
    "parameters": [
     {
      "name": "json",
@@ -1610,7 +1871,7 @@
     "face",
     "edges"
    ],
-   "notes": "- Escape hatch for kernel types without a helper (draft, helix, lip, dome, moveFace, ...). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.\n- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.\n- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call."
+   "notes": "- Escape hatch for kernel types without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve; draft, moveFace, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods; dome is not built). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.\n- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.\n- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call."
   },
   {
    "id": "part.fillet",
@@ -1792,6 +2053,167 @@
    "notes": "- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).\n- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z)."
   },
   {
+   "id": "part.groove",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".groove(rim: FaceSel, edges: EdgeSel, o: { width?: Num; height?: Num } = {})",
+   "summary": "Groove along rim edges (the mating half of a lip).",
+   "description": "Sinks a band of `width` (measured inwards from the rim edge) and `height` (depth) along the chosen rim edges, a step for a lid. The rim must be planar. Use the same width as the lip it receives, plus clearance for a printed fit.",
+   "parameters": [
+    {
+     "name": "rim",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the planar rim face the groove is cut into"
+    },
+    {
+     "name": "edges",
+     "type": "EdgeSel",
+     "optional": false,
+     "description": "edges(sel) of the rim edges the groove follows"
+    },
+    {
+     "name": "o",
+     "type": "{ width?: Num; height?: Num }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "width",
+       "type": "Num",
+       "optional": true,
+       "description": "band width in mm, default 1"
+      },
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": true,
+       "description": "depth into the rim face in mm, default 1"
+      }
+     ]
+    }
+   ],
+   "example": "part('Lid').sketch('front', (s) => s.rect(40, 20)).extrude(10).shell(face('>Z'), 2)\n  .groove(face('>Z'), edges({ onFace: face('>Z'), outside: [[-21, -11, 9], [21, 11, 11]] }), { width: 1, height: 1.5 });",
+   "related": [
+    "part.lip",
+    "part.shell",
+    "edges"
+   ]
+  },
+  {
+   "id": "part.heatSetInsert",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".heatSetInsert(o: HeatSetInsertOpts)",
+   "summary": "A heat-set threaded insert as its own body, optionally with its hole.",
+   "description": "Give the metric size (M2 to M6). The outside diameter, length, recommended hole diameter and depth are typical catalogue values from the table (unverified: check your insert's sheet) and can be overridden. The insert is one revolve of a ring with `rings` groove rings round the outside standing for the knurl. origin is the centre of the hole mouth (the face the insert is pressed into) and axis the direction it goes in (default [0, 0, -1]); the insert is flush with the face. hole: true also cuts the recommended hole (diameter and depth from the table, smaller than the insert's outside diameter by the interference of the press fit) into every body it reaches, before the insert is added; hole: 'Name' (or a list) cuts only those bodies. thread 'plain' (default), 'cosmetic' or 'modeled' as for nut().",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "HeatSetInsertOpts",
+     "optional": false,
+     "description": "options object { size, thread, clearance, hole, origin, axis, outer, length, holeDiameter, holeDepth, rings, name }, the fields below"
+    }
+   ],
+   "example": "part('Block').sketch('front', (s) => s.rect(30, 30)).extrude(12)\n  .heatSetInsert({ size: 'M3', hole: true, origin: [0, 0, 12], axis: [0, 0, -1] });",
+   "related": [
+    "nut",
+    "standoff",
+    "part.hole"
+   ]
+  },
+  {
+   "id": "part.helix",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".helix(o: { radius: Num; pitch?: Num; revolutions?: Num; height?: Num; on?: Plane | OffsetPlane | PlaneRef | FaceSel; centre?: [number, number]; center?: [number, number]; startAngle?: Num; leftHand?: boolean; reverse?: boolean; name?: string })",
+   "summary": "A helix curve (adds no body): the path of a sweep, or a reference.",
+   "description": "Draws the circle that gives the radius and centre on a plane ('top' by default; its normal is the helix axis) and adds the helix feature. Give TWO of pitch (rise per turn, mm), revolutions and height (total rise, mm): pitch + revolutions, height + revolutions, or height + pitch. startAngle is degrees from the sketch x axis, leftHand turns the other way, reverse rises against the sketch normal. The helix starts at (radius, 0) of the plane and leaves along the plane's y direction. Take part.handle() and pass { curve: handle } as the path of sweep() (the profile sits on the plane normal to the helix start, e.g. 'front' at x = radius for a helix on 'top').",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "{ radius: Num; pitch?: Num; revolutions?: Num; height?: Num; on?: Plane | OffsetPlane | PlaneRef | FaceSel; centre?: [number, number]; center?: [number, number]; startAngle?: Num; leftHand?: boolean; reverse?: boolean; name?: string }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "radius",
+       "type": "Num",
+       "optional": false,
+       "description": "helix radius in mm"
+      },
+      {
+       "name": "pitch",
+       "type": "Num",
+       "optional": true,
+       "description": "rise per turn in mm"
+      },
+      {
+       "name": "revolutions",
+       "type": "Num",
+       "optional": true,
+       "description": "number of turns"
+      },
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": true,
+       "description": "total rise in mm"
+      },
+      {
+       "name": "on",
+       "type": "Plane | OffsetPlane | PlaneRef | FaceSel",
+       "optional": true,
+       "description": "plane of the base circle: 'front' | 'top' (default) | 'right', at(plane, offset) or face(sel)"
+      },
+      {
+       "name": "centre",
+       "type": "[number, number]",
+       "optional": true,
+       "description": "[x, y] of the axis in that plane, default [0, 0]"
+      },
+      {
+       "name": "center",
+       "type": "[number, number]",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "startAngle",
+       "type": "Num",
+       "optional": true,
+       "description": "start angle in degrees, default 0"
+      },
+      {
+       "name": "leftHand",
+       "type": "boolean",
+       "optional": true,
+       "description": "left-hand helix"
+      },
+      {
+       "name": "reverse",
+       "type": "boolean",
+       "optional": true,
+       "description": "rise against the plane normal"
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "const p = part('Coil').helix({ radius: 10, pitch: 4, revolutions: 5 });\nconst path = p.handle();\np.sweep({ on: 'front', draw: (s) => s.circle(1.5, [10, 0]) }, { curve: path });",
+   "related": [
+    "part.sweep",
+    "part.spring",
+    "part.handle"
+   ]
+  },
+  {
    "id": "part.hem",
    "kind": "method",
    "domain": "features",
@@ -1885,6 +2307,139 @@
    ]
   },
   {
+   "id": "part.lip",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".lip(rim: FaceSel, edges: EdgeSel, o: { width?: Num; height?: Num } = {})",
+   "summary": "Raise a lip: a band along rim edges (a rabbet for a lid).",
+   "description": "Adds a raised band of `width` (measured inwards from the rim edge) and `height` (out of the rim face) along the chosen rim edges, for a lid that seats in a box. The rim face must be planar. The outer side of the band merges with the existing wall, so it is a rabbet, not a centred tongue. Pick the rim edges with edges(): each is the boundary between the rim face and its wall. A curved rim or several rim faces in different planes is not built yet. The lid half takes groove() with the same width, plus clearance.",
+   "parameters": [
+    {
+     "name": "rim",
+     "type": "FaceSel",
+     "optional": false,
+     "description": "face(sel) of the planar rim face the lip rises from"
+    },
+    {
+     "name": "edges",
+     "type": "EdgeSel",
+     "optional": false,
+     "description": "edges(sel) of the rim edges the band follows"
+    },
+    {
+     "name": "o",
+     "type": "{ width?: Num; height?: Num }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "width",
+       "type": "Num",
+       "optional": true,
+       "description": "band width in mm, default 1"
+      },
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": true,
+       "description": "height out of the rim face in mm, default 1"
+      }
+     ]
+    }
+   ],
+   "example": "part('Box').sketch('front', (s) => s.rect(40, 20)).extrude(10).shell(face('>Z'), 2)\n  .lip(face('>Z'), edges({ onFace: face('>Z'), outside: [[-21, -11, 9], [21, 11, 11]] }), { width: 1, height: 1.5 });",
+   "related": [
+    "part.groove",
+    "part.shell",
+    "edges"
+   ]
+  },
+  {
+   "id": "part.lipJoint",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".lipJoint(plane: PlaneArg, o: { height: Num; width?: Num; widthRatio?: Num; inset?: Num; clearance?: Num; tongue?: 'below' | 'above'; names?: [string, string]; target?: string; flip?: boolean })",
+   "summary": "Lip joint of a two-part case: split a shelled body at a plane, tongue on one half, groove on the other.",
+   "description": "Does split() and then makes, along the outer boundary of the seam (the walls of a shelled box), a centred tongue standing height mm out of one half and a matching channel in the other, wider by clearance on each side and deeper by clearance, so the halves fit with that clearance all round. The tongue is width mm wide (or widthRatio of the wall thickness, default 0.5) and sits inset mm from the outer wall (default: centred in the wall). The wall thickness is measured on the seam; a solid body has none, so give width and inset in mm. tongue: 'below' (default) puts the tongue on the lower half. Needs a flat seam and a closed outline. Errors say what does not fit the wall (invalidValue, field and detail).",
+   "parameters": [
+    {
+     "name": "plane",
+     "type": "PlaneArg",
+     "optional": false,
+     "description": "'front' | 'top' | 'right', at(plane, offset) or face(sel): where to split"
+    },
+    {
+     "name": "o",
+     "type": "{ height: Num; width?: Num; widthRatio?: Num; inset?: Num; clearance?: Num; tongue?: 'below' | 'above'; names?: [string, string]; target?: string; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "height",
+       "type": "Num",
+       "optional": false,
+       "description": "tongue height (groove depth is height + clearance), mm"
+      },
+      {
+       "name": "width",
+       "type": "Num",
+       "optional": true,
+       "description": "tongue width in mm"
+      },
+      {
+       "name": "widthRatio",
+       "type": "Num",
+       "optional": true,
+       "description": "tongue width as a fraction of the wall thickness (default 0.5, when width is not given)"
+      },
+      {
+       "name": "inset",
+       "type": "Num",
+       "optional": true,
+       "description": "distance from the outer wall to the tongue in mm (default centred)"
+      },
+      {
+       "name": "clearance",
+       "type": "Num",
+       "optional": true,
+       "description": "gap between tongue and groove in mm (default 0.2)"
+      },
+      {
+       "name": "tongue",
+       "type": "'below' | 'above'",
+       "optional": true,
+       "description": "'below' (default) | 'above': the half that carries the tongue"
+      },
+      {
+       "name": "names",
+       "type": "[string, string]",
+       "optional": true,
+       "description": "[below, above] body names"
+      },
+      {
+       "name": "target",
+       "type": "string",
+       "optional": true,
+       "description": "name of the body to split, when the part has several"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "reverse the plane normal (swaps below and above)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Case').sketch('front', (s) => s.rect(60, 40)).extrude(20)\n  .shell(face('>Z'), 2)\n  .lipJoint(at('front', 10), { height: 1.5, width: 1, clearance: 0.2, names: ['Base', 'Lid'] });",
+   "related": [
+    "part.split",
+    "part.shell",
+    "part.feature"
+   ]
+  },
+  {
    "id": "part.loft",
    "kind": "method",
    "domain": "features",
@@ -1963,6 +2518,105 @@
     "part.sweep"
    ],
    "notes": "- Sections are { on, draw } objects, not previously recorded sketches: loft() builds the sketches itself. Put the sections on parallel planes with at('right', x) (stations along X), at('front', z) (along Z) or at('top', y). On 'right' the sketch x axis points to -Z and y is up.\n- Same outline kind in every section (all splines, or all arc+line pieces); a closed spline per station is the robust hull recipe (boat-hull-loft).\n- A point end is { on, point: [x, y] } with ends: { last: 'point' }: first OR last, never both and never in the middle; no guides with a point end. A point in the middle is a script error with the line number.\n- The result is checked by the kernel: a self-crossing section is loftProfileSelfIntersect, a degenerate result loftInvalidResult. Fix the section, not the loft.\n- No closed (ring) loft in the kernel. Guides must touch every section (loftGuideMiss); a centre line must run through the sections (loftCentreLineReach: it runs along the loft axis, mind the direction of the plane axes)."
+  },
+  {
+   "id": "part.moveBody",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".moveBody(bodies: string | FaceSel | FeatureHandle | Array<string | FaceSel | FeatureHandle> | MoveBodyOpts, o?: MoveBodyOpts)",
+   "summary": "Move, rotate or copy whole bodies (also a mirrored copy).",
+   "description": "moveBody(bodies, { translate, rotate, copy, body, mirror }). bodies is a body name (made with newBody), a handle, face(sel) on the body, or a list; omit it (moveBody({ ... })) for all bodies. The rotation { axis: 'x' | 'y' | 'z' | [x, y, z], origin?: [x, y, z], angle } in degrees is applied first, then the translation [x, y, z]. Without copy the bodies move in place and keep their names; moved bodies are NOT united with what they touch, so use combine afterwards. copy: true keeps the source and adds a moved copy (body: 'Name' names it); mirror (a plane: 'front' | 'top' | 'right', at(plane, offset) or face(sel)) makes the copy the mirror image of the source about that plane (solid bodies only, needs copy).",
+   "parameters": [
+    {
+     "name": "bodies",
+     "type": "string | FaceSel | FeatureHandle | Array<string | FaceSel | FeatureHandle> | MoveBodyOpts",
+     "optional": false,
+     "description": "body name, handle, face(sel) or a list (omit for all bodies)"
+    },
+    {
+     "name": "o",
+     "type": "MoveBodyOpts",
+     "optional": true,
+     "description": "options: translate, rotate, copy, body, mirror"
+    }
+   ],
+   "example": "part('Pair').sketch('front', (s) => s.rect(20, 10)).extrude(5, { newBody: 'A' })\n  .moveBody('A', { translate: [0, 0, 30], copy: true, body: 'B' });",
+   "related": [
+    "part.combine",
+    "part.scale",
+    "part.mirror"
+   ]
+  },
+  {
+   "id": "part.moveFace",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".moveFace(faces: Faces, o: { distance?: Num; translate?: Vec; flip?: boolean })",
+   "summary": "Push or pull faces; their neighbours follow (direct modelling).",
+   "description": "Give distance to offset each face along its outward normal (positive adds material: a pushed plane grows the part, a cylinder gets a larger radius, a hole wall shrinks the hole), or translate [x, y, z] to move planar faces by the component of the vector along their outward normal. Planes, cylinders, cones, spheres, tori and extruded walls work in offset mode; translate is for planar faces. Neighbours keep their surfaces and are extended or trimmed to meet the moved faces, and face names do not change. Moving a hole sideways is not supported; moving past other geometry is not checked. Fails with moveFaceFailed when an edge collapses or reverses.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "Faces",
+     "optional": false,
+     "description": "face(sel) or faces(sel)"
+    },
+    {
+     "name": "o",
+     "type": "{ distance?: Num; translate?: Vec; flip?: boolean }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "distance",
+       "type": "Num",
+       "optional": true,
+       "description": "offset along the outward normal in mm (negative pulls in)"
+      },
+      {
+       "name": "translate",
+       "type": "Vec",
+       "optional": true,
+       "description": "[x, y, z] mm, planar faces only (use instead of distance)"
+      },
+      {
+       "name": "flip",
+       "type": "boolean",
+       "optional": true,
+       "description": "negate the distance"
+      }
+     ]
+    }
+   ],
+   "example": "part('Plate').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .moveFace(face('>Z'), { distance: 2.5 });",
+   "related": [
+    "part.draft",
+    "part.scale"
+   ]
+  },
+  {
+   "id": "part.nut",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".nut(o: NutOpts)",
+   "summary": "A hexagon nut (ISO 4032, 4035, 4033) as its own body.",
+   "description": "Give the metric size (M2 to M16) and type: 'regular' (ISO 4032, default), 'thin' (ISO 4035) or 'style2' (ISO 4033, M5 and up). The width across flats and the thickness come from the standard's table (marked unverified in the app: check them against your nut) and can be overridden. The corners are chamfered at 30 degrees on both faces (chamfer: false leaves them square). thread 'plain' (default) bores the minor diameter; 'cosmetic' bores the tap drill and adds a cosmetic thread; 'modeled' cuts the real helical groove (slow; clearance in mm makes it a printed fit, positive = looser). origin is the centre of the first face and axis the direction the thickness extends (default [0, 0, -1]). The nut is its own body and does not merge with what it touches.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "NutOpts",
+     "optional": false,
+     "description": "options object { size, type, thread, clearance, chamfer, origin, axis, across, thickness, name }, the fields below"
+    }
+   ],
+   "example": "part('Plate').sketch('front', (s) => s.rect(30, 30)).extrude(4)\n  .nut({ size: 'M5', origin: [0, 0, 0], axis: [0, 0, -1] });",
+   "related": [
+    "standoff",
+    "heatSetInsert",
+    "washer",
+    "screw",
+    "part.thread"
+   ]
   },
   {
    "id": "part.refold",
@@ -2050,9 +2704,9 @@
    "id": "part.rib",
    "kind": "method",
    "domain": "features",
-   "signature": ".rib(thickness: Num, o: { flip?: boolean } = {})",
+   "signature": ".rib(thickness: Num, o: { flip?: boolean; fillet?: Num; draft?: Num; side?: 'both' | 'left' | 'right'; target?: string | string[] } = {})",
    "summary": "Rib: a web of a given thickness from an open sketch line, grown to the body.",
-   "description": "Takes the LAST sketch, an open line or chain (not closed), and adds a web of this total thickness centred on the sketch plane. The web fills the space between the chain and the body on the side the body encloses: a gusset across the inside corner of an L, a web inside a box. A line in open air, or one that does not have material around it, fails with ribNoContact. The chain ends may touch or lie inside the material. flip tries the other side first.",
+   "description": "Takes the LAST sketch, an open line or chain (not closed), and adds a web of this total thickness centred on the sketch plane (side: 'left' or 'right' puts it all on one side). The web fills the space between the chain and the body on the side the body encloses: a gusset across the inside corner of an L, a web inside a box. It stops at the outer wall of the body and never fills a bore the line runs through, so the rib may come before or after the bore. A line in open air, or one that does not have material around it, fails with ribNoContact. The chain ends may touch or lie inside the material. flip tries the other side first. fillet rounds the free edge; draft tapers the two sides toward the free edge (one straight line only); target names the body or bodies to extend to.",
    "parameters": [
     {
      "name": "thickness",
@@ -2062,7 +2716,7 @@
     },
     {
      "name": "o",
-     "type": "{ flip?: boolean }",
+     "type": "{ flip?: boolean; fillet?: Num; draft?: Num; side?: 'both' | 'left' | 'right'; target?: string | string[] }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
@@ -2072,16 +2726,88 @@
        "type": "boolean",
        "optional": true,
        "description": "try the other side of the chain first"
+      },
+      {
+       "name": "fillet",
+       "type": "Num",
+       "optional": true,
+       "description": "radius of the round on the free edge in mm, below half the thickness"
+      },
+      {
+       "name": "draft",
+       "type": "Num",
+       "optional": true,
+       "description": "taper of the two side faces in degrees (0 to 45): the rib is thickness thick at the free edge and widens toward the body; the sketch must be one straight line"
+      },
+      {
+       "name": "side",
+       "type": "'both' | 'left' | 'right'",
+       "optional": true,
+       "description": "'both' (default, centred on the sketch plane) | 'right' (all on the side the sketch normal points to) | 'left' (all on the other side)"
+      },
+      {
+       "name": "target",
+       "type": "string | string[]",
+       "optional": true,
+       "description": "name (or list of names) of the body to extend to; the other bodies are left alone"
       }
      ]
     }
    ],
-   "example": "part('Gusset').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40)\n  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3);",
+   "example": "part('Gusset').sketch('front', (s) => s.polygon([[0, 0], [50, 0], [50, 6], [6, 6], [6, 40], [0, 40]])).extrude(40)\n  .sketch(at('front', 20), (s) => s.line([6, 26], [26, 6])).rib(3, { fillet: 1, draft: 2 });",
    "related": [
     "part.extrude",
     "part.mirror"
    ],
-   "notes": "- The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.\n- The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z))."
+   "notes": "- The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.\n- The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z)).\n- The web is centred on the sketch plane unless side: 'left' | 'right' puts all of it on one side. fillet (below half the thickness) rounds the free edge; draft (0 to 45 degrees) tapers the sides and needs one straight line; target names the body or bodies it grows to. The web stops at the outer wall of the body: a bore the line runs through is never filled, whatever the order of the features."
+  },
+  {
+   "id": "part.scale",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".scale(factor: Num | [Num, Num, Num], o: { about?: 'origin' | 'centroid'; at?: Vec; bodies?: string | FeatureHandle | Array<string | FeatureHandle> } = {})",
+   "summary": "Scale bodies uniformly or per axis (print shrink compensation, stretched variants).",
+   "description": "factor is one number (uniform) or [sx, sy, sz] along the world axes; each must be above 0 (use mirror for a flip). The fixed point is `at` [x, y, z], else `about` 'centroid' (default, the centre of mass of the selection) or 'origin'. bodies limits it to named bodies (made with newBody), default all bodies. Bodies change in place and every face keeps its name. Exact for planes, for cylinders and cones stretched along their axis, B-spline faces and for spheres and tori under a uniform factor; a round face stretched across its axis, a sphere under a non-uniform factor, and revolution or extrusion surfaces are refused with invalidValue and the body is left as it was.",
+   "parameters": [
+    {
+     "name": "factor",
+     "type": "Num | [Num, Num, Num]",
+     "optional": false,
+     "description": "number or [sx, sy, sz]"
+    },
+    {
+     "name": "o",
+     "type": "{ about?: 'origin' | 'centroid'; at?: Vec; bodies?: string | FeatureHandle | Array<string | FeatureHandle> }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "about",
+       "type": "'origin' | 'centroid'",
+       "optional": true,
+       "description": "'centroid' (default) | 'origin'"
+      },
+      {
+       "name": "at",
+       "type": "Vec",
+       "optional": true,
+       "description": "[x, y, z] fixed point (wins over about)"
+      },
+      {
+       "name": "bodies",
+       "type": "string | FeatureHandle | Array<string | FeatureHandle>",
+       "optional": true,
+       "description": "body name, handle or list of them (default all bodies)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Shrunk').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .scale([1.02, 1.02, 1.03], { about: 'origin' });",
+   "related": [
+    "part.moveBody",
+    "part.moveFace"
+   ]
   },
   {
    "id": "part.screw",
@@ -2345,21 +3071,124 @@
    "notes": "- Fillet or chamfer the OUTSIDE edges before shelling; shelling a rounded box keeps even walls.\n- The selected face is REMOVED (the opening). To close the box again sketch a lid on the rim face and extrude it (recipe hollow-box-lid).\n- A thickness that is too big gives shellTooThick / shellFailed with maxThickness in the error."
   },
   {
+   "id": "part.sphere",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".sphere(radius: Num, o: { centre?: [Num, Num, Num]; center?: [Num, Num, Num]; op?: 'add' | 'cut'; newBody?: boolean | string; name?: string } = {})",
+   "summary": "A ball, without a sketch.",
+   "description": "Adds (or cuts, op 'cut') a sphere of radius `radius` at `centre` [x, y, z] (default the origin). The poles lie along +Y; the one face is named S.e1 of the feature. op 'add' fuses with what it touches, newBody: true or 'Name' keeps it as a separate body. The first feature of a part may be a sphere.",
+   "parameters": [
+    {
+     "name": "radius",
+     "type": "Num",
+     "optional": false,
+     "description": "radius in mm (above 0)"
+    },
+    {
+     "name": "o",
+     "type": "{ centre?: [Num, Num, Num]; center?: [Num, Num, Num]; op?: 'add' | 'cut'; newBody?: boolean | string; name?: string }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "centre",
+       "type": "[Num, Num, Num]",
+       "optional": true,
+       "description": "[x, y, z] centre, default [0, 0, 0]"
+      },
+      {
+       "name": "center",
+       "type": "[Num, Num, Num]",
+       "optional": true,
+       "description": ""
+      },
+      {
+       "name": "op",
+       "type": "'add' | 'cut'",
+       "optional": true,
+       "description": "'add' (default) or 'cut'"
+      },
+      {
+       "name": "newBody",
+       "type": "boolean | string",
+       "optional": true,
+       "description": "true or 'Name': keep the ball as a separate body"
+      },
+      {
+       "name": "name",
+       "type": "string",
+       "optional": true,
+       "description": ""
+      }
+     ]
+    }
+   ],
+   "example": "part('Ball').sphere(10);",
+   "related": [
+    "part.revolve",
+    "part.moveBody"
+   ]
+  },
+  {
+   "id": "part.split",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".split(target: string | PlaneArg, tools?: string | string[] | { names?: [string, string]; target?: string; keep?: 'both' | 'below' | 'above'; flip?: boolean }, o: { keepTools?: boolean } = {})",
+   "summary": "Split a body in two: with tool bodies, or at a plane.",
+   "description": "split(target, tools): the combine feature with op 'split': the target body is cut into the part outside all the tool bodies and the part inside them, two bodies; the tools are used up (keepTools: true keeps them). Bodies are named by newBody: 'Name'. split(plane, { names }): cuts the body at 'front' | 'top' | 'right', at(plane, offset) or a flat face(sel) into two bodies, no tool body needed; names: [below, above] names the halves (\"below\" is the side the plane normal points away from, for at('front', 15) the part under z = 15). The part must hold one body, or target names the one to split. A plane that misses the body is an error. keep: 'below' or 'above' drops the other half.",
+   "parameters": [
+    {
+     "name": "target",
+     "type": "string | PlaneArg",
+     "optional": false,
+     "description": "name of the body that is split, or the plane to cut at"
+    },
+    {
+     "name": "tools",
+     "type": "string | string[] | { names?: [string, string]; target?: string; keep?: 'both' | 'below' | 'above'; flip?: boolean }",
+     "optional": true,
+     "description": "name or names of the tool bodies; with a plane, the options { names, target, keep, flip }"
+    },
+    {
+     "name": "o",
+     "type": "{ keepTools?: boolean }",
+     "optional": true,
+     "default": "{}",
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "keepTools",
+       "type": "boolean",
+       "optional": true,
+       "description": "keep the tool bodies (default: they are used up)"
+      }
+     ]
+    }
+   ],
+   "example": "part('Halves').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .split(at('front', 5), { names: ['Lower', 'Upper'] });",
+   "related": [
+    "part.lipJoint",
+    "part.combine",
+    "part.deleteBody"
+   ]
+  },
+  {
    "id": "part.spring",
    "kind": "method",
    "domain": "features",
    "signature": ".spring(o: SpringOpts)",
    "summary": "A compression spring as its own body.",
-   "description": "A round wire wound as a helix, placed by an origin and an axis. Give the outer diameter, wire diameter, free length and number of turns in mm: spring({ outer: 20, wire: 2, length: 40, coils: 10 }). The spring occupies exactly `length` along the axis from `origin` (the wire's end faces touch the two end planes), the pitch is (length - wire) / coils and it must be larger than the wire diameter, or the turns would touch. axis must lie along x, y or z (either direction); a right-hand spring winds counter-clockwise looking against the axis, as every standard spring does whichever way it points. The ends are the plain ends of the wire: there are no ground or closed ends yet.",
+   "description": "A round wire wound as a helix, placed by an origin and an axis. Give the outer diameter, wire diameter, free length and number of turns in mm: spring({ outer: 20, wire: 2, length: 40, coils: 10 }). The spring occupies exactly `length` along the axis from `origin`, the pitch is (length - wire) / coils and it must be larger than the wire diameter, or the turns would touch. axis must lie along x, y or z (either direction); a right-hand spring winds counter-clockwise looking against the axis, as every standard spring does whichever way it points. ends 'plain' (default) stops the wire; 'closed' winds closedTurns (default 1) touching turns at each end, and the turns count includes them; 'ground' does the same and then grinds both ends flat (the wire runs a quarter of its diameter past each end before grinding). topOuter and progression make a cone or a progressive spring; those, closed and ground springs are built along a spline and take a few seconds longer; a ground spring takes its `name` as its body name, so give each its own.",
    "parameters": [
     {
      "name": "o",
      "type": "SpringOpts",
      "optional": false,
-     "description": "options object { outer, wire, length, coils, hand, origin, axis, name }, the fields below"
+     "description": "options object { outer, wire, length, coils, hand, ends, closedTurns, topOuter, progression, origin, axis, name }, the fields below"
     }
    ],
-   "example": "part('Plunger').sketch('front', (s) => s.circle(8)).extrude(30)\n  .spring({ outer: 14, wire: 1.2, length: 25, coils: 8, origin: [0, 0, 30], axis: [0, 0, 1] });",
+   "example": "part('Plunger').sketch('front', (s) => s.circle(8)).extrude(30)\n  .spring({ outer: 14, wire: 1.2, length: 25, coils: 8, ends: 'ground', origin: [0, 0, 30], axis: [0, 0, 1] });",
    "related": [
     "washer",
     "screw",
@@ -2367,12 +3196,34 @@
    ]
   },
   {
+   "id": "part.standoff",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".standoff(o: StandoffOpts)",
+   "summary": "A round or hex standoff, female-female or male-female, as its own body.",
+   "description": "Give the metric size (M2 to M6) and the body length. kind 'round' (default, outside diameter `outer`) or 'hex' (width across flats `outer`). ends 'female-female' (default) cuts a threaded bore of threadLength into both ends; 'male-female' cuts one into the first end and adds a stud of the nominal diameter and threadLength on the far end (the stud is extra length). thread 'plain' (default) bores the minor diameter and leaves the stud plain, 'cosmetic' bores the tap drill and adds cosmetic threads, 'modeled' cuts the helical grooves (slow, clearance in mm for a printed fit). The threads must not meet: threadLength x 2 less than length for female-female, threadLength less than length for male-female. The standoff is its own body.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "StandoffOpts",
+     "optional": false,
+     "description": "options object { size, length, kind, ends, outer, threadLength, thread, clearance, origin, axis, name }, the fields below"
+    }
+   ],
+   "example": "part('Board').sketch('front', (s) => s.rect(60, 40)).extrude(1.6)\n  .standoff({ size: 'M3', length: 10, kind: 'hex', ends: 'male-female', origin: [20, 10, 1.6] });",
+   "related": [
+    "nut",
+    "heatSetInsert",
+    "part.thread"
+   ]
+  },
+  {
    "id": "part.sweep",
    "kind": "method",
    "domain": "features",
-   "signature": ".sweep(profile: SketchSpec, path: SketchSpec, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[] } = {})",
+   "signature": ".sweep(profile: SketchSpec, path: SketchSpec | { curve: FeatureHandle | string }, o: { twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[]; guides?: SketchSpec[]; guideMode?: 'scale' | 'turn' | 'stretch' } = {})",
    "summary": "Sweep a closed profile along a path sketch (pipes, rails, handles).",
-   "description": "Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The kernel has no keep-normal option: the profile follows the path frame.",
+   "description": "Builds the profile sketch and the path sketch and sweeps the profile along the path. The profile must lie in a plane that the path starts on and is perpendicular to (a circle on 'front' for a path leaving the origin along +Z, which a path sketch on 'right' or 'top' draws as a line in its y or x direction). The path can be a line chain, arcs or a spline. twist turns the profile by that many degrees over the path; op 'cut' removes the swept volume. The path can also be a helix: sweep(profile, { curve: handle }) with the handle of part.helix(). Guide curves (guides, guideMode) make a tapering or flaring body: a circle r 3 swept 20 along a line with a guide from (3, 0) to (6, 20) is a cone frustum. twist cannot be combined with guides. The kernel has no keep-normal option: the profile follows the path frame.",
    "parameters": [
     {
      "name": "profile",
@@ -2382,13 +3233,13 @@
     },
     {
      "name": "path",
-     "type": "SketchSpec",
+     "type": "SketchSpec | { curve: FeatureHandle | string }",
      "optional": false,
-     "description": "path sketch { on, draw } (open chain starting on the profile plane)"
+     "description": "path sketch { on, draw } (open chain starting on the profile plane), or { curve: handle } for a helix"
     },
     {
      "name": "o",
-     "type": "{ twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[] }",
+     "type": "{ twist?: Num; op?: 'add' | 'cut'; newBody?: boolean | string; from?: string | string[]; guides?: SketchSpec[]; guideMode?: 'scale' | 'turn' | 'stretch' }",
      "optional": true,
      "default": "{}",
      "description": "options object, see properties",
@@ -2416,6 +3267,18 @@
        "type": "string | string[]",
        "optional": true,
        "description": "with op 'cut': a body name or list of names the cut changes; the other bodies stay as they are"
+      },
+      {
+       "name": "guides",
+       "type": "SketchSpec[]",
+       "optional": true,
+       "description": "one or two guide curve sketches ({ on, draw }, each drawing ONE line, arc or spline) the profile follows while it travels; each must touch the profile and run along the path"
+      },
+      {
+       "name": "guideMode",
+       "type": "'scale' | 'turn' | 'stretch'",
+       "optional": true,
+       "description": "with guides: 'scale' (default: scaled and turned so the contact stays on the guide), 'turn' (only turned, the section keeps its shape) or 'stretch' (two guides: stretched between them)"
       }
      ]
     }
@@ -2523,6 +3386,27 @@
    "notes": "- Cosmetic by default: the geometry does not change, the thread appears in the regen threads list and drawings. modeled: true cuts the helix; it may fall back to cosmetic with a threadModelFallback warning.\n- The hole should be the tap drill of the thread (M6 -> 5.0): hole(..., { kind: 'tapped', thread: 'M6' }) does both. A mismatch is the warning threadDiameterMismatch with the diameter to drill.\n- on: 'hole' means the last hole feature (all its positions); a face name must be the persistent name of a cylindrical face."
   },
   {
+   "id": "part.torsionSpring",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".torsionSpring(o: TorsionOpts)",
+   "summary": "A torsion spring as its own body.",
+   "description": "torsionSpring({ outer: 14, wire: 1.2, coils: 5.25 }): the coil is wound close, and each leg leaves it tangentially. The fraction of coils sets the angle between the legs: 5.25 turns leaves them at a right angle, 5.5 opposite each other. leg1 and leg2 are the lengths of the legs in mm (default one and a half outer diameters). origin is the centre of the first end of the coil and the coil extends along axis (x, y or z, either way).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "TorsionOpts",
+     "optional": false,
+     "description": "options object { outer, wire, coils, leg1, leg2, hand, origin, axis, name }"
+    }
+   ],
+   "example": "torsionSpring({ outer: 14, wire: 1.2, coils: 5.25, origin: [0, 0, 3] });",
+   "related": [
+    "spring",
+    "extensionSpring"
+   ]
+  },
+  {
    "id": "part.unfold",
    "kind": "method",
    "domain": "features",
@@ -2601,6 +3485,27 @@
    ]
   },
   {
+   "id": "standoff",
+   "kind": "function",
+   "domain": "features",
+   "signature": "standoff(o: StandoffOpts): PartBuilder",
+   "summary": "A standoff as its own body.",
+   "description": "The free-function form of part.standoff: standoff({ size: 'M3', length: 10 }) adds a round female-female standoff to the current model (a new part when there is none) and returns it. kind 'round' or 'hex'; ends 'female-female' or 'male-female'; outer is the diameter (round) or the width across flats (hex); threadLength is the depth of each female thread and the length of the stud. origin is the centre of the first end and axis the way it extends (default [0, 0, 1]).",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "StandoffOpts",
+     "optional": false,
+     "description": "options object, see part.standoff"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "standoff({ size: 'M3', length: 12, kind: 'hex', ends: 'male-female', threadLength: 6 });",
+   "related": [
+    "part.standoff"
+   ]
+  },
+  {
    "id": "through",
    "kind": "function",
    "domain": "features",
@@ -2612,6 +3517,27 @@
    "example": "part('Tube').sketch('front', (s) => s.circle(20)).extrude(30)\n  .sketch(face('>Z'), (s) => s.circle(12)).cut(through());",
    "related": [
     "part.cut"
+   ]
+  },
+  {
+   "id": "torsionSpring",
+   "kind": "function",
+   "domain": "features",
+   "signature": "torsionSpring(o: TorsionOpts): PartBuilder",
+   "summary": "A torsion spring as its own body.",
+   "description": "The free-function form of part.torsionSpring: torsionSpring({ outer: 14, wire: 1.2, coils: 5.25 }) adds one to the current model (a new part when there is none). The fraction of the turns sets the angle between the legs.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "TorsionOpts",
+     "optional": false,
+     "description": "options object, see part.torsionSpring"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "torsionSpring({ outer: 14, wire: 1.2, coils: 5.25 });",
+   "related": [
+    "part.torsionSpring"
    ]
   },
   {
@@ -3277,7 +4203,7 @@
    "domain": "patterns",
    "signature": ".circularPattern(seed: PatternSeed | CircularOpts, o?: CircularOpts): this",
    "summary": "Repeat features around an axis.",
-   "description": "circularPattern(o) repeats the feature added just before it; circularPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). Instances: count in total over angle (alias total) degrees, 360 = a full circle. axis is 'x' | 'y' | 'z', [ox, oy, oz, dx, dy, dz] or a straight edge; the kernel rotates about a WORLD axis through the origin only, so an offset or oblique axis fails with a clear error (centre the part on the axis, or use holes.polar for a bolt circle anywhere). equalSpacing (default true for 360) spaces the instances angle / count apart; false spaces them angle / (count - 1) so the last lands exactly at the end angle (use it for an arc fan). A pattern can seed another pattern.",
+   "description": "circularPattern(o) repeats the feature added just before it; circularPattern(seed, o) repeats seed ('last', a handle, a feature id, or an array). Instances: count in total over angle (alias total) degrees, 360 = a full circle. axis is 'x' | 'y' | 'z' (through the origin), [ox, oy, oz, dx, dy, dz] or { point: [x, y, z], dir: [x, y, z] } (a point on the axis and its direction: a bolt circle round (40, 0) is { point: [40, 0, 0], dir: [0, 0, 1] }; the direction may be oblique) or a straight edge (any edge, on the origin or not: the copies turn about it). equalSpacing (default true for 360) spaces the instances angle / count apart; false spaces them angle / (count - 1) so the last lands exactly at the end angle (use it for an arc fan). A pattern can seed another pattern.",
    "parameters": [
     {
      "name": "seed",
@@ -3299,9 +4225,9 @@
       },
       {
        "name": "axis",
-       "type": "'x' | 'y' | 'z' | number[] | EdgeSel",
+       "type": "'x' | 'y' | 'z' | number[] | EdgeSel | AxisSpec",
        "optional": true,
-       "description": "'x' | 'y' | 'z' | [ox,oy,oz,dx,dy,dz] | edges(...), default 'z'"
+       "description": "'x' | 'y' | 'z' | [ox,oy,oz,dx,dy,dz] | { point, dir } | edges(...), default 'z'"
       },
       {
        "name": "angle",
@@ -3345,7 +4271,7 @@
    "domain": "patterns",
    "signature": ".linearPattern(seed: PatternSeed | LinearOpts, o?: LinearOpts): this",
    "summary": "Repeat features along a direction, optionally as a 2D grid.",
-   "description": "linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', a vector [x, y, z] or a straight edge: the kernel patterns along the WORLD axes only, so a vector or edge must be parallel to x, y or z (its sign picks the way); anything oblique fails with a clear error. reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).",
+   "description": "linearPattern(o) repeats the feature added just before it; linearPattern(seed, o) repeats seed: 'last', a handle from part.handle(), a feature id like 'F4', or an array of those (several features are patterned together). Instances: count in total (including the original), then ONE of: spacing mm between neighbours; totalLength mm from the first to the last (the kernel keeps the length when the count changes); or to: an object the last copy reaches, measured from the middle of what is patterned: 'front' | 'top' | 'right', at(plane, offset), a flat face(sel) square to the direction, or a point [x, y, z]; toOffset moves that end the way the copies go (negative stops short). The object gives the side, so reverse is not read with to. direction (or axis) is 'x' | 'y' | 'z', ANY vector [x, y, z] (not unit length, not on a world axis: [1, 1, 0] runs at 45 degrees; the sign picks the way) or a straight edge (the copies run along it from its start to its end as the kernel reads it; reverse flips them). reverse flips the way. second: { direction, count, spacing | totalLength | to, toOffset?, reverse? } adds a second direction to the same pattern feature: count x second.count instances, a rectangular grid. A run carries the kernel's warnings when copies miss the body (patternCopiesNoEffect), stand apart from it (patternCopiesApart) or overlap each other (patternCopiesOverlap).",
    "parameters": [
     {
      "name": "seed",

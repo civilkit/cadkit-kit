@@ -4,7 +4,7 @@ Issue #15. Today the MCP server (`docs/mcp.md`) has its own document and kernel;
 
 ## What it does
 
-An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo`). The daemon forwards them to the browser app, which answers from the document the user has open.
+An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo`, and the read-only measuring tools `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm`). The daemon forwards them to the browser app, which answers from the document the user has open.
 
 | Tool | Does | Needs edit permission |
 | --- | --- | --- |
@@ -12,6 +12,7 @@ An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_s
 | `app_status` | linked or not, edit allowed or not, pairing open or not | no |
 | `app_state` | name, features (id, type, name, suppressed, error), variables, selection, counts; `detail: full` adds the document JSON | no |
 | `app_screenshot` | PNG of the model from `view` at `size` px, drawn from the app's current geometry with the snapshot renderer (the document, not the user's screen: no panels, not their camera) | no |
+| `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm` | the measuring tools of the headless server (`packages/readback`, one definition for both routes), asked of the open document's kernel session and body list: distance and closest points, gap with pass / fail, overlap volume, wall thickness, draft angles, injection / cnc / printing checks. Read-only: the ops are not in `EDIT_OPS` | no |
 | `app_run_script` | the same script language as `run_script`, attach mode on the open document: features are added after the existing ones, as ONE undo step, with a notice | yes |
 | `app_undo`, `app_redo` | step the app's history | yes |
 

@@ -279,6 +279,16 @@ export const ERROR_TEXT: Record<ExprCode, string> = {
 };
 
 /** What a field holds: a plain number or an expression (a string starting with `=`). */
+/**
+ * A numeric feature field as display text. A number is rounded to `digits` places (and -0 reads 0); an expression string (`=H/2`, or
+ * a bare `H/2`) is shown as its text without the leading `=`; anything else (undefined, NaN, an object) reads `fallback`.
+ * Every label, default name and summary of a feature field goes through this: such a field may hold an expression, not a number.
+ */
+export function fmtNum(v: unknown, digits = 3, fallback = '0'): string {
+  if (typeof v === 'number') return Number.isFinite(v) ? String(+v.toFixed(digits) + 0) : fallback;
+  if (typeof v === 'string') { const s = v.trim().replace(/^=\s*/, ''); return s || fallback; }
+  return fallback;
+}
 export const isExprValue = (v: unknown): v is string => typeof v === 'string' && v.trim().startsWith('=');
 
 /** Turn typed text into a field value: a number stays a number; `=...` or a lone identifier/formula becomes `=...`. */

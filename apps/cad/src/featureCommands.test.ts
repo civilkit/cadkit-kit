@@ -175,3 +175,14 @@ describe('tangent chain in the commands', () => {
     expect(chainedEdgeRefs(['T|B#2'], el, true)).toHaveLength(2);   // B continues A; C is a corner
   });
 });
+
+describe('pickValue for a pattern direction or axis', () => {
+  const edges = [{ key: 'F2.S.e1|F2.S.e2#0', faces: ['F2.S.e1', 'F2.S.e2'], mid: [100, 0, 5], pts: [[100, 0, 0], [100, 0, 10]] }] as never;
+  it('an edge becomes its two faces and a point on it; a face becomes a face reference', () => {
+    for (const path of ['axis', 'dir', 'dir2']) {
+      expect(pickValue(path, ['F2.S.e1|F2.S.e2#0'], edges)).toEqual({ kind: 'edge', faces: ['F2.S.e1', 'F2.S.e2'], at: [100, 0, 5] });
+      expect(pickValue(path, ['F5.S.e1'], edges)).toEqual({ kind: 'face', id: 'F5.S.e1' });
+      expect(pickValue(path, [], edges)).toBeNull();
+    }
+  });
+});

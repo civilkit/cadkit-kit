@@ -1,0 +1,363 @@
+{
+ "format": "ck-part",
+ "version": 1,
+ "name": "Clevis",
+ "features": [
+  {
+   "type": "sketch",
+   "id": "F1",
+   "plane": {
+    "kind": "std",
+    "id": "top"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": -62,
+     "y": -45
+    },
+    {
+     "id": "p2",
+     "x": 62,
+     "y": -45
+    },
+    {
+     "id": "p3",
+     "x": 70,
+     "y": -37
+    },
+    {
+     "id": "p4",
+     "x": 70,
+     "y": 37
+    },
+    {
+     "id": "p5",
+     "x": 62,
+     "y": 45
+    },
+    {
+     "id": "p6",
+     "x": -62,
+     "y": 45
+    },
+    {
+     "id": "p7",
+     "x": -70,
+     "y": 37
+    },
+    {
+     "id": "p8",
+     "x": -70,
+     "y": -37
+    },
+    {
+     "id": "p9",
+     "x": 62,
+     "y": -37
+    },
+    {
+     "id": "p10",
+     "x": 62,
+     "y": 37
+    },
+    {
+     "id": "p11",
+     "x": -62,
+     "y": 37
+    },
+    {
+     "id": "p12",
+     "x": -62,
+     "y": -37
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "arc",
+     "c": "p9",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "arc",
+     "c": "p10",
+     "p1": "p4",
+     "p2": "p5"
+    },
+    {
+     "id": "e5",
+     "type": "line",
+     "p1": "p5",
+     "p2": "p6"
+    },
+    {
+     "id": "e6",
+     "type": "arc",
+     "c": "p11",
+     "p1": "p6",
+     "p2": "p7"
+    },
+    {
+     "id": "e7",
+     "type": "line",
+     "p1": "p7",
+     "p2": "p8"
+    },
+    {
+     "id": "e8",
+     "type": "arc",
+     "c": "p12",
+     "p1": "p8",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F2",
+   "op": "add",
+   "sketch": "F1",
+   "end": "blind",
+   "depth": 12
+  },
+  {
+   "type": "sketch",
+   "id": "F3",
+   "plane": {
+    "kind": "face",
+    "id": "F2.C1"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": -55,
+     "y": -30
+    },
+    {
+     "id": "p2",
+     "x": 55,
+     "y": -30
+    },
+    {
+     "id": "p3",
+     "x": -55,
+     "y": 30
+    },
+    {
+     "id": "p4",
+     "x": 55,
+     "y": 30
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "point",
+     "p": "p1"
+    },
+    {
+     "id": "e2",
+     "type": "point",
+     "p": "p2"
+    },
+    {
+     "id": "e3",
+     "type": "point",
+     "p": "p3"
+    },
+    {
+     "id": "e4",
+     "type": "point",
+     "p": "p4"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "hole",
+   "id": "F4",
+   "sketch": "F3",
+   "kind": "simple",
+   "end": "through",
+   "flip": false,
+   "diameter": 10
+  },
+  {
+   "type": "sketch",
+   "id": "F5",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 0,
+     "y": 6
+    },
+    {
+     "id": "p2",
+     "x": 30,
+     "y": 6
+    },
+    {
+     "id": "p3",
+     "x": 30,
+     "y": 85
+    },
+    {
+     "id": "p4",
+     "x": 0,
+     "y": 85
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "line",
+     "p1": "p1",
+     "p2": "p2"
+    },
+    {
+     "id": "e2",
+     "type": "line",
+     "p1": "p2",
+     "p2": "p3"
+    },
+    {
+     "id": "e3",
+     "type": "line",
+     "p1": "p3",
+     "p2": "p4"
+    },
+    {
+     "id": "e4",
+     "type": "line",
+     "p1": "p4",
+     "p2": "p1"
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F6",
+   "op": "add",
+   "sketch": "F5",
+   "end": "mid",
+   "depth": 60
+  },
+  {
+   "type": "sketch",
+   "id": "F7",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 15,
+     "y": 85
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 25
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F8",
+   "op": "add",
+   "sketch": "F7",
+   "end": "mid",
+   "depth": 60
+  },
+  {
+   "type": "sketch",
+   "id": "F9",
+   "plane": {
+    "kind": "std",
+    "id": "front"
+   },
+   "points": [
+    {
+     "id": "O",
+     "x": 0,
+     "y": 0,
+     "fixed": true
+    },
+    {
+     "id": "p1",
+     "x": 15,
+     "y": 85
+    }
+   ],
+   "entities": [
+    {
+     "id": "e1",
+     "type": "circle",
+     "c": "p1",
+     "r": 15
+    }
+   ],
+   "constraints": []
+  },
+  {
+   "type": "extrude",
+   "id": "F10",
+   "op": "cut",
+   "sketch": "F9",
+   "end": "throughBoth"
+  }
+ ],
+ "seq": 11,
+ "rollback": null,
+ "script": "part('Clevis')\n  .sketch('top', (s) => s.rrect(140, 90, 8)).extrude(12)\n  .holes.points(face('>Y'), [[-55, -30], [55, -30], [-55, 30], [55, 30]], { diameter: 10 })\n  .sketch('front', (s) => s.rect(30, 79, [15, 45.5])).extrude(60, { mid: true })\n  .sketch('front', (s) => s.circle(25, [15, 85])).extrude(60, { mid: true })\n  .sketch('front', (s) => s.circle(15, [15, 85])).cut(through(), { direction: 'both' });\n"
+}

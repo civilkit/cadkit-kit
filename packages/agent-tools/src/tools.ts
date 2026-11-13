@@ -10,6 +10,7 @@ import { meshToGlb } from './exporters';
 import { viewCacheField } from './viewCache';
 import { repairHint } from './hints';
 import { sheetTools } from './sheetTools';
+import { readbackTools } from './readbackTools';
 import type { Schema } from './schema';
 
 export interface ToolOutput {
@@ -442,6 +443,6 @@ export function createTools(): ToolDef[] {
       },
     },
   ];
-  tools.push(...sheetTools());
+  tools.push(...readbackTools(), ...sheetTools());
   return tools;
 }

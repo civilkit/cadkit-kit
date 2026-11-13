@@ -13,11 +13,21 @@ export interface BodyTarget {
 
 export const refOf = (b: BodyTarget): { body: string } | { face: string } => (b.docName ? { body: b.docName } : { face: b.face });
 
-/** Every body name the document uses: the `body` of any feature. */
+/** Every body name the document uses: the `body` of any feature and the `names` of a split or lip joint. */
 export function usedBodyNames(features: readonly Rec[], extra: Iterable<string> = []): Set<string> {
   const out = new Set<string>(extra);
-  for (const f of features) if (typeof f.body === 'string' && f.body) out.add(f.body);
+  for (const f of features) {
+    if (typeof f.body === 'string' && f.body) out.add(f.body);
+    if (f.type === 'split' || f.type === 'lipJoint') for (const n of Array.isArray(f.names) ? f.names : []) if (typeof n === 'string' && n.trim()) out.add(n.trim());
+  }
   return out;
+}
+
+/** Does the document give a body a name the kernel knows: a `newBody` or `body` of a feature, or the `names` of a split or lip joint?
+ *  Only then is the kernel asked which lump carries which name (the Bodies list shows these names, else the feature's own). */
+export function namesBodies(features: readonly Rec[]): boolean {
+  return features.some((f) => f.op === 'newBody' || (typeof f.body === 'string' && f.body !== '')
+    || ((f.type === 'split' || f.type === 'lipJoint') && Array.isArray(f.names) && f.names.some((n) => typeof n === 'string' && n.trim() !== '')));
 }
 
 /** `base`, or `base 2`, `base 3`, ... : the first name that is free. */
@@ -36,7 +46,7 @@ export function removeBodyOps(bs: readonly BodyTarget[]): EditOp[] {
   return [{ op: 'add', feature: { type: 'deleteBody', mode: 'delete', bodies: bs.map(refOf) } }];
 }
 
-export type CombineOp = 'union' | 'cut' | 'intersect';
+export type CombineOp = 'union' | 'cut' | 'intersect' | 'split';
 /** The first body combined with the others, which are used up (`keepTools` keeps them). */
 export function combineBodyOps(op: CombineOp, target: BodyTarget, tools: readonly BodyTarget[], keepTools = false): EditOp[] {
   return [{ op: 'add', feature: { type: 'combine', op, target: refOf(target), tools: tools.map(refOf), ...(keepTools ? { keepTools: true } : {}) } }];

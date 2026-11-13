@@ -157,3 +157,114 @@ describe('pattern on path', () => {
     expect(m.drafts.at(-1)).toMatchObject({ distanceType: 'extent', extent: 20 });
   });
 });
+
+describe('linear pattern: direction vector and picked edge', () => {
+  const lp = { type: 'lpattern', id: 'F7', seeds: ['F4'], dir: { kind: 'axis', axis: 'x' }, count: 4, spacing: 10 };
+  const sel = (m: ReturnType<typeof mount>, path = 'dir') => m.container.querySelector(`[data-path="${path}"] select`) as HTMLSelectElement;
+  const typeIn = (m: ReturnType<typeof mount>, path: string, v: string) => {
+    const input = m.container.querySelector(`[data-path="${path}"] input`) as HTMLInputElement;
+    fireEvent.input(input, { target: { value: v } });
+    fireEvent.blur(input);
+  };
+  it('offers X, Y, Z and a direction vector; a world axis keeps writing {kind:"axis"}', () => {
+    const m = mount(lp);
+    expect([...sel(m).options].map((o) => o.value)).toEqual(['x', 'y', 'z', 'vector']);
+    fireEvent.change(sel(m), { target: { value: 'z' } });
+    expect(m.drafts.at(-1)).toMatchObject({ dir: { kind: 'axis', axis: 'z' } });
+    expect(m.container.querySelector('[data-path="dir.x"]')).toBeNull();
+  });
+  it('Direction vector starts as the axis it replaces and shows X, Y, Z fields; typing writes {kind:"vector"}', () => {
+    const m = mount(lp);
+    fireEvent.change(sel(m), { target: { value: 'vector' } });
+    expect(m.drafts.at(-1)).toMatchObject({ dir: { kind: 'vector', dir: [1, 0, 0] } });
+    cleanup();
+    const v = mount({ ...lp, dir: { kind: 'vector', dir: [1, 0, 0] } });
+    expect(sel(v).value).toBe('vector');
+    expect(['dir.x', 'dir.y', 'dir.z'].every((p) => v.container.querySelector(`[data-path="${p}"]`))).toBe(true);
+    typeIn(v, 'dir.y', '1');
+    expect(v.drafts.at(-1)).toMatchObject({ dir: { kind: 'vector', dir: [1, 1, 0] } });
+  });
+  it('a vector of length 0 says so', () => {
+    const m = mount({ ...lp, dir: { kind: 'vector', dir: [0, 0, 0] } });
+    expect(m.container.textContent).toMatch(/length 0/);
+  });
+  it('a picked edge shows by its faces; the Pick button asks the viewport for `dir`', () => {
+    const asked: string[] = [];
+    const feature = { ...lp, dir: { kind: 'edge', faces: ['F2.S.e1', 'F2.S.e2'], at: [10, 0, 5] } };
+    const r = render(<FeatureEditor feature={feature} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => asked.push(p)} options={(a) => optionsFor(a, doc)} />);
+    const s = r.container.querySelector('[data-path="dir"] select') as HTMLSelectElement;
+    expect(s.value).toBe('ref');
+    expect(s.selectedOptions[0].textContent).toBe('Edge F2.S.e1 / F2.S.e2');
+    fireEvent.click(r.container.querySelector('[data-path="dir"] button.fedit-pick') as HTMLButtonElement);
+    expect(asked).toEqual(['dir']);
+  });
+  it('a picked value arriving from the viewport lands in the draft as the direction', () => {
+    const drafts: Wire[] = [];
+    const edge = { kind: 'edge', faces: ['F2.S.e1', 'F2.S.e2'], at: [10, 0, 5] };
+    const r = render(<FeatureEditor feature={lp} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} picked={{ path: 'dir', value: edge }} options={(a) => optionsFor(a, doc)} />);
+    expect(drafts.at(-1)).toMatchObject({ dir: edge });
+    expect(r.container.querySelector('[data-path="dir"] select')).not.toBeNull();
+  });
+  it('Direction 2 can be a vector and None still removes it; Pick is only offered once it is on', () => {
+    const asked: string[] = [];
+    const drafts: Wire[] = [];
+    const r = render(<FeatureEditor feature={lp} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => asked.push(p)} options={(a) => optionsFor(a, doc)} />);
+    expect(r.container.querySelector('[data-path="dir2"] button.fedit-pick')).toBeNull();
+    fireEvent.change(r.container.querySelector('[data-path="dir2"] select') as HTMLSelectElement, { target: { value: 'vector' } });
+    expect(drafts.at(-1)).toMatchObject({ dir2: { kind: 'vector', dir: [1, 0, 0] }, count2: 2, spacing2: 10 });
+  });
+});
+
+describe('circular pattern: axis position, direction and picked edge', () => {
+  const cp = { type: 'cpattern', id: 'F7', seeds: ['F4'], count: 6, angle: 360, equal: true, axis: { kind: 'axis', axis: 'z' } };
+  const sel = (m: ReturnType<typeof mount>) => m.container.querySelector('[data-path="axis"] select') as HTMLSelectElement;
+  const typeIn = (m: ReturnType<typeof mount>, path: string, v: string) => {
+    const input = m.container.querySelector(`[data-path="${path}"] input`) as HTMLInputElement;
+    fireEvent.input(input, { target: { value: v } });
+    fireEvent.blur(input);
+  };
+  it('offers the axes, a typed direction and the axis point (0, 0, 0 by default); the axis is drawn once', () => {
+    const m = mount(cp);
+    expect([...sel(m).options].map((o) => o.value)).toEqual(['x', 'y', 'z', 'custom']);
+    expect(m.container.querySelectorAll('[data-path="axis"]').length).toBe(1);
+    for (const c of ['x', 'y', 'z']) expect((m.container.querySelector(`[data-path="axis.point.${c}"] input`) as HTMLInputElement).value).toBe('0');
+  });
+  it('a point on the axis writes {kind:"axis", point, dir} and 0, 0, 0 goes back to the plain world axis', () => {
+    const m = mount(cp);
+    typeIn(m, 'axis.point.x', '40');
+    expect(m.drafts.at(-1)).toMatchObject({ axis: { kind: 'axis', point: [40, 0, 0], dir: [0, 0, 1] } });
+    cleanup();
+    const off = mount({ ...cp, axis: { kind: 'axis', point: [40, 0, 0], dir: [0, 0, 1] } });
+    expect(sel(off).value).toBe('z');   // still "the Z axis", moved
+    expect((off.container.querySelector('[data-path="axis.point.x"] input') as HTMLInputElement).value).toBe('40');
+    typeIn(off, 'axis.point.x', '0');
+    expect(off.drafts.at(-1)).toMatchObject({ axis: { kind: 'axis', axis: 'z' } });
+  });
+  it('switching the axis keeps the point; Direction shows X, Y, Z of the axis and writes the vector', () => {
+    const m = mount({ ...cp, axis: { kind: 'axis', point: [40, 0, 0], dir: [0, 0, 1] } });
+    fireEvent.change(sel(m), { target: { value: 'x' } });
+    expect(m.drafts.at(-1)).toMatchObject({ axis: { kind: 'axis', point: [40, 0, 0], dir: [1, 0, 0] } });
+    cleanup();
+    const c = mount({ ...cp, axis: { kind: 'axis', point: [0, 0, 0], dir: [1, 1, 0] } });
+    expect(sel(c).value).toBe('custom');
+    expect((c.container.querySelector('[data-path="axis.dir.y"] input') as HTMLInputElement).value).toBe('1');
+    typeIn(c, 'axis.dir.z', '1');
+    expect(c.drafts.at(-1)).toMatchObject({ axis: { kind: 'axis', point: [0, 0, 0], dir: [1, 1, 1] } });
+  });
+  it('a picked edge shows by its faces and hides the point; Pick asks for `axis`', () => {
+    const asked: string[] = [];
+    const feature = { ...cp, axis: { kind: 'edge', faces: ['F2.S.e1', 'F2.S.e2'], at: [53, 53, 5] } };
+    const r = render(<FeatureEditor feature={feature} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={(p) => asked.push(p)} options={(a) => optionsFor(a, doc)} />);
+    const s = r.container.querySelector('[data-path="axis"] select') as HTMLSelectElement;
+    expect(s.value).toBe('ref');
+    expect(s.selectedOptions[0].textContent).toBe('Edge F2.S.e1 / F2.S.e2');
+    expect(r.container.querySelector('[data-path="axis.point.x"]')).toBeNull();
+    fireEvent.click(r.container.querySelector('[data-path="axis"] button.fedit-pick') as HTMLButtonElement);
+    expect(asked).toEqual(['axis']);
+  });
+  it('a picked round face lands in the draft as the axis', () => {
+    const drafts: Wire[] = [];
+    render(<FeatureEditor feature={cp} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} picked={{ path: 'axis', value: { kind: 'face', id: 'F5.S.e1' } }} options={(a) => optionsFor(a, doc)} />);
+    expect(drafts.at(-1)).toMatchObject({ axis: { kind: 'face', id: 'F5.S.e1' } });
+  });
+});

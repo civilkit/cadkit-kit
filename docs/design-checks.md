@@ -57,7 +57,12 @@ remembered too.
 `issues[]` carry `rule`, `severity`, `message`, `faces` (persistent face names), `edges` (`faceA|faceB#n` keys), `value`,
 `limit`, `unit`; `summary` gives the counts. Rules per profile: `fdm-print` (openShell, bodyCount, minWall, overhang,
 bridge, minFeature, plateContact), `cnc-3axis` (openShell, minInternalRadius, minWall, undercut), `injection` (openShell,
-draft, uniformWall, minWall).
+draft, uniformWall, minWall) plus the kit's own `mouldUndercut` (below).
+
+`mouldUndercut` is not a kernel rule. A two-part mould pulls one half along the pull axis and the other against it, so a face is an undercut
+only when neither half can reach it. The kit runs the kernel's `undercut` rule along the pull and against it inside one `checkProfile` call and
+keeps the faces both runs flag (`packages/readback/src/mould.ts`: `withMouldRule` adds it to the injection profile, `expandMould` / `mergeMould`
+turn it into two kernel rules and back). Its parameters are the kernel's `direction` (the pull axis) and `minArea`; it is Warn by default.
 
 ## Limits (from the kernel)
 

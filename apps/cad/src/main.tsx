@@ -20,10 +20,10 @@ import { featureLabel, loftMoveAfter, pipeCutNotice } from './featureCreators';
 import { tangentChainOn, chainSelection, chainRefs } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
-import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
+import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  errorText, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
+  errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
 import { setIconSet, type IconSet } from '@kit/ui';
@@ -115,9 +115,16 @@ import { ScrewWizard } from './ScrewWizard';
 import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { WasherWizard } from './WasherWizard';
 import { SpringWizard } from './SpringWizard';
+import { CaseWizard } from './CaseWizard';
+import { DEFAULT_CASE, caseIssue, caseOps, type CaseParams } from './case';
 import { DEFAULT_SPRING, springIssue, springOps, type SpringParams } from './spring';
+import { InsertWizard, NutWizard, StandoffWizard } from './FastenerWizards';
+import { bodyNames, fastenerIssue, fastenerOps, openFastener as newFastener, type FastenerWizardState } from './fasteners';
 import { DEFAULT_WASHER, washerIssue, washerOps, type WasherParams } from './washer';
 import { holeFromPick, type HoleResult } from './washerHole';
+import { FastenHoleWizard } from './FastenHoleWizard';
+import { allHoles, HoleIndex, patternHoles, readFastenHole, type FastenHole } from './fastenHole';
+import { fastenOps, type FastenTarget } from './fasten';
 import { BearingWizard } from './BearingWizard';
 import { FramePanel } from './frame/FramePanel';
 import { adoptFrameLibraries, loadStoredLibrary } from './frame/frameUserLib';
@@ -260,7 +267,6 @@ loadStoredLibrary();   // the user's own frame stock and fittings, from this bro
 const VIEW_KEYS: Record<string, 'top' | 'front' | 'right' | 'back' | 'left' | 'bottom' | 'iso'> = { '1': 'top', '2': 'front', '3': 'right', '4': 'back', '5': 'left', '6': 'bottom', '7': 'iso' };
 /** Sketch tools whose clicks pick a curve of the sketch. */
 const OBJECT_SNAPS_OFF: SketchPrefs['snaps'] = Object.fromEntries(Object.keys(DEFAULT_SKETCH_PREFS.snaps).map((k) => [k, k === 'grid'])) as SketchPrefs['snaps'];
-const ENTITY_PICK_TOOLS = new Set<string | null>(['offset']);
 const SKETCH_TOOL_KEYS = new Map(sketchTools().flatMap((x) => (x.key ? [[x.key, x.id] as const] : [])));
 const savedLocale = read('cad.locale');
 const savedTheme = asTheme(read('cad.theme'));
@@ -498,7 +504,7 @@ tabSet.add(newTabRec());
 const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {} };
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
 startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
-const agentLink = createAgentLink({ controller, store: store as never });
+const agentLink = createAgentLink({ controller, store: store as never, bodies: () => bodyRowsFor(true).map((r) => ({ name: r.name, key: r.key, faces: r.faces, volume: r.volume })) });
 const chatSession = createChatSession({
   provider: claudeCodeProvider({ endpoint: () => agentLink.endpoint() }),
   context: () => ({ selection: store.selection.value, script: String((controller.document() as unknown as { script?: string } | null)?.script ?? '') }),
@@ -574,6 +580,9 @@ function App() {
   const washerPickRef = useRef({ n: 0, openSel: '' });
   const [washerWiz, setWasherWiz] = useState<{ params: WasherParams } | null>(null);   // the Washer wizard: a flat or spring washer over the washer() helper
   const [springWiz, setSpringWiz] = useState<{ params: SpringParams } | null>(null);   // the Spring wizard: a compression spring over the spring() helper
+  const [caseWiz, setCaseWiz] = useState<{ params: CaseParams } | null>(null);   // the Case wizard: a closed box with a lipped lid over the caseBox() helper
+  const [fastenWiz, setFastenWiz] = useState<{ pick: string; all: FastenHole[]; selected: FastenHole[]; pattern: FastenHole[]; ix: HoleIndex } | null>(null);   // Fasten this hole: a bolt (washers, nut) for the picked hole(s), see FastenHoleWizard.tsx
+  const [fastenerWiz, setFastenerWiz] = useState<FastenerWizardState | null>(null);   // the Nut, Standoff and Heat-set insert wizards over the nut() / standoff() / heatSetInsert() helpers (one open at a time)
   const [bearingWiz, setBearingWiz] = useState<{ params: BearingParams } | null>(null);   // the Bearing wizard: a ball bearing over the bearing() helper
   const [frameWiz, setFrameWiz] = useState<{ params: FrameParams; editId: string | null } | null>(null);   // the Frame panel: a new frame, or the frame `editId` being edited
   const [frameJoint, setFrameJoint] = useState<string | null>(null);   // the joint picked in the viewport or the panel's list
@@ -583,6 +592,9 @@ function App() {
   const [sk3dWiz, setSk3dWiz] = useState<{ editId: string | null; draft: Draft3 } | null>(null);   // the 3D Sketch panel: a new sketch, or the sketch3d `editId` being edited
   useEffect(() => { if (sk3dWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || editingId)) setSk3dWiz(null); }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, editingId]);
   useEffect(() => { if (springWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setSpringWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (fastenerWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenerWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (fastenWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (caseWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setCaseWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
   const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
   const [meshPick, setMeshPick] = useState<null | { stage: 'aim' } | { stage: 'plane'; pos: P3d; normal: P3d }>(null);   // starting a sketch by clicking the mesh surface
@@ -1728,7 +1740,7 @@ function App() {
   const selectGroupFacesRef = useRef<(ids: string[]) => void>(() => {});
   const selectBodiesRef = useRef<(id: string) => void>(() => {});
   const refMenuRef = useRef<(id: string) => { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null>(() => null);
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), selectBodies: (id) => selectBodiesRef.current(id), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), selectBodies: (id) => selectBodiesRef.current(id), canFastenHole: (id) => holeFacesOfFeature(id).length > 0, fastenHole: (id) => openFasten(holeFacesOfFeature(id)), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -1755,7 +1767,12 @@ function App() {
     knurl: () => openKnurl(),
     screw: () => openScrew(),
     washer: () => openWasher(),
+    fastenHole: { can: () => fastenable().length > 0, open: () => openFasten(fastenable()) },
     spring: () => openSpring(),
+    caseBox: () => openCase(),
+    nut: () => openFastener('nut'),
+    standoff: () => openFastener('standoff'),
+    insert: () => openFastener('insert'),
     bearing: () => openBearing(),
     frame: () => openFrame(null),
     sketch3d: () => openSketch3d(null),
@@ -2788,10 +2805,7 @@ function App() {
     const at = { x: ev.u, y: ev.v };
     let snap = ev.mods.alt || ev.mods.ctrl ? undefined : snapAt(draft, at, { tolerance: ev.tol, kinds: prefsRef.current.snapOn ? prefsRef.current.snaps : OBJECT_SNAPS_OFF, ...(prefsRef.current.snapOn ? { model: modelSnapsNow() } : {}), ...(lastOutRef.current?.from ?? lastOutRef.current?.anchor ? { from: (lastOutRef.current?.from ?? lastOutRef.current?.anchor)! } : {}), ...(prefsRef.current.gridSnap ? { grid: ev.grid, gridTol: gridCapture(ev.tol, ev.grid) } : {}) });
     // tools that pick a whole curve need the curve under the pointer, not only a midpoint snap
-    if (ENTITY_PICK_TOOLS.has(sketchToolRef.current) && !snap?.entityId) {
-      const entityId = pickEntity(draft, at, ev.tol);
-      if (entityId) snap = snap ? { ...snap, entityId } : { kind: 'grid', at, entityId };
-    }
+    snap = withPickedEntity(sketchToolRef.current, draft, at, ev.tol, snap) as typeof snap;
     if (ev.type === 'dragstart') {
       // the finger left the spot it went down on: that spot is the tool's first point, unless the tool already has one (then the click would finish the shape)
       const t0 = touchRef.current;
@@ -3169,6 +3183,7 @@ function App() {
     return null;
   };
   const tree = (
+    <PanelBoundary name="tree" resetKey={doc}>
     <FeatureTree rows={rows} partName={doc?.name}
       refs={doc ? [...refRows(doc as never, appearance.color), ...treeKnurlRows(doc as never), ...treeMeshRows(doc)] : []}
       selectedRef={refSel} onSelectRef={(id) => { setRefSel(id); if (id) { setSelectedId(null); store.select([]); } }} onHoverRef={setRefHover}
@@ -3180,6 +3195,7 @@ function App() {
       reveal={rev.reveal} onSelectGroup={selectGroupFaces} onSelectFaces={(id) => selectGroupFaces([id])}
       onEdit={startEditing}
       onMove={(id, to) => edit([{ op: 'move', id, to }])} />
+    </PanelBoundary>
   );
   const showAssembly = (section: AsmSection) => {
     if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
@@ -3522,6 +3538,135 @@ function App() {
     setSpringWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
+  // The Case wizard: every change previews the case (the same features the Script tab's caseBox() makes); Add case commits them as one folder, one undo step.
+  const onCaseDraft = (next: CaseParams) => {
+    if (!doc || caseIssue(next)) return;
+    void controller.preview(caseOps(doc as never, next), 700).then(onPreviewResult);
+  };
+  const onCaseCancel = async () => {
+    await controller.cancelPreview();
+    setCaseWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const onCaseApply = async (next: CaseParams) => {
+    if (!doc) return;
+    let ops;
+    try { ops = caseOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, "case"));
+    if (!r.ok) { setPreviewHint(t("case.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
+    store.notify(t("case.created"));
+    setCaseWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  // The fastener wizards (Nut, Standoff, Heat-set insert): every change previews the part (the same features the Script tab's helper makes); Add commits them as one folder, one undo step.
+  const onFastenerDraft = (next: FastenerWizardState) => {
+    if (!doc || fastenerIssue(next)) return;
+    void controller.preview(fastenerOps(doc as never, next), next.kind === 'insert' ? 400 : 600).then(onPreviewResult);
+  };
+  const onFastenerCancel = async () => {
+    await controller.cancelPreview();
+    setFastenerWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const onFastenerApply = async (next: FastenerWizardState) => {
+    if (!doc) return;
+    let ops;
+    try { ops = fastenerOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, next.kind === 'insert' ? 'heat-set insert' : next.kind));
+    if (!r.ok) { const reason = r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed"; setPreviewHint(next.kind === 'nut' ? t('nut.failed', { reason }) : next.kind === 'standoff' ? t('standoff.failed', { reason }) : t('insert.failed', { reason })); return; }
+    store.notify(next.kind === 'nut' ? t('nut.created') : next.kind === 'standoff' ? t('standoff.created') : t('insert.created'));
+    setFastenerWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  // Fasten this hole: the holes read off the part (cached per shown geometry), the selection and the tree rows that name holes, and the panel's draft / commit.
+  const holeScan = useRef<{ edges: unknown; ix: HoleIndex; all: FastenHole[] | null } | null>(null);
+  /** The index of the shown geometry (cached until it changes); `all()` reads every hole of the part, once, when the dialog needs it. */
+  const holeScanNow = (): { ix: HoleIndex; all(): FastenHole[] } | null => {
+    const mesh = controller.bodyFaces(), edges = controller.bodyEdges();
+    if (!mesh || !edges.length) return null;
+    if (holeScan.current?.edges !== edges) holeScan.current = { edges, ix: new HoleIndex(edges as never, mesh), all: null };
+    const c = holeScan.current;
+    return { ix: c.ix, all: () => (c.all ??= allHoles(c.ix)) };
+  };
+  /** The selected faces that are hole walls, as the faces to read. */
+  const fastenable = (): string[] => {
+    const sel = store.selection.value;
+    if (store.mode.value !== 'face' || !sel.length || sel.includes(BODY)) return [];
+    const sc = holeScanNow();
+    return sc ? sel.filter((f) => readFastenHole(f, sc.ix).ok) : [];
+  };
+  /** The faces of the holes a tree row stands for: a Hole feature, or a pattern of holes (its copies and its seeds). */
+  const holeFacesOfFeature = (id: string): string[] => {
+    const sc = holeScanNow();
+    const feats = (doc?.features ?? []) as unknown as Array<{ id: string; type: string; seeds?: string[] }>;
+    const f = feats.find((x) => x.id === id);
+    if (!sc || !f) return [];
+    const seedsOf = (x: { id: string; type: string; seeds?: string[] }): string[] => (x.type === 'hole' ? [x.id] : (x.seeds ?? []).flatMap((sid) => { const y = feats.find((z) => z.id === sid); return y ? seedsOf(y) : []; }));
+    const holes = seedsOf(f);
+    return sc.all().filter((h) => holes.some((hid) => h.face.startsWith(`${hid}.`))).map((h) => h.face);
+  };
+  const openFasten = (faces: string[]) => {
+    if (!doc) return;
+    const sc = holeScanNow();
+    if (!sc) { store.notify(t('fasten.refuse.noGeometry'), 'warn'); return; }
+    const reads = faces.map((f) => readFastenHole(f, sc.ix));
+    const found = reads.flatMap((r) => (r.ok ? [r.hole] : []));
+    if (!found.length) { const bad = reads.find((r) => !r.ok); const why = bad && !bad.ok ? bad.reason : 'none'; store.notify(t('fasten.refuse.' + why), 'warn'); return; }
+    const ref = found[0];
+    // the pattern the picked hole belongs to: the copies' names end @<pattern>.<n>, a pattern lists its seeds
+    const feats = (doc.features ?? []) as unknown as Array<{ id: string; type: string; seeds?: string[] }>;
+    const m = /^(F\d+)\..*?(?:@(F\d+)\.\d+)?$/.exec(ref.face);
+    const src = m?.[1] ?? '', pats = new Set<string>(m?.[2] ? [m[2]] : feats.filter((x) => x.seeds?.includes(src)).map((x) => x.id));
+    const all = sc.all();
+    const pattern = [...pats].flatMap((pid) => patternHoles(all, pid, src));
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    void controller.cancelPreview();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null);
+    setFastenWiz({ pick: ref.face, all, selected: found.slice(1), pattern, ix: sc.ix });
+    setLeftTab('Editor');
+  };
+  const onFastenDraft = (targets: FastenTarget[]) => {
+    if (!doc) return;
+    let ops;
+    try { ops = fastenOps(doc as never, targets); } catch (e) { setPreviewHint((e as Error).message); return; }
+    void controller.preview(ops, 400).then(onPreviewResult);
+  };
+  const onFastenCancel = async () => {
+    await controller.cancelPreview();
+    setFastenWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const onFastenApply = async (targets: FastenTarget[]) => {
+    if (!doc) return;
+    let ops;
+    try { ops = fastenOps(doc as never, targets); } catch (e) { setPreviewHint((e as Error).message); return; }
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, 'fasten'));
+    if (!r.ok) { setPreviewHint(t('fasten.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
+    store.notify(t(targets.length === 1 ? 'fasten.created1' : 'fasten.created', { count: targets.length }));
+    setFastenWiz(null); setPreviewHint(null); setLeftTab('Features');
+    redraw((n) => n + 1);
+  };
+  const openFastener = (kind: FastenerWizardState['kind']) => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    void controller.cancelPreview();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null);
+    setFastenerWiz(newFastener(kind));
+    setLeftTab("Editor");
+  };
+  const openCase = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null); setFastenWiz(null);
+    setCaseWiz({ params: { ...DEFAULT_CASE } });
+    setLeftTab("Editor");
+  };
   const openSpring = () => {
     if (!doc) return;
     if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
@@ -3815,6 +3960,19 @@ function App() {
   const springEditor = springWiz && doc ? (
     <SpringWizard key="spring" params={springWiz.params} onDraft={onSpringDraft} onApply={onSpringApply} onCancel={onSpringCancel} hint={previewHint} />
   ) : null;
+  const caseEditor = caseWiz && doc ? (
+    <CaseWizard key="case" params={caseWiz.params} hasOthers={doc.features.length > 0} onDraft={onCaseDraft} onApply={onCaseApply} onCancel={onCaseCancel} hint={previewHint} />
+  ) : null;
+  const fastenerEditor = fastenerWiz && doc ? (
+    fastenerWiz.kind === 'nut' ? <NutWizard key="nut" params={fastenerWiz.params} onDraft={(p) => onFastenerDraft({ kind: 'nut', params: p })} onApply={(p) => onFastenerApply({ kind: 'nut', params: p })} onCancel={onFastenerCancel} hint={previewHint} />
+    : fastenerWiz.kind === 'standoff' ? <StandoffWizard key="standoff" params={fastenerWiz.params} onDraft={(p) => onFastenerDraft({ kind: 'standoff', params: p })} onApply={(p) => onFastenerApply({ kind: 'standoff', params: p })} onCancel={onFastenerCancel} hint={previewHint} />
+    : <InsertWizard key="insert" params={fastenerWiz.params} bodies={bodyNames(doc.features as never)} onDraft={(p) => onFastenerDraft({ kind: 'insert', params: p })} onApply={(p) => onFastenerApply({ kind: 'insert', params: p })} onCancel={onFastenerCancel} hint={previewHint} />
+  ) : null;
+  const fastenEditor = fastenWiz && doc ? (
+    <FastenHoleWizard key={'fasten:' + fastenWiz.pick} pick={fastenWiz.pick} all={fastenWiz.all} selected={fastenWiz.selected} pattern={fastenWiz.pattern}
+      read={(face, flip) => { const r = readFastenHole(face, fastenWiz.ix, { flip }); return r.ok ? r.hole : null; }}
+      onDraft={onFastenDraft} onApply={onFastenApply} onCancel={onFastenCancel} hint={previewHint} />
+  ) : null;
   const bearingEditor = bearingWiz && doc ? (
     <BearingWizard key="bearing" params={bearingWiz.params} onDraft={onBearingDraft} onApply={onBearingApply} onCancel={onBearingCancel} hint={previewHint} />
   ) : null;
@@ -3845,7 +4003,7 @@ function App() {
     <Sketch3dPanel key={'sk3d-' + (sk3dWiz.editId ?? 'new')} host={sketch3dHost} initial={sk3dWiz.draft} featureId={sk3dWiz.editId ?? freeId(doc as never)} base={sk3dWiz.editId ? (doc.features as unknown as Array<Record<string, unknown>>).find((x) => x.id === sk3dWiz.editId) : undefined}
       edit={!!sk3dWiz.editId} startPlane={selectedPlaneFeature()?.id ?? null} onApply={onSk3dApply} onCancel={onSk3dCancel} hint={previewHint} />
   ) : null;
-  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : springEditor ? springEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -3913,8 +4071,9 @@ function App() {
     <MaterialEditor key="material" current={doc.material} useColour={useMatColour} onApply={applyMaterial} onCancel={closeMaterial}
       loadVolume={async () => { const m = controller.hasSolid() ? await controller.massProps() : null; return typeof m?.volume === 'number' ? m.volume : null; }} />
   ) : null;
-  const editor = materialEditor ?? featureEditor;
-  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
+  const editorRaw = materialEditor ?? featureEditor;
+  const editor = editorRaw ? <PanelBoundary name="editor" resetKey={editingId}>{editorRaw}</PanelBoundary> : editorRaw;
+  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingNow ? editor : tree;
   const catalog = useCatalog({
@@ -3939,7 +4098,7 @@ function App() {
     download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
     sources: () => liveSources(doc),
   };
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onSpring={openSpring} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onNut={() => openFastener('nut')} onStandoff={() => openFastener('standoff')} onInsert={() => openFastener('insert')} onCase={openCase} onSpring={openSpring} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
   // what the script host needs from the app: build into the open document, or scratch builds when the kernel can
   const scriptHostFor = (loadDoc: (d: Record<string, unknown>) => Promise<unknown>) => ({
     load: loadDoc as never,
@@ -4098,10 +4257,12 @@ function App() {
   // the properties panel only exists while there is a feature to show: no empty column, nothing to close
   const rightMode = feature ? ws.rightPanel : 'off';
   const inspector = (
+    <PanelBoundary name="inspector" resetKey={selectedId}>
       <Inspector feature={feature} warnings={selectedId ? (store.featureWarnings.value[selectedId]?.all ?? (store.featureWarnings.value[selectedId] ? [store.featureWarnings.value[selectedId]] : [])) : []} onSet={(path, value) => {
         clearTimeout(pending);
         pending = setTimeout(() => edit([{ op: 'set', id: selectedId!, path, value }]), 150);
       }} />
+    </PanelBoundary>
   );
   const right = rightMode === 'off' ? null : <div class={'insp-wrap ' + rightMode}>{inspector}</div>;
   // phone: the editor while a feature (or material, or wizard) is being edited, else the properties of the selected feature
@@ -4123,7 +4284,7 @@ function App() {
   // the Start here card: only on an open document with nothing in the viewport (startContent.ts lists every source); the X dismisses it for this tab
   const startSources = {
     doc, meshes: doc ? meshesOf(doc).length : 0, hasSolid: controller.hasSolid(), hasImportedBody: controller.hasImportedBody(), sketching: !!sketching,
-    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
+    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
     drawingOpen,
   };
   const startDismissedNow = isStartDismissed(tabSet.activeId);
@@ -4544,5 +4705,5 @@ function App() {
   );
 }
 
-render(<App />, document.getElementById('root')!);
+render(<PanelBoundary name="app"><App /></PanelBoundary>, document.getElementById('root')!);
 registerServiceWorker(layout.value !== 'desktop');   // a phone or tablet leaves the kernel wasm out of the install

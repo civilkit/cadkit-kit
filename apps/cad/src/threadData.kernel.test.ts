@@ -72,7 +72,7 @@ describe('threads with the real kernel', { skip: !process.env.CK_WASM }, () => {
   it('the thread tables are fetched once and cached', async () => {
     const w = await world(sample());
     const std = await w.controller.threadStandards();
-    expect(std.map((s) => s.id)).toEqual(['metric', 'metric-fine', 'UNC', 'UNF', 'BSP', 'NPT', 'Tr', 'Acme']);
+    expect(std.map((s) => s.id)).toEqual(['metric', 'metric-fine', 'UNC', 'UNF', 'BSP', 'BSPT', 'NPT', 'Tr', 'Acme']);
     expect(await w.controller.threadStandards()).toBe(std);
     const rows = await w.controller.threadSizes('metric');
     expect(rows.find((r) => r.size === 'M8')).toMatchObject({ major: 8, pitch: 1.25, tapDrill: 6.8 });

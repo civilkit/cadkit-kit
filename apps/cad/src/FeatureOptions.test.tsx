@@ -220,9 +220,56 @@ describe('shell options', () => {
 });
 
 describe('other features', () => {
-  it('a hole or rib keeps the plain editor', () => {
-    const m = mount({ type: 'rib', id: 'F4', sketch: 'F1', thickness: 2 });
+  it('a hole keeps the plain editor', () => {
+    const m = mount({ type: 'hole', id: 'F4', sketch: 'F1', diameter: 2 });
     expect(m.container.querySelector('[data-section]')).toBeNull();
+  });
+});
+
+describe('rib options', () => {
+  const RIB = { type: 'rib', id: 'F4', sketch: 'F3', thickness: 2 };
+  it('offers the side, a fillet radius and a draft angle next to the generic thickness and flip', () => {
+    const m = mount(RIB);
+    expect(m.texts(m.sel('side'))).toEqual(['Both sides (centred)', 'Along the sketch normal', 'Against the sketch normal']);
+    expect(m.sel('side').value).toBe('both');
+    expect(m.num('fillet').value).toBe('0');
+    expect(m.num('draft').value).toBe('0');
+    expect(m.q('thickness')).not.toBeNull();   // the generic fields stay
+    expect(m.container.querySelectorAll('[data-path="side"]').length).toBe(1);   // not drawn twice
+  });
+  it('a side is written, both removes the field', () => {
+    const m = mount(RIB);
+    fireEvent.change(m.sel('side'), { target: { value: 'right' } });
+    expect(m.drafts.at(-1)).toEqual({ side: 'right' });
+    fireEvent.change(m.sel('side'), { target: { value: 'both' } });
+    expect(m.drafts.at(-1)).toEqual({ side: null });
+  });
+  it('a fillet radius and a draft angle are written; zero removes them', () => {
+    const m = mount({ ...RIB, fillet: 0.5, draft: 2 });
+    expect(m.num('fillet').value).toBe('0.5');
+    expect(m.num('draft').value).toBe('2');
+    fireEvent.change(m.num('fillet'), { target: { value: '0.8' } });
+    expect(m.drafts.at(-1)).toEqual({ fillet: 0.8 });
+    fireEvent.change(m.num('draft'), { target: { value: '4' } });
+    expect(m.drafts.at(-1)).toMatchObject({ draft: 4 });
+    fireEvent.change(m.num('draft'), { target: { value: '0' } });
+    expect(m.drafts.at(-1)).toMatchObject({ draft: null });
+  });
+  it('the bodies it extends to: all by default, the ticked ones once a body is named', () => {
+    const doc = { format: 'ck-part', version: 1, features: [
+      { type: 'extrude', id: 'F2', op: 'newBody', body: 'Base', sketch: 'F1' },
+      { type: 'extrude', id: 'F5', op: 'newBody', body: 'Lid', sketch: 'F1' },
+      RIB,
+    ] } as never;
+    const m = mount(RIB, { options: (a) => optionsFor(a, doc) });
+    expect(m.q('target')!.textContent).toContain('Extend to');
+    expect(m.box('target.all').checked).toBe(true);
+    fireEvent.click(m.box('target.Base'));
+    expect(m.drafts.at(-1)).toEqual({ target: [{ body: 'Base' }] });
+  });
+  it('without a named body there is no body choice', () => {
+    const m = mount(RIB);
+    expect(m.q('target')).toBeNull();
   });
 });
 
@@ -366,16 +413,18 @@ describe('tangent chain toggle (fillet and chamfer)', () => {
 
 describe('the editors of the body features', () => {
   const COMBINE = { type: 'combine', id: 'F6', op: 'cut', target: { body: 'Block' }, tools: [{ body: 'Peg' }, { face: 'F4.C0' }], keepTools: true };
-  it('combine: Join, Cut and Intersect (Cut chosen), the bodies in words, and keep tools', () => {
+  it('combine: Join, Cut, Intersect and Split (Cut chosen), the bodies in words, and keep tools', () => {
     const m = mount(COMBINE);
     const seg = [...m.q('op')!.querySelectorAll('button')];
-    expect(seg.map((b) => b.textContent)).toEqual(['Join', 'Cut', 'Intersect']);
+    expect(seg.map((b) => b.textContent)).toEqual(['Join', 'Cut', 'Intersect', 'Split']);
     expect(seg.find((b) => b.getAttribute('aria-checked') === 'true')!.textContent).toBe('Cut');
     expect((m.q('target')!.querySelector('input') as HTMLInputElement).value).toBe('Block');
     expect((m.q('tools')!.querySelector('input') as HTMLInputElement).value).toBe('Peg, the body with face F4.C0');
     expect(m.box('keepTools').checked).toBe(true);
     fireEvent.click(seg[0]);
     expect(m.drafts.at(-1)).toMatchObject({ op: 'union' });
+    fireEvent.click(seg[3]);
+    expect(m.drafts.at(-1)).toMatchObject({ op: 'split' });
     fireEvent.click(m.box('keepTools'));
     expect(m.drafts.at(-1)).toMatchObject({ keepTools: null });
   });
@@ -461,5 +510,72 @@ describe('revolve axis in words', () => {
     expect(m.container.textContent).not.toContain('e14');
     fireEvent.change(m.sel('axis'), { target: { value: 'e15' } });
     expect(m.drafts.at(-1)).toEqual({ axis: 'e15' });
+  });
+});
+
+describe('split and lip joint options', () => {
+  const SPLIT = { type: 'split', id: 'F4', plane: { kind: 'std', id: 'front' }, offset: 5, names: ['Base', 'Lid'] };
+  it('split: plane, offset, flip, the two names and which half to keep', () => {
+    const m = mount(SPLIT);
+    expect(m.texts(m.sel('planeChoice'))).toEqual(['Front Plane', 'Top Plane', 'Right Plane']);
+    expect(m.num('offset').value).toBe('5');
+    expect((m.q('names.0')!.querySelector('input') as HTMLInputElement).value).toBe('Base');
+    fireEvent.change(m.sel('planeChoice'), { target: { value: 'std:top' } });
+    expect(m.drafts.at(-1)).toMatchObject({ plane: { kind: 'std', id: 'top' } });
+    fireEvent.change(m.sel('keep'), { target: { value: 'above' } });
+    expect(m.drafts.at(-1)).toMatchObject({ keep: 'above' });
+    fireEvent.change(m.q('names.1')!.querySelector('input')!, { target: { value: 'Cover' } });
+    expect(m.drafts.at(-1)).toMatchObject({ names: ['Base', 'Cover'] });
+    fireEvent.click(m.box('flip'));
+    expect(m.drafts.at(-1)).toMatchObject({ flip: true });
+    expect(m.q('target')).toBeNull();    // one body: nothing to choose
+  });
+  it('lip joint: height, width as a fraction or in mm, centred or inset, clearance, tongue side', () => {
+    const m = mount({ type: 'lipJoint', id: 'F4', plane: { kind: 'std', id: 'front' }, height: 1.5, widthRatio: 0.5, clearance: 0.2, names: ['Base', 'Lid'] });
+    expect(m.num('height').value).toBe('1.5');
+    expect(m.num('widthRatio').value).toBe('0.5');
+    expect(m.q('width')).toBeNull();
+    expect(m.q('inset')).toBeNull();     // centred by default
+    expect(m.num('clearance').value).toBe('0.2');
+    fireEvent.change(m.sel('widthMode'), { target: { value: 'mm' } });
+    expect(m.drafts.at(-1)).toMatchObject({ width: 1, widthRatio: null });
+    expect(m.q('width')).not.toBeNull();
+    fireEvent.click(m.box('centred'));
+    expect(m.drafts.at(-1)).toMatchObject({ inset: 0.5 });
+    expect(m.q('inset')).not.toBeNull();
+    fireEvent.change(m.sel('tongue'), { target: { value: 'above' } });
+    expect(m.drafts.at(-1)).toMatchObject({ tongue: 'above' });
+    fireEvent.change(m.num('clearance'), { target: { value: '0.3' } });
+    expect(m.drafts.at(-1)).toMatchObject({ clearance: 0.3 });
+  });
+  it('lip joint: the two names are shown from the document and written back as a pair (names: [below, above])', () => {
+    const m = mount({ type: 'lipJoint', id: 'F4', plane: { kind: 'std', id: 'front' }, height: 1.5, widthRatio: 0.5, names: ['Base', 'Lid'] });
+    const inp = (i: number) => m.q(`names.${i}`)!.querySelector('input') as HTMLInputElement;
+    expect([inp(0).value, inp(1).value]).toEqual(['Base', 'Lid']);
+    fireEvent.change(inp(0), { target: { value: ' Bottom ' } });
+    expect(m.drafts.at(-1)).toMatchObject({ names: ['Bottom', 'Lid'] });
+    fireEvent.change(inp(1), { target: { value: 'Top' } });
+    expect(m.drafts.at(-1)).toMatchObject({ names: ['Bottom', 'Top'] });
+    // a feature without names shows empty fields; typing one name writes the pair with the other blank (the kernel rejects that, the form says so)
+    const bare = mount({ type: 'split', id: 'F5', plane: { kind: 'std', id: 'front' } });
+    fireEvent.change(bare.q('names.0')!.querySelector('input')!, { target: { value: 'Base' } });
+    expect(bare.drafts.at(-1)).toMatchObject({ names: ['Base', ''] });
+  });
+  it('a cut after a lip joint can be aimed at one half: the Cut from list names Base and Lid', () => {
+    const CUT = { type: 'extrude', id: 'F5', op: 'cut', sketch: 'F4s', end: 'blind', depth: 3 };
+    const doc = { format: 'ck-part', version: 1, features: [
+      { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1' },
+      { type: 'lipJoint', id: 'F4', plane: { kind: 'std', id: 'front' }, height: 1.5, names: ['Base', 'Lid'] },
+      CUT,
+    ] } as never;
+    const m = mount(CUT, { options: (a) => optionsFor(a, doc) });
+    expect(m.box('target.all').checked).toBe(true);
+    fireEvent.click(m.box('target.Lid'));
+    expect(m.drafts.at(-1)).toMatchObject({ target: [{ body: 'Lid' }] });
+    expect(m.q('target.Base')).not.toBeNull();
+  });
+  it('the plane stays pickable from a face in the generic Plane section', () => {
+    const m = mount(SPLIT);
+    expect(m.q('plane')).not.toBeNull();
   });
 });

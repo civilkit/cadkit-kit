@@ -112,8 +112,54 @@ You can also taper an extrusion directly with its Draft angle option. See [Extru
 
 Two more edits share the Draft button (**Features > Modify**).
 
-- **Rib** adds a thin wall from an open sketch line to the body. Draw a line or chain that reaches the body, then choose Rib. The Editor has Profile and Thickness (about 10% of the smallest dimension at first). A line that does not reach the body fails with "does not touch the body". See [rib](/docs/cad/kernel/format/features-solids.html#rib).
+- **Rib** adds a thin wall from an open sketch line to the body. Draw a line or chain that reaches the body, then choose Rib. The Editor has Profile and Thickness (about 10% of the smallest dimension at first), and a **Rib** section with the side of the sketch plane the thickness goes to, a **Fillet on the free edge**, a **Draft angle** and, once the part has named bodies, **Extend to** (the bodies the rib grows to). A line that does not reach the body fails with "does not touch the body". See [rib](/docs/cad/kernel/format/features-solids.html#rib).
 - **Lip / groove** adds a raised band along the rim of a flat face, or cuts a groove into it. Select the rim face (Face mode), then choose Lip / groove. It follows every edge of the picked faces. The Editor has Kind (Lip or Groove), Width and Height, both about 5% of the smallest dimension at first. See [lip](/docs/cad/kernel/format/features-edits.html#lip).
+- **Split body** (**Features > Modify**) cuts the body at a plane into two bodies, named Base and Lid. With a planar face selected the plane is that face; otherwise it is the standard plane that cuts the smallest side of the body, through the middle. The Editor has Plane (Front, Top, Right, a reference plane, or Pick to take a planar face), Offset along the plane normal, Reverse, the two body names, and Keep (both halves, or only one).
+- **Lip joint** (**Features > Modify**) does the same split and also gives the cut a tongue on one half and a groove on the other, for a shelled box and its lid. The Editor adds Tongue on (which half), Tongue height, Tongue width (a fraction of the wall, or millimetres), Centred in the wall (or a distance from the outer wall) and Clearance of the groove (0.2 mm at first), which makes the groove wider on each side and deeper by that much. The preview shows the two halves as you change the numbers. A tongue that does not fit the wall is refused with the reason (`inset + width + clearance` more than the wall), and a solid body, which has no wall, needs the width and the distance in millimetres.
+
+![An L-shaped bracket with a diagonal rib and the Rib editor open in the left panel: the profile sketch, Thickness, Thickness side, Fillet on the free edge and Draft angle, with the rib previewed in the view.](../img/rib-editor.png)
+
+The [two-part case](cases-and-moulds.md) page builds a box and its lid with these and checks the volumes.
+
+## A bracket with a rib
+
+This script builds a base plate with four holes, an upright block that carries a round boss with a bore, and a triangular rib that braces the block to the plate. It is the Script tab version of the Rib above, and it shows the things that most often go wrong.
+
+```js
+part('Clevis')
+  .sketch('top', (s) => s.rrect(140, 90, 8)).extrude(12)                          // plate
+  .holes.points(face('>Y'), [[-55, -30], [55, -30], [-55, 30], [55, 30]], { diameter: 10 })
+  .sketch('front', (s) => s.rect(30, 79, [15, 45.5])).extrude(60, { mid: true })   // block
+  .sketch('front', (s) => s.circle(25, [15, 85])).extrude(60, { mid: true })       // boss
+  .sketch('front', (s) => s.line([-50, 12], [-5, 70])).rib(15)                     // rib: ONE open line
+  .sketch('front', (s) => s.circle(15, [15, 85])).cut(through(), { direction: 'both' }); // bore
+```
+
+The part is one valid body of about 335,157 mm³. The numbers are written out so the example stands alone; to make them editable, declare them with `variables` as described in [Scripting](../automation/scripting.md).
+
+![A base plate with four corner holes, an upright block topped by a round boss with a bore, and a triangular rib joining the block to the plate.](../img/rib-clevis.png)
+
+![A section through the part from above: the cut face of the block and boss, with the thin rib joined to it on the left.](../img/rib-clevis-section.png)
+
+How the rib works:
+
+- **One open line.** The rib is drawn as a single line, from `[-50, 12]` to `[-5, 70]`. It is centred on the sketch plane and `15` is its total thickness. Both ends are extended until they meet the body, and the result is fused to it, so the line may stop short of the block or lie a little inside the plate.
+- **Not a closed triangle.** A closed triangle in `rib` fails with `ribNeedsOpenSketch`. The opposite mistake is extruding a single open line: that fails with `noClosedProfile`. For a thin wall made from an open line, use `thin` on the extrude.
+- **Feature order.** The rib may come before or after the bore: the web stops at the outer wall of the body and never fills a bore the line runs through, so both orders give the same part.
+- **Cut direction.** The bore is sketched on the mid-plane of the block, so a cut through everything needs `direction: 'both'`. Without it the cut goes one way only and may miss.
+
+The rib takes four optional settings, in the GUI and in the script call `.rib(thickness, { fillet, draft, side, target, flip })`:
+
+| Setting | Meaning |
+|---|---|
+| `side` | `'both'` (the default) centres the thickness on the sketch plane; `'right'` puts all of it on the side the sketch normal points to, `'left'` against it. |
+| `fillet` | Radius of a round on the two edges of the free edge. It must be less than half the thickness. |
+| `draft` | Taper of the two side faces in degrees (0 to 45): the rib is `thickness` thick at the free edge and widens toward the body. It needs a sketch that is one straight line. |
+| `target` | A body name or a list of names. The rib grows to those bodies only; the others are left alone. By default it grows to every body it reaches. |
+
+For example `.sketch('front', (s) => s.line([-50, 12], [-5, 70])).rib(15, { fillet: 3, draft: 2 })` rounds the free edge of the clevis rib and tapers its sides. A rib on a part with named bodies can grow to one of them with `target: 'Bracket'`.
+
+Two mistakes to avoid. Extruding one open line fails with `noClosedProfile`, and the error now says to use Rib for a web or Thin wall for a thin wall. And a through cut from a sketch on the middle of the part cuts one side only unless you give `direction: 'both'`; the script run warns about it.
 
 ## When a feature fails
 

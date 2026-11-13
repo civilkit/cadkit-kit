@@ -186,6 +186,7 @@ A file that came in **view only** is repaired the other way round: **Repair** fi
 ## When an import is slow or fails
 
 - **Wait for the overlay.** A large STEP or SolidWorks file can take seconds and a large SolidCraft file minutes. A busy overlay with a cancel button is shown, and nothing else is changed until it ends.
+- **A SolidCraft import says where the time went.** The notice after it reads like "Imported *name* in 3.2 s: read 0.4, kernel 2.5 (310 questions), mapping 0.3, rebuild 0.0": the time to read the file, the kernel's time and the number of questions put to it, the time to map the features, and the rebuild. A slow file shows which step to blame.
 - **A notice names the cause.** "Could not import &lt;file&gt;: ..." gives the reason or the error code. Read the notice before trying again; the Console tab of the drawer keeps recent notices.
 - **Nothing to import.** STEP with no solid, SketchUp with no visible faces and FreeCAD with no PartDesign body are refused. Check the source model has a solid and that nothing is hidden.
 - **Too large.** Over 50,000 faces for SolidWorks and SketchUp. Simplify the model in the source program or split it.

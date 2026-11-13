@@ -150,4 +150,17 @@ describe('import and export commands', () => {
     hit!.run();
     expect(a.openExportMenu).toHaveBeenCalled();
   });
+  it('Add fastener to hole is in the Features group, off without a hole selected (with the reason), runs the dialog when on', () => {
+    expect(buildCommands(actions({ hasDocument: () => true })).find((c) => c.id === 'fasten-hole')).toBeUndefined();
+    const open = vi.fn(); let can = false;
+    const cmd = buildCommands(actions({ hasDocument: () => true, fastenHole: { can: () => can, open } })).find((c) => c.id === 'fasten-hole')!;
+    expect(cmd).toMatchObject({ label: 'Add fastener to hole', tab: 'Features' });
+    expect(cmd.enabled?.()).toBe(false);
+    expect(cmd.why?.()).toMatch(/hole/i);
+    can = true;
+    expect(cmd.enabled?.()).toBe(true);
+    cmd.run();
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(buildCommands(actions({ hasDocument: () => false, fastenHole: { can: () => true, open } })).find((c) => c.id === 'fasten-hole')!.enabled?.()).toBe(false);
+  });
 });

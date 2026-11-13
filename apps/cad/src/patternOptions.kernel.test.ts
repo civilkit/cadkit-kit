@@ -57,6 +57,18 @@ describe('pattern options with the real kernel', { skip: !process.env.CK_WASM },
     expect(await w.volume()).toBeCloseTo(vol(15), 4);
   }, 180000);
 
+  it('what the editor writes for a direction vector and for an axis point builds', async () => {
+    const w = await world(base());
+    const commit = async (f: Record<string, unknown>, id = 'F7') => expect((await w.controller.commit([{ op: 'add', feature: { id, ...f } as never }])).ok).toBe(true);
+    // a direction vector at 45 degrees: 3 holes (10, 10), (24.1, 24.1), (38.3, 38.3)
+    await commit({ type: 'lpattern', seeds: ['F5'], dir: { kind: 'vector', dir: [1, 1, 0] }, count: 3, spacing: 20 });
+    expect(await w.volume()).toBeCloseTo(vol(3), 4);
+    // the hole turned 4 times about the Z axis through (50, 50): the corners (10, 10), (90, 10), (90, 90), (10, 90)
+    expect((await w.controller.commit([{ op: 'remove', id: 'F7' }])).ok).toBe(true);
+    await commit({ type: 'cpattern', seeds: ['F5'], axis: { kind: 'axis', point: [50, 50, 0], dir: [0, 0, 1] }, count: 4, angle: 360, equal: true });
+    expect(await w.volume()).toBeCloseTo(vol(4), 4);
+  }, 180000);
+
   it('copies off the plate show as a warning on the pattern', async () => {
     const w = await world(base());
     expect((await w.controller.commit([{ op: 'add', feature: { type: 'lpattern', id: 'F7', seeds: ['F5'], dir: { kind: 'axis', axis: 'x' }, count: 12, spacing: 9.5 } as never }])).ok).toBe(true);

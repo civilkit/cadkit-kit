@@ -19,7 +19,7 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 - **Long patterns** (about 100 instances) make a combine take seconds to tens of seconds.
 - **Lofts:** there is no closed (ring) loft. A three-section circle loft is a different surface from a smooth loft-through-sections, so volumes can differ noticeably. There is no sweep control over the profile's orientation along the path.
 - **Threads:** pipe-thread tapers, threads on conical faces and rounded thread roots are not modelled.
-- **No sheet metal.** There are no bend features or flat patterns.
+- **Sheet metal is partial.** Base, edge and contour flanges, hems, folds, cuts, corners and the flat pattern exist (see [Sheet metal](../modelling/sheet-metal.md)); flanges on curved edges, a jog, a mitre flange, louvres and forming tools do not, and its Known limits list the rest.
 - **Sketch text** is planar and single-line. It does not wrap onto curved faces and does not support complex scripts.
 
 ## Surfaces and analysis
@@ -69,13 +69,15 @@ The geometry kernel has its own, more technical list of limits in [the kernel gu
 - **Impeller:** one blade shape, no shroud surface, no root fillet, fixed hub contour.
 - **Airfoil propeller:** no root fillet; the blade shape is fixed when built, so change it in the wizard.
 - **Corner holes:** exact only for a flat rectangular face with equal corner radii. Other outlines use the bounding box.
+- **Nuts, standoffs and heat-set inserts:** the dimensions are entered from the standards' and catalogues' public tables and are marked unverified until checked. No nyloc rings, flanges or wings, no washer face on a nut.
+- **Springs:** only the geometry is made, not the spring rate or the stress. Closed and ground springs, cones, progressive, extension and torsion springs are wound along a curve and take a few seconds to preview.
 - None of the wizards calculates strength or performance.
 
 ## Automation
 
-- A script always builds a **new** part. It cannot change the part you have open.
+- A script run from the **Script** tab builds a **new** part. It does not change the part you have open. An agent linked in Settings can run a script on the open part (`app_run_script`), and its features are added after yours as one undo step; see [Agents and the MCP server](../automation/mcp.md).
 - Scripts are limited to 40,000 characters and 2,000 steps. They are not sandboxed against hostile code.
-- Script sketches have no constraints.
+- Sketches drawn by a script are plain geometry without constraints; `sketchFeature` takes a raw sketch with constraints.
 - The MCP server is a separate local program with its own document, started from a source checkout. See [Agents and the MCP server](../automation/mcp.md).
 - The [local kernel service](../automation/local-kernel.md) is experimental, works only on the same computer, and needs a build that matches the app.
 

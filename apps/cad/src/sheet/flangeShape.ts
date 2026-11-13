@@ -3,6 +3,7 @@
 // patch the editor's draft takes (a null removes a field). The kernel's meaning of the fields is in its docs/sheet-metal.md, stage 5.
 // Every field may sit on the feature or on one of its edge picks (the pick's own value wins); the SolidWorks importer writes them on the pick.
 import type { PartDoc } from '@ck/part-model';
+import { fmtNum } from '@kit/ui';
 
 type Wire = Record<string, unknown>;
 type P2 = [number, number];
@@ -117,7 +118,7 @@ export function parsePoint(text: string): P3 | null {
   const n = text.split(/[,;\s]+/).filter(Boolean).map(Number);
   return n.length === 3 && n.every(Number.isFinite) ? (n as P3) : null;
 }
-export const pointText = (p: number[] | null): string => (p ? p.map((v) => +(+v).toFixed(3)).join(', ') : '');
+export const pointText = (p: number[] | null): string => (p ? p.map((v) => fmtNum(v)).join(', ') : '');
 /** The point nearest to `p` on the polyline `pts` (the picked edge), so a click beside the edge lands on it. Null with fewer than two points. */
 export function nearestOnPolyline(pts: number[][], p: number[]): P3 | null {
   let best: P3 | null = null, bd = Infinity;

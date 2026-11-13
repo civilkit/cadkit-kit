@@ -7,7 +7,7 @@ import { gestureHint, menuItems, selectionKind } from './menuModel';
 const cmd = (id: string, label: string, over: Partial<Command> = {}): Command => ({ id, label, tab: 'Home', group: 'Features', run: () => {}, ...over });
 const registry = [
   cmd('add-fillet', 'Fillet', { keys: 'Shift+F', enabled: () => true }), cmd('add-chamfer', 'Chamfer', { keys: 'Shift+B', enabled: () => false }),
-  cmd('sketch-on-face', 'Sketch on selected face', { keys: 'S' }), cmd('add-hole', 'Hole', { keys: 'Shift+H' }), cmd('add-shell', 'Shell', { keys: 'Shift+S' }),
+  cmd('sketch-on-face', 'Sketch on selected face', { keys: 'S' }), cmd('add-hole', 'Hole', { keys: 'Shift+H' }), cmd('fasten-hole', 'Add fastener to hole', { enabled: () => false, why: () => 'Select the cylindrical wall of a hole' }), cmd('add-shell', 'Shell', { keys: 'Shift+S' }),
   cmd('add-lpattern', 'Linear pattern'), cmd('add-cpattern', 'Circular pattern'), cmd('select-body', 'Select body'), cmd('fit', 'Fit'),
   cmd('sketch-new-front', 'F'), cmd('sketch-new-top', 'T'), cmd('sketch-new-right', 'R'), cmd('add-extrude', 'Extrude'), cmd('add-cut', 'Cut'),
 ];
@@ -31,7 +31,14 @@ describe('menuItems', () => {
   });
   it('a face offers sketch, hole, shell, fillet, chamfer and the patterns, separated', () => {
     const m = menuItems('face', registry, false);
-    expect(m.map((x) => (x.separator ? '-' : x.id))).toEqual(['sketch-on-face', 'add-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern']);
+    expect(m.map((x) => (x.separator ? '-' : x.id))).toEqual(['sketch-on-face', 'add-hole', 'fasten-hole', 'add-shell', 'add-fillet', 'add-chamfer', '-', 'add-lpattern', 'add-cpattern']);
+  });
+  it('a face offers Add fastener to hole after Hole, disabled with its reason unless a hole wall is selected', () => {
+    const off = menuItems('face', registry, false).find((x) => x.id === 'fasten-hole')!;
+    expect(off).toMatchObject({ label: 'Add fastener to hole', enabled: false, reason: 'Select the cylindrical wall of a hole' });
+    const on = menuItems('face', registry.map((c) => (c.id === 'fasten-hole' ? { ...c, enabled: () => true } : c)), false).find((x) => x.id === 'fasten-hole')!;
+    expect(on.enabled).toBe(true);
+    expect(menuItems('edge', registry, false).some((x) => x.id === 'fasten-hole')).toBe(false);
   });
   it('a body lists Move body, disabled with the reason while the kernel cannot', () => {
     const off = menuItems('body', registry, false).find((x) => x.id === 'move-body')!;

@@ -30,9 +30,9 @@ Part methods (each adds one feature, in order):
 | `.holes.grid(face, {origin, pitch: [dx, dy], count: [nx, ny]}, {diameter, depth?})` | ONE hole feature at a grid of points |
 | `.holes.points(face, [[x, y], ...], {diameter, depth?})` | ONE hole feature at the listed points |
 | `.shell(face \| faces, t)` | shell, the face(s) are opened |
-| `.linearPattern([seed,] {count, spacing \| totalLength \| to, toOffset, direction, second})` | pattern of the last feature (or `seed`: handle, id, 'last', array) along x / y / z; `to` ends the last copy at a plane, flat face or point; `second` makes a 2D grid |
+| `.linearPattern([seed,] {count, spacing \| totalLength \| to, toOffset, direction, second})` | pattern of the last feature (or `seed`: handle, id, 'last', array) along x / y / z, a vector such as `[1, 1, 0]` or a straight edge; `to` ends the last copy at a plane, flat face or point; `second` makes a 2D grid |
 | `.pathPattern([seed,] {path, count, spacing \| totalLength, start \| startFraction, flip, orientation})` | pattern along an open path sketch, moved (`'fixed'`) or turned with it (`'tangent'`) |
-| `.circularPattern([seed,] {count, axis, angle \| total, equalSpacing})` | pattern about a world axis through the origin |
+| `.circularPattern([seed,] {count, axis, angle \| total, equalSpacing})` | pattern about any axis: `'x'` / `'y'` / `'z'`, `[ox,oy,oz,dx,dy,dz]`, `{point, dir}` (oblique allowed) or a straight edge |
 | `.workplane(base, offset, {rotate})` | a reference plane feature of its own (see Workplanes) |
 | `.handle()` | a handle on the feature recorded last (for `{of}` and patterns) |
 | `.appearance({ feature \| body \| face, colour, opacity, finish })` | colour (`'#rrggbb'`), opacity 0.05 to 1 and finish (`matte plastic chrome glass brushed`) of the bodies a feature made, or `face: 'F3.*'` / a handle for faces; view state, adds no feature (docs/bodies-appearance.md) |
@@ -47,9 +47,21 @@ Helpers in `packages/script/src/features/` (documented with JSDoc, so they are i
 | Call | Feature |
 | --- | --- |
 | `.loft(sections, {ends: {first?, last?: 'cap' \| 'point'}, guides?, centre?, startNormal?, endNormal?, op?})` | loft through the sections; only the first or last may be a point; guides / centre line are `{on, draw}` sketches. No closed (ring) loft: the kernel has none |
-| `.sweep(profile, path, {twist?, op?})` | sweep a closed profile along an open path sketch (profile plane perpendicular to the path start). No keep-normal option in the kernel |
+| `.sweep(profile, path, {twist?, op?, guides?, guideMode?})` | sweep a closed profile along an open path sketch (profile plane perpendicular to the path start). No keep-normal option in the kernel |
+| `.draft(faces, angle, {neutral, flip?})` | taper faces about a neutral plane (`'front' \| 'top' \| 'right'`, `at()`, `face()`) |
+| `.moveFace(faces, {distance} \| {translate})` | push or pull faces; neighbours follow |
+| `.lip(rim, edges, {width?, height?})`, `.groove(...)` | raised band on a planar rim / the groove cut into it |
+| `.scale(factor, {about?, at?, bodies?})` | uniform or per-axis scale of bodies |
+| `.moveBody(bodies, {translate?, rotate?, copy?, body?, mirror?})` | move, rotate, copy or mirror-copy whole bodies |
+| `.split(plane, {names?, target?, keep?, flip?})`, `.split(target, tools)`, `.deleteBody(bodies, {keep?})`, `.deleteFace(faces)` | split a body at a plane (a face, a standard plane or an offset plane) into two named bodies, or by tool bodies (combine op split); remove bodies; remove faces (becomes a sheet; no heal) |
+| `.lipJoint(plane, {height, width?, widthRatio?, inset?, clearance?, tongue?, names?, target?, flip?})` | split a shelled body at a plane; a centred tongue on one half and a groove wider and deeper by `clearance` on the other |
+| `.nut({size, type?, thread?, clearance?, origin?, axis?})`, `.standoff({size, length, kind?, ends?})`, `.heatSetInsert({size, hole?})` | the fastener wizards, each its own body (see the guide chapter on wizards) |
+| `.spring({outer, wire, length, coils, ends?, closedTurns?, topOuter?, progression?})`, `.extensionSpring({outer, wire, coils})`, `.torsionSpring({outer, wire, coils, leg1?, leg2?})` | the Spring wizard's three types, each its own body; all take `hand`, `origin`, `axis` |
+| `.sphere(radius, {centre?, op?, newBody?})` | a ball |
+| `.helix({radius, pitch?, revolutions?, height?, on?})` | a helix curve; `sweep(profile, { curve: handle })` follows it |
+| `.axis('x' \| 'y' \| 'z' \| edges(..) \| face(cylinder))`, `.axis(plane, plane)` | a reference axis feature |
 | `.mirror(plane, {body?})` | mirror the last feature (or the whole body with `body: true`) about `'front' \| 'top' \| 'right'`, `at()` or `face()`. The kernel always keeps the original |
-| `.rib(thickness, {flip?})` | rib from the last (open) sketch, grown into the surrounding material (`ribNoContact` in open air) |
+| `.rib(thickness, {flip?, fillet?, draft?, side?, target?})` | rib from the last (open) sketch, grown into the surrounding material (`ribNoContact` in open air); `fillet` rounds the free edge, `draft` tapers the sides (one straight line), `side` 'both' / 'left' / 'right', `target` a body name or list |
 | `.gear({module, teeth, thickness, bore?, pressureAngle?, type?, helixAngle?, plane?, center?})` | the app's involute gear generator: profile, body, bore |
 | `.hole(face, [x, y], {kind: 'cbore' \| 'csk' \| 'tapped', size?, diameter?, cboreDiameter?, cboreDepth?, cskDiameter?, cskAngle?, thread?, modeled?, end?: 'through' \| 'blind' \| 'upTo', depth?, flip?})` | counterbore, countersink (standard ISO sizes only; a standard clearance diameter such as 6.6 maps to M6) and tapped holes; the same options work in `holes.points / polar / grid` |
 | `.thread('hole' \| faceName \| 'last:c1', {size \| diameter + pitch, length?, standard?, hand?, modeled?})` | cosmetic or modeled thread on the last hole or a cylinder face |
@@ -227,7 +239,7 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
 * `linearPattern([seed,] {count, spacing | totalLength | to, toOffset, direction, reverse, second})`: `seed` is `'last'` (default), a handle, a feature id or an array of them (several features patterned together). Give one of `spacing` (between neighbours), `totalLength` (first to last: the kernel's `extent`, kept when the count changes) or `to` (the last copy reaches it, measured from the middle of what is patterned: `'front'|'top'|'right'`, `at(plane, offset)`, a flat `face(sel)` across the direction, or a point `[x, y, z]`; `toOffset` moves that end the way the copies go, negative stops short; `reverse` is not read with `to`). `direction` is `'x'|'y'|'z'`, a vector or a straight edge, and must be parallel to a world axis. `second: {direction, count, spacing | totalLength | to, toOffset, reverse}` makes a rectangular grid in the same feature (`dir2`, `count2`, ...).
 * `pathPattern([seed,] {path, count, spacing | totalLength, start | startFraction, flip, orientation})`: `path` is a sketch `{ on, draw }` with an open chain of lines and arcs. The path runs from its end nearest the seed (`flip`: from the other end); the seed sits `start` mm (or `startFraction` of the length) along it and copy k at `start + k * spacing`. `orientation: 'tangent'` turns the copies with the path; `'fixed'` (default) only moves them. A last copy past the path end is the kernel error `patternBeyondPath`, whose hint names the largest spacing that fits.
 * Pattern warnings: a run's `warnings` carry `patternCopiesNoEffect` (copies that miss the body or sit inside it), `patternCopiesApart` (boss copies that touch nothing) and `patternCopiesOverlap` (copies that overlap each other), each with the pattern's line.
-* `circularPattern([seed,] {count, axis, angle | total = 360, equalSpacing, reverse})`: `axis` is `'x'|'y'|'z'`, `[ox,oy,oz,dx,dy,dz]` or a straight edge, and must be a world axis through the origin. `equalSpacing` (default for 360) steps `angle / count`; false steps `angle / (count - 1)`.
+* `circularPattern([seed,] {count, axis, angle | total = 360, equalSpacing, reverse})`: `axis` is `'x'|'y'|'z'`, `[ox,oy,oz,dx,dy,dz]`, `{ point: [x,y,z], dir: [x,y,z] }` (a point on the axis and its direction, which may be oblique: a bolt circle round (40, 0) is `{ point: [40, 0, 0], dir: [0, 0, 1] }`) or a straight edge anywhere. `equalSpacing` (default for 360) steps `angle / count`; false steps `angle / (count - 1)`.
 * `fillet(edges, {radius: 3 | [r per selected edge] | {[edge key]: r, '*': default}, variable: [near, far]})`: unequal radii become one fillet feature per distinct radius (increasing), i.e. sequential blends. `chamfer(edges, {distance, distance2})` / `{distance, angle}` emit the kernel's distanceDistance / angleDistance chamfers.
 * Workplanes: `at(base, offset = 0, {rotate: {axis, angle}, flip})` with `base` = `'front'|'top'|'right'` (moved along +Z / +Y / +X), `face(...)` (the face's plane, offset along its OUTWARD normal), a plane handle (`part.workplane(...)` then `part.handle()`), or `{origin: [x,y,z], normal: [x,y,z], xdir?}`. `rotate.axis` is `'x'|'y'|'z'` or an `edges(...)` selector; the plane passes through the axis line (an `offset` is applied first). `part.workplane(base, offset, opts)` adds the plane as a feature of its own.
 
@@ -235,8 +247,8 @@ p.expectVolume(60 * 40 * 10 - Math.PI * 16 * 10, { tol: 1e-6 })         // no aw
 
 | Wish | Kernel | Script |
 | --- | --- | --- |
-| pattern along an oblique vector / edge | patterns follow world x, y, z only | `Line N` error naming the limit; rotate the part or use `holes.points` |
-| circular pattern about an offset or oblique axis | axis must be a world axis through the origin (an offset origin is silently ignored) | `Line N` error; use `holes.polar` for a bolt circle anywhere |
+| pattern along an oblique vector / edge | supported: `direction: [1, 1, 0]` or a straight edge | none |
+| circular pattern about an offset or oblique axis | supported: `axis: { point, dir }` or an edge | none |
 | chamfer with two distances or distance + angle | `unsupported` today (only equal distance) | emitted as the kernel's features; the run reports the kernel's `unsupported` error. Cut the bevel instead |
 | one fillet feature with different radii | one `radius` per fillet; `filletType: 'variable'` takes `radii: [near, far]` for ALL its edges | per-edge radii become sequential fillets; `variable` works on isolated edges (junctions give `blendFailed`) |
 | plane from a point and a normal | no such mode | axis-aligned normals use an offset standard plane; others add helper sketch points + a three-point plane (up to 7 features) |
@@ -272,7 +284,7 @@ The Tapered disc sample uses `s.polar` for its twelve-ridge wave sections.
 
 ## Reserved names
 
-These names are the script API helpers, given to every script: `at`, `bearing`, `edges`, `expr`, `face`, `faces`, `group`, `part`, `plane`, `screw`, `through`, `variables`, `washer`. Do not declare a variable, function or parameter-less constant with one of them (`const plane = ...` fails with "Identifier 'plane' has already been declared"). The run reports it as "'plane' is a script API helper ... rename your variable" on the line of the declaration; rename it (`plane1`, `myPlane`). The list is also available as `reservedNames()` from `@kit/script`.
+These names are the script API helpers, given to every script: `at`, `bearing`, `edges`, `expr`, `extensionSpring`, `face`, `faces`, `group`, `heatSetInsert`, `nut`, `part`, `plane`, `screw`, `spring`, `standoff`, `through`, `torsionSpring`, `variables`, `washer`. Do not declare a variable, function or parameter-less constant with one of them (`const plane = ...` fails with "Identifier 'plane' has already been declared"). The run reports it as "'plane' is a script API helper ... rename your variable" on the line of the declaration; rename it (`plane1`, `myPlane`). The list is also available as `reservedNames()` from `@kit/script`.
 
 In the app a run error is shown in a red banner above the code box, with the line number, until the next Run; the failing line is tinted in the box and clicking the message selects it. A clean run shows the number of features built and a pass / fail row per `expect...` check (the result's `checks`: `{ line, ok, message }`); a script that cannot start at all leaves the open part untouched.
 
@@ -280,7 +292,7 @@ In the app a run error is shown in a red banner above the code box, with the lin
 
 * The code runs in `new Function` with only the API names in scope; `window`, `document`, `fetch`, `Function`, timers etc. are shadowed with `undefined`, loops are fuel-limited (100000 turns), source is limited to 20000 characters and 500 steps. This stops accidents, it is NOT a security boundary against hostile scripts (e.g. `(()=>{}).constructor`); do not run untrusted scripts. A Worker would be the next step.
 * Line numbers come from the V8 stack (Chrome, Edge, Node); in other engines errors may show line 0.
-* Not supported yet: sketch constraints (sketches are unconstrained geometry), a separate assembly document (assemblies are `insertPart` + `mate` features inside the part), closed (ring) lofts, sweep keep-normal. Other kernel features (draft, helix, lip, dome, moveFace, ...) have no helper: use `.feature({ type: ... })`.
+* Not supported yet: sketch constraints (sketches are unconstrained geometry), a separate assembly document (assemblies are `insertPart` + `mate` features inside the part), closed (ring) lofts, sweep keep-normal. Kernel features without a helper (surface features such as fill, trimSurface, extend) go through `.feature({ type: ... })`; dome is not built.
 * Hole direction: the hole drills into the material from the selected face; use `flip: true` if a hole on an unusual face cuts the wrong way.
 
 ## Examples

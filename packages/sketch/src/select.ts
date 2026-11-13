@@ -16,6 +16,8 @@ import { lineLine, paramEnd, sample } from './tools/edit-geom';
 import type { FieldSpec, Pt, PreviewShape } from './tools/types';
 import { textDistance, textLoops, textOutlineOf } from './text';
 import { isEquation, isEquationPoint } from './equation';
+import { fitCurve } from './tools/splineMath';
+import { splineIds } from './tools/split';
 
 const pointMap = (d: SketchDraft) => new Map(d.points.map((p) => [p.id, p]));
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -58,6 +60,42 @@ export function pickEntity(draft: SketchDraft, at: Pt, tolerance: number): strin
     }
   }
   return best ? (best as { id: string }).id : null;
+}
+
+/** The fit spline (open or closed) nearest the pointer within `tolerance`, by its distance to the curve itself; null when none. */
+export function pickSpline(draft: SketchDraft, at: Pt, tolerance: number): string | null {
+  const pts = pointMap(draft);
+  let best: { id: string; d: number } | null = null;
+  for (const e of draft.entities) {
+    if (e.type !== 'spline') continue;
+    const ids = splineIds(draft, e);
+    const ps = ids.map((id) => pts.get(id)).filter((p): p is NonNullable<typeof p> => !!p);
+    if (ps.length < 2 || ps.length !== ids.length) continue;
+    const poly = fitCurve(ps, e.closed === true, 16);
+    for (let i = 0; i + 1 < poly.length; i++) {
+      const d = segDist(at, poly[i], poly[i + 1]);
+      if (d <= tolerance && (!best || d < best.d)) best = { id: e.id, d };
+    }
+  }
+  return best ? (best as { id: string }).id : null;
+}
+
+/** Sketch tools whose clicks pick a whole curve of the sketch, not a point: the curve under the pointer is added to the snap as `entityId`. */
+export const ENTITY_PICK_TOOLS: ReadonlySet<string | null> = new Set<string | null>(['offset', 'spline-add']);
+
+/**
+ * The snap a curve-picking tool receives. Offset takes the nearest line, circle or arc; Add spline point takes only a fit spline, at
+ * the pointer itself (the tool finds the place on the curve), so a snap to some other curve cannot send it elsewhere. Other tools: unchanged.
+ */
+export function withPickedEntity<S extends { kind: string; at: Pt; entityId?: string }>(toolId: string | null, draft: SketchDraft, at: Pt, tolerance: number, snap: S | undefined): S | { kind: 'grid'; at: Pt; entityId: string } | undefined {
+  if (!ENTITY_PICK_TOOLS.has(toolId)) return snap;
+  if (toolId === 'spline-add') {
+    const id = pickSpline(draft, at, tolerance);
+    return id ? { kind: 'grid', at, entityId: id } : undefined;
+  }
+  if (snap?.entityId) return snap;
+  const entityId = pickEntity(draft, at, tolerance);
+  return entityId ? (snap ? { ...snap, entityId } : { kind: 'grid', at, entityId }) : snap;
 }
 
 export function entityShape(draft: SketchDraft, id: string): PreviewShape[] {

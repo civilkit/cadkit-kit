@@ -1,6 +1,7 @@
 // The fields each sheet metal feature's form owns (the generic editor hides them), and the pure patches the forms make. No DOM.
 import type { PartDoc } from '@ck/part-model';
 import { rulesOf } from './model';
+import { fmtNum } from '@kit/ui';
 
 type Wire = Record<string, unknown>;
 
@@ -98,7 +99,7 @@ export function addEdgePick(eff: Wire, pick: unknown): Wire {
 export const cornersOf = (eff: Wire): unknown[] => (Array.isArray(eff.corners) ? (eff.corners as unknown[]) : []);
 /** The text of a corner pick: `x, y, z` or `P1 vertex 2`. */
 export function cornerText(c: unknown): string {
-  if (Array.isArray(c)) return c.map((v) => +(+v).toFixed(2)).join(', ');
+  if (Array.isArray(c)) return c.map((v) => fmtNum(v, 2)).join(', ');
   const o = c as { panel?: number; vertex?: number } | null;
   return o && typeof o.panel === 'number' && typeof o.vertex === 'number' ? `P${o.panel} vertex ${o.vertex}` : '';
 }

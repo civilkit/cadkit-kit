@@ -1,6 +1,7 @@
 // Pure helpers for the Design check panel: no DOM, no kernel. The kernel's rule catalogue drives the settings form,
 // its issue list drives the result view (grouping, colours, selection targets) and the status-bar chip.
 import type { Session } from '@ck/session';
+import { checkWithMould, withMouldRule, type MouldLabels } from '@kit/readback';
 import { t } from './i18n';
 
 export type ProfileList = Awaited<ReturnType<Session['profiles']>>;
@@ -87,4 +88,21 @@ export function blockMessage(issues: Issue[], titles: Record<string, string>): s
   };
   const shown = issues.slice(0, 3).map(one).join('; ');
   return t('check.blocked', { what: shown + (issues.length > 3 ? ` (+${issues.length - 3})` : '') });
+}
+
+// ---- the injection-moulding undercut rule (the kernel has no such rule: it is built from two undercut runs, see @kit/readback mould.ts) ----
+
+/** The words of the mould undercut rule in the app's language. */
+export const mouldLabels = (): MouldLabels => ({
+  title: t('check.mould.title'), description: t('check.mould.description'), pullDescription: t('check.mould.pull'),
+  message: (face, area, pull) => t('check.mould.message', { face, area, pull }),
+});
+
+/** The kernel's profile list with the mould undercut rule added to the injection profile. */
+export const withMould = (l: ProfileList): ProfileList => withMouldRule(l, mouldLabels());
+
+/** Run a profile (a built-in id or the inline rules of the Check tab) on a session: the kit's mould rule is expanded for the kernel and folded back into one rule. */
+export async function runProfile(s: Pick<Session, 'checkProfile'>, profile: string | Record<string, unknown>, opts?: { samples?: number; maxIssues?: number }): Promise<ProfileReport> {
+  if (typeof profile === 'string' || !Array.isArray((profile as { rules?: unknown }).rules)) return s.checkProfile(profile, opts);
+  return checkWithMould((p) => s.checkProfile(p, opts), profile as never, mouldLabels());
 }

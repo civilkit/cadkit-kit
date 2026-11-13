@@ -74,6 +74,41 @@ describe('linearPattern options on the kernel', () => {
   }, 120000);
 });
 
+describe('patterns about any direction or axis on the kernel', () => {
+  it('a 30 degree direction vector, not unit length: closed-form volume, one vector feature', async () => {
+    const r = await rig();
+    // copies of the hole at (-40, -20) step (17.3205, 10): the last is at (11.96, 10), inside the plate
+    const res = await runScript(`${PLATE}.linearPattern({ count: 4, spacing: 20, direction: [Math.sqrt(3), 1, 0] });`, r.host);
+    expect(res.errors).toEqual([]);
+    expect(pattern(res.document, 'lpattern')).toMatchObject({ dir: { kind: 'vector' }, count: 4 });
+    expect(await r.volume()).toBeCloseTo(6000 * 10 - 4 * HOLE, 2);
+    expect(res.warnings ?? []).toEqual([]);
+  }, 120000);
+
+  it('an axis through (20, 0) parallel to z: six holes of a bolt circle off the origin', async () => {
+    const r = await rig();
+    const res = await runScript(`part('B').sketch('front', (s) => s.rect(100, 100)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [35, 0])).cut(through())
+  .circularPattern({ count: 6, axis: { point: [20, 0, 0], dir: [0, 0, 1] } });`, r.host);
+    expect(res.errors).toEqual([]);
+    expect(pattern(res.document, 'cpattern')).toMatchObject({ axis: { kind: 'axis', point: [20, 0, 0], dir: [0, 0, 1] }, count: 6 });
+    // ring of radius 15 round (20, 0): all inside the plate and apart from each other
+    expect(await r.volume()).toBeCloseTo(10000 * 10 - 6 * HOLE, 2);
+    expect(res.warnings ?? []).toEqual([]);
+  }, 120000);
+
+  it('an edge as the axis: holes turn about the vertical edge of a boss', async () => {
+    const r = await rig();
+    const res = await runScript(`const p = part('B').sketch('front', (s) => s.rect(100, 100)).extrude(10).sketch(face('>Z'), (s) => s.circle(2, [40, 20])).cut(through());
+const hole = p.handle();
+p.sketch(face('>Z'), (s) => s.rect(20, 20)).extrude(10);
+p.circularPattern(hole, { count: 4, axis: edges({ parallel: 'Z', near: [10, 10, 15], within: 1 }) });`, r.host);
+    expect(res.errors).toEqual([]);
+    expect(pattern(res.document, 'cpattern')).toMatchObject({ axis: { kind: 'edge' }, count: 4 });
+    // (40, 20) turned about (10, 10) by 90 degree steps: (0, 40), (-20, 0), (20, -20): all outside the boss, inside the plate
+    expect(await r.volume()).toBeCloseTo(10000 * 10 + 400 * 10 - 4 * HOLE, 2);
+  }, 120000);
+});
+
 describe('pathPattern on the kernel', () => {
   it('holes along an L-shaped path, spread first to last', async () => {
     const r = await rig();

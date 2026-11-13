@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import './i18n';
-import { patchDir2, patchDistanceType, toPatch, toValue } from './patternRules';
+import { axisFor, axisStateOf, dirChoiceOf, patchAxisPart, patchDir2, patchDirChoice, patchDirVector, patchDistanceType, toPatch, toValue } from './patternRules';
 import { chainLength, pathPatternOps } from './featureCreators';
 import type { Ctx } from './featureCommands';
 
@@ -37,5 +37,29 @@ describe('pattern on path command', () => {
     const c = { doc, selection: [], mode: 'face', box: { min: [0, 0, 0], max: [100, 100, 10] }, edges: [] } as unknown as Ctx;
     expect(pathPatternOps(c)).toEqual([{ op: 'add', feature: { type: 'curvepattern', seeds: ['F4'], path: { kind: 'sketch', id: 'F5' }, count: 3, distanceType: 'extent', extent: +(40 + 20 * Math.PI).toFixed(6) } }]);
     expect(pathPatternOps({ ...c, doc: { features: doc.features.slice(0, 2) } } as unknown as Ctx)).toBeNull();
+  });
+});
+
+describe('direction and axis rules', () => {
+  it('direction choice reads a world axis, a vector or a picked reference', () => {
+    expect(dirChoiceOf({ dir: { kind: 'axis', axis: 'y' } })).toBe('y');
+    expect(dirChoiceOf({ dir: { kind: 'vector', dir: [1, 1, 0] } })).toBe('vector');
+    expect(dirChoiceOf({ dir: { kind: 'edge', faces: ['a', 'b'] } })).toBe('ref');
+    expect(dirChoiceOf({ dir: { kind: 'face', id: 'F1.C1' } })).toBe('ref');
+    expect(dirChoiceOf({})).toBe('');
+    expect(patchDirChoice({ dir: { kind: 'axis', axis: 'y' } }, '', 'vector')).toEqual({ dir: { kind: 'vector', dir: [0, 1, 0] } });
+    expect(patchDirVector({ dir: { kind: 'vector', dir: [1, 0, 0] } }, '', 1, 2)).toEqual({ dir: { kind: 'vector', dir: [1, 2, 0] } });
+    expect(patchDirVector({ dir: { kind: 'vector', dir: [1, 0, 0] } }, '', 1, '=a')).toEqual({});
+    expect(patchDirVector({ dir: { kind: 'vector', dir: [1, 0, 0] } }, '', 1, '')).toEqual({});
+  });
+  it('a world axis through the origin writes the old form; away from it, a point and a direction', () => {
+    expect(axisFor('z', [0, 0, 0], [0, 0, 1])).toEqual({ kind: 'axis', axis: 'z' });
+    expect(axisFor('z', [40, 0, 0], [0, 0, 1])).toEqual({ kind: 'axis', point: [40, 0, 0], dir: [0, 0, 1] });
+    expect(axisFor('custom', [0, 0, 0], [1, 1, 0])).toEqual({ kind: 'axis', point: [0, 0, 0], dir: [1, 1, 0] });
+    expect(axisStateOf({})).toMatchObject({ choice: 'z' });
+    expect(axisStateOf({ axis: { kind: 'axis', point: [5, 0, 0], dir: [0, 2, 0] } })).toMatchObject({ choice: 'y', point: [5, 0, 0] });
+    expect(axisStateOf({ axis: { kind: 'axis', point: [5, 0, 0], dir: [0, 0, -1] } }).choice).toBe('custom');
+    expect(axisStateOf({ axis: { kind: 'edge', faces: ['a', 'b'] } }).choice).toBe('ref');
+    expect(patchAxisPart({ axis: { kind: 'edge', faces: ['a', 'b'] } }, 'point', 0, 3)).toEqual({});
   });
 });

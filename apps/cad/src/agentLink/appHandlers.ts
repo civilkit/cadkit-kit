@@ -1,6 +1,7 @@
 // What the app does when a linked agent asks (docs/agent-bridge.md). Pure over a small `deps` object, so the rules (what is exposed,
 // what is refused, what a result looks like) are tested without the app. The wiring to the controller is in `link.ts`.
 import { BridgeError, type BridgeOp } from '@kit/agent-link';
+import { APP_READBACK_TOOLS, ReadbackError, type ReadbackHost } from '@kit/readback';
 
 export interface AppDoc { name?: string; features?: Array<Record<string, unknown>>; variables?: Array<{ name: string; expr: string }> }
 export interface RunReport { ok: boolean; errors: Array<{ line: number; message: string }>; created: string[]; featureCount: number }
@@ -17,6 +18,8 @@ export interface AppDeps {
   runScript(code: string): Promise<RunReport>;
   undo(): Promise<void>;
   redo(): Promise<void>;
+  /** The kernel queries and bodies the measurement tools (bodies, measure, clearance, interference, thickness, draft, dfm) read; null without a solid or a kernel. */
+  readback?(): Promise<ReadbackHost | null>;
   /** The user's permission, read again for every edit. */
   allowEdit(): boolean;
 }
@@ -65,6 +68,16 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
         if (!d.allowEdit()) throw NO_EDIT();
         await (op === 'undo' ? d.undo() : d.redo());
         return { done: op };
+      }
+      case 'bodies': case 'measure': case 'clearance': case 'interference': case 'thickness': case 'draft': case 'dfm': {
+        // reads only: no edit permission, the document is never touched
+        if (!d.document()) throw new BridgeError('no_document', 'no document is open in the app', 'ask the user to open or start a part first');
+        if (!d.hasSolid()) throw new BridgeError('no_body', 'the open document has no solid to measure', 'build something first, or ask the user to');
+        const host = d.readback ? await d.readback() : null;
+        if (!host) throw new BridgeError('no_kernel', 'the app has no kernel session to measure with', 'wait for the part to finish loading and try again');
+        const tool = APP_READBACK_TOOLS.find((t) => t.name === op)!;
+        try { const { data, summary } = await tool.run(args, host); return { ...(summary ? { summary } : {}), ...(data as Record<string, unknown>) }; }
+        catch (e) { if (e instanceof ReadbackError) throw new BridgeError(e.code, e.message, e.hint); throw e; }
       }
       default: throw new BridgeError('unknown_op', `the app does not know ${String(op)}`);
     }

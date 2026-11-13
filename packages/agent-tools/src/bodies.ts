@@ -17,6 +17,8 @@ export interface BodyInfo {
   volume: number | null;
   bbox: { min: number[]; max: number[]; size: number[] } | null;
   faceCount: number;
+  /** the face names, only when asked for (`listBodies(a, { faces: true })`) */
+  faces?: string[];
   /** the look in effect: colour, opacity, finish; null when the part's material is used */
   appearance: { color?: string; opacity?: number; finish?: string } | null;
   hidden: boolean;
@@ -47,7 +49,7 @@ function faceStats(mesh: Mesh): Map<string, { v: number; min: number[]; max: num
   return out;
 }
 
-export async function listBodies(a: AgentSession): Promise<BodyInfo[]> {
+export async function listBodies(a: AgentSession, opts: { faces?: boolean } = {}): Promise<BodyInfo[]> {
   const view = await a.session.bodyForView();
   if (!view || !view.mesh.positions.length) return [];
   const { lumps, bodyKey, bodyOrigin } = await import('@kit/snapshot');
@@ -90,6 +92,7 @@ export async function listBodies(a: AgentSession): Promise<BodyInfo[]> {
       volume: any && !sheet ? r4(Math.abs(v)) : null,
       bbox: any ? { min: min.map(r4), max: max.map(r4), size: max.map((x, k) => r4(x - min[k])) } : null,
       faceCount: r.faces.length,
+      ...(opts.faces ? { faces: [...r.faces].sort() } : {}),
       appearance: Object.keys(look).length ? (look as BodyInfo['appearance']) : null,
       hidden: hiddenKeys.has(r.key) || (!!r.origin && hiddenKeys.has(r.origin)),
       sheetMetal: lastFp && (f?.type === 'baseFlange' || f?.type === 'contourFlange') ? { rule: lastFp.rule, thickness: lastFp.thickness, kFactor: lastFp.kFactor, flatSize: lastFp.flatSize.map(r4), bendCount: lastFp.bends.length, unfolded: lastFp.unfolded } : null,

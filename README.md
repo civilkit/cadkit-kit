@@ -19,19 +19,23 @@ from scripts or by an AI agent.
 ## What it does
 
 - **Modelling:** sketch (lines, arcs, circles, splines, text, equation curves, 3D sketches) with constraints and
-  dimensions; extrude, revolve, sweep and loft; fillet, chamfer, shell and draft; holes and threads; linear,
-  circular and other patterns, mirror and scale; surfacing; sheet metal; frames and cut lists.
+  dimensions; extrude, revolve, sweep and loft; fillet, chamfer, shell and draft; ribs; split body and lip
+  joint for two-part cases and moulds; holes and threads; linear and circular patterns in any direction or about
+  any axis, path patterns, mirror and scale; surfacing; sheet metal; frames and cut lists.
 - **History:** an editable feature tree with rollback, undo and redo, equations and variables, configurations,
   and several documents in tabs.
 - **Assemblies:** parts placed with mates, bill of materials, drawings (PDF, SVG, DXF).
-- **Checking:** measure, inspect, geometry checks and design checks against rules you choose.
+- **Checking:** measure, inspect, geometry checks and design checks against rules you choose, including an
+  undercut check for two-part injection moulds.
 - **Library and wizards:** sample parts, catalog parts, and parametric wizards for gears, propellers, turbo
-  impellers, bearings, screws, washers, corner holes and knurls.
-- **Import:** STEP, SolidWorks parts (`.sldprt`), SketchUp (`.skp`), STL, FreeCAD (`.FCStd`), SolidCraft files,
-  and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
+  impellers, bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, corner holes and knurls, and
+  Add fastener to hole, which fits a bolt, washers and a nut to a hole you select.
+- **Import:** STEP, SolidWorks parts (`.sldprt`), SketchUp (`.skp`), STL, OBJ, GLB and 3MF (as reference
+  meshes), FreeCAD (`.FCStd`), SolidCraft files, and DXF and SVG as sketch geometry. What each import keeps and loses is listed in the guide.
 - **Export:** STEP, STL, OBJ, 3MF, glTF binary (`.glb`), DXF, and drawings as PDF, SVG or DXF.
 - **Scripting and agents:** a script language (the Script tab), a local MCP server so an AI assistant can build
-  and inspect parts, and an optional agent link that lets an MCP assistant read, take pictures of and (if you
+  and inspect parts (including read-only measure, clearance, interference, thickness, draft and manufacturing
+  checks), and an optional agent link that lets an MCP assistant read, take pictures of and (if you
   allow it) change the part you have open. A chat panel in the app runs Claude Code on your own
   login through the local service, so you can ask for a change in words (see the guide, "Chat").
 

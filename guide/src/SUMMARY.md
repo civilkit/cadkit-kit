@@ -28,6 +28,7 @@
 - [Extrude, revolve, sweep and loft](modelling/solids.md)
 - [Reference geometry](modelling/reference-geometry.md)
 - [Fillets, chamfers, shells and drafts](modelling/edges.md)
+- [Cases and moulds](modelling/cases-and-moulds.md)
 - [Holes and threads](modelling/holes.md)
 - [Patterns, mirror and scale](modelling/patterns.md)
 - [Moving things: the move / rotate ball and handles](modelling/transforms.md)

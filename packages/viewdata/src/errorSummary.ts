@@ -16,6 +16,8 @@ export interface DiagRoot extends RegenErr {
   seat?: 'fixed' | 'face';
   /** A cut of a knurl (the Knurl wizard or knurl()) that now finds nothing to cut, the band lying past the end of the part: 'fixed' when it was placed at absolute numbers (a faceted band, or a knurl made before bands followed their end face), 'face' when it is built from an end face. */
   knurl?: 'fixed' | 'face';
+  /** An extrude or revolve whose sketch is one open line or chain (no closed outline): it is a web or a thin wall, not a solid profile. */
+  openLine?: boolean;
   /** Ids of the consequences this root blocks, in document order. */
   blocks: string[];
 }
@@ -84,6 +86,34 @@ function knurlKind(f: DiagFeature | undefined, features: readonly DiagFeature[])
   return features.some((g) => ids.has(g.id) && g.type === 'plane' && (g.base as { kind?: string } | undefined)?.kind === 'face') ? 'face' : 'fixed';
 }
 
+/**
+ * Whether a sketch holds ONE open chain of lines, arcs or splines and nothing else (a web line): every end point is shared by
+ * two segments except exactly two, and the segments are connected. Construction geometry does not count; a closed loop,
+ * a circle, a second chain or a stray point is not an open line.
+ */
+export function isOpenChainSketch(sk: { entities?: unknown; points?: unknown } | undefined | null): boolean {
+  const ents = Array.isArray(sk?.entities) ? (sk!.entities as Array<Record<string, unknown>>).filter((e) => e && e.construction !== true) : [];
+  if (!ents.length) return false;
+  const ends = (e: Record<string, unknown>): [string, string] | null => {
+    if ((e.type === 'line' || e.type === 'arc') && typeof e.p1 === 'string' && typeof e.p2 === 'string') return [e.p1, e.p2];
+    const pts = e.pts;
+    if (e.type === 'spline' && Array.isArray(pts) && pts.length >= 2 && typeof pts[0] === 'string' && typeof pts[pts.length - 1] === 'string') return [pts[0] as string, pts[pts.length - 1] as string];
+    return null;
+  };
+  const degree = new Map<string, number>();
+  const parent = new Map<string, string>();
+  const find = (a: string): string => { let r = a; while (parent.get(r) !== r) r = parent.get(r)!; parent.set(a, r); return r; };
+  for (const e of ents) {
+    const pq = ends(e);
+    if (!pq || pq[0] === pq[1]) return false;
+    for (const v of pq) { degree.set(v, (degree.get(v) ?? 0) + 1); if (!parent.has(v)) parent.set(v, v); }
+    parent.set(find(pq[0]), find(pq[1]));
+  }
+  const odd = [...degree.values()].filter((d) => d === 1).length;
+  if (odd !== 2 || [...degree.values()].some((d) => d > 2)) return false;
+  return new Set([...degree.keys()].map(find)).size === 1;
+}
+
 export function diagnose(errors: readonly RegenErr[], features: readonly DiagFeature[]): Diagnosis {
   const index = new Map(features.map((f, i) => [f.id, i] as const));
   const byId = new Map(features.map((f) => [f.id, f] as const));
@@ -108,7 +138,8 @@ export function diagnose(errors: readonly RegenErr[], features: readonly DiagFea
     const f = byId.get(e.id);
     const seat = CUT_CODES.has(e.code) ? seatKind(f, byId) : undefined;
     const knurl = CUT_CODES.has(e.code) && !seat ? knurlKind(f, features) : undefined;
-    const base = { ...e, label: labelOf(e), type: f?.type, ...(seat ? { seat } : {}), ...(knurl ? { knurl } : {}) };
+    const openLine = e.code === 'noClosedProfile' && (f?.type === 'extrude' || f?.type === 'revolve') && isOpenChainSketch(byId.get(String(f.sketch)) as { entities?: unknown } | undefined);
+    const base = { ...e, label: labelOf(e), type: f?.type, ...(seat ? { seat } : {}), ...(knurl ? { knurl } : {}), ...(openLine ? { openLine } : {}) };
     let cause: string | undefined; let via: 'ref' | 'code' = 'ref';
     if (rootOf.size && f) {
       const deps = closure(e.id);

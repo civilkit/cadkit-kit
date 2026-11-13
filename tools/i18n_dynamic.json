@@ -203,6 +203,11 @@
   "opt.thin.side.mid",
   "opt.thin.side.outside"
  ],
+ "opt.rib.side.+": [
+  "opt.rib.side.both",
+  "opt.rib.side.left",
+  "opt.rib.side.right"
+ ],
  "opt.thin.ends.+": [
   "opt.thin.ends.flat",
   "opt.thin.ends.round"
@@ -286,6 +291,11 @@
   "opt.pattern.axis.y",
   "opt.pattern.axis.z"
  ],
+ "opt.pattern.dir.+": [
+  "opt.pattern.dir.edge",
+  "opt.pattern.dir.face",
+  "opt.pattern.dir.feature"
+ ],
  "opt.pattern.distanceType.+": [
   "opt.pattern.distanceType.extent",
   "opt.pattern.distanceType.spacing",
@@ -294,6 +304,16 @@
  "opt.pattern.orientation.+": [
   "opt.pattern.orientation.fixed",
   "opt.pattern.orientation.tangent"
+ ],
+ "opt.pattern.point.+": [
+  "opt.pattern.point.x",
+  "opt.pattern.point.y",
+  "opt.pattern.point.z"
+ ],
+ "opt.pattern.vec.+": [
+  "opt.pattern.vec.x",
+  "opt.pattern.vec.y",
+  "opt.pattern.vec.z"
  ],
  "opt.fill.continuity.+": [
   "opt.fill.continuity.G0",
@@ -1746,6 +1766,43 @@
   "knurl.reason.notCylinder",
   "knurl.reason.oblique"
  ],
+ "fasten.fit.+": [
+  "fasten.fit.clearance",
+  "fasten.fit.tap"
+ ],
+ "fasten.kind.+": [
+  "fasten.kind.plain",
+  "fasten.kind.cbore",
+  "fasten.kind.csink"
+ ],
+ "fasten.typeFrom.+": [
+  "fasten.typeFrom.plain",
+  "fasten.typeFrom.cbore",
+  "fasten.typeFrom.csink"
+ ],
+ "fasten.type.+": [
+  "fasten.type.hex",
+  "fasten.type.cap",
+  "fasten.type.button",
+  "fasten.type.countersunk"
+ ],
+ "fasten.issue.+": [
+  "fasten.issue.size",
+  "fasten.issue.head",
+  "fasten.issue.length",
+  "fasten.issue.tapNut",
+  "fasten.issue.blindNut",
+  "fasten.issue.csinkWasher",
+  "fasten.issue.washerRecess",
+  "fasten.issue.headRecess",
+  "fasten.issue.kernel"
+ ],
+ "fasten.refuse.+": [
+  "fasten.refuse.notHole",
+  "fasten.refuse.noOpening",
+  "fasten.refuse.noGeometry",
+  "fasten.refuse.none"
+ ],
  "screw.head.+": [
   "screw.head.button",
   "screw.head.cheese",
@@ -1799,6 +1856,16 @@
   "washer.issue.outer",
   "washer.issue.thickness"
  ],
+ "spring.kind.+": [
+  "spring.kind.compression",
+  "spring.kind.extension",
+  "spring.kind.torsion"
+ ],
+ "spring.ends.+": [
+  "spring.ends.closed",
+  "spring.ends.ground",
+  "spring.ends.plain"
+ ],
  "spring.hand.+": [
   "spring.hand.left",
   "spring.hand.right"
@@ -1811,11 +1878,33 @@
   "spring.axis.py",
   "spring.axis.pz"
  ],
+ "case.issue.+": [
+  "case.issue.clearance",
+  "case.issue.groove",
+  "case.issue.lid",
+  "case.issue.names",
+  "case.issue.radius",
+  "case.issue.radiusBig",
+  "case.issue.size",
+  "case.issue.tongue",
+  "case.issue.tongueFit",
+  "case.issue.wall",
+  "case.issue.wallThick"
+ ],
+ "case.tongueOn.+": [
+  "case.tongueOn.base",
+  "case.tongueOn.lid"
+ ],
  "spring.issue.+": [
+  "spring.issue.closed",
   "spring.issue.coils",
+  "spring.issue.hookOuter",
+  "spring.issue.leg",
   "spring.issue.length",
   "spring.issue.outer",
   "spring.issue.pitch",
+  "spring.issue.progression",
+  "spring.issue.topOuter",
   "spring.issue.wire"
  ],
  "bearing.seal.+": [
@@ -1899,5 +1988,52 @@
   "mesh.unit.in",
   "mesh.unit.m",
   "mesh.unit.mm"
+ ],
+ "fastener.thread.+": [
+  "fastener.thread.cosmetic",
+  "fastener.thread.modeled",
+  "fastener.thread.plain"
+ ],
+ "fastener.axis.+": [
+  "fastener.axis.nx",
+  "fastener.axis.ny",
+  "fastener.axis.nz",
+  "fastener.axis.px",
+  "fastener.axis.py",
+  "fastener.axis.pz"
+ ],
+ "nut.type.+": [
+  "nut.type.regular",
+  "nut.type.style2",
+  "nut.type.thin"
+ ],
+ "nut.issue.+": [
+  "nut.issue.clearance",
+  "nut.issue.size"
+ ],
+ "standoff.kind.+": [
+  "standoff.kind.hex",
+  "standoff.kind.round"
+ ],
+ "standoff.ends.+": [
+  "standoff.ends.female-female",
+  "standoff.ends.male-female"
+ ],
+ "standoff.issue.+": [
+  "standoff.issue.clearance",
+  "standoff.issue.length",
+  "standoff.issue.outer",
+  "standoff.issue.size",
+  "standoff.issue.threadLength",
+  "standoff.issue.threadLong",
+  "standoff.issue.threadMeet"
+ ],
+ "insert.issue.+": [
+  "insert.issue.clearance",
+  "insert.issue.holeDepth",
+  "insert.issue.holeDiameter",
+  "insert.issue.length",
+  "insert.issue.outer",
+  "insert.issue.size"
  ]
 }

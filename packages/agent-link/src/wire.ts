@@ -1,9 +1,12 @@
 // The wire format of the agent link (docs/agent-bridge.md): what the app and the local MCP daemon say to each other.
 // Pure TypeScript with no Node or DOM imports: the daemon, the browser app and the tests all use it.
 
-/** What an agent may ask the open app to do. `state` and `screenshot` only read; the others change the document. */
-export type BridgeOp = 'state' | 'screenshot' | 'run_script' | 'undo' | 'redo';
-export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', 'run_script', 'undo', 'redo'];
+/** What an agent may ask the open app to do. `run_script`, `undo` and `redo` change the document; every other op only reads (state, a picture, and the
+ *  measurement tools: bodies, measure, clearance, interference, thickness, draft, dfm). */
+export type BridgeOp = 'state' | 'screenshot' | 'bodies' | 'measure' | 'clearance' | 'interference' | 'thickness' | 'draft' | 'dfm' | 'run_script' | 'undo' | 'redo';
+/** The read-only measurement ops (answered by @kit/readback in the app). */
+export const MEASURE_OPS = ['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm'] as const;
+export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', ...MEASURE_OPS, 'run_script', 'undo', 'redo'];
 /** Ops that change the open document: refused unless the user has ticked "Allow the agent to change this document". */
 export const EDIT_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['run_script', 'undo', 'redo']);
 

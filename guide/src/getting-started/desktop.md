@@ -8,9 +8,11 @@ Download the `.dmg` from the Releases page of the project: the `aarch64` file fo
 
 The app is not signed with an Apple Developer ID yet, so macOS asks you to confirm it once:
 
-1. Right-click (or Control-click) the app and choose **Open**, then **Open** again.
-2. If macOS says the app is blocked, open **System Settings > Privacy & Security** and choose **Open Anyway**.
+1. Open the app. macOS says it cannot check it or that it is blocked.
+2. Open **System Settings > Privacy & Security**, scroll to the message about CivilKit CAD, choose **Open Anyway** and confirm.
 3. From a terminal you can instead remove the quarantine mark: `xattr -dr com.apple.quarantine "/Applications/CivilKit CAD.app"`.
+
+On older macOS versions, right-clicking (or Control-clicking) the app and choosing **Open** also works. Newer ones no longer offer that route for an unsigned app.
 
 ## What is different from the browser
 

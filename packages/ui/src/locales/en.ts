@@ -4,6 +4,8 @@ import type { Catalog } from '@kit/i18n';
 export const en: Catalog = {
   'ui.cancel': 'Cancel',
   'ui.close': 'Close',
+  'ui.panel.failed': 'This panel could not be drawn: {message}',
+  'ui.panel.retry': 'Retry',
   'ui.busy.rebuilding': 'Rebuilding model... {seconds} s',
   'ui.palette.label': 'Commands',
   'ui.palette.search': 'Search commands',

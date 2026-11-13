@@ -1,2 +1,3 @@
 - The sketch is an OPEN line or chain (a closed outline is ribNeedsOpenSketch) and it must have material enclosing the space between the chain and the body, such as the inside corner of an L or a pocket: a line across open air fails with ribNoContact.
 - The web is centred on the sketch plane, so put the sketch on the plane of the rib's mid-section (at('front', z)).
+- The web is centred on the sketch plane unless side: 'left' | 'right' puts all of it on one side. fillet (below half the thickness) rounds the free edge; draft (0 to 45 degrees) tapers the sides and needs one straight line; target names the body or bodies it grows to. The web stops at the outer wall of the body: a bore the line runs through is never filled, whatever the order of the features.
