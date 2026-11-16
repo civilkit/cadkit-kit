@@ -87,7 +87,7 @@ The **Display** menu has a **Reference dimensions** switch.
 
 ## How defined is the sketch
 
-The **Status** group of the **Editing** tab shows a chip with the state of the sketch.
+The **Status** group of the **Editing** tab shows a chip with the state of the sketch. The chip always shows its short text (such as `2 DOF`); hover it for the longer hint.
 
 | Chip | Meaning |
 | --- | --- |

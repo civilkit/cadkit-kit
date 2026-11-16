@@ -154,6 +154,36 @@ describe('reading and driving the open app', () => {
     expect(seen[1][1]).toEqual({ view: 'front', size: 256 });
   });
 
+  it('app_plugin_list and app_plugin_run reach the app; the run needs the edit permission and carries its parameters', async () => {
+    const d = await boot();
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    let edit = false;
+    const app = appClient({
+      edit: () => edit,
+      handle: async (op, args) => {
+        seen.push([op, args]);
+        if (op === 'plugin_list') return { plugins: [{ id: 'tomasdjo.woodwork', name: 'Woodwork', version: '0.1.3', builtin: false, generators: [{ plugin: 'tomasdjo.woodwork', generator: 'cabinet', title: 'Cabinet', parameters: { type: 'object' } }] }] };
+        if (op === 'plugin_run') return { ok: true, group: 'Cabinet', created: 30 };
+        return {};
+      },
+    });
+    await app.connect(await pairCode(d));
+    const list = await rpc(d, 'app_plugin_list');
+    expect(list.body).toMatchObject({ ok: true, plugins: [{ id: 'tomasdjo.woodwork', generators: [{ generator: 'cabinet' }] }] });
+    const refused = await rpc(d, 'app_plugin_run', { plugin: 'tomasdjo.woodwork', generator: 'cabinet', params: { doors: 2 } });
+    expect(refused.isError).toBe(true);
+    expect(refused.body.error.code).toBe('edit_not_allowed');
+    expect(seen.map((s) => s[0])).toEqual(['plugin_list']);   // the app never saw the refused run
+    edit = true;
+    app.permissionChanged();
+    await new Promise((r) => setTimeout(r, 100));
+    const run = await rpc(d, 'app_plugin_run', { plugin: 'tomasdjo.woodwork', generator: 'cabinet', params: { doors: 2, place_x: 800 } });
+    expect(run.body).toMatchObject({ ok: true, group: 'Cabinet', created: 30 });
+    expect(seen[1]).toEqual(['plugin_run', { plugin: 'tomasdjo.woodwork', generator: 'cabinet', params: { doors: 2, place_x: 800 } }]);
+    const bad = await rpc(d, 'app_plugin_run', { generator: 'cabinet' });
+    expect(bad.isError).toBe(true);
+  });
+
   it('refuses to change the document while the box is not ticked, and the handler never sees the request', async () => {
     const d = await boot();
     const seen: string[] = [];

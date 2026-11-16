@@ -1,4 +1,26 @@
 {
+  "0.8.0": [
+    {
+      "id": "editor-card",
+      "title": "A feature edits in a card over the model",
+      "blurb": "On a wide window, open a feature and its editor appears as a floating card with labelled fields, dropdowns and sections, while the left panel keeps the tree. The raw column of field names on the right is off by default; Settings brings it back. Phones and narrow tablets keep their single panel."
+    },
+    {
+      "id": "plugins",
+      "title": "Plugins: generators you can add",
+      "blurb": "Features > Plugins adds a form-driven generator (a case, a spring) in one undo step, edits it later with Edit parameters, and moves the whole thing with Move folder. Switch on \"Allow plugins from other people\" to install more from a zip or a GitHub address; compiled plugins run in a sandbox. Doors and drawers do not swing yet; checked in Chrome and Safari so far."
+    },
+    {
+      "id": "sketch-ribbon-pinned",
+      "title": "The Sketch tab keeps Select and Finish in view",
+      "blurb": "Select and Finish stay pinned at the left of the Sketch ribbon while the tools scroll, Import DXF and Import SVG are in a new Import group inside a sketch, and the scroll arrows no longer cover tools."
+    },
+    {
+      "id": "solidworks-history-2",
+      "title": "More SolidWorks parts open with their history",
+      "blurb": "Drafted boss faces, fillets round a closed curve and bosses closed by a chord now rebuild as features, so more parts open editable instead of as one imported body. A feature the kernel cannot read back still ends the history there."
+    }
+  ],
   "0.7.4": [
     {
       "id": "text-on-path",

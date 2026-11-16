@@ -41,6 +41,22 @@ export function copyBodyOps(b: BodyTarget, copyName: string): EditOp[] {
   return [{ op: 'add', feature: { type: 'moveBody', bodies: [refOf(b)], translate: [0, 0, 0], copy: true, body: copyName } }];
 }
 
+/** The bodies a folder made, as references: the named bodies (`newBody` / a copy) of the features in `ids`. Later cuts and holes of those bodies are not listed: they change a body, they do not make one. */
+export function folderBodyRefs(features: readonly Rec[], ids: readonly string[]): Array<{ body: string }> {
+  const want = new Set(ids);
+  const out: string[] = [];
+  for (const f of features) {
+    if (!want.has(String(f.id)) || typeof f.body !== 'string' || !f.body) continue;
+    if ((f.op === 'newBody' || (f.type === 'moveBody' && f.copy === true)) && !out.includes(f.body)) out.push(f.body);
+  }
+  return out.map((body) => ({ body }));
+}
+
+/** Move all these bodies together by `translate` (document axes, mm): one `moveBody` feature, so one undo step. */
+export function moveGroupOps(refs: ReadonlyArray<{ body: string }>, translate: readonly number[]): EditOp[] {
+  return [{ op: 'add', feature: { type: 'moveBody', bodies: [...refs], translate: [...translate] } }];
+}
+
 /** Delete the bodies. */
 export function removeBodyOps(bs: readonly BodyTarget[]): EditOp[] {
   return [{ op: 'add', feature: { type: 'deleteBody', mode: 'delete', bodies: bs.map(refOf) } }];

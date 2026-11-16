@@ -175,7 +175,7 @@ export function moveSummary(eff: Wire): string {
   return out.join('; ') || t('opt.move.none');
 }
 
-/** Move or copy bodies: which bodies, how far they went (read-only: drag the body to change it), and whether this makes a copy, and its name. */
+/** Move or copy bodies: which bodies, how far they went (X, Y and Z, typed here or dragged with the ball), a note of any turn, and whether this makes a copy, and its name. */
 function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }): JSX.Element {
   const { eff, change } = p;
   const bodies = Array.isArray(eff.bodies) ? eff.bodies : eff.bodies !== undefined ? [eff.bodies] : [];
@@ -183,7 +183,12 @@ function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }):
   return (
     <Section id="moveBody" title={t('opt.move.title')}>
       <RefText name="bodies" label={t('opt.move.bodies')} text={bodies.map(bodyRefText).join(', ')} />
-      <RefText name="translate" label={t('opt.move.how')} text={moveSummary(eff)} />
+      {[0, 1, 2].map((i) => {
+        const tr = Array.isArray(eff.translate) ? eff.translate : [];
+        // numbers and expressions ("=D/2") both stay as typed; the other two axes are kept as they are
+        return <Num key={i} name={`translate.${i}`} label={t('opt.move.axis', { axis: ['X', 'Y', 'Z'][i] })} value={tr[i] ?? 0} unit="mm" onChange={(v) => change({ translate: [0, 1, 2].map((k) => (k === i ? v : tr[k] ?? 0)) })} />;
+      })}
+      {eff.rotate && typeof eff.rotate === 'object' && Number((eff.rotate as { angle?: unknown }).angle) !== 0 ? <RefText name="rotate" label={t('opt.move.turned')} text={moveSummary({ rotate: eff.rotate })} /> : null}
       <Check name="copy" label={t('opt.move.copy')} value={copy} onChange={(v) => change(v ? { copy: true, body: typeof eff.body === 'string' && eff.body ? eff.body : nextBodyName(otherBodyNames(p.doc, eff)) } : { copy: null, body: null })} />
       {copy ? <BodyNameField eff={eff} change={change} /> : null}
     </Section>

@@ -6,7 +6,15 @@ import { APP_READBACK_TOOLS, ReadbackError, type ReadbackHost } from '@kit/readb
 export interface AppDoc { name?: string; features?: Array<Record<string, unknown>>; variables?: Array<{ name: string; expr: string }> }
 export interface RunReport { ok: boolean; errors: Array<{ line: number; message: string }>; created: string[]; featureCount: number }
 
+/** One installed generator as an agent sees it: its tool schema is the same one the form is made from. */
+export interface PluginGeneratorInfo { plugin: string; generator: string; title: string; description?: string; parameters: unknown }
+export interface PluginRunReport { ok: boolean; message?: string; issues?: Array<{ param: string; message: string }>; group?: string; created?: number; featureCount?: number }
+
 export interface AppDeps {
+  /** Every plugin generator the app has registered (built-in and installed, enabled ones only). */
+  plugins?(): Array<{ id: string; name: string; version: string; builtin: boolean; generators: PluginGeneratorInfo[] }>;
+  /** Run one generator on the open document: one folder, one undo step, exactly like the Plugins panel's Add. */
+  runPlugin?(plugin: string, generator: string, params: Record<string, unknown>): Promise<PluginRunReport>;
   document(): AppDoc | null;
   selection(): string[];
   facts(): { faces: number; triangles: number; rebuildMs: number | null };
@@ -82,6 +90,20 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
         const round = (n: number) => Math.round(n * 1000) / 1000;
         const loops = (r.loops ?? []).map((l) => ({ kind: l.kind, area: round(l.area), edges: l.edges?.length ?? 0, ...(args.detail ? { pts: l.pts } : {}) }));
         return { plane, frame: r.frame, area: round(r.area), bbox2d: r.bbox2d, openChains: r.openChains ?? 0, loops };
+      }
+      case 'plugin_list': {
+        if (!d.plugins) throw new BridgeError('unsupported', 'this app build has no plugins');
+        return { plugins: d.plugins() };
+      }
+      case 'plugin_run': {
+        if (!d.allowEdit()) throw NO_EDIT();
+        if (!d.runPlugin) throw new BridgeError('unsupported', 'this app build has no plugins');
+        if (typeof args.plugin !== 'string' || typeof args.generator !== 'string') throw new BridgeError('bad_input', 'plugin and generator must be strings (see app_plugin_list)');
+        if (args.params !== undefined && (typeof args.params !== 'object' || args.params === null || Array.isArray(args.params))) throw new BridgeError('bad_input', 'params must be an object');
+        if (!d.document()) throw new BridgeError('no_document', 'no document is open in the app', 'ask the user to open or start a part first');
+        const r = await d.runPlugin(args.plugin, args.generator, (args.params ?? {}) as Record<string, unknown>);
+        if (!r.ok) throw new BridgeError('plugin_failed', r.message ?? 'the plugin run failed', r.issues?.length ? r.issues.map((i) => `${i.param} ${i.message}`).join('; ') : 'see app_plugin_list for the parameters');
+        return r;
       }
       case 'run_script': {
         if (!d.allowEdit()) throw NO_EDIT();

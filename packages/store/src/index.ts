@@ -49,8 +49,8 @@ export const WORKSPACE_PRESETS: Record<WorkspacePreset, Workspace> = {
   classic: { ribbon: 'full', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'docked', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 1, blur: 0, lineWidth: 3, ...DEFAULT_SIZES },
   minimal: { ribbon: 'off', leftPanel: 'floating', leftTabs: false, leftCollapsed: false, rightPanel: 'off', toolRail: false, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: false, commandBar: false, drawerOpen: false, handles: true, opacity: 0.5, blur: 14, lineWidth: 3, ...DEFAULT_SIZES },
 };
-/** What a first visit starts with (and what stored settings are merged over): the full ribbon, a floating left panel with tabs, the inspector docked right, no tool rail, selection bar or bottom drawer. It is none of the three presets, so the settings dialog calls it "Custom". */
-export const DEFAULT_WORKSPACE: Workspace = { ...WORKSPACE_PRESETS.plasticity, ribbon: 'full', leftPanel: 'floating', rightPanel: 'docked', toolRail: false, selectionBar: false, drawerOpen: false };
+/** What a first visit starts with (and what stored settings are merged over): the full ribbon, a floating left panel with tabs, no raw inspector column (a feature is edited in the floating editor card), no tool rail, selection bar or bottom drawer. It is none of the three presets, so the settings dialog calls it "Custom". */
+export const DEFAULT_WORKSPACE: Workspace = { ...WORKSPACE_PRESETS.plasticity, ribbon: 'full', leftPanel: 'floating', rightPanel: 'off', toolRail: false, selectionBar: false, drawerOpen: false };
 /** Merge stored workspace settings over the default layout, dropping unknown keys and bad values. */
 export function sanitizeWorkspace(raw: unknown, base: Workspace = DEFAULT_WORKSPACE): Workspace {
   const out: Workspace = { ...base };

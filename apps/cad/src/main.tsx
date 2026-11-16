@@ -100,7 +100,7 @@ import { AnalysisLegend } from './AnalysisControls';
 import { createLookStore, effectiveAppearance, componentAppearances, componentKey, anyHidden, LOOK_KEY } from './look';
 import { VariablesPanel } from './VariablesPanel';
 import { BodiesPanel } from './BodiesPanel';
-import { combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
+import { folderBodyRefs, moveGroupOps, combineBodyOps, copyBodyOps, freeBodyName, removeBodyOps, renameBodyOps, usedBodyNames, type BodyTarget, type CombineOp } from './bodyOps';
 import { bodyShapes, faceMoments, faceVolumes, hideOthers, matchLumps, listBodies, readBodyFields, resolveFaceLooks, rowOfName, setHidden, solo, showAll, splitBodies, viewSpec, withLook, withLooks, withName, type BodyLookSpec, type BodyRow, visibleMesh } from './bodies';
 import { ScriptPanel } from './ScriptPanel';
 import { isTextEntry, scriptOwnsKey } from './keyGuard';
@@ -109,7 +109,7 @@ import { shouldWarnOnUnload } from './urlFlags';
 import { evaluate as evaluateScript, runScript } from '@kit/script';
 import { scopeOf } from './variables';
 import { MaterialEditor, type MaterialChoice } from './MaterialEditor';
-import { findMaterial, loadUseColour, appearanceOfMaterial } from './materials';
+import { findMaterial, loadUseColour, appearanceOfMaterial, boardColour } from './materials';
 import { HoleEditor } from './HoleEditor';
 import { CornerHolesPanel, plateFromOutline, type PlateInfo } from './CornerHolesPanel';
 import { KnurlWizard } from './KnurlWizard';
@@ -118,6 +118,13 @@ import { DEFAULT_SCREW, screwIssue, screwOps, type ScrewParams } from './screw';
 import { WasherWizard } from './WasherWizard';
 import { SpringWizard } from './SpringWizard';
 import { CaseWizard } from './CaseWizard';
+import { PluginPanel } from './PluginPanel';
+import { pluginOps, runOfFolder, type PluginSel } from './pluginRun';
+import { MoveGroupDialog } from './MoveGroupDialog';
+import { builtinRegistry, checkParams, defaultsOf, PluginManager, type Values } from '@kit/plugin';
+import { wasmGenerators, runSandboxed } from '@kit/plugin-wasm';
+import { idbPluginStore, thirdPartyEnabled } from './pluginStore';
+import { PLUGIN_API_VERSION } from './pluginRun';
 import { DEFAULT_CASE, caseIssue, caseOps, type CaseParams } from './case';
 import { TrayWizard } from './TrayWizard';
 import { DEFAULT_TRAY, trayIssue, trayOps, type TrayParams } from './tray';
@@ -180,7 +187,7 @@ import { legFrame, nearestOnPolyline, patchSpanPoints, profileOf, segBounds, spa
 import { freeFeatureNumber, outlineCandidates } from './sheet/flangeSketch';
 import { legGeometry } from './sheet/legGeometry';
 import { tabForSheetChange } from './sheet/model';
-import { RIBBON_LAYOUT, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
+import { RIBBON_LAYOUT, pluginCommandId, withGearIds, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields, KeyboardPrimer, appendSeed, armKeyboardPrime, primeSketchKeyboard } from './SketchFields';
 import { TextPanel } from './TextPanel';
 import { PatternPanel } from './PatternPanel';
@@ -233,7 +240,7 @@ import { createAssemblyState } from './assembly/state';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
 import { layoutHandles, layoutStyle, resetLayout } from './useLayout';
 import { resetPageZoom, watchPageZoom } from './pageZoom';
-import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, layout, layoutPref, narrowTablet, viewportInfo, watchViewport } from './layoutMode';
+import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, migrateEditorCard, layout, layoutPref, narrowTablet, viewportInfo, watchViewport } from './layoutMode';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
 import { insertIds, isExploded } from './assembly/model';
@@ -291,7 +298,9 @@ function siteLinks(): { label: string; href: string }[] {
   return [...at('docs-link', t('app.more.docs')), ...at('licences-link', t('app.more.licences')), ...versionLink(appVersion.value)];
 }
 void loadAppVersion();   // the published build's version.json: the status bar shows it as a link to What's new
-const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
+const EDITOR_CARD_KEY = 'cad.editorCard';   // set once the saved layout has been through migrateEditorCard
+const store = createStore((read('cad.display') as object | null) ?? {}, migrateEditorCard(read('cad.workspace'), read(EDITOR_CARD_KEY) === 1));
+try { localStorage.setItem(EDITOR_CARD_KEY, '1'); } catch { /* no storage */ }
 watchPageZoom({ onStuck: () => store.notify(t('zoom.stuck'), 'warn', { label: t('zoom.reset'), run: () => { resetPageZoom(); } }) });   // iOS zooms the page by itself now and then and has no way back: pinch is cancelled, a blur resets, and a zoom that stays offers a button
 
 // One kernel for the app (the built-in wasm worker, or a local native service chosen in Settings); cancel() restarts it.
@@ -515,7 +524,9 @@ tabSet.add(newTabRec());
 const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {} };
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
 startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
-const agentLink = createAgentLink({ controller, store: store as never, bodies: () => bodyRowsFor(true).map((r) => ({ name: r.name, key: r.key, faces: r.faces, volume: r.volume })) });
+/** Built-in plugins plus the ones the user installed (IndexedDB). Installed ones load at start (see the App's effect). */
+const pluginManager = new PluginManager({ registry: builtinRegistry(), store: idbPluginStore(), appVersion: PLUGIN_API_VERSION, wasm: (rec) => wasmGenerators(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o), look: boardColour }), denied: () => (thirdPartyEnabled() ? null : 'switch on "Allow plugins from other people" in the Plugins panel') });
+const agentLink = createAgentLink({ controller, store: store as never, plugins: pluginManager.registry, bodies: () => bodyRowsFor(true).map((r) => ({ name: r.name, key: r.key, faces: r.faces, volume: r.volume })) });
 const chatSession = createChatSession({
   provider: claudeCodeProvider({ endpoint: () => agentLink.endpoint() }),
   context: () => ({ selection: store.selection.value, script: String((controller.document() as unknown as { script?: string } | null)?.script ?? '') }),
@@ -592,6 +603,16 @@ function App() {
   const washerPickRef = useRef({ n: 0, openSel: '' });
   const [washerWiz, setWasherWiz] = useState<{ params: WasherParams } | null>(null);   // the Washer wizard: a flat or spring washer over the washer() helper
   const [springWiz, setSpringWiz] = useState<{ params: SpringParams } | null>(null);   // the Spring wizard: a compression spring over the spring() helper
+  // the Plugins panel: sel is null while the list shows, else the chosen generator and its values (the form is generated from the plugin's parameter list)
+  const [pluginWiz, setPluginWiz] = useState<{ sel: PluginSel | null } | null>(null);
+  const [pluginBusy, setPluginBusy] = useState(false);
+  const [moveDlg, setMoveDlg] = useState<{ name: string; refs: Array<{ body: string }> } | null>(null);   // Move folder: every body the folder made, together
+  const pluginSeq = useRef(0);
+  const pluginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // the plugin manager lives at module level (below), because the agent link needs its registry too
+  const pluginRegistry = pluginManager.registry;
+  const [, setPluginTick] = useState(0);   // the manager registered or removed generators
+  useEffect(() => { void pluginManager.load().then(() => setPluginTick((n) => n + 1)); }, [pluginManager]);   // installed plugins are there from the start, so their menu entries are too
   const [trayWiz, setTrayWiz] = useState<{ params: TrayParams } | null>(null);   // the Tray wizard: a tray or bin on a grid over the gridTray() helper
   const [caseWiz, setCaseWiz] = useState<{ params: CaseParams } | null>(null);   // the Case wizard: a closed box with a lipped lid over the caseBox() helper
   const [fastenWiz, setFastenWiz] = useState<{ pick: string; all: FastenHole[]; selected: FastenHole[]; pattern: FastenHole[]; ix: HoleIndex } | null>(null);   // Fasten this hole: a bolt (washers, nut) for the picked hole(s), see FastenHoleWizard.tsx
@@ -608,6 +629,7 @@ function App() {
   useEffect(() => { if (fastenerWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenerWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (fastenWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (caseWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setCaseWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (pluginWiz && (caseWiz || trayWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { pluginSeq.current++; void controller.cancelPreview(); setPluginWiz(null); } }, [caseWiz, trayWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (trayWiz && (caseWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setTrayWiz(null); } }, [caseWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
   const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
@@ -1192,7 +1214,7 @@ function App() {
   const revealLeft = () => { if (layout.value === 'phone') setSheet('tree'); else if (store.workspace.value.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked' }); };
   /** The Editor tab is the properties sheet on a phone. */
   scriptTabRef.current = leftTab === 'Script';
-  const setLeftTab = (v: typeof leftTab) => { if (v === 'Editor' && layout.value === 'phone') { setSheet('props'); return; } setLeftTabState(v); };
+  const setLeftTab = (v: typeof leftTab) => { if (v === 'Editor' && layout.value === 'phone') { setSheet('props'); return; } if (v === 'Editor' && !narrowTablet.value) return; /* a desktop screen edits in the floating card and keeps the tab the user is on */ setLeftTabState(v); };
   const check = useDesignCheck(controller, store, () => viewport, () => { setDrawerTab('check'); openDrawer(); });
   /** What H would hide: the selected faces' body, or the selected sketch / plane / curve feature. */
   const hideTarget = () => {
@@ -1438,6 +1460,40 @@ function App() {
     } finally { busyNote.value = null; store.busy.value = false; }
   };
 
+  /** Right-click a folder > Move folder: one moveBody over every body the folder made (one undo step), previewed while the numbers are typed. */
+  const moveFolder = (name: string, ids: string[]) => {
+    const d = controller.document();
+    const refs = d ? folderBodyRefs(d.features as never, ids) : [];
+    if (!refs.length) { store.notify(t('app.folder.refuse.noBodies')); return; }
+    setMoveDlg({ name, refs });
+  };
+  /** Right-click a folder a plugin made > Edit parameters: the form opens with the values of the run, and Update rebuilds the folder in place. */
+  const folderRun = (name: string) => runOfFolder(controller.document() as never, name) as { plugin: string; generator: string; params: Values } | undefined;
+  const editFolderRun = (name: string, ids: string[]) => {
+    const rec = folderRun(name);
+    const pid = rec?.plugin.replace(/@[^@]*$/, '') ?? '';
+    const found = rec ? pluginRegistry.find(pid, rec.generator) : undefined;
+    if (!rec || !found) { store.notify(t('plugin.editGone', { name })); return; }
+    openPlugins();
+    const sel: PluginSel = { pluginId: pid, generatorId: rec.generator, values: { ...defaultsOf(found.decl.params), ...rec.params }, edit: { group: name, ids } };
+    setPluginWiz({ sel }); setPreviewHint(null);
+    pluginPreview(sel, 0);
+  };
+  /** Right-click a folder > Move folder (drag): one moveBody over every body the folder made, selected in the tree with the positioning ball on it, so the whole folder drags in the view. */
+  const moveFolderDrag = async (name: string, ids: string[]) => {
+    const d = controller.document();
+    const refs = d ? folderBodyRefs(d.features as never, ids) : [];
+    if (!refs.length) { store.notify(t('app.folder.refuse.noBodies')); return; }
+    const r = await timed(() => controller.commit(moveGroupOps(refs, [0, 0, 0]), 'move folder'));
+    if (!r.ok) { store.notify(r.hints?.map((h) => h.hint).join('; ') || 'move failed'); return; }
+    const all = controller.document()?.features ?? [];
+    // a face still selected in the view would win: the ball would pull THAT face out like a push-pull. Clear the view's selection so it takes the Move.
+    store.select([]);
+    setSelectedId(String(all[all.length - 1].id));
+    redraw((n) => n + 1);
+    setTimeout(() => { const b = triRef.current; if (b && !b.on && b.canToggle()) b.toggle(); }, 200);   // after the selection has rendered
+  };
+  const moveDelta = (refs: Array<{ body: string }>, v: [number, number, number]) => moveGroupOps(refs, v);
   /** Right-click a folder > Extract: its features (with the variables they use) become a new document. */
   const extractFolder = async (name: string, ids: string[]) => {
     await controller.settled();
@@ -1767,7 +1823,7 @@ function App() {
   const selectGroupFacesRef = useRef<(ids: string[]) => void>(() => {});
   const selectBodiesRef = useRef<(id: string) => void>(() => {});
   const refMenuRef = useRef<(id: string) => { items: { id: string; label: string; enabled: boolean }[]; run(id: string): void } | null>(() => null);
-  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), selectBodies: (id) => selectBodiesRef.current(id), canFastenHole: (id) => holeFacesOfFeature(id).length > 0, fastenHole: (id) => openFasten(holeFacesOfFeature(id)), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids) });
+  const ti = useTreeInteraction({ controller, store, viewport: () => viewport, selectedId, setSelectedId, setRefSel, redraw: () => redraw((n) => n + 1), edit, startEditing: (id) => startEditing(id), rows: () => rows, isHidden: (id) => hid.ids.includes(id), toggleHide: (id) => toggleHideFeature(id), selectFaces: (id) => selectGroupFacesRef.current([id]), selectBodies: (id) => selectBodiesRef.current(id), canFastenHole: (id) => holeFacesOfFeature(id).length > 0, fastenHole: (id) => openFasten(holeFacesOfFeature(id)), refMenu: (id) => refMenuRef.current(id), exportFolder: (name, ids, format) => void exportFolder(name, ids, format), extractFolder: (name, ids) => void extractFolder(name, ids), moveFolder: (name, ids) => moveFolder(name, ids), moveFolderDrag: (name, ids) => void moveFolderDrag(name, ids), hasFolderRun: (name) => !!folderRun(name), editFolderRun: (name, ids) => editFolderRun(name, ids) });
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
@@ -1798,6 +1854,8 @@ function App() {
     fastenHole: { can: () => fastenable().length > 0, open: () => openFasten(fastenable()) },
     spring: () => openSpring(),
     caseBox: () => openCase(),
+    plugins: () => openPlugins(),
+    pluginGenerators: pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => ({ id: pluginCommandId(g.plugin.manifest.id, g.decl.id), label: g.decl.title, ...(g.decl.description ? { tip: g.decl.description } : {}), run: () => { openPlugins(); onPluginPick(g.plugin.manifest.id, g.decl.id); } })),
     tray: () => openTray(),
     nut: () => openFastener('nut'),
     standoff: () => openFastener('standoff'),
@@ -3198,6 +3256,7 @@ function App() {
     onOk: () => void confirmSketch(),
     ...(holeSketchRef.current ? {} : { onExtrude: () => void finishAnd('extrude'), onRevolve: () => void finishAnd('revolve') }),
     onCancel: () => void cancelSketch(),
+    onImportDxf: () => void importDxf(), onImportSvg: () => void importSvg(),
     construction: constructionMode, onConstruction: () => setConstructionMode(!constructionMode),
     ...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {}),
     tool: sketchToolId, onLookNormal: lookNormal, lookChip, hint: sketchHint,
@@ -3613,6 +3672,74 @@ function App() {
     if (!r.ok) { setPreviewHint(t("case.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
     store.notify(t("case.created"));
     setCaseWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  // The Plugins panel: pick a generator, the form comes from its parameter list; every valid change previews the result on the scratch build,
+  // Add commits it as one folder and one undo step. The ops come from packages/plugin through pluginRun.ts (the same script path as the Script tab).
+  const runPlugin = async (sel: PluginSel) => {
+    if (!doc) return null;
+    const found = pluginRegistry.find(sel.pluginId, sel.generatorId);
+    if (!found || !checkParams(found.decl.params, sel.values).ok) return null;
+    return pluginOps(pluginRegistry, doc as never, sel, scriptHostFor(async () => {}) as never, docUpAxis(doc) ?? loadNavPrefs().upAxis);
+  };
+  const pluginPreview = (sel: PluginSel, delay = 400) => {
+    if (pluginTimer.current) clearTimeout(pluginTimer.current);
+    const n = ++pluginSeq.current;
+    pluginTimer.current = setTimeout(async () => {
+      setPluginBusy(true);
+      const r = await runPlugin(sel);
+      if (n !== pluginSeq.current) return;
+      setPluginBusy(false);
+      if (!r) { await controller.cancelPreview(); setPreviewHint(null); return; }
+      if (!r.ok) { await controller.cancelPreview(); setPreviewHint(r.message === 'noScratch' ? t('plugin.noScratch') : r.message); return; }
+      const pr = await controller.preview(r.ops, 0);
+      if (n === pluginSeq.current) onPreviewResult(pr);
+    }, delay);
+  };
+  const openPlugins = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null); setFastenWiz(null); setTrayWiz(null); setCaseWiz(null);
+    setPluginWiz({ sel: null });
+    setLeftTab("Editor");
+  };
+  const onPluginPick = (pluginId: string, generatorId: string) => {
+    const found = pluginRegistry.find(pluginId, generatorId);
+    if (!found) return;
+    const sel = { pluginId, generatorId, values: defaultsOf(found.decl.params) };
+    setPluginWiz({ sel }); setPreviewHint(null);
+    pluginPreview(sel, 0);
+  };
+  const onPluginChange = (values: Values) => {
+    if (!pluginWiz?.sel) return;
+    const sel = { ...pluginWiz.sel, values };
+    setPluginWiz({ sel });
+    pluginPreview(sel);
+  };
+  const onPluginBack = async () => {
+    pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
+    await controller.cancelPreview(); setPreviewHint(null); setPluginBusy(false);
+    setPluginWiz({ sel: null });
+  };
+  const onPluginCancel = async () => {
+    pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
+    await controller.cancelPreview();
+    setPluginWiz(null); setPreviewHint(null); setPluginBusy(false); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const onPluginApply = async () => {
+    if (!pluginWiz?.sel) return;
+    pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
+    const r = await runPlugin(pluginWiz.sel);
+    if (!r || !r.ok) { setPreviewHint(r ? (r.message === 'noScratch' ? t('plugin.noScratch') : r.message) : null); return; }
+    await controller.cancelPreview();
+    const c = await timed(() => controller.commit(r.ops, "plugin"));
+    if (!c.ok) { setPreviewHint(t('plugin.failed', { reason: c.hints?.map((h) => h.hint).join("; ") || (c as { schemaError?: string }).schemaError || "edit failed" })); return; }
+    controller.setUndoableExtras(r.extras, { withLastEdit: true });   // colours, body names and the run's record: view state, undone and redone WITH the edit
+    viewport?.setBodyView(bodyViewNow());
+    store.notify(t('plugin.created', { name: r.group ?? r.title }));
+    setPluginWiz(null); setPreviewHint(null); setPluginBusy(false); setLeftTab("Features");
     redraw((n) => n + 1);
   };
   // The Tray wizard: every change previews the tray (the same features the Script tab's gridTray() makes); Add tray commits them as one folder, one undo step.
@@ -4048,6 +4175,9 @@ function App() {
   const caseEditor = caseWiz && doc ? (
     <CaseWizard key="case" params={caseWiz.params} hasOthers={doc.features.length > 0} onDraft={onCaseDraft} onApply={onCaseApply} onCancel={onCaseCancel} hint={previewHint} />
   ) : null;
+  const pluginEditor = pluginWiz && doc ? (
+    <PluginPanel key="plugins" registry={pluginRegistry} manager={pluginManager} onInstalled={() => setPluginTick((n) => n + 1)} sel={pluginWiz.sel} onPick={onPluginPick} onChange={onPluginChange} onApply={onPluginApply} onBack={onPluginBack} onCancel={onPluginCancel} hint={previewHint} busy={pluginBusy} />
+  ) : null;
   const trayEditor = trayWiz && doc ? (
     <TrayWizard key="tray" params={trayWiz.params} hasOthers={doc.features.length > 0} onDraft={onTrayDraft} onApply={onTrayApply} onCancel={onTrayCancel} hint={previewHint} />
   ) : null;
@@ -4099,7 +4229,7 @@ function App() {
     feature: frameEditor ? 'frame' : editingFeature?.type ? String(editingFeature.type) : null,
     sketching: !!sketching, tool: sketchToolId,
   });
-  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : trayEditor ? trayEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : pluginEditor ? pluginEditor : trayEditor ? trayEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -4170,9 +4300,11 @@ function App() {
   ) : null;
   const editorRaw = materialEditor ?? featureEditor;
   const editor = editorRaw ? <PanelBoundary name="editor" resetKey={editingId}>{editorRaw}</PanelBoundary> : editorRaw;
-  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
+  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || pluginWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
+  // On a desktop screen the editor of a feature (and the wizards) floats over the viewport as a card; the left panel keeps the tree. A phone and a narrow tablet keep one docked panel.
+  const editorCard = !phone && !narrowTablet.value;
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
-    : editingNow ? editor : tree;
+    : editingNow && !editorCard ? editor : tree;
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
@@ -4340,7 +4472,7 @@ function App() {
       {ws.leftTabs ? (
         <>
           <div class="ptabs">
-            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies', 'Chat'] as const).filter((id) => !(phone && id === 'Editor')).map((id) => {   // on a phone the editor is the properties sheet
+            {(['Outliner', 'Features', 'Editor', 'Catalog', 'Variables', 'Script', 'Bodies', 'Chat'] as const).filter((id) => !((phone || editorCard) && id === 'Editor')).map((id) => {   // on a phone the editor is the properties sheet
               const label = t('app.leftTab.' + id);
               const icon = { Outliner: 'feature-part', Features: 'add-extrude', Catalog: 'open-catalog', Editor: 'edit', Variables: 'open-variables', Script: 'open-script', Bodies: 'sel-body', Chat: 'chat' }[id];
               return <button key={id} class="pt" data-testid={'left-tab-' + id} aria-selected={leftTab === id} aria-label={label} title={label} onClick={() => setLeftTab(id)}><Icon name={icon} size={18} />{leftTab === id ? <span class="pt-label">{label}</span> : null}</button>;
@@ -4353,7 +4485,7 @@ function App() {
             : leftTab === 'Script' ? scriptPanel
             : leftTab === 'Bodies' ? bodiesPanel
             : leftTab === 'Chat' ? chatPanel
-            : narrowTablet.value && !editingNow && feature ? <div class="insp-wrap">{inspector}</div> : editor}   {/* one docked panel on a narrow tablet: the properties are the Editor tab */}
+            : editorCard ? outliner : narrowTablet.value && !editingNow && feature ? <div class="insp-wrap">{inspector}</div> : editor}   {/* one docked panel on a narrow tablet: the properties are the Editor tab */}
           </div>
         </>
       ) : leftBody}
@@ -4381,7 +4513,7 @@ function App() {
   // the Start here card: only on an open document with nothing in the viewport (startContent.ts lists every source); the X dismisses it for this tab
   const startSources = {
     doc, meshes: doc ? meshesOf(doc).length : 0, hasSolid: controller.hasSolid(), hasImportedBody: controller.hasImportedBody(), sketching: !!sketching,
-    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
+    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || pluginWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
     drawingOpen,
   };
   const startDismissedNow = isStartDismissed(tabSet.activeId);
@@ -4460,7 +4592,7 @@ function App() {
   useEffect(() => { const u = takeUpdated(); if (u) store.notify(u.version ? t('app.update.done', { version: u.version }) : t('app.update.done.generic')); }, []);
   // anything the user is in the middle of: an edit, a sketch, a wizard or panel, a dialog, or a touch since the app came to the foreground
   const busyRef = useRef(false);
-  busyRef.current = !!(editingId || sketching || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || guard || settings);
+  busyRef.current = !!(editingId || sketching || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || pluginWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || guard || settings);
   const touched = useRef(false);
   useEffect(() => {
     const mark = () => { touched.current = true; };
@@ -4504,9 +4636,10 @@ function App() {
   // the contextual ribbon: a sketch replaces the tabs by the Sketch tab; an open feature editor greys the model commands; an assembly opens on its tab
   const fileIds = new Set(commands.filter((c) => isFileCommand(c.id)).map((c) => c.id));
   const ribbonCommands = editingId ? commands.map((c) => (idleDuringEdit(c.id) ? { ...c, enabled: () => false } : c)) : commands;
+  const baseLayout = withGearIds(RIBBON_LAYOUT, pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => pluginCommandId(g.plugin.manifest.id, g.decl.id)));
   const ribbonLayout = sketching
-    ? { ...RIBBON_LAYOUT, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: phone || ws.toolLabels !== 'icons', ...(sketchControls ? { controls: sketchControls } : {}) }).filter((g) => !(phone && g.id === 'Finish')) }   // a phone names its tools, and its action bar carries OK and Cancel
-    : RIBBON_LAYOUT;
+    ? { ...baseLayout, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: phone || ws.toolLabels !== 'icons', ...(sketchControls ? { controls: sketchControls } : {}) }).filter((g) => !(phone && g.id === 'Finish')) }   // a phone names its tools, and its action bar carries OK and Cancel
+    : baseLayout;
   const kindRef = useRef<DocKind | null>(null);
   const kindNow = docKindOf(doc as never);
   useEffect(() => {
@@ -4637,6 +4770,7 @@ function App() {
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}
+        {editorCard && editingNow ? <div class="editor-card" data-testid="editor-card" style={{ left: ws.leftPanel === 'floating' ? ws.floatWidth + 28 : 12 }}>{editor}</div> : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
           onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
@@ -4813,6 +4947,7 @@ function App() {
       {palette ? <CommandPalette commands={sketchCommands.length ? [...commands, ...sketchCommands] : commands} pinned={['view-iso', 'fit', 'undo', 'redo', 'samples', 'settings']} onClose={() => setPalette(false)} /> : null}
       {samples ? <LibraryDialog samples={samples} thumbBase={base} registry={libraryRegistry()} onOpenPart={(data, lib) => { setSamples(null); libraryActions.openNew(data, lib); }} canInsert={!!doc} onInsertPart={(e) => { setSamples(null); catalog.onItemKey(partItem(e)); }} onWizard={(id) => { setSamples(null); if (id === 'screw') openScrew(); else openBearing(); }} onClose={() => setSamples(null)} recent={files.recent()} recentThumbs={files.recentThumbs()} onPickRecent={openRecent}
         onPick={(s) => { setSamples(null); guarded(async () => { const r = await fetch(s.url); await load(await r.text(), { file: null }); files.noteSample(s.id, s.title, s.url); }); }} /> : null}
+      {moveDlg ? <MoveGroupDialog name={moveDlg.name} count={moveDlg.refs.length} onChange={(v) => { if (v.every((x) => x === 0)) void controller.cancelPreview(); else void controller.preview(moveDelta(moveDlg.refs, v), 250).then(onPreviewResult); }} onCancel={() => { void controller.cancelPreview(); setMoveDlg(null); }} onMove={async (v) => { const d = moveDlg; await controller.cancelPreview(); const c = await timed(() => controller.commit(moveDelta(d.refs, v), 'move folder')); setMoveDlg(null); if (!c.ok) store.notify(c.hints?.map((h) => h.hint).join('; ') || 'move failed'); redraw((n) => n + 1); }} /> : null}
       {kindDlg ? <ImportKindDialog kind={kindDlg.kind} name={kindDlg.name} initial={readChoice(kindDlg.kind)} hidden={kindDlg.hidden} onCancel={() => setKindDlg(null)} onImport={(choice, hidden) => { const d = kindDlg; setKindDlg(null); if (d.kind === 'skp') { if (choice === 'saved') void importSkpMesh(d.bytes!, d.name, hidden); else importSkpBytes(d.bytes!, d.name, hidden); } else if (choice === 'saved') importStepFeature(d.text!, d.name); else importStepText(d.text!, d.name); }} /> : null}
       {meshDlg ? <MeshImportDialog name={meshDlg.name} kind={meshDlg.kind} probe={meshDlg.probe} unit={meshDlg.unit} onImport={commitMeshImport} onCancel={() => setMeshDlg(null)} /> : null}
       {meshPick ? (

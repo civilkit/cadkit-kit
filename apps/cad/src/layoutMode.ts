@@ -88,3 +88,10 @@ export function watchViewport(win: Window = window): () => void {
     doc.removeEventListener('focusin', focus);
   };
 }
+
+/** Once, when a feature began to be edited in a floating card: a saved layout that still has the raw inspector docked (what every layout saved before had by default) drops it. It stays a choice in Settings, so it can be turned back on. */
+export function migrateEditorCard(saved: unknown, done: boolean): unknown {
+  if (done || !saved || typeof saved !== 'object') return saved;
+  const w = saved as Record<string, unknown>;
+  return w.rightPanel === 'docked' ? { ...w, rightPanel: 'off' } : saved;
+}

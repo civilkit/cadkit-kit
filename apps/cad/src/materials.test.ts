@@ -213,3 +213,16 @@ describe('wood appearance carries PBR values', () => {
     expect(appearanceOfMaterial('steel')!.pbr).toBeUndefined();
   });
 });
+
+import { boardColour } from './materials';
+describe('boardColour: the library colour of a plugin board', () => {
+  it('maps the names woodwork uses onto the library, and says nothing for the ones it lacks', () => {
+    expect(boardColour('Oak')).toBe(appearanceOfMaterial('oak')!.color);
+    expect(boardColour('MDF')).toBe(appearanceOfMaterial('mdf')!.color);
+    expect(boardColour('Birch plywood')).toBe(appearanceOfMaterial('Plywood - birch')!.color);
+    expect(boardColour('White melamine')).toBe(appearanceOfMaterial('melamine-white')!.color);
+    expect(boardColour('Walnut')).toBe(appearanceOfMaterial('walnut')!.color);
+    expect(boardColour('Unobtainium')).toBeUndefined();   // not in the library: the plugin's own colour is used
+    expect(boardColour('')).toBeUndefined();
+  });
+});

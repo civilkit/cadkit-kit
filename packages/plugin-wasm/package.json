@@ -1,0 +1,6 @@
+{
+  "name": "@kit/plugin-wasm",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

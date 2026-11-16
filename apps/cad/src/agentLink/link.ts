@@ -8,11 +8,15 @@ import { t } from '../i18n';
 import { makeAppHandler } from './appHandlers';
 import { mouldLabels } from '../designCheck';
 import { runAgentScript } from './appRun';
+import { listPlugins, runPluginOnApp } from './appPlugin';
+import type { PluginRegistry } from '@kit/plugin';
 
 export interface LinkDeps {
   controller: Controller;
   store: { selection: Signal<string[]>; facts: Signal<{ faces: number; triangles: number; rebuildMs: number | null }>; featureStatus: Signal<Array<{ id: string; ok: boolean; code?: string; hint?: string }>>; notify(text: string, level?: 'info' | 'warn' | 'error'): void };
   version?: string;
+  /** The app's plugin registry (built-in and installed): what app_plugin_list shows and app_plugin_run runs. */
+  plugins?: PluginRegistry;
   /** The bodies of what is shown (name, key, faces, volume), for the measurement tools. */
   bodies?: () => BodyRef[];
 }
@@ -28,6 +32,7 @@ export function createAgentLink(d: LinkDeps) {
     status: () => store.featureStatus.value,
     hasSolid: () => c.hasSolid(),
     allowEdit: () => allowEdit.value,
+    ...(d.plugins ? { plugins: () => listPlugins(d.plugins!), runPlugin: (pl: string, g: string, params: Record<string, unknown>) => runPluginOnApp(c, d.plugins!, pl, g, params) } : {}),
     readback: async () => {
       const m = await c.measureSession();
       return m ? { kernel: m.kernel, interference: m.interference, bodies: async () => d.bodies?.() ?? [], labels: mouldLabels() } : null;
@@ -51,7 +56,8 @@ export function createAgentLink(d: LinkDeps) {
     onState: (s) => { state.value = s; if (s.state !== 'connected') allowEdit.value = false; },   // the box never outlives the link
     onCall: (op, ok) => {
       // a visible trace of everything that changes the document, and of every failure; plain reads stay quiet
-      if (op === 'run_script') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
+      if (op === 'plugin_run') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
+      else if (op === 'run_script') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
       else if (op === 'undo' || op === 'redo') store.notify(t(op === 'undo' ? 'agent.undid' : 'agent.redid'), 'info');
     },
   });

@@ -21,6 +21,7 @@ import { fastenerStrings } from './fasteners';
 import { springStrings } from './spring';
 import { helpStrings } from './help';
 import { caseStrings } from './case';
+import { pluginStrings } from './plugins';
 import { trayStrings } from './tray';
 import { chatStrings } from './chat';
 import { bearingStrings } from './bearing';
@@ -34,14 +35,14 @@ export const en: Catalog = {
   'app.sketch.extrude.tip': 'Finish the sketch and extrude it', 'app.sketch.revolve.tip': 'Finish the sketch and revolve it',
   'opt.op.new': 'New body', 'opt.op.union': 'Join', 'opt.op.intersect': 'Intersect', 'opt.op.split': 'Split',
   'opt.move.title': 'Move or copy', 'opt.move.bodies': 'Bodies', 'opt.move.how': 'Moved by', 'opt.move.copy': 'Make a copy', 'opt.move.none': 'not moved',
-  'opt.move.by': 'by {x}, {y}, {z} mm', 'opt.move.turn': 'turned {angle}° about ({x}, {y}, {z})',
+  'opt.move.axis': 'Move {axis}', 'opt.move.turned': 'Turned', 'opt.move.by': 'by {x}, {y}, {z} mm', 'opt.move.turn': 'turned {angle}° about ({x}, {y}, {z})',
   'opt.combine.title': 'Combine bodies', 'opt.combine.target': 'Target body', 'opt.combine.tools': 'Tool bodies', 'opt.combine.keepTools': 'Keep the tool bodies',
   'opt.combine.ref.face': 'the body with face {face}', 'opt.combine.ref.feature': 'the bodies made by {id}', 'opt.combine.ref.lump': 'body {n}', 'opt.combine.ref.surface': 'surface {id}', 'opt.bodyName': 'Body name',
   'opt.cut.nothing': 'Nothing to cut: no body under this sketch.', 'opt.cut.miss': 'Nothing to cut: this cut does not reach any body.', 'opt.cut.switchAdd': 'Add instead',
   'app.sketch.ok': 'OK', 'app.sketch.cancelShort': 'Cancel', 'app.fileMore': 'More file actions',
   'app.sketch.dialog.plane': 'Plane', 'app.sketch.dialog.onFace': 'Face',
   'app.sketch.view': 'View', 'app.sketch.view.tip': 'Snaps and what is shown on the sketch', 'app.sketch.badge.dof': '{count} DOF',
-  'group.SketchSelect': 'Select', 'group.Draw': 'Draw', 'group.Dimension': 'Dimension', 'group.Constrain': 'Constrain', 'group.Finish': 'Finish',
+  'group.SketchSelect': 'Select', 'group.Import': 'Import', 'group.Draw': 'Draw', 'group.Dimension': 'Dimension', 'group.Constrain': 'Constrain', 'group.Finish': 'Finish',
   'app.sketch.cancel': 'Cancel sketch',
   'app.sketch.lookNormal': 'Look normal',
   'app.sketch.lookNormal.tip': 'Turn the view square to the sketch plane (N)',
@@ -1203,6 +1204,7 @@ export const en: Catalog = {
   ...springStrings,
   ...helpStrings,
   ...caseStrings,
+  ...pluginStrings,
   ...trayStrings,
   ...chatStrings,
   ...bearingStrings,

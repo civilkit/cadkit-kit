@@ -60,6 +60,18 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
     async run(i, bridge) { return text({ ok: true, ...(await viaApp('section', bridge, i)) }); },
   },
   {
+    name: 'app_plugin_list',
+    description: 'The plugin generators of the user\'s browser app: built-in ones and the ones the user installed (for example a woodwork Cabinet). Each has a JSON schema for its parameters, the same one the app\'s form is made from. Run one with app_plugin_run. Reads only.' + NEEDS_APP,
+    inputSchema: obj({}),
+    async run(_i, bridge) { return text({ ok: true, ...(await viaApp('plugin_list', bridge, {})) }); },
+  },
+  {
+    name: 'app_plugin_run',
+    description: 'Run a plugin generator on the document open in the user\'s browser app: adds its features as ONE tree folder and ONE undo step (the user can undo it, and later right-click the folder, Edit parameters). Give plugin (id), generator (id) and params as listed by app_plugin_list; parameters left out take their defaults and a parameter hidden by another one is dropped. Position fields (place_x, place_y, place_z, mm) put the result where you want it. Needs the edit permission.' + NEEDS_APP,
+    inputSchema: obj({ plugin: { type: 'string', description: 'the plugin id, e.g. tomasdjo.woodwork' }, generator: { type: 'string', description: 'the generator id, e.g. cabinet' }, params: { type: 'object', description: 'parameter values by name' } }, ['plugin', 'generator']),
+    async run(i, bridge) { return text({ ok: true, ...(await viaApp('plugin_run', bridge, i)) }); },
+  },
+  {
     name: 'app_run_script',
     description: 'Run a script on the document open in the user\'s browser app, in attach mode: its features are added after the existing ones, as ONE undo step the user can undo, with a notice in the app. The same script language as run_script. Needs the user to have ticked "Allow the agent to change this document".' + NEEDS_APP,
     inputSchema: obj({ code: { type: 'string', maxLength: 40000 } }, ['code']),

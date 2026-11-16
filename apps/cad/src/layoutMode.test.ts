@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { DEFAULT_WORKSPACE } from '@kit/store';
-import { computeLayout, effectiveWorkspace, narrowTablet, asLayoutPref, layout, layoutPref, viewportInfo, watchViewport } from './layoutMode';
+import { computeLayout, effectiveWorkspace, migrateEditorCard, narrowTablet, asLayoutPref, layout, layoutPref, viewportInfo, watchViewport } from './layoutMode';
 
 const v = (w: number, h: number, coarse = false) => ({ w, h, coarse });
 
@@ -49,7 +49,7 @@ describe('effectiveWorkspace', () => {
   });
   it('a tablet docks the tree and the properties and takes the compact ribbon', () => {
     const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet');
-    expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', rightPanel: 'docked' });
+    expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', rightPanel: 'off' });
     // ribbon off with the tool column on: the column carries the tools, the ribbon stays off; with the column off too a touch layout takes the compact ribbon (nothing else would carry the tools)
     expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', toolRail: true, leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' });
     expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', toolRail: false, leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'compact', leftPanel: 'hidden', rightPanel: 'off' });
@@ -58,7 +58,7 @@ describe('effectiveWorkspace', () => {
     const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', true);
     expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', leftTabs: true, rightPanel: 'off' });
     expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, leftPanel: 'hidden' }, 'tablet', true)).toMatchObject({ leftPanel: 'hidden', rightPanel: 'off' });
-    expect(effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', false)).toMatchObject({ rightPanel: 'docked' });
+    expect(effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', false)).toMatchObject({ rightPanel: 'off' });
   });
   it('narrowTablet: a tablet no wider than 900px', () => {
     const was = viewportInfo.value;
@@ -103,5 +103,14 @@ describe('watchViewport', () => {
     expect(document.documentElement.style.getPropertyValue('--kb-inset')).toBe('0px');
     stop();
     Object.defineProperty(window, 'visualViewport', { configurable: true, value: undefined });
+  });
+});
+
+describe('migrateEditorCard', () => {
+  it('drops a docked raw inspector once, leaves the other panels and a layout that was already migrated', () => {
+    expect(migrateEditorCard({ leftPanel: 'docked', rightPanel: 'docked' }, false)).toEqual({ leftPanel: 'docked', rightPanel: 'off' });
+    expect(migrateEditorCard({ rightPanel: 'floating' }, false)).toEqual({ rightPanel: 'floating' });
+    expect(migrateEditorCard({ rightPanel: 'docked' }, true)).toEqual({ rightPanel: 'docked' });
+    expect(migrateEditorCard(null, false)).toBeNull();
   });
 });

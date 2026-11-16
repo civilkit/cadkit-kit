@@ -32,7 +32,7 @@ describe('store', () => {
   });
   it('defaults to the full-ribbon floating-panel layout and applies presets', () => {
     const s = createStore();
-    expect(s.workspace.value).toMatchObject({ ribbon: 'full', leftPanel: 'floating', leftTabs: true, rightPanel: 'docked', toolRail: false, sketchPalette: false, selectionBar: false, drawerOpen: false, handles: true, toolLabels: 'icons-and-text' });
+    expect(s.workspace.value).toMatchObject({ ribbon: 'full', leftPanel: 'floating', leftTabs: true, rightPanel: 'off', toolRail: false, sketchPalette: false, selectionBar: false, drawerOpen: false, handles: true, toolLabels: 'icons-and-text' });
     s.applyPreset('plasticity');
     expect(s.workspace.value.ribbon).toBe('off');
     expect(s.workspace.value.toolRail).toBe(true);

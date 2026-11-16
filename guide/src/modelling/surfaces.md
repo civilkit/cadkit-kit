@@ -20,8 +20,8 @@ How sheets look and behave:
 
 | Group | Commands |
 |---|---|
-| Surfaces > Create | **Planar surface** (default), Extruded surface, Revolved surface, Lofted surface in one button. **Fill surface** (Shift+I) and **Extend surface** (Shift+X) in the next |
-| Surfaces > Edit | **Trim surface** (default), **Knit**, **Thicken** in one button |
+| Surfaces > Create | **Planar surface**, **Extruded surface**, **Revolved surface**, **Lofted surface** and **Fill surface** (Shift+I), each its own button |
+| Surfaces > Edit | **Offset surface**, **Extend surface** (Shift+X), **Trim surface**, **Knit**, **Thicken** and **Freeform**, each its own button |
 | Features > Modify | **Pipe cut** |
 | Features > Bodies | **Delete body** and **Delete face** |
 
@@ -62,7 +62,7 @@ If the tool no longer crosses the sheet, the trim fails with "the surfaces do no
 - The Editor lists the surfaces with a checkbox each.
 - **Make a solid when the result is closed** turns a sealed shell into a solid. It is off by default. If the shell still has open edges, the Editor reports that it is not closed.
 
-**Thicken.** Thicken turns a sheet into a solid. The Editor has Surface, **Thickness**, Side (Front, Back or Both) and Operation (Add or Cut). Thickness starts at about 10% of the body size at first, or 1 mm with no body.
+**Thicken.** Thicken turns a sheet into a solid. The Editor has Surface, **Thickness**, Side (Front, Back or Both) and Operation (Add or Cut). Thickness starts at about 10% of the body size at first, or 1 mm with no body. A thickness larger than the surface's tightest bend radius allows is refused, and the message gives the largest thickness that works (for example "its smallest radius of curvature is 3.63 mm, use at most 2.90 mm"). For a sheet that tight, set Side to **Both** instead.
 
 Tick **Variable thickness** and the single thickness becomes a ramp: the sheet is thick at one end and thin at the other, which is what a blade or a tapered plate needs.
 

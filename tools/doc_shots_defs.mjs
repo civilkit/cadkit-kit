@@ -41,7 +41,7 @@ export const SHOTS = [
       if (!(await c.editRow('Face sketch'))) c.skip('no sketch row'); await c.settle(1200);
       await c.page.mouse('mouseMoved', 700, 560); await c.sleep(300);
     } },
-  { name: 'sketch-bar', caption: 'The one-row sketch bar at the top of an open sketch: the Editing tab, then Select, Finish, Make, Draw, Dimension, Constrain, Modify and Reference tools, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right.',
+  { name: 'sketch-bar', caption: 'The one-row sketch bar at the top of an open sketch: the Editing tab, then Select and Finish (pinned at the left), Make, Import, Draw, Dimension, Constrain, Modify and Reference tools, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right.',
     async run(c) {
       await c.open({ doc: newDoc('Part1', [rectSketch('F1', 'Sketch 1', 'front', 60, 40, { cx: -30, cy: -20 })]) }); await c.viewport(1960, 900);
       if (!(await c.editRow('Sketch 1'))) c.skip('no sketch row'); await c.key('n'); await c.settle(1500);

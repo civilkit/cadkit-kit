@@ -55,10 +55,11 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Edit', entries: ['undo', 'redo', 'repeat-last', slot('history'), 'group-selected'] },
   ],
   Features: [
-    { id: 'Reference', entries: [slot('reference')] },
-    { id: 'Create', entries: [slot('gear')] },
-    { id: 'Modify', entries: [slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'add-pipe-cut'] },
-    { id: 'Bodies', entries: [slot('delete-geom')] },
+    // Plain buttons where there is room: the tab is wide and short. Only the long parts family (15 commands) stays a dropdown.
+    { id: 'Reference', entries: ['add-plane', 'add-axis', 'add-helix', 'add-project-curve', 'add-edit-curve'] },
+    { id: 'Create', entries: [slot('gear'), 'add-plugin'] },
+    { id: 'Modify', entries: ['add-draft', 'add-rib', 'add-lip', 'add-dome', 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'add-pipe-cut'] },
+    { id: 'Bodies', entries: ['add-delete-body', 'add-delete-face'] },
   ],
   // Frame is its own tab (a phone's tool sheet shows the same tabs): plain buttons, no dropdown. Add the bracket and connector tools to this group.
   Frame: [
@@ -71,9 +72,10 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
     { id: 'Flatten', entries: ['sheet-unfold', 'sheet-refold', 'sheet-flat'] },
     { id: 'FlatExport', entries: ['sheet-dxf', 'sheet-bends-csv', 'sheet-bends-json'] },
   ],
+  // Surfaces: plain buttons, no dropdown (like Frame and Sheet metal), so every surface command is on show. The tool palette still groups them (RAIL_SECTIONS).
   Surfaces: [
-    { id: 'Create', entries: [slot('surface-new'), slot('surface-reshape')] },
-    { id: 'Edit', entries: [slot('surface-edit')] },
+    { id: 'Create', entries: ['add-surface-planar', 'add-surface-extrude', 'add-surface-revolve', 'add-surface-loft', 'add-fill'] },
+    { id: 'Edit', entries: ['add-offset-surface', 'add-extend', 'add-trim-surface', 'add-knit', 'add-thicken', 'add-freeform'] },
   ],
   View: [
     { id: 'Views', entries: [slot('views'), 'fit', 'toggle-projection', 'toggle-up-axis'] },
@@ -101,7 +103,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
   { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
-  { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), slot('reference'), slot('catalog')] },
+  { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), 'add-plugin', slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull', slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },
   { id: 'sheet', entries: ['sheet-rules', 'add-base-flange', 'add-edge-flange', 'add-contour-flange', 'add-sheet-convert', 'add-hem', 'add-fold', 'add-sheet-cut', 'add-sheet-corner', 'sheet-unfold', 'sheet-refold', 'sheet-flat'] },
@@ -172,4 +174,17 @@ export function sketchChrome(ws: { ribbon: string; toolRail: boolean; sketchPale
     rightPalette: ribbon ? ws.sketchPalette : !column,
     bar: !ribbon,
   };
+}
+
+/** Command id of an installed plugin's generator (a Gear menu entry), and back. */
+export const pluginCommandId = (pluginId: string, generatorId: string): string => `plugin:${pluginId}:${generatorId}`;
+
+/** The layout with `ids` added to the end of the Gear menu: installed plugins' generators appear beside the built-in wizards. */
+export function withGearIds<T extends Record<string, Array<{ id: string; entries: unknown[] }>>>(layout: T, ids: string[]): T {
+  if (!ids.length) return layout;
+  const out: Record<string, unknown> = {};
+  for (const [tab, groups] of Object.entries(layout)) {
+    out[tab] = groups.map((g) => ({ ...g, entries: g.entries.map((e) => (e && typeof e === 'object' && (e as { slot?: string }).slot === 'gear' ? { ...(e as object), ids: [...(e as { ids: string[] }).ids, ...ids] } : e)) }));
+  }
+  return out as T;
 }

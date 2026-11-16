@@ -92,7 +92,7 @@ export interface KernelFactory {
 }
 
 /** One undoable change of the part's material, or (with `extra`) of a document field the session has no op for (the cosmetic knurls): no rebuild, ordered with the session's own steps. */
-interface MaterialStep { at: number; before: unknown; after: unknown; extra?: string }
+interface MaterialStep { at: number; before: unknown; after: unknown; extra?: string; /** several document fields changed in this one step (a plugin run: colours and its record) */ multi?: Array<{ key: string; before: unknown; after: unknown }>; /** undone and redone together with the edit step just before it, as one step for the user */ chain?: boolean }
 
 /** Feature types whose regen carries warnings or markers the Session does not pass on: threads (markers, carry warnings) and patterns (copies that miss, stand apart or overlap). */
 const hasExtras = (type: string | undefined): boolean => type === 'thread' || type === 'lpattern' || type === 'cpattern' || type === 'curvepattern';
@@ -201,7 +201,7 @@ export class Controller {
       const reset = () => {
         // viewer-state fields kept in the file: the exploded view and the drawing sheet
         this.docExtra = {}; this.extraRev++;
-        for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources', 'cosmeticKnurls', 'meshes']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
+        for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources', 'cosmeticKnurls', 'meshes', 'pluginRuns']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
         this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
         this.tipNoteV = null; this.limits = new Map();
         this.dropSketchSession();   // a sketch open on the old part has nothing to stand on in the new one
@@ -914,7 +914,9 @@ export class Controller {
     const last = this.materialSteps[this.materialSteps.length - 1];
     if (last && last.at === s.history().length) {   // the newest change is a material change: it is the one step undone
       this.materialSteps.pop(); this.redoStack.push(last);
-      if (last.extra) { this.putExtra(last.extra, last.before); this.onExtraChange?.(last.extra); } else this.material = last.before as string | null;
+      if (last.multi) for (const m of last.multi) { this.putExtra(m.key, m.before); this.onExtraChange?.(m.key); }
+      else if (last.extra) { this.putExtra(last.extra, last.before); this.onExtraChange?.(last.extra); } else this.material = last.before as string | null;
+      if (last.chain) await this.undoNow();   // the edit it belongs to goes with it: one Undo
       return;
     }
     // An undo takes back exactly one step. If the step it would restore has far fewer features than the part has now (more
@@ -950,7 +952,8 @@ export class Controller {
     if (!Array.isArray(ops) && 'patch' in ops) { const rest = this.redoStack; try { await this.applyDocPatchNow(ops.patch, ops.reason); } finally { this.redoStack = rest; } return; }
     if (!Array.isArray(ops)) {
       this.materialSteps.push({ ...ops, at: this.session.history().length });
-      if (ops.extra) { this.putExtra(ops.extra, ops.after); this.onExtraChange?.(ops.extra); } else this.material = ops.after as string;
+      if (ops.multi) for (const m of ops.multi) { this.putExtra(m.key, m.after); this.onExtraChange?.(m.key); }
+      else if (ops.extra) { this.putExtra(ops.extra, ops.after); this.onExtraChange?.(ops.extra); } else this.material = ops.after as string;
       return;
     }
     // edit() clears the redo stack on success; keep the remaining entries.
@@ -960,6 +963,8 @@ export class Controller {
     } finally {
       this.redoStack = rest;
     }
+    const next = this.redoStack[this.redoStack.length - 1];
+    if (next && !Array.isArray(next) && 'multi' in next && next.chain) await this.redoNow();   // its fields come back with it
   }
 
   // ---- sketch session (S1): open a sketch, drag with the solver, confirm/cancel ----
@@ -1267,6 +1272,16 @@ export class Controller {
     const before = this.docExtra[key] === undefined ? null : structuredClone(this.docExtra[key]);
     this.materialSteps.push({ at: this.session?.history().length ?? 0, before, after: value === undefined ? null : structuredClone(value), extra: key });
     this.putExtra(key, value);
+    this.redoStack = [];
+  }
+
+  /** Several document fields in ONE undo step (a plugin run writes its colours and its record together). `null` removes a field. */
+  setUndoableExtras(fields: Record<string, unknown | null>, opts: { withLastEdit?: boolean } = {}): void {
+    if (!this.hasDoc()) return;
+    const multi = Object.entries(fields).map(([key, value]) => ({ key, before: this.docExtra[key] === undefined ? null : structuredClone(this.docExtra[key]), after: value === undefined ? null : structuredClone(value) }));
+    if (!multi.length) return;
+    this.materialSteps.push({ at: this.session?.history().length ?? 0, before: null, after: null, multi, ...(opts.withLastEdit ? { chain: true } : {}) });
+    for (const m of multi) this.putExtra(m.key, m.after);
     this.redoStack = [];
   }
 

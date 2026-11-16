@@ -85,6 +85,17 @@ export function ChatPanel(p: { session: ChatSession; link: ChatLink; origin?: st
   );
 }
 
+/** The terminal command with one step per line, for reading. Only the `&&` outside parentheses breaks, and the text still runs as pasted. */
+function oneStepPerLine(cmd: string): string {
+  let depth = 0; let out = '';
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i]!;
+    if (c === '(') depth++; else if (c === ')') depth--;
+    if (depth === 0 && cmd.startsWith(' && ', i)) { out += ' &&\n'; i += 3; } else out += c;
+  }
+  return out;
+}
+
 function Setup(p: { link: ChatLink; origin: string }): JSX.Element {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -101,7 +112,7 @@ function Setup(p: { link: ChatLink; origin: string }): JSX.Element {
       <div class="chat-cmd"><code data-testid="chat-prompt">{prompt}</code>
         <button class="rb-btn" onClick={copy(prompt)}>{t('chat.setup.copy')}</button></div>
       <div class="tb-note">{t('chat.setup.step1b')}</div>
-      <div class="chat-cmd"><code data-testid="chat-cmd">{cmd}</code>
+      <div class="chat-cmd"><code data-testid="chat-cmd">{oneStepPerLine(cmd)}</code>
         <button class="rb-btn" onClick={copy(cmd)}>{t('chat.setup.copy')}</button></div>
       <div>{t('chat.setup.step2')}</div>
       <label class="set-row"><span>{t('chat.setup.code')}</span>

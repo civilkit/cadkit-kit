@@ -6,7 +6,7 @@ This chapter describes every tool in the sketch editor: how to draw lines, arcs,
 
 ## Choosing a tool
 
-All tools are on the **Editing** tab of the ribbon while a sketch is open, in the groups **Draw**, **Dimension**, **Constrain**, **Modify** and **Reference**. They are also in command search while you sketch.
+All tools are on the **Editing** tab of the ribbon while a sketch is open, in the groups **Draw**, **Dimension**, **Constrain**, **Modify** and **Reference**. **Select** and **Finish** stay pinned at the left end while the other groups scroll between them, and the scroll arrows sit beside the tools rather than over them. They are also in command search while you sketch.
 
 - Several tools share one button. The button shows the tool you used last. A small arrow, a long press or a right click opens the family with names and keys.
 - Some tools have a single key. Press it while the pointer is over the viewport.
@@ -131,7 +131,7 @@ The **Construction** button in the **Reference** group is a mode: while it is on
 
 ## Importing a drawing
 
-**Import DXF into sketch** (available in command search while a sketch is open) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. **Import SVG into sketch** and **New sketch from SVG** do the same for an SVG drawing: paths (curves become splines, circular arcs stay arcs), rectangles, circles, ellipses, lines and polygons, with the file's size in millimetres, centimetres or inches. See [Importing](../files/import.md).
+While a sketch is open, the **Import** group of the ribbon has **Import DXF** and **Import SVG**. **Import DXF into sketch** (also in command search) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. **Import SVG into sketch** and **New sketch from SVG** do the same for an SVG drawing: paths (curves become splines, circular arcs stay arcs), rectangles, circles, ellipses, lines and polygons, with the file's size in millimetres, centimetres or inches. See [Importing](../files/import.md).
 
 ## 3D sketch tools
 

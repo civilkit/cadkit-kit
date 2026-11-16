@@ -33,7 +33,7 @@ When you start a sketch from a face, edges and faces you had selected are rememb
 
 ![The one-row sketch bar: the Editing tab, the sketch tool groups, and the degrees-of-freedom chip with Fully define, Sketch Report, Snaps and Look normal at the right.](../img/sketch-bar.png)
 
-- The ribbon changes to one compact row, the sketch bar, with one tab named **Editing** followed by the sketch name (a new sketch is called **New sketch** while you edit it). Its groups are **Select**, **Finish**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. The tools are described in [Sketch tools](tools.md) and [Constraints and dimensions](constraints.md).
+- The ribbon changes to one compact row, the sketch bar, with one tab named **Editing** followed by the sketch name (a new sketch is called **New sketch** while you edit it). Its groups are **Select**, **Finish**, **Import** (Import DXF and Import SVG), **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. **Select** and **Finish** stay pinned at the left while the other groups scroll. The tools are described in [Sketch tools](tools.md) and [Constraints and dimensions](constraints.md).
 - The **Line** tool is active, so you can start drawing at once.
 - The body is drawn faded, to a quarter of its opacity, so you can see the sketch in front of it.
 - Mouse buttons change: the left button draws and picks, the right button orbits, the middle button pans, and the wheel zooms towards the pointer. See [Moving around the model](../getting-started/navigation.md).

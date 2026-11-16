@@ -2,7 +2,7 @@
 
 Three commands reshape geometry without making a solid. **Project curve** lays a sketch or an earlier curve onto the faces of a part, **Edit curve** rebuilds edges and curves into one smooth curve, and **Freeform** pushes a face into a new shape with a control net.
 
-**Project curve** and **Edit curve** sit on the **Reference** button of the **Features** tab, with Plane, Axis and Helix. **Freeform** sits on the **Edit** button of the **Surfaces** tab, with Trim surface, Knit and Thicken. All three are in command search (**F**), and each is greyed out until it has something to work on. Each result is an ordinary feature: it sits in the tree, rebuilds with the part and takes part in undo.
+**Project curve** and **Edit curve** sit in the **Reference** group of the **Features** tab, beside Plane, Axis and Helix. **Freeform** sits on the **Edit** button of the **Surfaces** tab, with Trim surface, Knit and Thicken. All three are in command search (**F**), and each is greyed out until it has something to work on. Each result is an ordinary feature: it sits in the tree, rebuilds with the part and takes part in undo.
 
 ## Project curve
 

@@ -112,7 +112,7 @@ You can also taper an extrusion directly with its Draft angle option. See [Extru
 
 ## Rib and lip
 
-Two more edits share the Draft button (**Features > Modify**).
+Two more edits sit beside **Draft** in **Features > Modify**.
 
 - **Rib** adds a thin wall from an open sketch line to the body. Draw a line or chain that reaches the body, then choose Rib. The Editor has Profile and Thickness (about 10% of the smallest dimension at first), and a **Rib** section with the side of the sketch plane the thickness goes to, a **Fillet on the free edge**, a **Draft angle** and, once the part has named bodies, **Extend to** (the bodies the rib grows to). A line that does not reach the body fails with "does not touch the body". See [rib](/docs/cad/kernel/format/features-solids.html#rib).
 - **Lip / groove** adds a raised band along the rim of a flat face, or cuts a groove into it. Select the rim face (Face mode), then choose Lip / groove. It follows every edge of the picked faces. The Editor has Kind (Lip or Groove), Width and Height, both about 5% of the smallest dimension at first. See [lip](/docs/cad/kernel/format/features-edits.html#lip).

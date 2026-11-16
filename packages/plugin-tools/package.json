@@ -1,0 +1,6 @@
+{
+  "name": "@kit/plugin-tools",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

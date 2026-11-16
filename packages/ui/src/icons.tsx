@@ -157,6 +157,7 @@ const ICONS: Record<string, string> = {
   'add-standoff': P('M7.5 6h9v12h-9z') + T('M7.5 9h9M7.5 15h9') + P('M10.5 6V3.5h3V6M10.5 18v2.5h3V18'),
   'add-insert': P('M8.5 4.5h7v15h-7z') + T('M8.5 8.5h7M8.5 12h7M8.5 15.5h7') + T('M3.5 4.5v15M20.5 4.5v15M3.5 19.5h17'),
   'add-tray': P('M3.5 8.5h17v9.5h-17z') + P('M6.5 11.5v3.5a3.5 3.5 0 0 0 3.5 3.5h4a3.5 3.5 0 0 0 3.5-3.5v-3.5') + T('M3.5 8.5l2-3h13l2 3'),
+  'add-plugin': P('M9 3v4M15 3v4') + P('M6 7h12v4.5a6 6 0 0 1-12 0z') + P('M12 17.5V21'),
   'add-case': P('M3.5 9h17v10.5h-17z') + P('M3.5 9V6.5h17V9') + T('M6.5 6.5V5h11v1.5') + T('M3.5 13.5h17'),
   'add-bearing': O(12, 12, 9) + O(12, 12, 4.2) + O(12, 4.6, 1.4) + O(12, 19.4, 1.4) + O(4.6, 12, 1.4) + O(19.4, 12, 1.4),
   // ---- sheet metal (the Sheet tab; the tree uses the same names, see featureIconName)

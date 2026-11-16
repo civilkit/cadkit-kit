@@ -431,7 +431,10 @@ describe('the editors of the body features', () => {
   it('move or copy: the bodies, how far, and a copy with its name', () => {
     const m = mount({ type: 'moveBody', id: 'F7', bodies: [{ body: 'Battery' }], translate: [0, 0, 5], rotate: { axis: [0, 1, 0], origin: [0, 0, 0], angle: 90 }, copy: true, body: 'Case' });
     expect((m.q('bodies')!.querySelector('input') as HTMLInputElement).value).toBe('Battery');
-    expect((m.q('translate')!.querySelector('input') as HTMLInputElement).value).toBe('by 0, 0, 5 mm; turned 90° about (0, 1, 0)');
+    expect(['translate.0', 'translate.1', 'translate.2'].map((k) => m.num(k).value)).toEqual(['0', '0', '5']);   // typed X, Y, Z
+    expect((m.q('rotate')!.querySelector('input') as HTMLInputElement).value).toBe('turned 90° about (0, 1, 0)');
+    fireEvent.input(m.num('translate.0'), { target: { value: '600' } }); fireEvent.change(m.num('translate.0'), { target: { value: '600' } }); fireEvent.blur(m.num('translate.0'));
+    expect(m.drafts.at(-1)).toMatchObject({ translate: [600, 0, 5] });   // one axis changes, the other two stay
     expect(m.box('copy').checked).toBe(true);
     expect((m.q('body')!.querySelector('input') as HTMLInputElement).value).toBe('Case');
     fireEvent.click(m.box('copy'));

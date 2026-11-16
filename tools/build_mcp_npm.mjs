@@ -26,7 +26,7 @@ const alias = {
   '@kit/store': 'packages/store/src/index.ts', '@kit/i18n': 'packages/i18n/src/index.ts', '@kit/platform': 'packages/platform/src/index.ts',
   '@kit/io': 'packages/io/src/index.ts', '@kit/fcstd': 'packages/fcstd/src/index.ts', '@kit/solidcraft': 'packages/solidcraft/src/index.ts',
   '@kit/sketch': 'packages/sketch/src/index.ts', '@kit/script': 'packages/script/src/index.ts', '@kit/skill': 'packages/skill/src/index.ts',
-  '@kit/agent-tools': 'packages/agent-tools/src/index.ts', '@kit/readback': 'packages/readback/src/index.ts', '@kit/mcp': 'packages/mcp/src/index.ts',
+  '@kit/agent-tools': 'packages/agent-tools/src/index.ts', '@kit/plugin': 'packages/plugin/src/index.ts', '@kit/plugin-tools': 'packages/plugin-tools/src/index.ts', '@kit/readback': 'packages/readback/src/index.ts', '@kit/mcp': 'packages/mcp/src/index.ts',
   '@kit/agent-link': 'packages/agent-link/src/index.ts', '@kit/snapshot': 'packages/snapshot/src/index.ts', '@kit/viewdata': 'packages/viewdata/src/index.ts',
   '@kit/cad-drawing': 'apps/cad/src/drawing/headless.ts',
 };

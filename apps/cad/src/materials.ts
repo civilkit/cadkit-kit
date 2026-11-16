@@ -86,6 +86,7 @@ const GENERIC_MATERIALS: readonly MaterialDef[] = [
   wood('walnut', 'Walnut', 610, '#5b4030', 11.59, 'Black walnut, Juglans nigra', 'https://www.wood-database.com/black-walnut/'),
   // panels: typical manufacturer values (EN 310 / EN 12369-1 / declarations of performance); marked unverified until checked against the standards
   panel('chipboard-p5', 'Chipboard P5', 650, '#d8be92', 2.4, 'Particleboard P5 (EN 312): bending modulus about 2.4 GPa for 18 mm board (EGGER Eurospan E1 P5 data, EN 310); density is a typical value'),
+  panel('melamine-white', 'White melamine', 680, '#f1f1ec', 2.4, 'Melamine-faced chipboard, 18 mm (EN 14322 faced board on an EN 312 P2 / P5 core): the core sets the stiffness, about 2.4 GPa, and the density is a typical value; the thin melamine face is not counted'),
   panel('osb3', 'OSB/3', 600, '#c9a56b', 3.5, 'OSB/3 (EN 300): mean bending modulus 3.5 GPa along the major axis (EN 310; the EN 12369-1 characteristic value is 4.93 GPa), density the stated minimum (EGGER OSB data)'),
   panel('plywood-birch', 'Plywood - birch', 680, '#e3c79a', 10.05, 'Finnish birch plywood, 18 mm, face grain along the span: mean bending modulus 10.05 GPa, mean density 680 kg/m3 (UPM WISA-Form Birch declaration of performance)'),
   panel('plywood-eucalyptus', 'Plywood - eucalyptus', 650, '#d6a583', 7.0, 'Eucalyptus film-faced plywood, 18 mm (EN 636-2S, EN 636-3S): density about 650 kg/m3 and bending stiffness class E70/60, i.e. a mean modulus of 7000 N/mm2 along the face grain (a distributor declaration of performance); the film face does not change the figures used here'),
@@ -244,4 +245,12 @@ export function appearanceOfMaterial(name: string | undefined | null, custom?: M
   // and grain: growth rings in a darker tone of the wood's own colour (panels without a grain, MDF and chipboard, stay plain)
   const grain = wood && !/MDF|Chipboard|OSB/i.test(def.name) ? { kind: 'wood' as const, tone: shade(def.color, 0.55), contrast: 0.55 } : undefined;
   return { color: displayColor(def.color, materialParams(material).metalness), material, ...(pbr ? { pbr } : {}), ...(grain ? { look: grain } : {}) };
+}
+
+/** Names a plugin may use for a board that the library calls something else (lower case). */
+const BOARD_ALIASES: Record<string, string> = { 'birch plywood': 'plywood-birch', 'plywood': 'plywood-birch', 'birch ply': 'plywood-birch', 'pine plywood': 'plywood-pine' };
+/** The library colour of a board material a plugin names ("Oak", "Birch plywood", "MDF"...), or undefined when the library has no such material. */
+export function boardColour(name: string): string | undefined {
+  const k = name.trim().toLowerCase();
+  return appearanceOfMaterial(k in BOARD_ALIASES ? BOARD_ALIASES[k] : name)?.color;   // the same colour the part's own material would show
 }

@@ -10,7 +10,8 @@ export interface Command { id: string; label: string; tab: string; group: string
 export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; /** The button always runs the first command (the list's other commands are not remembered). */ fixed?: boolean; icon?: string; title?: string };
 /** A ready-made element in a group (the contextual Sketch tab draws its tools this way). */
 export interface RibbonNode { node: JSX.Element; key: string }
-export interface RibbonGroup { id: string; entries: Array<RibbonEntry | RibbonNode> }
+/** `pinned`: a group that stays at the left edge while the rest of the strip scrolls (the Sketch tab's Select and Finish). */
+export interface RibbonGroup { id: string; entries: Array<RibbonEntry | RibbonNode>; pinned?: boolean }
 /** Tab name to its titled groups, in display order. */
 export type RibbonLayout = Record<string, RibbonGroup[]>;
 
@@ -23,6 +24,7 @@ export function resolveLayout(commands: Command[], layout?: RibbonLayout, hidden
   for (const [tab, groups] of Object.entries(layout ?? {})) {
     out[tab] = groups.map((g) => ({
       id: g.id,
+      ...(g.pinned ? { pinned: true } : {}),
       entries: g.entries.flatMap((e): Array<RibbonEntry | RibbonNode> => {
         if (typeof e === 'string') { if (!ids.has(e)) return []; placed.add(e); return [e]; }
         if ('node' in e) return [e];
@@ -96,6 +98,22 @@ export function Ribbon(p: {
   }, [fit, sig, auto]);
   // the strip scrolls sideways when the groups do not fit (custom groups cannot fold into the More menu): show which edge still hides something,
   // step by one group from a chevron, and bring the tool that was just picked into view
+  // pinned groups stick to the left edge one after the other; the left chevron sits right after them
+  const stripRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const place = (): void => {
+      let x = 8;
+      for (const k of el.querySelectorAll<HTMLElement>(':scope > .rb-pinned')) { k.style.left = x + 'px'; x += k.offsetWidth; }
+      stripRef.current?.style.setProperty('--pin-w', x > 8 ? x + 'px' : '0px');
+    };
+    place();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(place); ro.observe(el);
+    for (const k of el.querySelectorAll(':scope > .rb-pinned')) ro.observe(k);
+    return () => ro.disconnect();
+  }, [sig, fit, auto]);
   const [edges, setEdges] = useState({ left: false, right: false });
   const metrics = (el: HTMLElement) => ({ scrollLeft: el.scrollLeft, clientWidth: el.clientWidth, scrollWidth: el.scrollWidth });
   const syncEdges = () => { const el = row.current; if (!el) return; const e = hiddenEdges(metrics(el)); setEdges((o) => (o.left === e.left && o.right === e.right ? o : e)); };
@@ -149,10 +167,10 @@ export function Ribbon(p: {
           </button>
         ))}
       </div>
-      <div class={'rb-strip' + (edges.left ? ' edge-l' : '') + (edges.right ? ' edge-r' : '')}>
+      <div ref={stripRef} class={'rb-strip' + (edges.left ? ' edge-l' : '') + (edges.right ? ' edge-r' : '')}>
       <div class="rb-groups" ref={row}>
         {shownGroups.map((g, gi) => (
-          <div class="rb-group" key={g.id} role="group" aria-label={t('group.' + g.id, undefined, g.id)}>
+          <div class={'rb-group' + (g.pinned ? ' rb-pinned' : '')} key={g.id} role="group" aria-label={t('group.' + g.id, undefined, g.id)}>
             <div class="rb-items">{g.entries.map((e, ei) => entry(e, gi, ei))}</div>
             {iconsOnly ? null : <div class="rb-gtitle">{t('group.' + g.id, undefined, g.id)}</div>}
           </div>

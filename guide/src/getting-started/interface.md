@@ -10,11 +10,11 @@ From top to bottom:
 
 1. The **top bar**: file buttons, the **document tabs** (one per open part), the Part / Drawing switch, command search and settings.
 2. The **ribbon**: tabs of command groups, directly under it.
-3. The working area: the **left panel** (feature tree and friends), the **viewport**, and the **inspector panel** on the right when a feature is selected.
+3. The working area: the **left panel** (feature tree and friends), and the **viewport**. When you open a feature, its editor appears as a floating card over the viewport. The raw **inspector panel** on the right is off by default.
 4. The **drawer** (hidden until you open it).
 5. The **status bar**.
 
-All three side areas can be resized by dragging the thin handle between them and the viewport. Double-click a handle to reset it. Drag a panel to nearly nothing and it folds away. See [Units and settings](settings.md) for the layout presets and **Reset layout**.
+The side areas can be resized by dragging the thin handle between them and the viewport. Double-click a handle to reset it. Drag a panel to nearly nothing and it folds away. See [Units and settings](settings.md) for the layout presets and **Reset layout**.
 
 ## On a phone or tablet
 
@@ -74,15 +74,15 @@ Closing the browser page while any tab has unsaved changes makes the browser ask
 
 ## The ribbon
 
-The ribbon is a row of tabs; each tab holds groups of buttons. Many buttons stand for a family of commands: the button shows the one you used last, and a small arrow, a long press or a right click opens the others. For example the **Extrude** button also holds **Extruded cut**.
+The ribbon is a row of tabs; each tab holds groups of buttons. On the **Home** tab many buttons stand for a family of commands (the **Surfaces** tab and most of the **Features** tab show every command as its own button): the button shows the one you used last, and a small arrow, a long press or a right click opens the others. For example the **Extrude** button also holds **Extruded cut**.
 
 | Tab | Groups |
 | --- | --- |
 | **Home** | **Sketch**, **Create**, **Modify**, **Pattern**, **Edit** |
-| **Features** | **Reference**, **Create**, **Modify**, **Bodies** |
+| **Features** | **Reference**, **Create**, **Modify**, **Bodies** (the commands in **Reference**, **Modify** and **Bodies** are plain buttons) |
 | **Frame** | **Frame** (**Frame** and **Cut list**) |
 | **Sheet metal** | **Rules**, **Create**, **Flatten**, **Export** |
-| **Surfaces** | **Create**, **Edit** |
+| **Surfaces** | **Create**, **Edit** (one plain button per command) |
 | **View** | **Views**, **Display style**, **Appearance** (lighting, background and **Show**), **Workspace** |
 | **Select** | **Pick**, **Expand**, **Position** |
 | **Evaluate** | **Measure**, **Surface analysis** |
@@ -94,7 +94,7 @@ The **Assembly** tab appears when the part contains inserted components, and ope
 
 Three things change the ribbon:
 
-- **While a sketch is open** the ribbon shows one tab, named **Editing** followed by the sketch name. Its groups are **Select**, **Finish**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. See [Starting a sketch](../sketching/start.md).
+- **While a sketch is open** the ribbon shows one tab, named **Editing** followed by the sketch name. Its groups are **Select**, **Finish**, **Import**, **Make**, **Draw**, **Dimension**, **Constrain**, **Modify**, **Reference** and **Status**. **Select** and **Finish** stay pinned at the left while the other groups scroll. See [Starting a sketch](../sketching/start.md).
 - **While a feature editor is open** the commands that create or change geometry are greyed out. Undo, Redo, view, selection and inspection commands stay available. Confirm or cancel the editor first.
 - **A command that cannot run** is greyed, and its tooltip says why: for example **Fillet** says "Select edges, or two or more faces, to round".
 
@@ -172,7 +172,9 @@ The tree lists the history of the part in build order. At the top are fixed rows
 
 ## The inspector panel
 
-On the right, the inspector shows the properties of the selected feature as plain fields. It appears only while a feature is selected. The same fields are in the feature's editor. You can set it to **Off**, **Docked right** or **Floating** in the settings.
+Opening a feature (double-click it in the tree, or use its pencil button) shows its editor as a floating card over the viewport, with labelled fields, drop-downs and sections. The left panel keeps the feature tree, so the **Editor** tab is not shown on a desktop screen. A phone and a narrow tablet keep their single panel or sheet for the editor.
+
+The inspector is a separate column on the right that lists the selected feature's properties as plain fields. It is **Off** by default. A layout saved by an earlier version had it docked; it is switched off once when you first open this version. To bring it back, set **Inspector panel** to **Docked right** or **Floating** in **Settings > Layout**. The **Classic ribbon** preset docks it. It shows only while a feature is selected.
 
 ## The viewport
 

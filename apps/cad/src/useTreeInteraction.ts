@@ -33,6 +33,13 @@ export interface TreeInteractionDeps {
   exportFolder(name: string, ids: string[], format: 'step' | 'stl' | 'ckpart'): void;
   /** Open the folder's features as a part of its own in a new document. */
   extractFolder(name: string, ids: string[]): void;
+  /** Ask how far to move every body the folder made, and move them together. */
+  moveFolder?(name: string, ids: string[]): void;
+  /** Make the folder's bodies one move and put the positioning ball on it, to drag the whole folder in the view. */
+  moveFolderDrag?(name: string, ids: string[]): void;
+  /** A plugin made this folder and remembers its parameters: the menu then offers Edit parameters. */
+  hasFolderRun?(name: string): boolean;
+  editFolderRun?(name: string, ids: string[]): void;
   /** The view-only eye of a feature row (for the row menu); leave out and the menu has no Hide / Show. */
   isHidden?(id: string): boolean;
   toggleHide?(id: string): void;
@@ -139,6 +146,7 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
       setMenu({
         x, y,
         items: [
+          ...(d.hasFolderRun?.(name) ? [{ id: 'edit-params', label: t('app.folder.menu.editParams'), enabled: true }, { id: '-', label: '', enabled: false, separator: true }] : []),
           { id: 'rename-folder', label: t('app.folder.menu.rename'), enabled: true },
           { id: 'ungroup', label: t('app.folder.menu.ungroup'), enabled: true },
           { id: '-', label: '', enabled: false, separator: true },
@@ -146,15 +154,20 @@ export function useTreeInteraction(d: TreeInteractionDeps) {
           { id: 'export-folder-stl', label: t('app.folder.menu.exportStl'), enabled: true },
           { id: 'export-folder-ckpart', label: t('app.folder.menu.exportCkpart'), enabled: true },
           { id: 'extract-folder', label: t('app.folder.menu.extract'), enabled: true },
+          ...(d.moveFolderDrag ? [{ id: 'move-folder-drag', label: t('app.folder.menu.moveDrag'), enabled: true }] : []),
+          ...(d.moveFolder ? [{ id: 'move-folder', label: t('app.folder.menu.move'), enabled: true }] : []),
           { id: '-', label: '', enabled: false, separator: true },
           { id: 'delete-folder', label: t('app.folder.menu.delete'), enabled: true },
           ...(acts ? [{ id: '-', label: '', enabled: false, separator: true }, { id: 'collapse-all', label: t('app.tree.menu.collapseAll'), enabled: true }] : []),
         ],
         run: (id) => {
-          if (id === 'rename-folder') setRenaming('@g:' + name);
+          if (id === 'edit-params') d.editFolderRun?.(name, folderIds(rows, feats, name));
+          else if (id === 'rename-folder') setRenaming('@g:' + name);
           else if (id === 'ungroup') ungroup(name);
           else if (id.startsWith('export-folder-')) d.exportFolder(name, folderIds(rows, feats, name), id.slice('export-folder-'.length) as 'step' | 'stl' | 'ckpart');
           else if (id === 'extract-folder') d.extractFolder(name, folderIds(rows, feats, name));
+          else if (id === 'move-folder') d.moveFolder?.(name, folderIds(rows, feats, name));
+          else if (id === 'move-folder-drag') d.moveFolderDrag?.(name, folderIds(rows, feats, name));
           else if (id === 'delete-folder') void deleteIds(folderIds(rows, feats, name));
           else if (id === 'collapse-all') acts?.collapseAllFolders();
         },

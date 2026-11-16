@@ -1,6 +1,8 @@
 // A small MCP server core (JSON-RPC 2.0): initialize, ping, tools/list, tools/call, resources/list + read, notifications.
 // Transport independent: stdio, the daemon's HTTP endpoint and the tests all feed `handle()` one message at a time.
 import { AgentSession, callTool, createTools, type CallResult, type ToolDef } from '@kit/agent-tools';
+import { builtinRegistry } from '@kit/plugin';
+import { pluginTools } from '@kit/plugin-tools';
 
 export interface JsonRpcRequest { jsonrpc: '2.0'; id?: string | number | null; method: string; params?: Record<string, unknown> }
 export interface JsonRpcResponse { jsonrpc: '2.0'; id: string | number | null; result?: unknown; error?: { code: number; message: string; data?: unknown } }
@@ -30,7 +32,7 @@ export interface Backend {
 
 const INSTRUCTIONS = `ck-cad drives a parametric CAD kernel. run_script is the ONLY tool that changes the model (it writes a normal feature tree); tree, find, inspect, facts, bodies, probe, section(s), snapshot and drawing read, prove and show it, and measure, clearance, interference, thickness, draft and dfm (injection, cnc, printing) answer numeric design questions: how far apart, how much gap, do they overlap, how thin, what draft, what a manufacturing check says (each names the bodies and faces and gives a verdict). Start with list_methods / the ck://docs/guide resource, build with run_script, then check numbers (facts, probe, sections) and look (snapshot). checkpoint before risky changes. Sheet metal (bent flanges, flat pattern, DXF): sheet_reference lists the features and the recipe, run_script writes them (sheetRules, baseFlange, edgeFlange, hem, fold ...), sheet_info reads the flat pattern and bend table, sheet_export writes the DXF / bend table. Use mode 'attach' to add to what the user already has: their hand-made features are kept. The tools above work on this server's own document. To see or change the document the user has OPEN in their browser app, the user must link the app first: bridge_pair gives a one-time code for them to paste (Settings, Agent link); then app_status, app_state, app_screenshot, the same measurement tools as app_measure / app_clearance / app_interference / app_thickness / app_draft / app_dfm / app_bodies (read-only, no edit permission needed) and, only if they allowed editing, app_run_script, app_undo and app_redo.`;
 
-export function agentBackend(a: AgentSession, tools: ToolDef[] = createTools()): Backend {
+export function agentBackend(a: AgentSession, tools: ToolDef[] = [...createTools(), ...pluginTools(builtinRegistry())]): Backend {
   return {
     tools: () => tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })),
     call: (name, args) => callTool(a, tools, name, args),

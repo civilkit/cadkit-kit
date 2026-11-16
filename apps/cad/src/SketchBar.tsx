@@ -47,6 +47,9 @@ export interface SketchControls {
   plane: string;
   onOk(): void;
   onCancel(): void;
+  /** Draw a DXF / SVG file into this sketch (the ribbon's Import group). */
+  onImportDxf?: () => void;
+  onImportSvg?: () => void;
   /** Finish the sketch (as OK does) and open the Extrude card on it. Absent for a hole sketch. */
   onExtrude?: () => void;
   /** Finish the sketch and open the Revolve card on it. Absent for a hole sketch. */
@@ -176,7 +179,7 @@ export function SketchNotes(p: Pick<SketchControls, 'hint' | 'selected' | 'onCle
   return (
     <>
       {p.status && p.list ? <DofBadge status={p.status} list={p.list} up /> : null}
-      {p.hint ? <span class="sketch-hint" role="status">{p.hint}</span> : null}
+      {p.hint ? <span class="sketch-hint" role="status" title={p.hint}>{p.hint}</span> : null}
       {p.selected > 0 ? (
         <span class="aux-sel">{t('app.sketch.selected', { count: p.selected })} <button class="rb-btn" onClick={p.onClearSelection}>{t('app.sketch.clearSelection')}</button></span>
       ) : null}
@@ -201,7 +204,7 @@ export function SketchBar(p: SketchControls) {
         <HelpButton topic={p.tool ? 'sketch:' + p.tool : 'sketch'} />
         <SketchNotes hint={null} selected={p.selected} onClearSelection={p.onClearSelection} />
       </div>
-      {p.hint ? <span class="sketch-hint" role="status">{p.hint}</span> : null}
+      {p.hint ? <span class="sketch-hint" role="status" title={p.hint}>{p.hint}</span> : null}
     </div>
   );
 }

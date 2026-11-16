@@ -63,3 +63,7 @@ For a recording: open a part that has a solid before the screenshot step (with a
 ## Next
 
 The in-app chat is built (`docs/agent-chat.md`) and reuses this link. Still open: the remaining headless tools against the app document, a screenshot of the live canvas with the user's camera, multiple linked tabs, and a native pairing flow so the code need not be pasted.
+
+## Plugin tools (app_plugin_list, app_plugin_run)
+
+`app_plugin_list` (read) lists the plugin generators the app has switched on, with a JSON schema for each one's parameters. `app_plugin_run` (needs "Allow the agent to change this document") runs one on the open document through the same path as the Plugins panel's Add: one tree folder, one undo step, and the run's parameters are stored in the document so the folder offers Edit parameters. See `docs/plugins.md`.

@@ -73,3 +73,19 @@ describe('renaming a body a target refers to', () => {
     expect(made[1].target).toEqual({ body: 'New' });
   });
 });
+
+import { folderBodyRefs, moveGroupOps } from './bodyOps';
+describe('move a folder', () => {
+  const feats = [
+    { id: 'F1', type: 'sketch', group: 'Cab' }, { id: 'F2', type: 'extrude', op: 'newBody', body: 'Side', group: 'Cab' },
+    { id: 'F3', type: 'extrude', op: 'cut', body: 'Side', group: 'Cab' },   // a cut of Side: not a new body
+    { id: 'F4', type: 'moveBody', copy: true, body: 'Side 2', group: 'Cab' }, { id: 'F5', type: 'extrude', op: 'newBody', body: 'Other' },
+  ];
+  it('lists the bodies the folder made, once each', () => {
+    expect(folderBodyRefs(feats, ['F1', 'F2', 'F3', 'F4'])).toEqual([{ body: 'Side' }, { body: 'Side 2' }]);
+    expect(folderBodyRefs(feats, ['F1'])).toEqual([]);
+  });
+  it('one moveBody over all of them', () => {
+    expect(moveGroupOps([{ body: 'Side' }, { body: 'Side 2' }], [10, 0, -5])).toEqual([{ op: 'add', feature: { type: 'moveBody', bodies: [{ body: 'Side' }, { body: 'Side 2' }], translate: [10, 0, -5] } }]);
+  });
+});

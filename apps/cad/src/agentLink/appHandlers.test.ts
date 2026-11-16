@@ -138,3 +138,29 @@ describe('app handler: sections', () => {
     expect(render).toHaveBeenLastCalledWith('iso', 768, undefined);
   });
 });
+
+describe('app handler: plugins', () => {
+  const plugins = () => [{ id: 'acme.row', name: 'Row', version: '1.0.0', builtin: false, generators: [{ plugin: 'acme.row', generator: 'row', title: 'Row', parameters: { type: 'object' } }] }];
+  it('plugin_list is a read: no permission needed, nothing changes', async () => {
+    const r = await makeAppHandler(deps({ plugins }))('plugin_list', {}) as { plugins: Array<{ id: string }> };
+    expect(r.plugins.map((p) => p.id)).toEqual(['acme.row']);
+    await fails(makeAppHandler(deps())('plugin_list', {}), 'unsupported');
+  });
+  it('plugin_run needs the edit permission, valid arguments and an open document, and passes the parameters through', async () => {
+    const runPlugin = vi.fn(async () => ({ ok: true, group: 'Row', created: 4 }));
+    const asks = (over: Partial<AppDeps> = {}) => makeAppHandler(deps({ runPlugin, ...over }));
+    await fails(asks()('plugin_run', { plugin: 'acme.row', generator: 'row' }), 'edit_not_allowed');
+    await fails(asks({ allowEdit: () => true })('plugin_run', { plugin: 3 }), 'bad_input');
+    await fails(asks({ allowEdit: () => true })('plugin_run', { plugin: 'a', generator: 'b', params: [1] }), 'bad_input');
+    await fails(asks({ allowEdit: () => true, document: () => null })('plugin_run', { plugin: 'a', generator: 'b' }), 'no_document');
+    expect(runPlugin).not.toHaveBeenCalled();
+    expect(await asks({ allowEdit: () => true })('plugin_run', { plugin: 'acme.row', generator: 'row', params: { n: 3 } })).toMatchObject({ ok: true, group: 'Row' });
+    expect(runPlugin).toHaveBeenCalledWith('acme.row', 'row', { n: 3 });
+  });
+  it('a failed run is a bridge error that names the bad parameters', async () => {
+    const runPlugin = async () => ({ ok: false, message: 'n must be at least 1', issues: [{ param: 'n', message: 'must be at least 1' }] });
+    const e = await makeAppHandler(deps({ runPlugin, allowEdit: () => true }))('plugin_run', { plugin: 'a', generator: 'b' }).then(() => null, (x) => x) as BridgeError;
+    expect(e.code).toBe('plugin_failed');
+    expect(e.hint).toContain('n must be at least 1');
+  });
+});

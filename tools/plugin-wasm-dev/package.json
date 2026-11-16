@@ -1,0 +1,7 @@
+{
+  "name": "plugin-wasm-dev",
+  "private": true,
+  "type": "module",
+  "description": "Developer-only: jco, which tools/plugin_wasm_pack.mjs uses to turn a SolidCraft plugin component into a CivilKit wasm package. Not a dependency of the app.",
+  "dependencies": { "@bytecodealliance/jco": "1.42.0", "@bytecodealliance/preview2-shim": "0.31.1" }
+}

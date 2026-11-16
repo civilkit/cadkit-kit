@@ -40,6 +40,7 @@
 - [Frame stock data and sources](modelling/frame-stock-data.md)
 - [Equations and variables](modelling/equations.md)
 - [The feature tree and history](modelling/history.md)
+- [Plugins](modelling/plugins.md)
 
 # Assemblies and appearance
 

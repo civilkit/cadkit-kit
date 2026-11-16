@@ -1,6 +1,6 @@
 # Reference geometry
 
-Reference geometry is construction aid that has no volume of its own: planes to sketch on, axes to turn things about, and helix curves. You make them from the **Reference** group of the **Features** tab, which holds one button with **Plane** (Shift+N), **Axis** (Shift+A) and **Helix**.
+Reference geometry is construction aid that has no volume of its own: planes to sketch on, axes to turn things about, and helix curves. You make them from the **Reference** group of the **Features** tab, which has a button each for **Plane** (Shift+N), **Axis** (Shift+A) and **Helix**.
 
 None of these change the solid. They appear in the feature tree and in the view, and later features use them.
 

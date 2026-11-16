@@ -4,6 +4,15 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.0 - 2026-11-15
+
+- **A feature edits in a card over the model.** Opening a feature (double-click it, or the pencil) shows its editor as a floating card with labelled fields, dropdowns and sections, and the left panel keeps the tree. The raw column of field names that sat on the right is off for everyone (a layout saved before this loses it once); turn it back on in Settings under Right panel. Phones and narrow tablets keep their single panel.
+- **The Surfaces and Features tabs show every command.** Planar, Extruded, Revolved, Lofted, Fill, Offset, Extend, Trim, Knit, Thicken and Freeform are now one button each instead of three dropdowns, and Reference, the Draft family and Bodies on the Features tab are plain buttons too.
+- **The Sketch tab keeps Select and Finish in view.** Select and Finish stay pinned at the ends of the Sketch ribbon while the tools scroll between them, Import DXF and Import SVG are in a new Import group inside a sketch, the scroll arrows no longer cover tools, and the status-bar chips keep their text (the longer hint is a tooltip).
+- **Plugins: add generators made by other people.** Features > Plugins lists built-in generators (Case, Springs) and, once you switch on "Allow plugins from other people", any you install from a zip, a `github:owner/repo@tag` address or a link. A generator gets a form, a live preview, a folder in the tree and one undo step; **Edit parameters** rebuilds a folder in place, and **Move folder** moves a whole generated part (drag with the ball, type X, Y, Z, or by distance). Plugins with compiled code run in a sandbox with no network and no access to your document; they are off by default and the card shows what you are installing and its hash. Agents can list and run them with `app_plugin_list` and `app_plugin_run` (needs the box that lets the agent change the document). Known limits: doors and drawers do not swing, joinery and cut lists from SolidCraft's Woodwork are not wired, boards get flat colours, and it has been checked in Chrome and Safari, not yet in Firefox or inside the Mac app itself.
+- **More SolidWorks parts open with their full history.** Drafted boss faces, fillets that run round a closed curve and bosses whose outline closes with a straight chord now rebuild, so parts that stopped partway (a drafted boss, a fillet round a hole) open as editable features. A feature the kernel still cannot read back ends the history there, as before.
+- **Thicken works on a tight closed spline.** Thickening an extruded closed spline on one side gave a broken preview and took over a minute; it now builds in about a second and is a valid solid.
+
 ## 0.7.4 - 2026-11-14
 
 - **Online libraries work in the desktop app.** Adding a library from GitHub (`github:owner/repo` or its web address) failed there with "The library could not be reached", because the desktop window did not allow the connection to GitHub's file host. It does now, and the library's mirror too. A library at some other web address still needs the browser version.

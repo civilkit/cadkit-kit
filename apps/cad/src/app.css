@@ -1379,7 +1379,9 @@ html[data-resizing="corner"], html[data-resizing="corner"] * { cursor: nwse-resi
 
 /* While sketching the hint line is what is read: it takes the room that is left, and on a narrow window (1440 px and below) the plain model counters
    (Features, Faces, Triangles, Errors ...) give way to it; the buttons among them (Warnings, the drawer) stay. */
-.status > .sketch-hint { flex: 1 1 auto; min-width: 30ch; }
+.status > .sketch-hint { flex: 1 1 0; min-width: 0; }
+/* badges and chips keep their whole text; the long note beside them is what gives way */
+.status > :has(> .dof-chip), .status > .dof-chip, .status .dof-chip { flex: none; white-space: nowrap; overflow: visible; }
 .status:has([data-testid="status-sketch"]) > .sp { flex: 0 0 0; }
 @media (max-width: 1600px) {
   .status:has([data-testid="status-sketch"]) > .st-item:not(.st-chip) { display: none; }
@@ -1698,8 +1700,9 @@ html, body, body > * { touch-action: pan-x pan-y; }   /* the body and what is mo
 .chat-tool[data-state="failed"] { color: var(--warn); }
 .chat-input { display: flex; gap: 6px; align-items: end; }
 .chat-input textarea { flex: 1; resize: vertical; font: inherit; min-height: 48px; }
-.chat-cmd { display: flex; gap: 6px; align-items: center; }
-.chat-cmd code { flex: 1; font: 12px ui-monospace, monospace; background: var(--chip); padding: 4px 6px; border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+.chat-cmd { display: flex; flex-direction: column; gap: 6px; }
+.chat-cmd code { display: block; font: 11.5px/1.45 ui-monospace, monospace; background: var(--chip); padding: 8px 10px; border-radius: 6px; user-select: all; white-space: pre-wrap; overflow-wrap: break-word; }
+.chat-cmd .rb-btn { align-self: stretch; }
 .chat-privacy { border-top: 1px solid var(--line); padding-top: 6px; }
 .chat-privacy summary { cursor: pointer; }
 .chat-panel > .tb-note { flex: none; }
@@ -1952,3 +1955,7 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .update-card .uc-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .update-card .uc-primary { background: var(--accent); color: #fff; border-color: transparent; }
 #app[data-layout="phone"] .update-card { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; }
+
+/* The editor of a feature (and the wizards) as a card over the viewport, anchored at the left of the viewport, past a floating left panel (its left is set inline); the left panel keeps the tree. */
+.editor-card { position: absolute; z-index: 30; top: 12px; left: 12px; width: 340px; max-width: calc(100% - 200px); max-height: calc(100% - 24px); overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.editor-card > * { min-height: 0; }

@@ -147,13 +147,17 @@ export function sketchRibbonGroups(p: {
   const tile = (id: string, icon: string, label: string, tip: string, run: () => void, pressed?: () => boolean) =>
     ({ key: id, node: <Slot id={id} variant="ribbon" side="bottom" labels={p.labels} items={[{ id, label, icon, tip, pressed, run }]} /> });
   const groups: RibbonGroup[] = [
-    { id: 'SketchSelect', entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> },
+    { id: 'SketchSelect', pinned: true, entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> },
       { key: 'sk-help', node: <HelpButton topic={p.active ? 'sketch:' + p.active : 'sketch'} /> }] },
-    { id: 'Finish', entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
+    { id: 'Finish', pinned: true, entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
     { id: 'Make', entries: c ? [
       c.onExtrude ? tile('sketch-extrude', 'add-extrude', t('cmd.add-extrude'), t('app.sketch.extrude.tip'), c.onExtrude) : null,
       c.onRevolve ? tile('sketch-revolve', 'add-revolve', t('cmd.add-revolve'), t('app.sketch.revolve.tip'), c.onRevolve) : null,
     ].filter((e): e is { key: string; node: preact.JSX.Element } => e !== null) : [] },
+    { id: 'Import', entries: c?.onImportDxf && c.onImportSvg ? [
+      tile('sketch-import-dxf', 'sketch-import-dxf', t('rb.sketch-import-dxf'), t('cmd.sketch-import-dxf'), c.onImportDxf),
+      tile('sketch-import-svg', 'sketch-import-svg', t('rb.sketch-import-svg'), t('cmd.sketch-import-svg'), c.onImportSvg),
+    ] : [] },
     { id: 'Draw', entries: slotsFor('draw', tools).map(cell) },
     { id: 'Dimension', entries: slotsFor('dimension', tools).map(cell) },
     { id: 'Constrain', entries: slotsFor('constrain', tools).map(cell) },

@@ -33,7 +33,7 @@ The layout tab controls which parts of the window are shown. Start with a preset
 | **Panel sizes** | **Reset layout** | Restores the default widths and heights, unfolds a folded or switched-off left panel and brings the tools back if the ribbon and the tool rail were both off. |
 | **Ribbon** | **Off (command search)**, **Compact**, **Full** | **Off** hides the ribbon and relies on command search and the tool column. |
 | **Left panel** | **Docked**, **Floating**, **Hidden** | Where the feature tree and its tabs sit. |
-| **Inspector panel** | **Off**, **Docked right**, **Floating** | The property panel for the selected feature. |
+| **Inspector panel** | **Off**, **Docked right**, **Floating** | The raw property column for the selected feature. **Off** by default: a feature is edited in a card over the viewport. Phones and narrow tablets ignore it. |
 | **Button labels** | **Icons and text**, **Icons only (label on hover)** | How ribbon and palette buttons look. |
 | **Left panel tabs (Outliner, Features, Assets, Editor)** | on / off | One list, or tabs. With tabs on, the left panel offers **Outliner**, **Features**, **Editor**, **Catalog**, **Variables**, **Script** and **Bodies**. |
 | **Tool rail** | on / off | A column of modelling tools down the left edge. |
@@ -56,7 +56,7 @@ The presets set the following:
 | Selection mode bar | On | Off | Off |
 | Bottom drawer | Open | Closed | Closed |
 
-A first visit starts with a mix of these: the full ribbon, a floating left panel with tabs, the inspector docked right, no tool rail, no selection mode bar and a closed drawer. Because it matches no preset, the dialog shows **Custom (your own mix)**.
+A first visit starts with a mix of these: the full ribbon, a floating left panel with tabs, the inspector panel off, no tool rail, no selection mode bar and a closed drawer. Because it matches no preset, the dialog shows **Custom (your own mix)**. If you saved a layout in an earlier version with the inspector docked, it is switched off once when this version first opens; set **Inspector panel** to **Docked right** to bring it back.
 
 Drag the handles between panels to resize them. The sizes are remembered. Drag a panel below its minimum and it folds away; the keyboard works too: focus a handle and use the arrow keys, `Home` and `End`, and `Enter` to reset. `[` shows or hides the left panel and `\` the drawer.
 

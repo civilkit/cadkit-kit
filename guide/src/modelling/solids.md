@@ -234,7 +234,7 @@ A bounding solid is the box that just holds the bodies you pick. Pick a face on 
 
 ## Dome
 
-A dome raises a spherical cap on a flat face bounded by one circle. Pick that face and choose **Dome** (the Draft group on the Features tab). Set the **Height**; a negative height cuts a dimple into the body. A face that is not a plain circle is refused, and an oval dome is not built.
+A dome raises a spherical cap on a flat face bounded by one circle. Pick that face and choose **Dome** (**Features > Modify**). Set the **Height**; a negative height cuts a dimple into the body. A face that is not a plain circle is refused, and an oval dome is not built.
 
 ## Split face
 
