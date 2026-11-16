@@ -106,6 +106,26 @@ The tool rail is a column of tools down the left edge of the view: the modelling
 
 ![The tool rail down the left edge of the view, with the Create section opened on its flyout.](../img/tool-rail.png)
 
+The rail sits directly against the left panel (the tabbed outliner, features and editor) and follows it: when the panel opens, folds or is resized, the rail moves with it. With a floating panel it sits beside the panel.
+
+### Folding the left panel
+
+A handle on the edge of the panel and rail (a chevron, at least 44 px high on a touch screen), the panel button at the left of the top bar, and the **[** key all fold and unfold the left panel; **Side panel** on the ribbon's View tab does the same. The canvas takes the freed width. The choice is remembered on this device, and the fold animates unless your system asks for reduced motion.
+
+When the panel is folded the tool rail shrinks to one narrow column of icons if it is your only tool surface (the ribbon is off, as in **Plasticity-style**); if the ribbon is on, the rail folds away with the panel. The handle always stays on the screen to bring the panel back.
+
+### Getting your tools back
+
+The tools can never all disappear. A stored layout with the ribbon and the tool rail both off (other than **Minimal**, which shows a **Show tools** button in the top bar) gets the compact ribbon back when the app starts, turning one of them off in Settings while the other is off turns the other on, and **Reset layout** (in Settings > **Layout**, in the **...** menus and on the ribbon's View tab) unfolds the left panel, restores the default sizes and brings the tools back. On a tablet the ribbon is never fully off while the tool rail is off too.
+
+### Undo and Redo on a tablet
+
+On a tablet Undo and Redo are always on the screen as a pair of 44 px buttons at the top left of the canvas, above the tool rail, whatever panels are open or folded and also while a sketch is open; they grey out when there is nothing to undo or redo. A phone keeps them in its top bar.
+
+### Overlays do not overlap
+
+Everything that floats over the model (messages, the new-version note, the busy indicator, hints, the start card, the selection modes, the sketch bar, the readouts) lives in one layer with named regions: notices stack downward from the top, between the tool column and the view controls; messages stack upward from the bottom, above the keyboard and any strip along the bottom; the view controls stay at the right edge. Items stack instead of covering each other, at most three messages show at once (the rest wait their turn, identical ones merge into one with a count, errors go first), each disappears by itself after a few seconds, and the layer respects the screen's safe area and the on-screen keyboard.
+
 - **Sections** run down the rail: **Edit**, **Sketch**, **Create**, **Modify**, **Frame**, **Surfaces**, **Pattern**, **Inspect**, **Assembly** and **Select**. A section that would be empty in this build is skipped.
 - **One cell per family.** A cell shows the tool you used last from that family (the Extrude cell is fixed and always shows Extrude); the rest open from it with a long press, a flick to the right, a right click, or the triangle in its corner. The last tool is remembered per family and shared with the ribbon.
 - **For selection** sits at the top while something is selected: the commands that apply to what is selected, most relevant first, in the order of the right-click menu among the commands that can run now; commands that cannot run move to the end. Its memory is per kind of selection, so the tools you used on a face come back when you pick another face.

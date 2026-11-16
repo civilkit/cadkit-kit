@@ -50,7 +50,9 @@ describe('effectiveWorkspace', () => {
   it('a tablet docks the tree and the properties and takes the compact ribbon', () => {
     const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet');
     expect(e).toMatchObject({ ribbon: 'compact', leftPanel: 'docked', rightPanel: 'docked' });
-    expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' });
+    // ribbon off with the tool column on: the column carries the tools, the ribbon stays off; with the column off too a touch layout takes the compact ribbon (nothing else would carry the tools)
+    expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', toolRail: true, leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'off', leftPanel: 'hidden', rightPanel: 'off' });
+    expect(effectiveWorkspace({ ...DEFAULT_WORKSPACE, ribbon: 'off', toolRail: false, leftPanel: 'hidden', rightPanel: 'off' }, 'tablet')).toMatchObject({ ribbon: 'compact', leftPanel: 'hidden', rightPanel: 'off' });
   });
   it('a narrow (portrait) tablet docks only the tabbed left panel, so the canvas keeps the width; a hidden panel stays hidden', () => {
     const e = effectiveWorkspace(DEFAULT_WORKSPACE, 'tablet', true);

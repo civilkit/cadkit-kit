@@ -61,3 +61,24 @@ describe('TextPanel', () => {
     expect((catalogue as Record<string, unknown>)['app.sketch.hint.textPlace']).toBeTruthy();
   });
 });
+
+describe('TextPanel along a curve', () => {
+  it('"Along a curve" switches it on; with a curve picked the pick button, flip and slide edit it', () => {
+    const p = { ...props(), onPickPath: vi.fn(), pickingPath: false };
+    const { container } = render(<TextPanel {...p} />);
+    fireEvent.click(container.querySelector('[data-field="onPath"] input')!);
+    expect(p.onPatch).toHaveBeenCalledWith({ path: {} });
+    cleanup();
+    const q = { ...props(), onPickPath: vi.fn(), pickingPath: false, fields: { ...fields, path: { id: 'e1', offset: 0, flip: false } } };
+    const r = render(<TextPanel {...q} />);
+    fireEvent.click(r.container.querySelector('[data-act="pickPath"]')!);
+    expect(q.onPickPath).toHaveBeenCalled();
+    expect(r.container.querySelector('[data-act="pickPath"]')!.textContent).toBe(en('app.sketch.text.changePath'));
+    fireEvent.click(r.container.querySelector('[data-field="pathFlip"] input')!);
+    expect(q.onPatch).toHaveBeenCalledWith({ path: { flip: true } });
+    const off = screen.getByLabelText(en('app.sketch.text.pathOffset')) as HTMLInputElement;
+    fireEvent.input(off, { target: { value: '5' } });
+    fireEvent.keyDown(off, { key: 'Enter' });
+    expect(q.onPatch).toHaveBeenCalledWith({ path: { offset: 5 } });
+  });
+});

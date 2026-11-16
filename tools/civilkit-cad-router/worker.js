@@ -8,8 +8,8 @@ export default {
       url.pathname = '/docs/cad' + url.pathname.slice('/cad/docs'.length);
       return Response.redirect(url.toString(), 301);
     }
-    if (url.pathname === '/cad') {
-      url.pathname = '/cad/';
+    if (url.pathname === '/cad' || url.pathname === '/cad-beta') {
+      url.pathname += '/';
       return Response.redirect(url.toString(), 301);
     }
     url.hostname = ORIGIN;

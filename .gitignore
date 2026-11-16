@@ -20,3 +20,4 @@ desktop/dist
 desktop/out
 desktop/src-tauri/target
 desktop/src-tauri/gen
+dist-mcp-npm

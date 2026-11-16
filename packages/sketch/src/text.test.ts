@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SketchDraft } from './index';
-import { addText, ensureTextOutlines, patchText, pickEntity, textCacheClear, textFields, textKey, textNotes, textOutlineOf, textSpec, deleteEntity, entityShape, sketchShapes, shapeAtPoint, applyTransform, textTool, DEFAULT_SETTINGS, sketchTools, type TextOutlineData } from './index';
+import { isPathCurve, pathPolyline, addText, ensureTextOutlines, patchText, pickEntity, textCacheClear, textFields, textKey, textNotes, textOutlineOf, textSpec, deleteEntity, entityShape, sketchShapes, shapeAtPoint, applyTransform, textTool, DEFAULT_SETTINGS, sketchTools, type TextOutlineData } from './index';
 
 const M = { shift: false, ctrl: false, alt: false };
 const empty = (): SketchDraft => ({ id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'O', x: 0, y: 0, fixed: true }], entities: [], constraints: [], temp: [] });
@@ -109,5 +109,36 @@ describe('outlines: cache, picking, highlight, notes', () => {
     await ensureTextOutlines(draft, async () => outline(0, 0, 10, 5), () => {});
     expect(shapeAtPoint(draft as never, sketchShapes(draft as never), 5, 2)?.id).toBe(id);
     expect(shapeAtPoint(draft as never, sketchShapes(draft as never), 50, 2)).toBeNull();
+  });
+});
+
+describe('text along a curve', () => {
+  const draft = (): SketchDraft => ({
+    plane: { kind: 'std', id: 'front' },
+    points: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 60, y: 0 }, { id: 'p', x: 5, y: 5 }],
+    entities: [{ id: 'e1', type: 'line', p1: 'a', p2: 'b', construction: true }, { id: 't', type: 'text', string: 'HI', font: 'gauge', height: 5, p: 'p' }],
+    constraints: [],
+  } as unknown as SketchDraft);
+  it('switching it on waits for the curve; picking one sets path and drops the arc', () => {
+    let d = patchText(draft(), 't', { arc: {} });
+    expect(textFields(d, 't')!.arc).not.toBeNull();
+    d = patchText(d, 't', { path: {} });
+    expect(textFields(d, 't')!.path).toEqual({ id: '', offset: 0, flip: false });
+    expect(textFields(d, 't')!.arc).toBeNull();
+    expect(textSpec(d, d.entities.find((e) => e.id === 't')!)).not.toHaveProperty('path');   // nothing to follow yet
+    d = patchText(d, 't', { path: { id: 'e1', offset: 4, flip: true } });
+    const spec = textSpec(d, d.entities.find((e) => e.id === 't')!)!;
+    expect(spec.path).toEqual([[0, 0], [60, 0]]);
+    expect(spec).toMatchObject({ pathOffset: 4, pathFlip: true });
+    d = patchText(d, 't', { path: false });
+    expect(textFields(d, 't')!.path).toBeNull();
+  });
+  it('the polylines follow the kernel direction: an arc runs counter-clockwise from p1 to p2', () => {
+    const d = { points: [{ id: 'c', x: 0, y: 0 }, { id: 'a', x: 10, y: 0 }, { id: 'b', x: 0, y: 10 }], entities: [{ id: 'k', type: 'arc', c: 'c', p1: 'a', p2: 'b' }, { id: 'n', type: 'text' }] };
+    const pl = pathPolyline(d, 'k')!;
+    expect(pl[0]).toEqual({ x: 10, y: 0 });
+    expect(pl[pl.length - 1].x).toBeCloseTo(0, 6); expect(pl[pl.length - 1].y).toBeCloseTo(10, 6);
+    expect(pathPolyline(d, 'n')).toBeNull();
+    expect(isPathCurve(d.entities[1])).toBe(false);
   });
 });

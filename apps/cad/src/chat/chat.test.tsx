@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/preact';
 import { signal } from '@preact/signals-core';
 import type { LinkState } from '@kit/agent-link';
 import '../i18n';
-import { ChatPanel, pairCommand, type ChatLink } from './ChatPanel';
+import { ChatPanel, setupCommand, setupPrompt, type ChatLink } from './ChatPanel';
 import { contextText, createChatSession } from './chatSession';
 import { claudeCodeProvider } from './claudeCode';
 import { ChatError, type ChatEvent, type ChatProvider, type ChatTurn } from './types';
@@ -114,7 +114,7 @@ describe('ChatPanel', () => {
     const l = link(false);
     const { getByTestId, queryByTestId } = render(<ChatPanel session={session(fake(() => {}))} link={l} origin="http://localhost:5173" />);
     expect(getByTestId('chat-setup')).toBeTruthy();
-    expect(getByTestId('chat-cmd').textContent).toBe('node <checkout>/packages/mcp/bin/ck-mcp.mjs --pair');
+    expect(getByTestId('chat-cmd').textContent).toContain('ck-mcp.mjs --pair');
     expect(queryByTestId('chat-input')).toBeNull();
     fireEvent.input(getByTestId('chat-code'), { target: { value: '52311-ABCD-EFGH-JKMN-PQRS' } });
     fireEvent.click(getByTestId('chat-link'));
@@ -122,7 +122,9 @@ describe('ChatPanel', () => {
     expect(l.calls).toEqual(['52311-ABCD-EFGH-JKMN-PQRS']);
   });
   it('the command carries the page origin when it is not this computer', () => {
-    expect(pairCommand('https://civilkit.io')).toBe('node <checkout>/packages/mcp/bin/ck-mcp.mjs --pair --allow-origin https://civilkit.io');
+    expect(setupCommand('https://civilkit.io')).toContain('ck-mcp.mjs --pair --allow-origin https://civilkit.io');
+    expect(setupCommand('http://localhost:5173')).toMatch(/ck-mcp\.mjs --pair$/);
+    expect(setupPrompt('https://civilkit.io')).toContain('--allow-origin https://civilkit.io');
   });
 
   it('sends with the button, shows the reply, and Send turns into Stop while it runs', async () => {

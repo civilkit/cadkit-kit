@@ -30,7 +30,7 @@ export function SelectionList(p: { selection: string[]; model: SelModel | null; 
   if (!p.selection.length) return null;
   const chips = chipsOf(p.selection, p.model, p.onBodyName);
   return (
-    <div class="sel-list" role="region" aria-label={t('select.list')}>
+    <div class="sel-list" data-ovr-reserve="right-bottom" role="region" aria-label={t('select.list')}>
       <div class="sel-list-head">
         <button type="button" class="sel-list-toggle" aria-expanded={open} title={t(open ? 'select.list.hide' : 'select.list.show')} onClick={() => setOpen(!open)}>
           {open ? '▾' : '▸'} {t('select.list')} <b>{chips.length}</b>

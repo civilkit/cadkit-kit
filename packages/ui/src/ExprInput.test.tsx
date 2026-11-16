@@ -133,6 +133,19 @@ describe('ExprInput on a phone keypad', () => {
     const d = setup('=width*2');
     expect(d.input.getAttribute('inputmode')).toBe('text');
   });
+  it('the formula key leaves and re-enters the focused field (iOS reads inputmode only on focus) and keeps what was typed', () => {
+    const m = setup();
+    m.input.focus();
+    fireEvent.input(m.input, { target: { value: '=wid' } });
+    const events: string[] = [];
+    m.input.addEventListener('blur', () => events.push('blur'));
+    m.input.addEventListener('focus', () => events.push('focus'));
+    fireEvent.click(m.r.container.querySelector('.expr-kb') as HTMLButtonElement);
+    expect(events).toEqual(['blur', 'focus']);
+    expect(document.activeElement).toBe(m.input);
+    expect(m.input.value).toBe('=wid');
+    expect(m.input.inputMode).toBe('text');
+  });
   it('the sign key flips the minus of a number and does not take the focus', () => {
     const m = setup(5);
     const sign = m.r.container.querySelector('.expr-sign') as HTMLButtonElement;

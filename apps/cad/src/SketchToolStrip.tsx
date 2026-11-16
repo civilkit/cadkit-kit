@@ -49,7 +49,7 @@ const toItem = (x: ToolEntry, active: string | null, onPick: (id: string | null)
  *  carries a short name, in the icons-only mode it is the icon alone. */
 function Palette(p: { tools: ToolEntry[]; active: string | null; onPick(id: string | null): void; labels: boolean }) {
   return (
-    <div class={'sketch-palette' + (p.labels ? ' labels' : '')} role="toolbar" aria-label={t('app.sketch.tools')}>
+    <div class={'sketch-palette' + (p.labels ? ' labels' : '')} data-ovr-reserve="right-bottom" role="toolbar" aria-label={t('app.sketch.tools')}>
       <div class="spal-group" role="group" aria-label={t('app.sketch.select')}>
         <span class="spal-name">{t('app.sketch.select')}</span>
         <div class="spal-grid">

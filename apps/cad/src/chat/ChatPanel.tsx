@@ -14,10 +14,20 @@ export interface ChatLink {
   setAllowEdit(v: boolean): void;
 }
 
-/** The command that starts the local service and prints a pairing code (the page's own address is added when it is not this computer). */
-export function pairCommand(origin: string): string {
-  const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin);
-  return `node <checkout>/packages/mcp/bin/ck-mcp.mjs --pair${local || !origin.startsWith('http') ? '' : ` --allow-origin ${origin}`}`;
+const REPO = 'https://github.com/civilkit/cadkit-kit';
+const pairArgs = (origin: string): string => `--pair${/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin) || !origin.startsWith('http') ? '' : ` --allow-origin ${origin}`}`;
+
+const REPO_KERNEL = 'https://github.com/civilkit/cadkit-kernel';
+const WASM_URL = 'https://civilkit.io/cad/kernel/ck_wasm.wasm';
+
+/** One line that gets the source, builds it and starts the local service (for a terminal). The kit expects the kernel repository beside it. */
+export function setupCommand(origin: string): string {
+  return `mkdir -p ~/civilkit-cad && cd ~/civilkit-cad && git clone ${REPO} kit && git clone ${REPO_KERNEL} kernel && (cd kit && npm install) && (cd kernel/packages && npm install && npm run build) && curl -fLo ck_wasm.wasm ${WASM_URL} && CK_WASM=$PWD/ck_wasm.wasm node kit/packages/mcp/bin/ck-mcp.mjs ${pairArgs(origin)}`;
+}
+
+/** The same thing as a request to paste to an agent (Claude Code, Codex...). */
+export function setupPrompt(origin: string): string {
+  return `Set up the CivilKit CAD local service in ~/civilkit-cad. Clone ${REPO} to ~/civilkit-cad/kit and ${REPO_KERNEL} to ~/civilkit-cad/kernel (git pull if they already exist). Run npm install in kit, and npm install then npm run build in kernel/packages. Download ${WASM_URL} to ~/civilkit-cad/ck_wasm.wasm. Then run CK_WASM=$HOME/civilkit-cad/ck_wasm.wasm node ~/civilkit-cad/kit/packages/mcp/bin/ck-mcp.mjs ${pairArgs(origin)} and show me the pairing code it prints. Leave it running.`;
 }
 
 const KNOWN = ['state', 'screenshot', 'run_script', 'undo', 'redo', 'docs', 'list_methods'];
@@ -79,15 +89,20 @@ function Setup(p: { link: ChatLink; origin: string }): JSX.Element {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const st = p.link.state.value;
-  const cmd = pairCommand(p.origin);
+  const cmd = setupCommand(p.origin);
+  const prompt = setupPrompt(p.origin);
+  const copy = (text: string) => () => { try { void navigator.clipboard.writeText(text); } catch { /* no clipboard */ } };
   const link = async (): Promise<void> => { setBusy(true); try { await p.link.connect(code); setCode(''); } catch { /* the state shows why */ } finally { setBusy(false); } };
   return (
     <div class="chat-panel chat-setup" data-testid="chat-setup">
       <b class="set-head">{t('chat.setup.title')}</b>
       <div class="tb-note">{t('chat.setup.why')}</div>
       <div>{t('chat.setup.step1')}</div>
+      <div class="chat-cmd"><code data-testid="chat-prompt">{prompt}</code>
+        <button class="rb-btn" onClick={copy(prompt)}>{t('chat.setup.copy')}</button></div>
+      <div class="tb-note">{t('chat.setup.step1b')}</div>
       <div class="chat-cmd"><code data-testid="chat-cmd">{cmd}</code>
-        <button class="rb-btn" onClick={() => { try { void navigator.clipboard.writeText(cmd); } catch { /* no clipboard */ } }}>{t('chat.setup.copy')}</button></div>
+        <button class="rb-btn" onClick={copy(cmd)}>{t('chat.setup.copy')}</button></div>
       <div>{t('chat.setup.step2')}</div>
       <label class="set-row"><span>{t('chat.setup.code')}</span>
         <input {...textAttrs} type="text" placeholder="52311-ABCD-EFGH-JKMN-PQRS" aria-label={t('chat.setup.code')} data-testid="chat-code" value={code}

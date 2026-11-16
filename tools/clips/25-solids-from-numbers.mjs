@@ -51,7 +51,11 @@ export default {
     await command('Bounding solid');
     await k.settle();
     await page.eval(`document.querySelector('button[aria-label="Fit"]')?.click()`); await k.settle();
-    await rec.wait(2000);
+    await rec.wait(1600);
+    // ---- the box is opaque: draw it as a ghost, so the ring and the spring inside it are seen too
+    await command('Ghost');
+    await k.snap('ghost');
+    await rec.wait(2800);
     k.log('bounding');
     if (process.env.CLIP_DRY) return { id: 'solids-from-numbers', dry: true };
     return rec.finish('solids-from-numbers', ctx.outDir, ctx.posterDir);

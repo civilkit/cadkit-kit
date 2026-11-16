@@ -21,10 +21,10 @@ function arg(name: string, argv: string[]): string | undefined {
   return p?.slice(name.length + 1);
 }
 
-/** The kernel wasm: --wasm, CK_WASM, or the build next to this repo. */
+/** The kernel wasm: --wasm, CK_WASM, the file beside the published bundle, or the build next to this repo. */
 function wasmPath(argv: string[]): string | undefined {
   const here = dirname(fileURLToPath(import.meta.url));
-  return arg('--wasm', argv) ?? process.env.CK_WASM ?? [resolve(here, '../../../apps/cad/public/kernel/ck_wasm.wasm')].find((p) => existsSync(p));
+  return arg('--wasm', argv) ?? process.env.CK_WASM ?? [resolve(here, 'ck_wasm.wasm'), resolve(here, '../../../apps/cad/public/kernel/ck_wasm.wasm')].find((p) => existsSync(p));
 }
 
 export async function main(argv: string[]): Promise<number> {

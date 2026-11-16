@@ -25,6 +25,7 @@ The kernel turns the letters of a font into closed outlines. Because they are cl
 | **Spacing** | The letter pitch as a factor; 1 is the font's own spacing. |
 | **Mirror** | Flips the text, for the back of a clear part. |
 | **On an arc** | Lays the letters along a circle. See below. |
+| **Along a curve** | Lays the letters along a line, arc or curve of the sketch. See below. |
 
 5. Click **Done**, press `Enter` in the string field, or press `Esc` to leave the panel. To edit the text later, choose the **Select** tool and click the lettering.
 
@@ -53,6 +54,16 @@ Tick **On an arc** to lay the letters along a circle, as on a dial or a badge.
 | **Direction** | The angle, in degrees, of the middle of the text seen from the centre; 90 is the top. |
 | **Centre X**, **Centre Y** | The centre of the circle. Or click **Pick centre**, then click a sketch point or any place. |
 | **Side** | **Outside (reads clockwise)**: the tops of the letters point away from the centre. **Inside (reads counter-clockwise)**: the tops point towards it. |
+
+## Text along a curve
+
+Draw a line, arc or spline where the text should run (a construction one is best: it does not become part of the part), then select the text and tick **Along a curve**.
+
+1. Click **Pick the curve**, then click the line, arc, circle or spline. The letters turn to follow it and stay on it when you drag or constrain the curve.
+2. The anchor grid places the text on the curve: **left** starts at the start of the curve, **centre** centres the text on it, **right** ends at its end. **Slide along** moves it along the curve by a distance (negative moves it back).
+3. **Other side** travels the curve the other way, so the letters stand on the other side of it and read the other way.
+
+Each letter keeps its shape and is turned as a whole to the direction of the curve, so tight curves need a larger letter spacing; the panel says when the letters were moved apart. Past the end of the curve the letters carry on straight. **On an arc** and **Along a curve** are alternatives: choosing one clears the other.
 
 ## Fonts
 

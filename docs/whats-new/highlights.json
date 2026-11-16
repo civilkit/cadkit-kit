@@ -1,4 +1,21 @@
 {
+  "0.7.4": [
+    {
+      "id": "text-on-path",
+      "title": "Text along a curve",
+      "blurb": "Draw a construction line, arc or spline where lettering should run, tick Along a curve and pick it. The letters follow the curve, move with it, and can be centred, slid along or put on the other side."
+    },
+    {
+      "id": "tray-wizard",
+      "title": "Trays, bins and baseplates",
+      "blurb": "The Tray wizard makes a Gridfinity tray or bin on a grid you choose, with the foot, scoops and magnets; set Make to Baseplate for the plate its foot seats in."
+    },
+    {
+      "id": "tablet-layout-2",
+      "title": "An iPad-style layout, round two",
+      "blurb": "Fold the left panel with one tap on its edge, keep Undo and Redo in a card beside the tool column, and the tools can always be brought back. Made for an iPad-style screen; not yet tried on a real iPad."
+    }
+  ],
   "0.7.3": [
     {
       "id": "create-menu",

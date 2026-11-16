@@ -12,6 +12,13 @@ beforeEach(() => slotMemory.reset());
 const commands = buildCommands(fullActions());
 
 describe('ToolRail', () => {
+  it('compact is one narrow column (a class and a data attribute the stylesheet and the layout read); skip leaves out ids another control carries', () => {
+    const { container } = render(<ToolRail commands={commands} kind="none" compact skip={['undo', 'redo']} />);
+    const rail = container.querySelector('.tool-rail')!;
+    expect(rail.classList.contains('compact')).toBe(true); expect(rail.getAttribute('data-mode')).toBe('compact');
+    expect(container.querySelector('[data-slot="undo"], [data-testid="cmd-undo"]')).toBeNull();
+    expect(container.querySelector('.rail-sec')).not.toBeNull();
+  });
   it('has a titled section per family and a cell for each family of commands', () => {
     const { container } = render(<ToolRail commands={commands} kind="none" />);
     const titles = [...container.querySelectorAll('.rail-title')].map((x) => x.textContent);

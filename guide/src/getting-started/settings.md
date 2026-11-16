@@ -30,7 +30,7 @@ The layout tab controls which parts of the window are shown. Start with a preset
 | Setting | Choices | What it does |
 | --- | --- | --- |
 | **Preset** | **Plasticity-style**, **Classic ribbon**, **Minimal**, **Custom (your own mix)** | Applies a whole set of the settings below at once. It shows **Custom** when your settings match no preset. |
-| **Panel sizes** | **Reset layout** | Restores the default widths and heights and unfolds a folded left panel. |
+| **Panel sizes** | **Reset layout** | Restores the default widths and heights, unfolds a folded or switched-off left panel and brings the tools back if the ribbon and the tool rail were both off. |
 | **Ribbon** | **Off (command search)**, **Compact**, **Full** | **Off** hides the ribbon and relies on command search and the tool column. |
 | **Left panel** | **Docked**, **Floating**, **Hidden** | Where the feature tree and its tabs sit. |
 | **Inspector panel** | **Off**, **Docked right**, **Floating** | The property panel for the selected feature. |

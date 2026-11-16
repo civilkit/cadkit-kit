@@ -899,3 +899,13 @@ describe('controller design check: Block rules and after-edit runs (fake session
     } finally { vi.useRealTimers(); }
   });
 });
+
+describe('controller canUndo / canRedo (the always-drawn Undo and Redo buttons grey out from these)', () => {
+  it('are false with no document', () => {
+    const { view } = fakeView();
+    const kernel: KernelFactory = { async open() { throw new Error('not used'); } } as unknown as KernelFactory;
+    const c = new Controller({ store: createStore(), view, kernel });
+    expect(c.canUndo()).toBe(false);
+    expect(c.canRedo()).toBe(false);
+  });
+});

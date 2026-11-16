@@ -111,6 +111,7 @@ const ICONS: Record<string, string> = {
   'export-dxf-sketch': P('M6 3h8l4 4v14H6z') + T('M14 3v4h4') + O(11, 14, 2.5) + A('M8.5 18.5 16 18.5'),
   'export-dxf-views': P('M4 11h10v9H4z') + P('M4 4h10v5H4z') + P('M16 11h5v9h-5z') + A('M4 9v2M14 9v2', 1.15),
   palette: O(10.5, 10.5, 6.5) + P('M15.3 15.3 20.5 20.5'),
+  'panel-left': P('M3.5 5h17v14h-17z') + P('M9.5 5v14'),
   drawer: P('M3.5 5h17v14h-17z') + P('M3.5 14h17') + P('M10 17h4'),
   settings: P('M4 7h6M14 7h6M4 12h2M10 12h10M4 17h9M17 17h3') + O(12, 7, 2) + O(8, 12, 2) + O(15, 17, 2),
   display: P('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z') + O(12, 12, 3),

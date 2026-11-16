@@ -4,6 +4,17 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.7.4 - 2026-11-14
+
+- **Online libraries work in the desktop app.** Adding a library from GitHub (`github:owner/repo` or its web address) failed there with "The library could not be reached", because the desktop window did not allow the connection to GitHub's file host. It does now, and the library's mirror too. A library at some other web address still needs the browser version.
+- **Text along a curve.** Draw a construction line, arc or spline where lettering should run, select the text, tick **Along a curve** and pick it: the letters follow the curve and move with it. Centre the text on the curve, slide it along, or put it on the other side.
+- **iPad fixes.** The **New** button is back in the tablet top bar, the fold handle no longer leaves a gap when there is no tool column, the value boxes in a slim panel wrap so you can see what you type, the **ƒ** key switches the number pad and full keyboard on an iPad, and the Display button shrinks to its icon in a narrow bar.
+- **The tool column follows the left panel.** The Plasticity-style tool column now sits directly against the left panel (tree, features, editor) and moves with it as it opens, folds or is resized, instead of floating over the canvas beside it, and the selection modes bar no longer prints over the top of it.
+- **Fold the left panel with one tap.** A handle on the edge of the panel (44 px high on a touch screen), a panel button at the left of the top bar and the **[** key fold and unfold the left panel; the canvas takes the width, the tool column shrinks to one column of icons, the choice is remembered on this device and the fold animates (not with reduced motion). On a tablet a folded panel used to leave a blank gap; that is fixed.
+- **The tools can always be brought back.** A saved layout with no ribbon and no tool column is repaired on start, Settings never lets both be off at once, a tablet always shows the compact ribbon in that case, **Minimal** shows a **Show tools** button, and **Reset layout** is now also in the **...** menus and brings the left panel and the tools back.
+- **Undo and Redo always in reach on a tablet.** A pair of 44 px buttons at the top left of the canvas stays on screen with the left panel open or folded and in a sketch, and greys out when there is nothing to undo or redo.
+- **One layer for floating messages.** Messages, the new-version note, the busy indicator, hints and the start card now stack in named regions instead of printing over each other and over the view controls. At most three messages show at a time (the rest queue, identical ones merge with a count, errors first), they respect the safe area and the on-screen keyboard, and an iPad that reports a Mac browser is treated as a touch tablet.
+
 ## 0.7.3 - 2026-11-14
 
 - **The update notice is a small card.** When a newer version is ready, a card under the top bar says so with **Reload** and **Later** and warns when you have unsaved changes (it used to be a line squeezed between the tabs and the ribbon); on a phone it sits at the bottom.

@@ -80,7 +80,7 @@ export function ViewNav(p: ViewNavProps) {
   const toggle = (g: NavGroup) => { const next = NAV_GROUPS.filter((x) => (x === g ? !on(g) : on(x))); setGroups(next); write(GROUPS_KEY, next.join(',')); };
   const labels: Record<ViewTurn, string> = { up: t('viewnav.up'), down: t('viewnav.down'), left: t('viewnav.left'), right: t('viewnav.right') };
   return (
-    <div class="viewnav" ref={box} role="group" aria-label={t('viewnav.group')}>
+    <div class="viewnav" data-ovr-reserve="right" ref={box} role="group" aria-label={t('viewnav.group')}>
       {TURNS.filter((x) => on(x === 'up' || x === 'down' ? 'pitch' : 'yaw')).map((x) => (
         <StepButton key={x} cls={'vn-turn vn-' + x} label={labels[x]} fire={() => p.onTurn(x, step)}><Triangle /></StepButton>
       ))}

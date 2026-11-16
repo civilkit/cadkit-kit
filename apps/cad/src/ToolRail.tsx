@@ -16,6 +16,10 @@ export function ToolRail(p: {
   commands: Command[]; kind: SelectionKind; labels?: boolean; caption?(c: SlotItem): string;
   /** While a sketch is open: only these sections (the model groups are hidden, not greyed), no selection context, and `after` follows them. */
   only?: string[]; after?: ComponentChildren;
+  /** One narrow column of icons (the side panel is folded and this column is the only tool surface). */
+  compact?: boolean;
+  /** Command ids left out because another always-drawn control carries them (Undo and Redo sit in the undo card on a touch layout). */
+  skip?: string[];
 }) {
   const byId = new Map(p.commands.map((c) => [c.id, c]));
   const cell = (e: RibbonEntry, key: string) => {
@@ -28,7 +32,7 @@ export function ToolRail(p: {
   };
   const ctx: SlotItem[] = contextIds(p.kind).map((id) => byId.get(id)).filter((c): c is Command => !!c).map(commandToItem);
   return (
-    <div class={'tool-rail' + (p.labels ? ' labels' : '')} role="toolbar" aria-label={p.only ? t('app.sketch.tools') : t('rail.label')} aria-orientation="vertical">
+    <div class={'tool-rail' + (p.labels ? ' labels' : '') + (p.compact ? ' compact' : '')} data-mode={p.compact ? 'compact' : 'full'} role="toolbar" aria-label={p.only ? t('app.sketch.tools') : t('rail.label')} aria-orientation="vertical">
       {!p.only && ctx.length && p.kind !== 'none' ? (
         <div class="rail-sec rail-context" role="group" aria-label={t('rail.context')}>
           <span class="rail-title rail-sel-title">{t('rail.context')}</span>
@@ -39,7 +43,7 @@ export function ToolRail(p: {
         </div>
       ) : null}
       {RAIL_SECTIONS.filter((s) => !p.only || p.only.includes(s.id)).map((s) => {
-        const cells = s.entries.map((e, i) => cell(e, s.id + i)).filter(Boolean);
+        const cells = s.entries.filter((e) => typeof e !== 'string' || !p.skip?.includes(e)).map((e, i) => cell(e, s.id + i)).filter(Boolean);
         if (!cells.length) return null;
         return (
           <div class="rail-sec" key={s.id} role="group" aria-label={t('rail.' + s.id)}>

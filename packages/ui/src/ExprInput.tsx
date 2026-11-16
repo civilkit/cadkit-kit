@@ -25,6 +25,15 @@ export function errorText(code: ExprCode, name?: string): string {
  * field is marked driven (the fx badge, click to turn it into its current number) and the evaluated value
  * shows under it; a bad one shows the error and is not applied. Variable names complete as you type.
  */
+/** Change a field's soft keyboard. iOS reads `inputmode` only when a field gains focus, so a change on the focused field does nothing until the field is left and entered again:
+ *  set the attribute, then blur and focus in the same tap (a later focus() would lose the tap and the keyboard would stay shut). */
+export function switchKeyboard(el: HTMLInputElement | null, mode: 'text' | 'decimal' | 'numeric'): void {
+  if (!el) return;
+  el.inputMode = mode;
+  el.blur();
+  el.focus();
+}
+
 export function ExprInput(p: {
   value: number | string;
   onValue(v: number | string): void;
@@ -52,6 +61,7 @@ export function ExprInput(p: {
   // The digit keypad has no letters, so a formula or a variable name needs the full keyboard: "ƒ" switches to it (a driven field starts there).
   const [full, setFull] = useState(() => isExprValue(p.value) && !p.plain);
   const input = useRef<HTMLInputElement>(null);
+  const switching = useRef(false);
   const driven = isExprValue(p.value) && !p.plain;
   const shown = text ?? (typeof p.value === 'number' ? fmt(p.value) : String(p.value));
   const parsed = parseFieldText(shown);
@@ -101,7 +111,7 @@ export function ExprInput(p: {
             onInput={(e) => apply((e.currentTarget as HTMLInputElement).value)}
             onChange={(e) => apply((e.currentTarget as HTMLInputElement).value)}
             onFocus={() => setOpen(true)}
-            onBlur={() => { setText(null); setOpen(false); }}
+            onBlur={() => { if (switching.current) return; setText(null); setOpen(false); }}
             onKeyDown={(e) => {
               if (items.length) {
                 if (e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % items.length); return; }
@@ -115,7 +125,7 @@ export function ExprInput(p: {
         </span>
         {p.plain ? null : <button type="button" class={'expr-kb' + (full ? ' on' : '')} tabIndex={-1} disabled={p.disabled} aria-pressed={full} data-testid="expr-kb"
           aria-label={full ? t('expr.kb.digits', undefined, 'Number keypad') : t('expr.kb.full', undefined, 'Full keyboard (formulas and variables)')}
-          onMouseDown={keep} onClick={() => { setFull(!full); input.current?.focus(); }}>{full ? '123' : 'ƒ'}</button>}
+          onMouseDown={keep} onClick={() => { const next = !full; setFull(next); switching.current = true; switchKeyboard(input.current, next ? 'text' : p.integer ? 'numeric' : 'decimal'); switching.current = false; }}>{full ? '123' : 'ƒ'}</button>}
         {p.integer || !canNegate || full ? null : <button type="button" class="expr-sign" tabIndex={-1} disabled={p.disabled} data-testid="expr-sign"
           aria-label={t('expr.sign', undefined, 'Change sign')} onMouseDown={keep} onClick={flip}>{'±'}</button>}
       </span>

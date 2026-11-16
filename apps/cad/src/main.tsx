@@ -27,7 +27,8 @@ import {
   errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
-import { setIconSet, SignKey, type IconSet } from '@kit/ui';
+import { setIconSet, SignKey, OverlayHost, type IconSet } from '@kit/ui';
+import { navHidden, railMode, restoreHandles, undoRedoVisible } from './chromeModel';
 import { createWebPlatform, fileText } from '@kit/platform';
 import { Controller, type ViewEdge, type ViewSink } from './controller';
 import { TabSet } from './tabs/tabSet';
@@ -186,7 +187,7 @@ import { PatternPanel } from './PatternPanel';
 import { EquationPanel } from './EquationPanel';
 import { makeFontsApi } from './textFonts';
 import { webFontSource } from './fonts';
-import { isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch } from '@kit/sketch';
+import { isPathCurve, isText, patchText, textFields, textNotes, textOutlineOf, type TextPatch } from '@kit/sketch';
 import { equationFields, equationSpec, isEquation, patchEquation, type EquationFields, type EquationResult } from '@kit/sketch';
 import { SketchReadout, ModelReadout, CursorLabel, readout, clearReadout } from './sketchReadout';
 import { uppForPercent } from './sketchStatus';
@@ -676,6 +677,7 @@ function App() {
   const [fieldSeed, setFieldSeed] = useState<{ n: number; text: string | null }>({ n: 0, text: '' });
   // Select mode: the picked entity and the size field shown beside it.
   const textPickRef = useRef<string | null>(null);
+  const textPickKindRef = useRef<'centre' | 'path'>('centre');   // what the next sketch click gives the text being edited: its arc centre or the curve it follows
   /** The kernel's verdict on the equation curve being edited, for the fields it was asked about (`key`). */
   const eqResultRef = useRef<{ key: string; r: EquationResult | null }>({ key: '', r: null });
   const [entityOut, setEntityOut] = useState<{ fields: FieldSpec[]; x: number; y: number } | null>(null);
@@ -1205,7 +1207,16 @@ function App() {
   const showWarning = (id: string) => { selectFailed(id); setDrawerTab('diagnostics'); openDrawer(); };
   const openInspect = () => { setDrawerTab('inspect'); openDrawer(); };
   const inspect = useInspect(controller, store, () => viewport, openInspect, measureRef);
-  const toggleLeftPanel = () => { if (layout.value === 'phone') toggleSheet('tree'); else store.setWorkspace({ leftCollapsed: !store.workspace.value.leftCollapsed }); };
+  /** Fold or unfold the side panel (the chevron on its edge, the top bar button, `[`). Remembered per device with the workspace. The tool column follows: its place and width come from the same rules. */
+  const toggleLeftPanel = () => {
+    if (layout.value === 'phone') { toggleSheet('tree'); return; }
+    const w = store.workspace.value;
+    const app = document.getElementById('app');
+    if (app) { app.setAttribute('data-navanim', ''); window.setTimeout(() => app.removeAttribute('data-navanim'), 320); }   // animate this change only (not a splitter drag)
+    // switched off in Settings counts as hidden: bringing it back unhides and unfolds
+    if (w.leftPanel === 'hidden') store.setWorkspace({ leftPanel: 'docked', leftCollapsed: false });
+    else store.setWorkspace({ leftCollapsed: !w.leftCollapsed });
+  };
 
   const showNotices = (ns: ExportNotice[]) => { for (const n of ns) store.notify(t(n.key, n.params), n.level); };
   /** Add a DXF file's geometry to the open sketch. */
@@ -2573,6 +2584,14 @@ function App() {
     if (textPickRef.current) {
       // the next click after "Pick centre" on the Text panel: a sketch point under it, else the plain position
       const pid = textPickRef.current; textPickRef.current = null;
+      if (textPickKindRef.current === 'path') {
+        // the next click after "Pick the curve": a line, arc, circle or spline (construction too), never the text itself
+        const hitId = pickEntity({ ...draft, entities: draft.entities.filter((x) => isPathCurve(x)) }, { x: ev.u, y: ev.v }, ev.tol);
+        const hitE = hitId ? draft.entities.find((x) => x.id === hitId) : null;
+        if (hitE && isPathCurve(hitE)) void controller.applySketchDraft(patchText(draft, pid, { path: { id: hitE.id } })).then(() => { applyHighlight(); viewTick((n) => n + 1); });
+        else viewTick((n) => n + 1);
+        return;
+      }
       const hit = snapAt(draft, { x: ev.u, y: ev.v }, { tolerance: ev.tol, midpoints: false, align: false });
       const next = patchText(draft, pid, { arc: { centre: hit?.pointId ? undefined : { x: ev.u, y: ev.v }, centreId: hit?.pointId } });
       void controller.applySketchDraft(next).then(() => { applyHighlight(); viewTick((n) => n + 1); });
@@ -3191,6 +3210,11 @@ function App() {
     list: <SketchConstraintList rows={conRows} status={stNow} hot={hotConstraint} selected={selConstraint} onSelect={(id) => { selectEntity(null, 0, 0); setSelConstraint(id); }} onHover={hoverConstraint} onDelete={deleteConstraint} onEdit={startDimEdit} onToggleDriven={toggleDriven} />,
   } : null;
   const chrome = sketchChrome(ws, !!sketching);
+  // the side panel and the tool column are drawn from rules over the workspace on every render (chromeModel.ts); nothing here is stored
+  const sideHidden = navHidden(ws);
+  const railKind = chrome.leftColumn === 'none' ? 'none' : railMode(ws, layout.value);
+  const selIcons = ws.toolLabels === 'icons' || narrowTablet.value;
+  const showToolsHandle = restoreHandles(ws, layout.value).includes('show-tools');
   // the floating pill is the fallback for ribbon off; with the ribbon on the Sketch tab carries every control and nothing covers the canvas
   const sketchBar = sketchControls && chrome.bar ? <SketchBar {...sketchControls} /> : null;
   /** A folder's button: pick every face the folder's features made. */
@@ -4547,6 +4571,7 @@ function App() {
     { id: 'rename', icon: 'rename', label: t('cmd.rename'), enabled: () => !!doc, run: () => { if (doc) ti.topRename.begin(); } },
     ...(installEv ? [{ id: 'install', icon: 'save', label: t('app.install.action'), run: () => { const ev = installEv; setInstallEv(null); void ev.prompt().then(() => ev.userChoice).catch(() => { /* closed without choosing */ }); } }] : []),
     { id: 'settings', icon: 'settings', label: t('app.settings.title'), run: () => setSettings(true) },
+    ...(cmd('reset-layout') ? [commandToItem(cmd('reset-layout')!)] : []),
     // the published site's floating Licences and Documentation links are hidden on a phone (they printed over the bottom bar); they are here instead
     ...(document.getElementById('licences-link') ? [{ id: 'licences', icon: 'feature-generic', label: t('app.more.licences'), run: () => { window.open((document.getElementById('licences-link') as HTMLAnchorElement).href, '_blank', 'noopener'); } }] : []),
     ...(document.getElementById('docs-link') ? [{ id: 'docs', icon: 'feature-generic', label: t('app.more.docs'), run: () => { window.open((document.getElementById('docs-link') as HTMLAnchorElement).href, '_blank', 'noopener'); } }] : []),
@@ -4578,13 +4603,15 @@ function App() {
   />;
   return (
     <VarsContext.Provider value={scopeOf(doc)}>
-    <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-narrow={narrowTablet.value ? '1' : undefined} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed}>
+    <div id="app" style={layoutStyle(ws)} data-layout={layout.value} data-narrow={narrowTablet.value ? '1' : undefined} data-sketching={sketching ? '1' : undefined} data-tray={phone && tray ? '1' : undefined} data-ribbon={ws.ribbon} data-left={ws.leftPanel} data-right={rightMode} data-drawer={ws.drawerOpen} data-rail={ws.toolRail} data-lcol={ws.leftCollapsed} data-railmode={railKind} data-nav={sideHidden ? 'hidden' : 'open'}>
       {phone ? phoneBar : <div class="topbar">
+        <Tip label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} keys="[" side="bottom"><button class={'rb-btn tb-icon tb-nav' + (sideHidden ? ' nav-off' : '')} data-testid="nav-toggle" aria-label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} aria-expanded={!sideHidden} onClick={toggleLeftPanel}><Icon name="panel-left" size={18} /></button></Tip>
+        {showToolsHandle ? <button class="rb-btn show-tools" data-testid="show-tools" onClick={() => store.setWorkspace({ ribbon: 'compact' })}><Icon name="tools" size={18} />{t('app.showTools')}</button> : null}
         <Tip label={t('cmd.new-part')} keys="Ctrl+N" side="bottom"><button class="rb-btn tb-icon tb-new" aria-label={t('cmd.new-part')} onClick={() => commands.find((c) => c.id === 'new-part')!.run()}><Icon name="new-part" size={18} /></button></Tip>
         <Tip label={t('cmd.open')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.open')} onClick={() => commands.find((c) => c.id === 'open')!.run()}><Icon name="open" size={18} /></button></Tip>
         <Tip label={t('cmd.save')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.save')} disabled={!doc} onClick={() => commands.find((c) => c.id === 'save')!.run()}><Icon name="save" size={18} /></button></Tip>
         <ExportMenu items={EXPORT_KINDS.map((k) => commands.find((c) => c.id === `export-${k}`)!)} open={exportOpen && !!doc} onOpenChange={setExportOpen} keys="Ctrl+E" disabled={!doc} visibleOnly={{ on: exportVisible, onChange: setExportVisible }} meshQuality={{ quality: exportQuality, chord: exportChord, onQuality: setExportQuality, onChord: setExportChord }} />
-        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'embed-geometry', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
+        <Slot id="file-more" variant="icon" side="bottom" menu icon="more" title={t('app.fileMore')} items={['save-as', 'embed-geometry', 'recover-versions', 'import-step', 'import-skp-hidden', 'rotate-skp', 'toggle-left-panel', 'reset-layout'].flatMap((id) => { const c = commands.find((x) => x.id === id); return c ? [commandToItem(c)] : []; })} />
         <Tip label={t('cmd.samples')} side="bottom"><button class="rb-btn tb-icon" aria-label={t('cmd.samples')} onClick={() => commands.find((c) => c.id === 'samples')!.run()}><Icon name="samples" size={18} /></button></Tip>
         {ti.topRename.active && doc
           ? <InlineName class="doc-name" value={doc.name} onCommit={ti.topRename.commit} onCancel={ti.topRename.end} />
@@ -4606,40 +4633,13 @@ function App() {
       {ws.leftPanel === 'docked' ? left : null}
       {lay.docked}
       <div id="vp" ref={host}>
-        {handles.menuEl}{ti.menu ? <ContextMenu x={ti.menu.x} y={ti.menu.y} items={ti.menu.items} onRun={ti.runMenu} onClose={ti.closeMenu} /> : null}{handles.fieldsEl}{handles.askEl}{handles.hintEl}<div class="vp-notes">{handles.aboutEl}<QuickMeasure lines={quickText} /></div>{tri.menuEl}{tri.dialogEl}{tri.statusEl}
+        {handles.menuEl}{ti.menu ? <ContextMenu x={ti.menu.x} y={ti.menu.y} items={ti.menu.items} onRun={ti.runMenu} onClose={ti.closeMenu} /> : null}{handles.fieldsEl}{tri.menuEl}{tri.dialogEl}{tri.statusEl}
         {ws.leftPanel === 'floating' ? left : null}
         {rightMode === 'floating' ? right : null}
         {lay.floating}
-        {chrome.leftColumn !== 'none' ? (
-          <ToolRail commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons'} caption={(c) => t('rb.' + c.id, undefined, c.label)}
-            {...(chrome.leftColumn === 'model' ? {} : { only: ['history'] })}
-            {...(chrome.leftColumn === 'sketch' ? { after: <SketchRailSections active={sketchToolId} onPick={selectTool} labels={ws.toolLabels !== 'icons'} /> } : {})} />
-        ) : null}
-        {ws.selectionBar && !sketching ? (
-          <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
-            <Tip label={t('cmd.sel-auto-tip')}>
-              <button aria-pressed={autoPick} onClick={() => chooseAutoPick(!autoPick)}>{t('cmd.sel-auto')}</button>
-            </Tip>
-            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
-              <Tip key={m} label={t(l)} keys={k}>
-                <button aria-pressed={!autoPick && store.mode.value === m} disabled={!store.filters.value[MODE_FILTER[m]]} aria-label={ws.toolLabels === 'icons' ? t(l) : undefined} onClick={() => setMode(m)}>
-                  <Icon name={'sel-' + m} size={ws.toolLabels === 'icons' ? 20 : 16} />
-                  {ws.toolLabels === 'icons' ? null : <><kbd>{k}</kbd>{t(l)}</>}
-                </button>
-              </Tip>
-            ))}
-            <span class="sel-sep" />
-            <Tip label={t('cmd.select-box')} keys="X">
-              <button aria-pressed={boxOn} aria-label={t('cmd.select-box')} onClick={toggleBox}><Icon name="sel-box" size={ws.toolLabels === 'icons' ? 20 : 16} />{ws.toolLabels === 'icons' ? null : <kbd>X</kbd>}</button>
-            </Tip>
-            <FilterMenu filters={store.filters.value} onChange={setFilter} />
-          </div>
-        ) : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
           onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
-        {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
-        {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} {...(sketching ? { sketch: { show: sketchPrefs.show, onToggle: (k, on) => updatePrefs({ show: { ...sketchPrefs.show, [k]: on } }), dimDisplay: sketchPrefs.dimDisplay, onDimDisplay: (v) => updatePrefs({ dimDisplay: v }), typedAngleDims: sketchPrefs.typedAngleDims, rightAngleSquare: sketchPrefs.rightAngleSquare, onFlag: (k, on) => updatePrefs({ [k]: on }) } } : {})} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
@@ -4648,7 +4648,6 @@ function App() {
           componentName: selComp?.name,
           anyHidden: anyHidden(hid), onShowAll: () => lookStore.showAll(),
         }} />
-        {sketchBar}
         {sketching && holeSketchRef.current && holeCorner ? <CornerHolesPanel floating value={holeCorner.rec} plate={holeCorner.plate} holeDiameter={holeDiameter(newHole(sketching.id, false, loadHolePrefs()))} onPlace={placeCornerHolesInSketch} /> : null}
         {boxRect ? <div class={'sketch-box' + (boxRect.crossing ? ' crossing' : '')} style={{ left: Math.min(boxRect.x0, boxRect.x1) + 'px', top: Math.min(boxRect.y0, boxRect.y1) + 'px', width: Math.abs(boxRect.x1 - boxRect.x0) + 'px', height: Math.abs(boxRect.y1 - boxRect.y0) + 'px' }} title={boxRect.crossing ? t('app.sketch.box.crossing') : t('app.sketch.box.window')} /> : null}
         {sketching && !sketchToolId && !entityOut && hoverTip ? <div class="sketch-tip" style={{ left: hoverTip.x + 'px', top: hoverTip.y + 'px' }}>{hoverTip.text}</div> : null}
@@ -4656,9 +4655,8 @@ function App() {
         {sketching && dimMenu ? <ContextMenu x={dimMenu.x} y={dimMenu.y} items={dimensionMenu(dimMenu.type, dimMenu.driven)} onRun={runDimMenu} onClose={() => setDimMenu(null)} /> : null}
         {sketching && dimEdit ? <SketchFields cls="dimedit" fields={[{ id: 'value', label: 'app.sketch.field.value', value: dimEdit.value, locked: true, unit: 'length', ...(dimEdit.expr ? { expr: dimEdit.expr } : {}) }]} x={dimEdit.x} y={dimEdit.y} onField={dimEditEvent} onDefine={defineParam} /> : null}
         {chrome.rightPalette ? <SketchToolStrip layout="palette" active={sketchToolId} onPick={selectTool} labels={ws.toolLabels} /> : null}
-        {emptyPart1 ? <StartCard active={refPlane(refSel)} onHover={setRefHover} onSketch={startNewSketch} onClose={() => dismissStart(tabSet.activeId)} /> : null}
         <ViewNav phone={phone} onTurn={(d, step) => viewport?.turnView(d, step)} onRoll={(d, step) => viewport?.rollView(d, step)} onHome={() => viewport?.homeView()} {...(sketching ? { onLookNormal: lookNormal } : {})} />
-        <div class="cube-tools">
+        <div class="cube-tools" data-ovr-reserve="right">
           <Tip label={t('cmd.fit')} keys="Z" side="bottom"><button aria-label={t('cmd.fit')} onClick={() => viewport?.fit()}><Icon name="fit" size={18} /></button></Tip>
           <Tip label={ortho ? t('app.view.parallel') : t('app.view.perspective')} side="bottom"><button aria-label={t('cmd.toggle-projection')} aria-pressed={ortho} class={ortho ? 'on' : ''} onClick={toggleProjection}><Icon name={ortho ? 'projection-ortho' : 'toggle-projection'} size={18} /></button></Tip>
         </div>
@@ -4666,10 +4664,12 @@ function App() {
         {sketching && !sketchToolId && entityOut && entityOut.fields.length ? <SketchFields fields={entityOut.fields} x={entityOut.x} y={entityOut.y} onField={entityFieldEvent} onDefine={defineParam} /> : null}
         {sketching && !sketchToolId && selectedText() ? (() => {
           const d = controller.sketchDraft()!; const id = selectedText()!; const f = textFields(d, id); const e = d.entities.find((x) => x.id === id)!;
-          return f ? <TextPanel fields={f} notes={textNotes(textOutlineOf(d, e))} picking={textPickRef.current === id} fonts={fontsApi}
+          return f ? <TextPanel fields={f} notes={textNotes(textOutlineOf(d, e))} picking={textPickRef.current === id && textPickKindRef.current === 'centre'} fonts={fontsApi}
             onPatch={textEdit} onDone={() => selectEntity(null, 0, 0)}
             onDelete={() => { void controller.applySketchDraft(deleteEntity(d, id)).then(() => selectEntity(null, 0, 0)); }}
-            onPickCentre={() => { textPickRef.current = textPickRef.current === id ? null : id; viewTick((n) => n + 1); }} /> : null;
+            onPickCentre={() => { textPickKindRef.current = 'centre'; textPickRef.current = textPickRef.current === id ? null : id; viewTick((n) => n + 1); }}
+            pickingPath={textPickRef.current === id && textPickKindRef.current === 'path'}
+            onPickPath={() => { const on = textPickRef.current === id && textPickKindRef.current === 'path'; textPickKindRef.current = 'path'; textPickRef.current = on ? null : id; viewTick((n) => n + 1); }} /> : null;
         })() : null}
         {sketching && !sketchToolId && selectedEquation() ? (() => {
           const d = controller.sketchDraft()!; const id = selectedEquation()!; const f = equationFields(d, id);
@@ -4684,18 +4684,36 @@ function App() {
         {sketching ? <KeyboardPrimer /> : null}
         {sketching && toolOut ? <SketchFields fields={toolOut.fields} x={toolOut.x} y={toolOut.y} onField={fieldEvent} onDefine={defineParam} seed={fieldSeed} /> : null}
         {sketching && toolOut && (toolOut.pending?.length || toolOut.snapLabel) ? <div class={'sketch-pending' + (toolOut.snapModel ? ' model' : '')} style={{ left: toolOut.x + 16 + 'px', top: toolOut.y - 8 + 'px' }}>{[...(toolOut.pending ?? []), toolOut.snapLabel].filter(Boolean).join(' · ')}</div> : null}
+        {/* the canvas-left column: the undo card on a touch layout, then the tool column; it sits against the side panel and moves with it */}
+        <div class="ovr-left" data-ovr-reserve="left" data-testid="left-column">
+          {undoRedoVisible(layout.value) ? (
+            <div class="undo-card" role="toolbar" aria-label={t('app.undoRedo')}>
+              <Tip label={t('cmd.undo')} side="right"><button class="uc-btn" data-act="undo" aria-label={t('cmd.undo')} disabled={!controller.canUndo()} onClick={() => commands.find((c) => c.id === 'undo')!.run()}><Icon name="undo" size={22} /></button></Tip>
+              <Tip label={t('cmd.redo')} side="right"><button class="uc-btn" data-act="redo" aria-label={t('cmd.redo')} disabled={!controller.canRedo()} onClick={() => commands.find((c) => c.id === 'redo')!.run()}><Icon name="redo" size={22} /></button></Tip>
+            </div>
+          ) : null}
+          {railKind !== 'none' && railKind !== 'hidden' ? (
+            <ToolRail compact={railKind === 'compact'} {...(undoRedoVisible(layout.value) ? { skip: ['undo', 'redo'] } : {})} commands={commands} kind={selectionKind(store.selection.value, store.mode.value)} labels={ws.toolLabels !== 'icons' && railKind === 'full'} caption={(c) => t('rb.' + c.id, undefined, c.label)}
+              {...(chrome.leftColumn === 'model' ? {} : { only: ['history'] })}
+              {...(chrome.leftColumn === 'sketch' ? { after: <SketchRailSections active={sketchToolId} onPick={selectTool} labels={ws.toolLabels !== 'icons' && railKind === 'full'} /> } : {})} />
+          ) : null}
+          {phone ? null : <button class="nav-handle" data-testid="nav-handle" data-open={sideHidden ? 'false' : 'true'} aria-label={sideHidden ? t('app.nav.show') : t('app.nav.hide')} aria-expanded={!sideHidden} title={(sideHidden ? t('app.nav.show') : t('app.nav.hide')) + ' ([)'} onClick={toggleLeftPanel}><Icon name="chevron" size={18} /></button>}
+        </div>
         <div id="vp-layer">
+          {sketching ? <CursorLabel enabled={sketchPrefs.cursorLabel} /> : null}
+          <SignKey />
+        </div>
+        <OverlayHost
+          top={<>
+          {/* notices first: a long sketch bar scrolls inside the region, a busy pill is never the one pushed out of sight */}
           {planePick ? (
             <div class="busy-overlay plane-pick-bar" role="status" data-testid="plane-pick-bar">
               <span>{t('app.sketch.pickPlane')}</span>
               <button class="busy-cancel" onClick={() => setPlanePick(false)}>{t('app.sketch.pickPlane.cancel')}</button>
             </div>
           ) : null}
-          {sketching ? <CursorLabel enabled={sketchPrefs.cursorLabel} /> : null}
           <BusyOverlay busy={store.busy.value} label={busyNote.value ?? undefined} showElapsed={busyNote.value !== null} onCancel={async () => { await controller.cancel(); redraw((n) => n + 1); }} />
           <BusyOverlay busy={!!importing.value} delayMs={0} showElapsed cancelable={importing.value?.phase !== 'building'} label={importing.value ? (importing.value.phase === 'building' ? t('files.solidcraft.building', { name: importing.value.name }) : importing.value.total ? t('files.solidcraft.reading', { name: importing.value.name, done: importing.value.done, total: importing.value.total }) : t('files.solidcraft.starting', { name: importing.value.name })) : undefined} onCancel={() => importing.value?.abort()} />
-          <Toast notices={store.notices.value} />
-          <SignKey />
           {tabSet.active?.parent ? (
             <div class="busy-overlay" role="status" data-testid="edit-part-bar">
               <span>{t('asm.editpart.banner', { part: tabSet.active.parent.part, asm: tabSet.active.parent.asm })}</span>
@@ -4703,7 +4721,39 @@ function App() {
               <button class="busy-cancel" onClick={() => void finishEditingPart(false)}>{t('asm.editpart.cancel')}</button>
             </div>
           ) : null}
-        </div>
+        {ws.selectionBar && !sketching ? (
+          <div class="selmodes" role="toolbar" aria-label={t('app.selectionMode')}>
+            <Tip label={t('cmd.sel-auto-tip')}>
+              <button aria-pressed={autoPick} onClick={() => chooseAutoPick(!autoPick)}>{t('cmd.sel-auto')}</button>
+            </Tip>
+            {([['face', 'cmd.sel-face', 'Q'], ['edge', 'cmd.sel-edge', 'E'], ['vertex', 'cmd.sel-vertex', 'V'], ['body', 'cmd.sel-body', 'B']] as const).map(([m, l, k]) => (
+              <Tip key={m} label={t(l)} keys={k}>
+                <button aria-pressed={!autoPick && store.mode.value === m} disabled={!store.filters.value[MODE_FILTER[m]]} aria-label={selIcons ? t(l) : undefined} onClick={() => setMode(m)}>
+                  <Icon name={'sel-' + m} size={selIcons ? 20 : 16} />
+                  {selIcons ? null : <><kbd>{k}</kbd>{t(l)}</>}
+                </button>
+              </Tip>
+            ))}
+            <span class="sel-sep" />
+            <Tip label={t('cmd.select-box')} keys="X">
+              <button aria-pressed={boxOn} aria-label={t('cmd.select-box')} onClick={toggleBox}><Icon name="sel-box" size={selIcons ? 20 : 16} />{selIcons ? null : <kbd>X</kbd>}</button>
+            </Tip>
+            <FilterMenu filters={store.filters.value} onChange={setFilter} />
+          </div>
+        ) : null}
+        {!sketching && !selectedFace() && selectedPlaneFeature() ? <button class="face-sketch-chip" data-act="sketch-on-plane" onClick={() => { const p = selectedPlaneFeature(); if (p) startNewSketch({ kind: 'feature', id: p.id }); }}>{t('app.sketch.onPlane')}</button> : null}
+        {!sketching && selectedFace() ? <button class="face-sketch-chip" onClick={() => { const f = selectedFace(); if (f) startNewSketch({ kind: 'face', id: f }); }}>{t('app.sketch.onFace')}</button> : null}
+        {sketchBar}
+          </>}
+          bottom={<>
+        {handles.askEl}
+        {handles.hintEl}
+        <Toast notices={store.notices.value} />
+        {emptyPart1 ? <StartCard active={refPlane(refSel)} onHover={setRefHover} onSketch={startNewSketch} onClose={() => dismissStart(tabSet.activeId)} /> : null}
+          </>}
+          status={<>
+        <div class="vp-notes">{handles.aboutEl}<QuickMeasure lines={quickText} /></div>
+          </>} />
       </div>
       {rightMode === 'docked' ? right : null}
       {ws.drawerOpen ? drawerEl() : null}

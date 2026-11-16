@@ -16,6 +16,9 @@ export interface TextPanelProps {
   /** ask the sketch for the next click as the arc centre */
   onPickCentre(): void;
   picking: boolean;
+  /** ask the sketch for the next click as the curve the letters follow (a line, arc, circle or spline) */
+  onPickPath?(): void;
+  pickingPath?: boolean;
   /** the font picker's connection to the app; without it only the two built-in fonts are offered */
   fonts?: FontsApi;
 }
@@ -107,6 +110,21 @@ export function TextPanel(p: TextPanelProps) {
                 <option value="inside" selected={f.arc.side === 'inside'}>{t('app.sketch.text.side.inside')}</option>
               </select></label>
           </div>
+        </div>
+      ) : null}
+      {p.onPickPath ? (
+        <label class="tp-check" data-field="onPath"><input type="checkbox" checked={!!f.path} onChange={(e) => p.onPatch({ path: (e.target as HTMLInputElement).checked ? {} : false })} /> {t('app.sketch.text.onPath')}</label>
+      ) : null}
+      {p.onPickPath && f.path ? (
+        <div class="tp-arc" data-field="path">
+          <div class="tp-row">
+            <button type="button" class={'tp-btn' + (p.pickingPath ? ' on' : '')} data-act="pickPath" onClick={p.onPickPath}>{t(p.pickingPath ? 'app.sketch.text.pickingPath' : f.path.id ? 'app.sketch.text.changePath' : 'app.sketch.text.pickPath')}</button>
+            <label class="tp-check" data-field="pathFlip"><input type="checkbox" checked={f.path.flip} onChange={(e) => p.onPatch({ path: { flip: (e.target as HTMLInputElement).checked } })} /> {t('app.sketch.text.pathFlip')}</label>
+          </div>
+          <div class="tp-row">
+            <NumField id="pathOffset" label={t('app.sketch.text.pathOffset')} value={f.path.offset} unit="mm" onValue={(v) => p.onPatch({ path: { offset: v } })} />
+          </div>
+          {!f.path.id ? <div class="tp-note" role="status" data-note="pathHint">{t('app.sketch.text.pathHint')}</div> : null}
         </div>
       ) : null}
       {small && !notes.some((n) => n.key === 'app.sketch.text.warn.TooSmall') ? <div class="tp-note warn" role="status">{t('app.sketch.text.warn.TooSmall', { detail: '' })}</div> : null}

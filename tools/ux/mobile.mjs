@@ -4,9 +4,11 @@
 // It opens a sample, orbits, pinches and taps with real touch events, opens and closes the tree, properties and diagnostics (sheets on a phone,
 // docked panels on a tablet), and checks on the live DOM: finger-sized targets, overlays that overlap, how much of the canvas is visible,
 // that nothing makes the page scroll sideways and that dialogs fit the screen. A check that fails exits 1.
-//   node tools/ux/mobile.mjs --dir <build dir> [--out <dir>] [--url <url>] [--only phone,tablet-portrait,tablet-landscape] [--sample mounting-plate] [--dpr 2]
+//   node tools/ux/mobile.mjs --dir <build dir> [--out <dir>] [--url <url>] [--only phone,tablet-portrait,tablet-landscape,overlays] [--sample mounting-plate] [--dpr 2]
 // --dir <build dir> serves a production pages build (npm run build:pages, PAGES_OUT=...; tools/pages_serve.mjs) and tests that: no dev server, no window.__cad hook.
 // The steps that need the dev hook (camera poses, store, controller) only run when a --url points at a dev server that has it; otherwise they are listed as skipped.
+// `overlays` (also part of a full run): the overlay layer at phone, tablet portrait, tablet landscape and desktop widths: the side panel's fold, Undo/Redo (visible and 44 px on touch layouts in every panel state and in a sketch)
+// and 'overlays do not overlap' with a toast stack, the update note, a busy pill and the sketch fields up together.
 // The sketch flows work from the UI alone (the sketch is read back from the autosave after Done).
 // CHROME_BIN picks the browser; UX_CHROME_ARGS adds flags (e.g. --no-sandbox when it runs as root).
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -228,9 +230,9 @@ function brightness(png, rect, dpr) {
 const shot = async (page, name) => { writeFileSync(join(OUT, name + '.png'), await page.screenshot()); };
 const grab = async (page) => page.screenshot();
 
-async function openSample(page, url) {
+async function openSample(page, url, extraLS = {}) {
   const d = JSON.parse(readFileSync(join(ROOT, 'apps/cad/public/samples', SAMPLE.endsWith('.ckpart') ? SAMPLE : SAMPLE + '.ckpart'), 'utf8'));
-  await page.eval(`localStorage.clear(); localStorage.setItem('cad.theme', '"light"'); localStorage.setItem('cad.autosave.v1', ${JSON.stringify(JSON.stringify({ name: d.name ?? SAMPLE, doc: d, savedAt: Date.now() }))}); 0`);
+  await page.eval(`localStorage.clear(); localStorage.setItem('cad.theme', '"light"'); localStorage.setItem('cad.autosave.v1', ${JSON.stringify(JSON.stringify({ name: d.name ?? SAMPLE, doc: d, savedAt: Date.now() }))}); for (const [k, v] of Object.entries(${JSON.stringify(extraLS)})) localStorage.setItem(k, v); 0`);
   await page.send('Page.reload'); await sleep(1000);
   for (let i = 0; i < 80 && !(await page.eval(`!!document.querySelector('.rb-btn, .tb-icon, .status')`)); i++) await sleep(150);
   for (let i = 0; i < 30; i++) { if (await rectOf(page, 'button', 'Restore')) { await tapOn(page, 'button', 'Restore'); break; } await sleep(150); }
@@ -1029,6 +1031,179 @@ async function noticeFlows(page, id, p, label, url) {
   check(id, label, 'the document title shows whole, or keeps at least 40px, beside the note', r.tabWidth === null || r.tabWidth >= 40, String(r.tabWidth));
 }
 
+// ---- overlays: the layer's regions, the side panel's fold, and Undo / Redo --------------------------------------------------------------------------------------------------
+
+/** The widths of the overlay checks: the three touch profiles and a desktop window (no touch). */
+export const OVERLAY_PROFILES = [
+  { id: 'phone', w: 390, h: 844, layout: 'phone', mobile: true },
+  { id: 'tablet-portrait', w: 820, h: 1180, layout: 'tablet', mobile: true },
+  { id: 'tablet-landscape', w: 1180, h: 820, layout: 'tablet', mobile: true },
+  { id: 'desktop', w: 1440, h: 900, layout: 'desktop', mobile: false },
+];
+/** The Plasticity-style workspace (ribbon off, left tool column, selection bar, drawer) as the owner uses it; the phone ignores it and keeps its own bars. */
+const PLASTICITY_WS = { ribbon: 'off', leftPanel: 'docked', leftTabs: true, leftCollapsed: false, rightPanel: 'off', toolRail: true, sketchPalette: false, toolLabels: 'icons-and-text', selectionBar: true, commandBar: true, drawerOpen: true, handles: true, opacity: 0.62, blur: 14, lineWidth: 3 };
+
+/** The overlays, measured on the live DOM: every one that floats over the canvas or the top bar, pairwise, plus the rule that each stays on the screen. */
+const OVERLAP_AUDIT = `(() => {
+  const vw = innerWidth, vh = innerHeight;
+  const shown = (e) => { const r = e.getBoundingClientRect(); if (r.width < 1 || r.height < 1) return false; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const s = getComputedStyle(n); if (s.display === 'none' || s.visibility === 'hidden') return false; } return true; };
+  const name = (e) => { let s = e.tagName.toLowerCase(); const c = (typeof e.className === 'string' ? e.className : '').trim().split(/\\s+/).filter(Boolean).slice(0, 2); return s + (c.length ? '.' + c.join('.') : '') + (e.getAttribute('aria-label') ? '[' + e.getAttribute('aria-label') + ']' : ''); };
+  const SEL = ['.toast', '.update-note', '.busy-overlay', '.sketch-fields', '.selmodes', '.sketch-bar-wrap', '.face-sketch-chip', '.undo-card', '.tool-rail', '.nav-handle', '.vn-btn', '.viewcube', '.cube-tools', '.display-btn', '.sel-list', '.sketch-palette',
+    '.start-card', '.handle-hint', '.sizebox-about', '.sizebox-ask', '.quick-measure', '.analysis-legend', '.bottom-nav', '.sheet', '.sketch-actions', '.text-panel', '.pattern-panel', '.tree-wrap.floating', '.insp-wrap.floating'];
+  // what the eye sees: the rect cut by every scrolling or clipping ancestor (a region scrolls what does not fit); nothing left means it is not on screen
+  const seen = (e, r) => { let x0 = r.left, y0 = r.top, x1 = r.right, y1 = r.bottom; for (let n = e.parentElement; n && n.nodeType === 1; n = n.parentElement) { const s = getComputedStyle(n); if (s.overflowX === 'visible' && s.overflowY === 'visible') continue; const b = n.getBoundingClientRect(); x0 = Math.max(x0, b.left); y0 = Math.max(y0, b.top); x1 = Math.min(x1, b.right); y1 = Math.min(y1, b.bottom); } return x1 - x0 > 1 && y1 - y0 > 1 ? new DOMRect(x0, y0, x1 - x0, y1 - y0) : null; };
+  const all = []; for (const sel of SEL) for (const e of document.querySelectorAll(sel)) if (shown(e)) { let r = e.getBoundingClientRect(); if (sel === '.viewcube') r = new DOMRect(r.x + r.width * .15, r.y + r.height * .15, r.width * .7, r.height * .7); r = seen(e, r); if (r) all.push({ sel, e, r }); }
+  const overlaps = [];
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+    const a = all[i], b = all[j]; if (a.e.contains(b.e) || b.e.contains(a.e)) continue;
+    const w = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left), h = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+    if (w > 2 && h > 2) overlaps.push(name(a.e) + ' x ' + name(b.e) + ' (' + Math.round(w) + 'x' + Math.round(h) + ')');
+  }
+  const offscreen = all.filter((o) => o.r.left < -1 || o.r.top < -1 || o.r.right > vw + 1 || o.r.bottom > vh + 1).map((o) => name(o.e) + ' ' + [o.r.x, o.r.y, o.r.width, o.r.height].map(Math.round).join(','));
+  return { n: all.length, kinds: [...new Set(all.map((o) => o.sel))], overlaps, offscreen };
+})()`;
+
+/** Undo and Redo: where they are, how big, whether anything covers them, and whether they reflect enabled state. */
+const UNDO_AUDIT = `(() => {
+  const find = (act, label) => { const c = [...document.querySelectorAll('.undo-card .uc-btn[data-act="' + act + '"], .topbar.phone-bar button[aria-label="' + label + '"]')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden'; })[0];
+    if (!c) return null; const r = c.getBoundingClientRect(); const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x), y: Math.round(r.y), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, onTop: !!top && (top === c || c.contains(top)), disabled: c.disabled }; };
+  return { undo: find('undo', 'Undo'), redo: find('redo', 'Redo') };
+})()`;
+
+async function overlayFlows(page, url, o) {
+  const id = o.id, step = 'overlays';
+  console.log(`\n== ${id} ${o.w}x${o.h} (overlays)`);
+  if (o.mobile) await page.setMobile(o.w, o.h, { dpr: DPR }); else { await page.clearMobile(); await page.setViewport(o.w, o.h, false, 1); }
+  // the update watch is off on localhost, so use the same server through another host name; the page is made to see a newer build (see noticeFlows)
+  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const d = Date.now.bind(Date); window.__skew = 0; Date.now = () => d() + window.__skew; const real = window.fetch.bind(window);
+    window.fetch = async (u, i) => { if (!window.__newer) return real(u, i); const s = String((u && u.url) || u); if (/version\\.json/.test(s)) return new Response(JSON.stringify({ version: '9.9.9', kit: 'x', kernel: 'x' }));
+      if (s.split('?')[0] === location.origin + location.pathname) { const r = await real(u, i); const t = await r.text(); return new Response(t.replace(/(assets\\/)([^"'/]*\\.js)/, '$1zz-9.js'), { headers: { 'content-type': 'text/html' } }); } return real(u, i); }; })()` });
+  await page.goto(url.replace('127.0.0.1', '0.0.0.0')); await sleep(1500);
+  for (let i = 0; i < 100 && !(await page.eval(`!!document.querySelector('.status, .rb-btn')`).catch(() => false)); i++) await sleep(300);
+  await openSample(page, url, { 'cad.workspace': JSON.stringify(PLASTICITY_WS), 'cad.autoUpdate': 'false' });
+  const phone = o.layout === 'phone', touch = o.layout !== 'desktop';
+  const undoRedo = async (state) => {
+    const u = await page.eval(UNDO_AUDIT);
+    if (o.layout === 'desktop') return;   // a desktop has Undo and Redo on the ribbon and in the tool column; the always-drawn card is for touch layouts
+    for (const k of ['undo', 'redo']) {
+      const b = u[k];
+      check(id, state, `${k} is visible`, !!b, JSON.stringify(u));
+      check(id, state, `${k} is at least ${MIN_TARGET} px both ways`, !!b && b.w >= MIN_TARGET - 0.5 && b.h >= MIN_TARGET - 0.5, b ? `${b.w}x${b.h}` : 'missing');
+      check(id, state, `${k} is on the screen and nothing covers it`, !!b && b.inside && b.onTop, JSON.stringify(b));
+    }
+  };
+  // the busy pill and a few toasts, as real markup in the layer's regions (the production build has no dev hook to force a slow rebuild or many notices)
+  const fill = (n) => page.eval(`(() => {
+    document.querySelectorAll('[data-fake]').forEach((e) => e.remove());
+    const top = document.querySelector('.ovr-top'), stack = (() => { const b = document.querySelector('.ovr-bottom-center'); const s = document.createElement('div'); s.className = 'toast-stack'; s.setAttribute('data-fake', '1'); b.appendChild(s); return s; })();
+    const mk = (cls, html, into) => { const d = document.createElement('div'); d.className = cls; if (into === top) d.setAttribute('data-fake', '1'); d.innerHTML = html; into.appendChild(d); return d; };
+    mk('busy-overlay', '<span class="busy-spin"></span><span>Rebuilding model... 1.8 s</span><button class="busy-cancel">Cancel</button>', top);
+    for (let i = 0; i < ${n}; i++) mk('toast info', '<span class="toast-icon">&#10003;</span><span class="toast-text">Notice number ' + i + ' with a medium length text</span>', stack);
+    return 0; })()`);
+  const upd = async () => {
+    await page.eval(`(() => { window.__newer = true; window.__skew = 10 * 60000; document.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('focus')); })()`);
+    let ok = false; for (let i = 0; i < 40 && !ok; i++) { ok = await page.eval(`!!document.querySelector('.update-note')`); if (!ok) await sleep(150); }
+    return ok;
+  };
+  // sketch fields, where the app puts them: next to a shape (the real ones; start a sketch and drag a rectangle)
+  const enterSketch = async () => {
+    let opened;
+    if (phone) { await tapOn(page, '.bottom-nav button[data-nav="tools"]'); await tapOn(page, '.tool-tray .tt-tab', 'Home'); opened = await tapOn(page, '.tool-tray .slot[data-slot="new-sketch"] .slot-more'); }
+    else opened = (await tapOn(page, '.slot[data-slot="new-sketch"] .slot-more')) || (await tapOn(page, '.slot[data-slot="new-sketch"] .slot-btn'));
+    if (opened) opened = await tapOn(page, '.slot-flyout [data-testid="cmd-sketch-new-front"]');
+    await sleep(2500);
+    return opened;
+  };
+  const drawRect = async () => {
+    const a = await audit(page); const cv = a.canvasBox, cx = cv[0] + cv[2] * 0.5, cy = cv[1] + cv[3] * 0.45, k = Math.min(1, cv[2] / 640, cv[3] / 520);
+    if (phone) { await tapOn(page, '.bottom-nav button[data-nav="tools"]'); await tapOn(page, '.tool-tray .slot[data-slot="rectangle"] .slot-btn'); }
+    else (await tapOn(page, '.slot[data-slot="rectangle"] .slot-btn')) || (await tapOn(page, '.tool-rail [data-slot="rectangle"] .slot-btn'));
+    await sleep(400);
+    await page.touch('touchStart', [{ x: cx - 100 * k, y: cy - 60 * k }]); await sleep(60);
+    for (let i = 1; i <= 8; i++) { await page.touch('touchMove', [{ x: cx - 100 * k + (160 * k * i) / 8, y: cy - 60 * k + (100 * k * i) / 8 }]); await sleep(30); }
+    await page.touch('touchEnd'); await sleep(1200);
+  };
+
+  // 1. nav open: the column against the panel, then every overlay at once
+  await shot(page, `${id}-ov-1-nav-open`);
+  let a = await page.eval(`(() => { const t = document.querySelector('.tree-wrap.docked'), c = document.querySelector('.ovr-left'), r = document.querySelector('.tool-rail'), vp = document.getElementById('vp'); const b = (e) => e && e.getBoundingClientRect(); return { tree: !!t && getComputedStyle(t).visibility !== 'hidden', treeR: t && Math.round(b(t).right), colL: c && Math.round(b(c).left), vpL: Math.round(b(vp).left), railW: r && Math.round(b(r).width), mode: document.getElementById('app').dataset.railmode }; })()`);
+  if (!phone) {
+    check(id, 'nav-open', 'the tool column sits directly against the side panel (no gap, no overlap)', a.tree && Math.abs(a.colL - a.vpL) <= 1 && Math.abs(a.treeR - a.vpL) <= 1, JSON.stringify(a));
+    check(id, 'nav-open', 'the tool column is in its full form', a.mode === 'full', JSON.stringify(a));
+  }
+  await undoRedo('nav-open');
+  const gotUpd = await upd();
+  check(id, 'all-at-once', 'the update note shows', gotUpd);
+  await fill(5);
+  await sleep(500); await shot(page, `${id}-ov-2-everything`);
+  let r = await page.eval(OVERLAP_AUDIT);
+  console.log(`     overlays measured: ${r.n} (${r.kinds.join(' ')})`);
+  check(id, 'all-at-once', 'overlays do not overlap: toasts, update note, busy pill and the rest, pairwise', r.overlaps.length === 0, r.overlaps.slice(0, 5).join('; '));
+  check(id, 'all-at-once', 'every overlay stays on the screen', r.offscreen.length === 0, r.offscreen.slice(0, 4).join('; '));
+  await page.eval(`document.querySelectorAll('[data-fake]').forEach((e) => e.remove())`);
+
+  // 2. the fold (a phone folds its sheet instead: the bottom bar is its handle)
+  if (!phone) {
+    const handle = await rectOf(page, '.nav-handle');
+    check(id, 'nav-handle', 'the handle on the panel edge is there' + (touch ? ` and at least ${MIN_TARGET} px` : ''), !!handle && (!touch || (handle.w >= MIN_TARGET - 0.5 && handle.h >= MIN_TARGET - 0.5)), JSON.stringify(handle));
+    await tapOn(page, '.nav-handle'); await sleep(700);
+    await shot(page, `${id}-ov-3-nav-hidden`);
+    a = await page.eval(`(() => { const t = document.querySelector('.tree-wrap'), vp = document.getElementById('vp'), r = document.querySelector('.tool-rail'), h = document.querySelector('.nav-handle'); const b = (e) => e && e.getBoundingClientRect(); return { treeShown: !!t && getComputedStyle(t).visibility !== 'hidden' && b(t).width > 1, vpL: Math.round(b(vp).left), vpW: Math.round(b(vp).width), railW: r ? Math.round(b(r).width) : null, mode: document.getElementById('app').dataset.railmode, handleOn: !!h && b(h).width > 0 && b(h).left >= 0, stored: JSON.parse(localStorage.getItem('cad.workspace') || '{}').leftCollapsed }; })()`);
+    check(id, 'nav-hidden', 'the panel is hidden and the canvas takes its width', !a.treeShown && a.vpL <= 1, JSON.stringify(a));
+    check(id, 'nav-hidden', 'the tool column shrinks to its compact form (Plasticity: it is the only tool surface)', a.mode === 'compact' && a.railW !== null && a.railW <= 64, JSON.stringify(a));
+    check(id, 'nav-hidden', 'a handle to bring the panel back is on the screen', a.handleOn);
+    check(id, 'nav-hidden', 'the choice is remembered on this device (stored with the workspace)', a.stored === true, JSON.stringify(a));
+    await undoRedo('nav-hidden');
+    await upd(); await fill(5); await sleep(400);
+    r = await page.eval(OVERLAP_AUDIT);
+    check(id, 'nav-hidden-all', 'overlays do not overlap with the panel hidden', r.overlaps.length === 0, r.overlaps.slice(0, 5).join('; '));
+    check(id, 'nav-hidden-all', 'every overlay stays on the screen with the panel hidden', r.offscreen.length === 0, r.offscreen.slice(0, 4).join('; '));
+    await page.eval(`document.querySelectorAll('[data-fake]').forEach((e) => e.remove())`);
+    // the keyboard shortcut toggles it too
+    await page.key('['); await sleep(700);
+    a = await page.eval(`document.getElementById('app').dataset.nav`);
+    check(id, 'nav-key', 'the [ key unfolds the panel', a === 'open', String(a));
+    await page.key('['); await sleep(500);
+    check(id, 'nav-key', 'and folds it again', (await page.eval(`document.getElementById('app').dataset.nav`)) === 'hidden');
+    await shot(page, `${id}-ov-4-nav-toggled`);
+    // reload: remembered
+    await page.send('Page.reload'); await sleep(1500);
+    for (let i = 0; i < 80 && !(await page.eval(`!!document.querySelector('.status')`)); i++) await sleep(150);
+    for (let i = 0; i < 20; i++) { if (await rectOf(page, 'button', 'Restore')) { await tapOn(page, 'button', 'Restore'); break; } await sleep(150); }
+    await idle(page); await sleep(800);
+    check(id, 'nav-reload', 'after a reload the panel is still hidden, with its handle', (await page.eval(`document.getElementById('app')?.dataset.nav`)) === 'hidden' && !!(await rectOf(page, '.nav-handle')));
+    await tapOn(page, '.nav-handle'); await sleep(600);
+    check(id, 'nav-reload', 'the handle brings it back', (await page.eval(`document.getElementById('app')?.dataset.nav`)) === 'open');
+  }
+
+  // 3. a sketch: the real sketch fields next to the shape, with the panel open and hidden
+  const sk = await enterSketch();
+  check(id, 'sketch', 'a sketch opens', sk);
+  if (sk) {
+    await undoRedo('sketch-open');
+    await drawRect();
+    await shot(page, `${id}-ov-5-sketch`);
+    await upd(); await fill(3);
+    // if the drag did not leave sketch fields on screen (the tool picked differs per layout), put the app's own markup where it puts them: beside the shape, at the middle of the canvas
+    await page.eval(`(() => { if (document.querySelector('#vp .sketch-fields')) return; const vp = document.getElementById('vp'), r = vp.getBoundingClientRect(); const d = document.createElement('div'); d.className = 'sketch-fields'; d.setAttribute('data-fake', '1'); d.style.left = Math.round(r.width * 0.45) + 'px'; d.style.top = Math.round(r.height * 0.5) + 'px'; d.innerHTML = '<label>Length <input value="40"></label>'; vp.appendChild(d); })()`);
+    await sleep(400);
+    r = await page.eval(OVERLAP_AUDIT);
+    console.log(`     overlays measured in the sketch: ${r.n} (${r.kinds.join(' ')})`);
+    check(id, 'sketch-all', 'sketch fields, toasts, update note and busy pill together do not overlap', r.overlaps.length === 0, r.overlaps.slice(0, 5).join('; '));
+    check(id, 'sketch-all', 'every overlay stays on the screen in a sketch', r.offscreen.length === 0, r.offscreen.slice(0, 4).join('; '));
+    await page.eval(`document.querySelectorAll('[data-fake]').forEach((e) => e.remove())`);
+    if (!phone) {
+      await tapOn(page, '.nav-handle'); await sleep(700);
+      await undoRedo('sketch-nav-toggled');
+      await shot(page, `${id}-ov-6-sketch-nav-toggled`);
+      r = await page.eval(OVERLAP_AUDIT);
+      check(id, 'sketch-nav', 'no overlap in a sketch with the panel toggled', r.overlaps.length === 0, r.overlaps.slice(0, 5).join('; '));
+    }
+  }
+  await page.clearMobile();
+}
+
 async function main() {
   mkdirSync(OUT, { recursive: true });
   if (!args.url && !args.dir) { console.error('--dir <pages build dir> (or --url <url>) is required'); process.exit(2); }
@@ -1041,6 +1216,10 @@ async function main() {
     for (const p of PROFILES.filter((x) => !only || only.includes(x.id))) {
       try { await runProfile(page, url, p); }
       catch (e) { check(p.id, 'run', 'the scenario ran to the end', false, String(e.message ?? e).slice(0, 300)); try { await shot(page, `${p.id}-error`); } catch { /* none */ } }
+    }
+    if (!only || only.includes('overlays')) for (const o of OVERLAY_PROFILES) {
+      try { await overlayFlows(page, url, o); }
+      catch (e) { check(o.id, 'overlays', 'the overlay scenario ran to the end', false, String(e.message ?? e).slice(0, 300)); try { await shot(page, `${o.id}-overlays-error`); } catch { /* none */ } }
     }
     if (page.logs.length) console.log('\nconsole errors:\n  ' + [...new Set(page.logs)].slice(0, 8).join('\n  '));
     page.close();

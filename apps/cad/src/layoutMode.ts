@@ -36,7 +36,8 @@ export const narrowTablet = computed<boolean>(() => layout.value === 'tablet' &&
 /** The workspace the layout draws. The stored workspace is never changed by it (a phone must not rewrite the desktop's panels). */
 export function effectiveWorkspace(ws: Workspace, l: Layout, narrow = false): Workspace {
   if (l === 'desktop') return ws;
-  const ribbon = ws.ribbon === 'off' ? 'off' : 'compact';
+  // a touch layout has no keyboard and no right click to fall back on: ribbon and tool column both off (Minimal) still draws the compact ribbon, the stored choice is not touched
+  const ribbon = ws.ribbon === 'off' && (l === 'phone' || ws.toolRail) ? 'off' : 'compact';
   if (l === 'tablet' && narrow) return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', leftTabs: true, rightPanel: 'off' };
   if (l === 'tablet') return { ...ws, ribbon, leftPanel: ws.leftPanel === 'hidden' ? 'hidden' : 'docked', rightPanel: ws.rightPanel === 'off' ? 'off' : 'docked' };
   // phone: nothing floats or docks over the canvas; the tree, properties and diagnostics come as sheets from the bottom bar
@@ -46,7 +47,9 @@ export function effectiveWorkspace(ws: Workspace, l: Layout, narrow = false): Wo
 /** The keyboard covers at least this much (px): the phone layout hands the room of its bars to the sheet and the canvas. */
 export const KEYBOARD_MIN = 120;
 
-const readViewport = (win: Window): ViewportInfo => ({ w: win.innerWidth, h: win.innerHeight, coarse: !!win.matchMedia?.('(pointer: coarse)').matches });
+/** An iPad (iPadOS 13+ reports a Mac user agent) is a touch device even where the pointer media query is not "coarse". */
+export const isTouchTablet = (ua: string, maxTouchPoints: number): boolean => /iPad/.test(ua) || (/Macintosh/.test(ua) && maxTouchPoints > 1);
+const readViewport = (win: Window): ViewportInfo => ({ w: win.innerWidth, h: win.innerHeight, coarse: !!win.matchMedia?.('(pointer: coarse)').matches || isTouchTablet(win.navigator?.userAgent ?? '', win.navigator?.maxTouchPoints ?? 0) });
 
 /** Keep `viewportInfo` current (size and pointer type) and publish the on-screen keyboard as CSS variables on the root:
  *  --kb-inset (px the keyboard covers at the bottom) --vvh and --vv-top (height and offset of what is left), and `data-kb` on the root while it is up, and scroll a focused field into view.

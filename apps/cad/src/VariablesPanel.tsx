@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
-import { Icon, ExprInput, errorText, resolveVariables, completions, nameError, type ExprCode, type Variable, textAttrs } from '@kit/ui';
+import { Icon, ExprInput, switchKeyboard, errorText, resolveVariables, completions, nameError, type ExprCode, type Variable, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import type { DocPatch } from './docFields';
 import {
@@ -16,6 +16,7 @@ const fmt = (v: number): string => String(Math.round(v * 1e6) / 1e6);
 function ExprCell(p: { testid?: string; value: string; vars: Variable[]; label: string; bad: boolean; onCommit(v: string): void }): JSX.Element {
   const [text, setText] = useState<string | null>(null);
   const [sel, setSel] = useState(0);
+  const switching = useRef(false);   // the keyboard switch leaves and re-enters the field: that is not a commit
   const [full, setFull] = useState(() => /[A-Za-z_]/.test(p.value));   // a formula needs the letters: "ƒ" switches the phone keyboard between the digit pad and the full one
   const shown = text ?? p.value;
   const sc = resolveVariables(p.vars);
@@ -28,8 +29,8 @@ function ExprCell(p: { testid?: string; value: string; vars: Variable[]; label: 
         type="text" inputMode={full ? 'text' : 'decimal'} enterKeyHint="done" spellcheck={false} autocomplete="off" aria-label={p.label} data-testid={p.testid} aria-invalid={p.bad ? 'true' : undefined} class={p.bad ? 'bad' : ''}
         value={shown}
         onInput={(e) => { setText((e.currentTarget as HTMLInputElement).value); setSel(0); }}
-        onFocus={() => setText(p.value)}
-        onBlur={finish}
+        onFocus={() => { if (!switching.current) setText(p.value); }}
+        onBlur={() => { if (!switching.current) finish(); }}
         onKeyDown={(e) => {
           if (items.length) {
             if (e.key === 'ArrowDown') { e.preventDefault(); setSel((sel + 1) % items.length); return; }
@@ -41,7 +42,7 @@ function ExprCell(p: { testid?: string; value: string; vars: Variable[]; label: 
         }}
       />
       <button type="button" class={'expr-kb' + (full ? ' on' : '')} tabIndex={-1} aria-pressed={full} aria-label={full ? t('expr.kb.digits') : t('expr.kb.full')}
-        onMouseDown={(e) => e.preventDefault()} onClick={() => setFull(!full)}>{full ? '123' : 'ƒ'}</button>
+        onMouseDown={(e) => e.preventDefault()} onClick={(e) => { const next = !full; setFull(next); switching.current = true; switchKeyboard((e.currentTarget as HTMLElement).parentElement?.querySelector('input') ?? null, next ? 'text' : 'decimal'); switching.current = false; }}>{full ? '123' : 'ƒ'}</button>
       {items.length ? (
         <ul class="expr-ac" role="listbox">
           {items.map((it, i) => (

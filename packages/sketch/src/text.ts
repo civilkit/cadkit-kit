@@ -10,6 +10,7 @@
 import type { DraftEntity, SketchDraft } from './index';
 import { nextId } from './tools/builders';
 import type { Pt } from './tools/types';
+import { sampleSpline } from './tools/splineOffset';
 
 /** A built-in font ('gauge', 'engrave') or the name of a font loaded into the kernel (a curated id, or a slug of a user's font). */
 export type TextFont = string;
@@ -36,7 +37,47 @@ export const isOutlineError = (e: TextOutlineEntry | undefined): e is { error: s
 
 export const isText = (e: { [k: string]: unknown } | undefined | null): boolean => e?.type === 'text';
 
-interface PointsLike { points: Array<{ id: string; x: number; y: number }> }
+interface PointsLike { points: Array<{ id: string; x: number; y: number }>; entities?: Array<{ [k: string]: unknown }> }
+
+/** The curve kinds a text can follow: a line, arc, circle, ellipse or spline of the sketch (construction ones too). */
+export const isPathCurve = (e: { [k: string]: unknown } | undefined | null): boolean => !!e && ['line', 'arc', 'circle', 'ellipse', 'spline', 'cvspline'].includes(String(e.type));
+
+/** A polyline along a sketch curve in the direction the kernel travels it (a line p1 to p2, an arc counter-clockwise p1 to p2, a circle from angle 0); null when it is not a curve or its points are missing. */
+export function pathPolyline(sketch: PointsLike, id: string): Pt[] | null {
+  const e = sketch.entities?.find((x) => x.id === id);
+  if (!e || !isPathCurve(e)) return null;
+  const pt = (k: unknown) => { const q = typeof k === 'string' ? sketch.points.find((p) => p.id === k) : undefined; return q ? { x: q.x, y: q.y } : null; };
+  const N = 120;
+  switch (e.type) {
+    case 'line': { const a = pt(e.p1), b = pt(e.p2); return a && b ? [a, b] : null; }
+    case 'circle': { const c = pt(e.c), r = Math.abs(Number(e.r)); return c && r > 0 ? Array.from({ length: N + 1 }, (_, i) => { const t = (2 * Math.PI * i) / N; return { x: c.x + r * Math.cos(t), y: c.y + r * Math.sin(t) }; }) : null; }
+    case 'arc': {
+      const c = pt(e.c), a = pt(e.p1), b = pt(e.p2);
+      if (!c || !a || !b) return null;
+      const a0 = Math.atan2(a.y - c.y, a.x - c.x);
+      let sw = Math.atan2(b.y - c.y, b.x - c.x) - a0;
+      while (sw <= 1e-12) sw += 2 * Math.PI;
+      while (sw > 2 * Math.PI + 1e-12) sw -= 2 * Math.PI;
+      const r = Math.hypot(a.x - c.x, a.y - c.y);
+      return r > 0 ? Array.from({ length: N + 1 }, (_, i) => { const t = a0 + (sw * i) / N; return { x: c.x + r * Math.cos(t), y: c.y + r * Math.sin(t) }; }) : null;
+    }
+    case 'ellipse': {
+      const c = pt(e.c), p = pt(e.p), r = Number(e.r);
+      if (!c || !p) return null;
+      const ux = p.x - c.x, uy = p.y - c.y, lu = Math.hypot(ux, uy);
+      if (lu <= 0) return null;
+      const vx = (-uy / lu) * r, vy = (ux / lu) * r;
+      return Array.from({ length: N + 1 }, (_, i) => { const t = (2 * Math.PI * i) / N; return { x: c.x + ux * Math.cos(t) + vx * Math.sin(t), y: c.y + uy * Math.cos(t) + vy * Math.sin(t) }; });
+    }
+    default: {
+      const ps = (Array.isArray(e.pts) ? e.pts : []).map(pt).filter((q): q is Pt => !!q);
+      if (ps.length < 2) return null;
+      const closed = e.closed === true;
+      const s = sampleSpline(ps, closed);
+      return closed ? [...s, s[0]] : s;
+    }
+  }
+}
 
 /** The `textOutline` request for a text entity of a sketch: the anchor point and the arc centre point are resolved to coordinates. Null when the anchor is missing. */
 export function textSpec(sketch: PointsLike, e: { [k: string]: unknown }): Record<string, unknown> | null {
@@ -53,6 +94,15 @@ export function textSpec(sketch: PointsLike, e: { [k: string]: unknown }): Recor
     if (c) arc.centre = [c.x, c.y];
     delete arc.c;
     spec.arc = arc;
+  }
+  if (typeof e.path === 'string') {
+    // the letters follow another entity of the sketch: the preview sends its polyline (the kernel resolves the id itself when it regenerates)
+    const poly = pathPolyline(sketch, e.path);
+    if (poly) {
+      spec.path = poly.map((q) => [q.x, q.y]);
+      if (e.pathOffset !== undefined) spec.pathOffset = e.pathOffset;
+      if (e.pathFlip === true) spec.pathFlip = true;
+    }
   }
   return spec;
 }
@@ -123,6 +173,8 @@ export function textDistance(sketch: PointsLike, e: { [k: string]: unknown }, at
 export interface TextPatch {
   string?: string; font?: TextFont; /** pins the font file (prefix of its SHA-256); null / absent with a new `font` clears it */ fontHash?: string | null; height?: number; anchor?: [TextHAnchor, TextVAnchor]; angle?: number; spacing?: number; mirror?: boolean;
   /** true: lay along an arc with the given parameters (missing ones keep the old value or the default); false: straight */
+  /** false: not along a curve; else the sketch curve (entity id) the letters follow, the slide along it and the direction */
+  path?: false | { id?: string; offset?: number; flip?: boolean };
   arc?: false | { radius?: number; angleCentre?: number; side?: 'outside' | 'inside'; centre?: Pt; /** an existing sketch point as the centre */ centreId?: string };
 }
 
@@ -144,8 +196,17 @@ export function patchText(draft: SketchDraft, id: string, patch: TextPatch): Ske
   if (patch.angle !== undefined && Number.isFinite(patch.angle)) set('angle', patch.angle, 0);
   if (patch.spacing !== undefined && Number.isFinite(patch.spacing)) set('spacing', patch.spacing, 1);
   if (patch.mirror !== undefined) set('mirror', patch.mirror, false);
+  if (patch.path === false) { delete e.path; delete e.pathOffset; delete e.pathFlip; }
+  else if (patch.path) {
+    if (patch.path.id !== undefined) e.path = patch.path.id;
+    else if (e.path === undefined) e.path = '';   // switched on, the curve still to be picked
+    delete e.arc;   // an arc and a path exclude each other
+    if (patch.path.offset !== undefined && Number.isFinite(patch.path.offset)) { if (patch.path.offset === 0) delete e.pathOffset; else e.pathOffset = patch.path.offset; }
+    if (patch.path.flip !== undefined) { if (patch.path.flip) e.pathFlip = true; else delete e.pathFlip; }
+  }
   if (patch.arc === false) delete e.arc;
   else if (patch.arc) {
+    delete e.path; delete e.pathOffset; delete e.pathFlip;   // an arc and a path exclude each other
     const prev = (old.arc as Record<string, unknown> | undefined) ?? {};
     const arc: Record<string, unknown> = { radius: prev.radius ?? ARC_DEFAULT.radius, angleCentre: prev.angleCentre ?? ARC_DEFAULT.angleCentre, side: prev.side ?? ARC_DEFAULT.side };
     if (prev.c !== undefined) arc.c = prev.c;
@@ -182,6 +243,8 @@ export function addText(draft: SketchDraft, at: Pt, opts: { string?: string; fon
 export interface TextFields {
   string: string; font: TextFont; fontHash?: string; height: number; anchor: [TextHAnchor, TextVAnchor]; angle: number; spacing: number; mirror: boolean;
   arc: null | { radius: number; angleCentre: number; side: 'outside' | 'inside'; centre: Pt };
+  /** the curve the letters follow, null when they do not; `id` may be empty while it is being picked */
+  path?: null | { id: string; offset: number; flip: boolean };
   x: number; y: number;
 }
 export function textFields(draft: SketchDraft, id: string): TextFields | null {
@@ -195,6 +258,7 @@ export function textFields(draft: SketchDraft, id: string): TextFields | null {
     string: String(e.string ?? ''), font: typeof e.font === 'string' && e.font ? e.font : 'gauge', ...(typeof e.fontHash === 'string' ? { fontHash: e.fontHash } : {}), height: Number(e.height ?? TEXT_DEFAULTS.height),
     anchor: [a[0] ?? 'left', a[1] ?? 'baseline'], angle: Number(e.angle ?? 0), spacing: Number(e.spacing ?? 1), mirror: e.mirror === true,
     arc: arc ? { radius: Number(arc.radius ?? ARC_DEFAULT.radius), angleCentre: Number(arc.angleCentre ?? 90), side: arc.side === 'inside' ? 'inside' : 'outside', centre: cp ? { x: cp.x, y: cp.y } : { x: Number(arc.centre?.[0] ?? 0), y: Number(arc.centre?.[1] ?? 0) } } : null,
+    path: typeof e.path === 'string' ? { id: e.path, offset: Number(e.pathOffset ?? 0), flip: e.pathFlip === true } : null,
     x: p?.x ?? 0, y: p?.y ?? 0,
   };
 }
@@ -203,7 +267,7 @@ export function textFields(draft: SketchDraft, id: string): TextFields | null {
 export function textNotes(d: TextOutlineEntry | undefined): Array<{ key: string; params?: Record<string, string> }> {
   if (!d) return [];
   if (isOutlineError(d)) {
-    const m = /\btext(Empty|NothingToDraw|BadFont|BadHeight|BadArc|BadValue|FontNotLoaded|FontMismatch)\b/.exec(d.error);
+    const m = /\btext(Empty|NothingToDraw|BadFont|BadHeight|BadArc|BadPath|BadValue|FontNotLoaded|FontMismatch)\b/.exec(d.error);
     return [{ key: 'app.sketch.text.err.' + (m ? m[1] : 'Other'), params: { detail: d.error } }];
   }
   return d.warnings.flatMap((w) => {

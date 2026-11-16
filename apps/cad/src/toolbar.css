@@ -64,8 +64,7 @@
 }
 
 /* ---- the tool palette (left edge): sections of slots in two columns */
-.tool-rail { position: absolute; left: 12px; top: 12px; bottom: 12px; z-index: 4; width: 92px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; pointer-events: auto;
-  max-height: calc(100% - 24px); height: max-content;
+.tool-rail { position: relative; flex: 0 1 auto; min-height: 0; z-index: 4; width: 92px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; pointer-events: auto;
   background: rgba(var(--glass-rgb), max(var(--alpha), .88)); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); outline: 1px solid var(--line); outline-offset: -1px; }
 .tool-rail .rail-sec { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; border-top: 1px solid var(--line); }
 .tool-rail .rail-sec:first-child { border-top: 0; padding-top: 0; }
@@ -84,13 +83,17 @@
   .tool-rail .slot.rail .slot-btn.has-label { width: 38px; height: 34px; justify-content: center; padding: 0; }
   .tool-rail .rail-title { display: none; }
 }
+/* the compact form: the side panel is folded and the column is the only tool surface, so it narrows to one column of icons (the same look as a narrow window) */
+.tool-rail.compact, .tool-rail.compact.labels { width: 50px; }
+.tool-rail.compact .rail-grid, .tool-rail.compact.labels .rail-grid { grid-template-columns: 38px; }
+.tool-rail.compact .slot-lab, .tool-rail.compact .rail-title { display: none; }
+.tool-rail.compact .slot.rail .slot-btn.has-label { width: 38px; height: 34px; justify-content: center; padding: 0; }
 @media (max-width: 640px) {
-  .tool-rail, .tool-rail.labels { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: auto; max-height: none; flex-direction: row; gap: 4px; overflow-x: auto; overflow-y: hidden; }
+  .tool-rail, .tool-rail.labels { width: auto; height: auto; max-height: none; flex-direction: row; gap: 4px; overflow-x: auto; overflow-y: hidden; }
   .tool-rail .rail-sec { flex-direction: row; flex: none; border-top: 0; border-left: 1px solid var(--line); padding: 0 0 0 4px; }
   .tool-rail .rail-sec:first-child { border-left: 0; padding-left: 0; }
   .tool-rail .rail-grid, .tool-rail.labels .rail-grid { display: flex; }
 }
-#app[data-left="floating"][data-lcol="false"] .tool-rail { left: 284px; }
 
 /* ---- the sketch palette (right edge; on a phone a strip above the tool palette) */
 
@@ -146,3 +149,19 @@
 .rb-edge.l { left: 0; justify-content: flex-start; padding-left: 4px; }
 .rb-edge.r { right: 0; justify-content: flex-end; padding-right: 4px; }
 .rb-edge:active { color: var(--accent); }
+
+/* finger-sized cells: the column is as wide as its buttons (46 px, two across, or one across when narrow or compact) */
+@media (pointer: coarse) {
+  .tool-rail { width: 106px; }
+  .tool-rail .rail-grid { grid-template-columns: repeat(2, 46px); }
+}
+@media (pointer: coarse) and (max-width: 900px) {
+  .tool-rail, .tool-rail.labels { width: 58px; }
+  .tool-rail .rail-grid, .tool-rail.labels .rail-grid { grid-template-columns: 46px; }
+  .tool-rail .slot.rail .slot-btn.has-label { width: 46px; height: 42px; }
+}
+@media (pointer: coarse) {
+  .tool-rail.compact, .tool-rail.compact.labels { width: 58px; }
+  .tool-rail.compact .rail-grid, .tool-rail.compact.labels .rail-grid { grid-template-columns: 46px; }
+  .tool-rail.compact .slot.rail .slot-btn.has-label { width: 46px; height: 42px; }
+}

@@ -22,4 +22,6 @@ export const toolbarStrings: Record<string, string> = {
   'rb.select-connected': 'Connected', 'rb.select-invert': 'Invert', 'rb.select-none': 'Deselect', 'rb.select-box': 'Box', 'rb.select-body': 'Body',
   'rb.sel-vertex': 'Corner', 'rb.add-extrude': 'Extrude', 'rb.add-thin-extrude': 'Thin extrude', 'rb.add-thin-cut': 'Thin cut', 'rb.add-thin-revolve': 'Thin revolve', 'rb.add-revolve': 'Revolve', 'rb.view-iso': 'Iso', 'rb.open-variables': 'Variables', 'rb.open-script': 'Script',
   'rb.explode-all': 'Explode', 'rb.insert-part': 'Insert part', 'rb.new-part': 'New', 'rb.light-studio': 'Studio', 'rb.light-technical': 'Technical', 'rb.bg-theme': 'Theme', 'rb.bg-gradient': 'Gradient',
+  // the side panel handle, the always-drawn undo card, and the way back to the tools
+  'app.nav.hide': 'Hide side panel', 'app.nav.show': 'Show side panel', 'app.undoRedo': 'Undo and redo', 'app.showTools': 'Show tools',
 };

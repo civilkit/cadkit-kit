@@ -42,8 +42,8 @@ export function DisplayMenu(p: { display: Display; onToggle(layer: DisplayLayer,
     return () => { removeEventListener('mousedown', away); removeEventListener('keydown', esc); };
   }, [open]);
   return (
-    <div class="display-menu" ref={box}>
-      <button class="display-btn" aria-haspopup="true" aria-expanded={open} title={t('display.title')} onClick={() => setOpen((o) => !o)}>
+    <div class="display-menu" data-ovr-reserve="right" ref={box}>
+      <button class="display-btn" aria-label={t('display.title')} aria-haspopup="true" aria-expanded={open} title={t('display.title')} onClick={() => setOpen((o) => !o)}>
         <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" /><circle cx="8" cy="8" r="2" />
         </svg>

@@ -894,6 +894,18 @@ export class Controller {
   /** Called with the document just before every undo takes effect (the app keeps a snapshot of it: the safety net). */
   beforeUndo: ((doc: PartDoc) => void) | null = null;
 
+  /** Whether Undo would do anything now (the Undo button is greyed when not): an open sketch takes back its own steps, else a material change or an edit step. */
+  canUndo(): boolean {
+    const s = this.session;
+    if (!s) return false;
+    if (this.sketchOpen) return true;
+    const last = this.materialSteps[this.materialSteps.length - 1];
+    if (last && last.at === s.history().length) return true;
+    return (this.stackOf(s)?.length ?? 0) > 0;
+  }
+  /** Whether Redo would do anything now. */
+  canRedo(): boolean { return !!this.session && (!!this.sketchOpen || this.redoStack.length > 0); }
+
   private async undoNow(): Promise<void> {
     const s = this.session;
     if (!s) return;

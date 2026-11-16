@@ -66,7 +66,15 @@ export function sanitizeWorkspace(raw: unknown, base: Workspace = DEFAULT_WORKSP
   if (typeof r.blur === 'number' && Number.isFinite(r.blur)) out.blur = Math.min(30, Math.max(0, r.blur));
   if (typeof r.lineWidth === 'number' && Number.isFinite(r.lineWidth)) out.lineWidth = Math.min(8, Math.max(1, r.lineWidth));
   for (const k of SIZE_KEYS) if (typeof r[k] === 'number' && Number.isFinite(r[k])) out[k] = Math.round(Math.min(4000, Math.max(0, r[k] as number)));
-  return out;
+  return ensureTools(out);
+}
+/** True when the workspace draws at least one surface that carries the modelling tools: the ribbon or the tool column (a phone has its tool tray as well, whatever this says). */
+export const hasToolSurface = (w: Pick<Workspace, 'ribbon' | 'toolRail'>): boolean => w.ribbon !== 'off' || w.toolRail;
+/** Never leave a stored layout without tools. Ribbon off together with the tool column off strands a user whose menus are hidden (it is the Minimal preset by design, reached on purpose,
+ *  which keeps its small "Show tools" handle); any other such mix gets the compact ribbon back. Used on load (sanitizeWorkspace) and on every change. */
+export function ensureTools(w: Workspace): Workspace {
+  if (hasToolSurface(w) || matchPreset(w) === 'minimal') return w;
+  return { ...w, ribbon: 'compact' };
 }
 /** `blockedBy`: this failure only follows from an earlier one (the root cause's feature id); the tree shows it muted, not red. */
 export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: string; params?: Record<string, unknown>; blockedBy?: string; }
@@ -95,8 +103,17 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   };
   return {
     selection, mode, hover, filters, tool, busy, cached, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
-    setWorkspace(patch: Partial<Workspace>) { workspace.value = sanitizeWorkspace({ ...workspace.value, ...patch }, workspace.value); },
-    resetLayout() { workspace.value = sanitizeWorkspace({ ...workspace.value, ...DEFAULT_SIZES, leftCollapsed: false }, workspace.value); },
+    setWorkspace(patch: Partial<Workspace>) {
+      const merged = { ...workspace.value, ...patch };
+      // turning the ribbon off while no tool column exists hands the tools to the column (turning the column off while the ribbon is off brings the ribbon back, in sanitizeWorkspace)
+      if (patch.ribbon === 'off' && !hasToolSurface(merged) && matchPreset(merged) !== 'minimal') merged.toolRail = true;
+      workspace.value = sanitizeWorkspace(merged, workspace.value);
+    },
+    /** "Reset layout": default panel sizes, the side panel back and unfolded, and the tools back whatever was switched off. */
+    resetLayout() {
+      const w = workspace.value;
+      workspace.value = sanitizeWorkspace({ ...w, ...DEFAULT_SIZES, leftCollapsed: false, leftPanel: w.leftPanel === 'hidden' ? 'docked' : w.leftPanel, ribbon: hasToolSurface(w) ? w.ribbon : 'full' }, w);
+    },
     applyPreset(name: WorkspacePreset) { const w = workspace.value; workspace.value = { ...WORKSPACE_PRESETS[name], leftWidth: w.leftWidth, rightWidth: w.rightWidth, drawerHeight: w.drawerHeight, floatWidth: w.floatWidth, floatHeight: w.floatHeight }; },
     setFilter(kind: PickFilterKind, on: boolean) { filters.value = { ...filters.value, [kind]: on }; },
     setDisplay(layer: DisplayLayer, on: boolean) { display.value = { ...display.value, [layer]: on }; },
