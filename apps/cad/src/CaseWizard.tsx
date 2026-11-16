@@ -6,6 +6,7 @@ import type { JSX } from 'preact';
 import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { CASE_ROUNDS, CASE_TONGUE_SIDES, caseIssue, caseSummary, roundsSide, roundsTop, withChange, type CaseParams } from './case';
+import { HelpButton } from './HelpButton';
 
 export interface CaseWizardProps {
   params: CaseParams;
@@ -62,6 +63,7 @@ export function CaseWizard(p: CaseWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-case" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('case.title')}</div>
+        <HelpButton topic="wizard:case" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

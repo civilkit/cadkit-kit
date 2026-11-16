@@ -7,6 +7,7 @@ import { Icon, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { clearStoredLibrary, exampleLibrary, importLibraryText, storedLibrary } from './frameUserLib';
 import { CATALOGUE_REGIONS, FITTINGS, HW_PLACES, bom, defaultHardware, loadRegion, onRegionLoaded, profileById, profileGroups, profileMaterial, regionLoaded, regionOf, regionOfId, type Corner, type FrameParams, type FrameReport, type HwPlace, type Region } from './frameLib';
+import { HelpButton } from '../HelpButton';
 
 export interface FramePanelProps {
   params: FrameParams;
@@ -163,6 +164,7 @@ export function FramePanel(p: FramePanelProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-frame" size={22} class="fedit-icon" />
         <div class="fedit-title">{t(p.edit ? 'frame.titleEdit' : 'frame.title')}</div>
+        <HelpButton topic="feature:frame" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

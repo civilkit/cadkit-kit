@@ -5,6 +5,7 @@ import type { JSX } from 'preact';
 import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { IMPELLER_PRESETS, impellerReadout, validateImpeller, type ImpellerIssue, type ImpellerParams } from './impellerData';
+import { HelpButton } from './HelpButton';
 
 export type ImpellerStep = 'hub' | 'blade' | 'review';
 export const IMPELLER_STEPS: ImpellerStep[] = ['hub', 'blade', 'review'];
@@ -77,6 +78,7 @@ export function ImpellerWizard(p: ImpellerWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-propeller" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <HelpButton topic="wizard:impeller" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="prop-steps" role="tablist" aria-label={t('prop.steps')}>

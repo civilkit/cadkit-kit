@@ -41,7 +41,7 @@ async function world(doc: PartDoc) {
   const results: EditResult[] = [];
   let selectedId: string | null = null;
   const actions: FeatureActions = {
-    context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId }),
+    context: (): Ctx => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, bodyRows: () => ['F2.', 'F4.'].map((p) => ({ faces: store.selection.value.filter((f) => f.startsWith(p)) })) }),   // stands in for the app's body list: one body per feature prefix
     create: (ops) => { pending.push(controller.edit(ops).then((r) => { results.push(r); })); },
     holeOnFace: () => {},
     addThread: () => {},
@@ -267,6 +267,67 @@ describe('creator commands against the real kernel', { skip: !process.env.CK_WAS
     w.select(['F2.C1'], 'face');
     await w.run('add-delete-face');
     expect(last(w)).toMatchObject({ type: 'deleteFace', mode: 'delete', faces: ['F2.C1'] });
+    expect((await w.stats()).errors).toEqual([]);
+  });
+
+  it('press pull: the picked face is pushed out by the default distance and the solid grows', async () => {
+    const w = await world(box());
+    expect(w.cmd('add-press-pull').enabled!()).toBe(false);   // nothing picked
+    w.select(['F2.C1'], 'face');                                // the top face of the 40 x 25 x 10 box
+    expect(w.cmd('add-press-pull').enabled!()).toBe(true);
+    await w.run('add-press-pull');
+    expect(last(w)).toMatchObject({ type: 'moveFace', mode: 'offset', faces: ['F2.C1'], distance: 1 });
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    expect(after.volume).toBeCloseTo(40 * 25 * 11, 2);
+  });
+
+  it('combine: needs faces on two bodies; joins them into one', async () => {
+    const two = partOf([
+      rect('F1', 0, 0, 40, 25), { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 10 },
+      rect('F3', 30, 5, 60, 20), { type: 'extrude', id: 'F4', op: 'newBody', sketch: 'F3', end: 'blind', depth: 10, body: 'Other' },
+    ]);
+    const w = await world(two);
+    w.select(['F2.C1'], 'face');
+    expect(w.cmd('add-combine').enabled!()).toBe(false);        // one body only
+    w.select(['F2.C1', 'F4.C1'], 'face');
+    expect(w.cmd('add-combine').enabled!()).toBe(true);
+    await w.run('add-combine');
+    expect(last(w)).toMatchObject({ type: 'combine', op: 'union' });
+    expect((await w.stats()).errors).toEqual([]);
+  });
+
+  // The seven features added in 0.7.3: each command builds valid ops that the kernel accepts.
+  it('torus, coil: new solids from numbers, no errors, a volume', async () => {
+    const w = await world(box());
+    await w.run('add-torus');
+    expect(last(w)).toMatchObject({ type: 'torus', op: 'add' });
+    expect((await w.stats()).errors).toEqual([]);
+    const w2 = await world(box());
+    await w2.run('add-coil');
+    expect(last(w2)).toMatchObject({ type: 'coil', op: 'add' });
+    expect((await w2.stats()).errors).toEqual([]);
+  });
+
+  it('bounding solid, dome, split face, offset surface: built from the picked face', async () => {
+    for (const [id, type] of [['add-bounding-solid', 'boundingSolid'], ['add-dome', 'dome'], ['add-split-face', 'splitLine'], ['add-offset-surface', 'surfaceOffset']] as const) {
+      const w = await world(id === 'add-dome' ? partOf([circle('F1', 0, 0, 10), { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 10 }]) : box());
+      w.select(['F2.C1'], 'face');
+      expect(w.cmd(id).enabled!()).toBe(true);
+      await w.run(id);
+      expect(last(w)).toMatchObject({ type });
+      expect(await w.stats().then((s) => s.errors), id).toEqual([]);
+    }
+  });
+
+  it('pipe: along an open sketch, a tube', async () => {
+    const w = await world(partOf([
+      { type: 'sketch', id: 'F1', plane: { kind: 'std', id: 'front' }, points: [{ id: 'p1', x: 0, y: 0 }, { id: 'p2', x: 30, y: 0 }], entities: lines([['e1', 'p1', 'p2']]), constraints: [] },
+    ]));
+    w.setSelected('F1');
+    expect(w.cmd('add-pipe').enabled!()).toBe(true);
+    await w.run('add-pipe');
+    expect(last(w)).toMatchObject({ type: 'pipe' });
     expect((await w.stats()).errors).toEqual([]);
   });
 

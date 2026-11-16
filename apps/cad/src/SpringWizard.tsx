@@ -6,6 +6,7 @@ import type { JSX } from 'preact';
 import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { EXTENSION_DEFAULTS, TORSION_DEFAULTS, springIssue, springSummary, DEFAULT_SPRING, SPRING_AXES, SPRING_ENDS, SPRING_HANDS, SPRING_KINDS, type SpringParams } from './spring';
+import { HelpButton } from './HelpButton';
 
 export interface SpringWizardProps {
   params: SpringParams;
@@ -63,6 +64,7 @@ export function SpringWizard(p: SpringWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-spring" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('spring.title')}</div>
+        <HelpButton topic="wizard:spring" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

@@ -10,6 +10,7 @@ import type { ScrewOpts } from './features/screw';
 import type { WasherOpts } from './features/washer';
 import type { SpringOpts, ExtensionOpts, TorsionOpts } from './features/spring';
 import type { CaseBoxOpts } from './features/enclosure';
+import type { GridBaseplateOpts, GridTrayOpts } from './features/tray';
 import type { NutOpts, StandoffOpts, HeatSetInsertOpts } from './features/fasteners';
 import type { BearingOpts } from './features/bearing';
 import { applyFrom, applyNewBody, planeRef, sketchOps, type SketchSpec } from './features/h';
@@ -1816,6 +1817,36 @@ export function makeApi(state: ScriptState) {
       let p = state.parts.at(-1);
       if (!p) { p = new PartBuilder('Case'); state.parts.push(p); }
       return p.caseBox(o);
+    },
+    /**
+     * A tray or bin on a grid (Gridfinity-style sizes) as its own body.
+     *
+     * The free-function form of part.gridTray: gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4 }) adds a 42 x 168 x 28 mm block (each size 0.5 mm under) with a scooped cavity open at both ends to the current model (a new part when there is none). endWalls closes the ends for a bin; magnets adds magnet holes underneath.
+     * @domain features
+     * @param o options object, see part.gridTray
+     * @example
+     * gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4, scoopRadius: 10 });
+     * @see part.gridTray
+     */
+    gridTray: (o: GridTrayOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Tray'); state.parts.push(p); }
+      return p.gridTray(o);
+    },
+    /**
+     * A Gridfinity baseplate: a plate of pockets a tray's foot seats in.
+     *
+     * The free-function form of part.gridBaseplate: gridBaseplate({ widthUnits: 3, lengthUnits: 4 }) adds a 126 x 168 mm plate, 5.95 mm thick, with a pocket per grid cell. See part.gridBaseplate.
+     * @domain features
+     * @param o options object, see part.gridBaseplate
+     * @example
+     * gridBaseplate({ widthUnits: 3, lengthUnits: 4 });
+     * @see part.gridBaseplate
+     */
+    gridBaseplate: (o: GridBaseplateOpts): PartBuilder => {
+      let p = state.parts.at(-1);
+      if (!p) { p = new PartBuilder('Baseplate'); state.parts.push(p); }
+      return p.gridBaseplate(o);
     },
     /**
      * A hexagon nut as its own body.

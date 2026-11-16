@@ -71,7 +71,7 @@ export const en: Catalog = {
   'expr.error.duplicateName': 'Name already in use',
   'expr.error.cyclicVariables': 'Circular reference between variables',
   'ui.editor.section.shapes': 'Shapes', 'ui.editor.shapes.note': 'Click regions to choose what to extrude (outer, inner or both).',
-  'ui.editor.value.op.add': 'Add material', 'ui.editor.value.op.cut': 'Cut material',
+  'ui.editor.value.op.add': 'Add material', 'ui.editor.value.op.cut': 'Cut material', 'ui.editor.value.op.newBody': 'New body',
   'ui.editor.field.side': 'Side',
   'ui.editor.value.end.blind': 'Blind', 'ui.editor.value.end.through': 'Through', 'ui.editor.value.end.throughBoth': 'Through both', 'ui.editor.value.end.upToNext': 'Up to next',
   'ui.editor.value.plane.mode.offset': 'Offset', 'ui.editor.value.plane.mode.angle': 'Angle', 'ui.editor.value.plane.mode.mid': 'Midplane',

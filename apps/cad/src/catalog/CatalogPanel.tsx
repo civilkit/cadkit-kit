@@ -35,6 +35,8 @@ export interface CatalogPanelProps {
   onSpring?(): void;
   /** Opens the Case wizard (omitted: no Case button). */
   onCase?(): void;
+  /** Opens the Tray wizard (omitted: no Tray button). */
+  onTray?(): void;
   /** Opens the Bearing wizard (omitted: no Bearing button). */
   onBearing?(): void;
   /** The libraries (omitted: the Libraries tab is not offered). */
@@ -78,7 +80,7 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
 const TABS = ['primitives', 'libraries'] as const;
 
 /** Primitives | Libraries: the shapes of the kernel on one side, every library part (BOSL2, samples, add-ons) on the other. */
-export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onNut, onStandoff, onInsert, onSpring, onCase, onBearing }: CatalogPanelProps) {
+export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis = 'y', library, onPropeller, onKnurl, onScrew, onWasher, onNut, onStandoff, onInsert, onSpring, onCase, onTray, onBearing }: CatalogPanelProps) {
   if (!hasDoc) return <div class="empty">{t('catalog.empty')}</div>;
   const armed = armedItem.value;
   const tab = library ? catalogTab.value : 'primitives';
@@ -170,6 +172,12 @@ export function CatalogPanel({ hasDoc, hasSolid, onItemDown, onItemKey, upAxis =
                   <button class="cat-item" data-item="case" title={t('tip.add-case')} onClick={onCase}>
                     <Icon name="add-case" size={26} />
                     <span class="cat-name">{t('cmd.add-case')}</span>
+                  </button>
+                ) : null}
+                {onTray ? (
+                  <button class="cat-item" data-item="tray" title={t('tip.add-tray')} onClick={onTray}>
+                    <Icon name="add-tray" size={26} />
+                    <span class="cat-name">{t('cmd.add-tray')}</span>
                   </button>
                 ) : null}
                 {onBearing ? (

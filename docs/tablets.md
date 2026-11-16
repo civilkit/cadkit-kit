@@ -38,3 +38,18 @@ Steps that need the dev hook (camera poses, store) are listed as skipped on a pr
 8. Pinch the toolbar: the page does not zoom. Long-press the model: no callout, no selection.
 9. Rotate the iPad: the layout follows, nothing is cut off, the keyboard does not cover the field you type in.
 10. With a hardware keyboard: type `5` while the Line tool waits for its length (goes into the field), Tab, Enter, Escape, Cmd+Z.
+
+## Page zoom (the "whole browser zooms in and stays" report)
+
+What was found: the 16 px field rule only covered `#app[data-layout=phone|tablet]` (`app.css`), so a field outside `#app` (the hidden copy box of the diagnostics card, `DiagnosticsCard.tsx`) or any field with the screen layout set to Desktop on an iPad was under 16 px and WebKit zooms the page when it is focused (and when the sketch helper focuses it after a lift). Only `#app` had `touch-action`, which is not inherited by what is mounted beside it. WebKit ignores `user-scalable=no` for pinch.
+
+What changed:
+- `app.css`: `@media (pointer: coarse)` sets `font-size: max(16px, 1em) !important` on every input, select and textarea; `html, body, body > *` get `touch-action: pan-x pan-y`.
+- `index.html`: `maximum-scale=1, user-scalable=no`. This takes zoom away from people who rely on it (WCAG 1.4.4); it is deliberate because the owner wants the page fixed and the app has its own sizes. Remove the two words to give it back; the other fixes stand without them.
+- `pageZoom.ts`: `gesturestart`/`gesturechange` are cancelled (not over a field; the 3D pinch uses pointer events), `resetPageZoom()` pins the meta viewport to scale 1 and restores it after 120 ms (the only way to reset on iOS), it runs when a field blurs while `visualViewport.scale > 1.01`, and a zoom that stays shows a "Reset zoom" toast button.
+- A double tap on the canvas: `touch-action: none` there, so no page zoom. `dblclick` finishes a sketch polyline or opens the face under the pointer; it is intended.
+- A Pencil 2 barrel double tap is an iPadOS system gesture; a page cannot receive it. Pencil strokes are plain pointer events; the viewport does not read `getCoalescedEvents`, so the Safari duplicate-move problem (each Pencil move delivered twice with the same coalesced list) does not apply, and it has no touch listeners that would double-handle touch and pointer.
+
+Not verifiable without a real iPad: WebKit's real zoom-on-focus, whether the meta viewport reset works on the current iPadOS, and `gesturestart` delivery. Chrome emulation checks computed font sizes, `visualViewport.scale` after the sketch flow, and `touch-action` (`tools/ux/mobile.mjs`).
+
+Manual check: focus every kind of field (palette search, tree search, sketch value fields, wizard fields, settings, variables, the note and name fields), double-tap in many places (toolbar, tree, dialogs, status bar, canvas, empty areas), pinch on chrome and on the canvas; the page must never zoom. If pen strokes look wrong, a standalone page that logs raw `pointermove` events and their coalesced lists to JSON can be recorded on the iPad and analysed offline.

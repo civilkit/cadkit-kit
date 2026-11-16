@@ -223,6 +223,17 @@ The **Display** button in the viewport opens a panel with these sections:
 
 These settings change only how the part looks. They are never written into the part's geometry.
 
+## Getting help
+
+A round **?** button is next to the name of whatever you are working with, so help is one tap away and matches the tool you chose.
+
+- **In an editor or wizard.** The **?** sits in the header of the panel (Extrude, Fillet, Hole, Gear, Spring, Case, 3D Sketch and the rest), next to the name.
+- **While you sketch.** The **?** sits in the **Status** group of the sketch ribbon (and on the sketch bar on a phone). It explains the tool you have active; with no tool active it opens the sketch overview.
+- **Anywhere.** The **?** in the status bar, at the right, opens the contents of this guide.
+- **From the keyboard.** Press `F1`, or `?` when no text box has the focus, for the tool or editor you are in.
+
+The button opens a small card with the name, one sentence, and **Open the guide**. That link opens the matching page of this guide, at the right section, in a new browser tab (in the desktop app it opens in your default browser). Press `Esc` or tap outside the card to close it. Each button is at least 44 px square on a touch screen.
+
 ## Next
 
 - [Moving around the model](navigation.md)

@@ -10,6 +10,7 @@ import {
   nutSizeNames, nutSummary, standoffDefaults, standoffIssue, standoffSummary,
   type FastenerIssue, type InsertParams, type NutParams, type StandoffParams,
 } from './fasteners';
+import { HelpButton } from './HelpButton';
 
 interface WizardProps<P> {
   params: P;
@@ -72,6 +73,7 @@ function Frame(p: { id: 'nut' | 'standoff' | 'insert'; icon: string; title: stri
       <div class="fedit-head">
         <Icon name={p.icon} size={22} class="fedit-icon" />
         <div class="fedit-title">{p.title}</div>
+        <HelpButton topic={`wizard:${p.id}`} />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

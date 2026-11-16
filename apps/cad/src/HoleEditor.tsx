@@ -12,6 +12,7 @@ import {
   CUSTOM, DRILL_TIP_ANGLE, HOLE_ENDS, HOLE_FITS, HOLE_KINDS, ISO_SIZES, KERNEL_CUTS_CUSTOM_DIMS,
   holeDiameter, kindOf, patchEnd, patchFit, patchKind, patchSize, saveHolePrefs, sizeChoice, type HoleEnd, type HoleFit, type HoleKind,
 } from './holeData';
+import { HelpButton } from './HelpButton';
 
 type Wire = Record<string, unknown>;
 
@@ -114,6 +115,7 @@ export function HoleEditor(p: HoleEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-hole" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <HelpButton topic="feature:hole" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>

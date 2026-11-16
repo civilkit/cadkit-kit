@@ -15,6 +15,8 @@ const obj = (properties: Record<string, Schema>, required: string[] = []): Schem
 const text = (data: unknown, summary?: string): CallResult => ({ content: [...(summary ? [{ type: 'text' as const, text: summary }] : []), { type: 'text', text: capJson(data).text }] });
 const NEEDS_APP = ' Works only while the user has linked the app (Settings, Agent link): see app_status.';
 
+const VEC3: Schema = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 };
+
 const viaApp = (op: BridgeOp, bridge: Bridge, args: Record<string, unknown>) => bridge.request(op, args) as Promise<Record<string, unknown>>;
 
 export const BRIDGE_TOOLS: BridgeTool[] = [
@@ -41,8 +43,8 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
   },
   {
     name: 'app_screenshot',
-    description: 'A PNG of the model open in the user\'s browser app, drawn from its current geometry (view: iso | front | back | left | right | top | bottom). It is a rendering of the document, not a capture of the user\'s screen: panels and the camera they have set are not in it.' + NEEDS_APP,
-    inputSchema: obj({ view: { type: 'string', enum: ['iso', 'front', 'back', 'left', 'right', 'top', 'bottom'] }, size: { type: 'integer', minimum: 64, maximum: 1536 } }),
+    description: 'A PNG of the model open in the user\'s browser app, drawn from its current geometry (view: iso | front | back | left | right | top | bottom). With section {origin?, normal} the model is cut at that plane and the exact cut loops are drawn (look along the plane with a matching view, e.g. normal [0,0,1] and view front). It is a rendering of the document, not a capture of the user\'s screen: panels and the camera they have set are not in it.' + NEEDS_APP,
+    inputSchema: obj({ view: { type: 'string', enum: ['iso', 'front', 'back', 'left', 'right', 'top', 'bottom'] }, size: { type: 'integer', minimum: 64, maximum: 1536 }, section: obj({ origin: VEC3, normal: VEC3 }, ['normal']) }),
     async run(i, bridge) {
       const r = await viaApp('screenshot', bridge, i);
       const png = typeof r.png === 'string' ? r.png : '';
@@ -50,6 +52,12 @@ export const BRIDGE_TOOLS: BridgeTool[] = [
       const { png: _p, ...rest } = r;
       return { content: [{ type: 'text', text: `app screenshot ${String(r.view ?? 'iso')} ${String(r.size ?? '')}px` }, { type: 'text', text: capJson({ ok: true, ...rest }).text }, { type: 'image', data: png, mimeType: 'image/png' }] };
     },
+  },
+  {
+    name: 'app_section',
+    description: 'Exact cross-section of the document open in the user\'s browser app at a plane: loops (outer / inner), their areas and the plane frame; detail:true adds the loop points. Reads only (no edit permission needed). For a picture of the cut use app_screenshot with section.' + NEEDS_APP,
+    inputSchema: obj({ plane: obj({ origin: VEC3, normal: VEC3 }, ['normal']), detail: { type: 'boolean' } }, ['plane']),
+    async run(i, bridge) { return text({ ok: true, ...(await viaApp('section', bridge, i)) }); },
   },
   {
     name: 'app_run_script',

@@ -11,7 +11,7 @@ export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn'
 
 export function StatusBar(p: {
   notices: Notice[]; hover: string | null; busy: boolean;
-  items?: StatusItem[]; /** the sketch readout (pointer position, snap, grid): shown while sketching, before the items */ sketch?: ComponentChildren; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string; /** small links at the right end (the published site's Licences and Documentation) */ links?: { label: string; href: string }[];
+  items?: StatusItem[]; /** the sketch readout (pointer position, snap, grid): shown while sketching, before the items */ sketch?: ComponentChildren; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string; /** small links at the right end (the published site's Licences and Documentation) */ links?: { label: string; href: string }[]; /** the global help button, at the right end */ help?: ComponentChildren;
 }): JSX.Element {
   const newest = p.notices.at(-1);
   const [, tick] = useState(0);
@@ -34,6 +34,7 @@ export function StatusBar(p: {
         : <span key={i.label} class={'st-item' + (i.low ? ' st-low' : '')}>{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}
       <span key="@sp" class="sp" />
       {p.links?.length ? <span key="@links" class="st-links">{p.links.map((l) => <a key={l.href} href={l.href} target="_blank" rel="noopener">{l.label}</a>)}</span> : null}
+      {p.help ? <span key="@help" class="st-help">{p.help}</span> : null}
       {p.onToggleDrawer ? <button key="@drawer" class="st-drawer" aria-pressed={!!p.drawerOpen} onClick={p.onToggleDrawer}>{t('ui.status.drawer')}</button> : null}
       {p.right ? <span key="@right" class="st-right">{p.right}</span> : null}
     </div>

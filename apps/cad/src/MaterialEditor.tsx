@@ -10,6 +10,7 @@ import {
   allMaterials, findMaterial, groupMaterials, loadCustom, massGrams, removeCustom, saveUseColour, subgroups, upsertCustom,
   type MaterialDef,
 } from './materials';
+import { HelpButton } from './HelpButton';
 
 export interface MaterialChoice {
   /** the name written to the document's `material` */
@@ -81,6 +82,7 @@ export function MaterialEditor(p: MaterialEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="ref-material" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('material.title')}</div>
+        <HelpButton topic="wizard:material" />
         <button type="button" class="fedit-confirm" disabled={!valid} onClick={choose} title={t('material.apply')} aria-label={t('material.apply')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>

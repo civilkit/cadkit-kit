@@ -24,6 +24,18 @@ describe('ribbon commands', () => {
     expect(again.enabled?.()).toBe(true);
     resetLastCommand();
   });
+  it('the Create menu primitives arm the catalog shape of the same id, and are off without a part', () => {
+    const arm = vi.fn(); let doc = false;
+    const cmds = buildCommands(actions({ shapes: { can: () => doc, arm } }));
+    const ids = ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-boss', 'add-slot'];
+    expect(ids.every((id) => cmds.some((c) => c.id === id && c.label && !c.label.startsWith('cmd.')))).toBe(true);
+    const box = cmds.find((c) => c.id === 'add-block')!;
+    expect(box.enabled?.()).toBe(false);
+    doc = true;
+    expect(box.enabled?.()).toBe(true);
+    box.run();
+    expect(arm).toHaveBeenCalledWith('add-block');
+  });
   it('has unique ids and the expected tabs', () => {
     const cmds = buildCommands(actions());
     expect(new Set(cmds.map((c) => c.id)).size).toBe(cmds.length);

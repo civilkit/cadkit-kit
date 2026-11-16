@@ -1,6 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { loadCollapsed, rememberCollapsed } from './EditorSection';
-import type { JSX } from 'preact';
+import type { ComponentChildren, JSX } from 'preact';
 import { t } from './i18n';
 import { fieldsOf, type Field } from './Inspector';
 import { Icon, featureIconName } from './icons';
@@ -39,6 +39,13 @@ const GROUPS: Record<string, Record<string, string[]>> = {
   mirror: { seeds: ['seeds'], operation: ['plane', 'body'] },
   helix: { profile: ['sketch'], operation: ['definedBy', 'pitch', 'revolutions', 'height', 'startAngle', 'leftHand', 'reverse'] },
   pipeCut: { faces: ['faces'], edges: ['edges'], operation: ['radius'] },
+  torus: { operation: ['op', 'majorRadius', 'minorRadius'] },
+  pipe: { path: ['path'], operation: ['op', 'radius', 'wall'] },
+  coil: { operation: ['op', 'radius', 'wireRadius', 'pitch', 'revolutions', 'height', 'leftHand'] },
+  boundingSolid: { operation: ['padding'] },
+  dome: { faces: ['face'], operation: ['height'] },
+  splitLine: { faces: ['faces'], operation: ['plane', 'offset', 'flip'] },
+  surfaceOffset: { faces: ['faces'], operation: ['distance', 'flip', 'keep'] },
   deleteBody: { operation: ['mode'] },
   trimSurface: { operation: ['surface', 'toolSurface', 'plane', 'mutual', 'flip'] },
   knit: { surfaces: ['surfaces'], operation: ['solid'] },
@@ -77,6 +84,7 @@ const FIELD_LABELS: Record<string, string> = {
   body: 'Body name',
   mode: 'Mode', offset: 'Offset', plane: 'Plane', base: 'Base', toolSurface: 'Tool surface', surface: 'Surface', surfaces: 'Surfaces',
   pitch: 'Pitch', revolutions: 'Revolutions', startAngle: 'Start angle', definedBy: 'Defined by', width: 'Width', height: 'Height',
+  majorRadius: 'Ring radius', minorRadius: 'Tube radius', wireRadius: 'Wire radius', wall: 'Wall', padding: 'Padding', leftHand: 'Left hand', keep: 'Keep the source', face: 'Face',
 };
 
 /** Fields whose value is one of a few words, shown as a dropdown (the current value is always kept in the list). */
@@ -91,7 +99,7 @@ export const ENUMS: Record<string, string[]> = {
   side: ['front', 'back', 'both'],
 };
 const UNITS: Record<string, string> = {
-  depth: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
+  depth: 'mm', majorRadius: 'mm', minorRadius: 'mm', wireRadius: 'mm', wall: 'mm', padding: 'mm', height: 'mm', radius: 'mm', distance: 'mm', thickness: 'mm', diameter: 'mm', spacing: 'mm', offset: 'mm', angle: '°',
 };
 /** Whole-number fields (a count): their phone keypad is the digit pad. */
 const INTEGER_FIELDS = new Set(['count', 'count1', 'count2', 'sides', 'turns', 'segments', 'teeth', 'instances']);
@@ -204,6 +212,8 @@ export function FeatureEditor(p: {
   picked?: { path: string; value: unknown } | null;
   /** A patch the app applies to the draft once per `seq` (the depth arrow in the viewport sets `depth` and maybe `flip`). */
   inject?: { seq: number; patch: Record<string, unknown> } | null;
+  /** Shown in the header between the title and the confirm button (the app's help button). */
+  headExtra?: ComponentChildren;
   /** Preview failure hint; the viewport keeps the last good mesh while it shows. */
   hint?: string | null;
   /** Replaces the plain hint when the app has something richer to show (the failure card). */
@@ -299,6 +309,7 @@ export function FeatureEditor(p: {
       <div class="fedit-head">
         <Icon name={featureIconName(String(feature.type ?? ''), String((draft.op ?? feature.op) ?? ''))} size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        {p.headExtra}
         <button type="button" data-testid="feature-ok" class={'fedit-confirm' + (p.okBlocked ? ' blocked' : '')} aria-disabled={p.okBlocked ? true : undefined} onClick={confirm} title={p.okBlocked ?? t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" data-testid="feature-cancel" class="fedit-cancel" onClick={cancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>

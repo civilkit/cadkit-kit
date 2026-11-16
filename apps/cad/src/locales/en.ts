@@ -19,7 +19,9 @@ import { fastenStrings } from './fasten';
 import { washerStrings } from './washer';
 import { fastenerStrings } from './fasteners';
 import { springStrings } from './spring';
+import { helpStrings } from './help';
 import { caseStrings } from './case';
+import { trayStrings } from './tray';
 import { chatStrings } from './chat';
 import { bearingStrings } from './bearing';
 import { impellerStrings } from './impeller';
@@ -713,7 +715,7 @@ export const en: Catalog = {
   'catalog.blocked.loading': 'Fetching the part...',
   'catalog.blocked.fetchFailed': 'The part could not be fetched',
   'catalog.empty': 'Open a part to use the catalog.',
-  'catalog.item.add-block': 'Block', 'catalog.item.add-cylinder': 'Cylinder', 'catalog.item.add-sphere': 'Sphere', 'catalog.item.add-cone': 'Cone',
+  'catalog.item.add-block': 'Box', 'catalog.item.add-cylinder': 'Cylinder', 'catalog.item.add-sphere': 'Sphere', 'catalog.item.add-cone': 'Cone',
   'catalog.item.add-boss': 'Boss', 'catalog.item.add-slot': 'Slot',
   'catalog.item.cut-pocket': 'Pocket', 'catalog.item.cut-cylinder': 'Round pocket', 'catalog.item.cut-sphere': 'Dimple', 'catalog.item.cut-cone': 'Cone cut',
   'catalog.item.cut-slot': 'Slot cut', 'catalog.item.hole': 'Hole', 'catalog.item.cbore': 'Counterbore', 'catalog.item.csink': 'Countersink',
@@ -959,6 +961,20 @@ export const en: Catalog = {
   // ---- feature creators (featureCreators.ts)
   'tab.Features': 'Features', 'tab.Surfaces': 'Surfaces',
   'cmd.add-plane': 'Plane', 'cmd.add-axis': 'Axis', 'cmd.add-draft': 'Draft', 'cmd.add-rib': 'Rib', 'cmd.add-lip': 'Lip / groove', 'cmd.add-split': 'Split body', 'cmd.add-lip-joint': 'Lip joint', 'cmd.add-mirror': 'Mirror', 'cmd.add-scale': 'Scale', 'cmd.add-helix': 'Helix',
+  'cmd.add-block': 'Box', 'cmd.add-cylinder': 'Cylinder', 'cmd.add-sphere': 'Sphere', 'cmd.add-cone': 'Cone', 'cmd.add-boss': 'Boss', 'cmd.add-slot': 'Slot',
+  'cmd.add-press-pull': 'Press Pull', 'cmd.add-combine': 'Combine',
+  'cmd.add-torus': 'Torus', 'cmd.add-pipe': 'Pipe', 'cmd.add-coil': 'Coil', 'cmd.add-bounding-solid': 'Bounding solid', 'cmd.add-dome': 'Dome', 'cmd.add-split-face': 'Split face', 'cmd.add-offset-surface': 'Offset surface',
+  'catalog.tip.add-torus': 'A ring at the origin about the Z axis: set its centre, axis and the two radii in the Editor.',
+  'tip.add-torus': 'A ring at the origin about the Z axis. Set its centre, axis, ring radius and tube radius in the Editor; it can add, cut or be a new body.',
+  'tip.add-pipe': 'A round tube along an open sketch: the picked one, else the last. Set the outer radius, and a wall to make it hollow.',
+  'tip.add-coil': 'A spring: a round wire wound round an axis. Set the radius, the wire radius, the pitch and the turns (or the height).',
+  'tip.add-bounding-solid': 'A box round the bodies under the picked faces, or round every solid body when nothing is picked, as a new body. Padding grows it on every side.',
+  'tip.add-dome': 'A spherical cap on the picked flat round face. A negative height cuts a dimple instead. An oval face is not supported.',
+  'tip.add-split-face': 'Cuts the picked flat faces in two along a plane or sketch lines. The body stays one solid; each cut adds a face. Starts with the plane across the middle of the longest side.',
+  'tip.add-offset-surface': 'A new surface body offset from the picked faces (flat, round, cone, ball or ring faces) or from a surface. The source stays unless you turn Keep off.',
+  'feature.torus': 'Torus', 'feature.pipe': 'Pipe', 'feature.coil': 'Coil', 'feature.boundingSolid': 'Bounding solid',
+  'tip.add-press-pull': 'Pushes or pulls the picked faces along their normals: planes slide, round faces grow or shrink, and the faces beside them follow. Pick the faces first; set the distance in the panel, or drag the positioning ball.',
+  'tip.add-combine': 'Joins the bodies under the picked faces into one. Pick a face on each body; the panel switches to cut, intersect or split.',
   'cmd.add-gear': 'Gear', 'cmd.add-gear-pair': 'Gear pair', 'feature.gear': 'Gear',
   'gear.title': 'Gear', 'gear.section.gear': 'Gear', 'gear.section.shaft': 'Bore and hub', 'gear.section.tooth': 'Tooth form', 'gear.section.pair': 'Mating gear', 'gear.section.readout': 'Readout',
   'gear.type': 'Type', 'gear.type.spur': 'Spur', 'gear.type.spurTip': 'External spur gear', 'gear.type.internal': 'Ring', 'gear.type.internalTip': 'Internal (ring) gear',
@@ -1182,7 +1198,9 @@ export const en: Catalog = {
   ...washerStrings,
   ...fastenerStrings,
   ...springStrings,
+  ...helpStrings,
   ...caseStrings,
+  ...trayStrings,
   ...chatStrings,
   ...bearingStrings,
   ...impellerStrings,

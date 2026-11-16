@@ -4,15 +4,16 @@ Issue #15. Today the MCP server (`docs/mcp.md`) has its own document and kernel;
 
 ## What it does
 
-An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo`, and the read-only measuring tools `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm`). The daemon forwards them to the browser app, which answers from the document the user has open.
+An agent calls extra MCP tools (`bridge_pair`, `app_status`, `app_state`, `app_screenshot`, `app_run_script`, `app_undo`, `app_redo`, and the read-only measuring tools `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm`, `app_section`). The daemon forwards them to the browser app, which answers from the document the user has open.
 
 | Tool | Does | Needs edit permission |
 | --- | --- | --- |
 | `bridge_pair` | opens a one-time pairing code for the user to paste in the app | no |
 | `app_status` | linked or not, edit allowed or not, pairing open or not | no |
 | `app_state` | name, features (id, type, name, suppressed, error), variables, selection, counts; `detail: full` adds the document JSON | no |
-| `app_screenshot` | PNG of the model from `view` at `size` px, drawn from the app's current geometry with the snapshot renderer (the document, not the user's screen: no panels, not their camera) | no |
+| `app_screenshot` | PNG of the model from `view` at `size` px (with `section: {origin?, normal}` it is cut at that plane and the exact loops are drawn), drawn from the app's current geometry with the snapshot renderer (the document, not the user's screen: no panels, not their camera) | no |
 | `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm` | the measuring tools of the headless server (`packages/readback`, one definition for both routes), asked of the open document's kernel session and body list: distance and closest points, gap with pass / fail, overlap volume, wall thickness, draft angles, injection / cnc / printing checks. Read-only: the ops are not in `EDIT_OPS` | no |
+| `app_section` | exact cross-section of the open document at a plane `{origin?, normal}`: loops (outer / inner) with their areas, the plane frame; `detail: true` adds the points. Read-only | no |
 | `app_run_script` | the same script language as `run_script`, attach mode on the open document: features are added after the existing ones, as ONE undo step, with a notice | yes |
 | `app_undo`, `app_redo` | step the app's history | yes |
 
@@ -24,7 +25,7 @@ Built on top of this link: the in-app chat panel (`docs/agent-chat.md`), which s
 agent -- MCP/stdio --> shim -- HTTP, loopback --> daemon  <== long poll == browser app
 ```
 
-The browser cannot accept connections, so the app connects OUT to the daemon on `127.0.0.1:<port>` and long-polls. Four routes, all under `/bridge/`: `POST hello` (pairing), `GET poll` (up to 20 s; returns queued requests), `POST reply`, `POST bye`. Requests are `{id, op, args}` with `op` in `state | screenshot | run_script | undo | redo`; replies are `{id, ok, result | error{code, message, hint}}`. The wire format and both ends live in `packages/agent-link` (no Node or DOM imports); the daemon routes are in `packages/mcp/src/daemon.ts`, the tools in `packages/mcp/src/bridgeTools.ts`, the app side in `apps/cad/src/agentLink/`.
+The browser cannot accept connections, so the app connects OUT to the daemon on `127.0.0.1:<port>` and long-polls. Four routes, all under `/bridge/`: `POST hello` (pairing), `GET poll` (up to 20 s; returns queued requests), `POST reply`, `POST bye`. Requests are `{id, op, args}` with `op` in `state | screenshot | section | run_script | undo | redo` (plus the measuring ops); replies are `{id, ok, result | error{code, message, hint}}`. The wire format and both ends live in `packages/agent-link` (no Node or DOM imports); the daemon routes are in `packages/mcp/src/daemon.ts`, the tools in `packages/mcp/src/bridgeTools.ts`, the app side in `apps/cad/src/agentLink/`.
 
 ## Consent and auth, on the user's side
 

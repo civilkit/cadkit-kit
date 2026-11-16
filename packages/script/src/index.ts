@@ -12,6 +12,7 @@ export { bearingEditOps, BEARING_PRESETS, bearingPreset, findBearings, bearingMo
 export { screwEditOps, SCREW_SIZES, type ScrewOpts, type ScrewHead, type ScrewDrive } from './screwOps';
 export { washerEditOps, type WasherOpts, type WasherKind } from './washerOps';
 export * from './fastenerOps';
+export { trayEditOps, baseplateEditOps, baseplateGeometry, splitUnits, trayGeometry, magnetPoints, footCells, FOOT_HEIGHT, FOOT_MIN_CORNER, MAGNET_OFFSET, MAGNET_FLOOR, type GridTrayOpts, type GridBaseplateOpts, type TrayEnds } from './trayOps';
 export { springEditOps, extensionEditOps, torsionEditOps, springGeometry, extensionPath, torsionPath, type SpringOpts, type SpringHand, type SpringEnds, type ExtensionOpts, type TorsionOpts } from './springOps';
 export { sanitizeCosmeticKnurls, cosmeticToOpts, type CosmeticKnurl } from './cosmeticKnurl';
 export { SHEET_CATALOG, SHEET_REQUESTS, SHEET_FEATURE_TYPES, SHEET_COMING_TYPES, SHEET_ERROR_CODES, ruleAdvice, type SheetFeatureDoc, type SheetField, type SheetStatus } from './sheetCatalog';

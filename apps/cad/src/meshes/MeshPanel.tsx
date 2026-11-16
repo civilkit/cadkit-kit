@@ -8,6 +8,7 @@ import { t } from '../i18n';
 import { worldBox, type MeshRec, type V3 } from './meshDoc';
 import { centred, onGround, turned } from './meshEdit';
 import './mesh.css';
+import { HelpButton } from '../HelpButton';
 
 const AXES: Array<[0 | 1 | 2, 'x' | 'y' | 'z']> = [[0, 'x'], [1, 'y'], [2, 'z']];
 const r4 = (v: number): number => Math.round(v * 10000) / 10000;
@@ -52,6 +53,7 @@ export function MeshPanel(p: MeshPanelProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-sketch3d" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('mesh.title')}</div>
+        <HelpButton topic="wizard:mesh" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('mesh.cancel')} aria-label={t('mesh.cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

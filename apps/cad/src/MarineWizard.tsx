@@ -7,6 +7,7 @@ import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { MARINE_PRESETS, freeShaftZ, marineReadout, sameMarine, validateMarine, type MarineIssue, type MarineParams } from './marineData';
 import { Seg } from './ThreadEditor';
+import { HelpButton } from './HelpButton';
 
 export type MarineStep = 'size' | 'blade' | 'review';
 export const MARINE_STEPS: MarineStep[] = ['size', 'blade', 'review'];
@@ -87,6 +88,7 @@ export function MarineWizard(p: MarineWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-propeller" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <HelpButton topic="wizard:marine" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="prop-steps" role="tablist" aria-label={t('prop.steps')}>

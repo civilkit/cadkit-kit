@@ -182,6 +182,8 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `bearing(o)`: A ball bearing as separate bodies (rings, balls when open), placed by an origin and an axis.
 * `caseBox(o)`: A closed two-part case (Base and Lid with a lip joint) in one call.
 * `extensionSpring(o)`: An extension spring as its own body.
+* `gridBaseplate(o)`: A Gridfinity baseplate: a plate of pockets a tray's foot seats in.
+* `gridTray(o)`: A tray or bin on a grid (Gridfinity-style sizes) as its own body.
 * `heatSetInsert(o)`: A heat-set insert as its own body, optionally with its hole.
 * `nut(o)`: A hexagon nut as its own body.
 * `.axis(a, b?)`: A reference axis: a world axis, a straight edge, a cylinder or the line where two planes meet.
@@ -202,6 +204,8 @@ Call forms: `part.m()` chains on the part, `s.m()` on the sketch builder `s`, th
 * `.fillet(on, radius)`: Round edges: one radius, a radius per edge, or a variable radius.
 * `.fold(o)`: Fold the base along a line.
 * `.gear(o)`: Involute spur or helical gear (profile, body extrude, bore) from module and teeth.
+* `.gridBaseplate(o)`: A Gridfinity baseplate: a plate of pockets the foot of a tray or bin seats in.
+* `.gridTray(o)`: A tray or bin on a grid (Gridfinity-style units) as its own body, scooped along its length.
 * `.groove(rim, edges, o?)`: Groove along rim edges (the mating half of a lip).
 * `.heatSetInsert(o)`: A heat-set threaded insert as its own body, optionally with its hole.
 * `.helix(o)`: A helix curve (adds no body): the path of a sweep, or a reference.

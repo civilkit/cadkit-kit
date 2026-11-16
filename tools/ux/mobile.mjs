@@ -788,6 +788,21 @@ async function touchSketchFlows(page, id, p) {
 }
 
 /** Every number box and text box that shows in the panels the run opened: the keypad attributes the iPad keyboard reads. */
+/** Page zoom: every form control a finger can focus has a computed font-size of at least 16 px (WebKit zooms the page in on a smaller one and never zooms back), the page is at scale 1
+ *  (after the sketch pen-stroke flow above), and the html and body refuse double-tap zoom. Fields are looked at where they are in the DOM now, shown or not (a hidden one gets focused too). */
+export const MIN_FIELD_FONT = 16;
+async function zoomChecks(page, id) {
+  const r = await page.eval(`(() => {
+    const skip = (e) => e.tagName === 'INPUT' && ['checkbox', 'radio', 'range', 'color', 'hidden', 'file', 'button', 'submit'].includes(e.type);
+    const small = [...document.querySelectorAll('input, select, textarea')].filter((e) => !skip(e)).map((e) => ({ el: e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + '.' + String(e.className).split(' ')[0], px: parseFloat(getComputedStyle(e).fontSize) })).filter((x) => x.px < ${MIN_FIELD_FONT} - 0.01);
+    const ta = (e) => getComputedStyle(e).touchAction;
+    return { n: document.querySelectorAll('input, select, textarea').length, small, scale: window.visualViewport ? window.visualViewport.scale : 1, html: ta(document.documentElement), body: ta(document.body) };
+  })()`);
+  check(id, 'zoom', 'every focusable form control has a computed font-size of at least 16 px', r.small.length === 0, JSON.stringify(r.small.slice(0, 6)));
+  check(id, 'zoom', 'the page scale is still 1 after the sketch flows', Math.abs(r.scale - 1) < 0.01, String(r.scale));
+  check(id, 'zoom', 'html and body refuse double-tap and pinch zoom (touch-action)', r.html === 'pan-x pan-y' && r.body === 'pan-x pan-y', JSON.stringify([r.html, r.body]));
+}
+
 async function keyboardAudit(page, id) {
   const rows = await page.eval(`(() => [...document.querySelectorAll('input, textarea')].filter((e) => e.getBoundingClientRect().width > 0 && !['checkbox','radio','range','file','color','hidden'].includes(e.type)).map((e) => ({ type: e.type, mode: e.getAttribute('inputmode'), sign: e.hasAttribute('data-sign'), ac: e.getAttribute('autocapitalize'), label: e.getAttribute('aria-label') || e.getAttribute('placeholder') || e.className })))()`);
   const bad = rows.filter((r) => (r.type === 'number' || r.mode === 'decimal' || r.mode === 'numeric') ? !r.mode : (r.type === 'text' || r.type === 'search') && r.mode !== 'text' && !r.ac);
@@ -951,6 +966,7 @@ async function runProfile(page, url, p) {
   if (hook && p.layout === 'phone') { await phoneFlows(page, id, p); await sketchFlows(page, id, p); }
   else if (p.layout === 'phone') skip(id, 'phone editor flows and the hook-based sketch flow', 'need the dev hook');
   await touchSketchFlows(page, id, p);
+  await zoomChecks(page, id);
   await keyboardAudit(page, id, p);
 
   // 4. dialogs

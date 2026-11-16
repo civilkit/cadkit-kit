@@ -13,7 +13,7 @@ export interface AppDeps {
   status(): Array<{ id: string; ok: boolean; code?: string; hint?: string }>;
   hasSolid(): boolean;
   /** A PNG of the open part from `view` at `size` px, or null when there is nothing to draw. */
-  render(view: string, size: number): Promise<Uint8Array | null>;
+  render(view: string, size: number, section?: { origin: number[]; normal: number[] }): Promise<Uint8Array | null>;
   /** Attach mode, one undo step. */
   runScript(code: string): Promise<RunReport>;
   undo(): Promise<void>;
@@ -31,6 +31,18 @@ export function toBase64(bytes: Uint8Array): string {
 }
 
 const NO_EDIT = () => new BridgeError('edit_not_allowed', 'the user has not allowed the agent to change this document', 'ask the user to tick "Allow the agent to change this document" in Settings, Agent link');
+
+/** A cut plane from the wire: {origin?, normal}, origin defaulting to the world origin. */
+function planeArg(v: unknown): { origin: number[]; normal: number[] } {
+  const p = (v ?? {}) as { origin?: unknown; normal?: unknown };
+  const vec = (x: unknown, name: string): number[] => {
+    if (!Array.isArray(x) || x.length !== 3 || x.some((n) => typeof n !== 'number' || !Number.isFinite(n))) throw new BridgeError('bad_input', `${name} must be three numbers [x, y, z]`);
+    return x as number[];
+  };
+  const normal = vec(p.normal, 'normal');
+  if (!normal.some((n) => n !== 0)) throw new BridgeError('bad_input', 'normal must not be the zero vector');
+  return { origin: p.origin === undefined ? [0, 0, 0] : vec(p.origin, 'origin'), normal };
+}
 
 export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, unknown>) => Promise<unknown> {
   return async (op, args) => {
@@ -54,9 +66,22 @@ export function makeAppHandler(d: AppDeps): (op: BridgeOp, args: Record<string, 
         if (!d.document() || !d.hasSolid()) throw new BridgeError('no_body', 'the open document has no solid to draw', 'build something first, or ask the user to');
         const view = typeof args.view === 'string' ? args.view : 'iso';
         const size = typeof args.size === 'number' ? Math.max(64, Math.min(1536, Math.round(args.size))) : 768;
-        const png = await d.render(view, size);
+        const section = args.section === undefined ? undefined : planeArg(args.section);
+        const png = await d.render(view, size, section);
         if (!png) throw new BridgeError('snapshot_failed', 'the app could not draw the model', 'try another view or a smaller size');
         return { png: toBase64(png), view, size, bytes: png.length };
+      }
+      case 'section': {
+        // a read: the exact cross-section of the open document at a plane (the same answer as the headless `section` tool)
+        if (!d.document()) throw new BridgeError('no_document', 'no document is open in the app', 'ask the user to open or start a part first');
+        if (!d.hasSolid()) throw new BridgeError('no_body', 'the open document has no solid to cut', 'build something first, or ask the user to');
+        const host = d.readback ? await d.readback() : null;
+        if (!host) throw new BridgeError('no_kernel', 'the app has no kernel session to cut with', 'wait for the part to finish loading and try again');
+        const plane = planeArg(args.plane);
+        const r = await host.kernel.section(plane);
+        const round = (n: number) => Math.round(n * 1000) / 1000;
+        const loops = (r.loops ?? []).map((l) => ({ kind: l.kind, area: round(l.area), edges: l.edges?.length ?? 0, ...(args.detail ? { pts: l.pts } : {}) }));
+        return { plane, frame: r.frame, area: round(r.area), bbox2d: r.bbox2d, openChains: r.openChains ?? 0, loops };
       }
       case 'run_script': {
         if (!d.allowEdit()) throw NO_EDIT();

@@ -52,6 +52,8 @@ A new fillet starts with a small radius: about 5% of the smallest dimension of t
 
 **Corners.** Where three rounded edges meet at a convex corner, the kernel adds a spherical patch. If edges meeting at a corner have different radii they end in a mitre, and the feature shows a warning.
 
+**Twisted extrudes.** A fillet rounds the edges of an extrude with a Twist set (the helical gear and screw shapes) up to about 30 degrees of twist, and a ring of four edges, such as the top of a twisted square, up to about 45 degrees. A chamfer on twisted faces, and rings at 60 degrees and more, are still refused with the reason; reduce the twist or round before twisting.
+
 Not offered: the corner (vertex) chamfer type and the full-round fillet between three faces.
 
 **Handle.** With an edge selected, a yellow dot appears beside it. Drag it outward for a new fillet, or inward for a chamfer, and release to make the feature. With an edge next to an existing fillet or chamfer, drag the dot to change its size in place. Hold Shift for fine movement, Ctrl for whole millimetres, or type a number while dragging (a minus sign makes a chamfer) and press Enter. Esc cancels. You can switch handles off in the workspace settings.

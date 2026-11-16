@@ -35,10 +35,13 @@ export function createAgentLink(d: LinkDeps) {
     runScript: (code) => runAgentScript(c, code, 'Agent script'),
     undo: () => c.undo(),
     redo: () => c.redo(),
-    render: async (view, size) => {
+    render: async (view, size, section) => {
       if (!c.hasSolid()) return null;
       const { renderSnapshot } = await import('@kit/snapshot');
-      return (await renderSnapshot({ mesh: c.bodyFaces() as never, edges: c.bodyEdges() as never, box: c.bodyBox() as never }, { view: view as never, size })).png;
+      // a section picture draws the exact loops the kernel returns for the plane on the shaded body
+      const cut = section ? await (await c.measureSession())?.kernel.section(section) : undefined;
+      if (section && !cut) return null;
+      return (await renderSnapshot({ mesh: c.bodyFaces() as never, edges: c.bodyEdges() as never, box: c.bodyBox() as never, ...(cut ? { section: cut as never } : {}) }, { view: view as never, size })).png;
     },
   });
   const client = new BridgeClient({

@@ -11,6 +11,7 @@ import {
   autoLength, BOLT_SIZES, BOLT_TYPES, defaultParams, effectiveParams, groupsFor, matchSize, nutAllowed, planHole, resolveTargets, STANDARD_LENGTHS,
   type FastenParams, type FastenScope, type FastenTarget, type WasherChoice,
 } from './fasten';
+import { HelpButton } from './HelpButton';
 
 export interface FastenHoleWizardProps {
   /** the face of the picked hole (any wall of it) */
@@ -77,6 +78,7 @@ export function FastenHoleWizard(p: FastenHoleWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="fasten-hole" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('fasten.title')}</div>
+        <HelpButton topic="wizard:fasten" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

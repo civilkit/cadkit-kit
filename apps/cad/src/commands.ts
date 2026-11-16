@@ -37,6 +37,9 @@ export type ExportKind = 'step' | 'stl' | 'stl-ascii' | 'obj' | '3mf' | 'glb' | 
 /** The export commands in menu order; each is the command `export-<kind>`. */
 export const EXPORT_KINDS: ExportKind[] = ['stl', 'stl-ascii', 'obj', '3mf', 'glb', 'step', 'dxf-sketch', 'dxf-views'];
 
+/** The catalog's add-material shapes as Create-menu commands (same ids as the catalog items). */
+export const SHAPE_COMMANDS = ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-boss', 'add-slot'];
+
 export interface Actions {
   io?: IoActions;
   /** Save as and Import STEP (see files/). */
@@ -47,6 +50,8 @@ export interface Actions {
   features?: FeatureActions;
   /** Show the Catalog panel (shapes to drag onto the model). */
   catalog?(): void;
+  /** Arm a catalog shape (add-block, add-cylinder ...) for click-to-place on a face or plane: the Create menu's primitives. */
+  shapes?: { can(): boolean; arm(id: string): void };
   variables?(): void;
   script?(): void;
   /** Open the Propeller wizard (see PropellerWizard.tsx). */
@@ -65,6 +70,8 @@ export interface Actions {
   spring?(): void;
   /** Open the Case wizard (see CaseWizard.tsx). */
   caseBox?(): void;
+  /** Open the Tray wizard (see TrayWizard.tsx). */
+  tray?(): void;
   /** Open the Nut, Standoff and Heat-set insert wizards (see FastenerWizards.tsx). */
   nut?(): void;
   standoff?(): void;
@@ -194,6 +201,7 @@ export function buildCommands(a: Actions): Command[] {
     { id: 'sel-vertex', label: t('cmd.sel-vertex'), tab: 'Select', group: 'Pick', keys: 'V', pressed: () => a.mode() === 'vertex', run: () => a.setMode('vertex') },
   ];
   if (a.selectBody) cmds.push({ id: 'select-body', label: t('cmd.select-body'), tab: 'Select', group: 'Pick', enabled: a.hasDocument, run: a.selectBody });
+  if (a.shapes) for (const id of SHAPE_COMMANDS) cmds.push({ id, label: t('cmd.' + id), tab: 'Features', group: 'Create', tip: t('catalog.tip.' + id), enabled: a.shapes.can, run: () => a.shapes!.arm(id) });
   if (a.catalog) cmds.push({ id: 'open-catalog', label: t('cmd.open-catalog'), tab: 'Home', group: 'Features', enabled: a.hasDocument, keys: 'Shift+K', run: a.catalog });
   if (a.propeller) cmds.push({ id: 'add-propeller', label: t('cmd.add-propeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.propeller });
   if (a.knurl) cmds.push({ id: 'add-knurl', label: t('cmd.add-knurl'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.knurl });
@@ -207,6 +215,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.nut) cmds.push({ id: 'add-nut', label: t('cmd.add-nut'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.nut });
   if (a.standoff) cmds.push({ id: 'add-standoff', label: t('cmd.add-standoff'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.standoff });
   if (a.insert) cmds.push({ id: 'add-insert', label: t('cmd.add-insert'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.insert });
+  if (a.tray) cmds.push({ id: 'add-tray', label: t('cmd.add-tray'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.tray });
   if (a.caseBox) cmds.push({ id: 'add-case', label: t('cmd.add-case'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.caseBox });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });

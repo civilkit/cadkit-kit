@@ -17,6 +17,7 @@ import {
   groupChip, groupMisfits, nearestSizes, patchSize, patchStandard, quickSizes, suggestedSize, readoutRows, rememberSize, saveThreadPrefs, sizeLabel, startMatters,
   type FaceExtent, type ThreadRow, type ThreadStd,
 } from './threadData';
+import { HelpButton } from './HelpButton';
 
 type Wire = Record<string, unknown>;
 
@@ -131,6 +132,7 @@ export function ThreadEditor(p: ThreadEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-thread" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <HelpButton topic="feature:thread" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>

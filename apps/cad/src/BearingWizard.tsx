@@ -9,6 +9,7 @@ import { Icon, kindForMin, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { bearingIssue, bearingNumbers, bearingSeat, BEARING_AXES, BEARING_SEALS, findBearings, SEAT_FITS, withPreset, type BearingParams } from './bearing';
 import { bearingPreset } from '@kit/script';
+import { HelpButton } from './HelpButton';
 
 export interface BearingWizardProps {
   params: BearingParams;
@@ -75,6 +76,7 @@ export function BearingWizard(p: BearingWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-bearing" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('bearing.title')}</div>
+        <HelpButton topic="wizard:bearing" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

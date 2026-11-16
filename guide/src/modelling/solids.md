@@ -184,7 +184,7 @@ Each profile must be one closed region. Profiles with holes make a hollow loft; 
 
 ## Sphere
 
-A sphere needs no sketch, and there is no ribbon button for it. Make one from the Catalog: open **Catalog** (Shift+K), go to Primitives, and drop **Sphere** (adds material) or **Dimple** (removes material, a spherical pit). A solid ball is a Sphere feature centred where you drop it. A hollow ball (set **Sphere wall (mm)** above 0 and below half the size) is built from a revolved profile instead, and has the Revolve options. See [Catalog parts](../library/catalog.md).
+A sphere needs no sketch. Choose **Home > Create > Primitives > Sphere** and click a face or plane, or open the **Catalog** (Shift+K), go to Primitives, and drop **Sphere** (adds material) or **Dimple** (removes material, a spherical pit). A solid ball is a Sphere feature centred where you drop it. A hollow ball (set **Sphere wall (mm)** above 0 and below half the size) is built from a revolved profile instead, and has the Revolve options. See [Catalog parts](../library/catalog.md).
 
 Double-click a Sphere feature in the tree to edit it:
 
@@ -215,3 +215,27 @@ A ball dropped on a face is centred on the spot, so it is half in and half out o
 - [Bodies and combining](bodies.md)
 - [Surfaces](surfaces.md)
 - [The feature tree and history](history.md)
+
+## Torus
+
+A torus is a ring made from numbers, with no sketch. Choose **Home > Create > Primitives > Torus**. It appears at the origin about the Z axis. In the Editor set the centre, the axis (`x`, `y`, `z` or a vector), the **Ring radius** (from the axis to the middle of the tube) and the **Tube radius** (smaller than the ring radius), and whether it adds, cuts or is a new body.
+
+## Pipe
+
+A pipe is a round tube along an open sketch. Draw an open chain of lines and arcs, then choose **Home > Create > Pipe** (the picked sketch, else the last open one). Set the outer **Radius**; give it a **Wall** (thinner than the radius) to make the tube hollow. It is built like a sweep, with the round section at the start of the path.
+
+## Coil
+
+A coil is a spring: a round wire wound round an axis, with no sketch. Choose **Home > Create > Pipe > Coil**. Set the **Radius** (axis to the middle of the wire), the **Wire radius**, the **Pitch** and the **Revolutions** (or a **Height**, which gives the turns), and **Left hand**. The pitch must be larger than the wire is thick, and the radius larger than the wire radius.
+
+## Bounding solid
+
+A bounding solid is the box that just holds the bodies you pick. Pick a face on each body (or nothing, for every solid body) and choose **Home > Create > Pipe > Bounding solid**. It is always a new body; **Padding** grows it on every side, and a flat body needs some padding to have any thickness.
+
+## Dome
+
+A dome raises a spherical cap on a flat face bounded by one circle. Pick that face and choose **Dome** (the Draft group on the Features tab). Set the **Height**; a negative height cuts a dimple into the body. A face that is not a plain circle is refused, and an oval dome is not built.
+
+## Split face
+
+Split face cuts flat faces in two without cutting the body: the solid and its volume stay, and each cut adds a face. Pick the faces and choose **Features > Modify > Split face**. It starts with the plane across the middle of the longest side; in the Editor change the plane and **Offset**, or cut by the lines of a sketch instead. Round faces are not supported, and a plane that misses every picked face is refused.

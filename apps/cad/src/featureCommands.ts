@@ -154,6 +154,8 @@ export interface Ctx {
   refPlane?: string | null;
   /** Fillet and chamfer also round the edges that continue the selected ones tangentially (the "Tangent chain" choice). */
   tangentChain?: boolean;
+  /** The bodies on screen with the faces of each (read lazily: only Combine needs it). */
+  bodyRows?(): Array<{ docName?: string; faces: string[] }>;
 }
 
 const feats = (doc: PartDoc | null): Feat[] => (doc?.features ?? []) as unknown as Feat[];

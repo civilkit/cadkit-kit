@@ -6,6 +6,7 @@ import type { JSX } from 'preact';
 import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { defaultDrive, SCREW_AXES, SCREW_DRIVES, SCREW_HEADS, SCREW_SIZE_LIST, screwIssue, type ScrewParams } from './screw';
+import { HelpButton } from './HelpButton';
 
 export interface ScrewWizardProps {
   params: ScrewParams;
@@ -59,6 +60,7 @@ export function ScrewWizard(p: ScrewWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-screw" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('screw.title')}</div>
+        <HelpButton topic="wizard:screw" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

@@ -229,7 +229,7 @@ describe('the measurement tools reach the open app', () => {
     await app.connect(await pairCode(d));
     const listed = await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
     const names = ((await listed.json()) as { result: { tools: Array<{ name: string }> } }).result.tools.map((t) => t.name);
-    for (const n of ['app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm']) expect(names, n).toContain(n);
+    for (const n of ['app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm', 'app_section']) expect(names, n).toContain(n);
     const m = await rpc(d, 'app_measure', { a: 'Base', b: 'Peg' });
     expect(m.isError).toBe(false);
     expect(m.body).toMatchObject({ ok: true, distance: 15, op: 'measure' });

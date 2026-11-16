@@ -118,6 +118,20 @@ describe('feature commands against the real kernel', { skip: !process.env.CK_WAS
     expect(after.box).toEqual(base.box);
   });
 
+  it('fillet works on the top ring of a twisted extrude (a 40 mm square twisted 30 degrees, radius 2)', async () => {
+    const twisted = { ...emptyPart('Twisted'), features: [rect('F1', -20, -20, 20, 20), { type: 'extrude', id: 'F2', op: 'add', sketch: 'F1', end: 'blind', depth: 40, twist: 30 }], seq: 3 } as unknown as PartDoc;
+    const w = await world(twisted);
+    const base = await w.stats();
+    w.select([1, 2, 3, 4].map((i) => edgeKey(w, 'F2.C1', `F2.S.e${i}`)), 'edge');
+    await w.run('add-fillet');
+    const f = lastFeature(w);
+    expect(f).toMatchObject({ type: 'fillet', radius: 2 });   // 5% of the smallest side (40), as a nice number
+    const after = await w.stats();
+    expect(after.errors).toEqual([]);
+    expect(after.volume).toBeLessThan(base.volume);
+    expect(after.faces).toBeGreaterThan(base.faces);
+  });
+
   it('fillet from two selected faces rounds the edge they share', async () => {
     const w = await world(box());
     const base = await w.stats();

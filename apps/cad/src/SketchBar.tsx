@@ -4,6 +4,7 @@ import { SNAP_KINDS, type SnapToggle } from '@kit/sketch';
 import { Icon, Tip } from '@kit/ui';
 import { t } from './i18n';
 import type { SketchPrefs } from './sketchPrefs';
+import { HelpButton } from './HelpButton';
 
 /** 'under' blue, 'full' dark, 'over' red: the same three colours the geometry takes on the canvas. */
 export const defLevel = (s: SketchSolverStatus | null): 'under' | 'full' | 'over' | 'none' =>
@@ -57,6 +58,8 @@ export interface SketchControls {
   onLookNormal(): void;
   /** The camera is angled to the sketch plane (more than 5 degrees) on entry: the one Look normal (N) button is highlighted until used. */
   lookChip?: boolean;
+  /** The active sketch tool's id (null while selecting): the help button explains it. */
+  tool?: string | null;
   hint?: string | null;
   status: SketchSolverStatus | null;
   busy: boolean;
@@ -195,6 +198,7 @@ export function SketchBar(p: SketchControls) {
         <SketchConstruction construction={p.construction} onConstruction={p.onConstruction} onToggleSelected={p.onToggleSelected} />
         <span class="sb-sep" />
         <SketchStatus status={p.status} busy={p.busy} prefs={p.prefs} onPrefs={p.onPrefs} onFullyDefine={p.onFullyDefine} list={p.list} onLookNormal={p.onLookNormal} lookChip={p.lookChip} onReport={p.onReport} reportOpen={p.reportOpen} />
+        <HelpButton topic={p.tool ? 'sketch:' + p.tool : 'sketch'} />
         <SketchNotes hint={null} selected={p.selected} onClearSelection={p.onClearSelection} />
       </div>
       {p.hint ? <span class="sketch-hint" role="status">{p.hint}</span> : null}

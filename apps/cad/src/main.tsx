@@ -4,6 +4,7 @@ import { createBrowserKernel } from '@ck/kernel-client/browser';
 import { Session, type EditOp } from '@ck/session';
 import { emptyPart, type PartDoc } from '@ck/part-model';
 import { signal } from '@preact/signals-core';
+import { appVersion, loadAppVersion, versionLink } from './appVersion';
 import { availableLocales, locale as localeSignal, PSEUDO, setLocale } from '@kit/i18n';
 import { BODY, createStore, MODE_FILTER, type DisplayLayer, type PickFilterKind, type SelectionMode, type Workspace } from '@kit/store';
 import { toBodyMode } from './select/actions';
@@ -117,6 +118,8 @@ import { WasherWizard } from './WasherWizard';
 import { SpringWizard } from './SpringWizard';
 import { CaseWizard } from './CaseWizard';
 import { DEFAULT_CASE, caseIssue, caseOps, type CaseParams } from './case';
+import { TrayWizard } from './TrayWizard';
+import { DEFAULT_TRAY, trayIssue, trayOps, type TrayParams } from './tray';
 import { DEFAULT_SPRING, springIssue, springOps, type SpringParams } from './spring';
 import { InsertWizard, NutWizard, StandoffWizard } from './FastenerWizards';
 import { bodyNames, fastenerIssue, fastenerOps, openFastener as newFastener, type FastenerWizardState } from './fasteners';
@@ -126,6 +129,8 @@ import { FastenHoleWizard } from './FastenHoleWizard';
 import { allHoles, HoleIndex, patternHoles, readFastenHole, type FastenHole } from './fastenHole';
 import { fastenOps, type FastenTarget } from './fasten';
 import { BearingWizard } from './BearingWizard';
+import { HelpButton, HelpHost } from './HelpButton';
+import { currentTopic } from './helpMap';
 import { FramePanel } from './frame/FramePanel';
 import { adoptFrameLibraries, loadStoredLibrary } from './frame/frameUserLib';
 import { Sketch3dPanel, type Sketch3dHost, type Sketch3dResult } from './sketch3d/Sketch3dPanel';
@@ -226,6 +231,7 @@ import { AssemblyPanel, type AsmHost, type Section as AsmSection } from './assem
 import { createAssemblyState } from './assembly/state';
 import { DrawingWorkspace } from './drawing/DrawingWorkspace';
 import { layoutHandles, layoutStyle, resetLayout } from './useLayout';
+import { resetPageZoom, watchPageZoom } from './pageZoom';
 import { asLayoutPref, effectiveWorkspace, LAYOUT_KEY, layout, layoutPref, narrowTablet, viewportInfo, watchViewport } from './layoutMode';
 import { makeDrawingHost } from './drawing/host';
 import { displayBody } from './assembly/display';
@@ -281,9 +287,11 @@ const lookStore = createLookStore(read(LOOK_KEY));
 /** The published site's Licences and Documentation links (the build adds them to the page; a local or desktop build has none): the status bar shows them. */
 function siteLinks(): { label: string; href: string }[] {
   const at = (id: string, label: string): { label: string; href: string }[] => { const a = document.getElementById(id) as HTMLAnchorElement | null; return a ? [{ label, href: a.href }] : []; };
-  return [...at('docs-link', t('app.more.docs')), ...at('licences-link', t('app.more.licences'))];
+  return [...at('docs-link', t('app.more.docs')), ...at('licences-link', t('app.more.licences')), ...versionLink(appVersion.value)];
 }
+void loadAppVersion();   // the published build's version.json: the status bar shows it as a link to What's new
 const store = createStore((read('cad.display') as object | null) ?? {}, read('cad.workspace'));
+watchPageZoom({ onStuck: () => store.notify(t('zoom.stuck'), 'warn', { label: t('zoom.reset'), run: () => { resetPageZoom(); } }) });   // iOS zooms the page by itself now and then and has no way back: pinch is cancelled, a blur resets, and a zoom that stays offers a button
 
 // One kernel for the app (the built-in wasm worker, or a local native service chosen in Settings); cancel() restarts it.
 /** Curated fonts are fetched from /fonts when picked (or when a document names one). */
@@ -583,6 +591,7 @@ function App() {
   const washerPickRef = useRef({ n: 0, openSel: '' });
   const [washerWiz, setWasherWiz] = useState<{ params: WasherParams } | null>(null);   // the Washer wizard: a flat or spring washer over the washer() helper
   const [springWiz, setSpringWiz] = useState<{ params: SpringParams } | null>(null);   // the Spring wizard: a compression spring over the spring() helper
+  const [trayWiz, setTrayWiz] = useState<{ params: TrayParams } | null>(null);   // the Tray wizard: a tray or bin on a grid over the gridTray() helper
   const [caseWiz, setCaseWiz] = useState<{ params: CaseParams } | null>(null);   // the Case wizard: a closed box with a lipped lid over the caseBox() helper
   const [fastenWiz, setFastenWiz] = useState<{ pick: string; all: FastenHole[]; selected: FastenHole[]; pattern: FastenHole[]; ix: HoleIndex } | null>(null);   // Fasten this hole: a bolt (washers, nut) for the picked hole(s), see FastenHoleWizard.tsx
   const [fastenerWiz, setFastenerWiz] = useState<FastenerWizardState | null>(null);   // the Nut, Standoff and Heat-set insert wizards over the nut() / standoff() / heatSetInsert() helpers (one open at a time)
@@ -598,6 +607,7 @@ function App() {
   useEffect(() => { if (fastenerWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenerWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (fastenWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (caseWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setCaseWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (trayWiz && (caseWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setTrayWiz(null); } }, [caseWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
   const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
   const [meshPick, setMeshPick] = useState<null | { stage: 'aim' } | { stage: 'plane'; pos: P3d; normal: P3d }>(null);   // starting a sketch by clicking the mesh surface
@@ -1750,7 +1760,7 @@ function App() {
   bodyDoubleRef.current = ti.onBodyDouble;
   treeKeyRef.current = (e, onCanvas) => treeKey(e, ti.actions, onCanvas);
   const featureActions: FeatureActions = {
-    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel, tangentChain: tangentChainOn() }),
+    context: () => ({ doc: controller.document(), selection: store.selection.value, mode: store.mode.value, box: controller.bodyBox(), edges: controller.bodyEdges(), selectedId, selectedIds: ti.actions.selected(), refPlane: refSel, tangentChain: tangentChainOn(), bodyRows: () => bodyRowsFor(false) }),
     create: (ops) => void createFeature(ops),
     holeOnFace: (face) => { holeSketchRef.current = true; startNewSketch({ kind: 'face', id: face }); },
     holeFlip: (sketchId) => controller.extrudeFlip(sketchId, 'cut'),
@@ -1766,6 +1776,7 @@ function App() {
   });
   const commands = buildCommands({
     catalog: () => showCatalog(),
+    shapes: { can: () => !!controller.document(), arm: (id) => catalog.arm(id) },
     variables: () => showVariables(),
     script: () => showScript(),
     propeller: () => openPropeller(),
@@ -1776,6 +1787,7 @@ function App() {
     fastenHole: { can: () => fastenable().length > 0, open: () => openFasten(fastenable()) },
     spring: () => openSpring(),
     caseBox: () => openCase(),
+    tray: () => openTray(),
     nut: () => openFastener('nut'),
     standoff: () => openFastener('standoff'),
     insert: () => openFastener('insert'),
@@ -3169,7 +3181,7 @@ function App() {
     onCancel: () => void cancelSketch(),
     construction: constructionMode, onConstruction: () => setConstructionMode(!constructionMode),
     ...((entityOut && selEntityRef.current?.kind === 'entity' || multiSelRef.current.length > 1) && !sketchToolId ? { onToggleSelected: toggleSelectedConstruction } : {}),
-    onLookNormal: lookNormal, lookChip, hint: sketchHint,
+    tool: sketchToolId, onLookNormal: lookNormal, lookChip, hint: sketchHint,
     status: stNow, busy: defining, prefs: sketchPrefs,
     onPrefs: updatePrefs,
     onFullyDefine: () => void fullyDefineNow(),
@@ -3579,6 +3591,27 @@ function App() {
     setCaseWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
+  // The Tray wizard: every change previews the tray (the same features the Script tab's gridTray() makes); Add tray commits them as one folder, one undo step.
+  const onTrayDraft = (next: TrayParams) => {
+    if (!doc || trayIssue(next)) return;
+    void controller.preview(trayOps(doc as never, next), 700).then(onPreviewResult);
+  };
+  const onTrayCancel = async () => {
+    await controller.cancelPreview();
+    setTrayWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
+  const onTrayApply = async (next: TrayParams) => {
+    if (!doc) return;
+    let ops;
+    try { ops = trayOps(doc as never, next); } catch (e) { setPreviewHint((e as Error).message); return; }
+    await controller.cancelPreview();
+    const r = await timed(() => controller.commit(ops, "tray"));
+    if (!r.ok) { setPreviewHint(t("tray.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
+    store.notify(t("tray.created"));
+    setTrayWiz(null); setPreviewHint(null); setLeftTab("Features");
+    redraw((n) => n + 1);
+  };
   // The fastener wizards (Nut, Standoff, Heat-set insert): every change previews the part (the same features the Script tab's helper makes); Add commits them as one folder, one undo step.
   const onFastenerDraft = (next: FastenerWizardState) => {
     if (!doc || fastenerIssue(next)) return;
@@ -3679,11 +3712,19 @@ function App() {
     setFastenerWiz(newFastener(kind));
     setLeftTab("Editor");
   };
+ const openTray = () => {
+    if (!doc) return;
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null); setFastenWiz(null); setCaseWiz(null);
+    setTrayWiz({ params: { ...DEFAULT_TRAY } });
+    setLeftTab("Editor");
+  };
   const openCase = () => {
     if (!doc) return;
     if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
     revealLeft();
-    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null); setFastenWiz(null);
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null); setFastenWiz(null); setTrayWiz(null);
     setCaseWiz({ params: { ...DEFAULT_CASE } });
     setLeftTab("Editor");
   };
@@ -3983,6 +4024,9 @@ function App() {
   const caseEditor = caseWiz && doc ? (
     <CaseWizard key="case" params={caseWiz.params} hasOthers={doc.features.length > 0} onDraft={onCaseDraft} onApply={onCaseApply} onCancel={onCaseCancel} hint={previewHint} />
   ) : null;
+  const trayEditor = trayWiz && doc ? (
+    <TrayWizard key="tray" params={trayWiz.params} hasOthers={doc.features.length > 0} onDraft={onTrayDraft} onApply={onTrayApply} onCancel={onTrayCancel} hint={previewHint} />
+  ) : null;
   const fastenerEditor = fastenerWiz && doc ? (
     fastenerWiz.kind === 'nut' ? <NutWizard key="nut" params={fastenerWiz.params} onDraft={(p) => onFastenerDraft({ kind: 'nut', params: p })} onApply={(p) => onFastenerApply({ kind: 'nut', params: p })} onCancel={onFastenerCancel} hint={previewHint} />
     : fastenerWiz.kind === 'standoff' ? <StandoffWizard key="standoff" params={fastenerWiz.params} onDraft={(p) => onFastenerDraft({ kind: 'standoff', params: p })} onApply={(p) => onFastenerApply({ kind: 'standoff', params: p })} onCancel={onFastenerCancel} hint={previewHint} />
@@ -4023,7 +4067,15 @@ function App() {
     <Sketch3dPanel key={'sk3d-' + (sk3dWiz.editId ?? 'new')} host={sketch3dHost} initial={sk3dWiz.draft} featureId={sk3dWiz.editId ?? freeId(doc as never)} base={sk3dWiz.editId ? (doc.features as unknown as Array<Record<string, unknown>>).find((x) => x.id === sk3dWiz.editId) : undefined}
       edit={!!sk3dWiz.editId} startPlane={selectedPlaneFeature()?.id ?? null} onApply={onSk3dApply} onCancel={onSk3dCancel} hint={previewHint} />
   ) : null;
-  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
+  /** What the help key (F1, '?') explains: the wizard or editor on screen, else the sketch and its tool. */
+  const helpContext = () => ({
+    sketch3d: !!sk3dEditor,
+    wizard: propEditor ? (propWiz?.marine ? 'marine' : 'propeller') : impellerEditor ? 'impeller' : knurlEditor ? 'knurl' : screwEditor ? 'screw' : washerEditor ? 'washer'
+      : fastenEditor ? 'fasten' : springEditor ? 'spring' : caseEditor ? 'case' : trayEditor ? 'tray' : fastenerEditor ? fastenerWiz?.kind ?? null : bearingEditor ? 'bearing' : meshEditor ? 'mesh' : gearRec && !frameEditor ? 'gear' : null,
+    feature: frameEditor ? 'frame' : editingFeature?.type ? String(editingFeature.type) : null,
+    sketching: !!sketching, tool: sketchToolId,
+  });
+  const featureEditor = propEditor ? propEditor : impellerEditor ? impellerEditor : knurlEditor ? knurlEditor : screwEditor ? screwEditor : washerEditor ? washerEditor : fastenEditor ? fastenEditor : springEditor ? springEditor : caseEditor ? caseEditor : trayEditor ? trayEditor : fastenerEditor ? fastenerEditor : bearingEditor ? bearingEditor : frameEditor ? frameEditor : sk3dEditor ? sk3dEditor : meshEditor ? meshEditor : gearRec ? (
     <GearEditor key={editingId} params={gearRec.params} name={String(editingFeature?.name ?? '').replace(/ profile$/, '')} onDraft={onGearDraft} onConfirm={onGearConfirm} onCancel={onCancel} hint={previewHint} />
   ) : editingFeature?.type === 'thread' ? (
     <ThreadEditor key={editingId} feature={editingFeature} extent={threadExtent} entryModeled={(controller.threadsNow() as Array<{ id?: string; modeled?: boolean }>).find((x) => x.id === editingId)?.modeled} modeledMs={loadThreadPrefs().modeledMs ?? null} inject={handleInject} onDraft={onDraft} onConfirm={onConfirm} onCancel={onCancel} hint={previewHint}
@@ -4041,6 +4093,7 @@ function App() {
     </>
   ) : (
     <FeatureEditor
+      headExtra={editingFeature?.type ? <HelpButton topic={'feature:' + String(editingFeature.type)} /> : null}
       feature={(editingFeature as { draftNew?: boolean } | null)?.draftNew ? (({ suppressed: _s, ...rest }) => rest)(editingFeature as unknown as Record<string, unknown>) as never : editingFeature}
       onDraft={onDraft}
       onConfirm={onConfirm}
@@ -4093,7 +4146,7 @@ function App() {
   ) : null;
   const editorRaw = materialEditor ?? featureEditor;
   const editor = editorRaw ? <PanelBoundary name="editor" resetKey={editingId}>{editorRaw}</PanelBoundary> : editorRaw;
-  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
+  const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
     : editingNow ? editor : tree;
   const catalog = useCatalog({
@@ -4118,7 +4171,7 @@ function App() {
     download: (data) => { void platform.saveFile(downloadName(data), new TextDecoder().decode(data.bytes), 'application/json'); },
     sources: () => liveSources(doc),
   };
-  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onNut={() => openFastener('nut')} onStandoff={() => openFastener('standoff')} onInsert={() => openFastener('insert')} onCase={openCase} onSpring={openSpring} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
+  const catalogPanel = <CatalogPanel hasDoc={!!doc} hasSolid={controller.hasSolid()} onItemDown={catalog.onItemDown} onItemKey={catalog.onItemKey} upAxis={navPrefs.upAxis} onPropeller={openPropeller} onKnurl={openKnurl} onScrew={openScrew} onWasher={openWasher} onNut={() => openFastener('nut')} onStandoff={() => openFastener('standoff')} onInsert={() => openFastener('insert')} onCase={openCase} onTray={openTray} onSpring={openSpring} onBearing={openBearing} library={{ registry: libraryRegistry(), actions: libraryActions, notify: (text, level) => store.notify(text, level), renderThumb: thumbRenderer }} />;
   // what the script host needs from the app: build into the open document, or scratch builds when the kernel can
   const scriptHostFor = (loadDoc: (d: Record<string, unknown>) => Promise<unknown>) => ({
     load: loadDoc as never,
@@ -4304,7 +4357,7 @@ function App() {
   // the Start here card: only on an open document with nothing in the viewport (startContent.ts lists every source); the X dismisses it for this tab
   const startSources = {
     doc, meshes: doc ? meshesOf(doc).length : 0, hasSolid: controller.hasSolid(), hasImportedBody: controller.hasImportedBody(), sketching: !!sketching,
-    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
+    panelOpen: !!(editingId || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || meshWiz || meshDlg || meshPick || kindDlg),
     drawingOpen,
   };
   const startDismissedNow = isStartDismissed(tabSet.activeId);
@@ -4658,8 +4711,9 @@ function App() {
         const h = makeDrawingHost(controller, { save: (n, d, m) => platform.saveFile(n, d, m), notify: (x, l) => store.notify(x, l ?? 'info'), changed: () => redraw((n) => n + 1), close: () => setDrawingOpen(false) });
         return h ? <DrawingWorkspace host={h} /> : null;
       })() : null}
+      <HelpHost context={() => helpContext()} />
       <div class="status-wrap">
-        <StatusBar links={siteLinks()} notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
+        <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
             onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} onZoom={(pct) => viewport?.setSketchZoom(uppForPercent(pct))} />
             {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} status={sketchControls.status} list={sketchControls.list} /> : null}</> : <ModelReadout />}

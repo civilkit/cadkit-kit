@@ -4,6 +4,25 @@ This is the reference page. If you are new to 3D sketching, start with [Introduc
 
 A normal sketch is flat: it lies on a plane or a face. A **3D sketch** is not: its points have three coordinates, so it can run in any direction. It has no profile and cannot be extruded. It is made to be a **path**, for example for a sweep along a curve that bends in all three directions, like a handrail, a hose or a wire.
 
+## Quick start
+
+1. Choose **3D Sketch** (**Home** tab, **Sketch** group, or command search). The tool opens in the left panel.
+2. Pick a mode (**Line**, **Arc**, **Spline**, **Control spline** or **Points**) and the **Work plane** to draw on.
+3. Click in the 3D view to place points. Each click lands where your pointer meets the work plane. To go off the plane, raise **Height above plane** or type **X**, **Y** and **Z** under **Add by coordinates**.
+4. Press **Enter** or **Create** to finish. **Esc** drops the chain you are drawing and a second **Esc** cancels the tool.
+
+The keys the tool uses are:
+
+| Key | What it does |
+| --- | --- |
+| `Enter` | Finish: the 3D sketch is added to the part. |
+| `Esc` | Drop the chain being drawn; press again to cancel the tool. |
+| `Backspace` or `Delete` | Remove the selected point (not while you are typing in a field). |
+| `Ctrl+Z` / `Cmd+Z` | Step back through the tool (the last point), not through the part. |
+| `Shift`+click on a point | Start a new chain from an existing point. |
+
+The tool has no axis keys or gizmo: to move a point along the third direction, type its coordinate.
+
 ## Drawing one
 
 Choose **3D Sketch** on the **Home** tab, in the **Sketch** group (on a phone, on the **Sketch** tab of the tools sheet), or search for "3D Sketch" in the command search. The tool opens in the left panel and takes over the 3D view.

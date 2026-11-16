@@ -1148,6 +1148,48 @@
    ]
   },
   {
+   "id": "gridBaseplate",
+   "kind": "function",
+   "domain": "features",
+   "signature": "gridBaseplate(o: GridBaseplateOpts): PartBuilder",
+   "summary": "A Gridfinity baseplate: a plate of pockets a tray's foot seats in.",
+   "description": "The free-function form of part.gridBaseplate: gridBaseplate({ widthUnits: 3, lengthUnits: 4 }) adds a 126 x 168 mm plate, 5.95 mm thick, with a pocket per grid cell. See part.gridBaseplate.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "GridBaseplateOpts",
+     "optional": false,
+     "description": "options object, see part.gridBaseplate"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "gridBaseplate({ widthUnits: 3, lengthUnits: 4 });",
+   "related": [
+    "part.gridBaseplate"
+   ]
+  },
+  {
+   "id": "gridTray",
+   "kind": "function",
+   "domain": "features",
+   "signature": "gridTray(o: GridTrayOpts): PartBuilder",
+   "summary": "A tray or bin on a grid (Gridfinity-style sizes) as its own body.",
+   "description": "The free-function form of part.gridTray: gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4 }) adds a 42 x 168 x 28 mm block (each size 0.5 mm under) with a scooped cavity open at both ends to the current model (a new part when there is none). endWalls closes the ends for a bin; magnets adds magnet holes underneath.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "GridTrayOpts",
+     "optional": false,
+     "description": "options object, see part.gridTray"
+    }
+   ],
+   "returns": "PartBuilder",
+   "example": "gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4, scoopRadius: 10 });",
+   "related": [
+    "part.gridTray"
+   ]
+  },
+  {
    "id": "heatSetInsert",
    "kind": "function",
    "domain": "features",
@@ -2051,6 +2093,46 @@
     "part.hole"
    ],
    "notes": "- Makes the whole gear (profile sketch, body, bore) in one call; it creates the body, so use it as the first feature of a part. Dimensions: pitch diameter = module x teeth, outside = module x (teeth + 2).\n- Slow-ish to regenerate (the involute profile has many pieces): keep teeth moderate while iterating. The gear lies on the 'front' plane by default (axis +Z, thickness along +Z)."
+  },
+  {
+   "id": "part.gridBaseplate",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".gridBaseplate(o: GridBaseplateOpts)",
+   "summary": "A Gridfinity baseplate: a plate of pockets the foot of a tray or bin seats in.",
+   "description": "widthUnits x lengthUnits cells of pitch (default 42 mm, no tolerance, so plates butt), a plate base (default 1.2 mm) under the pockets and 4.75 mm of pocket, 4.75 + base tall. Each pocket is the foot profile plus clearance (default 0.1 mm) all round, cut as three lofts per cell. With the default clearance the ridge between two pockets is 0.3 mm at the top.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "GridBaseplateOpts",
+     "optional": false,
+     "description": "options object { widthUnits, lengthUnits, ... }"
+    }
+   ],
+   "example": "part('Plate').gridBaseplate({ widthUnits: 3, lengthUnits: 4 });",
+   "related": [
+    "part.gridTray"
+   ]
+  },
+  {
+   "id": "part.gridTray",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".gridTray(o: GridTrayOpts)",
+   "summary": "A tray or bin on a grid (Gridfinity-style units) as its own body, scooped along its length.",
+   "description": "Outside widthUnits x lengthUnits grid units (42 mm, 0.5 mm under) and heightUnits x 7 mm tall, standing on origin along +z. The cavity has a scoop of scoopRadius (default 8) on its lower edges and runs the whole length: open at both ends, or closed by endWalls ('front', 'back', 'both' = a bin). foot: true adds the Gridfinity foot (4.75 mm, inside the height) under every cell so it seats in a baseplate. magnets cuts 6 x 2 mm holes underneath. Not included: stacking flange, dividers, labels.",
+   "parameters": [
+    {
+     "name": "o",
+     "type": "GridTrayOpts",
+     "optional": false,
+     "description": "options object { widthUnits, lengthUnits, heightUnits, ... }"
+    }
+   ],
+   "example": "part('Tray').gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4, scoopRadius: 10 });",
+   "related": [
+    "part.caseBox"
+   ]
   },
   {
    "id": "part.groove",

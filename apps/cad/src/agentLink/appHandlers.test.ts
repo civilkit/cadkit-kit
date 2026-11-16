@@ -109,3 +109,32 @@ describe('app handler: the measurement tools', () => {
     await fails(makeAppHandler(deps({ readback: async () => null }))('draft', {}), 'no_kernel');
   });
 });
+
+describe('app handler: sections', () => {
+  const loop = { kind: 'outer', area: 12.5, edges: [1, 2, 3, 4], pts: [[0, 0], [1, 0]] };
+  const host = (section = vi.fn(async () => ({ frame: { o: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, area: 12.5, bbox2d: [0, 0, 1, 1], loops: [loop] }))) => ({ section, deps: deps({ readback: async () => ({ kernel: { section } as never, interference: async () => null, bodies: async () => [] }) }) });
+
+  it('section reads the exact loops at a plane, with the origin defaulting to the world origin, and needs no edit permission', async () => {
+    const h = host();
+    const r = await makeAppHandler(h.deps)('section', { plane: { normal: [0, 0, 1] } }) as Record<string, unknown>;
+    expect(h.section).toHaveBeenCalledWith({ origin: [0, 0, 0], normal: [0, 0, 1] });
+    expect(r).toMatchObject({ area: 12.5, openChains: 0, loops: [{ kind: 'outer', area: 12.5, edges: 4 }] });
+    expect(JSON.stringify(r)).not.toContain('pts');
+    const full = await makeAppHandler(h.deps)('section', { plane: { origin: [1, 2, 3], normal: [1, 0, 0] }, detail: true }) as { loops: Array<{ pts?: unknown }> };
+    expect(full.loops[0].pts).toBeDefined();
+  });
+  it('section refuses a bad plane, no solid and no kernel with a code', async () => {
+    const h = host();
+    await fails(makeAppHandler(h.deps)('section', { plane: { normal: [0, 0, 0] } }), 'bad_input');
+    await fails(makeAppHandler(h.deps)('section', { plane: { normal: [0, 1] } }), 'bad_input');
+    await fails(makeAppHandler(deps({ hasSolid: () => false }))('section', { plane: { normal: [0, 0, 1] } }), 'no_body');
+    await fails(makeAppHandler(deps())('section', { plane: { normal: [0, 0, 1] } }), 'no_kernel');
+  });
+  it('a screenshot with a section passes the plane to the renderer', async () => {
+    const render = vi.fn(async () => new Uint8Array([1]));
+    await makeAppHandler(deps({ render }))('screenshot', { view: 'front', section: { normal: [0, 0, 1] } });
+    expect(render).toHaveBeenCalledWith('front', 768, { origin: [0, 0, 0], normal: [0, 0, 1] });
+    await makeAppHandler(deps({ render }))('screenshot', {});
+    expect(render).toHaveBeenLastCalledWith('iso', 768, undefined);
+  });
+});

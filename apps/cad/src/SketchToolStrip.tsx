@@ -1,6 +1,7 @@
 import { sketchTools, type ToolEntry, type ToolGroup } from '@kit/sketch';
 import { Icon, Slot, Tip, type SlotItem, type RibbonGroup } from '@kit/ui';
 import { t } from './i18n';
+import { HelpButton } from './HelpButton';
 import { SketchConstruction, SketchFinish, SketchStatus, type SketchControls } from './SketchBar';
 
 const GROUPS: ToolGroup[] = ['draw', 'dimension', 'constrain', 'edit'];
@@ -146,7 +147,8 @@ export function sketchRibbonGroups(p: {
   const tile = (id: string, icon: string, label: string, tip: string, run: () => void, pressed?: () => boolean) =>
     ({ key: id, node: <Slot id={id} variant="ribbon" side="bottom" labels={p.labels} items={[{ id, label, icon, tip, pressed, run }]} /> });
   const groups: RibbonGroup[] = [
-    { id: 'SketchSelect', entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> }] },
+    { id: 'SketchSelect', entries: [{ key: 'sk-select', node: <Slot id="sketch-select" variant="ribbon" side="bottom" labels={p.labels} items={[{ id: 'select', label: t('app.sketch.select'), pressed: () => p.active === null, run: () => p.onPick(null) }]} /> },
+      { key: 'sk-help', node: <HelpButton topic={p.active ? 'sketch:' + p.active : 'sketch'} /> }] },
     { id: 'Finish', entries: c ? [node('sk-finish', <SketchFinish onOk={c.onOk} onCancel={c.onCancel} />)] : [] },
     { id: 'Make', entries: c ? [
       c.onExtrude ? tile('sketch-extrude', 'add-extrude', t('cmd.add-extrude'), t('app.sketch.extrude.tip'), c.onExtrude) : null,

@@ -114,7 +114,7 @@ Reference geometry. See [Reference geometry](../modelling/reference-geometry.md)
 
 #### Create
 
-One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add fastener to hole, Spring, Nut, Standoff, Heat-set insert, Case and Bearing. See [Parametric wizards](../library/wizards.md).
+One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add fastener to hole, Spring, Nut, Standoff, Heat-set insert, Case, Tray and Bearing. See [Parametric wizards](../library/wizards.md).
 
 | Command | Ribbon caption | Shortcut | Available when |
 | --- | --- | --- | --- |
@@ -131,6 +131,7 @@ One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add
 | Standoff |  |  | An open document |
 | Heat-set insert |  |  | An open document |
 | Case |  |  | An open document |
+| Tray |  |  | An open document |
 | Bearing |  |  | An open document |
 
 #### Modify

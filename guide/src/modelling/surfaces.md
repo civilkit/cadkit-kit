@@ -94,10 +94,14 @@ The note in the editor gives the rules: "Thickness at positions along the axis (
 
 Pipe cut rolls a ball of a given radius along edges and cuts away everything it touches. Select edges in Edge mode, or select faces to use their rim edges, and choose **Features > Modify > Pipe cut**. Radius is about 10% of the smallest dimension at first. The solid becomes a surface body.
 
+## Offset surface
+
+Offset surface makes a new surface body a set distance from faces. Pick faces of a solid (or choose a surface in the tree) and choose **Offset surface** (Surfaces > Edit). A positive **Distance** goes outward on a solid, a negative one into it; the source stays unless you turn **Keep the source** off for a surface. Only flat, cylindrical, conical, spherical and ring faces can be offset, and a distance that reaches the centre of a round face is refused with the limit.
+
 ## Not available
 
 - **Project curve**, **Edit curve** and **Freeform** are covered in [Curves on faces](curves.md). Inside a sketch, the Project tool is a different thing: it projects model edges onto the sketch plane. See [Offsets and references](../sketching/offset-reference.md).
-- Offset surface, cut with surface, split line and dome are not built yet.
+- Cut with surface is not built yet.
 - Guide curves and strength for Fill are not offered.
 
 For the exact definitions, see [Surfaces and curves](/docs/cad/kernel/format/features-surfaces.html) in the kernel book: [knit](/docs/cad/kernel/format/features-surfaces.html#knit), [fill](/docs/cad/kernel/format/features-surfaces.html#fill), [trim surface](/docs/cad/kernel/format/features-surfaces.html#trimsurface), [thicken](/docs/cad/kernel/format/features-surfaces.html#thicken), [extend](/docs/cad/kernel/format/features-surfaces.html#extend).

@@ -342,13 +342,8 @@ describe('handleSpecs', () => {
     expect(m.cancels).toHaveLength(1);
   });
 
-  it('has a collapsed How it works hint with a link to the guide', () => {
+  it('has a help button for the 3D sketch topic in its header', () => {
     const m = mount();
-    expect(m.r.queryByTestId('sk3d-help')).toBeNull();
-    fireEvent.click(m.r.getByTestId('sk3d-help-btn'));
-    expect(m.r.getByTestId('sk3d-help').textContent).toMatch(/Enter/);
-    expect(m.r.getByTestId('sk3d-learn').getAttribute('href')).toMatch(/intro-3d-sketching/);
-    fireEvent.click(m.r.getByTestId('sk3d-help-btn'));
-    expect(m.r.queryByTestId('sk3d-help')).toBeNull();
+    expect(m.r.container.querySelector('.fedit-head [data-help-topic="sketch3d"]')).not.toBeNull();
   });
 });

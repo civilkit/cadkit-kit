@@ -17,7 +17,7 @@ export const MCP_SERVER_NAME = 'ck-cad';
 export const CHAT_TOOLS = [
   'app_status', 'app_state', 'app_screenshot', 'app_run_script', 'app_undo', 'app_redo', 'list_methods', 'docs',
   // read-only measurements of the open document (the same permission as app_state: no edit box needed)
-  'app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm',
+  'app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm', 'app_section',
 ] as const;
 export const MAX_CHAT_TURNS = 24;
 export const MAX_PROMPT_CHARS = 20_000;

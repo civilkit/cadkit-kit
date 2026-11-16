@@ -10,6 +10,7 @@ import { Check } from './ThreadControls';
 import { KNURL_METHODS, KNURL_PATTERNS, KNURL_PROFILES, cosmeticByDefault, knurlAnchor, knurlHasMethod, knurlIssue, knurlTarget, suggestCount, suggestDepth, type KnurlParams } from './knurl';
 import type { FaceMesh } from './bearing';
 import type { EdgeLike } from './threadData';
+import { HelpButton } from './HelpButton';
 
 export interface KnurlWizardProps {
   params: KnurlParams;
@@ -98,6 +99,7 @@ export function KnurlWizard(p: KnurlWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-knurl" size={22} class="fedit-icon" />
         <div class="fedit-title">{t(p.edit ? 'knurl.titleEdit' : 'knurl.title')}</div>
+        <HelpButton topic="wizard:knurl" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">

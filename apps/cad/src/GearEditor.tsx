@@ -8,6 +8,7 @@ import { Icon, kindForMin, numberAttrs } from '@kit/ui';
 import { t } from './i18n';
 import { GEAR_TYPES, centreDistance, gearGeom, gearModule, gearReadout, keySize, type GearParams, type GearType } from './gearData';
 import { Seg } from './ThreadEditor';
+import { HelpButton } from './HelpButton';
 
 export interface GearEditorProps {
   params: GearParams | null;
@@ -103,6 +104,7 @@ export function GearEditor(p: GearEditorProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-gear" size={22} class="fedit-icon" />
         <div class="fedit-title">{title}</div>
+        <HelpButton topic="wizard:gear" />
         <button type="button" class="fedit-confirm" onClick={confirm} title={t('ui.editor.confirm', undefined, 'Confirm')} aria-label={t('ui.editor.confirm', undefined, 'Confirm')}><Icon name="check" size={20} /></button>
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>

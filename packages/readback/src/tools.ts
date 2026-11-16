@@ -8,7 +8,7 @@ import { ReadbackError } from './errors';
 import { checkWithMould, withMouldRule, MOULD_RULE, type InlineRule, type MouldLabels, type ProfileReport } from './mould';
 import type { Schema } from './schema';
 
-export type KernelQueries = Pick<Session, 'distance' | 'clearance' | 'thickness' | 'angles' | 'checkProfile' | 'profiles'>;
+export type KernelQueries = Pick<Session, 'distance' | 'clearance' | 'thickness' | 'angles' | 'checkProfile' | 'profiles' | 'section'>;
 export interface Interference { bodies: number; pairs: Array<{ a: string; b: string; aName?: string; bName?: string; volume?: number; com?: number[]; box?: { min: number[]; max: number[] }; error?: string }> }
 export interface ReadbackHost {
   kernel: KernelQueries;

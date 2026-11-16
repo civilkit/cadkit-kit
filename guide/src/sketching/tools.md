@@ -44,26 +44,26 @@ As you move the pointer, CivilKit CAD snaps to existing points and curves and sh
 
 | Tool | How to use it |
 | --- | --- |
-| **Line** (`L`) | Click to start, click for each next end. The chain continues from the last end. Click the first point again to close the outline. Horizontal and vertical are inferred within 2 degrees. Type `len` and `ang` for an exact segment. Press `M` or `A` to continue with a tangent arc, and `L` or `M` to return to lines; with **Line to tangent arc** set to **Rest the pointer on the end** (the default), resting the pointer on the end of the chain switches too. |
-| **Centreline** | Two clicks make a construction line. It is never extruded. Use it as the axis of a revolve. |
-| **3-point arc** (`A`) | Click the start, then a point the arc passes through, then the end. Collinear points are refused. |
-| **Centre arc** | Click the centre, the start (this sets the radius), then the end. The shorter way round is drawn unless the pointer goes past half a turn. |
-| **Tangent arc** | Click the free end of a line or arc, then click where the arc should end. It is made tangent to that curve. |
-| **Circle** (`C`) | Click the centre, then click for the radius. Type `rad` or `dia` to set it exactly. |
-| **Ellipse** | Click the centre, click the end of the major axis, then click (or type) the minor radius. |
-| **Rectangle** (`R`) | Click one corner, then the opposite corner. Type `w` and `h`. The four sides are kept horizontal and vertical. |
-| **Rounded rectangle** | Click a corner, then the opposite one, like Rectangle. The four corners are rounded; the field `corner` is the radius (it stays for the next one, and is held to just under half the shorter side unless you type it). A typed radius becomes a driving dimension on each corner arc. |
-| **Centre rectangle** | Click the centre, then a corner. The rectangle is symmetric about the centre. |
-| **Slot** | Click the first centre, the second centre, then set the width with the pointer or by typing. The result is two lines and two arcs. |
-| **Arc slot** | A curved slot, in the Slot button's flyout. Click the arc centre, click the start point (it sets the radius and the start angle; `len` and `ang` fields), click the end of the arc (the `sweep` field; the arc follows the pointer round, either way), then set the width with the pointer or by typing (`w`). The result is two concentric arcs joined by two half-round ends, all kept tangent. A typed radius and width are held as dimensions. To change the slot later, click one of its arcs in the sketch: the fields **rad** (radius of the centre arc), **ang** (start angle), **sweep** and **w** (width) appear, and typing a value and pressing Enter reshapes the whole slot, keeping it tangent. |
-| **Polygon** | Click the centre, then a second point: its distance is the radius and its direction the rotation. The default is 6 sides. Press `+` to add a side. The fields, in order, are `radius` (or `apothem`), `ang` and `sides`: type digits for the first and press `Tab` to lock it and move on, and so reach `sides`. Press `M` to switch between a polygon whose corners touch the circle (**radius**) and one whose sides touch it (**apothem**). The sides are kept equal. |
-| **Add spline point** | Click a spline where it should get one more point. The new point lies on the curve between its two neighbours, and you can drag it to bend that part. The spline is fitted through all its points again, so it can shift slightly. |
-| **Spline** | A smooth curve through the points you click. Press `Enter` or click the last point again to finish. Click the first point to close the curve. `Esc` cancels. |
-| **Control-point spline** | A curve shaped by control points; it passes through the first and last only. Same keys as the spline. The degree is 3; it cannot be changed in the interface. |
-| **Bridge curve** | Click a free end of one curve, then a free end of another. A smooth spline joins them. Press `1` for tangent continuity (the default) or `2` for curvature continuity. |
-| **Equation curve** | Click where the curve starts, then type formulas `x(t)` and `y(t)` in its panel. See [Equation curves](equation-curves.md). |
-| **Point** | Each click adds a point. Points mark where **Hole** will drill. |
-| **Text** (`Q`) | Click where the text goes. See [Text](text.md). |
+| <a id="tool-line"></a>**Line** (`L`) | Click to start, click for each next end. The chain continues from the last end. Click the first point again to close the outline. Horizontal and vertical are inferred within 2 degrees. Type `len` and `ang` for an exact segment. Press `M` or `A` to continue with a tangent arc, and `L` or `M` to return to lines; with **Line to tangent arc** set to **Rest the pointer on the end** (the default), resting the pointer on the end of the chain switches too. |
+| <a id="tool-centerline"></a>**Centreline** | Two clicks make a construction line. It is never extruded. Use it as the axis of a revolve. |
+| <a id="tool-arc-three-point"></a>**3-point arc** (`A`) | Click the start, then a point the arc passes through, then the end. Collinear points are refused. |
+| <a id="tool-arc-centre"></a>**Centre arc** | Click the centre, the start (this sets the radius), then the end. The shorter way round is drawn unless the pointer goes past half a turn. |
+| <a id="tool-arc-tangent"></a>**Tangent arc** | Click the free end of a line or arc, then click where the arc should end. It is made tangent to that curve. |
+| <a id="tool-circle"></a>**Circle** (`C`) | Click the centre, then click for the radius. Type `rad` or `dia` to set it exactly. |
+| <a id="tool-ellipse"></a>**Ellipse** | Click the centre, click the end of the major axis, then click (or type) the minor radius. |
+| <a id="tool-rectangle"></a>**Rectangle** (`R`) | Click one corner, then the opposite corner. Type `w` and `h`. The four sides are kept horizontal and vertical. |
+| <a id="tool-rounded-rectangle"></a>**Rounded rectangle** | Click a corner, then the opposite one, like Rectangle. The four corners are rounded; the field `corner` is the radius (it stays for the next one, and is held to just under half the shorter side unless you type it). A typed radius becomes a driving dimension on each corner arc. |
+| <a id="tool-center-rectangle"></a>**Centre rectangle** | Click the centre, then a corner. The rectangle is symmetric about the centre. |
+| <a id="tool-slot"></a>**Slot** | Click the first centre, the second centre, then set the width with the pointer or by typing. The result is two lines and two arcs. |
+| <a id="tool-arc-slot"></a>**Arc slot** | A curved slot, in the Slot button's flyout. Click the arc centre, click the start point (it sets the radius and the start angle; `len` and `ang` fields), click the end of the arc (the `sweep` field; the arc follows the pointer round, either way), then set the width with the pointer or by typing (`w`). The result is two concentric arcs joined by two half-round ends, all kept tangent. A typed radius and width are held as dimensions. To change the slot later, click one of its arcs in the sketch: the fields **rad** (radius of the centre arc), **ang** (start angle), **sweep** and **w** (width) appear, and typing a value and pressing Enter reshapes the whole slot, keeping it tangent. |
+| <a id="tool-polygon"></a>**Polygon** | Click the centre, then a second point: its distance is the radius and its direction the rotation. The default is 6 sides. Press `+` to add a side. The fields, in order, are `radius` (or `apothem`), `ang` and `sides`: type digits for the first and press `Tab` to lock it and move on, and so reach `sides`. Press `M` to switch between a polygon whose corners touch the circle (**radius**) and one whose sides touch it (**apothem**). The sides are kept equal. |
+| <a id="tool-spline-add"></a>**Add spline point** | Click a spline where it should get one more point. The new point lies on the curve between its two neighbours, and you can drag it to bend that part. The spline is fitted through all its points again, so it can shift slightly. |
+| <a id="tool-spline"></a>**Spline** | A smooth curve through the points you click. Press `Enter` or click the last point again to finish. Click the first point to close the curve. `Esc` cancels. |
+| <a id="tool-cvspline"></a>**Control-point spline** | A curve shaped by control points; it passes through the first and last only. Same keys as the spline. The degree is 3; it cannot be changed in the interface. |
+| <a id="tool-bridge"></a>**Bridge curve** | Click a free end of one curve, then a free end of another. A smooth spline joins them. Press `1` for tangent continuity (the default) or `2` for curvature continuity. |
+| <a id="tool-equation"></a>**Equation curve** | Click where the curve starts, then type formulas `x(t)` and `y(t)` in its panel. See [Equation curves](equation-curves.md). |
+| <a id="tool-point"></a>**Point** | Each click adds a point. Points mark where **Hole** will drill. |
+| <a id="tool-text"></a>**Text** (`Q`) | Click where the text goes. See [Text](text.md). |
 
 ## Select and edit by hand
 
@@ -79,15 +79,16 @@ With the **Select** tool:
 
 | Tool | How to use it |
 | --- | --- |
-| **Trim** (`T`) | Click a part of a line, arc or circle. It is removed back to the nearest crossings with other curves. A part with no crossings is deleted. A circle needs two crossings. Hover shows what will go. Splines and ellipses are not trimmed. |
-| **Extend** (`E`) | Click a line or arc near the end you want to lengthen. It runs on to the first curve it meets. A circle cannot be extended. |
-| **Fillet** | Click two lines that meet at a corner (or click the corner), then type or accept a radius to replace the corner with a tangent arc. A radius you type before picking is applied as soon as you pick the corner and is kept as a dimension. |
-| **Chamfer** | The same picks as the fillet. The distance is the length cut from the corner along both lines. |
-| **Offset** (`O`) | Click a line, arc, circle or spline. For lines and arcs, the whole connected chain is selected. Press `Enter`, then move the pointer to the side you want. The pointer's distance is the offset distance, or type digits for the single field, `dist`, and press `Enter` to lock it. `F` flips the side. Click to place. See [Offsets and references](offset-reference.md). |
-| **Mirror** | Click the entities to mirror (click again to unselect), press `Enter`, then click the mirror line. The source geometry stays. |
-| **Linear pattern** | Select entities, press `Enter`. A panel opens with the same groups as the Linear pattern feature: see [Patterns](#patterns) below. |
-| **Circular pattern** | Select entities, press `Enter`, click the centre. A panel opens with the count and the angle: see [Patterns](#patterns) below. |
-| **Move**, **Copy**, **Rotate**, **Scale** | Select entities first (or click them in the tool), press `Enter`, click a base point (the centre for **Rotate**), then move the pointer and click, or type the values. The fields, in order, are `dx`, `dy` and `copies` for Copy; `dx` and `dy` for Move; `ang` and `copies` for Rotate; `factor` and `copies` for Scale. Type digits for the first field and press `Tab` to lock it and move on. Copy, Rotate and Scale take a number of copies (at most 99); with 0 copies, Rotate and Scale change the selected geometry in place. |
+| <a id="tool-trim"></a>**Trim** (`T`) | Click a part of a line, arc or circle. It is removed back to the nearest crossings with other curves. A part with no crossings is deleted. A circle needs two crossings. Hover shows what will go. Splines and ellipses are not trimmed. |
+| <a id="tool-extend"></a>**Extend** (`E`) | Click a line or arc near the end you want to lengthen. It runs on to the first curve it meets. A circle cannot be extended. |
+| <a id="tool-split"></a>**Split entity** | Click a place on a line, arc, circle or fit spline. It is broken there into two pieces that share one new point, so an outline through it stays closed and still extrudes. Picking an end of the curve is refused. Control-point splines and ellipses cannot be split. Constraints that cannot carry over to both pieces are dropped, and the status line names them. |
+| <a id="tool-fillet"></a>**Fillet** | Click two lines that meet at a corner (or click the corner), then type or accept a radius to replace the corner with a tangent arc. A radius you type before picking is applied as soon as you pick the corner and is kept as a dimension. |
+| <a id="tool-chamfer"></a>**Chamfer** | The same picks as the fillet. The distance is the length cut from the corner along both lines. |
+| <a id="tool-offset"></a>**Offset** (`O`) | Click a line, arc, circle or spline. For lines and arcs, the whole connected chain is selected. Press `Enter`, then move the pointer to the side you want. The pointer's distance is the offset distance, or type digits for the single field, `dist`, and press `Enter` to lock it. `F` flips the side. Click to place. See [Offsets and references](offset-reference.md). |
+| <a id="tool-mirror"></a>**Mirror** | Click the entities to mirror (click again to unselect), press `Enter`, then click the mirror line. The source geometry stays. |
+| <a id="tool-pattern-linear"></a>**Linear pattern** | Select entities, press `Enter`. A panel opens with the same groups as the Linear pattern feature: see [Patterns](#patterns) below. |
+| <a id="tool-pattern-circular"></a>**Circular pattern** | Select entities, press `Enter`, click the centre. A panel opens with the count and the angle: see [Patterns](#patterns) below. |
+| <a id="tool-move"></a><a id="tool-copy"></a><a id="tool-rotate"></a><a id="tool-scale"></a>**Move**, **Copy**, **Rotate**, **Scale** | Select entities first (or click them in the tool), press `Enter`, click a base point (the centre for **Rotate**), then move the pointer and click, or type the values. The fields, in order, are `dx`, `dy` and `copies` for Copy; `dx` and `dy` for Move; `ang` and `copies` for Rotate; `factor` and `copies` for Scale. Type digits for the first field and press `Tab` to lock it and move on. Copy, Rotate and Scale take a number of copies (at most 99); with 0 copies, Rotate and Scale change the selected geometry in place. |
 
 ### Patterns
 
@@ -121,8 +122,8 @@ The **Circular pattern** panel has the `Count` (the first one included), the ang
 
 | Tool | How to use it |
 | --- | --- |
-| **Project edges** (`P`) | Hover an edge of the part to preview its projection onto the sketch plane and click to project it. Press `Enter` to project the edges and faces you selected before opening the sketch. The result is fixed reference geometry, drawn dashed, that is not extruded. |
-| **Construction** (`X`) | Click a line, arc, circle, ellipse or spline to switch it between normal and construction. `Shift`-click switches the whole connected chain. |
+| <a id="tool-project"></a>**Project edges** (`P`) | Hover an edge of the part to preview its projection onto the sketch plane and click to project it. Press `Enter` to project the edges and faces you selected before opening the sketch. The result is fixed reference geometry, drawn dashed, that is not extruded. |
+| <a id="tool-construction"></a>**Construction** (`X`) | Click a line, arc, circle, ellipse or spline to switch it between normal and construction. `Shift`-click switches the whole connected chain. |
 
 The **Construction** button in the **Reference** group is a mode: while it is on, new geometry is drawn as construction (dashed, not extruded). With geometry selected, **Make construction** switches the selection between normal and construction. Points cannot be construction.
 
@@ -131,6 +132,10 @@ The **Construction** button in the **Reference** group is a mode: while it is on
 ## Importing a drawing
 
 **Import DXF into sketch** (available in command search while a sketch is open) adds the lines, arcs, circles, polylines and splines of an ASCII DXF file to the current sketch. **New sketch from DXF** makes a new sketch from a file. Binary DXF is not supported. **Import SVG into sketch** and **New sketch from SVG** do the same for an SVG drawing: paths (curves become splines, circular arcs stay arcs), rectangles, circles, ellipses, lines and polygons, with the file's size in millimetres, centimetres or inches. See [Importing](../files/import.md).
+
+## 3D sketch tools
+
+A 3D sketch is a separate tool: it is not one of the flat sketch tools above. It draws lines, arcs and splines whose points have three coordinates, for use as a sweep path. See [3D sketches](sketch-3d.md) and, for a first walk-through, [Introduction to 3D sketching](intro-3d-sketching.md).
 
 ## Next
 

@@ -1,12 +1,12 @@
 # Parametric wizards
 
-This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, a two-part case, knurls, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
+This chapter covers the commands that build a whole part from a few parameters: gears (spur, ring, helical, herringbone and rack), propellers (airfoil and marine), turbo impellers, ball bearings, screws, washers, nuts, standoffs, heat-set inserts, springs, a two-part case, grid trays and bins, knurls, and corner holes on a plate. Each one produces ordinary features that you can inspect and edit afterwards.
 
 All of these are about geometry only. The app does not calculate strength, lubrication, or aerodynamic or hydrodynamic performance.
 
 ## What the wizards have in common
 
-- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller**, **Impeller**, **Knurl**, **Screw**, **Washer**, **Nut**, **Standoff**, **Heat-set insert**, **Spring**, **Case** and **Bearing** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
+- They live on the **Features** tab, **Create** group. The Gear button is a family: **Gear** (default, shortcut **Shift+Y**), **Gear pair**, **Propeller**, **Impeller**, **Knurl**, **Screw**, **Washer**, **Nut**, **Standoff**, **Heat-set insert**, **Spring**, **Case**, **Tray** and **Bearing** share one ribbon button, and the button shows the one you used last. You can also search for them with command search (**F**).
 - You need an open document. The commands are greyed out without one.
 - A live preview shows in the viewport while you change values.
 - A readout and checks show the derived numbers. Errors stop the build. Warnings do not.
@@ -441,6 +441,31 @@ A spring is its own body and does not merge with the part it sits in. Only the g
 In the Script tab: `spring({ outer: 12, wire: 1, length: 30, coils: 8, ends: 'ground', closedTurns: 1 })`, with `topOuter` for a cone and `progression` for a progressive pitch; `extensionSpring({ outer: 10, wire: 1, coils: 12 })`; and `torsionSpring({ outer: 10, wire: 1, coils: 4.25, leg1: 15, leg2: 15 })`. All three take `hand`, `origin` and `axis`.
 
 ![The Spring wizard open in the left panel with a compression spring previewed and the Ends setting set to Closed and ground: Closed turns per end, the grinding note and the derived pitch and wire length.](../img/wizard-spring.png)
+
+## Make a tray or bin
+
+**Tray** makes a tray or bin on a grid with Gridfinity-style sizes: one grid unit is 42 mm, one height unit 7 mm, and every outside size is 0.5 mm under whole units so neighbours fit. It is one body in a tree folder named *Tray*: a block of the size you give, with a cavity along its length whose lower edges are rounded by the scoop radius, so small things slide to the front and into the hand. The cavity is open at both ends, so trays can run on, unless you close the ends with a wall. Start it from **Features > Create**, command search, or the Catalog.
+
+| Field | What it does | Default |
+| --- | --- | --- |
+| Make | **Tray or bin**, or **Baseplate**: a plate with a pocket for every grid cell that a tray's foot seats in. A baseplate has whole or half units, no tolerance (plates butt), and only these fields: size, plate thickness (default 1.2 mm under the 4.75 mm pockets), pocket clearance (default 0.1 mm all round, which leaves a 0.3 mm ridge between pockets), **Split to fit the bed** (on: a plate longer than the printer bed is cut into the fewest equal pieces, in whole or half units, that each fit it, one body each named *Baseplate 1-1*, *2-1*, ... with square corners; off: one piece and a warning), corner radius, the drawer and printer fields. In the Script tab: `gridBaseplate({ widthUnits: 3, lengthUnits: 4 })`. | Tray or bin |
+| Width, Length, Height | The size in grid units (whole or half units across and along) and in height units. | 1, 4, 4 |
+| Scoop radius | The rounding of the lower edges of the cavity. A small radius gives an almost flat bottom, 0 a square one. At most half the inside width and at most the depth of the cavity. | 8 mm |
+| End walls | **None** (an open tray), **Front**, **Back** or **Both** (a bin). | None |
+| Wall thickness, Floor thickness | The side and end walls, and the material under the lowest point of the scoop. At least 0.4 mm. | 1.2 mm, 1.2 mm |
+| Corner radius | Rounds the four vertical outside corners. | 3.75 mm |
+| Gridfinity foot | The stepped base under every grid cell (a 0.8 mm chamfer, 1.8 mm straight, a 2.15 mm chamfer: 4.75 mm in all, inside the height), so the tray seats in a Gridfinity baseplate. The floor is then measured above the foot, so the cavity is 4.75 mm shallower and the scoop must fit in what is left. Needs a corner radius of at least 3.1 mm. | On |
+| Magnet holes | Four 6 x 2 mm holes, 26 mm apart, in the underside of every whole grid unit. The floor must be at least 2.8 mm (the foot counts toward that). | Off |
+| Drawer width, depth, height | The inside size of your drawer in mm (0 = skip). The panel shows how many units it takes across and along, the height in units, and the space left over; **Fill the drawer length** sets the length (and the height) to it. A part of n units is *n x 42 - 0.5* mm, so a 480 mm drawer takes 11 units and leaves 18.5 mm. Tick **half units** to fill more of it. | Not given |
+| Printer, Bed | Bambu X1 Carbon (256 mm), Creality K1 Max (300 mm) or Custom. The panel warns when the longest side is longer than the bed. | 256 mm |
+| Grid unit, Height unit, Tolerance | The sizes of the grid, so other grids work too. | 42, 7, 0.5 mm |
+| Name, Bottom face centre X, Y, Z | The body name and where the tray stands; it rises along +Z. | Tray, 0, 0, 0 |
+
+Checks in plain words block the preview and **Add tray** until the numbers work: a half unit that is not a half, a wall under 0.4 mm, a scoop that is wider than the cavity or deeper than it, a floor too thin for the magnet holes. The tray is its own body and leaves the bodies already in the document alone.
+
+Not included yet: a stacking flange, dividers and labels, several narrow trays in one module, and splitting a tray longer than the bed into pieces that join.
+
+In the Script tab: `gridTray({ widthUnits: 1, lengthUnits: 4, heightUnits: 4, scoopRadius: 8 })` (also `foot`, `endWalls`, `magnets`, `wall`, `floor`, `cornerRadius`, `pitch`, `unitHeight`, `tolerance`, `name`, `origin`). The wizard and the helper build the same features.
 
 ## Make a case
 

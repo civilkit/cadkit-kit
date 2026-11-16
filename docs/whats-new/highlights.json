@@ -1,4 +1,26 @@
 {
+  "0.7.3": [
+    {
+      "id": "create-menu",
+      "title": "A Create menu with the shapes",
+      "blurb": "Box, Cylinder, Sphere, Cone, Torus, Boss and Slot are on the ribbon: pick one, click a face or plane, and it is placed. Press Pull pushes or pulls picked faces, and Combine joins the bodies under faces you pick."
+    },
+    {
+      "id": "solids-from-numbers",
+      "title": "Rings, tubes and springs from numbers",
+      "blurb": "Torus, Pipe, Coil and Bounding solid need no sketch. Set the radii, the wall, the pitch and the turns in the Editor, and the shape follows as you type."
+    },
+    {
+      "id": "dome-split-offset",
+      "title": "Dome, Split face and Offset surface",
+      "blurb": "Raise a dome (or cut a dimple) on a round flat face, split a flat face in two along a plane without cutting the body, or make a new surface a set distance from faces."
+    },
+    {
+      "id": "twisted-fillet",
+      "title": "Fillets on a twisted extrude",
+      "blurb": "Round the top edges of a twisted extrude: a 40 mm square twisted 30 degrees takes a 2 mm fillet all the way round, where before the fillet was refused."
+    }
+  ],
   "0.7.2": [
     {
       "id": "tablet-layout",

@@ -16,18 +16,18 @@ Geometric constraints are in the **Constrain** group of the **Editing** tab. Cho
 
 | Tool | Picks | What it does |
 | --- | --- | --- |
-| **Horizontal** (`H`) | A line, or two points | Makes the line horizontal, or the two points level. |
-| **Vertical** (`V`) | A line, or two points | Makes the line vertical, or the two points one above the other. |
-| **Coincident** | Two points | Makes the points the same point. A circle or arc stands for its centre. |
-| **Midpoint** | A point and a line, in either order | Puts the point at the middle of the line. |
-| **Fix** | A point | Pins the point where it is now. |
-| **Equal** | Two lines, or two circles or arcs | Makes the lengths equal, or the radii equal. |
-| **Parallel** | Two lines | Makes the lines parallel. |
-| **Perpendicular** | Two lines | Makes the lines meet at a right angle. |
-| **Collinear** | Two lines | Puts both lines on one straight line. |
-| **Tangent** | A line and a circle or arc, or two circles or arcs | Makes the curves touch smoothly. Two lines cannot be tangent. When the two share an end point, the tangent is at that point. |
-| **Concentric** | Two circles or arcs, or a circle or arc and a point | Gives them the same centre. |
-| **Symmetric** | Two points and a line, in any order | Makes the points mirror images of each other across the line. |
+| <a id="tool-horizontal"></a>**Horizontal** (`H`) | A line, or two points | Makes the line horizontal, or the two points level. |
+| <a id="tool-vertical"></a>**Vertical** (`V`) | A line, or two points | Makes the line vertical, or the two points one above the other. |
+| <a id="tool-coincident"></a>**Coincident** | Two points | Makes the points the same point. A circle or arc stands for its centre. |
+| <a id="tool-midpoint"></a>**Midpoint** | A point and a line, in either order | Puts the point at the middle of the line. |
+| <a id="tool-fix"></a>**Fix** | A point | Pins the point where it is now. |
+| <a id="tool-equal"></a>**Equal** | Two lines, or two circles or arcs | Makes the lengths equal, or the radii equal. |
+| <a id="tool-parallel"></a>**Parallel** | Two lines | Makes the lines parallel. |
+| <a id="tool-perpendicular"></a>**Perpendicular** | Two lines | Makes the lines meet at a right angle. |
+| <a id="tool-collinear"></a>**Collinear** | Two lines | Puts both lines on one straight line. |
+| <a id="tool-tangent"></a>**Tangent** | A line and a circle or arc, or two circles or arcs | Makes the curves touch smoothly. Two lines cannot be tangent. When the two share an end point, the tangent is at that point. |
+| <a id="tool-concentric"></a>**Concentric** | Two circles or arcs, or a circle or arc and a point | Gives them the same centre. |
+| <a id="tool-symmetric"></a>**Symmetric** | Two points and a line, in any order | Makes the points mirror images of each other across the line. |
 
 The constraint list also shows **Point on line** and **Point on circle**. You do not add these with a tool: they come from snapping to a curve while you draw, and from **Trim** and **Extend**.
 
@@ -40,6 +40,7 @@ A constraint that would add nothing, or would contradict what is already there, 
 - **That conflicts with the existing constraints.**
 - **That cannot be picked here**, **Pick a different item** or **Nothing to pick there**, when a click does not fit what the tool needs.
 
+<a id="tool-dimension"></a>
 ## Dimensions
 
 The **Dimension** tool (`D`) is a smart dimension: you click what to measure and it chooses the right kind. It then offers a value box holding the measured value.

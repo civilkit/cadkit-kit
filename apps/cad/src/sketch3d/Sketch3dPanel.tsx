@@ -12,6 +12,7 @@ import {
   MODES, dropOrphans, entityPolyline, finishStroke, fitDraftToSurface, isSplinePath, movePoint, posOf, removePoint, sketch3dFeature, snapRay, strokeReady, withPoint, withStroke, workPlanes,
   type Draft3, type Mode, type P3, type Snap, type SnapCandidate, type Stroke, type WorkPlane,
 } from './model';
+import { HelpButton } from '../HelpButton';
 
 /** What the panel needs from the viewport and the document. */
 export interface Sketch3dHost {
@@ -81,8 +82,6 @@ const PLANE_LABEL = (id: string): string => {
 };
 
 const MODE_ICON: Record<Mode, string> = { line: 'line', arc: 'arc-three-point', spline: 'spline', cvspline: 'cvspline', point: 'point' };
-/** The guide's tutorial page (the docs are served beside the app). */
-const GUIDE_URL = '/docs/cad/sketching/intro-3d-sketching.html';
 const SNAP_PX = 12;
 /** Pick radius of a point diamond in pixels: at least 12 (the diamond is drawn about 5 px), larger for a finger. */
 export const HIT_PX = 14;
@@ -381,23 +380,16 @@ export function Sketch3dPanel(p: Sketch3dPanelProps): JSX.Element {
     live.current = { ...live.current, mode: m };
   };
 
-  const [help, setHelp] = useState(false);
 
   return (
     <div class="fedit thread-editor prop-wizard sk3d-panel" tabIndex={0} data-testid="sk3d-panel">
       <div class="fedit-head">
         <Icon name="add-sketch3d" size={22} class="fedit-icon" />
         <div class="fedit-title">{t(p.edit ? 'sk3d.titleEdit' : 'sk3d.title')}</div>
-        <button type="button" class="sk3d-help-btn" data-testid="sk3d-help-btn" aria-expanded={help} aria-controls="sk3d-help" title={t('sk3d.help')} aria-label={t('sk3d.help')} onClick={() => setHelp(!help)}>?</button>
+        <HelpButton topic="sketch3d" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body sk3d-body">
-        {help ? (
-          <div class="sk3d-help" id="sk3d-help" data-testid="sk3d-help">
-            <div>{t('sk3d.helpText')}</div>
-            <a href={GUIDE_URL} target="_blank" rel="noopener" data-testid="sk3d-learn">{t('sk3d.learn')}</a>
-          </div>
-        ) : null}
 
         <section class="sk3d-sec" data-sec="draw">
           <h3 class="sk3d-h">{t('sk3d.mode')}</h3>

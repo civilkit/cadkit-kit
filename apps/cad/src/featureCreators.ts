@@ -10,6 +10,7 @@ import { SURFACE_TYPES } from '@kit/viewdata';
 import { DEFAULT_GEAR, defaultPair, gearCommitOps, type GearParams } from './gearData';
 import { isSplinePath } from './sketch3d/model';
 import { defaultSplitPlane } from './splitRules';
+import { combineBodyOps, refOf as bodyRefOf, type BodyTarget } from './bodyOps';
 import { axisLine, edgeRefs, faceNames, niceSize, patternSeed, type Box, type Ctx, type FeatureActions, type ViewEdge } from './featureCommands';
 
 type Feat = { id: string; type: string; [k: string]: unknown };
@@ -245,6 +246,78 @@ export function pathPatternOps(c: Ctx): EditOp[] | null {
   const spread = len !== null ? { distanceType: 'extent', extent: +len.toFixed(6) } : { spacing: niceSize(c.box, 0.2) };
   return [{ op: 'add', feature: { type: 'curvepattern', seeds: [seed.id], path: { kind: 'sketch', id: path.id }, count: 3, ...spread } }];
 }
+/** Press Pull / Offset Face: the picked faces pushed out by a small distance along their normals (planes slide, cylinders change radius); the options panel or the positioning ball sets the distance. */
+export function pressPullOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  return faces.length && c.box ? [{ op: 'add', feature: { type: 'moveFace', faces, mode: 'offset', distance: niceSize(c.box, 0.1) } }] : null;
+}
+/** Combine: the body under the first picked face joined with the bodies under the other picked faces (the editor switches to cut, intersect or split). Needs faces on two bodies. */
+export function combineOps(c: Ctx): EditOp[] | null {
+  const rows = c.bodyRows?.() ?? [];
+  const seen = new Map<number, BodyTarget>();
+  for (const f of faceMode(c)) {
+    const i = rows.findIndex((r) => r.faces.includes(f));
+    if (i >= 0 && !seen.has(i)) seen.set(i, { ...(rows[i].docName ? { docName: rows[i].docName } : {}), face: f });
+  }
+  const bodies = [...seen.values()];
+  return bodies.length >= 2 ? combineBodyOps('union', bodies[0], bodies.slice(1)) : null;
+}
+// ---- solids from numbers, split face, offset surface (kernel features torus, pipe, coil, boundingSolid, dome, splitLine, surfaceOffset) ----
+
+/** The longest side of the body on screen (40 with no body): sizes for a solid made from numbers. */
+const spanOf = (c: Ctx): number => (c.box ? Math.max(...[0, 1, 2].map((i) => c.box!.max[i] - c.box!.min[i]), 1e-9) : 40);
+/** A size that is `fraction` of the longest side, rounded to a nice number. */
+const sizeOf = (c: Ctx, fraction: number): number => niceSize({ min: [0, 0, 0], max: [spanOf(c), spanOf(c), spanOf(c)] }, fraction);
+/** A ring about the Z axis at the origin: the tube is a fifth of the ring radius. */
+export function torusOps(c: Ctx): EditOp[] | null {
+  if (!c.doc) return null;
+  const major = sizeOf(c, 0.3);
+  return [{ op: 'add', feature: { type: 'torus', op: 'add', center: [0, 0, 0], axis: 'z', majorRadius: major, minorRadius: +(major / 5).toPrecision(4) } }];
+}
+/** A round tube along the open sketch (the picked one, else the last): radius 2, solid; the editor sets a wall to hollow it. */
+export function pipeOps(c: Ctx): EditOp[] | null {
+  const sk = sketchWhere(c, isOpenSketch, true);
+  return sk ? [{ op: 'add', feature: { type: 'pipe', op: 'add', path: { kind: 'sketch', id: sk.id }, radius: c.box ? niceSize(c.box, 0.1) : 2 } }] : null;
+}
+/** A spring: a 1 mm wire wound 5 turns round the Z axis at radius 10 and pitch 4. */
+export function coilOps(c: Ctx): EditOp[] | null {
+  return c.doc ? [{ op: 'add', feature: { type: 'coil', op: 'add', center: [0, 0, 0], axis: 'z', radius: 10, wireRadius: 1, pitch: 4, revolutions: 5, leftHand: false } }] : null;
+}
+/** The box round the bodies under the picked faces; with no face picked, round every solid body. Always a new body. */
+export function boundingSolidOps(c: Ctx): EditOp[] | null {
+  if (!c.box) return null;
+  const rows = c.bodyRows?.() ?? [];
+  const seen = new Map<number, BodyTarget>();
+  for (const f of faceMode(c)) {
+    const i = rows.findIndex((r) => r.faces.includes(f));
+    if (i >= 0 && !seen.has(i)) seen.set(i, { ...(rows[i].docName ? { docName: rows[i].docName } : {}), face: f });
+  }
+  const bodies = [...seen.values()].map(bodyRefOf);
+  return [{ op: 'add', feature: { type: 'boundingSolid', ...(bodies.length ? { bodies } : {}), padding: 0 } }];
+}
+/** A dome on the picked flat round face (one face only): a fifth of the smallest side high; a negative height is a dimple. */
+export function domeOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  return faces.length === 1 && c.box ? [{ op: 'add', feature: { type: 'dome', face: faces[0], height: niceSize(c.box, 0.2) } }] : null;
+}
+/** Split the picked flat faces by the plane across the middle of the body's longest side (the editor moves or changes the plane). */
+export function splitFaceOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  if (!faces.length || !c.box) return null;
+  const d = [0, 1, 2].map((i) => c.box!.max[i] - c.box!.min[i]);
+  const i = d.indexOf(Math.max(...d));
+  const offset = +((c.box.min[i] + c.box.max[i]) / 2).toPrecision(8);
+  return [{ op: 'add', feature: { type: 'splitLine', faces, plane: { kind: 'std', id: (['right', 'top', 'front'] as const)[i] }, ...(offset !== 0 ? { offset } : {}) } }];
+}
+/** A new surface body offset from the picked faces (or from the surface in the tree): 1/20 of the smallest side out; the source stays. */
+export function offsetSurfaceOps(c: Ctx): EditOp[] | null {
+  const faces = faceMode(c);
+  const distance = niceSize(c.box, 0.05);
+  if (faces.length) return [{ op: 'add', feature: { type: 'surfaceOffset', faces, distance } }];
+  const sf = surfaceTarget(c);
+  return sf ? [{ op: 'add', feature: { type: 'surfaceOffset', surface: sf.id, distance } }] : null;
+}
+
 /** The whole part scaled to twice its size about its centre of mass: the options panel sets the factor (one number, or one per axis), the centre and which bodies. */
 export function scaleOps(c: Ctx): EditOp[] | null {
   return c.doc ? [{ op: 'add', feature: { type: 'scale', factor: 2 } }] : null;
@@ -589,6 +662,15 @@ export const CREATORS: Creator[] = [
   { id: 'add-lip', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c) && lipOps(c) !== null, ops: lipOps },
   { id: 'add-mirror', tab: 'Features', group: 'Modify', keys: 'Shift+M', enabled: (c) => hasSolid(c) && patternSeed(c) !== null, ops: mirrorOps },
   { id: 'add-pathpattern', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c) && pathPatternOps(c) !== null, ops: pathPatternOps },
+  { id: 'add-press-pull', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => pressPullOps(c) !== null, ops: pressPullOps },
+  { id: 'add-combine', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => combineOps(c) !== null, ops: combineOps },
+  { id: 'add-torus', tab: 'Features', group: 'Create', tip: true, enabled: doc, ops: torusOps },
+  { id: 'add-pipe', tab: 'Features', group: 'Create', tip: true, enabled: (c) => doc(c) && pipeOps(c) !== null, ops: pipeOps },
+  { id: 'add-coil', tab: 'Features', group: 'Create', tip: true, enabled: doc, ops: coilOps },
+  { id: 'add-bounding-solid', tab: 'Features', group: 'Create', tip: true, enabled: (c) => hasSolid(c), ops: boundingSolidOps },
+  { id: 'add-dome', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => domeOps(c) !== null, ops: domeOps },
+  { id: 'add-split-face', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => splitFaceOps(c) !== null, ops: splitFaceOps },
+  { id: 'add-offset-surface', tab: 'Surfaces', group: 'Edit', tip: true, enabled: (c) => doc(c) && offsetSurfaceOps(c) !== null, ops: offsetSurfaceOps },
   { id: 'add-scale', tab: 'Features', group: 'Modify', enabled: (c) => hasSolid(c), ops: scaleOps },
   { id: 'add-split', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c), ops: splitOps },
   { id: 'add-lip-joint', tab: 'Features', group: 'Modify', tip: true, enabled: (c) => hasSolid(c), ops: lipJointOps },

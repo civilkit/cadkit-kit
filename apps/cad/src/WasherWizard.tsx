@@ -11,6 +11,7 @@ import { SizePicker, type SizeMode } from './SizePicker';
 import { holePlacement, washerIssue, washerOnHole, WASHER_AXES, WASHER_KINDS, type WasherParams } from './washer';
 import { findWasherSize, WASHER_SIZES, washerLabel, washerSizesOf, type HoleSize } from './washerSizes';
 import type { HoleResult } from './washerHole';
+import { HelpButton } from './HelpButton';
 
 export interface WasherWizardProps {
   params: WasherParams;
@@ -101,6 +102,7 @@ export function WasherWizard(p: WasherWizardProps): JSX.Element {
       <div class="fedit-head">
         <Icon name="add-washer" size={22} class="fedit-icon" />
         <div class="fedit-title">{t('washer.title')}</div>
+        <HelpButton topic="wizard:washer" />
         <button type="button" class="fedit-cancel" onClick={p.onCancel} title={t('ui.cancel', undefined, 'Cancel')} aria-label={t('ui.cancel', undefined, 'Cancel')}><Icon name="close" size={20} /></button>
       </div>
       <div class="fedit-sec-fields prop-body">
