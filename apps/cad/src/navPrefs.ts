@@ -4,7 +4,7 @@ import { ORBIT_MODES, ORBIT_PIVOTS, UP_AXES, type OrbitMode, type OrbitPivot, ty
 
 export interface NavPrefs { upAxis: UpAxis; orbitMode: OrbitMode; orbitPivot: OrbitPivot; /** how far one wheel turn zooms, relative to the default (1) */ zoomSpeed: number }
 export const ZOOM_SPEEDS: readonly number[] = [0.5, 0.75, 1, 1.5, 2, 3];
-export const DEFAULT_NAV_PREFS: NavPrefs = { upAxis: 'y', orbitMode: 'turntable', orbitPivot: 'centre', zoomSpeed: 1 };
+export const DEFAULT_NAV_PREFS: NavPrefs = { upAxis: 'z', orbitMode: 'turntable', orbitPivot: 'centre', zoomSpeed: 1 };
 
 const pick = <T extends string>(v: unknown, ok: readonly T[], d: T): T => ((ok as readonly unknown[]).includes(v) ? (v as T) : d);
 

@@ -68,3 +68,26 @@
   .import-kind .discard-actions { flex-direction: column-reverse; }
   .import-kind .discard-actions .rb-btn { width: 100%; min-height: 40px; }
 }
+
+/* Recognise features (beta) */
+.recog { max-width: 520px; }
+.recog-name { opacity: .7; margin-left: 6px; }
+.recog-body { display: flex; flex-direction: column; gap: 8px; }
+.recog-line { margin: 0; }
+.recog-vol, .recog-note { opacity: .75; }
+.recog-verdict { margin: 0; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--line); }
+.recog-verdict.match { border-color: #3a9b5c; }
+.recog-verdict.close { border-color: #c79a2b; }
+.recog-verdict.differs, .recog-verdict.invalid { border-color: #c0504d; }
+.recog-skipped ul { margin: 4px 0 0; padding-left: 18px; max-height: 180px; overflow: auto; font-size: 12px; }
+
+/* Teardrop hole */
+.teardrop { max-width: 440px; }
+.teardrop-body { display: flex; flex-direction: column; gap: 8px; }
+.teardrop-row { display: grid; grid-template-columns: 9em 1fr auto; align-items: center; gap: 8px; }
+.teardrop-row input[type=number], .teardrop-row select { width: 100%; }
+.teardrop-line { margin: 0; }
+.teardrop-issue { margin: 0; padding: 6px 8px; border: 1px solid #c0504d; border-radius: 4px; }
+.teardrop-note { opacity: .75; }
+
+.teardrop-row input[type=checkbox] { justify-self: start; }

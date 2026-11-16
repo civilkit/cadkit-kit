@@ -4,7 +4,7 @@ import { t } from './i18n';
 import { Slot, type SlotItem } from './Slot';
 import { hiddenEdges, revealScroll, stepScroll } from './ribbonScroll';
 
-export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; /** Why the command is disabled right now (shown in the tooltip while it is). */ why?(): string | undefined; enabled?(): boolean; pressed?(): boolean; run(): void }
+export interface Command { id: string; label: string; tab: string; group: string; icon?: string; keys?: string; /** A sentence for the tooltip under the label. */ tip?: string; /** Why the command is disabled right now (shown in the tooltip while it is). */ why?(): string | undefined; /** Extra words the command search matches ("import dxf" finds New sketch from DXF). */ keywords?: string; /** The command search lists it only while it is enabled (a greyed entry that cannot be used yet is a dead end). */ hideUnlessEnabled?: boolean; enabled?(): boolean; pressed?(): boolean; run(): void }
 
 /** One place in a ribbon group: a command id (a plain button) or a slot (a split button holding several commands). */
 export type RibbonEntry = string | { slot: string; ids: string[]; /** The button opens the list instead of running a command. */ menu?: boolean; /** Keep the list open after a command runs (toggles). */ keepOpen?: boolean; /** The commands are choices of one setting (see Slot). */ radio?: boolean; /** The button always runs the first command (the list's other commands are not remembered). */ fixed?: boolean; icon?: string; title?: string };

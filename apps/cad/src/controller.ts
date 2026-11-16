@@ -1004,7 +1004,7 @@ export class Controller {
 
   /** Start a new, empty sketch on a standard plane at the end of the tree. Nothing is written until
    *  commitSketch: cancelling leaves the document exactly as it was. */
-  async beginNewSketch(plane: 'front' | 'top' | 'right' | { kind: 'face' | 'feature'; id: string } = 'front'): Promise<SketchEditView | null> {
+  async beginNewSketch(plane: 'front' | 'top' | 'right' | 'xz' | 'yz' | { kind: 'face' | 'feature'; id: string } = 'front'): Promise<SketchEditView | null> {
     if (this.realLoad) await this.whenReal();
     const s = this.session;
     if (!s) return null;
@@ -1742,7 +1742,9 @@ export class Controller {
   extrudeFlip(sketchId: string, op: 'add' | 'cut'): boolean {
     const v = this.lastView;
     const frame = v?.sketches.find((x) => x.id === sketchId)?.frame ?? null;
-    return defaultFlip(op, frame, v?.box ?? null);
+    // a sketch on a face of the body: the face's outward normal is the plane normal, so no bounding-box guess (see defaultFlip)
+    const onFace = (this.sdoc().features as unknown as Array<{ id?: string; plane?: { kind?: string } }>).find((f) => f.id === sketchId)?.plane?.kind === 'face';
+    return defaultFlip(op, frame, v?.box ?? null, onFace);
   }
 
   /** Whether this sketch's plane meets the body on screen (a new extrude of it should then add to the body). */

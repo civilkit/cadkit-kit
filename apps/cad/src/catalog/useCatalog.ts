@@ -10,7 +10,7 @@ import { catalogItem, shapeName, type BuildResult, type CatalogItem } from './sh
 import { buildBosl } from './bosl/build';
 import type { ScriptHost } from '@kit/script';
 import { armedItem, catalogActive, catalogPlane, ghost, libFetching, placeStatus, placementSetting, selectShapeFeature, sphereWall } from './state';
-import type { PlaneRef, UpAxis } from './placement';
+import { isStd, type PlaneRef, type UpAxis } from './placement';
 import { t } from '../i18n';
 import { itemLabel } from './labels';
 import type { LibraryRegistry, PartData } from '../library/registry';
@@ -39,7 +39,7 @@ export function planeRowAt(x: number, y: number, isPlaneFeature: (id: string) =>
   const row = typeof document === 'undefined' ? null : document.elementFromPoint(x, y)?.closest<HTMLElement>('.row');
   if (!row) return null;
   const r = row.dataset.ref;
-  if (r === 'front' || r === 'top' || r === 'right') return { kind: 'std', id: r };
+  if (isStd(r)) return { kind: 'std', id: r };
   const id = row.dataset.id;
   return id && isPlaneFeature(id) ? { kind: 'feature', id } : null;
 }

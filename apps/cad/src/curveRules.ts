@@ -1,6 +1,7 @@
 // Pure rules of the Project curve, Edit curve and Freeform forms (FeatureOptions.tsx): which fields each form owns, which
 // sources and curves it offers, and the draft patches its controls make. No DOM, so they are tested without a browser
 // (curveRules.test.ts) and against the kernel (curveCommands.kernel.test.ts). A patch value of null removes the field.
+import { planeName, viewPlaneIds } from './planeNames';
 import type { PartDoc } from '@ck/part-model';
 import { t } from './i18n';
 import { curveEntities, removeAt, replaceAt, sketchInfos } from './surfaceRules';
@@ -27,7 +28,7 @@ export function curveManaged(type: string): Set<string> {
 export const CURVE_FEATURES = ['editCurve', 'projectCurve'] as const;
 /** The Plane features before `selfId` (a curve or face edit may reference them), as `[value, label]`; `std:` planes first. */
 export function planeChoices(doc: PartDoc | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
-  const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  const out: Array<[string, string]> = viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)]);
   for (const f of feats(doc)) {
     if (f.id === selfId) break;
     if (f.type === 'plane') out.push([`feature:${f.id}`, labelOf(f)]);

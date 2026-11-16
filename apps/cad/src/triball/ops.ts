@@ -69,7 +69,7 @@ export function resolveTarget(c: TargetCtx): TargetResult {
 }
 
 // The standard planes' frames as the kernel draws sketches on them: [u, v] (the normal is u x v).
-const STD_FRAMES: Record<string, [Vec3, Vec3]> = { front: [[1, 0, 0], [0, 1, 0]], top: [[1, 0, 0], [0, 0, -1]], right: [[0, 0, -1], [0, 1, 0]] };
+const STD_FRAMES: Record<string, [Vec3, Vec3]> = { front: [[1, 0, 0], [0, 1, 0]], top: [[1, 0, 0], [0, 0, -1]], right: [[0, 0, -1], [0, 1, 0]], xz: [[1, 0, 0], [0, 0, 1]], yz: [[0, 1, 0], [0, 0, 1]] };
 
 type SketchFeat = Feat & { plane?: { kind?: string; id?: string }; points?: Array<{ id: string; x: number; y: number; fixed?: boolean }> };
 

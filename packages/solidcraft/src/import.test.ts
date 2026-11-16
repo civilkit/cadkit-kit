@@ -618,3 +618,42 @@ describe('import timings', () => {
     expect((await importSolidcraft(new TextEncoder().encode('{"a":1}'), 'bad')).timings).toBeUndefined();
   });
 });
+
+// A closed spline extruded as a surface, then thickened (the file a user imported that came back as "2 of 4 features converted").
+const surfaceThickenDoc = (over: { thicken?: Record<string, unknown>; extrude?: Record<string, unknown> } = {}) => {
+  const d = JSON.parse("{\"features\":[{\"id\":1,\"name\":\"Sketch1\",\"plane\":{\"name\":\"XY\",\"type\":\"origin\"},\"sketch\":{\"constraints\":[],\"counters\":{},\"curves\":[],\"points\":[{\"fixed\":true,\"id\":\"origin\",\"pos\":[0.0,0.0]}]},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":2,\"name\":\"Sketch2\",\"plane\":{\"name\":\"XY\",\"type\":\"origin\"},\"sketch\":{\"constraints\":[],\"counters\":{\"p\":5,\"s\":1},\"curves\":[{\"construction\":false,\"degree\":3,\"id\":\"s1\",\"periodic\":true,\"pts\":[0,1,2,3,4,5,0],\"type\":\"spline\"}],\"points\":[{\"fixed\":true,\"id\":\"origin\",\"pos\":[0.0,0.0]},{\"fixed\":false,\"id\":\"p1\",\"pos\":[-25.0,18.5]},{\"fixed\":false,\"id\":\"p2\",\"pos\":[-52.0,0.0]},{\"fixed\":false,\"id\":\"p3\",\"pos\":[-67.5,19.0]},{\"fixed\":false,\"id\":\"p4\",\"pos\":[-35.0,35.0]},{\"fixed\":false,\"id\":\"p5\",\"pos\":[9.5,31.0]}]},\"suppressed\":false,\"type\":\"sketch\"},{\"body_names\":[\"Body1\"],\"extent\":{\"convention\":\"total_distance\",\"direction\":\"positive\",\"distance\":\"10 mm\"},\"id\":3,\"name\":\"SurfaceExtrude1\",\"param_names\":[\"d1\"],\"profiles\":{\"profiles\":[{\"holes\":[],\"outer\":[\"s1\"]}],\"type\":\"whole_boundaries\"},\"sketch\":2,\"suppressed\":false,\"type\":\"surface_extrude\"},{\"bodies\":[\"Body1\"],\"body_names\":[\"Body2\"],\"id\":4,\"name\":\"Thicken1\",\"operation\":\"new_body\",\"param_names\":[\"d2\"],\"suppressed\":false,\"symmetric\":false,\"thickness\":\"2 mm\",\"type\":\"thicken\"}],\"format\":\"solidcraft/57\",\"format_pending\":[\"extrude-to-object-keeps-picked-placements\",\"plane-at-angle-follows-named-axis\"],\"name\":\"test\",\"next_component_color_index\":0,\"next_id\":5,\"params\":[],\"reserved_body_names\":[\"Body1\",\"Body2\"],\"units\":\"mm\"}");
+  Object.assign(d.features[2], over.extrude ?? {});
+  Object.assign(d.features[3], over.thicken ?? {});
+  return d;
+};
+
+describe('surface extrude and thicken', () => {
+  it('maps a surface extrude of a closed spline and its thicken to the kernel features', async () => {
+    const r = await importSolidcraftDocument(surfaceThickenDoc(), 'test');
+    expect(r.refused).toBeUndefined();
+    expect(r.rows.map((x) => `${x.type}:${x.status}`)).toEqual(['sketch:converted', 'sketch:converted', 'surface_extrude:converted', 'thicken:converted']);
+    expect(r.geometryComplete).toBe(true);
+    const f = r.part!.features as Array<Record<string, any>>;
+    const se = f.find((x) => x.type === 'surfaceExtrude')!;
+    expect(se).toMatchObject({ end: 'blind', depth: 10, name: 'SurfaceExtrude1' });
+    expect(se.flip).toBeUndefined();
+    const th = f.find((x) => x.type === 'thicken')!;
+    expect(th).toMatchObject({ surface: se.id, thickness: 2, side: 'front' });
+  });
+  it('a symmetric thicken is both sides, a symmetric surface extrude is the mid plane, and a negative direction flips', async () => {
+    const both = await importSolidcraftDocument(surfaceThickenDoc({ thicken: { symmetric: true }, extrude: { extent: { convention: 'total_distance', direction: 'symmetric', distance: '10 mm' } } }), 'test');
+    const f = both.part!.features as Array<Record<string, any>>;
+    expect(f.find((x) => x.type === 'thicken')).toMatchObject({ side: 'both' });
+    expect(f.find((x) => x.type === 'surfaceExtrude')).toMatchObject({ end: 'mid', depth: 10 });
+    const neg = await importSolidcraftDocument(surfaceThickenDoc({ extrude: { extent: { convention: 'total_distance', direction: 'negative', distance: '10 mm' } } }), 'test');
+    expect((neg.part!.features as Array<Record<string, any>>).find((x) => x.type === 'surfaceExtrude')!.flip).toBe(true);
+  });
+  it('says so, with the reason, for what it cannot carry', async () => {
+    const cut = await importSolidcraftDocument(surfaceThickenDoc({ thicken: { operation: 'cut' } }), 'test');
+    expect(cut.rows.find((x) => x.type === 'thicken')).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/does "cut"/) });
+    const thru = await importSolidcraftDocument(surfaceThickenDoc({ extrude: { extent: { convention: 'total_distance', direction: 'positive', through_all: true } } }), 'test');
+    expect(thru.rows.find((x) => x.type === 'surface_extrude')).toMatchObject({ status: 'unsupported', reason: expect.stringMatching(/plain distance/) });
+    const other = await importSolidcraftDocument(surfaceThickenDoc({ thicken: { bodies: ['Nope'] } }), 'test');
+    expect(other.rows.find((x) => x.type === 'thicken')!.status).toBe('unsupported');
+  });
+});

@@ -1,8 +1,8 @@
+import { planeName, planeRole, viewPlaneIds, type PlaneId } from './planeNames';
 import { Icon } from '@kit/ui';
 import { t } from './i18n';
 
-const PLANES = ['front', 'top', 'right'] as const;
-export type StartPlane = (typeof PLANES)[number];
+export type StartPlane = PlaneId;
 
 /** The card over an empty part: pick a plane to sketch on, or close it. Whether it shows is `showStartCard` (startContent.ts). */
 export function StartCard(p: { active: string | null; onHover: (id: StartPlane | null) => void; onSketch: (id: StartPlane) => void; onClose: () => void }) {
@@ -12,9 +12,9 @@ export function StartCard(p: { active: string | null; onHover: (id: StartPlane |
       <b>{t('app.start.title')}</b>
       <span>{t('app.start.text')}</span>
       <div class="start-planes">
-        {PLANES.map((id) => (
+        {viewPlaneIds().map((id) => (
           <button key={id} class={'rb-btn' + (p.active === id ? ' on' : '')} onMouseEnter={() => p.onHover(id)} onMouseLeave={() => p.onHover(null)} onClick={() => p.onSketch(id)}>
-            <Icon name={'sketch-new-' + id} size={18} /> {t('app.start.sketchOn', { plane: t('app.ref.' + id) })}
+            <Icon name={'sketch-new-' + planeRole(id)} size={18} /> {t('app.start.sketchOn', { plane: planeName(id) })}
           </button>
         ))}
       </div>

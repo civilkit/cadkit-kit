@@ -1,0 +1,22 @@
+[package]
+name = "quiddity-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Browser build of quiddity (https://github.com/pzfreo/quiddity, Apache-2.0): STEP bytes in, feature-recognition JSON out. Loaded on demand by the CAD app."
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# pinned exactly: the converter in tools/step_features reads this version's JSON schema ("recognition/6")
+quiddity = { version = "=0.5.3", default-features = false, features = ["json"] }
+wasm-bindgen = "=0.2.122"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

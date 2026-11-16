@@ -101,6 +101,20 @@ For a Simple hole, select the cylindrical wall of the hole in the view. A dot ap
 
 For the exact definition, see [hole](/docs/cad/kernel/format/features-edits.html#hole) in the kernel book.
 
+## Teardrop holes for 3D printing
+
+A hole printed on its side sags at the top, because the roof of a round hole has nothing under it. A **teardrop** adds a peak above the round hole, with sides no steeper than the printer's overhang limit, so every layer rests on the one below. **Teardrop hole** puts that peak on a hole you already have.
+
+1. Select the wall of the round hole (face mode, **Q**) and choose **Teardrop hole** in the right-click menu (or the command search).
+2. Choose which way the peak points. **Peak points toward** is the direction that is up when the part is printed; it starts at the model's up direction. The direction is projected onto the plane of the hole's mouth, so the hole must not run along it (the dialog says so). **Turn by** rotates the peak about the hole's axis, counter-clockwise seen from the mouth.
+3. **Peak angle** is each side's angle from the peak's axis. 45 degrees makes a 90 degree peak, the usual limit for printing without support. It can be 20 to 60.
+4. Tick **Flat top** to cut the tip off flat: a printed bridge across the top is easier than a sharp tip. **Flat at** is its distance from the hole's centre, between the tangent points and the tip.
+5. When the hole is part of a pattern, **Pattern** adds the peak to all of its holes at once; untick it for the picked hole only. Press **Add teardrop**.
+
+The round hole stays exactly as it is. The peak is cut along the same axis, as deep as the hole (through, or the blind hole's depth), as a **Teardrop** folder in the tree: a plane, a sketch and a cut for each hole. Switch the folder's eye off to see the plain hole again, or undo to remove it in one step. The peak is a cut, so it follows the hole only until you change the hole: if you move or resize the round hole later, delete the folder and add the teardrop again.
+
+A 6.6 mm hole with the usual 45 degree peak reaches 4.67 mm from its centre (the radius times the square root of two), so leave that much wall above it. A peak that runs out through a thin wall is cut where the wall is; it does not fail.
+
 ## Threads
 
 A thread feature marks a cylindrical face as threaded: the wall of a hole, or a shaft. It records the standard, size, class, length and hand. By default it is **cosmetic**: the model does not change, the thread appears as a marker in the view, and it is available to drawings and checks. If you turn on **Model the thread**, the kernel cuts a real helical groove.

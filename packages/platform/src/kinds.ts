@@ -15,7 +15,7 @@ export const FILE_KINDS: Record<FileKind, { exts: string[]; binary: boolean }> =
   sldprt: { exts: ['sldprt'], binary: true },
   skp: { exts: ['skp'], binary: true },
   fcstd: { exts: ['fcstd'], binary: true },
-  solidcraft: { exts: ['solidcraft'], binary: true },
+  solidcraft: { exts: ['solidcraft', 'sc'], binary: true },
 };
 
 const extOf = (name: string): string => name.split('.').pop()?.toLowerCase() ?? '';

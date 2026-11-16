@@ -1,5 +1,6 @@
 // What the feature tree lists, as plain data (no DOM): the feature rows and the fixed reference rows above them. main.tsx renders these with FeatureTree,
 // and tests read them to say what the user sees, without a browser.
+import { planeName, planeTag, viewPlaneIds } from './planeNames';
 import type { FeatureRow, RefRow } from '@kit/ui';
 import { t } from './i18n';
 import { isPointSketch, featureLabel } from './featureCreators';
@@ -39,9 +40,7 @@ export function featureRows(doc: Doc): FeatureRow[] {
 export function refRows(doc: Doc, swatch?: string): RefRow[] {
   return [
     { id: 'material', label: t('app.ref.material', { name: doc.material ?? t('app.ref.noMaterial') }), icon: 'ref-material', swatch, editable: true, editLabel: t('material.edit') },
-    { id: 'front', label: t('app.ref.front'), icon: 'feature-plane', tag: 'XY', choosable: true },
-    { id: 'top', label: t('app.ref.top'), icon: 'feature-plane', tag: 'XZ', choosable: true },
-    { id: 'right', label: t('app.ref.right'), icon: 'feature-plane', tag: 'ZY', choosable: true },
+    ...viewPlaneIds().map((id) => ({ id, label: planeName(id), icon: 'feature-plane', tag: planeTag(id), choosable: true })),
     { id: 'origin', label: t('app.ref.origin'), icon: 'ref-origin', choosable: true },
   ];
 }

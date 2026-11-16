@@ -3,6 +3,7 @@
 // ONE edit, `creatorCommands` registers them as palette and ribbon commands, and the app opens the Editor on the new feature.
 // moveFace and moveBody are made by the positioning ball (triball/ops.ts) and scale by add-scale below. dome, fillpattern, spattern,
 // splitLine, surfaceOffset and cutWithSurface have no command yet; see docs/feature-commands.md.
+import { groundPlaneId, isPlaneId, planeName } from './planeNames';
 import { fmtNum, type Command } from '@kit/ui';
 import type { EditOp } from '@ck/session';
 import { t } from './i18n';
@@ -153,8 +154,8 @@ export function syncNameOps(features: Array<Record<string, unknown>>, ops: EditO
 }
 /** What a reference counts as in a default name: Front / Top / Right, a plane feature's displayed label (never a stale stored one), or the face id. */
 export function refLabel(doc: DocIn, ref: RefIn): string {
-  if (!ref?.id) return t('app.ref.front');
-  if (ref.kind === 'std') return t('app.ref.' + ref.id).replace(/ Plane$/, '');
+  if (!ref?.id) return planeName('front');
+  if (ref.kind === 'std') return planeName(ref.id).replace(/ Plane$/, '');
   const f = ((doc?.features ?? []) as Feat[]).find((x) => x.id === ref.id);
   return f ? featureLabel(doc, f) : ref.id;
 }
@@ -169,7 +170,7 @@ export function planeBase(c: Ctx): { kind: string; id: string } {
   if (faces.length) return { kind: 'face', id: faces[0] };
   const pf = planeFeatures(c).find((f) => f.id === c.selectedId);
   if (pf) return { kind: 'feature', id: pf.id };
-  if (c.refPlane === 'front' || c.refPlane === 'top' || c.refPlane === 'right') return { kind: 'std', id: c.refPlane };
+  if (isPlaneId(c.refPlane)) return { kind: 'std', id: c.refPlane };
   return { kind: 'std', id: 'front' };
 }
 /** A reference plane. Two faces: the plane midway between them. Otherwise offset 10 from the base the selection names (a face, a Plane feature, a standard plane; Front when nothing is picked). */
@@ -625,12 +626,12 @@ export function freeformOps(c: Ctx): EditOp[] | null {
   return faces.length ? [{ op: 'add', feature: { type: 'freeform', faces, degreeU: 3, degreeV: 3, spansU: 2, spansV: 2, edits: [] } }] : null;
 }
 
-/** The plane a new gear sits on: the one picked planar face, else the selected reference plane, else the top plane. */
+/** The plane a new gear sits on: the one picked planar face, else the selected reference plane, else the ground plane (the one lying flat for the current up axis). */
 export function gearPlane(c: Ctx): { kind: string; id: string } {
   const faces = faceMode(c);
   if (faces.length === 1) return { kind: 'face', id: faces[0] };
   const pl = planeFeatures(c).find((f) => f.id === c.selectedId);
-  return pl ? { kind: 'feature', id: pl.id } : { kind: 'std', id: 'top' };
+  return pl ? { kind: 'feature', id: pl.id } : { kind: 'std', id: groundPlaneId() };
 }
 /** A 20 tooth spur gear (module 2), or with `pair` that gear and a 40 tooth mate at the centre distance: all its features in ONE edit. */
 export function gearCreateOps(c: Ctx, pair = false): EditOp[] | null {

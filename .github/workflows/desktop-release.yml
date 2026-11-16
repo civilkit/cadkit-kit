@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to label the release (default: version in package.json)
+        description: "Version to label the release (default: version in package.json)"
         required: false
 permissions:
   contents: write

@@ -15,7 +15,7 @@ export const SLOTS: Record<string, string[]> = {
   thin: ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'],
   primitives: ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-torus', 'add-boss', 'add-slot'],
   solids: ['add-pipe', 'add-coil', 'add-bounding-solid'],
-  hole: ['add-hole', 'add-thread'],
+  hole: ['add-hole', 'add-thread', 'teardrop-hole'],
   catalog: ['open-catalog', 'open-variables', 'open-script'],
   'edge-round': ['add-fillet', 'add-chamfer'],
   draft: ['add-draft', 'add-rib', 'add-lip', 'add-dome'],
@@ -48,7 +48,7 @@ const slot = (id: string, extra: Partial<Extract<RibbonEntry, object>> = {}): Ri
 /** The ribbon: tabs of titled groups. Group titles are `group.<id>` in the catalogue. */
 export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEntry[] }>> = {
   Home: [
-    { id: 'Sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
+    { id: 'Sketch', entries: [slot('new-sketch'), 'add-sketch3d'] },
     { id: 'Create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('catalog')] },
     { id: 'Modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull'] },
     { id: 'Pattern', entries: [slot('pattern')] },
@@ -102,7 +102,7 @@ export const RIBBON_LAYOUT: Record<string, Array<{ id: string; entries: RibbonEn
  *  command in this build is skipped. Above these the palette adds a "For selection" slot when something is selected. */
 export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'history', entries: ['undo', 'redo', 'repeat-last', slot('history')] },
-  { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d', 'sketch-import-dxf', 'sketch-import-svg'] },
+  { id: 'sketch', entries: [slot('new-sketch'), 'add-sketch3d'] },
   { id: 'create', entries: [slot('extrude', { fixed: true }), slot('thin'), 'add-revolve', slot('loft-sweep'), slot('primitives'), slot('solids'), slot('hole'), slot('gear'), 'add-plugin', slot('reference'), slot('catalog')] },
   { id: 'modify', entries: [slot('edge-round'), 'add-shell', 'add-press-pull', slot('draft'), 'add-mirror', 'add-scale', 'add-split', 'add-split-face', 'add-combine', 'add-lip-joint', 'triball', 'add-pipe-cut', slot('delete-geom')] },
   { id: 'frame', entries: ['add-frame', 'frame-cutlist'] },
@@ -114,17 +114,17 @@ export const RAIL_SECTIONS: { id: string; entries: RibbonEntry[] }[] = [
   { id: 'select', entries: [slot('pick-mode'), slot('pick-grow'), slot('pick-set')] },
 ];
 
-/** Commands that have no cell on the palette on purpose: files, export, camera and display settings live in the ribbon
+/** Commands that have no cell on the palette on purpose: files (the sketch DXF/SVG imports live in the sketch ribbon), export, camera and display settings live in the ribbon
  *  and the command search only. Everything else (every modelling, surface, inspect, assembly and selection command) must be on it. */
 export const notOnRail = (id: string): boolean =>
   /^(layer-|export|view-|style-|light-|bg-|sheet-(dxf|bends))/.test(id) ||
-  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
+  ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features', 'palette', 'drawer', 'settings', 'toggle-left-panel', 'reset-layout', 'toggle-projection', 'toggle-up-axis', 'fit', 'hide-selection', 'show-all', 'group-selected'].includes(id);
 
 // ---- contextual ribbon: which tab shows, which commands are idle -----------------------------------------------------------
 
 /** File commands live in the top bar (New, Open, Save, Export, Samples and its file menu), never on a ribbon tab. The ribbon leaves them out. */
 export const isFileCommand = (id: string): boolean =>
-  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'import-skp-hidden', 'rotate-skp'].includes(id);
+  /^export/.test(id) || ['new-part', 'open', 'save', 'save-as', 'embed-geometry', 'recover-versions', 'samples', 'import-step', 'sketch-import-dxf', 'sketch-import-svg', 'import-skp-hidden', 'rotate-skp', 'recognise-features'].includes(id);
 
 /** The contextual tab that replaces the others while a sketch is open. */
 export const SKETCH_TAB = 'Sketch';

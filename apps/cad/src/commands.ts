@@ -66,6 +66,8 @@ export interface Actions {
   washer?(): void;
   /** Fasten this hole (see FastenHoleWizard.tsx): enabled when a hole wall is selected; `open` starts the dialog on the selected holes. */
   fastenHole?: { can(): boolean; open(): void };
+  /** Teardrop hole (see TeardropDialog.tsx): enabled when a round hole's wall is selected; `open` shows the dialog for it. */
+  teardropHole?: { can(): boolean; open(): void };
   /** Open the Spring wizard (see SpringWizard.tsx). */
   spring?(): void;
   /** Open the Case wizard (see CaseWizard.tsx). */
@@ -215,6 +217,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.screw) cmds.push({ id: 'add-screw', label: t('cmd.add-screw'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.screw });
   if (a.washer) cmds.push({ id: 'add-washer', label: t('cmd.add-washer'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.washer });
   if (a.fastenHole) { const fh = a.fastenHole; cmds.push({ id: 'fasten-hole', label: t('cmd.fasten-hole'), tip: t('tip.fasten-hole'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && fh.can(), why: () => (a.hasDocument() ? t('ctx.fasten.why') : undefined), run: fh.open }); }
+  if (a.teardropHole) { const td = a.teardropHole; cmds.push({ id: 'teardrop-hole', label: t('cmd.teardrop-hole'), tip: t('tip.teardrop-hole'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && td.can(), why: () => (a.hasDocument() ? t('ctx.teardrop.why') : undefined), run: td.open }); }
   if (a.spring) cmds.push({ id: 'add-spring', label: t('cmd.add-spring'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.spring });
   if (a.nut) cmds.push({ id: 'add-nut', label: t('cmd.add-nut'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.nut });
   if (a.standoff) cmds.push({ id: 'add-standoff', label: t('cmd.add-standoff'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.standoff });
@@ -259,11 +262,11 @@ export function buildCommands(a: Actions): Command[] {
 
 function ioCommands(io: IoActions, hasDocument: () => boolean): Command[] {
   return [
-    { id: 'sketch-import-dxf', label: t('cmd.sketch-import-dxf'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, run: io.importDxf },
-    { id: 'sketch-import-svg', label: t('cmd.sketch-import-svg'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, run: io.importSvg },
+    { id: 'sketch-import-dxf', label: t('cmd.sketch-import-dxf'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, hideUnlessEnabled: true, why: () => t('cmd.sketch-import.why'), run: io.importDxf },
+    { id: 'sketch-import-svg', label: t('cmd.sketch-import-svg'), tab: 'Home', group: 'Sketch', enabled: io.isSketching, hideUnlessEnabled: true, why: () => t('cmd.sketch-import.why'), run: io.importSvg },
     { id: 'export', label: t('cmd.export'), tab: 'Home', group: 'File', enabled: hasDocument, run: io.openExportMenu },
     ...EXPORT_KINDS.map((k): Command => ({ id: `export-${k}`, label: t(`cmd.export-${k}`), tab: 'Home', group: 'Export', enabled: () => io.canExport(k), run: () => io.exportAs(k) })),
-    { id: 'sketch-from-dxf', label: t('cmd.sketch-from-dxf'), tab: 'Home', group: 'Sketch', enabled: hasDocument, run: io.sketchFromDxf },
-    { id: 'sketch-from-svg', label: t('cmd.sketch-from-svg'), tab: 'Home', group: 'Sketch', enabled: hasDocument, run: io.sketchFromSvg },
+    { id: 'sketch-from-dxf', label: t('cmd.sketch-from-dxf'), tab: 'Home', group: 'Sketch', enabled: hasDocument, keywords: 'import', run: io.sketchFromDxf },
+    { id: 'sketch-from-svg', label: t('cmd.sketch-from-svg'), tab: 'Home', group: 'Sketch', enabled: hasDocument, keywords: 'import', run: io.sketchFromSvg },
   ];
 }

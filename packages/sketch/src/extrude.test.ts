@@ -13,4 +13,11 @@ describe('defaultFlip', () => {
     expect(defaultFlip('cut', null, { min: [0, 0, -10], max: [5, 5, 0] })).toBe(false);
     expect(defaultFlip('cut', frame, { min: [0, 0, -5], max: [5, 5, 5] })).toBe(false);
   });
+  it('a sketch on a face never flips: its normal points out of the body, so the default already goes in (a plate under a tall boss)', () => {
+    // the plate's top face at y = 3, normal up; the body's box runs to y = 18, so its centre (y = 9) is on the normal's side
+    const top = { o: [0, 3, 0], z: [0, 1, 0] };
+    const box = { min: [-27.5, 0, -27.5], max: [27.5, 18, 27.5] };
+    expect(defaultFlip('cut', top, box)).toBe(true);            // the guess for a datum plane, wrong for this face
+    expect(defaultFlip('cut', top, box, true)).toBe(false);     // on the face: no flip
+  });
 });

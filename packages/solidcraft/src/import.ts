@@ -696,6 +696,8 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   const sketches = new Map<number | string, { id: string; entityOf: Map<string, string>; placed: Placed; plane: Record<string, unknown>; geo: Map<string, Geo>; json: { points: FeatureJson[]; entities: FeatureJson[] } }>();
   /** feature name (theirs) -> the ids of the features it made (ours), for patterns and mirrors */
   const named = new Map<string, string[]>();
+  /** Surface bodies of the file (surface extrude) by body name, to the feature that makes them: what a thicken refers to. */
+  const surfaceBodies = new Map<string, string>();
   /** Features that act on named bodies through a tool body of their own: what a mirror of them needs (the tool body is kept until it is mirrored). */
   const targeted = new Map<string, { tool: string; op: string; targets: string[] }>();
   const mirroredFeatures = new Set<string>(((doc.features as Rec[]) ?? []).filter((x) => x.type === 'mirror').flatMap((x) => (x.features as string[] | undefined) ?? []));
@@ -828,7 +830,7 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
   /** A sketch made of one spline (and the origin) is a path for a sweep: a 3D sketch with the spline through the same points in space. */
   const splinePathOf = (f: Rec): { notes: string[] } | null => {
     const sk = f.sketch as Rec, curves: Rec[] = sk.curves ?? [];
-    if (curves.length !== 1 || curves[0].type !== 'spline' || curves[0].closed) return null;
+    if (curves.length !== 1 || curves[0].type !== 'spline' || curves[0].closed || curves[0].periodic) return null;
     const ids: unknown[] = curves[0].pts ?? [];
     const pts: Rec[] = sk.points ?? [];
     if (ids.length < 2) return null;
@@ -915,7 +917,11 @@ async function importOne(doc: Rec, name: string, opts: ImportOpts): Promise<ScIm
       else if (c.type === 'ellipse' && pts[c.c] && pts[c.m] && Number(c.r) > 0) Object.assign(e, { type: 'ellipse', c: pid(c.c), p: pid(c.m), r: clean(Number(c.r)) });
       else if (c.type === 'spline' && Array.isArray(c.pts) && c.pts.length >= 2) {
         // `control` says the points are the control polygon of a B-spline of the given degree; otherwise the curve passes through them
-        const ends = { pts: (c.pts as number[]).map(pid), ...(c.closed ? { closed: true } : {}) };
+        // a closed spline is `periodic` in their files, and its point list comes back to the first point: here the loop is closed by the flag alone
+        const closed = !!(c.closed || c.periodic);
+        const through = (c.pts as number[]).slice();
+        if (closed && through.length > 2 && find(through[0]) === find(through[through.length - 1])) through.pop();
+        const ends = { pts: through.map(pid), ...(closed ? { closed: true } : {}) };
         if (c.control) Object.assign(e, { type: 'cvspline', ...ends, ...(Number.isInteger(c.degree) ? { degree: c.degree } : {}) });
         else Object.assign(e, { type: 'spline', ...ends });
       }
@@ -1246,6 +1252,47 @@ const pathPattern = (f: Rec, pt: Rec): string[] => {
         named.set(f.name, [features[features.length - 1].id as string]);
         if (f.profiles?.type === 'all' && f.operation === 'cut' && hasEnclosingOutline(s.geo)) stops.push('all profiles selected; the file does not name the regions, and the sketch holds an outline around other shapes, so this cut can remove the whole body');
         return stops;
+      }
+      case 'surface_extrude': {
+        const s = sketches.get(f.sketch);
+        if (!s) throw new Unsupported(failedSketches.has(f.sketch) ? `depends on sketch ${f.sketch}, which was not imported` : `refers to sketch ${f.sketch}, which is not in the file`);
+        // this kit extrudes every closed outline of the sketch as a sheet: a selection of only some of them cannot be carried
+        const picked = wholeRegions(f, s, 'a surface extrude');
+        if (picked) {
+          const outlines = s.json.entities.filter((e) => !e.construction).map((e) => String(e.id));
+          if (outlines.some((id) => !picked.includes(id))) throw new Unsupported('a surface extrude of only some of the outlines of its sketch');
+        }
+        const ext = (f.extent ?? {}) as Rec;
+        const conv = ext.convention ?? 'total_distance';
+        if (conv !== 'total_distance' && conv !== 'legacy_per_side') throw new Unsupported(`surface extrude extent "${conv}"`);
+        const symmetric = ext.direction === 'symmetric';
+        if (!symmetric && ext.direction !== 'positive' && ext.direction !== 'negative') throw new Unsupported(`surface extrude direction "${ext.direction}"`);
+        if (ext.through_all || ext.to !== undefined || ext.from !== undefined || ext.distance2 !== undefined || (ext.taper !== undefined && num(ext.taper, 'taper') !== 0) || (ext.start_offset !== undefined && num(ext.start_offset, 'start offset') !== 0)) throw new Unsupported('a surface extrude that is not a plain distance');
+        const dist = num(ext.distance, 'surface extrude distance');
+        if (Math.abs(dist) < 1e-12) throw new Unsupported('a surface extrude of zero distance');
+        const forward = symmetric || (ext.direction === 'positive') !== (dist < 0);
+        const along = (forward ? 1 : -1) * s.placed.sign;
+        const half = symmetric && conv === 'legacy_per_side' ? 2 : 1;
+        const e: FeatureJson = { type: 'surfaceExtrude', id: nid(), name: f.name, sketch: s.id, end: symmetric ? 'mid' : 'blind', depth: dist > 0 && !symmetric && half === 1 ? field(ext.distance, 'surface extrude distance') : Math.abs(dist) * half };
+        if (!symmetric && along < 0) e.flip = true;
+        features.push(e);
+        const bn = (f.body_names as unknown[] | undefined)?.map(String) ?? [];
+        if (bn[0]) surfaceBodies.set(bn[0], e.id as string);
+        return [];
+      }
+      case 'thicken': {
+        const refs = Array.isArray(f.bodies) ? (f.bodies as unknown[]).map(String) : [];
+        if (!refs.length) throw new Unsupported('a thicken with no surface named');
+        if (refs.length > 1) throw new Unsupported('a thicken of more than one surface');
+        const surf = surfaceBodies.get(refs[0]);
+        if (!surf) throw new Unsupported(`thickens "${refs[0]}", which is not a surface built by a surface extrude in this file`);
+        if (f.operation !== 'new_body' && f.operation !== 'join') throw new Unsupported(`a thicken that does "${f.operation}"`);
+        if (f.operation === 'new_body' && namedBodies) throw new Unsupported('a thicken that starts a named body');
+        if (f.direction !== undefined || f.flip) throw new Unsupported('a thicken with a direction other than the default');
+        operation(f);
+        newName = undefined;
+        features.push({ type: 'thicken', id: nid(), name: f.name, surface: surf, thickness: field(f.thickness, 'thickness'), side: f.symmetric ? 'both' : 'front' });
+        return f.symmetric ? [] : [`${f.name}: thickened on the front side of the surface (its natural normal); the file's own side is not read, so check it and switch to Back if the wall grew the wrong way`];
       }
       case 'box': {
         // a rectangle on their XY plane at z = corner z, extruded up

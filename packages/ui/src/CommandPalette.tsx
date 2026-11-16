@@ -12,7 +12,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
   useEffect(() => input.current?.focus(), []);
   const rows = useMemo(() => {
     const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
-    return p.commands.filter((c) => terms.every((term) => `${c.label} ${c.group} ${c.tab}`.toLowerCase().includes(term)));
+    return p.commands.filter((c) => !(c.hideUnlessEnabled && c.enabled && !c.enabled()) && terms.every((term) => `${c.label} ${c.group} ${c.tab} ${c.keywords ?? ''}`.toLowerCase().includes(term)));
   }, [q, p.commands]);
   const pinned = q ? [] : p.commands.filter((c) => p.pinned?.includes(c.id));
   const run = (c: Command | undefined) => {
@@ -51,6 +51,7 @@ export function CommandPalette(p: { commands: Command[]; pinned?: string[]; onCl
               aria-selected={i === hi}
               aria-disabled={c.enabled ? !c.enabled() : false}
               class={'it' + (i === hi ? ' on' : '') + (c.enabled && !c.enabled() ? ' dis' : '')}
+              title={c.enabled && !c.enabled() ? c.why?.() : undefined}
               onClick={() => run(c)}
             >
               <span>{c.label}</span>

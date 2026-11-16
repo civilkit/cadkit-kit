@@ -2,11 +2,11 @@
 // Front is XY, Top is XZ, Right is ZY (the kernel's standard planes); each is a faint quad with an outline and a label.
 import * as THREE from 'three';
 
-export type RefPlaneId = 'front' | 'top' | 'right';
-export const REF_PLANES: RefPlaneId[] = ['front', 'top', 'right'];
+export type RefPlaneId = 'front' | 'top' | 'right' | 'xz' | 'yz';
+export const REF_PLANES: RefPlaneId[] = ['front', 'top', 'right', 'xz', 'yz'];
 
 /** Rotation that turns the XY quad into each standard plane. */
-const ROT: Record<RefPlaneId, [number, number, number]> = { front: [0, 0, 0], top: [-Math.PI / 2, 0, 0], right: [0, Math.PI / 2, 0] };
+const ROT: Record<RefPlaneId, [number, number, number]> = { front: [0, 0, 0], top: [-Math.PI / 2, 0, 0], right: [0, Math.PI / 2, 0], xz: [Math.PI / 2, 0, 0], yz: [0, Math.PI / 2, 0] };
 
 const BASE = 0x6f7f99;
 const HOT = 0xe0801a;
@@ -77,7 +77,7 @@ export class RefPlanes {
     this.group.visible = false;
   }
 
-  private build(size: number, labels: Record<RefPlaneId, string>): void {
+  private build(size: number, labels: Partial<Record<RefPlaneId, string>>): void {
     this.dispose();
     this.size = size;
     const h = size / 2;
@@ -94,12 +94,12 @@ export class RefPlanes {
       const pts = [new THREE.Vector3(-h, -h, 0), new THREE.Vector3(h, -h, 0), new THREE.Vector3(h, h, 0), new THREE.Vector3(-h, h, 0)];
       const line = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: BASE, transparent: true, opacity: 0.6 }));
       line.userData.pickable = false;
-      const label = labelSprite(labels[id], '#b45f06');
+      const label = labelSprite(labels[id] ?? '', '#b45f06');
       label.position.set(h, h, 0);
       label.visible = false;
       g.add(fill, line, label);
       this.group.add(g);
-      this.entries.push({ id, group: g, fill, line, label, labelText: labels[id] });
+      this.entries.push({ id, group: g, fill, line, label, labelText: labels[id] ?? '' });
     }
     // the origin: three short axes and a dot
     const len = size * 0.18;
@@ -113,8 +113,8 @@ export class RefPlanes {
   }
 
   /** Show the listed planes (faint), the highlighted one in orange with its label. Rebuilds when the size or the label texts change. */
-  set(size: number, show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
-    const stale = !this.entries.length || Math.abs(size - this.size) > this.size * 0.01 || this.entries.some((e) => e.labelText !== labels[e.id]);
+  set(size: number, show: RefPlaneId[], highlight: RefPlaneId | null, labels: Partial<Record<RefPlaneId, string>>): void {
+    const stale = !this.entries.length || Math.abs(size - this.size) > this.size * 0.01 || this.entries.some((e) => e.labelText !== (labels[e.id] ?? ''));
     if (stale) this.build(size, labels);
     const any = show.length > 0 || highlight !== null;
     this.group.visible = any;

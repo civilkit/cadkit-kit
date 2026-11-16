@@ -1,0 +1,214 @@
+{
+ "document": {
+  "records": [
+   {
+    "id": "fillets/0",
+    "family": "fillets",
+    "parameters": {
+     "at": [
+      28.828,
+      5.0,
+      18.828
+     ],
+     "axis": "y",
+     "radius": 4.0,
+     "side": "convex",
+     "turned": false
+    }
+   },
+   {
+    "id": "fillets/1",
+    "family": "fillets",
+    "parameters": {
+     "at": [
+      -28.828,
+      5.0,
+      18.828
+     ],
+     "axis": "y",
+     "radius": 4.0,
+     "side": "convex",
+     "turned": false
+    }
+   },
+   {
+    "id": "fillets/2",
+    "family": "fillets",
+    "parameters": {
+     "at": [
+      28.828,
+      5.0,
+      -18.828
+     ],
+     "axis": "y",
+     "radius": 4.0,
+     "side": "convex",
+     "turned": false
+    }
+   },
+   {
+    "id": "fillets/3",
+    "family": "fillets",
+    "parameters": {
+     "at": [
+      -28.828,
+      5.0,
+      -18.828
+     ],
+     "axis": "y",
+     "radius": 4.0,
+     "side": "convex",
+     "turned": false
+    }
+   },
+   {
+    "id": "holes/0",
+    "family": "holes",
+    "parameters": {
+     "axis": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "bottom": "through",
+     "cbore": null,
+     "csink": null,
+     "depth": 10.0,
+     "diameter": 6.0,
+     "location": [
+      -20.0,
+      10.0,
+      10.0
+     ],
+     "spotface": null
+    }
+   },
+   {
+    "id": "holes/1",
+    "family": "holes",
+    "parameters": {
+     "axis": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "bottom": "through",
+     "cbore": null,
+     "csink": null,
+     "depth": 10.0,
+     "diameter": 6.0,
+     "location": [
+      20.0,
+      10.0,
+      10.0
+     ],
+     "spotface": null
+    }
+   },
+   {
+    "id": "holes/2",
+    "family": "holes",
+    "parameters": {
+     "axis": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "bottom": "through",
+     "cbore": null,
+     "csink": null,
+     "depth": 10.0,
+     "diameter": 6.0,
+     "location": [
+      -20.0,
+      10.0,
+      -10.0
+     ],
+     "spotface": null
+    }
+   },
+   {
+    "id": "holes/3",
+    "family": "holes",
+    "parameters": {
+     "axis": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "bottom": "through",
+     "cbore": null,
+     "csink": null,
+     "depth": 10.0,
+     "diameter": 6.0,
+     "location": [
+      20.0,
+      10.0,
+      -10.0
+     ],
+     "spotface": null
+    }
+   },
+   {
+    "id": "holes/4",
+    "family": "holes",
+    "parameters": {
+     "axis": [
+      0.0,
+      -1.0,
+      0.0
+     ],
+     "bottom": "flat",
+     "cbore": null,
+     "csink": null,
+     "depth": 2.0,
+     "diameter": 6.0,
+     "location": [
+      0.0,
+      10.0,
+      -14.0
+     ],
+     "spotface": null
+    }
+   },
+   {
+    "id": "hole_patterns/0",
+    "family": "hole_patterns",
+    "parameters": {
+     "holes": 4
+    }
+   },
+   {
+    "id": "pockets/0",
+    "family": "pockets",
+    "parameters": {
+     "body_key": [
+      -30.0,
+      0.0,
+      -20.0,
+      30.0,
+      10.0,
+      20.0,
+      21715.1328015,
+      7525.34505485
+     ],
+     "corner_radius": null,
+     "d_hi": 10.0,
+     "d_lo": 6.0,
+     "depth": 4.0,
+     "edge_anchored": false,
+     "end_radius": null,
+     "hi": 10.0,
+     "length": 20.0,
+     "lo": -10.0,
+     "long_axis": "x",
+     "open_sign": 1,
+     "rectangular_boundary": true,
+     "w_center": 0.0,
+     "width": 12.0,
+     "width_axis": "z"
+    }
+   }
+  ]
+ }
+}

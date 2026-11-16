@@ -382,3 +382,23 @@ describe('spline sketches', { skip: !process.env.CK_WASM, timeout: 120_000 }, ()
     expect(cv.volume).toBeLessThan(fit.volume);
   });
 });
+
+describe('surface extrude and thicken of a closed spline', { skip: !process.env.CK_WASM, timeout: 120_000 }, () => {
+  it('imports as a valid solid of about the wall volume, and quickly', async () => {
+    const d = JSON.parse("{\"features\":[{\"id\":1,\"name\":\"Sketch1\",\"plane\":{\"name\":\"XY\",\"type\":\"origin\"},\"sketch\":{\"constraints\":[],\"counters\":{},\"curves\":[],\"points\":[{\"fixed\":true,\"id\":\"origin\",\"pos\":[0.0,0.0]}]},\"suppressed\":false,\"type\":\"sketch\"},{\"id\":2,\"name\":\"Sketch2\",\"plane\":{\"name\":\"XY\",\"type\":\"origin\"},\"sketch\":{\"constraints\":[],\"counters\":{\"p\":5,\"s\":1},\"curves\":[{\"construction\":false,\"degree\":3,\"id\":\"s1\",\"periodic\":true,\"pts\":[0,1,2,3,4,5,0],\"type\":\"spline\"}],\"points\":[{\"fixed\":true,\"id\":\"origin\",\"pos\":[0.0,0.0]},{\"fixed\":false,\"id\":\"p1\",\"pos\":[-25.0,18.5]},{\"fixed\":false,\"id\":\"p2\",\"pos\":[-52.0,0.0]},{\"fixed\":false,\"id\":\"p3\",\"pos\":[-67.5,19.0]},{\"fixed\":false,\"id\":\"p4\",\"pos\":[-35.0,35.0]},{\"fixed\":false,\"id\":\"p5\",\"pos\":[9.5,31.0]}]},\"suppressed\":false,\"type\":\"sketch\"},{\"body_names\":[\"Body1\"],\"extent\":{\"convention\":\"total_distance\",\"direction\":\"positive\",\"distance\":\"10 mm\"},\"id\":3,\"name\":\"SurfaceExtrude1\",\"param_names\":[\"d1\"],\"profiles\":{\"profiles\":[{\"holes\":[],\"outer\":[\"s1\"]}],\"type\":\"whole_boundaries\"},\"sketch\":2,\"suppressed\":false,\"type\":\"surface_extrude\"},{\"bodies\":[\"Body1\"],\"body_names\":[\"Body2\"],\"id\":4,\"name\":\"Thicken1\",\"operation\":\"new_body\",\"param_names\":[\"d2\"],\"suppressed\":false,\"symmetric\":false,\"thickness\":\"2 mm\",\"type\":\"thicken\"}],\"format\":\"solidcraft/57\",\"format_pending\":[\"extrude-to-object-keeps-picked-placements\",\"plane-at-angle-follows-named-axis\"],\"name\":\"test\",\"next_component_color_index\":0,\"next_id\":5,\"params\":[],\"reserved_body_names\":[\"Body1\",\"Body2\"],\"units\":\"mm\"}");
+    const r = await importSolidcraftDocument(d, 'test', { resolver, faceResolver, rimResolver });
+    expect(r.geometryComplete, JSON.stringify(r.rows.filter((x) => x.status !== 'converted'))).toBe(true);
+    const t = Date.now();
+    const s = await open(r.part!);
+    const rep = await s.verify();
+    expect(rep.regen.errors).toEqual([]);
+    const v = (await s.facts()).volume!;
+    // a 2 mm wall round a 10 mm high sheet whose outline is about 220 mm long
+    expect(v).toBeGreaterThan(3500); expect(v).toBeLessThan(5500);
+    // the solid itself is valid. Known kernel gap: one display-mesh edge of a thicken wall (F4.W2) is left open (TESSELLATION_OPEN, 1 edge), the only issue allowed here
+    const val = await s.validate();
+    expect(val.issues.filter((i: { code: string }) => i.code !== 'TESSELLATION_OPEN'), JSON.stringify(val.issues)).toEqual([]);
+    expect(val.issues.length, JSON.stringify(val.issues)).toBeLessThanOrEqual(1);
+    expect(Date.now() - t).toBeLessThan(30_000);
+  });
+});

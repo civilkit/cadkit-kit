@@ -3,6 +3,7 @@
 // tested without a browser (optionRules.test.ts) and against the kernel (optionRules.kernel.test.ts).
 // A patch value of null means "remove this field" (the same protocol as holeData.ts and main.tsx opsFromDraft).
 
+import { planeName, viewPlaneIds } from './planeNames';
 import { t } from './i18n';
 import { sheetManagedPaths } from './sheet/options';
 import { featureLabel } from './featureCreators';
@@ -180,7 +181,7 @@ export function planeBasePatch(value: string): Wire {
 }
 /** What a plane may hang on: the three standard planes, the Plane features before it, and the face it is on now. */
 export function planeBaseChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
-  const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  const out: Array<[string, string]> = viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)]);
   for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; name?: string }>) {
     if (f.id === selfId) break;
     if (f.type === 'plane') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);
@@ -202,7 +203,7 @@ export function objectRefLabel(doc: { features?: unknown[] } | null | undefined,
   if (!r || typeof r !== 'object') return '';
   switch (r.kind) {
     case 'face': return r.id ? t('opt.plane.face', { id: r.id }) : '';
-    case 'std': return r.id ? t('app.ref.' + r.id) : '';
+    case 'std': return r.id ? planeName(r.id) : '';
     case 'feature': {
       const f = (doc?.features ?? []).find((x) => (x as { id: string }).id === r.id);
       return (f ? featureLabel(doc, f as never) : '') || t('opt.toObject.plane', { id: String(r.id) });
@@ -237,7 +238,7 @@ export function objectRefPatch(value: string): Wire | null {
 /** What the To object / From object list offers: the three planes, the Plane features before this feature and (for an end)
  *  the named bodies. The current reference heads the list when it is not one of them (a picked face, corner or point). */
 export function objectRefChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown, bodies: boolean): Array<[string, string]> {
-  const out: Array<[string, string]> = [['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  const out: Array<[string, string]> = viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)]);
   const names: string[] = [];
   for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; body?: unknown }>) {
     if (f.id === selfId) break;

@@ -9,7 +9,7 @@
 import type { V3 } from './geometry';
 
 export type UpAxis = 'y' | 'z';
-export type StdPlane = 'front' | 'top' | 'right';
+export type StdPlane = 'front' | 'top' | 'right' | 'xz' | 'yz';
 export type PlaneRef = { kind: 'std'; id: StdPlane } | { kind: 'feature'; id: string };
 export interface Placement { flip: boolean; rot: 0 | 1 | 2 | 3; mirror: boolean }
 export const NO_PLACEMENT: Placement = { flip: false, rot: 0, mirror: false };
@@ -22,13 +22,16 @@ export const STD_FRAMES: Record<StdPlane, { x: V3; y: V3; n: V3 }> = {
   front: { x: [1, 0, 0], y: [0, 1, 0], n: [0, 0, 1] },
   top: { x: [1, 0, 0], y: [0, 0, -1], n: [0, 1, 0] },
   right: { x: [0, 0, -1], y: [0, 1, 0], n: [1, 0, 0] },
+  // the Z-up pair: y runs up (+Z)
+  xz: { x: [1, 0, 0], y: [0, 0, 1], n: [0, -1, 0] },
+  yz: { x: [0, 1, 0], y: [0, 0, 1], n: [1, 0, 0] },
 };
 /** World letter of each plane's normal (edge selectors like '|Z'). */
-export const NORMAL_AXIS: Record<StdPlane, 'X' | 'Y' | 'Z'> = { front: 'Z', top: 'Y', right: 'X' };
+export const NORMAL_AXIS: Record<StdPlane, 'X' | 'Y' | 'Z'> = { front: 'Z', top: 'Y', right: 'X', xz: 'Y', yz: 'X' };
 
 /** The horizontal plane for an up axis: its normal is the up axis. */
 export const groundPlane = (up: UpAxis): StdPlane => (up === 'z' ? 'front' : 'top');
-export const isStd = (id: unknown): id is StdPlane => id === 'front' || id === 'top' || id === 'right';
+export const isStd = (id: unknown): id is StdPlane => id === 'front' || id === 'top' || id === 'right' || id === 'xz' || id === 'yz';
 
 const neg = (v: V3): V3 => [-v[0] || 0, -v[1] || 0, -v[2] || 0];
 const norm0 = (v: V3): V3 => [v[0] || 0, v[1] || 0, v[2] || 0];

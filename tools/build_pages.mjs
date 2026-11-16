@@ -68,6 +68,17 @@ const after = readFileSync(wasmOut);
 try { await WebAssembly.compile(after); } catch (e) { die(`stripped wasm does not compile: ${e.message}`); }
 console.log(`kernel wasm: raw ${fmt(before.length)}, gzip ${fmt(gzipSync(before).length)}\n             stripped ${fmt(after.length)}, gzip ${fmt(gzipSync(after).length)} (compiles)`);
 
+// 2b. feature recognition from STEP (quiddity, built by tools/build_quiddity_wasm.sh): copied as is when it has been built, with its licence and notice.
+// Without it the app still works; Recognise features then says the recogniser is not part of this build.
+const quiddityDir = join(ROOT, 'apps/cad/public/quiddity');
+const quiddityFiles = ['quiddity_wasm.js', 'quiddity_wasm_bg.wasm', 'LICENSE-quiddity', 'NOTICE-quiddity'];
+const hasQuiddity = quiddityFiles.every((f) => existsSync(join(quiddityDir, f)));
+if (hasQuiddity) {
+  mkdirSync(join(OUT, 'quiddity'), { recursive: true });
+  for (const f of quiddityFiles) copyFileSync(join(quiddityDir, f), join(OUT, 'quiddity', f));
+  console.log(`quiddity (feature recognition): ${fmt(readFileSync(join(OUT, 'quiddity/quiddity_wasm_bg.wasm')).length)} wasm, gzip ${fmt(gzipSync(readFileSync(join(OUT, 'quiddity/quiddity_wasm_bg.wasm'))).length)}, loaded on demand`);
+} else console.warn('warning: quiddity is not built (tools/build_quiddity_wasm.sh): Recognise features will say the recogniser is missing');
+
 // 3. samples: only the allow-listed ones
 const samplesSrc = join(ROOT, 'apps/cad/public/samples');
 const index = JSON.parse(readFileSync(join(samplesSrc, 'index.json'), 'utf8'));
@@ -104,6 +115,10 @@ addText('SIL Open Font License 1.1: Barlow Condensed (built-in font "gauge")', c
 addText('SIL Open Font License 1.1: PT Serif (built-in font "engrave")', cr('ck-text/fonts/OFL-PTSerif.txt'));
 addText('MIT licence: brepkit (check, heal and STEP reader logic)', cr('ck-check/LICENSE-MIT'));
 addText('Apache License 2.0: brepkit, sldprt2step', cr('ck-check/LICENSE-APACHE'));
+if (hasQuiddity) {
+  addText('Apache License 2.0: quiddity (feature recognition from STEP)', join(quiddityDir, 'LICENSE-quiddity'));
+  addText('Notice: quiddity', join(quiddityDir, 'NOTICE-quiddity'));
+}
 addText('Notice: SolidWorks part reader', cr('ck-sldprt/NOTICE'));
 addText('Notice: sldprt2step', cr('ck-sldprt/NOTICE-sldprt2step'));
 addText('MIT licence: sldprt-format-research', cr('ck-sldprt/LICENSE-MIT-sldprt-format-research'));

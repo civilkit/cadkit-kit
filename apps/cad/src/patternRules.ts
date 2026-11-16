@@ -2,6 +2,7 @@
 // (Spacing, Extent, To object), and the path pattern's start point, flip and orientation. A patch value of null means "remove this
 // field" (the protocol of optionRules.ts). The kernel reads these fields as pattern_place.rs documents them.
 
+import { planeName, viewPlaneIds } from './planeNames';
 import { t } from './i18n';
 import { featureLabel } from './featureCreators';
 import { fmtNum } from '@kit/ui';
@@ -148,7 +149,7 @@ export function toValue(to: unknown): string {
 }
 /** The objects on offer: the standard planes, the Plane features before this one, and what it reaches now (a picked face, a point). */
 export function toChoices(doc: { features?: unknown[] } | null | undefined, selfId: string, current: unknown): Array<[string, string]> {
-  const out: Array<[string, string]> = [['', t('opt.pattern.toNone')], ['std:front', t('app.ref.front')], ['std:top', t('app.ref.top')], ['std:right', t('app.ref.right')]];
+  const out: Array<[string, string]> = [['', t('opt.pattern.toNone')], ...viewPlaneIds().map((id): [string, string] => ['std:' + id, planeName(id)])];
   for (const f of (doc?.features ?? []) as Array<{ id: string; type: string; name?: string }>) {
     if (f.id === selfId) break;
     if (f.type === 'plane') out.push([`feature:${f.id}`, featureLabel(doc, f as never) || f.id]);

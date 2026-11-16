@@ -2325,7 +2325,7 @@ export class Viewport {
   /** Where the last face click landed on the body (world coordinates), for tools that need a point on a curved face. */
   lastPickPoint(): [number, number, number] | null { return this.lastPick; }
   private readonly refPlanes = new RefPlanes();
-  private lastRefPlanes: [RefPlaneId[], RefPlaneId | null, Record<RefPlaneId, string>] | null = null;
+  private lastRefPlanes: [RefPlaneId[], RefPlaneId | null, Partial<Record<RefPlaneId, string>>] | null = null;
   private planePick = false;
   /** Plane-picking mode (a sketch is being started): the sheets are drawn stronger, and a pointer near a sheet's outline picks it even where the exact ray misses
    *  (an edge-on sheet), with a wider reach for a finger. The planes themselves are shown with `setRefPlanes`. */
@@ -2346,7 +2346,7 @@ export class Viewport {
     return this.refPlanes.pickNear((v) => { const p = v.clone().project(this.camera); return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height]; }, cx, cy, touch ? PLANE_PICK_TOL.touch : PLANE_PICK_TOL.mouse);
   }
   /** Show reference planes: `show` faintly (an empty part shows all three), `highlight` in orange with its label. */
-  setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Record<RefPlaneId, string>): void {
+  setRefPlanes(show: RefPlaneId[], highlight: RefPlaneId | null, labels: Partial<Record<RefPlaneId, string>>): void {
     this.lastRefPlanes = [show, highlight, labels];
     if (!this.refPlanes.group.parent) this.scene.add(this.refPlanes.group);
     this.refPlanes.set(this.box ? this.radius() * 1.4 : 60, show, highlight, labels);

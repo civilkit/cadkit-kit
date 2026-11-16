@@ -1,4 +1,21 @@
 {
+  "0.8.1": [
+    {
+      "id": "z-up-default",
+      "title": "Z up is the default, with upright Front and Right planes",
+      "blurb": "New parts start Z up, the way 3D printing and most newer CAD work. In a Z-up view, Front and Right stand upright when you sketch on them and Top is the ground plane; the plane names and the tree follow. Parts you already have open as they did, and Settings switches back to Y up."
+    },
+    {
+      "id": "recognise-features",
+      "title": "Recognise features rebuilds an imported STEP as editable steps",
+      "blurb": "After you import a STEP file, Recognise features (beta) reads its holes, fillets and outline, rebuilds it step by step and checks that the volume matches the file. Open it as a new part and the steps sit in one From STEP folder, with the file's exact body (Original (STEP)) beside it so you can switch either off and compare."
+    },
+    {
+      "id": "teardrop-hole",
+      "title": "Teardrop holes for 3D printing",
+      "blurb": "Pick a round hole, choose Teardrop hole, and CadKit adds a peak above it so a horizontal hole prints without support. You set which way is up and the overhang angle, can cut the tip flat, and apply it to every hole of a pattern at once, in one folder you can switch off."
+    }
+  ],
   "0.8.0": [
     {
       "id": "editor-card",
@@ -8,7 +25,7 @@
     {
       "id": "plugins",
       "title": "Plugins: generators you can add",
-      "blurb": "Features > Plugins adds a form-driven generator (a case, a spring) in one undo step, edits it later with Edit parameters, and moves the whole thing with Move folder. Switch on \"Allow plugins from other people\" to install more from a zip or a GitHub address; compiled plugins run in a sandbox. Doors and drawers do not swing yet; checked in Chrome and Safari so far."
+      "blurb": "Features > Plugins adds a form-driven generator (a case, a spring) in one undo step, edits it later with Edit parameters, and moves the whole thing with Move folder. Compiled plugins use SolidCraft's plugin format, so SolidCraft plugins (tried with its Woodwork cabinets) run here once packed; switch on \"Allow plugins from other people\" to install them from a zip or a GitHub address, and they run in a sandbox. Doors and drawers do not swing yet; checked in Chrome and Safari so far."
     },
     {
       "id": "sketch-ribbon-pinned",

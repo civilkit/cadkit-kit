@@ -242,6 +242,7 @@ export const en: Catalog = {
   'app.notice.openFailed': 'Could not open the part: {message}',
   'app.part.unnamed': 'part',
 
+  'cmd.sketch-import.why': 'Start or edit a sketch first',
   'cmd.sketch-import-dxf': 'Import DXF into sketch', 'cmd.sketch-from-dxf': 'New sketch from DXF',
   'cmd.sketch-import-svg': 'Import SVG into sketch', 'cmd.sketch-from-svg': 'New sketch from SVG',
   'io.dxf.imported': 'Imported {count} sketch entities from the DXF (1 drawing unit = {scale} mm)',

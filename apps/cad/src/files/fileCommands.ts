@@ -15,6 +15,10 @@ export interface FileActions {
   rotateSkp(): void;
   /** a SketchUp model is on screen */
   hasSkp(): boolean;
+  /** open Recognise features (beta) for the STEP file imported last */
+  recogniseFeatures(): void;
+  /** a STEP file was imported in this session */
+  hasStep(): boolean;
 }
 
 /** Save as (Ctrl+Shift+S) and Import STEP. */
@@ -25,6 +29,7 @@ export function fileCommands(f: FileActions, hasDocument: () => boolean): Comman
     { id: 'recover-versions', label: t('cmd.recover-versions'), tab: 'Home', group: 'File', run: f.recover },
     { id: 'import-skp-hidden', label: t('cmd.import-skp-hidden'), tab: 'Home', group: 'File', run: f.importSkpHidden },
     { id: 'rotate-skp', label: t('cmd.rotate-skp'), tab: 'Home', group: 'File', enabled: f.hasSkp, run: f.rotateSkp },
+    { id: 'recognise-features', label: t('cmd.recognise-features'), tab: 'Home', group: 'File', enabled: f.hasStep, run: f.recogniseFeatures },
     { id: 'import-step', label: t('cmd.import-step'), tab: 'Home', group: 'File', run: f.importStep },
   ];
 }

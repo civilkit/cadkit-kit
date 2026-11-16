@@ -149,7 +149,7 @@ describe('createWebPlatform openFile', () => {
   };
   const zipBytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x80]);
   it('reads the zip containers (FreeCAD, SolidWorks, SketchUp, SolidCraft) as bytes, not as text', async () => {
-    for (const name of ['a.FCStd', 'a.sldprt', 'a.skp', 'Sample Plate.solidcraft', 'B.SOLIDCRAFT']) {
+    for (const name of ['a.FCStd', 'a.sldprt', 'a.skp', 'Sample Plate.solidcraft', 'B.SOLIDCRAFT', 'part.sc', 'PART.SC']) {
       const r = await pick({ name, bytes: zipBytes });
       expect(r?.name, name).toBe(name);
       expect(Array.from(r?.bytes ?? []), name).toEqual(Array.from(zipBytes));

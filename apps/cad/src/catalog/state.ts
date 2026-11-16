@@ -36,7 +36,7 @@ export function selectShapeFeature(id: string): void {
 /** Place on / flip / rotate / mirror: how the next catalog item stands on its plane (see placement.ts). */
 export const placementSetting = signal<PlacementSetting>(DEFAULT_SETTING);
 /** The reference plane a catalog drag is over (Front / Top / Right), for the viewport highlight; null: none. */
-export const catalogPlane = signal<'front' | 'top' | 'right' | null>(null);
+export const catalogPlane = signal<'front' | 'top' | 'right' | 'xz' | 'yz' | null>(null);
 /** A catalog item is armed or being dragged: the viewport shows the reference planes as drop targets. */
 export const catalogActive = signal(false);
 

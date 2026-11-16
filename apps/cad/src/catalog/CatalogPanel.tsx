@@ -1,4 +1,5 @@
 // The Catalog side-panel tab and the ghost that follows the pointer while a shape is dragged or armed.
+import { planeShort, viewPlaneIds } from '../planeNames';
 import type { JSX } from 'preact';
 import { Icon } from '@kit/ui';
 import { t } from '../i18n';
@@ -43,7 +44,6 @@ export interface CatalogPanelProps {
   library?: { registry: LibraryRegistry; actions: LibraryActions; notify?(text: string, level?: 'error' | 'warn' | 'info'): void; renderThumb?: ThumbRenderer };
 }
 
-const PLANES: StdPlane[] = ['front', 'top', 'right'];
 
 /** Place on / Direction / Rotate / Mirror: how the next shape stands on its plane (changes the live preview; R and F do the same while placing). */
 export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
@@ -54,8 +54,8 @@ export function PlacementRow({ upAxis }: { upAxis: UpAxis }) {
     <div class="place-row" data-testid="place-row" role="group" aria-label={t('catalog.place.title')} title={t('catalog.place.tip')}>
       <label>{t('catalog.place.on')}
         <select value={s.plane} onChange={(e) => set({ plane: (e.currentTarget as HTMLSelectElement).value as typeof s.plane })}>
-          <option value="auto">{t('catalog.place.auto', { plane: t('catalog.plane.' + groundPlane(upAxis)) })}</option>
-          {PLANES.map((p) => <option key={p} value={p}>{t('catalog.plane.' + p)}</option>)}
+          <option value="auto">{t('catalog.place.auto', { plane: planeShort(groundPlane(upAxis)) })}</option>
+          {viewPlaneIds().map((p) => <option key={p} value={p}>{planeShort(p)}</option>)}
         </select>
       </label>
       <label>{t('catalog.place.direction')}

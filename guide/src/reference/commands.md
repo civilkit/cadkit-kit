@@ -72,6 +72,7 @@ See [Fillets, chamfers, shells and drafts](../modelling/edges.md).
 | Fillet |  | `Shift+F` | Edges selected, or two or more faces |
 | Chamfer |  | `Shift+B` | Edges selected, or two or more faces |
 | Shell |  | `Shift+S` | Faces selected (face mode) |
+| Press Pull |  |  | Faces selected (face mode). See [Press Pull](../modelling/transforms.md#press-pull) |
 
 #### Pattern
 
@@ -126,6 +127,7 @@ One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add
 | Screw |  |  | An open document |
 | Washer |  |  | An open document |
 | Add fastener to hole |  |  | The wall of a hole selected (also in the right-click menu of a Hole feature or a pattern of holes in the tree) |
+| Teardrop hole |  |  | The wall of a round hole selected (face mode). See [Teardrop holes for 3D printing](../modelling/holes.md#teardrop-holes-for-3d-printing) |
 | Spring |  |  | An open document |
 | Nut |  |  | An open document |
 | Standoff |  |  | An open document |
@@ -443,7 +445,7 @@ The menu on the canvas depends on what is selected. Each row runs the command of
 | Selection | Rows |
 | --- | --- |
 | Nothing | New sketch: front plane, New sketch: top plane, New sketch: right plane; Extrude, Extruded cut; Select body, Select all, Invert selection; Fit |
-| A face | Sketch on selected face, Hole, Add fastener to hole, Shell, Fillet, Chamfer; Linear pattern, Circular pattern; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
+| A face | Sketch on selected face, Hole, Add fastener to hole, Teardrop hole, Shell, Fillet, Chamfer; Linear pattern, Circular pattern; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
 | An edge | Fillet, Chamfer; Show in tree; Select tangent, Select parallel, Select similar, Select loop, Select connected; Invert selection, Deselect all |
 | A corner | Fillet, Chamfer; Invert selection, Deselect all |
 | A body | Select body; Move body; Linear pattern, Circular pattern, Shell; Invert selection, Deselect all |

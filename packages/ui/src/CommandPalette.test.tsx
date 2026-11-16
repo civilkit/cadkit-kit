@@ -26,6 +26,21 @@ describe('CommandPalette', () => {
     expect(a).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
   });
+  it('hides a hideUnlessEnabled command while it is disabled, shows it when enabled, and matches keywords', () => {
+    let on = false;
+    const cmds = [mk({ id: 'imp', label: 'Import DXF into sketch', hideUnlessEnabled: true, enabled: () => on, why: () => 'Start a sketch first' }), mk({ id: 'new', label: 'New sketch from DXF', keywords: 'import' }), mk({ id: 'g', label: 'Grey', enabled: () => false, why: () => 'Because' })];
+    const { unmount } = render(<CommandPalette commands={cmds} onClose={() => {}} />);
+    fireEvent.input(screen.getByLabelText('Search commands'), { target: { value: 'import dxf' } });
+    expect(screen.queryByText('Import DXF into sketch')).toBeNull();
+    expect(screen.getByText('New sketch from DXF')).toBeTruthy();
+    fireEvent.input(screen.getByLabelText('Search commands'), { target: { value: '' } });
+    expect(screen.getByText('Grey').closest('[role=option]')!.getAttribute('title')).toBe('Because');
+    unmount();
+    on = true;
+    render(<CommandPalette commands={cmds} onClose={() => {}} />);
+    fireEvent.input(screen.getByLabelText('Search commands'), { target: { value: 'import dxf' } });
+    expect(screen.getByText('Import DXF into sketch')).toBeTruthy();
+  });
   it('does not run a disabled command', () => {
     const run = vi.fn();
     render(<CommandPalette commands={[mk({ id: 'a', label: 'Save', enabled: () => false, run })]} onClose={() => {}} />);

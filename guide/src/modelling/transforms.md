@@ -102,6 +102,24 @@ One gesture is one feature or one edit. A second plain move of the same bodies, 
 
 For the exact definitions, see [moveBody](/docs/cad/kernel/format/features-patterns.html#movebody) and [moveFace](/docs/cad/kernel/format/features-edits.html#moveface) in the kernel book.
 
+## Press Pull
+
+**Press Pull** (Features tab > Modify, or **Press Pull** in the right-click menu of a face) pushes or pulls the faces you picked along their own normals. It writes the same **Move face** feature as the ball above, with a distance, so it is the quick way to make a wall thicker, a boss taller or a hole bigger without sketching again.
+
+1. Pick one or more faces (face mode), then choose **Press Pull**. A **Move face** feature opens with a preview and a starting distance of about a tenth of the part.
+2. Type the **distance** in the options, or drag the face-normal handle on the canvas. Positive goes out of the body, negative goes into it.
+3. Press **Enter** or the tick.
+
+What it does to each kind of face:
+
+- **A flat face** slides along its normal. The faces around it grow or shrink to stay joined, so a top face pulled up 5 mm on a 20 x 20 x 10 block makes a block 15 high.
+- **A cylinder** grows or shrinks its radius. A hole of radius 10 pulled by -3 mm becomes a hole of radius 7, and a post pulled by +2 mm gets 2 mm thicker.
+- **Several faces** move together, each along its own normal.
+
+When it cannot be done the feature fails and says why, with the limit where there is one: pushing a face past the opposite one reports *an edge reverses*, and a cylinder moved further than its curvature allows reports *move by at most 8 mm* (for a radius of 10 mm). Choose a smaller distance and the feature builds.
+
+Press Pull moves faces straight. It does not follow a curved wall round a bend or taper the walls (use [Draft](edges.md) for that). In a script it is `.moveFace(faces, { distance })`.
+
 ## Limits
 
 - **Link Here** is disabled. Linked copies need instances, which the kernel does not have.

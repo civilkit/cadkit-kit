@@ -1,6 +1,7 @@
 node_modules
 dist
 apps/cad/public/kernel/
+apps/cad/public/quiddity/
 dist-pages
 sweep-report.json
 docs/solidcraft-issues/
