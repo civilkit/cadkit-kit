@@ -10,15 +10,19 @@ export interface GenerateContext {
   readonly used: readonly string[];
   /** the up axis of the document the result goes into ('y' is the app's default view); a plugin written Z-up turns its output for 'y'. Absent: keep the plugin's own numbers. */
   readonly up?: 'y' | 'z';
+  /** Present when the run may read the open document (a plugin that edits what is picked): its bodies with their boxes and the selection, in the document's frame. Absent: the run only adds new geometry. */
+  readonly doc?: { bodies: ReadonlyArray<{ name: string; bbox: { min: number[]; max: number[] } | null; volume?: number | null }>; selection: ReadonlyArray<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; normal?: number[] }> };
+  /** Reads the model as the run has changed it: the recorded script is built on top of the open document and the bodies come back with their volumes (and boxes, when known). Absent: a plugin that measures fails with a clear message. */
+  readonly scratch?: { build(script: string): Promise<Array<{ name: string; volume: number | null; bbox: { min: number[]; max: number[] } | null }>> };
   /** `base`, or `base 2`, `base 3`... the first name no feature, folder or body of the document uses yet */
   uniqueName(base: string): string;
 }
 /** Parameter values in, script source out. May throw: the message is reported as a generator failure. */
 export type GenerateFn = (values: Values, ctx: GenerateContext) => string | Promise<string>;
 /** A context over a set of names already in use (a document's feature names, folders and bodies). */
-export function contextOf(used: Iterable<string>, opts: { up?: 'y' | 'z' } = {}): GenerateContext {
+export function contextOf(used: Iterable<string>, opts: { up?: 'y' | 'z'; doc?: GenerateContext['doc']; scratch?: GenerateContext['scratch'] } = {}): GenerateContext {
   const taken = new Set(used);
-  return { used: [...taken], ...(opts.up ? { up: opts.up } : {}), uniqueName(base) { if (!taken.has(base)) return base; for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`; } };
+  return { used: [...taken], ...(opts.up ? { up: opts.up } : {}), ...(opts.doc ? { doc: opts.doc } : {}), ...(opts.scratch ? { scratch: opts.scratch } : {}), uniqueName(base) { if (!taken.has(base)) return base; for (let n = 2; ; n++) if (!taken.has(`${base} ${n}`)) return `${base} ${n}`; } };
 }
 export interface Plugin { manifest: PluginManifest; generate: Readonly<Record<string, GenerateFn>>; builtin: boolean }
 /** What a run records so "Edit parameters" can run it again (stored in the document by the app, see TODO: the document field). */

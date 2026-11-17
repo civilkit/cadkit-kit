@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BridgeError } from '@kit/agent-link';
 import { makeAppHandler, toBase64, type AppDeps } from './appHandlers';
 
@@ -20,7 +20,7 @@ const fails = async (p: Promise<unknown>, code: string) => { const e = await p.t
 
 describe('app handler: what is exposed', () => {
   it('state is a summary of the open document with errors and the selection, and no document body', async () => {
-    const r = await makeAppHandler(deps())('state', {}) as Record<string, unknown>;
+    const r = await makeAppHandler(deps())('state', { detail: 'summary' }) as Record<string, unknown>;   // the earlier shape, now asked for by name: the default is the compact one
     expect(r).toMatchObject({ open: true, name: 'Plate', featureCount: 3, selection: ['F2.C1'], hasSolid: true, faces: 6, triangles: 12 });
     expect(r.features).toEqual([
       { id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', name: 'Pad' },
@@ -162,5 +162,86 @@ describe('app handler: plugins', () => {
     const e = await makeAppHandler(deps({ runPlugin, allowEdit: () => true }))('plugin_run', { plugin: 'a', generator: 'b' }).then(() => null, (x) => x) as BridgeError;
     expect(e.code).toBe('plugin_failed');
     expect(e.hint).toContain('n must be at least 1');
+  });
+});
+
+describe('app handler: open_asset', () => {
+  const bytes = new TextEncoder().encode('{"features":[]}');
+  const sha = async (b: Uint8Array) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', b as unknown as ArrayBuffer))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  const base = (over: Partial<AppDeps> = {}) => deps({
+    allowEdit: () => true, fetchAsset: async () => bytes,
+    openAsset: async (a) => { opened.push(a.name); return { documentId: 'd9', revision: 2, counts: { features: 0, faces: 0 }, errorCount: 0 }; }, ...over,
+  });
+  let opened: string[];
+  beforeEach(() => { opened = []; });
+  it('is an edit: refused without the permission, the file is neither fetched nor opened', async () => {
+    let fetched = 0;
+    await fails(makeAppHandler(base({ allowEdit: () => false, fetchAsset: async () => { fetched++; return bytes; } }))('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: bytes.length, sha256: await sha(bytes) }), 'edit_not_allowed');
+    expect(fetched).toBe(0); expect(opened).toEqual([]);
+  });
+  it('fetches by handle, checks size and checksum, opens, and answers with ids and counts only', async () => {
+    const r = await makeAppHandler(base())('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: bytes.length, sha256: await sha(bytes) }) as Record<string, unknown>;
+    expect(r).toMatchObject({ documentId: 'd9', revision: 2, counts: { features: 0, faces: 0 }, name: 'a.ckpart', kind: 'part' });
+    expect(JSON.stringify(r)).not.toContain('features":[]');
+    expect(opened).toEqual(['a.ckpart']);
+  });
+  it('refuses a mismatch, bad arguments and an opener that fails, and an app without the capability', async () => {
+    const h = makeAppHandler(base());
+    await fails(h('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: 3, sha256: await sha(bytes) }), 'asset_mismatch');
+    await fails(h('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: bytes.length, sha256: 'f'.repeat(64) }), 'asset_mismatch');
+    await fails(h('open_asset', { handle: 'h', name: 'a.exe', kind: 'exe', bytes: 1, sha256: 'x' }), 'bad_input');
+    await fails(makeAppHandler(base({ openAsset: async () => { throw new Error('corrupt'); } }))('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: bytes.length, sha256: await sha(bytes) }), 'open_failed');
+    await fails(makeAppHandler(deps({ allowEdit: () => true }))('open_asset', { handle: 'h', name: 'a.ckpart', kind: 'part', bytes: 1, sha256: 'x' }), 'unsupported');
+    expect(opened).toEqual([]);
+  });
+});
+
+describe('app handler: edit transactions', () => {
+  let features: Array<Record<string, unknown>>, revision: number;
+  const edits: Array<{ expected: number; ops: unknown[]; reason: string }> = [];
+  const mk = (over: Partial<AppDeps> = {}) => deps({
+    allowEdit: () => true, status: () => [], document: () => ({ name: 'P', features }), revision: () => revision, documentId: () => 'dE',
+    edit: async (expected, ops, reason) => {
+      edits.push({ expected, ops, reason });
+      if (expected !== revision) return { ok: false, stale: true, revision };
+      features = features.map((f) => (f.id === 'F2' ? { ...f, depth: 14 } : f)).concat(ops.some((o) => o.op === 'add') ? [{ id: 'F4', type: 'extrude' }] : []);
+      revision++;
+      return { ok: true, warnings: 1 };
+    }, ...over,
+  });
+  beforeEach(() => { features = [{ id: 'F1', type: 'sketch' }, { id: 'F2', type: 'extrude', depth: 10 }, { id: 'F3', type: 'fillet' }]; revision = 5; edits.length = 0; });
+
+  it('is an edit: refused without the permission, nothing sent', async () => {
+    await fails(makeAppHandler(mk({ allowEdit: () => false }))('edit', { expectedRevision: 5, ops: [{ op: 'setParam', id: 'F2', path: 'depth', value: 14 }] }), 'edit_not_allowed');
+    expect(edits).toEqual([]);
+  });
+  it('applies the ops as one transaction and answers with the revision, the changed and added ids and a validation summary', async () => {
+    const r = await makeAppHandler(mk())('edit', { expectedRevision: 5, reason: 'longer pad', ops: [{ op: 'setParam', id: 'F2', path: 'depth', value: 14 }, { op: 'add', feature: { type: 'extrude' } }] });
+    expect(r).toEqual({ revision: 6, documentId: 'dE', changedIds: ['F2', 'F4'], addedIds: ['F4'], removedIds: [], validation: { errorCount: 0, errors: [], warnings: 1 } });
+    expect(edits).toHaveLength(1);                                                     // ONE call to the kernel side: one history step
+    expect(edits[0]).toMatchObject({ expected: 5, reason: 'longer pad', ops: [{ op: 'set', id: 'F2', path: 'depth', value: 14 }, { op: 'add' }] });
+  });
+  it('refuses a stale revision with a hint, before and inside the controller, and changes nothing', async () => {
+    const h = makeAppHandler(mk());
+    await fails(h('edit', { expectedRevision: 4, ops: [{ op: 'remove', id: 'F3' }] }), 'stale_revision');
+    expect(edits).toEqual([]);
+    // the revision moved between the handler's check and the edit (a user edit in the queue): the controller side refuses
+    const racing = makeAppHandler(mk({ edit: async () => { revision++; return { ok: false, stale: true, revision }; } }));
+    const e = await racing('edit', { expectedRevision: 5, ops: [{ op: 'remove', id: 'F3' }] }).then(() => null, (x) => x);
+    expect(e).toBeInstanceOf(BridgeError); expect(e.code).toBe('stale_revision'); expect(e.hint).toMatch(/sinceRevision/);
+    await fails(h('edit', { ops: [{ op: 'remove', id: 'F3' }] }), 'bad_input');
+  });
+  it('a bad op refuses all of them before the kernel, a rejected rebuild says nothing changed, and dryRun only checks', async () => {
+    const h = makeAppHandler(mk());
+    await fails(h('edit', { expectedRevision: 5, ops: [{ op: 'setParam', id: 'F2', path: 'depth', value: 1 }, { op: 'remove', id: 'NOPE' }] }), 'bad_op');
+    expect(edits).toEqual([]);
+    const rejected = await makeAppHandler(mk({ edit: async () => ({ ok: false, errors: [{ feature: 'F3', code: 'fillet_failed' }] }) }))('edit', { expectedRevision: 5, ops: [{ op: 'remove', id: 'F2' }] }).then(() => null, (x) => x);
+    expect(rejected.code).toBe('edit_rejected'); expect(rejected.message).toBe('F3: fillet_failed; nothing was changed');
+    expect(await h('edit', { expectedRevision: 5, dryRun: true, ops: [{ op: 'remove', id: 'F2' }] })).toEqual({ ok: true, dryRun: true, revision: 5, documentId: 'dE', validated: 1 });
+    expect(edits).toEqual([]); expect(revision).toBe(5);
+  });
+  it('without an editor, or a document, it says so', async () => {
+    await fails(makeAppHandler(deps({ allowEdit: () => true }))('edit', { expectedRevision: 0, ops: [{ op: 'remove', id: 'F1' }] }), 'unsupported');
+    await fails(makeAppHandler(mk({ document: () => null }))('edit', { expectedRevision: 5, ops: [{ op: 'remove', id: 'F1' }] }), 'no_document');
   });
 });

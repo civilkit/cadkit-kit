@@ -149,7 +149,6 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .status .st-drawer[aria-pressed="true"] { border-color: var(--accent); color: var(--text); }
 .st-busy { color: var(--warn); font-weight: 600; }
 .st-hover { color: var(--text-2); }
-.st-notice.error { color: var(--err); } .st-notice.warn { color: var(--warn); }
 /* drawer */
 .drawer { grid-area: drawer; background: var(--panel); border-top: 1px solid var(--line); height: var(--dh, clamp(80px, var(--dh-user, 210px), 70vh)); display: flex; flex-direction: column; min-height: 0; }
 .dtabs { display: flex; align-items: center; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); overflow-x: auto; flex: none; }
@@ -222,11 +221,8 @@ kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-
 .busy-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .busy-cancel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 14px; padding: 4px 12px; cursor: pointer; font: inherit; color: inherit; }
-.toast { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; background: #1c2129; color: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 4px 18px #0004; max-width: 80%; }
 /* the "new version" notice lives in the top bar: the viewport's corners and bottom hold the filter bar, the view cube, the start card and the other notices */
 .topbar .install-btn { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-.toast-icon { color: var(--ok); font-weight: 700; }
-.toast.warn .toast-icon { color: #f0b429; } .toast.error .toast-icon { color: #ff6b6b; }
 /* a narrow window with the desktop layout forced in Settings (the phone and tablet layouts below draw their own panels) */
 @media (max-width: 760px) {
   #app[data-layout="desktop"], #app[data-layout="desktop"][data-left="docked"], #app[data-layout="desktop"][data-right="docked"] { --lw: 0px; --rw: 0px;
@@ -601,8 +597,6 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .rb-fwd { border: 0; font: inherit; color: var(--accent); cursor: pointer; }
 .rb-fwd:hover { text-decoration: underline; }
 .rb-end { min-height: 10px; flex: 1 0 10px; }
-.toast-act { margin-left: 6px; border: 0; background: none; color: #8ab4ff; font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px; }
-.toast-act:hover { text-decoration: underline; }
 
 /* the row's action buttons sit over the right end of the row (they appear on hover or selection) instead of taking width,
    so a narrow panel never wraps them onto a second line */
@@ -972,6 +966,9 @@ canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: no
 .tree .row.hov { background: var(--panel-2); box-shadow: inset 2px 0 0 #f2a93b; }
 .tree .row.hov.sel { background: var(--accent-soft); }
 .tree .row.hidden:not(:hover):not(.sel) .row-actions { position: static; transform: none; margin: 0 0 0 4px; padding-left: 0; }   /* the closed eye takes its own place after the id instead of sitting on top of the type label */
+/* a suppressed row keeps its unsuppress button on show: it sits at the right edge, so the row leaves room for it and the buttons that are invisible until hover step aside (they used to print over the type label and the id) */
+.tree .row.suppressed:not(:hover):not(.sel) { padding-right: 38px; }
+.tree .row.suppressed:not(:hover):not(.sel) .row-actions > :not(.row-sup) { display: none; }
 
 /* failure card (Diagnostics tab and the editor panel) */
 .diag { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; user-select: text; -webkit-user-select: text; cursor: text; }
@@ -1538,7 +1535,6 @@ html, body, body > * { touch-action: pan-x pan-y; }   /* the body and what is mo
 #app[data-layout="phone"] .face-sketch-chip { left: 8px; transform: none; }   /* centred it would reach under the arrow ring when the canvas is short (a sheet is open) */
 #app[data-layout="phone"] .start-close { width: 44px; height: 44px; top: 0; right: 0; font-size: 24px; }
 #app[data-layout="phone"] .start-card { left: 8px; right: 8px; bottom: 8px; transform: none; max-width: none; }
-#app[data-layout="phone"] .toast { bottom: 12px; max-width: calc(100% - 24px); }
 #app[data-layout="phone"] .handle-hint { bottom: 8px; max-width: calc(100% - 16px); }
 #app[data-layout="phone"] .sketch-tools { left: 8px; right: calc(var(--vn-w) + var(--vn-right) + 8px); top: 60px; }
 #app[data-layout="phone"] .text-panel, #app[data-layout="phone"] .pattern-panel { left: 8px; right: 8px; top: 8px; width: auto; max-height: calc(100% - 16px); overflow: auto; }
@@ -1924,12 +1920,38 @@ label.set-row:has(> input[type="checkbox"]:first-child) { justify-content: flex-
 .ovr-region .sketch-bar-wrap { width: max-content; max-width: 100%; }
 .ovr-region .start-card, .ovr-region .handle-hint, .ovr-region .sizebox-ask, .ovr-region .sizebox-moveto { max-width: min(520px, 100%); }
 .ovr-region .handle-hint { pointer-events: none; }
-.toast-stack { display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; max-width: 100%; }
-.toast-stack .toast { position: relative; left: auto; bottom: auto; transform: none; max-width: 100%; pointer-events: auto; }
-.toast-text { cursor: pointer; }
+/* alerts: one toast stack in a fixed corner (above the status bar, right side), the history popover, and the status-bar chip (see Toast.tsx, NotificationHistory.tsx) */
+.toast-stack { position: fixed; right: 14px; bottom: calc(var(--status-h, 32px) + 12px); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; width: min(420px, calc(100vw - 28px)); max-height: calc(100vh - 120px); overflow-y: auto; pointer-events: none; scrollbar-width: none; }
+.toast { pointer-events: auto; box-sizing: border-box; width: 100%; display: flex; gap: 10px; align-items: flex-start; background: #1c2129; color: #fff; border-radius: 10px; border-left: 4px solid #6ea8ff; padding: 10px 8px 10px 12px; box-shadow: 0 6px 22px #0005; font-size: 13px; line-height: 1.4; animation: toast-in .16s ease-out; }
+.toast.success { border-left-color: #3fb97a; } .toast.warning { border-left-color: #f0b429; } .toast.error { border-left-color: #ff6b6b; }
+.toast-icon { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; display: grid; place-items: center; font: 700 11px/1 system-ui, sans-serif; background: #6ea8ff33; color: #8ab4ff; }
+.toast.success .toast-icon { background: #3fb97a33; color: #5ed39a; } .toast.warning .toast-icon { background: #f0b42933; color: #f0b429; } .toast.error .toast-icon { background: #ff6b6b33; color: #ff8a8a; }
+.toast-body { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.toast-text { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.toast-text.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .toast-count { font: 600 11px system-ui, sans-serif; padding: 1px 6px; border-radius: 9px; background: #ffffff26; }
-.toast-act { min-height: 28px; }
-@media (pointer: coarse) { .toast-act { min-height: 36px; } }
+.toast-actions { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
+.toast-act, .toast-more, .toast-copy { border: 0; background: none; color: #8ab4ff; font: inherit; font-weight: 600; cursor: pointer; padding: 2px 0; min-height: 24px; }
+.toast-act:hover, .toast-more:hover, .toast-copy:hover { text-decoration: underline; }
+.toast-close { flex: none; width: 24px; height: 24px; border: 0; border-radius: 6px; background: none; color: #ffffffb3; font: 400 18px/1 system-ui, sans-serif; cursor: pointer; display: grid; place-items: center; }
+.toast-close:hover { background: #ffffff1f; color: #fff; }
+.toast :focus-visible { outline: 2px solid #8ab4ff; outline-offset: 1px; border-radius: 4px; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (pointer: coarse) { .toast-act, .toast-more, .toast-copy { min-height: 36px; display: inline-flex; align-items: center; } .toast-close { width: 36px; height: 36px; } }
+#app { --status-h: 34px; --nav-h: 58px; }
+#app[data-layout="phone"] .toast-stack, #app[data-layout="phone"] .alert-history { left: 12px; right: 12px; width: auto; bottom: calc(var(--nav-h, 56px) + 10px); align-items: stretch; }
+.status .st-alerts { flex: none; }
+.alert-history { position: fixed; left: 12px; bottom: calc(var(--status-h, 32px) + 8px); z-index: 61; width: min(460px, calc(100vw - 24px)); max-height: min(60vh, 520px); display: flex; flex-direction: column; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 34px #0004; font-size: 13px; user-select: text; -webkit-user-select: text; }
+.ah-head { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); } .ah-head .sp { flex: 1; }
+.ah-btn { border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 5px; min-height: 24px; } .ah-btn:hover { background: var(--accent-soft); }
+.ah-close { color: var(--text-2); font-size: 18px; line-height: 1; }
+.ah-empty { margin: 0; padding: 14px 12px; color: var(--text-2); }
+.ah-list { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; }
+.ah-row { display: grid; grid-template-columns: 18px 1fr auto; gap: 2px 8px; align-items: start; padding: 7px 10px 7px 12px; border-bottom: 1px solid var(--line); } .ah-row:last-child { border-bottom: 0; }
+.ah-row .toast-icon { background: var(--accent-soft); color: var(--accent); } .ah-row.error .toast-icon { background: #ff6b6b33; color: var(--err); } .ah-row.warning .toast-icon { background: #f0b42933; color: var(--warn); } .ah-row.success .toast-icon { background: #3fb97a33; color: var(--ok); }
+.ah-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; } .ah-time { grid-column: 2; color: var(--text-2); font-size: 11.5px; } .ah-row .ah-btn { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+.ah-row .toast-count { background: var(--accent-soft); grid-column: 3; justify-self: end; }
 /* contextual help: the round '?' button and its card (HelpButton.tsx) */
 .help-btn { flex: none; width: 24px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--chip, var(--panel-2)); color: var(--text-2); font: 600 13px/1 system-ui, sans-serif; cursor: pointer; display: inline-grid; place-items: center; }
 .help-btn:hover { color: var(--text); border-color: var(--accent); }

@@ -104,6 +104,10 @@ The geometry kernel is the part of CivilKit CAD that builds solids. By default i
 
 Switching kernels reopens the open part on the other kernel. If the service stops or turns out to be a different build from the app, the built-in kernel takes over and a notice tells you. While the local service is selected, the status bar shows a **Kernel** chip: **Local** with a version, **Connecting**, or **Built-in (service off)**. Click the chip to come back to this tab.
 
+## Messages
+
+Messages from the app (a finished import, a refusal and the reason) appear once, in a stack at the bottom right. A long message wraps, with **Show more** for the rest and **Copy** for an error. A message stays long enough to read, pauses while the pointer is on it, and closes with **x** or **Esc**. The status bar shows only an **Alerts** count; click it to list the last 50 messages.
+
 ## Backup and saving
 
 There is no autosave setting. A moment after you change a part, CivilKit CAD writes a backup of every changed part to the browser's storage, and again when the page is hidden. After a crash or reload the app offers **Restore your last session**, with **Restore**, **Start new** and **Earlier versions…**. Each changed part returns in its own tab.

@@ -17,8 +17,9 @@ Code: `apps/cad/src/handles/sizeBox.ts` (pure: numbers, ops, specs, session), `p
 * Confirming a shape's editor selects the row, so the box shows right after creating or editing.
 
 Not a shape selection: an edge or corner pick (these keep the yellow fillet / chamfer dot, now ONLY there), the whole body
-(Alt+click), faces of other features (fillet / chamfer / shell faces keep their own handles), anything while sketching or
-with an editor open. The `handles` workspace setting still switches everything off.
+(Alt+click), faces of other features (fillet / chamfer / shell faces keep their own handles), a piece of a split face
+(`F2.C1~1`: a face of the body since Split face cut it, so its move pad would move the whole shape; `isSplitPiece`), anything while
+sketching or with an editor open. The `handles` workspace setting still switches everything off.
 
 ## Handles
 

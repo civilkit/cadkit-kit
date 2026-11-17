@@ -47,6 +47,18 @@ export function editorFixes(root: { id?: string; code: string; params?: Record<s
   if (!root || !feature) return { fixes: [] };
   const eff = { ...feature, ...draft };
   const max = maxSizeOf(root.params);
+  // Press Pull Straight: the draft limit lives in taper.angle, and a taper that closes to a point names the longest run (maxHeight), which is the distance (the sign, join or cut, stays)
+  if (feature.type === 'pressPull' && (root.id === undefined || feature.id === undefined || root.id === feature.id)) {
+    const taper = eff.taper && typeof eff.taper === 'object' ? (eff.taper as Record<string, unknown>) : null;
+    const sign = (v: unknown): number => (typeof v === 'number' && v < 0 ? -1 : 1);
+    if (max && max.param === 'draft' && taper && taper.type === 'draft' && Math.abs(Number(taper.angle)) !== max.value) {
+      return { fixes: [{ key: 'maxSize', label: t('diag.fix.maxSize', { size: maxSizeText(max) }), path: 'taper', value: { ...taper, angle: sign(taper.angle) * max.value } }] };
+    }
+    const h = root.code === 'draftTooLarge' ? root.params?.maxHeight : undefined;
+    if (typeof h === 'number' && Number.isFinite(h) && h > 0 && typeof eff.distance === 'number' && Math.abs(eff.distance) !== h) {
+      return { fixes: [{ key: 'maxSize', label: t('diag.fix.maxSize', { size: maxSizeText({ param: 'distance', value: h, unit: 'mm' }) }), path: 'distance', value: sign(eff.distance) * h }] };
+    }
+  }
   // the size is the refused feature's own field: not offered when the edit broke a later feature
   if (max && (root.id === undefined || feature.id === undefined || root.id === feature.id)) {
     const fix = maxSizeFix(max, eff);

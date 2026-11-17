@@ -93,7 +93,7 @@ describe('HistoryLog with rejected entries', () => {
 describe('StatusBar items', () => {
   it('shows Ready, items with tone, and a drawer toggle', () => {
     const onToggle = vi.fn();
-    const { container } = render(<StatusBar notices={[]} hover={null} busy={false} items={[{ label: 'Faces', value: '182' }, { label: 'Valid', value: 'ok', tone: 'ok' }]} drawerOpen={true} onToggleDrawer={onToggle} />);
+    const { container } = render(<StatusBar hover={null} busy={false} items={[{ label: 'Faces', value: '182' }, { label: 'Valid', value: 'ok', tone: 'ok' }]} drawerOpen={true} onToggleDrawer={onToggle} />);
     expect(container.textContent).toContain('Ready');
     expect(container.textContent).toContain('182');
     expect(container.querySelector('b.ok')).toBeTruthy();
@@ -101,7 +101,7 @@ describe('StatusBar items', () => {
     expect(onToggle).toHaveBeenCalled();
   });
   it('shows Busy instead of Ready while working', () => {
-    const { container } = render(<StatusBar notices={[]} hover={null} busy={true} />);
+    const { container } = render(<StatusBar hover={null} busy={true} />);
     expect(container.textContent).toContain('Busy');
     expect(container.textContent).not.toContain('Ready');
   });

@@ -118,7 +118,31 @@ What it does to each kind of face:
 
 When it cannot be done the feature fails and says why, with the limit where there is one: pushing a face past the opposite one reports *an edge reverses*, and a cylinder moved further than its curvature allows reports *move by at most 8 mm* (for a radius of 10 mm). Choose a smaller distance and the feature builds.
 
-Press Pull moves faces straight. It does not follow a curved wall round a bend or taper the walls (use [Draft](edges.md) for that). In a script it is `.moveFace(faces, { distance })`.
+### Continue: Offset or Straight
+
+The panel's **Continue** choice says how the faces move:
+
+- **Offset** is everything above: the faces slide along their normals and their neighbours follow. It writes a **Move face** feature, and it is what Press Pull starts as.
+- **Straight** continues a **flat** face as if it were extruded. A positive **distance** joins a new piece out of the part, a negative one cuts a piece into it (0 is refused). The moved end keeps the face's name and the new walls are named after the faces they meet, so later features that use them keep working. It writes a **Press pull** feature.
+- **Along the walls** (the end follows a bend in the walls) is listed as *later* and cannot be chosen yet.
+
+Switching between Offset and Straight converts the feature and keeps the faces and the distance. Offset moves curved faces too; Straight needs flat ones and says so for a cylinder.
+
+With Straight, **Taper** shapes the new walls:
+
+- **None** keeps them straight.
+- **Draft** tilts them by an angle between -85 and 85 degrees. A positive angle grows the outline along the run (the opposite sign to the Draft angle on Extrude), a negative one shrinks it, and holes do the reverse.
+- **Scale** takes the end to a size factor of the face (1.2 is 20 percent bigger, 0.5 half size), about the face's centre of area and holes included. The panel shows the **wall angle** this makes at the face's farthest point, so a scale can be compared with a draft.
+
+A taper that closes to a point before the distance is reached is refused with the length at which it does (*the taper closes to a point after 28.36 mm*) and **Use the largest size** puts that in. A cut that would go through the body or join into other material is refused with the largest distance that builds. A refused edit leaves the part as it was.
+
+In a script, Offset is `.moveFace(faces, { distance })` and Straight is `.pressPull(faces, { distance, taper })`, with `taper` as `{ type: 'draft', angle }` or `{ type: 'scale', endScale }`:
+
+```js
+part('Block').sketch('front', (s) => s.rect(40, 20)).extrude(10)
+  .pressPull(face('>Z'), { distance: 8, taper: { type: 'scale', endScale: 1.2 } });
+```
+
 
 ## Limits
 

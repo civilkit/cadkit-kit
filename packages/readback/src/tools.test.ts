@@ -34,8 +34,8 @@ const fails = async (p: Promise<unknown>): Promise<ReadbackError> => { try { awa
 
 describe('the tool list', () => {
   it('has the six measurement tools, with the bodies tool for the app, each with an object schema and a real description', () => {
-    expect(READBACK_TOOLS.map((t) => t.name)).toEqual(['measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm']);
-    expect(APP_READBACK_TOOLS.map((t) => t.name)).toEqual(['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm']);
+    expect(READBACK_TOOLS.map((t) => t.name)).toEqual(['measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'interfaces']);
+    expect(APP_READBACK_TOOLS.map((t) => t.name)).toEqual(['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'interfaces']);
     for (const t of APP_READBACK_TOOLS) { expect(t.inputSchema.type).toBe('object'); expect(t.inputSchema.additionalProperties).toBe(false); expect(t.description.length).toBeGreaterThan(60); }
   });
 });

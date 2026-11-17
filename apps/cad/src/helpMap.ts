@@ -91,6 +91,7 @@ export const HELP: Record<string, HelpEntry> = {
   'feature:mirror': { page: 'modelling/patterns.html', anchor: 'mirror' },
   'feature:scale': { page: 'modelling/patterns.html', anchor: 'scale' },
   'feature:moveFace': { page: 'modelling/transforms.html', anchor: 'move-rotate-and-copy' },
+  'feature:pressPull': { page: 'modelling/transforms.html', anchor: 'press-pull' },
   'feature:moveBody': { page: 'modelling/transforms.html', anchor: 'move-rotate-and-copy' },
   'feature:trimSurface': { page: 'modelling/surfaces.html', anchor: 'trim-knit-thicken' },
   'feature:surfacePlanar': { page: 'modelling/surfaces.html', anchor: 'making-a-sheet' },

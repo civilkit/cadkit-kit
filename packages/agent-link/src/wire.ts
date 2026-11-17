@@ -2,13 +2,20 @@
 // Pure TypeScript with no Node or DOM imports: the daemon, the browser app and the tests all use it.
 
 /** What an agent may ask the open app to do. `plugin_run`, `run_script`, `undo` and `redo` change the document; every other op only reads (state, a picture, and the
- *  measurement tools: bodies, measure, clearance, interference, thickness, draft, dfm; and section, the exact cross-section at a plane). */
-export type BridgeOp = 'state' | 'screenshot' | 'bodies' | 'measure' | 'clearance' | 'interference' | 'thickness' | 'draft' | 'dfm' | 'section' | 'plugin_list' | 'plugin_run' | 'run_script' | 'undo' | 'redo';
+ *  measurement tools: bodies, measure, clearance, interference, thickness, draft, dfm, interfaces; and section, the exact cross-section at a plane). */
+export type BridgeOp = 'state' | 'screenshot' | 'bodies' | 'measure' | 'clearance' | 'interference' | 'thickness' | 'draft' | 'dfm' | 'interfaces' | 'section' | 'plugin_list' | 'plugin_run' | 'run_script' | 'undo' | 'redo' | 'open_asset' | 'edit';
 /** The read-only measurement ops (answered by @kit/readback in the app). */
-export const MEASURE_OPS = ['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm'] as const;
-export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', ...MEASURE_OPS, 'section', 'plugin_list', 'plugin_run', 'run_script', 'undo', 'redo'];
-/** Ops that change the open document: refused unless the user has ticked "Allow the agent to change this document". */
-export const EDIT_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['plugin_run', 'run_script', 'undo', 'redo']);
+export const MEASURE_OPS = ['bodies', 'measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'interfaces'] as const;
+export const BRIDGE_OPS: readonly BridgeOp[] = ['state', 'screenshot', ...MEASURE_OPS, 'section', 'plugin_list', 'plugin_run', 'run_script', 'undo', 'redo', 'open_asset', 'edit'];
+/** Ops that change the open document: refused unless the user has ticked "Allow the agent to change this document". `open_asset` opens a file in a new document tab; `edit` is an atomic transaction of feature changes (app_edit). */
+export const EDIT_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['plugin_run', 'run_script', 'undo', 'redo', 'open_asset', 'edit']);
+/** Ops that can run for minutes (a big import): the app serves them without pausing its poll loop, and the daemon waits for them longer than REQUEST_TIMEOUT_MS. */
+export const LONG_OPS: ReadonlySet<BridgeOp> = new Set<BridgeOp>(['open_asset']);
+export const LONG_REQUEST_TIMEOUT_MS = 30 * 60_000;
+/** A file staged for the app to fetch (`GET /bridge/asset/<handle>`) is kept this long, and handed over once. */
+export const ASSET_TTL_MS = 2 * 60_000;
+/** At most this many bytes are staged at the same time. */
+export const MAX_STAGED_BYTES = 512 * 1024 * 1024;
 
 export interface BridgeRequest { id: string; op: BridgeOp; args: Record<string, unknown> }
 export interface BridgeErrorBody { code: string; message: string; hint?: string }

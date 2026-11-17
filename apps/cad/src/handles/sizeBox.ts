@@ -43,10 +43,19 @@ const fmt = (v: number): string => String(Math.round(v * 100) / 100);
 
 export const isShapeFeature = (doc: PartDoc | null, id: string | null): boolean => !!id && feats(doc).some((f) => f.id === id && (SHAPE_TYPES as readonly string[]).includes(f.type));
 
-/** The shape feature a face name (`F2.C1`, `H1.S.h1`, `F2.S.e1~0`) belongs to, or null. */
+const PIECE = /(~\d+)+$/;
+/** A face that exists because a Split face feature cut a bigger face in two (`F2.C1~1`, `F2.C1~2`): it is a face of the body now, not a
+ *  face of the shape that made it, so picking it edits that face, not the extrude behind it. A `~k` from any other cut stays a shape face. */
+export function isSplitPiece(doc: PartDoc | null, face: string): boolean {
+  if (!PIECE.test(face)) return false;
+  const base = face.replace(PIECE, '');
+  return feats(doc).some((f) => f.type === 'splitLine' && !f.suppressed && Array.isArray(f.faces) && (f.faces as unknown[]).some((n) => typeof n === 'string' && n.replace(PIECE, '') === base));
+}
+
+/** The shape feature a face name (`F2.C1`, `H1.S.h1`, `F2.S.e1~0`) belongs to, or null (also for a piece of a split face, see `isSplitPiece`). */
 export function ownerShape(doc: PartDoc | null, face: string): string | null {
   const i = face.indexOf('.');
-  if (i <= 0) return null;
+  if (i <= 0 || isSplitPiece(doc, face)) return null;
   const id = face.slice(0, i);
   return isShapeFeature(doc, id) ? id : null;
 }

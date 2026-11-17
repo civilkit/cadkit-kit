@@ -4,10 +4,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { AgentSession } from '@kit/agent-tools';
+import { AgentSession, ResultStore } from '@kit/agent-tools';
 import { Bridge, BridgeError, MAX_REPLY_BYTES } from '@kit/agent-link';
 import { agentBackend, McpProtocol, SERVER_INFO, type Backend } from './protocol';
 import { withBridge } from './bridgeTools';
+import { loadAssetPolicy } from './assetPolicy';
 import { ChatRunner, validateChat, type ChatOptions } from './chat';
 import { clearState, stateDir, writeState } from './state';
 import { dirname, join } from 'node:path';
@@ -44,7 +45,8 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
   const session = opts.backend ? (opts.session ?? null) : (opts.session ?? await AgentSession.open({ wasmPath: opts.wasmPath }));
   let port = 0;
   const bridge = new Bridge({ port: () => port });
-  const backend = withBridge(opts.backend ?? agentBackend(session!), bridge);
+  const store = new ResultStore();
+  const backend = withBridge(opts.backend ?? agentBackend(session!, undefined, { store }), bridge, { assetPolicy: () => loadAssetPolicy(process.env, dir), store });
   const protocol = new McpProtocol(backend);
   const idleMs = opts.idleMs ?? 30 * 60 * 1000;
   const maxBody = opts.maxBodyBytes ?? 16 * 1024 * 1024;
@@ -113,6 +115,12 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
         if (raw === null) return send(res, 413, { error: { code: 'too_large', message: 'reply too large' } });
         return send(res, 200, { ok: bridge.reply(bearer, JSON.parse(raw)) });
       }
+      if (req.method === 'GET' && url.pathname.startsWith('/bridge/asset/')) {
+        // a file the agent was allowed to open, staged by app_open_asset: handed to the app once, as raw bytes
+        const bytes = bridge.takeAsset(bearer, decodeURIComponent(url.pathname.slice('/bridge/asset/'.length)));
+        res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'no-store', 'content-length': bytes.length });
+        return void res.end(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.length));
+      }
       if (req.method === 'POST' && url.pathname === '/bridge/chat') {
         // the in-app chat: one Claude Code turn, streamed back as newline-delimited JSON (docs/agent-chat.md). Closing the request is Stop.
         const raw = await readBody(req, 256 * 1024);
@@ -130,7 +138,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<Daemon> {
       if (req.method === 'POST' && url.pathname === '/bridge/bye') { bridge.bye(bearer); return send(res, 200, { ok: true }); }
       send(res, 404, { error: { code: 'not_found', message: 'not found' } });
     } catch (e) {
-      if (!res.headersSent) fail(e instanceof BridgeError && e.code === 'no_session' ? 401 : e instanceof BridgeError ? 400 : 500, e);
+      if (!res.headersSent) fail(e instanceof BridgeError && e.code === 'no_session' ? 401 : e instanceof BridgeError && e.code === 'no_asset' ? 404 : e instanceof BridgeError ? 400 : 500, e);
     }
   };
 

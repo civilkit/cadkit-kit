@@ -12,7 +12,7 @@ afterEach(cleanup);
 
 const bar = (cached: boolean) => {
   const chip = cachedChip(cached);
-  return render(<StatusBar notices={[]} hover={null} busy={false} items={chip ? [chip] : []} />);
+  return render(<StatusBar hover={null} busy={false} items={chip ? [chip] : []} />);
 };
 
 describe('cached view chip', () => {

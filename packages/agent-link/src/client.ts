@@ -1,6 +1,6 @@
 // The app's side of the agent link: pair with the daemon on loopback, then long-poll for requests and answer them. Browser code
 // (fetch only). The user starts it by pasting a code and stops it with `disconnect()`; nothing here starts by itself.
-import { BridgeError, EDIT_OPS, parseCode, type AppInfo, type BridgeOp, type BridgeReply, type BridgeRequest, type HelloReply } from './wire';
+import { BridgeError, EDIT_OPS, LONG_OPS, parseCode, type AppInfo, type BridgeOp, type BridgeReply, type BridgeRequest, type HelloReply } from './wire';
 
 export type LinkState =
   | { state: 'off' }
@@ -77,6 +77,14 @@ export class BridgeClient {
     if (this.state.state !== 'error') this.set({ state: 'off' });
   }
 
+  /** Fetch a file the daemon staged for this session (open_asset): the bytes come over loopback, never through the agent. */
+  async fetchAsset(handle: string, signal?: AbortSignal): Promise<Uint8Array> {
+    if (!this.session) throw new BridgeError('app_not_connected', 'the link is off');
+    const r = await this.f()(`${base(this.port)}/bridge/asset/${encodeURIComponent(handle)}`, { headers: { authorization: `Bearer ${this.session}` }, signal });
+    if (!r.ok) { const b = await r.json().catch(() => ({})) as { error?: { code?: string; message?: string } }; throw new BridgeError(b.error?.code ?? `http_${r.status}`, b.error?.message ?? `the agent server refused the file (${r.status})`); }
+    return new Uint8Array(await r.arrayBuffer());
+  }
+
   /** The user ticked or cleared the edit box: tell the daemon now instead of at the end of the current long poll. */
   permissionChanged(): void { this.pollCtl?.abort(); }
 
@@ -103,12 +111,19 @@ export class BridgeClient {
       }
       for (const q of reqs) {
         if (this.ctl !== ctl) return;
-        const reply = await this.run(q);
-        try { await this.f()(`${base(this.port)}/bridge/reply`, { method: 'POST', signal: ctl.signal, headers: auth(), body: JSON.stringify(reply) }); } catch { /* the next poll finds out */ }
-        this.calls++;
-        this.set({ state: 'connected', since: this.since, calls: this.calls });
+        // a long op (a big import) runs beside the poll loop, so the link stays alive and other requests are still answered
+        if (LONG_OPS.has(q.op)) { void this.serve(q, ctl, auth); continue; }
+        await this.serve(q, ctl, auth);
       }
     }
+  }
+
+  private async serve(q: BridgeRequest, ctl: AbortController, auth: () => Record<string, string>): Promise<void> {
+    const reply = await this.run(q);
+    if (this.ctl !== ctl) return;
+    try { await this.f()(`${base(this.port)}/bridge/reply`, { method: 'POST', signal: ctl.signal, headers: auth(), body: JSON.stringify(reply) }); } catch { /* the next poll finds out */ }
+    this.calls++;
+    this.set({ state: 'connected', since: this.since, calls: this.calls });
   }
 
   private async run(q: BridgeRequest): Promise<BridgeReply> {

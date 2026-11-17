@@ -7,8 +7,9 @@ import { bodyList, faceOwners, resolveEntity, type BodyRef } from './entities';
 import { ReadbackError } from './errors';
 import { checkWithMould, withMouldRule, MOULD_RULE, type InlineRule, type MouldLabels, type ProfileReport } from './mould';
 import type { Schema } from './schema';
+import { interfaces } from './interfaces';
 
-export type KernelQueries = Pick<Session, 'distance' | 'clearance' | 'thickness' | 'angles' | 'checkProfile' | 'profiles' | 'section'>;
+export type KernelQueries = Pick<Session, 'distance' | 'clearance' | 'thickness' | 'angles' | 'checkProfile' | 'profiles' | 'section'> & Partial<Pick<Session, 'describe' | 'massProps'>>;
 export interface Interference { bodies: number; pairs: Array<{ a: string; b: string; aName?: string; bName?: string; volume?: number; com?: number[]; box?: { min: number[]; max: number[] }; error?: string }> }
 export interface ReadbackHost {
   kernel: KernelQueries;
@@ -344,6 +345,6 @@ const bodiesTool: ReadbackTool = {
 };
 
 /** The measurement tools, in the order they are listed. */
-export const READBACK_TOOLS: ReadbackTool[] = [measure, clearance, interference, thickness, draft, dfm];
+export const READBACK_TOOLS: ReadbackTool[] = [measure, clearance, interference, thickness, draft, dfm, interfaces];
 /** Plus `bodies`, for the app link (the headless server has its own, richer, `bodies`). */
 export const APP_READBACK_TOOLS: ReadbackTool[] = [bodiesTool, ...READBACK_TOOLS];

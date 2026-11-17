@@ -5,7 +5,7 @@ import { keyboardOverlap, lowerRight, reservedFrom, type Rect } from './overlayL
 /** The one overlay layer over the canvas. Everything that floats over the model and is not tied to a spot on the geometry goes into a named region, where items STACK
  *  instead of overlapping (geometry: overlayLayout.ts, tested):
  *    top      notices, busy and plane-pick pills, selection modes, the sketch bar   (stacks downward, between the left and right controls)
- *    bottom   toasts, hints, the start card, then the status readouts               (stacks upward from the bottom edge, above the keyboard)
+ *    bottom   hints, the start card, then the status readouts               (stacks upward from the bottom edge, above the keyboard)
  *  The controls fixed at the canvas edges (the undo card and tool column on the left, the view cube and Display on the right) mark themselves with `data-ovr-reserve`
  *  ("left", "right" or "right-bottom"); the host measures them (also while they animate or the window changes) and publishes how far they reach as CSS variables on the
  *  canvas: --ovr-left, --ovr-right, --ovr-right-b, and --ovr-kb for the on-screen keyboard, which the regions and the panels that avoid the controls read.

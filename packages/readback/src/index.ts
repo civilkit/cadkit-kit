@@ -8,3 +8,4 @@ export {
   MOULD_RULE, MOULD_PROFILE, MOULD_LABELS, mouldRuleInfo, withMouldRule, expandMould, mergeMould, checkWithMould, pullLabel,
   type MouldLabels, type MouldSpec, type InlineProfile, type InlineRule, type ProfileList, type ProfileInfo, type RuleInfo, type ProfileReport,
 } from './mould';
+export { interfaces, parseDirection, frameAt, INTERFACE_KINDS } from './interfaces';

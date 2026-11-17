@@ -128,6 +128,7 @@ One button holds Gear, Gear pair, Propeller, Impeller, Knurl, Screw, Washer, Add
 | Washer |  |  | An open document |
 | Add fastener to hole |  |  | The wall of a hole selected (also in the right-click menu of a Hole feature or a pattern of holes in the tree) |
 | Teardrop hole |  |  | The wall of a round hole selected (face mode). See [Teardrop holes for 3D printing](../modelling/holes.md#teardrop-holes-for-3d-printing) |
+| Heat-set seat |  |  | The wall of a round hole selected (face mode). See [Heat-set seat on a hole](../modelling/holes.md#heat-set-seat-on-a-hole) |
 | Spring |  |  | An open document |
 | Nut |  |  | An open document |
 | Standoff |  |  | An open document |

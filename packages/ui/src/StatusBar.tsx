@@ -1,34 +1,25 @@
 import type { ComponentChildren, JSX } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
-import type { Notice } from '@kit/store';
 import { t } from './i18n';
 import { Icon } from './icons';
 
-/** How long the newest notice stays in the status bar; the drawer's log keeps all of them. */
-export const NOTICE_MS = 8000;
+/** The status bar's only part in the alert system: one short chip, never a copy of the message. `unread` counts messages since the history was last opened; the chip turns
+ *  red while an unread one is an error. Clicking it opens the notification history. */
+export interface AlertsChip { total: number; unread: number; unreadErrors: number; open: boolean; onToggle(): void }
 
 export interface StatusItem { label: string; value: string; tone?: 'ok' | 'warn' | 'err'; /** makes the item a button */ onClick?(): void; title?: string; icon?: string; dim?: boolean; /** counts and timings a narrow screen may leave out */ low?: boolean }
 
 export function StatusBar(p: {
-  notices: Notice[]; hover: string | null; busy: boolean;
+  alerts?: AlertsChip; hover: string | null; busy: boolean;
   items?: StatusItem[]; /** the sketch readout (pointer position, snap, grid): shown while sketching, before the items */ sketch?: ComponentChildren; drawerOpen?: boolean; onToggleDrawer?(): void; right?: string; /** small links at the right end (the published site's Licences and Documentation) */ links?: { label: string; href: string }[]; /** the global help button, at the right end */ help?: ComponentChildren;
 }): JSX.Element {
-  const newest = p.notices.at(-1);
-  const [, tick] = useState(0);
-  const age = newest?.at === undefined ? 0 : Date.now() - newest.at;
-  const last = newest && age < NOTICE_MS ? newest : undefined;
-  useEffect(() => {
-    if (!last || last.at === undefined) return;
-    const h = setTimeout(() => tick((n) => n + 1), Math.max(50, NOTICE_MS - (Date.now() - last.at) + 20));
-    return () => clearTimeout(h);
-  }, [last?.id]);
   // every child is keyed: with only the items keyed, the items made after a sketch closes were put after the spacer and the Drawer button
   return (
     <div class="status">
       {p.busy ? <span key="@busy" class="st-busy">{t('ui.status.busy')}</span> : <span key="@ready" class="ready"><span class="dot" />{t('ui.status.ready')}</span>}
       {p.hover ? <span key="@hover" class="st-hover">{p.hover}</span> : null}
       {p.sketch ?? null}
-      {last ? <span key="@notice" class={'st-notice ' + last.level}>{last.text}</span> : null}
+      {p.alerts && p.alerts.total > 0 ? <button key="@alerts" class="st-item st-chip st-alerts" data-testid="alerts-chip" aria-expanded={p.alerts.open} title={t('ui.status.alerts.tip')} onClick={p.alerts.onToggle}>
+        {t('ui.status.alerts')} <b class={p.alerts.unreadErrors ? 'err' : p.alerts.unread ? 'warn' : ''}>{p.alerts.unread ? p.alerts.unread : p.alerts.total}</b></button> : null}
       {(p.items ?? []).map((i) => i.onClick
         ? <button key={i.label} class={'st-item st-chip' + (i.dim ? ' dim' : '') + (i.low ? ' st-low' : '')} title={i.title} onClick={i.onClick}>{i.icon ? <Icon name={i.icon} size={14} /> : null}{i.label} <b class={i.tone ?? ''}>{i.value}</b></button>
         : <span key={i.label} class={'st-item' + (i.low ? ' st-low' : '')}>{i.label} <b class={i.tone ?? ''}>{i.value}</b></span>)}

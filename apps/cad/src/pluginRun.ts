@@ -3,8 +3,9 @@
 // folder, ready for controller.preview() or controller.commit() (one undo step), exactly like a wizard's ops.
 import type { EditOp } from '@ck/session';
 import { runScript, type ScriptHost } from '@kit/script';
-import { contextOf, type PluginRegistry, type RunRecord, type Values } from '@kit/plugin';
+import { contextOf, type GenerateContext, type PluginRegistry, type RunRecord, type Values } from '@kit/plugin';
 import { groupOps, wizardGroupName } from './wizardGroup';
+import { scratchRows } from './pluginDoc';
 
 /** the script API version plugins' `engine` ranges are checked against */
 export const PLUGIN_API_VERSION = '1.0.0';
@@ -18,7 +19,7 @@ export type PluginOps = { ok: true; ops: EditOp[]; group: string | undefined; ti
 /** Does the view-state key belong to one of these features (a feature id, a face name of it, or the body key made from one)? */
 const keyOf = (key: string, ids: ReadonlySet<string>): boolean => { const k = key.startsWith('@body:') ? key.slice(6) : key; return ids.has(k.split('.')[0]); };
 
-export async function pluginOps(registry: PluginRegistry, full: Doc, sel: PluginSel, host: ScriptHost, up?: 'y' | 'z'): Promise<PluginOps> {
+export async function pluginOps(registry: PluginRegistry, full: Doc, sel: PluginSel, host: ScriptHost, up?: 'y' | 'z', docCtx?: GenerateContext['doc']): Promise<PluginOps> {
   const found = registry.find(sel.pluginId, sel.generatorId);
   if (!found) return { ok: false, message: `no generator ${sel.pluginId}/${sel.generatorId}`, issues: [] };
   // an edit runs against the document WITHOUT the folder it replaces, so its names (the cabinet's own bodies) are free again
@@ -32,7 +33,18 @@ export async function pluginOps(registry: PluginRegistry, full: Doc, sel: Plugin
   // the run itself is built on the features BEFORE the folder: the ones after it (a Move folder, a cut of a body by name) may refer to bodies the folder makes, and come back after it
   const before = gone.size ? full.features.slice(0, Math.max(0, full.features.findIndex((f) => gone.has(String(f.id))))) : doc.features;
   const used = doc.features.flatMap((f) => [f.name, f.group, f.body].filter((x): x is string => typeof x === 'string'));
-  const p = await registry.prepare(sel.pluginId, sel.generatorId, sel.values, contextOf(used, up ? { up } : {}));
+  // a plugin that reads the model (measure) gets the run's script built on top of the features before the folder; its bodies come back with their volumes
+  const seq0 = Math.max(full.seq ?? 1, ...full.features.map((f) => { const m = /^F(\d+)$/.exec(String(f.id ?? '')); return m ? Number(m[1]) + 1 : 1; }));
+  const scratch: GenerateContext['scratch'] | undefined = host.build && host.facts ? { async build(script: string) {
+    const r = await runScript(script, host, {}, { prefix: { features: before, seq: seq0 } });
+    if (r.errors.length) throw new Error(r.errors[0].message);
+    const built = await host.build!(r.document as never, true);
+    const f = await host.facts!({ mass: true });
+    await host.release?.();
+    const g = built.geometry as { mesh?: never; faceLumps?: Record<string, number> } | undefined;
+    return scratchRows((g?.mesh ?? null) as never, g?.faceLumps, (f.bodies ?? []) as never);
+  } } : undefined;
+  const p = await registry.prepare(sel.pluginId, sel.generatorId, sel.values, contextOf(used, { ...(up ? { up } : {}), ...(docCtx ? { doc: docCtx } : {}), ...(scratch ? { scratch } : {}) }));
   if (!p.ok) return { ok: false, message: p.message, issues: p.issues };
   if (!host.build) return { ok: false, message: 'noScratch', issues: [] };
   // ids are never reused: the next one comes from the whole document, the removed features included

@@ -600,7 +600,7 @@ const thinOf = (t: ThinOpt): { thickness: unknown; side: string; thickness2?: un
   if (t.side !== undefined && !THIN_SIDES.includes(t.side)) throw new Error(`thin: side is one of ${THIN_SIDES.join(', ')} (got ${JSON.stringify(t.side)})`);
   return { thickness: ref(t.thickness), side: t.side ?? 'mid', ...(t.side === 'both' && t.thickness2 !== undefined ? { thickness2: ref(t.thickness2) } : {}), ...(t.ends ? { ends: t.ends } : {}), ...(t.cornerStyle ? { cornerStyle: t.cornerStyle } : {}) };
 };
-export interface ExtrudeOpts { /** keep the solid as a SEPARATE body (op newBody) instead of uniting it with what it touches or overlaps; a string also names the body. Not for cuts. */ newBody?: boolean | string; /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; /** cuts only: the body or bodies (named by newBody) the cut changes; the others stay as they are. Default: every body the cut reaches. */ from?: string | string[]; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; thin?: ThinOpt; direction?: 'into' | 'away' | 'both' | 'auto' }
+export interface ExtrudeOpts { /** keep the solid as a SEPARATE body (op newBody) instead of uniting it with what it touches or overlaps; a string also names the body. Not for cuts. */ newBody?: boolean | string; /** name shown in the feature tree (default: `Extrude <sketch name>`) */ name?: string; /** cuts only: the body or bodies (named by newBody) the cut changes; the others stay as they are. Default: every body the cut reaches. */ from?: string | string[]; mid?: boolean; /** same as mid / direction 'both' */ symmetric?: boolean; flip?: boolean; draft?: number; /** the profile grows or shrinks to this factor over the depth (1 = none, 0.5 = half size at the far end); about the sketch origin. Not with draft; not for through or up-to ends. */ endScale?: number; thin?: ThinOpt; direction?: 'into' | 'away' | 'both' | 'auto' }
 export type BodyFinish = 'matte' | 'plastic' | 'chrome' | 'glass' | 'brushed';
 export const BODY_FINISHES: readonly BodyFinish[] = ['matte', 'plastic', 'chrome', 'glass', 'brushed'];
 /** Colour, opacity and finish of a body. `colour` is the same as `color`: '#rrggbb' or '#rgb'. */
@@ -758,6 +758,11 @@ export class PartBuilder {
       if (flip && !both) f.flip = true;
       if (dir === 'auto' && op === 'cut' && !flip) ctx.autoFlip?.add(id);
       if (o.draft) f.draft = o.draft;
+      if (o.endScale !== undefined && o.endScale !== 1) {
+        if (!(typeof o.endScale === 'number' && o.endScale > 0)) throw new SelectorError(`${label}(): endScale must be a number above 0 (1 = no change, 0.5 = half size at the far end)`, this.line());
+        if (o.draft) throw new SelectorError(`${label}(): use either a draft angle or an endScale, not both`, this.line());
+        f.endScale = o.endScale;
+      }
       if (o.thin !== undefined) f.thin = { ends: 'flat', cornerStyle: 'mitre', ...thinOf(o.thin) };
       ctx.lastFeature = id;
       ctx.lastSketch = null;
@@ -774,6 +779,7 @@ export class PartBuilder {
    * @param o.mid extrude half each way (same as direction: 'both'; symmetric: true is the same)
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
+   * @param o.endScale scale of the profile at the far end (1 = none, 2 = twice the size, 0.5 = half): a taper of the whole outline about the sketch origin; not with draft
    * @param o.thin wall thickness for a thin-walled extrude (centred on the profile), or { thickness, side: 'inside' | 'outside' | 'mid' | 'both', thickness2, ends, cornerStyle }: the same options as the thin-wall card (the card starts at 'inside', a plain number here is 'mid')
    * @param o.newBody true or 'Name': keep the solid as a separate body instead of fusing it with what it touches or overlaps
    * @example
@@ -792,6 +798,7 @@ export class PartBuilder {
    * @param o.mid cut half each way
    * @param o.flip reverse direction
    * @param o.draft taper angle in degrees
+   * @param o.endScale scale of the profile at the far end (1 = none, 2 = twice the size, 0.5 = half): a taper of the whole outline about the sketch origin; not with draft
    * @param o.from body name or list of names the cut changes (default: every body it reaches)
    * @example
    * part('Pocketed').sketch('front', (s) => s.rect(60, 40)).extrude(10)

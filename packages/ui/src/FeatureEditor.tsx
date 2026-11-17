@@ -262,7 +262,8 @@ export function FeatureEditor(p: {
   for (const k of Object.keys(eff)) if (eff[k] === null) delete eff[k];
   const opts = p.options?.({ eff, change: (patch) => apply2(patch), pickingPath: p.pickingPath, onPickRequest: p.onPickRequest }) ?? null;
   const sections = sectionsOf(feature).map((sec) => ({ ...sec, fields: sec.fields.filter((f) => !opts?.hide.has(f.path)) })).filter((sec) => sec.fields.length > 0);
-  const title = t('feature.' + feature.type, undefined, feature.type ?? '') + (feature.name ? ` — ${feature.name}` : '');
+  const shownType = typeof eff.type === 'string' ? eff.type : feature.type;   // a draft that converts the feature (Press Pull: Offset <-> Straight) is titled by what it will be
+  const title = t('feature.' + shownType, undefined, shownType ?? '') + (feature.name ? ` — ${feature.name}` : '');
 
   const apply = (path: string, value: unknown): void => {
     const next = { ...draft, [path]: value };

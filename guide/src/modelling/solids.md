@@ -37,6 +37,7 @@ The Editor has these parts. Defaults are what a new feature starts with.
 | Flip direction | Extrude the other way. Not shown for Mid plane or Through all, both ways. | Off |
 | Draft angle | Tapers the walls, in degrees. 0 means straight. Not available for Mid plane or Through all, both ways. | 0 |
 | Draft outward | Tapers the walls outward instead of inward. Shown when the draft angle is above 0. | Off |
+| End scale | Scales the whole outline, holes included, in a straight line to this factor at the far end: 1 means none, 0.5 ends at half size, 1.2 grows. Works with Blind, Mid plane and Flip; hidden with Draft angle or Twist, Through all and Up to next, and not available for a surface extrude. | 1 |
 | Thin wall | Builds a wall around the curve instead of filling it (see [Thin walls](#thin-walls)). | Off |
 | Shapes | One checkbox per closed shape in the sketch. Shown when the sketch has two or more shapes. | All checked |
 

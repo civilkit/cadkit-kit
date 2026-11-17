@@ -20,3 +20,8 @@ export async function sessionQuery<T>(session: Session, msg: { type: string; [k:
 export const queryMeasure = (s: Session, refs: Array<Record<string, unknown>>) => sessionQuery<KernelMeasure>(s, { type: 'measure', refs });
 export const queryInterference = (s: Session) => sessionQuery<Interference>(s, { type: 'interference' });
 export const queryMass = (s: Session, densities?: number[]) => sessionQuery<MassRaw>(s, { type: 'massProps', bodies: true, ...(densities ? { densities } : {}) });
+
+/** One flat face of a `faceRun` reply: where a Press Pull on it starts and how far its outline reaches from its area centre (the angle readout of a scale taper). `endOf` names the extrude, revolve or sweep the face is the moving end of. */
+export interface FaceRunItem { face: string; found: boolean; flat?: boolean; centre?: number[]; normal?: number[]; reach?: number; area?: number; endOf?: { feature: string; kind: string; input: string } | null }
+/** The kernel's faceRun query on the session's state (or the state of a scratch tag): per face its flatness, centre, normal, reach and area. */
+export const queryFaceRun = (s: Session, faces: string[]) => sessionQuery<{ items: FaceRunItem[] }>(s, { type: 'faceRun', faces });

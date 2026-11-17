@@ -45,6 +45,18 @@ describe('typed helpers for kernel features: the emitted feature JSON', () => {
     expect(await fail(`p.moveFace(face('F2.C1'), {});`)).toMatch(/exactly one/);
     expect(await fail(`p.moveFace(face('F2.C1'), { distance: 1, translate: [1, 0, 0] });`)).toMatch(/exactly one/);
   });
+  it('pressPull: straight, draft and scale tapers, and refusals before the kernel', async () => {
+    expect((await feats(`p.pressPull(face('F2.C1'), { distance: 10 });`))[0]).toEqual({ type: 'pressPull', id: 'F3', faces: ['F2.C1'], continue: 'straight', distance: 10 });
+    expect((await feats(`p.pressPull(face('F2.C1'), { distance: -4, taper: { type: 'draft', angle: -3 } });`))[0]).toMatchObject({ distance: -4, taper: { type: 'draft', angle: -3 } });
+    expect((await feats(`p.pressPull(face('F2.C1'), { distance: 10, taper: { type: 'scale', endScale: 1.1 } });`))[0]).toMatchObject({ taper: { type: 'scale', endScale: 1.1 } });
+    expect((await feats(`p.pressPull(face('F2.C1'), { distance: 10, taper: { type: 'none' } });`))[0].taper).toBeUndefined();
+    expect(await fail(`p.pressPull(face('F2.C1'), {});`)).toMatch(/distance is required/);
+    expect(await fail(`p.pressPull(face('F2.C1'), { distance: 0 });`)).toMatch(/not 0/);
+    expect(await fail(`p.pressPull(face('F2.C1'), { distance: 5, taper: { type: 'draft', angle: 90 } });`)).toMatch(/between -85 and 85/);
+    expect(await fail(`p.pressPull(face('F2.C1'), { distance: 5, taper: { type: 'scale', endScale: 0 } });`)).toMatch(/endScale above 0/);
+    expect(await fail(`p.pressPull(face('F2.C1'), { distance: 5, taper: { type: 'bend' } });`)).toMatch(/not known/);
+    expect(await fail(`p.pressPull(face('F2.C1'), { distance: 5, taper: 3 });`)).toMatch(/taper is \{ type/);
+  });
   it('lip and groove', async () => {
     const [l] = await feats(`p.lip(face('F2.C1'), edges('all'), { width: 1, height: 1.5 });`);
     expect(l).toMatchObject({ type: 'lip', kind: 'lip', faces: ['F2.C1'], edges: [{ faces: ['F2.C1', 'F2.S.e1'], at: [1, 0, 2] }], width: 1, height: 1.5 });

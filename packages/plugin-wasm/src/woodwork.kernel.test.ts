@@ -54,7 +54,7 @@ describe.skipIf(!on)('woodwork on our kernel: holes, patterns, materials', () =>
   }, 120_000);
   it('one moveBody over every named body moves the whole cabinet together (what Move folder emits)', async () => {
     const r = await run({ doors: 2 });
-    const names = (r.I.order.filter((o) => !('hole' in o) && !o.cut) as Array<{ body?: string; name: string }>).map((o) => o.body ?? o.name);
+    const names = (r.I.order.filter((o) => 'cut' in o && !o.cut) as Array<{ body?: string; name: string }>).map((o) => o.body ?? o.name);
     const base = r.I.script({ part: 'Cabinet', up: 'y' });
     const lo = async (script: string) => { const rep = await scratch.runScript(script, 'new'); expect(rep.errors).toEqual([]); const rows = await listBodies(scratch); expect(rows.length).toBe(names.length); return [0, 1, 2].map((i) => Math.min(...rows.map((b) => b.bbox!.min[i]))); };
     const a = await lo(base);

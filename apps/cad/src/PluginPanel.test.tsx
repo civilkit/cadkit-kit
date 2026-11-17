@@ -44,6 +44,27 @@ describe('PluginPanel', () => {
     expect(m.select('tongueOn')!.value).toBe('lid');
   });
 
+  it('a number is kept as it is typed: typing in one field then the next loses nothing', () => {
+    const m = mount(sel('case', 'civilkit.enclosures'));
+    // typing is `input` events, not `change`: the value must be reported by the keystroke itself
+    fireEvent.input(m.input('width')!, { target: { value: '9' } });
+    expect(m.log.changes.at(-1)).toMatchObject({ width: 9 });
+    fireEvent.input(m.input('width')!, { target: { value: '90' } });
+    expect(m.log.changes.at(-1)).toMatchObject({ width: 90 });
+    // the next field, straight away, with no blur event in between: its first digit is kept and the first field still holds what was typed
+    fireEvent.input(m.input('depth')!, { target: { value: '4' } });
+    expect(m.log.changes.at(-1)).toMatchObject({ width: 90, depth: 4 });
+    expect(m.input('width')!.value).toBe('90');
+    expect(m.input('depth')!.value).toBe('4');
+  });
+  it('emptying a number field in the middle of typing does not clear it until the change', () => {
+    const m = mount(sel('case', 'civilkit.enclosures'));
+    const before = m.log.changes.length;
+    fireEvent.input(m.input('lidHeight')!, { target: { value: '' } });
+    expect(m.log.changes.length).toBe(before);   // `input` with an empty value reports nothing
+    fireEvent.change(m.input('lidHeight')!, { target: { value: '' } });
+    expect(m.log.changes.at(-1)).not.toHaveProperty('lidHeight');
+  });
   it('a change reports the whole value record; emptying an optional field removes its key', () => {
     const m = mount(sel('case', 'civilkit.enclosures', { lidHeight: 12 }));
     fireEvent.change(m.input('width')!, { target: { value: '100' } });

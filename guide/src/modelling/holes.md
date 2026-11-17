@@ -115,6 +115,16 @@ The round hole stays exactly as it is. The peak is cut along the same axis, as d
 
 A 6.6 mm hole with the usual 45 degree peak reaches 4.67 mm from its centre (the radius times the square root of two), so leave that much wall above it. A peak that runs out through a thin wall is cut where the wall is; it does not fail.
 
+## Heat-set seat on a hole
+
+A heat-set insert is pressed into a hole with a soldering iron. **Heat-set seat** starts the Heat-set insert panel from a hole you already have.
+
+1. Select the wall of the round hole (face mode, **Q**) and choose **Heat-set seat** in the right-click menu (or the command search).
+2. The panel opens with the insert at the hole's mouth, going into the part along the hole's axis, and with the size whose insert hole is nearest to your hole. Change the size, the dimensions or the thread there as for any insert.
+3. A hole narrower than the insert hole is opened up to it. A hole that is already as wide is left as it is. Press **Add insert**.
+
+The hole must run along the X, Y or Z axis; for a slanted hole use **Add heat-set insert** and type its origin and axis. The insert table is from typical manufacturer data and has not been checked against a particular brand, so check the hole and insert sizes against the datasheet of the inserts you buy.
+
 ## Threads
 
 A thread feature marks a cylindrical face as threaded: the wall of a hole, or a shaft. It records the standard, size, class, length and hand. By default it is **cosmetic**: the model does not change, the thread appears as a marker in the view, and it is available to drawings and checks. If you turn on **Model the thread**, the kernel cuts a real helical groove.

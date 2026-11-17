@@ -41,6 +41,16 @@ export const patchStart = (start: StartCondition): Wire => (start === 'fromObjec
 /** Draft is cut for one-sided ends only (the kernel refuses a drafted mid-plane or through-both extrude). */
 export const endAllowsDraft = (end: string): boolean => end !== 'mid' && end !== 'throughBoth';
 
+/** End scale (the whole outline grows or shrinks over the depth) works for a blind or a mid-plane extrude; the kernel refuses it with a draft angle, a twist, through, up to next and a body or slanted end. */
+export const endAllowsEndScale = (end: string): boolean => end === 'blind' || end === 'mid';
+/** End scale as a factor (1 = none). */
+export const endScaleOf = (eff: Wire): number | string => (typeof eff.endScale === 'number' || (typeof eff.endScale === 'string' && eff.endScale !== '') ? eff.endScale : 1);
+/** Setting 1 removes the field; an end scale drops the draft angle and the twist (the kernel takes one taper at a time). */
+export function patchEndScale(deg: number | string): Wire {
+  if (deg === 1 || deg === '' || deg === null) return { endScale: null };
+  return { endScale: deg, draft: null, draftOut: null, twist: null, twistCentre: null };
+}
+
 /** Twist cannot go with Up to next (the kernel answers draftUnsupported), nor with a draft angle. */
 export const endAllowsTwist = (end: string): boolean => end !== 'upToNext';
 /** Twist in degrees over the full depth (0 = none). */
@@ -53,7 +63,7 @@ export function twistCentreOf(eff: Wire): [number, number] {
 /** Setting a twist of 0 removes it and its centre; a twist and a draft angle exclude each other (the kernel refuses both), so a twist drops the draft. */
 export function patchTwist(eff: Wire, deg: number | string): Wire {
   if (deg === 0 || deg === '' || deg === null) return { twist: null, twistCentre: null };
-  return { twist: deg, draft: null, draftOut: null };
+  return { twist: deg, draft: null, draftOut: null, ...(eff.endScale != null ? { endScale: null } : {}) };
 }
 /** One coordinate of the twist axis; (0, 0) removes the field. */
 export function patchTwistCentre(eff: Wire, index: 0 | 1, value: number): Wire {
@@ -65,7 +75,7 @@ export function patchTwistCentre(eff: Wire, index: 0 | 1, value: number): Wire {
 /** The fields a form of this feature type owns; the generic editor hides them. */
 export function managedPaths(type: string): Set<string> {
   switch (type) {
-    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endRef', 'endOffset', 'start', 'startRef', 'startOffset', 'twist', 'twistCentre', 'thin', 'op', 'body', 'target']);
+    case 'extrude': return new Set(['end', 'depth', 'flip', 'draft', 'draftOut', 'endRef', 'endOffset', 'start', 'startRef', 'startOffset', 'twist', 'twistCentre', 'endScale', 'thin', 'op', 'body', 'target']);
     case 'revolve': return new Set(['end', 'angle', 'flip', 'thin', 'op', 'body', 'target']);
     case 'chamfer': return new Set(['chamferType', 'distance', 'distance2', 'angle']);
     case 'fillet': return new Set(['radius', 'filletType', 'radii', 'profile', 'rho', 'shape', 'side1', 'center', 'side2']);
@@ -75,6 +85,8 @@ export function managedPaths(type: string): Set<string> {
     case 'sweep': return new Set(['sketch', 'path', 'guides', 'twist', 'op', 'body', 'target']);
     case 'sphere': return new Set(['center', 'radius', 'op', 'body']);
     case 'combine': return new Set(['op', 'keepTools']);
+    case 'moveFace': return new Set(['continue', 'taper']);   // the Continue choice (and, once Straight, the taper) sit in the Press Pull form; Offset keeps the generic fields
+    case 'pressPull': return new Set(['continue', 'distance', 'taper', 'mode', 'translate', 'flip']);
     case 'moveBody': return new Set(['copy', 'body']);
     case 'scale': return new Set(['factor', 'factors', 'about', 'at', 'origin']);
     case 'split': return new Set(['offset', 'flip', 'names', 'keep', 'target']);
@@ -102,6 +114,7 @@ export function patchEnd(eff: Wire, end: EndCondition): Wire {
   if (endNeedsDepth(end)) { if (typeof eff.depth !== 'number') p.depth = depth; } else p.depth = null;
   if (!endAllowsDraft(end)) { p.draft = null; p.draftOut = null; }
   if (!endAllowsTwist(end)) { p.twist = null; p.twistCentre = null; }
+  if (!endAllowsEndScale(end)) p.endScale = null;
   if (!endNeedsObject(end)) { p.endRef = null; p.endOffset = null; }
   if (!startAllowed(end)) { p.start = null; p.startRef = null; p.startOffset = null; }
   return p;
@@ -109,7 +122,7 @@ export function patchEnd(eff: Wire, end: EndCondition): Wire {
 
 /** Draft angle (degrees, 0 = none) and its direction: setting 0 removes both fields. */
 export function patchDraft(eff: Wire, angle: number): Wire {
-  return angle > 0 ? { draft: angle } : { draft: null, draftOut: null };
+  return angle > 0 ? { draft: angle, ...(eff.endScale != null ? { endScale: null } : {}) } : { draft: null, draftOut: null };
 }
 
 export type ChamferType = 'equal' | 'distances' | 'angle';
@@ -250,4 +263,65 @@ export function objectRefChoices(doc: { features?: unknown[] } | null | undefine
   if (!v) out.unshift(['', t(bodies ? 'opt.toObject.none' : 'opt.fromObject.none')]);
   else if (!out.some(([x]) => x === v)) out.unshift([v, objectRefLabel(doc, current)]);
   return out;
+}
+
+
+// ---- Press Pull: Continue Offset (a moveFace, the faces move along their normals and the neighbours follow) or Straight (a
+// pressPull feature: a flat face continued as if it were extruded, joined or cut, with an optional draft or scale taper).
+
+export type PressContinue = 'offset' | 'straight' | 'along';
+/** The Continue choices in the order shown; Along the Walls (the end follows a bend in the walls) is shown but the kernel does not build it yet. */
+export const PRESS_CONTINUES: PressContinue[] = ['offset', 'straight', 'along'];
+/** Along the Walls is marked "later" and cannot be chosen. */
+export const pressContinueEnabled = (c: PressContinue): boolean => c !== 'along';
+export const pressContinueOf = (eff: Wire): PressContinue => (eff.type === 'pressPull' ? (eff.continue === 'along' ? 'along' : 'straight') : 'offset');
+/** Offset works on a moveFace in offset mode (a translate has no distance to carry over, so it has no Continue choice). */
+export const pressHasContinue = (eff: Wire): boolean => eff.type === 'pressPull' || (eff.type === 'moveFace' && eff.mode !== 'translate');
+
+/** The distance a conversion carries over: a number or an expression; a moveFace `flip` negates it (a number) or becomes `=-(expression)`. */
+function carriedDistance(eff: Wire): number | string | undefined {
+  const d = eff.distance;
+  const flipped = eff.type === 'moveFace' && eff.flip === true;
+  if (typeof d === 'number') return flipped ? -d : d;
+  if (typeof d === 'string' && d !== '') return flipped ? `=-(${d.replace(/^=/, '')})` : d;
+  return undefined;
+}
+/** Patch for choosing Continue: Offset <-> Straight converts the feature type (moveFace <-> pressPull) and keeps the faces and the distance. Switching to Straight leaves no taper; to Offset drops the taper. Along is not buildable: no patch. */
+export function patchContinue(eff: Wire, to: PressContinue): Wire | null {
+  if (!pressContinueEnabled(to) || pressContinueOf(eff) === to) return null;
+  const distance = carriedDistance(eff);
+  if (to === 'straight') return { type: 'pressPull', continue: 'straight', mode: null, translate: null, flip: null, ...(distance !== undefined ? { distance } : {}), taper: null };
+  return { type: 'moveFace', mode: 'offset', continue: null, taper: null, ...(distance !== undefined ? { distance } : {}) };
+}
+
+export type TaperType = 'none' | 'draft' | 'scale';
+export const TAPER_TYPES: TaperType[] = ['none', 'draft', 'scale'];
+const taperOf = (eff: Wire): Wire => (eff.taper && typeof eff.taper === 'object' && !Array.isArray(eff.taper) ? (eff.taper as Wire) : {});
+export const taperTypeOf = (eff: Wire): TaperType => { const t = taperOf(eff).type; return t === 'draft' || t === 'scale' ? t : 'none'; };
+/** Draft angle in degrees (outward positive, the opposite sign of extrude's draft); 0 when there is none. */
+export const taperAngleOf = (eff: Wire): number | string => { const a = taperOf(eff).angle; return typeof a === 'number' || (typeof a === 'string' && a !== '') ? a : 0; };
+/** End scale as a factor (1 = none). */
+export const taperScaleOf = (eff: Wire): number | string => { const e = taperOf(eff).endScale; return typeof e === 'number' || (typeof e === 'string' && e !== '') ? e : 1; };
+/** Where a fresh taper starts: 5 degrees outward, or 1.2 times the face. */
+export const TAPER_DEFAULTS = { draft: 5, scale: 1.2 } as const;
+/** Patch for choosing the taper type: None removes the taper; the others start from a default, or keep the value they already had. */
+export function patchTaperType(eff: Wire, type: TaperType): Wire {
+  if (type === 'none') return { taper: null };
+  if (type === 'draft') return { taper: { type: 'draft', angle: taperTypeOf(eff) === 'draft' ? taperAngleOf(eff) : TAPER_DEFAULTS.draft } };
+  return { taper: { type: 'scale', endScale: taperTypeOf(eff) === 'scale' ? taperScaleOf(eff) : TAPER_DEFAULTS.scale } };
+}
+/** Patch for the draft angle (the kernel takes -85..85; 0 is straight and removes the taper). */
+export const patchTaperAngle = (angle: number | string): Wire => (angle === 0 || angle === '' ? { taper: null } : { taper: { type: 'draft', angle } });
+/** Patch for the end scale (1 is straight and removes the taper). */
+export const patchTaperScale = (scale: number | string): Wire => (scale === 1 || scale === '' ? { taper: null } : { taper: { type: 'scale', endScale: scale } });
+
+/**
+ * The angle a scale taper makes with the walls, in degrees: atan(reach * (endScale - 1) / distance) where reach is the face's largest distance from its area
+ * centre (the kernel's faceRun). The sign follows the draft's: positive when the outline grows along the run, whichever way the run goes (a cut has a
+ * negative distance), so the readout matches the Draft taper's angle. Null when a value is not a number or the distance is 0.
+ */
+export function scaleTaperAngle(reach: unknown, endScale: unknown, distance: unknown): number | null {
+  if (typeof reach !== 'number' || typeof endScale !== 'number' || typeof distance !== 'number') return null;
+  if (!(reach > 0) || !(endScale > 0) || !Number.isFinite(distance) || distance === 0) return null;
+  return (Math.atan((reach * (endScale - 1)) / Math.abs(distance)) * 180) / Math.PI;
 }

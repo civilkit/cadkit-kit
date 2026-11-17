@@ -4,7 +4,7 @@ export { FeatureEditor, ENUMS, humanise, sectionsOf, type Section, type OptionsA
 export { Inspector, fieldsOf, type Field } from './Inspector';
 export { Ribbon, resolveLayout, commandToItem, type Command, type RibbonLayout, type RibbonGroup, type RibbonEntry, type RibbonNode } from './Ribbon';
 export { Slot, slotMemory, shownItem, type SlotItem, type SlotProps, type SlotSide } from './Slot';
-export { StatusBar, type StatusItem } from './StatusBar';
+export { StatusBar, type StatusItem, type AlertsChip } from './StatusBar';
 export { CommandPalette } from './CommandPalette';
 export { Drawer, type DrawerTab } from './Drawer';
 export { ToolTray } from './ToolTray';
@@ -14,6 +14,8 @@ export { HistoryLog, type HistoryEntry, type HistoryFilter } from './HistoryLog'
 export { PanelBoundary } from './PanelBoundary';
 export { BusyOverlay } from './BusyOverlay';
 export { Toast } from './Toast';
+export { NotificationHistory } from './NotificationHistory';
+export { copyText } from './clipboard';
 export { OverlayHost } from './OverlayRegion';
 export * from './overlayLayout';
 export { Icon, ICON_NAMES, hasIcon } from './icons';

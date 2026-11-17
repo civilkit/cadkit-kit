@@ -1,6 +1,6 @@
 {
   "name": "kit",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "license": "MIT OR Apache-2.0",
   "type": "module",
@@ -21,6 +21,7 @@
     "ux:shots": "node tools/ux/shots.mjs",
     "ux:sketch": "node tools/ux/sketch.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "audit:deps": "npm audit --omit=dev --audit-level=high",
     "i18n:check": "node tools/i18n_check.mjs",
     "samples:thumbs:check": "node tools/library_thumbs.mjs apps/cad/public/samples --check",
     "i18n:baseline": "node tools/i18n_check.mjs --update-baseline",

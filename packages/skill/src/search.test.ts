@@ -26,7 +26,7 @@ const QUERIES: Array<[string, string[]]> = [
   ['link a dimension to a variable', ['expr']],
   ['thin walled tube', ['part.thin', 'part.extrude']],
   ['cut all the way through', ['through', 'part.cut']],
-  ['taper the sides with draft', ['part.extrude']],
+  ['taper the sides with draft', ['part.extrude', 'part.pressPull']],   // both slant walls: extrude with a draft angle, pressPull with a draft taper
   ['make the extrusion symmetric about the sketch plane', ['part.extrude']],
   ['drill a blind hole of a given depth', ['part.hole']],
   ['wall thickness open at the top', ['part.shell']],

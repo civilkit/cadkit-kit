@@ -1,12 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FULL_ROUND_FACES, chamferTypeOf, endAllowsDraft, endAllowsTwist, filletFullRound, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, endNeedsDepth, endNeedsObject, endsFor, filletProfileOf, hasOptions, managedPaths, objectRefChoices, objectRefLabel, objectRefPatch,
+  FULL_ROUND_FACES, chamferTypeOf, endAllowsDraft, endAllowsTwist, filletFullRound, patchFilletFullRound, patchEndScale, endAllowsEndScale, endScaleOf, patchTwist, patchTwistCentre, twistCentreOf, endNeedsDepth, endNeedsObject, endsFor, filletProfileOf, hasOptions, managedPaths, objectRefChoices, objectRefLabel, objectRefPatch,
   objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart, radiiOf, startAllowed, startOf,
 } from './optionRules';
 import {
   addStop, centreLineOf, centreLinePatch, connectorPatch, connectorsOf, patchStop, patchThickenAxis, patchThickenVariable, removeStop, stopsOf, thickenAxisOf, thickenVariable,
 } from './surfaceRules';
 import './i18n';
+
+describe('end scale', () => {
+  it('is for a blind or mid-plane extrude only', () => {
+    expect(['blind', 'mid', 'through', 'throughBoth', 'upToNext', 'toObject'].filter(endAllowsEndScale)).toEqual(['blind', 'mid']);
+  });
+  it('1 removes it; another value drops the draft and the twist; reads as 1 when absent', () => {
+    expect(patchEndScale(1)).toEqual({ endScale: null });
+    expect(patchEndScale(2)).toEqual({ endScale: 2, draft: null, draftOut: null, twist: null, twistCentre: null });
+    expect(endScaleOf({})).toBe(1);
+    expect(endScaleOf({ endScale: 0.5 })).toBe(0.5);
+  });
+  it('choosing through or up to next clears it', () => {
+    expect(patchEnd({ endScale: 2 }, 'through').endScale).toBeNull();
+    expect(patchEnd({ endScale: 2 }, 'blind').endScale).toBeUndefined();
+  });
+});
 
 describe('end conditions', () => {
   it('extrude offers the five length ends and To object; the old reference ends are not offered', () => {
@@ -41,6 +57,7 @@ describe('end conditions', () => {
   });
   it('draft zero removes the draft fields', () => {
     expect(patchDraft({}, 5)).toEqual({ draft: 5 });
+    expect(patchDraft({ endScale: 2 }, 5)).toEqual({ draft: 5, endScale: null });
     expect(patchDraft({ draft: 5 }, 0)).toEqual({ draft: null, draftOut: null });
   });
 });

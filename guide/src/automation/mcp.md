@@ -226,7 +226,11 @@ The agent link lets an assistant see, and if you allow it change, the part you h
 | --- | --- | --- |
 | `bridge_pair` | Gives the one-time pairing code. Calling it again ends any current link. | no |
 | `app_status` | Whether an app is linked and whether changes are allowed. | no |
-| `app_state` | The open part: name, features with their errors, variables, selection and counts. `detail: "full"` adds the whole document. | no |
+| `app_state` | The open part, compact and paged: name, features with their errors, variables, selection and counts, with filters on id, name and type, chosen fields, a cursor, and `sinceRevision` for only what changed. `detail: "full"` adds the whole document. A result over the output budget (4000 characters by default, `maxChars` up to 48000) is summarised with a handle that `fetch_result` pages through. | no |
+| `app_open_asset` | Opens a `.ckpart`, `.solidcraft`, STEP or mesh file in the app by path, from an allow-listed folder, so the file's bytes never travel through the chat. | yes |
+| `app_edit` | Applies a set of edits (add, replace, remove, transform, set a parameter) as one transaction guarded by `expectedRevision`: it is checked step by step and committed as one undo step, or not at all. | yes |
+| `app_interfaces` | The part's interfaces: hole axes and patterns without duplicates, unique planes, contact faces and coordinate frames. | no |
+| `app_job_start`, `app_job_status`, `app_job_cancel`, `app_recipe_list` | Run a long job (a big open, a saved recipe, a batch) in the background, ask how it is going, stop it, and list the saved recipes. | yes |
 | `app_screenshot` | A PNG of the model (`view`, `size`). It is a rendering of the part, not a copy of your screen. | no |
 | `app_bodies`, `app_measure`, `app_clearance`, `app_interference`, `app_thickness`, `app_draft`, `app_dfm` | The same measuring tools as above, asked of the part you have open: bodies, distance, gap, overlap, wall thickness, draft angles and the manufacturing checks. They only read, so they work without the edit box. | no |
 | `app_run_script` | Runs a script on the open part in attach mode: its features are added after yours as **one undo step**, and the app shows a notice. | yes |

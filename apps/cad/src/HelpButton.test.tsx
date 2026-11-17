@@ -114,7 +114,7 @@ describe('where the buttons are', () => {
     expect(r.container.querySelector('.fedit-head [data-help-topic="feature:extrude"]')).not.toBeNull();
   });
   it('the status bar has a global ? for the guide', () => {
-    const r = render(<StatusBar notices={[]} hover={null} busy={false} help={<HelpButton topic="guide" />} />);
+    const r = render(<StatusBar hover={null} busy={false} help={<HelpButton topic="guide" />} />);
     expect(r.container.querySelector('.status [data-help-topic="guide"]')).not.toBeNull();
   });
   it('the sketch bar has a ? for the active tool, and for the sketch with none', () => {

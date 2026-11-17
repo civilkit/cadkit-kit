@@ -68,6 +68,8 @@ export interface Actions {
   fastenHole?: { can(): boolean; open(): void };
   /** Teardrop hole (see TeardropDialog.tsx): enabled when a round hole's wall is selected; `open` shows the dialog for it. */
   teardropHole?: { can(): boolean; open(): void };
+  /** Heat-set seat: the Heat-set insert panel opened on the picked hole. */
+  heatSetSeat?: { can(): boolean; open(): void };
   /** Open the Spring wizard (see SpringWizard.tsx). */
   spring?(): void;
   /** Open the Case wizard (see CaseWizard.tsx). */
@@ -218,6 +220,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.washer) cmds.push({ id: 'add-washer', label: t('cmd.add-washer'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.washer });
   if (a.fastenHole) { const fh = a.fastenHole; cmds.push({ id: 'fasten-hole', label: t('cmd.fasten-hole'), tip: t('tip.fasten-hole'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && fh.can(), why: () => (a.hasDocument() ? t('ctx.fasten.why') : undefined), run: fh.open }); }
   if (a.teardropHole) { const td = a.teardropHole; cmds.push({ id: 'teardrop-hole', label: t('cmd.teardrop-hole'), tip: t('tip.teardrop-hole'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && td.can(), why: () => (a.hasDocument() ? t('ctx.teardrop.why') : undefined), run: td.open }); }
+  if (a.heatSetSeat) { const hs = a.heatSetSeat; cmds.push({ id: 'heat-set-seat', label: t('cmd.heat-set-seat'), tip: t('tip.heat-set-seat'), tab: 'Features', group: 'Create', enabled: () => a.hasDocument() && hs.can(), why: () => (a.hasDocument() ? t('ctx.heatset.why') : undefined), run: hs.open }); }
   if (a.spring) cmds.push({ id: 'add-spring', label: t('cmd.add-spring'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.spring });
   if (a.nut) cmds.push({ id: 'add-nut', label: t('cmd.add-nut'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.nut });
   if (a.standoff) cmds.push({ id: 'add-standoff', label: t('cmd.add-standoff'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.standoff });

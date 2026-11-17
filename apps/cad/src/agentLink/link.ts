@@ -1,11 +1,11 @@
 // The agent link inside the app: the switch the user holds. Off at every start (nothing is remembered, not even the code); it turns
 // on only when the user pastes a pairing code; `allowEdit` is a second, separate box and is off on every connect.
 import { signal, type Signal } from '@preact/signals-core';
-import { BridgeClient, type LinkState } from '@kit/agent-link';
+import { BridgeClient, BridgeError, type LinkState } from '@kit/agent-link';
 import type { BodyRef } from '@kit/readback';
 import type { Controller } from '../controller';
 import { t } from '../i18n';
-import { makeAppHandler } from './appHandlers';
+import { makeAppHandler, type AssetKind, type OpenedAsset } from './appHandlers';
 import { mouldLabels } from '../designCheck';
 import { runAgentScript } from './appRun';
 import { listPlugins, runPluginOnApp } from './appPlugin';
@@ -21,11 +21,45 @@ export interface LinkDeps {
   bodies?: () => BodyRef[];
 }
 
+/** What the page does to open a file for the agent (it knows the tabs, the importers and the dialogs); set by the page once it exists. Throws when the file does not open. */
+export type AssetOpener = (a: { name: string; kind: AssetKind; bytes: Uint8Array; unit?: string }) => Promise<void>;
+
 export function createAgentLink(d: LinkDeps) {
+  let opener: AssetOpener | null = null;
   const state = signal<LinkState>({ state: 'off' });
   const allowEdit = signal(false);
   const { controller: c, store } = d;
+  const client: BridgeClient = new BridgeClient({
+    app: { name: 'CadKit', version: d.version },
+    allowEdit: () => allowEdit.value,
+    handle: (op, args) => handle(op, args),
+    onState: (s) => { state.value = s; if (s.state !== 'connected') allowEdit.value = false; },   // the box never outlives the link
+    onCall: (op, ok) => {
+      // a visible trace of everything that changes the document, and of every failure; plain reads stay quiet
+      if (op === 'plugin_run') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
+      else if (op === 'run_script' || op === 'open_asset' || op === 'edit') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
+      else if (op === 'undo' || op === 'redo') store.notify(t(op === 'undo' ? 'agent.undid' : 'agent.redid'), 'info');
+    },
+  });
   const handle = makeAppHandler({
+    edit: async (expected, ops, reason) => {
+      const r = await c.editIfRevision(expected, ops as never, reason);
+      if ('stale' in r) return { ok: false, stale: true, revision: r.revision };
+      if (r.ok) return { ok: true, warnings: r.refWarnings?.length ?? 0 };
+      return { ok: false, errors: (r.errors ?? []).map(([feature, e]: [string, { code?: string }]) => ({ feature, code: e.code ?? 'error' })), message: r.hints?.map((h: { hint: string }) => h.hint).join('; ') || r.schemaError };
+    },
+    fetchAsset: (h) => client.fetchAsset(h),
+    openAsset: async (a): Promise<OpenedAsset> => {
+      if (!opener) throw new BridgeError('unsupported', 'the app is not ready to open files yet');
+      await opener(a);
+      await c.settled();
+      const doc = c.document();
+      if (!doc || (a.kind !== 'part' && !/^(stl|obj|glb|3mf)$/.test(a.kind) && doc.features.length === 0)) throw new BridgeError('open_failed', 'the file did not open', 'the app shows why in its notices');
+      return { documentId: c.documentId, revision: c.revision, counts: { features: doc.features.length, faces: store.facts.value.faces }, errorCount: store.featureStatus.value.filter((s) => !s.ok).length };
+    },
+    revision: () => c.revision,
+    documentId: () => c.documentId,
+    bounds: () => (c.hasSolid() ? c.bodyBox() : null),
     document: () => c.document() as never,
     selection: () => store.selection.value,
     facts: () => store.facts.value,
@@ -49,21 +83,11 @@ export function createAgentLink(d: LinkDeps) {
       return (await renderSnapshot({ mesh: c.bodyFaces() as never, edges: c.bodyEdges() as never, box: c.bodyBox() as never, ...(cut ? { section: cut as never } : {}) }, { view: view as never, size })).png;
     },
   });
-  const client = new BridgeClient({
-    app: { name: 'CadKit', version: d.version },
-    allowEdit: () => allowEdit.value,
-    handle,
-    onState: (s) => { state.value = s; if (s.state !== 'connected') allowEdit.value = false; },   // the box never outlives the link
-    onCall: (op, ok) => {
-      // a visible trace of everything that changes the document, and of every failure; plain reads stay quiet
-      if (op === 'plugin_run') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
-      else if (op === 'run_script') store.notify(t(ok ? 'agent.ran' : 'agent.failed'), ok ? 'info' : 'warn');
-      else if (op === 'undo' || op === 'redo') store.notify(t(op === 'undo' ? 'agent.undid' : 'agent.redid'), 'info');
-    },
-  });
   if (typeof addEventListener === 'function') addEventListener('pagehide', () => { void client.disconnect(); });
   return {
     state, allowEdit,
+    /** The page says how files are opened for the agent (the importers and tabs live in the page). */
+    setAssetOpener: (f: AssetOpener | null) => { opener = f; },
     /** The service's address and the paired session token while linked (the chat panel reuses them). */
     endpoint: () => client.endpoint,
     connect: (code: string) => client.connect(code),

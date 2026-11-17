@@ -1,7 +1,7 @@
 // The daemon's side of the agent link: pairing, one session, and a request queue the app drains by long polling. It has no HTTP in
 // it (the daemon routes /bridge/* here), so it is tested without a server or a kernel.
 import {
-  BridgeError, CODE_TTL_MS, CONNECTED_MS, EDIT_OPS, MAX_BAD_CODES, POLL_MS, REQUEST_TIMEOUT_MS, formatCode, randomCode, randomHex, sameSecret,
+  ASSET_TTL_MS, BridgeError, CODE_TTL_MS, CONNECTED_MS, EDIT_OPS, LONG_OPS, LONG_REQUEST_TIMEOUT_MS, MAX_BAD_CODES, MAX_STAGED_BYTES, POLL_MS, REQUEST_TIMEOUT_MS, formatCode, randomCode, randomHex, sameSecret,
   type AppInfo, type BridgeOp, type BridgeReply, type BridgeRequest, type HelloReply,
 } from './wire';
 
@@ -24,12 +24,14 @@ export interface BridgeStatus {
 }
 
 interface Session { token: string; app: AppInfo; edit: boolean; lastSeen: number; polling: number; queue: BridgeRequest[]; wake: Array<() => void> }
+interface Staged { session: Session; bytes: Uint8Array; expires: number }
 interface Waiting { resolve(v: unknown): void; reject(e: Error): void; timer: ReturnType<typeof setTimeout>; session: Session }
 
 export class Bridge {
   private code: { value: string; expiresAt: number; bad: number } | null = null;
   private session: Session | null = null;
   private waiting = new Map<string, Waiting>();
+  private staged = new Map<string, Staged>();
   private seq = 0;
   private readonly now: () => number;
   private readonly timeoutMs: number;
@@ -126,8 +128,8 @@ export class Bridge {
     };
   }
 
-  /** Ask the app to do something and wait for its answer. Edits are refused here too when the user has not allowed them. */
-  request(op: BridgeOp, args: Record<string, unknown> = {}): Promise<unknown> {
+  /** Throws what `request` would throw when the app is not linked or the op needs the edit permission, without sending anything (a tool that does work first, such as reading a file, asks this before it starts). */
+  check(op: BridgeOp): void {
     const st = this.status();
     const s = this.session;
     if (!s || !st.connected) {
@@ -138,20 +140,50 @@ export class Bridge {
     if (EDIT_OPS.has(op) && !s.edit) {
       throw new BridgeError('edit_not_allowed', 'the user has not allowed the agent to change this document', 'ask the user to tick "Allow the agent to change this document" in Settings, Agent link; reading (app_state, app_screenshot) works without it');
     }
+  }
+
+  /** Ask the app to do something and wait for its answer. Edits are refused here too when the user has not allowed them. */
+  request(op: BridgeOp, args: Record<string, unknown> = {}, o: { timeoutMs?: number } = {}): Promise<unknown> {
+    this.check(op);
+    const s = this.session!;
     const id = `r${++this.seq}`;
+    const timeoutMs = o.timeoutMs ?? (LONG_OPS.has(op) ? LONG_REQUEST_TIMEOUT_MS : this.timeoutMs);
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.waiting.delete(id);
         s.queue = s.queue.filter((q) => q.id !== id);
-        reject(new BridgeError('app_timeout', `the app did not answer within ${Math.round(this.timeoutMs / 1000)} s`, 'the browser tab may be in the background or busy; try again'));
-      }, this.timeoutMs);
+        reject(new BridgeError('app_timeout', `the app did not answer within ${Math.round(timeoutMs / 1000)} s`, 'the browser tab may be in the background or busy; try again'));
+      }, timeoutMs);
       this.waiting.set(id, { resolve, reject, timer, session: s });
       s.queue.push({ id, op, args });
       for (const w of [...s.wake]) w();
     });
   }
 
-  close(): void { this.dropSession('the daemon is stopping'); this.code = null; }
+  /** Keep `bytes` for the app to fetch once, under a handle only this session can use (a file the agent was allowed to open: it never travels through the model). */
+  stageAsset(bytes: Uint8Array): string {
+    const now = this.now();
+    for (const [h, a] of this.staged) if (a.expires <= now) this.staged.delete(h);
+    let held = 0;
+    for (const a of this.staged.values()) held += a.bytes.length;
+    if (held + bytes.length > MAX_STAGED_BYTES) throw new BridgeError('too_many_assets', 'too many files are waiting for the app to fetch', 'wait for the current open to finish');
+    if (!this.session) throw new BridgeError('app_not_connected', 'no app is linked', 'call bridge_pair first');
+    const handle = randomHex(16);
+    this.staged.set(handle, { session: this.session, bytes, expires: now + ASSET_TTL_MS });
+    return handle;
+  }
+  /** The app takes the staged file: once only, and only the session it was staged for. */
+  takeAsset(token: string, handle: string): Uint8Array {
+    const s = this.requireSession(token);
+    const a = this.staged.get(handle);
+    if (!a || a.session !== s || a.expires <= this.now()) { this.staged.delete(handle); throw new BridgeError('no_asset', 'no such file is waiting (it was taken, it expired, or it is another session\'s)'); }
+    this.staged.delete(handle);
+    return a.bytes;
+  }
+  /** Drop a staged file the app never fetched. */
+  unstageAsset(handle: string): void { this.staged.delete(handle); }
+
+  close(): void { this.dropSession('the daemon is stopping'); this.code = null; this.staged.clear(); }
 
   private requireSession(token: string): Session {
     if (!this.session || !sameSecret(token, this.session.token)) throw new BridgeError('no_session', 'no such session', 'pair again');
@@ -161,6 +193,7 @@ export class Bridge {
     const s = this.session;
     if (!s) return;
     this.session = null;
+    for (const [h, a] of this.staged) if (a.session === s) this.staged.delete(h);
     for (const [id, w] of this.waiting) if (w.session === s) { clearTimeout(w.timer); this.waiting.delete(id); w.reject(new BridgeError('app_disconnected', `the app link ended: ${why}`)); }
     for (const w of [...s.wake]) w();
   }

@@ -15,7 +15,7 @@ export const SLOTS: Record<string, string[]> = {
   thin: ['add-thin-extrude', 'add-thin-cut', 'add-thin-revolve'],
   primitives: ['add-block', 'add-cylinder', 'add-sphere', 'add-cone', 'add-torus', 'add-boss', 'add-slot'],
   solids: ['add-pipe', 'add-coil', 'add-bounding-solid'],
-  hole: ['add-hole', 'add-thread', 'teardrop-hole'],
+  hole: ['add-hole', 'add-thread', 'teardrop-hole', 'heat-set-seat'],
   catalog: ['open-catalog', 'open-variables', 'open-script'],
   'edge-round': ['add-fillet', 'add-chamfer'],
   draft: ['add-draft', 'add-rib', 'add-lip', 'add-dome'],

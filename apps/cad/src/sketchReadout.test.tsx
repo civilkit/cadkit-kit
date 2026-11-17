@@ -10,7 +10,7 @@ afterEach(() => { cleanup(); clearReadout(); readout.model.value = null; });
 
 const bar = (p: Partial<Parameters<typeof SketchReadout>[0]> = {}) => {
   const f = { onSnap: vi.fn(), onGrid: vi.fn(), onSpacing: vi.fn() };
-  const r = render(<StatusBar notices={[]} hover={null} busy={false} sketch={<SketchReadout snapOn gridOn gridBase={0} {...f} {...p} />} />);
+  const r = render(<StatusBar hover={null} busy={false} sketch={<SketchReadout snapOn gridOn gridBase={0} {...f} {...p} />} />);
   return { ...r, ...f };
 };
 
@@ -122,7 +122,7 @@ describe('status bar sketch readout', () => {
     } finally { removeEventListener('keydown', spy); removeEventListener('keyup', spy); }
   });
   it('the model readout shows the point under the pointer and hides when there is none', () => {
-    const { container } = render(<StatusBar notices={[]} hover={null} busy={false} sketch={<ModelReadout />} />);
+    const { container } = render(<StatusBar hover={null} busy={false} sketch={<ModelReadout />} />);
     expect(container.querySelector('.st-coords')).toBeNull();
     act(() => { readout.model.value = [10, 20.25, -3]; });
     expect(container.querySelector('.st-coords')?.textContent).toBe('10.0 mm, 20.3 mm, -3.0 mm');

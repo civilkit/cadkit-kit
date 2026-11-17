@@ -1,0 +1,2 @@
+- Flat faces only: a curved wall takes moveFace.
+- Angle sign: pressPull 3 grows the outline, extrude 3 shrinks it.

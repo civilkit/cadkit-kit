@@ -25,13 +25,14 @@ import { selectionInField } from './listPick';
 import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
 import type { SketchPreviewShape } from '@kit/viewport';
 import {
-  errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, VarsContext, Sheet, BottomNav,
+  errorText, PanelBoundary, BusyOverlay, CommandPalette, type Command, Drawer, FeatureEditor, FeatureTree, HistoryLog, Icon, InlineName, Inspector, Ribbon, Slot, commandToItem, StatusBar, Tip, Toast, NotificationHistory, VarsContext, Sheet, BottomNav,
   type HistoryFilter, type SheetSnap, ToolTray, SPLIT_FRACTION, BROWSE_FRACTION,
 } from '@kit/ui';
 import { setIconSet, SignKey, OverlayHost, type IconSet } from '@kit/ui';
 import { navHidden, railMode, restoreHandles, undoRedoVisible } from './chromeModel';
 import { createWebPlatform, fileText } from '@kit/platform';
 import { Controller, type ViewEdge, type ViewSink } from './controller';
+import { opsFromDraftFor } from './pressPullDraft';
 import { TabSet } from './tabs/tabSet';
 import { StartCard } from './StartHereCard';
 import { showStartCard, isStartDismissed, dismissStart, resetStartDismissal, viewportContentRev, startDismissed } from './startContent';
@@ -131,6 +132,7 @@ import { TrayWizard } from './TrayWizard';
 import { DEFAULT_TRAY, trayIssue, trayOps, type TrayParams } from './tray';
 import { DEFAULT_SPRING, springIssue, springOps, type SpringParams } from './spring';
 import { InsertWizard, NutWizard, StandoffWizard } from './FastenerWizards';
+import { seatParams } from './heatSetSeat';
 import { bodyNames, fastenerIssue, fastenerOps, openFastener as newFastener, type FastenerWizardState } from './fasteners';
 import { DEFAULT_WASHER, washerIssue, washerOps, type WasherParams } from './washer';
 import { holeFromPick, type HoleResult } from './washerHole';
@@ -192,6 +194,7 @@ import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip, SketchRailSections, sketchRibbonGroups } from './SketchToolStrip';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
+import { pluginDocContext } from './pluginDoc';
 import { useSheet } from './sheet/useSheet';
 import { applyCornerPick, cornerSelectionKeep } from './sheet/options';
 import { flangeActions, setSpanPicked } from './sheet/flangeActions';
@@ -572,6 +575,8 @@ function App() {
   const [update, setUpdate] = useState<{ version?: string } | null>(null);   // a newer build was published while this tab was open
   const updateWatch = useRef<UpdateWatch | null>(null);
   const anyDirtyRef = useRef<() => boolean>(() => false);
+  const [alertsOpen, setAlertsOpen] = useState(false);   // the notification history (the status-bar chip and the More menu open it)
+  useEffect(() => { if (alertsOpen) store.alerts.markRead(); }, [alertsOpen, store.alerts.history.value]);   // what is on screen in the history counts as read
   const [installEv, setInstallEv] = useState<InstallEvent | null>(null);   // the browser can install the site as an app: the top bar then shows an Install button (see installPrompt.ts)
   const cleanSig = useRef<string | null>(null);
   const sigCache = useRef(new WeakMap<object, string>());
@@ -804,7 +809,7 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [drawingOpen, setDrawingOpen] = useState(false);
   const [, redraw] = useState(0);
-  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; });
+  useSignals(() => { importing.value; kernelRouter.status.value; kernelRouter.prefs.value; store.busy.value; busyNote.value; store.cached.value; store.hover.value; store.notices.value; store.alerts.history.value; store.alerts.unread.value; store.featureStatus.value; store.featureWarnings.value; store.mode.value; store.filters.value; store.display.value; store.workspace.value; store.facts.value; store.selection.value; lookStore.look.value; lookStore.hidden.value; analysisStore.opts.value; analysisStore.legend.value; asmState.hidden.value; asmState.explode.value; rejections.value; viewportContentRev.value; startDismissed.value; localeSignal.value; layout.value; layoutPref.value; viewportInfo.value; narrowTablet.value; });
   const stored = store.workspace.value;   // what Settings edits and what is saved; the layout draws a variant of it
   const phone = layout.value === 'phone';
   const phoneOrTablet = layout.value !== 'desktop';
@@ -1109,7 +1114,7 @@ function App() {
     setGuard(() => () => forceCloseTab(id));
   };
   /** Run `go` on a fresh document: in the active tab when that is still blank, else in a new tab. Nothing is asked: the current part stays open in its tab. */
-  const guarded = (go: () => void | Promise<void>) => { void (async () => { if (!activeIsBlank() && !(await addTab())) return; await go(); })(); };
+  const guarded = (go: () => void | Promise<void>): Promise<void> => (async () => { if (!activeIsBlank() && !(await addTab())) return; await go(); })();   // fire and forget for the UI; the agent link awaits it
   /** Bring back a stored session: each changed part in a tab of its own (the first may take the blank tab the app starts with), the one that was active shown. */
   const restoreSession = async (a: Autosave) => {
     const parts = sessionParts(a);
@@ -1131,7 +1136,7 @@ function App() {
   /** The `embed` option of a save: the view `v` taken with the document, written as the file's `viewCache` field. */
   const embedOpt = (on: boolean, v: ViewData | null) => (on && v ? { embed: (w: { name: string }) => embedSnapshot(kernelBuild, w, v) } : {});
   const rememberView = () => { const d = controller.document(), v = controller.viewData(); if (d && v) void keepSnapshot(viewCache, kernelBuild, d, v); };
-  const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean; keepView?: boolean } = {}) => {
+  const load = async (text: string, o: { file?: string | null; keep?: boolean; restored?: boolean; keepView?: boolean } = {}): Promise<boolean> => {
     const prevSig = cleanSig.current;
     { const cur = controller.document(); if (cur) void snapshots.note(packDocCached(cur).doc, files.partName ?? cur.name, 'load'); }   // the part being left stays recoverable
     try {
@@ -1165,12 +1170,13 @@ function App() {
       if (!o.keepView) resetStartDismissal(tabSet.activeId);   // a document opened or started in this tab gets its card back
       setEditingId(null); setEditingMaterial(false); setPropWiz(null); setImpWiz(null); setDraft({}); setPicked(null); setPickingPath(null); setPreviewHint(null); setLeftTab('Features');   // an editor left open belongs to the old part
       setSelectedId(null); setRefSel(null); store.select([]); rejections.value = []; viewport?.setSketchEdit(null); redraw((n) => n + 1);
-      store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }));
+      store.notify(t(o.restored ? 'files.restored' : 'app.notice.opened', { name: doc.name || t('app.part.unnamed') }), 'success');
       for (const p of assetProblems) { const k = problemKey(p); store.notify(t(k.key, k.params), 'error'); }
       void warmPackCache(controller.document()).then(() => redraw((n) => n + 1));   // the backups then find the assets packed already
       if (!o.keepView && meshesOf(controller.document()).length) refreshMeshes(true);   // a part of meshes (and sketches on them) has no body to frame: frame the meshes
       if (rejected) store.notify(rejected === 'recipe' ? t('files.cache.rejected.recipe') : rejected === 'build' ? t('files.cache.rejected.build') : rejected === 'version' ? t('files.cache.rejected.version') : t('files.cache.rejected.corrupt'), 'info');
-    } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); }
+      return true;
+    } catch (e) { if (cleanSig.current === null) cleanSig.current = prevSig; store.notify(t('app.notice.openFailed', { message: (e as Error).message }), 'error'); return false; }
   };
   const edit = async (ops: EditOp[]) => {
     await timed(() => controller.edit(ops));
@@ -1347,7 +1353,7 @@ function App() {
         return;
       }
       viewport?.setBodyView(bodyViewNow());
-      store.notify(t('knurl.converted'));
+      store.notify(t('knurl.converted'), 'success');
       redraw((n) => n + 1);
     } finally { store.busy.value = false; }
   };
@@ -1545,7 +1551,7 @@ function App() {
   // ---- files: save, save as, open by type, STEP, drop ----
   const finishSave = (r: Awaited<ReturnType<FileManager['save']>>, saved: PartDoc | null) => {
     if (r.ok) {
-      markClean(saved); if (mayClearAutosave(saved, controller.document())) autosaver.clear(); store.notify(t('files.saved', { file: r.file })); redraw((n) => n + 1);
+      markClean(saved); if (mayClearAutosave(saved, controller.document())) autosaver.clear(); store.notify(t('files.saved', { file: r.file }), 'success'); redraw((n) => n + 1);
       // the view stored beside the file is keyed by the recipe as written (the part name chosen); only when nothing changed meanwhile
       const d = controller.document(), v = controller.viewData();
       if (d && v && d === saved) void keepSnapshot(viewCache, kernelBuild, { ...d, name: r.partName }, v);
@@ -1867,6 +1873,27 @@ function App() {
     else if (kind === 'stl' || kind === 'obj' || kind === 'glb' || kind === '3mf') { if (bytes) void bytes().then((b) => importStlBytes(b, name, kind, mtl)); }
     else store.notify(t('files.drop.unknown', { name }), 'error');
   };
+  // A file the agent asked to open (app_open_asset): the same importers as a drop, awaited. A part, STEP or SolidCraft file opens in a new tab
+  // (the user's part stays as it is); a mesh is added to the open part as a reference mesh. A failure throws, so the agent hears it.
+  agentLink.setAssetOpener(async (a) => {
+    if (a.kind === 'part') {
+      let ok = false;
+      await guarded(async () => { ok = await load(new TextDecoder().decode(a.bytes), { file: a.name }); });
+      if (!ok) throw new Error('the part did not open');
+    } else if (a.kind === 'step') await importStepFeature(new TextDecoder().decode(a.bytes), a.name);
+    else if (a.kind === 'solidcraft') await importSolidcraftBytes(a.bytes, a.name);
+    else {
+      if (!controller.document()) throw new Error('open a part first: a mesh is added to the open part');
+      const kind = a.kind as MeshKind;
+      const r = await probeMesh(kind, a.bytes);
+      if (!r.ok) throw new Error('message' in r ? String(r.message) : t(('mesh.err.' + r.code) as never));
+      const have = meshesOf(controller.document());
+      const unit: StlUnit = a.unit === 'mm' || a.unit === 'cm' || a.unit === 'm' || a.unit === 'in' ? a.unit : r.probe.unitFixed ?? guessUnit(r.probe.size);
+      const { rec } = await buildMeshRecord(kind, a.bytes, a.name, unit, have, null);
+      controller.setUndoableExtra(MESH_KEY, [...have, rec]);
+      refreshMeshes(true); redraw((n) => n + 1);
+    }
+  });
   const dropFiles = (list: File[]) => {
     const plan = planDrop(list.map((f) => f.name));
     if (plan.action === 'none') return;
@@ -1936,6 +1963,7 @@ function App() {
     washer: () => openWasher(),
     fastenHole: { can: () => fastenable().length > 0, open: () => openFasten(fastenable()) },
     teardropHole: { can: () => fastenable().length > 0, open: () => openTeardrop(fastenable()) },
+    heatSetSeat: { can: () => fastenable().length > 0, open: () => openHeatSetSeat(fastenable()) },
     spring: () => openSpring(),
     caseBox: () => openCase(),
     plugins: () => openPlugins(),
@@ -2185,19 +2213,12 @@ function App() {
       void timed(() => controller.commit([asSurfaceOp({ ...editingFeature, ...draft })], 'surfaceExtrude')).then(() => { setDraft({}); setPreviewHint(null); redraw((n) => n + 1); });
     },
     chainEdges: async (eff: Record<string, unknown>) => chainRefs(eff.edges, await controller.edgesBeforeCached(String(eff.id ?? ''))),
+    faceRun: (faces: string[], beforeId?: string) => controller.faceRun(faces, beforeId),
   };
   const opsOne = (f: Record<string, unknown>, id: string, next0: Record<string, unknown>): EditOp[] => {
     const next = f.draftNew ? { ...next0, suppressed: null, draftNew: null } : next0;   // a draft loft (refused when made) becomes real with its first accepted edit
-    // `regions: null` means the default shapes again (every shape but the holes): the field is dropped, which a plain `set` cannot do
-    // (the Hole editor uses the same null-means-remove rule for fields such as a plain `diameter`)
-    if (Object.values(next).some((v) => v === null)) {
-      const feature = { ...f, ...next } as Record<string, unknown>;
-      for (const k of Object.keys(next)) if (next[k] === null) delete feature[k];
-      return JSON.stringify(feature) === JSON.stringify(f) ? [] : [{ op: 'replace' as const, id, feature }];
-    }
-    return Object.entries(next)
-      .filter(([path, value]) => f[path] !== value)
-      .map(([path, value]) => ({ op: 'set' as const, id, path, value }));
+    // a field set to null is removed (`regions: null` means the default shapes again, a plain `set` cannot drop a field) and a changed type is replaced whole: see opsFromDraftFor
+    return opsFromDraftFor(f, id, next);
   };
   // Threads made together (one Shift+T on several faces) are edited together: the draft goes to each of them. The group is read once per editor.
   const groupRef = useRef<{ id: string; ids: string[] } | null>(null);
@@ -3667,7 +3688,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, 'screw'));
     if (!r.ok) { setPreviewHint(t('screw.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
-    store.notify(t('screw.created'));
+    store.notify(t('screw.created'), 'success');
     setScrewWiz(null); setWasherWiz(null); setPreviewHint(null); setLeftTab('Features');
     redraw((n) => n + 1);
   };
@@ -3705,7 +3726,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, "washer"));
     if (!r.ok) { setPreviewHint(t("washer.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
-    store.notify(t("washer.created"));
+    store.notify(t("washer.created"), 'success');
     setWasherWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3735,7 +3756,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, "spring"));
     if (!r.ok) { setPreviewHint(t("spring.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
-    store.notify(t("spring.created"));
+    store.notify(t("spring.created"), 'success');
     setSpringWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3756,7 +3777,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, "case"));
     if (!r.ok) { setPreviewHint(t("case.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
-    store.notify(t("case.created"));
+    store.notify(t("case.created"), 'success');
     setCaseWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3766,7 +3787,7 @@ function App() {
     if (!doc) return null;
     const found = pluginRegistry.find(sel.pluginId, sel.generatorId);
     if (!found || !checkParams(found.decl.params, sel.values).ok) return null;
-    return pluginOps(pluginRegistry, doc as never, sel, scriptHostFor(async () => {}) as never, docUpAxis(doc) ?? loadNavPrefs().upAxis);
+    return pluginOps(pluginRegistry, doc as never, sel, scriptHostFor(async () => {}) as never, docUpAxis(doc) ?? loadNavPrefs().upAxis, pluginDocContext(bodyRowsFor(true), controller.bodyFaces(), [...store.selection.value]));
   };
   const pluginPreview = (sel: PluginSel, delay = 400) => {
     if (pluginTimer.current) clearTimeout(pluginTimer.current);
@@ -3824,7 +3845,7 @@ function App() {
     if (!c.ok) { setPreviewHint(t('plugin.failed', { reason: c.hints?.map((h) => h.hint).join("; ") || (c as { schemaError?: string }).schemaError || "edit failed" })); return; }
     controller.setUndoableExtras(r.extras, { withLastEdit: true });   // colours, body names and the run's record: view state, undone and redone WITH the edit
     viewport?.setBodyView(bodyViewNow());
-    store.notify(t('plugin.created', { name: r.group ?? r.title }));
+    store.notify(t('plugin.created', { name: r.group ?? r.title }), 'success');
     setPluginWiz(null); setPreviewHint(null); setPluginBusy(false); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3845,7 +3866,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, "tray"));
     if (!r.ok) { setPreviewHint(t("tray.failed", { reason: r.hints?.map((h) => h.hint).join("; ") || (r as { schemaError?: string }).schemaError || "edit failed" })); return; }
-    store.notify(t("tray.created"));
+    store.notify(t("tray.created"), 'success');
     setTrayWiz(null); setPreviewHint(null); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3916,6 +3937,21 @@ function App() {
     void controller.cancelPreview();
     setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null); setFastenerWiz(null);
     setFastenWiz({ pick: ref.face, all, selected: found.slice(1), pattern, ix: sc.ix });
+    setLeftTab('Editor');
+  };
+  /** Heat-set seat: the Heat-set insert panel, started from the picked hole (its mouth, its axis, the nearest size). */
+  const openHeatSetSeat = (faces: string[]) => {
+    const sc = holeScanNow();
+    if (!sc) { store.notify(t('fasten.refuse.noGeometry'), 'warn'); return; }
+    const hole = faces.map((f) => readFastenHole(f, sc.ix)).flatMap((r) => (r.ok ? [r.hole] : []))[0];
+    if (!hole) { store.notify(t('seat.refuse.none'), 'warn'); return; }
+    const seat = seatParams(hole);
+    if (!seat.ok) { store.notify(seat.reason === 'axis' ? t('seat.refuse.axis') : t('seat.refuse.none'), 'warn'); return; }
+    if (!store.workspace.value.leftTabs) store.setWorkspace({ leftTabs: true });
+    revealLeft();
+    void controller.cancelPreview();
+    setEditingId(null); setEditingMaterial(false); setDraft({}); setPreviewHint(null); setPropWiz(null); setImpWiz(null); setKnurlWiz(null); setBearingWiz(null); setScrewWiz(null); setWasherWiz(null); setSpringWiz(null);
+    setFastenerWiz({ kind: 'insert', params: seat.params });
     setLeftTab('Editor');
   };
   /** Teardrop hole: read the picked hole and show the dialog for it. */
@@ -4017,7 +4053,7 @@ function App() {
     await controller.cancelPreview();
     const r = await timed(() => controller.commit(ops, 'bearing'));
     if (!r.ok) { setPreviewHint(t('bearing.failed', { reason: r.hints?.map((h) => h.hint).join('; ') || (r as { schemaError?: string }).schemaError || 'edit failed' })); return; }
-    store.notify(t('bearing.created'));
+    store.notify(t('bearing.created'), 'success');
     setBearingWiz(null); setPreviewHint(null); setLeftTab('Features');
     redraw((n) => n + 1);
   };
@@ -4433,7 +4469,7 @@ function App() {
       if (!r.ok) { store.notify(t('library.insert.failed', { title: data.part.title, reason: r.errors.map((e) => `${e.feature}: ${e.code}`).join('; ') }), 'error'); return false; }
       if (r.meshes) refreshMeshes();   // the part's reference meshes came along
       redraw((n) => n + 1);
-      store.notify(t('library.inserted', { title: data.part.title, licence: data.licence ?? t('library.licence.unknown') }));
+      store.notify(t('library.inserted', { title: data.part.title, licence: data.licence ?? t('library.licence.unknown') }), 'success');
       return true;
     },
     openNew: (data, lib) => guarded(async () => { await load(openText(lib, data), { file: null }); }),
@@ -4483,7 +4519,7 @@ function App() {
       if (!opened && shell) await openWhole([]);
       controller.setDocExtra('script', code);
       controller.setDocExtra('scriptSig', featureSig(controller.document()?.features));
-      store.notify(t('script.rebuilt'));
+      store.notify(t('script.rebuilt'), 'success');
       setLeftTab('Variables');   // the load put the panel back on the feature tree: stay where the edit was made
     } finally { store.busy.value = false; scriptRunning = false; }
   };
@@ -4552,7 +4588,7 @@ function App() {
         controller.setDocExtra('scriptSig', featureSig(controller.document()?.features));
         redraw((n) => n + 1);
         setLeftTab('Script');
-        if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }));
+        if (!r.errors.length) store.notify(t('script.done', { count: r.ops.length }), 'success');
         for (const w of r.warnings ?? []) store.notify(`${w.line ? `Line ${w.line}: ` : ''}${w.message}`, 'warn');
         resolve({ errors: r.errors, checks: r.checks ?? [], features: r.ops.length });
       } finally { store.busy.value = false; scriptRunning = false; }
@@ -4808,6 +4844,7 @@ function App() {
   );
   const lay = layoutHandles(store, ws);
   const cmd = (id: string) => commands.find((c) => c.id === id);
+  const toggleAlerts = () => setAlertsOpen((o) => !o);
   const fileItems = ['new-part', 'open', 'save', 'save-as', 'samples', ...EXPORT_KINDS.map((k) => `export-${k}`), 'import-step', 'embed-geometry', 'recover-versions'].flatMap((id) => { const c = cmd(id); return c ? [commandToItem(c)] : []; });
   const docTabs = tabSet.tabs.map((tb): TabInfo => ({ id: tb.id, name: (tb.id === tabSet.activeId ? files.partName : tb.file.partName) ?? tb.controller.document()?.name ?? (tb.id === tabSet.activeId && (store.busy.value || importing.value) ? t('app.opening') : t('app.noPart')), dirty: tabDirty(tb), active: tb.id === tabSet.activeId }));
   const moreItems = [
@@ -4816,6 +4853,7 @@ function App() {
     { id: 'mode-drawing', icon: 'export-dxf-views', label: t('drawing.tab.drawing'), enabled: () => !!doc, pressed: () => drawingOpen, run: () => setDrawingOpen(true) },
     { id: 'rename', icon: 'rename', label: t('cmd.rename'), enabled: () => !!doc, run: () => { if (doc) ti.topRename.begin(); } },
     ...(installEv ? [{ id: 'install', icon: 'save', label: t('app.install.action'), run: () => { const ev = installEv; setInstallEv(null); void ev.prompt().then(() => ev.userChoice).catch(() => { /* closed without choosing */ }); } }] : []),
+    { id: 'alerts', icon: 'feature-generic', label: t('ui.alert.history'), enabled: () => store.alerts.history.value.length > 0, run: () => toggleAlerts() },
     { id: 'settings', icon: 'settings', label: t('app.settings.title'), run: () => setSettings(true) },
     ...(cmd('reset-layout') ? [commandToItem(cmd('reset-layout')!)] : []),
     // the published site's floating Licences and Documentation links are hidden on a phone (they printed over the bottom bar); they are here instead
@@ -4995,7 +5033,6 @@ function App() {
           bottom={<>
         {handles.askEl}
         {handles.hintEl}
-        <Toast notices={store.notices.value} />
         {emptyPart1 ? <StartCard active={refPlane(refSel)} onHover={setRefHover} onSketch={startNewSketch} onClose={() => dismissStart(tabSet.activeId)} /> : null}
           </>}
           status={<>
@@ -5008,9 +5045,11 @@ function App() {
         const h = makeDrawingHost(controller, { save: (n, d, m) => platform.saveFile(n, d, m), notify: (x, l) => store.notify(x, l ?? 'info'), changed: () => redraw((n) => n + 1), close: () => setDrawingOpen(false) });
         return h ? <DrawingWorkspace host={h} /> : null;
       })() : null}
+      <Toast notices={store.notices.value} onDismiss={store.alerts.dismiss} />
+      {alertsOpen ? <NotificationHistory history={store.alerts.history.value} onClose={() => setAlertsOpen(false)} onClear={() => { store.alerts.clearHistory(); setAlertsOpen(false); }} /> : null}
       <HelpHost context={() => helpContext()} />
       <div class="status-wrap">
-        <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} notices={store.notices.value} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
+        <StatusBar help={<HelpButton topic="guide" />} links={siteLinks()} alerts={{ total: store.alerts.history.value.length, unread: store.alerts.unread.value, unreadErrors: store.alerts.unreadErrors.value, open: alertsOpen, onToggle: toggleAlerts }} hover={hoverLabel(store.hover.value)} busy={store.busy.value}
           sketch={sketching ? <><SketchReadout snapOn={sketchPrefs.snapOn} gridOn={sketchPrefs.gridSnap} gridBase={sketchPrefs.gridSpacing}
             onSnap={(on) => updatePrefs({ snapOn: on })} onGrid={(on) => updatePrefs({ gridSnap: on })} onSpacing={(mm) => updatePrefs({ gridSpacing: mm })} onZoom={(pct) => viewport?.setSketchZoom(uppForPercent(pct))} />
             {sketchControls && !chrome.bar ? <SketchNotes hint={sketchControls.hint} selected={sketchControls.selected} onClearSelection={sketchControls.onClearSelection} status={sketchControls.status} list={sketchControls.list} /> : null}</> : <ModelReadout />}

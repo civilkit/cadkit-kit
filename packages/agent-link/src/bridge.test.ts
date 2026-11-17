@@ -151,3 +151,27 @@ describe('an aborted poll', () => {
     expect(next).toHaveLength(1);
   });
 });
+
+describe('staged files (open_asset)', () => {
+  it('are taken once, by the session they were staged for, before they expire', () => {
+    const { b, clock } = mk();
+    const s = pair(b, true);
+    const h = b.stageAsset(new Uint8Array([1, 2, 3]));
+    expect([...b.takeAsset(s, h)]).toEqual([1, 2, 3]);
+    expect(() => b.takeAsset(s, h)).toThrowError(/no such file/);          // once
+    const h2 = b.stageAsset(new Uint8Array([9]));
+    clock.advance(3 * 60_000);
+    expect(() => b.takeAsset(s, h2)).toThrowError(/no such file/);         // expired
+    const h3 = b.stageAsset(new Uint8Array([7]));
+    const s2 = pair(b, true);                                              // another app pairs: the old session's files are gone
+    expect(() => b.takeAsset(s2, h3)).toThrowError(/no such file/);
+    expect(() => b.takeAsset('not-a-session', h3)).toThrowError(/no such session/);
+  });
+  it('need a linked app, and check() says what request() would say without sending anything', () => {
+    const { b } = mk();
+    expect(() => b.stageAsset(new Uint8Array(1))).toThrowError(/no app is linked/);
+    pair(b, false);
+    expect(() => b.check('state')).not.toThrow();
+    try { b.check('open_asset'); expect.unreachable(); } catch (e) { expect(code(e)).toBe('edit_not_allowed'); }
+  });
+});

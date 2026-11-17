@@ -8,6 +8,8 @@ import { splitByPlane } from './enclosure';
 
 type Vec = [number, number, number];
 type Faces = FaceSel | FacesSel;
+/** The taper of a pressPull: straight walls, a draft angle in degrees (outward positive) or an end scale. */
+export type PressPullTaper = { type: 'none' } | { type: 'draft'; angle: Num } | { type: 'scale'; endScale: Num };
 type PlaneArg = Plane | OffsetPlane | PlaneRef | FaceSel | FeatureHandle;
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -89,6 +91,46 @@ export const editFeatures = {
       const f: Record<string, unknown> = { type: 'moveFace', id, faces: ids(faces, ctx, 'moveFace()', line), ...(translate ? { mode: 'translate', translate } : { mode: 'offset', distance: H.ref(o.distance as Num) }) };
       if (o.flip) f.flip = true;
       return [{ op: 'add', feature: f }];
+    } });
+    return this;
+  },
+
+  /**
+   * Press Pull: continue a flat face straight out of the part, or into it.
+   *
+   * Positive distance joins a piece out of the material, negative removes one going into it (0 is refused). The moved end keeps the face's name; new walls are `<id>.S.<tag>`. The option `taper` is { type: 'draft', angle } in degrees (-85 to 85, outward positive, the opposite sign of extrude's) or { type: 'scale', endScale } about the face's area centre. Flat faces only (pressPullUnsupported otherwise; moveFace handles curved ones). A run that closes to a point fails with draftTooLarge, a run through the body with moveFaceFailed (maxSize gives the largest distance); the part is left as it was.
+   * @domain features
+   * @param faces face(sel) or faces(sel) of flat faces; a `~k` split family continues every piece
+   * @param o.distance mm along the outward normal (positive joins, negative removes, not 0), or an expression
+   * @param o.taper `{ type: 'draft', angle }` or `{ type: 'scale', endScale }`; omit for straight
+   * @example
+   * part('Block').sketch('front', (s) => s.rect(40, 20)).extrude(10)
+   *   .pressPull(face('>Z'), { distance: 8, taper: { type: 'scale', endScale: 1.2 } });
+   * @see part.moveFace, part.draft, part.extrude
+   */
+  pressPull(this: PartBuilder, faces: Faces, o: { distance: Num; taper?: PressPullTaper }): PartBuilder {
+    const line = H.callerLine();
+    const usage = 'pressPull(faces, { distance, taper? })';
+    if (!isObj(o) || o.distance === undefined || (typeof o.distance === 'number' && (!Number.isFinite(o.distance) || o.distance === 0)) || (typeof o.distance !== 'number' && typeof o.distance !== 'string')) {
+      throw new H.SelectorError(`${usage}: distance is required, a number of mm (positive adds material, negative cuts, not 0) or an expression`, line);
+    }
+    let taper: Record<string, unknown> | undefined;
+    if (o.taper !== undefined) {
+      const tp = o.taper as unknown as Record<string, unknown>;
+      if (!isObj(tp) || typeof tp.type !== 'string') throw new H.SelectorError(`${usage}: taper is { type: 'none' } | { type: 'draft', angle } | { type: 'scale', endScale }`, line);
+      if (tp.type === 'draft') {
+        const a = tp.angle;
+        if ((typeof a !== 'number' && typeof a !== 'string') || (typeof a === 'number' && !(Math.abs(a) <= 85))) throw new H.SelectorError(`${usage}: a draft taper needs angle between -85 and 85 degrees (outward positive)`, line);
+        taper = { type: 'draft', angle: H.ref(a as Num) };
+      } else if (tp.type === 'scale') {
+        const e = tp.endScale;
+        if ((typeof e !== 'number' && typeof e !== 'string') || (typeof e === 'number' && !(e > 0))) throw new H.SelectorError(`${usage}: a scale taper needs endScale above 0 (1 = no change, 2 = twice the face at the far end)`, line);
+        taper = { type: 'scale', endScale: H.ref(e as Num) };
+      } else if (tp.type !== 'none') throw new H.SelectorError(`${usage}: taper type '${tp.type}' is not known; use 'none', 'draft' or 'scale'`, line);
+    }
+    this.steps.push({ line, label: 'pressPull', run: (ctx) => {
+      const id = ctx.nextId(); ctx.lastFeature = id;
+      return [{ op: 'add', feature: { type: 'pressPull', id, faces: ids(faces, ctx, 'pressPull()', line), continue: 'straight', distance: H.ref(o.distance), ...(taper ? { taper } : {}) } }];
     } });
     return this;
   },

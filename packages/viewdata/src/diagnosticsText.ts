@@ -4,6 +4,12 @@ import type { DiagConsequence, DiagRoot, Diagnosis } from './errorSummary';
 
 const trimDot = (s: string): string => s.trim().replace(/[.\s]+$/, '');
 
+/** The depth at which a taper closes to a point, when the kernel names it (`maxHeight` of a round face), to two decimals. */
+const tipHeight = (params: Record<string, unknown> | null | undefined): number | null => {
+  const h = params?.maxHeight;
+  return typeof h === 'number' && Number.isFinite(h) && h > 0 ? Math.round(h * 100) / 100 : null;
+};
+
 /** Why the root failed, as a clause: the kernel's own detail when it gave one, else a short phrase for the code. */
 /** Fillet and chamfer refusals: the kernel's detail ("F3.B0: spring leaves its face away from its edges") is jargon alone, so the plain phrase leads and the detail follows. */
 const ROUNDING = /^(blend|chamfer)|^filletChamfer$/;
@@ -13,9 +19,13 @@ export function reasonOf(r: DiagRoot): string {
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.reason.knurl.fixed') : t('diag.reason.knurl.face');
   if (r.openLine) return t('diag.reason.noClosedProfile.openLine');
   const detail = typeof r.params?.detail === 'string' ? r.params.detail : '';
+  const tip = r.code === 'draftTooLarge' ? tipHeight(r.params) : null;   // the kernel's own sentence carries the height to 15 digits
+  if (tip !== null) return t('diag.reason.draftTooLarge.height', { h: String(tip) });
   const known = t('diag.reason.' + r.code, undefined, '');
   if (detail && known && ROUNDING.test(r.code)) return `${known} (${trimDot(detail)})`;
-  if (detail) return trimDot(detail);
+  // the kernel's own advice on a refusal ("use either a draft angle or an end scale") follows its sentence
+  const advice = typeof r.params?.hint === 'string' ? trimDot(r.params.hint) : '';
+  if (detail) return advice && !detail.includes(advice) ? `${trimDot(detail)}; ${advice}` : trimDot(detail);
   if (known) return known;
   return r.code.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
 }
@@ -51,6 +61,8 @@ export function adviceOf(r: DiagRoot): string {
   if (r.seat) return r.seat === 'fixed' ? t('diag.advice.seat.fixed') : t('diag.advice.seat.face');
   if (r.knurl) return r.knurl === 'fixed' ? t('diag.advice.knurl.fixed') : t('diag.advice.knurl.face');
   if (r.openLine) return t('diag.advice.noClosedProfile.openLine');
+  const tip = r.code === 'draftTooLarge' ? tipHeight(r.params) : null;
+  if (tip !== null) return t('diag.advice.draftTooLarge.height', { h: String(tip) });
   const advice = t('diag.advice.' + r.code, undefined, t('diag.advice.generic'));
   const max = maxSizeOf(r.params);
   return max ? `${t('diag.advice.maxSize', { size: maxSizeText(max) })} ${advice}` : advice;

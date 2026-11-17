@@ -120,6 +120,24 @@ describe('size box selection and layout', () => {
     expect(shapeSelection(d, ['FL.B0'], 'face', null)).toBeNull();
     expect(ownerShape(d, 'H1.S.h1')).toBe('H1');
   });
+  it('a piece of a split face is a face of the body, not of its shape: picking it shows no size box (whose move pad moves the whole extrude)', () => {
+    const base = doc();
+    const split = { ...base, features: [...base.features, { type: 'splitLine', id: 'F9', faces: ['F2.C1'], plane: { kind: 'std', id: 'right' } }] } as never;
+    expect(shapeSelection(split, ['F2.C1~1'], 'face', null)).toBeNull();
+    expect(shapeSelection(split, ['F2.C1~2'], 'face', null)).toBeNull();
+    expect(shapeSelection(split, ['F2.C1~1', 'F2.S.e1'], 'face', null)).toBeNull();
+    expect(ownerShape(split, 'F2.C1~2')).toBeNull();
+    // a split again: the pieces of a piece
+    const again = { ...base, features: [...(split as { features: unknown[] }).features, { type: 'splitLine', id: 'F10', faces: ['F2.C1~2'], plane: { kind: 'std', id: 'front' } }] } as never;
+    expect(ownerShape(again, 'F2.C1~2~1')).toBeNull();
+    // the faces the split did not touch, and a suppressed split, still select their shape
+    expect(shapeSelection(split, ['F2.S.e1'], 'face', null)).toBe('F2');
+    const off = { ...base, features: [...base.features, { type: 'splitLine', id: 'F9', suppressed: true, faces: ['F2.C1'] }] } as never;
+    expect(ownerShape(off, 'F2.C1~1')).toBe('F2');
+    // a ~k from any other cut is still a face of the shape
+    expect(ownerShape(base, 'F2.S.e1~0')).toBe('F2');
+    expect(shapeSelection(base, ['F2.C1'], 'face', null)).toBe('F2');
+  });
   it('layout: a box, six face handles, four corners, the anchor and three labels for a blind extrude', () => {
     const s = shape('F2');
     const ids = layout(s, s.box, { mode: 'opposite' }).map((x) => x.id);

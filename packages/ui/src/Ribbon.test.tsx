@@ -61,21 +61,14 @@ describe('Ribbon label mode', () => {
 });
 
 describe('StatusBar', () => {
-  it('shows the last notice and Busy when busy', () => {
-    const { container } = render(
-      <StatusBar
-        notices={[{ id: 1, text: 'older', level: 'info' }, { id: 2, text: 'Selection lost: F2.C1', level: 'warn' }]}
-        hover={null}
-        busy={true}
-      />,
-    );
-    expect(container.textContent).toContain('Selection lost: F2.C1');
-    expect(container.textContent).not.toContain('older');
+  it('shows Busy when busy and a short alerts chip, never the message itself', () => {
+    const { container } = render(<StatusBar alerts={{ total: 2, unread: 2, unreadErrors: 1, open: false, onToggle: () => {} }} hover={null} busy={true} />);
     expect(container.textContent).toContain('Busy');
+    expect(container.querySelector('.st-alerts b.err')!.textContent).toBe('2');
   });
 
   it('shows the hover name and no Busy when idle', () => {
-    const { container } = render(<StatusBar notices={[]} hover="F2.S.e1" busy={false} />);
+    const { container } = render(<StatusBar hover="F2.S.e1" busy={false} />);
     expect(container.textContent).toContain('F2.S.e1');
     expect(container.textContent).not.toContain('Busy');
   });

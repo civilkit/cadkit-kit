@@ -1541,6 +1541,12 @@
        "description": "taper angle in degrees"
       },
       {
+       "name": "endScale",
+       "type": "number",
+       "optional": true,
+       "description": "scale of the profile at the far end (1 = none, 2 = twice the size, 0.5 = half): a taper of the whole outline about the sketch origin; not with draft"
+      },
+      {
        "name": "thin",
        "type": "ThinOpt",
        "optional": true,
@@ -1869,6 +1875,12 @@
        "description": "taper angle in degrees"
       },
       {
+       "name": "endScale",
+       "type": "number",
+       "optional": true,
+       "description": "scale of the profile at the far end (1 = none, 2 = twice the size, 0.5 = half): a taper of the whole outline about the sketch origin; not with draft"
+      },
+      {
        "name": "thin",
        "type": "ThinOpt",
        "optional": true,
@@ -1898,7 +1910,7 @@
    "domain": "features",
    "signature": ".feature(json: Record<string, unknown>)",
    "summary": "Append any kernel feature as raw JSON (escape hatch for features without a helper).",
-   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve, frame); draft, moveFace, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
+   "description": "Validates json.type against the kernel's feature list, assigns the id and adds the feature after the previous step. face(sel) inside the JSON becomes the persistent face name (or a { kind: 'face', id } reference under plane / neutral / axis), edges(sel) becomes the edge references (spliced into arrays), at(plane, offset) becomes a reference plane feature, and the strings '$last' and '$sketch' stand for the id of the previous feature / sketch. Use it for a type without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve, frame); draft, moveFace, pressPull, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods, so prefer those. dome is not built in the kernel. Field names are the kernel's (docs/spec-agent-interface.md).",
    "parameters": [
     {
      "name": "json",
@@ -1913,7 +1925,7 @@
     "face",
     "edges"
    ],
-   "notes": "- Escape hatch for kernel types without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve; draft, moveFace, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods; dome is not built). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.\n- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.\n- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call."
+   "notes": "- Escape hatch for kernel types without a helper (surface features such as fill, trimSurface, extend, pipeCut, projectCurve; draft, moveFace, pressPull, lip, scale, split, deleteBody, deleteFace, helix, axis, sphere and moveBody have typed methods; dome is not built). The type is checked against the kernel's list; field names are the kernel's, see docs/spec-agent-interface.md.\n- face(sel) becomes the persistent face name ({ kind: 'face', id } under plane / neutral / axis); edges(sel) the edge references; '$last' / '$sketch' the id of the previous feature / sketch. Do not guess feature ids by hand: they depend on the number of sketches and planes before.\n- A raw feature after the script's own steps is replayed like any other step; errors carry the line of the feature() call."
   },
   {
    "id": "part.fillet",
@@ -2699,6 +2711,49 @@
     "screw",
     "part.thread"
    ]
+  },
+  {
+   "id": "part.pressPull",
+   "kind": "method",
+   "domain": "features",
+   "signature": ".pressPull(faces: Faces, o: { distance: Num; taper?: PressPullTaper })",
+   "summary": "Press Pull: continue a flat face straight out of the part, or into it.",
+   "description": "Positive distance joins a piece out of the material, negative removes one going into it (0 is refused). The moved end keeps the face's name; new walls are `<id>.S.<tag>`. The option `taper` is { type: 'draft', angle } in degrees (-85 to 85, outward positive, the opposite sign of extrude's) or { type: 'scale', endScale } about the face's area centre. Flat faces only (pressPullUnsupported otherwise; moveFace handles curved ones). A run that closes to a point fails with draftTooLarge, a run through the body with moveFaceFailed (maxSize gives the largest distance); the part is left as it was.",
+   "parameters": [
+    {
+     "name": "faces",
+     "type": "Faces",
+     "optional": false,
+     "description": "face(sel) or faces(sel) of flat faces; a `~k` split family continues every piece"
+    },
+    {
+     "name": "o",
+     "type": "{ distance: Num; taper?: PressPullTaper }",
+     "optional": false,
+     "description": "options object, see properties",
+     "properties": [
+      {
+       "name": "distance",
+       "type": "Num",
+       "optional": false,
+       "description": "mm along the outward normal (positive joins, negative removes, not 0), or an expression"
+      },
+      {
+       "name": "taper",
+       "type": "PressPullTaper",
+       "optional": true,
+       "description": "`{ type: 'draft', angle }` or `{ type: 'scale', endScale }`; omit for straight"
+      }
+     ]
+    }
+   ],
+   "example": "part('Block').sketch('front', (s) => s.rect(40, 20)).extrude(10)\n  .pressPull(face('>Z'), { distance: 8, taper: { type: 'scale', endScale: 1.2 } });",
+   "related": [
+    "part.moveFace",
+    "part.draft",
+    "part.extrude"
+   ],
+   "notes": "- Flat faces only: a curved wall takes moveFace.\n- Angle sign: pressPull 3 grows the outline, extrude 3 shrinks it."
   },
   {
    "id": "part.refold",

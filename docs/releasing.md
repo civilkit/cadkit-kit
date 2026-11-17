@@ -21,7 +21,7 @@ change that stops old files opening MAJOR. The document format has its own numbe
 1b. Rename the `Unreleased` key in `docs/whats-new/highlights.json` to the new version (commit it) BEFORE running the release script: the script does not do it, and a page generated without it shows the release with no highlights (this happened with 0.6.3 and needed a re-tag). Give the kernel tag a `--kernel-ref <hash>` of the commit the gated wasm was built from, since kernel main may have moved on.
 2. `node tools/release.mjs minor --dry-run` shows the version, the number of entries and the notes it would write.
 3. `node tools/release.mjs minor --kernel-repo /path/to/kernel-checkout` (or `patch`, `major`, or an explicit `X.Y.Z`):
-   runs the i18n check, moves Unreleased under `## X.Y.Z - date`, bumps `package.json`, commits `Release X.Y.Z`, tags `vX.Y.Z`
+   runs the i18n check and `npm audit --omit=dev --audit-level=high` (a high or critical advisory in what ships stops the release; it needs the network, `--no-checks` skips both), moves Unreleased under `## X.Y.Z - date`, bumps `package.json`, commits `Release X.Y.Z`, tags `vX.Y.Z`
    (the tag message holds the notes) and tags the kernel checkout's HEAD with the same `vX.Y.Z`. Nothing is pushed or deployed.
 4. Push the tags to `ci`, build the pages (`PAGES_OUT=dist-pages-civilkit/cad WASM_SRC=<wasm> CK_REBUILD=<kernel> npm run build:pages`),
    smoke-test it (`node tools/pages_smoke.mjs dist-pages-civilkit/cad --profile <dir>`) and deploy as in `docs/pages-deploy.md`.

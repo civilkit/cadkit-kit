@@ -46,7 +46,8 @@ const notes = `## ${next} - ${date}\n\n${body}\n`;
 console.log(`release ${pkg.version} -> ${next} (${date}): ${entries} changelog entries`);
 
 if (!flag('--no-checks')) {
-  for (const [name, cmd, args] of [['i18n', 'node', ['tools/i18n_check.mjs']]]) {
+  // the audit needs the network (the npm advisory database); `--no-checks` skips it. High and critical advisories in what ships stop the release.
+  for (const [name, cmd, args] of [['i18n', 'node', ['tools/i18n_check.mjs']], ['dependency audit', 'npm', ['audit', '--omit=dev', '--audit-level=high']]]) {
     const r = spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
     if (r.status !== 0) die(`${name} check failed:\n${(r.stdout + r.stderr).split('\n').slice(-12).join('\n')}`);
     console.log(`check ok: ${name}`);

@@ -1,4 +1,26 @@
 {
+  "0.8.2": [
+    {
+      "id": "extrude-end-scale",
+      "title": "Extrude can taper the whole outline",
+      "blurb": "In the Extrude editor, End scale scales the outline to a factor at the far end, so 0.5 ends at half size. It works on any profile, holes included, and with blind, mid-plane and flip ends."
+    },
+    {
+      "id": "press-pull-straight",
+      "title": "Press Pull continues a face straight, with a taper",
+      "blurb": "Pick a flat face, choose Continue: Straight and a distance: a positive one adds a piece, a negative one cuts one. Add a Draft angle or an End scale and the panel shows the wall angle it makes."
+    },
+    {
+      "id": "heat-set-seat",
+      "title": "Heat-set seat on a hole",
+      "blurb": "Pick a round hole and choose Heat-set seat: the insert panel opens with the insert at the hole's mouth, along its axis, in the size whose hole is nearest."
+    },
+    {
+      "id": "alerts",
+      "title": "Messages appear once, in one tidy stack",
+      "blurb": "Messages stack at the bottom right, wrap long text with Show more and Copy, stay long enough to read and pause while you hover. The status bar shows an Alerts count; click it for the last 50."
+    }
+  ],
   "0.8.1": [
     {
       "id": "z-up-default",

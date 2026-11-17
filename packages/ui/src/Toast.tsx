@@ -1,42 +1,70 @@
 import type { JSX } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
-import type { Notice } from '@kit/store';
-import { MAX_TOASTS, visibleToasts, type ToastEntry } from './overlayLayout';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { noticeDuration, type Notice, type NoticeLevel } from '@kit/store';
+import { t } from './i18n';
+import { copyText } from './clipboard';
 
-/** The toast stack (the overlay layer's bottom-centre region): at most `max` at a time, the rest queue and show as room frees up; identical messages merge into one with a
- *  count; errors jump the queue and stay longer; each auto-dismisses (3 s, 6 s for an error, 7 s with an action) and can be dismissed by tapping its text.
- *  `ms` overrides how long each stays. */
-export function Toast(p: { notices: Notice[]; max?: number; ms?: number; now?: () => number }): JSX.Element | null {
-  const now = p.now ?? Date.now;
-  // a notice without a timestamp lives from the moment it was first seen
-  const firstSeen = useRef(new Map<number, number>());
-  const entries: ToastEntry[] = p.notices.map((n) => { if (!firstSeen.current.has(n.id)) firstSeen.current.set(n.id, now()); return { ...n, at: n.at ?? firstSeen.current.get(n.id)! }; });
-  const [dismissed, setDismissed] = useState<ReadonlySet<number>>(new Set());
-  const [, tick] = useState(0);
-  const { shown } = visibleToasts(entries, now(), { max: p.max ?? MAX_TOASTS, dismissed, ...(p.ms ? { ttl: p.ms } : {}) });
-  // re-evaluate while anything is live: when a toast expires the next queued one takes its place
-  const live = entries.some((n) => now() - n.at! < (p.ms ?? 7000));
+/** Past this many characters a message is collapsed to three lines with a Show more button (the measured overflow decides too, where the browser can measure). */
+export const TOAST_LONG = 150;
+
+const ICON: Record<NoticeLevel, string> = { info: 'i', success: '✓', warning: '!', error: '✕' };
+
+function ToastItem(p: { n: Notice; onDismiss(id: number): void }): JSX.Element {
+  const { n } = p;
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [overflow, setOverflow] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const text = useRef<HTMLSpanElement>(null);
+  // The timer: it runs only while nothing hovers or focuses the toast, resumes with what is left, and restarts when an identical message merges in (rev).
+  const left = useRef(noticeDuration(n.level, n.text, !!n.action));
+  useEffect(() => { left.current = noticeDuration(n.level, n.text, !!n.action); }, [n.rev, n.level, n.text, !!n.action]);
   useEffect(() => {
-    if (!live) return;
-    const t = setInterval(() => tick((n) => n + 1), 400);
-    return () => clearInterval(t);
-  }, [live]);
-  if (!shown.length) return null;
-  const dismiss = (ids: number[]) => setDismissed((d) => new Set([...d, ...ids]));
+    if (paused) return;
+    const t0 = Date.now();
+    const h = setTimeout(() => p.onDismiss(n.id), Math.max(0, left.current));
+    return () => { clearTimeout(h); left.current -= Date.now() - t0; };
+  }, [paused, n.rev, n.id]);
+  useLayoutEffect(() => { const el = text.current; if (el && !open) setOverflow(el.scrollHeight > el.clientHeight + 1); }, [n.text, open]);
+  const long = n.text.length > TOAST_LONG || overflow;
+  const act = n.action;
   return (
-    <div class="toast-stack" role="status" aria-live="polite">
-      {shown.map((last) => {
-        const icon = last.level === 'error' ? '✕' : last.level === 'warn' ? '!' : '✓';
-        const same = p.notices.filter((n) => n.text === last.text && n.level === last.level).map((n) => n.id);
-        return (
-          <div key={last.id} class={'toast ' + last.level}>
-            <span class="toast-icon">{icon}</span>
-            <span class="toast-text" onClick={() => dismiss(same)}>{last.text}</span>
-            {(last.count ?? 1) > 1 ? <span class="toast-count" aria-label={`${last.count} times`}>×{last.count}</span> : null}
-            {last.action ? <button class="toast-act" onClick={() => { last.action!.run(); dismiss(same); }}>{last.action.label}</button> : null}
+    <div class={'toast ' + n.level + (open ? ' open' : '')} role={n.level === 'error' ? 'alert' : 'status'} data-level={n.level}
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
+      <span class="toast-icon" aria-hidden="true">{ICON[n.level]}</span>
+      <div class="toast-body">
+        <span class={'toast-text' + (long && !open ? ' clamp' : '')} ref={text}>{n.text}</span>
+        {n.count > 1 ? <span class="toast-count" aria-label={t('ui.alert.times', { count: n.count })}>{'×'}{n.count}</span> : null}
+        {long || act || n.level === 'error' ? (
+          <div class="toast-actions">
+            {act ? <button type="button" class="toast-act" onClick={() => { act.run(); p.onDismiss(n.id); }}>{act.label}</button> : null}
+            {long ? <button type="button" class="toast-more" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? t('ui.alert.less') : t('ui.alert.more')}</button> : null}
+            {n.level === 'error' ? <button type="button" class="toast-copy" onClick={async () => { if (await copyText(n.text)) { setCopied(true); setTimeout(() => setCopied(false), 1500); } }}>{copied ? t('ui.alert.copied') : t('ui.alert.copy')}</button> : null}
           </div>
-        );
-      })}
+        ) : null}
+      </div>
+      <button type="button" class="toast-close" aria-label={t('ui.alert.close')} title={t('ui.alert.close')} onClick={() => p.onDismiss(n.id)}>{'×'}</button>
     </div>
   );
+}
+
+/** The toast stack: one column in a fixed corner of the window (never over the model centre), newest at the bottom. Messages wrap, long ones collapse to three lines
+ *  (Show more opens them in place; an error also has Copy), each has a close button, Esc closes the newest, hovering or focusing a toast holds its timer, and an
+ *  identical message merges into the toast showing with a count. Errors and warnings are announced assertively (role=alert) and stay until closed or a long timeout. */
+export function Toast(p: { notices: Notice[]; onDismiss(id: number): void }): JSX.Element | null {
+  const newest = p.notices.at(-1)?.id;
+  // Esc closes the newest toast, unless something else already took the key or the user is typing
+  useEffect(() => {
+    if (newest === undefined) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      p.onDismiss(newest);
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [newest, p.onDismiss]);
+  if (!p.notices.length) return null;
+  return <div class="toast-stack" data-testid="toast-stack">{p.notices.map((n) => <ToastItem key={n.id} n={n} onDismiss={p.onDismiss} />)}</div>;
 }

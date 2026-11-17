@@ -53,6 +53,15 @@ function Field(p: { f: FormField; values: Values; set(name: string, v: string | 
         <span class="fedit-num">
           <input {...numberAttrs(kindForMin(d.min))} type="number" step={d.step ?? (d.type === 'integer' ? 1 : 'any')} min={d.min} max={d.max} value={value === undefined ? '' : String(value)}
             placeholder={auto || d.optional ? t('plugin.auto') : undefined} aria-label={label(d)} title={d.optional ? `${tip(d) ?? ''} ${t('plugin.autoTip')}`.trim() : tip(d)}
+            // Every keystroke that makes a number is kept at once (a number field that only reported on `change`, when it lost focus, was overwritten by the form's
+            // re-render after the PREVIOUS field's late update: the first digit typed into the next field vanished). Emptying the field, and a half-typed "-" or ".",
+            // wait for `change`, so typing is never cut short.
+            onInput={(e) => {
+              const raw = (e.currentTarget as HTMLInputElement).value.trim();
+              if (raw === '') return;
+              const v = Number(raw);
+              if (Number.isFinite(v)) p.set(d.name, v);
+            }}
             onChange={(e) => {
               const raw = (e.currentTarget as HTMLInputElement).value.trim();
               if (raw === '') { if (d.optional) p.set(d.name, undefined); return; }

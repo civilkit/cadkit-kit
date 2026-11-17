@@ -6,7 +6,7 @@
 //   | canvas-left  |        top-center  (notices, busy)            | canvas-right |
 //   |  (undo card, |                                               |  (view cube, |
 //   |  tool column)|                                               |   Display)   |
-//   |              |        bottom-center (toasts, hints)          |              |
+//   |              |        bottom-center (hints)                 |              |
 //   |              |        bottom-left   (status pills, readouts) |              |
 //   +--------------------------------------------------------------+
 
@@ -124,29 +124,4 @@ export function layoutOverlays(canvas: Rect, items: OverlayItem[], o: RegionOpti
       if (take(it, { x: r.x + (r.w - w) / 2, y: top, w, h: it.h }, it.w <= r.w + 0.5 && top >= r.y)) y = top - gap;
     } }
   return out;
-}
-
-// ---- toasts: a bounded, de-duplicated queue
-
-export interface ToastEntry { id: number; text: string; level: string; at?: number; action?: { label: string; run(): void }; count?: number }
-export const MAX_TOASTS = 3;
-export const toastTtl = (n: { level: string; action?: unknown }): number => (n.action ? 7000 : n.level === 'error' ? 6000 : n.level === 'warn' ? 4500 : 3000);
-
-/** The toasts to show at `now`: notices that arrived since `seen` and have not expired, identical consecutive messages merged into one with a count, newest last,
- *  at most `max` visible (the older ones wait and are shown, in order, as room frees up). `dismissed` ids never show. */
-export function visibleToasts(notices: ToastEntry[], now: number, o: { max?: number; dismissed?: ReadonlySet<number>; since?: number; ttl?: number } = {}): { shown: ToastEntry[]; queued: number } {
-  const max = o.max ?? MAX_TOASTS;
-  const live = notices.filter((n) => n.id > (o.since ?? 0) && !o.dismissed?.has(n.id) && now - (n.at ?? now) < (o.ttl ?? toastTtl(n)));
-  // de-duplicate: the same text and level collapses into one entry (the newest, with the count)
-  const merged: ToastEntry[] = [];
-  for (const n of live) {
-    const i = merged.findIndex((m) => m.text === n.text && m.level === n.level && !m.action && !n.action);
-    if (i >= 0) merged[i] = { ...n, count: (merged[i].count ?? 1) + 1 }; else merged.push({ ...n, count: 1 });
-  }
-  merged.sort((a, b) => a.id - b.id);
-  // the oldest ones show first and the rest queue, so nothing is skipped; errors jump the queue
-  const err = merged.filter((m) => m.level === 'error'), rest = merged.filter((m) => m.level !== 'error');
-  const order = [...err, ...rest];
-  const shown = order.slice(0, max).sort((a, b) => a.id - b.id);
-  return { shown, queued: Math.max(0, order.length - max) };
 }

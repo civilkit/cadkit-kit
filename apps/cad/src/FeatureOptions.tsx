@@ -4,13 +4,14 @@
 // the shape list. Only fields the kernel really reads are offered.
 import { cutFromPatch, nextBodyName, opChoiceOf, opChoices, opPatch, targetBodiesOf, targetBodyOf, targetPatch } from './extrudeOp';
 import { usedBodyNames } from './bodyOps';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, ExprInput, Icon, fmtNum, type OptionsArgs, type OptionsResult, numberAttrs, textAttrs } from '@kit/ui';
 import { t } from './i18n';
 import {
-  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
+  CHAMFER_TYPES, FILLET_PROFILES, chamferTypeOf, endAllowsDraft, endNeedsDepth, endAllowsTwist, endAllowsEndScale, endScaleOf, patchEndScale, endNeedsObject, endOf, endsFor, filletFullRound, filletProfileOf, filletVariable, FULL_ROUND_FACES, managedPaths, patchFilletFullRound, patchTwist, patchTwistCentre, twistCentreOf, twistOf,
+  PRESS_CONTINUES, TAPER_TYPES, patchContinue, patchTaperAngle, patchTaperScale, patchTaperType, pressContinueEnabled, pressContinueOf, pressHasContinue, scaleTaperAngle, taperAngleOf, taperScaleOf, taperTypeOf, type PressContinue, type TaperType,
   objectRefChoices, objectRefPatch, objectRefValue, patchChamferType, patchDraft, patchEnd, patchFilletProfile, patchFilletVariable, patchRadii, patchStart,
   planeBaseChoices, planeBasePatch, planeBaseValue, radiiOf, startAllowed, startOf,
   type ChamferType, type EndCondition, type FilletProfile, type FullRoundFace, type StartCondition,
@@ -191,6 +192,55 @@ function MoveBodyOptions(p: { eff: Wire; change: Change; doc: PartDoc | null }):
       {eff.rotate && typeof eff.rotate === 'object' && Number((eff.rotate as { angle?: unknown }).angle) !== 0 ? <RefText name="rotate" label={t('opt.move.turned')} text={moveSummary({ rotate: eff.rotate })} /> : null}
       <Check name="copy" label={t('opt.move.copy')} value={copy} onChange={(v) => change(v ? { copy: true, body: typeof eff.body === 'string' && eff.body ? eff.body : nextBodyName(otherBodyNames(p.doc, eff)) } : { copy: null, body: null })} />
       {copy ? <BodyNameField eff={eff} change={change} /> : null}
+    </Section>
+  );
+}
+
+/** What the kernel's faceRun says about one flat face (the part the Press Pull readout uses). */
+export interface FaceRunItem { face?: string; found?: boolean; flat?: boolean; reach?: number; area?: number }
+
+const CONTINUE_LABEL: Record<PressContinue, () => string> = { offset: () => t('opt.pressPull.offset'), straight: () => t('opt.pressPull.straight'), along: () => t('opt.pressPull.along') };
+const TAPER_LABEL: Record<TaperType, () => string> = { none: () => t('opt.pressPull.taper.none'), draft: () => t('opt.pressPull.taper.draft'), scale: () => t('opt.pressPull.taper.scale') };
+
+/**
+ * Press Pull: Continue Offset (a moveFace, today's behaviour, its own generic fields) or Straight (a pressPull: the flat face continued as if extruded, with
+ * a distance and an optional draft or scale taper). Along the walls is listed but cannot be chosen yet. Choosing Offset or Straight converts the feature
+ * (moveFace <-> pressPull) and keeps the faces and the distance. A scale taper shows the angle it makes with the walls, from the face's reach (faceRun).
+ */
+function PressPullOptions(p: { eff: Wire; change: Change; actions?: ThinActions }): JSX.Element {
+  const { eff, change } = p;
+  const straight = eff.type === 'pressPull';
+  const taper = taperTypeOf(eff);
+  const faces = Array.isArray(eff.faces) ? eff.faces.filter((f): f is string => typeof f === 'string') : [];
+  const [reach, setReach] = useState<number | null | undefined>(undefined);
+  const needReach = straight && taper === 'scale' && faces.length > 0 && !!p.actions?.faceRun;
+  const key = faces.join(',') + '|' + String(eff.id ?? '');
+  useEffect(() => {
+    if (!needReach) { setReach(undefined); return; }
+    let live = true;
+    p.actions!.faceRun!(faces, typeof eff.id === 'string' ? eff.id : undefined)
+      .then((items) => { if (live) { const rs = (items ?? []).filter((i) => i.found !== false && i.flat !== false && typeof i.reach === 'number').map((i) => i.reach as number); setReach(rs.length ? Math.max(...rs) : null); } })
+      .catch(() => { if (live) setReach(null); });
+    return () => { live = false; };
+  }, [needReach, key]);
+  const deg = needReach && typeof reach === 'number' ? scaleTaperAngle(reach, taperScaleOf(eff), eff.distance) : null;
+  return (
+    <Section id="pressPull" title={t('opt.pressPull.title')}>
+      {pressHasContinue(eff) ? (
+        <label class="fedit-fld" data-path="continue">
+          <span class="fedit-fld-label">{t('opt.pressPull.continue')}</span>
+          <select value={pressContinueOf(eff)} onChange={(e) => { const patch = patchContinue(eff, (e.currentTarget as HTMLSelectElement).value as PressContinue); if (patch) change(patch); }}>
+            {PRESS_CONTINUES.map((c) => <option key={c} value={c} disabled={!pressContinueEnabled(c)}>{CONTINUE_LABEL[c]()}</option>)}
+          </select>
+        </label>
+      ) : null}
+      {straight ? <>
+        <Num name="distance" label={t('opt.pressPull.distance')} value={eff.distance} unit="mm" onChange={(v) => change({ distance: v })} />
+        <Select name="taper" label={t('opt.pressPull.taper')} value={taper} options={TAPER_TYPES.map((x) => [x, TAPER_LABEL[x]()] as [string, string])} onChange={(v) => change(patchTaperType(eff, v as TaperType))} />
+        {taper === 'draft' ? <Num name="taper.angle" label={t('opt.pressPull.angle')} value={taperAngleOf(eff)} unit="°" plain onChange={(v) => change(patchTaperAngle(v))} /> : null}
+        {taper === 'scale' ? <Num name="taper.endScale" label={t('opt.pressPull.endScale')} value={taperScaleOf(eff)} unit="×" plain onChange={(v) => change(patchTaperScale(v))} /> : null}
+        {taper === 'scale' && needReach && reach !== undefined && deg !== null ? <RefText name="taper.readout" label={t('opt.pressPull.readout')} text={`${Math.round(deg * 100) / 100}°`} /> : null}
+      </> : null}
     </Section>
   );
 }
@@ -377,11 +427,14 @@ function ExtrudeOptions(p: { eff: Wire; change: Change; pickingPath?: string | n
       </Section>
       <Section id="options" title={t('opt.section.options')}>
         {end !== 'mid' && end !== 'throughBoth' ? <Check name="flip" label={t('opt.flip')} value={eff.flip} onChange={(v) => change({ flip: v ? true : null })} /> : null}
-        {!p.revolve && endAllowsDraft(end) && twistOf(eff) === 0 ? <>
+        {!p.revolve && endAllowsDraft(end) && twistOf(eff) === 0 && endScaleOf(eff) === 1 ? <>
           <Num name="draft" label={t('opt.draft')} value={draftAngle} unit="°" plain onChange={(v) => change(patchDraft(eff, Number(v)))} />
           {draftAngle > 0 ? <Check name="draftOut" label={t('opt.draftOut')} value={eff.draftOut} onChange={(v) => change({ draftOut: v ? true : null })} /> : null}
         </> : null}
-        {!p.revolve && endAllowsTwist(end) && draftAngle === 0 ? <>
+        {!p.revolve && endAllowsEndScale(end) && draftAngle === 0 && twistOf(eff) === 0 ? (
+          <Num name="endScale" label={t('opt.endScale')} value={endScaleOf(eff)} unit="×" plain onChange={(v) => change(patchEndScale(v))} />
+        ) : null}
+        {!p.revolve && endAllowsTwist(end) && draftAngle === 0 && endScaleOf(eff) === 1 ? <>
           <Num name="twist" label={t('opt.twist')} value={twistOf(eff)} unit="°" onChange={(v) => change(patchTwist(eff, v))} />
           {twistOf(eff) !== 0 ? <>
             <Num name="twistCentreX" label={t('opt.twistCentreX')} value={twistCentreOf(eff)[0]} unit="mm" plain onChange={(v) => change(patchTwistCentre(eff, 0, Number(v)))} />
@@ -407,6 +460,8 @@ export interface ThinActions {
   cutProblem?: 'nothing' | 'miss' | null;
   /** Fillet / chamfer: the feature's edge list with the edges that continue it tangentially, read on the body it is applied to (null: nothing to add). */
   chainEdges?(eff: Wire): Promise<unknown[] | null>;
+  /** Press Pull: the kernel's faceRun of flat faces as they are before the feature `beforeId` (reach and area of each), for the scale taper's angle readout. */
+  faceRun?(faces: string[], beforeId?: string): Promise<FaceRunItem[] | null>;
 }
 
 const ARCH = 'M3 14 Q12 0 21 14';
@@ -1164,6 +1219,7 @@ export function optionsFor(a: OptionsArgs & { eff: Wire }, doc: PartDoc | null =
     case 'scale': return { hide, node: <ScaleOptions {...common} /> };
     case 'split': return { hide, node: <SplitOptions {...common} doc={doc} /> };
     case 'lipJoint': return { hide, node: <LipJointOptions {...common} doc={doc} /> };
+    case 'moveFace': case 'pressPull': return !pressHasContinue(a.eff) ? null :  { hide, node: <PressPullOptions {...common} actions={actions} /> };
     case 'moveBody': return { hide, node: <MoveBodyOptions {...common} doc={doc} /> };
     case 'deleteBody': return { hide, node: <DeleteBodyOptions eff={a.eff} /> };
     case 'fill': return { hide, node: <FillOptions {...common} /> };

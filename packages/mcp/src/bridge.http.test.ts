@@ -29,7 +29,7 @@ const rpc = async (d: Daemon, name: string, args: unknown = {}) => {
   const r = await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }) });
   const j = (await r.json()) as { result: { isError?: boolean; content: Array<{ type: string; text?: string; data?: string }> } };
   const first = j.result.content.find((c) => c.type === 'text' && c.text?.startsWith('{')) ?? j.result.content[0];
-  return { isError: !!j.result.isError, body: first?.text?.startsWith('{') ? JSON.parse(first.text) : first?.text, content: j.result.content };
+  return { isError: !!j.result.isError, body: first?.text?.startsWith('{') ? JSON.parse(first.text) : first?.text, content: j.result.content, raw: first?.text ?? '' };
 };
 /** a raw request, so a test can set Host and Origin as a browser would */
 const raw = (port: number, path: string, o: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, unknown>; text: string }> =>
@@ -259,17 +259,17 @@ describe('the measurement tools reach the open app', () => {
     await app.connect(await pairCode(d));
     const listed = await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
     const names = ((await listed.json()) as { result: { tools: Array<{ name: string }> } }).result.tools.map((t) => t.name);
-    for (const n of ['app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm', 'app_section']) expect(names, n).toContain(n);
+    for (const n of ['app_bodies', 'app_measure', 'app_clearance', 'app_interference', 'app_thickness', 'app_draft', 'app_dfm', 'app_section', 'app_interfaces']) expect(names, n).toContain(n);
     const m = await rpc(d, 'app_measure', { a: 'Base', b: 'Peg' });
     expect(m.isError).toBe(false);
     expect(m.body).toMatchObject({ ok: true, distance: 15, op: 'measure' });
     expect(m.body.summary).toBeUndefined();
     expect(m.content[0]).toMatchObject({ type: 'text', text: 'measure done' });
-    for (const [tool, args] of [['app_clearance', { required: 0.2 }], ['app_interference', {}], ['app_thickness', { min: 1 }], ['app_draft', { pull: '+Z' }], ['app_dfm', { process: 'injection' }], ['app_bodies', {}]] as const) {
+    for (const [tool, args] of [['app_clearance', { required: 0.2 }], ['app_interference', {}], ['app_thickness', { min: 1 }], ['app_draft', { pull: '+Z' }], ['app_dfm', { process: 'injection' }], ['app_bodies', {}], ['app_interfaces', { kinds: ['holes'], component: 'Base', precision: 2 }]] as const) {
       const r = await rpc(d, tool, args);
       expect(r.isError, tool).toBe(false);
     }
-    expect(seen.map((x) => x[0])).toEqual(['measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'bodies']);
+    expect(seen.map((x) => x[0])).toEqual(['measure', 'clearance', 'interference', 'thickness', 'draft', 'dfm', 'bodies', 'interfaces']);
     expect(seen[0][1]).toEqual({ a: 'Base', b: 'Peg' });
   });
 
@@ -286,5 +286,111 @@ describe('the measurement tools reach the open app', () => {
     const r = await rpc(d, 'app_thickness', {});
     expect(r.body.error).toMatchObject({ code: 'no_body', hint: 'build something first' });
     expect(asked).toBe(1);
+  });
+});
+
+describe('app_state arguments', () => {
+  it('the filter, fields, paging and revision arguments reach the app unchanged; bad ones are refused before it', async () => {
+    const d = await boot();
+    const seen: Array<Record<string, unknown>> = [];
+    const app = appClient({ handle: async (op, args) => { seen.push(args); return { open: true, revision: 4, totalCount: 0, returnedCount: 0, features: [] }; } });
+    await app.connect(await pairCode(d));
+    const args = { ids: ['F1'], query: 'pad', types: ['extrude'], fields: ['type', 'params'], limit: 10, cursor: 'abc', sinceRevision: 3, includeBlobs: true };
+    expect((await rpc(d, 'app_state', args)).body).toMatchObject({ ok: true, revision: 4 });
+    expect(seen).toEqual([args]);
+    for (const bad of [{ limit: 0 }, { limit: 501 }, { fields: ['colour'] }, { sinceRevision: -1 }, { ids: 'F1' }, { detail: 'huge' }]) {
+      const r = await rpc(d, 'app_state', bad);
+      expect(r.body.error.code, JSON.stringify(bad)).toBe('bad_input');
+    }
+    expect(seen).toHaveLength(1);
+  });
+});
+
+describe('the output budget', () => {
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `F${i}`, type: 'extrude', name: `Feature number ${i}` }));
+  const huge = { open: true, features: rows(600), name: 'Big' };
+
+  it('a big result comes back as a summary with a handle, not a silent cut; fetch_result and the resource give the rest', async () => {
+    const d = await boot();
+    const seen: Array<Record<string, unknown>> = [];
+    const app = appClient({ handle: async (_op, args) => { seen.push(args); return huge; } });
+    await app.connect(await pairCode(d));
+    const r = await rpc(d, 'app_state', { detail: 'summary' });
+    expect(r.raw.length).toBeLessThanOrEqual(4000);
+    expect(r.body).toMatchObject({ ok: true, name: 'Big', _budget: { exceeded: true, maxChars: 4000, fetch: { tool: 'fetch_result' } } });
+    const handle = r.body._budget.handle as string;
+    expect(seen).toEqual([{ detail: 'summary' }]);                       // maxChars never reaches the app
+    // a part of it by path, an array page by items, and the text by characters
+    const one = await rpc(d, 'fetch_result', { handle, path: 'features.599' });
+    expect(one.body.value).toEqual({ id: 'F599', type: 'extrude', name: 'Feature number 599' });
+    const page = await rpc(d, 'fetch_result', { handle, path: 'features', offset: 500, limit: 100, maxChars: 20000 });
+    expect(page.body).toMatchObject({ total: 600, offset: 500, returned: 100 });
+    const fits = await rpc(d, 'fetch_result', { handle, path: 'features', offset: 0, limit: 100 });     // at the default budget a page is made smaller so it fits, and says where it ends
+    expect(fits.raw.length).toBeLessThanOrEqual(4000); expect(fits.body.returned).toBeLessThan(100); expect(fits.body.nextOffset).toBe(fits.body.returned);
+    expect(page.body.items[99].id).toBe('F599');
+    const text = await rpc(d, 'fetch_result', { handle, offset: 0, limit: 600 });
+    expect(text.body.text.startsWith('{')).toBe(true); expect(text.body.nextOffset).toBe(600);
+    // the resource
+    const res = await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: `ck://result/${handle}` } }) });
+    const body = (await res.json()) as { result: { contents: Array<{ text: string }> } };
+    expect(JSON.parse(body.result.contents[0].text)).toEqual({ ok: true, ...huge });
+    // an unknown handle and a bad path are errors with a hint
+    expect((await rpc(d, 'fetch_result', { handle: 'nope' })).body.error.code).toBe('no_such_result');
+    expect((await rpc(d, 'fetch_result', { handle, path: 'nothing' })).body.error.code).toBe('bad_path');
+  });
+
+  it('maxChars raises or lowers the budget per call within 500..48000, and a result that fits is returned whole', async () => {
+    const d = await boot();
+    const app = appClient({ handle: async () => ({ open: true, features: rows(120) }) });
+    await app.connect(await pairCode(d));
+    const dflt = await rpc(d, 'app_state', { detail: 'summary' });
+    expect(dflt.body._budget).toMatchObject({ exceeded: true });
+    const wide = await rpc(d, 'app_state', { detail: 'summary', maxChars: 48000 });
+    expect(wide.body._budget).toBeUndefined();
+    expect(wide.body.features).toHaveLength(120);
+    expect(JSON.parse((await rpc(d, 'app_state', { detail: 'summary', maxChars: 1000 })).raw).features.length).toBeLessThan(JSON.parse(dflt.raw).features.length);
+    for (const bad of [100, 60000]) expect((await rpc(d, 'app_state', { maxChars: bad })).body.error.code).toBe('bad_input');
+    expect((await rpc(d, 'app_status', {})).body).toMatchObject({ ok: true });
+  });
+
+  it('the tool list carries the budget argument and fetch_result, and is the same list every time', async () => {
+    const d = await boot();
+    const list = async () => ((await (await fetch(`http://127.0.0.1:${d.port}/rpc`, { method: 'POST', headers: { authorization: `Bearer ${d.token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) })).json()) as { result: { tools: Array<{ name: string; inputSchema: { properties?: Record<string, unknown> } }> } }).result.tools;
+    const a = await list(), b = await list();
+    expect(a).toEqual(b);
+    expect(a.find((t) => t.name === 'fetch_result')).toBeTruthy();
+    expect(a.find((t) => t.name === 'app_state')!.inputSchema.properties).toHaveProperty('maxChars');
+    expect(a.find((t) => t.name === 'app_status')!.inputSchema.properties).not.toHaveProperty('maxChars');
+  });
+});
+
+describe('app_edit', () => {
+  const ops = [{ op: 'setParam', id: 'F2', path: 'depth', value: 14 }, { op: 'add', feature: { type: 'extrude' } }];
+  it('needs the edit permission (the app never sees the call), validates its input, and passes the transaction and the app\'s errors through', async () => {
+    const d = await boot();
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    let edit = false;
+    const app = appClient({
+      edit: () => edit,
+      handle: async (op, args) => {
+        seen.push([op, args]);
+        if (args.expectedRevision === 1) throw new BridgeError('stale_revision', 'the document changed', 'read app_state with sinceRevision');
+        return { revision: 6, documentId: 'd1', changedIds: ['F2', 'F4'], addedIds: ['F4'], removedIds: [], validation: { errorCount: 0, errors: [], warnings: 0 } };
+      },
+    });
+    await app.connect(await pairCode(d));
+    expect((await rpc(d, 'app_edit', { expectedRevision: 5, ops })).body.error.code).toBe('edit_not_allowed');
+    expect(seen).toEqual([]);
+    edit = true; app.permissionChanged(); await new Promise((r) => setTimeout(r, 100));
+    for (const bad of [{ ops }, { expectedRevision: 5 }, { expectedRevision: 5, ops: [] }, { expectedRevision: -1, ops }, { expectedRevision: 5, ops: [{ id: 'F2' }] }, { expectedRevision: 5, ops: [{ op: 'explode' }] }, { expectedRevision: 5, ops: [{ op: 'remove', id: 'F2', colour: 'red' }] }]) {
+      expect((await rpc(d, 'app_edit', bad)).body.error.code, JSON.stringify(bad)).toBe('bad_input');
+    }
+    expect(seen).toEqual([]);
+    const ok = await rpc(d, 'app_edit', { expectedRevision: 5, reason: 'longer', ops });
+    expect(ok.body).toMatchObject({ ok: true, revision: 6, changedIds: ['F2', 'F4'], addedIds: ['F4'], validation: { errorCount: 0 } });
+    expect(seen).toEqual([['edit', { expectedRevision: 5, reason: 'longer', ops }]]);
+    const stale = await rpc(d, 'app_edit', { expectedRevision: 1, ops });
+    expect(stale.isError).toBe(true);
+    expect(stale.body.error).toMatchObject({ code: 'stale_revision', hint: 'read app_state with sinceRevision' });
   });
 });

@@ -3,6 +3,7 @@
 import type { GenerateFn, InstalledPlugin } from '@kit/plugin';
 import { runPlugin, type Loaded } from './host';
 import { Interpreter, type Scratch } from './interpreter';
+import { friendlyPluginError } from './errors';
 
 /** How a package's compiled files become a component: tests load from disk, the app from a blob URL in the sandboxed Worker. */
 export interface ComponentLoader { load(p: InstalledPlugin): Promise<Loaded> }
@@ -50,12 +51,14 @@ export function wasmGenerators(p: InstalledPlugin, deps: WasmDeps = {}): Record<
   const allow = new Set(w.commands);
   return Object.fromEntries(p.manifest.contributes.generators.map((g) => [g.id, async (values, ctx) => {
     if (!deps.runner) loaded ??= loader.load(p);
-    const scratch: Scratch = deps.scratch?.() ?? { async build() { throw new Error('this plugin asked to measure the model, which needs the scratch build'); } };
+    const scratch: Scratch = ctx.scratch ?? deps.scratch?.() ?? { async build() { throw new Error('this plugin asked to measure the model, which needs the scratch build'); } };
     const { place_x = 0, place_y = 0, place_z = 0, ...own } = values as Record<string, unknown>;   // Position is the app's, not the plugin's
-    const I = new Interpreter(scratch);
+    const I = new Interpreter(scratch, { ...(ctx.up ? { up: ctx.up } : {}), ...(ctx.doc ? { doc: { ...ctx.doc, bodies: [...ctx.doc.bodies], selection: [...ctx.doc.selection], ...(ctx.up ? { up: ctx.up } : {}) } } : {}) });
     const limits = { deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256 };
+    try {
     if (deps.runner) await deps.runner(p, g.entry!, own, (c, a) => I.run(c, a), limits);
     else await runPlugin(await loaded!, g.entry!, own, (c, a) => I.run(c, a), { allow, deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256, sync: (c, a) => I.runSync(c, a) });
+    } catch (e) { throw new Error(friendlyPluginError((e as Error).message)); }
     if (!I.order.length) throw new Error('the plugin made no geometry');
     return I.script({ part: g.title, ...(ctx.up ? { up: ctx.up } : {}), offset: [Number(place_x), Number(place_y), Number(place_z)], ...(deps.look ? { look: deps.look } : {}) });
   }]));

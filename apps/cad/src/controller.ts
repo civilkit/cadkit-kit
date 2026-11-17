@@ -14,7 +14,7 @@ import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type Thre
 import { buildFolder, frozenPart, FOLDER_TAG, type FolderFormat } from './folderExport';
 import { bakedDoc, recordsInFaces, type FaceFact } from './exportKnurl';
 import type { BakeCache } from './bakeCache';
-import { queryInterference, queryMass, queryMeasure, type Interference } from './inspect/kernel';
+import { queryInterference, queryMass, queryMeasure, type FaceRunItem, type Interference } from './inspect/kernel';
 import type { LumpInfo } from './bodies';
 import { namesBodies } from './bodyOps';
 import { drawingQuery } from './drawing/kernel';
@@ -35,6 +35,7 @@ import { setDocFields, type DocPatch } from './docFields';
 import { cosmeticOnly, LABEL_BUSY_MS } from './cosmeticOps';
 import { isSheetFeature, type SheetEntry } from './sheet/model';
 import './sheet/register';
+import './pressPullType';
 import { watchComponents, partMassProps, type AsmComponent, type AsmExtra } from './assembly/kernel';
 import type { ViewData } from './files/viewCache';
 import { DocFontPool, type FontProblem, type FontResult } from './docFonts';
@@ -106,6 +107,7 @@ function lumpsOf(body: Record<string, unknown>): { faceLumps?: Record<string, nu
   return { faceLumps };
 }
 
+let docIdSeq = 0;
 export class Controller {
   private readonly store: Store;
   private readonly view: ViewSink;
@@ -200,6 +202,7 @@ export class Controller {
       const { fonts: docFonts, meshes: _meshes, ...forKernel } = doc as PartDoc & { fonts?: unknown; meshes?: unknown };
       const reset = () => {
         // viewer-state fields kept in the file: the exploded view and the drawing sheet
+        this.documentId = `d${++docIdSeq}-${Math.random().toString(36).slice(2, 8)}`;
         this.docExtra = {}; this.extraRev++;
         for (const k of ['explode', 'drawing', 'script', 'scriptSig', 'appearance', 'faceAppearance', 'bodyNames', 'view', 'sources', 'cosmeticKnurls', 'meshes', 'pluginRuns']) { const v = (doc as unknown as Record<string, unknown>)[k]; if (v) this.docExtra[k] = structuredClone(v); }
         this.rollbackAnchor = null; this.rejected = null; this.lastIds = []; this.docName = null; this.material = null; this.materialSteps = []; this.redoStack = []; this.docSteps.clear();
@@ -586,9 +589,14 @@ export class Controller {
       return r.ok ? limitsOf((r.result as { limits?: unknown } | undefined)?.limits) : new Map();
     } catch { return new Map(); }
   }
+  /** The tips of the tapered extrudes: a Press Pull that closes to a point has no depth to lower (its distance and angle are refused with the kernel's own limit instead). */
+  private extrudeTips(errors: Parameters<typeof tipErrors>[0]): Tip[] {
+    const types = new Map((this.sdoc().features as unknown as Array<{ id?: string; type?: string }>).map((f) => [f.id, f.type]));
+    return tipErrors(errors).filter((x) => types.get(x.feature) !== 'pressPull');
+  }
   /** The edit of a document that opens past the tip (or whose edit moved the tip under the height): the height goes to the tip. */
   private async repairTip(): Promise<void> {
-    const tips = tipErrors(this.lastErrors);
+    const tips = this.extrudeTips(this.lastErrors);
     if (!tips.length) return;
     const r = await this.edit(tips.map((x) => ({ op: 'set', id: x.feature, path: 'depth', value: x.maxHeight }) as EditOp), 'tip');
     if (r.ok) this.setTipNote(tips[0]);
@@ -598,6 +606,10 @@ export class Controller {
   buildErrors(): ReadonlyArray<[string, { code?: string; params?: Record<string, unknown> }]> { return this.lastErrors; }
 
   edit(ops: EditOp[], reason?: string): Promise<EditResult> { return this.serial(() => this.editNow(ops, reason)); }
+  /** `edit`, but only if the document is still at `expected` (the revision the caller read): checked inside the same queue, so nothing can slip between the check and the edit. */
+  editIfRevision(expected: number, ops: EditOp[], reason?: string): Promise<EditResult | { stale: true; revision: number }> {
+    return this.serial(async () => (this.revision !== expected ? { stale: true as const, revision: this.revision } : this.editNow(ops, reason)));
+  }
 
   private async editNow(ops: EditOp[], reason?: string, retried = false): Promise<EditResult> {
     const s = this.session;
@@ -640,7 +652,7 @@ export class Controller {
         this.snap = null;
       }
       if (!result.ok && !retried) {
-        const tips = tipErrors(result.errors);
+        const tips = this.extrudeTips(result.errors);
         const ang = tips.find((x) => editsDraft(asked, x.feature));
         if (ang) {
           // the angle was changed so far that the tip is below the height: the height stays and the limit is reported (the angle edit is refused)
@@ -1507,8 +1519,11 @@ export class Controller {
     }
   }
 
-  /** Counts the documents shown so far; a design-check result carries the number it was made for and is stale once it moves. */
+  /** Counts the documents shown so far (every successful edit, patch, undo, redo and load: `refresh()` adds one); a design-check result carries the
+   *  number it was made for and is stale once it moves. The agent link reports it as the document revision (docs/specs/mcp-token-efficiency-2026-11-16.md). */
   revision = 0;
+  /** Names the document that is open: a new one is made at every `load`, so an agent can tell that the document was replaced (same revision numbers, other part). */
+  documentId = '';
   private profileList: ProfileList | null = null;
 
   /** The built-in design-rule profiles and their rule parameters (asked once, then kept). Null without a document or on a kernel error. */
@@ -1678,6 +1693,25 @@ export class Controller {
   massProps(): Promise<MassRaw | null> { return this.inspect((s) => queryMass(s)); }
   /** The kernel's measurement of one or two faces / edges. */
   measure(refs: Array<Record<string, unknown>>): Promise<KernelMeasure | null> { return this.inspect((s) => queryMeasure(s, refs)); }
+  /**
+   * The kernel's faceRun of flat faces (flat, centre, normal, reach, area, and the extrude / revolve / sweep each is the end of): as the faces are before the
+   * feature `beforeId` when it is in the document (built on a scratch tag, so an already tapered Press Pull does not change its own reach), else on the shown
+   * body. Null without a document or when the kernel has no faceRun.
+   */
+  async faceRun(faces: string[], beforeId?: string): Promise<FaceRunItem[] | null> {
+    if (this.realLoad) await this.whenReal();
+    const k = this.transport();
+    if (!k || !this.hasDoc() || !faces.length) return null;
+    const d = this.sdoc();
+    const at = beforeId ? d.features.findIndex((f) => f.id === beforeId) : -1;
+    let tag = this.session ? this.previewTagOf(this.session) : this.scratchTag;
+    try {
+      if (at >= 0) { tag = `${this.scratchTag}-run`; await this.scratchBuild({ ...d, features: d.features.slice(0, at), rollback: null } as PartDoc, false, tag); }
+      const r = await k.request({ tag, type: 'faceRun', faces });
+      if (r.trap || !r.ok) return null;
+      return ((r.result as { items?: FaceRunItem[] } | undefined)?.items) ?? null;
+    } catch { return null; }
+  }
   /** Pairs of solid bodies that share volume. */
   interference(): Promise<Interference | null> { return this.inspect((s) => queryInterference(s)); }
 

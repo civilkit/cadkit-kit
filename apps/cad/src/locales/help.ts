@@ -176,6 +176,8 @@ export const helpStrings: Record<string, string | Record<string, string>> = {
   'help.feature.scale.sum': 'Pick a body and set a factor to make it larger or smaller.',
   'help.feature.moveFace.name': 'Move face',
   'help.feature.moveFace.sum': 'Drag a flat face with the handles to push or pull it, or type the distance.',
+  'help.feature.pressPull.name': 'Press pull',
+  'help.feature.pressPull.sum': 'Continue a flat face straight out of the part, or into it, with an optional draft or scale taper.',
   'help.feature.moveBody.name': 'Move body',
   'help.feature.moveBody.sum': 'Use the move and rotate ball, or type values, to place a whole body.',
   'help.feature.trimSurface.name': 'Trim surface',

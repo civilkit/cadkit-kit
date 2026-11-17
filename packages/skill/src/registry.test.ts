@@ -66,7 +66,7 @@ describe('listMethods and docs', () => {
     expect(r.unknown).toEqual([]);
     const ex = r.entries[0];
     expect(ex.signature).toContain('.extrude(depth: Num');
-    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['newBody', 'name', 'from', 'mid', 'symmetric', 'flip', 'draft', 'thin', 'direction']);
+    expect(ex.parameters.find((p) => p.name === 'o')!.properties!.map((p) => p.name)).toEqual(['newBody', 'name', 'from', 'mid', 'symmetric', 'flip', 'draft', 'endScale', 'thin', 'direction']);
     expect(ex.example).toContain('extrude');
     expect(ex.related).toContain('part.cut');
     expect(ex.notes).toContain('consumes the sketch');

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { REGION_IDS, lowerRight, keyboardOverlap, layoutOverlays, overlappingPairs, rectsIntersect, regionRects, reservedFrom, visibleToasts, type OverlayItem, type Rect, type ToastEntry } from './overlayLayout';
+import { REGION_IDS, lowerRight, keyboardOverlap, layoutOverlays, overlappingPairs, rectsIntersect, regionRects, reservedFrom, type OverlayItem, type Rect } from './overlayLayout';
 
 const VIEWPORTS: Array<[string, Rect, { left: number; right: number; rightBottom: number; bottom: number }]> = [
   ['phone', { x: 0, y: 0, w: 390, h: 640 }, { left: 0, right: 150, rightBottom: 0, bottom: 70 }],
@@ -89,31 +89,5 @@ describe('overlay regions', () => {
   it('rectsIntersect ignores shared edges', () => {
     expect(rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 10, y: 0, w: 10, h: 10 })).toBe(false);
     expect(rectsIntersect({ x: 0, y: 0, w: 10, h: 10 }, { x: 5, y: 5, w: 10, h: 10 })).toBe(true);
-  });
-});
-
-describe('toast queue', () => {
-  const n = (id: number, text: string, level = 'info', at = 1000): ToastEntry => ({ id, text, level, at });
-  it('shows at most N, queues the rest and shows them as the earlier ones expire', () => {
-    const list = [n(1, 'a'), n(2, 'b'), n(3, 'c'), n(4, 'd'), n(5, 'e')];
-    const t0 = visibleToasts(list, 1100, { max: 3 });
-    expect(t0.shown.map((x) => x.text)).toEqual(['a', 'b', 'c']); expect(t0.queued).toBe(2);
-    expect(visibleToasts(list, 5000).shown).toEqual([]);   // all expired
-  });
-  it('merges identical messages into one with a count (an action toast is never merged)', () => {
-    const t = visibleToasts([n(1, 'Saved'), n(2, 'Saved'), n(3, 'Saved'), n(4, 'Other')], 1100);
-    expect(t.shown.map((x) => [x.text, x.count])).toEqual([['Saved', 3], ['Other', 1]]);
-    const act = { label: 'Undo', run() {} };
-    expect(visibleToasts([{ ...n(1, 'Deleted'), action: act }, { ...n(2, 'Deleted'), action: act }], 1100).shown.length).toBe(2);
-  });
-  it('errors jump the queue and last longer than info', () => {
-    const list = [n(1, 'a'), n(2, 'b'), n(3, 'c'), n(4, 'd'), n(5, 'boom', 'error')];
-    expect(visibleToasts(list, 1100, { max: 3 }).shown.map((x) => x.text)).toContain('boom');
-    expect(visibleToasts([n(1, 'x', 'error')], 1000 + 5000).shown.length).toBe(1);
-    expect(visibleToasts([n(1, 'x', 'info')], 1000 + 5000).shown.length).toBe(0);
-  });
-  it('dismissed and already-seen notices do not show', () => {
-    expect(visibleToasts([n(1, 'a'), n(2, 'b')], 1100, { dismissed: new Set([1]) }).shown.map((x) => x.text)).toEqual(['b']);
-    expect(visibleToasts([n(1, 'a'), n(2, 'b')], 1100, { since: 1 }).shown.map((x) => x.text)).toEqual(['b']);
   });
 });

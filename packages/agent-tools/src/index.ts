@@ -2,6 +2,7 @@
 import type { AgentSession } from './agent-session';
 import { ToolError } from './errors';
 import { capJson } from './output';
+import { budgetJson, type ResultStore } from './budget';
 import { validate } from './schema';
 import { createTools, type ToolDef } from './tools';
 
@@ -15,6 +16,7 @@ export { ToolError } from './errors';
 export { defaultRegistry, type Registry, type MethodDoc, type Recipe } from './registry';
 export { validate, type Schema } from './schema';
 export { capJson, MAX_OUTPUT_CHARS } from './output';
+export { budgetJson, fetchResult, clampBudget, ResultStore, DEFAULT_BUDGET_CHARS, MIN_BUDGET_CHARS, MAX_BUDGET_CHARS, type Budgeted, type FetchInput } from './budget';
 export { meshToGlb } from './exporters';
 
 /** The MCP shape of a tool result. */
@@ -24,7 +26,8 @@ export interface CallResult {
 }
 
 /** Validate `args`, run the tool, shape the result. Never throws: failures come back as `isError` results with a code and a hint. */
-export async function callTool(a: AgentSession, tools: ToolDef[], name: string, args: unknown): Promise<CallResult> {
+/** `budget`: a result over `max` characters is summarised and kept behind a handle in `store` instead of being cut (the daemon passes it; without it the old cap applies). */
+export async function callTool(a: AgentSession, tools: ToolDef[], name: string, args: unknown, budget?: { max: number; store: ResultStore }): Promise<CallResult> {
   const fail = (code: string, message: string, hint?: string, details?: unknown): CallResult => ({
     isError: true,
     content: [{ type: 'text', text: JSON.stringify({ ok: false, error: { code, message, ...(hint ? { hint } : {}), ...(details !== undefined ? { details } : {}) } }, null, 1) }],
@@ -36,12 +39,11 @@ export async function callTool(a: AgentSession, tools: ToolDef[], name: string, 
   if (problems.length) return fail('bad_input', problems.join('; '), `see the input schema of ${name}`, problems);
   try {
     const out = await tool.handler(input as Record<string, unknown>, a);
-    const { text, truncated } = capJson(out.data);
+    const { text } = budget ? budgetJson(out.data, { max: budget.max, store: budget.store }) : capJson(out.data);
     const content: CallResult['content'] = [];
     if (out.summary) content.push({ type: 'text', text: out.summary });
     content.push({ type: 'text', text });
     for (const im of out.images ?? []) content.push({ type: 'image', data: im.data, mimeType: im.mimeType });
-    void truncated;
     return { content };
   } catch (e) {
     if (e instanceof ToolError) return fail(e.code, e.message, e.hint, e.details);

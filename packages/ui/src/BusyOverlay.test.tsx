@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/preact';
 import { BusyOverlay } from './BusyOverlay';
-import { Toast } from './Toast';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -43,24 +42,5 @@ describe('BusyOverlay', () => {
     act(() => { vi.advanceTimersByTime(50); });
     expect(screen.getByText('Building part')).toBeTruthy();
     expect(screen.queryByText('Cancel')).toBeNull();
-  });
-});
-
-describe('Toast', () => {
-  it('shows the newest notice and hides it after the timeout', () => {
-    vi.useFakeTimers();
-    const n = [{ id: 1, text: 'Opened "Bolt"', level: 'info' as const }];
-    render(<Toast notices={n} ms={3000} />);
-    expect(screen.getByText('Opened "Bolt"')).toBeTruthy();
-    act(() => { vi.advanceTimersByTime(3100); });
-    expect(screen.queryByText('Opened "Bolt"')).toBeNull();
-  });
-  it('shows a new notice again after an earlier one timed out', () => {
-    vi.useFakeTimers();
-    const first = [{ id: 1, text: 'one', level: 'info' as const }];
-    const { rerender } = render(<Toast notices={first} ms={1000} />);
-    act(() => { vi.advanceTimersByTime(1200); });
-    rerender(<Toast notices={[...first, { id: 2, text: 'two', level: 'error' as const }]} ms={1000} />);
-    expect(screen.getByText('two')).toBeTruthy();
   });
 });

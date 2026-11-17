@@ -14,7 +14,8 @@ export const vertexName = (p: number[]): string => `v:${p.map((x) => (Math.round
 export const parseVertexName = (n: string): number[] | null => (n.startsWith('v:') ? n.slice(2).split(',').map(Number) : null);
 /** Selection name of the whole body (Alt+click in the viewport, the Select body command). */
 export const BODY = '@body';
-export interface Notice { id: number; text: string; level: 'info' | 'warn' | 'error'; /** when it was raised (ms since the epoch) */ at?: number; /** a button on the toast, e.g. Undo */ action?: { label: string; run(): void } }
+import { createNotifications, type Notice, type NoticeLevelInput } from './notifications';
+export { createNotifications, noticeDuration, normaliseLevel, HISTORY_MAX, LIVE_MAX, type Notice, type NoticeLevel, type NoticeLevelInput, type Notifications } from './notifications';
 export type DisplayLayer = 'sketches' | 'curves' | 'planes' | 'axes' | 'relations' | 'edges' | 'hidden' | 'grid' | 'dimensions' | 'threads' | 'issues';
 export type Display = Record<DisplayLayer, boolean>;
 export const DEFAULT_DISPLAY: Display = { sketches: true, curves: true, planes: false, axes: true, relations: true, edges: true, hidden: false, grid: true, dimensions: false, threads: true, issues: false };
@@ -82,7 +83,6 @@ export interface FeatureStatus { id: string; ok: boolean; code?: string; hint?: 
 export interface FeatureWarning { code: string; hint: string; params?: Record<string, unknown>; all?: Array<{ code: string; hint: string; params?: Record<string, unknown> }> }
 
 export function createStore(initialDisplay: Partial<Display> = {}, initialWorkspace?: unknown) {
-  let noticeSeq = 1;
   const selection = signal<string[]>([]);
   const mode = signal<SelectionMode>('face');
   const hover = signal<string | null>(null);
@@ -91,18 +91,18 @@ export function createStore(initialDisplay: Partial<Display> = {}, initialWorksp
   const busy = signal(false);
   /** True while the view on screen is a stored snapshot and the kernel has not finished building the real state. */
   const cached = signal(false);
-  const notices = signal<Notice[]>([]);
+  const alerts = createNotifications();
+  const notices = alerts.notices;
   const featureStatus = signal<FeatureStatus[]>([]);
   const featureWarnings = signal<Record<string, FeatureWarning>>({});
   const display = signal<Display>({ ...DEFAULT_DISPLAY, ...initialDisplay });
   const workspace = signal<Workspace>(sanitizeWorkspace(initialWorkspace));
   const facts = signal<{ faces: number; triangles: number; rebuildMs: number | null }>({ faces: 0, triangles: 0, rebuildMs: null });
 
-  const notify = (text: string, level: Notice['level'] = 'info', action?: Notice['action']) => {
-    notices.value = [...notices.value, { id: noticeSeq++, text, level, at: Date.now(), ...(action ? { action } : {}) }].slice(-20);
-  };
+  /** The one way to tell the user something transient (see notifications.ts): info, success, warning (`warn` still works) or error, with an optional action button. */
+  const notify = (text: string, level: NoticeLevelInput = 'info', action?: Notice['action']): void => { alerts.notify(text, level, action); };
   return {
-    selection, mode, hover, filters, tool, busy, cached, notices, featureStatus, featureWarnings, display, workspace, facts, notify,
+    selection, mode, hover, filters, tool, busy, cached, notices, alerts, featureStatus, featureWarnings, display, workspace, facts, notify,
     setWorkspace(patch: Partial<Workspace>) {
       const merged = { ...workspace.value, ...patch };
       // turning the ribbon off while no tool column exists hands the tools to the column (turning the column off while the ribbon is off brings the ribbon back, in sanitizeWorkspace)
