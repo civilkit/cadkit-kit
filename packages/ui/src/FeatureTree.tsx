@@ -87,6 +87,8 @@ export function FeatureTree(p: {
   onToggleHide?(id: string): void;
   /** The pointer is over a feature row (id) or left it (null): the app tints what that feature made. */
   onHoverFeature?(id: string | null): void;
+  /** Pointer over a folder row: the ids of every feature in it (and the sketches under them); null when it leaves. */
+  onHoverFolder?(ids: string[] | null): void;
   /** The feature under the pointer in the 3D view; its row gets a hover mark and is scrolled into view. */
   hoverId?: string | null;
   onEdit?(id: string): void;
@@ -435,6 +437,8 @@ export function FeatureTree(p: {
       <div
         class={'row folder' + (off ? ' suppressed' : '') + (holdsReveal && !e.open ? ' owns' : '') + (holdsReveal && pulse.length ? ' pulse' : '')}
         data-group={e.name}
+        onMouseEnter={() => p.onHoverFolder?.(e.ids)}
+        onMouseLeave={() => p.onHoverFolder?.(null)}
         draggable={!renamingThis && !!p.onDropOn}
         onClick={() => { if (!filtering && !renamingThis) setFolder(e.name, !e.open); }}
         onDblClick={() => { if (p.onRenameFolder) setRenaming('@g:' + e.name); }}

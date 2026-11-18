@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
-import { builtinRegistry, defaultsOf, type Values } from '@kit/plugin';
+import { builtinRegistry, defaultsOf, PluginRegistry, type SelItem, type Values } from '@kit/plugin';
 import { PluginPanel } from './PluginPanel';
 import type { PluginSel } from './pluginRun';
 import './i18n';
@@ -105,5 +105,49 @@ describe('PluginPanel', () => {
     expect([m.log.applies, m.log.backs, m.log.cancels]).toEqual([1, 1, 2]);
     fireEvent.click(m.q('[data-testid="plugin-reset"]')!);
     expect(m.log.changes.at(-1)).toEqual(defaultsOf(registry.find('civilkit.enclosures', 'case')!.decl.params));
+  });
+
+  describe('a selection field', () => {
+    const reg = new PluginRegistry();
+    reg.add({ id: 'test.seat', name: 'Seat', version: '1.0.0', contributes: { generators: [{ id: 'seat', title: 'Seat', params: [
+      { name: 'body', type: 'selection', title: 'Body to modify', accept: ['body'], minItems: 1, maxItems: 1 },
+      { name: 'faces', type: 'selection', title: 'Faces', accept: ['face'], optional: true },
+      { name: 'size', type: 'number', default: 5 },
+    ] }] } }, { seat: async () => 'p.run(() => {});' });
+    const mountSeat = (values: Values, pickField: string | null) => {
+      const log = { changes: [] as Values[], picks: [] as Array<string | null> };
+      const view = (v: Values, f: string | null) => <PluginPanel registry={reg} sel={{ pluginId: 'test.seat', generatorId: 'seat', values: v }} onPick={() => {}} onChange={(n) => { log.changes.push(n); r.rerender(view(n, f)); }}
+        onApply={() => {}} onBack={() => {}} onCancel={() => {}} pickField={f} onPickField={(n) => { log.picks.push(n); r.rerender(view(values, n)); }} />;
+      const r = render(view(values, pickField));
+      return { r, log, q: (s: string) => r.container.querySelector(s) as HTMLElement | null };
+    };
+    it('shows the picks, asks for one that is missing, and blocks Add until there is one', () => {
+      const m = mountSeat({ body: [], size: 5 }, null);
+      expect(m.q('[data-testid="plugin-pick-body"]')!.textContent).toContain('Nothing picked yet');
+      expect(m.q('[data-testid="plugin-err-body"]')!.textContent).toContain('pick at least one');
+      const picks: SelItem[] = [{ type: 'body', name: 'Rail' }];
+      const m2 = mountSeat({ body: picks, size: 5 }, null);
+      expect(m2.q('[data-testid="plugin-pick-body"]')!.textContent).toContain('Rail');
+      expect(m2.q('[data-testid="plugin-err-body"]')).toBeNull();
+    });
+    it('a face reads as its body and number; the button makes the field the picking one and Done stops it', () => {
+      const m = mountSeat({ body: [{ type: 'body', name: 'Rail' }], faces: [{ type: 'face', body: 'Rail', index: 1 }], size: 5 }, null);
+      expect(m.q('[data-testid="plugin-pick-faces"]')!.textContent).toContain('Rail, face 2');
+      const btn = m.q('[data-testid="plugin-pick-btn-faces"]')!;
+      expect(btn.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(btn);
+      expect(m.log.picks).toEqual(['faces']);
+      const on = m.q('[data-testid="plugin-pick-btn-faces"]')!;
+      expect(on.getAttribute('aria-pressed')).toBe('true');
+      expect(m.q('[data-testid="plugin-pick-faces"]')!.textContent).toContain('Select faces in the view');
+      fireEvent.click(on);
+      expect(m.log.picks).toEqual(['faces', null]);
+    });
+    it('Clear empties the field and reports the whole record', () => {
+      const m = mountSeat({ body: [{ type: 'body', name: 'Rail' }], faces: [{ type: 'face', body: 'Rail', index: 0 }], size: 5 }, null);
+      fireEvent.click(m.q('[data-testid="plugin-pick-clear-faces"]')!);
+      expect(m.log.changes.at(-1)).toMatchObject({ faces: [], body: [{ type: 'body', name: 'Rail' }], size: 5 });
+      expect(m.q('[data-testid="plugin-pick-clear-body"]')).not.toBeNull();
+    });
   });
 });

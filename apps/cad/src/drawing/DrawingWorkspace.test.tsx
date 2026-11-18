@@ -5,6 +5,7 @@ import '../i18n';
 import { drawingStrings } from '../locales/drawing';
 import { DrawingWorkspace, type DrawingHost } from './DrawingWorkspace';
 import { emptyDrawing, type DrawingDoc } from './model';
+import type { DrawingQuery } from './layout';
 
 afterEach(cleanup);
 
@@ -46,6 +47,19 @@ describe('DrawingWorkspace', () => {
     fireEvent.click(screen.getByText('Redo'));
     expect((document.querySelector('input[data-field=author]') as HTMLInputElement).value).toBe('Kit');
     expect((onChange.mock.calls[onChange.mock.calls.length - 1][0] as DrawingDoc).title.author).toBe('Kit');
+  });
+  it('a section the kernel could not cut is explained to the user (detail and hint), not dropped silently', async () => {
+    const notify = vi.fn();
+    const base = emptyDrawing('Plate');
+    const mk = (id: string, extra: object) => ({ id, kind: 'std', label: id, x: [1, 0, 0], y: [0, 1, 0], pos: [100, 100], scale: null, hidden: true, tangent: false, centerlines: true, showLabel: true, ...extra });
+    const stored = { ...base, views: [mk('V1', {}), mk('V2', { kind: 'section', parent: 'V1', side: 'right', cut: { dir: 'v', at: 5, letter: 'A' } })] };
+    const query: DrawingQuery = async (views) => views.map((r) => (r.section ? { error: 'cutNoEffect', detail: 'boolean failed at the counterbore', hint: 'move the cut line' } : box(60, 40)));
+    render(<DrawingWorkspace host={host({ notify, stored, query })} />);
+    await waitFor(() => expect(notify).toHaveBeenCalled());
+    const [text, level] = notify.mock.calls[0];
+    expect(text).toContain('boolean failed at the counterbore');
+    expect(text).toContain('move the cut line');
+    expect(level).toBe('error');
   });
   it('a stored drawing is shown again, and an edited title block field is saved', async () => {
     const onChange = vi.fn();

@@ -103,7 +103,7 @@ describe('panel picks and the new features', () => {
   });
   it('the chips of the edges field name role and ring picks', () => {
     const m = mount({ type: 'hem', id: 'H1', edges: ['P2.tip', { edge: 1, panel: 2 }, { faces: ['a', 'b'], at: [0, 0, 0] }], length: 10 });
-    expect([...m.container.querySelectorAll('.fedit-chip-text')].map((x) => x.textContent)).toEqual(['P2.tip', 'P2 edge 1', 'a|b']);
+    expect([...m.container.querySelectorAll('.chip-text')].map((x) => x.textContent)).toEqual(['P2.tip', 'P2 edge 1', 'a|b']);
   });
   it('a hem has the panel adder too, and a fold chooses its panel (Automatic removes it)', () => {
     setPanelCount(2);
@@ -148,10 +148,10 @@ describe('panel picks and the new features', () => {
     const CORNER = { type: 'sheetCorner', id: 'K1', corners: [[50, 30, 2], { panel: 1, vertex: 2 }], mode: 'round', radius: 5 };
     it('shows the corners as chips, takes one out, and the Pick button asks for the corners field', () => {
       const m = mount(CORNER);
-      expect([...m.container.querySelectorAll('.fedit-chip-text')].map((x) => x.textContent)).toEqual(['50, 30, 2', 'P1 vertex 2']);
+      expect([...m.container.querySelectorAll('.chip-text')].map((x) => x.textContent)).toEqual(['50, 30, 2', 'P1 vertex 2']);
       fireEvent.click(m.container.querySelector('[data-act="pick-corners"]')!);
       expect(m.picks).toEqual(['corners']);
-      fireEvent.click(m.container.querySelector('.fedit-chip-x')!);
+      fireEvent.click(m.container.querySelector('.chip-x')!);
       expect(m.last().corners).toEqual([{ panel: 1, vertex: 2 }]);
     });
     it('a round has a radius, a chamfer a distance; switching keeps the size', () => {
@@ -181,7 +181,7 @@ describe('flange editors', () => {
   const FLANGE = { type: 'edgeFlange', id: 'E1', edges: [{ faces: ['B1.C1', 'B1.S.e1'], at: [50, 0, 2] }], height: 20 };
   it('an edge flange keeps the edge picker (chips, Use selection) and adds height, angle, radius, reference, position and flip', () => {
     const m = mount(FLANGE);
-    expect(m.container.querySelectorAll('.fedit-chip')).toHaveLength(1);
+    expect(m.container.querySelectorAll('.chip')).toHaveLength(1);
     fireEvent.click(m.container.querySelector('.fedit-pick')!);
     expect(m.picks).toEqual(['edges']);
     expect(m.texts(m.sel('heightFrom'))).toEqual(['To the outer sharp', 'To the inner sharp', 'To the end of the bend']);
@@ -460,6 +460,6 @@ describe('edge flange and hem: width, leg shape, holes and relief', () => {
   });
   it('the chip of an edge named by a point shows the point', () => {
     const m = mount2({ ...FL, edges: [{ at: [-2.25, 0.123456, 36], from: [0, 0, 0], to: [1, 0, 0] }] });
-    expect([...m.container.querySelectorAll('.fedit-chip-text')].map((x) => x.textContent)).toEqual(['-2.25, 0.12, 36']);
+    expect([...m.container.querySelectorAll('.chip-text')].map((x) => x.textContent)).toEqual(['-2.25, 0.12, 36']);
   });
 });

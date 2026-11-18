@@ -18,10 +18,15 @@ mkdirSync(out, { recursive: true });
 execFileSync(process.execPath, [jco, 'transpile', join(from, module), '-I', 'async', '-o', out, '--name', 'component'], { stdio: 'inherit' });
 if (existsSync(join(from, 'LICENSE'))) copyFileSync(join(from, 'LICENSE'), join(out, 'LICENSE'));
 
+// --preview-off a,b: switches (boolean parameters, by name) whose detail is slow to build: the live preview runs with them off and says so; Add builds them.
+const previewOff = new Set((process.argv.includes('--preview-off') ? process.argv[process.argv.indexOf('--preview-off') + 1] ?? '' : '').split(',').filter(Boolean));
 const toParams = (schema) => Object.entries(schema?.properties ?? {}).map(([name, p]) => {
-  const d = { name, type: p.enum ? 'enum' : p.type };
+  const choices = Array.isArray(p.oneOf) ? p.oneOf.filter((o) => o && o.const !== undefined) : [];   // their dropdowns are oneOf [{const, title}]; some schemas use enum
+  const d = { name, type: p.enum || choices.length ? 'enum' : p.type };
   if (p.enum) d.options = p.enum.map((value) => ({ value }));
+  else if (choices.length) d.options = choices.map((o) => ({ value: o.const, ...(o.title ? { label: o.title } : {}) }));
   if (p.title) d.title = p.title; if (p.description) d.description = p.description;
+  if (previewOff.has(name) || p['x-preview-off'] === true) { if (d.type === 'boolean') d.previewOff = true; }
   if (p.default !== undefined) d.default = p.default; else if (!(schema.required ?? []).includes(name)) d.optional = true;
   if (p.minimum !== undefined) d.min = p.minimum; if (p.maximum !== undefined) d.max = p.maximum; if (p.maxLength !== undefined) d.maxLength = p.maxLength;
   return d;

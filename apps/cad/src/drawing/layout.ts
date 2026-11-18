@@ -2,11 +2,11 @@
 // auxiliary views, and alignment. Pure but for the async `query` that talks to the kernel.
 import {
   STD_FRAMES, auxFrame, bestScale, cross, newId, nextLetter, parseScale, projectedFrame, scaleText, sectionFrame, sheetSize, sideFor, viewExtent, viewScale,
-  type DView, type DrawingDoc, type V2, type V3, type ViewData,
+  type DView, type DrawingDoc, type V2, type V3, type ViewData, type ViewFailure, type ViewReply,
 } from './model';
 import { viewBox } from './render';
 
-export type DrawingQuery = (views: Array<Record<string, unknown>>) => Promise<ViewData[] | null>;
+export type DrawingQuery = (views: Array<Record<string, unknown>>) => Promise<ViewReply[] | null>;
 
 /** The request entry of a view (details are cut from their parent's data on the sheet and need none). */
 export function requestFor(doc: DrawingDoc, v: DView): Record<string, unknown> | null {
@@ -32,10 +32,16 @@ export function cacheViews(cacheKey: string, doc: DrawingDoc, data: Record<strin
   }
 }
 
+/** Why a view has no geometry: the kernel's own words (`error`, `detail`, `hint`), or a code of ours when it said nothing. */
+function failureOf(r: ViewReply | undefined): ViewFailure {
+  if (r && typeof r.error === 'string') return { error: r.error, ...(r.detail ? { detail: r.detail } : {}), ...(r.hint ? { hint: r.hint } : {}) };
+  return { error: 'noGeometry' };
+}
+
 /** Fetch geometry for the views of a drawing (hidden lines always included: the view toggles hide them on the sheet). One kernel call
  *  per view that is not cached (`cacheKey` = the part's revision), so a slow view does not hold up the others: `onView` is called as
  *  each arrives. */
-export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: string[], opts: { cacheKey?: string; onView?: (id: string, g: ViewData) => void } = {}): Promise<Record<string, ViewData>> {
+export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: string[], opts: { cacheKey?: string; onView?: (id: string, g: ViewData) => void; onError?: (id: string, f: ViewFailure) => void } = {}): Promise<Record<string, ViewData>> {
   const items = doc.views.filter((v) => !only || only.includes(v.id)).map((v) => ({ v, r: requestFor(doc, v) })).filter((x) => x.r);
   const out: Record<string, ViewData> = {};
   const todo: typeof items = [];
@@ -47,8 +53,9 @@ export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: st
     for (const x of todo) {
       const res = await query([x.r!]);
       const r = res?.[0];
+      if (res && !(r && r.lines)) opts.onError?.(x.v.id, failureOf(r));
       if (r && r.lines) {
-        const g = { min: r.min, max: r.max, lines: r.lines, edges: r.edges ?? [] };
+        const g = { min: r.min!, max: r.max!, lines: r.lines, edges: r.edges ?? [] };
         out[x.v.id] = g; opts.onView?.(x.v.id, g);
         if (opts.cacheKey !== undefined) { viewCache.set(opts.cacheKey + JSON.stringify(x.r), g); if (viewCache.size > 64) viewCache.delete(viewCache.keys().next().value as string); }
       }
@@ -60,8 +67,9 @@ export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: st
   if (!res) return out;
   todo.forEach((x, i) => {
     const r = res[i];
+    if (!(r && r.lines)) opts.onError?.(x.v.id, failureOf(r));
     if (r && r.lines) {
-      const g = { min: r.min, max: r.max, lines: r.lines, edges: r.edges ?? [] };
+      const g = { min: r.min!, max: r.max!, lines: r.lines, edges: r.edges ?? [] };
       out[x.v.id] = g; opts.onView?.(x.v.id, g);
       if (opts.cacheKey !== undefined) viewCache.set(opts.cacheKey + JSON.stringify(x.r), g);
     }
@@ -70,6 +78,8 @@ export async function fetchViews(doc: DrawingDoc, query: DrawingQuery, only?: st
 }
 
 const GAP = 22;
+/** Receives the reason a view could not be made (the tools that add a view return null then). */
+export type ViewErrorSink = (id: string, f: ViewFailure) => void;
 
 function mkView(doc: DrawingDoc, kind: DView['kind'], label: string, fr: { x: V3; y: V3 }, pos: V2, extra: Partial<DView> = {}): DView {
   return {
@@ -150,20 +160,20 @@ export function alignedPos(doc: DrawingDoc, data: Record<string, ViewData | unde
 }
 
 /** A view projected from `parent` to a side; `at` is where the cursor put it (the aligned coordinate is taken from the parent). */
-export async function addProjected(doc: DrawingDoc, query: DrawingQuery, parentId: string, side: 'right' | 'left' | 'up' | 'down', at: V2): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
+export async function addProjected(doc: DrawingDoc, query: DrawingQuery, parentId: string, side: 'right' | 'left' | 'up' | 'down', at: V2, onError?: ViewErrorSink): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
   const p = doc.views.find((v) => v.id === parentId);
   if (!p) return null;
   const fr = projectedFrame(p.x, p.y, side);
   const label = ({ right: 'Right', left: 'Left', up: 'Top', down: 'Bottom' } as const)[side];
   const view = mkView(doc, 'proj', p.kind === 'std' && p.label !== 'Front' ? `Projected ${label}` : label, fr, at, { parent: p.id, side, scale: p.scale });
   const d2 = { ...doc, views: [...doc.views, view] };
-  const data = await fetchViews(d2, query, [view.id]);
+  const data = await fetchViews(d2, query, [view.id], { onError });
   if (!data[view.id]) return null;
   return { doc: d2, data, view };
 }
 
 /** Section view from a cut line on `parent` (vertical at parent u = at, or horizontal at v = at); placed beside the parent. */
-export async function addSection(doc: DrawingDoc, query: DrawingQuery, data0: Record<string, ViewData | undefined>, parentId: string, dir: 'v' | 'h', at: number): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
+export async function addSection(doc: DrawingDoc, query: DrawingQuery, data0: Record<string, ViewData | undefined>, parentId: string, dir: 'v' | 'h', at: number, onError?: ViewErrorSink): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
   const p = doc.views.find((v) => v.id === parentId);
   const pg = p && data0[p.id];
   if (!p || !pg) return null;
@@ -172,7 +182,7 @@ export async function addSection(doc: DrawingDoc, query: DrawingQuery, data0: Re
   const side = dir === 'v' ? sideFor(doc.sheet.projection, 'right') : sideFor(doc.sheet.projection, 'up');
   const view = mkView(doc, 'section', 'Section', f, [0, 0], { parent: p.id, side, scale: p.scale, cut: { dir, at, letter }, hidden: false, centerlines: false });
   const d2 = { ...doc, views: [...doc.views, view] };
-  const data = await fetchViews(d2, query, [view.id]);
+  const data = await fetchViews(d2, query, [view.id], { onError });
   const g = data[view.id];
   if (!g) return null;
   const pb = viewBox(doc, p, pg);
@@ -202,14 +212,14 @@ export function addDetail(doc: DrawingDoc, parentId: string, c: V2, r: number, s
 }
 
 /** Auxiliary view square to an edge of `parent` that makes `angle` with the view's x axis. */
-export async function addAux(doc: DrawingDoc, query: DrawingQuery, data0: Record<string, ViewData | undefined>, parentId: string, angle: number): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
+export async function addAux(doc: DrawingDoc, query: DrawingQuery, data0: Record<string, ViewData | undefined>, parentId: string, angle: number, onError?: ViewErrorSink): Promise<{ doc: DrawingDoc; data: Record<string, ViewData>; view: DView } | null> {
   const p = doc.views.find((v) => v.id === parentId);
   const pg = p && data0[p.id];
   if (!p || !pg) return null;
   const fr = auxFrame(p.x, p.y, angle);
   const view = mkView(doc, 'aux', 'Auxiliary', fr, [0, 0], { parent: p.id, scale: p.scale, auxAngle: angle });
   const d2 = { ...doc, views: [...doc.views, view] };
-  const data = await fetchViews(d2, query, [view.id]);
+  const data = await fetchViews(d2, query, [view.id], { onError });
   const g = data[view.id];
   if (!g) return null;
   const pb = viewBox(doc, p, pg);

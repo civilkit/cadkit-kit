@@ -2,10 +2,14 @@
 // GenerateContext.doc in packages/plugin). Built from the bodies list and the display mesh; nothing here touches the kernel.
 import { faceMoments, matchLumps, type BodyRow, type LumpInfo } from './bodies';
 import { BODY_PREFIX, type SelMesh } from './select/model';
+import type { SelItem } from '@kit/plugin';
 
 export interface PluginDoc {
-  bodies: Array<{ name: string; bbox: { min: number[]; max: number[] } | null; volume: number | null }>;
-  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; normal?: number[] }>;
+  bodies: Array<{ name: string; bbox: { min: number[]; max: number[] } | null; volume: number | null; feature?: string }>;
+  selection: Array<{ type: 'body' | 'face' | 'edge'; name?: string; body?: string; /** a face's place in its body's list */ index?: number; normal?: number[] }>;
+  parameters: Array<{ name: string; expression: string; value: number }>;
+  /** what generators stored for the components they made, from the runs recorded in the document */
+  components: Record<string, Record<string, unknown>>;
 }
 
 const nameOf = (r: BodyRow): string => r.docName ?? r.name;
@@ -24,7 +28,7 @@ function planeNormal(mesh: SelMesh, face: string): number[] | undefined {
   return n;
 }
 
-export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[]): PluginDoc {
+export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null, selection: readonly string[], variables: ReadonlyArray<{ name?: unknown; expr?: unknown }> = [], runs: Record<string, { meta?: Record<string, unknown> }> = {}): PluginDoc {
   const owner = new Map<string, number>();
   rows.forEach((r, i) => { for (const f of r.faces) owner.set(f, i); });
   const lo = rows.map(() => [Infinity, Infinity, Infinity]), hi = rows.map(() => [-Infinity, -Infinity, -Infinity]);
@@ -33,16 +37,20 @@ export function pluginDocContext(rows: readonly BodyRow[], mesh: SelMesh | null,
     if (i === undefined) continue;
     for (let v = 0; v < 3; v++) for (let k = 0; k < 3; k++) { const x = mesh.positions[t * 9 + v * 3 + k]; if (x < lo[i][k]) lo[i][k] = x; if (x > hi[i][k]) hi[i][k] = x; }
   }
-  const bodies = rows.map((r, i) => ({ name: nameOf(r), bbox: Number.isFinite(lo[i][0]) ? { min: lo[i], max: hi[i] } : null, volume: r.volume }));
+  const featureOf = (key: string): string | undefined => { const k = key.startsWith(BODY_PREFIX) ? key.slice(BODY_PREFIX.length) : undefined; const f = k?.split('.')[0]; return f && /^F\d+$/.test(f) ? f : undefined; };
+  const bodies = rows.map((r, i) => ({ name: nameOf(r), bbox: Number.isFinite(lo[i][0]) ? { min: lo[i], max: hi[i] } : null, volume: r.volume, ...(featureOf(r.key) ? { feature: featureOf(r.key) } : {}) }));
   const sel: PluginDoc['selection'] = [];
   for (const s of selection) {
     if (s.startsWith(BODY_PREFIX)) { const r = rows.find((x) => x.key === s); if (r) sel.push({ type: 'body', name: nameOf(r) }); continue; }
     const i = owner.get(s);
     if (i === undefined) continue;   // a name that is not a face of a body (an edge, a vertex, a sketch entity): not offered
     const normal = mesh ? planeNormal(mesh, s) : undefined;
-    sel.push({ type: 'face', body: nameOf(rows[i]), ...(normal ? { normal } : {}) });
+    sel.push({ type: 'face', body: nameOf(rows[i]), index: rows[i].faces.indexOf(s), ...(normal ? { normal } : {}) });
   }
-  return { bodies, selection: sel };
+  const parameters = variables.filter((v) => typeof v?.name === 'string').map((v) => ({ name: String(v.name), expression: String(v.expr ?? ''), value: Number.isFinite(Number(v.expr)) ? Number(v.expr) : 0 }));
+  const components: PluginDoc['components'] = {};
+  for (const r of Object.values(runs)) { const c = r?.meta?.components; if (c && typeof c === 'object') Object.assign(components, c as PluginDoc['components']); }
+  return { bodies, selection: sel, parameters, components };
 }
 
 /** The bodies of a scratch build for a plugin's measure: the kernel's mass properties give each body's name and volume (no box), the display mesh gives the boxes.
@@ -64,4 +72,15 @@ export function scratchRows(mesh: SelMesh | null, faceLumps: Record<string, numb
   const match = matchLumps(shapes, named);
   const byName = new Map([...match].map(([key, name]) => [name, boxes.get(Number(key)) ?? null]));
   return mass.filter((m) => m.name).map((m) => ({ name: m.name!, volume: m.volume, bbox: byName.get(m.name!) ?? (mass.length === 1 && boxes.size === 1 ? [...boxes.values()][0] : null) }));
+}
+
+/** What a selection field takes from the document's selection: the bodies and faces it accepts, as the references a plugin receives (`{type:'body', name}`,
+ *  `{type:'face', body, index, normal?}`), or the bodies' names for a field that takes names. With a maximum, the last picks win. */
+export function selectionItems(sel: PluginDoc['selection'], d: { accept?: readonly string[]; asNames?: boolean; maxItems?: number }): SelItem[] {
+  const out: SelItem[] = [];
+  for (const s of sel) {
+    if (s.type === 'body' && s.name && d.accept?.includes('body')) out.push(d.asNames ? s.name : { type: 'body', name: s.name });
+    else if (s.type === 'face' && s.body && d.accept?.includes('face') && !d.asNames) out.push({ type: 'face', body: s.body, ...(s.index !== undefined && s.index >= 0 ? { index: s.index } : {}), ...(s.normal ? { normal: s.normal } : {}) });
+  }
+  return d.maxItems !== undefined && out.length > d.maxItems ? out.slice(out.length - d.maxItems) : out;
 }

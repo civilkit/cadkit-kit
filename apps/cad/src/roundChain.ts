@@ -82,6 +82,27 @@ export function chainRefs(refs: unknown, edges: Edgeish[], tol = 0.25): unknown[
   return added.length ? [...refs, ...added] : null;
 }
 
+/** The runs of an edge list, read on `edges` (the body the feature is applied to): each run is the indices of the references that are one
+ *  tangent chain (an edge and the edges that continue it), so the editor can show a picked line as one item and take all of it out
+ *  together. A reference that matches no edge (or continues nothing in the list) is a run of its own. With `chain` off every reference
+ *  is its own run. The runs partition the list, in order of their first reference. */
+export function edgeRuns(refs: unknown, edges: Edgeish[] | null | undefined, chain = true, tol = 0.25): number[][] {
+  if (!Array.isArray(refs)) return [];
+  const single = (): number[][] => refs.map((_, i) => [i]);
+  if (!chain || !edges?.length) return single();
+  const cand: ChainEdge[] = edges.flatMap((e) => (e.key && e.faces && e.pts ? [{ key: e.key, faces: e.faces, pts: e.pts, smooth: e.smooth }] : []));
+  const keys = refs.map((r) => { const x = r as Ref | null; const f = Array.isArray(x?.faces) ? (x!.faces as string[]) : null, at = Array.isArray(x?.at) ? (x!.at as number[]) : null; const b = f && f.length === 2 && at && at.length === 3 ? nearestEdge(f, at, edges) : null; return b && b.d <= tol ? b.key : null; });
+  const out: number[][] = [], done = new Set<number>();
+  keys.forEach((k, i) => {
+    if (done.has(i)) return;
+    const members = k ? new Set(tangentChain([k], cand)) : null;
+    const run = refs.flatMap((_, j) => (j === i || (!done.has(j) && members && keys[j] && members.has(keys[j]!)) ? [j] : []));
+    run.forEach((j) => done.add(j));
+    out.push(run);
+  });
+  return out;
+}
+
 // ---- picks, so the editor's toggle can undo or redo the chain on the feature it made ----
 
 export interface RoundPick { seeds: unknown[]; all: unknown[] }

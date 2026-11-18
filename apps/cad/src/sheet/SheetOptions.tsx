@@ -5,7 +5,7 @@ import type { PartDoc } from '@ck/part-model';
 import { EditorSection as Section, VarsContext, useScope, type OptionsResult, textAttrs } from '@kit/ui';
 import { t } from '../i18n';
 import { useState } from 'preact/hooks';
-import { Icon } from '@kit/ui';
+import { Icon, ChipList } from '@kit/ui';
 import { Check, Num, Select } from '../FeatureOptions';
 import {
   MAX_THEN, RING, addEdgePick, addThen, contourCurves, cornerSize, cornerText, cornersOf, foldLineOf, panelEdge, patchContourCurve, patchCornerMode, patchFoldCurve, patchFoldSketch,
@@ -239,12 +239,8 @@ export function CornerOptions(p: Props): JSX.Element {
           <span class="fedit-ref">
             <span class="fedit-chips">
               <span class="fedit-count">{t(corners.length === 1 ? 'opt.sheet.corners.one' : 'opt.sheet.corners.n', { n: String(corners.length) })}</span>
-              {corners.map((c, i) => (
-                <span class="fedit-chip" key={i}>
-                  <span class="fedit-chip-text">{cornerText(c)}</span>
-                  <button type="button" class="fedit-chip-x" aria-label={t('opt.sheet.corners.remove')} title={t('opt.sheet.corners.remove')} onClick={() => change({ corners: corners.filter((_, j) => j !== i) })}><Icon name="close" size={12} /></button>
-                </span>
-              ))}
+              <ChipList items={corners.map((c, i) => ({ key: String(i), label: cornerText(c), kind: 'corner' }))} removeLabel={() => t('opt.sheet.corners.remove')}
+                onRemove={(_, i) => change({ corners: corners.filter((_x, j) => j !== i) })} />
             </span>
             {p.onPick ? <button type="button" class={'fedit-pick' + (picking ? ' on' : '')} aria-pressed={picking} data-act="pick-corners" onClick={() => p.onPick!('corners')}>{picking ? t('opt.sheet.corners.done') : t('opt.sheet.corners.pick')}</button> : null}
           </span>

@@ -92,6 +92,8 @@ export async function inspectPackage(input: Map<string, Uint8Array>): Promise<In
     for (const c of manifest.wasm.cores) if (!binaries[c]) errors.push(`wasm.cores "${c}" is not in the package`);
     for (const [path, data] of Object.entries(binaries)) if (data.length < 8 || data[0] !== 0 || data[1] !== 0x61 || data[2] !== 0x73 || data[3] !== 0x6d) errors.push(`"${path}" is not a WebAssembly module`);
     warnings.push(`this plugin runs compiled code (WebAssembly). It runs sandboxed and can only call these app commands: ${manifest.wasm.commands.join(', ')}`);
+    const saves = (manifest.wasm.files ?? []).filter((f) => f.write).map((f) => f.name);
+    if (saves.length) warnings.push(`it can save files (${saves.join(', ')}): each file it makes is offered to you as a download when you run it. It reads no files and writes to no folder.`);
   }
   for (const g of manifest.wasm ? [] : manifest.contributes.generators) {
     if (!g.script) { errors.push(`generator "${g.id}" has no "script": an installed plugin's generators are scripts`); continue; }

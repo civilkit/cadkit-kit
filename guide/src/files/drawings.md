@@ -75,7 +75,11 @@ A dimension remembers the two faces of the edge it was made on (for a centre lin
 
 ### Hole and thread callouts
 
-A circle that belongs to a Hole or Thread feature gets that feature's text: for example `M10x1.5 ↧ 30` for a threaded hole with its depth, `Ø6.5 THRU`, or `M5 CLR THRU`, with `CSK` or `C'BORE` for countersunk and counterbored holes. The text is computed from the feature, so it changes when the feature changes.
+A circle that belongs to a Hole or Thread feature gets that feature's text: for example `M10x1.5 ↧ 30` for a threaded hole with its depth, `Ø6.5 THRU`, or `M5 CLR THRU`, with `CSK` or `C'BORE` for countersunk and counterbored holes. The text is computed from the feature, so it changes when the feature changes. A callout follows the feature that made the circle, not its size, so two hole features of different sizes on one face each keep their own text. Auto dimension also keeps a callout off the text of other dimensions: it turns the leader to the nearest free angle.
+
+A circle made by a sketch circle and a Cut (through, or blind with a depth) gets a plain diameter callout, `Ø6 THRU` or `Ø6 ↧ 8`. It is never written as a thread or tapped hole; use a Hole feature when you want `M5 ↧ 12`.
+
+When the kernel cannot make a view (for example a section plane that passes through a counterbore), the app shows its explanation and hint as a notice instead of leaving the view out silently.
 
 ## Notes, balloons and symbols
 

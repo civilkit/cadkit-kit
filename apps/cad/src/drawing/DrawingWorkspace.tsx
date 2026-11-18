@@ -13,10 +13,12 @@ import { cacheViews, addAux, addDetail, addProjected, addSection, fetchViews, mo
 import { dataOf, dimMeasure, placer, refreshDims, renderSheet, toSvg, viewBox, type BomRow, type Prim } from './render';
 import { hitAnnotation } from './hit';
 import { holeInfos } from './kernel';
+import { viewFailureText } from './viewError';
+import { settleCallouts } from './placement';
 import { massText } from '../inspect/mass';
 import { printSvg, tablesCsv, toDxf, toPdf } from './output';
 import { componentOfName, insertIds } from '../assembly/model';
-import { projectedFrame } from './model';
+import { projectedFrame, type ViewFailure } from './model';
 import { numberAttrs, textAttrs } from '@kit/ui';
 
 export interface DrawingHost {
@@ -54,6 +56,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
   const docRef = useRef(doc); docRef.current = doc;
   const [data, setData] = useState<Record<string, ViewData | undefined>>({});
   const dataRef = useRef(data); dataRef.current = data;
+  const lastFail = useRef('');
   const [sel, setSel] = useState<Sel>(null);
   const [tool, setTool] = useState<Tool>('select');
   const [busy, setBusy] = useState(false);
@@ -96,7 +99,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       if (!host.query || !host.hasBody || !docRef.current.views.length) { setData({}); return; }
       setBusy(true);
       try {
-        const d = await fetchViews(docRef.current, host.query, undefined, { cacheKey: host.revision, onView: (id, g) => { if (!dead) { dataRef.current = { ...dataRef.current, [id]: g }; setData(dataRef.current); } } });
+        const d = await fetchViews(docRef.current, host.query, undefined, { cacheKey: host.revision, onError: (id, f) => { if (!dead) failed(docRef.current, id, f); }, onView: (id, g) => { if (!dead) { dataRef.current = { ...dataRef.current, [id]: g }; setData(dataRef.current); } } });
         if (dead) return;
         setData(d);
         const r = refreshDims(docRef.current, d);
@@ -179,9 +182,16 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
 
   // ---- actions ------------------------------------------------------------------------------------------------------------
   const note = (key: string, level: 'info' | 'warn' | 'error' = 'info', params?: Record<string, string | number>) => host.notify(t(key, params), level);
+  /** Tell the user why a view is missing (once per reason, not at every refresh) instead of leaving a silent gap. */
+  const failed = (d: DrawingDoc, id: string, f: ViewFailure) => {
+    const text = viewFailureText(f, d.views.find((v) => v.id === id)?.kind, t);
+    if (lastFail.current === text) return;
+    lastFail.current = text; host.notify(text, 'error');
+  };
   const needQuery = (): DrawingQuery | null => { if (!host.query || !host.hasBody) { note('drawing.msg.nothing', 'warn'); return null; } return host.query; };
 
   const holesNow = (): HoleInfo[] => holeInfos(host.features as never, (std, size) => pitchesRef.current[`${std}|${size}`] ?? null);
+  const calloutText = (f: string): string | null => holesNow().find((h) => h.feature === f)?.text ?? null;
   const doStandard = async () => {
     const q = needQuery(); if (!q) return;
     setBusy(true);
@@ -190,7 +200,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       setData(r.data); dataRef.current = r.data;
       let next = r.doc;
       const dims: DDim[] = next.views.filter((v) => v.kind !== 'std' || v.label === 'Front').flatMap((v) => (r.data[v.id] ? autoDims(r.data[v.id]!, v, holesNow()) : []));
-      next = { ...next, dims };
+      next = settleCallouts({ ...next, dims }, r.data, calloutText);
       commit(next);
       setSel(null);
     } finally { setBusy(false); }
@@ -214,7 +224,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
     if (!targets.length) { note('drawing.msg.noViews', 'warn'); return; }
     const ids = new Set(targets.map((v) => v.id));
     const fresh = targets.flatMap((v) => (dataRef.current[v.id] ? autoDims(dataRef.current[v.id]!, v, holesNow()) : []));
-    commit({ ...d, dims: [...d.dims.filter((x) => !ids.has(x.view)), ...fresh] });
+    commit(settleCallouts({ ...d, dims: [...d.dims.filter((x) => !ids.has(x.view)), ...fresh] }, dataRef.current, calloutText));
   };
   const doAutoBalloons = () => {
     const d = docRef.current;
@@ -310,8 +320,10 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       const vp = toView(v, pt);
       setBusy(true);
       try {
-        const r = await addSection(d, q, dataRef.current, v.id, horiz ? 'h' : 'v', horiz ? vp[1] : vp[0]);
-        if (!r) { note('drawing.msg.sectionMisses', 'warn'); return; }
+        const why: { f?: ViewFailure } = {};
+        const r = await addSection(d, q, dataRef.current, v.id, horiz ? 'h' : 'v', horiz ? vp[1] : vp[0], (_id, f) => { why.f = f; });
+        if (!r) { if (why.f) host.notify(viewFailureText(why.f, 'section', t), 'error'); else note('drawing.msg.sectionMisses', 'warn'); return; }
+        lastFail.current = '';
         const all = { ...dataRef.current, ...r.data };
         setData(all); dataRef.current = all;
         commit(r.doc); setSel({ kind: 'view', id: r.view.id }); setGhost(null); setTool('select');
@@ -326,7 +338,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       const side = sideOfPoint(viewBox(d, par, g), pt);
       const q = needQuery(); if (!q) return;
       projParent.current = null;
-      const r = await addProjected(d, q, par.id, side, pt);
+      const r = await addProjected(d, q, par.id, side, pt, (_id, f) => host.notify(viewFailureText(f, 'proj', t), 'error'));
       if (!r) return;
       const all = { ...dataRef.current, ...r.data };
       setData(all); dataRef.current = all;
@@ -337,7 +349,7 @@ export function DrawingWorkspace(p: { host: DrawingHost }): JSX.Element {
       const sh = hitE && pickShape(g, v, hitE.pick);
       if (!sh || sh.kind !== 'line') { note('drawing.msg.noEdge', 'warn'); return; }
       const q = needQuery(); if (!q) return;
-      const r = await addAux(d, q, dataRef.current, v.id, Math.atan2(sh.b[1] - sh.a[1], sh.b[0] - sh.a[0]));
+      const r = await addAux(d, q, dataRef.current, v.id, Math.atan2(sh.b[1] - sh.a[1], sh.b[0] - sh.a[0]), (_id, f) => host.notify(viewFailureText(f, 'aux', t), 'error'));
       if (!r) return;
       const all = { ...dataRef.current, ...r.data };
       setData(all); dataRef.current = all;

@@ -378,6 +378,7 @@ describe('tangent chain toggle (fillet and chamfer)', () => {
     const m = mount({ type: 'fillet', id: 'F3', radius: 2, edges: all });
     expect(m.box('tangentChain').checked).toBe(true);
     expect(m.q('tangentChainNote')!.textContent).toContain('2');
+    expect(m.q('roundTotal')!.textContent).toContain('3');
     fireEvent.click(m.box('tangentChain'));
     expect(m.drafts.at(-1)).toMatchObject({ edges: seeds });
     expect(tangentChainOn()).toBe(false);

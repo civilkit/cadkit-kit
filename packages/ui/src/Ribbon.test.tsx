@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/preact';
-import { Ribbon, type Command } from './Ribbon';
+import { Ribbon, commandToItem, type Command } from './Ribbon';
 import { StatusBar } from './StatusBar';
 
 afterEach(cleanup);
@@ -12,6 +12,13 @@ const commands: Command[] = [
   { id: 'front', label: 'Front', tab: 'View', group: 'Camera', run: () => {} },
   { id: 'disabled-thing', label: 'Nope', tab: 'Home', group: 'Edit', enabled: () => false, run: () => {} },
 ];
+
+describe('commandToItem', () => {
+  it('keeps a command\'s own icon (a plugin entry has no icon of its own under its id), and adds none when there is none', () => {
+    expect(commandToItem({ id: 'plugin:a:b', label: 'Cabinet', tab: 'Plugins', group: 'Woodwork', icon: 'add-plugin', run: () => {} }).icon).toBe('add-plugin');
+    expect('icon' in commandToItem({ id: 'open', label: 'Open', tab: 'Home', group: 'File', run: () => {} })).toBe(false);
+  });
+});
 
 describe('Ribbon', () => {
   it('renders only the commands of the active tab, grouped by group', () => {

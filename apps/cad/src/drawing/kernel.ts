@@ -1,19 +1,19 @@
 // The kernel side of drawings: the `drawing` request for a list of views, hole / thread callout text, and the mass for the title block.
 import type { Session } from '@ck/session';
 import { sessionQuery } from '../inspect/kernel';
-import type { ViewData } from './model';
+import type { ViewReply } from './model';
 import type { DrawingQuery } from './layout';
 import type { HoleInfo } from './geom';
 import { countedLabel, seedCount } from '../patternThreads';
 
 export function drawingQuery(session: Session): DrawingQuery {
   return async (views) => {
-    const r = await sessionQuery<{ views: ViewData[] }>(session, { type: 'drawing', views, hidden: true });
+    const r = await sessionQuery<{ views: ViewReply[] }>(session, { type: 'drawing', views, hidden: true });
     return r?.views ?? null;
   };
 }
 
-type Feat = { type: string; id: string; face?: string; standard?: string; size?: string; sketch?: string; kind?: string; end?: string; depth?: number; diameter?: number; fit?: string; name?: string; length?: number | 'full'; class?: string; modeled?: boolean; suppressed?: boolean };
+type Feat = { type: string; id: string; op?: string; face?: string; standard?: string; size?: string; sketch?: string; kind?: string; end?: string; depth?: number; diameter?: number; fit?: string; name?: string; length?: number | 'full'; class?: string; modeled?: boolean; suppressed?: boolean };
 
 /** Pitch of a thread size, as the thread tables give it. */
 export type PitchOf = (standard: string, size: string) => number | null;
@@ -42,8 +42,10 @@ export function holeCallout(h: Feat, thread: Feat | null, pitchOf?: PitchOf): st
   return main;
 }
 
-/** The hole features and thread features of a document as callout sources: faces they own and the text. */
-export function holeInfos(features: Feat[], pitchOf?: PitchOf): Array<HoleInfo & { thread?: boolean }> {
+/** The hole features and thread features of a document as callout sources: faces they own and the text. A sketch circle + cut (an extrude
+ *  cut that goes through, or a blind one with a depth) is called out as a plain diameter, `Ø6 THRU` / `Ø6 ↧ 8`: never as a tapped or threaded hole.
+ *  It replaces the diameter dimension that circle would get anyway; `sketchCuts: false` leaves them as diameters. */
+export function holeInfos(features: Feat[], pitchOf?: PitchOf, opts: { sketchCuts?: boolean } = {}): Array<HoleInfo & { thread?: boolean }> {
   const out: Array<HoleInfo & { thread?: boolean }> = [];
   const threadsOf = (hid: string) => features.find((f) => f.type === 'thread' && !f.suppressed && typeof f.face === 'string' && f.face.startsWith(hid + '.'));
   for (const f of features) {
@@ -53,6 +55,10 @@ export function holeInfos(features: Feat[], pitchOf?: PitchOf): Array<HoleInfo &
       // a patterned threaded hole is called out once for all its copies: `4x M5x0.8`
       const n = th ? seedCount(features as never, f.id) : 1;
       out.push({ feature: f.id, text: countedLabel(n, holeCallout(f, th, pitchOf)), faces: [f.id] });
+    }
+    else if (f.type === 'extrude' && f.op === 'cut' && opts.sketchCuts !== false) {
+      const thru = f.end === 'through' || f.end === 'throughBoth';
+      if (thru || (f.end === 'blind' && typeof f.depth === 'number' && f.depth > 0)) out.push({ feature: f.id, text: '', faces: [f.id], plain: { suffix: thru ? ' THRU' : ` ↧ ${num(f.depth as number)}` } });
     }
     else if (f.type === 'thread' && f.face && !features.some((h) => h.type === 'hole' && f.face!.startsWith(h.id + '.'))) out.push({ feature: f.id, text: threadLabel(f, pitchOf) + (typeof f.length === 'number' ? ` ↧ ${num(f.length)}` : ''), faces: [f.face], thread: true });
   }

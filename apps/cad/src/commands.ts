@@ -77,7 +77,7 @@ export interface Actions {
   /** Open the Plugins panel: the generators plugins add, each with a generated form (see PluginPanel.tsx). */
   plugins?(): void;
   /** the generators of installed (not built-in) plugins: each becomes a command of its own in the Gear menu, next to the app's wizards */
-  pluginGenerators?: Array<{ id: string; label: string; tip?: string; run(): void }>;
+  pluginGenerators?: Array<{ id: string; label: string; tip?: string; /** the palette group: Create, or File / Help for an entry that asked for that menu */ group?: string; run(): void }>;
   /** Open the Tray wizard (see TrayWizard.tsx). */
   tray?(): void;
   /** Open the Nut, Standoff and Heat-set insert wizards (see FastenerWizards.tsx). */
@@ -227,7 +227,7 @@ export function buildCommands(a: Actions): Command[] {
   if (a.insert) cmds.push({ id: 'add-insert', label: t('cmd.add-insert'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.insert });
   if (a.tray) cmds.push({ id: 'add-tray', label: t('cmd.add-tray'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.tray });
   if (a.plugins) cmds.push({ id: 'add-plugin', label: t('cmd.add-plugin'), tip: t('tip.add-plugin'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.plugins });
-  for (const g of Array.isArray(a.pluginGenerators) ? a.pluginGenerators : []) cmds.push({ id: g.id, label: g.label, ...(g.tip ? { tip: g.tip } : {}), icon: 'add-plugin', tab: 'Features', group: 'Create', enabled: a.hasDocument, run: g.run });
+  for (const g of Array.isArray(a.pluginGenerators) ? a.pluginGenerators : []) cmds.push({ id: g.id, label: g.label, ...(g.tip ? { tip: g.tip } : {}), icon: 'add-plugin', tab: 'Features', group: g.group ?? 'Create', enabled: a.hasDocument, run: g.run });
   if (a.caseBox) cmds.push({ id: 'add-case', label: t('cmd.add-case'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.caseBox });
   if (a.bearing) cmds.push({ id: 'add-bearing', label: t('cmd.add-bearing'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.bearing });
   if (a.impeller) cmds.push({ id: 'add-impeller', label: t('cmd.add-impeller'), tab: 'Features', group: 'Create', enabled: a.hasDocument, run: a.impeller });

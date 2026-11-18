@@ -212,7 +212,7 @@ describe('edge and face list fields', () => {
   it('shows the edges and faces of a feature as editable reference fields with a Use selection button', () => {
     const { container } = render(<FeatureEditor feature={FILLET} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} />);
     const fld = container.querySelector('[data-path="edges"]')!;
-    expect(fld.querySelector('.fedit-chip-text')!.textContent).toBe('A|B');
+    expect(fld.querySelector('.chip-text')!.textContent).toBe('A|B');
     expect(fld.querySelector('.fedit-pick')!.textContent).toBe('Use selection');
     const shell = render(<FeatureEditor feature={{ type: 'shell', id: 'F4', faces: ['F2.C1'], thickness: 1 }} onDraft={() => {}} onConfirm={() => {}} onCancel={() => {}} />);
     expect((shell.container.querySelector('[data-path="faces"] input') as HTMLInputElement).value).toBe('F2.C1');
@@ -228,7 +228,7 @@ describe('edge and face list fields', () => {
     expect(asked).toEqual(['edges']);
     rerender(<FeatureEditor {...props} pickingPath="edges" picked={{ path: 'edges', value: EDGES }} />);
     expect(drafts.at(-1)).toEqual({ edges: EDGES });
-    expect([...container.querySelectorAll('[data-path="edges"] .fedit-chip-text')].map((c) => c.textContent)).toEqual(['A|B', 'A|C']);
+    expect([...container.querySelectorAll('[data-path="edges"] .chip-text')].map((c) => c.textContent)).toEqual(['A|B', 'A|C']);
     expect(container.querySelector('[data-path="edges"] .fedit-pick')!.textContent).toBe('Done');
     fireEvent.click(container.querySelector('.fedit-confirm')!);
     expect(confirms.at(-1)).toEqual({ edges: EDGES });
@@ -242,10 +242,37 @@ describe('edge and face list fields', () => {
     expect(fld.tagName).toBe('DIV');   // not a label: a tap on its text must not press the first chip's x
     expect(fld.querySelector('.fedit-count')!.textContent).toBe('2 edges');
     expect(fld.querySelector('.fedit-pick-note')).toBeTruthy();
-    fireEvent.click(fld.querySelectorAll('.fedit-chip-x')[0]);
+    fireEvent.click(fld.querySelectorAll('.chip-x')[0]);
     expect(drafts.at(-1)).toEqual({ edges: [EDGES[1]] });
     expect(fld.querySelector('.fedit-count')!.textContent).toBe('1 edge');
-    expect([...fld.querySelectorAll('.fedit-chip-text')].map((c) => c.textContent)).toEqual(['A|C']);
+    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['A|C']);
+  });
+
+  it('edge runs show as one chip with their edge count, and its x takes the whole run out', () => {
+    const drafts: Array<Record<string, unknown>> = [];
+    const E3 = [...EDGES, { faces: ['A', 'D'], at: [7, 8, 9] }];
+    const feature = { ...FILLET, edges: E3 };
+    const { container } = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} pickingPath="edges" edgeRuns={() => [[0, 2], [1]]} />);
+    const fld = container.querySelector('[data-path="edges"]')!;
+    expect(fld.querySelector('.fedit-count')!.textContent).toBe('3 edges');   // the total that will be rounded
+    expect([...fld.querySelectorAll('.chip-text')].map((c) => c.textContent)).toEqual(['A|B (2 edges)', 'A|C']);
+    fireEvent.click(fld.querySelectorAll('.chip-x')[0]);
+    expect(drafts.at(-1)).toEqual({ edges: [E3[1]] });
+  });
+
+  it('the edge chips scroll in their own list; Clear empties the field; hovering a chip reports its reference', () => {
+    const drafts: Array<Record<string, unknown>> = [];
+    const hov: unknown[] = [];
+    const feature = { ...FILLET, edges: EDGES };
+    const { container } = render(<FeatureEditor feature={feature} onDraft={(d) => drafts.push(d)} onConfirm={() => {}} onCancel={() => {}} onPickRequest={() => {}} pickingPath="edges" onChipHover={(r) => hov.push(r)} />);
+    const fld = container.querySelector('[data-path="edges"]')!;
+    expect(fld.querySelector('ul.chips.fedit-chip-list')).toBeTruthy();
+    expect(fld.querySelector('.chip.edge')).toBeTruthy();
+    fireEvent.mouseEnter(fld.querySelectorAll('.chip')[1]);
+    expect(hov.at(-1)).toEqual(EDGES[1]);
+    fireEvent.click(fld.querySelector('.fedit-clear')!);
+    expect(drafts.at(-1)).toEqual({ edges: [] });
+    expect(fld.querySelector('.fedit-count')!.textContent).toBe('0 edges');
   });
 
   it('picks arriving one after another each land in the draft', () => {

@@ -19,7 +19,7 @@ import { Viewport, markerStyleFor } from '@kit/viewport';
 import { autoCutFlip, cutProblem, editorFixes } from './editorFixes';
 import { defaultExtrudeOp, KERNEL_SUPPORTS_NEW_BODY, nextBodyName } from './extrudeOp';
 import { featureLabel, loftMoveAfter, pipeCutNotice } from './featureCreators';
-import { tangentChainOn, chainSelection, chainRefs } from './roundChain';
+import { tangentChainOn, chainSelection, chainRefs, edgeRuns, refEdgeKey } from './roundChain';
 import { pickValue, LIST_PATHS, hasPointEntities, holeOps, revolveOps, type FeatureActions } from './featureCommands';
 import { selectionInField } from './listPick';
 import { annotate, gridCapture, expandFocus, rectangleAxisLocks, layoutDimensions, applySnapConstraints, boxSelect, conflictingGeometry, constraintTargets, definitionMap, deleteEntity, fullyDefine, makeDriven, makeDriving, refAnnotations, refDimsOf, shownValue, removeDimension, removeRefDim, toggleRadiusDiameter, markNewAsConstruction, setConstruction, entityDims, entityShape, movePoint, pickEntity, withPickedEntity, pointDims, removeConstraintById, setConstraintValue, setEntityDim, setPointDim, snapAt, alignSourceAt, toolById, OFFSET_FACE_KEY, sketchReferenceEdges, buildModelSnaps, attachModelSnap, EMPTY_MODEL_SNAPS, type ExtrusionSpan, type ModelSnaps, type FieldSpec, type PanelSpec, type SnapHit, type ToolEnv, type ToolEvent, type ToolOutput } from '@kit/sketch';
@@ -68,6 +68,8 @@ import { chooseKnurlExport, type BakeRun } from './knurlExport';
 import { mayBeSlow } from './exportKnurl';
 import { KNURL_BAKE_SECONDS, loadExportPrefs, saveExportPrefs, type ExportPrefs } from './exportPrefs';
 import { FileManager } from './files/fileManager';
+import { PREVIEW_MIN_CHARS } from './files/stepPreview';
+import { PreviewTree } from './files/PreviewTree';
 import { seemsZUp } from './files/importOrient';
 import { importTimingsLine } from './files/importTimings';
 import { SKP_DEFAULT_ORIENT, nextSkpOrient, skpImportOpts, skpNotices, type SkpOrient } from './files/skpImport';
@@ -123,8 +125,8 @@ import { CaseWizard } from './CaseWizard';
 import { PluginPanel } from './PluginPanel';
 import { pluginOps, runOfFolder, type PluginSel } from './pluginRun';
 import { MoveGroupDialog } from './MoveGroupDialog';
-import { builtinRegistry, checkParams, defaultsOf, PluginManager, type Values } from '@kit/plugin';
-import { wasmGenerators, runSandboxed } from '@kit/plugin-wasm';
+import { builtinRegistry, checkParams, contextOf, defaultsOf, PluginManager, type ReadResult, type Values } from '@kit/plugin';
+import { wasmGenerators, wasmReaders, runSandboxed, isRelease, convertRelease } from '@kit/plugin-wasm';
 import { idbPluginStore, thirdPartyEnabled } from './pluginStore';
 import { PLUGIN_API_VERSION } from './pluginRun';
 import { DEFAULT_CASE, caseIssue, caseOps, type CaseParams } from './case';
@@ -194,7 +196,7 @@ import type { ThreadEntryLike } from './handles/threadHandle';
 import { SketchToolStrip, SketchRailSections, sketchRibbonGroups } from './SketchToolStrip';
 import { ToolRail } from './ToolRail';
 import { selectionKind } from './menuModel';
-import { pluginDocContext } from './pluginDoc';
+import { pluginDocContext, selectionItems } from './pluginDoc';
 import { useSheet } from './sheet/useSheet';
 import { applyCornerPick, cornerSelectionKeep } from './sheet/options';
 import { flangeActions, setSpanPicked } from './sheet/flangeActions';
@@ -202,7 +204,7 @@ import { legFrame, nearestOnPolyline, patchSpanPoints, profileOf, segBounds, spa
 import { freeFeatureNumber, outlineCandidates } from './sheet/flangeSketch';
 import { legGeometry } from './sheet/legGeometry';
 import { tabForSheetChange } from './sheet/model';
-import { RIBBON_LAYOUT, pluginCommandId, withGearIds, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
+import { RIBBON_LAYOUT, pluginCommandId, withGearIds, withPluginSlots, slotGroup, SKETCH_TAB, activeRibbonTab, docKindOf, tabForKindChange, idleDuringEdit, isFileCommand, sketchChrome, type DocKind } from './toolbarModel';
 import { SketchFields, KeyboardPrimer, appendSeed, armKeyboardPrime, primeSketchKeyboard } from './SketchFields';
 import { TextPanel } from './TextPanel';
 import { PatternPanel } from './PatternPanel';
@@ -336,6 +338,10 @@ let viewport: Viewport | null = null;
 const asmState = createAssemblyState();
 const analysisStore = createAnalysisStore();
 let lastBody: unknown = null;
+/** The colours and body names of the plugin run being previewed (its `extras`), drawn over the preview and dropped with it; never saved until Add. `ops` is the last previewed ops, to skip a rebuild when only a colour changed. */
+/** The open document's bodies and faces, taken when the Plugins form opens: a preview on screen replaces what the view shows, but picks and `selection.get` refer to the document. */
+let pluginDocBase: { rows: BodyRow[]; mesh: ReturnType<typeof controller.bodyFaces> } | null = null;
+let pluginLook: { appearance?: Record<string, unknown>; bodyNames?: Record<string, unknown>; ops?: string } | null = null;
 /** The cosmetic knurl the Knurl wizard is previewing (drawn with the saved ones, never saved). */
 let knurlDraft: ReturnType<typeof knurlCosmetic> | null = null;
 /** Index of the saved cosmetic knurl the wizard is editing: it is not drawn while its replacement is previewed. */
@@ -352,13 +358,16 @@ function bodyViewNow(): ReturnType<typeof viewSpec> {
 }
 /** The Bodies of what is on screen with their names, looks and visibility from the document (`volumes`: also the volume of each, for the list). */
 function bodyRowsFor(volumes: boolean): BodyRow[] {
-  const m = controller.selModel();
+  // while a plugin's preview is on screen the bodies are the preview's, so its colours have something to attach to
+  const previewing = pluginLook ? controller.previewModel() : null;
+  const m = previewing ?? controller.selModel();
   if (!m) return [];
   const d = controller.document();
   const feats = new Map((d?.features ?? []).map((f) => [f.id, (f as { name?: string }).name ?? null] as const));
   // the names the document gives its bodies: asked of the kernel (controller.lumps) and matched to the list by volume and centre
-  const docNames = controller.lumps.length ? matchLumps(bodyShapes(m.bodies(), faceMoments(controller.bodyFaces())), controller.lumps) : undefined;
-  return listBodies(m.bodies(), readBodyFields(d), {
+  const docNames = !previewing && controller.lumps.length ? matchLumps(bodyShapes(m.bodies(), faceMoments(controller.bodyFaces())), controller.lumps) : undefined;
+  const shown = pluginLook && (pluginLook.appearance || pluginLook.bodyNames) ? { ...(d ?? {}), appearance: { ...((d as { appearance?: object } | null)?.appearance ?? {}), ...(pluginLook.appearance ?? {}) }, bodyNames: { ...((d as { bodyNames?: object } | null)?.bodyNames ?? {}), ...(pluginLook.bodyNames ?? {}) } } : d;
+  return listBodies(m.bodies(), readBodyFields(shown), {
     featureName: (id) => feats.get(id) ?? null, ...(docNames ? { docNames } : {}), defaultName: (n) => t('bodies.default', { n }),
     ...(volumes ? { volumes: faceVolumes(controller.bodyFaces()) } : {}),
   });
@@ -540,7 +549,7 @@ const textEditRef: { current: (patch: TextPatch) => void } = { current: () => {}
 /** The agent link: off at every start; the user turns it on in Settings, Agent link (docs/agent-bridge.md). */
 startOnlineTextures();   // the viewport's textures come through the online library (the cache first; the network only when the setting is on)
 /** Built-in plugins plus the ones the user installed (IndexedDB). Installed ones load at start (see the App's effect). */
-const pluginManager = new PluginManager({ registry: builtinRegistry(), store: idbPluginStore(), appVersion: PLUGIN_API_VERSION, wasm: (rec) => wasmGenerators(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o), look: boardColour }), denied: () => (thirdPartyEnabled() ? null : 'switch on "Allow plugins from other people" in the Plugins panel') });
+const pluginManager = new PluginManager({ registry: builtinRegistry(), store: idbPluginStore(), appVersion: PLUGIN_API_VERSION, convert: async (f) => (isRelease(f) ? convertRelease(f) : null), wasm: (rec) => wasmGenerators(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o), look: boardColour }), wasmRead: (rec) => wasmReaders(rec, { runner: (p, e, params, h, o) => runSandboxed(p, e, params, h, o) }), denied: () => (thirdPartyEnabled() ? null : 'switch on "Allow plugins from other people" in the Plugins panel') });
 const agentLink = createAgentLink({ controller, store: store as never, plugins: pluginManager.registry, bodies: () => bodyRowsFor(true).map((r) => ({ name: r.name, key: r.key, faces: r.faces, volume: r.volume })) });
 const chatSession = createChatSession({
   provider: claudeCodeProvider({ endpoint: () => agentLink.endpoint() }),
@@ -627,6 +636,11 @@ function App() {
   // the Plugins panel: sel is null while the list shows, else the chosen generator and its values (the form is generated from the plugin's parameter list)
   const [pluginWiz, setPluginWiz] = useState<{ sel: PluginSel | null } | null>(null);
   const [pluginBusy, setPluginBusy] = useState(false);
+  const [pluginNote, setPluginNote] = useState<string | null>(null);
+  const [pluginRead, setPluginRead] = useState<ReadResult | null>(null);   // what a read entry found (a cut list)
+  const [pluginReadBusy, setPluginReadBusy] = useState(false);
+  const [pluginPick, setPluginPick] = useState<string | null>(null);   // the selection field that takes the viewport's picks
+  const pluginPickSeen = useRef<{ field: string; key: string } | null>(null);
   const [moveDlg, setMoveDlg] = useState<{ name: string; refs: Array<{ body: string }> } | null>(null);   // Move folder: every body the folder made, together
   const pluginSeq = useRef(0);
   const pluginTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -650,7 +664,7 @@ function App() {
   useEffect(() => { if (fastenerWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenerWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (fastenWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setFastenWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (caseWiz && (propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setCaseWiz(null); } }, [propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
-  useEffect(() => { if (pluginWiz && (caseWiz || trayWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { pluginSeq.current++; void controller.cancelPreview(); setPluginWiz(null); } }, [caseWiz, trayWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
+  useEffect(() => { if (pluginWiz && (caseWiz || trayWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { pluginSeq.current++; pluginLook = null; pluginDocBase = null; setPluginPick(null); void controller.cancelPreview(); setPluginWiz(null); } }, [caseWiz, trayWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   useEffect(() => { if (trayWiz && (caseWiz || propWiz || impWiz || knurlWiz || screwWiz || washerWiz || springWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || editingId)) { void controller.cancelPreview(); setTrayWiz(null); } }, [caseWiz, propWiz, impWiz, knurlWiz, screwWiz, washerWiz, springWiz, fastenWiz, fastenerWiz, bearingWiz, frameWiz, sk3dWiz, editingId]);   // another editor took the panel
   const [meshWiz, setMeshWiz] = useState<string | null>(null);   // the Mesh panel: the id of the reference mesh it is open on
   const [meshDlg, setMeshDlg] = useState<{ name: string; kind: MeshKind; bytes: Uint8Array; mtl?: string; probe: MeshProbe; unit: StlUnit } | null>(null);   // the reference mesh import dialog (STL, OBJ, GLB, 3MF)
@@ -679,6 +693,7 @@ function App() {
   const listSelRef = useRef<{ path: string | null; sel: string[] }>({ path: null, sel: [] });
   const cornerSelRef = useRef<string[]>([]);   // the vertices selected while a sheet corner's corners field is picking
   const pickQueueRef = useRef<Promise<void>>(Promise.resolve());   // list picks apply in order, each after the body it is read on is ready
+  const [, setBeforeVer] = useState(0);   // bumped when beforeRef is filled, so the edge list regroups its runs
   const beforeRef = useRef<{ id: string; edges: ViewEdge[] } | null>(null);   // the edges of the body the edited feature is applied to (edgesBeforeCached)
   const [previewHint, setPreviewHintRaw] = useState<string | null>(null);
   // the live preview's failure: its cause/consequence sort, and whether it is breakage the committed model did not have
@@ -919,7 +934,7 @@ function App() {
   // An edges field is read on the body its feature is applied to (the features before it), not the body on screen, which has the
   // feature applied: an edge the feature shortened or split names the edge it was, and the tangent chain runs on the edges as they were
   // (see listPick.ts). Built once when the editor opens; a pick made before it is ready waits for it.
-  useEffect(() => { if (editingId && controller.document()?.features.some((f) => f.id === editingId && (f.type === 'fillet' || f.type === 'chamfer'))) void controller.edgesBeforeCached(editingId).then((edges) => { beforeRef.current = { id: editingId, edges }; }, () => {}); }, [editingId, controller.revision]);
+  useEffect(() => { if (editingId && controller.document()?.features.some((f) => f.id === editingId && (f.type === 'fillet' || f.type === 'chamfer'))) void controller.edgesBeforeCached(editingId).then((edges) => { beforeRef.current = { id: editingId, edges }; setBeforeVer((v) => v + 1); }, () => {}); }, [editingId, controller.revision]);
   const fieldNow = (id: string | null, path: string): unknown => {
     if (draftRef.current[path] !== undefined) return draftRef.current[path];
     const f = id ? controller.document()?.features.find((x) => x.id === id) as unknown as Record<string, unknown> | undefined : undefined;
@@ -981,7 +996,8 @@ function App() {
   useEffect(() => { viewport?.setHidden({ body: hid.body, ids: hid.ids }); }, [hid]);
   // hovering a tree row tints what that feature made (soft, apart from the hover and selection colours); the reverse: the row of the face under the pointer
   const [treeHover, setTreeHover] = useState<string | null>(null);
-  useEffect(() => { viewport?.setFeatureHover(treeHover ? [treeHover] : []); }, [treeHover]);
+  const [folderHover, setFolderHover] = useState<string[] | null>(null);
+  useEffect(() => { viewport?.setFeatureHover(folderHover ?? (treeHover ? [treeHover] : []), !!folderHover); }, [treeHover, folderHover]);
   const viewOwnerOf = (n: string): string | null => { const d = controller.document(); return d ? viewOwner(n, insertIds(d as never)) : null; };
   const compAppearances = compParts.length ? componentAppearances(lk, partName, compParts, appearanceOfMaterial, useMatColour) : new Map<string, import('@kit/viewport').Appearance>();
   const selOwner = store.selection.value.length ? viewOwnerOf(store.selection.value[0]) : null;
@@ -1636,6 +1652,16 @@ function App() {
   /** STEP text into a new part named after the file (view only, see files/stepImport.ts). */
   const importStepText = (text: string, file: string) => guarded(async () => {
     await load(JSON.stringify(blankPart(partNameOf(file))), { file: null });
+    if (text.length >= PREVIEW_MIN_CHARS) {
+      // a large assembly: the kernel's exact import does not finish on it, so it opens as a mesh-only preview (files/stepPreview.ts)
+      store.notify(t('files.step.previewing', { name: file }));
+      busyNote.value = t('files.step.importing');
+      let p: Awaited<ReturnType<typeof controller.importStepPreview>>;
+      try { p = await controller.importStepPreview(text); } finally { busyNote.value = null; }
+      if (p.ok) { viewport?.fit(); store.notify(t('files.step.preview', { name: file, products: p.products, triangles: p.triangles.toLocaleString(), seconds: p.seconds, unmeshed: p.unmeshed ? t('files.step.unmeshed', { n: p.unmeshed }) : '' }), 'warn'); offerZUp(p.view.mesh); }
+      else if (p.code !== 'cancelled') store.notify(t('files.step.failed', { name: file, message: p.message }), 'error');
+      return;
+    }
     const r = await controller.importStep(text, partNameOf(file));
     if (r.ok) {
       viewport?.fit(); store.notify(t('files.step.done', { name: file, faces: r.faces })); offerZUp(r.view.mesh); offerRecognise(text, file, r.view as never);
@@ -1967,7 +1993,7 @@ function App() {
     spring: () => openSpring(),
     caseBox: () => openCase(),
     plugins: () => openPlugins(),
-    pluginGenerators: pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => ({ id: pluginCommandId(g.plugin.manifest.id, g.decl.id), label: g.decl.title, ...(g.decl.description ? { tip: g.decl.description } : {}), run: () => { openPlugins(); onPluginPick(g.plugin.manifest.id, g.decl.id); } })),
+    pluginGenerators: pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => ({ id: pluginCommandId(g.plugin.manifest.id, g.decl.id), label: g.decl.title, ...(g.decl.description ? { tip: g.decl.description } : {}), group: slotGroup(g.decl.slots), run: () => { openPlugins(); onPluginPick(g.plugin.manifest.id, g.decl.id); } })),
     tray: () => openTray(),
     nut: () => openFastener('nut'),
     standoff: () => openFastener('standoff'),
@@ -3412,7 +3438,7 @@ function App() {
       onToggleRef={(id) => { if (id.startsWith('mesh:')) toggleMeshShown(id.slice(5)); }}
       onOpenRef={(id) => { if (id === 'material') openMaterial(); else if (id.startsWith('mesh:')) openMesh(id.slice(5)); else if (id.startsWith('knurl:')) openKnurlEdit({ cosmeticIndex: Number(id.slice(6)) }); else if (id === 'front' || id === 'top' || id === 'right') startNewSketch(id); }}
       status={store.featureStatus.value} warnings={store.featureWarnings.value} selectedId={selectedId} onWarning={showWarning}
-      hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} hoverId={hoverRowId}
+      hiddenIds={hid.ids} onToggleHide={toggleHideFeature} onHoverFeature={setTreeHover} onHoverFolder={setFolderHover} hoverId={hoverRowId}
       {...ti.treeProps}
       reveal={rev.reveal} onSelectGroup={selectGroupFaces} onSelectFaces={(id) => selectGroupFaces([id])}
       onEdit={startEditing}
@@ -3783,24 +3809,39 @@ function App() {
   };
   // The Plugins panel: pick a generator, the form comes from its parameter list; every valid change previews the result on the scratch build,
   // Add commits it as one folder and one undo step. The ops come from packages/plugin through pluginRun.ts (the same script path as the Script tab).
-  const runPlugin = async (sel: PluginSel) => {
+  const runPlugin = async (sel: PluginSel, preview = false, full = false) => {
     if (!doc) return null;
     const found = pluginRegistry.find(sel.pluginId, sel.generatorId);
     if (!found || !checkParams(found.decl.params, sel.values).ok) return null;
-    return pluginOps(pluginRegistry, doc as never, sel, scriptHostFor(async () => {}) as never, docUpAxis(doc) ?? loadNavPrefs().upAxis, pluginDocContext(bodyRowsFor(true), controller.bodyFaces(), [...store.selection.value]));
+    return pluginOps(pluginRegistry, doc as never, sel, scriptHostFor(async () => {}) as never, docUpAxis(doc) ?? loadNavPrefs().upAxis, pluginDocContext((pluginDocBase ?? { rows: bodyRowsFor(true), mesh: controller.bodyFaces() }).rows, (pluginDocBase ?? { rows: [], mesh: controller.bodyFaces() }).mesh, [...store.selection.value], (doc as unknown as { variables?: Array<{ name?: unknown; expr?: unknown }> }).variables ?? [], (doc as unknown as { pluginRuns?: Record<string, { meta?: Record<string, unknown> }> }).pluginRuns ?? {}), { preview, full });
   };
   const pluginPreview = (sel: PluginSel, delay = 400) => {
     if (pluginTimer.current) clearTimeout(pluginTimer.current);
     const n = ++pluginSeq.current;
     pluginTimer.current = setTimeout(async () => {
-      setPluginBusy(true);
-      const r = await runPlugin(sel);
+      // a read entry adds nothing, so there is nothing to preview
+      if (pluginRegistry.find(sel.pluginId, sel.generatorId)?.decl.effect === 'read') { pluginLook = null; await controller.cancelPreview(); setPluginBusy(false); setPluginNote(null); return; }
+      setPluginBusy(true); setPluginNote(null);
+      const r = await runPlugin(sel, true);
       if (n !== pluginSeq.current) return;
       setPluginBusy(false);
-      if (!r) { await controller.cancelPreview(); setPreviewHint(null); return; }
-      if (!r.ok) { await controller.cancelPreview(); setPreviewHint(r.message === 'noScratch' ? t('plugin.noScratch') : r.message); return; }
-      const pr = await controller.preview(r.ops, 0);
-      if (n === pluginSeq.current) onPreviewResult(pr);
+      if (!r) { pluginLook = null; await controller.cancelPreview(); setPreviewHint(null); return; }
+      if (!r.ok) { pluginLook = null; await controller.cancelPreview(); setPreviewHint(r.message === 'noScratch' ? t('plugin.noScratch') : r.message); return; }
+      setPluginNote(r.previewSkipped?.length ? t('plugin.previewSkipped', { what: r.previewSkipped.join(', ') }) : null);
+      // The run's colours (a Material choice) and body names are not features: they are drawn over the preview from here, so a change of material shows at once
+      // and, when the geometry is the same as the preview already on screen, without building it again.
+      const key = JSON.stringify(r.ops);
+      const same = pluginLook?.ops === key;
+      pluginLook = { ...(r.extras.appearance ? { appearance: r.extras.appearance as Record<string, unknown> } : {}), ...(r.extras.bodyNames ? { bodyNames: r.extras.bodyNames as Record<string, unknown> } : {}), ops: key };
+      if (same) { viewport?.setBodyView(bodyViewNow()); redraw((k) => k + 1); return; }
+      let pr = await controller.preview(r.ops, 0);
+      // the preview left slow detail out and still did not build: try once with everything in it (the same as Add would build)
+      if (n === pluginSeq.current && !pr.ok && !(pr as { stale?: boolean }).stale && r.trimmedScript) {
+        const f = await runPlugin(sel, true, true);
+        if (n !== pluginSeq.current) return;
+        if (f && f.ok) { setPluginNote(f.previewSkipped?.length ? t('plugin.previewSkipped', { what: f.previewSkipped.join(', ') }) : null); pluginLook = { ...(f.extras.appearance ? { appearance: f.extras.appearance as Record<string, unknown> } : {}), ...(f.extras.bodyNames ? { bodyNames: f.extras.bodyNames as Record<string, unknown> } : {}), ops: JSON.stringify(f.ops) }; pr = await controller.preview(f.ops, 0); }
+      }
+      if (n === pluginSeq.current) { onPreviewResult(pr); viewport?.setBodyView(bodyViewNow()); }
     }, delay);
   };
   const openPlugins = () => {
@@ -3814,24 +3855,53 @@ function App() {
   const onPluginPick = (pluginId: string, generatorId: string) => {
     const found = pluginRegistry.find(pluginId, generatorId);
     if (!found) return;
-    const sel = { pluginId, generatorId, values: defaultsOf(found.decl.params) };
+    const values = defaultsOf(found.decl.params);
+    // the document as it is now, kept for the picks and for `selection.get` while previews come and go
+    pluginDocBase = { rows: bodyRowsFor(true), mesh: controller.bodyFaces() };
+    // the first selection field takes what is selected now, and then the picks made in the view; the others start empty
+    const first = found.decl.params.find((d) => d.type === 'selection');
+    if (first) {
+      const cur = pluginDocContext(pluginDocBase.rows, pluginDocBase.mesh, [...store.selection.value]).selection;
+      values[first.name] = selectionItems(cur, first);
+      pluginPickSeen.current = { field: first.name, key: JSON.stringify([...store.selection.value]) };
+      setPluginPick(first.name);
+    } else setPluginPick(null);
+    const sel = { pluginId, generatorId, values };
     setPluginWiz({ sel }); setPreviewHint(null);
     pluginPreview(sel, 0);
   };
   const onPluginChange = (values: Values) => {
     if (!pluginWiz?.sel) return;
     const sel = { ...pluginWiz.sel, values };
-    setPluginWiz({ sel });
+    setPluginWiz({ sel }); setPluginRead(null);
     pluginPreview(sel);
+  };
+  // Run (a read entry): the plugin reads the open document, as it was when the form opened, and gives back what it found; nothing is added or previewed.
+  const onPluginRun = async () => {
+    const sel = pluginWiz?.sel;
+    if (!sel || !doc) return;
+    const found = pluginRegistry.find(sel.pluginId, sel.generatorId);
+    if (!found) return;
+    const checked = checkParams(found.decl.params, sel.values);
+    if (!checked.ok) return;
+    setPluginReadBusy(true); setPreviewHint(null); setPluginRead(null);
+    try {
+      const base = pluginDocBase ?? { rows: bodyRowsFor(true), mesh: controller.bodyFaces() };
+      const d = doc as unknown as { variables?: Array<{ name?: unknown; expr?: unknown }>; pluginRuns?: Record<string, { meta?: Record<string, unknown> }> };
+      const up = docUpAxis(doc) ?? loadNavPrefs().upAxis;
+      const dctx = pluginDocContext(base.rows, base.mesh, [...store.selection.value], d.variables ?? [], d.pluginRuns ?? {});
+      setPluginRead(await pluginManager.read(sel.pluginId, sel.generatorId, checked.values, contextOf([], { ...(up ? { up } : {}), doc: dctx })));
+    } catch (e) { setPreviewHint(t('plugin.readFailed', { reason: (e as Error).message })); }
+    finally { setPluginReadBusy(false); }
   };
   const onPluginBack = async () => {
     pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
-    await controller.cancelPreview(); setPreviewHint(null); setPluginBusy(false);
+    await controller.cancelPreview(); setPreviewHint(null); setPluginBusy(false); pluginLook = null; pluginDocBase = null; setPluginPick(null); setPluginRead(null);
     setPluginWiz({ sel: null });
   };
   const onPluginCancel = async () => {
     pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
-    await controller.cancelPreview();
+    await controller.cancelPreview(); pluginLook = null; pluginDocBase = null; setPluginPick(null); setPluginRead(null);
     setPluginWiz(null); setPreviewHint(null); setPluginBusy(false); setLeftTab("Features");
     redraw((n) => n + 1);
   };
@@ -3840,7 +3910,7 @@ function App() {
     pluginSeq.current++; if (pluginTimer.current) clearTimeout(pluginTimer.current);
     const r = await runPlugin(pluginWiz.sel);
     if (!r || !r.ok) { setPreviewHint(r ? (r.message === 'noScratch' ? t('plugin.noScratch') : r.message) : null); return; }
-    await controller.cancelPreview();
+    await controller.cancelPreview(); pluginLook = null; pluginDocBase = null; setPluginPick(null);
     const c = await timed(() => controller.commit(r.ops, "plugin"));
     if (!c.ok) { setPreviewHint(t('plugin.failed', { reason: c.hints?.map((h) => h.hint).join("; ") || (c as { schemaError?: string }).schemaError || "edit failed" })); return; }
     controller.setUndoableExtras(r.extras, { withLastEdit: true });   // colours, body names and the run's record: view state, undone and redone WITH the edit
@@ -3849,6 +3919,19 @@ function App() {
     setPluginWiz(null); setPreviewHint(null); setPluginBusy(false); setLeftTab("Features");
     redraw((n) => n + 1);
   };
+  // While a selection field is the one picking, what is selected in the view (and the field takes) becomes its value; one selection never fills two fields.
+  useEffect(() => {
+    if (!pluginPick || !pluginWiz?.sel || !pluginDocBase) return;
+    const key = JSON.stringify([...store.selection.value]);
+    const seen = pluginPickSeen.current;
+    if (!seen || seen.field !== pluginPick) { pluginPickSeen.current = { field: pluginPick, key }; return; }   // just switched on: keep what the field holds until the selection changes
+    if (seen.key === key) return;
+    pluginPickSeen.current = { field: pluginPick, key };
+    const d = pluginRegistry.find(pluginWiz.sel.pluginId, pluginWiz.sel.generatorId)?.decl.params.find((x) => x.name === pluginPick);
+    if (!d) return;
+    const items = selectionItems(pluginDocContext(pluginDocBase.rows, pluginDocBase.mesh, [...store.selection.value]).selection, d);
+    if (JSON.stringify(items) !== JSON.stringify(pluginWiz.sel.values[d.name] ?? [])) onPluginChange({ ...pluginWiz.sel.values, [d.name]: items });
+  }, [store.selection.value, pluginPick]);
   // The Tray wizard: every change previews the tray (the same features the Script tab's gridTray() makes); Add tray commits them as one folder, one undo step.
   const onTrayDraft = (next: TrayParams) => {
     if (!doc || trayIssue(next)) return;
@@ -4325,7 +4408,7 @@ function App() {
     <CaseWizard key="case" params={caseWiz.params} hasOthers={doc.features.length > 0} onDraft={onCaseDraft} onApply={onCaseApply} onCancel={onCaseCancel} hint={previewHint} />
   ) : null;
   const pluginEditor = pluginWiz && doc ? (
-    <PluginPanel key="plugins" registry={pluginRegistry} manager={pluginManager} onInstalled={() => setPluginTick((n) => n + 1)} sel={pluginWiz.sel} onPick={onPluginPick} onChange={onPluginChange} onApply={onPluginApply} onBack={onPluginBack} onCancel={onPluginCancel} hint={previewHint} busy={pluginBusy} />
+    <PluginPanel key="plugins" registry={pluginRegistry} manager={pluginManager} onInstalled={() => setPluginTick((n) => n + 1)} sel={pluginWiz.sel} onPick={onPluginPick} onChange={onPluginChange} onApply={onPluginApply} onRun={onPluginRun} readResult={pluginRead} readBusy={pluginReadBusy} pickField={pluginPick} onPickField={setPluginPick} onBack={onPluginBack} onCancel={onPluginCancel} hint={previewHint} note={pluginNote} busy={pluginBusy} />
   ) : null;
   const trayEditor = trayWiz && doc ? (
     <TrayWizard key="tray" params={trayWiz.params} hasOthers={doc.features.length > 0} onDraft={onTrayDraft} onApply={onTrayApply} onCancel={onTrayCancel} hint={previewHint} />
@@ -4425,6 +4508,8 @@ function App() {
       inject={handleInject}
       key={`${editingId}:${String(editingFeature?.type)}`}
       options={(a) => optionsFor(a, doc, thinActions)}
+      onChipHover={(r) => { const k = r ? refEdgeKey(r, controller.shownEdges()) : null; viewport?.setHover(k, true); }}
+      edgeRuns={editingFeature?.type === 'fillet' || editingFeature?.type === 'chamfer' ? (edges) => edgeRuns(edges, beforeRef.current?.id === editingId ? beforeRef.current.edges : null, tangentChainOn()) : undefined}
       hint={openCard ? null : previewHint}
       diag={previewDiag ? <DiagnosticsCard diagnosis={previewDiag.d} variant="editor" onSelect={selectFailed} onCancel={onCancel} {...diagFixes()} /> : null}
       okBlocked={previewDiag?.fresh.length ? t('diag.okBlocked', { id: previewDiag.fresh[0].id }) : null}
@@ -4452,8 +4537,15 @@ function App() {
   const editingNow = (editingId && !editorGone && editingFeature) || editingMaterial || propWiz || knurlWiz || screwWiz || washerWiz || springWiz || caseWiz || pluginWiz || trayWiz || fastenWiz || fastenerWiz || bearingWiz || frameWiz || sk3dWiz || (meshWiz && meshRec);
   // On a desktop screen the editor of a feature (and the wizards) floats over the viewport as a card; the left panel keeps the tree. A phone and a narrow tablet keep one docked panel.
   const editorCard = !phone && !narrowTablet.value;
+  const previewNodes = controller.previewTree();
   const leftBody = !doc ? <div class="empty">{t('app.left.empty')}</div>
-    : editingNow && !editorCard ? editor : tree;
+    : editingNow && !editorCard ? editor : (
+      <>
+        {previewNodes ? <PreviewTree nodes={previewNodes} hiddenIds={hid.ids} onHover={setTreeHover} onShowAll={() => lookStore.showAll()}
+          onSetHidden={(ids, hide) => { const h = lookStore.hidden.value; lookStore.hidden.value = { ...h, ids: hide ? [...new Set([...h.ids, ...ids])] : h.ids.filter((x) => !ids.includes(x)) }; }} /> : null}
+        {tree}
+      </>
+    );
   const catalog = useCatalog({
     controller, viewport: () => viewport, notify: (text, level) => store.notify(text, level),
     placed: () => redraw((n) => n + 1),
@@ -4785,7 +4877,8 @@ function App() {
   // the contextual ribbon: a sketch replaces the tabs by the Sketch tab; an open feature editor greys the model commands; an assembly opens on its tab
   const fileIds = new Set(commands.filter((c) => isFileCommand(c.id)).map((c) => c.id));
   const ribbonCommands = editingId ? commands.map((c) => (idleDuringEdit(c.id) ? { ...c, enabled: () => false } : c)) : commands;
-  const baseLayout = withGearIds(RIBBON_LAYOUT, pluginRegistry.generators().filter((g) => !g.plugin.builtin).map((g) => pluginCommandId(g.plugin.manifest.id, g.decl.id)));
+  const installedGens = pluginRegistry.generators().filter((g) => !g.plugin.builtin);
+  const baseLayout = withPluginSlots(withGearIds(RIBBON_LAYOUT, installedGens.map((g) => pluginCommandId(g.plugin.manifest.id, g.decl.id))), installedGens.filter((g) => g.decl.slots?.length).map((g) => ({ plugin: g.plugin.manifest.name, id: pluginCommandId(g.plugin.manifest.id, g.decl.id), slots: g.decl.slots! })));
   const ribbonLayout = sketching
     ? { ...baseLayout, [SKETCH_TAB]: sketchRibbonGroups({ active: sketchToolId, onPick: selectTool, labels: phone || ws.toolLabels !== 'icons', ...(sketchControls ? { controls: sketchControls } : {}) }).filter((g) => !(phone && g.id === 'Finish')) }   // a phone names its tools, and its action bar carries OK and Cancel
     : baseLayout;
@@ -4924,7 +5017,7 @@ function App() {
         {editorCard && editingNow ? <div class="editor-card" data-testid="editor-card" style={{ left: ws.leftPanel === 'floating' ? ws.floatWidth + 28 : 12 }}>{editor}</div> : null}
         {!sketching ? <SelectionList selection={store.selection.value} model={controller.selModel()} onClear={() => store.select([])}
           onRemove={(n) => store.select(store.selection.value.filter((x) => x !== n))} onHover={(n) => viewport?.setHover(n, true)}
-          onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} /> : null}
+          onBodyName={bodyNameOf} onReveal={(n) => rev.show(n)} canReveal={(n) => rev.canShow(n)} hidden={!!pickingPath} /> : null}
         <AnalysisLegend legend={analysisStore.legend.value} />
         <DisplayMenu display={store.display.value} onToggle={(l, on) => store.setDisplay(l, on)} {...(sketching ? { sketch: { show: sketchPrefs.show, onToggle: (k, on) => updatePrefs({ show: { ...sketchPrefs.show, [k]: on } }), dimDisplay: sketchPrefs.dimDisplay, onDimDisplay: (v) => updatePrefs({ dimDisplay: v }), typedAngleDims: sketchPrefs.typedAngleDims, rightAngleSquare: sketchPrefs.rightAngleSquare, onFlag: (k, on) => updatePrefs({ [k]: on }) } } : {})} analysis={{ opts: an, onChange: (patch) => analysisStore.set(patch) }} look={{
           style: lk.style, ghostOpacity: lk.ghostOpacity, light: lk.light, background: lk.background, intensity: lk.intensity, reflections: lk.reflections, edgeWidth: lk.edgeWidth, silhouette: lk.silhouette, appearance: selComp ? (compAppearances.get(selComp.id) ?? appearance) : appearance,
@@ -5033,7 +5126,7 @@ function App() {
           bottom={<>
         {handles.askEl}
         {handles.hintEl}
-        {emptyPart1 ? <StartCard active={refPlane(refSel)} onHover={setRefHover} onSketch={startNewSketch} onClose={() => dismissStart(tabSet.activeId)} /> : null}
+        {emptyPart1 && !store.busy.value ? <StartCard active={refPlane(refSel)} onHover={setRefHover} onSketch={startNewSketch} onClose={() => dismissStart(tabSet.activeId)} /> : null}
           </>}
           status={<>
         <div class="vp-notes">{handles.aboutEl}<QuickMeasure lines={quickText} /></div>

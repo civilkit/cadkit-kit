@@ -14,6 +14,7 @@ export async function runPlugin(loaded, entry, params, handler, opts = {}) {
   for (;;) {
     if (opts.deadlineMs !== undefined && performance.now() - t0 > opts.deadlineMs) throw new Error(`deadline of ${opts.deadlineMs} ms exceeded`);
     let k = 0, c = 0;
+    const wrote = [];   // what this instance saved: only the last one (the one that finishes) counts, the replays before it start over
     const imports = {
       'craft:plugin/commands': {
         run(command, args) {
@@ -35,7 +36,14 @@ export async function runPlugin(loaded, entry, params, handler, opts = {}) {
       },
       'craft:plugin/log': { log(_level, message) { if (stats.log.length < 200) stats.log.push(String(message).slice(0, 500)); } },
       'craft:plugin/control': { progress() {}, cancelled: () => false },
-      'craft:plugin/files': { readFile() { throw { payload: { tag: 'permission-denied', val: 'no file grants' } }; }, writeFile() { throw { payload: { tag: 'permission-denied', val: 'no file grants' } }; } },
+      // a file is only ever written to a grant the manifest names (opts.files: name -> true), and is handed back to the app, never to a disk; nothing is read
+      'craft:plugin/files': {
+        readFile() { throw { payload: { tag: 'permission-denied', val: 'this app gives plugins no folders to read' } }; },
+        writeFile(grant, path, data) {
+          if (!opts.files || !opts.files[grant]) throw { payload: { tag: 'permission-denied', val: 'no file grant named ' + grant } };
+          wrote.push({ grant: String(grant), path: String(path), data: new Uint8Array(data) });
+        },
+      },
       'craft:plugin/clock': { now: () => { const i = c++; if (i >= clockLog.length) clockLog.push(BigInt(Date.now())); return clockLog[i]; } },
     };
     const tg = performance.now();
@@ -72,6 +80,6 @@ export async function runPlugin(loaded, entry, params, handler, opts = {}) {
       const p = failure && failure.payload;
       throw Object.assign(new Error(`plugin error: ${JSON.stringify(p ?? String(failure))}`), { payload: p, stats });
     }
-    return { result: JSON.parse(out), stats };
+    return { result: JSON.parse(out), stats, files: wrote };
   }
 }

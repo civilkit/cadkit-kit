@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { chainRefs, chainSelection, roundPickOf, rememberRoundPick, setTangentChain, tangentChainOn } from './roundChain';
+import { edgeRuns, chainRefs, chainSelection, roundPickOf, rememberRoundPick, setTangentChain, tangentChainOn } from './roundChain';
 
 beforeEach(() => { try { localStorage.clear(); } catch { /* */ } });
 const ed = (key: string, faces: string[], a: number[], b: number[]) => ({ key, faces, pts: [a, b] });
@@ -47,5 +47,19 @@ describe('roundChain', () => {
     expect(chainRefs([seeds[1]], body)).toBeNull();                                   // nothing continues the hub edge
     expect(chainRefs([{ faces: ['F', 'T'], at: [4, 0, 5] }], body)).toBeNull();       // no edge of the body there
     expect(chainRefs(undefined, body)).toBeNull();
+  });
+  it('edgeRuns groups the references that are one tangent run, in order, and keeps every reference once', () => {
+    const body = [
+      { key: 'a', faces: ['T', 'F'], pts: [[0, 0, 0], [5, 0, 0]], mid: [2.5, 0, 0] },
+      { key: 'b', faces: ['T', 'G'], pts: [[5, 0, 0], [9, 0, 0]], mid: [7, 0, 0] },
+      { key: 'c', faces: ['T', 'H'], pts: [[9, 0, 0], [9, 4, 0]], mid: [9, 2, 0] },
+      { key: 'd', faces: ['U', 'V'], pts: [[0, 5, 0], [3, 5, 0]], mid: [1.5, 5, 0] },
+    ];
+    const r = (k: string) => { const e = body.find((x) => x.key === k)!; return { faces: e.faces, at: e.mid }; };
+    const refs = [r('a'), r('d'), r('b'), { faces: ['X', 'Y'], at: [50, 50, 50] }, r('c')];
+    expect(edgeRuns(refs, body)).toEqual([[0, 2], [1], [3], [4]]);
+    expect(edgeRuns(refs, body, false)).toEqual([[0], [1], [2], [3], [4]]);   // chain off: every edge is its own item
+    expect(edgeRuns(refs, null)).toEqual([[0], [1], [2], [3], [4]]);
+    expect(edgeRuns(undefined, body)).toEqual([]);
   });
 });

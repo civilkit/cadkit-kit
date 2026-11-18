@@ -255,6 +255,22 @@ export function dimMeasure(d: DDim, doc: DrawingDoc, ctx?: RenderCtx): string {
   return '';
 }
 
+/** Sheet boxes (x0, y0, x1, y1 in mm) of the text a dimension draws: for keeping other text off it. Width is estimated from the character count. */
+export function dimTextBoxes(ctx: RenderCtx, d: DDim, v: DView, g: ViewData): Array<[number, number, number, number]> {
+  const prims: Prim[] = [];
+  dimPrims(ctx, d, v, g, prims);
+  const boxes: Array<[number, number, number, number]> = [];
+  for (const p of prims) {
+    if (p.t !== 'text') continue;
+    const w = p.s.length * p.size * 0.6, h = p.size;
+    const x0 = p.anchor === 'middle' ? -w / 2 : p.anchor === 'end' ? -w : 0;
+    const th = (p.rot * Math.PI) / 180, c = Math.cos(th), sn = Math.sin(th);
+    const pts = ([[x0, 0], [x0 + w, 0], [x0 + w, -h], [x0, -h]] as const).map(([x, y]) => [p.x + x * c - y * sn, p.y + x * sn + y * c]);
+    boxes.push([Math.min(...pts.map((q) => q[0])), Math.min(...pts.map((q) => q[1])), Math.max(...pts.map((q) => q[0])), Math.max(...pts.map((q) => q[1]))]);
+  }
+  return boxes;
+}
+
 function dimPrims(ctx: RenderCtx, d0: DDim, v: DView, g: ViewData, out: Prim[]): void {
   const { doc } = ctx;
   const d = d0;

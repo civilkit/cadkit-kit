@@ -22,7 +22,7 @@ const angle = (a, b) => (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] *
 const POSE = `(() => { const v = window.__cad.viewport; const c = v.camera, t = v.controls.target; const d = c.position.clone().sub(t).normalize(); return JSON.stringify({ d: [d.x, d.y, d.z], u: [c.up.x, c.up.y, c.up.z] }); })()`;
 const pose = async (page) => JSON.parse(await page.eval(POSE));
 const rectOf = (page, sel, text = '') => page.eval(`(() => { const e = [...document.querySelectorAll(${JSON.stringify(sel)})].find((x) => x.getBoundingClientRect().width > 0 && (${JSON.stringify(text.toLowerCase())} === '' || ((x.getAttribute('aria-label') || '') + ' ' + x.textContent).toLowerCase().includes(${JSON.stringify(text.toLowerCase())}))); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height, l: r.left, t: r.top, r: r.right, b: r.bottom }; })()`);
-const selection = (page) => page.eval(`document.querySelectorAll('.sel-chip').length`);
+const selection = (page) => page.eval(`document.querySelectorAll('.sel-list .chip').length`);
 
 async function open(page, url) {
   const d = JSON.parse(readFileSync(join(ROOT, 'apps/cad/public/samples', SAMPLE + '.ckpart'), 'utf8'));

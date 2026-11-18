@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pluginDocContext } from './pluginDoc';
+import { pluginDocContext, selectionItems } from './pluginDoc';
 import type { BodyRow } from './bodies';
 
 // two triangles of one flat face (normal +X) and one of another (normal +Z); positions are 9 floats per triangle
@@ -14,15 +14,29 @@ const rows = [{ key: '@body:F1.S1', name: 'Body 1', docName: 'Rail', faces: ['F1
 describe('what a plugin may read of the open document', () => {
   it('names a body by its document name and gives its box', () => {
     const d = pluginDocContext(rows, mesh, []);
-    expect(d.bodies).toEqual([{ name: 'Rail', bbox: { min: [0, 0, 0], max: [10, 5, 7] }, volume: 350 }]);
+    expect(d.bodies).toEqual([{ name: 'Rail', bbox: { min: [0, 0, 0], max: [10, 5, 7] }, volume: 350, feature: 'F1' }]);
+  });
+  it('carries the document\'s variables and what earlier runs stored for the components they made', () => {
+    const d = pluginDocContext(rows, mesh, [], [{ name: 'Cabinet_width', expr: '600 mm' }, { name: 5 }], { Cabinet: { meta: { components: { Cabinet: { key: { entry: 'cabinet' } } } } }, Other: {} });
+    expect(d.parameters).toEqual([{ name: 'Cabinet_width', expression: '600 mm', value: 0 }]);
+    expect(d.components).toEqual({ Cabinet: { key: { entry: 'cabinet' } } });
   });
   it('a picked body and a picked flat face (with its normal); anything else is left out', () => {
     const d = pluginDocContext(rows, mesh, ['@body:F1.S1', 'F1.S1', 'F1.S2', 'F9.E1', 'v:3']);
-    expect(d.selection).toEqual([{ type: 'body', name: 'Rail' }, { type: 'face', body: 'Rail', normal: [1, 0, 0] }, { type: 'face', body: 'Rail', normal: [0, 0, 1] }]);
+    expect(d.selection).toEqual([{ type: 'body', name: 'Rail' }, { type: 'face', body: 'Rail', index: 0, normal: [1, 0, 0] }, { type: 'face', body: 'Rail', index: 1, normal: [0, 0, 1] }]);
   });
   it('a face whose triangles disagree has no normal', () => {
     const bent = { ...mesh, normals: [...mesh.normals.slice(0, 9), 0, 1, 0, 0, 1, 0, 0, 1, 0, ...mesh.normals.slice(18)] };
-    expect(pluginDocContext(rows, bent, ['F1.S1']).selection).toEqual([{ type: 'face', body: 'Rail' }]);
+    expect(pluginDocContext(rows, bent, ['F1.S1']).selection).toEqual([{ type: 'face', body: 'Rail', index: 0 }]);
+  });
+  it('what a selection field takes from it: references, names, only what it accepts, the last picks when there is a maximum', () => {
+    const sel = pluginDocContext(rows, mesh, ['@body:F1.S1', 'F1.S1', 'F1.S2']).selection;
+    expect(selectionItems(sel, { accept: ['body'] })).toEqual([{ type: 'body', name: 'Rail' }]);
+    expect(selectionItems(sel, { accept: ['body'], asNames: true })).toEqual(['Rail']);
+    expect(selectionItems(sel, { accept: ['face'] })).toEqual([{ type: 'face', body: 'Rail', index: 0, normal: [1, 0, 0] }, { type: 'face', body: 'Rail', index: 1, normal: [0, 0, 1] }]);
+    expect(selectionItems(sel, { accept: ['face'], maxItems: 1 })).toEqual([{ type: 'face', body: 'Rail', index: 1, normal: [0, 0, 1] }]);
+    expect(selectionItems(sel, { accept: ['edge'] })).toEqual([]);
+    expect(selectionItems(sel, { accept: ['body', 'face'] })).toHaveLength(3);
   });
   it('no mesh: bodies without a box, nothing picked', () => {
     expect(pluginDocContext(rows, null, ['F1.S1']).bodies[0].bbox).toBeNull();

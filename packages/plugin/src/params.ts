@@ -2,7 +2,14 @@
 // so the form and the MCP tool can never disagree. Pure data and pure functions: no DOM, no kernel.
 import type { Schema } from '@kit/agent-tools';
 
-export type ParamType = 'number' | 'integer' | 'boolean' | 'string' | 'enum';
+export type ParamType = 'number' | 'integer' | 'boolean' | 'string' | 'enum' | 'selection';
+/** What a selection field may take from the viewport (SolidCraft's `x-solidcraft-selection` categories). */
+export type SelCategory = 'profile' | 'edge' | 'face' | 'body' | 'sketch_point' | 'sketch_curve';
+export const SEL_CATEGORIES: readonly SelCategory[] = ['profile', 'edge', 'face', 'body', 'sketch_point', 'sketch_curve'];
+/** The `type` an item of each category carries (the app's selection reference, as `select.set` takes it). */
+export const SEL_TYPE: Record<SelCategory, string> = { profile: 'profile', edge: 'edge', face: 'face', body: 'body', sketch_point: 'external_sketch_point', sketch_curve: 'external_sketch_curve' };
+/** One pick: a reference object (`{type:'body', name}`, `{type:'face', body, index}`), or just a body's name for a field that takes names. */
+export type SelItem = Record<string, unknown> | string;
 export interface ParamOption { value: string | number; label?: string }
 /** A field is shown (and used) only while another parameter has one of these values. */
 export interface VisibleIf { param: string; equals?: string | number | boolean; in?: Array<string | number | boolean>; not?: string | number | boolean }
@@ -24,8 +31,16 @@ export interface ParamDef {
   options?: ParamOption[];
   group?: string;
   visibleIf?: VisibleIf;
+  /** selection: what the field takes from the viewport, and how many picks it needs (a required field with no minimum sends []) */
+  accept?: SelCategory[];
+  minItems?: number;
+  maxItems?: number;
+  /** selection: each pick is sent as the body's name (the reserved `bodies` and `body_ids` lists) instead of a reference */
+  asNames?: boolean;
+  /** A switch (boolean) whose detail is slow to build: a live preview runs with it OFF and says so, Add runs with it as set. */
+  previewOff?: boolean;
 }
-export type Values = Record<string, string | number | boolean>;
+export type Values = Record<string, string | number | boolean | SelItem[]>;
 export interface ParamIssue { param: string; message: string }
 
 const NAME = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -40,10 +55,20 @@ export function checkDefs(defs: ParamDef[]): string[] {
     if (typeof d.name !== 'string' || !NAME.test(d.name)) { out.push(`${at}: the name must be letters, digits and _, starting with a letter`); continue; }
     if (names.has(d.name)) out.push(`${at}: defined twice`);
     names.add(d.name);
-    if (!['number', 'integer', 'boolean', 'string', 'enum'].includes(d.type)) { out.push(`${at}: unknown type ${JSON.stringify(d.type)}`); continue; }
+    if (!['number', 'integer', 'boolean', 'string', 'enum', 'selection'].includes(d.type)) { out.push(`${at}: unknown type ${JSON.stringify(d.type)}`); continue; }
     if (d.type === 'enum' && !(d.options && d.options.length)) out.push(`${at}: an enum needs options`);
+    if (d.type !== 'selection' && (d.accept || d.minItems !== undefined || d.maxItems !== undefined || d.asNames)) out.push(`${at}: accept, minItems, maxItems and asNames are for a selection`);
+    if (d.type === 'selection') {
+      if (!d.accept?.length || !d.accept.every((a) => SEL_CATEGORIES.includes(a))) out.push(`${at}: a selection needs accept, from ${SEL_CATEGORIES.join(', ')}`);
+      if (d.minItems !== undefined && d.maxItems !== undefined && d.minItems > d.maxItems) out.push(`${at}: minItems is more than maxItems`);
+      if (d.default !== undefined) out.push(`${at}: a selection has no default`);
+      if (d.asNames && !(d.accept ?? []).every((a) => a === 'body')) out.push(`${at}: asNames is for a field that takes bodies only`);
+      continue;
+    }
+
     if (d.type !== 'enum' && d.options) out.push(`${at}: only an enum has options`);
     if ((d.min !== undefined || d.max !== undefined) && d.type !== 'number' && d.type !== 'integer') out.push(`${at}: min and max are for numbers`);
+    if (d.previewOff && d.type !== 'boolean') out.push(`${at}: previewOff is for a boolean switch`);
     if (d.min !== undefined && d.max !== undefined && d.min > d.max) out.push(`${at}: min is more than max`);
     if (d.default === undefined && d.optional) continue;
     if (d.default !== undefined) { const e = checkValue(d, d.default); if (e) out.push(`${at}: the default ${JSON.stringify(d.default)} is not valid (${e})`); }
@@ -55,6 +80,18 @@ export function checkDefs(defs: ParamDef[]): string[] {
 /** The problem with one value for its definition, or null. */
 export function checkValue(d: ParamDef, v: unknown): string | null {
   switch (d.type) {
+    case 'selection': {
+      if (!Array.isArray(v)) return 'must be a list of picks';
+      const min = d.minItems ?? 0;
+      if (v.length < min) return min === 1 ? 'pick at least one' : `pick at least ${min}`;
+      if (d.maxItems !== undefined && v.length > d.maxItems) return d.maxItems === 1 ? 'pick only one' : `pick at most ${d.maxItems}`;
+      const types = new Set((d.accept ?? []).map((a) => SEL_TYPE[a]));
+      for (const it of v) {
+        if (d.asNames) { if (typeof it !== 'string' || !it) return 'each pick must be a body name'; continue; }
+        if (!it || typeof it !== 'object' || Array.isArray(it) || !types.has(String((it as { type?: unknown }).type))) return `each pick must be one of: ${[...types].join(', ')}`;
+      }
+      return null;
+    }
     case 'boolean': return typeof v === 'boolean' ? null : 'must be true or false';
     case 'string':
       if (typeof v !== 'string') return 'must be text';
@@ -69,10 +106,16 @@ export function checkValue(d: ParamDef, v: unknown): string | null {
   }
 }
 
+/** The values a live preview runs with: every switch marked `previewOff` that is on is turned off. `skipped` names them (their titles) for a note to the user. */
+export function previewValues(defs: ParamDef[], values: Values): { values: Values; skipped: string[] } {
+  const out: Values = { ...values }; const skipped: string[] = [];
+  for (const d of defs) if (d.previewOff && out[d.name] === true) { out[d.name] = false; skipped.push((d.title ?? d.name).toLowerCase()); }
+  return { values: out, skipped };
+}
 /** The values a form starts with: every default (parameters without one are left out). */
 export function defaultsOf(defs: ParamDef[]): Values {
   const out: Values = {};
-  for (const d of defs) if (d.default !== undefined) out[d.name] = d.default;
+  for (const d of defs) { if (d.default !== undefined) out[d.name] = d.default; else if (d.type === 'selection' && !d.optional) out[d.name] = []; }   // a required selection starts empty
   return out;
 }
 
@@ -82,7 +125,7 @@ export function isVisible(d: ParamDef, values: Values): boolean {
   if (!c) return true;
   const v = values[c.param];
   if (c.equals !== undefined) return v === c.equals;
-  if (c.in) return c.in.includes(v);
+  if (c.in) return c.in.includes(v as never);
   if (c.not !== undefined) return v !== c.not;
   return true;
 }
@@ -143,6 +186,12 @@ export function toJsonSchema(defs: ParamDef[]): Schema & { type: 'object' } {
   for (const d of defs) {
     const s: Schema = { description: describe(d) };
     if (d.type === 'enum') { s.enum = (d.options ?? []).map(valueOf); s.type = typeof valueOf(d.options![0]) === 'number' ? 'number' : 'string'; }
+    else if (d.type === 'selection') {
+      s.type = 'array';
+      s.items = d.asNames ? { type: 'string' } : { type: 'object', properties: { type: { type: 'string', enum: (d.accept ?? []).map((a) => SEL_TYPE[a]) } }, required: ['type'] };
+      if (d.minItems !== undefined) s.minItems = d.minItems;
+      if (d.maxItems !== undefined) s.maxItems = d.maxItems;
+    }
     else s.type = d.type;
     if (d.min !== undefined) s.minimum = d.min;
     if (d.max !== undefined) s.maximum = d.max;
@@ -154,7 +203,7 @@ export function toJsonSchema(defs: ParamDef[]): Schema & { type: 'object' } {
   return { type: 'object', properties, ...(required.length ? { required } : {}), additionalProperties: false };
 }
 
-export interface FormField { def: ParamDef; value: string | number | boolean | undefined; visible: boolean; error: string | null; auto: boolean }
+export interface FormField { def: ParamDef; value: string | number | boolean | SelItem[] | undefined; visible: boolean; error: string | null; auto: boolean }
 export interface FormGroup { title: string; fields: FormField[] }
 /** What a generated form shows for the current values: groups in definition order, each field with its visibility and problem. */
 export function formModel(defs: ParamDef[], values: Values): FormGroup[] {

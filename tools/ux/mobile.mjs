@@ -163,7 +163,7 @@ const AUDIT = `(() => {
     sheet: (() => { const s = document.querySelector('.sheet'); return s ? { snap: s.dataset.snap, label: s.getAttribute('aria-label'), box: box(s), bodyChildren: s.querySelector('.sheet-body')?.children.length ?? 0, scrim: !!document.querySelector('.sheet-scrim') } : null; })(),
     nav: (() => { const n = document.querySelector('.bottom-nav'); return n ? box(n) : null; })(),
     docked: { tree: !!q('.tree-wrap.docked').length, props: !!q('.insp-wrap.docked').length, ribbon: document.querySelector('.ribbon-wrap')?.className ?? null },
-    selection: document.querySelectorAll('.sel-chip').length,
+    selection: document.querySelectorAll('.sel-list .chip').length,
     notes: (() => { const b = (sel) => { const e = q('#vp ' + sel)[0]; return e ? box(e) : null; }; return { card: b('.quick-measure'), panel: b('.sizebox-about'), ring: b('.viewcube'), siteLinks: q('.site-link').length }; })(),
   };
 })()`;

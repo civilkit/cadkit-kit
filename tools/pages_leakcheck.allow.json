@@ -22,6 +22,12 @@
       "file": "whats-new/clips/propeller-position.mp4",
       "match": "7@H.Ji",
       "reason": "random bytes inside a binary video file that happen to look like an email address (checked: no text, no metadata)"
+    },
+    {
+      "id": "email",
+      "file": "js-component-bindgen-component.core",
+      "match": "hint@metadata.code.branch",
+      "reason": "the WebAssembly validator's own error text 'invalid value for branch hint@metadata.code.branch_hint annotation' inside the plugin installer's component transpiler (jco), not an address"
     }
   ]
 }

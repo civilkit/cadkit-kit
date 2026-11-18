@@ -351,7 +351,19 @@ export function refreshDim(d: DDim, g: ViewData, v?: Pick<DView, 'hidden' | 'tan
   return { ...d, kind: nd.r !== undefined ? keep : nd.kind, a: nd.a, b: nd.b, c: nd.c, r: nd.r, orient: nd.orient, refs: nd.refs };
 }
 
-export interface HoleInfo { feature: string; text: string; faces: string[] }
+/** `plain`: a sketch circle + cut (not a hole or thread feature): the callout is the circle's own diameter followed by `suffix` (` THRU`, ` ↧ 8`). */
+export interface HoleInfo { feature: string; text: string; faces: string[]; plain?: { suffix: string } }
+
+/** The feature that made a circle, by the face names of its edge (`H5.S.h1`): the wall face of a feature wins over any other face it
+ *  touches (the plate face may carry the name of another feature that changed it), and the radius is never consulted. */
+export function holeOfFaces(holes: HoleInfo[], faces: string[]): HoleInfo | undefined {
+  let best: HoleInfo | undefined, bs = 0;
+  for (const h of holes) for (const f of h.faces) for (const x of faces) {
+    const score = x === f || x.startsWith(f + '.S.') ? 3 : x.startsWith(f + '~') ? 2 : x.startsWith(f + '.') && !h.plain ? 1 : 0;
+    if (score > bs) { bs = score; best = h; }
+  }
+  return best;
+}
 
 /** Dimensions for a fresh view: overall width and height, a diameter (or hole / thread callout) for each round hole. */
 export function autoDims(g: ViewData, v: DView, holes: HoleInfo[] = []): DDim[] {
@@ -375,9 +387,9 @@ export function autoDims(g: ViewData, v: DView, holes: HoleInfo[] = []): DDim[] 
   }
   for (const { e, s } of circles.values()) {
     const faces = g.edges[e].faces;
-    const hole = holes.find((hh) => hh.faces.some((f) => faces.some((x) => x === f || x.startsWith(f + '.') || x.startsWith(f + '~'))));
+    const hole = holeOfFaces(holes, faces);
     const ref = edgeRef(g, e);
-    out.push(mk(v.id, { kind: hole ? 'callout' : 'diameter', a: s.c, r: s.r, angle: Math.PI / 4 + (out.length % 3) * 0.5, offset: 14, refs: ref ? [ref] : undefined, ...(hole ? { feature: hole.feature } : {}) }));
+    out.push(mk(v.id, { kind: hole ? 'callout' : 'diameter', a: s.c, r: s.r, angle: Math.PI / 4 + (out.length % 3) * 0.5, offset: 14, refs: ref ? [ref] : undefined, ...(hole?.plain ? { text: '<>' + hole.plain.suffix } : hole ? { feature: hole.feature } : {}) }));
   }
   return out;
 }

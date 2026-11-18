@@ -105,3 +105,24 @@ describe('an edges field of a saved feature, read on the body before it', () => 
     expect(toggleRefs([TA], [stub]).value).toEqual([TA, stub]);   // without the body: compared as written
   });
 });
+
+describe('picking one edge with the tangent chain on', () => {
+  const run = [
+    { key: 'a', faces: ['T', 'F'], pts: [[0, 0, 0], [5, 0, 0]], mid: [2.5, 0, 0] },
+    { key: 'b', faces: ['T', 'G'], pts: [[5, 0, 0], [9, 0, 0]], mid: [7, 0, 0] },
+    { key: 'z', faces: ['T', 'H'], pts: [[0, 3, 0], [0, 3, -3]], mid: [0, 3, -1.5] },
+  ];
+  it('selects (lights) the whole run at once, and a click on any edge of it takes all of it out', () => {
+    const on = listPick('edges', [], [], ['a'], run, true)!;
+    expect(on.value).toHaveLength(2);
+    expect(on.selection.sort()).toEqual(['a', 'b']);
+    const off = listPick('edges', on.value, on.selection, ['b'], run, true)!;
+    expect(off.value).toEqual([]);
+    expect(off.selection).toEqual([]);
+  });
+  it('with the chain off only the picked edge is used and lit', () => {
+    const r = listPick('edges', [], [], ['a'], run, false)!;
+    expect(r.value).toHaveLength(1);
+    expect(r.selection).toEqual(['a']);
+  });
+});

@@ -8,6 +8,8 @@ import { SelModel } from './select/model';
 import { blockedIssues, blockMessage, runProfile, withMould, type Issue, type ProfileList, type ProfileReport } from './designCheck';
 import type { CheckPolicy } from './checkSettings';
 import { importStepView, importSldprtView, type StepImportResult } from './files/stepImport';
+import { previewStep, type StepPreviewResult } from './files/stepPreview';
+import type { PreviewNode } from './files/stepPreviewMesh';
 import { sldprtAsPart, type SldprtPartResult } from './files/sldprtImport';
 import { importSkpView, type SkpImportResult, type SkpLook, type SkpOrient } from './files/skpImport';
 import { applyOpsLocal, saveThreadPrefs, warningsById, type ThreadRow, type ThreadStd } from './threadData';
@@ -1390,9 +1392,26 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importStepView(this.session, text, name);
-      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; bumpViewportContent(); }
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
       return r;
     } finally { this.store.busy.value = false; }
+  }
+
+  private previewAbort: AbortController | null = null;
+  private previewNodes: PreviewNode[] | null = null;
+  /** The assembly tree of the mesh-only preview on screen, or null. */
+  previewTree(): PreviewNode[] | null { return this.importedOnScreen ? this.previewNodes : null; }
+  /** Show a large STEP file as a mesh-only preview (see files/stepPreview.ts); Cancel in the busy overlay stops it. */
+  async importStepPreview(text: string): Promise<StepPreviewResult> {
+    if (this.realLoad) await this.whenReal();
+    if (!this.session) return { ok: false, code: 'failed', message: 'no document loaded' };
+    this.store.busy.value = true;
+    const ac = this.previewAbort = new AbortController();
+    try {
+      const r = await previewStep(text, { signal: ac.signal });
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = r.nodes; bumpViewportContent(); }
+      return r;
+    } finally { if (this.previewAbort === ac) this.previewAbort = null; this.store.busy.value = false; }
   }
 
   /** Show the solid of a SolidWorks .SLDPRT file in the viewport (view only, like STEP). */
@@ -1402,7 +1421,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importSldprtView(this.session, bytes, name);
-      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; bumpViewportContent(); }
+      if (r.ok) { this.importedLookNow = null; this.view.setBody(r.view); this.importedOnScreen = true; this.previewNodes = null; bumpViewportContent(); }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -1438,7 +1457,7 @@ export class Controller {
     this.store.busy.value = true;
     try {
       const r = await importSkpView(this.session, bytes, name, opts);
-      if (r.ok) { this.importedLookNow = r.look; this.importedOnScreen = true; this.view.setBody(r.view); bumpViewportContent(); }
+      if (r.ok) { this.importedLookNow = r.look; this.importedOnScreen = true; this.previewNodes = null; this.view.setBody(r.view); bumpViewportContent(); }
       return r;
     } finally { this.store.busy.value = false; }
   }
@@ -1560,6 +1579,7 @@ export class Controller {
   }
 
   async cancel(): Promise<void> {
+    if (this.previewAbort) { this.previewAbort.abort(); return; }
     this.pendingCancel?.();
     this.pendingCancel = null;
     this.kernel.cancel?.();
@@ -1595,7 +1615,7 @@ export class Controller {
   /** The last body handed to the viewer, with its surface bodies kept apart (`lastView` has them merged in). */
   private shown: ShownBody | null = null;
   /** The view of the preview on screen (null when the committed body is shown). */
-  private previewView: { edges?: ViewEdge[] } | null = null;
+  private previewView: { edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
   /** The last body handed to the viewer (its box and sketch frames), for choosing sensible defaults. */
   private lastView: { box: { min: number[]; max: number[] }; sketches: Array<{ id: string; frame: { o: number[]; x?: number[]; y?: number[]; z: number[] } }>; edges?: ViewEdge[]; mesh?: { positions: ArrayLike<number>; normals?: ArrayLike<number>; triFace?: ArrayLike<number>; faceIds?: string[] } } | null = null;
 
@@ -1619,6 +1639,12 @@ export class Controller {
     return model;
   }
   private selCache: { view: object; model: SelModel } | null = null;
+  /** The bodies of the preview on screen (the whole scene as it would be after the edit), or null when no preview is showing: what a preview's colours attach to. */
+  previewModel(): SelModel | null {
+    const v = this.previewView, m = v?.mesh;
+    if (!v || !m || !m.normals || !m.triFace || !m.faceIds || m.positions.length === 0) return null;
+    return new SelModel({ mesh: { positions: m.positions, normals: m.normals, triFace: m.triFace, faceIds: m.faceIds }, edges: v.edges ?? [], surfaceOf: (n) => this.surfaceOf(n) });
+  }
 
   /** The bounding box of the body on screen (null when there is none). */
   bodyBox(): { min: number[]; max: number[] } | null {

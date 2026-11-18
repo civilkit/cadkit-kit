@@ -2,7 +2,8 @@
 // Edits (parameters.add, solid.box, timeline.group) only RECORD; the open document is never touched. Reads (document.inspect,
 // inspect.measure) build the recorded list as a script on a scratch AgentSession and answer from that. commit() is the one write.
 // component.create / component.activate / occurrence.ground are NOT in the brief's list but the woodwork `cabinet` entry calls them
-// unconditionally; here they are inert stubs so the run can complete (wave 2 would give them meaning). Everything else is refused.
+// unconditionally; here they are inert stubs so the run can complete, except that a component remembers its features and
+// occurrence.move (a translation) moves the bodies it made: that is how the plugin's Place (right, left, above) takes effect. Everything else is refused.
 import { evalExpr, kernelExpr } from '../../solidcraft/src/expr';
 
 /** What the interpreter needs from the kernel side: build a script on a scratch state and list its bodies; commit a script to the open document. */
@@ -11,22 +12,26 @@ export interface Scratch { build(script: string): Promise<BodyRow[]> }
 export interface Target { commit(script: string): Promise<{ created: number }> }
 
 export const SUPPORTED = new Set(['parameters.add', 'solid.box', 'solid.cylinder', 'solid.cone', 'solid.combine', 'solid.move', 'selection.get', 'solid.hole', 'solid.pattern.rectangular', 'timeline.group', 'document.inspect', 'inspect.measure', 'material.list', 'material.create', 'material.assign']);
-export const STUBBED = new Set(['component.create', 'component.activate', 'occurrence.ground', 'occurrence.move', 'joint.as_built', 'joint.limits']);
+export const STUBBED = new Set(['component.create', 'component.activate', 'component.list', 'component.metadata', 'component.metadata.set', 'component.delete', 'occurrence.ground', 'occurrence.move', 'joint.as_built', 'joint.limits', 'joint.create', 'joint.edit', 'joint.list', 'construct.axis.two_planes', 'solid.chamfer', 'sketch.create', 'sketch.text', 'sketch.finish', 'parameters.change']);
 /** SolidCraft classifies these as reads; everything else is an edit (a `read` entry may only call reads). */
 export const READS = new Set(['document.inspect', 'inspect.measure', 'model.mesh', 'material.list', 'selection.get']);
 
 /** What the open document offers a plugin that edits it (all in the DOCUMENT's frame: the interpreter turns it into the plugin's Z-up frame): its bodies with their boxes and what is selected. */
-export interface DocSel { type: 'body' | 'face' | 'edge'; /** body items */ name?: string; /** face and edge items: the body they belong to */ body?: string; /** planar faces: the outward normal */ normal?: number[] }
-export interface DocBody { name: string; bbox: { min: number[]; max: number[] } | null; volume?: number | null }
-export interface DocContext { up?: 'y' | 'z'; bodies: DocBody[]; selection: DocSel[] }
+export interface DocSel { type: 'body' | 'face' | 'edge'; /** body items */ name?: string; /** face and edge items: the body they belong to */ body?: string; /** a face's place in its body's list */ index?: number; /** planar faces: the outward normal */ normal?: number[] }
+export interface DocBody { name: string; bbox: { min: number[]; max: number[] } | null; volume?: number | null; /** the feature that made the body: a colour for it is written against that feature */ feature?: string }
+export interface DocContext { up?: 'y' | 'z'; bodies: DocBody[]; selection: DocSel[]; /** what generators stored for the components they made, by component name (kept with the run that made each folder) */ components?: Record<string, Record<string, unknown>>; /** the document's variables */ parameters?: ReadonlyArray<{ name: string; expression: string; value: number; comment?: string }> }
 
 interface Box { name: string; body?: string; corner: number[]; size: number[]; cut: boolean; join?: boolean; inter?: boolean; targets: string[]; group?: string }
 /** A cylinder, or a cone when `top` is set (diameters at the base and at the top), on an axis along one of x, y, z. */
 interface Round { kind: 'round'; name: string; base: number[]; axis: number[]; d: number; top?: number; height: number; op: 'new' | 'join' | 'cut' | 'intersect'; body?: string; targets: string[] }
 interface Combine { kind: 'combine'; name: string; target: string; tools: string[]; op: 'cut' | 'join' | 'intersect'; keep: boolean }
+/** `solid.chamfer`: an equal-distance bevel on the edges that pass through the given points of a body */
+interface Chamfer { kind: 'chamfer'; name: string; body: string; distance: number; near: number[][] }
+/** `sketch.create` + `sketch.text`: a board's name, engraved 0.3 mm deep on the plane the plugin gives (a label the cut list names) */
+interface Label { kind: 'label'; name: string; board: string; origin: number[]; xdir: number[]; ydir: number[]; text: string; height: number }
 interface Move { kind: 'move'; name: string; bodies: string[]; translate?: number[]; rotate?: { origin: number[]; axis: number[]; angle: number } }
 interface Hole { name: string; pos: number[]; dir: number[]; d: number; depth: number; targets: string[]; hole: true }
-export interface Param { name: string; expression: string; value: number }
+export interface Param { name: string; expression: string; value: number; comment?: string }
 
 /** The colour a board material shows: the plugin's own `color`, else a wood tone chosen from the library name it asked for (we have no texture library for these). */
 export function lookOf(name: string, look?: string): { colour: string } {
@@ -46,7 +51,7 @@ export class Interpreter {
   boxes: Box[] = [];
   holes: Hole[] = [];
   /** boxes and holes in call order: a hole needs its target body to exist first */
-  order: Array<Box | Hole | Round | Combine | Move> = [];
+  order: Array<Box | Hole | Round | Combine | Move | Chamfer | Label> = [];
   /** names of pattern features: groupable, but they only repeat holes that are already emitted */
   patterns = new Set<string>();
   materials = new Map<string, { density?: number; look?: string }>();
@@ -56,6 +61,24 @@ export class Interpreter {
   buildMs = 0; builds = 0;
   /** boxes of document bodies this run moved (translations only): a later measure sees them where the plugin put them */
   private shifted = new Map<string, number[]>();
+  /** components a plugin made (component.create .. component.activate): where their features sit in `order`, to move their bodies as one */
+  private components = new Map<string, { from: number; to: number }>();
+  private openComponent: string | null = null;
+  /** the component commands act in (component.activate) */
+  private activeName = 'Root';
+  /** how far a plugin moved a component of the open document (Joinery puts a cabinet on the origin to drill it): nothing really moves here, so what it cuts there is shifted back */
+  private movedBy = new Map<string, number[]>();
+  private shiftBack(v: number[]): number[] { const m = this.movedBy.get(this.activeName); return m ? v.map((x, i) => x - m[i]) : v; }
+  /** the label sketch a plugin is drawing (sketch.create .. sketch.finish) */
+  private sketch: { name: string; origin: number[]; xdir: number[]; ydir: number[]; texts: Array<{ text: string; height: number }> } | null = null;
+  /** component metadata a plugin stored (it finds its own cabinets again by it) */
+  private metadata = new Map<string, Record<string, unknown>>();
+  /** names of construction axes: they carry no geometry here but a history folder may list them */
+  private axes = new Set<string>();
+  /** what this run stored on the components it made: kept with the run's record so a later run can read it */
+  componentMetadata(): Record<string, Record<string, unknown>> { return Object.fromEntries([...this.components.keys()].filter((n) => this.metadata.has(n)).map((n) => [n, this.metadata.get(n)!])); }
+  /** hinges and slides a plugin asked for: kept for a later assembly, nothing moves yet */
+  joints: Array<Record<string, unknown>> = [];
   constructor(private readonly scratch: Scratch, readonly opts: { readEntry?: boolean; doc?: DocContext; /** the up axis of the document the result goes into (a measure builds in that frame) */ up?: 'y' | 'z' } = {}) {}
 
   // the document's frame -> the plugin's Z-up frame (the inverse of pt() below): Y-up (x, y, z) -> (x, -z, y)
@@ -77,7 +100,8 @@ export class Interpreter {
     return { min: r.min.map((v, i) => v + t[i]), max: r.max.map((v, i) => v + t[i]) };
   }
 
-  private vars(): Record<string, number> { return Object.fromEntries([...this.params].map(([k, p]) => [k, p.value])); }
+  /** this run's parameters, and the document's (a plugin links its sizes to another cabinet's: `B_height = A_height`) */
+  private vars(): Record<string, number> { return { ...Object.fromEntries((this.opts.doc?.parameters ?? []).map((p) => [p.name, p.value])), ...Object.fromEntries([...this.params].map(([k, p]) => [k, p.value])) }; }
   private num(v: unknown): number { return evalExpr(v as string | number, this.vars()); }
 
   /** The `commands.run` entry point: JSON in, JSON out, throws a plain Error (the host turns it into command-failed). */
@@ -98,9 +122,9 @@ export class Interpreter {
     switch (command) {
       case 'parameters.add': {
         const name = String(args.name);
-        if (this.params.has(name)) throw new Error(`parameter ${name} already exists`);
+        if (this.params.has(name) || this.opts.doc?.parameters?.some((p) => p.name === name)) throw new Error(`parameter ${name} already exists`);
         const value = this.num(args.expression);
-        this.params.set(name, { name, expression: String(args.expression), value });
+        this.params.set(name, { name, expression: String(args.expression), value, ...(args.comment ? { comment: String(args.comment) } : {}) });
         return { name, value, expression: String(args.expression) };
       }
       case 'solid.box': {
@@ -109,6 +133,7 @@ export class Interpreter {
         if ((cut || join || inter) && !box.targets.length) throw new Error(`a ${args.operation} needs targets`);
         if ((join || inter) && box.targets.length > 1) throw new Error(`a ${args.operation} takes one target body`);
         if (cut || join || inter) for (const t of box.targets) if (!this.exists(t)) throw new Error(`no body named "${t}"`);
+        box.corner = this.shiftBack(box.corner);
         this.boxes.push(box); this.order.push(box);
         return { feature: box.name, body: box.body ?? null };
       }
@@ -122,16 +147,22 @@ export class Interpreter {
         return { feature: h.name };
       }
       case 'solid.pattern.rectangular': {
-        const seeds = (args.features as string[]).map((f) => this.holes.find((h) => h.name === f));
-        if (seeds.some((h) => !h)) throw new Error('a pattern can only repeat a hole made earlier in this run');
+        // a pattern repeats features made earlier in this run: holes, or cuts made by a cylinder or a box
+        type Seed = Hole | Round | Box;
+        const seeds = (args.features as string[]).map((f): Seed | undefined => this.holes.find((h) => h.name === f) ?? this.order.find((o): o is Round | Box => o.name === f && (('kind' in o && o.kind === 'round' && o.op === 'cut') || (!('kind' in o) && !('hole' in o) && o.cut))));
+        if (seeds.some((h) => !h)) throw new Error('a pattern can only repeat a hole or a cut made earlier in this run');
         const n1 = Math.round(this.num(args.count1)), n2 = Math.round(this.num(args.count2 ?? 1));
         const s1 = this.num(args.spacing1), s2 = args.spacing2 === undefined ? 0 : this.num(args.spacing2);
         const d1 = (args.dir1 as number[]) ?? [0, 0, 1], d2 = (args.dir2 as number[]) ?? [0, 1, 0];
         let made = 0;
-        for (const h of seeds as Hole[]) for (let i = 0; i < n1; i++) for (let j = 0; j < n2; j++) {
+        for (const h of seeds as Seed[]) for (let i = 0; i < n1; i++) for (let j = 0; j < n2; j++) {
           if (!i && !j) continue;
-          const c: Hole = { ...h, name: `${h.name} ${i + 1}.${j + 1}`, pos: h.pos.map((v, k) => v + d1[k] * s1 * i + d2[k] * s2 * j) };
-          this.holes.push(c); this.order.push(c); made++;
+          const shift = (v: number[]) => v.map((x, k) => x + d1[k] * s1 * i + d2[k] * s2 * j);
+          const name = `${h.name} ${i + 1}.${j + 1}`;
+          if ('hole' in h) { const c: Hole = { ...h, name, pos: shift(h.pos) }; this.holes.push(c); this.order.push(c); }
+          else if ('kind' in h) this.order.push({ ...h, name, base: shift(h.base) });
+          else { const c: Box = { ...h, name, corner: shift(h.corner) }; this.boxes.push(c); this.order.push(c); }
+          made++;
         }
         this.patterns.add(String(args.name));
         return { feature: String(args.name), copies: made };
@@ -146,6 +177,7 @@ export class Interpreter {
         if (op !== 'new' && !r.targets.length) throw new Error(`a ${op} needs targets`);
         if (op !== 'new' && op !== 'cut' && r.targets.length > 1) throw new Error(`a ${op} takes one target body`);
         for (const t of r.targets) if (!this.exists(t)) throw new Error(`no body named "${t}"`);
+        r.base = this.shiftBack(r.base);
         this.order.push(r);
         return { feature: r.name, body: op === 'new' ? (r.body ?? r.name) : r.targets[0] ?? null };
       }
@@ -176,16 +208,77 @@ export class Interpreter {
         for (const b of (args.bodies as string[])) this.assigned.set(b, String(args.material));
         return { assigned: (args.bodies as string[]).length };
       }
+      case 'solid.chamfer': {
+        const body = String(args.body);
+        if (!this.exists(body)) throw new Error(`no body named "${body}"`);
+        const near = ((args.edges as unknown[]) ?? []).map((e) => (e as unknown[]).map((c) => this.num(c)));
+        if (!near.length) throw new Error('solid.chamfer needs edges');
+        const distance = this.num(args.distance);
+        if (!(distance > 0)) throw new Error('solid.chamfer needs a positive distance');
+        this.order.push({ kind: 'chamfer', name: String(args.name ?? `Chamfer ${body}`), body, distance, near });
+        return { feature: args.name ?? null, body };
+      }
+      case 'construct.axis.two_planes': { this.axes.add(String(args.name)); return { axis: args.name }; }
+      case 'joint.create': { this.joints.push({ ...args }); return { joint: args.name }; }
+      case 'joint.edit': case 'joint.list': return { joints: this.joints };
+      case 'component.metadata.set': { const n = String(args.component); this.metadata.set(n, { ...(this.metadata.get(n) ?? {}), ...((args.values as Record<string, unknown>) ?? {}) }); return { component: n }; }
+      case 'component.metadata': { const n = String(args.component), m = this.metadata.get(n) ?? this.opts.doc?.components?.[n] ?? {}; return { component: n, metadata: m, values: m }; }
+      case 'component.list': {
+        // the open document has no components here: a cabinet is the bodies sharing a prefix before "Side L" / "Side R"
+        const fromDoc = new Set((this.opts.doc?.bodies ?? []).map((b) => /^(.+) Side [LR]$/.exec(b.name)?.[1]).filter((n): n is string => !!n));
+        const names = [...new Set([...fromDoc, ...Object.keys(this.opts.doc?.components ?? {}), ...this.components.keys()])];
+        return { active: this.activeName, components: names.map((name) => ({ name, occurrence: `${name}:1`, id: name })) };
+      }
+      case 'component.delete': return { deleted: args.component ?? args.occurrence ?? null };
+      case 'sketch.create': {
+        const pl = args.plane ?? {};
+        if (!pl.origin || !pl.x_dir || !pl.y_dir) throw new Error('sketch.create: only a plane with an origin and x and y directions is supported');
+        this.sketch = { name: String(args.name), origin: (pl.origin as unknown[]).map((v) => this.num(v)), xdir: (pl.x_dir as unknown[]).map(Number), ydir: (pl.y_dir as unknown[]).map(Number), texts: [] };
+        return { sketch: args.name };
+      }
+      case 'sketch.text': {
+        if (!this.sketch) throw new Error('sketch.text: no sketch is open');
+        this.sketch.texts.push({ text: String(args.text), height: this.num(args.height ?? 5) });
+        return { text: args.text };
+      }
+      case 'sketch.finish': {
+        const sk = this.sketch; this.sketch = null;
+        if (!sk) return { stub: true };
+        const board = sk.name.replace(/ label$/, '');
+        if (!this.exists(board)) throw new Error(`no body named "${board}"`);
+        sk.texts.forEach((t, i) => this.order.push({ kind: 'label', name: i ? `${sk.name} ${i + 1}` : sk.name, board, origin: sk.origin, xdir: sk.xdir, ydir: sk.ydir, text: t.text, height: t.height }));
+        return { sketch: sk.name };
+      }
+      case 'parameters.change': {
+        const name = String(args.name), cur = this.params.get(name);
+        if (!cur) throw new Error(`no parameter named "${name}"`);
+        const value = this.num(args.expression);
+        this.params.set(name, { ...cur, expression: String(args.expression), value });
+        return { name, value };
+      }
       case 'timeline.group': {
         const features: string[] = args.features ?? [];
-        for (const f of features) if (!this.patterns.has(f) && !this.order.some((b) => b.name === f || ('hole' in b && b.name.startsWith(`${f} `)))) throw new Error(`no feature named "${f}"`);
+        for (const f of features) if (!this.patterns.has(f) && !this.axes.has(f) && !this.order.some((b) => b.name === f || ('hole' in b && b.name.startsWith(`${f} `)))) throw new Error(`no feature named "${f}"`);
         this.groups.push({ name: String(args.name), features });
         return { group: args.name, count: features.length };
       }
-      case 'component.create': return { occurrence: `${args.name}:1`, parent: 'Root', stub: true };
-      case 'component.activate': return { active: args.component, stub: true };
+      case 'component.create': { const n = String(args.name); this.components.set(n, { from: this.order.length, to: Infinity }); this.openComponent = n; this.activeName = n; return { occurrence: `${n}:1`, parent: 'Root', stub: true }; }
+      case 'component.activate': { this.activeName = String(args.component ?? 'Root'); if (this.openComponent) { const c = this.components.get(this.openComponent); if (c && c.to === Infinity) c.to = this.order.length; this.openComponent = null; } return { active: args.component, stub: true }; }
       case 'joint.as_built': case 'joint.limits': return { stub: true, name: args.name ?? args.joint };
-      case 'occurrence.move': return { moved: args.occurrence, stub: true };
+      case 'occurrence.move': {
+        // a plugin placing a generated component: turn it (about its own origin, which is the document's origin here), then translate it, in world space
+        const c = this.components.get(String(args.occurrence).replace(/:\d+$/, ''));
+        const extra = Object.keys(args).filter((k) => !['occurrence', 'space', 'translate', 'angle', 'axis'].includes(k));
+        if (extra.length) throw new Error(`occurrence.move: ${extra.join(', ')} not supported (only a turn and a translation)`);
+        const tr = ((args.translate as unknown[]) ?? [0, 0, 0]).map((v) => this.num(v));
+        const angle = args.angle === undefined ? 0 : this.num(args.angle);
+        if (!c && tr.some((v) => v !== 0) && !angle) { const n = String(args.occurrence).replace(/:\d+$/, ''); const m = this.movedBy.get(n) ?? [0, 0, 0]; this.movedBy.set(n, m.map((x, i) => x + tr[i])); return { moved: args.occurrence, reverted: false }; }
+        if (!c || (tr.every((v) => v === 0) && !angle)) return { moved: args.occurrence, stub: !c };
+        const names = this.order.slice(c.from, c.to).flatMap((f) => ('hole' in f ? [] : 'kind' in f ? (f.kind === 'round' && f.op === 'new' ? [f.body ?? f.name] : []) : (!f.cut && !f.join && !f.inter ? [f.body ?? f.name] : [])));
+        if (!names.length) return { moved: args.occurrence, bodies: 0 };
+        if (angle) this.runSync('solid.move', { name: `Turn ${args.occurrence}`, bodies: names, origin: [0, 0, 0], axis: args.axis ?? [0, 0, 1], angle });
+        return tr.some((v) => v !== 0) ? this.runSync('solid.move', { name: `Place ${args.occurrence}`, bodies: names, translate: tr }) : { moved: names };
+      }
       case 'occurrence.ground': return { grounded: args.grounded, stub: true };
       default: throw new Unsupported(`unsupported command: ${command}. CivilKit CAD does not run this SolidCraft command yet`);
     }
@@ -207,9 +300,9 @@ export class Interpreter {
     L.push('const H = {};');
     const groupOf = new Map<string, string>();
     for (const g of this.groups) for (const f of g.features) { groupOf.set(f, g.name); for (const o of this.order) if ('hole' in o && o.name.startsWith(`${f} `)) groupOf.set(o.name, g.name); }
-    const emit = (b: Box | Hole | Round | Combine | Move): string => {
+    const emit = (b: Box | Hole | Round | Combine | Move | Chamfer | Label): string => {
       if ('hole' in b) return this.emitHole(b);
-      if ('kind' in b) return b.kind === 'round' ? this.emitRound(b) : b.kind === 'combine' ? this.emitCombine(b) : this.emitMove(b);
+      if ('kind' in b) return b.kind === 'round' ? this.emitRound(b) : b.kind === 'combine' ? this.emitCombine(b) : b.kind === 'chamfer' ? this.emitChamfer(b) : b.kind === 'label' ? this.emitLabel(b) : this.emitMove(b);
       const a = this.pt(b.corner), c = this.pt(b.corner.map((v, i) => v + b.size[i]));
       const [x, y, z] = [0, 1, 2].map((i) => Math.min(a[i], c[i])), [l, w, h] = [0, 1, 2].map((i) => Math.abs(c[i] - a[i]));
       const sk = `p.sketch(at('front', ${z}), (s) => s.rect(${l}, ${w}, [${x + l / 2}, ${y + w / 2}]))`;
@@ -234,6 +327,7 @@ export class Interpreter {
     for (const [body, mat] of this.assigned) {
       const look = { colour: o.look?.(mat) ?? lookOf(mat, this.materials.get(mat)?.look).colour };
       if (this.order.some((o) => 'cut' in o && !o.cut && !o.join && !o.inter && (o.body ?? o.name) === body)) L.push(`p.appearance({ feature: H[${JSON.stringify(body)}], colour: ${JSON.stringify(look.colour)}, finish: 'matte' });`);
+      else if (this.docBody(body)?.feature) L.push(`p.appearance({ feature: ${JSON.stringify(this.docBody(body)!.feature)}, colour: ${JSON.stringify(look.colour)}, finish: 'matte' });   // a body of the open document`);
     }
     return L.join('\n');
   }
@@ -261,6 +355,13 @@ export class Interpreter {
     return `[${sec(f.off, r.d)}, ${sec(f.off + f.sign * r.height, r.top === 0 ? r.d * 1e-3 : r.top!)}]`;
   }
   private emitCombine(c: Combine): string { return `p.combine('${c.op === 'join' ? 'union' : c.op}', ${JSON.stringify(c.target)}, ${JSON.stringify(c.tools)}${c.keep ? ', { keepTools: true }' : ''});`; }
+  private emitLabel(l: Label): string {
+    const [x, y] = [l.xdir, l.ydir], n = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]];
+    return `p.workplane({ origin: [${this.pt(l.origin)}], normal: [${this.dirOf(n)}], xdir: [${this.dirOf(x)}] }, 0, { name: ${JSON.stringify(`${l.name} plane`)} });\n  p.sketch(at(p.handle()), (s) => s.text(${JSON.stringify(l.text)}, [0, 0], { height: ${l.height}, anchor: ['center', 'middle'] })).cut(0.3, { name: ${JSON.stringify(l.name)}, from: [${JSON.stringify(l.board)}], direction: 'into' });`;
+  }
+  private emitChamfer(c: Chamfer): string {
+    return c.near.map((n, i) => `p.chamfer(edges({ near: [${this.pt(n)}], within: 1 }), { name: ${JSON.stringify(c.near.length > 1 ? `${c.name} ${i + 1}` : c.name)}, distance: ${c.distance} });`).join('\n  ');
+  }
   private emitMove(m: Move): string {
     const o: string[] = [];
     if (m.rotate) o.push(`rotate: { axis: [${this.dirOf(m.rotate.axis)}], origin: [${this.pt(m.rotate.origin)}], angle: ${m.rotate.angle} }`);
@@ -294,7 +395,11 @@ export class Interpreter {
   async commit(open: Target): Promise<{ created: number }> { return open.commit(this.script()); }
 
   private async inspect(): Promise<unknown> {
-    return { units: 'mm', parameters: Object.fromEntries([...this.params].map(([k, p]) => [k, { expression: p.expression, value: p.value }])), bodies: false, timeline: this.groups.map((g) => g.name), selection: (this.opts.doc?.selection ?? []).map((i) => i.name ?? i.body) };
+    // `parameters` is the keyed form; `params` is the list the Woodwork plugin reads ({ name, expression, value, comment }): it finds a cabinet's sizes and a free name there
+    const mine = [...this.params.values()];
+    const all = [...(this.opts.doc?.parameters ?? []).filter((d) => !this.params.has(d.name)), ...mine];
+    const entry = (p: { expression?: string; value: number; comment?: string }) => ({ expression: p.expression, value: p.value, ...(p.comment ? { comment: p.comment } : {}) });
+    return { units: 'mm', parameters: Object.fromEntries(all.map((p) => [p.name, entry(p)])), params: all.map((p) => ({ name: p.name, ...entry(p) })), bodies: false, timeline: this.groups.map((g) => g.name), selection: (this.opts.doc?.selection ?? []).map((i) => ({ type: i.type, name: i.name ?? i.body, ...(i.body ? { body: i.body } : {}) })) };
   }
 
   private async measure(args?: { bodies?: string[]; names_only?: boolean }): Promise<unknown> {

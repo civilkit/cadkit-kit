@@ -15,9 +15,15 @@ export interface GeneratorDecl {
   script?: string;
   /** the entry of the plugin's wasm component this generator runs (plugins with a `wasm` section; the form comes from `params` like any other) */
   entry?: string;
+  /** where the host may show this entry besides the Plugins list (SolidCraft's slots): a `menu` named File or Help, or a `ribbon` named for a tab. Any other name: the Plugins list only. */
+  slots?: Array<{ kind: 'menu' | 'ribbon'; name: string }>;
+  /** `read`: the entry only reads the model and returns a result to show (a cut list); it adds no features, so the form has Run, not Add. Absent: it edits. */
+  effect?: 'read';
 }
 /** A compiled SolidCraft `craft:plugin@0.1.0` component, transpiled by jco: one JS file and its core wasm modules. It runs only in the sandboxed Worker and can only call the commands listed here. */
-export interface WasmDecl { js: string; cores: string[]; commands: string[]; limits?: { deadlineMs?: number; maxCommands?: number } }
+/** a place the plugin may save files to: this app has no folders, so each file it writes there comes back as a download (nothing is ever read) */
+export interface FileGrant { name: string; read?: boolean; write?: boolean }
+export interface WasmDecl { js: string; cores: string[]; commands: string[]; files?: FileGrant[]; limits?: { deadlineMs?: number; maxCommands?: number } }
 export interface PluginManifest {
   id: string;
   name: string;
@@ -85,7 +91,13 @@ export function parseManifest(raw: unknown): ParsedManifest {
       if (!Array.isArray(w.commands) || !cmds.every((c) => typeof c === 'string' && /^[a-z_]+(\.[a-z_]+)+$/.test(c))) errors.push('wasm.commands: must be a list of command ids such as "solid.box"');
       const lim = w.limits as { deadlineMs?: unknown; maxCommands?: unknown } | undefined;
       if (lim !== undefined && (typeof lim !== 'object' || (lim.deadlineMs !== undefined && !(Number(lim.deadlineMs) > 0)) || (lim.maxCommands !== undefined && !(Number(lim.maxCommands) > 0)))) errors.push('wasm.limits: deadlineMs and maxCommands must be positive numbers');
-      if (!errors.some((e) => e.startsWith('wasm'))) wasm = { js: w.js as string, cores: cores as string[], commands: cmds as string[], ...(lim ? { limits: lim as WasmDecl['limits'] } : {}) };
+      const fg = w.files as unknown;
+      let files: FileGrant[] | undefined;
+      if (fg !== undefined) {
+        if (!Array.isArray(fg) || fg.length > 8 || !fg.every((f) => f && typeof f === 'object' && typeof (f as { name?: unknown }).name === 'string' && /^[a-z][a-z0-9_-]{0,39}$/.test((f as { name: string }).name))) errors.push('wasm.files: a list of at most 8 {name, read?, write?} with lowercase names');
+        else files = (fg as FileGrant[]).map((f) => ({ name: f.name, ...(f.read ? { read: true } : {}), ...(f.write ? { write: true } : {}) }));
+      }
+      if (!errors.some((e) => e.startsWith('wasm'))) wasm = { js: w.js as string, cores: cores as string[], commands: cmds as string[], ...(files?.length ? { files } : {}), ...(lim ? { limits: lim as WasmDecl['limits'] } : {}) };
     }
   }
   const c = m.contributes;
@@ -109,9 +121,10 @@ export function parseManifest(raw: unknown): ParsedManifest {
         for (const e of checkDefs(x.params as ParamDef[])) errors.push(`${at}: ${e}`);
         if (x.script !== undefined && !safePath(x.script)) errors.push(`${at}.script: "${String(x.script)}" must be a relative path inside the plugin (no .., no leading /)`);
         if (x.entry !== undefined && (typeof x.entry !== 'string' || !/^[a-z0-9-]+$/.test(x.entry))) errors.push(`${at}.entry: must be the component's entry name (lowercase letters, digits, hyphens)`);
+        if (x.slots !== undefined && !(Array.isArray(x.slots) && x.slots.length <= 8 && x.slots.every((q) => q && typeof q === 'object' && ((q as { kind?: unknown }).kind === 'menu' || (q as { kind?: unknown }).kind === 'ribbon') && typeof (q as { name?: unknown }).name === 'string' && (q as { name: string }).name.length > 0 && (q as { name: string }).name.length <= 60))) errors.push(`${at}.slots: a list of at most 8 {kind: "menu" | "ribbon", name} items`);
         if (m.wasm !== undefined && typeof x.entry !== 'string') errors.push(`${at}.entry: required in a wasm plugin`);
         if (m.wasm === undefined && x.entry !== undefined) errors.push(`${at}.entry: only a plugin with a "wasm" section has entries`);
-        gens.push({ id: x.id, ...(typeof x.script === 'string' ? { script: x.script } : {}), ...(typeof x.entry === 'string' ? { entry: x.entry } : {}), title: String(x.title ?? ''), params: x.params as ParamDef[], ...(typeof x.category === 'string' ? { category: x.category } : {}), ...(typeof x.description === 'string' ? { description: x.description } : {}), ...(typeof x.help === 'string' ? { help: x.help } : {}) });
+        gens.push({ id: x.id, ...(typeof x.script === 'string' ? { script: x.script } : {}), ...(typeof x.entry === 'string' ? { entry: x.entry } : {}), title: String(x.title ?? ''), params: x.params as ParamDef[], ...(typeof x.category === 'string' ? { category: x.category } : {}), ...(typeof x.description === 'string' ? { description: x.description } : {}), ...(typeof x.help === 'string' ? { help: x.help } : {}), ...(x.effect === 'read' ? { effect: 'read' as const } : {}), ...(Array.isArray(x.slots) && x.slots.length ? { slots: (x.slots as Array<{ kind: 'menu' | 'ribbon'; name: string }>).map((q) => ({ kind: q.kind, name: q.name })) } : {}) });
       });
     }
   }
@@ -143,5 +156,5 @@ export const PLACEMENT_PARAMS: ParamDef[] = (['x', 'y', 'z'] as const).map((a) =
 /** The manifest as the app registers it: a wasm plugin's generators plus the Position fields. */
 export function withPlacement(m: PluginManifest): PluginManifest {
   if (!m.wasm) return m;
-  return { ...m, contributes: { generators: m.contributes.generators.map((g) => (g.params.some((d) => d.name === 'place_x') ? g : { ...g, params: [...g.params, ...PLACEMENT_PARAMS] })) } };
+  return { ...m, contributes: { generators: m.contributes.generators.map((g) => (g.effect === 'read' || g.params.some((d) => d.name === 'place_x') ? g : { ...g, params: [...g.params, ...PLACEMENT_PARAMS] })) } };
 }

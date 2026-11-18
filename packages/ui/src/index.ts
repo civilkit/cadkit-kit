@@ -25,3 +25,4 @@ export { ExprInput, switchKeyboard, VarsContext, useScope, errorText } from './E
 export * from './expr';
 export { SignKey, numberAttrs, textAttrs, searchAttrs, flipSign, flipFocusedSign, kindForMin, wantsSign, type NumberKind } from './keypad';
 export { EditorSection, loadCollapsed, rememberCollapsed } from './EditorSection';
+export { ChipList, type ChipItem } from './ChipList';

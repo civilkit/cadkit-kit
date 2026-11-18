@@ -150,6 +150,10 @@ export function nextLetter(d: DrawingDoc): string {
 export interface KLine { k: 'e' | 'o' | 't' | 'h'; v: boolean; p: number[]; e?: number }
 export interface KEdge { faces: string[]; at: number[]; line?: number[][]; mid: number[]; ends: number[][]; outline?: boolean }
 export interface ViewData { min: V2; max: V2; lines: KLine[]; edges: KEdge[] }
+/** What the kernel says in place of a view it could not make: a code, and (newer kernels) a detail and a hint. A reply with `error` has no `lines`. */
+export interface ViewFailure { error: string; detail?: string; hint?: string }
+/** One entry of the kernel's `drawing` reply: a view, or the reason there is none. */
+export type ViewReply = Partial<ViewData> & Partial<ViewFailure>;
 
 export const viewCentre = (g: ViewData): V2 => [(g.min[0] + g.max[0]) / 2, (g.min[1] + g.max[1]) / 2];
 

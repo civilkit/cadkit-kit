@@ -59,7 +59,13 @@ Centre marks are drawn on round holes and centre lines on cylinder axes (two par
   and length), `M8x1.25 ↧ 14` (tapped blind hole: the thread's size with the pitch from the kernel's thread tables, the hole depth),
   `Ø6.5 THRU`, `M5 CLR THRU` plus `CSK` / `C'BORE` for countersunk and counterbored holes. The text is computed from the features when the
   sheet is drawn, so it changes with the feature. See `docs/threads.md` for the thread features.
-  Only real `hole` / `thread` features get a callout: a sketch circle plus a cut is drawn as a plain circle with a diameter. The PDF and DXF
+  The feature is found by the face names of the circle's edge (`H5.S.h1` names `H5`): the wall face of a feature wins over any other face
+  the edge touches, and the radius is never used, so two hole features of different sizes on one face keep their own text. Auto dimension
+  then turns a callout around its circle (`placement.ts`, `settleCallouts`) until its text is clear of other dimension text and of other
+  callouts. A sketch circle + an extrude cut (`through` / `throughBoth`, or `blind` with a depth) is called out as a plain diameter,
+  `Ø6 THRU` / `Ø6 ↧ 8` (the dimension's text is `<> THRU`, so it follows the circle); it replaces the diameter dimension that circle got
+  before and is never worded as a thread. `holeInfos(features, pitchOf, { sketchCuts: false })` / headless `sketchCuts: false` leave them as
+  diameters; the headless tidy drops the tiny ones like tiny diameters. The PDF and DXF
   writers print `DEPTH` for the `↧` glyph (Helvetica has none); the SVG keeps the glyph.
 - **Note**: click for text; Shift+click on a view for a note with a leader to the clicked point. The panel edits the text (several lines).
 - **Balloon**: click on a view for a numbered balloon with a leader. **Auto balloons** (assemblies): one per BOM item on the selected view
@@ -119,7 +125,8 @@ dimensions following a deeper plate, the drawing surviving a Controller reload).
 ## Known gaps
 
 - Hidden-line accuracy is the kernel's: curved-edge visibility is longer than the original's in places (`drawing-parity.md`), so some
-  hidden pieces are split; a torus section answers `cutNoEffect`.
+  hidden pieces are split; a torus section answers `cutNoEffect`. When the kernel cannot make a view it replies `{error, detail?, hint?}` instead of `lines`; `fetchViews`
+  passes that to `onError` and the workspace notifies the user (`viewError.ts`); without detail a `cutNoEffect` means the plane misses the body.
 - Views placed before a projection change (first / third angle) keep their sides.
 - The view toolbar adds views at free spots by a simple search; overlaps are possible and are fixed by dragging.
 - Title block layout is fixed (no templates); the sheet border margin is 10 mm.

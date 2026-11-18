@@ -7,6 +7,7 @@ import { Icon, featureIconName } from './icons';
 import { ExprInput } from './ExprInput';
 import { fmtNum, isExprValue } from './expr';
 import { textAttrs } from './keypad';
+import { ChipList, type ChipItem } from './ChipList';
 
 export interface Section {
   id: string;
@@ -208,6 +209,11 @@ export function FeatureEditor(p: {
   onConfirm(next: Record<string, unknown>): void;
   onCancel(): void;
   onPickRequest?(path: string): void;
+  /** Groups of the `edges` list that are one picked item (a tangent run): each group is the indices of its edges. The list then shows one
+   *  chip per group (labelled with its edge count when it holds more than one) and the chip's x takes the whole group out. */
+  edgeRuns?(edges: unknown[]): number[][] | null;
+  /** The pointer is over an edge chip (the reference it stands for) or left it (null): the app lights that edge in the view. */
+  onChipHover?(ref: unknown | null): void;
   pickingPath?: string | null;
   picked?: { path: string; value: unknown } | null;
   /** A patch the app applies to the draft once per `seq` (the depth arrow in the viewport sets `depth` and maybe `flip`). */
@@ -342,6 +348,8 @@ export function FeatureEditor(p: {
                 // a label forwards a tap on its text to its first button, which would remove an edge)
                 const chips = isList && f.path === 'edges';
                 const items = chips && Array.isArray(draft[f.path] ?? feature[f.path]) ? (draft[f.path] ?? feature[f.path]) as unknown[] : [];
+                const runs = chips && p.edgeRuns ? p.edgeRuns(items) : null;
+                const groups: number[][] = runs && runs.flat().length === items.length ? runs : items.map((_, i) => [i]);
                 const Tag = chips ? 'div' : 'label';
                 return (
                   <Tag class={'fedit-fld' + (picking ? ' picking' : '') + (missing ? ' missing' : '') + (isBool ? ' bool' : '') + (isList || isRef ? ' ref' : '')} key={f.path} data-path={f.path}>
@@ -353,15 +361,17 @@ export function FeatureEditor(p: {
                       <span class="fedit-ref">
                         {chips ? (
                           <span class="fedit-chips">
-                            <span class="fedit-count">{items.length === 1 ? t('ui.editor.edgeCount.one') : t('ui.editor.edgeCount', { n: String(items.length) })}</span>
-                            {items.map((it, i) => (
-                              <span class="fedit-chip" key={i}>
-                                <span class="fedit-chip-text">{listText('edges', [it])}</span>
-                                <button type="button" class="fedit-chip-x" aria-label={t('ui.editor.removeEdge')} title={t('ui.editor.removeEdge')} onClick={() => apply(f.path, items.filter((_, j) => j !== i))}>
-                                  <Icon name="close" size={12} />
-                                </button>
-                              </span>
-                            ))}
+                            <span class="fedit-chips-head">
+                              <span class="fedit-count">{items.length === 1 ? t('ui.editor.edgeCount.one') : t('ui.editor.edgeCount', { n: String(items.length) })}</span>
+                              {items.length ? <button type="button" class="fedit-clear" onClick={() => { p.onChipHover?.(null); apply(f.path, []); }}>{t('ui.editor.clearEdges')}</button> : null}
+                            </span>
+                            <ChipList
+                              class="fedit-chip-list"
+                              items={groups.map((g): ChipItem => ({ key: String(g[0]), kind: 'edge', count: g.length, label: listText('edges', [items[g[0]]]) + (g.length > 1 ? ' ' + t('ui.editor.runEdges', { n: String(g.length) }) : '') }))}
+                              removeLabel={(c) => (c.count ?? 1) > 1 ? t('ui.editor.removeRun') : t('ui.editor.removeEdge')}
+                              onRemove={(c) => { const g = groups.find((x) => String(x[0]) === c.key)!; apply(f.path, items.filter((_, j) => !g.includes(j))); }}
+                              onHover={(c) => p.onChipHover?.(c ? items[Number(c.key)] : null)}
+                            />
                           </span>
                         ) : (
                           <input {...textAttrs}

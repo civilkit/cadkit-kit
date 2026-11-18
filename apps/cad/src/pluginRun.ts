@@ -3,7 +3,7 @@
 // folder, ready for controller.preview() or controller.commit() (one undo step), exactly like a wizard's ops.
 import type { EditOp } from '@ck/session';
 import { runScript, type ScriptHost } from '@kit/script';
-import { contextOf, type GenerateContext, type PluginRegistry, type RunRecord, type Values } from '@kit/plugin';
+import { contextOf, trimForPreview, type GenerateContext, type PluginRegistry, type RunRecord, type Values } from '@kit/plugin';
 import { groupOps, wizardGroupName } from './wizardGroup';
 import { scratchRows } from './pluginDoc';
 
@@ -14,12 +14,12 @@ export interface PluginSel { pluginId: string; generatorId: string; values: Valu
 type Doc = { features: Array<Record<string, unknown>>; seq?: number; appearance?: Record<string, unknown>; bodyNames?: Record<string, unknown>; pluginRuns?: Record<string, RunRecord> };
 /** view-state fields a run may write besides its features (colours and names from appearance() / bodyName()) */
 export type PluginExtras = Partial<Record<'appearance' | 'bodyNames' | 'pluginRuns', Record<string, unknown>>>;
-export type PluginOps = { ok: true; ops: EditOp[]; group: string | undefined; title: string; record: RunRecord; extras: PluginExtras } | { ok: false; message: string; issues: Array<{ param: string; message: string }> };
+export type PluginOps = { ok: true; ops: EditOp[]; group: string | undefined; title: string; record: RunRecord; extras: PluginExtras; previewSkipped?: string[]; /** the preview's script had slow detail cut out by shape (so a kernel failure may be worth a retry with the full script) */ trimmedScript?: boolean } | { ok: false; message: string; issues: Array<{ param: string; message: string }> };
 
 /** Does the view-state key belong to one of these features (a feature id, a face name of it, or the body key made from one)? */
 const keyOf = (key: string, ids: ReadonlySet<string>): boolean => { const k = key.startsWith('@body:') ? key.slice(6) : key; return ids.has(k.split('.')[0]); };
 
-export async function pluginOps(registry: PluginRegistry, full: Doc, sel: PluginSel, host: ScriptHost, up?: 'y' | 'z', docCtx?: GenerateContext['doc']): Promise<PluginOps> {
+export async function pluginOps(registry: PluginRegistry, full: Doc, sel: PluginSel, host: ScriptHost, up?: 'y' | 'z', docCtx?: GenerateContext['doc'], opts: { preview?: boolean; /** a preview with everything in it: the retry when the trimmed one did not build */ full?: boolean } = {}): Promise<PluginOps> {
   const found = registry.find(sel.pluginId, sel.generatorId);
   if (!found) return { ok: false, message: `no generator ${sel.pluginId}/${sel.generatorId}`, issues: [] };
   // an edit runs against the document WITHOUT the folder it replaces, so its names (the cabinet's own bodies) are free again
@@ -44,12 +44,16 @@ export async function pluginOps(registry: PluginRegistry, full: Doc, sel: Plugin
     const g = built.geometry as { mesh?: never; faceLumps?: Record<string, number> } | undefined;
     return scratchRows((g?.mesh ?? null) as never, g?.faceLumps, (f.bodies ?? []) as never);
   } } : undefined;
-  const p = await registry.prepare(sel.pluginId, sel.generatorId, sel.values, contextOf(used, { ...(up ? { up } : {}), ...(docCtx ? { doc: docCtx } : {}), ...(scratch ? { scratch } : {}) }));
+  const p = await registry.prepare(sel.pluginId, sel.generatorId, sel.values, contextOf(used, { ...(up ? { up } : {}), ...(docCtx ? { doc: docCtx } : {}), ...(scratch ? { scratch } : {}), ...(opts.preview ? { preview: true } : {}) }));
   if (!p.ok) return { ok: false, message: p.message, issues: p.issues };
   if (!host.build) return { ok: false, message: 'noScratch', issues: [] };
   // ids are never reused: the next one comes from the whole document, the removed features included
   const seq = Math.max(full.seq ?? 1, ...full.features.map((f) => { const m = /^F(\d+)$/.exec(String(f.id ?? '')); return m ? Number(m[1]) + 1 : 1; }));
-  const r = await runScript(p.script, host, {}, { prefix: { features: before, seq } });
+  // a preview leaves out the slow detail it can recognise (engraved text, rows of identical holes); if the trimmed script does not run, the full one does
+  const trim = opts.preview && !opts.full ? trimForPreview(p.script) : null;
+  let r = await runScript(trim?.skipped.length ? trim.script : p.script, host, {}, { prefix: { features: before, seq } });
+  let autoSkipped = trim?.skipped.length ? trim.skipped.map((s) => s.what) : [];
+  if (autoSkipped.length && r.errors.length) { r = await runScript(p.script, host, {}, { prefix: { features: before, seq } }); autoSkipped = []; }
   if (r.errors.length) return { ok: false, message: r.errors.map((e) => e.message).join('; '), issues: [] };
   if (!r.ops.length) return { ok: false, message: 'the generator added nothing', issues: [] };
   const group = sel.edit?.group ?? wizardGroupName(doc.features as never, found.decl.title);
@@ -75,7 +79,9 @@ export async function pluginOps(registry: PluginRegistry, full: Doc, sel: Plugin
   // the record is found by the folder's first feature (a rename changes the folder's name, not its features); the replaced folder's own record goes
   const kept = Object.fromEntries(Object.entries(full.pluginRuns ?? {}).filter(([, r]) => !(r.first && gone.has(r.first))));
   extras.pluginRuns = { ...kept, ...(group ? { [group]: record } : {}) };
-  return { ok: true, ops, group, title: found.decl.title, record, extras };
+  const declared = opts.preview ? (record.meta as { previewSkipped?: string[] } | undefined)?.previewSkipped ?? [] : [];
+  const skipped = [...declared, ...autoSkipped.filter((w) => !declared.includes(w))];
+  return { ok: true, ops, group, title: found.decl.title, record, extras, ...(skipped.length ? { previewSkipped: skipped, ...(autoSkipped.length ? { trimmedScript: true } : {}) } : {}) };
 }
 
 /** The record of the run that made the folder `name`: found by the folder's first feature, so a renamed folder is still found; the name is only the fallback. */

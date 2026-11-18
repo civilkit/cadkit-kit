@@ -188,3 +188,37 @@ export function withGearIds<T extends Record<string, Array<{ id: string; entries
   }
   return out as T;
 }
+
+/** SolidCraft's Design tab names and the tab of ours each one is: a plugin entry that names `{kind: "ribbon", name: "Inspect"}` lands on our Evaluate tab. A name in neither list gets the Plugins tab. */
+export const SLOT_TAB_ALIASES: Record<string, string> = { model: 'Home', manage: 'Home', insert: 'Features', surface: 'Surfaces', assemble: 'Assembly', inspect: 'Evaluate', 'sheet metal': 'Sheet metal', weldments: 'Frame' };
+export const PLUGINS_TAB = 'Plugins';
+
+export interface PluginSlotItem { /** the plugin's name: the group the entry goes in */ plugin: string; /** the entry's command id */ id: string; slots: ReadonlyArray<{ kind: 'menu' | 'ribbon'; name: string }> }
+
+/** The layout with each plugin entry that declares a ribbon slot placed: in a group named for the plugin on the tab it names (ours or SolidCraft's name for it), or on one
+ *  Plugins tab (a group per plugin) when it names no tab we have. Entries without a ribbon slot are untouched (they stay in the Gear menu and the Plugins list). */
+export function withPluginSlots<T extends Record<string, Array<{ id: string; entries: unknown[] }>>>(layout: T, items: readonly PluginSlotItem[]): T {
+  const tabs = new Map(Object.keys(layout).map((k) => [k.toLowerCase(), k]));
+  const place = new Map<string, Map<string, string[]>>();
+  for (const it of items) {
+    for (const s of it.slots) {
+      if (s.kind !== 'ribbon') continue;
+      const n = s.name.trim().toLowerCase();
+      const tab = tabs.get(n) ?? tabs.get((SLOT_TAB_ALIASES[n] ?? '').toLowerCase()) ?? PLUGINS_TAB;
+      if (tab === SKETCH_TAB) continue;
+      const byPlugin = place.get(tab) ?? place.set(tab, new Map()).get(tab)!;
+      const ids = byPlugin.get(it.plugin) ?? byPlugin.set(it.plugin, []).get(it.plugin)!;
+      if (!ids.includes(it.id)) ids.push(it.id);
+    }
+  }
+  if (!place.size) return layout;
+  const out: Record<string, Array<{ id: string; entries: unknown[] }>> = { ...layout };
+  for (const [tab, byPlugin] of place) out[tab] = [...(layout[tab] ?? []), ...[...byPlugin].map(([plugin, ids]) => ({ id: plugin, entries: ids }))];
+  return out as T;
+}
+
+/** The palette group of a plugin entry: File or Help when it asks for a menu of that name, else where installed entries have always been (Create). */
+export const slotGroup = (slots: ReadonlyArray<{ kind: 'menu' | 'ribbon'; name: string }> | undefined): 'File' | 'Help' | 'Create' => {
+  const m = (slots ?? []).find((s) => s.kind === 'menu' && /^(file|help)$/i.test(s.name.trim()));
+  return m ? (m.name.trim().toLowerCase() === 'help' ? 'Help' : 'File') : 'Create';
+};

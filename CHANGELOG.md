@@ -4,6 +4,22 @@ Versions follow `MAJOR.MINOR.PATCH`; the live site's `version.json` carries the 
 
 ## Unreleased
 
+## 0.8.3 - 2026-11-18
+
+- **Fillet and Chamfer round the corners where one block overhangs another.** The four edges that meet at such a corner (two straight pairs that flip between convex and concave) now get a rounded or mitred corner patch, for the two-lines pick, any subset and Select all connected, where the result used to be stepped or refused. A mixed corner under the overhang can still end in flat steps, depending on the order you pick, and a corner that cannot be spliced still returns the stepped body without a message.
+- **Tangent chain picks a whole run.** With Tangent chain on in Fillet or Chamfer, picking one edge selects and lights its whole run as one item with its edge count ("A|B (3 edges)"); clicking any edge of it removes the run, and the panel says how many edges will be rounded in total.
+- **One scrolling list for the Selection tray and the editors' edge and corner fields.** It keeps its own maximum height, fills on hover, marks edges with a dashed outline and has Clear; the tray steps aside while a field is picking, and an edge-shaped name is never labelled Face.
+- **A large STEP file opens as a quick preview.** A STEP file of 8,000,000 characters or more opens as a mesh-only preview made by Foxtrot, with an assembly tree and hide toggles, instead of waiting for the exact import; Foxtrot is MIT or Apache-2.0, credited in THIRD_PARTY.md.
+- **Plugins install from the author's own zip.** The app transpiles a SolidCraft plugin zip in the browser, only when you install one, and the form has dropdowns from `oneOf`, a SolidCraft-style layout and a live preview that drops engraved text and rows of identical holes on its own.
+- **Plugins can ask for a body or face from the viewport.** A selection field (`x-solidcraft-selection`) is picked in the 3D view like any other pick.
+- **Plugins can add a ribbon tab, run read-only entries and save files.** A Plugins tab appears only when an installed plugin asks for one; Woodwork's Cut list runs from it with a result table and a CSV download, and a file a plugin saves is offered as a download, never written to disk.
+- **Woodwork 0.1.7 runs on this host.** Placement, corner, labels, Joinery and Match selected work, and hovering a folder in the feature tree tints its faces.
+- **Section views through counterbored holes draw, and drawing callouts follow the feature.** A failed section now says why, callouts follow the feature id, keep clear of dimension text and exist for a sketch circle and its cut.
+- **A fillet that cannot be built says so, and a wheel round no longer bulges.** R10 on the rim-side vertical edges after an R5 is refused with a reason and a hint, and a plain R10 on the wheel no longer leaves a bulge through the thin rim (the volume was 21% over; it now matches the analytic value to 0.2%).
+- **More SolidWorks parts open as their own solid.** A ghost partition's template sheet no longer hides an imported solid, which gives 35 of 46 surface-body test parts an exact solid (no design history is read for them).
+- **The validator lists hairline cracks.** Open mesh edges forgiven as hairline cracks are listed as `TESSELLATION_HAIRLINE` in the notes, so a thin missing face is no longer silent.
+- **A ribbon button keeps its command's icon,** so a plugin entry shows its own icon instead of a dashed placeholder.
+
 ## 0.8.2 - 2026-11-17
 
 - **Extrude can taper the whole outline.** In the Extrude editor, **End scale** (1 = none) scales the outline linearly to that factor at the far end, so 0.5 ends at half size; it is also `extrude(depth, { endScale })` in scripts. It works with blind, mid-plane and flip ends, and is refused with Draft, Twist, a through end, an up-to-next end or a surface extrude, with a reason.

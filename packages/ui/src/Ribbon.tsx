@@ -45,7 +45,7 @@ export function resolveLayout(commands: Command[], layout?: RibbonLayout, hidden
   return out;
 }
 
-export const commandToItem = (c: Command): SlotItem => ({ id: c.id, label: c.label.replace(/^✓ /, ''), keys: c.keys, tip: c.tip, why: c.why, enabled: c.enabled, pressed: c.pressed, run: c.run });
+export const commandToItem = (c: Command): SlotItem => ({ id: c.id, label: c.label.replace(/^✓ /, ''), keys: c.keys, tip: c.tip, why: c.why, enabled: c.enabled, pressed: c.pressed, ...(c.icon ? { icon: c.icon } : {}), run: c.run });
 
 export function Ribbon(p: {
   commands: Command[]; activeTab: string; onTab(t: string): void; labels?: 'icons' | 'icons-and-text';

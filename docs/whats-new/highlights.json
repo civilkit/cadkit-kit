@@ -1,4 +1,31 @@
 {
+  "0.8.3": [
+    {
+      "id": "fillet-overhang",
+      "title": "Fillet and Chamfer round the corners of an overhang",
+      "blurb": "Where one block overhangs another, the four edges at the corner now get a rounded or mitred patch, for the two-lines pick, any subset and Select all connected, where the result used to be stepped or refused."
+    },
+    {
+      "id": "chain-run",
+      "title": "Tangent chain picks a whole run",
+      "blurb": "With Tangent chain on, picking one edge selects and lights its whole run as one item with its edge count, and clicking any edge of it removes the run."
+    },
+    {
+      "id": "selection-list",
+      "title": "One scrolling list for your selection",
+      "blurb": "The Selection tray and the editors' edge and corner fields share one list that scrolls in its own box, fills on hover and has Clear."
+    },
+    {
+      "id": "step-preview",
+      "title": "A large STEP file opens as a quick preview",
+      "blurb": "A STEP file of 8,000,000 characters or more opens as a mesh-only preview with an assembly tree and hide toggles, instead of waiting for the exact import."
+    },
+    {
+      "id": "plugin-zip",
+      "title": "Install a plugin from its own zip",
+      "blurb": "A SolidCraft plugin zip installs in the app, with a form built from its parameters, a live preview, picks from the viewport, a Plugins ribbon tab and a Cut list you can download."
+    }
+  ],
   "0.8.2": [
     {
       "id": "extrude-end-scale",
@@ -19,6 +46,11 @@
       "id": "alerts",
       "title": "Messages appear once, in one tidy stack",
       "blurb": "Messages stack at the bottom right, wrap long text with Show more and Copy, stay long enough to read and pause while you hover. The status bar shows an Alerts count; click it for the last 50."
+    },
+    {
+      "id": "split-face-step",
+      "title": "Moving one piece of a split face makes a step",
+      "blurb": "Split a face in two, pick one half and use Move Face: that half rises or sinks with a wall along the split line, and picking it no longer shows the size box that moves the whole extrude."
     }
   ],
   "0.8.1": [

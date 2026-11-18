@@ -16,6 +16,11 @@ describe('chipsOf', () => {
     expect(c.map((x) => x.label)).toEqual(['Face A+z', 'Edge 1', 'Corner 1,2,3', 'Body 2', 'Body 1']);
     expect(c.map((x) => x.kind)).toEqual(['face', 'edge', 'corner', 'body', 'body']);
   });
+  it('an edge-shaped name the model does not hold is an Edge, never a Face', () => {
+    const c = chipsOf(['F2.C1|F4.S.e4#30', 'F2.C1|F4.S.e3', 'edge#7', 'F2.C1'], model());
+    expect(c.map((x) => x.kind)).toEqual(['edge', 'edge', 'edge', 'face']);
+    expect(c.map((x) => x.label)).toEqual(['Edge F2.C1|F4.S.e4', 'Edge F2.C1|F4.S.e3', 'Edge 8', 'Face F2.C1']);
+  });
   it('a surface body is labelled as one', () => {
     const d = twoBoxes();
     const m = new SelModel({ ...d, surfaceOf: (n) => (n.startsWith('C') ? 'F2' : null) });
@@ -41,15 +46,21 @@ describe('SelectionList', () => {
   it('hovering a chip lights the item; leaving clears it', () => {
     const p = props();
     const { container } = render(<SelectionList selection={['A+z', 'A-z']} model={model()} {...p} />);
-    fireEvent.mouseEnter(container.querySelectorAll('.sel-chip')[1]);
+    fireEvent.mouseEnter(container.querySelectorAll('.chip')[1]);
     expect(p.onHover).toHaveBeenLastCalledWith('A-z');
-    fireEvent.mouseLeave(container.querySelector('.sel-chips')!);
+    fireEvent.mouseLeave(container.querySelector('.chips')!);
     expect(p.onHover).toHaveBeenLastCalledWith(null);
+  });
+  it('steps aside while an editor is picking into a field', () => {
+    const { container, rerender } = render(<SelectionList selection={['A+z']} model={model()} {...props()} />);
+    expect(container.querySelector('.sel-list')).toBeTruthy();
+    rerender(<SelectionList selection={['A+z']} model={model()} {...props()} hidden />);
+    expect(container.querySelector('.sel-list')).toBeNull();
   });
   it('the header folds the chips away', () => {
     const { container } = render(<SelectionList selection={['A+z']} model={model()} {...props()} />);
     fireEvent.click(container.querySelector('.sel-list-toggle')!);
-    expect(container.querySelector('.sel-chips')).toBeNull();
+    expect(container.querySelector('.chips')).toBeNull();
   });
 });
 
@@ -76,7 +87,7 @@ describe('SelectionList reveal', () => {
   it('a chip name is a button that shows the feature in the tree; chips without an owner stay plain', () => {
     const onReveal = vi.fn();
     const { container } = render(<SelectionList selection={['F62.S.e3', 'v:1,2,3']} model={model()} onRemove={vi.fn()} onClear={vi.fn()} onHover={vi.fn()} onReveal={onReveal} canReveal={(n) => n.startsWith('F')} />);
-    const btns = container.querySelectorAll<HTMLButtonElement>('.sel-chip-name');
+    const btns = container.querySelectorAll<HTMLButtonElement>('.chip-name');
     expect(btns.length).toBe(1);
     expect(btns[0].textContent).toBe('Face F62.S.e3');
     expect(btns[0].getAttribute('aria-label')).toBe('Show in tree: Face F62.S.e3');
@@ -85,7 +96,7 @@ describe('SelectionList reveal', () => {
   });
   it('without onReveal the chip is as before', () => {
     const { container } = render(<SelectionList selection={['F62.S.e3']} model={model()} onRemove={vi.fn()} onClear={vi.fn()} onHover={vi.fn()} />);
-    expect(container.querySelector('.sel-chip-name')).toBeNull();
+    expect(container.querySelector('.chip-name')).toBeNull();
   });
 });
 

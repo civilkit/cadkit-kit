@@ -6,9 +6,10 @@ import { densityOf, massText, massView } from '../inspect/mass';
 import { autoDims, type HoleInfo } from './geom';
 import { drawingQuery, holeInfos } from './kernel';
 import { addSection, standardViews } from './layout';
-import { SCALES, SHEET_NAMES, SHEET_SIZES, STD_NAMES, emptyDrawing, sheetSize, viewCentre, type DDim, type DrawingDoc, type TitleBlock, type V2, type ViewData } from './model';
+import { settleCallouts } from './placement';
+import { SCALES, SHEET_NAMES, dimText, SHEET_SIZES, STD_NAMES, emptyDrawing, sheetSize, viewCentre, type DDim, type DrawingDoc, type TitleBlock, type V2, type ViewData } from './model';
 import { toDxf, toPdf } from './output';
-import { renderSheet, toSvg, type Prim } from './render';
+import { dimMeasure, renderSheet, toSvg, type Prim } from './render';
 
 export interface HeadlessDrawingOptions {
   /** standard views: front (always first), top, right, left, bottom, back, iso. Default front, top, right, iso. */
@@ -30,6 +31,8 @@ export interface HeadlessDrawingOptions {
   tidy?: boolean;
   /** with tidy: plain diameter dimensions of circles up to this diameter in mm are left out (default 10). Hole callouts are always kept. */
   minDiameter?: number;
+  /** call out a sketch circle + cut as `Ø6 THRU` / `Ø6 ↧ 8` (default true; false: a plain diameter) */
+  sketchCuts?: boolean;
   title?: Partial<TitleBlock>;
 }
 
@@ -46,11 +49,11 @@ export interface HeadlessDrawing {
   warnings: string[];
 }
 
-/** Callout leaders away from the view's middle, no tiny diameters. */
+/** Callout leaders away from the view's middle, no tiny diameters (a sketch circle's `Ø6 THRU` is a diameter too; hole feature callouts are kept). */
 export function tidyDims(dims: DDim[], g: ViewData, minDiameter = 10): DDim[] {
   const [cx, cy] = viewCentre(g);
   return dims
-    .filter((d) => d.kind !== 'diameter' || (d.r ?? 0) * 2 > minDiameter)
+    .filter((d) => (d.kind !== 'diameter' && !(d.kind === 'callout' && !d.feature && d.text?.startsWith('<>'))) || (d.r ?? 0) * 2 > minDiameter)
     .map((d) => (d.kind === 'callout' ? { ...d, angle: Math.atan2(d.a[1] - cy, d.a[0] - cx), offset: 12 } : d));
 }
 
@@ -79,7 +82,7 @@ export async function drawHeadless(session: Session, o: HeadlessDrawingOptions =
   const data: Record<string, ViewData | undefined> = r.data;
   if (!doc.views.length || !data[doc.views[0].id]) throw new Error('drawing: the kernel returned no view geometry (does the document have a solid?)');
 
-  const holes: HoleInfo[] = holeInfos(part.features as never);
+  const holes: HoleInfo[] = holeInfos(part.features as never, undefined, { sketchCuts: o.sketchCuts });
   const flat = o.hidden === true;
   let dimCount = 0;
   if (o.dimensions !== false) {
@@ -101,11 +104,12 @@ export async function drawHeadless(session: Session, o: HeadlessDrawingOptions =
     if (sec) { doc = sec.doc; Object.assign(data, sec.data); sectioned = true; } else warnings.push('the section view could not be made (the cut missed the body or the kernel returned nothing)');
   }
   doc = { ...doc, views: doc.views.map((v) => ({ ...v, hidden: v.kind === 'section' ? false : flat, tangent: false })) };
-  if (holes.length === 0 && o.dimensions !== false) warnings.push('the part has no hole features, so there are no hole callouts: use holes.points / holes.polar / hole() instead of a sketch circle plus a cut if you want "M5 x 12 DEPTH" notes');
   const text = new Map(holes.map((h) => [h.feature, h.text]));
+  doc = settleCallouts(doc, data, (f) => text.get(f) ?? null);
+  if (!holes.some((h) => !h.plain) && o.dimensions !== false) warnings.push('the part has no hole features, so there are no hole callouts: use holes.points / holes.polar / hole() instead of a sketch circle plus a cut if you want "M5 x 12 DEPTH" notes');
   const prims = renderSheet({ doc, data, callout: (f) => text.get(f) ?? null });
   const size = sheetSize(doc.sheet);
-  const callouts = doc.dims.filter((d) => d.kind === 'callout').map((d) => (d.feature ? text.get(d.feature) ?? '' : '')).filter(Boolean);
+  const callouts = doc.dims.filter((d) => d.kind === 'callout').map((d) => (d.feature ? text.get(d.feature) ?? '' : dimText(dimMeasure(d, doc), d.text))).filter(Boolean);
   return {
     doc, data, prims, size, svg: toSvg(prims, size), pdf: () => toPdf(prims, size), dxf: () => toDxf(prims, size), warnings,
     summary: { sheet: `${doc.sheet.size} ${doc.sheet.orientation}`, scale: doc.sheet.scale, views: doc.views.map((v) => v.label), dimensions: dimCount, callouts, section: sectioned },

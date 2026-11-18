@@ -39,8 +39,8 @@ onmessage = async (e) => {
       if (!c) { const key = Object.keys(m.cores).find((k) => k === path || k.endsWith('/' + path)); if (!key) return Promise.reject(new Error('core module ' + path + ' is not in the package')); compiled.set(path, (c = WebAssembly.compile(m.cores[key]))); }
       return c;
     } };
-    const { result, stats } = await runPlugin(loaded, m.entry, m.params, handler, { allow: new Set(m.allow), maxCommands: m.maxCommands, deadlineMs: m.deadlineMs });
-    postMessage({ type: 'done', ok: true, result, stats: { commands: stats.commands, instances: stats.instances, totalMs: stats.totalMs, log: stats.log } });
+    const { result, stats, files } = await runPlugin(loaded, m.entry, m.params, handler, { allow: new Set(m.allow), maxCommands: m.maxCommands, deadlineMs: m.deadlineMs, files: m.files });
+    postMessage({ type: 'done', ok: true, result, files, stats: { commands: stats.commands, instances: stats.instances, totalMs: stats.totalMs, log: stats.log } });
   } catch (err) { postMessage({ type: 'done', ok: false, error: String(err && err.message || err) }); }
 };
 `;
@@ -65,13 +65,33 @@ parent.postMessage({ type: 'ready' }, '*');
 export const relayScript = (): string => RELAY.replace(/<\/script/g, '<\\/script');
 export const frameHtml = (): string => `<!doctype html><meta http-equiv="Content-Security-Policy" content="${SANDBOX_CSP}"><script>${relayScript()}</script>`;
 
+/** A file the plugin saved: the app offers it as a download. The page checks the grant, the name and the size itself (the Worker is not trusted). */
+export interface SavedFile { grant: string; name: string; data: Uint8Array }
+export const MAX_SAVED_FILE = 4 * 1024 * 1024, MAX_SAVED_TOTAL = 16 * 1024 * 1024;
+/** A plain file name: no folders, no dots at the start, letters digits and a few marks. */
+export const savedName = (s: unknown): string | null => (typeof s === 'string' && /^[A-Za-z0-9][A-Za-z0-9 ._()+-]{0,119}$/.test(s) && !s.includes('..') ? s : null);
+export function checkSaved(raw: unknown, grants: ReadonlySet<string>): SavedFile[] | string {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw) || raw.length > 16) return 'the plugin saved too many files (at most 16)';
+  const out: SavedFile[] = []; let total = 0;
+  for (const f of raw as Array<{ grant?: unknown; path?: unknown; data?: unknown }>) {
+    if (typeof f?.grant !== 'string' || !grants.has(f.grant)) return `the plugin saved a file to "${String(f?.grant)}", which its manifest does not ask for`;
+    const name = savedName(f.path);
+    if (!name) return `the plugin saved a file named "${String(f.path).slice(0, 60)}": a file name has no folders and only letters, digits and . _ - ( ) +`;
+    if (!(f.data instanceof Uint8Array)) return 'the plugin saved a file without data';
+    total += f.data.length;
+    if (f.data.length > MAX_SAVED_FILE || total > MAX_SAVED_TOTAL) return `the plugin saved more than ${MAX_SAVED_TOTAL / 1048576} MiB`;
+    out.push({ grant: f.grant, name, data: new Uint8Array(f.data) });
+  }
+  return out;
+}
 export interface SandboxOpts { deadlineMs?: number; maxCommands?: number }
 export type Handler = (command: string, args: unknown) => Promise<unknown>;
 
 const b64 = (s: string): string => { const bytes = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(bin); };
 
 /** Runs one entry of an installed wasm plugin in a fresh sandbox. Resolves to the entry's result; rejects on a plugin error, a limit or the deadline. */
-export function runSandboxed(p: InstalledPlugin, entry: string, params: unknown, handler: Handler, o: SandboxOpts = {}, doc: Document = document): Promise<{ result: unknown; stats: { commands: number; instances: number; totalMs: number; log: string[] } }> {
+export function runSandboxed(p: InstalledPlugin, entry: string, params: unknown, handler: Handler, o: SandboxOpts = {}, doc: Document = document): Promise<{ result: unknown; files: SavedFile[]; stats: { commands: number; instances: number; totalMs: number; log: string[] } }> {
   const w = p.manifest.wasm!;
   const deadline = o.deadlineMs ?? w.limits?.deadlineMs ?? 30000;
   return new Promise((ok, fail) => {
@@ -92,14 +112,15 @@ export function runSandboxed(p: InstalledPlugin, entry: string, params: unknown,
       if (m.type === 'ready') {
         const cores: Record<string, Uint8Array> = {};
         for (const c of w.cores) { const bytes = p.binaries?.[c]; if (!bytes) { end(() => fail(new Error(`core module ${c} is missing`))); return; } cores[c] = bytes.slice(); }
-        post({ type: 'start', source: workerSource(), job: { type: 'job', jsBase64: b64(p.files[w.js]), cores, entry, params, allow: w.commands, maxCommands: o.maxCommands ?? w.limits?.maxCommands ?? 256, deadlineMs: deadline }, transfer: Object.values(cores).map((c) => c.buffer) }, []);
+        post({ type: 'start', source: workerSource(), job: { type: 'job', jsBase64: b64(p.files[w.js]), cores, entry, params, allow: w.commands, files: Object.fromEntries((w.files ?? []).filter((f) => f.write).map((f) => [f.name, true])), maxCommands: o.maxCommands ?? w.limits?.maxCommands ?? 256, deadlineMs: deadline }, transfer: Object.values(cores).map((c) => c.buffer) }, []);
       } else if (m.type === 'cmd' && typeof m.id === 'number' && typeof m.command === 'string') {
         // the Worker is not trusted, so its own allow-list check counts for nothing: the page enforces the manifest's list and the command limit itself
         if (!w.commands.includes(m.command)) { post({ type: 'reply', id: m.id, ok: false, error: `${m.command} is not in the manifest's commands` }); return; }
         if (++asked > cap + 1) { end(() => fail(new Error(`limit-exceeded: more than ${cap} commands in one run`))); return; }
         handler(m.command, m.args).then((value) => post({ type: 'reply', id: m.id, ok: true, value }), (err) => post({ type: 'reply', id: m.id, ok: false, error: err instanceof Error ? err.message : String(err) }));
       } else if (m.type === 'done') {
-        end(() => (m.ok ? ok({ result: m.result, stats: m.stats as never }) : fail(new Error(m.error ?? 'the plugin failed'))));
+        const saved = m.ok ? checkSaved((m as { files?: unknown }).files, new Set((w.files ?? []).filter((f) => f.write).map((f) => f.name))) : [];
+        end(() => (!m.ok ? fail(new Error(m.error ?? 'the plugin failed')) : typeof saved === 'string' ? fail(new Error(saved)) : ok({ result: m.result, files: saved, stats: m.stats as never })));
       }
     };
     window.addEventListener('message', onMsg);

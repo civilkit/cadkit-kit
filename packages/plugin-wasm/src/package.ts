@@ -1,9 +1,10 @@
 // Generators of an installed wasm plugin. Each generator runs one entry of the component through the replay host and returns the
 // recorded command list as a script (the app's own dialect); from there it is an ordinary attach-mode run like every other plugin.
-import type { GenerateFn, InstalledPlugin } from '@kit/plugin';
+import type { GenerateContext, GenerateFn, InstalledPlugin, ReadFn } from '@kit/plugin';
 import { runPlugin, type Loaded } from './host';
 import { Interpreter, type Scratch } from './interpreter';
 import { friendlyPluginError } from './errors';
+import { checkSaved } from './sandbox';
 
 /** How a package's compiled files become a component: tests load from disk, the app from a blob URL in the sandboxed Worker. */
 export interface ComponentLoader { load(p: InstalledPlugin): Promise<Loaded> }
@@ -50,16 +51,54 @@ export function wasmGenerators(p: InstalledPlugin, deps: WasmDeps = {}): Record<
   let loaded: Promise<Loaded> | undefined;
   const allow = new Set(w.commands);
   return Object.fromEntries(p.manifest.contributes.generators.map((g) => [g.id, async (values, ctx) => {
+    if (g.effect === 'read') throw new Error('this entry only reads the model: run it from its form');
     if (!deps.runner) loaded ??= loader.load(p);
     const scratch: Scratch = ctx.scratch ?? deps.scratch?.() ?? { async build() { throw new Error('this plugin asked to measure the model, which needs the scratch build'); } };
     const { place_x = 0, place_y = 0, place_z = 0, ...own } = values as Record<string, unknown>;   // Position is the app's, not the plugin's
+    // a generator with a Name (a prefix for its bodies) gets the next free one, as a script generator's uniqueName does: "Cabinet", then "Cabinet 2" ... A name is taken when a feature of the document
+    // (ctx.used: the folder being edited is not in it) is the name itself or starts with it and a space (its bodies: "Cabinet Side L").
+    if (typeof own.name === 'string' && own.name.trim()) {
+      const base = own.name.trim(), taken = (n: string) => ctx.used.some((u) => u === n || u.startsWith(`${n} `));
+      let n = base; for (let k = 2; taken(n); k++) n = `${base} ${k}`;
+      own.name = n;
+    }
     const I = new Interpreter(scratch, { ...(ctx.up ? { up: ctx.up } : {}), ...(ctx.doc ? { doc: { ...ctx.doc, bodies: [...ctx.doc.bodies], selection: [...ctx.doc.selection], ...(ctx.up ? { up: ctx.up } : {}) } } : {}) });
     const limits = { deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256 };
     try {
     if (deps.runner) await deps.runner(p, g.entry!, own, (c, a) => I.run(c, a), limits);
     else await runPlugin(await loaded!, g.entry!, own, (c, a) => I.run(c, a), { allow, deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256, sync: (c, a) => I.runSync(c, a) });
     } catch (e) { throw new Error(friendlyPluginError((e as Error).message)); }
-    if (!I.order.length) throw new Error('the plugin made no geometry');
+    if (!I.order.length && !I.assigned.size) throw new Error('the plugin made no geometry');   // Material only gives bodies a board material
+    const stored = I.componentMetadata();
+    if (Object.keys(stored).length) ctx.remember?.({ components: stored });
     return I.script({ part: g.title, ...(ctx.up ? { up: ctx.up } : {}), offset: [Number(place_x), Number(place_y), Number(place_z)], ...(deps.look ? { look: deps.look } : {}) });
+  }]));
+}
+
+/** The read entries of an installed wasm plugin (`effect: read`): each runs read-only against the open document (its bodies and selection come from `ctx.doc`) and gives back
+ *  the entry's result plus the files it saved, already checked against the manifest's grants. Nothing is added to the document. */
+export function wasmReaders(p: InstalledPlugin, deps: WasmDeps = {}): Record<string, ReadFn> {
+  const w = p.manifest.wasm!;
+  const loader = deps.loader ?? dataUrlLoader;
+  let loaded: Promise<Loaded> | undefined;
+  const allow = new Set(w.commands);
+  const grants = new Set((w.files ?? []).filter((f) => f.write).map((f) => f.name));
+  const files = Object.fromEntries([...grants].map((n) => [n, true]));
+  return Object.fromEntries(p.manifest.contributes.generators.filter((g) => g.effect === 'read').map((g) => [g.id, async (values: Record<string, unknown>, ctx: GenerateContext) => {
+    if (!deps.runner) loaded ??= loader.load(p);
+    const scratch: Scratch = ctx.scratch ?? deps.scratch?.() ?? { async build() { throw new Error('this plugin asked to measure the model, which needs the scratch build'); } };
+    const I = new Interpreter(scratch, { readEntry: true, ...(ctx.up ? { up: ctx.up } : {}), ...(ctx.doc ? { doc: { ...ctx.doc, bodies: [...ctx.doc.bodies], selection: [...ctx.doc.selection], ...(ctx.up ? { up: ctx.up } : {}) } } : {}) });
+    const limits = { deadlineMs: w.limits?.deadlineMs ?? 30000, maxCommands: w.limits?.maxCommands ?? 256 };
+    let out: { result?: unknown; files?: unknown } | undefined;
+    try {
+      out = (deps.runner
+        ? await deps.runner(p, g.entry!, values, (c, a) => I.run(c, a), limits)
+        : await runPlugin(await loaded!, g.entry!, values, (c, a) => I.run(c, a), { allow, files, ...limits, sync: (c, a) => I.runSync(c, a) })) as { result?: unknown; files?: unknown };
+    } catch (e) { throw new Error(friendlyPluginError((e as Error).message)); }
+    // the Node path hands back {grant, path, data}; the sandbox has checked and renamed them already
+    const raw = Array.isArray(out?.files) ? (out!.files as Array<{ grant?: unknown; path?: unknown; name?: unknown; data?: unknown }>).map((f) => ({ grant: f.grant, path: f.path ?? f.name, data: f.data })) : [];
+    const saved = checkSaved(raw, grants);
+    if (typeof saved === 'string') throw new Error(saved);
+    return { result: out?.result, files: saved };
   }]));
 }

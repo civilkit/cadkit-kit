@@ -8,7 +8,7 @@
 // piece and a stub at the end of the round, is the one edge it was before), an edge between faces the feature made itself is dropped,
 // and the tangent chain is followed on that body: adding edges later gives what picking them all at once gives.
 import { pickValue, type ViewEdge } from './featureCommands';
-import { nearestEdge, refEdgeKey, rememberRoundPick, roundPickOf } from './roundChain';
+import { chainSelection, nearestEdge, refEdgeKey, rememberRoundPick, roundPickOf } from './roundChain';
 
 const sameRef = (a: unknown, b: unknown): boolean => {
   if (typeof a === 'string' || typeof b === 'string') return a === b;
@@ -74,7 +74,9 @@ export function listPick(path: string, current: unknown, selection: string[], na
     const same = sameOn(ref);
     rememberRoundPick(removed ? seeds.filter((x) => !seedHit.some((s) => same(s, x))) : toggleRefs(seeds, seedHit, true, ref).value, value);
   }
-  const sel = removed ? selection.filter((n) => !names.includes(n)) : [...new Set([...selection, ...names])];
+  // with the chain on, the whole run is selected (lit) as soon as one of its edges is picked, and one edge of it clicked again takes all of it out
+  const lit = chain && path === 'edges' ? chainSelection(names, edges).keys : names;
+  const sel = removed ? selection.filter((n) => !lit.includes(n)) : [...new Set([...selection, ...lit])];
   return { value, selection: sel };
 }
 

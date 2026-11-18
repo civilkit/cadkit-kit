@@ -1406,7 +1406,7 @@ export class Viewport {
       const anyHidden = hid.faces.size > 0 || this.hiddenIds.size > 0;
       this.box = (anyHidden && positionsBox(merged.mesh.positions)) || mergedBox(body.box, body.mesh.triFace.length > 0, body.surfaces ?? []);
     }
-    if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds); this.dirty = true; return; }
+    if (merged.mesh.triFace.length === 0) { this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid); this.dirty = true; return; }
     const g = groupByFace(merged.mesh, tb.keys.length ? (n) => tb.rank.get(n) ?? 0 : undefined);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(g.positions, 3));
@@ -1457,7 +1457,7 @@ export class Viewport {
     this.edges = merged.edges;
     this.combLines = [...merged.edges.map((e) => e.pts), ...(body.sketches?.length ? sketchPolylines(shown(body.sketches) as never).flatMap((x) => x.polylines) : [])];
     this.buildIssueMeshes();
-    this.setFeatureHover(this.featureHoverIds);
+    this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid);
     this.applyMeshLook();
     this.applySection();
     // the camera is framed once per document (load, new part, first body); edits, drags, previews and undo keep the user's view
@@ -1781,7 +1781,7 @@ export class Viewport {
       this.keepView = true;
       try { this.setBody(this.lastBody); } finally { this.keepView = false; }
       this.setHighlight(names);
-      this.setFeatureHover(this.featureHoverIds);   // a hidden body loses its tint
+      this.setFeatureHover(this.featureHoverIds, this.featureHoverSolid);   // a hidden body loses its tint
     }
   }
 
@@ -1990,6 +1990,7 @@ export class Viewport {
   /** Which feature (or component) owns a face / edge name; the default reads the id before the first dot. The app swaps it in assemblies. */
   setOwnerFn(fn: ((name: string) => string | null) | null): void { this.ownerFn = fn ?? nameOwner; }
   private featureHoverIds: string[] = [];
+  private featureHoverSolid = false;
   private featureHoverObjs: THREE.Object3D[] = [];
   private lastScale = 25;
   private dropFeatureHover(): void {
@@ -1998,8 +1999,9 @@ export class Viewport {
   }
   /** Soft tint on everything the features with these ids made: their faces and edges (names that start with the id), their
    *  sketch curves, curves and plane. A different, quieter colour than a hovered or selected face. Empty list clears it. */
-  setFeatureHover(ids: string[]): void {
+  setFeatureHover(ids: string[], solidOnly = false): void {
     this.featureHoverIds = [...ids];
+    this.featureHoverSolid = solidOnly;
     this.dropFeatureHover();
     this.dirty = true;
     if (!ids.length) return;
@@ -2012,7 +2014,7 @@ export class Viewport {
         geo.setAttribute('position', new THREE.Float32BufferAttribute(g.positions, 3));
         geo.setAttribute('normal', new THREE.Float32BufferAttribute(g.normals, 3));
         const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-          color: FEATURE_HOVER, emissive: FEATURE_HOVER, emissiveIntensity: 0.3, transparent: true, opacity: 0.5,
+          color: FEATURE_HOVER, emissive: FEATURE_HOVER, emissiveIntensity: solidOnly ? 0.55 : 0.3, transparent: true, opacity: solidOnly ? 0.8 : 0.5,
           polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide, depthWrite: false,
         }));
         m.userData.pickable = false;
@@ -2023,7 +2025,7 @@ export class Viewport {
     }
     const polys: Polyline[] = this.edges.filter((e) => e.key && want.has(this.ownerFn(e.key) ?? '') && !this.hiddenIds.has(this.ownerFn(e.key) ?? '')).map((e) => e.pts as never);
     const b = this.lastBody;
-    if (b) {
+    if (b && !solidOnly) {
       polys.push(...sketchPolylines((b.sketches ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never).flatMap((x) => x.polylines));
       polys.push(...curvePolylines((b.curves ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never).flatMap((x) => x.polylines));
       polys.push(...planeOutlines((b.planes ?? []).filter((x) => want.has(x.id) && !this.hiddenIds.has(x.id)) as never, this.lastScale).map((q) => q.quad as never));

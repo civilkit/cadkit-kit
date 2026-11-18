@@ -541,6 +541,7 @@ function TangentChain(p: { eff: Wire; change: Change; actions?: ThinActions }): 
   const [on, setOn] = useState(tangentChainOn());
   const pick = roundPickOf(p.eff.edges);
   const added = pick && Array.isArray(p.eff.edges) ? Math.max(0, p.eff.edges.length - pick.seeds.length) : 0;
+  const total = Array.isArray(p.eff.edges) ? p.eff.edges.length : 0;
   const toggle = (v: boolean) => {
     setTangentChain(v); setOn(v);
     if (pick) { p.change({ edges: v ? pick.all : pick.seeds }); return; }
@@ -556,6 +557,7 @@ function TangentChain(p: { eff: Wire; change: Change; actions?: ThinActions }): 
   return (
     <>
       <Check name="tangentChain" label={t('opt.round.chain')} value={on} onChange={toggle} />
+      {total > 0 ? <div class="fedit-note" data-path="roundTotal">{total === 1 ? t('opt.round.total.one') : t('opt.round.total', { n: String(total) })}</div> : null}
       {added > 0 ? <div class="fedit-note" data-path="tangentChainNote">{t('opt.round.chain.added', { n: String(added) })}</div> : null}
     </>
   );
